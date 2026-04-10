@@ -411,7 +411,7 @@ describe('LanguageMetadataWorkspacePage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '新增名称行' }));
 
-    const matrixRows = Array.from(view.container.querySelectorAll('.language-metadata-workspace-matrix-row'));
+    const matrixRows = Array.from(view.container.querySelectorAll('.lm-matrix-row'));
     const newRow = matrixRows[matrixRows.length - 1] as HTMLElement;
     const newRowQueries = within(newRow);
 
@@ -445,7 +445,7 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.change(englishNameInput, { target: { value: 'Unsaved Override' } });
     expect(englishNameInput.value).toBe('Unsaved Override');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识筛选' }), { target: { value: '示例' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识定位' }), { target: { value: '示例' } });
 
     await waitFor(() => {
       expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({

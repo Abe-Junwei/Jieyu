@@ -1,45 +1,39 @@
-import type { AnchorHTMLAttributes } from 'react';
-import { Link, useInRouterContext, useLocation, type LinkProps, type Location } from 'react-router-dom';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
+import { useAssetPanel } from '../contexts/AssetPanelContext';
 
-type LanguageAssetRouteLinkProps = Omit<LinkProps, 'state'> & {
-  state?: LinkProps['state'];
-};
-
-export function LanguageAssetRouteLink({
-  state,
-  ...linkProps
-}: LanguageAssetRouteLinkProps) {
-  const inRouterContext = useInRouterContext();
-
-  if (!inRouterContext) {
-    const href = typeof linkProps.to === 'string' ? linkProps.to : '#';
-    const {
-      to: _to,
-      replace: _replace,
-      reloadDocument: _reloadDocument,
-      preventScrollReset: _preventScrollReset,
-      relative: _relative,
-      viewTransition: _viewTransition,
-      discover: _discover,
-      prefetch: _prefetch,
-      ...anchorProps
-    } = linkProps as LanguageAssetRouteLinkProps & Record<string, unknown>;
-
-    return <a {...(anchorProps as AnchorHTMLAttributes<HTMLAnchorElement>)} href={href} />;
-  }
-
-  return <LanguageAssetRouteRouterLink {...linkProps} state={state} />;
+interface LanguageAssetRouteLinkProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> {
+  /** 目标面板路径 | Target panel path, e.g. '/assets/language-metadata' */
+  to: string;
+  children?: ReactNode;
 }
 
-function LanguageAssetRouteRouterLink({
-  state,
-  ...linkProps
+export function LanguageAssetRouteLink({
+  to,
+  children,
+  onClick,
+  ...buttonProps
 }: LanguageAssetRouteLinkProps) {
-  const location = useLocation();
-  const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation ?? location;
-  const nextState = state && typeof state === 'object'
-    ? { ...(state as Record<string, unknown>), backgroundLocation }
-    : { backgroundLocation };
+  const ctx = useAssetPanel();
 
-  return <Link {...linkProps} state={nextState} />;
+  if (!ctx) {
+    // 不在 AssetPanelProvider 内时降级为普通链接 | Fallback to anchor outside provider
+    const { ...rest } = buttonProps as unknown as AnchorHTMLAttributes<HTMLAnchorElement>;
+    return <a {...rest} href={to} onClick={onClick as AnchorHTMLAttributes<HTMLAnchorElement>['onClick']}>{children}</a>;
+  }
+
+  return (
+    <button
+      {...buttonProps}
+      type="button"
+      onClick={(e) => {
+        onClick?.(e);
+        if (e.defaultPrevented) {
+          return;
+        }
+        ctx.openPanel(to);
+      }}
+    >
+      {children}
+    </button>
+  );
 }

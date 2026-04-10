@@ -5,7 +5,6 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type UIEvent as ReactUIEvent,
-  type WheelEvent as ReactWheelEvent,
 } from 'react';
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useLatest } from '../hooks/useLatest';
@@ -42,7 +41,7 @@ function readDefaultPlaybackRate(): number {
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
-  const { setZoomPercent, setAmplitudeScale } = input;
+  const { setZoomPercent, setZoomMode, setAmplitudeScale } = input;
   useEnsureVadCache(input.mediaId, input.selectedMediaUrl);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
@@ -279,11 +278,12 @@ export function useTranscriptionWaveformBridgeController(
     setHoverTime(null);
   }, []);
 
-  const handleWaveformAreaWheel = (event: ReactWheelEvent<HTMLDivElement>): void => {
+  const handleWaveformAreaWheel = (event: WheelEvent): void => {
     if (event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
       const delta = event.deltaY > 0 ? -10 : 10;
+      setZoomMode('custom');
       setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
       return;
     }
@@ -317,14 +317,19 @@ export function useTranscriptionWaveformBridgeController(
 
   const isPlayingRef = useLatest(player.isPlaying);
   useEffect(() => {
-    if (!input.selectedTimelineUnitForTime || !player.isReady) return;
+    const selectedRange = input.selectedTimelineUnitForTime;
+    if (!selectedRange || !player.isReady) return;
     if (skipSeekForIdRef.current) {
       skipSeekForIdRef.current = null;
       return;
     }
     if (isPlayingRef.current) return;
-    player.seekTo(input.selectedTimelineUnitForTime.startTime);
-  }, [input.selectedTimelineUnitForTime, player.isReady, player.seekTo]);
+    if (input.zoomMode === 'fit-selection') {
+      zoomToUtterance(selectedRange.startTime, selectedRange.endTime);
+      return;
+    }
+    player.seekTo(selectedRange.startTime);
+  }, [input.selectedTimelineUnitForTime, input.zoomMode, player.isReady, player.seekTo, zoomToUtterance]);
 
   const resolveSelectedPlaybackRange = () => {
     if (!selectedWaveformTimelineItem) return null;

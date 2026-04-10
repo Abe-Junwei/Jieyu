@@ -8,7 +8,7 @@
  * Extracted from TranscriptionPage.Orchestrator.tsx.
  */
 
-import React, { type MutableRefObject, type RefObject } from 'react';
+import React, { useEffect, type MutableRefObject, type RefObject } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
@@ -94,7 +94,7 @@ export interface OrchestratorWaveformContentProps {
   handleWaveformAreaBlur: React.FocusEventHandler<HTMLDivElement>;
   handleWaveformAreaMouseMove: React.MouseEventHandler<HTMLDivElement>;
   handleWaveformAreaMouseLeave: React.MouseEventHandler<HTMLDivElement>;
-  handleWaveformAreaWheel: React.WheelEventHandler<HTMLDivElement>;
+  handleWaveformAreaWheel: (event: WheelEvent) => void;
 
   // Hover tooltip
   hoverTime: { time: number; x: number; y: number } | null;
@@ -350,6 +350,15 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     );
   };
 
+  // Attach wheel handler natively with { passive: false } so preventDefault() works.
+  // React 18 registers wheel as a passive listener, causing errors on preventDefault().
+  useEffect(() => {
+    const el = waveformAreaRef.current;
+    if (!el) return;
+    el.addEventListener('wheel', handleWaveformAreaWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWaveformAreaWheel);
+  }, [waveformAreaRef, handleWaveformAreaWheel]);
+
   return (
     <>
       <WaveformAreaSection
@@ -362,7 +371,6 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
         onBlur={handleWaveformAreaBlur}
         onMouseMove={handleWaveformAreaMouseMove}
         onMouseLeave={handleWaveformAreaMouseLeave}
-        onWheel={handleWaveformAreaWheel}
       >
         {hoverTime && (
           <WaveformHoverTooltip

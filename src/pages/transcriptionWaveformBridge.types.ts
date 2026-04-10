@@ -4,7 +4,6 @@ import type {
   MutableRefObject,
   SetStateAction,
   UIEvent as ReactUIEvent,
-  WheelEvent as ReactWheelEvent,
 } from 'react';
 import type { SubSelectDrag } from '../hooks/useLasso';
 import type { useWaveSurfer } from '../hooks/useWaveSurfer';
@@ -159,7 +158,7 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   handleWaveformAreaBlur: () => void;
   handleWaveformAreaMouseMove: (event: ReactMouseEvent<HTMLDivElement>) => void;
   handleWaveformAreaMouseLeave: () => void;
-  handleWaveformAreaWheel: (event: ReactWheelEvent<HTMLDivElement>) => void;
+  handleWaveformAreaWheel: (event: WheelEvent) => void;
   waveformScrollLeft: number;
   handleTimelineScroll: (event: ReactUIEvent<HTMLDivElement>) => void;
   waveformNoteIndicators: WaveformNoteIndicator[];

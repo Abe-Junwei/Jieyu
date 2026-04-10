@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
-import SpectrogramPlugin from 'wavesurfer.js/dist/plugins/spectrogram.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
 import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { getWaveformVisualStylePreset, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -160,12 +159,20 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       return;
     }
 
+    // 异步初始化：按需加载频谱图插件以避免 worker_threads 浏览器警告
+    // Async init: lazy-load spectrogram plugin to avoid worker_threads browser warning
+    void (async () => {
+
     const plugin = RegionsPlugin.create();
     regionsRef.current = plugin;
-    const plugins: Array<ReturnType<typeof RegionsPlugin.create> | ReturnType<typeof SpectrogramPlugin.create>> = [plugin];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const plugins: any[] = [plugin];
 
-    let spectrogramPlugin: ReturnType<typeof SpectrogramPlugin.create> | null = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let spectrogramPlugin: any = null;
     if (showSpectrogram && spectrogramContainer) {
+      const { default: SpectrogramPlugin } = await import('wavesurfer.js/dist/plugins/spectrogram.esm.js');
+      if (disposed) return;
       spectrogramPlugin = SpectrogramPlugin.create({
         container: spectrogramContainer,
         height: effectiveSpectrogramHeight,
@@ -176,7 +183,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         rangeDB: 78,
         colorMap: 'roseus',
         maxCanvasWidth: 16000,
-        useWebWorker: true,
+        useWebWorker: false,
       });
       plugins.push(spectrogramPlugin);
     }
@@ -217,7 +224,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     // beyond the viewport.  Override to `overflow:visible` so canvases are only
     // clipped by the outer spectrogramContainer and translateX works correctly.
     if (spectrogramPlugin && spectrogramContainer) {
-      const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
+      const specWrapper = spectrogramPlugin.wrapper;
       if (specWrapper instanceof HTMLElement) {
         spectrogramContainer.appendChild(specWrapper);
         specWrapper.style.overflow = 'visible';
@@ -326,9 +333,15 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       setIsPlaying(false);
     });
 
+    })(); // end async IIFE
+
     return () => {
       disposed = true;
-      ws.destroy();
+      // 重置状态避免 StrictMode 二次挂载时 stale isReady 触发 zoom 等副作用
+      // Reset state to prevent stale isReady triggering zoom etc. in StrictMode re-mount
+      setIsReady(false);
+      setLoadError(null);
+      instanceRef.current?.destroy();
       instanceRef.current = null;
       regionsRef.current = null;
       regionHandlesRef.current = new Map();
@@ -728,13 +741,16 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   // 缩放级别变化时动态 zoom | Dynamically zoom waveform when zoom level changes
   useEffect(() => {
-    if (!isReady || !options.zoomLevel) return;
+    const ws = instanceRef.current;
+    if (!isReady || !options.zoomLevel || !ws) return;
+    // 仅在已有解码数据时才 zoom，避免 "No audio loaded" 错误
+    // Only zoom when decoded data exists to avoid "No audio loaded" error
+    if (!ws.getDecodedData()) return;
     try {
-      instanceRef.current?.zoom(options.zoomLevel);
-    } catch (err) {
+      ws.zoom(options.zoomLevel);
+    } catch {
       // WaveSurfer throws "No audio loaded" for video/streaming media where
       // decodedData is null even after the ready event. Safe to ignore.
-      console.error('[Jieyu] useWaveSurfer: zoom failed', err);
     }
   }, [isReady, options.zoomLevel]);
 

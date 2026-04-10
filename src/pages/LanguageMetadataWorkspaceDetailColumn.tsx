@@ -1,5 +1,4 @@
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelSummary } from '../components/ui/PanelSummary';
 import { PanelFeedback } from '../components/ui/PanelFeedback';
 import { t, tf } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
@@ -103,88 +102,94 @@ export function LanguageMetadataWorkspaceDetailColumn({
   const summaryCode = draft.languageCode.trim() || draft.iso6393.trim() || selectedEntry?.languageCode || t(locale, 'workspace.languageMetadata.notSet');
   const summaryCanonicalTag = draft.canonicalTag.trim() || selectedEntry?.canonicalTag || t(locale, 'workspace.languageMetadata.notSet');
   const summaryId = selectedEntry?.id || draft.idInput.trim() || t(locale, 'workspace.languageMetadata.notSet');
+  const summaryDescription = summaryEnglish !== summaryName
+    ? summaryEnglish
+    : t(locale, 'workspace.languageMetadata.detailDescription');
+  const summaryClassification = classificationPathPreview || t(locale, 'workspace.languageMetadata.notSet');
+
   return (
-    <div className="language-metadata-workspace-detail-column">
-      <PanelSummary
-        className="language-metadata-workspace-summary-card"
-        title={t(locale, 'workspace.languageMetadata.detailTitle')}
-        description={selectedEntry?.localName ?? t(locale, 'workspace.languageMetadata.createCustom')}
-        meta={(
-          <span className="language-metadata-workspace-summary-meta-row">
-            <span className="language-metadata-workspace-chip language-metadata-workspace-chip-subtle">{entryKindLabel}</span>
-            <span className="language-metadata-workspace-chip">{visibilityLabel}</span>
-          </span>
-        )}
-        supportingText={selectedEntry?.englishName ?? t(locale, 'workspace.languageMetadata.detailDescription')}
-      />
+    <div className="lm-detail-column">
+      <section className="ws-summary-card lm-summary" aria-labelledby="lm-workspace-title">
+        <div className="ws-summary-header">
+          <div className="ws-summary-copy">
+            <span className="ws-kicker">{t(locale, 'workspace.languageMetadata.title')}</span>
+            <h2 id="lm-workspace-title" className="ws-summary-title">{summaryName}</h2>
+            <p className="ws-summary-description">{summaryDescription}</p>
+          </div>
+          <div className="lm-summary-meta-row">
+            <span className="lm-chip lm-chip-subtle">{entryKindLabel}</span>
+            <span className="lm-chip">{visibilityLabel}</span>
+          </div>
+        </div>
 
-      <div className="language-metadata-workspace-insights" aria-label={t(locale, 'workspace.languageMetadata.detailTitle')}>
-        <article className="language-metadata-workspace-insight-card">
-          <span className="language-metadata-workspace-insight-label">{t(locale, 'workspace.languageMetadata.localNameLabel')}</span>
-          <strong className="language-metadata-workspace-insight-value">{summaryName}</strong>
-          <span className="language-metadata-workspace-insight-note">{summaryEnglish}</span>
-        </article>
-        <article className="language-metadata-workspace-insight-card">
-          <span className="language-metadata-workspace-insight-label">{t(locale, 'workspace.languageMetadata.languageCodeLabel')}</span>
-          <strong className="language-metadata-workspace-insight-value">{summaryCode}</strong>
-          <span className="language-metadata-workspace-insight-note">{t(locale, 'workspace.languageMetadata.canonicalTagLabel')} · {summaryCanonicalTag}</span>
-        </article>
-        <article className="language-metadata-workspace-insight-card">
-          <span className="language-metadata-workspace-insight-label">{t(locale, 'workspace.languageMetadata.idLabel')}</span>
-          <strong className="language-metadata-workspace-insight-value">{summaryId}</strong>
-          <span className="language-metadata-workspace-insight-note">{entryKindLabel} · {visibilityLabel}</span>
-        </article>
-      </div>
+        <div className="ws-summary-facts" aria-label={t(locale, 'workspace.languageMetadata.detailTitle')}>
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.languageMetadata.languageCodeLabel')}</span>
+            <strong className="ws-summary-fact-value">{summaryCode}</strong>
+            <span className="ws-summary-fact-note">{t(locale, 'workspace.languageMetadata.canonicalTagLabel')} · {summaryCanonicalTag}</span>
+          </article>
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.languageMetadata.idLabel')}</span>
+            <strong className="ws-summary-fact-value">{summaryId}</strong>
+            <span className="ws-summary-fact-note">{entryKindLabel} · {visibilityLabel}</span>
+          </article>
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.languageMetadata.sectionClassification')}</span>
+            <strong className="ws-summary-fact-value">{summaryClassification}</strong>
+            <span className="ws-summary-fact-note">{t(locale, 'workspace.languageMetadata.sectionClassificationDescription')}</span>
+          </article>
+        </div>
+      </section>
 
-      <PanelSection className="language-metadata-workspace-detail-panel" title={t(locale, 'workspace.languageMetadata.editTitle')} description={t(locale, 'workspace.languageMetadata.editDescription')}>
-        <div className="language-metadata-workspace-form-stack">
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionIdentity')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionIdentityDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
+      <PanelSection className="lm-editor-panel" title={t(locale, 'workspace.languageMetadata.editTitle')} description={t(locale, 'workspace.languageMetadata.editDescription')}>
+        <div className="ws-form-stack">
+          <details className="ws-subsection lm-subsection" open>
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionIdentity')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionIdentityDescription')}</p>
+            </summary>
+            <div className="lm-grid">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.idLabel')}</span>
                 <input className="input" type="text" value={draft.idInput} onChange={(event) => onDraftChange('idInput', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.idPlaceholder')} disabled={Boolean(selectedEntry && !selectedEntry.id.startsWith('user:'))} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.languageCodeLabel')}</span>
                 <input className="input" type="text" value={draft.languageCode} onChange={(event) => onDraftChange('languageCode', event.target.value)} />
                 {duplicateHint && (
                   <PanelFeedback level="warn">
                     {tf(locale, 'workspace.languageMetadata.duplicateCodeHint', { name: duplicateHint.name, id: duplicateHint.id })}
                     {' '}
-                    <button type="button" className="language-metadata-workspace-inline-link" onClick={() => onSelectEntry(duplicateHint.id)}>
+                    <button type="button" className="lm-inline-link" onClick={() => onSelectEntry(duplicateHint.id)}>
                       {t(locale, 'workspace.languageMetadata.duplicateCodeJump')}
                     </button>
                   </PanelFeedback>
                 )}
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.canonicalTagLabel')}</span>
                 <input className="input" type="text" value={draft.canonicalTag} onChange={(event) => onDraftChange('canonicalTag', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.localNameLabel')}</span>
                 <input className="input" type="text" value={draft.localName} onChange={(event) => onDraftChange('localName', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.englishNameLabel')}</span>
                 <input className="input" type="text" value={draft.englishName} onChange={(event) => onDraftChange('englishName', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.nativeNameLabel')}</span>
                 <input className="input" type="text" value={draft.nativeName} onChange={(event) => onDraftChange('nativeName', event.target.value)} />
               </label>
             </div>
 
-            <div className="language-metadata-workspace-subgroup">
-              <div className="language-metadata-workspace-subgroup-header">
-                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
-                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
+            <div className="lm-subgroup">
+              <div className="lm-subgroup-header">
+                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.aliasesLabel')}</span>
+                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.aliasesPlaceholder')}</p>
               </div>
-              <div className="language-metadata-workspace-field language-metadata-workspace-field-block">
+              <div className="lm-field lm-field-block">
                 <input
                   className="input"
                   type="text"
@@ -196,20 +201,22 @@ export function LanguageMetadataWorkspaceDetailColumn({
               </div>
             </div>
 
-            <div className="language-metadata-workspace-subgroup language-metadata-workspace-matrix-fieldset">
-              <div className="language-metadata-workspace-matrix-header">
+            <details className="lm-subgroup lm-matrix-fieldset">
+              <summary className="lm-matrix-header">
                 <div>
-                  <span className="language-metadata-workspace-matrix-title">{t(locale, 'workspace.languageMetadata.matrixTitle')}</span>
-                  <p className="language-metadata-workspace-matrix-description">{t(locale, 'workspace.languageMetadata.matrixDescription')}</p>
+                  <span className="lm-matrix-title">{t(locale, 'workspace.languageMetadata.matrixTitle')}</span>
+                  <p className="lm-matrix-description">{t(locale, 'workspace.languageMetadata.matrixDescription')}</p>
                 </div>
-                <button type="button" className="btn btn-ghost" onClick={onAddDisplayNameRow}>{t(locale, 'workspace.languageMetadata.matrixAddRow')}</button>
+              </summary>
+              <div className="lm-matrix-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => onAddDisplayNameRow()}>{t(locale, 'workspace.languageMetadata.matrixAddRow')}</button>
               </div>
 
               {draft.displayNameRows.length > 0 ? (
-                <div className="language-metadata-workspace-matrix-list" role="list" aria-label={t(locale, 'workspace.languageMetadata.matrixTitle')}>
+                <div className="lm-matrix-list" role="list" aria-label={t(locale, 'workspace.languageMetadata.matrixTitle')}>
                   {draft.displayNameRows.map((row) => (
-                    <div key={row.key} className="language-metadata-workspace-matrix-row" role="listitem">
-                      <label className="language-metadata-workspace-field">
+                    <div key={row.key} className="lm-matrix-row" role="listitem">
+                      <label className="lm-field">
                         <span>{t(locale, 'workspace.languageMetadata.matrixRoleLabel')}</span>
                         <select
                           className="input"
@@ -221,11 +228,11 @@ export function LanguageMetadataWorkspaceDetailColumn({
                           ))}
                         </select>
                       </label>
-                      <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+                      <label className="lm-field lm-field-block">
                         <span>{t(locale, 'workspace.languageMetadata.matrixValueLabel')}</span>
                         <input className="input" type="text" value={row.value} onChange={(event) => onDisplayNameRowChange(row.key, 'value', event.target.value)} />
                       </label>
-                      <label className="language-metadata-workspace-checkbox-field">
+                      <label className="lm-checkbox-field">
                         <input type="checkbox" checked={row.isPreferred} onChange={(event) => onDisplayNameRowChange(row.key, 'isPreferred', event.target.checked)} />
                         <span>{t(locale, 'workspace.languageMetadata.matrixPreferredLabel')}</span>
                       </label>
@@ -234,76 +241,76 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   ))}
                 </div>
               ) : (
-                <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.matrixEmpty')}</p>
+                <p className="lm-state">{t(locale, 'workspace.languageMetadata.matrixEmpty')}</p>
               )}
-            </div>
-          </section>
+            </details>
+          </details>
 
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionStandards')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionStandardsDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
+          <details className="ws-subsection lm-subsection">
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionStandards')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionStandardsDescription')}</p>
+            </summary>
+            <div className="lm-grid">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.iso6391Label')}</span>
                 <input className="input" type="text" value={draft.iso6391} onChange={(event) => onDraftChange('iso6391', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.iso6392BLabel')}</span>
                 <input className="input" type="text" value={draft.iso6392B} onChange={(event) => onDraftChange('iso6392B', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.iso6392TLabel')}</span>
                 <input className="input" type="text" value={draft.iso6392T} onChange={(event) => onDraftChange('iso6392T', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.iso6393Label')}</span>
                 <input className="input" type="text" value={draft.iso6393} onChange={(event) => onDraftChange('iso6393', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.glottocodeLabel')}</span>
                 <input className="input" type="text" value={draft.glottocode} onChange={(event) => onDraftChange('glottocode', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.wikidataIdLabel')}</span>
                 <input className="input" type="text" value={draft.wikidataId} onChange={(event) => onDraftChange('wikidataId', event.target.value)} />
               </label>
             </div>
-          </section>
+          </details>
 
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionClassification')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionClassificationDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
+          <details className="ws-subsection lm-subsection" open>
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionClassification')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionClassificationDescription')}</p>
+            </summary>
+            <div className="lm-grid">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.genusLabel')}</span>
                 <input className="input" type="text" value={draft.genus} onChange={(event) => {
                   onDraftChange('genus', event.target.value);
                   syncClassificationPath({ genus: event.target.value });
                 }} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.subfamilyLabel')}</span>
                 <input className="input" type="text" value={draft.subfamily} onChange={(event) => {
                   onDraftChange('subfamily', event.target.value);
                   syncClassificationPath({ subfamily: event.target.value });
                 }} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.branchLabel')}</span>
                 <input className="input" type="text" value={draft.branch} onChange={(event) => {
                   onDraftChange('branch', event.target.value);
                   syncClassificationPath({ branch: event.target.value });
                 }} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.macrolanguageLabel')}</span>
                 <input className="input" type="text" value={draft.macrolanguage} onChange={(event) => onDraftChange('macrolanguage', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.scopeLabel')}</span>
                 <select className="input" value={draft.scope} onChange={(event) => onDraftChange('scope', event.target.value)}>
                   <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -314,7 +321,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <option value="private-use">{t(locale, 'workspace.languageMetadata.scopePrivateUse')}</option>
                 </select>
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.languageTypeLabel')}</span>
                 <select className="input" value={draft.languageType} onChange={(event) => onDraftChange('languageType', event.target.value)}>
                   <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -326,7 +333,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <option value="special">{t(locale, 'workspace.languageMetadata.languageTypeSpecial')}</option>
                 </select>
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.visibilityLabel')}</span>
                 <select className="input" value={draft.visibility} onChange={(event) => onDraftChange('visibility', event.target.value as LanguageCatalogVisibility)}>
                   <option value="visible">{t(locale, 'workspace.languageMetadata.visibilityVisible')}</option>
@@ -334,58 +341,58 @@ export function LanguageMetadataWorkspaceDetailColumn({
                 </select>
               </label>
             </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+            <div className="lm-grid">
+              <label className="lm-field lm-field-block">
                 <span>{t(locale, 'workspace.languageMetadata.dialectsLabel')}</span>
-                <textarea className="input language-metadata-workspace-textarea" value={draft.dialectsText} onChange={(event) => {
+                <textarea className="input lm-textarea" value={draft.dialectsText} onChange={(event) => {
                   onDraftChange('dialectsText', event.target.value);
                   syncClassificationPath({ dialectsText: event.target.value });
                 }} placeholder={t(locale, 'workspace.languageMetadata.dialectsPlaceholder')} />
               </label>
-              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+              <label className="lm-field lm-field-block">
                 <span>{t(locale, 'workspace.languageMetadata.vernacularsLabel')}</span>
-                <textarea className="input language-metadata-workspace-textarea" value={draft.vernacularsText} onChange={(event) => {
+                <textarea className="input lm-textarea" value={draft.vernacularsText} onChange={(event) => {
                   onDraftChange('vernacularsText', event.target.value);
                   syncClassificationPath({ vernacularsText: event.target.value });
                 }} placeholder={t(locale, 'workspace.languageMetadata.vernacularsPlaceholder')} />
               </label>
-              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+              <label className="lm-field lm-field-block">
                 <span>{t(locale, 'workspace.languageMetadata.classificationPathLabel')}</span>
                 <input className="input" type="text" value={classificationPathPreview} readOnly aria-readonly="true" />
               </label>
             </div>
-          </section>
+          </details>
 
           <LanguageMetadataWorkspaceGeographySection locale={locale} draft={draft} onDraftChange={onDraftChange} map={map} />
 
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionPopulationDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-subgroup">
-              <div className="language-metadata-workspace-subgroup-header">
-                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
-                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
+          <details className="ws-subsection lm-subsection">
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionPopulation')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionPopulationDescription')}</p>
+            </summary>
+            <div className="lm-subgroup">
+              <div className="lm-subgroup-header">
+                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationTitle')}</span>
+                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsagePopulationDescription')}</p>
               </div>
-              <div className="language-metadata-workspace-grid">
-                <label className="language-metadata-workspace-field">
+              <div className="lm-grid">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerCountL1Label')}</span>
                   <input className="input" type="text" inputMode="numeric" value={draft.speakerCountL1} onChange={(event) => onDraftChange('speakerCountL1', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerCountL2Label')}</span>
                   <input className="input" type="text" inputMode="numeric" value={draft.speakerCountL2} onChange={(event) => onDraftChange('speakerCountL2', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerCountSourceLabel')}</span>
                   <input className="input" type="text" value={draft.speakerCountSource} onChange={(event) => onDraftChange('speakerCountSource', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerCountYearLabel')}</span>
                   <input className="input" type="text" inputMode="numeric" value={draft.speakerCountYear} onChange={(event) => onDraftChange('speakerCountYear', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.speakerTrendLabel')}</span>
                   <select className="input" value={draft.speakerTrend} onChange={(event) => onDraftChange('speakerTrend', event.target.value)}>
                     <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -395,20 +402,20 @@ export function LanguageMetadataWorkspaceDetailColumn({
                     <option value="unknown">{t(locale, 'workspace.languageMetadata.speakerTrendUnknown')}</option>
                   </select>
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.literacyRateLabel')}</span>
                   <input className="input" type="text" inputMode="decimal" value={draft.literacyRate} onChange={(event) => onDraftChange('literacyRate', event.target.value)} />
                 </label>
               </div>
             </div>
 
-            <div className="language-metadata-workspace-subgroup">
-              <div className="language-metadata-workspace-subgroup-header">
-                <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
-                <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
+            <div className="lm-subgroup">
+              <div className="lm-subgroup-header">
+                <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityTitle')}</span>
+                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupUsageVitalityDescription')}</p>
               </div>
-              <div className="language-metadata-workspace-grid">
-                <label className="language-metadata-workspace-field">
+              <div className="lm-grid">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.endangermentLevelLabel')}</span>
                   <select className="input" value={draft.endangermentLevel} onChange={(event) => onDraftChange('endangermentLevel', event.target.value)}>
                     <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -420,7 +427,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
                     <option value="extinct">{t(locale, 'workspace.languageMetadata.endangermentLevelExtinct')}</option>
                   </select>
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.aesStatusLabel')}</span>
                   <select className="input" value={draft.aesStatus} onChange={(event) => onDraftChange('aesStatus', event.target.value)}>
                     <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -432,15 +439,15 @@ export function LanguageMetadataWorkspaceDetailColumn({
                     <option value="extinct">{t(locale, 'workspace.languageMetadata.aesExtinct')}</option>
                   </select>
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.endangermentSourceLabel')}</span>
                   <input className="input" type="text" value={draft.endangermentSource} onChange={(event) => onDraftChange('endangermentSource', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.endangermentAssessmentYearLabel')}</span>
                   <input className="input" type="text" inputMode="numeric" value={draft.endangermentAssessmentYear} onChange={(event) => onDraftChange('endangermentAssessmentYear', event.target.value)} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.intergenerationalTransmissionLabel')}</span>
                   <select className="input" value={draft.intergenerationalTransmission} onChange={(event) => onDraftChange('intergenerationalTransmission', event.target.value)}>
                     <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -451,11 +458,11 @@ export function LanguageMetadataWorkspaceDetailColumn({
                     <option value="none">{t(locale, 'workspace.languageMetadata.intergenerationalNone')}</option>
                   </select>
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.domainsLabel')}</span>
                   <input className="input" type="text" value={draft.domainsText} onChange={(event) => onDraftChange('domainsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.domainsPlaceholder')} />
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.officialStatusLabel')}</span>
                   <select className="input" value={draft.officialStatus} onChange={(event) => onDraftChange('officialStatus', event.target.value)}>
                     <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -465,22 +472,22 @@ export function LanguageMetadataWorkspaceDetailColumn({
                     <option value="none">{t(locale, 'workspace.languageMetadata.officialStatusNone')}</option>
                   </select>
                 </label>
-                <label className="language-metadata-workspace-field">
+                <label className="lm-field">
                   <span>{t(locale, 'workspace.languageMetadata.egidsLabel')}</span>
                   <input className="input" type="text" value={draft.egids} onChange={(event) => onDraftChange('egids', event.target.value)} />
                 </label>
               </div>
             </div>
-          </section>
+          </details>
 
           {/* 文献与文字 | Documentation & writing */}
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionDocumentation')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionDocumentationDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field">
+          <details className="ws-subsection lm-subsection">
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionDocumentation')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionDocumentationDescription')}</p>
+            </summary>
+            <div className="lm-grid">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.documentationLevelLabel')}</span>
                 <select className="input" value={draft.documentationLevel} onChange={(event) => onDraftChange('documentationLevel', event.target.value)}>
                   <option value="">{t(locale, 'workspace.languageMetadata.notSet')}</option>
@@ -491,63 +498,44 @@ export function LanguageMetadataWorkspaceDetailColumn({
                   <option value="well_documented">{t(locale, 'workspace.languageMetadata.documentationWellDocumented')}</option>
                 </select>
               </label>
-              <label className="language-metadata-workspace-field">
+              <label className="lm-field">
                 <span>{t(locale, 'workspace.languageMetadata.writingSystemsLabel')}</span>
                 <input className="input" type="text" value={draft.writingSystemsText} onChange={(event) => onDraftChange('writingSystemsText', event.target.value)} placeholder={t(locale, 'workspace.languageMetadata.writingSystemsPlaceholder')} />
               </label>
             </div>
-          </section>
+          </details>
 
-          <section className="language-metadata-workspace-subsection">
-            <div className="language-metadata-workspace-subsection-header">
-              <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionNotes')}</h3>
-              <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionNotesDescription')}</p>
-            </div>
-            <div className="language-metadata-workspace-grid">
-              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+          <details className="ws-subsection lm-subsection">
+            <summary className="lm-subsection-header">
+              <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionNotes')}</h3>
+              <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionNotesDescription')}</p>
+            </summary>
+            <div className="lm-grid">
+              <label className="lm-field lm-field-block">
                 <span>{locale === 'zh-CN' ? t(locale, 'workspace.languageMetadata.notesZhLabel') : t(locale, 'workspace.languageMetadata.notesEnLabel')}</span>
-                <textarea className="input language-metadata-workspace-textarea" value={locale === 'zh-CN' ? draft.notesZh : draft.notesEn} onChange={(event) => onDraftChange(locale === 'zh-CN' ? 'notesZh' : 'notesEn', event.target.value)} />
+                <textarea className="input lm-textarea" value={locale === 'zh-CN' ? draft.notesZh : draft.notesEn} onChange={(event) => onDraftChange(locale === 'zh-CN' ? 'notesZh' : 'notesEn', event.target.value)} />
               </label>
-              <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
+              <label className="lm-field lm-field-block">
                 <span>{t(locale, 'workspace.languageMetadata.changeReasonLabel')}</span>
                 <textarea
-                  className="input language-metadata-workspace-textarea"
+                  className="input lm-textarea"
                   value={draft.changeReason}
                   onChange={(event) => onDraftChange('changeReason', event.target.value)}
                   placeholder={t(locale, 'workspace.languageMetadata.changeReasonPlaceholder')}
                 />
               </label>
             </div>
-          </section>
+          </details>
 
           <LanguageMetadataWorkspaceCustomFieldsSection locale={locale} draft={draft} cf={cf} />
         </div>
-
-        <div className="language-metadata-workspace-footer">
-          {saveError ? <p className="language-metadata-workspace-state language-metadata-workspace-state-error">{saveError}</p> : null}
-          {saveSuccess ? <p className="language-metadata-workspace-state language-metadata-workspace-state-success">{saveSuccess}</p> : null}
-
-          <div className="language-metadata-workspace-actions">
-            <button type="button" className="btn btn-ghost" onClick={onResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
-            {selectedEntry?.hasPersistedRecord ? (
-              <button type="button" className="btn btn-danger" onClick={onDelete} disabled={deleting}>
-                {deleting
-                  ? t(locale, 'workspace.languageMetadata.deleting')
-                  : selectedEntry.entryKind === 'custom'
-                    ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
-                    : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
-              </button>
-            ) : null}
-            <button type="button" className="btn" onClick={onSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
-          </div>
-        </div>
       </PanelSection>
 
-      <PanelSection className="language-metadata-workspace-detail-panel" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
+      <PanelSection className="lm-editor-panel lm-history-panel" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
         {historyItems.length > 0 ? (
-          <ol className="language-metadata-workspace-history-list">
+          <ol className="lm-history-list">
             {historyItems.map((item) => (
-              <li key={item.id} className="language-metadata-workspace-history-item">
+              <li key={item.id} className="lm-history-item">
                 <strong>{item.summary}</strong>
                 <span>{item.createdAt}</span>
                 {item.changedFields?.length ? <p>{t(locale, 'workspace.languageMetadata.historyChangedFieldsLabel')}{item.changedFields.map((field) => readHistoryFieldLabel(locale, field)).join('、')}</p> : null}
@@ -556,9 +544,33 @@ export function LanguageMetadataWorkspaceDetailColumn({
             ))}
           </ol>
         ) : (
-          <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.historyEmpty')}</p>
+          <p className="lm-state">{t(locale, 'workspace.languageMetadata.historyEmpty')}</p>
         )}
       </PanelSection>
+
+      <section className="lm-footer" aria-label={t(locale, 'workspace.languageMetadata.saveButton')}>
+        <div className="lm-footer-status">
+          {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
+          {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
+          {!saveError && !saveSuccess ? (
+            <p className="lm-state">{selectedEntry ? t(locale, 'workspace.languageMetadata.editDescription') : t(locale, 'workspace.languageMetadata.summary')}</p>
+          ) : null}
+        </div>
+
+        <div className="lm-actions">
+          <button type="button" className="btn btn-ghost" onClick={onResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
+          {selectedEntry?.hasPersistedRecord ? (
+            <button type="button" className="btn btn-danger" onClick={onDelete} disabled={deleting}>
+              {deleting
+                ? t(locale, 'workspace.languageMetadata.deleting')
+                : selectedEntry.entryKind === 'custom'
+                  ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
+                  : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
+            </button>
+          ) : null}
+          <button type="button" className="btn" onClick={onSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
+        </div>
+      </section>
     </div>
   );
 }

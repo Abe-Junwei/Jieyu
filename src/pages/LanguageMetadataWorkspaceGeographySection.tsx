@@ -27,20 +27,20 @@ export function LanguageMetadataWorkspaceGeographySection({
   const hasCoordinates = latitudeText.length > 0 && longitudeText.length > 0 && !Number.isNaN(parsedLatitude) && !Number.isNaN(parsedLongitude);
 
   return (
-    <section className="language-metadata-workspace-subsection">
-      <div className="language-metadata-workspace-subsection-header">
-        <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionGeography')}</h3>
-        <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionGeographyDescription')}</p>
-      </div>
+    <details className="ws-subsection lm-subsection" open>
+      <summary className="lm-subsection-header">
+        <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionGeography')}</h3>
+        <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionGeographyDescription')}</p>
+      </summary>
 
-      <div className="language-metadata-workspace-subgroup">
-        <div className="language-metadata-workspace-subgroup-header">
-          <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
-          <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageDescription')}</p>
+      <div className="lm-subgroup">
+        <div className="lm-subgroup-header">
+          <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageTitle')}</span>
+          <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoverageDescription')}</p>
         </div>
 
-        <div className="language-metadata-workspace-geography-coverage-layout">
-          <div className="language-metadata-workspace-geography-panel">
+        <div className="lm-geography-coverage-layout">
+          <div className="lm-geography-panel">
             <LanguageMetadataAdministrativeDivisionPicker
               locale={locale}
               macroarea={draft.macroarea}
@@ -55,31 +55,31 @@ export function LanguageMetadataWorkspaceGeographySection({
         </div>
       </div>
 
-      <div className="language-metadata-workspace-subgroup">
-        <div className="language-metadata-workspace-subgroup-header">
-          <span className="panel-title-secondary language-metadata-workspace-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
-          <p className="language-metadata-workspace-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesDescription')}</p>
+      <div className="lm-subgroup">
+        <div className="lm-subgroup-header">
+          <span className="panel-title-secondary lm-subgroup-title">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesTitle')}</span>
+          <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.subgroupGeographyCoordinatesDescription')}</p>
         </div>
 
-        <div className="language-metadata-workspace-geography-coordinates-layout">
-          <div className="language-metadata-workspace-geography-panel">
-            <div className="language-metadata-workspace-geography-panel-header">
-              <span className="panel-title-eyebrow language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorTitle')}</span>
-              <p className="language-metadata-workspace-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorDescription')}</p>
+        <div className="lm-geography-coordinates-layout">
+          <div className="lm-geography-panel">
+            <div className="lm-geography-panel-header">
+              <span className="panel-title-eyebrow lm-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorTitle')}</span>
+              <p className="lm-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesEditorDescription')}</p>
             </div>
 
-            <div className="language-metadata-workspace-geo-row">
-              <label className="language-metadata-workspace-geo-field">
+            <div className="lm-geo-row">
+              <label className="lm-geo-field">
                 <span>{t(locale, 'workspace.languageMetadata.latitudeLabel')}</span>
                 <input className="input" type="text" inputMode="decimal" value={draft.latitude} onChange={(event) => onDraftChange('latitude', event.target.value)} placeholder="-90 ~ 90" />
               </label>
-              <label className="language-metadata-workspace-geo-field">
+              <label className="lm-geo-field">
                 <span>{t(locale, 'workspace.languageMetadata.longitudeLabel')}</span>
                 <input className="input" type="text" inputMode="decimal" value={draft.longitude} onChange={(event) => onDraftChange('longitude', event.target.value)} placeholder="-180 ~ 180" />
               </label>
-              <div className="language-metadata-workspace-geocode-wrapper language-metadata-workspace-geo-field" ref={map.geocodeContainerRef}>
+              <div className="lm-geocode-wrapper lm-geo-field" ref={map.geocodeContainerRef}>
                 <span>{t(locale, 'workspace.languageMetadata.geocodePlaceholder').replace(/[…\.]+$/, '')}</span>
-                <div className="language-metadata-workspace-geocode-bar">
+                <div className="lm-geocode-bar">
                   <input
                     className="input"
                     type="text"
@@ -88,42 +88,42 @@ export function LanguageMetadataWorkspaceGeographySection({
                     onKeyDown={(event) => { if (event.key === 'Enter') map.handleGeocodeSearch(); }}
                     placeholder={t(locale, 'workspace.languageMetadata.geocodePlaceholder')}
                   />
-                  <button type="button" className="btn btn-ghost language-metadata-workspace-geocode-btn" onClick={map.handleGeocodeSearch} disabled={map.geocodeLoading}>
+                  <button type="button" className="btn btn-ghost lm-geocode-btn" onClick={map.handleGeocodeSearch} disabled={map.geocodeLoading}>
                     {map.geocodeLoading ? t(locale, 'workspace.languageMetadata.geocodeSearching') : '🔍'}
                   </button>
                 </div>
                 {map.geocodeOpen && (
-                  <ul className="language-metadata-workspace-geocode-results">
+                  <ul className="lm-geocode-results">
                     {map.geocodeResults.length === 0 ? (
-                      <li className="language-metadata-workspace-geocode-empty">{t(locale, 'workspace.languageMetadata.geocodeNoResults')}</li>
+                      <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.geocodeNoResults')}</li>
                     ) : map.geocodeResults.map((suggestion) => (
                       <li key={suggestion.id}>
                         <button
                           type="button"
-                          className={`language-metadata-workspace-geocode-item${map.activeGeocodeResultId === suggestion.id ? ' language-metadata-workspace-geocode-item-active' : ''}`}
+                          className={`lm-geocode-item${map.activeGeocodeResultId === suggestion.id ? ' lm-geocode-item-active' : ''}`}
                           onMouseEnter={() => map.handleHoverGeocodeResult(suggestion.id)}
                           onFocus={() => map.handleHoverGeocodeResult(suggestion.id)}
                           onClick={() => map.handleGeocodeSelect(suggestion)}
                         >
-                          <span className="language-metadata-workspace-geocode-name">{suggestion.displayName}</span>
-                          <span className="language-metadata-workspace-geocode-coords">{suggestion.lat.toFixed(4)}, {suggestion.lng.toFixed(4)}</span>
+                          <span className="lm-geocode-name">{suggestion.displayName}</span>
+                          <span className="lm-geocode-coords">{suggestion.lat.toFixed(4)}, {suggestion.lng.toFixed(4)}</span>
                         </button>
                       </li>
                     ))}
                   </ul>
                 )}
-                {map.selectedPlaceLabel ? <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.geocodeResolvedLabel')}{map.selectedPlaceLabel}</p> : null}
-                {map.geocodeStatusMessage === 'loading' ? <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.geocodeReverseLoading')}</p> : null}
-                {map.geocodeStatusMessage === 'error' ? <p className="language-metadata-workspace-state language-metadata-workspace-state-error">{t(locale, 'workspace.languageMetadata.geocodeError')}</p> : null}
+                {map.selectedPlaceLabel ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.geocodeResolvedLabel')}{map.selectedPlaceLabel}</p> : null}
+                {map.geocodeStatusMessage === 'loading' ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.geocodeReverseLoading')}</p> : null}
+                {map.geocodeStatusMessage === 'error' ? <p className="lm-state lm-state-error">{t(locale, 'workspace.languageMetadata.geocodeError')}</p> : null}
               </div>
             </div>
 
-            <div className="language-metadata-workspace-map-controls">
-              <div className="language-metadata-workspace-geo-field language-metadata-workspace-map-provider-field">
-                <span className="language-metadata-workspace-geo-label">{t(locale, 'workspace.languageMetadata.mapProviderLabel')}</span>
-                <div className="language-metadata-workspace-map-provider-bar">
+            <div className="lm-map-controls">
+              <div className="lm-geo-field lm-map-provider-field">
+                <span className="lm-geo-label">{t(locale, 'workspace.languageMetadata.mapProviderLabel')}</span>
+                <div className="lm-map-provider-bar">
                   <select
-                    className="language-metadata-workspace-map-provider-select"
+                    className="lm-map-provider-select"
                     value={map.mapProviderConfig.kind}
                     onChange={(event) => map.handleMapProviderChange(event.currentTarget.value as MapProviderKind)}
                   >
@@ -136,7 +136,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                   </select>
                   {map.availableStyles.length > 1 && (
                     <select
-                      className="language-metadata-workspace-map-provider-select"
+                      className="lm-map-provider-select"
                       value={map.mapProviderConfig.styleId}
                       onChange={(event) => map.handleMapStyleChange(event.currentTarget.value)}
                     >
@@ -148,7 +148,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                   {map.mapProviderRequiresManualKey && (
                     <button
                       type="button"
-                      className="btn btn-ghost language-metadata-workspace-map-config-btn"
+                      className="btn btn-ghost lm-map-config-btn"
                       aria-label={t(locale, 'workspace.languageMetadata.mapConfigToggle')}
                       title={t(locale, 'workspace.languageMetadata.mapConfigToggle')}
                       onClick={() => map.setShowMapConfig((visible) => !visible)}
@@ -161,8 +161,8 @@ export function LanguageMetadataWorkspaceGeographySection({
             </div>
 
             {map.showMapConfig && map.mapProviderRequiresManualKey && (
-              <div className="language-metadata-workspace-map-config-panel">
-                <label className="language-metadata-workspace-field">
+              <div className="lm-map-config-panel">
+                <label className="lm-field">
                   <span>{map.activeProviderDef.keyLabel}</span>
                   <input
                     className="input"
@@ -174,7 +174,7 @@ export function LanguageMetadataWorkspaceGeographySection({
                     placeholder={map.activeProviderDef.keyPlaceholderI18nKey ? t(locale, map.activeProviderDef.keyPlaceholderI18nKey as Parameters<typeof t>[1]) : ''}
                   />
                 </label>
-                <div className="language-metadata-workspace-map-config-actions">
+                <div className="lm-map-config-actions">
                   <button type="button" className="btn" onClick={map.handleSaveMapKey}>{t(locale, 'workspace.languageMetadata.mapApiKeySave')}</button>
                   {map.mapProviderConfig.apiKey && (
                     <button type="button" className="btn btn-ghost btn-danger" onClick={map.handleClearMapKey}>{t(locale, 'workspace.languageMetadata.mapApiKeyClear')}</button>
@@ -184,17 +184,17 @@ export function LanguageMetadataWorkspaceGeographySection({
             )}
           </div>
 
-          <div className="language-metadata-workspace-geography-panel language-metadata-workspace-geography-panel-preview">
-            <div className="language-metadata-workspace-geography-panel-header">
-              <span className="panel-title-eyebrow language-metadata-workspace-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewTitle')}</span>
-              <p className="language-metadata-workspace-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewDescription')}</p>
+          <div className="lm-geography-panel lm-geography-panel-preview">
+            <div className="lm-geography-panel-header">
+              <span className="panel-title-eyebrow lm-geography-panel-title">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewTitle')}</span>
+              <p className="lm-geography-panel-description">{t(locale, 'workspace.languageMetadata.geographyCoordinatesPreviewDescription')}</p>
             </div>
 
-            <div className="language-metadata-workspace-geography-map-shell">
+            <div className="lm-geography-map-shell">
               {hasCoordinates ? (
                 map.mapProviderNeedsKey ? (
-                  <div className="language-metadata-workspace-geography-map-empty">
-                    <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.mapProviderMissingKey')}</p>
+                  <div className="lm-geography-map-empty">
+                    <p className="lm-state">{t(locale, 'workspace.languageMetadata.mapProviderMissingKey')}</p>
                     {!map.showMapConfig && (
                       <button type="button" className="btn btn-ghost" onClick={() => map.setShowMapConfig(true)}>
                         {t(locale, 'workspace.languageMetadata.mapConfigToggle')}
@@ -202,13 +202,13 @@ export function LanguageMetadataWorkspaceGeographySection({
                     )}
                   </div>
                 ) : (
-                  <Suspense fallback={<div className="language-metadata-workspace-map-placeholder" />}>
+                  <Suspense fallback={<div className="lm-map-placeholder" />}>
                     <LanguageMapEmbed
                       latitude={parsedLatitude}
                       longitude={parsedLongitude}
                       locale={locale}
                       providerConfig={map.mapProviderConfig}
-                      className="language-metadata-workspace-map-container"
+                      className="lm-map-container"
                       searchResults={map.geocodeResults}
                       activeResultId={map.activeGeocodeResultId}
                       focusRequestId={map.mapFocusRequestId}
@@ -220,14 +220,14 @@ export function LanguageMetadataWorkspaceGeographySection({
                   </Suspense>
                 )
               ) : (
-                <div className="language-metadata-workspace-geography-map-empty">
-                  <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.mapNoCoordinates')}</p>
+                <div className="lm-geography-map-empty">
+                  <p className="lm-state">{t(locale, 'workspace.languageMetadata.mapNoCoordinates')}</p>
                 </div>
               )}
             </div>
           </div>
         </div>
       </div>
-    </section>
+    </details>
   );
 }

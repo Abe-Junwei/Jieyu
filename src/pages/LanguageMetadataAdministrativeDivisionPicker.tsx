@@ -344,9 +344,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
   };
 
   return (
-    <div className="language-metadata-workspace-administrative-picker">
-      <div className="language-metadata-workspace-administrative-coverage-row">
-        <label className="language-metadata-workspace-field language-metadata-workspace-administrative-coverage-field">
+    <div className="lm-admin-picker">
+      <div className="lm-admin-coverage-row">
+        <label className="lm-field lm-admin-coverage-field">
           <span>{t(locale, 'workspace.languageMetadata.macroareaLabel')}</span>
           <select className="input" value={macroarea} onChange={(event) => onMacroareaChange(event.target.value)}>
             {MACROAREA_OPTIONS.map((option) => (
@@ -357,11 +357,11 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           </select>
         </label>
 
-        <label className="language-metadata-workspace-field language-metadata-workspace-administrative-coverage-field">
+        <label className="lm-field lm-admin-coverage-field">
           <span>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
           <Select
             aria-label={t(locale, 'workspace.languageMetadata.countriesLabel')}
-            classNamePrefix="language-metadata-workspace-select"
+            classNamePrefix="lm-select"
             isMulti
             options={countryOptions}
             placeholder={t(locale, 'workspace.languageMetadata.countriesPlaceholder')}
@@ -374,17 +374,17 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         </label>
       </div>
 
-      <div className="language-metadata-workspace-field">
+      <div className="lm-field">
         <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionPickerLabel')}</span>
       </div>
 
-      <div className="language-metadata-workspace-administrative-search-shell">
-        <div className="language-metadata-workspace-administrative-search-anchor" ref={searchContainerRef}>
-          <label className="language-metadata-workspace-field">
+      <div className="lm-admin-search-shell">
+        <div className="lm-admin-search-anchor" ref={searchContainerRef}>
+          <label className="lm-field">
             <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchLabel')}</span>
-            <div className="language-metadata-workspace-geocode-bar">
+            <div className="lm-geocode-bar">
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
@@ -402,7 +402,7 @@ export function LanguageMetadataAdministrativeDivisionPicker({
                 placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionSearchPlaceholder')}
                 aria-label={t(locale, 'workspace.languageMetadata.administrativeDivisionSearchLabel')}
               />
-              <button type="button" className="btn btn-ghost language-metadata-workspace-geocode-btn" onClick={() => void handleAdministrativeSearch()} disabled={searchStatus === 'loading'}>
+              <button type="button" className="btn btn-ghost lm-geocode-btn" onClick={() => void handleAdministrativeSearch()} disabled={searchStatus === 'loading'}>
                 {searchStatus === 'loading'
                   ? t(locale, 'workspace.languageMetadata.geocodeSearching')
                   : t(locale, 'workspace.languageMetadata.administrativeDivisionSearchButton')}
@@ -411,14 +411,14 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           </label>
 
           {searchOpen && (
-            <ul className="language-metadata-workspace-geocode-results">
-              {searchStatus === 'error' ? <li className="language-metadata-workspace-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchError')}</li> : null}
-              {searchStatus === 'empty' ? <li className="language-metadata-workspace-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchNoResults')}</li> : null}
+            <ul className="lm-geocode-results">
+              {searchStatus === 'error' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchError')}</li> : null}
+              {searchStatus === 'empty' ? <li className="lm-geocode-empty">{t(locale, 'workspace.languageMetadata.administrativeDivisionSearchNoResults')}</li> : null}
               {searchResults.map((suggestion) => (
                 <li key={suggestion.id}>
-                  <button type="button" className="language-metadata-workspace-geocode-item" onClick={() => handleSearchResultSelect(suggestion)}>
-                    <span className="language-metadata-workspace-geocode-name">{suggestion.primaryText}</span>
-                    <span className="language-metadata-workspace-geocode-coords">{suggestion.secondaryText ?? suggestion.displayName}</span>
+                  <button type="button" className="lm-geocode-item" onClick={() => handleSearchResultSelect(suggestion)}>
+                    <span className="lm-geocode-name">{suggestion.primaryText}</span>
+                    <span className="lm-geocode-coords">{suggestion.secondaryText ?? suggestion.displayName}</span>
                   </button>
                 </li>
               ))}
@@ -426,34 +426,34 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           )}
         </div>
 
-        {resolvedLocation.sourceDisplayName ? <p className="language-metadata-workspace-administrative-search-summary">{resolvedLocation.sourceDisplayName}</p> : null}
+        {resolvedLocation.sourceDisplayName ? <p className="lm-admin-search-summary">{resolvedLocation.sourceDisplayName}</p> : null}
 
-        <div className="language-metadata-workspace-administrative-resolved-grid">
-          <div className="language-metadata-workspace-administrative-resolved-row">
-            <label className="language-metadata-workspace-field">
+        <div className="lm-admin-resolved-grid">
+          <div className="lm-admin-resolved-row">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionCountryLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.country}
                 onChange={(event) => handleResolvedLocationFieldChange('country', event.target.value)}
                 placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionCountryPlaceholder')}
               />
             </label>
-            <label className="language-metadata-workspace-field">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionProvinceLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.province}
                 onChange={(event) => handleResolvedLocationFieldChange('province', event.target.value)}
                 placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionProvincePlaceholder')}
               />
             </label>
-            <label className="language-metadata-workspace-field">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionCityLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.city}
                 onChange={(event) => handleResolvedLocationFieldChange('city', event.target.value)}
@@ -461,31 +461,31 @@ export function LanguageMetadataAdministrativeDivisionPicker({
               />
             </label>
           </div>
-          <div className="language-metadata-workspace-administrative-resolved-row">
-            <label className="language-metadata-workspace-field">
+          <div className="lm-admin-resolved-row">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionCountyLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.county}
                 onChange={(event) => handleResolvedLocationFieldChange('county', event.target.value)}
                 placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionCountyPlaceholder')}
               />
             </label>
-            <label className="language-metadata-workspace-field">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionTownshipLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.township}
                 onChange={(event) => handleResolvedLocationFieldChange('township', event.target.value)}
                 placeholder={t(locale, 'workspace.languageMetadata.administrativeDivisionTownshipPlaceholder')}
               />
             </label>
-            <label className="language-metadata-workspace-field">
+            <label className="lm-field">
               <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionVillageLabel')}</span>
               <input
-                className="input language-metadata-workspace-administrative-text-input"
+                className="input lm-admin-text-input"
                 type="text"
                 value={resolvedLocation.village}
                 onChange={(event) => handleResolvedLocationFieldChange('village', event.target.value)}
@@ -495,7 +495,7 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           </div>
         </div>
 
-        <div className="language-metadata-workspace-administrative-actions">
+        <div className="lm-admin-actions">
           <button
             type="button"
             className="btn"
@@ -517,7 +517,7 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         </div>
       </div>
 
-      <label className="language-metadata-workspace-field">
+      <label className="lm-field">
         <span>{t(locale, 'workspace.languageMetadata.administrativeDivisionsLabel')}</span>
         <textarea
           className="input"

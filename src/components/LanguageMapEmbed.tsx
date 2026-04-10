@@ -219,7 +219,7 @@ export function LanguageMapEmbed({
     searchMarkerRefs.current = (searchResults ?? []).map((suggestion) => {
       const element = document.createElement('button');
       element.type = 'button';
-      element.className = `language-metadata-workspace-search-marker${activeResultId === suggestion.id ? ' language-metadata-workspace-search-marker-active' : ''}`;
+      element.className = `lm-search-marker${activeResultId === suggestion.id ? ' lm-search-marker-active' : ''}`;
       element.title = suggestion.displayName;
       element.addEventListener('click', () => onSearchResultMarkerClick?.(suggestion));
       return new maplibregl.Marker({ element })
@@ -278,11 +278,11 @@ export function LanguageMapEmbed({
   }, []);
 
   return (
-    <div ref={wrapperRef} className={`${className ?? ''} language-metadata-workspace-map-wrapper`}>
-      <div ref={containerRef} className="language-metadata-workspace-map-inner" />
+    <div ref={wrapperRef} className={`${className ?? ''} lm-map-wrapper`}>
+      <div ref={containerRef} className="lm-map-inner" />
       <button
         type="button"
-        className="language-metadata-workspace-map-fullscreen-btn"
+        className="lm-map-fullscreen-btn"
         onClick={handleFullscreen}
         title={locale.startsWith('zh') ? '全屏' : 'Fullscreen'}
       >

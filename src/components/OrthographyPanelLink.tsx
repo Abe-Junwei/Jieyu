@@ -1,9 +1,10 @@
-import { Link, useInRouterContext, useLocation, type LinkProps, type Location } from 'react-router-dom';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react';
+import { useAssetPanel } from '../contexts/AssetPanelContext';
 
-type OrthographyPanelLinkProps = Omit<LinkProps, 'to' | 'state'> & {
+type OrthographyPanelLinkProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & {
   orthographyId?: string;
   fromLayerId?: string;
-  state?: LinkProps['state'];
+  children?: ReactNode;
 };
 
 export function buildOrthographyPanelPath({
@@ -30,47 +31,46 @@ export function buildOrthographyPanelPath({
 export function OrthographyPanelLink({
   orthographyId,
   fromLayerId,
-  state,
-  ...linkProps
+  children,
+  onClick,
+  ...buttonProps
 }: OrthographyPanelLinkProps) {
-  const inRouterContext = useInRouterContext();
+  const ctx = useAssetPanel();
 
-  if (!inRouterContext) {
+  if (!ctx) {
+    // 不在 AssetPanelProvider 内时降级为普通链接 | Fallback to anchor outside provider
     return (
       <a
-        {...linkProps}
-        href={buildOrthographyPanelPath({ orthographyId, fromLayerId })}
-      />
+        {...(buttonProps as unknown as AnchorHTMLAttributes<HTMLAnchorElement>)}
+        href={buildOrthographyPanelPath({
+          ...(orthographyId !== undefined && { orthographyId }),
+          ...(fromLayerId !== undefined && { fromLayerId }),
+        })}
+        onClick={onClick as AnchorHTMLAttributes<HTMLAnchorElement>['onClick']}
+      >
+        {children}
+      </a>
     );
   }
 
-  return (
-    <OrthographyPanelRouterLink
-      {...linkProps}
-      orthographyId={orthographyId}
-      fromLayerId={fromLayerId}
-      state={state}
-    />
-  );
-}
-
-function OrthographyPanelRouterLink({
-  orthographyId,
-  fromLayerId,
-  state,
-  ...linkProps
-}: OrthographyPanelLinkProps) {
-  const location = useLocation();
-  const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation ?? location;
-  const nextState = state && typeof state === 'object'
-    ? { ...(state as Record<string, unknown>), backgroundLocation }
-    : { backgroundLocation };
+  const panelPath = buildOrthographyPanelPath({
+    ...(orthographyId !== undefined && { orthographyId }),
+    ...(fromLayerId !== undefined && { fromLayerId }),
+  });
 
   return (
-    <Link
-      {...linkProps}
-      to={buildOrthographyPanelPath({ orthographyId, fromLayerId })}
-      state={nextState}
-    />
+    <button
+      {...buttonProps}
+      type="button"
+      onClick={(e) => {
+        onClick?.(e);
+        if (e.defaultPrevented) {
+          return;
+        }
+        ctx.openPanel(panelPath);
+      }}
+    >
+      {children}
+    </button>
   );
 }

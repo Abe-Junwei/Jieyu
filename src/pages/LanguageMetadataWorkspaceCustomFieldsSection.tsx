@@ -52,38 +52,38 @@ function withOptionalDefinitionField<K extends keyof CustomFieldControllerState[
 
 export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf }: LanguageMetadataWorkspaceCustomFieldsSectionProps) {
   return (
-    <section className="language-metadata-workspace-subsection">
-      <div className="language-metadata-workspace-subsection-header">
-        <h3 className="panel-title-primary language-metadata-workspace-subsection-title">{t(locale, 'workspace.languageMetadata.sectionCustomFields')}</h3>
-        <p className="language-metadata-workspace-subsection-description">{t(locale, 'workspace.languageMetadata.sectionCustomFieldsDescription')}</p>
-        <div className="language-metadata-workspace-inline-actions">
-          <button type="button" className="btn btn-ghost" onClick={cf.handleAddFieldDef}>{t(locale, 'workspace.languageMetadata.customFieldAdd')}</button>
-          {cf.fieldDefs.length > 0 && (
-            <button type="button" className="btn btn-ghost" onClick={() => cf.setShowFieldManage((prev) => !prev)}>
-              {t(locale, 'workspace.languageMetadata.customFieldManage')}
-            </button>
-          )}
-        </div>
+    <details className="ws-subsection lm-subsection">
+      <summary className="lm-subsection-header">
+        <h3 className="panel-title-primary">{t(locale, 'workspace.languageMetadata.sectionCustomFields')}</h3>
+        <p className="lm-subsection-description">{t(locale, 'workspace.languageMetadata.sectionCustomFieldsDescription')}</p>
+      </summary>
+      <div className="lm-inline-actions">
+        <button type="button" className="btn btn-ghost" onClick={() => cf.handleAddFieldDef()}>{t(locale, 'workspace.languageMetadata.customFieldAdd')}</button>
+        {cf.fieldDefs.length > 0 && (
+          <button type="button" className="btn btn-ghost" onClick={() => cf.setShowFieldManage((prev) => !prev)}>
+            {t(locale, 'workspace.languageMetadata.customFieldManage')}
+          </button>
+        )}
       </div>
 
       {cf.fieldDefs.length === 0 ? (
-        <p className="language-metadata-workspace-state">{t(locale, 'workspace.languageMetadata.customFieldEmpty')}</p>
+        <p className="lm-state">{t(locale, 'workspace.languageMetadata.customFieldEmpty')}</p>
       ) : (
-        <div className="language-metadata-workspace-grid">
+        <div className="lm-grid">
           {cf.fieldDefs.map((def, index) => (
-            <div key={def.id} className="language-metadata-workspace-field language-metadata-workspace-field-block">
+            <div key={def.id} className="lm-field lm-field-block">
               {cf.showFieldManage ? (
-                <div className="language-metadata-workspace-field-editor-card">
-                  <div className="language-metadata-workspace-field-toolbar">
+                <div className="lm-field-editor-card">
+                  <div className="lm-field-toolbar">
                     <strong>{readLocalizedFieldText(locale, def.name) || def.id}</strong>
-                    <div className="language-metadata-workspace-field-toolbar-actions">
+                    <div className="lm-field-toolbar-actions">
                       <button type="button" className="btn btn-ghost" onClick={() => cf.handleMoveFieldDef(def.id, -1)} disabled={index === 0}>{t(locale, 'workspace.languageMetadata.customFieldMoveUp')}</button>
                       <button type="button" className="btn btn-ghost" onClick={() => cf.handleMoveFieldDef(def.id, 1)} disabled={index === cf.fieldDefs.length - 1}>{t(locale, 'workspace.languageMetadata.customFieldMoveDown')}</button>
                     </div>
                   </div>
-                  <div className="language-metadata-workspace-grid language-metadata-workspace-field-definition-grid">
-                  <label className="language-metadata-workspace-inline-field">
-                    <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldName')}</span>
+                  <div className="lm-grid lm-field-definition-grid">
+                  <label className="lm-inline-field">
+                    <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldName')}</span>
                     <input
                       className="input"
                       value={def.name[locale] || ''}
@@ -91,8 +91,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                       onBlur={() => cf.handleFieldDefBlur(def.id)}
                     />
                   </label>
-                  <label className="language-metadata-workspace-inline-field">
-                    <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldType')}</span>
+                  <label className="lm-inline-field">
+                    <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldType')}</span>
                     <select
                       className="input"
                       value={def.fieldType}
@@ -103,8 +103,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                       ))}
                     </select>
                   </label>
-                  <label className="language-metadata-workspace-inline-field">
-                    <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldRequired')}</span>
+                  <label className="lm-inline-field">
+                    <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldRequired')}</span>
                     <input
                       type="checkbox"
                       checked={Boolean(def.required)}
@@ -113,10 +113,10 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                     />
                   </label>
                   {(def.fieldType === 'select' || def.fieldType === 'multiselect') && (
-                    <label className="language-metadata-workspace-inline-field language-metadata-workspace-inline-field-top">
-                      <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldOptions')}</span>
+                    <label className="lm-inline-field lm-inline-field-top">
+                      <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldOptions')}</span>
                       <textarea
-                        className="input language-metadata-workspace-textarea"
+                        className="input lm-textarea"
                         rows={3}
                         value={formatCustomFieldOptionsEditorValue(def.options)}
                         placeholder={t(locale, 'workspace.languageMetadata.customFieldOptionsPlaceholder')}
@@ -125,8 +125,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                       />
                     </label>
                   )}
-                  <label className="language-metadata-workspace-inline-field">
-                    <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldPlaceholder')}</span>
+                  <label className="lm-inline-field">
+                    <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldPlaceholder')}</span>
                     <input
                       className="input"
                       value={def.placeholder?.[locale] ?? ''}
@@ -134,8 +134,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                       onBlur={() => cf.handleFieldDefBlur(def.id)}
                     />
                   </label>
-                  <label className="language-metadata-workspace-inline-field">
-                    <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldHelpText')}</span>
+                  <label className="lm-inline-field">
+                    <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldHelpText')}</span>
                     <input
                       className="input"
                       value={def.helpText?.[locale] ?? ''}
@@ -145,8 +145,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                   </label>
                   {CUSTOM_FIELD_RENDERER_REGISTRY[def.fieldType].supportsNumericRange && (
                     <>
-                      <label className="language-metadata-workspace-inline-field">
-                        <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldMinValue')}</span>
+                      <label className="lm-inline-field">
+                        <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldMinValue')}</span>
                         <input
                           className="input"
                           type="number"
@@ -155,8 +155,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                           onBlur={() => cf.handleFieldDefBlur(def.id)}
                         />
                       </label>
-                      <label className="language-metadata-workspace-inline-field">
-                        <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldMaxValue')}</span>
+                      <label className="lm-inline-field">
+                        <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldMaxValue')}</span>
                         <input
                           className="input"
                           type="number"
@@ -168,8 +168,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                     </>
                   )}
                   {CUSTOM_FIELD_RENDERER_REGISTRY[def.fieldType].supportsPattern && (
-                    <label className="language-metadata-workspace-field-block language-metadata-workspace-inline-field">
-                      <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldPattern')}</span>
+                    <label className="lm-field-block lm-inline-field">
+                      <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldPattern')}</span>
                       <input
                         className="input"
                         value={def.pattern ?? ''}
@@ -179,8 +179,8 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
                     </label>
                   )}
                   {CUSTOM_FIELD_RENDERER_REGISTRY[def.fieldType].supportsDefaultValue && (
-                    <label className="language-metadata-workspace-field-block language-metadata-workspace-inline-field language-metadata-workspace-inline-field-top">
-                      <span className="language-metadata-workspace-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldDefaultValue')}</span>
+                    <label className="lm-field-block lm-inline-field lm-inline-field-top">
+                      <span className="lm-inline-field-label">{t(locale, 'workspace.languageMetadata.customFieldDefaultValue')}</span>
                       {def.fieldType === 'boolean' ? (
                         <input
                           type="checkbox"
@@ -245,6 +245,6 @@ export function LanguageMetadataWorkspaceCustomFieldsSection({ locale, draft, cf
           ))}
         </div>
       )}
-    </section>
+    </details>
   );
 }

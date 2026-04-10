@@ -10,6 +10,7 @@ type HorizontalPanelResizeConfig = {
   minWidth?: number;
   maxWidth?: number;
   maxWidthRatio?: number;
+  minRemainingSpace?: number;
 };
 
 type VerticalPanelResizeConfig = {
@@ -42,9 +43,17 @@ function startHorizontalResize(
   const rect = root.getBoundingClientRect();
   const startX = event.clientX;
   const startWidth = config.width;
-  const minWidth = config.minWidth ?? 240;
-  const widthCapFromRatio = rect.width * (config.maxWidthRatio ?? 0.6);
-  const maxWidth = Math.max(minWidth, Math.min(config.maxWidth ?? 560, widthCapFromRatio));
+  const minRemainingSpace = Math.max(0, config.minRemainingSpace ?? 24);
+  const maxWidthFromViewport = Math.max(180, rect.width - minRemainingSpace);
+  const minWidth = Math.min(config.minWidth ?? 240, maxWidthFromViewport);
+  const maxWidthFromConfig = Math.min(config.maxWidth ?? 560, maxWidthFromViewport);
+  const maxWidthFromRatio = config.maxWidthRatio !== undefined
+    ? rect.width * config.maxWidthRatio
+    : Number.POSITIVE_INFINITY;
+  const maxWidth = Math.max(minWidth, Math.min(maxWidthFromConfig, maxWidthFromRatio));
+
+  // 拖拽期间禁用过渡动画，避免 220ms 延迟 | Suppress transitions during drag to avoid 220ms lag
+  root.classList.add('is-panel-resizing');
 
   const onMove = (moveEvent: PointerEvent) => {
     const dx = moveEvent.clientX - startX;
@@ -53,6 +62,7 @@ function startHorizontalResize(
     config.setWidth(nextWidth);
   };
   const onUp = () => {
+    root.classList.remove('is-panel-resizing');
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
     config.dragCleanupRef.current = null;

@@ -67,8 +67,6 @@
   --panel-toggle-edge-offset: 2px;
   --transcription-side-pane-width: 112px;
   --transcription-rail-width: var(--transcription-side-pane-width);
-  --transcription-ai-width: 18%;
-  --transcription-ai-visible-width: var(--transcription-ai-width);
 }
 
 .transcription-workspace::after {
@@ -115,6 +113,11 @@
 .transcription-side-pane {
   transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
   transition-duration: 220ms;
+}
+
+/* 拖拽期间禁用过渡，保持即时响应 | Disable transitions during drag for instant feedback */
+.is-panel-resizing .transcription-list-panel {
+  transition-duration: 0s;
 }
 
 .transcription-list-main::before {

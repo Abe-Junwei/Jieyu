@@ -75,9 +75,15 @@
   overflow-y: auto;
   scrollbar-gutter: stable;
   z-index: var(--z-header);
+  /* 浮层容器不拦截波形交互，仅内部控件可响应 | Let waveform interactions pass through container; keep children interactive */
+  pointer-events: none;
   --icon-btn-height: 28px;
   --icon-btn-min-width: 28px;
   --icon-btn-padding: 0;
+}
+
+.transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right > * {
+  pointer-events: auto;
 }
 
 .transcription-wave-toolbar-volume {

@@ -48,10 +48,10 @@ export function LanguageMetadataWorkspaceCustomFieldValueField({ locale, definit
   }, [definition, draftValue, reset]);
 
   return (
-    <label className="language-metadata-workspace-field language-metadata-workspace-field-block">
-      <span className="language-metadata-workspace-field-label-row">
+    <label className="lm-field lm-field-block">
+      <span className="lm-field-label-row">
         <span>{localizedLabel}</span>
-        {definition.required ? <strong className="language-metadata-workspace-field-required">*</strong> : null}
+        {definition.required ? <strong className="lm-field-required">*</strong> : null}
       </span>
       <Controller
         name="value"
@@ -62,7 +62,7 @@ export function LanguageMetadataWorkspaceCustomFieldValueField({ locale, definit
         render={({ field, fieldState }) => (
           <>
             {definition.fieldType === 'boolean' ? (
-              <label className="language-metadata-workspace-checkbox-field">
+              <label className="lm-checkbox-field">
                 <input
                   type="checkbox"
                   checked={Boolean(field.value)}
@@ -112,8 +112,8 @@ export function LanguageMetadataWorkspaceCustomFieldValueField({ locale, definit
                 }}
               />
             )}
-            {helpText ? <span className="language-metadata-workspace-field-helper">{helpText}</span> : null}
-            {fieldState.error?.message ? <span className="language-metadata-workspace-field-error">{fieldState.error.message}</span> : null}
+            {helpText ? <span className="lm-field-helper">{helpText}</span> : null}
+            {fieldState.error?.message ? <span className="lm-field-error">{fieldState.error.message}</span> : null}
           </>
         )}
       />

@@ -307,6 +307,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
     const zoomToUtterance = vi.fn();
     const createUtteranceFromSelection = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      useSegmentWaveformRegions: false,
       zoomToUtterance,
       createUtteranceFromSelection,
     })));
@@ -320,6 +321,25 @@ describe('useTranscriptionTimelineInteractionController', () => {
       await Promise.resolve();
     });
     expect(createUtteranceFromSelection).toHaveBeenCalledWith(1, 2);
+  });
+
+  it('keeps double-click zoom in segment waveform mode even when preference is create-segment', () => {
+    localStorage.setItem('jieyu:waveform-double-click-action', 'create-segment');
+
+    const zoomToUtterance = vi.fn();
+    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      useSegmentWaveformRegions: true,
+      zoomToUtterance,
+      createUtteranceFromSelection,
+    })));
+
+    act(() => {
+      result.current.handleWaveformRegionDoubleClick('seg-1', 1, 2);
+    });
+
+    expect(zoomToUtterance).toHaveBeenCalledWith(1, 2);
+    expect(createUtteranceFromSelection).not.toHaveBeenCalled();
   });
 
   it('captures Alt pointerdown into sub-selection drag state', () => {

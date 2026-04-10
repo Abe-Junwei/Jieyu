@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import '../styles/components/orthography-builder.css';
 import { getDb, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useOrthographies } from '../hooks/useOrthographies';
@@ -484,7 +483,7 @@ export function OrthographyBridgeManager({
           {(isCreatingNew || editingBridgeId) && (
             <div className="orthography-builder-bridge-panel">
               <div className="orthography-builder-bridge-grid">
-                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-source">
+                <div className="ob-bridge-group ob-bridge-group-source">
                   <div className="orthography-builder-language-field">
                     <LanguageIsoInput
                       locale={locale}
@@ -532,7 +531,7 @@ export function OrthographyBridgeManager({
                   </FormField>
                 </div>
 
-                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-meta">
+                <div className="ob-bridge-group ob-bridge-group-meta">
                   <FormField label={managerMessages.ruleNameZhLabel}>
                     <input
                       className={fieldClassName}
@@ -577,7 +576,7 @@ export function OrthographyBridgeManager({
                     </select>
                   </FormField>
 
-                  <label className="orthography-builder-checkbox orthography-workspace-bridge-checkbox-row">
+                  <label className="orthography-builder-checkbox ob-bridge-checkbox-row">
                     <input
                       type="checkbox"
                       checked={draftBridgeIsReversible}
@@ -587,7 +586,7 @@ export function OrthographyBridgeManager({
                   </label>
                 </div>
 
-                <div className="orthography-workspace-bridge-group orthography-workspace-bridge-group-content">
+                <div className="ob-bridge-group ob-bridge-group-content">
                   <div className="orthography-builder-rule-block">
                     <span className="orthography-builder-rule-label">{builderMessages.bridgeRuleTextLabel}</span>
                     <textarea

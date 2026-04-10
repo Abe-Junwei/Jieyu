@@ -27,70 +27,9 @@
 }
 
 .app-modal-panel-frame {
-  width: min(100vw - 32px, 560px);
-  max-height: calc(100vh - 32px);
+  width: min(var(--vp-w-wide), 560px);
+  max-height: var(--vp-h-shell);
   overflow: auto;
-}
-
-.language-asset-route-dialog-overlay {
-  align-items: stretch;
-  justify-content: flex-start;
-  padding: 16px 24px;
-}
-
-.language-asset-modal-frame {
-  width: min(calc(100vw - 48px), 1240px);
-  max-height: 100%;
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-start;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.language-asset-modal-surface {
-  position: relative;
-  width: min(100%, 800px);
-  max-height: 100%;
-  min-width: 0;
-  display: flex;
-  align-items: stretch;
-  pointer-events: auto;
-}
-
-.language-asset-modal-surface--workspace {
-  width: min(100%, 960px);
-}
-
-.language-asset-modal-surface--workspace > .language-asset-workspace-shell {
-  min-height: 100%;
-}
-
-.language-asset-modal-surface > * {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.language-asset-modal-close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 2;
-}
-
-@media (max-width: 900px) {
-  .language-asset-route-dialog-overlay {
-    justify-content: center;
-    padding: 12px;
-  }
-
-  .language-asset-modal-frame {
-    width: calc(100vw - 24px);
-  }
-
-  .language-asset-modal-surface {
-    width: 100%;
-  }
 }
 
 .app-left-rail {
@@ -357,7 +296,7 @@
   }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1080px) {
   :root {
     --side-pane-width: 0px;
     --side-pane-gap: 0px;
@@ -396,10 +335,6 @@
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.app-side-pane-section-title {
-  margin: 0;
 }
 
 .app-side-pane-group {

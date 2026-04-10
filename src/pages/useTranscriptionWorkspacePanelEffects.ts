@@ -1,6 +1,9 @@
 import { usePanelResize } from '../hooks/usePanelResize';
 import { usePanelAutoCollapse } from '../hooks/usePanelAutoCollapse';
 import { useBatchOperationPanelShortcut } from './useBatchOperationPanelShortcut';
+import { useEffect } from 'react';
+
+const AI_PANEL_MIN_REMAINING_SPACE = 360;
 
 interface UseTranscriptionWorkspacePanelEffectsInput {
   isAiPanelCollapsed: boolean;
@@ -29,6 +32,36 @@ export function useTranscriptionWorkspacePanelEffects({
   screenRef,
   setShowBatchOperationPanel,
 }: UseTranscriptionWorkspacePanelEffectsInput) {
+  useEffect(() => {
+    if (isAiPanelCollapsed) return;
+
+    const root = workspaceRef.current;
+    if (!root) return;
+
+    const syncAiWidthToViewport = () => {
+      const maxVisibleWidth = Math.max(
+        180,
+        Math.min(900, root.getBoundingClientRect().width - AI_PANEL_MIN_REMAINING_SPACE),
+      );
+      setAiPanelWidth((prev) => (prev > maxVisibleWidth ? maxVisibleWidth : prev));
+    };
+
+    syncAiWidthToViewport();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncAiWidthToViewport();
+    });
+
+    observer.observe(root);
+    return () => {
+      observer.disconnect();
+    };
+  }, [isAiPanelCollapsed, setAiPanelWidth, workspaceRef]);
+
   usePanelAutoCollapse({
     isCollapsed: isAiPanelCollapsed,
     setIsCollapsed: setIsAiPanelCollapsed,
@@ -57,8 +90,8 @@ export function useTranscriptionWorkspacePanelEffects({
       dragCleanupRef,
       side: 'right',
       minWidth: 240,
-      maxWidth: 560,
-      maxWidthRatio: 0.6,
+      maxWidth: 900,
+      minRemainingSpace: AI_PANEL_MIN_REMAINING_SPACE,
     },
     hub: {
       isHubCollapsed,

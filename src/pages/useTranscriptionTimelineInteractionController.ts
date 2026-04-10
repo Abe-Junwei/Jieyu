@@ -365,12 +365,13 @@ export function useTranscriptionTimelineInteractionController(
   }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUtteranceRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUtteranceSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
-    if (readStoredWaveformDoubleClickAction() === 'create-segment') {
+    const preferCreateSegment = readStoredWaveformDoubleClickAction() === 'create-segment';
+    if (preferCreateSegment && !input.useSegmentWaveformRegions) {
       fireAndForget(input.createUtteranceFromSelection(start, end));
       return;
     }
     input.zoomToUtterance(start, end);
-  }, [input.createUtteranceFromSelection, input.zoomToUtterance]);
+  }, [input.createUtteranceFromSelection, input.useSegmentWaveformRegions, input.zoomToUtterance]);
 
   const handleWaveformRegionCreate = useCallback((start: number, end: number) => {
     fireAndForget(input.createUtteranceFromSelection(start, end));

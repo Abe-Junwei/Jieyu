@@ -280,6 +280,7 @@
 }
 
 .voice-agent-energy-fill {
+  opacity: 1;
 }
 
 .voice-agent-session-card {
@@ -889,6 +890,7 @@
 }
 
 .voice-agent-wakeword-energy-fill {
+  opacity: 1;
 }
 
 /* ARIA live region — visually hidden but readable by screen readers */

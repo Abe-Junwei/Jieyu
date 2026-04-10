@@ -1,8 +1,9 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
+import type { Plugin as EsbuildPlugin } from 'esbuild';
 
 /**
  * 将 onnxruntime-web WASM 文件复制到构建输出，供 @huggingface/transformers Worker 运行时加载。
@@ -29,6 +30,34 @@ function copyOnnxWasm(): Plugin {
   };
 }
 
+/**
+ * wavesurfer.js 频谱图插件在模块顶层 require("worker_threads")，Vite 将其外部化后
+ * 访问 .Worker 会产生浏览器兼容警告。此 esbuild 插件在依赖预构建阶段将该 require
+ * 替换为 undefined，使其在 try/catch 中安全失败且不再输出警告。
+ * The spectrogram plugin probes require("worker_threads") at module scope.
+ * Vite externalises it with a proxy that logs a warning on property access.
+ * This esbuild plugin replaces the require call with (void 0) during dep
+ * pre-bundling so the existing try/catch silences it without the warning.
+ */
+function muteSpectrogramWorkerThreads(): EsbuildPlugin {
+  return {
+    name: 'mute-spectrogram-worker-threads',
+    setup(build) {
+      build.onLoad({ filter: /spectrogram[\w.-]*\.js$/ }, async (args) => {
+        if (!args.path.includes('wavesurfer')) return undefined;
+        let contents = readFileSync(args.path, 'utf-8');
+        // 先替换限定形式，再替换裸 require，避免 module.(void 0) 语法错误
+        // Replace qualified forms first, then bare require, to avoid module.(void 0) syntax error
+        contents = contents
+          .replace(/module\.require\(\s*["']worker_threads["']\s*\)/g, '(void 0)')
+          .replace(/__non_webpack_require__\(\s*["']worker_threads["']\s*\)/g, '(void 0)')
+          .replace(/require\(\s*["']worker_threads["']\s*\)/g, '(void 0)');
+        return { contents, loader: 'js' };
+      });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [react(), copyOnnxWasm()],
   server: {
@@ -37,6 +66,11 @@ export default defineConfig({
   },
   worker: {
     format: 'es',
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      plugins: [muteSpectrogramWorkerThreads()],
+    },
   },
   build: {
     sourcemap: false,

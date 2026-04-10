@@ -1,112 +1,319 @@
-@import './language-asset-workspace.css';
+/* ── orthography-manager-panel.css ──
+ * Page-specific styles for Orthography Manager Panel.
+ * Foundation: workspace-shell.css, panel-primitives.css, panel-design-presets.css, dialog-shell.css
+ */
 
-.orthography-manager-page {
-  --language-asset-note-size: calc(12px * var(--ui-font-scale, 1));
-  --language-asset-list-max-height: 260px;
-  display: block;
+/* ── Page container ── */
+
+.om-page {
+  --ws-note-size: calc(12px * var(--ui-font-scale, 1));
   width: 100%;
   min-width: 0;
-  min-height: 100%;
+  min-height: 0;
   padding: 0;
 }
 
-.orthography-manager-panel-shell {
+/* ── Panel shell ── */
+
+.om-shell {
   --dialog-auto-width: 100%;
   width: 100%;
-  min-height: 100%;
-  border-radius: 28px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
+  min-height: auto;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 96%, white), color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel)) 100%);
-  box-shadow: 0 28px 56px color-mix(in srgb, var(--shadow-color) 18%, transparent);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
 }
 
-.orthography-manager-panel-body {
-  display: grid;
-  gap: 14px;
-}
+.om-body { display: grid; gap: 16px; }
+.om-header { padding-right: 0; }
+.om-footer { display: flex; justify-content: flex-end; gap: 8px; }
 
-.orthography-manager-panel-header {
-  padding-right: 52px;
-}
-
-.orthography-manager-panel-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.orthography-manager-panel-shell .dialog-header {
-  min-height: 60px;
-  padding: 18px 20px 14px;
+.om-shell .dialog-header {
+  min-height: auto;
+  padding: 16px 20px;
   align-items: flex-start;
   gap: 10px 14px;
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, white), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--color-white)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
 }
 
-.orthography-manager-panel-shell .dialog-shell__title {
-  padding-right: 40px;
+.om-shell .dialog-shell__title { padding-right: 40px; }
+.om-shell .dialog-body { padding: 16px 20px; }
+
+.om-shell .dialog-footer {
+  padding: 16px 20px;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
 }
 
-.orthography-manager-panel-shell .dialog-body {
-  padding: 14px 20px 20px;
+/* ── Embedded builder primitives ── */
+
+.om-shell .orthography-builder-panel {
+  display: grid;
+  gap: 14px;
+  margin-top: 0;
+  padding: 0;
+  container-type: inline-size;
+  font-family: var(--font-base);
+  color: var(--text-primary);
 }
 
-.orthography-manager-panel-shell .dialog-footer {
-  padding: 14px 20px 18px;
-  background: color-mix(in srgb, var(--surface-header) 82%, white);
+.om-shell .orthography-builder-panel-compact {
+  gap: 18px;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.orthography-manager-panel-link {
-  text-decoration: none;
+.om-shell .orthography-builder-panel :is(input, select, textarea) {
+  font-family: var(--font-base);
+  color: var(--text-primary);
 }
 
-.orthography-manager-context-note {
+.om-shell .orthography-builder-panel :is(.dialog-field, .language-iso-input .dialog-field) {
+  gap: 4px;
+}
+
+.om-shell .orthography-builder-panel :is(.dialog-field label, .dialog-field > span) {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.om-shell .orthography-builder-group,
+.om-shell .orthography-builder-group-body {
+  display: grid;
+  gap: 8px;
+}
+
+.om-shell .orthography-builder-group-divided {
+  padding-top: 10px;
+}
+
+.om-shell .orthography-builder-panel-compact .orthography-builder-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.om-shell .orthography-builder-panel-compact .orthography-builder-group-title::before,
+.om-shell .orthography-builder-panel-compact .orthography-builder-group-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
+}
+
+.om-shell .orthography-builder-panel-compact .language-iso-input-grid {
+  grid-template-columns: minmax(0, 1.8fr) minmax(88px, 0.8fr);
+}
+
+.om-shell .orthography-builder-panel-compact .script-tag-combobox,
+.om-shell .orthography-builder-panel-compact .script-tag-combobox > * {
+  gap: 4px;
+}
+
+.om-shell .orthography-builder-script-type-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.om-shell .orthography-builder-advanced-group {
+  overflow: hidden;
+}
+
+.om-shell .orthography-builder-workspace-note {
+  padding: 7px 9px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--surface-panel);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.om-shell .orthography-builder-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+.om-shell .orthography-builder-checkbox input {
+  margin: 0;
+}
+
+.om-shell .orthography-builder-hint {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--state-info-solid);
+}
+
+.om-panel-link { text-decoration: none; }
+
+.om-context-note {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ── Highlight card ── */
+
+.om-highlight-card {
+  display: grid;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--header-accent) 18%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-header) 86%, var(--surface-panel));
+  box-shadow: none;
+}
+
+.om-highlight-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.om-highlight-copy { display: grid; gap: 4px; min-width: 0; }
+
+.om-highlight-eyebrow {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-primary) 68%, var(--accent-primary));
+}
+
+.om-highlight-title {
+  margin: 0;
+  font-size: calc(18px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.om-highlight-supporting {
   margin: 0;
   font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.5;
   color: var(--text-secondary);
 }
 
-.orthography-manager-context-note {
-  padding: 8px 10px;
-}
+.om-highlight-meta { display: flex; flex-wrap: wrap; gap: 6px; }
 
-.orthography-manager-toolbar {
+.om-highlight-facts {
   display: grid;
-  gap: 6px;
-}
-
-.orthography-manager-browser {
-  padding: 12px;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 82%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 97%, white);
-  box-shadow: 0 12px 30px color-mix(in srgb, var(--shadow-color) 7%, transparent);
-}
-
-.orthography-manager-browser-body {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+  margin: 0;
 }
 
-.orthography-manager-search {
-  width: 100%;
+.om-highlight-fact {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header));
 }
 
-.orthography-manager-filter-toggle {
+.om-highlight-fact dt,
+.om-highlight-fact dd {
+  margin: 0;
+}
+
+.om-highlight-fact dt {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.om-highlight-fact dd {
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+/* ── Browser ── */
+
+.om-browser {
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 66%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
+  box-shadow: none;
+}
+
+.om-browser-body { gap: 8px; }
+.om-browser-header { display: flex; align-items: center; justify-content: center; }
+
+.om-browser-title {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
 }
 
-.orthography-manager-filter-toggle .panel-button {
+.om-browser-title::before,
+.om-browser-title::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
+}
+
+.om-toolbar { display: grid; gap: 6px; }
+.om-search { width: 100%; }
+
+.om-filter-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.om-filter-toggle .panel-button {
   min-height: 26px;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
 }
 
-.orthography-manager-callout {
+.om-callout {
   display: grid;
   gap: 8px;
   padding: 10px 12px;
@@ -115,21 +322,24 @@
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-warning-bg));
 }
 
-.orthography-manager-list {
+/* ── List ── */
+
+.om-list {
   display: grid;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, white 84%, var(--surface-panel));
+  gap: 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
-.orthography-manager-list-item {
+.om-list-item {
   display: grid;
   gap: 4px;
   width: 100%;
   padding: 8px 12px;
-  border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
-  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 64%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
   color: var(--text-primary);
   text-align: left;
   align-content: start;
@@ -139,31 +349,22 @@
   transition: background 140ms ease, box-shadow 140ms ease;
 }
 
-.orthography-manager-list-item:last-child {
-  border-bottom: 0;
-}
+.om-list-item:last-child { border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 64%, transparent); }
+.om-list-item:hover { background: color-mix(in srgb, var(--surface-header) 72%, transparent); }
 
-.orthography-manager-list-item:hover {
-  background: color-mix(in srgb, var(--surface-header) 72%, transparent);
-}
-
-.orthography-manager-list-item:focus-visible {
+.om-list-item:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 2px var(--focus-ring);
 }
 
-.orthography-manager-list-item-active {
+.om-list-item-active {
   background: color-mix(in srgb, var(--state-info-bg) 78%, var(--surface-panel));
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--header-accent) 72%, transparent);
 }
 
-.orthography-manager-list-label {
-  font-size: calc(12px * var(--ui-font-scale, 1));
-  line-height: 1.45;
-  font-weight: 600;
-}
+.om-list-label { font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.45; font-weight: 600; }
 
-.orthography-manager-list-meta {
+.om-list-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -173,323 +374,113 @@
   color: var(--text-secondary);
 }
 
-.orthography-manager-divider {
-  height: 1px;
-  border: 0;
-  margin: 0;
-  background: color-mix(in srgb, var(--border-soft) 42%, transparent);
-}
+/* ── Divider ── */
 
-.orthography-manager-highlight-card {
-  display: grid;
-  gap: 8px;
-  padding: 16px 18px;
-  border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--header-accent) 20%, var(--border-soft));
-  background: color-mix(in srgb, var(--state-info-bg) 66%, var(--surface-panel));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 55%, transparent);
-}
+.om-divider { height: 1px; border: 0; margin: 0; background: color-mix(in srgb, var(--border-soft) 42%, transparent); }
 
-.orthography-manager-highlight-card .panel-section__header {
-  align-items: center;
-}
+/* ── 6-column form grid ── */
 
-.orthography-manager-highlight-label,
-.orthography-manager-basic-grid dt {
-  margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
+.om-form-stack { margin-top: 0; }
 
-.orthography-manager-highlight-value,
-.orthography-manager-basic-grid dd {
-  margin: 0;
-  font-size: calc(13px * var(--ui-font-scale, 1));
-  line-height: 1.5;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.orthography-manager-highlight-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.orthography-manager-form-stack {
-  display: grid;
-  gap: 14px;
-  margin-top: 0;
-}
-
-.orthography-manager-form-grid {
+.om-form-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
 }
 
-.orthography-manager-form-span-2 {
-  grid-column: 1 / -1;
-}
+.om-form-grid > * { min-width: 0; }
+.om-form-grid :is(.dialog-field, .language-iso-input .dialog-field) { min-width: 0; }
+.om-form-grid :is(.panel-input, input, select, textarea) { min-width: 0; }
 
-.orthography-manager-form-grid > * {
-  min-width: 0;
-}
+.om-form-span-2 { grid-column: 1 / -1; }
+.om-form-span-third { grid-column: span 2; }
+.om-form-span-half { grid-column: span 3; }
+.om-form-span-two-thirds { grid-column: span 4; }
 
-.orthography-manager-form-grid :is(.dialog-field, .language-iso-input .dialog-field) {
-  min-width: 0;
-}
-
-.orthography-manager-form-grid :is(.panel-input, input, select, textarea) {
-  min-width: 0;
-}
-
-.orthography-manager-form-span-third {
-  grid-column: span 2;
-}
-
-.orthography-manager-form-span-half {
-  grid-column: span 3;
-}
-
-.orthography-manager-form-span-two-thirds {
-  grid-column: span 4;
-}
-
-.orthography-manager-form-pair {
+.om-form-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.orthography-manager-subsection {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 0;
-  border-radius: 22px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 88%, white), color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header)) 100%);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
-}
+.om-subsection { display: block; }
 
-.orthography-manager-subsection-title {
-  margin: 0;
-}
+.om-subsection-title { display: block; }
 
-.orthography-manager-checkbox-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-}
+.om-checkbox-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 
-.orthography-manager-array-list {
-  display: grid;
-  gap: 10px;
-}
+/* ── Array editor ── */
 
-.orthography-manager-array-row {
+.om-array-list { display: grid; gap: 10px; }
+
+.om-array-row {
   display: grid;
   grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto;
   gap: 10px;
   align-items: end;
 }
 
-.orthography-manager-array-value {
-  min-width: 0;
+.om-array-value { min-width: 0; }
+.om-array-add { justify-self: start; }
+
+/* ── Textarea ── */
+
+.om-textarea { min-height: 72px; resize: vertical; }
+.om-codearea { min-height: 120px; font-family: var(--font-mono); }
+
+/* ── Advanced collapse ── */
+
+.om-advanced {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
-.orthography-manager-array-add {
-  justify-self: start;
-}
-
-.orthography-manager-textarea {
-  min-height: 72px;
-  resize: vertical;
-}
-
-.orthography-manager-codearea {
-  min-height: 120px;
-  font-family: var(--font-mono);
-}
-
-.orthography-manager-advanced {
-  border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--surface-header) 65%, transparent);
-}
-
-.orthography-manager-advanced-summary {
+.om-advanced-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 18px 0 0;
   cursor: pointer;
   list-style: none;
   font-size: calc(13px * var(--ui-font-scale, 1));
   font-weight: 700;
   color: var(--text-primary);
+  position: relative;
+  padding-right: 28px;
 }
 
-.orthography-manager-advanced-summary::-webkit-details-marker {
-  display: none;
+.om-advanced-summary::-webkit-details-marker { display: none; }
+
+.om-advanced-summary::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  background: var(--text-secondary);
+  transition: transform 160ms ease;
 }
 
-.orthography-manager-advanced-summary::before {
-  content: '▸';
-  display: inline-block;
-  margin-right: 6px;
-  transition: transform 0.15s ease;
+.om-advanced:not([open]) > .om-advanced-summary::after {
+  transform: translateY(-50%) rotate(-90deg);
 }
 
-.orthography-manager-advanced[open] > .orthography-manager-advanced-summary::before {
-  transform: rotate(90deg);
-}
-
-.orthography-manager-advanced-meta {
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.orthography-manager-advanced-body {
-  display: grid;
-  gap: 12px;
-  padding: 0 12px 12px;
-  border-top: none;
-}
-
-.orthography-manager-basic-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin: 0;
-}
-
-.orthography-manager-basic-grid div {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
-}
-
-@media (max-width: 720px) {
-  .orthography-manager-panel-header {
-    padding-right: 44px;
-  }
-
-  .orthography-manager-panel-shell {
-    width: 100%;
-    border-radius: 22px;
-  }
-
-  .orthography-manager-panel-shell .dialog-header,
-  .orthography-manager-panel-shell .dialog-footer {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .orthography-manager-panel-shell .dialog-body {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-
-  .orthography-manager-form-grid,
-  .orthography-manager-basic-grid,
-  .orthography-manager-array-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .orthography-manager-form-span-third,
-  .orthography-manager-form-span-half,
-  .orthography-manager-form-span-two-thirds {
-    grid-column: 1 / -1;
-  }
-
-  .orthography-manager-form-pair {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* 2026-04-09 设计稿落地：摘要条、平面分区、居中标题、内部 footer */
-.orthography-manager-panel-shell {
-  border-radius: 24px;
-  border-color: color-mix(in srgb, var(--border-soft) 76%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, white), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
-  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
-}
-
-.orthography-manager-panel-body {
-  gap: 16px;
-}
-
-.orthography-manager-panel-shell .dialog-footer {
-  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
-}
-
-.orthography-manager-browser {
-  padding: 16px;
-  border-radius: 20px;
-  border-color: color-mix(in srgb, var(--border-soft) 66%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
-  box-shadow: none;
-}
-
-.orthography-manager-list {
-  gap: 8px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.orthography-manager-list-item {
-  border: 1px solid color-mix(in srgb, var(--border-soft) 64%, transparent);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
-}
-
-.orthography-manager-list-item:last-child {
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 64%, transparent);
-}
-
-.orthography-manager-highlight-card {
-  padding: 12px 14px;
-  border-radius: 18px;
-  border-color: color-mix(in srgb, var(--header-accent) 18%, var(--border-soft));
-  background: color-mix(in srgb, #F3F7FB 86%, var(--surface-panel));
-  box-shadow: none;
-}
-
-.orthography-manager-form-stack {
-  gap: 18px;
-}
-
-.orthography-manager-subsection {
-  gap: 16px;
-  padding: 18px 0 0;
-  border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
-  border-radius: 0;
-  background: transparent;
-}
-
-.orthography-manager-form-stack > .orthography-manager-subsection:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.orthography-manager-subsection-title,
-.orthography-manager-advanced-summary > .orthography-builder-group-title {
+.om-advanced-summary > .orthography-builder-group-title {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   width: 100%;
+  margin: 0;
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -497,33 +488,93 @@
   text-align: center;
 }
 
-.orthography-manager-subsection-title::before,
-.orthography-manager-subsection-title::after,
-.orthography-manager-advanced-summary > .orthography-builder-group-title::before,
-.orthography-manager-advanced-summary > .orthography-builder-group-title::after {
+.om-advanced-summary > .orthography-builder-group-title::before,
+.om-advanced-summary > .orthography-builder-group-title::after {
   content: '';
   flex: 1 1 auto;
   height: 1px;
   background: color-mix(in srgb, var(--border-soft) 92%, transparent);
 }
 
-.orthography-manager-advanced {
-  border: 0;
-  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
-  border-radius: 0;
-  background: transparent;
+.om-advanced-meta {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 400;
+  color: var(--text-secondary);
 }
 
-.orthography-manager-advanced-summary {
-  padding: 18px 0 0;
-}
-
-.orthography-manager-advanced-body {
+.om-advanced-body {
+  display: grid;
+  gap: 12px;
   padding: 14px 0 0;
+  border-top: none;
 }
 
-.orthography-manager-basic-grid div {
+/* ── Basic grid (catalog info) ── */
+
+.om-basic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.om-basic-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
   border-radius: 16px;
   background: color-mix(in srgb, var(--surface-header) 40%, var(--surface-panel));
+}
+
+.om-basic-grid dt {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.om-basic-grid dd {
+  margin: 0;
+  font-size: calc(13px * var(--ui-font-scale, 1));
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ── State messages (fallback for bare <p> outside PanelNote) ── */
+
+.om-state {
+  margin: 0;
+  font-size: var(--ws-note-size, calc(12px * var(--ui-font-scale, 1)));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.om-state-error { color: var(--state-danger-text); }
+.om-state-success { color: var(--state-success-text); }
+.om-state-warning { color: var(--state-warning-text); }
+
+/* ── Responsive ── */
+
+@media (max-width: 720px) {
+  .om-shell { width: 100%; border-radius: 22px; }
+  .om-shell .dialog-header, .om-shell .dialog-footer { padding-left: 12px; padding-right: 12px; }
+  .om-shell .dialog-body { padding-left: 12px; padding-right: 12px; }
+
+  .om-form-grid,
+  .om-basic-grid,
+  .om-array-row,
+  .om-highlight-facts { grid-template-columns: minmax(0, 1fr); }
+
+  .om-form-span-third,
+  .om-form-span-half,
+  .om-form-span-two-thirds { grid-column: 1 / -1; }
+
+  .om-form-pair { grid-template-columns: minmax(0, 1fr); }
+
+  .om-shell .orthography-builder-panel-compact .language-iso-input-grid,
+  .om-shell .orthography-builder-script-type-row {
+    grid-template-columns: 1fr;
+  }
 }

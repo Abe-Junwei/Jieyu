@@ -2023,8 +2023,8 @@ function TranscriptionPageReadyWorkspace({
                       zoomPercent={zoomPercent}
                       snapEnabled={snapEnabled}
                       autoScrollEnabled={autoScrollEnabled}
-                      activeUtteranceUnitId={selectedTimelineUtteranceId}
-                      utterancesOnCurrentMedia={utterancesOnCurrentMedia}
+                      activeUtteranceUnitId={selectedWaveformRegionId || null}
+                      utterancesOnCurrentMedia={waveformTimelineItems}
                       fitPxPerSec={fitPxPerSec}
                       maxZoomPercent={maxZoomPercent}
                       onZoomToPercent={(percent, mode) => zoomToPercent(percent, undefined, mode)}
