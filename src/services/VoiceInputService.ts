@@ -279,11 +279,18 @@ export class VoiceInputService {
     provider: SttEnhancementProvider | undefined,
     config: SttEnhancementConfig | undefined,
   ): void {
-    this._config = {
-      ...this._config,
-      sttEnhancement: provider,
-      sttEnhancementConfig: config,
-    };
+    const nextConfig: VoiceInputConfig = { ...this._config };
+    if (provider !== undefined) {
+      nextConfig.sttEnhancement = provider;
+    } else {
+      delete nextConfig.sttEnhancement;
+    }
+    if (config !== undefined) {
+      nextConfig.sttEnhancementConfig = config;
+    } else {
+      delete nextConfig.sttEnhancementConfig;
+    }
+    this._config = nextConfig;
   }
 
   async ensureSharedAnalysisStream(): Promise<MediaStream | null> {

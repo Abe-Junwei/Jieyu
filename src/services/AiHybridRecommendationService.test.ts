@@ -76,6 +76,27 @@ describe('AiHybridRecommendationService', () => {
     expect(items[0]?.prompt).toBe('Explain what should be fixed first');
   });
 
+  it('keeps the current fallback recommendation stable after first shown event', () => {
+    const now = Date.parse('2026-04-03T12:00:00.000Z');
+    const service = new AiHybridRecommendationService(undefined, {
+      now: () => now,
+    });
+    const telemetry = {
+      lastShownPrompt: 'Review the current translation',
+      recentEvents: [
+        buildEvent('shown', 'fallback', 'Review the current translation', '2026-04-03T11:59:00.000Z'),
+      ],
+    };
+
+    const items = service.buildRecommendationItems([
+      'Review the current translation',
+      'Explain what should be fixed first',
+      'Summarize the main issues in this draft',
+    ], 'fallback', 'en-US', telemetry);
+
+    expect(items[0]?.prompt).toBe('Review the current translation');
+  });
+
   it('removes duplicate zh prefix and extra spaces in recommendation prompts', () => {
     const service = new AiHybridRecommendationService();
 

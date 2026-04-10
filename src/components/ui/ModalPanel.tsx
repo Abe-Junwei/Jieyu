@@ -44,13 +44,13 @@ interface ModalPanelProps {
   /** 容器 ref | Container ref */
   containerRef?: Ref<HTMLDivElement>;
   /** 内联样式 | Inline style for the shell */
-  style?: React.CSSProperties;
+  style?: React.CSSProperties | undefined;
   /** 布局样式宿主 | Layout style host for the shell */
-  layoutStyle?: React.CSSProperties;
+  layoutStyle?: React.CSSProperties | undefined;
   /** 隐藏默认关闭按钮 | Hide the default close button */
   hideCloseButton?: boolean;
   /** 禁用关闭按钮 | Disable the close button */
-  closeDisabled?: boolean;
+  closeDisabled?: boolean | undefined;
   /** 关闭按钮无障碍标签 | Close button aria-label */
   closeLabel?: string;
   /** 无障碍标签 | ARIA label for the dialog shell */

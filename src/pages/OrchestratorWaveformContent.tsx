@@ -306,10 +306,10 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     ? rulerView.end - rulerView.start
     : null;
   const snapGuideLeftPx = snapGuideWindowSec && snapGuideWindowSec > 0
-    ? (((snapGuideLeft ?? 0) - rulerView.start) / snapGuideWindowSec) * waveformGuideOverlayWidth
+    ? (((snapGuideLeft ?? 0) - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
     : null;
   const snapGuideRightPx = snapGuideWindowSec && snapGuideWindowSec > 0 && typeof snapGuideRight === 'number'
-    ? ((snapGuideRight - rulerView.start) / snapGuideWindowSec) * waveformGuideOverlayWidth
+    ? ((snapGuideRight - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
     : null;
   const renderWaveformAnalysisBand = (
     bandType: 'confidence' | 'overlap' | 'gap',
@@ -591,7 +591,7 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                             width={172}
                             height={28}
                           >
-                            <div xmlns="http://www.w3.org/1999/xhtml" className="wave-lasso-hint">
+                            <div className="wave-lasso-hint">
                               {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoHintCount })}
                             </div>
                           </foreignObject>

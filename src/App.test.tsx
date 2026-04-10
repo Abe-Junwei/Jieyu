@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
 
@@ -73,6 +73,10 @@ beforeAll(() => {
 
 beforeEach(() => {
   window.localStorage.clear();
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 describe('App shell', () => {

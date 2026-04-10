@@ -219,6 +219,9 @@ export function runTimestampEvalReport(samples: TimestampEvalSample[]): Timestam
   const languageCoverageRate = tagStats.size > 0
     ? Object.values(perTagCoverageRate).filter((value) => value > 0).length / tagStats.size
     : sampleCoverageRate;
+  const meanStartMaeMs = meanDefined(results.map((result) => result.startMaeMs));
+  const meanEndMaeMs = meanDefined(results.map((result) => result.endMaeMs));
+  const meanBoundaryMaeMs = meanDefined(results.map((result) => result.boundaryMaeMs));
 
   return {
     sampleCount,
@@ -227,15 +230,9 @@ export function runTimestampEvalReport(samples: TimestampEvalSample[]): Timestam
     meanTextWer: mean(results.map((result) => result.textWer)),
     meanBoundaryF1At25Ms: mean(results.map((result) => result.boundaryF1At25Ms)),
     meanBoundaryF1At50Ms: mean(results.map((result) => result.boundaryF1At50Ms)),
-    ...(meanDefined(results.map((result) => result.startMaeMs)) !== undefined
-      ? { meanStartMaeMs: meanDefined(results.map((result) => result.startMaeMs)) }
-      : {}),
-    ...(meanDefined(results.map((result) => result.endMaeMs)) !== undefined
-      ? { meanEndMaeMs: meanDefined(results.map((result) => result.endMaeMs)) }
-      : {}),
-    ...(meanDefined(results.map((result) => result.boundaryMaeMs)) !== undefined
-      ? { meanBoundaryMaeMs: meanDefined(results.map((result) => result.boundaryMaeMs)) }
-      : {}),
+    ...(meanStartMaeMs !== undefined ? { meanStartMaeMs } : {}),
+    ...(meanEndMaeMs !== undefined ? { meanEndMaeMs } : {}),
+    ...(meanBoundaryMaeMs !== undefined ? { meanBoundaryMaeMs } : {}),
     perTagCoverageRate,
     samples: results,
   };

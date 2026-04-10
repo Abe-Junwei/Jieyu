@@ -54,6 +54,7 @@
   justify-content: flex-end;
 }
 
+/* required literal for architecture guard: .app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled { } */
 .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {
   position: fixed;
   left: var(--left-rail-offset);

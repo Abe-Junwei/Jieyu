@@ -26,12 +26,6 @@
   overflow: auto;
 }
 
-.app-modal-panel-frame {
-  width: min(var(--vp-w-wide), 560px);
-  max-height: var(--vp-h-shell);
-  overflow: auto;
-}
-
 .app-left-rail {
   grid-column: 1;
   position: relative;

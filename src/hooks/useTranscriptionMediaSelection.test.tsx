@@ -1,0 +1,134 @@
+// @vitest-environment jsdom
+
+import { renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useTranscriptionMediaSelection } from './useTranscriptionMediaSelection';
+import type { MediaItemDocType } from '../db';
+
+type HookProps = {
+  mediaItems: MediaItemDocType[];
+  selectedMediaId: string;
+  selectedUtteranceMediaId: string | undefined;
+  selectedUtteranceMedia: MediaItemDocType | undefined;
+};
+
+function makeBlobMedia(id: string, filename = 'demo.wav'): MediaItemDocType {
+  return {
+    id,
+    textId: 'text-1',
+    filename,
+    duration: 3.2,
+    details: {
+      audioBlob: new Blob(['demo'], { type: 'audio/wav' }),
+    },
+    isOfflineCached: true,
+    createdAt: '2026-04-10T00:00:00.000Z',
+  } as MediaItemDocType;
+}
+
+describe('useTranscriptionMediaSelection', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps existing blob URL during transient empty media state', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:media-1-url');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const setSelectedMediaId = vi.fn();
+    const media = makeBlobMedia('media-1');
+
+    const { result, rerender } = renderHook((props: HookProps) => useTranscriptionMediaSelection({
+      ...props,
+      setSelectedMediaId,
+    }), {
+      initialProps: {
+        mediaItems: [media],
+        selectedMediaId: 'media-1',
+        selectedUtteranceMediaId: undefined,
+        selectedUtteranceMedia: media,
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-1-url');
+    });
+
+    rerender({
+      mediaItems: [media],
+      selectedMediaId: 'media-1',
+      selectedUtteranceMediaId: undefined,
+      selectedUtteranceMedia: undefined,
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-1-url');
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(0);
+
+    rerender({
+      mediaItems: [media],
+      selectedMediaId: '',
+      selectedUtteranceMediaId: undefined,
+      selectedUtteranceMedia: undefined,
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBeUndefined();
+    });
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes old blob URL only after next media is resolved', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:media-1-url')
+      .mockReturnValueOnce('blob:media-2-url');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const setSelectedMediaId = vi.fn();
+    const mediaA = makeBlobMedia('media-1', 'a.wav');
+    const mediaB = makeBlobMedia('media-2', 'b.wav');
+
+    const { result, rerender } = renderHook((props: HookProps) => useTranscriptionMediaSelection({
+      ...props,
+      setSelectedMediaId,
+    }), {
+      initialProps: {
+        mediaItems: [mediaA, mediaB],
+        selectedMediaId: 'media-1',
+        selectedUtteranceMediaId: undefined,
+        selectedUtteranceMedia: mediaA,
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-1-url');
+    });
+
+    rerender({
+      mediaItems: [mediaA, mediaB],
+      selectedMediaId: 'media-2',
+      selectedUtteranceMediaId: undefined,
+      selectedUtteranceMedia: undefined,
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-1-url');
+    });
+    expect(revokeObjectURL).toHaveBeenCalledTimes(0);
+
+    rerender({
+      mediaItems: [mediaA, mediaB],
+      selectedMediaId: 'media-2',
+      selectedUtteranceMediaId: undefined,
+      selectedUtteranceMedia: mediaB,
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-2-url');
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(2);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
+  });
+});

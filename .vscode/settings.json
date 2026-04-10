@@ -1,4 +1,5 @@
 {
     "deepseek.apiKey": "${env:DEEPSEEK_API_KEY}",
-    "claudeCode.preferredLocation": "sidebar"
+    "claudeCode.preferredLocation": "sidebar",
+    "workbench.browser.enableChatTools": true
 }

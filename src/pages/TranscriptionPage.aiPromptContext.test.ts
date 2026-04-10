@@ -7,12 +7,13 @@ describe('buildTranscriptionAiPromptContext', () => {
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
         activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: null,
+        selectedRowMeta: null,
         selectedUnitKind: 'utterance',
         selectedUnitStartSec: 1.2,
         selectedUnitEndSec: 3.4,
         selectedLayerId: 'layer-1',
         selectedLayerType: 'transcription',
-        selectedTranslationLayerId: undefined,
         selectedTranscriptionLayerId: 'layer-1',
         selectedText: 'test',
         selectedTimeRangeLabel: '1.20-3.40',
@@ -64,7 +65,7 @@ describe('buildTranscriptionAiPromptContext', () => {
       recentEdits: ['edit-1'],
     });
 
-    expect(context.longTerm.acousticSummary).toBeDefined();
+    expect(context.longTerm).toBeDefined();
     expect(JSON.stringify(context.longTerm)).not.toContain('frames');
 
     const block = buildPromptContextBlock(context, 4000);

@@ -117,6 +117,13 @@ function formatInitError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function isNumericArrayView(data: unknown): data is ArrayLike<number> {
+  if (!ArrayBuffer.isView(data)) return false;
+  if (data instanceof DataView) return false;
+  if (data instanceof BigInt64Array || data instanceof BigUint64Array) return false;
+  return typeof (data as { length?: unknown }).length === 'number';
+}
+
 async function createTransformerExtractor(modelId: string, requestId: string): Promise<TransformerExtractorState> {
   // 从 @huggingface/transformers v4 动态加载 | Dynamic import from @huggingface/transformers v4
   const transformers = await import('@huggingface/transformers');
@@ -166,10 +173,14 @@ async function createTransformerExtractor(modelId: string, requestId: string): P
       const tensor = await pipeline(text, {
         pooling: 'mean',
         normalize: true,
-      }) as { data?: Float32Array | number[] };
+      }) as { data?: unknown };
 
-      if (Array.isArray(tensor.data)) return tensor.data;
-      if (tensor.data instanceof Float32Array) return Array.from(tensor.data);
+      if (Array.isArray(tensor.data) && tensor.data.every((value) => typeof value === 'number')) {
+        return tensor.data;
+      }
+      if (isNumericArrayView(tensor.data)) {
+        return Array.from(tensor.data);
+      }
       return fallbackEmbedding(text);
     },
   };

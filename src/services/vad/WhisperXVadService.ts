@@ -174,7 +174,7 @@ export class WhisperXVadService {
         [pcm.buffer],
       );
     }, {
-      onProgress: options.onProgress,
+      ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
     }).finally(() => {
       options.signal?.removeEventListener('abort', abortListener);
     });

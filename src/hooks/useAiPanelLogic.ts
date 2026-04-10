@@ -173,9 +173,10 @@ export function useAiPanelLogic({
     }
     if (!vadCacheEntry) {
       if (vadWarmupStatus?.state === 'warming') {
+        const engine = vadWarmupStatus.engine;
         return {
           state: 'warming',
-          engine: vadWarmupStatus.engine,
+          ...(engine !== undefined ? { engine } : {}),
           progressRatio: vadWarmupStatus.progressRatio,
           processedFrames: vadWarmupStatus.processedFrames,
           totalFrames: vadWarmupStatus.totalFrames,

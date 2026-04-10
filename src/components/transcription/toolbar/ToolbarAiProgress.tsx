@@ -2,8 +2,8 @@ import type { AcousticRuntimeStatus, VadCacheStatus } from '../../../contexts/Ai
 import { t, tf, useLocale } from '../../../i18n';
 
 type ToolbarAiProgressProps = {
-  acousticRuntimeStatus?: AcousticRuntimeStatus;
-  vadCacheStatus?: VadCacheStatus;
+  acousticRuntimeStatus?: AcousticRuntimeStatus | undefined;
+  vadCacheStatus?: VadCacheStatus | undefined;
 };
 
 function formatPercent(progressRatio: number | undefined): string {

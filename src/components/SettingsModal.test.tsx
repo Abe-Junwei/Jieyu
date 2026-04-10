@@ -350,7 +350,7 @@ describe('About tab', () => {
   it('shows version and description', () => {
     renderModal({ version: '1.2.3' });
     fireEvent.click(screen.getByText('关于'));
-    expect(screen.getByText('解语 Jieyu')).toBeTruthy();
+    expect(screen.getByText('Jieyu')).toBeTruthy();
     expect(screen.getByText('1.2.3')).toBeTruthy();
   });
 });
@@ -365,6 +365,6 @@ describe('Tab switching', () => {
       fireEvent.click(screen.getByRole('tab', { name: label }));
     }
     // After clicking "关于", the about section should be visible
-    expect(screen.getByText('解语 Jieyu')).toBeTruthy();
+    expect(screen.getByText('Jieyu')).toBeTruthy();
   });
 });

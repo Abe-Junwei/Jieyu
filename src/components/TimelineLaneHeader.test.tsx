@@ -278,7 +278,7 @@ describe('TimelineLaneHeader track mode menu', () => {
     const svg = view.container.querySelector('.lane-link-stack-svg') as SVGElement | null;
     const connectorGroup = view.container.querySelector('.lane-link-connector-svg') as SVGGElement | null;
 
-    expect(stack?.style.width).toBe('36px');
+    expect(svg?.getAttribute('width')).toBe('36');
     expect(svg?.getAttribute('viewBox')).toBe('0 0 36 100');
     expect(connectorGroup?.getAttribute('transform')).toBe('translate(18 0)');
   });

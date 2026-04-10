@@ -475,9 +475,10 @@ export function TimelineLaneHeader({
         {!isCollapsed && effectiveShowConnectors && rowSegments.length > 0 && (() => {
           const connectorStackWidth = getLayerLinkStackWidth(connectorLayout.maxColumns);
           return (
-            <span className="lane-link-stack" aria-hidden="true" style={{ width: connectorStackWidth }}>
+            <span className="lane-link-stack" aria-hidden="true">
               <svg
                 className="lane-link-stack-svg"
+                width={connectorStackWidth}
                 viewBox={`0 0 ${connectorStackWidth} 100`}
                 preserveAspectRatio="none"
               >

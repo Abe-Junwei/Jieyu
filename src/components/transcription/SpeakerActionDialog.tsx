@@ -23,7 +23,7 @@ export const SpeakerActionDialog = memo(function SpeakerActionDialog({
   const locale = useLocale();
 
   if (!state) {
-    return <ModalPanel isOpen={false} onClose={onClose} title="" />;
+    return <ModalPanel isOpen={false} onClose={onClose} title="">{null}</ModalPanel>;
   }
 
   const isRename = state.mode === 'rename';

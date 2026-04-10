@@ -498,7 +498,7 @@ export function OrthographyManagerPage({
   return (
     <section className="om-page">
       <OrthographyManagerPanel
-        onClose={onClose}
+        {...(onClose !== undefined ? { onClose } : {})}
         locale={locale}
         builderMessages={builderMessages}
         fromLayerId={fromLayerId}

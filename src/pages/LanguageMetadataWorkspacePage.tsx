@@ -50,10 +50,10 @@ export function LanguageMetadataWorkspacePage({
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState('');
   const [searchText, setSearchText] = useState('');

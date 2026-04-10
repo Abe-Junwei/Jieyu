@@ -186,7 +186,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
         )}
       </div>
       {hasRightControls ? (
-        <div className="transcription-wave-toolbar-right">
+        <div className="transcription-wave-toolbar-right transcription-wave-toolbar-right-portaled">
           {children}
         </div>
       ) : null}

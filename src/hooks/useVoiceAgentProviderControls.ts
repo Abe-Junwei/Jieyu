@@ -15,9 +15,9 @@ interface UseVoiceAgentProviderControlsInput {
   whisperServerUrl: string;
   whisperServerModel: string;
   commercialProviderKindState: CommercialProviderKind;
-  commercialProviderConfigState?: CommercialProviderCreateConfig;
+  commercialProviderConfigState?: CommercialProviderCreateConfig | undefined;
   sttEnhancementKindState: SttEnhancementSelectionKind;
-  sttEnhancementConfigState?: SttEnhancementConfig;
+  sttEnhancementConfigState?: SttEnhancementConfig | undefined;
   commercialProviderKindRef: { current: CommercialProviderKind };
   commercialProviderConfigRef: { current: CommercialProviderCreateConfig | undefined };
   switchEngine: (engine: import('../services/VoiceInputService').SttEngine) => void;

@@ -3,7 +3,7 @@ import { joinClassNames } from './classNames';
 
 interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   containerRef?: Ref<HTMLDivElement>;
-  layoutStyle?: React.CSSProperties;
+  layoutStyle?: React.CSSProperties | undefined;
   className?: string;
   headerClassName?: string;
   headerProps?: HTMLAttributes<HTMLDivElement>;

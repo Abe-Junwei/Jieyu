@@ -394,6 +394,10 @@
   fill: var(--bg-secondary, var(--border-soft));
 }
 
+.gc-hotspot-bar-fill {
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--header-accent) 35%, transparent));
+}
+
 :root[data-theme='dark'] .gc-hotspot-bar-track {
   fill: var(--border, var(--border-soft));
 }

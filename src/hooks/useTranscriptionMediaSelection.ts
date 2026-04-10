@@ -70,17 +70,26 @@ export function useTranscriptionMediaSelection({
     const media = selectedUtteranceMedia;
     const mediaId = media?.id;
 
+    if (!media) {
+      // 选中媒体切换时可能出现短暂空态，避免提前 revoke 导致 blob 加载失败 | During media switching, avoid premature revoke on transient empty state.
+      if (selectedMediaId) {
+        return;
+      }
+      blobMediaIdRef.current = undefined;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = undefined;
+      }
+      setSelectedMediaUrl(undefined);
+      return;
+    }
+
     if (mediaId && mediaId === blobMediaIdRef.current) return;
     blobMediaIdRef.current = mediaId;
 
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = undefined;
-    }
-
-    if (!media) {
-      setSelectedMediaUrl(undefined);
-      return;
     }
 
     const details = media.details as Record<string, unknown> | undefined;
@@ -93,7 +102,7 @@ export function useTranscriptionMediaSelection({
     }
 
     setSelectedMediaUrl(media.url);
-  }, [selectedUtteranceMedia]);
+  }, [selectedMediaId, selectedUtteranceMedia]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);

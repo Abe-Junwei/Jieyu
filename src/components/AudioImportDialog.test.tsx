@@ -63,7 +63,7 @@ describe('AudioImportDialog', () => {
     installMediaMetadataMock(125);
     const onImport = vi.fn(async () => undefined);
     const onClose = vi.fn();
-    const view = renderWithLocale(
+    renderWithLocale(
       <AudioImportDialog isOpen onClose={onClose} onImport={onImport} />,
     );
 

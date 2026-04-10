@@ -563,8 +563,8 @@ export function App() {
               <button
                 type="button"
                 className="left-rail-btn left-rail-btn-utility"
-                aria-label={locale === 'zh-CN' ? '设置' : 'Settings'}
-                title={locale === 'zh-CN' ? '设置' : 'Settings'}
+                aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
+                title={t(locale, 'transcription.voiceWidget.settings.button')}
                 onClick={handleSettingsOpen}
               >
                 <Settings size={17} aria-hidden="true" />

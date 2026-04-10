@@ -1,4 +1,4 @@
-import { t, tf, type Locale } from '../i18n';
+import { isDictKey, t, tf, type Locale } from '../i18n';
 
 export type ProjectStage = 'collecting' | 'transcribing' | 'glossing' | 'reviewing';
 
@@ -24,12 +24,15 @@ export interface ObserverResult {
 
 function makeRecommendation(locale: Locale, id: string, priority: number): Recommendation {
   const baseKey = `ai.observer.recommendation.${id}` as const;
+  const titleKey = `${baseKey}.title`;
+  const detailKey = `${baseKey}.detail`;
+  const actionLabelKey = `${baseKey}.actionLabel`;
   return {
     id,
     priority,
-    title: t(locale, `${baseKey}.title`),
-    detail: t(locale, `${baseKey}.detail`),
-    actionLabel: t(locale, `${baseKey}.actionLabel`),
+    title: isDictKey(titleKey) ? t(locale, titleKey) : id,
+    detail: isDictKey(detailKey) ? t(locale, detailKey) : id,
+    actionLabel: isDictKey(actionLabelKey) ? t(locale, actionLabelKey) : id,
   };
 }
 

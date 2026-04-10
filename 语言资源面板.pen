@@ -1,0 +1,1474 @@
+{
+  "version": "2.10",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "运行态三模板基线-2026-04-10",
+      "clip": true,
+      "width": 2580,
+      "height": 1720,
+      "fill": "#F5F7FB",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": 24,
+      "children": [
+        {
+          "type": "text",
+          "id": "BGjKf",
+          "name": "titleA",
+          "fill": "#0F172A",
+          "content": "运行态三模板基线（语言元数据 / 正字法 / 桥接）",
+          "fontFamily": "Noto Sans SC",
+          "fontSize": 18,
+          "fontWeight": "700"
+        },
+        {
+          "type": "frame",
+          "id": "BHMVx",
+          "name": "templates-row",
+          "width": "fill_container",
+          "gap": 24,
+          "children": [
+            {
+              "type": "frame",
+              "id": "zwf8N",
+              "name": "Template-1-LanguageMetadata",
+              "width": 760,
+              "height": 1540,
+              "fill": "#FFFFFF",
+              "cornerRadius": 24,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#DDE3EC"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "rCJmq",
+                  "name": "p1Header",
+                  "width": "fill_container",
+                  "height": 56,
+                  "fill": "#F8FAFC",
+                  "cornerRadius": 14,
+                  "padding": [
+                    16,
+                    20
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "L5BPA",
+                      "name": "p1Title",
+                      "fill": "#111827",
+                      "content": "语言元数据工作台",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "YwfVK",
+                  "name": "p1Toolbar",
+                  "width": "fill_container",
+                  "height": 38,
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "vYSO9",
+                      "name": "p1SearchBox",
+                      "width": 520,
+                      "height": 38,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 10,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#D8E0EA"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Fb8K8",
+                          "name": "p1SearchTxt",
+                          "fill": "#94A3B8",
+                          "content": "按名称、别名、代码或标准标识定位",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "fWMn1",
+                      "name": "p1CreateBtn",
+                      "height": 38,
+                      "fill": "#EEF2F8",
+                      "cornerRadius": 999,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "mYJgJ",
+                          "name": "p1CreateTxt",
+                          "fill": "#334155",
+                          "content": "新建自定义语言",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EF6cv",
+                  "name": "p1Summary",
+                  "width": "fill_container",
+                  "height": 160,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "sshCo",
+                      "name": "p1SummaryKicker",
+                      "fill": "#64748B",
+                      "content": "概览卡（运行态）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "2jhGC",
+                      "name": "p1FactsRow",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Onp0X",
+                          "name": "p1Fact1",
+                          "width": 230,
+                          "height": 72,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "LBQaQ",
+                              "name": "p1Fact1Label",
+                              "fill": "#64748B",
+                              "content": "语言代码",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "gqtjF",
+                              "name": "p1Fact1Value",
+                              "fill": "#0F172A",
+                              "content": "eng",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 14,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "oOjHA",
+                          "name": "p1Fact2",
+                          "width": 230,
+                          "height": 72,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "mW5Kh",
+                              "name": "p1Fact2Label",
+                              "fill": "#64748B",
+                              "content": "ID",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "OAC5K",
+                              "name": "p1Fact2Value",
+                              "fill": "#0F172A",
+                              "content": "user:demo-language",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "uaScQ",
+                          "name": "p1Fact3",
+                          "width": 230,
+                          "height": 72,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 4,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "uNF4g",
+                              "name": "p1Fact3Label",
+                              "fill": "#64748B",
+                              "content": "谱系路径",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "1BgyI",
+                              "name": "p1Fact3Value",
+                              "fill": "#0F172A",
+                              "content": "语系 / 语族 / 语支",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "36HSV",
+                  "name": "p1Editor",
+                  "width": "fill_container",
+                  "height": 980,
+                  "fill": "#FBFCFF",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Fzsw0",
+                      "name": "p1EditTitle",
+                      "fill": "#334155",
+                      "content": "编辑区（展开态）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "EzrCY",
+                      "name": "p1Section1",
+                      "width": "fill_container",
+                      "height": 220,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "5DMj7",
+                          "name": "p1S1Title",
+                          "fill": "#0F172A",
+                          "content": "身份信息（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ql6qd",
+                      "name": "p1Section2",
+                      "width": "fill_container",
+                      "height": 210,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YLg4I",
+                          "name": "p1S2Title",
+                          "fill": "#0F172A",
+                          "content": "标准标识（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "CSXlN",
+                      "name": "p1Section3",
+                      "width": "fill_container",
+                      "height": 260,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "dVrqp",
+                          "name": "p1S3Title",
+                          "fill": "#0F172A",
+                          "content": "谱系与人口（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "vBqmm",
+                  "name": "p1History",
+                  "width": "fill_container",
+                  "height": 170,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kfBWh",
+                      "name": "p1HistoryTitle",
+                      "fill": "#334155",
+                      "content": "历史记录（最近 6 条）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ohq9G",
+                  "name": "p1Footer",
+                  "width": "fill_container",
+                  "height": 44,
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "qCjNm",
+                      "name": "p1ResetBtn",
+                      "height": 36,
+                      "fill": "#EFF3F8",
+                      "cornerRadius": 10,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "aCMMq",
+                          "name": "p1ResetTxt",
+                          "fill": "#334155",
+                          "content": "重置修改",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "XCNG9",
+                      "name": "p1SaveBtn",
+                      "height": 36,
+                      "fill": "#2563EB",
+                      "cornerRadius": 10,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fTXwW",
+                          "name": "p1SaveTxt",
+                          "fill": "#FFFFFF",
+                          "content": "保存条目",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MIyxp",
+              "name": "Template-2-OrthographyManager",
+              "width": 760,
+              "height": 1540,
+              "fill": "#FFFFFF",
+              "cornerRadius": 24,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#DDE3EC"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "x8izv",
+                  "name": "p2Header",
+                  "width": "fill_container",
+                  "height": 56,
+                  "fill": "#F8FAFC",
+                  "cornerRadius": 14,
+                  "padding": [
+                    16,
+                    20
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "DX7UE",
+                      "name": "p2Title",
+                      "fill": "#111827",
+                      "content": "正字法管理器",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "8E8qr",
+                  "name": "p2Highlight",
+                  "width": "fill_container",
+                  "height": 180,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "WTecc",
+                      "name": "p2HighTag",
+                      "fill": "#64748B",
+                      "content": "当前正字法",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "4oHsj",
+                      "name": "p2HighTitle",
+                      "fill": "#0F172A",
+                      "content": "Bridge Orthography · Latn · practical",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "OOWzW",
+                      "name": "p2HighSub",
+                      "fill": "#475569",
+                      "content": "语言：English（eng）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "isNCG",
+                      "name": "p2HighFacts",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "d4iO4",
+                          "name": "p2FactA",
+                          "width": 230,
+                          "height": 64,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "gkIQv",
+                              "name": "p2FactATxt",
+                              "fill": "#0F172A",
+                              "content": "脚本：Latn",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "d1GWC",
+                          "name": "p2FactB",
+                          "width": 230,
+                          "height": 64,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "BVPNr",
+                              "name": "p2FactBTxt",
+                              "fill": "#0F172A",
+                              "content": "类型：practical",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FdLB7",
+                          "name": "p2FactC",
+                          "width": 230,
+                          "height": 64,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "iw4IN",
+                              "name": "p2FactCTxt",
+                              "fill": "#0F172A",
+                              "content": "状态：已审校·主",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kQcfA",
+                  "name": "p2List",
+                  "width": "fill_container",
+                  "height": 360,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "qf7zy",
+                      "name": "p2SearchBox",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 10,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#D8E0EA"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "qfx1L",
+                          "name": "p2SearchTxt",
+                          "fill": "#94A3B8",
+                          "content": "按语言、名称或脚本筛选",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GwG6H",
+                      "name": "p2Item1",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "hKPES",
+                          "name": "p2Item1Txt",
+                          "fill": "#0F172A",
+                          "content": "Bridge Orthography · Latn · practical",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "VfvfE",
+                      "name": "p2Item2",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VSwlj",
+                          "name": "p2Item2Txt",
+                          "fill": "#334155",
+                          "content": "备选正字法 · Hans · practical",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "V3yYH",
+                      "name": "p2Item3",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fQDUr",
+                          "name": "p2Item3Txt",
+                          "fill": "#334155",
+                          "content": "第三候选正字法 · Latn · phonemic",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IwaiI",
+                  "name": "p2Editor",
+                  "width": "fill_container",
+                  "height": 780,
+                  "fill": "#FBFCFF",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "M1brv",
+                      "name": "p2EditorTitle",
+                      "fill": "#334155",
+                      "content": "编辑区（展开态）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UJsKx",
+                      "name": "p2Sec1",
+                      "width": "fill_container",
+                      "height": 210,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Pu3Wy",
+                          "name": "p2Sec1Title",
+                          "fill": "#0F172A",
+                          "content": "Identity（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "UE5CT",
+                      "name": "p2Sec2",
+                      "width": "fill_container",
+                      "height": 260,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "JHVYN",
+                          "name": "p2Sec2Title",
+                          "fill": "#0F172A",
+                          "content": "Render + Advanced（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "G4FgQ",
+                  "name": "p2Footer",
+                  "width": "fill_container",
+                  "height": 44,
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "IZCaW",
+                      "name": "p2ResetBtn",
+                      "height": 36,
+                      "fill": "#EFF3F8",
+                      "cornerRadius": 10,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Ol1Nd",
+                          "name": "p2ResetTxt",
+                          "fill": "#334155",
+                          "content": "重置修改",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "0tPVP",
+                      "name": "p2SaveBtn",
+                      "height": 36,
+                      "fill": "#2563EB",
+                      "cornerRadius": 10,
+                      "padding": [
+                        0,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GL8Ea",
+                          "name": "p2SaveTxt",
+                          "fill": "#FFFFFF",
+                          "content": "保存元数据",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Iqxdp",
+              "name": "Template-3-OrthographyBridge",
+              "width": 760,
+              "height": 1540,
+              "fill": "#FFFFFF",
+              "cornerRadius": 24,
+              "stroke": {
+                "thickness": 1,
+                "fill": "#DDE3EC"
+              },
+              "layout": "vertical",
+              "gap": 12,
+              "padding": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "LvQpm",
+                  "name": "p3Header",
+                  "width": "fill_container",
+                  "height": 56,
+                  "fill": "#F8FAFC",
+                  "cornerRadius": 14,
+                  "padding": [
+                    16,
+                    20
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "lu6OD",
+                      "name": "p3Title",
+                      "fill": "#111827",
+                      "content": "正字法桥接工作台",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Klwly",
+                  "name": "p3Summary",
+                  "width": "fill_container",
+                  "height": 220,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "sVkWm",
+                      "name": "p3Meta1",
+                      "fill": "#0F172A",
+                      "content": "目标正字法：Bridge Orthography · Latn · practical",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "lsp2d",
+                      "name": "p3Meta2",
+                      "fill": "#475569",
+                      "content": "说明：集中管理 source/rules/preview/validation",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ItZJN",
+                      "name": "p3FactsRow",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "PUgnm",
+                          "name": "p3FactA",
+                          "width": 230,
+                          "height": 70,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "qbsKw",
+                              "name": "p3FactATxt",
+                              "fill": "#0F172A",
+                              "content": "目标语言：English",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "vDSOH",
+                          "name": "p3FactB",
+                          "width": 230,
+                          "height": 70,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r4NBO",
+                              "name": "p3FactBTxt",
+                              "fill": "#0F172A",
+                              "content": "规则状态：Active",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "9g6oz",
+                          "name": "p3FactC",
+                          "width": 230,
+                          "height": 70,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 12,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "wklIf",
+                              "name": "p3FactCTxt",
+                              "fill": "#0F172A",
+                              "content": "可逆：是",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "y89uE",
+                      "name": "p3LinkRow",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YcQ35",
+                          "name": "p3Link1",
+                          "height": 34,
+                          "fill": "#EFF3F8",
+                          "cornerRadius": 999,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VwLW0",
+                              "name": "p3Link1Txt",
+                              "fill": "#334155",
+                              "content": "打开语言元数据",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "SGKpI",
+                          "name": "p3Link2",
+                          "height": 34,
+                          "fill": "#EFF3F8",
+                          "cornerRadius": 999,
+                          "padding": [
+                            0,
+                            12
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "VmhcB",
+                              "name": "p3Link2Txt",
+                              "fill": "#334155",
+                              "content": "打开正字法管理器",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZVcpj",
+                  "name": "p3List",
+                  "width": "fill_container",
+                  "height": 320,
+                  "fill": "#F8FAFD",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 8,
+                  "padding": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "ANPFJ",
+                      "name": "p3SearchBox",
+                      "width": "fill_container",
+                      "height": 36,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 10,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#D8E0EA"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jZtYy",
+                          "name": "p3SearchTxt",
+                          "fill": "#94A3B8",
+                          "content": "按语言、名称或脚本筛选目标正字法",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "3bDp9",
+                      "name": "p3Item1",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "VlW3u",
+                          "name": "p3Item1Txt",
+                          "fill": "#0F172A",
+                          "content": "Bridge Orthography · Latn · practical",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "LFHd6",
+                      "name": "p3Item2",
+                      "width": "fill_container",
+                      "height": 72,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 12,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "padding": [
+                        10,
+                        12
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jXPTC",
+                          "name": "p3Item2Txt",
+                          "fill": "#334155",
+                          "content": "备选正字法 · Hans · practical",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EdMnX",
+                  "name": "p3Editor",
+                  "width": "fill_container",
+                  "height": 850,
+                  "fill": "#FBFCFF",
+                  "cornerRadius": 18,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "#E2E8F0"
+                  },
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 14,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "iTfQ6",
+                      "name": "p3EditorTitle",
+                      "fill": "#334155",
+                      "content": "桥接管理器（展开态）",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 12,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "eDOK9",
+                      "name": "p3Source",
+                      "width": "fill_container",
+                      "height": 150,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "vfz9u",
+                          "name": "p3SourceTitle",
+                          "fill": "#0F172A",
+                          "content": "Source & Target（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "u7hVY",
+                      "name": "p3Rules",
+                      "width": "fill_container",
+                      "height": 230,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "x9m6P",
+                          "name": "p3RulesTitle",
+                          "fill": "#0F172A",
+                          "content": "Rule Editor（展开）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "00WbP",
+                      "name": "p3Preview",
+                      "width": "fill_container",
+                      "height": 120,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "mcfKP",
+                          "name": "p3PreviewTitle",
+                          "fill": "#0F172A",
+                          "content": "Preview Output",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "gdoqm",
+                      "name": "p3Validation",
+                      "width": "fill_container",
+                      "height": 130,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 14,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#E2E8F0"
+                      },
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": 12,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "F4GdS",
+                          "name": "p3ValidationTitle",
+                          "fill": "#0F172A",
+                          "content": "Validation",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Jb1SG",
+                      "name": "p3Actions",
+                      "width": "fill_container",
+                      "height": 40,
+                      "gap": 8,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "oZGn2",
+                          "name": "p3SaveBtn",
+                          "height": 36,
+                          "fill": "#2563EB",
+                          "cornerRadius": 10,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lfbDf",
+                              "name": "p3SaveTxt",
+                              "fill": "#FFFFFF",
+                              "content": "保存规则",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "700"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "8ukpK",
+                          "name": "p3CancelBtn",
+                          "height": 36,
+                          "fill": "#EFF3F8",
+                          "cornerRadius": 10,
+                          "padding": [
+                            0,
+                            14
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "fVtYS",
+                              "name": "p3CancelTxt",
+                              "fill": "#334155",
+                              "content": "取消编辑",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

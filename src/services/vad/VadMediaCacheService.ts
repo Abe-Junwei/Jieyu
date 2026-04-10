@@ -124,9 +124,10 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
   const task = (async () => {
     let audioContext: AudioContextLike | null = null;
     try {
+      const initialEngine = vadRuntime.getRuntimeEngine?.();
       setWarmupStatus(mediaId, {
         state: 'warming',
-        engine: vadRuntime.getRuntimeEngine?.(),
+        ...(initialEngine !== undefined ? { engine: initialEngine } : {}),
         progressRatio: 0,
         processedFrames: 0,
         totalFrames: 0,
@@ -152,9 +153,10 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const segments = await vadRuntime.detectSpeechSegments(audioBuffer, {
         onProgress: (progress) => {
+          const progressEngine = vadRuntime.getRuntimeEngine?.();
           setWarmupStatus(mediaId, {
             state: 'warming',
-            engine: vadRuntime.getRuntimeEngine?.(),
+            ...(progressEngine !== undefined ? { engine: progressEngine } : {}),
             progressRatio: progress.ratio,
             processedFrames: progress.processedFrames,
             totalFrames: progress.totalFrames,

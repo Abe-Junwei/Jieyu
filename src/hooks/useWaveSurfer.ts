@@ -241,7 +241,12 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     instanceRef.current = ws;
     ws.setVolume(volRef.current);
     ws.setPlaybackRate(rateRef.current);
-    ws.load(mediaUrl);
+    void ws.load(mediaUrl).catch((err: unknown) => {
+      if (disposed) return;
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn('WaveSurfer load rejected', { mediaUrl, error: msg });
+      setLoadError(msg);
+    });
 
     ws.on('ready', () => {
       if (disposed) return;

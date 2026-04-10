@@ -31,7 +31,7 @@ export interface TransformersPipelineProgressEvent {
 }
 
 export interface TransformersFeatureExtractionResult {
-  data?: Float32Array | number[];
+  data?: unknown;
 }
 
 export type TransformersFeatureExtractionPipeline = (
@@ -90,8 +90,16 @@ export function detectTransformersBrowserCacheAvailability(
 }
 
 export function detectTransformersBrowserRuntime(
-  browserRuntime: boolean | undefined = typeof window !== 'undefined'
-    || typeof WorkerGlobalScope !== 'undefined',
+  browserRuntime: boolean | undefined = (() => {
+    if (typeof window !== 'undefined') return true;
+    const runtimeGlobal = globalThis as {
+      self?: unknown;
+      postMessage?: unknown;
+    };
+    return typeof runtimeGlobal.self === 'object'
+      && runtimeGlobal.self === globalThis
+      && typeof runtimeGlobal.postMessage === 'function';
+  })(),
 ): boolean {
   return browserRuntime;
 }

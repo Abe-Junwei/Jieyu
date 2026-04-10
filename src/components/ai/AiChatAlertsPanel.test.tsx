@@ -20,6 +20,7 @@ vi.mock('../../utils/panelAdaptiveLayout', () => ({
   },
   subscribeUiFontScalePreference: () => () => {},
   readUiFontScalePreferenceSnapshot: () => 'auto:1.0000',
+  readPersistedUiFontScalePreference: () => ({ mode: 'auto', manualScale: 1 }),
   readPersistedUiFontScale: () => 1,
   resolveTextDirectionFromLocale: (locale: string) => resolveTextDirectionFromLocaleMock(locale),
 }));

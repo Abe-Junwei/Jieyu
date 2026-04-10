@@ -20,6 +20,8 @@ function createDraft(customFieldValues: Record<string, string>): LanguageMetadat
     nativeName: '',
     aliasesText: '',
     genus: '',
+    subfamily: '',
+    branch: '',
     classificationPath: '',
     macrolanguage: '',
     scope: '',
@@ -52,7 +54,9 @@ function createDraft(customFieldValues: Record<string, string>): LanguageMetadat
     latitude: '',
     longitude: '',
     changeReason: '',
+    vernacularsText: '',
     displayNameRows: [],
+    displayNameHiddenRows: [],
     customFieldValues,
   };
 }

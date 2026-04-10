@@ -372,69 +372,40 @@ export function useTranscriptionWorkspaceLayoutController(
   useEffect(() => {
     try {
       localStorage.setItem('jieyu:video-preview-height', String(videoPreviewHeight));
-    } catch (error) {
-      log.warn('Failed to persist video preview height to localStorage', {
-        storageKey: 'jieyu:video-preview-height',
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [videoPreviewHeight]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem('jieyu:video-layout-mode', videoLayoutMode);
-    } catch (error) {
-      log.warn('Failed to persist video layout mode to localStorage', {
-        storageKey: 'jieyu:video-layout-mode',
-        value: videoLayoutMode,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [videoLayoutMode]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem('jieyu:video-right-panel-width', String(videoRightPanelWidth));
-    } catch (error) {
-      log.warn('Failed to persist video right panel width to localStorage', {
-        storageKey: 'jieyu:video-right-panel-width',
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [videoRightPanelWidth]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, zoomMode);
-    } catch (error) {
-      log.warn('Failed to persist workspace zoom mode to localStorage', {
-        storageKey: WORKSPACE_DEFAULT_ZOOM_MODE_KEY,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [zoomMode]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, autoScrollEnabled ? '1' : '0');
-    } catch (error) {
-      log.warn('Failed to persist workspace auto-scroll preference to localStorage', {
-        storageKey: WORKSPACE_AUTO_SCROLL_KEY,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }, [autoScrollEnabled]);
-
-  useEffect(() => {
-    try {
       localStorage.setItem(WORKSPACE_SNAP_KEY, snapEnabled ? '1' : '0');
     } catch (error) {
-      log.warn('Failed to persist workspace snap preference to localStorage', {
-        storageKey: WORKSPACE_SNAP_KEY,
+      log.warn('Failed to persist workspace layout preferences to localStorage', {
+        storageKeys: [
+          'jieyu:video-preview-height',
+          'jieyu:video-layout-mode',
+          'jieyu:video-right-panel-width',
+          WORKSPACE_DEFAULT_ZOOM_MODE_KEY,
+          WORKSPACE_AUTO_SCROLL_KEY,
+          WORKSPACE_SNAP_KEY,
+        ],
+        values: {
+          videoPreviewHeight,
+          videoLayoutMode,
+          videoRightPanelWidth,
+          zoomMode,
+          autoScrollEnabled,
+          snapEnabled,
+        },
         error: error instanceof Error ? error.message : String(error),
       });
     }
-  }, [snapEnabled]);
+  }, [
+    autoScrollEnabled,
+    snapEnabled,
+    videoLayoutMode,
+    videoPreviewHeight,
+    videoRightPanelWidth,
+    zoomMode,
+  ]);
 
   const closeShortcuts = useCallback(() => {
     setShowShortcuts(false);

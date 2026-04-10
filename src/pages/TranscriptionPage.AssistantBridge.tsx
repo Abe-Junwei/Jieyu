@@ -101,7 +101,7 @@ function buildRuntimeStateFingerprint(state: DeferredTranscriptionAiRuntimeState
       `messages:${state.aiChat.messages.length}`,
       `streaming:${state.aiChat.isStreaming ? 1 : 0}`,
       `runtime:${state.acousticRuntimeStatus.phase ?? 'none'}`,
-      `provider:${state.acousticProviderState.healthState ?? 'unknown'}`,
+      `provider:${state.acousticProviderState.reachability.available ? 'available' : 'unavailable'}`,
     ].join('|');
   }
 }

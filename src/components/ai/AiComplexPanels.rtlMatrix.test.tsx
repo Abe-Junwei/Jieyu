@@ -27,6 +27,7 @@ vi.mock('../../utils/panelAdaptiveLayout', () => ({
   },
   subscribeUiFontScalePreference: () => () => {},
   readUiFontScalePreferenceSnapshot: () => 'auto:1.0000',
+  readPersistedUiFontScalePreference: () => ({ mode: 'auto', manualScale: 1 }),
   computeAdaptivePanelWidth: (input: { baseWidth: number; direction: 'ltr' | 'rtl' }) => computeAdaptivePanelWidthMock(input),
   readPersistedUiFontScale: (locale: string, direction: 'ltr' | 'rtl') => readPersistedUiFontScaleMock(locale, direction),
   resolveTextDirectionFromLocale: (locale: string) => resolveTextDirectionFromLocaleMock(locale),

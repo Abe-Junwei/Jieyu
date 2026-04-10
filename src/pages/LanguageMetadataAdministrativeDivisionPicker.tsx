@@ -277,8 +277,8 @@ export function LanguageMetadataAdministrativeDivisionPicker({
         const inferredCountryName = suggestion.administrativeHierarchy?.country?.trim();
         if (inferredCountryCode || inferredCountryName) {
           commitCountriesText(appendCountryIfMissing(locale, latestCountriesTextRef.current, {
-            countryCode: inferredCountryCode,
-            countryName: inferredCountryName,
+            ...(inferredCountryCode !== undefined ? { countryCode: inferredCountryCode } : {}),
+            ...(inferredCountryName !== undefined ? { countryName: inferredCountryName } : {}),
           }));
         }
         onLocateSuggestion?.(suggestion);

@@ -125,7 +125,7 @@ function findNearestFrameByTime<T extends { timeSec: number }>(frames: T[], time
     }
   }
 
-  const right = low < frames.length ? frames[low] : null;
+  const right = low < frames.length ? (frames[low] ?? null) : null;
   const left = low > 0 ? (frames[low - 1] ?? null) : null;
   if (!left) return right;
   if (!right) return left;
@@ -820,9 +820,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     const payloadStats = measureAcousticExportPayloadStats(scope, payload);
     if (payloadStats.frameCount > MAX_ACOUSTIC_EXPORT_FRAME_COUNT || payloadStats.estimatedBytes > MAX_ACOUSTIC_EXPORT_ESTIMATED_BYTES) {
       const estimatedMiB = Math.max(1, Math.round(payloadStats.estimatedBytes / (1024 * 1024)));
-      setAcousticExportError(locale.startsWith('zh')
-        ? `导出数据过大（约 ${estimatedMiB} MB / ${payloadStats.frameCount} 帧），请缩小导出范围后重试。`
-        : `Export payload is too large (~${estimatedMiB} MB / ${payloadStats.frameCount} frames). Narrow the export scope and retry.`);
+      setAcousticExportError(`Export payload is too large (~${estimatedMiB} MB / ${payloadStats.frameCount} frames). Narrow the export scope and retry.`);
       return;
     }
 
@@ -847,9 +845,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setAcousticExportError(locale.startsWith('zh')
-        ? `导出失败：${message}`
-        : `Export failed: ${message}`);
+      setAcousticExportError(`Export failed: ${message}`);
     } finally {
       setAcousticExporting(false);
     }

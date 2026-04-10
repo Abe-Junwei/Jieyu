@@ -9,7 +9,6 @@ import type {
   CommercialSttProvider,
   CommercialProviderKind,
   SttEngine,
-  SttBillingKind,
 } from '../VoiceInputService';
 import { LocalWhisperSttProvider } from './LocalWhisperSttProvider';
 import { GeminiSttProvider } from './GeminiSttProvider';
@@ -23,6 +22,7 @@ import {
   type CommercialProviderMetadata,
   type SttProviderKind,
 } from './providerMetadata';
+import { testSttEnhancementProvider } from './enhancementRegistry';
 
 export interface CommercialProviderDefinition extends CommercialProviderMetadata {
   /** Create a provider instance from user settings */
@@ -198,7 +198,7 @@ export async function probeAllCommercialProviders(
       }
       try {
         const t0 = Date.now();
-        const provider = createCommercialProvider(def.kind, config);
+        const provider = createCommercialProvider(def.kind, config ?? {});
         // Use Promise.race to enforce real timeout cancellation.
         const available = await Promise.race([
           provider.isAvailable(),

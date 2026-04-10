@@ -441,9 +441,8 @@ export class AcousticAnalysisService {
         throw new Error(`External provider payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`);
       }
 
-      const pcmBuffer = input.pcm.byteOffset === 0 && input.pcm.byteLength === input.pcm.buffer.byteLength
-        ? input.pcm.buffer
-        : input.pcm.buffer.slice(input.pcm.byteOffset, input.pcm.byteOffset + input.pcm.byteLength);
+      const pcmArrayBuffer = new ArrayBuffer(input.pcm.byteLength);
+      new Uint8Array(pcmArrayBuffer).set(new Uint8Array(input.pcm.buffer, input.pcm.byteOffset, input.pcm.byteLength));
       const metadata = {
         mediaKey: input.mediaKey,
         providerId: input.providerId,
@@ -452,7 +451,7 @@ export class AcousticAnalysisService {
       };
       const formData = new FormData();
       formData.set('metadata', JSON.stringify(metadata));
-      formData.set('pcm_f32le', new Blob([pcmBuffer], { type: 'application/octet-stream' }), `${input.mediaKey}.f32`);
+      formData.set('pcm_f32le', new Blob([pcmArrayBuffer], { type: 'application/octet-stream' }), `${input.mediaKey}.f32`);
 
       const request = (async () => {
         const response = await fetch(endpoint, {

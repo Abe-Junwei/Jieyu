@@ -12,12 +12,10 @@ import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useZoom } from '../hooks/useZoom';
 import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
 import type {
   UseTranscriptionWaveformBridgeControllerInput,
   UseTranscriptionWaveformBridgeControllerResult,
-  WaveformInteractionHandlerRefs,
 } from './transcriptionWaveformBridge.types';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
@@ -184,7 +182,7 @@ export function useTranscriptionWaveformBridgeController(
     handleSpectrogramClick,
   } = useWaveformAcousticOverlay({
     selectedMediaUrl: input.selectedMediaUrl,
-    mediaId: input.mediaId,
+    ...(input.mediaId !== undefined ? { mediaId: input.mediaId } : {}),
     acousticOverlayMode: input.acousticOverlayMode,
     waveformDisplayMode: input.waveformDisplayMode,
     containerWidth,

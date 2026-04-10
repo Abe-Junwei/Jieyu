@@ -38,7 +38,7 @@
     linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--color-white)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
 }
 
-.ob-shell .dialog-shell__title {
+.ob-shell .dialog-header > h3 {
   padding-right: 40px;
 }
 

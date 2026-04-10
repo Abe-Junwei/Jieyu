@@ -220,14 +220,14 @@
   right: 6px;
   top: 0;
   bottom: 0;
-  width: 18px;
+  width: auto;
   z-index: var(--z-raised);
   pointer-events: none;
   overflow: visible;
 }
 
 .lane-link-stack-svg {
-  width: 100%;
+  width: auto;
   height: 100%;
   display: block;
 }

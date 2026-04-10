@@ -218,11 +218,12 @@ export class AiHybridRecommendationService {
       const promptStats = this.collectPromptStats(prompt, source, telemetry);
       const repeatedIgnores = Math.max(0, promptStats.shownCount - promptStats.acceptedCount);
       const suppressionPenalty = Math.max(0, repeatedIgnores - 1) * this.config.suppression.repeatedIgnorePenalty;
+      const shouldApplyRepeatPenalty = promptStats.wasLastShownWithoutAcceptance && promptStats.shownCount >= 2;
       const score = 100 - (index * 5)
         + (promptStats.acceptedExactCount * this.config.suppression.exactAcceptanceBoost)
         + (promptStats.acceptedEditedCount * this.config.suppression.editedAcceptanceBoost)
         - suppressionPenalty
-        - (promptStats.wasLastShownWithoutAcceptance ? this.config.suppression.repeatPenalty : 0);
+        - (shouldApplyRepeatPenalty ? this.config.suppression.repeatPenalty : 0);
 
       return {
         prompt,

@@ -68,7 +68,6 @@ import {
   type AcousticProviderRuntimeConfig,
 } from '../services/acoustic/acousticProviderContract';
 import {
-  EMBEDDING_PROVIDER_STORAGE_KEY,
   loadEmbeddingProviderConfig,
   saveEmbeddingProviderConfig,
   type EmbeddingProviderConfig,
@@ -182,18 +181,6 @@ function readStoredBoolean(key: string, fallback: boolean): boolean {
     if (stored === '1' || stored === 'true') return true;
     if (stored === '0' || stored === 'false') return false;
     return fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
-  try {
-    const stored = localStorage.getItem(key);
-    if (!stored) return fallback;
-    const parsed = Number(stored);
-    if (Number.isNaN(parsed)) return fallback;
-    return Math.min(max, Math.max(min, Math.round(parsed)));
   } catch {
     return fallback;
   }
@@ -425,15 +412,15 @@ export function SettingsModal({
     return () => document.removeEventListener('keydown', handler, true);
   }, [editingKeybindingId]);
 
-  const handleResetKeybinding = useCallback((id: string) => {
+  const handleResetKeybinding = (id: string) => {
     removeUserOverride(id);
     setUserOverrides(loadUserOverrides());
-  }, []);
+  };
 
-  const handleResetAllKeybindings = useCallback(() => {
+  const handleResetAllKeybindings = () => {
     resetUserOverrides();
     setUserOverrides(new Map());
-  }, []);
+  };
 
   // ── AI 设置 | AI settings ──
 
@@ -451,7 +438,7 @@ export function SettingsModal({
     });
   }, [activeTab, aiSettings]);
 
-  const handleAiSettingsChange = useCallback((patch: Partial<AiChatSettings>) => {
+  const handleAiSettingsChange = (patch: Partial<AiChatSettings>) => {
     setAiSettings((prev) => {
       if (!prev) return prev;
       const next = normalizeAiChatSettings({ ...prev, ...patch });
@@ -460,7 +447,7 @@ export function SettingsModal({
       setTimeout(() => setAiSaveFlash(false), 1500);
       return next;
     });
-  }, []);
+  };
 
   const activeAiProviderDef = useMemo(() => {
     const kind = aiSettings?.providerKind ?? 'mock';
@@ -474,9 +461,7 @@ export function SettingsModal({
     const byKind = new Map(aiChatProviderDefinitions.map((p) => [p.kind, p]));
     const pick = (kinds: AiChatProviderKind[]) =>
       kinds.map((k) => byKind.get(k)).filter((p): p is NonNullable<typeof p> => Boolean(p));
-    const labels = locale === 'zh-CN'
-      ? { official: '官方直连', compat: '兼容接口', local: '本地 / 自定义' }
-      : { official: 'Official', compat: 'Compatible', local: 'Local / Custom' };
+    const labels = { official: 'Official', compat: 'Compatible', local: 'Local / Custom' };
     return [
       { label: labels.official, items: pick(directKinds) },
       { label: labels.compat, items: pick(compatKinds) },
@@ -490,38 +475,38 @@ export function SettingsModal({
   const [acousticRuntimeError, setAcousticRuntimeError] = useState<string | null>(null);
   const [aiContextDebugEnabled, setAiContextDebugEnabled] = useState<boolean>(() => readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
 
-  const persistEmbeddingProviderDefault = useCallback((config: EmbeddingProviderConfig) => {
+  const persistEmbeddingProviderDefault = (config: EmbeddingProviderConfig) => {
     const normalized = normalizeEmbeddingProviderConfig(config);
     setEmbeddingProviderDefault(normalized);
     saveEmbeddingProviderConfig(normalized);
-  }, []);
+  };
 
-  const handleEmbeddingProviderKindChange = useCallback((kind: EmbeddingProviderKind) => {
+  const handleEmbeddingProviderKindChange = (kind: EmbeddingProviderKind) => {
     persistEmbeddingProviderDefault({ ...embeddingProviderDefault, kind });
-  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+  };
 
-  const handleEmbeddingProviderBaseUrlChange = useCallback((value: string) => {
+  const handleEmbeddingProviderBaseUrlChange = (value: string) => {
     persistEmbeddingProviderDefault({ ...embeddingProviderDefault, baseUrl: value });
-  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+  };
 
-  const handleEmbeddingProviderApiKeyChange = useCallback((value: string) => {
+  const handleEmbeddingProviderApiKeyChange = (value: string) => {
     persistEmbeddingProviderDefault({ ...embeddingProviderDefault, apiKey: value });
-  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+  };
 
-  const handleEmbeddingProviderModelChange = useCallback((value: string) => {
+  const handleEmbeddingProviderModelChange = (value: string) => {
     persistEmbeddingProviderDefault({ ...embeddingProviderDefault, model: value });
-  }, [embeddingProviderDefault, persistEmbeddingProviderDefault]);
+  };
 
-  const handleAcousticRuntimeRoutingChange = useCallback((mode: AcousticProviderRoutingStrategy) => {
+  const handleAcousticRuntimeRoutingChange = (mode: AcousticProviderRoutingStrategy) => {
     setAcousticRuntimeSaved(false);
     setAcousticRuntimeError(null);
     setAcousticRuntimeDraft((prev) => ({
       ...prev,
       routingStrategy: mode,
     }));
-  }, []);
+  };
 
-  const handleAcousticRuntimeExternalEnabledChange = useCallback((enabled: boolean) => {
+  const handleAcousticRuntimeExternalEnabledChange = (enabled: boolean) => {
     setAcousticRuntimeSaved(false);
     setAcousticRuntimeError(null);
     setAcousticRuntimeDraft((prev) => ({
@@ -531,9 +516,9 @@ export function SettingsModal({
         enabled,
       },
     }));
-  }, []);
+  };
 
-  const handleAcousticRuntimeEndpointChange = useCallback((value: string) => {
+  const handleAcousticRuntimeEndpointChange = (value: string) => {
     setAcousticRuntimeSaved(false);
     setAcousticRuntimeError(null);
     setAcousticRuntimeDraft((prev) => ({
@@ -543,9 +528,9 @@ export function SettingsModal({
         endpoint: value,
       },
     }));
-  }, []);
+  };
 
-  const handleAcousticRuntimeTimeoutChange = useCallback((value: number) => {
+  const handleAcousticRuntimeTimeoutChange = (value: number) => {
     const timeoutMs = Number.isFinite(value)
       ? Math.min(120000, Math.max(500, Math.round(value)))
       : 10000;
@@ -558,7 +543,7 @@ export function SettingsModal({
         timeoutMs,
       },
     }));
-  }, []);
+  };
 
   const handleAcousticRuntimeSave = useCallback(() => {
     try {
@@ -572,14 +557,14 @@ export function SettingsModal({
     }
   }, [acousticRuntimeDraft]);
 
-  const handleAiContextDebugChange = useCallback((enabled: boolean) => {
+  const handleAiContextDebugChange = (enabled: boolean) => {
     setAiContextDebugEnabled(enabled);
     try {
       localStorage.setItem(AI_CONTEXT_DEBUG_KEY, enabled ? '1' : '0');
     } catch {
       // ignore
     }
-  }, []);
+  };
 
   // ── 播放偏好 | Playback preferences ──
 
@@ -603,10 +588,10 @@ export function SettingsModal({
   const [mapProviderDefault, setMapProviderDefault] = useState<MapProviderPreference>(readStoredMapProviderPreference);
   const [voiceDockPositionResetAt, setVoiceDockPositionResetAt] = useState<number | null>(null);
 
-  const handlePlaybackRateChange = useCallback((rate: number) => {
+  const handlePlaybackRateChange = (rate: number) => {
     setDefaultPlaybackRate(rate);
     try { localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate)); } catch { /* ignore */ }
-  }, []);
+  };
 
   const handleWorkspaceAutoScrollChange = useCallback((enabled: boolean) => {
     setWorkspaceAutoScrollDefault(enabled);
@@ -1408,7 +1393,7 @@ export function SettingsModal({
             <div className="settings-sections-stack">
               <SettingsSection title={msg.tabAbout}>
                 <div className="settings-about-section">
-                  <span className="settings-about-name">解语 Jieyu</span>
+                  <span className="settings-about-name">Jieyu</span>
                   <p className="settings-about-desc">{msg.aboutDescription}</p>
                   {version && (
                     <div className="settings-about-row">

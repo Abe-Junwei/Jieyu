@@ -101,8 +101,6 @@ export interface ResolveAcousticProviderStateOptions {
 
 export const DEFAULT_EXTERNAL_ACOUSTIC_PROVIDER_CONFIG: ExternalAcousticProviderConfig = {
   enabled: false,
-  endpoint: undefined,
-  apiKey: undefined,
   timeoutMs: 10_000,
 };
 
@@ -300,7 +298,11 @@ export function persistAcousticProviderRuntimeConfig(
 ): AcousticProviderRuntimeConfig {
   assertValidExternalProviderEndpoint(config.externalProvider?.endpoint);
   const normalized = normalizeAcousticProviderRuntimeConfig(config);
-  inMemoryProviderSecrets.externalApiKey = normalized.externalProvider.apiKey;
+  if (normalized.externalProvider.apiKey) {
+    inMemoryProviderSecrets.externalApiKey = normalized.externalProvider.apiKey;
+  } else {
+    delete inMemoryProviderSecrets.externalApiKey;
+  }
 
   writeStorageValue(ACOUSTIC_PROVIDER_STORAGE_KEYS.routingStrategy, normalized.routingStrategy);
   writeStorageValue(

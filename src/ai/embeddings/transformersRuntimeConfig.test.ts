@@ -113,8 +113,35 @@ describe('transformersRuntimeConfig', () => {
     expect(detectTransformersBrowserCacheAvailability(false)).toBe(false);
   });
 
+  it('treats worker-like globals as browser runtime when explicit override is absent', () => {
+    const globalObject = globalThis as {
+      self?: unknown;
+      postMessage?: unknown;
+    };
+    const prevSelf = globalObject.self;
+    const prevPostMessage = globalObject.postMessage;
+
+    try {
+      globalObject.self = globalThis;
+      globalObject.postMessage = () => undefined;
+
+      expect(detectTransformersBrowserRuntime(undefined)).toBe(true);
+    } finally {
+      if (prevSelf === undefined) {
+        delete globalObject.self;
+      } else {
+        globalObject.self = prevSelf;
+      }
+      if (prevPostMessage === undefined) {
+        delete globalObject.postMessage;
+      } else {
+        globalObject.postMessage = prevPostMessage;
+      }
+    }
+  });
+
   it('falls back from webgpu to wasm when pipeline init fails on webgpu', async () => {
-    const calls: Array<'webgpu' | 'wasm'> = [];
+    const calls: Array<'webgpu' | 'wasm' | 'cpu'> = [];
     const fallbackSpy = vi.fn();
     const pipeline = vi.fn(async () => ({ data: [1, 2, 3] }));
 

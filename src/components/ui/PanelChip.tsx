@@ -7,7 +7,7 @@ import { joinClassNames } from './classNames';
 export type PanelChipVariant = 'default' | 'warning' | 'danger' | 'success';
 
 interface PanelChipProps extends HTMLAttributes<HTMLSpanElement> {
-  variant?: PanelChipVariant;
+  variant?: PanelChipVariant | undefined;
   children: ReactNode;
 }
 

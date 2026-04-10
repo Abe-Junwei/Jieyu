@@ -146,7 +146,7 @@ export class AcousticAnalysisCacheDB {
       }
     }
 
-    for (const [mediaKey, group] of mediaGroups.entries()) {
+    for (const group of mediaGroups.values()) {
       let groupBytes = group.reduce((sum, row) => sum + row.byteSize, 0);
       const ordered = [...group].sort((left, right) => compareEvictionPriority(left, right, currentMediaKey, protectedCacheKey));
       let remainingCount = ordered.filter((row) => !deleteKeys.has(row.cacheKey)).length;

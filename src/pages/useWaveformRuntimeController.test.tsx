@@ -46,4 +46,61 @@ describe('useWaveformRuntimeController', () => {
     expect(result.current.waveformVisualStyle).toBe('praat');
     expect(result.current.acousticOverlayMode).toBe('both');
   });
+
+  it('restores base height after auto-expand when leaving split mode', () => {
+    localStorage.setItem('jieyu:waveform-height', '180');
+    localStorage.setItem('jieyu:waveform-display-mode', 'waveform');
+    localStorage.setItem('jieyu:amplitude-scale', '1');
+    localStorage.setItem('jieyu:waveform-visual-style', 'balanced');
+    localStorage.setItem('jieyu:acoustic-overlay-mode', 'none');
+
+    const { result } = renderHook(() => useWaveformRuntimeController());
+    expect(result.current.waveformHeight).toBe(180);
+
+    act(() => {
+      result.current.setWaveformDisplayMode('split');
+    });
+    expect(result.current.waveformHeight).toBe(260);
+
+    act(() => {
+      result.current.setWaveformDisplayMode('waveform');
+    });
+    expect(result.current.waveformHeight).toBe(180);
+  });
+
+  it('does not restore stale low baseline after switching to a higher non-split height', () => {
+    localStorage.setItem('jieyu:waveform-height', '180');
+    localStorage.setItem('jieyu:waveform-display-mode', 'waveform');
+    localStorage.setItem('jieyu:amplitude-scale', '1');
+    localStorage.setItem('jieyu:waveform-visual-style', 'balanced');
+    localStorage.setItem('jieyu:acoustic-overlay-mode', 'none');
+
+    const { result } = renderHook(() => useWaveformRuntimeController());
+
+    act(() => {
+      result.current.setWaveformDisplayMode('split');
+    });
+    expect(result.current.waveformHeight).toBe(260);
+
+    act(() => {
+      result.current.setWaveformDisplayMode('waveform');
+    });
+    expect(result.current.waveformHeight).toBe(180);
+
+    act(() => {
+      localStorage.setItem('jieyu:waveform-height', '300');
+      emitWaveformRuntimePreferenceChanged();
+    });
+    expect(result.current.waveformHeight).toBe(300);
+
+    act(() => {
+      result.current.setWaveformDisplayMode('split');
+    });
+    expect(result.current.waveformHeight).toBe(300);
+
+    act(() => {
+      result.current.setWaveformDisplayMode('waveform');
+    });
+    expect(result.current.waveformHeight).toBe(300);
+  });
 });

@@ -33,6 +33,8 @@ function createDraft(overrides: Partial<LanguageMetadataDraft> = {}): LanguageMe
     nativeName: '',
     aliasesText: '',
     genus: '',
+    subfamily: '',
+    branch: '',
     classificationPath: '',
     macrolanguage: '',
     scope: '',
@@ -65,7 +67,9 @@ function createDraft(overrides: Partial<LanguageMetadataDraft> = {}): LanguageMe
     latitude: '',
     longitude: '',
     changeReason: '',
+    vernacularsText: '',
     displayNameRows: [],
+    displayNameHiddenRows: [],
     customFieldValues: {},
     ...overrides,
   };

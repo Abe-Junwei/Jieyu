@@ -9,7 +9,7 @@ describe('Transcription layout guard', () => {
     const foundationPath = path.resolve(process.cwd(), 'src/styles/app-foundation.css');
     const foundationCode = fs.readFileSync(foundationPath, 'utf8');
 
-    expect(appCode).toContain("const isTranscriptionRoute = location.pathname.startsWith('/transcription');");
+    expect(appCode).toContain("location.pathname.startsWith('/transcription')");
     expect(appCode).toContain("app-shell-transcription");
     expect(appCode).toContain("app-shell-body");
     expect(appCode).toContain("app-main-transcription");
@@ -53,7 +53,7 @@ describe('Transcription layout guard', () => {
     expect(paneBlock).toContain('position: absolute;');
     expect(paneBlock).toContain('width: var(--side-pane-width);');
 
-    const responsiveStart = cssCode.indexOf('@media (max-width: 1024px) {');
+    const responsiveStart = cssCode.indexOf('@media (max-width: 1080px) {');
     expect(responsiveStart).toBeGreaterThanOrEqual(0);
     const responsiveSlice = cssCode.slice(responsiveStart);
     expect(responsiveSlice).toContain('.app-side-pane {');
@@ -135,7 +135,8 @@ describe('Transcription layout guard', () => {
     const workspaceBlock = cssCode.slice(workspaceStart, workspaceEnd + 1);
     expect(workspaceBlock).toContain('display: flex;');
     expect(workspaceBlock).toContain('flex-direction: row;');
-    expect(workspaceBlock).toContain('--transcription-ai-visible-width');
+    expect(workspaceBlock).toContain('--transcription-side-pane-width');
+    expect(cssCode).toContain('--transcription-ai-visible-width');
 
     const panelSelector = '.transcription-list-panel {';
     const panelStart = cssCode.indexOf(panelSelector);

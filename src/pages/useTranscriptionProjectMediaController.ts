@@ -11,7 +11,6 @@ import { ensureVadCacheForMedia } from '../services/vad/VadMediaCacheService';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
-
 const log = createLogger('useTranscriptionProjectMediaController');
 
 export interface UseTranscriptionProjectMediaControllerInput {
@@ -54,7 +53,10 @@ interface UseTranscriptionProjectMediaControllerResult {
 }
 
 async function resolveAutoSegmentCandidates(mediaId: string | undefined, mediaUrl: string): Promise<Array<{ start: number; end: number }>> {
-  const cachedEntry = await ensureVadCacheForMedia({ mediaId, mediaUrl });
+  const cachedEntry = await ensureVadCacheForMedia({
+    ...(mediaId !== undefined ? { mediaId } : {}),
+    mediaUrl,
+  });
   if (cachedEntry) {
     return cachedEntry.segments;
   }

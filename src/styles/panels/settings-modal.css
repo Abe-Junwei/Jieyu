@@ -435,7 +435,7 @@
 
 .settings-save-flash {
   font-size: calc(0.72rem * var(--ui-font-scale, 1));
-  color: var(--status-success, #22c55e);
+  color: var(--state-success-solid);
   font-weight: 500;
   animation: settings-flash-in 200ms ease-out;
 }
@@ -479,7 +479,7 @@
 
 .settings-data-cleared {
   font-size: calc(0.74rem * var(--ui-font-scale, 1));
-  color: var(--status-success, #22c55e);
+  color: var(--state-success-solid);
   font-weight: 500;
 }
 
@@ -499,14 +499,14 @@
   padding: 6px 14px;
   font-size: calc(0.78rem * var(--ui-font-scale, 1));
   font-weight: 500;
-  color: var(--status-error, #ef4444);
-  border: 1px solid var(--status-error, #ef4444);
+  color: var(--state-danger-solid);
+  border: 1px solid var(--state-danger-solid);
   border-radius: 6px;
   transition: background var(--shell-motion-fast, 140ms);
 }
 
 .settings-danger-btn:hover {
-  background: color-mix(in srgb, var(--status-error, #ef4444) 10%, transparent);
+  background: color-mix(in srgb, var(--state-danger-solid) 10%, transparent);
 }
 
 .settings-danger-btn:focus-visible {

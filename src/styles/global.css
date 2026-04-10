@@ -128,7 +128,7 @@ body {
 }
 
 :root.jieyu-high-contrast *:focus-visible {
-  outline-width: 3px !important;
+  outline-width: 3px;
 }
 
 /* 降低动态效果：尊重系统“减少动态”偏好 | Reduced motion fallback */

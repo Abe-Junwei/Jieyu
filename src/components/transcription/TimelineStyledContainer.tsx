@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from 'react';
+import type { ComponentProps, ComponentPropsWithoutRef, CSSProperties, ReactNode } from 'react';
 
 type TimelineStyledContainerProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'style'> & {
   layoutStyle: CSSProperties;
@@ -10,7 +10,7 @@ type TimelineStyledButtonProps = Omit<ComponentPropsWithoutRef<'button'>, 'child
   children: ReactNode;
 };
 
-type TimelineStyledSectionProps = Omit<ComponentPropsWithoutRef<'section'>, 'children' | 'style'> & {
+type TimelineStyledSectionProps = Omit<ComponentProps<'section'>, 'children' | 'style'> & {
   layoutStyle: CSSProperties;
   children: ReactNode;
 };

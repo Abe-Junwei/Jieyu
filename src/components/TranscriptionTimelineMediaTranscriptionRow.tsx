@@ -10,6 +10,7 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   layer: LayerDocType;
   layerForDisplay: LayerDocType;
   baseLaneHeight: number;
+  subTrackTop?: number;
   draft: string;
   draftKey: string;
   sourceText: string;
