@@ -36,8 +36,10 @@ const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
 export function OrthographyManagerPage({
   registerSidePane = true,
+  onClose,
 }: {
   registerSidePane?: boolean;
+  onClose?: () => void;
 } = {}) {
   const locale = useLocale();
   const builderMessages = getOrthographyBuilderMessages(locale);
@@ -494,9 +496,9 @@ export function OrthographyManagerPage({
   };
 
   return (
-    <section className="orthography-manager-page">
+    <section className="om-page">
       <OrthographyManagerPanel
-        embedded={!registerSidePane}
+        onClose={onClose}
         locale={locale}
         builderMessages={builderMessages}
         fromLayerId={fromLayerId}

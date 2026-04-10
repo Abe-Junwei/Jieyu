@@ -13,6 +13,24 @@
   z-index: var(--z-modal-topmost);
 }
 
+.dialog-overlay-opaque {
+  background: var(--surface-canvas, var(--surface-panel));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.modal-panel-host {
+  width: min(var(--dialog-auto-width, 480px), 92vw);
+  max-height: 85vh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-panel-host > * {
+  min-height: 0;
+}
+
 .dialog-card {
   background: var(--bg-primary, var(--surface-panel));
   border-radius: var(--radius-xl);

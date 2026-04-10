@@ -12,6 +12,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { DialogOverlay } from './DialogOverlay';
 import { DialogShell } from './DialogShell';
+import { joinClassNames } from './classNames';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ModalPanelProps {
@@ -60,6 +61,10 @@ interface ModalPanelProps {
   dir?: string;
   /** 标题额外类名 | Title area class */
   titleClassName?: string;
+  /** 使用不透明遮罩 | Use opaque overlay backdrop */
+  opaqueOverlay?: boolean;
+  /** 仅使用遮罩与容器，不渲染 DialogShell 可见卡片壳 | Use overlay + host only without rendering visible DialogShell card */
+  renderShell?: boolean;
   children: ReactNode;
 }
 
@@ -87,6 +92,8 @@ export function ModalPanel({
   ariaLabelledBy,
   dir,
   titleClassName,
+  opaqueOverlay = false,
+  renderShell = true,
   children,
 }: ModalPanelProps) {
   const fallbackRef = useRef<HTMLDivElement>(null);
@@ -105,8 +112,46 @@ export function ModalPanel({
     ? <>{headerActions}{closeButton}</>
     : closeButton;
 
+  if (!renderShell) {
+    return createPortal(
+      <DialogOverlay
+        onClose={onClose}
+        topmost={topmost}
+        className={opaqueOverlay ? 'dialog-overlay-opaque' : undefined}
+        {...(closeOn !== undefined && { closeOn })}
+        {...(dir !== undefined && { dir })}
+      >
+        <div
+          ref={resolvedRef}
+          className={joinClassNames(
+            'modal-panel-host',
+            compact && 'dialog-card-compact',
+            wide && 'dialog-card-wide',
+            className,
+          )}
+          style={layoutStyle ?? style}
+          {...(dir !== undefined && { dir })}
+          {...(ariaLabel !== undefined && { 'aria-label': ariaLabel })}
+          {...(ariaLabelledBy !== undefined && { 'aria-labelledby': ariaLabelledBy })}
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
+      </DialogOverlay>,
+      document.body,
+    );
+  }
+
   return createPortal(
-    <DialogOverlay onClose={onClose} topmost={topmost} {...(closeOn !== undefined && { closeOn })} {...(dir !== undefined && { dir })}>
+    <DialogOverlay
+      onClose={onClose}
+      topmost={topmost}
+      className={opaqueOverlay ? 'dialog-overlay-opaque' : undefined}
+      {...(closeOn !== undefined && { closeOn })}
+      {...(dir !== undefined && { dir })}
+    >
       <DialogShell
         containerRef={resolvedRef}
         {...(className !== undefined && { className })}

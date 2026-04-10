@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, Settings, StickyNote, type LucideIcon } from 'lucide-react';
-import { NavLink, Navigate, Route, Routes, useLocation, useNavigate, type Location } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -11,7 +11,8 @@ import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type 
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
-import { LanguageAssetRouteDialog } from './components/ui/LanguageAssetRouteDialog';
+import { ModalPanel } from './components/ui/ModalPanel';
+import { AssetPanelProvider, type AssetPanelContextValue, type LanguageAssetPanel } from './contexts/AssetPanelContext';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -23,11 +24,12 @@ const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadat
 const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
 const OrthographyBridgeWorkspacePage = lazy(() => import('./pages/OrthographyBridgeWorkspacePage').then(m => ({ default: m.OrthographyBridgeWorkspacePage })));
 
-const LANGUAGE_ASSET_MODAL_PATHS = [
-  '/assets/language-metadata',
-  '/assets/orthographies',
-  '/assets/orthography-bridges',
-] as const;
+function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
+  if (pathname === '/assets/language-metadata') return 'language-metadata';
+  if (pathname === '/assets/orthographies') return 'orthographies';
+  if (pathname === '/assets/orthography-bridges') return 'orthography-bridges';
+  return 'none';
+}
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -94,14 +96,6 @@ function NotFound({ locale }: { locale: ReturnType<typeof detectLocale> }) {
     <section className="panel">
       <h2>{t(locale, 'app.notFound.title')}</h2>
       <p>{t(locale, 'app.notFound.desc')}</p>
-    </section>
-  );
-}
-
-function RouteLoading({ locale }: { locale: Locale }) {
-  return (
-    <section className="panel" role="status" aria-live="polite" aria-busy="true">
-      <p>{t(locale, 'transcription.status.loading')}</p>
     </section>
   );
 }
@@ -173,23 +167,10 @@ function AppShellSidePane({
 export function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const backgroundLocation = (location.state as { backgroundLocation?: Location } | null)?.backgroundLocation;
-  const isTranscriptionRoute = location.pathname.startsWith('/transcription');
-  const isLanguageAssetModalOpen = LANGUAGE_ASSET_MODAL_PATHS.includes(location.pathname as typeof LANGUAGE_ASSET_MODAL_PATHS[number]);
-  const fallbackLanguageAssetBackgroundLocation = useMemo<Location | null>(() => {
-    if (!isLanguageAssetModalOpen || backgroundLocation) {
-      return null;
-    }
-
-    return {
-      pathname: '/transcription',
-      search: '',
-      hash: '',
-      state: null,
-      key: 'language-asset-modal-fallback',
-    };
-  }, [backgroundLocation, isLanguageAssetModalOpen]);
-  const languageAssetModalBackgroundLocation = backgroundLocation ?? fallbackLanguageAssetBackgroundLocation;
+  const assetPanelFromRoute = useMemo(() => mapAssetPathToPanel(location.pathname), [location.pathname]);
+  const isTranscriptionRoute = location.pathname.startsWith('/transcription') || assetPanelFromRoute !== 'none';
+  const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
+  const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
@@ -379,53 +360,79 @@ export function App() {
 
   const primaryNavItems = useMemo(() => navGroups.flatMap((group) => group.items), [navGroups]);
   const navItems = useMemo(() => [...primaryNavItems, ...secondaryNavItems], [primaryNavItems, secondaryNavItems]);
-  const activePathname = languageAssetModalBackgroundLocation?.pathname ?? location.pathname;
+  const activePathname = assetPanelFromRoute !== 'none' ? '/transcription' : location.pathname;
 
   const activeNavItem = useMemo(() => (
     navItems.find((item) => activePathname === item.to || activePathname.startsWith(`${item.to}/`))
     ?? navItems[0]
   ), [activePathname, navItems]);
 
-  const handleLanguageAssetModalClose = useCallback(() => {
-    if (!isLanguageAssetModalOpen) {
+  const handleAssetPanelClose = useCallback(() => {
+    setOpenAssetPanel('none');
+
+    const restoreSearch = panelSearchRestoreRef.current;
+    panelSearchRestoreRef.current = null;
+    if (restoreSearch !== null && location.search !== restoreSearch) {
+      navigate({ pathname: location.pathname, search: restoreSearch }, { replace: true });
+    }
+  }, [location.pathname, location.search, navigate]);
+
+  /** 路径 → 面板 ID 映射 | Path → panel ID mapping */
+  const pathToPanelId = useCallback((to: string): LanguageAssetPanel => {
+    const pathname = to.split('?')[0]?.split('#')[0] ?? to;
+    return mapAssetPathToPanel(pathname);
+  }, []);
+
+  const searchFromTarget = useCallback((to: string): string => {
+    const queryStart = to.indexOf('?');
+    if (queryStart < 0) {
+      return '';
+    }
+    const hashStart = to.indexOf('#', queryStart);
+    return hashStart < 0 ? to.slice(queryStart) : to.slice(queryStart, hashStart);
+  }, []);
+
+  const openAssetPanelFromTarget = useCallback((to: string) => {
+    const panelId = pathToPanelId(to);
+    setOpenAssetPanel(panelId);
+
+    const nextSearch = searchFromTarget(to);
+    if (!nextSearch) {
       return;
     }
 
-    if (backgroundLocation) {
-      navigate({
-        pathname: backgroundLocation.pathname,
-        search: backgroundLocation.search,
-        hash: backgroundLocation.hash,
-      }, {
-        replace: true,
-        state: backgroundLocation.state,
-      });
+    if (panelSearchRestoreRef.current === null) {
+      panelSearchRestoreRef.current = location.search;
+    }
+
+    if (location.search !== nextSearch) {
+      navigate({ pathname: location.pathname, search: nextSearch }, { replace: true });
+    }
+  }, [location.pathname, location.search, navigate, pathToPanelId, searchFromTarget]);
+
+  const handleAssetPanelToggle = useCallback((to: string) => {
+    const panelId = pathToPanelId(to);
+    if (panelId !== 'none' && openAssetPanel === panelId) {
+      handleAssetPanelClose();
       return;
     }
+    openAssetPanelFromTarget(to);
+  }, [handleAssetPanelClose, openAssetPanel, openAssetPanelFromTarget, pathToPanelId]);
 
-    navigate(languageAssetModalBackgroundLocation?.pathname ?? '/transcription', {
-      replace: true,
-    });
-  }, [backgroundLocation, isLanguageAssetModalOpen, languageAssetModalBackgroundLocation?.pathname, navigate]);
+  const isAssetPanelActive = useCallback((to: string) => {
+    return openAssetPanel === pathToPanelId(to);
+  }, [openAssetPanel, pathToPanelId]);
 
-  const handleLanguageAssetModalToggle = useCallback((to: typeof LANGUAGE_ASSET_MODAL_PATHS[number]) => {
-    if (location.pathname === to) {
-      handleLanguageAssetModalClose();
+  const assetPanelCtx = useMemo<AssetPanelContextValue>(() => ({
+    openPanel: (to: string) => openAssetPanelFromTarget(to),
+  }), [openAssetPanelFromTarget]);
+
+  useEffect(() => {
+    if (assetPanelFromRoute === 'none') {
       return;
     }
-
-    navigate(to, {
-      state: { backgroundLocation: languageAssetModalBackgroundLocation ?? location },
-    });
-  }, [handleLanguageAssetModalClose, languageAssetModalBackgroundLocation, location, navigate]);
-
-  const isLanguageAssetRouteActive = useCallback((to: string) => {
-    if (location.pathname === to) {
-      return true;
-    }
-
-    return activePathname === to || activePathname.startsWith(`${to}/`);
-  }, [activePathname, location.pathname]);
+    openAssetPanelFromTarget(`${location.pathname}${location.search}`);
+  }, [assetPanelFromRoute, location.pathname, location.search, openAssetPanelFromTarget]);
 
   const handleSidePaneToggle = useCallback((event?: React.SyntheticEvent<HTMLElement>) => {
     event?.stopPropagation();
@@ -526,10 +533,10 @@ export function App() {
                       <button
                         key={item.to}
                         type="button"
-                        className={isLanguageAssetRouteActive(item.to) ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
+                        className={isAssetPanelActive(item.to) ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
                         title={item.label}
                         aria-label={item.label}
-                        onClick={() => handleLanguageAssetModalToggle(item.to as typeof LANGUAGE_ASSET_MODAL_PATHS[number])}
+                        onClick={() => handleAssetPanelToggle(item.to)}
                       >
                         <ItemIcon size={17} aria-hidden="true" />
                         <span>{item.label}</span>
@@ -577,67 +584,55 @@ export function App() {
               className={`app-main ${isTranscriptionRoute ? 'app-main-transcription' : ''}`}
             >
               <AiPanelProvider>
-                <Suspense fallback={<RouteLoading locale={locale} />}>
-                  <Routes location={languageAssetModalBackgroundLocation ?? location}>
+                <AssetPanelProvider value={assetPanelCtx}>
+                <Suspense fallback={null}>
+                  <Routes location={location}>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route
                       path="/transcription"
                       element={<TranscriptionPage />}
                     />
+                    <Route path="/assets/language-metadata" element={<TranscriptionPage />} />
+                    <Route path="/assets/orthographies" element={<TranscriptionPage />} />
+                    <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
                     <Route path="/annotation" element={<AnnotationPage />} />
                     <Route path="/analysis" element={<AnalysisPage />} />
                     <Route path="/writing" element={<WritingPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
-                    <Route path="/assets/language-metadata" element={<LanguageMetadataWorkspacePage />} />
-                    <Route path="/assets/orthography-bridges" element={<OrthographyBridgeWorkspacePage />} />
-                    {/* 旧路由重定向，保持外部链接兼容 | Legacy route redirect for backward compatibility */}
-                    <Route path="/lexicon/orthographies" element={<Navigate to="/assets/orthographies" replace />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
-                  {isLanguageAssetModalOpen ? (
-                    <Routes>
-                      <Route
-                        path="/assets/language-metadata"
-                        element={(
-                          <LanguageAssetRouteDialog
-                            ariaLabel={t(locale, 'app.nav.languageMetadata')}
-                            closeLabel={t(locale, 'transcription.importDialog.close')}
-                            onClose={handleLanguageAssetModalClose}
-                            surfaceVariant="workspace"
-                          >
-                            <LanguageMetadataWorkspacePage registerSidePane={false} />
-                          </LanguageAssetRouteDialog>
-                        )}
-                      />
-                      <Route
-                        path="/assets/orthographies"
-                        element={(
-                          <LanguageAssetRouteDialog
-                            ariaLabel={t(locale, 'app.nav.orthographies')}
-                            closeLabel={t(locale, 'transcription.importDialog.close')}
-                            onClose={handleLanguageAssetModalClose}
-                            surfaceVariant="workspace"
-                          >
-                            <OrthographyManagerPage registerSidePane={false} />
-                          </LanguageAssetRouteDialog>
-                        )}
-                      />
-                      <Route
-                        path="/assets/orthography-bridges"
-                        element={(
-                          <LanguageAssetRouteDialog
-                            ariaLabel={t(locale, 'app.nav.orthographyBridges')}
-                            closeLabel={t(locale, 'transcription.importDialog.close')}
-                            onClose={handleLanguageAssetModalClose}
-                            surfaceVariant="workspace"
-                          >
-                            <OrthographyBridgeWorkspacePage registerSidePane={false} />
-                          </LanguageAssetRouteDialog>
-                        )}
-                      />
-                    </Routes>
-                  ) : null}
+                  <ModalPanel
+                    isOpen={openAssetPanel === 'language-metadata'}
+                    onClose={handleAssetPanelClose}
+                    ariaLabel={t(locale, 'app.nav.languageMetadata')}
+                    closeLabel={t(locale, 'transcription.importDialog.close')}
+                    renderShell={false}
+                    wide
+                  >
+                    <LanguageMetadataWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
+                  </ModalPanel>
+                  <ModalPanel
+                    isOpen={openAssetPanel === 'orthographies'}
+                    onClose={handleAssetPanelClose}
+                    ariaLabel={t(locale, 'app.nav.orthographies')}
+                    closeLabel={t(locale, 'transcription.importDialog.close')}
+                    renderShell={false}
+                    wide
+                  >
+                    <OrthographyManagerPage registerSidePane={false} onClose={handleAssetPanelClose} />
+                  </ModalPanel>
+                  <ModalPanel
+                    isOpen={openAssetPanel === 'orthography-bridges'}
+                    onClose={handleAssetPanelClose}
+                    ariaLabel={t(locale, 'app.nav.orthographyBridges')}
+                    closeLabel={t(locale, 'transcription.importDialog.close')}
+                    renderShell={false}
+                    wide
+                  >
+                    <OrthographyBridgeWorkspacePage registerSidePane={false} onClose={handleAssetPanelClose} />
+                  </ModalPanel>
                 </Suspense>
+                </AssetPanelProvider>
               </AiPanelProvider>
             </main>
             </div>

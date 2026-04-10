@@ -1,8 +1,10 @@
 import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
+import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, useLocale } from '../i18n';
 import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
@@ -16,7 +18,6 @@ import {
 } from '../services/LinguisticService.languageCatalog';
 import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
-import { LanguageMetadataWorkspaceCatalogPanel } from './LanguageMetadataWorkspaceCatalogPanel';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import {
   LANGUAGE_ID_PARAM,
@@ -38,8 +39,10 @@ import {
 
 export function LanguageMetadataWorkspacePage({
   registerSidePane = true,
+  onClose,
 }: {
   registerSidePane?: boolean;
+  onClose?: () => void;
 } = {}) {
   // M1: useLocale() 返回 Locale 与 WorkspaceLocale 类型一致，无需强转 | useLocale() returns Locale which matches WorkspaceLocale
   const locale: WorkspaceLocale = useLocale();
@@ -120,6 +123,15 @@ export function LanguageMetadataWorkspacePage({
 
     const selectedEntry = entries.find((entry) => entry.id === selectedLanguageId) ?? null;
     if (!selectedLanguageId && entries.length > 0) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set(LANGUAGE_ID_PARAM, entries[0]!.id);
+      setSearchParams(nextParams, { replace: true });
+      return;
+    }
+
+    // 搜索定位语义：当前条目不在结果里时，自动切到首个匹配项
+    // Search-as-locate semantics: switch to first match when current entry is absent from results
+    if (!selectedEntry && selectedLanguageId && entries.length > 0) {
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set(LANGUAGE_ID_PARAM, entries[0]!.id);
       setSearchParams(nextParams, { replace: true });
@@ -426,48 +438,58 @@ export function LanguageMetadataWorkspacePage({
     enabled: registerSidePane,
   });
 
+  const panelActions = onClose ? (
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={onClose}
+      aria-label={t(locale, 'transcription.importDialog.close')}
+      title={t(locale, 'transcription.importDialog.close')}
+    >
+      <X size={16} />
+    </button>
+  ) : undefined;
+
   return (
-    <section className="panel language-asset-workspace-shell language-metadata-workspace" aria-labelledby="language-metadata-workspace-title">
-      <header className="language-asset-workspace-hero language-metadata-workspace-hero">
-        <span className="language-metadata-workspace-badge">{t(locale, 'workspace.languageMetadata.badge')}</span>
-        <h2 id="language-metadata-workspace-title">{t(locale, 'workspace.languageMetadata.title')}</h2>
-        <p className="language-metadata-workspace-summary">{t(locale, 'workspace.languageMetadata.summary')}</p>
-      </header>
-
-      <div className="language-asset-workspace-flow language-metadata-workspace-layout">
-        <LanguageMetadataWorkspaceCatalogPanel
-          locale={locale}
-          entries={entries}
-          projectLanguageIds={projectLanguageIds}
-          selectedEntryId={selectedEntry?.id ?? ''}
-          loading={loading}
-          error={error}
-          searchText={searchText}
-          onSearchTextChange={setSearchText}
-          onCreateCustom={handleCreateCustom}
-          onSelectEntry={handleSelectEntry}
+    <EmbeddedPanelShell
+      className="lm-shell lm-workspace"
+      bodyClassName="lm-layout"
+      title={t(locale, 'workspace.languageMetadata.title')}
+      actions={panelActions}
+      aria-label={t(locale, 'workspace.languageMetadata.title')}
+    >
+      <div className="lm-toolbar">
+        <input
+          className="input lm-search"
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
+          aria-label={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
         />
-
-        <LanguageMetadataWorkspaceDetailColumn
-          locale={locale}
-          draft={draft}
-          selectedEntry={selectedEntry}
-          duplicateHint={duplicateHint}
-          historyItems={historyItems}
-          saving={saving}
-          deleting={deleting}
-          saveError={saveError}
-          saveSuccess={saveSuccess}
-          onDraftChange={handleDraftChange}
-          onDisplayNameRowChange={handleDisplayNameRowChange}
-          onAddDisplayNameRow={handleAddDisplayNameRow}
-          onRemoveDisplayNameRow={handleRemoveDisplayNameRow}
-          onResetDraft={handleResetDraft}
-          onDelete={handleDelete}
-          onSave={handleSave}
-          onSelectEntry={handleSelectEntry}
-        />
+        <button type="button" className="btn btn-ghost" onClick={handleCreateCustom}>{t(locale, 'workspace.languageMetadata.createCustom')}</button>
+        <p className="lm-toolbar-hint">{t(locale, 'workspace.languageMetadata.searchLocateHint')}</p>
       </div>
-    </section>
+
+      <LanguageMetadataWorkspaceDetailColumn
+        locale={locale}
+        draft={draft}
+        selectedEntry={selectedEntry}
+        duplicateHint={duplicateHint}
+        historyItems={historyItems}
+        saving={saving}
+        deleting={deleting}
+        saveError={saveError}
+        saveSuccess={saveSuccess}
+        onDraftChange={handleDraftChange}
+        onDisplayNameRowChange={handleDisplayNameRowChange}
+        onAddDisplayNameRow={handleAddDisplayNameRow}
+        onRemoveDisplayNameRow={handleRemoveDisplayNameRow}
+        onResetDraft={handleResetDraft}
+        onDelete={handleDelete}
+        onSave={handleSave}
+        onSelectEntry={handleSelectEntry}
+      />
+    </EmbeddedPanelShell>
   );
 }

@@ -1,7 +1,7 @@
-import '../styles/components/orthography-builder.css';
 import '../styles/foundation/dialog-shell.css';
 import '../styles/foundation/panel-design-presets.css';
 import '../styles/foundation/panel-primitives.css';
+import { X } from 'lucide-react';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { LanguageIsoInput, type LanguageIsoInputValue } from '../components/LanguageIsoInput';
@@ -25,6 +25,7 @@ import {
 } from './orthographyManager.shared';
 
 type OrthographyManagerPanelProps = {
+  onClose?: () => void;
   locale: Locale;
   builderMessages: OrthographyBuilderMessages;
   fromLayerId?: string | null;
@@ -58,6 +59,7 @@ type OrthographyManagerPanelProps = {
 };
 
 export function OrthographyManagerPanel({
+  onClose,
   locale,
   builderMessages,
   fromLayerId,
@@ -89,10 +91,10 @@ export function OrthographyManagerPanel({
   onSaveDraft,
   onBeforeOpenBridge,
 }: OrthographyManagerPanelProps) {
-  const panelActions = selectedOrthography ? (
+  const bridgeButton = selectedOrthography ? (
     <LanguageAssetRouteLink
       to={bridgeWorkspaceHref}
-      className="panel-button panel-button--ghost orthography-manager-panel-link"
+      className="panel-button panel-button--ghost om-panel-link"
       onClick={(event) => {
         if (!onBeforeOpenBridge()) {
           event.preventDefault();
@@ -101,14 +103,30 @@ export function OrthographyManagerPanel({
     >
       {t(locale, 'workspace.orthography.openBridgeWorkspace')}
     </LanguageAssetRouteLink>
-  ) : undefined;
+  ) : null;
+
+  const closeButton = onClose ? (
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={onClose}
+      aria-label={t(locale, 'transcription.importDialog.close')}
+      title={t(locale, 'transcription.importDialog.close')}
+    >
+      <X size={16} />
+    </button>
+  ) : null;
+
+  const panelActions = bridgeButton || closeButton
+    ? <>{bridgeButton}{closeButton}</>
+    : undefined;
 
   return (
     <EmbeddedPanelShell
-      className="language-asset-workspace-shell orthography-manager-panel-shell"
-      headerClassName="language-asset-workspace-hero orthography-manager-panel-header"
-      bodyClassName="language-asset-workspace-flow orthography-manager-panel-body"
-      footerClassName="orthography-manager-panel-footer"
+      className="om-shell"
+      headerClassName="om-header"
+      bodyClassName="ws-flow om-body"
+      footerClassName="om-footer"
       title={t(locale, 'workspace.orthography.title')}
       actions={panelActions}
       footer={selectedOrthography ? (
@@ -122,32 +140,51 @@ export function OrthographyManagerPanel({
         </>
       ) : null}
     >
-      {fromLayerId ? <p className="orthography-manager-context-note orthography-builder-workspace-note">{t(locale, 'workspace.orthography.fromLayerHint')}</p> : null}
+      {fromLayerId ? <p className="om-context-note orthography-builder-workspace-note">{t(locale, 'workspace.orthography.fromLayerHint')}</p> : null}
 
       {selectedOrthography ? (
         <>
-          <section className="orthography-manager-highlight-card panel-section panel-section--emphasis" aria-label={t(locale, 'workspace.orthography.detailTitle')}>
-            <div className="panel-section__header">
-              <div className="panel-section__copy">
-                <p className="orthography-manager-highlight-label">{t(locale, 'workspace.orthography.languageAssetIdLabel')}</p>
-                <p className="orthography-manager-highlight-value">{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</p>
+          <section className="om-highlight-card" aria-labelledby="om-highlight-title">
+            <div className="om-highlight-header">
+              <div className="om-highlight-copy">
+                <p className="om-highlight-eyebrow">{t(locale, 'workspace.orthography.detailTitle')}</p>
+                <h2 id="om-highlight-title" className="om-highlight-title">{formatOrthographyOptionLabel(selectedOrthography, locale)}</h2>
+                <p className="om-highlight-supporting">{resolveLabel(selectedOrthography.languageId)}</p>
               </div>
-              <div className="panel-section__meta orthography-manager-highlight-meta">
+              <div className="om-highlight-meta">
                 <PanelChip>{resolveLabel(selectedOrthography.languageId)}</PanelChip>
                 {selectedBadgeLabel ? <PanelChip>{selectedBadgeLabel}</PanelChip> : null}
               </div>
             </div>
+
+            <dl className="om-highlight-facts">
+              <div className="om-highlight-fact">
+                <dt>{t(locale, 'workspace.orthography.languageAssetIdLabel')}</dt>
+                <dd>{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</dd>
+              </div>
+              <div className="om-highlight-fact">
+                <dt>{builderMessages.scriptTagLabel}</dt>
+                <dd>{draft?.scriptTag || selectedOrthography.scriptTag || t(locale, 'workspace.orthography.notSet')}</dd>
+              </div>
+              <div className="om-highlight-fact">
+                <dt>{builderMessages.typeLabel}</dt>
+                <dd>{draft?.type || selectedOrthography.type || t(locale, 'workspace.orthography.notSet')}</dd>
+              </div>
+            </dl>
           </section>
 
-          {isDirty ? <PanelNote className="orthography-manager-state orthography-manager-state-warning">{t(locale, 'workspace.orthography.unsavedHint')}</PanelNote> : null}
+          {isDirty ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.unsavedHint')}</PanelNote> : null}
         </>
       ) : null}
 
-      <section className="orthography-manager-browser panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
-        <div className="panel-section__body orthography-builder-group-body orthography-manager-browser-body">
-          <div className="orthography-manager-toolbar orthography-builder-group-body">
+      <section className="om-browser panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
+        <div className="panel-section__body orthography-builder-group-body om-browser-body">
+          <div className="om-browser-header">
+            <p className="om-browser-title">{t(locale, 'workspace.orthography.listTitle')}</p>
+          </div>
+          <div className="om-toolbar orthography-builder-group-body">
             <input
-              className="panel-input orthography-manager-search"
+              className="panel-input om-search"
               type="search"
               value={searchText}
               onChange={(event) => onSearchTextChange(event.target.value)}
@@ -155,7 +192,7 @@ export function OrthographyManagerPanel({
               aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
             />
             {projectLanguageIds.length > 0 ? (
-              <div className="orthography-manager-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
+              <div className="om-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
                 <PanelButton
                   role="radio"
                   aria-checked={projectOnly}
@@ -177,19 +214,19 @@ export function OrthographyManagerPanel({
           </div>
 
           {!projectLanguageIds.length && showUnscopedIdleState ? (
-            <div className="orthography-manager-callout orthography-builder-hint">
-              <PanelNote className="orthography-manager-state orthography-manager-state-warning">{t(locale, 'workspace.orthography.unscopedPrompt')}</PanelNote>
+            <div className="om-callout orthography-builder-hint">
+              <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.unscopedPrompt')}</PanelNote>
               <PanelButton variant="ghost" onClick={onBrowseAll}>
                 {t(locale, 'workspace.orthography.filterShowAll')}
               </PanelButton>
             </div>
           ) : null}
 
-          {loading ? <PanelNote className="orthography-manager-state">{t(locale, 'workspace.orthography.loading')}</PanelNote> : null}
-          {!loading && error ? <PanelNote variant="danger" className="orthography-manager-state orthography-manager-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</PanelNote> : null}
-          {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <PanelNote className="orthography-manager-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
+          {loading ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.loading')}</PanelNote> : null}
+          {!loading && error ? <PanelNote variant="danger" className="om-state om-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</PanelNote> : null}
+          {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
 
-          <div className="orthography-manager-list" role="list" aria-label={t(locale, 'workspace.orthography.listTitle')}>
+          <div className="om-list" role="list" aria-label={t(locale, 'workspace.orthography.listTitle')}>
             {filteredOrthographies.map((orthography) => {
               const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
               const active = orthography.id === selectedOrthography?.id;
@@ -197,11 +234,11 @@ export function OrthographyManagerPanel({
                 <button
                   key={orthography.id}
                   type="button"
-                  className={`orthography-manager-list-item${active ? ' orthography-manager-list-item-active' : ''}`}
+                  className={`om-list-item${active ? ' om-list-item-active' : ''}`}
                   onClick={() => onSelectOrthography(orthography.id)}
                 >
-                  <span className="orthography-manager-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
-                  <span className="orthography-manager-list-meta">
+                  <span className="om-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
+                  <span className="om-list-meta">
                     <span>{resolveLabel(orthography.languageId)}</span>
                     <span className={badge.className}>{badge.label}</span>
                   </span>
@@ -214,14 +251,14 @@ export function OrthographyManagerPanel({
 
       {selectedOrthography ? (
         <>
-          <hr className="orthography-manager-divider" />
+          <hr className="om-divider" />
 
           {draft ? (
-            <div className="orthography-manager-form-stack orthography-builder-panel orthography-builder-panel-compact">
-              <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.identitySectionTitle}</h3>
-                <div className="orthography-manager-form-grid">
-                  <div className="orthography-manager-form-span-2">
+            <div className="om-form-stack orthography-builder-panel orthography-builder-panel-compact">
+              <section className="om-subsection orthography-builder-group orthography-builder-group-divided">
+                <h3 className="panel-title-primary om-subsection-title orthography-builder-group-title">{builderMessages.identitySectionTitle}</h3>
+                <div className="om-form-grid">
+                  <div className="om-form-span-2">
                     <LanguageIsoInput
                       locale={locale}
                       value={languageInput}
@@ -246,7 +283,7 @@ export function OrthographyManagerPanel({
                       />
                     </FormField>
                   </div>
-                  <div className="orthography-builder-script-type-row orthography-manager-form-pair orthography-manager-form-span-two-thirds">
+                  <div className="orthography-builder-script-type-row om-form-pair om-form-span-two-thirds">
                     <FormField label={builderMessages.scriptTagLabel}>
                       <ScriptTagCombobox
                         value={draft.scriptTag}
@@ -267,7 +304,7 @@ export function OrthographyManagerPanel({
                       </select>
                     </FormField>
                   </div>
-                  <FormField label={builderMessages.advancedDirectionLabel} className="orthography-manager-form-span-third">
+                  <FormField label={builderMessages.advancedDirectionLabel} className="om-form-span-third">
                     <select className="panel-input" value={draft.direction} onChange={(event) => onDraftChange('direction', event.target.value as OrthographyDraft['direction'])}>
                       <option value="ltr">{builderMessages.advancedDirectionLtr}</option>
                       <option value="rtl">{builderMessages.advancedDirectionRtl}</option>
@@ -275,47 +312,47 @@ export function OrthographyManagerPanel({
                       <option value="btt">{t(locale, 'workspace.orthography.directionBtt')}</option>
                     </select>
                   </FormField>
-                  <FormField label={builderMessages.nameZhLabel} className="orthography-manager-form-span-half">
+                  <FormField label={builderMessages.nameZhLabel} className="om-form-span-half">
                     <input className="panel-input" type="text" value={draft.namePrimary} onChange={(event) => onDraftChange('namePrimary', event.target.value)} placeholder={builderMessages.nameZhPlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.nameEnLabel} className="orthography-manager-form-span-half">
+                  <FormField label={builderMessages.nameEnLabel} className="om-form-span-half">
                     <input className="panel-input" type="text" value={draft.nameEnglishFallback} onChange={(event) => onDraftChange('nameEnglishFallback', event.target.value)} placeholder={builderMessages.nameEnPlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.abbreviationLabel} className="orthography-manager-form-span-third">
+                  <FormField label={builderMessages.abbreviationLabel} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.abbreviation} onChange={(event) => onDraftChange('abbreviation', event.target.value)} placeholder={builderMessages.abbreviationPlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.advancedLocaleLabel} className="orthography-manager-form-span-third">
+                  <FormField label={builderMessages.advancedLocaleLabel} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.localeTag} onChange={(event) => onDraftChange('localeTag', event.target.value)} placeholder={builderMessages.localePlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.advancedRegionLabel} className="orthography-manager-form-span-third">
+                  <FormField label={builderMessages.advancedRegionLabel} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.regionTag} onChange={(event) => onDraftChange('regionTag', event.target.value)} placeholder={builderMessages.regionPlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.advancedVariantLabel} className="orthography-manager-form-span-half">
+                  <FormField label={builderMessages.advancedVariantLabel} className="om-form-span-half">
                     <input className="panel-input" type="text" value={draft.variantTag} onChange={(event) => onDraftChange('variantTag', event.target.value)} placeholder={builderMessages.variantPlaceholder} />
                   </FormField>
                 </div>
               </section>
 
-              <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.renderSectionTitle}</h3>
-                <div className="orthography-manager-form-grid">
-                  <FormField label={builderMessages.primaryFontLabel} className="orthography-manager-form-span-half">
+              <section className="om-subsection orthography-builder-group orthography-builder-group-divided">
+                <h3 className="panel-title-primary om-subsection-title orthography-builder-group-title">{builderMessages.renderSectionTitle}</h3>
+                <div className="om-form-grid">
+                  <FormField label={builderMessages.primaryFontLabel} className="om-form-span-half">
                     <input className="panel-input" type="text" value={draft.primaryFonts} onChange={(event) => onDraftChange('primaryFonts', event.target.value)} placeholder={builderMessages.primaryFontPlaceholder} />
                   </FormField>
-                  <FormField label={builderMessages.fallbackFontLabel} className="orthography-manager-form-span-half">
+                  <FormField label={builderMessages.fallbackFontLabel} className="om-form-span-half">
                     <input className="panel-input" type="text" value={draft.fallbackFonts} onChange={(event) => onDraftChange('fallbackFonts', event.target.value)} placeholder={builderMessages.fallbackFontPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.monoFontLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.monoFontLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.monoFonts} onChange={(event) => onDraftChange('monoFonts', event.target.value)} placeholder={builderMessages.fallbackFontPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.lineHeightScaleLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.lineHeightScaleLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.lineHeightScale} onChange={(event) => onDraftChange('lineHeightScale', event.target.value)} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.sizeAdjustLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.sizeAdjustLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.sizeAdjust} onChange={(event) => onDraftChange('sizeAdjust', event.target.value)} />
                   </FormField>
                 </div>
-                <div className="orthography-manager-checkbox-row">
+                <div className="om-checkbox-row">
                   <label className="orthography-builder-checkbox">
                     <input type="checkbox" checked={draft.bidiIsolate} onChange={(event) => onDraftChange('bidiIsolate', event.target.checked)} />
                     <span>{builderMessages.bidiIsolationLabel}</span>
@@ -327,11 +364,11 @@ export function OrthographyManagerPanel({
                 </div>
               </section>
 
-              <section className="orthography-manager-subsection orthography-builder-group orthography-builder-group-divided">
-                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.localizedNamesSectionTitle}</h3>
-                <div className="orthography-manager-array-list">
+              <section className="om-subsection orthography-builder-group orthography-builder-group-divided">
+                <h3 className="panel-title-primary om-subsection-title orthography-builder-group-title">{builderMessages.localizedNamesSectionTitle}</h3>
+                <div className="om-array-list">
                   {draft.localizedNameEntries.map((entry, index) => (
-                    <div key={`${entry.languageTag}-${index}`} className="orthography-manager-array-row">
+                    <div key={`${entry.languageTag}-${index}`} className="om-array-row">
                       <FormField label={t(locale, 'workspace.orthography.localizedNameTagLabel')}>
                         <input
                           className="panel-input"
@@ -343,7 +380,7 @@ export function OrthographyManagerPanel({
                           placeholder={t(locale, 'workspace.orthography.localizedNameTagPlaceholder')}
                         />
                       </FormField>
-                      <FormField label={t(locale, 'workspace.orthography.localizedNameValueLabel')} className="orthography-manager-array-value">
+                      <FormField label={t(locale, 'workspace.orthography.localizedNameValueLabel')} className="om-array-value">
                         <input
                           className="panel-input"
                           type="text"
@@ -365,46 +402,46 @@ export function OrthographyManagerPanel({
                 </div>
                 <PanelButton
                   variant="ghost"
-                  className="orthography-manager-array-add"
+                  className="om-array-add"
                   onClick={() => onDraftChange('localizedNameEntries', [...draft.localizedNameEntries, { languageTag: '', label: '' }])}
                 >
                   {t(locale, 'workspace.orthography.localizedNameAdd')}
                 </PanelButton>
 
-                <hr className="orthography-manager-divider" />
+                <hr className="om-divider" />
 
-                <h3 className="panel-title-primary orthography-manager-subsection-title orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
-                <div className="orthography-manager-form-grid">
-                  <FormField label={builderMessages.exemplarLabel} className="orthography-manager-form-span-half">
-                    <textarea className="panel-input orthography-manager-textarea" value={draft.exemplarMain} onChange={(event) => onDraftChange('exemplarMain', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
+                <h3 className="panel-title-primary om-subsection-title orthography-builder-group-title">{builderMessages.examplesSectionTitle}</h3>
+                <div className="om-form-grid">
+                  <FormField label={builderMessages.exemplarLabel} className="om-form-span-half">
+                    <textarea className="panel-input om-textarea" value={draft.exemplarMain} onChange={(event) => onDraftChange('exemplarMain', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.auxiliaryExemplarLabel')} className="orthography-manager-form-span-half">
-                    <textarea className="panel-input orthography-manager-textarea" value={draft.exemplarAuxiliary} onChange={(event) => onDraftChange('exemplarAuxiliary', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
+                  <FormField label={t(locale, 'workspace.orthography.auxiliaryExemplarLabel')} className="om-form-span-half">
+                    <textarea className="panel-input om-textarea" value={draft.exemplarAuxiliary} onChange={(event) => onDraftChange('exemplarAuxiliary', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.numberExemplarLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.numberExemplarLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.exemplarNumbers} onChange={(event) => onDraftChange('exemplarNumbers', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.punctuationExemplarLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.punctuationExemplarLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.exemplarPunctuation} onChange={(event) => onDraftChange('exemplarPunctuation', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
                   </FormField>
-                  <FormField label={t(locale, 'workspace.orthography.indexExemplarLabel')} className="orthography-manager-form-span-third">
+                  <FormField label={t(locale, 'workspace.orthography.indexExemplarLabel')} className="om-form-span-third">
                     <input className="panel-input" type="text" value={draft.exemplarIndex} onChange={(event) => onDraftChange('exemplarIndex', event.target.value)} placeholder={builderMessages.exemplarPlaceholder} />
                   </FormField>
                 </div>
               </section>
 
-              <details className="orthography-manager-advanced orthography-builder-advanced-group">
-                <summary className="orthography-manager-advanced-summary">
+              <details className="om-advanced orthography-builder-advanced-group">
+                <summary className="om-advanced-summary">
                   <span className="panel-title-secondary orthography-builder-group-title">{builderMessages.advancedSectionTitle}</span>
-                  <span className="orthography-manager-advanced-meta">
+                  <span className="om-advanced-meta">
                     {draft.catalogReviewStatus ? resolveCatalogReviewStatusLabel(locale, draft.catalogReviewStatus) : null}
                     {draft.catalogPriority ? ` · ${resolveCatalogPriorityLabel(locale, draft.catalogPriority)}` : null}
                   </span>
                 </summary>
 
-                <div className="orthography-manager-advanced-body orthography-builder-advanced-panel">
-                  <div className="orthography-manager-form-grid">
-                    <FormField label={t(locale, 'workspace.orthography.catalogReviewStatusLabel')} className="orthography-manager-form-span-half">
+                <div className="om-advanced-body orthography-builder-advanced-panel">
+                  <div className="om-form-grid">
+                    <FormField label={t(locale, 'workspace.orthography.catalogReviewStatusLabel')} className="om-form-span-half">
                       <select className="panel-input" value={draft.catalogReviewStatus} onChange={(event) => onDraftChange('catalogReviewStatus', event.target.value as OrthographyDraft['catalogReviewStatus'])}>
                         <option value="">{t(locale, 'workspace.orthography.notSet')}</option>
                         <option value="needs-review">{resolveCatalogReviewStatusLabel(locale, 'needs-review')}</option>
@@ -415,14 +452,14 @@ export function OrthographyManagerPanel({
                         <option value="experimental">{resolveCatalogReviewStatusLabel(locale, 'experimental')}</option>
                       </select>
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.catalogPriorityLabel')} className="orthography-manager-form-span-half">
+                    <FormField label={t(locale, 'workspace.orthography.catalogPriorityLabel')} className="om-form-span-half">
                       <select className="panel-input" value={draft.catalogPriority} onChange={(event) => onDraftChange('catalogPriority', event.target.value as OrthographyDraft['catalogPriority'])}>
                         <option value="">{t(locale, 'workspace.orthography.notSet')}</option>
                         <option value="primary">{resolveCatalogPriorityLabel(locale, 'primary')}</option>
                         <option value="secondary">{resolveCatalogPriorityLabel(locale, 'secondary')}</option>
                       </select>
                     </FormField>
-                    <div className="orthography-manager-basic-grid orthography-manager-form-span-2">
+                    <div className="om-basic-grid om-form-span-2">
                       <div><dt>{t(locale, 'workspace.orthography.catalogSourceLabel')}</dt><dd>{resolveCatalogSourceLabel(locale, selectedOrthography.catalogMetadata?.catalogSource)}</dd></div>
                       <div><dt>{t(locale, 'workspace.orthography.catalogLabel')}</dt><dd>{selectedBadgeLabel ?? t(locale, 'workspace.orthography.notSet')}</dd></div>
                       <div><dt>{t(locale, 'workspace.orthography.updatedAtLabel')}</dt><dd>{selectedOrthography.updatedAt ?? t(locale, 'workspace.orthography.notSet')}</dd></div>
@@ -430,24 +467,24 @@ export function OrthographyManagerPanel({
                     </div>
                   </div>
 
-                  <hr className="orthography-manager-divider" />
+                  <hr className="om-divider" />
 
-                  <div className="orthography-manager-form-grid">
-                    <FormField label={t(locale, 'workspace.orthography.keyboardLayoutLabel')} className="orthography-manager-form-span-half">
+                  <div className="om-form-grid">
+                    <FormField label={t(locale, 'workspace.orthography.keyboardLayoutLabel')} className="om-form-span-half">
                       <input className="panel-input" type="text" value={draft.keyboardLayout} onChange={(event) => onDraftChange('keyboardLayout', event.target.value)} placeholder={t(locale, 'workspace.orthography.keyboardLayoutPlaceholder')} />
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.imeIdLabel')} className="orthography-manager-form-span-half">
+                    <FormField label={t(locale, 'workspace.orthography.imeIdLabel')} className="om-form-span-half">
                       <input className="panel-input" type="text" value={draft.imeId} onChange={(event) => onDraftChange('imeId', event.target.value)} placeholder={t(locale, 'workspace.orthography.imeIdPlaceholder')} />
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.deadKeysLabel')} className="orthography-manager-form-span-2">
-                      <textarea className="panel-input orthography-manager-textarea" value={draft.deadKeys} onChange={(event) => onDraftChange('deadKeys', event.target.value)} placeholder={t(locale, 'workspace.orthography.deadKeysPlaceholder')} />
+                    <FormField label={t(locale, 'workspace.orthography.deadKeysLabel')} className="om-form-span-2">
+                      <textarea className="panel-input om-textarea" value={draft.deadKeys} onChange={(event) => onDraftChange('deadKeys', event.target.value)} placeholder={t(locale, 'workspace.orthography.deadKeysPlaceholder')} />
                     </FormField>
                   </div>
 
-                  <hr className="orthography-manager-divider" />
+                  <hr className="om-divider" />
 
-                  <div className="orthography-manager-form-grid">
-                    <FormField label={t(locale, 'workspace.orthography.normalizationFormLabel')} className="orthography-manager-form-span-half">
+                  <div className="om-form-grid">
+                    <FormField label={t(locale, 'workspace.orthography.normalizationFormLabel')} className="om-form-span-half">
                       <select className="panel-input" value={draft.normalizationForm} onChange={(event) => onDraftChange('normalizationForm', event.target.value as OrthographyDraft['normalizationForm'])}>
                         <option value="">{t(locale, 'workspace.orthography.notSet')}</option>
                         <option value="NFC">NFC</option>
@@ -456,11 +493,11 @@ export function OrthographyManagerPanel({
                         <option value="NFKD">NFKD</option>
                       </select>
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.collationBaseLabel')} className="orthography-manager-form-span-half">
+                    <FormField label={t(locale, 'workspace.orthography.collationBaseLabel')} className="om-form-span-half">
                       <input className="panel-input" type="text" value={draft.collationBase} onChange={(event) => onDraftChange('collationBase', event.target.value)} placeholder={t(locale, 'workspace.orthography.collationBasePlaceholder')} />
                     </FormField>
                   </div>
-                  <div className="orthography-manager-checkbox-row">
+                  <div className="om-checkbox-row">
                     <label className="orthography-builder-checkbox">
                       <input type="checkbox" checked={draft.normalizationCaseSensitive} onChange={(event) => onDraftChange('normalizationCaseSensitive', event.target.checked)} />
                       <span>{t(locale, 'workspace.orthography.normalizationCaseLabel')}</span>
@@ -470,23 +507,23 @@ export function OrthographyManagerPanel({
                       <span>{t(locale, 'workspace.orthography.normalizationIgnorableLabel')}</span>
                     </label>
                   </div>
-                  <div className="orthography-manager-form-grid">
-                    <FormField label={t(locale, 'workspace.orthography.collationRulesLabel')} className="orthography-manager-form-span-half">
-                      <textarea className="panel-input orthography-manager-textarea orthography-manager-codearea" value={draft.collationRules} onChange={(event) => onDraftChange('collationRules', event.target.value)} />
+                  <div className="om-form-grid">
+                    <FormField label={t(locale, 'workspace.orthography.collationRulesLabel')} className="om-form-span-half">
+                      <textarea className="panel-input om-textarea om-codearea" value={draft.collationRules} onChange={(event) => onDraftChange('collationRules', event.target.value)} />
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.conversionRulesLabel')} className="orthography-manager-form-span-half">
-                      <textarea className="panel-input orthography-manager-textarea orthography-manager-codearea" value={draft.conversionRulesJson} onChange={(event) => onDraftChange('conversionRulesJson', event.target.value)} placeholder={t(locale, 'workspace.orthography.conversionRulesPlaceholder')} />
+                    <FormField label={t(locale, 'workspace.orthography.conversionRulesLabel')} className="om-form-span-half">
+                      <textarea className="panel-input om-textarea om-codearea" value={draft.conversionRulesJson} onChange={(event) => onDraftChange('conversionRulesJson', event.target.value)} placeholder={t(locale, 'workspace.orthography.conversionRulesPlaceholder')} />
                     </FormField>
                   </div>
 
-                  <hr className="orthography-manager-divider" />
+                  <hr className="om-divider" />
 
-                  <div className="orthography-manager-form-grid">
-                    <FormField label={t(locale, 'workspace.orthography.notesZhLabel')} className="orthography-manager-form-span-half">
-                      <textarea className="panel-input orthography-manager-textarea" value={draft.notesZh} onChange={(event) => onDraftChange('notesZh', event.target.value)} />
+                  <div className="om-form-grid">
+                    <FormField label={t(locale, 'workspace.orthography.notesZhLabel')} className="om-form-span-half">
+                      <textarea className="panel-input om-textarea" value={draft.notesZh} onChange={(event) => onDraftChange('notesZh', event.target.value)} />
                     </FormField>
-                    <FormField label={t(locale, 'workspace.orthography.notesEnLabel')} className="orthography-manager-form-span-half">
-                      <textarea className="panel-input orthography-manager-textarea" value={draft.notesEn} onChange={(event) => onDraftChange('notesEn', event.target.value)} />
+                    <FormField label={t(locale, 'workspace.orthography.notesEnLabel')} className="om-form-span-half">
+                      <textarea className="panel-input om-textarea" value={draft.notesEn} onChange={(event) => onDraftChange('notesEn', event.target.value)} />
                     </FormField>
                   </div>
                 </div>
@@ -494,11 +531,11 @@ export function OrthographyManagerPanel({
             </div>
           ) : null}
 
-          {saveError ? <p className="orthography-manager-state orthography-manager-state-error">{saveError}</p> : null}
-          {saveSuccess ? <p className="orthography-manager-state orthography-manager-state-success">{saveSuccess}</p> : null}
+          {saveError ? <p className="om-state om-state-error">{saveError}</p> : null}
+          {saveSuccess ? <p className="om-state om-state-success">{saveSuccess}</p> : null}
         </>
       ) : (
-        <p className="orthography-manager-state">{t(locale, 'workspace.orthography.emptySelection')}</p>
+        <p className="om-state">{t(locale, 'workspace.orthography.emptySelection')}</p>
       )}
     </EmbeddedPanelShell>
   );

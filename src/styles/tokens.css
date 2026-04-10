@@ -9,6 +9,7 @@
   --font-chat: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", "Noto Sans", sans-serif;
   --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", "Noto Sans", serif;
   --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --color-white: #ffffff;
   --text-primary: #24292f;
   --text-secondary: #57606a;
   --text-on-solid: #ffffff;
@@ -129,6 +130,7 @@
 
 /* ── 暗色主题 | Dark theme ── */
 :root[data-theme='dark'] {
+  --color-white: #ffffff;
   --text-primary: #e6edf3;
   --text-secondary: #8b949e;
   --surface-bg: #1e1e1e;

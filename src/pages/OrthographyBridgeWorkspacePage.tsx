@@ -1,12 +1,13 @@
 import '../styles/pages/orthography-bridge-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
+import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { PanelSection } from '../components/ui/PanelSection';
-import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
@@ -24,8 +25,10 @@ const TARGET_ORTHOGRAPHY_ID_PARAM = 'targetOrthographyId';
 
 export function OrthographyBridgeWorkspacePage({
   registerSidePane = true,
+  onClose,
 }: {
   registerSidePane?: boolean;
+  onClose?: () => void;
 } = {}) {
   const locale = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -113,6 +116,12 @@ export function OrthographyBridgeWorkspacePage({
 
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
+  const selectedOrthographyLabel = selectedOrthography
+    ? formatOrthographyOptionLabel(selectedOrthography, locale)
+    : t(locale, 'workspace.orthographyBridge.emptySelection');
+  const selectedLanguageLabel = selectedOrthography
+    ? resolveLabel(selectedOrthography.languageId)
+    : t(locale, 'workspace.orthographyBridge.notSet');
 
   useEffect(() => {
     if (filteredOrthographies.length === 0 || selectedOrthography) {
@@ -168,93 +177,131 @@ export function OrthographyBridgeWorkspacePage({
 
   useRegisterAppSidePane({
     title: t(locale, 'workspace.orthographyBridge.sidePaneTitle'),
-    subtitle: selectedOrthography ? formatOrthographyOptionLabel(selectedOrthography, locale) : t(locale, 'workspace.orthographyBridge.sidePaneSubtitle'),
+    subtitle: selectedOrthography ? selectedOrthographyLabel : t(locale, 'workspace.orthographyBridge.sidePaneSubtitle'),
     content: sidePaneContent,
     enabled: registerSidePane,
   });
 
+  const panelActions = onClose ? (
+    <button
+      type="button"
+      className="icon-btn"
+      onClick={onClose}
+      aria-label={t(locale, 'transcription.importDialog.close')}
+      title={t(locale, 'transcription.importDialog.close')}
+    >
+      <X size={16} />
+    </button>
+  ) : undefined;
+
   return (
-    <section className="panel language-asset-workspace-shell orthography-workspace" aria-labelledby="orthography-bridge-workspace-title">
-      <header className="language-asset-workspace-hero orthography-workspace-hero">
-        <span className="orthography-workspace-badge">{t(locale, 'workspace.orthographyBridge.badge')}</span>
-        <h2 id="orthography-bridge-workspace-title">{t(locale, 'workspace.orthographyBridge.title')}</h2>
-        <p className="orthography-workspace-summary">{t(locale, 'workspace.orthographyBridge.summary')}</p>
-      </header>
-
-      <div className="language-asset-workspace-flow orthography-workspace-layout">
-        <PanelSection
-          className="orthography-workspace-list-panel"
-          title={t(locale, 'workspace.orthographyBridge.listTitle')}
-          description={t(locale, 'workspace.orthographyBridge.listDescription')}
-        >
-          <input
-            className="input orthography-workspace-search"
-            type="search"
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
-            aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
-          />
-          {projectLanguageIds.length > 0 ? (
-            <div className="orthography-workspace-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthographyBridge.filterProjectOnly')}>
-              <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthographyBridge.filterProjectOnly')}</button>
-              <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
-            </div>
-          ) : null}
-          {!projectLanguageIds.length && showUnscopedIdleState ? (
-            <div className="orthography-workspace-empty-callout">
-              <p className="orthography-workspace-state orthography-workspace-state-warning">{t(locale, 'workspace.orthographyBridge.unscopedPrompt')}</p>
-              <div className="orthography-workspace-inline-actions">
-                <button type="button" className="btn" onClick={() => setBrowseAllWithoutProject(true)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
-              </div>
-            </div>
-          ) : null}
-
-          {loading ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.loading')}</p> : null}
-          {!loading && error ? <p className="orthography-workspace-state orthography-workspace-state-error">{t(locale, 'workspace.orthographyBridge.errorPrefix').replace('{message}', error)}</p> : null}
-          {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <p className="orthography-workspace-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
-
-          <div className="orthography-workspace-list" role="list" aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
-            {filteredOrthographies.map((orthography) => {
-              const active = orthography.id === selectedOrthography?.id;
-              return (
-                <button
-                  key={orthography.id}
-                  type="button"
-                  className={`orthography-workspace-list-item${active ? ' orthography-workspace-list-item-active' : ''}`}
-                  onClick={() => {
-                    const nextParams = new URLSearchParams(searchParams);
-                    nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, orthography.id);
-                    setSearchParams(nextParams);
-                  }}
-                >
-                  <span className="orthography-workspace-list-item-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
-                  <span className="orthography-workspace-list-item-meta">{orthography.languageId ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>
-                </button>
-              );
-            })}
+    <EmbeddedPanelShell
+      className="ob-shell ob-workspace"
+      bodyClassName="ob-layout"
+      title={t(locale, 'workspace.orthographyBridge.title')}
+      actions={panelActions}
+      aria-label={t(locale, 'workspace.orthographyBridge.title')}
+    >
+      <section className="ws-summary-card ob-summary" aria-labelledby="orthography-bridge-workspace-title">
+        <div className="ws-summary-header">
+          <div className="ws-summary-copy">
+            <span className="ws-kicker">{t(locale, 'workspace.orthographyBridge.title')}</span>
+            <h2 id="orthography-bridge-workspace-title" className="ws-summary-title">{selectedOrthographyLabel}</h2>
+            <p className="ws-summary-description">{t(locale, 'workspace.orthographyBridge.summary')}</p>
           </div>
-        </PanelSection>
-
-        <div className="orthography-workspace-detail-column">
-          <PanelSummary
-            className="orthography-workspace-summary-card"
-            title={t(locale, 'workspace.orthographyBridge.detailTitle')}
-            description={selectedOrthography ? formatOrthographyOptionLabel(selectedOrthography, locale) : t(locale, 'workspace.orthographyBridge.emptySelection')}
-            meta={<span className="orthography-workspace-summary-meta">{selectedBadge?.label ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>}
-            supportingText={t(locale, 'workspace.orthographyBridge.detailDescription')}
-          />
-
-          <PanelSection className="orthography-workspace-bridge-panel" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
-            <OrthographyBridgeManager
-              targetOrthography={selectedOrthography ?? undefined}
-              languageOptions={languageOptions}
-              initialExpanded
-              hideToggleButton
-            />
-          </PanelSection>
+          <div className="ob-summary-meta">
+            {selectedBadge ? <span className={selectedBadge.className}>{selectedBadge.label}</span> : <span>{t(locale, 'workspace.orthographyBridge.notSet')}</span>}
+          </div>
         </div>
+
+        <div className="ws-summary-facts">
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.orthographyBridge.detailTitle')}</span>
+            <strong className="ws-summary-fact-value">{selectedOrthographyLabel}</strong>
+            <span className="ws-summary-fact-note">{selectedBadge?.label ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>
+          </article>
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.orthography.languageLabel')}</span>
+            <strong className="ws-summary-fact-value">{selectedLanguageLabel}</strong>
+            <span className="ws-summary-fact-note">{selectedOrthography?.languageId ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>
+          </article>
+          <article className="ws-summary-fact">
+            <span className="ws-summary-fact-label">{t(locale, 'workspace.orthography.languageAssetIdLabel')}</span>
+            <strong className="ws-summary-fact-value">{selectedOrthography?.languageId ?? t(locale, 'workspace.orthographyBridge.notSet')}</strong>
+            <span className="ws-summary-fact-note">{selectedOrthography?.id ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>
+          </article>
+        </div>
+
+        <div className="ob-summary-links">
+          <LanguageAssetRouteLink to="/assets/language-metadata" className="btn btn-ghost">{t(locale, 'workspace.orthographyBridge.openLanguageMetadata')}</LanguageAssetRouteLink>
+          <OrthographyPanelLink className="btn btn-ghost">{t(locale, 'workspace.orthographyBridge.openOrthographyManager')}</OrthographyPanelLink>
+        </div>
+      </section>
+
+      <PanelSection
+        className="ob-list-panel"
+        title={t(locale, 'workspace.orthographyBridge.listTitle')}
+        description={t(locale, 'workspace.orthographyBridge.listDescription')}
+      >
+        <input
+          className="input ob-search"
+          type="search"
+          value={searchText}
+          onChange={(event) => setSearchText(event.target.value)}
+          placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
+          aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
+        />
+        {projectLanguageIds.length > 0 ? (
+          <div className="ob-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthographyBridge.filterProjectOnly')}>
+            <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthographyBridge.filterProjectOnly')}</button>
+            <button type="button" role="radio" aria-checked={!projectOnly} className={`btn${!projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(false)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
+          </div>
+        ) : null}
+        {!projectLanguageIds.length && showUnscopedIdleState ? (
+          <div className="ob-empty-callout">
+            <p className="ob-state ob-state-warning">{t(locale, 'workspace.orthographyBridge.unscopedPrompt')}</p>
+            <div className="ob-inline-actions">
+              <button type="button" className="btn" onClick={() => setBrowseAllWithoutProject(true)}>{t(locale, 'workspace.orthographyBridge.filterShowAll')}</button>
+            </div>
+          </div>
+        ) : null}
+
+        {loading ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.loading')}</p> : null}
+        {!loading && error ? <p className="ob-state ob-state-error">{t(locale, 'workspace.orthographyBridge.errorPrefix').replace('{message}', error)}</p> : null}
+        {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
+
+        <div className="ob-list" role="list" aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
+          {filteredOrthographies.map((orthography) => {
+            const active = orthography.id === selectedOrthography?.id;
+            return (
+              <button
+                key={orthography.id}
+                type="button"
+                className={`ob-list-item${active ? ' ob-list-item-active' : ''}`}
+                onClick={() => {
+                  const nextParams = new URLSearchParams(searchParams);
+                  nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, orthography.id);
+                  setSearchParams(nextParams);
+                }}
+              >
+                <span className="ob-list-item-label">{formatOrthographyOptionLabel(orthography, locale)}</span>
+                <span className="ob-list-item-meta">{orthography.languageId ?? t(locale, 'workspace.orthographyBridge.notSet')}</span>
+              </button>
+            );
+          })}
+        </div>
+      </PanelSection>
+
+      <div className="ob-detail-column">
+        <PanelSection className="ob-bridge-panel" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
+          <OrthographyBridgeManager
+            targetOrthography={selectedOrthography ?? undefined}
+            languageOptions={languageOptions}
+            initialExpanded
+            hideToggleButton
+          />
+        </PanelSection>
       </div>
-    </section>
+    </EmbeddedPanelShell>
   );
 }
