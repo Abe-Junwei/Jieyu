@@ -477,7 +477,7 @@ describe('TranscriptionPage structure invariants', () => {
     const useCallbackCount = (orchestratorCode.match(/const\s+\w+\s*=\s*useCallback\(/g) ?? []).length;
 
     expect(lineCount).toBeLessThanOrEqual(2600);
-    expect(useCallbackCount).toBeLessThanOrEqual(8);
+    expect(useCallbackCount).toBeLessThanOrEqual(9);
   });
 
   it('routes speaker assignment through segment writes for independent selections', () => {

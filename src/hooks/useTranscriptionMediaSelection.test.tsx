@@ -38,7 +38,7 @@ describe('useTranscriptionMediaSelection', () => {
     const setSelectedMediaId = vi.fn();
     const media = makeBlobMedia('media-1');
 
-    const { result, rerender } = renderHook((props: HookProps) => useTranscriptionMediaSelection({
+    const { result, rerender } = renderHook<ReturnType<typeof useTranscriptionMediaSelection>, HookProps>((props: HookProps) => useTranscriptionMediaSelection({
       ...props,
       setSelectedMediaId,
     }), {
@@ -89,7 +89,7 @@ describe('useTranscriptionMediaSelection', () => {
     const mediaA = makeBlobMedia('media-1', 'a.wav');
     const mediaB = makeBlobMedia('media-2', 'b.wav');
 
-    const { result, rerender } = renderHook((props: HookProps) => useTranscriptionMediaSelection({
+    const { result, rerender } = renderHook<ReturnType<typeof useTranscriptionMediaSelection>, HookProps>((props: HookProps) => useTranscriptionMediaSelection({
       ...props,
       setSelectedMediaId,
     }), {

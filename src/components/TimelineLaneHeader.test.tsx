@@ -274,7 +274,8 @@ describe('TimelineLaneHeader track mode menu', () => {
       allLayers: [rootA, childA, rootB, childB],
     });
 
-    const stack = view.container.querySelector('.lane-link-stack') as HTMLElement | null;
+    const _stack = view.container.querySelector('.lane-link-stack') as HTMLElement | null;
+    void _stack;
     const svg = view.container.querySelector('.lane-link-stack-svg') as SVGElement | null;
     const connectorGroup = view.container.querySelector('.lane-link-connector-svg') as SVGGElement | null;
 
