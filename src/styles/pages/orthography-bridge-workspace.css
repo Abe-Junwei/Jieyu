@@ -9,6 +9,9 @@
   --ob-body-size: calc(0.82rem * var(--ui-font-scale, 1));
   --ob-note-size: calc(0.76rem * var(--ui-font-scale, 1));
   --ob-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
+  --ob-unified-title-size: calc(12px * var(--ui-font-scale, 1));
+  --ob-section-gap: 16px;
+  --ob-field-gap: 8px;
   --ws-note-size: var(--ob-meta-size);
   --btn-font-family: var(--font-base);
   --btn-font-size: var(--ob-note-size);
@@ -55,7 +58,7 @@
     'summary'
     'list'
     'editor';
-  gap: 12px;
+  gap: var(--ob-section-gap);
   align-items: start;
 }
 
@@ -67,6 +70,20 @@
 .ob-summary .ws-summary-description { font-size: var(--ob-body-size); }
 .ob-summary .ws-summary-fact-label { font-size: var(--ob-meta-size); }
 .ob-summary .ws-summary-fact-note { font-size: var(--ob-meta-size); }
+
+.ob-workspace .ws-summary-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface-header) 36%, var(--surface-panel));
+}
+
+.ob-workspace .ws-summary-fact {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 52%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
+}
 
 .ob-summary-meta {
   display: flex;
@@ -87,8 +104,31 @@
 .ob-list-panel {
   grid-area: list;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 60%, transparent);
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
+}
+
+.ob-workspace :is(.ob-list-panel .panel-section__title, .ob-bridge-panel .panel-section__title, .orthography-builder-panel-compact .orthography-builder-group-title) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  font-size: var(--ob-unified-title-size);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.ob-workspace :is(.ob-list-panel .panel-section__title, .ob-bridge-panel .panel-section__title, .orthography-builder-panel-compact .orthography-builder-group-title)::before,
+.ob-workspace :is(.ob-list-panel .panel-section__title, .ob-bridge-panel .panel-section__title, .orthography-builder-panel-compact .orthography-builder-group-title)::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
 }
 
 .ob-search { width: 100%; }
@@ -96,7 +136,7 @@
 .ob-filter-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
 }
 
 .ob-list {
@@ -120,7 +160,7 @@
   -webkit-appearance: none;
   cursor: pointer;
   box-shadow: none;
-  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
 .ob-list-item::before {
@@ -136,7 +176,6 @@
 
 .ob-list-item:hover {
   background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
-  transform: translateY(-1px);
 }
 
 .ob-list-item:focus-visible {
@@ -145,7 +184,6 @@
 }
 
 .ob-list-item:active {
-  transform: translateY(0);
   box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
@@ -158,8 +196,14 @@
   background: color-mix(in srgb, var(--header-accent) 72%, transparent);
 }
 
-.ob-list-item-label { font-size: inherit; font-weight: inherit; line-height: inherit; }
-.ob-list-item-meta { color: inherit; font-size: inherit; }
+/* 键盘导航高亮 | Keyboard navigation highlight */
+.ob-list-item-highlight {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.ob-list-item-label { font-size: var(--ob-body-size); font-weight: 600; line-height: 1.45; }
+.ob-list-item-meta { color: var(--text-secondary); font-size: var(--ob-note-size); }
 
 /* ── Empty callout ── */
 
@@ -194,6 +238,8 @@
 
 .ob-bridge-panel {
   grid-area: editor;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
+  border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));
 }
 
@@ -201,7 +247,7 @@
 
 .ob-workspace .orthography-builder-panel {
   display: grid;
-  gap: 12px;
+  gap: var(--ob-section-gap);
   margin-top: 0;
   padding: 0;
   container-type: inline-size;
@@ -210,7 +256,7 @@
 }
 
 .ob-workspace .orthography-builder-panel-compact {
-  gap: 10px;
+  gap: 12px;
   margin-top: 0;
   padding: 0;
   border: 0;
@@ -229,7 +275,7 @@
 .ob-workspace .orthography-builder-group,
 .ob-workspace .orthography-builder-group-body {
   display: grid;
-  gap: 8px;
+  gap: 12px;
 }
 
 .ob-workspace .orthography-builder-inline-badges {
@@ -278,11 +324,11 @@
 }
 
 .ob-bridge-panel .orthography-builder-grid,
-.ob-bridge-panel .orthography-builder-bridge-grid { gap: 12px; }
+.ob-bridge-panel .orthography-builder-bridge-grid { gap: var(--ob-section-gap); }
 
 .ob-bridge-panel .orthography-builder-bridge-panel {
   display: grid;
-  gap: 16px;
+  gap: var(--ob-section-gap);
   margin-top: 0;
   padding: 18px 0 0;
   border: 0;
@@ -321,10 +367,10 @@
 
 .ob-bridge-panel .ob-bridge-group-content {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--ob-section-gap);
 }
 
-.ob-bridge-panel .orthography-builder-rule-block { gap: 8px; grid-column: span 2; }
+.ob-bridge-panel .orthography-builder-rule-block { gap: 12px; grid-column: span 2; }
 
 .ob-bridge-panel .orthography-builder-bridge-hint-box,
 .ob-bridge-panel .orthography-builder-validation-box,
@@ -428,12 +474,16 @@
 
 .ob-bridge-panel .orthography-builder-footer-actions {
   grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-header, 20);
   justify-content: flex-end;
   gap: 10px;
   margin-top: 4px;
-  padding-top: 14px;
-  border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
-  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface-header) 28%, transparent));
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface-header) 44%, var(--surface-panel));
 }
 
 .ob-bridge-panel :is(.dialog-field label, .dialog-field > span) {
@@ -442,7 +492,7 @@
   color: var(--text-secondary);
 }
 
-.ob-workspace :is(.dialog-field, .language-iso-input .dialog-field) { gap: 4px; }
+.ob-workspace :is(.dialog-field, .language-iso-input .dialog-field) { gap: var(--ob-field-gap); }
 
 .ob-workspace :is(.dialog-field label, .dialog-field > span) {
   font-size: var(--ob-body-size);
@@ -458,7 +508,7 @@
     grid-template-areas:
       'summary summary'
       'list editor';
-    gap: 12px 14px;
+    gap: var(--ob-section-gap);
   }
 
   .ob-list {
@@ -495,4 +545,8 @@
 @media (max-width: 720px) {
   .ob-summary .ws-summary-header { flex-direction: column; }
   .ob-summary .ws-summary-facts { grid-template-columns: 1fr; }
+
+  .ob-summary-links > .btn,
+  .ob-inline-actions > .btn,
+  .ob-bridge-panel .orthography-builder-footer-actions > .btn { width: 100%; }
 }
