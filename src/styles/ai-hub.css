@@ -134,7 +134,6 @@
   --ai-fold-head-hover-shadow: 0 6px 16px color-mix(in srgb, var(--state-info-solid) 8%, transparent), inset 0 1px 0 color-mix(in srgb, white 52%, transparent);
   transition: max-height var(--ai-fold-expand-duration) var(--ai-fold-ease), padding var(--ai-fold-expand-duration) var(--ai-fold-ease), opacity var(--ai-fold-fade-duration) var(--ai-fold-ease);
 }
-  --ai-fold-head-open-shadow: 0 8px 20px color-mix(in srgb, var(--state-info-solid) 10%, transparent), inset 0 1px 0 color-mix(in srgb, white 56%, transparent);
 .ai-chat-voice-drawer.is-open .ai-chat-voice-drawer-body {
   max-height: var(--ai-voice-drawer-max-height, clamp(140px, 36vh, 380px));
   padding: 6px 8px 4px;

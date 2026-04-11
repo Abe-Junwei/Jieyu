@@ -486,12 +486,38 @@ export function LanguageMetadataWorkspacePage({
     </button>
   ) : undefined;
 
+  const panelFooter = (
+    <>
+      <div className="lm-footer-status">
+        {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
+        {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
+        {!saveError && !saveSuccess ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p> : null}
+      </div>
+
+      <div className="lm-actions">
+        <button type="button" className="btn btn-ghost" onClick={handleResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
+        {selectedEntry?.hasPersistedRecord ? (
+          <button type="button" className="btn btn-danger" onClick={handleDelete} disabled={deleting}>
+            {deleting
+              ? t(locale, 'workspace.languageMetadata.deleting')
+              : selectedEntry.entryKind === 'custom'
+                ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
+                : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
+          </button>
+        ) : null}
+        <button type="button" className="btn" onClick={handleSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
+      </div>
+    </>
+  );
+
   return (
     <EmbeddedPanelShell
       className="lm-shell lm-workspace"
       bodyClassName="lm-layout"
+      footerClassName="lm-footer"
       title={t(locale, 'workspace.languageMetadata.title')}
       actions={panelActions}
+      footer={panelFooter}
       aria-label={t(locale, 'workspace.languageMetadata.title')}
     >
       <div className="lm-toolbar">
@@ -519,17 +545,10 @@ export function LanguageMetadataWorkspacePage({
         selectedEntry={selectedEntry}
         duplicateHint={duplicateHint}
         historyItems={historyItems}
-        saving={saving}
-        deleting={deleting}
-        saveError={saveError}
-        saveSuccess={saveSuccess}
         onDraftChange={handleDraftChange}
         onDisplayNameRowChange={handleDisplayNameRowChange}
         onAddDisplayNameRow={handleAddDisplayNameRow}
         onRemoveDisplayNameRow={handleRemoveDisplayNameRow}
-        onResetDraft={handleResetDraft}
-        onDelete={handleDelete}
-        onSave={handleSave}
         onSelectEntry={handleSelectEntry}
       />
     </EmbeddedPanelShell>

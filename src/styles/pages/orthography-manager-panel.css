@@ -8,9 +8,12 @@
 .om-page {
   --ws-note-size: calc(12px * var(--ui-font-scale, 1));
   --om-unified-title-size: calc(12px * var(--ui-font-scale, 1));
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
 }
 
@@ -217,6 +220,27 @@
 .om-summary .ws-summary-fact-label { font-size: calc(11px * var(--ui-font-scale, 1)); }
 .om-summary .ws-summary-fact-note { font-size: calc(11px * var(--ui-font-scale, 1)); }
 
+.om-shell .ws-summary-copy { display: grid; gap: 4px; min-width: 0; }
+
+.om-shell .ws-kicker {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.om-shell .ws-summary-title {
+  margin: 0;
+  font-size: calc(18px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.om-summary .ws-summary-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .om-shell .ws-summary-card {
   display: grid;
   gap: 12px;
@@ -227,9 +251,13 @@
   box-shadow: none;
 }
 
-.om-summary-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.om-summary-meta { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
 .om-shell .ws-summary-fact {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header));
 }
@@ -571,7 +599,7 @@
   .om-form-grid,
   .om-basic-grid,
   .om-array-row,
-  .om-highlight-facts { grid-template-columns: minmax(0, 1fr); }
+  .om-summary .ws-summary-facts { grid-template-columns: minmax(0, 1fr); }
 
   .om-form-span-third,
   .om-form-span-half,
@@ -588,7 +616,7 @@
 @media (max-width: 1180px) and (min-width: 721px) {
   .om-form-grid,
   .om-basic-grid,
-  .om-highlight-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .om-summary .ws-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .om-form-span-third,
   .om-form-span-half,

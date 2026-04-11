@@ -1,20 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
+
+// 订阅 resize 事件 | Subscribe to window resize events
+function subscribeResize(callback: () => void): () => void {
+  if (typeof window === 'undefined') return () => {};
+  window.addEventListener('resize', callback);
+  return () => window.removeEventListener('resize', callback);
+}
+
+function getViewportWidth(): number | undefined {
+  return typeof window !== 'undefined' ? window.innerWidth : undefined;
+}
+function getServerViewportWidth(): undefined { return undefined; }
 
 export function useViewportWidth(): number | undefined {
-  const [viewportWidth, setViewportWidth] = useState<number | undefined>(() => (
-    typeof window !== 'undefined' ? window.innerWidth : undefined
-  ));
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => {
-      setViewportWidth(window.innerWidth);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  return viewportWidth;
+  return useSyncExternalStore(subscribeResize, getViewportWidth, getServerViewportWidth);
 }

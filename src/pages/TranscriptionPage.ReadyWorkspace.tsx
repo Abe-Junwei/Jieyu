@@ -811,9 +811,9 @@ function TranscriptionPageReadyWorkspace({
     }
   }, [actionableObserverRecommendations, handleExecuteRecommendation]);
 
-  const handleDeferredAiRuntimeChange = useCallback((runtimeState: DeferredTranscriptionAiRuntimeState) => {
+  const handleDeferredAiRuntimeChange = (runtimeState: DeferredTranscriptionAiRuntimeState) => {
     setDeferredAiRuntime(runtimeState);
-  }, []);
+  };
 
   const waveformAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'
     ? deferredAiRuntime.acousticRuntimeStatus
@@ -1774,7 +1774,9 @@ function TranscriptionPageReadyWorkspace({
         '--transcription-ai-width': `${aiPanelWidth}px`,
         '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
         '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`,
-        '--video-left-panel-width': videoLayoutMode === 'left' ? `${videoRightPanelWidth + 8}px` : '0px',
+        '--video-left-panel-width': selectedMediaUrl && selectedMediaIsVideo && videoLayoutMode === 'left'
+          ? `${videoRightPanelWidth + 8}px`
+          : '0px',
       } as React.CSSProperties}
     >
       {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
@@ -1836,7 +1838,7 @@ function TranscriptionPageReadyWorkspace({
             />
 
             {/* Editor workspace: left side for row editing, right side for AI guidance. */}
-            <main
+            <section
               ref={workspaceRef}
               className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
             >
@@ -1931,7 +1933,14 @@ function TranscriptionPageReadyWorkspace({
                   mediaFileInputRef={mediaFileInputRef}
                   handleWaveformResizeStart={handleWaveformResizeStart}
                 />
-                <Suspense fallback={null}>
+                <Suspense
+                  fallback={(
+                    <div className="timeline-top-placeholder" aria-hidden="true">
+                      <div className="waveform-overview-bar waveform-overview-placeholder" />
+                      <div className="time-ruler time-ruler-placeholder" />
+                    </div>
+                  )}
+                >
                   <TranscriptionPageTimelineTop {...timelineTopProps} />
                 </Suspense>
                 <TimelineMainSection
@@ -1939,7 +1948,7 @@ function TranscriptionPageReadyWorkspace({
                   className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
                 >
                   <TimelineRailSection>
-                    <Suspense fallback={null}>
+                    <Suspense fallback={<div className="transcription-side-pane transcription-side-pane-placeholder" aria-hidden="true" />}>
                       <TranscriptionPageSidePane
                         speakerManagement={{
                           speakerOptions,
@@ -2004,7 +2013,15 @@ function TranscriptionPageReadyWorkspace({
                     onScroll={handleTimelineScroll}
                   >
                     <TranscriptionEditorContext.Provider value={editorContextValue}>
-                        <Suspense fallback={null}>
+                        <Suspense
+                          fallback={(
+                            <div className="timeline-content timeline-content-placeholder" aria-hidden="true">
+                              <div className="timeline-lane" />
+                              <div className="timeline-lane" />
+                              <div className="timeline-lane" />
+                            </div>
+                          )}
+                        >
                           <TranscriptionPageTimelineContent {...timelineContentProps} />
                         </Suspense>
                     </TranscriptionEditorContext.Provider>
@@ -2168,7 +2185,7 @@ function TranscriptionPageReadyWorkspace({
                   <TranscriptionPagePdfRuntime {...pdfRuntimeProps} />
                 </Suspense>
               ) : null}
-            </main>
+            </section>
           </ToastProvider>
 
           {shouldRenderBatchOps ? (

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
@@ -27,6 +28,31 @@ function SidePaneSnapshot() {
       <div data-testid="side-pane-subtitle">{registration?.subtitle ?? ''}</div>
       <div data-testid="side-pane-content">{registration?.content ?? null}</div>
     </>
+  );
+}
+
+function renderLexiconPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+
+  render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/lexicon']}>
+        <LocaleProvider locale="zh-CN">
+          <AppSidePaneProvider>
+            <SidePaneSnapshot />
+            <Routes>
+              <Route path="/lexicon" element={<LexiconPage />} />
+            </Routes>
+          </AppSidePaneProvider>
+        </LocaleProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -65,18 +91,7 @@ describe('LexiconPage', () => {
   });
 
   it('loads the lexicon workspace, selects the first lexeme, and registers the side pane', async () => {
-    render(
-      <MemoryRouter initialEntries={['/lexicon']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <SidePaneSnapshot />
-            <Routes>
-              <Route path="/lexicon" element={<LexiconPage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderLexiconPage();
 
     await waitFor(() => {
       expect(screen.getAllByText('dog').length).toBeGreaterThan(0);
@@ -89,18 +104,7 @@ describe('LexiconPage', () => {
   });
 
   it('filters lexemes by search text and updates the current detail selection', async () => {
-    render(
-      <MemoryRouter initialEntries={['/lexicon']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <SidePaneSnapshot />
-            <Routes>
-              <Route path="/lexicon" element={<LexiconPage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderLexiconPage();
 
     const searchInput = await screen.findByRole('searchbox', { name: '按词元、释义或语言筛选词条' });
     fireEvent.change(searchInput, { target: { value: 'move quickly' } });
@@ -115,18 +119,7 @@ describe('LexiconPage', () => {
   it('shows empty state and quick access when no lexemes exist', async () => {
     mockListLexemes.mockResolvedValue([]);
 
-    render(
-      <MemoryRouter initialEntries={['/lexicon']}>
-        <LocaleProvider locale="zh-CN">
-          <AppSidePaneProvider>
-            <SidePaneSnapshot />
-            <Routes>
-              <Route path="/lexicon" element={<LexiconPage />} />
-            </Routes>
-          </AppSidePaneProvider>
-        </LocaleProvider>
-      </MemoryRouter>,
-    );
+    renderLexiconPage();
 
     expect(await screen.findByText('当前词典里还没有词条；后续可从导入、标注回链或人工创建补齐。')).toBeTruthy();
     expect(screen.getByRole('link', { name: '打开正字法管理器' }).getAttribute('href')).toBe('/assets/orthographies');

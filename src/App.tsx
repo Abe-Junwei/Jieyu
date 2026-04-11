@@ -585,7 +585,7 @@ export function App() {
             >
               <AiPanelProvider>
                 <AssetPanelProvider value={assetPanelCtx}>
-                <Suspense fallback={null}>
+                <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
                   <Routes location={location}>
                     <Route path="/" element={<Navigate to="/transcription" replace />} />
                     <Route
@@ -601,6 +601,8 @@ export function App() {
                     <Route path="/lexicon" element={<LexiconPage />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>
+                </Suspense>
+                <Suspense fallback={null}>
                   <ModalPanel
                     isOpen={openAssetPanel === 'language-metadata'}
                     onClose={handleAssetPanelClose}

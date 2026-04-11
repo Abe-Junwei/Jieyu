@@ -40,6 +40,21 @@ interface UseWaveformAcousticOverlayResult {
   handleSpectrogramClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
 }
 
+function lowerBoundFrameTime(frames: AcousticFeatureResult['frames'], targetTimeSec: number): number {
+  let lo = 0;
+  let hi = frames.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const frame = frames[mid];
+    if (!frame || frame.timeSec < targetTimeSec) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo;
+}
+
 export function useWaveformAcousticOverlay(input: UseWaveformAcousticOverlayInput): UseWaveformAcousticOverlayResult {
   const [acousticAnalysis, setAcousticAnalysis] = useState<AcousticFeatureResult | null>(null);
   const [acousticOverlayLoading, setAcousticOverlayLoading] = useState(false);
@@ -94,10 +109,12 @@ export function useWaveformAcousticOverlay(input: UseWaveformAcousticOverlayInpu
     const visibleStartSec = Math.max(0, input.waveformScrollLeft / input.zoomPxPerSec);
     const visibleEndSec = Math.max(visibleStartSec, (input.waveformScrollLeft + viewportWidth) / input.zoomPxPerSec);
     const framePaddingSec = acousticAnalysis.config.frameStepSec * 2;
-    const visibleFrames = acousticAnalysis.frames.filter((frame) => (
-      frame.timeSec >= visibleStartSec - framePaddingSec
-      && frame.timeSec <= visibleEndSec + framePaddingSec
-    ));
+    const frameWindowStart = visibleStartSec - framePaddingSec;
+    const frameWindowEnd = visibleEndSec + framePaddingSec;
+    const frames = acousticAnalysis.frames;
+    const visibleStartIndex = lowerBoundFrameTime(frames, frameWindowStart);
+    const visibleEndIndex = lowerBoundFrameTime(frames, frameWindowEnd + Number.EPSILON);
+    const visibleFrames = frames.slice(visibleStartIndex, visibleEndIndex);
 
     if (visibleFrames.length === 0) {
       return {

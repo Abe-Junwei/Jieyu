@@ -25,7 +25,7 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--lane-label-width);
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   width: 1px;
   background: var(--border-soft);
   pointer-events: none;
@@ -102,10 +102,10 @@
   color: var(--state-success-text);
 }
 
-/* 波形内容偏移包裹层，起始位与 lane-label 右边缘对齐 | Waveform content offset wrapper aligned with lane-label right edge */
+/* 波形内容偏移包裹层，起始位与 lane-label + 左侧视频面板右缘对齐 | Waveform content offset wrapper aligned with lane-label + optional left-video panel */
 .waveform-content-offset {
   position: relative;
-  margin-left: var(--lane-label-width);
+  margin-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   flex: 1;
   min-width: 0;
   min-height: 0;

@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
+import type { OrthographyBridgeShellFooterState } from '../components/OrthographyBridgeManager';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
@@ -36,6 +37,7 @@ export function OrthographyBridgeWorkspacePage({
   const [orthographies, setOrthographies] = useState<OrthographyDocType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [shellFooterState, setShellFooterState] = useState<OrthographyBridgeShellFooterState | null>(null);
   const [searchText, setSearchText] = useState('');
   const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const deferredSearchText = useDeferredValue(searchText);
@@ -68,6 +70,9 @@ export function OrthographyBridgeWorkspacePage({
   searchParamsRef.current = searchParams;
   const selectedOrthographyIdRef = useRef(selectedOrthographyId);
   selectedOrthographyIdRef.current = selectedOrthographyId;
+  const handleShellFooterStateChange = useCallback((state: OrthographyBridgeShellFooterState) => {
+    setShellFooterState(state.visible ? state : null);
+  }, []);
 
   // M4: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
@@ -218,8 +223,19 @@ export function OrthographyBridgeWorkspacePage({
     <EmbeddedPanelShell
       className="ob-shell ob-workspace"
       bodyClassName="ob-layout"
+      footerClassName="ob-shell-footer"
       title={t(locale, 'workspace.orthographyBridge.title')}
       actions={panelActions}
+      footer={shellFooterState ? (
+        <>
+          <button type="button" className="btn btn-ghost" onClick={shellFooterState.onCancel} disabled={shellFooterState.saving}>
+            {shellFooterState.cancelLabel}
+          </button>
+          <button type="button" className="btn" onClick={shellFooterState.onSave} disabled={shellFooterState.saving}>
+            {shellFooterState.saveLabel}
+          </button>
+        </>
+      ) : undefined}
       aria-label={t(locale, 'workspace.orthographyBridge.title')}
     >
       <section className="ws-summary-card ob-summary" aria-labelledby="orthography-bridge-workspace-title">
@@ -324,6 +340,8 @@ export function OrthographyBridgeWorkspacePage({
             languageOptions={languageOptions}
             initialExpanded
             hideToggleButton
+            useShellFooter
+            onShellFooterStateChange={handleShellFooterStateChange}
           />
         </PanelSection>
       </div>

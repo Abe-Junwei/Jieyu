@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
@@ -53,6 +54,8 @@ export function useTranscriptionWaveformBridgeController(
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
   const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(null);
   const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
+  const pendingWaveformScrollLeftRef = useRef<number | null>(null);
+  const waveformScrollRafRef = useRef<number | null>(null);
   const subSelectDragRef = useRef<SubSelectDrag | null>(null);
   const skipSeekForIdRef = useRef<string | null>(null);
   const creatingSegmentRef = useRef(false);
@@ -145,14 +148,52 @@ export function useTranscriptionWaveformBridgeController(
     }
   }, [player.duration]);
 
+  const commitWaveformScrollLeft = useCallback((nextScrollLeft: number) => {
+    setWaveformScrollLeft((prev) => (Math.abs(prev - nextScrollLeft) > 0.5 ? nextScrollLeft : prev));
+  }, []);
+
+  const scheduleWaveformScrollLeft = useCallback((nextScrollLeft: number) => {
+    pendingWaveformScrollLeftRef.current = nextScrollLeft;
+    if (waveformScrollRafRef.current !== null) return;
+    waveformScrollRafRef.current = requestAnimationFrame(() => {
+      waveformScrollRafRef.current = null;
+      const pending = pendingWaveformScrollLeftRef.current;
+      pendingWaveformScrollLeftRef.current = null;
+      if (pending == null) return;
+      commitWaveformScrollLeft(pending);
+    });
+  }, [commitWaveformScrollLeft]);
+
   useEffect(() => {
     if (!player.isReady) return;
     const ws = player.instanceRef.current;
     if (!ws) return;
-    const onScroll = () => setWaveformScrollLeft(ws.getScroll());
+    const onScroll = () => {
+      scheduleWaveformScrollLeft(ws.getScroll());
+    };
     ws.on('scroll', onScroll);
     return () => { ws.un('scroll', onScroll); };
-  }, [player.isReady, player.instanceRef]);
+  }, [player.isReady, player.instanceRef, scheduleWaveformScrollLeft]);
+
+  useEffect(() => () => {
+    if (waveformScrollRafRef.current !== null) {
+      cancelAnimationFrame(waveformScrollRafRef.current);
+      waveformScrollRafRef.current = null;
+    }
+    pendingWaveformScrollLeftRef.current = null;
+  }, []);
+
+  // 首帧前同步时间轴滚动，避免浏览器恢复滚动导致"先偏移后对齐" | Sync timeline scroll before first paint to avoid browser-restored flicker
+  useLayoutEffect(() => {
+    const tier = input.tierContainerRef.current;
+    if (!tier) return;
+    const ws = player.instanceRef.current;
+    const nextScrollLeft = ws ? ws.getScroll() : 0;
+    if (Math.abs(tier.scrollLeft - nextScrollLeft) > 0.5) {
+      tier.scrollLeft = nextScrollLeft;
+    }
+    commitWaveformScrollLeft(nextScrollLeft);
+  }, [commitWaveformScrollLeft, input.selectedMediaUrl, input.tierContainerRef, player.instanceRef, player.isReady]);
 
   const {
     waveformNoteIndicators,
@@ -293,11 +334,12 @@ export function useTranscriptionWaveformBridgeController(
   };
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
+    const nextScrollLeft = event.currentTarget.scrollLeft;
     const ws = player.instanceRef.current;
     if (ws) {
-      ws.setScroll(event.currentTarget.scrollLeft);
+      ws.setScroll(nextScrollLeft);
     }
-    setWaveformScrollLeft(event.currentTarget.scrollLeft);
+    scheduleWaveformScrollLeft(nextScrollLeft);
   };
 
   useEffect(() => {

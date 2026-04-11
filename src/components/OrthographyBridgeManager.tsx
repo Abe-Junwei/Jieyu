@@ -44,12 +44,25 @@ type LanguageOption = {
   label: string;
 };
 
+export type OrthographyBridgeShellFooterState = {
+  visible: boolean;
+  saving: boolean;
+  saveLabel: string;
+  cancelLabel: string;
+  onSave: () => void;
+  onCancel: () => void;
+};
+
+const NOOP = () => {};
+
 type OrthographyBridgeManagerProps = {
   targetOrthography: OrthographyDocType | undefined;
   languageOptions: readonly LanguageOption[];
   compact?: boolean;
   initialExpanded?: boolean;
   hideToggleButton?: boolean;
+  useShellFooter?: boolean;
+  onShellFooterStateChange?: (state: OrthographyBridgeShellFooterState) => void;
 };
 
 function formatBridgeRuleText(bridge: OrthographyBridgeDocType): string {
@@ -73,6 +86,8 @@ export function OrthographyBridgeManager({
   compact = false,
   initialExpanded = false,
   hideToggleButton = false,
+  useShellFooter = false,
+  onShellFooterStateChange,
 }: OrthographyBridgeManagerProps) {
   const locale = useLocale();
   const { resolveLanguageCode, resolveLanguageDisplayName } = useLanguageCatalogLabelMap(locale);
@@ -378,6 +393,10 @@ export function OrthographyBridgeManager({
     }
   }, [bridgeDraftRules, bridgeDraftSampleCases, bridgeSampleCaseResults, bridgeValidationIssues, bridges, draftBridgeEngine, draftBridgeIsReversible, draftBridgeSampleInput, draftEnglishFallbackName, draftPrimaryName, draftStatus, editingBridgeId, isCreatingNew, loadBridges, managerMessages, resetEditor, resolvedSourceLanguageId, sourceOrthographies, sourceOrthographyId, targetOrthography?.id]);
 
+  const handleSaveBridge = useCallback(() => {
+    void saveBridge();
+  }, [saveBridge]);
+
   const handleSourceLanguageInputChange = useCallback((nextValue: LanguageIsoInputValue) => {
     setSourceLanguageInput(nextValue);
     setSourceOrthographyId('');
@@ -397,6 +416,42 @@ export function OrthographyBridgeManager({
     setSourceLanguageId(hostSelection.languageId);
     setSourceCustomLanguageId(hostSelection.customLanguageId);
   }, [languageOptions]);
+
+  useEffect(() => {
+    if (!onShellFooterStateChange) return;
+    const showShellFooter = useShellFooter && (isCreatingNew || Boolean(editingBridgeId));
+    if (!showShellFooter) {
+      onShellFooterStateChange({
+        visible: false,
+        saving: false,
+        saveLabel: '',
+        cancelLabel: '',
+        onSave: NOOP,
+        onCancel: NOOP,
+      });
+      return;
+    }
+
+    onShellFooterStateChange({
+      visible: true,
+      saving,
+      saveLabel: saving ? managerMessages.savingRule : managerMessages.saveRule,
+      cancelLabel: managerMessages.cancelEdit,
+      onSave: handleSaveBridge,
+      onCancel: resetEditor,
+    });
+  }, [editingBridgeId, handleSaveBridge, isCreatingNew, managerMessages.cancelEdit, managerMessages.saveRule, managerMessages.savingRule, onShellFooterStateChange, resetEditor, saving, useShellFooter]);
+
+  useEffect(() => () => {
+    onShellFooterStateChange?.({
+      visible: false,
+      saving: false,
+      saveLabel: '',
+      cancelLabel: '',
+      onSave: NOOP,
+      onCancel: NOOP,
+    });
+  }, [onShellFooterStateChange]);
 
   if (!targetOrthography) return null;
 
@@ -667,24 +722,26 @@ export function OrthographyBridgeManager({
                   )}
                 </div>
 
-                <div className="orthography-builder-actions orthography-builder-footer-actions">
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => void saveBridge()}
-                    disabled={saving}
-                  >
-                    {saving ? managerMessages.savingRule : managerMessages.saveRule}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={resetEditor}
-                    disabled={saving}
-                  >
-                    {managerMessages.cancelEdit}
-                  </button>
-                </div>
+                {!useShellFooter ? (
+                  <div className="orthography-builder-actions orthography-builder-footer-actions">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={handleSaveBridge}
+                      disabled={saving}
+                    >
+                      {saving ? managerMessages.savingRule : managerMessages.saveRule}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={resetEditor}
+                      disabled={saving}
+                    >
+                      {managerMessages.cancelEdit}
+                    </button>
+                  </div>
+                ) : null}
               </div>
             </div>
           )}

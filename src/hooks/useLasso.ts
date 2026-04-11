@@ -84,6 +84,15 @@ export function useLasso(input: UseLassoInput) {
   const waveLassoHintTimerRef = useRef<number | undefined>(undefined);
   const pendingLassoSelectionRef = useRef<{ ids: Set<string>; primaryId: string } | null>(null);
   const lassoSelectionRafRef = useRef<number | null>(null);
+  const pendingTimelineLassoMoveRef = useRef<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    tStart: number;
+    tEnd: number;
+  } | null>(null);
+  const timelineLassoMoveRafRef = useRef<number | null>(null);
 
   // Sync refs for values used inside effects
   const timelineItemsRef = useLatest(timelineItems);
@@ -398,6 +407,32 @@ export function useLasso(input: UseLassoInput) {
   }, []);
 
   // ---- Timeline lasso handlers ----
+  const flushTimelineLassoMove = useCallback(() => {
+    const info = lassoRef.current;
+    const pending = pendingTimelineLassoMoveRef.current;
+    pendingTimelineLassoMoveRef.current = null;
+    if (!info || !pending) return;
+
+    setLassoRect({ x: pending.left, y: pending.top, w: pending.width, h: pending.height });
+
+    if (zoomPxPerSec > 0) {
+      const outcome = computeLassoOutcome(
+        timelineItems,
+        pending.tStart,
+        pending.tEnd,
+        info.baseIds,
+        true,
+      );
+      info.hitCount = outcome.hitCount;
+      info.rangeStart = pending.tStart;
+      info.rangeEnd = pending.tEnd;
+      if (outcome.primaryId) {
+        skipSeekForIdRef.current = outcome.primaryId;
+      }
+      scheduleLassoSelectionUpdate(outcome.ids, outcome.primaryId);
+    }
+  }, [scheduleLassoSelectionUpdate, skipSeekForIdRef, timelineItems, zoomPxPerSec]);
+
   const handleLassoPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     // Only start lasso from empty area (not from annotations, labels, inputs)
     const target = e.target as Element;
@@ -454,29 +489,30 @@ export function useLasso(input: UseLassoInput) {
     const width = Math.abs(cx - ax);
     const height = Math.abs(cy - ay);
 
-    setLassoRect({ x: left, y: top, w: width, h: height });
-
-    if (zoomPxPerSec > 0) {
-      const tStart = left / zoomPxPerSec;
-      const tEnd = (left + width) / zoomPxPerSec;
-      const outcome = computeLassoOutcome(
-        timelineItems,
-        tStart,
-        tEnd,
-        info.baseIds,
-        true,
-      );
-      info.hitCount = outcome.hitCount;
-      info.rangeStart = tStart;
-      info.rangeEnd = tEnd;
-      if (outcome.primaryId) {
-        skipSeekForIdRef.current = outcome.primaryId;
-      }
-      scheduleLassoSelectionUpdate(outcome.ids, outcome.primaryId);
+    const tStart = zoomPxPerSec > 0 ? left / zoomPxPerSec : 0;
+    const tEnd = zoomPxPerSec > 0 ? (left + width) / zoomPxPerSec : 0;
+    pendingTimelineLassoMoveRef.current = {
+      left,
+      top,
+      width,
+      height,
+      tStart,
+      tEnd,
+    };
+    if (timelineLassoMoveRafRef.current === null) {
+      timelineLassoMoveRafRef.current = requestAnimationFrame(() => {
+        timelineLassoMoveRafRef.current = null;
+        flushTimelineLassoMove();
+      });
     }
-  }, [zoomPxPerSec, timelineItems, scheduleLassoSelectionUpdate, tierContainerRef, skipSeekForIdRef]);
+  }, [flushTimelineLassoMove, tierContainerRef, zoomPxPerSec]);
 
   const handleLassoPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (timelineLassoMoveRafRef.current !== null) {
+      cancelAnimationFrame(timelineLassoMoveRafRef.current);
+      timelineLassoMoveRafRef.current = null;
+      flushTimelineLassoMove();
+    }
     const info = lassoRef.current;
     lassoRef.current = null;
     setLassoRect(null);
@@ -499,7 +535,15 @@ export function useLasso(input: UseLassoInput) {
         fireAndForget(createUtteranceFromSelection(s, end));
       }
     }
-  }, [clearUtteranceSelection, createUtteranceFromSelection]);
+  }, [clearUtteranceSelection, createUtteranceFromSelection, flushTimelineLassoMove]);
+
+  useEffect(() => () => {
+    if (timelineLassoMoveRafRef.current !== null) {
+      cancelAnimationFrame(timelineLassoMoveRafRef.current);
+      timelineLassoMoveRafRef.current = null;
+    }
+    pendingTimelineLassoMoveRef.current = null;
+  }, []);
 
   return {
     waveLassoRect,

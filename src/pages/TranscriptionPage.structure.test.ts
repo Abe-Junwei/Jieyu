@@ -609,6 +609,12 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('{...toolbarProps}')).toBe(true);
     expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
     expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+    expect(orchestratorCode.includes('className="timeline-top-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="waveform-overview-bar waveform-overview-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="time-ruler time-ruler-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="transcription-side-pane transcription-side-pane-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="timeline-content timeline-content-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="timeline-lane"')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageAiSidebar')).toBe(true);
@@ -834,7 +840,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('} = useWaveformRuntimeController();')).toBe(true);
     expect(orchestratorCode.includes('const handleWaveformResizeStart = useCallback(')).toBe(false);
 
-    expect(hookCode.includes("localStorage.setItem('jieyu:waveform-height'")).toBe(true);
+    expect(hookCode.includes('localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY')).toBe(true);
     expect(hookCode.includes('localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(amplitudeScale));')).toBe(true);
     expect(hookCode.includes('setIsResizingWaveform(true);')).toBe(true);
   });

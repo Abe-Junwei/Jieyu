@@ -175,6 +175,11 @@
   border: 2px solid var(--border-soft);
 }
 
+.transcription-side-pane-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .focus-mode-badge {
   position: fixed;
   bottom: 16px;
@@ -230,6 +235,7 @@
 
   .transcription-side-pane {
     position: static;
+    display: grid;
     width: 100%;
     min-width: 0;
     border-right: 0;

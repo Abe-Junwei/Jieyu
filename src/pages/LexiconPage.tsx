@@ -1,6 +1,7 @@
 import '../styles/pages/feature-availability.css';
 import '../styles/pages/lexicon-workspace.css';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useEffect, useDeferredValue, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { PanelSection } from '../components/ui/PanelSection';
@@ -45,38 +46,18 @@ function buildLexemeSearchText(lexeme: LexemeDocType): string {
 
 export function LexiconPage() {
   const locale = useLocale();
-  const [lexemes, setLexemes] = useState<LexemeDocType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: lexemes = [], isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['lexemes'],
+    queryFn: () => LinguisticService.listLexemes(),
+  });
+  const error = queryError instanceof Error
+    ? queryError.message
+    : queryError
+      ? t(locale, 'workspace.lexicon.errorFallback')
+      : '';
   const [searchText, setSearchText] = useState('');
   const [selectedLexemeId, setSelectedLexemeId] = useState('');
   const deferredSearchText = useDeferredValue(searchText);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    void LinguisticService.listLexemes()
-      .then((records) => {
-        if (cancelled) return;
-        setLexemes(records);
-        setError('');
-      })
-      .catch((loadError) => {
-        if (cancelled) return;
-        setLexemes([]);
-        setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.lexicon.errorFallback'));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [locale]);
 
   const normalizedSearchText = deferredSearchText.trim().toLowerCase();
   const filteredLexemes = useMemo(() => {

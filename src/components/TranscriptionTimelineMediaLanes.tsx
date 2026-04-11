@@ -465,7 +465,10 @@ export function TranscriptionTimelineMediaLanes({
   return (
     <TimelineStyledContainer
       className="timeline-content"
-      layoutStyle={{ width: playerDuration * zoomPxPerSec }}
+      layoutStyle={{
+        width: `calc(${playerDuration * zoomPxPerSec}px - (var(--lane-label-width) + var(--video-left-panel-width, 0px)))`,
+        minWidth: 'calc(100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px)))',
+      }}
     >
       {lassoRect && (
         <svg className="timeline-lasso-overlay" aria-hidden="true">

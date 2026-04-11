@@ -39,17 +39,10 @@ type LanguageMetadataWorkspaceDetailColumnProps = {
   selectedEntry: LanguageCatalogEntry | null;
   duplicateHint: { id: string; name: string } | null;
   historyItems: HistoryItem[];
-  saving: boolean;
-  deleting: boolean;
-  saveError: string;
-  saveSuccess: string;
   onDraftChange: LanguageMetadataDraftChangeHandler;
   onDisplayNameRowChange: LanguageDisplayNameRowChangeHandler;
   onAddDisplayNameRow: () => void;
   onRemoveDisplayNameRow: (rowKey: string) => void;
-  onResetDraft: () => void;
-  onDelete: () => void;
-  onSave: () => void;
   onSelectEntry: (languageId: string) => void;
 };
 
@@ -59,17 +52,10 @@ export function LanguageMetadataWorkspaceDetailColumn({
   selectedEntry,
   duplicateHint,
   historyItems,
-  saving,
-  deleting,
-  saveError,
-  saveSuccess,
   onDraftChange,
   onDisplayNameRowChange,
   onAddDisplayNameRow,
   onRemoveDisplayNameRow,
-  onResetDraft,
-  onDelete,
-  onSave,
   onSelectEntry,
 }: LanguageMetadataWorkspaceDetailColumnProps) {
   // ─── 地图/地名搜索 | Map & geocode ───
@@ -547,28 +533,6 @@ export function LanguageMetadataWorkspaceDetailColumn({
           <p className="lm-state">{t(locale, 'workspace.languageMetadata.historyEmpty')}</p>
         )}
       </PanelSection>
-
-      <section className="lm-footer" aria-label={t(locale, 'workspace.languageMetadata.saveButton')}>
-        <div className="lm-footer-status">
-          {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
-          {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
-          {!saveError && !saveSuccess ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p> : null}
-        </div>
-
-        <div className="lm-actions">
-          <button type="button" className="btn btn-ghost" onClick={onResetDraft}>{t(locale, 'workspace.languageMetadata.resetButton')}</button>
-          {selectedEntry?.hasPersistedRecord ? (
-            <button type="button" className="btn btn-danger" onClick={onDelete} disabled={deleting}>
-              {deleting
-                ? t(locale, 'workspace.languageMetadata.deleting')
-                : selectedEntry.entryKind === 'custom'
-                  ? t(locale, 'workspace.languageMetadata.deleteCustomButton')
-                  : t(locale, 'workspace.languageMetadata.deleteOverrideButton')}
-            </button>
-          ) : null}
-          <button type="button" className="btn" onClick={onSave} disabled={saving}>{saving ? t(locale, 'workspace.languageMetadata.saving') : t(locale, 'workspace.languageMetadata.saveButton')}</button>
-        </div>
-      </section>
     </div>
   );
 }

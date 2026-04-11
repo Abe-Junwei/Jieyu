@@ -218,16 +218,26 @@ export function TimelineHeaderSection({
   waveCanvasRef,
   tierContainerRef,
 }: TimelineHeaderSectionProps) {
+  const hasTimelineContext = isReady || duration > 0 || Boolean(rulerView) || utterances.length > 0;
+  const canRenderOverviewBar = isReady && duration > 0;
+  const canRenderTimeRuler = isReady && duration > 0 && Boolean(rulerView);
+  const shouldReserveOverviewSlot = hasTimelineContext;
+  const shouldReserveTimeRulerSlot = hasTimelineContext;
+
   return (
     <>
-      <WaveformOverviewBar
-        duration={duration}
-        utterances={utterances}
-        rulerView={rulerView}
-        onSeek={onSeek}
-        isReady={isReady}
-      />
-      {isReady && duration > 0 && rulerView && (
+      {canRenderOverviewBar ? (
+        <WaveformOverviewBar
+          duration={duration}
+          utterances={utterances}
+          rulerView={rulerView}
+          onSeek={onSeek}
+          isReady={isReady}
+        />
+      ) : shouldReserveOverviewSlot ? (
+        <div className="waveform-overview-bar waveform-overview-placeholder" aria-hidden="true" />
+      ) : null}
+      {canRenderTimeRuler && rulerView ? (
         <TimeRuler
           duration={duration}
           currentTime={currentTime}
@@ -241,7 +251,9 @@ export function TimelineHeaderSection({
           tierContainerRef={tierContainerRef}
           utterances={utterances}
         />
-      )}
+      ) : shouldReserveTimeRulerSlot ? (
+        <div className="time-ruler time-ruler-placeholder" aria-hidden="true" />
+      ) : null}
     </>
   );
 }

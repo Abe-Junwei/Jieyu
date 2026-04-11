@@ -17,10 +17,17 @@
 }
 
 .timeline-content {
-  min-width: 100%;
+  --timeline-content-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  width: calc(100% - var(--timeline-content-offset));
+  min-width: 0;
   position: relative;
   /* 与波形区偏移对齐（含左侧视频面板偏移）| Align with waveform offset, including optional left-video panel offset */
-  margin-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  margin-left: var(--timeline-content-offset);
+}
+
+.timeline-content-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .timeline-lasso-rect {
@@ -322,12 +329,17 @@
   user-select: none;
 }
 
+.waveform-overview-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .waveform-overview-bar::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--lane-label-width);
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   width: 1px;
   background: var(--border-soft);
   pointer-events: none;
@@ -336,8 +348,8 @@
 
 .waveform-overview-canvas {
   display: block;
-  width: calc(100% - var(--lane-label-width));
-  margin-left: var(--lane-label-width);
+  width: calc(100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px)));
+  margin-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   height: 20px;
   cursor: pointer;
 }
@@ -712,7 +724,7 @@
 }
 
 .timeline-content-text-only {
-  min-width: 100%;
+  min-width: 0;
   padding: 0;
 }
 
@@ -730,10 +742,11 @@
 .timeline-lane-text-only-track {
   position: relative;
   height: var(--timeline-lane-content-height, 42px);
-  width: var(--timeline-lane-track-width, 0px);
+  /* 防止在无语段或过渡态时宽度塌为 0，导致看起来“错位悬空” | Keep lane track at least viewport width to avoid 0px collapse */
+  width: max(var(--timeline-lane-track-width, 0px), 100%);
 }
 
-.timeline-lane-text-only > .timeline-lane-label {
+.timeline-lane-text-only > .timeline-lane-header-wrapper > .timeline-lane-label {
   position: absolute;
   left: 0;
   top: 0;
@@ -1110,13 +1123,22 @@
   z-index: calc(var(--z-timeline-sticky) + 2);
 }
 
+.time-ruler-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.timeline-top-placeholder {
+  display: block;
+}
+
 /* 时间尺同位分隔线，保持上下视觉连续 | Matching separator on ruler for vertical continuity */
 .time-ruler::before {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  left: var(--lane-label-width);
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   width: 1px;
   background: var(--border-soft);
   pointer-events: none;
@@ -1125,7 +1147,7 @@
 
 .time-ruler-lane-toggle {
   position: absolute;
-  left: calc(var(--lane-label-width) + 2px);
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px) + 2px);
   top: 1px;
   transform: translate(-50%, -50%);
   width: 18px;
@@ -1189,7 +1211,7 @@
 .time-ruler-inner {
   position: relative;
   height: 100%;
-  margin-left: var(--lane-label-width);
+  margin-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
   cursor: grab;
 }
 

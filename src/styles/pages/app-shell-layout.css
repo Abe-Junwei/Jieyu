@@ -486,3 +486,9 @@
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
 }
+
+/* ── 路由级 Suspense 加载占位 | Route-level Suspense loading placeholder ── */
+.app-route-loading {
+  flex: 1;
+  min-height: 120px;
+}
