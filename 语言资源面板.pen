@@ -9,7 +9,7 @@
       "name": "运行态三模板基线-2026-04-10",
       "clip": true,
       "width": 2580,
-      "height": 1720,
+      "height": 2020,
       "fill": "#F5F7FB",
       "layout": "vertical",
       "gap": 16,
@@ -20,7 +20,7 @@
           "id": "BGjKf",
           "name": "titleA",
           "fill": "#0F172A",
-          "content": "运行态三模板基线（语言元数据 / 正字法 / 桥接）",
+          "content": "运行态三模板基线（已按 2026-04-11 运行态补齐）",
           "fontFamily": "Noto Sans SC",
           "fontSize": 18,
           "fontWeight": "700"
@@ -37,7 +37,7 @@
               "id": "zwf8N",
               "name": "Template-1-LanguageMetadata",
               "width": 760,
-              "height": 1540,
+              "height": 1725,
               "fill": "#FFFFFF",
               "cornerRadius": 24,
               "stroke": {
@@ -157,7 +157,7 @@
                       "id": "sshCo",
                       "name": "p1SummaryKicker",
                       "fill": "#64748B",
-                      "content": "概览卡（运行态）",
+                      "content": "概览卡（运行态，含 9 分区映射）",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -292,7 +292,7 @@
                   "id": "36HSV",
                   "name": "p1Editor",
                   "width": "fill_container",
-                  "height": 980,
+                  "height": 1160,
                   "fill": "#FBFCFF",
                   "cornerRadius": 18,
                   "stroke": {
@@ -308,7 +308,7 @@
                       "id": "Fzsw0",
                       "name": "p1EditTitle",
                       "fill": "#334155",
-                      "content": "编辑区（展开态）",
+                      "content": "编辑区（展开态，含地理/自定义字段/历史）",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "600"
@@ -318,7 +318,7 @@
                       "id": "EzrCY",
                       "name": "p1Section1",
                       "width": "fill_container",
-                      "height": 220,
+                      "height": 255,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -338,6 +338,150 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "F5Bbi",
+                          "name": "p1IdentityMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "vwwfX",
+                              "fill": "#334155",
+                              "content": "标识与命名（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "UwBKD",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "Wi1y0",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "x58vH",
+                                      "fill": "#64748B",
+                                      "content": "语言 ID",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "9QFHT",
+                                      "fill": "#0F172A",
+                                      "content": "user:demo-language",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "rQgfh",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "3tNQ4",
+                                      "fill": "#64748B",
+                                      "content": "语言代码",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "75aNL",
+                                      "fill": "#0F172A",
+                                      "content": "eng",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "xrtEU",
+                              "width": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#E2E8F0"
+                              },
+                              "layout": "vertical",
+                              "gap": 2,
+                              "padding": [
+                                6,
+                                8
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "8wNkI",
+                                  "fill": "#64748B",
+                                  "content": "别名 / 检索标签",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "pFfxL",
+                                  "fill": "#334155",
+                                  "content": "English, Modern English",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 11,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },
@@ -346,7 +490,7 @@
                       "id": "Ql6qd",
                       "name": "p1Section2",
                       "width": "fill_container",
-                      "height": 210,
+                      "height": 255,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -366,6 +510,182 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "n7ZWf",
+                          "name": "p1StandardGeoMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "IogKE",
+                              "fill": "#334155",
+                              "content": "标准标识 + 地理分布（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "kIc9F",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "FquNl",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "iaRGL",
+                                      "fill": "#64748B",
+                                      "content": "ISO 639-3",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "v1nu0",
+                                      "fill": "#0F172A",
+                                      "content": "eng",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "ie6Ib",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "w79lo",
+                                      "fill": "#64748B",
+                                      "content": "Glottocode",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Tj3kA",
+                                      "fill": "#0F172A",
+                                      "content": "stan1293",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "k4rpy",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "VGCXk",
+                                  "fill": "#EEF4FF",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "xZRIV",
+                                      "fill": "#1D4ED8",
+                                      "content": "宏区域：欧亚",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "TxQBE",
+                                  "fill": "#F1F5F9",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "iG6Q6",
+                                      "fill": "#334155",
+                                      "content": "分布国家：US, GB",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "B4u5I",
+                              "width": "fill_container",
+                              "height": 44,
+                              "fill": "#E2E8F0",
+                              "cornerRadius": 8,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "PN9Lu",
+                                  "fill": "#334155",
+                                  "content": "地图预览（经纬度 + 地名搜索）",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },
@@ -374,7 +694,7 @@
                       "id": "CSXlN",
                       "name": "p1Section3",
                       "width": "fill_container",
-                      "height": 260,
+                      "height": 295,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -394,6 +714,169 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "M6BS8",
+                          "name": "p1PopulationMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nFuRI",
+                              "fill": "#334155",
+                              "content": "谱系 / 使用活力 / 文献 / 自定义字段（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "awaUM",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "KFGmT",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "lBLf4",
+                                      "fill": "#0F172A",
+                                      "content": "语系：Indo-European",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "AAp0W",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "eJL8B",
+                                      "fill": "#0F172A",
+                                      "content": "语言类型：现存语言",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "b5Og5",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "qK3dZ",
+                                  "width": "fill_container",
+                                  "fill": "#FEF3C7",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "1ftH0",
+                                      "fill": "#92400E",
+                                      "content": "活力：稳定",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "JkBDs",
+                                  "width": "fill_container",
+                                  "fill": "#ECFDF5",
+                                  "cornerRadius": 6,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "wDCS4",
+                                      "fill": "#065F46",
+                                      "content": "官方地位：国家级官方",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "nqOTn",
+                              "width": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#E2E8F0"
+                              },
+                              "padding": [
+                                8,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "aPexg",
+                                  "fill": "#334155",
+                                  "content": "自定义字段：传承社区、教材覆盖、音系备注...",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     }
@@ -404,7 +887,7 @@
                   "id": "vBqmm",
                   "name": "p1History",
                   "width": "fill_container",
-                  "height": 170,
+                  "height": 185,
                   "fill": "#F8FAFD",
                   "cornerRadius": 18,
                   "stroke": {
@@ -421,6 +904,80 @@
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "0e40r",
+                      "name": "p1HistoryMock",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "HVsoC",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "zRCRU",
+                              "fill": "#64748B",
+                              "content": "2026-04-11 10:22",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ITW6b",
+                              "fill": "#0F172A",
+                              "content": "更新 · 标识与地理",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "HrLh0",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "chYli",
+                              "fill": "#64748B",
+                              "content": "2026-04-10 18:05",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "5UHxA",
+                              "fill": "#0F172A",
+                              "content": "创建 · 自定义字段",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "U8mZ9",
+                          "fill": "#64748B",
+                          "content": "空态：未保存时显示“当前条目还没有持久化历史”",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
                     }
                   ]
                 },
@@ -489,7 +1046,7 @@
               "id": "MIyxp",
               "name": "Template-2-OrthographyManager",
               "width": 760,
-              "height": 1540,
+              "height": 1750,
               "fill": "#FFFFFF",
               "cornerRadius": 24,
               "stroke": {
@@ -546,7 +1103,7 @@
                       "id": "WTecc",
                       "name": "p2HighTag",
                       "fill": "#64748B",
-                      "content": "当前正字法",
+                      "content": "当前正字法（可打开桥接工作台）",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 11,
                       "fontWeight": "normal"
@@ -665,7 +1222,7 @@
                   "id": "kQcfA",
                   "name": "p2List",
                   "width": "fill_container",
-                  "height": 360,
+                  "height": 430,
                   "fill": "#F8FAFD",
                   "cornerRadius": 18,
                   "stroke": {
@@ -698,7 +1255,7 @@
                           "id": "qfx1L",
                           "name": "p2SearchTxt",
                           "fill": "#94A3B8",
-                          "content": "按语言、名称或脚本筛选",
+                          "content": "按名称、语言或脚本筛选正字法",
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 12,
                           "fontWeight": "normal"
@@ -791,6 +1348,66 @@
                           "fontWeight": "normal"
                         }
                       ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ywe8G",
+                      "name": "p2ListMockState",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "WRBZG",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "sy8qm",
+                              "fill": "#92400E",
+                              "content": "当前没有项目语言上下文",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "bddce",
+                              "fill": "#EEF2FF",
+                              "cornerRadius": 999,
+                              "padding": [
+                                4,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "W54k9",
+                                  "fill": "#1E40AF",
+                                  "content": "全部",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "TvKAu",
+                          "fill": "#64748B",
+                          "content": "先搜索目标正字法，或手动展开完整目录。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
                     }
                   ]
                 },
@@ -799,7 +1416,7 @@
                   "id": "IwaiI",
                   "name": "p2Editor",
                   "width": "fill_container",
-                  "height": 780,
+                  "height": 980,
                   "fill": "#FBFCFF",
                   "cornerRadius": 18,
                   "stroke": {
@@ -815,7 +1432,7 @@
                       "id": "M1brv",
                       "name": "p2EditorTitle",
                       "fill": "#334155",
-                      "content": "编辑区（展开态）",
+                      "content": "编辑区（展开态，含 identity/render/advanced）",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "600"
@@ -825,7 +1442,7 @@
                       "id": "UJsKx",
                       "name": "p2Sec1",
                       "width": "fill_container",
-                      "height": 210,
+                      "height": 275,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -845,6 +1462,182 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "pma8Q",
+                          "name": "p2IdentityMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "9pa9K",
+                              "fill": "#334155",
+                              "content": "Identity（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Oz2iS",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "I9QFS",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "RJGPM",
+                                      "fill": "#64748B",
+                                      "content": "语言",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "qM04H",
+                                      "fill": "#0F172A",
+                                      "content": "Afar",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "PFpqy",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "C62fv",
+                                      "fill": "#64748B",
+                                      "content": "来源语言代码",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "3m5t7",
+                                      "fill": "#0F172A",
+                                      "content": "aar",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "50ghZ",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "XNqOC",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "W3HF7",
+                                      "fill": "#0F172A",
+                                      "content": "文字标签：Ethi",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "lMuyh",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "WH8qH",
+                                      "fill": "#0F172A",
+                                      "content": "类型：practical",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "emi0C",
+                              "fill": "#64748B",
+                              "content": "命名：本族语名称 / 英文名称 / 缩写 / 区域标签 / 变体标记",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
                         }
                       ]
                     },
@@ -853,7 +1646,7 @@
                       "id": "UE5CT",
                       "name": "p2Sec2",
                       "width": "fill_container",
-                      "height": 260,
+                      "height": 340,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -873,6 +1666,214 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "0e4cW",
+                          "name": "p2RenderMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "D0xM5",
+                              "fill": "#334155",
+                              "content": "Render + Advanced（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "h3ZgC",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "7pg01",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "jGybH",
+                                      "fill": "#334155",
+                                      "content": "首选字体：Noto Sans, Charis SIL",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "4rG7E",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "XzzbU",
+                                      "fill": "#334155",
+                                      "content": "行高倍率：1.4",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "KLOx6",
+                              "width": "fill_container",
+                              "gap": 10,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "SJHyz",
+                                  "fill": "#0F172A",
+                                  "content": "☑ 行内双向文本启用隔离",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "L3z4j",
+                                  "fill": "#0F172A",
+                                  "content": "☑ 渲染时优先写入 dir 属性",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "C4Q0n",
+                              "width": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#E2E8F0"
+                              },
+                              "padding": [
+                                8,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Qd4Rm",
+                                  "fill": "#334155",
+                                  "content": "字表示例：示例字符 / 辅助字符 / 数字示例 / 标点示例 / 索引字符",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "CtrXY",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "9IZP5",
+                                  "fill": "#FFF7ED",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "htbar",
+                                      "fill": "#9A3412",
+                                      "content": "审校：待审校",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "BaQTy",
+                                  "fill": "#EEF2FF",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "uvsIX",
+                                      "fill": "#3730A3",
+                                      "content": "推荐级别：扩展",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Ge7YY",
+                                  "fill": "#F1F5F9",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "qKhKb",
+                                      "fill": "#334155",
+                                      "content": "归一化：未设置",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     }
@@ -943,7 +1944,7 @@
               "id": "Iqxdp",
               "name": "Template-3-OrthographyBridge",
               "width": 760,
-              "height": 1540,
+              "height": 1820,
               "fill": "#FFFFFF",
               "cornerRadius": 24,
               "stroke": {
@@ -984,7 +1985,7 @@
                   "id": "Klwly",
                   "name": "p3Summary",
                   "width": "fill_container",
-                  "height": 220,
+                  "height": 290,
                   "fill": "#F8FAFD",
                   "cornerRadius": 18,
                   "stroke": {
@@ -1010,7 +2011,7 @@
                       "id": "lsp2d",
                       "name": "p3Meta2",
                       "fill": "#475569",
-                      "content": "说明：集中管理 source/rules/preview/validation",
+                      "content": "说明：集中管理 source/rules/preview/validation；空态需先选择目标正字法",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "normal"
@@ -1126,7 +2127,7 @@
                               "id": "VwLW0",
                               "name": "p3Link1Txt",
                               "fill": "#334155",
-                              "content": "打开语言元数据",
+                              "content": "打开语言元数据工作台",
                               "fontFamily": "Noto Sans SC",
                               "fontSize": 11,
                               "fontWeight": "600"
@@ -1158,6 +2159,66 @@
                           ]
                         }
                       ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "EvMZP",
+                      "name": "p3SummaryMockState",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "TuHMt",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "W8hf0",
+                              "fill": "#92400E",
+                              "content": "空态：请选择一个目标正字法继续维护桥接规则",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "3GzKY",
+                              "fill": "#F1F5F9",
+                              "cornerRadius": 999,
+                              "padding": [
+                                4,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "VP57e",
+                                  "fill": "#334155",
+                                  "content": "未设置",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "IzNQr",
+                          "fill": "#64748B",
+                          "content": "在这里统一管理来源桥接规则、样例与启用状态。",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
                     }
                   ]
                 },
@@ -1166,7 +2227,7 @@
                   "id": "ZVcpj",
                   "name": "p3List",
                   "width": "fill_container",
-                  "height": 320,
+                  "height": 390,
                   "fill": "#F8FAFD",
                   "cornerRadius": 18,
                   "stroke": {
@@ -1263,6 +2324,66 @@
                           "fontWeight": "normal"
                         }
                       ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GgwEP",
+                      "name": "p3ListMockState",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "padding": [
+                        6,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "UZbSI",
+                          "width": "fill_container",
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "4lvNk",
+                              "fill": "#92400E",
+                              "content": "当前没有项目语言上下文",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "MzL4K",
+                              "fill": "#EEF2FF",
+                              "cornerRadius": 999,
+                              "padding": [
+                                4,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "A64pF",
+                                  "fill": "#1E40AF",
+                                  "content": "全部",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "UsNVV",
+                          "fill": "#64748B",
+                          "content": "列表项展示：正字法名称 + 语言代码（如 aar / zho）",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
                     }
                   ]
                 },
@@ -1271,7 +2392,7 @@
                   "id": "EdMnX",
                   "name": "p3Editor",
                   "width": "fill_container",
-                  "height": 850,
+                  "height": 1040,
                   "fill": "#FBFCFF",
                   "cornerRadius": 18,
                   "stroke": {
@@ -1287,7 +2408,7 @@
                       "id": "iTfQ6",
                       "name": "p3EditorTitle",
                       "fill": "#334155",
-                      "content": "桥接管理器（展开态）",
+                      "content": "桥接管理器（展开态，空态 + 新建规则）",
                       "fontFamily": "Noto Sans SC",
                       "fontSize": 12,
                       "fontWeight": "600"
@@ -1297,7 +2418,7 @@
                       "id": "eDOK9",
                       "name": "p3Source",
                       "width": "fill_container",
-                      "height": 150,
+                      "height": 195,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -1317,6 +2438,162 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "i1LEu",
+                          "name": "p3SourceMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "r2BBN",
+                              "fill": "#334155",
+                              "content": "Source & Target（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "P6kHx",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "7KKKd",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "tEiT0",
+                                      "fill": "#0F172A",
+                                      "content": "目标：Afar Ethiopic · Ethi · practical",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "oj9oj",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "VPCJs",
+                                      "fill": "#0F172A",
+                                      "content": "来源：Afar Latin · Latn · practical",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "600"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "CpkIG",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "wDcLS",
+                                  "fill": "#ECFDF5",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "p6B2o",
+                                      "fill": "#065F46",
+                                      "content": "规则状态：启用",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "GNJ27",
+                                  "fill": "#EEF2FF",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "fsFkx",
+                                      "fill": "#3730A3",
+                                      "content": "优先级：主",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "HpLJf",
+                                  "fill": "#F1F5F9",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "Fzrzr",
+                                      "fill": "#334155",
+                                      "content": "可逆：是",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },
@@ -1325,7 +2602,7 @@
                       "id": "u7hVY",
                       "name": "p3Rules",
                       "width": "fill_container",
-                      "height": 230,
+                      "height": 280,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -1345,6 +2622,188 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Eu5Mb",
+                          "name": "p3RulesMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 10,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 8,
+                          "padding": 10,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "sHOnX",
+                              "fill": "#334155",
+                              "content": "Rule Editor（运行态）",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 11,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "WPFEG",
+                              "width": "fill_container",
+                              "fill": "#FFFFFF",
+                              "cornerRadius": 6,
+                              "stroke": {
+                                "thickness": 1,
+                                "fill": "#E2E8F0"
+                              },
+                              "padding": [
+                                8,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "AfoJ1",
+                                  "fill": "#334155",
+                                  "content": "规则文本：source -> target 的替换与正则变换",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "0JLMl",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "ctaAT",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "NF6kb",
+                                      "fill": "#334155",
+                                      "content": "样例输入：aba",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "znxwt",
+                                  "width": "fill_container",
+                                  "fill": "#FFFFFF",
+                                  "cornerRadius": 6,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "#E2E8F0"
+                                  },
+                                  "padding": [
+                                    6,
+                                    8
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "748DD",
+                                      "fill": "#334155",
+                                      "content": "样例输出：abə",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "VD86o",
+                              "width": "fill_container",
+                              "gap": 8,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "Q6tah",
+                                  "fill": "#EFF6FF",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "gYKXM",
+                                      "fill": "#1D4ED8",
+                                      "content": "新建规则",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "Nw3H5",
+                                  "fill": "#EEF2FF",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "OuMsM",
+                                      "fill": "#3730A3",
+                                      "content": "保存规则",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "aoD3o",
+                                  "fill": "#F8FAFC",
+                                  "cornerRadius": 999,
+                                  "padding": [
+                                    6,
+                                    10
+                                  ],
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "iapGC",
+                                      "fill": "#334155",
+                                      "content": "取消编辑",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },
@@ -1353,7 +2812,7 @@
                       "id": "00WbP",
                       "name": "p3Preview",
                       "width": "fill_container",
-                      "height": 120,
+                      "height": 155,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -1373,6 +2832,43 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "pQ79n",
+                          "name": "p3PreviewMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 8,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 6,
+                          "padding": [
+                            8,
+                            10
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "nwhMI",
+                              "fill": "#334155",
+                              "content": "实时预览：source 文本 -> target 文本",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "81qyM",
+                              "fill": "#64748B",
+                              "content": "无规则时保留原文本。",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
                         }
                       ]
                     },
@@ -1381,7 +2877,7 @@
                       "id": "gdoqm",
                       "name": "p3Validation",
                       "width": "fill_container",
-                      "height": 130,
+                      "height": 165,
                       "fill": "#FFFFFF",
                       "cornerRadius": 14,
                       "stroke": {
@@ -1401,6 +2897,55 @@
                           "fontFamily": "Noto Sans SC",
                           "fontSize": 13,
                           "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Tzsg0",
+                          "name": "p3ValidationMock",
+                          "fill": "#F8FAFC",
+                          "cornerRadius": 8,
+                          "stroke": {
+                            "thickness": 1,
+                            "fill": "#E2E8F0"
+                          },
+                          "layout": "vertical",
+                          "gap": 6,
+                          "padding": [
+                            8,
+                            10
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "V4caF",
+                              "fill": "#334155",
+                              "content": "校验：规则冲突 / 可逆性 / 结果一致性",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Hmfv9",
+                              "fill": "#ECFDF5",
+                              "cornerRadius": 999,
+                              "padding": [
+                                4,
+                                10
+                              ],
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "giNRg",
+                                  "fill": "#065F46",
+                                  "content": "当前校验状态：通过",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 10,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },

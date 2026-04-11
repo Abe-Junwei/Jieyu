@@ -25121,7 +25121,7 @@
           "y": 40,
           "name": "heroSub",
           "fill": "#CBD5E1",
-          "content": "设计稿已对齐真实运行字段：正字法含 identity/render/localized names/advanced，语言元数据含 geography/custom fields/history，桥接含 source/rules/preview/validation。",
+          "content": "设计稿已按 2026-04-11 运行态补齐：语言元数据（搜索+9分区+地图/自定义字段/历史）、正字法（列表+详情+桥接入口）、桥接（空态+列表+新建规则）",
           "fontFamily": "Noto Sans SC",
           "fontSize": 12,
           "fontWeight": "500"
@@ -25187,7 +25187,7 @@
               "type": "text",
               "id": "OuVqh",
               "fill": "#111827",
-              "content": "语言元数据工作区",
+              "content": "语言元数据工作台",
               "fontFamily": "Noto Sans SC",
               "fontSize": 20,
               "fontWeight": "bold"
@@ -25196,7 +25196,7 @@
               "type": "text",
               "id": "n7uHP",
               "fill": "#94A3B8",
-              "content": "字段约 80+ · 9 个分区 · 建议默认展开前 2 个",
+              "content": "字段约 80+ · 9 个分区 · 含地图/行政区选择器/自定义字段/历史",
               "fontFamily": "Noto Sans SC",
               "fontSize": 12,
               "fontWeight": "normal"
@@ -28292,7 +28292,7 @@
                   "type": "text",
                   "id": "edOh6",
                   "fill": "#64748B",
-                  "content": "底部操作：保存元数据、继续编辑",
+                  "content": "底部操作：重置修改、保存条目",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -28364,7 +28364,7 @@
           "y": 100,
           "name": "Panel 2: Orthography Manager",
           "width": 860,
-          "height": 4820,
+          "height": 4880,
           "fill": "#FFFFFF",
           "cornerRadius": 12,
           "stroke": {
@@ -28392,7 +28392,7 @@
               "type": "text",
               "id": "TW47e",
               "fill": "#111827",
-              "content": "正字法工作区",
+              "content": "正字法管理器",
               "fontFamily": "Noto Sans SC",
               "fontSize": 20,
               "fontWeight": "bold"
@@ -28401,7 +28401,7 @@
               "type": "text",
               "id": "g0W67",
               "fill": "#94A3B8",
-              "content": "字段约 50+ · 5 个分区 · 建议默认展开前 2 个",
+              "content": "字段约 50+ · 含左侧列表筛选、右侧详情编辑与桥接入口",
               "fontFamily": "Noto Sans SC",
               "fontSize": 12,
               "fontWeight": "normal"
@@ -28418,6 +28418,7 @@
               "id": "SOlqN",
               "name": "正字法摘要卡",
               "width": "fill_container",
+              "height": 170,
               "fill": "#F3F7FB",
               "stroke": {
                 "thickness": {
@@ -28617,6 +28618,16 @@
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "Krzrc",
+                  "name": "p2Note",
+                  "fill": "#64748B",
+                  "content": "运行态要点：顶部提供“打开正字法桥接工作台”；无项目语言上下文时显示提示并可点击“全部”展开目录。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -30551,7 +30562,7 @@
                   "type": "text",
                   "id": "5mGK0",
                   "fill": "#64748B",
-                  "content": "底部操作：保存正字法、校验示例字符",
+                  "content": "底部操作：重置修改、保存元数据",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -30623,7 +30634,7 @@
           "y": 100,
           "name": "Panel 3: Orthography Bridge",
           "width": 860,
-          "height": 4760,
+          "height": 4865,
           "fill": "#FFFFFF",
           "cornerRadius": 12,
           "stroke": {
@@ -30651,7 +30662,7 @@
               "type": "text",
               "id": "K91Gj",
               "fill": "#111827",
-              "content": "正字法桥接工作区",
+              "content": "正字法桥接工作台",
               "fontFamily": "Noto Sans SC",
               "fontSize": 20,
               "fontWeight": "bold"
@@ -30660,7 +30671,7 @@
               "type": "text",
               "id": "WExgw",
               "fill": "#94A3B8",
-              "content": "字段约 15 个 · 列表、摘要、管理器",
+              "content": "字段约 15 个 · 默认空态 + 目标列表 + 桥接管理器",
               "fontFamily": "Noto Sans SC",
               "fontSize": 12,
               "fontWeight": "normal"
@@ -30677,6 +30688,7 @@
               "id": "2AcRQ",
               "name": "BS2: 摘要卡片 [OPEN]",
               "width": "fill_container",
+              "height": 170,
               "fill": "#F3F7FB",
               "stroke": {
                 "thickness": {
@@ -30876,6 +30888,16 @@
                       ]
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "3BpPi",
+                  "name": "b3Empty",
+                  "fill": "#64748B",
+                  "content": "空态文案：请选择一个目标正字法继续维护桥接规则。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -30884,6 +30906,7 @@
               "id": "jJJe5",
               "name": "BS1: 搜索与列表 [OPEN]",
               "width": "fill_container",
+              "height": 400,
               "fill": "#FAFBFD",
               "stroke": {
                 "thickness": 0,
@@ -31110,6 +31133,16 @@
                       "fontWeight": "normal"
                     }
                   ]
+                },
+                {
+                  "type": "text",
+                  "id": "KySHM",
+                  "name": "b3Context",
+                  "fill": "#64748B",
+                  "content": "无项目语言上下文时，列表区展示提示文案并提供“全部”按钮。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
                 }
               ]
             },
@@ -31146,7 +31179,7 @@
                   "type": "text",
                   "id": "peJU3",
                   "fill": "#64748B",
-                  "content": "源正字法、目标正字法、实时预览与规则编辑集中在同一编辑区",
+                  "content": "在此维护来源语言、来源正字法、规则文本、样例与启用状态。",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -31497,7 +31530,7 @@
                   "type": "text",
                   "id": "5PgBC",
                   "fill": "#64748B",
-                  "content": "→ 语言元数据   → 正字法管理   (导航链接)",
+                  "content": "→ 打开语言元数据工作台   → 打开正字法管理器",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11,
                   "fontWeight": "normal"
@@ -31758,7 +31791,7 @@
                   "type": "text",
                   "id": "BGM4s",
                   "fill": "#64748B",
-                  "content": "底部操作：保存规则、批量验证、导出结果",
+                  "content": "底部操作：新建规则；编辑态显示保存规则、取消编辑",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 11,
                   "fontWeight": "normal"
