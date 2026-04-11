@@ -1,9 +1,6 @@
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import { isAcousticOverlayMode } from '../utils/acousticOverlayTypes';
-import { isWaveformDisplayMode } from '../utils/waveformDisplayMode';
-import { isWaveformVisualStyle } from '../utils/waveformVisualStyle';
 
 export interface WaveformResizeState {
   startY: number;
@@ -34,35 +31,5 @@ export function readStoredClampedNumber(key: string, min: number, max: number, f
     return Math.min(Math.max(parsed, min), max);
   } catch {
     return fallback;
-  }
-}
-
-export function readStoredWaveformVisualStyle(): WaveformVisualStyle {
-  try {
-    const stored = localStorage.getItem('jieyu:waveform-visual-style');
-    if (!stored || !isWaveformVisualStyle(stored)) return 'balanced';
-    return stored;
-  } catch {
-    return 'balanced';
-  }
-}
-
-export function readStoredWaveformDisplayMode(): WaveformDisplayMode {
-  try {
-    const stored = localStorage.getItem('jieyu:waveform-display-mode');
-    if (!stored || !isWaveformDisplayMode(stored)) return 'waveform';
-    return stored;
-  } catch {
-    return 'waveform';
-  }
-}
-
-export function readStoredAcousticOverlayMode(): AcousticOverlayMode {
-  try {
-    const stored = localStorage.getItem('jieyu:acoustic-overlay-mode');
-    if (!stored || !isAcousticOverlayMode(stored)) return 'none';
-    return stored;
-  } catch {
-    return 'none';
   }
 }

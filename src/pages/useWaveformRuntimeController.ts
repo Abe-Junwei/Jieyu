@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { UseWaveformRuntimeControllerResult } from './waveformRuntimeStorage';
 import { readStoredClampedNumber, type WaveformResizeState } from './waveformRuntimeStorage';
-import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference, subscribeWaveformRuntimePreferenceChanged } from '../utils/waveformRuntimePreferenceSync';
+import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_DISPLAY_MODE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference, subscribeWaveformRuntimePreferenceChanged } from '../utils/waveformRuntimePreferenceSync';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -55,9 +55,9 @@ export function useWaveformRuntimeController(): UseWaveformRuntimeControllerResu
       baseHeightRef.current = waveformHeight;
     }
     try {
-      localStorage.setItem('jieyu:waveform-height', String(waveformHeight));
+      localStorage.setItem(WAVEFORM_HEIGHT_STORAGE_KEY, String(waveformHeight));
       localStorage.setItem(WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, String(amplitudeScale));
-      localStorage.setItem('jieyu:waveform-display-mode', waveformDisplayMode);
+      localStorage.setItem(WAVEFORM_DISPLAY_MODE_STORAGE_KEY, waveformDisplayMode);
       localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, waveformVisualStyle);
       localStorage.setItem(ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, acousticOverlayMode);
     } catch {
