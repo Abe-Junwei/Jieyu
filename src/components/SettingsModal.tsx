@@ -593,20 +593,20 @@ export function SettingsModal({
     try { localStorage.setItem(DEFAULT_PLAYBACK_RATE_KEY, String(rate)); } catch { /* ignore */ }
   };
 
-  const handleWorkspaceAutoScrollChange = useCallback((enabled: boolean) => {
+  const handleWorkspaceAutoScrollChange = (enabled: boolean) => {
     setWorkspaceAutoScrollDefault(enabled);
     try { localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
+  };
 
-  const handleWorkspaceSnapChange = useCallback((enabled: boolean) => {
+  const handleWorkspaceSnapChange = (enabled: boolean) => {
     setWorkspaceSnapDefault(enabled);
     try { localStorage.setItem(WORKSPACE_SNAP_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
+  };
 
-  const handleWorkspaceZoomModeChange = useCallback((mode: WorkspaceZoomMode) => {
+  const handleWorkspaceZoomModeChange = (mode: WorkspaceZoomMode) => {
     setWorkspaceZoomModeDefault(mode);
     try { localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, mode); } catch { /* ignore */ }
-  }, []);
+  };
 
   const handleVideoLayoutDefaultChange = useCallback((mode: VideoLayoutPreference) => {
     setVideoLayoutDefault(mode);
@@ -628,15 +628,15 @@ export function SettingsModal({
     emitWorkspaceLayoutPreferenceChanged();
   }, []);
 
-  const handleWaveformDoubleClickActionChange = useCallback((mode: WaveformDoubleClickAction) => {
+  const handleWaveformDoubleClickActionChange = (mode: WaveformDoubleClickAction) => {
     setWaveformDoubleClickActionDefault(mode);
     try { localStorage.setItem(WAVEFORM_DOUBLE_CLICK_ACTION_KEY, mode); } catch { /* ignore */ }
-  }, []);
+  };
 
-  const handleNewSegmentSelectionBehaviorChange = useCallback((mode: NewSegmentSelectionBehavior) => {
+  const handleNewSegmentSelectionBehaviorChange = (mode: NewSegmentSelectionBehavior) => {
     setNewSegmentSelectionBehaviorDefault(mode);
     try { localStorage.setItem(NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, mode); } catch { /* ignore */ }
-  }, []);
+  };
 
   const handleWaveformDisplayDefaultChange = useCallback((mode: WaveformDisplayPreference) => {
     setWaveformDisplayDefault(mode);
@@ -670,15 +670,15 @@ export function SettingsModal({
     emitWaveformRuntimePreferenceChanged();
   }, []);
 
-  const handleReducedMotionChange = useCallback((enabled: boolean) => {
+  const handleReducedMotionChange = (enabled: boolean) => {
     setReducedMotionEnabled(enabled);
     try { localStorage.setItem(ACCESSIBILITY_REDUCED_MOTION_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
+  };
 
-  const handleHighContrastChange = useCallback((enabled: boolean) => {
+  const handleHighContrastChange = (enabled: boolean) => {
     setHighContrastEnabled(enabled);
     try { localStorage.setItem(ACCESSIBILITY_HIGH_CONTRAST_KEY, enabled ? '1' : '0'); } catch { /* ignore */ }
-  }, []);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle('jieyu-reduced-motion', reducedMotionEnabled);
@@ -692,10 +692,10 @@ export function SettingsModal({
 
   const [clearedCaches, setClearedCaches] = useState<Set<string>>(new Set());
 
-  const handleClearCache = useCallback((entry: typeof CACHE_ENTRIES[number]) => {
+  const handleClearCache = (entry: typeof CACHE_ENTRIES[number]) => {
     try { localStorage.removeItem(entry.key); } catch { /* ignore */ }
     setClearedCaches((prev) => new Set(prev).add(entry.id));
-  }, []);
+  };
 
   const handleResetAllData = useCallback(() => {
     if (!window.confirm(msg.dataResetConfirm)) return;
@@ -709,14 +709,14 @@ export function SettingsModal({
     } catch { /* ignore */ }
   }, [msg.dataResetConfirm]);
 
-  const handleMapProviderKindChange = useCallback((kind: MapProviderKind) => {
+  const handleMapProviderKindChange = (kind: MapProviderKind) => {
     const next = {
       kind,
       styleId: getDefaultMapStyleId(kind),
     } as MapProviderPreference;
     setMapProviderDefault(next);
     persistMapProviderPreference(next);
-  }, []);
+  };
 
   const handleMapProviderStyleChange = useCallback((styleId: string) => {
     const next = {
@@ -727,14 +727,14 @@ export function SettingsModal({
     persistMapProviderPreference(next);
   }, [mapProviderDefault]);
 
-  const handleResetVoiceDockPosition = useCallback(() => {
+  const handleResetVoiceDockPosition = () => {
     try {
       localStorage.removeItem(VOICE_DOCK_POSITION_STORAGE_KEY);
     } catch {
       // ignore
     }
     setVoiceDockPositionResetAt(Date.now());
-  }, []);
+  };
 
   // 关闭时重置瞬态 | Reset transient state on close
   useEffect(() => {

@@ -29,7 +29,6 @@ import { TrackFocusToolbarControls } from '../components/transcription/toolbar/T
 import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
-import type { AcousticInspectorReadout } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -54,7 +53,6 @@ import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
-import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
 import { useWaveformRuntimeController } from './useWaveformRuntimeController';
 import { useBatchOperationController } from './useBatchOperationController';
@@ -83,6 +81,7 @@ import { useTranscriptionAnnotationController } from './useTranscriptionAnnotati
 import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';
 import { useTranscriptionWorkspacePanelEffects } from './useTranscriptionWorkspacePanelEffects';
 import { useTranscriptionPlaybackKeyboardController } from './useTranscriptionPlaybackKeyboardController';
+import { useTranscriptionAcousticPanelState } from './useTranscriptionAcousticPanelState';
 import { useTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarControllerInput';
 import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
 import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
@@ -815,129 +814,36 @@ function TranscriptionPageReadyWorkspace({
     setDeferredAiRuntime(runtimeState);
   };
 
-  const waveformAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'loading'
-    ? deferredAiRuntime.acousticRuntimeStatus
-    : undefined;
-  const waveformVadCacheStatus = vadCacheStatus?.state === 'warming'
-    ? vadCacheStatus
-    : undefined;
-  const bottomToolbarAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'error'
-    ? deferredAiRuntime.acousticRuntimeStatus
-    : undefined;
-  const showBottomToolbarAiProgress = bottomToolbarAcousticRuntimeStatus?.state === 'error';
-
-  const [pinnedInspector, setPinnedInspector] = useState<AcousticInspectorReadout | null>(null);
-  const [selectedHotspotTimeSec, setSelectedHotspotTimeSec] = useState<number | null>(null);
-  const [acousticConfigOverride, setAcousticConfigOverride] = useState<Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig> | null>(null);
-  const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];
-
-  useEffect(() => {
-    setSelectedHotspotTimeSec(null);
-    setPinnedInspector(null);
-  }, [selectedTimelineMedia?.id, selectedMediaUrl]);
-
-  useEffect(() => {
-    if (selectedHotspotTimeSec == null) return;
-    if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {
-      return;
-    }
-    if (deferredAiRuntime.acousticSummary == null) {
-      setSelectedHotspotTimeSec(null);
-      return;
-    }
-    const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);
-    if (!stillExists) {
-      setSelectedHotspotTimeSec(null);
-    }
-  }, [activeAcousticHotspots, deferredAiRuntime.acousticRuntimeStatus?.state, deferredAiRuntime.acousticSummary, selectedHotspotTimeSec]);
-
-  const acousticInspector = useMemo<AcousticInspectorReadout | null>(() => {
-    const activeReadout = spectrogramHoverReadout
-      ? {
-          source: 'spectrogram' as const,
-          timeSec: spectrogramHoverReadout.timeSec,
-          frequencyHz: spectrogramHoverReadout.frequencyHz,
-          f0Hz: spectrogramHoverReadout.f0Hz,
-          intensityDb: spectrogramHoverReadout.intensityDb,
-        }
-      : waveformHoverReadout
-        ? {
-            source: 'waveform' as const,
-            timeSec: waveformHoverReadout.timeSec,
-            f0Hz: waveformHoverReadout.f0Hz,
-            intensityDb: waveformHoverReadout.intensityDb,
-          }
-        : null;
-
-    if (!activeReadout) return null;
-
-    const hotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];
-    const nearestHotspot = hotspots
-      .map((hotspot) => ({ hotspot, distance: Math.abs(hotspot.timeSec - activeReadout.timeSec) }))
-      .sort((left, right) => left.distance - right.distance)[0];
-    const matchedHotspot = nearestHotspot && nearestHotspot.distance <= 0.2 ? nearestHotspot.hotspot : null;
-    const selectionStart = deferredAiRuntime.acousticSummary?.selectionStartSec;
-    const selectionEnd = deferredAiRuntime.acousticSummary?.selectionEndSec;
-    const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;
-    const isTerminalSelection = selectionEnd !== undefined
-      && selectionDuration !== undefined
-      && Math.abs(selectionEnd - selectionDuration) <= 1e-6;
-
-    return {
-      ...activeReadout,
-      ...(matchedHotspot ? { matchedHotspotKind: matchedHotspot.kind, matchedHotspotTimeSec: matchedHotspot.timeSec } : {}),
-      ...(selectionStart !== undefined && selectionEnd !== undefined
-        ? {
-            inSelection: activeReadout.timeSec >= selectionStart
-              && (isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd),
-          }
-        : {}),
-    };
-  }, [deferredAiRuntime.acousticSummary, spectrogramHoverReadout, waveformHoverReadout]);
-
-  const handlePinInspector = useCallback(() => {
-    if (acousticInspector) setPinnedInspector({ ...acousticInspector });
-  }, [acousticInspector]);
-
-  const handleClearPinnedInspector = useCallback(() => {
-    setPinnedInspector(null);
-  }, []);
-
-  const handleSelectHotspot = useCallback((timeSec: number | null) => {
-    setSelectedHotspotTimeSec(timeSec);
-  }, []);
-
-  const handleChangeAcousticConfig = useCallback((
-    config: Partial<import('../utils/acousticOverlayTypes').AcousticAnalysisConfig>,
-    options?: { replace?: boolean },
-  ) => {
-    setAcousticConfigOverride((prev) => {
-      if (options?.replace) {
-        return { ...config };
-      }
-      return { ...(prev ?? {}), ...config };
-    });
-  }, []);
-
-  const handleResetAcousticConfig = useCallback(() => {
-    setAcousticConfigOverride(null);
-  }, []);
-
-  const handleChangeAcousticProvider = useCallback((providerId: string | null) => {
-    setAcousticProviderPreference(providerId);
-  }, []);
+  const {
+    waveformAcousticRuntimeStatus,
+    waveformVadCacheStatus,
+    bottomToolbarAcousticRuntimeStatus,
+    showBottomToolbarAiProgress,
+    pinnedInspector,
+    selectedHotspotTimeSec,
+    acousticConfigOverride,
+    acousticInspector,
+    handlePinInspector,
+    handleClearPinnedInspector,
+    handleSelectHotspot,
+    handleChangeAcousticConfig,
+    handleResetAcousticConfig,
+    handleChangeAcousticProvider,
+    handleRefreshAcousticProviderState,
+  } = useTranscriptionAcousticPanelState({
+    deferredAiRuntime,
+    setDeferredAiRuntime,
+    setAcousticProviderPreference,
+    selectedTimelineMediaId: selectedTimelineMedia?.id,
+    selectedMediaUrl,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    acousticProviderPreference,
+    vadCacheStatus,
+  });
 
   // 稳定引用，防止 OrchestratorWaveformContent memo 失效 | Stable ref to avoid breaking OrchestratorWaveformContent React.memo
   const playerInstanceGetWidth = useCallback(() => player.instanceRef.current?.getWidth() ?? 9999, [player.instanceRef]);
-
-  const handleRefreshAcousticProviderState = () => {
-    const service = AcousticAnalysisService.getInstance();
-    const nextProviderState = service.resolveProviderState(acousticProviderPreference);
-    setDeferredAiRuntime((previous) => ({
-      ...previous,
-      acousticProviderState: nextProviderState,
-    }));
-  };
 
   const {
     handleSearchReplace,
