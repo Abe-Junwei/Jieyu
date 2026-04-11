@@ -74,6 +74,24 @@ export interface WaveformAnalysisPromptSummary {
   untranscribedSpeechGapCount?: number;
 }
 
+/** Loop-based max — safe for large arrays (no call-stack limit). */
+function maxOfNumbers(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! > r) r = values[i]!;
+  }
+  return r;
+}
+
+/** Loop-based min — safe for large arrays (no call-stack limit). */
+function minOfNumbers(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! < r) r = values[i]!;
+  }
+  return r;
+}
+
 function toSortedUtterances(input: TimeBoundUtteranceLike[]): TimeBoundUtteranceLike[] {
   return input
     .filter((item) => Number.isFinite(item.startTime) && Number.isFinite(item.endTime) && item.endTime > item.startTime)
@@ -223,7 +241,7 @@ export function buildRiskHotZones(
   for (let i = 1; i < signals.length; i++) {
     const signal = signals[i]!;
     const lastCluster = clusters[clusters.length - 1]!;
-    const lastEnd = Math.max(...lastCluster.map((s) => s.endTime));
+    const lastEnd = maxOfNumbers(lastCluster.map((s) => s.endTime));
     if (signal.startTime - lastEnd <= clusterGap) {
       lastCluster.push(signal);
     } else {
@@ -234,8 +252,8 @@ export function buildRiskHotZones(
   const zones: RiskHotZone[] = clusters
     .filter((cluster) => cluster.length >= 2)
     .map((cluster) => {
-      const start = Math.min(...cluster.map((s) => s.startTime));
-      const end = Math.max(...cluster.map((s) => s.endTime));
+      const start = minOfNumbers(cluster.map((s) => s.startTime));
+      const end = maxOfNumbers(cluster.map((s) => s.endTime));
       const breakdown = {
         lowConfidence: cluster.filter((s) => s.type === 'lowConfidence').length,
         overlap: cluster.filter((s) => s.type === 'overlap').length,
@@ -354,7 +372,7 @@ export function buildWaveformAnalysisPromptSummary(
   // 时间四分位分布 | Temporal quartile distribution
   const durationSec = options?.audioDurationSec
     ?? (utterances.length > 0
-      ? Math.max(...utterances.map((u) => u.endTime).filter(Number.isFinite))
+      ? maxOfNumbers(utterances.map((u) => u.endTime).filter(Number.isFinite))
       : 0);
   const temporalDistribution = buildTemporalDistribution(summary, durationSec);
 

@@ -10,6 +10,24 @@ export const ACOUSTIC_DIAGNOSTIC_KEYS = [
 
 export type AcousticDiagnosticKey = (typeof ACOUSTIC_DIAGNOSTIC_KEYS)[number];
 
+/** Loop-based min — safe for large arrays (no call-stack limit). */
+function minOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! < r) r = values[i]!;
+  }
+  return r;
+}
+
+/** Loop-based max — safe for large arrays (no call-stack limit). */
+function maxOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! > r) r = values[i]!;
+  }
+  return r;
+}
+
 export interface AcousticPromptSummary {
   selectionStartSec: number;
   selectionEndSec: number;
@@ -149,15 +167,15 @@ export function buildAcousticPromptSummary(
   const summary: AcousticPromptSummary = {
     selectionStartSec,
     selectionEndSec,
-    f0MinHz: f0Values.length > 0 ? Math.min(...f0Values) : null,
-    f0MaxHz: f0Values.length > 0 ? Math.max(...f0Values) : null,
+    f0MinHz: f0Values.length > 0 ? minOf(f0Values) : null,
+    f0MaxHz: f0Values.length > 0 ? maxOf(f0Values) : null,
     f0MeanHz: f0Values.length > 0 ? f0Values.reduce((sum, value) => sum + value, 0) / f0Values.length : null,
-    intensityPeakDb: intensities.length > 0 ? Math.max(...intensities) : null,
+    intensityPeakDb: intensities.length > 0 ? maxOf(intensities) : null,
     reliabilityMean: reliabilities.length > 0 ? reliabilities.reduce((sum, value) => sum + value, 0) / reliabilities.length : null,
     voicedFrameCount: voicedFrames.length,
     frameCount: frames.length,
     durationSec: selectionEndSec - selectionStartSec,
-    intensityMinDb: intensities.length > 0 ? Math.min(...intensities) : null,
+    intensityMinDb: intensities.length > 0 ? minOf(intensities) : null,
     voicedRatio: frames.length > 0 ? voicedFrames.length / frames.length : null,
     spectralCentroidMeanHz: spectralCentroids.length > 0 ? spectralCentroids.reduce((sum, value) => sum + value, 0) / spectralCentroids.length : null,
     spectralRolloffMeanHz: spectralRolloffs.length > 0 ? spectralRolloffs.reduce((sum, value) => sum + value, 0) / spectralRolloffs.length : null,

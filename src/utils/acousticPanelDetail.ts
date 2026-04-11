@@ -101,6 +101,24 @@ function average(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/** Loop-based min — safe for large arrays (no call-stack limit). */
+function minOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! < r) r = values[i]!;
+  }
+  return r;
+}
+
+/** Loop-based max — safe for large arrays (no call-stack limit). */
+function maxOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! > r) r = values[i]!;
+  }
+  return r;
+}
+
 export function deriveAcousticCalibrationStatus(detail: AcousticPanelDetail | null): AcousticCalibrationStatus {
   if (!detail || detail.sampleCount <= 0) return 'exploratory';
 
@@ -218,10 +236,10 @@ function buildAcousticPanelDetailFromFrames(
   const intensityValues = sourceFrames
     .map((frame) => frame.intensityDb)
     .filter((value) => Number.isFinite(value));
-  const f0Min = voicedF0Values.length > 0 ? Math.min(...voicedF0Values) : 0;
-  const f0Max = voicedF0Values.length > 0 ? Math.max(...voicedF0Values) : 0;
-  const intensityMin = intensityValues.length > 0 ? Math.min(...intensityValues) : 0;
-  const intensityMax = intensityValues.length > 0 ? Math.max(...intensityValues) : 0;
+  const f0Min = voicedF0Values.length > 0 ? minOf(voicedF0Values) : 0;
+  const f0Max = voicedF0Values.length > 0 ? maxOf(voicedF0Values) : 0;
+  const intensityMin = intensityValues.length > 0 ? minOf(intensityValues) : 0;
+  const intensityMax = intensityValues.length > 0 ? maxOf(intensityValues) : 0;
 
   const frames: AcousticPanelFramePoint[] = sourceFrames.map((frame) => ({
     timeSec: frame.timeSec,
@@ -392,10 +410,10 @@ export function buildAcousticInspectorSlice(
     endSec,
     sampleCount: windowFrames.length,
     voicedSampleCount: voicedFrames.length,
-    pitchMinHz: voicedValues.length > 0 ? Math.min(...voicedValues) : null,
-    pitchMaxHz: voicedValues.length > 0 ? Math.max(...voicedValues) : null,
-    intensityMinDb: intensityValues.length > 0 ? Math.min(...intensityValues) : null,
-    intensityMaxDb: intensityValues.length > 0 ? Math.max(...intensityValues) : null,
+    pitchMinHz: voicedValues.length > 0 ? minOf(voicedValues) : null,
+    pitchMaxHz: voicedValues.length > 0 ? maxOf(voicedValues) : null,
+    intensityMinDb: intensityValues.length > 0 ? minOf(intensityValues) : null,
+    intensityMaxDb: intensityValues.length > 0 ? maxOf(intensityValues) : null,
     reliabilityMean: average(reliabilityValues),
     pitchTrend: resolveTrend(firstVoiced, lastVoiced, 12),
     intensityTrend: resolveTrend(firstIntensity, lastIntensity, 1.2),

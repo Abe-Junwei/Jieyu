@@ -29,6 +29,24 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+/** Loop-based min — safe for large arrays (no call-stack limit). */
+function minOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! < r) r = values[i]!;
+  }
+  return r;
+}
+
+/** Loop-based max — safe for large arrays (no call-stack limit). */
+function maxOf(values: number[]): number {
+  let r = values[0]!;
+  for (let i = 1; i < values.length; i += 1) {
+    if (values[i]! > r) r = values[i]!;
+  }
+  return r;
+}
+
 function nextPowerOfTwo(value: number): number {
   let result = 1;
   while (result < value) {
@@ -684,11 +702,11 @@ function computeSummary(frames: AcousticFrame[], durationSec: number): AcousticA
       f2Hz: frame.formantF2Hz as number,
     }));
 
-  const f0MinHz = f0Values.length > 0 ? Math.min(...f0Values) : null;
-  const f0MaxHz = f0Values.length > 0 ? Math.max(...f0Values) : null;
+  const f0MinHz = f0Values.length > 0 ? minOf(f0Values) : null;
+  const f0MaxHz = f0Values.length > 0 ? maxOf(f0Values) : null;
   const f0MeanHz = f0Values.length > 0 ? f0Values.reduce((sum, value) => sum + value, 0) / f0Values.length : null;
-  const intensityMinDb = intensities.length > 0 ? Math.min(...intensities) : null;
-  const intensityPeakDb = intensities.length > 0 ? Math.max(...intensities) : null;
+  const intensityMinDb = intensities.length > 0 ? minOf(intensities) : null;
+  const intensityPeakDb = intensities.length > 0 ? maxOf(intensities) : null;
   const reliabilityMean = reliabilities.length > 0
     ? reliabilities.reduce((sum, value) => sum + value, 0) / reliabilities.length
     : null;
@@ -761,13 +779,13 @@ function computeHotspots(frames: AcousticFrame[]): AcousticHotspot[] {
   const voicedFrames = frames.filter((frame) => frame.f0Hz != null);
   const f0Values = voicedFrames.map((frame) => frame.f0Hz ?? 0);
   const intensityValues = frames.map((frame) => frame.intensityDb).filter((value) => Number.isFinite(value));
-  const intensityMin = intensityValues.length > 0 ? Math.min(...intensityValues) : null;
-  const intensityMax = intensityValues.length > 0 ? Math.max(...intensityValues) : null;
+  const intensityMin = intensityValues.length > 0 ? minOf(intensityValues) : null;
+  const intensityMax = intensityValues.length > 0 ? maxOf(intensityValues) : null;
 
   if (voicedFrames.length > 0) {
     const peakFrame = voicedFrames.reduce((best, current) => ((current.f0Hz ?? 0) > (best.f0Hz ?? 0) ? current : best), voicedFrames[0]!);
-    const voicedMin = Math.min(...f0Values);
-    const voicedMax = Math.max(...f0Values);
+    const voicedMin = minOf(f0Values);
+    const voicedMax = maxOf(f0Values);
     const pitchRange = Math.max(voicedMax - voicedMin, 1);
     hotspots.push(buildHotspot('pitch_peak', peakFrame, peakFrame.timeSec, peakFrame.timeSec, ((peakFrame.f0Hz ?? voicedMin) - voicedMin) / pitchRange));
 
