@@ -40,13 +40,6 @@ export interface WaveformOverlapOverlay {
   concurrentCount: number;
 }
 
-export interface WaveformGapOverlay {
-  id: string;
-  leftPx: number;
-  widthPx: number;
-  gapSeconds: number;
-}
-
 export interface AcousticOverlayVisibleSummary {
   f0MeanHz: number | null;
   intensityPeakDb: number | null;
@@ -164,7 +157,6 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   waveformNoteIndicators: WaveformNoteIndicator[];
   waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
   waveformOverlapOverlays: WaveformOverlapOverlay[];
-  waveformGapOverlays: WaveformGapOverlay[];
   acousticOverlayViewportWidth: number;
   acousticOverlayF0Path: string | null;
   acousticOverlayIntensityPath: string | null;

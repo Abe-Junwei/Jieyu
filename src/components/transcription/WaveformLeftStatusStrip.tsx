@@ -5,7 +5,7 @@
  * Displays zoom%, snap toggle, playback rate, current time, segment duration, and gain slider
  */
 
-import type { FC, PointerEvent as ReactPointerEvent } from 'react';
+import { memo, type FC, type PointerEvent as ReactPointerEvent } from 'react';
 import { t, tf, useLocale } from '../../i18n';
 import type { VideoLayoutMode } from './TranscriptionTimelineSections';
 
@@ -39,7 +39,7 @@ export interface WaveformLeftStatusStripProps {
   formatTime: (seconds: number) => string;
 }
 
-export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
+export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(function WaveformLeftStatusStrip({
   zoomPercent,
   snapEnabled,
   onSnapToggle,
@@ -54,7 +54,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
   onVideoLayoutModeChange,
   onLaneLabelWidthResize,
   formatTime,
-}) => {
+}) {
   const locale = useLocale();
   return (
     <div className="waveform-left-status-strip">
@@ -164,4 +164,4 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = ({
       )}
     </div>
   );
-};
+});

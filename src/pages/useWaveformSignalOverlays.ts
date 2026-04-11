@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import type { VadSegmentLike } from '../utils/waveformAnalysisOverlays';
 import { buildWaveformAnalysisOverlaySummary } from '../utils/waveformAnalysisOverlays';
 import type {
-  WaveformGapOverlay,
   WaveformLowConfidenceOverlay,
   WaveformNoteIndicator,
   WaveformOverlapOverlay,
@@ -22,7 +21,6 @@ interface UseWaveformSignalOverlaysResult {
   waveformNoteIndicators: WaveformNoteIndicator[];
   waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
   waveformOverlapOverlays: WaveformOverlapOverlay[];
-  waveformGapOverlays: WaveformGapOverlay[];
 }
 
 export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput): UseWaveformSignalOverlaysResult {
@@ -60,17 +58,10 @@ export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput)
     concurrentCount: band.concurrentCount,
   })), [input.waveformScrollLeft, input.zoomPxPerSec, waveformAnalysisSummary.overlapBands]);
 
-  const waveformGapOverlays = useMemo(() => waveformAnalysisSummary.gapBands.map((band) => ({
-    id: band.id,
-    leftPx: band.startTime * input.zoomPxPerSec - input.waveformScrollLeft,
-    widthPx: Math.max(2, (band.endTime - band.startTime) * input.zoomPxPerSec),
-    gapSeconds: band.gapSeconds,
-  })), [input.waveformScrollLeft, input.zoomPxPerSec, waveformAnalysisSummary.gapBands]);
 
   return {
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
-    waveformGapOverlays,
   };
 }

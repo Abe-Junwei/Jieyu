@@ -415,9 +415,9 @@ export function useTranscriptionWorkspaceLayoutController(
     setIsFocusMode(false);
   }, []);
 
-  const toggleSnapEnabled = () => {
+  const toggleSnapEnabled = useCallback(() => {
     setSnapEnabled((prev) => !prev);
-  };
+  }, []);
 
   return {
     zoomPercent,

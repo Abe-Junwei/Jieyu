@@ -53,12 +53,6 @@ interface WaveformOverlapOverlay {
   concurrentCount: number;
 }
 
-interface WaveformGapOverlay {
-  id: string;
-  leftPx: number;
-  widthPx: number;
-  gapSeconds: number;
-}
 
 interface AcousticOverlayVisibleSummary {
   f0MeanHz: number | null;
@@ -144,7 +138,6 @@ export interface OrchestratorWaveformContentProps {
   waveformNoteIndicators: WaveformNoteIndicator[];
   waveformLowConfidenceOverlays: WaveformLowConfidenceOverlay[];
   waveformOverlapOverlays: WaveformOverlapOverlay[];
-  waveformGapOverlays: WaveformGapOverlay[];
   acousticOverlayMode: AcousticOverlayMode;
   acousticOverlayViewportWidth: number;
   acousticOverlayF0Path: string | null;
@@ -188,7 +181,7 @@ export interface OrchestratorWaveformContentProps {
   handleWaveformResizeStart: React.PointerEventHandler<HTMLDivElement>;
 }
 
-export function OrchestratorWaveformContent(props: OrchestratorWaveformContentProps) {
+export const OrchestratorWaveformContent = React.memo(function OrchestratorWaveformContent(props: OrchestratorWaveformContentProps) {
   const {
     locale,
     waveformAreaRef,
@@ -241,7 +234,6 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
-    waveformGapOverlays,
     acousticOverlayMode,
     acousticOverlayViewportWidth,
     acousticOverlayF0Path,
@@ -276,6 +268,9 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
     mediaFileInputRef,
     handleWaveformResizeStart,
   } = props;
+
+  // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
+  const handleAmplitudeReset = React.useCallback(() => setAmplitudeScale(1), [setAmplitudeScale]);
 
   const activeReadout = spectrogramHoverReadout
     ? {
@@ -394,7 +389,7 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
             selectedUtteranceDuration={selectedUtteranceDuration}
             amplitudeScale={amplitudeScale}
             onAmplitudeChange={setAmplitudeScale}
-            onAmplitudeReset={() => setAmplitudeScale(1)}
+            onAmplitudeReset={handleAmplitudeReset}
             selectedMediaIsVideo={selectedMediaIsVideo}
             videoLayoutMode={videoLayoutMode}
             onVideoLayoutModeChange={setVideoLayoutMode}
@@ -459,14 +454,7 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
                         tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount }),
                         widthPx >= 52 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
                       ))}
-                      {waveformGapOverlays.map(({ id, leftPx, widthPx, gapSeconds }, index) => renderWaveformAnalysisBand(
-                        'gap',
-                        `gap-${index}-${id}`,
-                        leftPx,
-                        widthPx,
-                        tf(locale, 'transcription.wave.analysis.gapTitle', { seconds: gapSeconds.toFixed(1) }),
-                        widthPx >= 52 ? tf(locale, 'transcription.wave.analysis.gap', { seconds: gapSeconds.toFixed(1) }) : null,
-                      ))}
+
                     </svg>
                     <div className="waveform-runtime-status">
                       <ToolbarAiProgress
@@ -674,4 +662,4 @@ export function OrchestratorWaveformContent(props: OrchestratorWaveformContentPr
       ) : null}
     </>
   );
-}
+});

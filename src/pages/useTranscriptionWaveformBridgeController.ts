@@ -158,7 +158,6 @@ export function useTranscriptionWaveformBridgeController(
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
-    waveformGapOverlays,
   } = useWaveformSignalOverlays({
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     ...(vadSegments ? { vadSegments } : {}),
@@ -422,7 +421,6 @@ export function useTranscriptionWaveformBridgeController(
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
-    waveformGapOverlays,
     acousticOverlayViewportWidth,
     acousticOverlayF0Path,
     acousticOverlayIntensityPath,

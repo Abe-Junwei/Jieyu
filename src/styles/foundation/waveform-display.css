@@ -314,11 +314,3 @@
   fill: var(--state-danger-text);
 }
 
-.waveform-analysis-band-gap {
-  fill: color-mix(in srgb, var(--state-info-solid) 16%, transparent);
-  stroke: color-mix(in srgb, var(--state-info-solid) 36%, transparent);
-}
-
-.waveform-analysis-band-label-gap {
-  fill: var(--state-info-text);
-}

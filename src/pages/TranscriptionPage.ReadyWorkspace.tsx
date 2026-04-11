@@ -677,7 +677,6 @@ function TranscriptionPageReadyWorkspace({
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
-    waveformGapOverlays,
     acousticOverlayViewportWidth,
     acousticOverlayF0Path,
     acousticOverlayIntensityPath,
@@ -927,6 +926,9 @@ function TranscriptionPageReadyWorkspace({
   const handleChangeAcousticProvider = useCallback((providerId: string | null) => {
     setAcousticProviderPreference(providerId);
   }, []);
+
+  // 稳定引用，防止 OrchestratorWaveformContent memo 失效 | Stable ref to avoid breaking OrchestratorWaveformContent React.memo
+  const playerInstanceGetWidth = useCallback(() => player.instanceRef.current?.getWidth() ?? 9999, [player.instanceRef]);
 
   const handleRefreshAcousticProviderState = () => {
     const service = AcousticAnalysisService.getInstance();
@@ -1895,7 +1897,6 @@ function TranscriptionPageReadyWorkspace({
                   waveformNoteIndicators={waveformNoteIndicators}
                   waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
                   waveformOverlapOverlays={waveformOverlapOverlays}
-                  waveformGapOverlays={waveformGapOverlays}
                   acousticOverlayMode={acousticOverlayMode}
                   acousticOverlayViewportWidth={acousticOverlayViewportWidth}
                   acousticOverlayF0Path={acousticOverlayF0Path}
@@ -1920,7 +1921,7 @@ function TranscriptionPageReadyWorkspace({
                   selectedWaveformTimelineItem={selectedWaveformTimelineItem}
                   playerIsReady={player.isReady}
                   playerIsPlaying={player.isPlaying}
-                  playerInstanceGetWidth={() => player.instanceRef.current?.getWidth() ?? 9999}
+                  playerInstanceGetWidth={playerInstanceGetWidth}
                   zoomPxPerSec={zoomPxPerSec}
                   waveformScrollLeft={waveformScrollLeft}
                   segmentPlaybackRate={segmentPlaybackRate}
