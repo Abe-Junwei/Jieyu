@@ -6,7 +6,7 @@ import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
 import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
 import {
   deleteLanguageCatalogEntry,
@@ -16,7 +16,9 @@ import {
   upsertLanguageCatalogEntry,
   type LanguageCatalogEntry,
 } from '../services/LinguisticService.languageCatalog';
+import { searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
+import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import {
@@ -47,6 +49,7 @@ export function LanguageMetadataWorkspacePage({
   // M1: useLocale() 返回 Locale 与 WorkspaceLocale 类型一致，无需强转 | useLocale() returns Locale which matches WorkspaceLocale
   const locale: WorkspaceLocale = useLocale();
   const { projectLanguageIds } = useProjectLanguageIds();
+  const invalidateLabelMap = useInvalidateLanguageCatalogLabelMap();
   const [searchParams, setSearchParams] = useSearchParams();
   const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -58,6 +61,8 @@ export function LanguageMetadataWorkspacePage({
   const [saveSuccess, setSaveSuccess] = useState('');
   const [searchText, setSearchText] = useState('');
   const [draft, setDraft] = useState<LanguageMetadataDraft>(() => buildDraft(null, locale));
+  // 搜索匹配元数据：用于 P2 match rendering | Search match metadata for P2 match rendering
+  const [searchSuggestionMap, setSearchSuggestionMap] = useState<ReadonlyMap<string, LanguageCatalogSearchSuggestion>>(new Map());
   const deferredSearchText = useDeferredValue(searchText);
   const selectedLanguageId = searchParams.get(LANGUAGE_ID_PARAM) ?? '';
   // 跟踪最近一次已完成草稿装载的语言 ID，避免仅 entries 变化时覆盖未保存草稿 | Track last hydrated language id to avoid clobbering unsaved draft on entries-only refreshes
@@ -78,23 +83,53 @@ export function LanguageMetadataWorkspacePage({
     return Array.from(ids);
   }, [projectLanguageIds, selectedLanguageId]);
 
+  // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest values via refs to avoid circular deps in load effect
+  const selectedLanguageIdRef = useRef(selectedLanguageId);
+  selectedLanguageIdRef.current = selectedLanguageId;
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+
   const loadEntries = async (nextSearchText: string) => {
     setLoading(true);
     try {
       const normalizedSearchText = nextSearchText.trim();
-      const records = normalizedSearchText
-        ? await listLanguageCatalogEntries({
+      let records: LanguageCatalogEntry[];
+
+      if (normalizedSearchText) {
+        // 两阶段搜索：先用分层排名获取匹配 ID，再取完整条目 | Two-stage search: ranked IDs first, then full entries
+        const suggestions = await searchLanguageCatalogSuggestions({
+          query: normalizedSearchText,
           locale,
-          searchText: normalizedSearchText,
-          includeHidden: true,
-        })
-        : browseLanguageIds.length > 0
+          limit: 50,
+        });
+        const nextSuggestionMap = new Map<string, LanguageCatalogSearchSuggestion>();
+        suggestions.forEach((suggestion) => nextSuggestionMap.set(suggestion.id, suggestion));
+        setSearchSuggestionMap(nextSuggestionMap);
+
+        if (suggestions.length === 0) {
+          records = [];
+        } else {
+          const rankedIds = suggestions.map((suggestion) => suggestion.id);
+          const raw = await listLanguageCatalogEntries({
+            locale,
+            includeHidden: true,
+            languageIds: rankedIds,
+          });
+          // 按搜索排名排序 | Sort by search rank order
+          const idOrder = new Map(rankedIds.map((id, index) => [id, index]));
+          records = raw.slice().sort((a, b) => (idOrder.get(a.id) ?? Infinity) - (idOrder.get(b.id) ?? Infinity));
+        }
+      } else {
+        setSearchSuggestionMap(new Map());
+        records = browseLanguageIds.length > 0
           ? await listLanguageCatalogEntries({
             locale,
             includeHidden: true,
             languageIds: browseLanguageIds,
           })
           : [];
+      }
+
       setEntries(records);
       setError('');
       return records;
@@ -107,13 +142,28 @@ export function LanguageMetadataWorkspacePage({
     }
   };
 
+  // 合并数据加载 + 自动选择为单一 effect，消除 entries→setSearchParams→entries 循环
+  // Merge data loading + auto-select into one effect, eliminating entries→setSearchParams→entries cycle
   useEffect(() => {
-    void loadEntries(deferredSearchText.trim());
+    let cancelled = false;
+    void loadEntries(deferredSearchText.trim()).then((records) => {
+      if (cancelled) return;
+      const currentId = selectedLanguageIdRef.current;
+      if (currentId === NEW_LANGUAGE_ID || records.length === 0) return;
+      const inResults = records.some((r) => r.id === currentId);
+      if (!currentId || !inResults) {
+        const nextParams = new URLSearchParams(searchParamsRef.current);
+        nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
+        setSearchParams(nextParams, { replace: true });
+      }
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 用 ref 读取 selectedLanguageId/searchParams 以避免循环 | Read via refs to avoid circular deps
   }, [browseLanguageIds, deferredSearchText, locale]);
 
+  // 草稿同步：纯视图同步，不再调用 setSearchParams | Draft hydration: pure view sync, no setSearchParams
   useEffect(() => {
     if (selectedLanguageId === NEW_LANGUAGE_ID) {
-      // 仅在首次进入新建模式时初始化草稿，搜索导致的 entries 变化不重置 | Only initialize on first entry into new mode, not on entries-only refreshes
       if (lastHydratedLanguageIdRef.current !== NEW_LANGUAGE_ID) {
         setDraft(buildDraft(null, locale));
         lastHydratedLanguageIdRef.current = NEW_LANGUAGE_ID;
@@ -121,27 +171,11 @@ export function LanguageMetadataWorkspacePage({
       return;
     }
 
-    const selectedEntry = entries.find((entry) => entry.id === selectedLanguageId) ?? null;
-    if (!selectedLanguageId && entries.length > 0) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set(LANGUAGE_ID_PARAM, entries[0]!.id);
-      setSearchParams(nextParams, { replace: true });
-      return;
-    }
-
-    // 搜索定位语义：当前条目不在结果里时，自动切到首个匹配项
-    // Search-as-locate semantics: switch to first match when current entry is absent from results
-    if (!selectedEntry && selectedLanguageId && entries.length > 0) {
-      const nextParams = new URLSearchParams(searchParams);
-      nextParams.set(LANGUAGE_ID_PARAM, entries[0]!.id);
-      setSearchParams(nextParams, { replace: true });
-      return;
-    }
-
-    if (selectedEntry) {
-      if (lastHydratedLanguageIdRef.current !== selectedEntry.id) {
-        setDraft(buildDraft(selectedEntry, locale));
-        lastHydratedLanguageIdRef.current = selectedEntry.id;
+    const matched = entries.find((entry) => entry.id === selectedLanguageId) ?? null;
+    if (matched) {
+      if (lastHydratedLanguageIdRef.current !== matched.id) {
+        setDraft(buildDraft(matched, locale));
+        lastHydratedLanguageIdRef.current = matched.id;
       }
       return;
     }
@@ -150,7 +184,7 @@ export function LanguageMetadataWorkspacePage({
       setDraft(buildDraft(null, locale));
       lastHydratedLanguageIdRef.current = null;
     }
-  }, [entries, locale, searchParams, selectedLanguageId, setSearchParams]);
+  }, [entries, locale, selectedLanguageId]);
 
   const selectedEntry = useMemo(
     () => entries.find((entry) => entry.id === selectedLanguageId) ?? null,
@@ -347,6 +381,7 @@ export function LanguageMetadataWorkspacePage({
         locale,
       });
 
+      invalidateLabelMap();
       await loadEntries(deferredSearchText.trim());
       const nextParams = new URLSearchParams(searchParams);
       nextParams.set(LANGUAGE_ID_PARAM, saved.id);
@@ -373,6 +408,7 @@ export function LanguageMetadataWorkspacePage({
         ...(draft.changeReason.trim() ? { reason: draft.changeReason.trim() } : {}),
         locale,
       });
+      invalidateLabelMap();
       const refreshed = await loadEntries(deferredSearchText.trim());
       const nextParams = new URLSearchParams(searchParams);
       if (selectedEntry.entryKind === 'custom') {
@@ -468,7 +504,13 @@ export function LanguageMetadataWorkspacePage({
           aria-label={t(locale, 'workspace.languageMetadata.searchPlaceholder')}
         />
         <button type="button" className="btn btn-ghost" onClick={handleCreateCustom}>{t(locale, 'workspace.languageMetadata.createCustom')}</button>
-        <p className="lm-toolbar-hint">{t(locale, 'workspace.languageMetadata.searchLocateHint')}</p>
+        <p className={`lm-toolbar-hint${deferredSearchText.trim() && entries.length === 0 ? ' lm-toolbar-hint-warn' : ''}`}>
+          {deferredSearchText.trim() && entries.length === 0
+            ? t(locale, 'workspace.languageMetadata.searchNoResults')
+            : deferredSearchText.trim() && entries.length > 0
+              ? tf(locale, 'workspace.languageMetadata.searchMatchCount', { count: String(entries.length), source: searchSuggestionMap.get(entries[0]?.id ?? '')?.matchSource ?? '' })
+              : t(locale, 'workspace.languageMetadata.searchLocateHint')}
+        </p>
       </div>
 
       <LanguageMetadataWorkspaceDetailColumn

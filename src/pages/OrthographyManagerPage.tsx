@@ -1,11 +1,12 @@
 import '../styles/pages/orthography-manager-panel.css';
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getOrthographyCatalogBadgeInfo } from '../components/orthographyCatalogUi';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
@@ -79,6 +80,12 @@ export function OrthographyManagerPage({
     showUnscopedIdleState,
   } = browseState;
 
+  // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+  const selectedOrthographyIdRef = useRef(selectedOrthographyId);
+  selectedOrthographyIdRef.current = selectedOrthographyId;
+
   // M3: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +117,14 @@ export function OrthographyManagerPage({
         if (cancelled) return;
         setOrthographies(records);
         setError('');
+
+        // 加载后自动选择首项（不依赖 searchParams） | Post-load auto-select first item (avoids dep on searchParams)
+        const currentId = selectedOrthographyIdRef.current;
+        if (records.length > 0 && !records.some((r) => r.id === currentId)) {
+          const nextParams = new URLSearchParams(searchParamsRef.current);
+          nextParams.set(ORTHOGRAPHY_ID_PARAM, records[0]!.id);
+          setSearchParams(nextParams, { replace: true });
+        }
       } catch (loadError) {
         if (cancelled) return;
         setOrthographies([]);
@@ -126,10 +141,21 @@ export function OrthographyManagerPage({
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale | Data fetch is locale-independent, but error message formatting needs locale
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- 数据加载不依赖 locale，但 catch 中错误文案需要 locale；用 ref 读取 selectedOrthographyId/searchParams 以避免循环 | Data fetch is locale-independent, but error message formatting needs locale; read via refs to avoid circular deps
   }, [browseState, locale, normalizedSearchText, selectedOrthographyId]);
 
   const filteredOrthographies = orthographies;
+
+  // 列表键盘导航 | List keyboard navigation
+  const getOrthographyId = useCallback((o: OrthographyDocType) => o.id, []);
+  const selectOrthographyRef = useRef<(id: string) => void>(() => {});
+  const { activeIndex: kbActiveIndex, handleSearchKeyDown: kbSearchKeyDown, listRef: kbListRef, resetActiveIndex: kbReset } = useListKeyboardNav({
+    items: filteredOrthographies,
+    getItemId: getOrthographyId,
+    onSelect: (id) => { selectOrthographyRef.current(id); },
+  });
+  // 列表变化时重置高亮 | Reset highlight when list changes
+  useEffect(() => { kbReset(); }, [filteredOrthographies, kbReset]);
 
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
@@ -143,6 +169,7 @@ export function OrthographyManagerPage({
     [baselineDraft, draft],
   );
 
+  // 草稿初始化：仅在 baselineDraft 变化时重置 | Draft init: only reset when baselineDraft changes
   useEffect(() => {
     if (!baselineDraft) {
       setDraft(null);
@@ -162,42 +189,20 @@ export function OrthographyManagerPage({
     });
     setSaveError('');
     setSaveSuccess('');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- resolveLabel/resolveLanguageCode 仅用于初始赋值，不做后续同步 | resolveLabel/resolveLanguageCode used only for initial assignment
   }, [baselineDraft]);
 
+  // 目录加载后同步语言标签显示（不重置草稿） | Sync language display labels after catalog loads (without resetting draft)
   useEffect(() => {
-    if (!baselineDraft?.languageId) {
-      return;
-    }
-
-    const nextLanguageName = resolveLabel(baselineDraft.languageId);
+    if (!baselineDraft?.languageId) return;
+    const nextName = resolveLabel(baselineDraft.languageId);
+    const nextCode = resolveLanguageCode(baselineDraft.languageId);
     setLanguageInput((prev) => {
-      if (prev.languageAssetId !== baselineDraft.languageId || prev.languageName === nextLanguageName) {
-        return prev;
-      }
-      return {
-        ...prev,
-        languageName: nextLanguageName,
-      };
+      if (prev.languageAssetId !== baselineDraft.languageId) return prev;
+      if (prev.languageName === nextName && prev.languageCode === nextCode) return prev;
+      return { ...prev, languageName: nextName, languageCode: nextCode };
     });
-  }, [baselineDraft?.languageId, resolveLabel]);
-
-  // 目录加载后同步 languageCode 显示 | Sync languageCode display after catalog loads
-  useEffect(() => {
-    if (!baselineDraft?.languageId) {
-      return;
-    }
-
-    const nextLanguageCode = resolveLanguageCode(baselineDraft.languageId);
-    setLanguageInput((prev) => {
-      if (prev.languageAssetId !== baselineDraft.languageId || prev.languageCode === nextLanguageCode) {
-        return prev;
-      }
-      return {
-        ...prev,
-        languageCode: nextLanguageCode,
-      };
-    });
-  }, [baselineDraft?.languageId, resolveLanguageCode]);
+  }, [baselineDraft?.languageId, resolveLabel, resolveLanguageCode]);
 
   useEffect(() => {
     if (!isDirty || typeof window === 'undefined') {
@@ -214,15 +219,6 @@ export function OrthographyManagerPage({
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [isDirty]);
-
-  useEffect(() => {
-    if (orthographies.length === 0) return;
-    if (selectedOrthography) return;
-
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set(ORTHOGRAPHY_ID_PARAM, orthographies[0]!.id);
-    setSearchParams(nextParams, { replace: true });
-  }, [orthographies, searchParams, selectedOrthography, setSearchParams]);
 
   // M5: 用 useCallback 稳定引用，避免破坏 sidePaneContent useMemo | Stabilize with useCallback to prevent breaking sidePaneContent useMemo
   const confirmDiscardDirtyDraft = useCallback(() => {
@@ -243,6 +239,7 @@ export function OrthographyManagerPage({
     nextParams.set(ORTHOGRAPHY_ID_PARAM, orthographyId);
     setSearchParams(nextParams);
   };
+  selectOrthographyRef.current = handleSelectOrthography;
 
   const handleDraftChange = <K extends keyof OrthographyDraft>(key: K, value: OrthographyDraft[K]) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -531,6 +528,9 @@ export function OrthographyManagerPage({
           void handleSaveDraft();
         }}
         onBeforeOpenBridge={confirmDiscardDirtyDraft}
+        onSearchKeyDown={kbSearchKeyDown}
+        activeIndex={kbActiveIndex}
+        listRef={kbListRef}
       />
     </section>
   );

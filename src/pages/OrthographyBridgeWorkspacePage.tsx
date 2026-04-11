@@ -1,5 +1,5 @@
 import '../styles/pages/orthography-bridge-workspace.css';
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
@@ -12,6 +12,7 @@ import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { OrthographyDocType } from '../db';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
+import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { listOrthographyRecords } from '../services/LinguisticService.orthography';
@@ -62,6 +63,12 @@ export function OrthographyBridgeWorkspacePage({
     showUnscopedIdleState,
   } = browseState;
 
+  // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+  const selectedOrthographyIdRef = useRef(selectedOrthographyId);
+  selectedOrthographyIdRef.current = selectedOrthographyId;
+
   // M4: 正字法数据不依赖 locale，移除多余的重取触发 | Orthography data is locale-independent; remove unnecessary refetch trigger
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +100,14 @@ export function OrthographyBridgeWorkspacePage({
         if (cancelled) return;
         setOrthographies(records);
         setError('');
+
+        // 加载后自动选择首项 | Post-load auto-select first item
+        const currentId = selectedOrthographyIdRef.current;
+        if (records.length > 0 && !records.some((r) => r.id === currentId)) {
+          const nextParams = new URLSearchParams(searchParamsRef.current);
+          nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, records[0]!.id);
+          setSearchParams(nextParams, { replace: true });
+        }
       } catch (loadError) {
         if (cancelled) return;
         setOrthographies([]);
@@ -114,6 +129,20 @@ export function OrthographyBridgeWorkspacePage({
 
   const filteredOrthographies = orthographies;
 
+  // 列表键盘导航 | List keyboard navigation
+  const getOrthographyId = useCallback((o: OrthographyDocType) => o.id, []);
+  const handleSelectForKeyboard = useCallback((id: string) => {
+    const nextParams = new URLSearchParams(searchParamsRef.current);
+    nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, id);
+    setSearchParams(nextParams);
+  }, [setSearchParams]);
+  const { activeIndex: kbActiveIndex, handleSearchKeyDown: kbSearchKeyDown, listRef: kbListRef, resetActiveIndex: kbReset } = useListKeyboardNav({
+    items: filteredOrthographies,
+    getItemId: getOrthographyId,
+    onSelect: handleSelectForKeyboard,
+  });
+  useEffect(() => { kbReset(); }, [filteredOrthographies, kbReset]);
+
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
   const selectedOrthographyLabel = selectedOrthography
@@ -122,15 +151,6 @@ export function OrthographyBridgeWorkspacePage({
   const selectedLanguageLabel = selectedOrthography
     ? resolveLabel(selectedOrthography.languageId)
     : t(locale, 'workspace.orthographyBridge.notSet');
-
-  useEffect(() => {
-    if (filteredOrthographies.length === 0 || selectedOrthography) {
-      return;
-    }
-    const nextParams = new URLSearchParams(searchParams);
-    nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, filteredOrthographies[0]!.id);
-    setSearchParams(nextParams, { replace: true });
-  }, [filteredOrthographies, searchParams, selectedOrthography, setSearchParams]);
 
   const languageOptions = useMemo(() => {
     const deduped = new Map<string, string>();
@@ -248,8 +268,10 @@ export function OrthographyBridgeWorkspacePage({
           type="search"
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
+          onKeyDown={kbSearchKeyDown}
           placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
           aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
+          aria-activedescendant={kbActiveIndex >= 0 ? `ob-item-${filteredOrthographies[kbActiveIndex]?.id ?? ''}` : undefined}
         />
         {projectLanguageIds.length > 0 ? (
           <div className="ob-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthographyBridge.filterProjectOnly')}>
@@ -268,16 +290,19 @@ export function OrthographyBridgeWorkspacePage({
 
         {loading ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.loading')}</p> : null}
         {!loading && error ? <p className="ob-state ob-state-error">{t(locale, 'workspace.orthographyBridge.errorPrefix').replace('{message}', error)}</p> : null}
-        {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
+        {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <p className="ob-state ob-state-warning">{t(locale, 'workspace.orthographyBridge.searchNoResults')}</p> : null}
+        {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
 
-        <div className="ob-list" role="list" aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
-          {filteredOrthographies.map((orthography) => {
+        <div className="ob-list" role="list" ref={kbListRef} aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
+          {filteredOrthographies.map((orthography, index) => {
             const active = orthography.id === selectedOrthography?.id;
+            const highlighted = index === kbActiveIndex;
             return (
               <button
                 key={orthography.id}
+                id={`ob-item-${orthography.id}`}
                 type="button"
-                className={`ob-list-item${active ? ' ob-list-item-active' : ''}`}
+                className={`ob-list-item${active ? ' ob-list-item-active' : ''}${highlighted ? ' ob-list-item-highlight' : ''}`}
                 onClick={() => {
                   const nextParams = new URLSearchParams(searchParams);
                   nextParams.set(TARGET_ORTHOGRAPHY_ID_PARAM, orthography.id);

@@ -5,6 +5,7 @@ import {
   type LanguageQueryIndexLocaleRecord,
   type LanguageQueryLabelEntry,
 } from '../data/languageNameTypes';
+import MiniSearch from 'minisearch';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
 const LANGUAGE_DISPLAY_CORE_URL = '/data/language-support/language-display-names.core.json';
@@ -499,6 +500,42 @@ async function buildCatalogCandidateIndex(locale: LanguageNameQueryLocale): Prom
   return candidates;
 }
 
+// ── MiniSearch 模糊索引 | MiniSearch fuzzy index ──
+const miniSearchByLocale = new Map<LanguageNameQueryLocale, MiniSearch>();
+
+function buildMiniSearchIndex(
+  candidates: Map<string, LanguageCatalogCandidate>,
+  locale: LanguageNameQueryLocale,
+): MiniSearch {
+  const existing = miniSearchByLocale.get(locale);
+  if (existing) return existing;
+
+  const ms = new MiniSearch<{ id: string; code: string; labels: string }>({
+    fields: ['code', 'labels'],
+    storeFields: ['id'],
+    searchOptions: {
+      fuzzy: 0.2,
+      prefix: true,
+      boost: { code: 2 },
+    },
+  });
+
+  const docs = Array.from(candidates.values()).map((c) => ({
+    id: c.id,
+    code: c.languageCode,
+    labels: [
+      getCandidatePrimaryLabel(c, locale),
+      c.englishName ?? '',
+      c.nativeName ?? '',
+      ...c.aliases,
+      ...c.queryEntries.map((e) => e.label),
+    ].filter(Boolean).join(' '),
+  }));
+  ms.addAll(docs);
+  miniSearchByLocale.set(locale, ms);
+  return ms;
+}
+
 export async function searchLanguageCatalogSuggestions(
   options: SearchLanguageCatalogSuggestionsOptions,
 ): Promise<LanguageCatalogSearchSuggestion[]> {
@@ -544,7 +581,32 @@ export async function searchLanguageCatalogSuggestions(
       return left.primaryLabel.localeCompare(right.primaryLabel, 'en');
     });
 
-  return matches.slice(0, limit);
+  const exactMatches = matches.slice(0, limit);
+
+  // 精确/前缀/包含搜索无结果时，降级到 MiniSearch 模糊搜索 | Fallback to fuzzy search when no exact/prefix/contains hits
+  if (exactMatches.length === 0) {
+    const ms = buildMiniSearchIndex(candidates, options.locale);
+    const fuzzyResults = ms.search(normalizedQuery);
+    const fuzzyHits = fuzzyResults.slice(0, limit).map((result) => {
+      const candidate = candidates.get(result.id);
+      if (!candidate) return null;
+      const secondaryLabel = getCandidateSecondaryLabel(candidate, options.locale);
+      return {
+        id: candidate.id,
+        languageCode: candidate.languageCode,
+        primaryLabel: getCandidatePrimaryLabel(candidate, options.locale),
+        ...(secondaryLabel ? { secondaryLabel } : {}),
+        matchedLabel: getCandidatePrimaryLabel(candidate, options.locale),
+        matchedLabelKind: 'alias' as LanguageSearchLabelKind,
+        matchSource: 'fuzzy',
+        rank: 100 + Math.round(10 * (1 - (result.score / (fuzzyResults[0]?.score || 1)))),
+        hasRuntimeOverride: candidate.hasRuntimeOverride,
+      } satisfies LanguageCatalogSearchSuggestion;
+    }).filter((h): h is LanguageCatalogSearchSuggestion => Boolean(h));
+    return fuzzyHits;
+  }
+
+  return exactMatches;
 }
 
 export async function lookupLanguageCatalogEntryById(
@@ -592,4 +654,5 @@ export function resetLanguageCatalogSearchServiceForTests(): void {
   displayCorePromise = null;
   queryAliasPromise = null;
   queryIndexPromiseByLocale.clear();
+  miniSearchByLocale.clear();
 }

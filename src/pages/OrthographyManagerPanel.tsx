@@ -56,6 +56,12 @@ type OrthographyManagerPanelProps = {
   onResetDraft: () => void;
   onSaveDraft: () => void;
   onBeforeOpenBridge: () => boolean;
+  /** 键盘导航：搜索框 keydown | Keyboard nav: search input keydown */
+  onSearchKeyDown?: (event: React.KeyboardEvent) => void;
+  /** 键盘导航：当前高亮索引 | Keyboard nav: current highlight index */
+  activeIndex?: number;
+  /** 键盘导航：列表容器 ref | Keyboard nav: list container ref */
+  listRef?: React.Ref<HTMLDivElement>;
 };
 
 export function OrthographyManagerPanel({
@@ -90,6 +96,9 @@ export function OrthographyManagerPanel({
   onResetDraft,
   onSaveDraft,
   onBeforeOpenBridge,
+  onSearchKeyDown,
+  activeIndex = -1,
+  listRef,
 }: OrthographyManagerPanelProps) {
   const bridgeButton = selectedOrthography ? (
     <LanguageAssetRouteLink
@@ -144,33 +153,40 @@ export function OrthographyManagerPanel({
 
       {selectedOrthography ? (
         <>
-          <section className="om-highlight-card" aria-labelledby="om-highlight-title">
-            <div className="om-highlight-header">
-              <div className="om-highlight-copy">
-                <p className="om-highlight-eyebrow">{t(locale, 'workspace.orthography.detailTitle')}</p>
-                <h2 id="om-highlight-title" className="om-highlight-title">{formatOrthographyOptionLabel(selectedOrthography, locale)}</h2>
-                <p className="om-highlight-supporting">{resolveLabel(selectedOrthography.languageId)}</p>
+          <section className="ws-summary-card om-summary" aria-labelledby="om-summary-title">
+            <div className="ws-summary-header">
+              <div className="ws-summary-copy">
+                <span className="ws-kicker">{t(locale, 'workspace.orthography.title')}</span>
+                <h2 id="om-summary-title" className="ws-summary-title">{formatOrthographyOptionLabel(selectedOrthography, locale)}</h2>
+                <p className="ws-summary-description">{t(locale, 'workspace.orthography.summary')}</p>
               </div>
-              <div className="om-highlight-meta">
+              <div className="om-summary-meta">
                 <PanelChip>{resolveLabel(selectedOrthography.languageId)}</PanelChip>
                 {selectedBadgeLabel ? <PanelChip>{selectedBadgeLabel}</PanelChip> : null}
               </div>
             </div>
 
-            <dl className="om-highlight-facts">
-              <div className="om-highlight-fact">
-                <dt>{t(locale, 'workspace.orthography.languageAssetIdLabel')}</dt>
-                <dd>{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</dd>
-              </div>
-              <div className="om-highlight-fact">
-                <dt>{builderMessages.scriptTagLabel}</dt>
-                <dd>{draft?.scriptTag || selectedOrthography.scriptTag || t(locale, 'workspace.orthography.notSet')}</dd>
-              </div>
-              <div className="om-highlight-fact">
-                <dt>{builderMessages.typeLabel}</dt>
-                <dd>{draft?.type || selectedOrthography.type || t(locale, 'workspace.orthography.notSet')}</dd>
-              </div>
-            </dl>
+            <div className="ws-summary-facts">
+              <article className="ws-summary-fact">
+                <span className="ws-summary-fact-label">{t(locale, 'workspace.orthography.languageAssetIdLabel')}</span>
+                <strong className="ws-summary-fact-value">{selectedOrthography.languageId ?? t(locale, 'workspace.orthography.notSet')}</strong>
+                <span className="ws-summary-fact-note">{selectedOrthography.id}</span>
+              </article>
+              <article className="ws-summary-fact">
+                <span className="ws-summary-fact-label">{builderMessages.scriptTagLabel}</span>
+                <strong className="ws-summary-fact-value">{draft?.scriptTag || selectedOrthography.scriptTag || t(locale, 'workspace.orthography.notSet')}</strong>
+                <span className="ws-summary-fact-note">{resolveLabel(selectedOrthography.languageId)}</span>
+              </article>
+              <article className="ws-summary-fact">
+                <span className="ws-summary-fact-label">{builderMessages.typeLabel}</span>
+                <strong className="ws-summary-fact-value">{draft?.type || selectedOrthography.type || t(locale, 'workspace.orthography.notSet')}</strong>
+                <span className="ws-summary-fact-note">
+                  {builderMessages.advancedDirectionLabel}
+                  {' · '}
+                  {draft?.direction || t(locale, 'workspace.orthography.notSet')}
+                </span>
+              </article>
+            </div>
           </section>
 
           {isDirty ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.unsavedHint')}</PanelNote> : null}
@@ -188,8 +204,10 @@ export function OrthographyManagerPanel({
               type="search"
               value={searchText}
               onChange={(event) => onSearchTextChange(event.target.value)}
+              onKeyDown={onSearchKeyDown}
               placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
               aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
+              aria-activedescendant={activeIndex >= 0 ? `om-item-${filteredOrthographies[activeIndex]?.id ?? ''}` : undefined}
             />
             {projectLanguageIds.length > 0 ? (
               <div className="om-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
@@ -224,17 +242,20 @@ export function OrthographyManagerPanel({
 
           {loading ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.loading')}</PanelNote> : null}
           {!loading && error ? <PanelNote variant="danger" className="om-state om-state-error">{t(locale, 'workspace.orthography.errorPrefix').replace('{message}', error)}</PanelNote> : null}
-          {!loading && !error && !showUnscopedIdleState && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
+          {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.searchNoResults')}</PanelNote> : null}
+          {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
 
-          <div className="om-list" role="list" aria-label={t(locale, 'workspace.orthography.listTitle')}>
-            {filteredOrthographies.map((orthography) => {
+          <div className="om-list" role="list" ref={listRef} aria-label={t(locale, 'workspace.orthography.listTitle')}>
+            {filteredOrthographies.map((orthography, index) => {
               const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
               const active = orthography.id === selectedOrthography?.id;
+              const highlighted = index === activeIndex;
               return (
                 <button
                   key={orthography.id}
+                  id={`om-item-${orthography.id}`}
                   type="button"
-                  className={`om-list-item${active ? ' om-list-item-active' : ''}`}
+                  className={`om-list-item${active ? ' om-list-item-active' : ''}${highlighted ? ' om-list-item-highlight' : ''}`}
                   onClick={() => onSelectOrthography(orthography.id)}
                 >
                   <span className="om-list-label">{formatOrthographyOptionLabel(orthography, locale)}</span>

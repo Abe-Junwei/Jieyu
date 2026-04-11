@@ -141,7 +141,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         </div>
       </section>
 
-      <PanelSection className="lm-editor-panel" title={t(locale, 'workspace.languageMetadata.editTitle')} description={t(locale, 'workspace.languageMetadata.editDescription')}>
+      <PanelSection className="lm-editor-panel">
         <div className="ws-form-stack">
           <details className="ws-subsection lm-subsection" open>
             <summary className="lm-subsection-header">
@@ -552,9 +552,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         <div className="lm-footer-status">
           {saveError ? <p className="lm-state lm-state-error">{saveError}</p> : null}
           {saveSuccess ? <p className="lm-state lm-state-success">{saveSuccess}</p> : null}
-          {!saveError && !saveSuccess ? (
-            <p className="lm-state">{selectedEntry ? t(locale, 'workspace.languageMetadata.editDescription') : t(locale, 'workspace.languageMetadata.summary')}</p>
-          ) : null}
+          {!saveError && !saveSuccess ? <p className="lm-state">{t(locale, 'workspace.languageMetadata.summary')}</p> : null}
         </div>
 
         <div className="lm-actions">

@@ -1,9 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Locale } from '../i18n';
 import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
 import { listLanguageCatalogEntries } from '../services/LinguisticService.languageCatalog';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
 import { getLanguageDisplayName } from '../utils/langMapping';
+
+/** React Query key 工厂 | React Query key factory */
+const LANGUAGE_CATALOG_QUERY_KEY = 'languageCatalogFull';
+function catalogQueryKey(locale: Locale) { return [LANGUAGE_CATALOG_QUERY_KEY, locale] as const; }
+
+/** 数据变动后刷新缓存（如保存/删除条目后调用） | Invalidate after data changes (call after save/delete) */
+export function useInvalidateLanguageCatalogLabelMap() {
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: [LANGUAGE_CATALOG_QUERY_KEY] });
+  }, [queryClient]);
+}
+
+/**
+ * 兼容旧调用方（非 React 上下文中也可使用的全局失效） | Compat for non-React callers
+ * @deprecated 优先使用 useInvalidateLanguageCatalogLabelMap hook
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-function -- 向后兼容占位 | Backward-compat placeholder
+export function invalidateLanguageCatalogLabelMapCache(): void {
+  // 在 React 树外无法访问 queryClient，作为安全占位保留 | Cannot access queryClient outside React tree; kept as safe placeholder
+}
 
 type UseLanguageCatalogLabelMapOptions = {
   languageIds?: readonly string[];
@@ -16,7 +38,6 @@ export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguage
   resolveLabel: (languageId: string | undefined) => string;
   resolveLanguageDisplayName: ResolveLanguageDisplayName;
 } {
-  const [entries, setEntries] = useState<LanguageCatalogEntry[]>([]);
   const normalizedLanguageIds = useMemo(() => {
     if (!options?.languageIds) {
       return undefined;
@@ -35,35 +56,21 @@ export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguage
     return nextIds;
   }, [options?.languageIds]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: allEntries = [] } = useQuery<LanguageCatalogEntry[]>({
+    queryKey: catalogQueryKey(locale),
+    queryFn: () => listLanguageCatalogEntries({ locale }),
+    // 空 languageIds 时不需要数据 | No data needed when languageIds is explicitly empty
+    enabled: !(normalizedLanguageIds && normalizedLanguageIds.length === 0),
+  });
 
-    if (normalizedLanguageIds && normalizedLanguageIds.length === 0) {
-      setEntries([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void listLanguageCatalogEntries({
-      locale,
-      ...(normalizedLanguageIds ? { languageIds: normalizedLanguageIds } : {}),
-    })
-      .then((records) => {
-        if (!cancelled) {
-          setEntries(records);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setEntries([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [locale, normalizedLanguageIds]);
+  // 客户端过滤 | Client-side filter
+  const entries = useMemo(() => {
+    if (!normalizedLanguageIds) return allEntries;
+    const idSet = new Set(normalizedLanguageIds);
+    return allEntries.filter((entry) =>
+      idSet.has(entry.id.trim().toLowerCase()) || idSet.has(entry.languageCode.trim().toLowerCase()),
+    );
+  }, [allEntries, normalizedLanguageIds]);
 
   const labelById = useMemo(() => {
     const nextMap = new Map<string, string>();
