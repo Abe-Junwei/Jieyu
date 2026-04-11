@@ -1,11 +1,31 @@
+.la-shell .dialog-header {
+  min-height: auto;
+  padding: 12px 16px;
+  align-items: flex-start;
+  gap: 10px 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--color-white)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
+}
+
+/* 统一标题右侧留白 | Shared title right padding */
+.la-shell :is(.dialog-shell__title, .dialog-header > h3) {
+  padding-right: 40px;
+}
+
 .la-shell .dialog-body {
   --la-section-gap: 16px;
   display: flex;
   flex-direction: column;
   gap: var(--la-section-gap);
+  padding: 12px 16px;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* 防止 flex-column 子节点被压缩导致区块重叠 | Prevent flex children from shrinking and overlapping */
+.la-shell .dialog-body > * {
+  flex-shrink: 0;
 }
 
 .la-shell .dialog-footer {
@@ -44,4 +64,198 @@
   overflow-y: auto;
   padding-inline-end: 2px;
   scrollbar-gutter: stable;
+}
+
+/* ── 统一设计 Token | Unified design tokens ── */
+
+.la-shell {
+  --la-body-size: calc(0.82rem * var(--ui-font-scale, 1));
+  --la-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
+  --la-note-size: calc(0.76rem * var(--ui-font-scale, 1));
+  --la-unified-title-size: calc(12px * var(--ui-font-scale, 1));
+  --la-field-gap: 8px;
+  --ws-note-size: var(--la-meta-size);
+  /* 面板外壳 | Panel shell */
+  --dialog-auto-width: 100%;
+  width: 100%;
+  min-height: auto;
+  border-radius: 24px;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
+}
+
+/* ── 统一按钮样式 | Shared button styles ── */
+
+.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active) {
+  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
+  background: var(--state-info-solid);
+  color: var(--surface-panel);
+}
+
+.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
+  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
+}
+
+.la-shell :is(.panel-button--ghost, .btn-ghost) {
+  border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+}
+
+.la-shell :is(.panel-button--ghost, .btn-ghost):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
+  color: var(--text-primary);
+}
+
+/* ── 统一 Summary 卡片 | Shared summary card ── */
+
+.la-shell .ws-summary-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface-header) 36%, var(--surface-panel));
+}
+
+.la-shell .ws-summary-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.la-shell .ws-summary-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.la-shell .ws-kicker {
+  font-size: var(--la-meta-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.la-shell .ws-summary-title {
+  margin: 0;
+  font-size: calc(18px * var(--ui-font-scale, 1));
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.la-shell .ws-summary-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.la-shell .ws-summary-fact {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xl);
+  border: none;
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
+}
+
+.la-shell .ws-summary-fact-value {
+  font-size: var(--la-body-size);
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+/* ── Section 描述限宽居中 | Section description max-width + center ── */
+
+.la-shell .panel-section__description {
+  max-width: 58ch;
+  margin-inline: auto;
+}
+
+/* ── 统一 field 间距与 label | Unified field gap & label ── */
+
+.la-shell :is(.dialog-field, .language-iso-input .dialog-field) {
+  gap: var(--la-field-gap);
+}
+
+.la-shell :is(.dialog-field label, .dialog-field > span) {
+  font-size: var(--la-body-size);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ── 统一状态消息 | Unified state messages ── */
+
+.la-shell :is(.lm-state, .ob-state, .om-state) {
+  margin: 0;
+  font-size: var(--ws-note-size, var(--la-meta-size));
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.la-shell :is(.lm-state-error, .ob-state-error, .om-state-error) { color: var(--state-danger-text); }
+.la-shell :is(.lm-state-success, .om-state-success) { color: var(--state-success-text); }
+.la-shell :is(.ob-state-warning, .om-state-warning) { color: var(--state-warning-text); }
+
+/* ── 统一列表项 | Unified list item ── */
+
+.la-shell :is(.ob-list-item, .om-list-item) {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-2xl);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  color: var(--text-primary);
+  text-align: left;
+  align-content: start;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.la-shell :is(.ob-list-item, .om-list-item)::before {
+  content: '';
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  pointer-events: none;
+  transition: background 140ms ease;
+}
+
+.la-shell :is(.ob-list-item, .om-list-item):hover {
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
+}
+
+.la-shell :is(.ob-list-item, .om-list-item):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+.la-shell :is(.ob-list-item, .om-list-item):active {
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+}
+
+.la-shell :is(.ob-list-item-active, .om-list-item-active) {
+  background: color-mix(in srgb, var(--surface-panel) 92%, var(--state-info-bg));
+  border-color: color-mix(in srgb, var(--state-info-solid) 18%, var(--border-soft));
+}
+
+.la-shell :is(.ob-list-item-active, .om-list-item-active)::before {
+  background: color-mix(in srgb, var(--header-accent) 72%, transparent);
+}
+
+.la-shell :is(.ob-list-item-highlight, .om-list-item-highlight) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }

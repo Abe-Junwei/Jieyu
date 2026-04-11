@@ -7,78 +7,23 @@
 
 .lm-workspace {
   --lm-title-size: calc(0.84rem * var(--ui-font-scale, 1));
-  --lm-body-size: calc(0.82rem * var(--ui-font-scale, 1));
-  --lm-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
-  --lm-unified-title-size: calc(12px * var(--ui-font-scale, 1));
-  --ws-note-size: 0.84rem;
-  --lm-section-gap: 16px;
-  --la-section-gap: var(--lm-section-gap);
-  --lm-field-gap: 8px;
   max-width: none;
   min-height: 0;
 }
 
-.lm-shell {
-  --dialog-auto-width: 100%;
-  width: 100%;
-  min-height: auto;
-  border-radius: 24px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
-  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
-}
-
-.lm-shell .dialog-header {
-  min-height: auto;
-  padding: 16px 20px;
-  align-items: flex-start;
-  gap: 10px 14px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--color-white)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
-}
-
-.lm-shell .dialog-header > h3 {
-  padding-right: 40px;
-}
-
-.lm-shell .dialog-body {
-  padding: 16px 20px;
-}
-
-.lm-shell :is(.btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active) {
-  border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
-  background: var(--state-info-solid);
-  color: var(--surface-panel);
-}
-
-.lm-shell :is(.btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):hover:not(:disabled) {
-  background: color-mix(in srgb, var(--state-info-solid) 90%, black 10%);
-  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
-}
-
-.lm-shell .btn-ghost {
-  border-color: color-mix(in srgb, var(--border-soft) 88%, transparent);
-  background: var(--surface-panel);
-  color: var(--text-secondary);
-}
-
-.lm-shell .btn-ghost:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
-  color: var(--text-primary);
-}
+/* Shell + Header + padding 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
 /* ── Page grid ── */
 
 .lm-layout {
   display: grid;
-  gap: var(--lm-section-gap);
+  gap: var(--la-section-gap);
   min-width: 0;
 }
 
 .lm-detail-column {
   display: grid;
-  gap: var(--lm-section-gap);
+  gap: var(--la-section-gap);
   min-width: 0;
   min-height: 0;
 }
@@ -87,12 +32,12 @@
 
 .lm-workspace :is(input, select, textarea) {
   font-family: var(--font-base);
-  font-size: var(--lm-body-size);
+  font-size: var(--la-body-size);
   line-height: 1.5;
   color: var(--text-primary);
 }
 
-.lm-workspace :is(input, select) { min-height: var(--input-h-xl); }
+/* input height 继承预设 --input-h-sm (30px) | F2: inherit preset */
 .lm-workspace textarea { min-height: 96px; }
 
 /* ── Summary card ── */
@@ -105,69 +50,11 @@
   justify-content: flex-end;
 }
 
-.lm-summary .ws-summary-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px 16px;
-}
+.lm-summary .ws-summary-description { font-size: var(--la-body-size); }
+.lm-summary .ws-summary-fact-label { font-size: var(--la-meta-size); }
+.lm-summary .ws-summary-fact-note { font-size: var(--la-meta-size); }
 
-.lm-summary .ws-summary-copy {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.lm-summary .ws-summary-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.lm-summary .ws-summary-description { font-size: var(--lm-body-size); }
-.lm-summary .ws-summary-fact-label { font-size: var(--lm-meta-size); }
-.lm-summary .ws-summary-fact-note { font-size: var(--lm-meta-size); }
-
-.lm-workspace .ws-summary-card {
-  display: grid;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
-  border-radius: var(--radius-2xl);
-  background: color-mix(in srgb, var(--surface-header) 36%, var(--surface-panel));
-}
-
-.lm-workspace .ws-summary-copy { display: grid; gap: 4px; }
-
-.lm-workspace .ws-kicker {
-  font-size: var(--lm-meta-size);
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.lm-workspace .ws-summary-title {
-  margin: 0;
-  font-size: calc(18px * var(--ui-font-scale, 1));
-  line-height: 1.2;
-  color: var(--text-primary);
-}
-
-.lm-workspace .ws-summary-fact {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: var(--radius-xl);
-  background: color-mix(in srgb, var(--surface-panel) 90%, var(--surface-header));
-  border: 1px solid color-mix(in srgb, var(--border-soft) 52%, transparent);
-}
-
-.lm-workspace .ws-summary-fact-value {
-  font-size: var(--lm-body-size);
-  color: var(--text-primary);
-}
-
-.lm-workspace .ws-form-stack { display: grid; gap: var(--lm-section-gap); }
+.lm-workspace .ws-form-stack { display: grid; gap: var(--la-section-gap); }
 .lm-workspace .ws-subsection { display: grid; gap: 12px; }
 
 /* ── Chips ── */
@@ -224,7 +111,7 @@
 .lm-toolbar-hint {
   grid-area: hint;
   margin: 0;
-  font-size: var(--lm-meta-size);
+  font-size: var(--la-meta-size);
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -289,7 +176,7 @@ details.lm-subsection > summary:focus-visible {
   gap: 12px;
   width: 100%;
   margin: 0;
-  font-size: var(--lm-unified-title-size);
+  font-size: var(--la-unified-title-size);
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
@@ -314,7 +201,7 @@ details.lm-subsection > summary:focus-visible {
   margin: 0;
   max-width: 58ch;
   margin-inline: auto;
-  font-size: var(--lm-meta-size);
+  font-size: var(--la-meta-size);
   color: var(--text-secondary);
   line-height: 1.6;
 }
@@ -323,10 +210,10 @@ details.lm-subsection > summary:focus-visible {
 
 .lm-subgroup {
   display: grid;
-  gap: var(--lm-section-gap);
+  gap: var(--la-section-gap);
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
 }
 
@@ -352,12 +239,12 @@ details.lm-subsection > summary:focus-visible {
 
 .lm-field {
   display: grid;
-  gap: var(--lm-field-gap);
+  gap: var(--la-field-gap);
   min-width: 0;
 }
 
 .lm-field span {
-  font-size: var(--lm-body-size);
+  font-size: var(--la-body-size);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -390,7 +277,7 @@ details.lm-subsection > summary:focus-visible {
   align-items: center;
   gap: 8px;
   min-height: 40px;
-  font-size: var(--lm-meta-size);
+  font-size: var(--la-meta-size);
   color: var(--text-secondary);
 }
 
@@ -487,17 +374,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   grid-column: 1 / -1;
 }
 
-/* ── State messages ── */
-
-.lm-state {
-  margin: 0;
-  font-size: var(--ws-note-size, calc(0.8rem * var(--ui-font-scale, 1)));
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-.lm-state-error { color: var(--state-danger-text); }
-.lm-state-success { color: var(--state-success-text); }
+/* State 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
 /* ── Geography: coverage & coordinates layout ── */
 
@@ -529,7 +406,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 
 .lm-geography-panel-description {
   margin: 0;
-  font-size: var(--lm-meta-size);
+  font-size: var(--la-meta-size);
   line-height: 1.55;
   color: var(--text-secondary);
 }
@@ -546,13 +423,13 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 .lm-geo-field {
   display: flex;
   flex-direction: column;
-  gap: var(--lm-field-gap);
+  gap: var(--la-field-gap);
   min-width: 0;
 }
 
 .lm-geo-field > span,
 .lm-geo-label {
-  font-size: var(--lm-body-size);
+  font-size: var(--la-body-size);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -663,7 +540,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   padding: 8px 10px;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: var(--surface-raised);
+  background: var(--surface-elevated);
 }
 
 .lm-map-config-actions { display: flex; gap: 8px; justify-content: flex-end; }
@@ -707,7 +584,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 }
 
 .lm-search-marker-active { background: var(--state-warning-solid); transform: scale(1.15); }
-.lm-map-wrapper:fullscreen { background: var(--surface-raised); }
+.lm-map-wrapper:fullscreen { background: var(--surface-elevated); }
 .lm-map-wrapper:fullscreen .lm-map-inner { width: 100vw; height: 100vh; }
 
 .lm-map-fullscreen-btn {
@@ -720,7 +597,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   padding: 0;
   border: none;
   border-radius: var(--radius-xs);
-  background: var(--surface-raised);
+  background: var(--surface-elevated);
   color: var(--text-primary);
   font-size: 1rem;
   cursor: pointer;
@@ -732,7 +609,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--shadow-color) 10%, transparent);
 }
 
-.lm-map-fullscreen-btn:hover { background: var(--surface-hover, var(--surface-raised)); }
+.lm-map-fullscreen-btn:hover { background: var(--surface-elevated); }
 
 .lm-map-fullscreen-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
@@ -740,7 +617,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 }
 
 .lm-map-inner .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
-  background: var(--surface-raised);
+  background: var(--surface-elevated);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--shadow-color) 10%, transparent);
   border: none;
 }
@@ -755,14 +632,14 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 }
 
 .lm-map-inner .maplibregl-ctrl-top-right .maplibregl-ctrl-group button:hover {
-  background-color: var(--surface-hover, color-mix(in srgb, var(--shadow-color) 5%, transparent));
+  background-color: color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
 .lm-map-placeholder {
   width: 100%;
   height: 240px;
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 60%, transparent);
   margin-top: 8px;
 }
 
@@ -853,7 +730,7 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 
 /* ── Responsive ── */
 
-@media (max-width: 1180px) {
+@media (max-width: 1180px) and (min-width: 721px) {
   .lm-layout { grid-template-columns: 1fr; }
   .lm-summary .ws-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lm-grid, .lm-field-definition-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

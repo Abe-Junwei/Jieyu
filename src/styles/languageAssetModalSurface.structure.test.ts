@@ -15,12 +15,12 @@ describe('Language asset modal surface style guards', () => {
 
   it('keeps workspace shell gradients anchored to color-white token', () => {
     const lm = readFile('src/styles/pages/language-metadata-workspace.css');
-    const om = readFile('src/styles/pages/orthography-manager-panel.css');
-    const ob = readFile('src/styles/pages/orthography-bridge-workspace.css');
+    const contract = readFile('src/styles/foundation/language-asset-section-contract.css');
 
+    // LM 仍保留页面级 color-white 用法 | LM keeps page-level color-white usage
     expect(lm.includes('var(--color-white)')).toBe(true);
-    expect(om.includes('var(--color-white)')).toBe(true);
-    expect(ob.includes('var(--color-white)')).toBe(true);
+    // OM / OB 渐变已收入合约层 | OM / OB gradients unified into contract layer
+    expect(contract.includes('var(--color-white)')).toBe(true);
   });
 
   it('enforces language asset layout contract wiring across three pages', () => {
