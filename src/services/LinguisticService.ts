@@ -1177,6 +1177,10 @@ export class LinguisticService {
         db.dexie.utterances,
         db.dexie.media_items,
         db.dexie.anchors,
+        db.dexie.ai_conversations,
+        db.dexie.ai_messages,
+        db.dexie.ai_tasks,
+        db.dexie.track_entities,
         db.dexie.texts,
       ],
       async () => {
@@ -1222,6 +1226,23 @@ export class LinguisticService {
         }
 
         await db.dexie.media_items.where('textId').equals(textId).delete();
+
+        // 级联清理 AI 对话与消息 | Cascade: AI conversations and messages scoped to this text
+        const convos = await db.dexie.ai_conversations.where('textId').equals(textId).toArray();
+        const convoIds = convos.map((c) => c.id);
+        for (const convoId of convoIds) {
+          await db.dexie.ai_messages.where('conversationId').equals(convoId).delete();
+        }
+        if (convoIds.length > 0) {
+          await db.dexie.ai_conversations.bulkDelete(convoIds);
+        }
+
+        // 级联清理轨道实体 | Cascade: track entities scoped to this text
+        await db.dexie.track_entities.where('textId').equals(textId).delete();
+
+        // 级联清理 AI 任务 | Cascade: AI tasks targeting this text
+        await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
+
         await db.dexie.texts.delete(textId);
       },
     );
@@ -1247,8 +1268,8 @@ export class LinguisticService {
         db.dexie.media_items,
       ],
       async () => {
-        // Find utterances linked to this media
-        const utts = (await db.dexie.utterances.toArray()).filter((u) => u.mediaId === mediaId);
+        // 使用 v36 恢复的 mediaId 索引查询 | Use mediaId index restored in v36
+        const utts = await db.dexie.utterances.where('mediaId').equals(mediaId).toArray();
         const uttIds = utts.map((u) => u.id);
 
         await this.removeNotesForUtteranceIds(db, uttIds);
