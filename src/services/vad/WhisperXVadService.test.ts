@@ -38,6 +38,8 @@ class FakeWorker {
   onmessage: MessageHandler | null = null;
   onerror: ((e: ErrorEvent) => void) | null = null;
   private sentMessages: unknown[] = [];
+  activeStreamId: string | undefined;
+  streamChunkCount = 0;
 
   postMessage(data: unknown): void {
     this.sentMessages.push(data);
@@ -61,6 +63,23 @@ class FakeWorker {
             segments: [
               { start: 0.2, end: 1.4, confidence: 0.87 },
               { start: 2.1, end: 3.6, confidence: 0.92 },
+            ],
+          },
+        } as unknown as MessageEvent);
+      });
+    } else if (msg.type === 'detect-stream-start') {
+      this.activeStreamId = msg.id;
+    } else if (msg.type === 'detect-stream-chunk') {
+      this.streamChunkCount++;
+    } else if (msg.type === 'detect-stream-end') {
+      const streamId = msg.id;
+      queueMicrotask(() => {
+        this.onmessage?.({
+          data: {
+            type: 'result',
+            id: streamId,
+            segments: [
+              { start: 0.3, end: 1.8, confidence: 0.90 },
             ],
           },
         } as unknown as MessageEvent);
@@ -265,5 +284,36 @@ describe('WhisperXVadService', () => {
     await svc.init(); // 不应抛出 | Should not throw
     const segs = await svc.detectSpeechSegments(makeAudioBuffer(1));
     expect(segs.length).toBeGreaterThan(0);
+  });
+
+  // ── 流式检测 | Streaming detection ─────────────────────────────────
+
+  it('流式检测：分块发送后返回语音段 | streaming detection returns segments after chunked input', async () => {
+    const svc = new WhisperXVadService();
+    await svc.init();
+
+    const session = svc.startStreamingDetection(16000);
+    session.sendChunk(new Float32Array(512));
+    session.sendChunk(new Float32Array(512));
+    const segs = await session.finish();
+
+    expect(segs).toHaveLength(1);
+    expect(segs[0]).toMatchObject({ start: 0.3, end: 1.8, confidence: 0.90 });
+  });
+
+  it('流式检测：Worker 未就绪时抛出异常 | streaming throws when Worker not ready', () => {
+    const svc = new WhisperXVadService();
+    expect(() => svc.startStreamingDetection(16000)).toThrow(/not ready/);
+  });
+
+  it('流式检测：cancel 拒绝 finish promise | streaming cancel rejects finish promise', async () => {
+    const svc = new WhisperXVadService();
+    await svc.init();
+
+    const session = svc.startStreamingDetection(16000);
+    session.sendChunk(new Float32Array(256));
+    session.cancel();
+
+    await expect(session.finish()).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

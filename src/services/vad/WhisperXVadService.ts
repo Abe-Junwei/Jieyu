@@ -49,6 +49,19 @@ export interface DetectSpeechSegmentsOptions {
   onProgress?: (progress: WhisperXVadProgress) => void;
 }
 
+/**
+ * 流式 VAD 检测会话，调用方按块发送 PCM，结束后一次返回所有语音段。
+ * Streaming VAD detection session. Caller sends PCM chunks and gets all segments at the end.
+ */
+export interface StreamingVadSession {
+  /** 发送一块 PCM（将 transfer 底层 ArrayBuffer）| Send a PCM chunk (transfers the underlying ArrayBuffer) */
+  sendChunk(pcm: Float32Array): void;
+  /** 结束流式推理并返回最终语音段 | Finalize streaming and return final segments */
+  finish(): Promise<SpeechSegment[]>;
+  /** 取消流式推理 | Cancel streaming detection */
+  cancel(): void;
+}
+
 function createAbortError(): Error {
   const error = new Error('VAD detect aborted');
   error.name = 'AbortError';
@@ -183,6 +196,76 @@ export class WhisperXVadService {
   /** 返回当前实际运行引擎 | Report the currently active runtime engine */
   getRuntimeEngine(): 'silero' | 'energy' {
     return this.ready && this.worker ? 'silero' : 'energy';
+  }
+
+  /**
+   * 启动流式 VAD 检测会话。调用方按块发送 PCM，最终一次返回所有语音段。
+   * Worker 未初始化时抛出异常（流式模式不支持能量降级）。
+   *
+   * Start a streaming VAD detection session. Caller sends PCM chunks, gets all segments at the end.
+   * Throws if Worker is not initialized (streaming mode doesn't support energy fallback).
+   */
+  startStreamingDetection(sampleRate: number, options?: DetectSpeechSegmentsOptions): StreamingVadSession {
+    if (!this.ready || !this.worker) {
+      throw new Error('WhisperXVadService: Worker not ready for streaming detection');
+    }
+
+    const id = generateId();
+    const worker = this.worker;
+    const pendingRequests = this.pendingRequests;
+
+    const resultPromise = pendingRequests.track(id, () => {
+      worker.postMessage({ type: 'detect-stream-start', id, sampleRate });
+    }, {
+      ...(options?.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+    });
+
+    const abortListener = options?.signal ? () => {
+      pendingRequests.reject(id, createAbortError());
+      worker.postMessage({ type: 'cancel', id });
+    } : undefined;
+
+    if (abortListener && options?.signal) {
+      options.signal.addEventListener('abort', abortListener, { once: true });
+    }
+
+    const cleanup = (): void => {
+      if (abortListener && options?.signal) {
+        options.signal.removeEventListener('abort', abortListener);
+      }
+    };
+
+    let cancelled = false; // 取消标志，防止 cancel 后继续发送消息 | Cancelled flag to prevent sending messages after cancel
+
+    return {
+      sendChunk(pcm: Float32Array): void {
+        if (cancelled) return;
+        worker.postMessage(
+          { type: 'detect-stream-chunk', id, pcm },
+          [pcm.buffer],
+        );
+      },
+      async finish(): Promise<SpeechSegment[]> {
+        if (cancelled) {
+          cleanup();
+          throw createAbortError();
+        }
+        worker.postMessage({ type: 'detect-stream-end', id });
+        try {
+          return await resultPromise;
+        } finally {
+          cleanup();
+        }
+      },
+      cancel(): void {
+        if (cancelled) return;
+        cancelled = true;
+        pendingRequests.reject(id, createAbortError());
+        resultPromise.catch(() => {}); // 抑制未处理拒绝 | Suppress unhandled rejection
+        worker.postMessage({ type: 'cancel', id });
+        cleanup();
+      },
+    };
   }
 
   /** 重置 Silero 隐藏状态（切换音频文件时调用）| Reset Silero hidden state (call on audio file switch) */

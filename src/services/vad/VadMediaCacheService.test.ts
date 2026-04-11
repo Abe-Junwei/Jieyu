@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { VadMediaBackend, VadMediaBackendRunOptions, VadMediaRef } from './VadMediaBackend';
+
 const { mockCacheGet, mockCacheSet } = vi.hoisted(() => ({
   mockCacheGet: vi.fn(),
   mockCacheSet: vi.fn(),
@@ -14,6 +16,19 @@ vi.mock('./VadCacheService', () => ({
 
 import { ensureVadCacheForMedia, getVadCacheWarmupStatus } from './VadMediaCacheService';
 
+/** 创建可注入的 mock 后端 | Create an injectable mock backend */
+function createMockBackend(overrides?: Partial<VadMediaBackend>): VadMediaBackend {
+  return {
+    canProcess: vi.fn(() => true),
+    run: vi.fn(async () => ({
+      engine: 'silero' as const,
+      segments: [],
+      durationSec: 0,
+    })),
+    ...overrides,
+  };
+}
+
 describe('VadMediaCacheService', () => {
   beforeEach(() => {
     mockCacheGet.mockReset();
@@ -25,7 +40,7 @@ describe('VadMediaCacheService', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns cached entry without refetching media', async () => {
+  it('returns cached entry without calling backend', async () => {
     const cachedEntry = {
       engine: 'silero' as const,
       segments: [{ start: 0.2, end: 0.8 }],
@@ -33,45 +48,41 @@ describe('VadMediaCacheService', () => {
       cachedAt: 123,
     };
     mockCacheGet.mockReturnValue(cachedEntry);
-    const fetchImpl = vi.fn();
+    const backend = createMockBackend();
 
     const result = await ensureVadCacheForMedia({
       mediaId: 'media-1',
       mediaUrl: 'blob:media-1',
-      fetchImpl,
+      backend,
     });
 
     expect(result).toEqual(cachedEntry);
-    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(backend.run).not.toHaveBeenCalled();
     expect(mockCacheSet).not.toHaveBeenCalled();
   });
 
-  it('warms uncached media and persists detected segments', async () => {
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(16),
-    }));
-    const decodeAudioData = vi.fn(async () => ({ duration: 3.2 } as AudioBuffer));
-    const close = vi.fn(async () => undefined);
-    const vadRuntime = {
-      init: vi.fn(async () => undefined),
-      detectSpeechSegments: vi.fn(async () => [{ start: 0.1, end: 1.4, confidence: 0.93 }]),
-      getRuntimeEngine: vi.fn(() => 'silero' as const),
-    };
+  it('warms uncached media via backend and persists detected segments', async () => {
+    const backend = createMockBackend({
+      run: vi.fn(async () => ({
+        engine: 'silero' as const,
+        segments: [{ start: 0.1, end: 1.4, confidence: 0.93 }],
+        durationSec: 3.2,
+      })),
+    });
 
     const result = await ensureVadCacheForMedia({
       mediaId: 'media-2',
       mediaUrl: 'blob:media-2',
-      fetchImpl,
-      audioContextFactory: () => ({ decodeAudioData, close }),
-      vadRuntime,
+      backend,
       now: () => 456,
     });
 
-    expect(vadRuntime.init).toHaveBeenCalledTimes(1);
-    expect(fetchImpl).toHaveBeenCalledWith('blob:media-2');
-    expect(decodeAudioData).toHaveBeenCalledTimes(1);
-    expect(vadRuntime.detectSpeechSegments).toHaveBeenCalledTimes(1);
+    expect(backend.canProcess).toHaveBeenCalledWith({
+      mediaId: 'media-2',
+      mediaUrl: 'blob:media-2',
+      byteSize: undefined,
+    });
+    expect(backend.run).toHaveBeenCalledTimes(1);
     expect(mockCacheSet).toHaveBeenCalledWith('media-2', {
       engine: 'silero',
       segments: [{ start: 0.1, end: 1.4, confidence: 0.93 }],
@@ -84,19 +95,17 @@ describe('VadMediaCacheService', () => {
       durationSec: 3.2,
       cachedAt: 456,
     });
-    expect(close).toHaveBeenCalledTimes(1);
   });
 
   it('publishes and clears warmup progress while VAD cache is warming', async () => {
-    const fetchImpl = vi.fn(async () => ({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(16),
-    }));
-    const decodeAudioData = vi.fn(async () => ({ duration: 3.2 } as AudioBuffer));
-    const vadRuntime = {
-      init: vi.fn(async () => undefined),
-      detectSpeechSegments: vi.fn(async (_buffer: AudioBuffer, options) => {
-        options?.onProgress?.({ phase: 'detecting', processedFrames: 16, totalFrames: 32, ratio: 0.5 });
+    const backend = createMockBackend({
+      run: vi.fn(async (_ref: VadMediaRef, opts?: VadMediaBackendRunOptions) => {
+        opts?.onProgress?.({
+          engine: 'silero',
+          processedFrames: 16,
+          totalFrames: 32,
+          ratio: 0.5,
+        });
         expect(getVadCacheWarmupStatus('media-progress')).toEqual({
           state: 'warming',
           engine: 'silero',
@@ -104,17 +113,18 @@ describe('VadMediaCacheService', () => {
           processedFrames: 16,
           totalFrames: 32,
         });
-        return [{ start: 0.1, end: 1.4, confidence: 0.93 }];
+        return {
+          engine: 'silero' as const,
+          segments: [{ start: 0.1, end: 1.4, confidence: 0.93 }],
+          durationSec: 3.2,
+        };
       }),
-      getRuntimeEngine: vi.fn(() => 'silero' as const),
-    };
+    });
 
     const result = await ensureVadCacheForMedia({
       mediaId: 'media-progress',
       mediaUrl: 'blob:media-progress',
-      fetchImpl,
-      audioContextFactory: () => ({ decodeAudioData }),
-      vadRuntime,
+      backend,
       now: () => 456,
     });
 
@@ -127,34 +137,27 @@ describe('VadMediaCacheService', () => {
     const fetchGate = new Promise<void>((resolve) => {
       releaseFetch = resolve;
     });
-    const fetchImpl = vi.fn(async () => {
-      await fetchGate;
-      return {
-        ok: true,
-        arrayBuffer: async () => new ArrayBuffer(8),
-      };
+    const backend = createMockBackend({
+      run: vi.fn(async () => {
+        await fetchGate;
+        return {
+          engine: 'energy' as const,
+          segments: [{ start: 0, end: 1.5 }],
+          durationSec: 1.5,
+        };
+      }),
     });
-    const decodeAudioData = vi.fn(async () => ({ duration: 1.5 } as AudioBuffer));
-    const vadRuntime = {
-      init: vi.fn(async () => undefined),
-      detectSpeechSegments: vi.fn(async () => [{ start: 0, end: 1.5 }]),
-      getRuntimeEngine: vi.fn(() => 'energy' as const),
-    };
 
     const pendingA = ensureVadCacheForMedia({
       mediaId: 'media-3',
       mediaUrl: 'blob:media-3',
-      fetchImpl,
-      audioContextFactory: () => ({ decodeAudioData }),
-      vadRuntime,
+      backend,
       now: () => 789,
     });
     const pendingB = ensureVadCacheForMedia({
       mediaId: 'media-3',
       mediaUrl: 'blob:media-3',
-      fetchImpl,
-      audioContextFactory: () => ({ decodeAudioData }),
-      vadRuntime,
+      backend,
       now: () => 789,
     });
 
@@ -162,8 +165,7 @@ describe('VadMediaCacheService', () => {
 
     const [resultA, resultB] = await Promise.all([pendingA, pendingB]);
 
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(vadRuntime.detectSpeechSegments).toHaveBeenCalledTimes(1);
+    expect(backend.run).toHaveBeenCalledTimes(1);
     expect(resultA).toEqual(resultB);
   });
 });

@@ -11,16 +11,24 @@ import type { Plugin as EsbuildPlugin } from 'esbuild';
  */
 function copyOnnxWasm(): Plugin {
   const wasmSrc = resolve('node_modules/onnxruntime-web/dist');
+  const COPYABLE_SUFFIXES = ['.wasm', '.mjs', '.js', '.onnx_data'];
+  const JS_EXT_PATTERN = /\.(mjs|js)$/;
   return {
     name: 'copy-onnx-wasm',
-    // 开发模式：拦截 /onnx-wasm/*.wasm 请求，从 node_modules 返回正确 MIME | Dev: intercept /onnx-wasm/*.wasm and serve from node_modules with correct MIME
+    // 开发模式：拦截 /onnx-wasm/* 请求（含 ?import），从 node_modules 返回正确 MIME | Dev: intercept /onnx-wasm/* requests (including ?import) and serve from node_modules with proper MIME
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (req.url?.startsWith('/onnx-wasm/') && req.url.endsWith('.wasm')) {
-          const filename = req.url.slice('/onnx-wasm/'.length);
+        const rawUrl = req.url;
+        const path = rawUrl?.split('?')[0] ?? '';
+        if (path.startsWith('/onnx-wasm/') && COPYABLE_SUFFIXES.some((suffix) => path.endsWith(suffix))) {
+          const filename = path.slice('/onnx-wasm/'.length);
           try {
             const data = readFileSync(join(wasmSrc, filename));
-            res.setHeader('Content-Type', 'application/wasm');
+            if (filename.endsWith('.wasm')) {
+              res.setHeader('Content-Type', 'application/wasm');
+            } else if (JS_EXT_PATTERN.test(filename)) {
+              res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+            }
             res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
             res.end(data);
           } catch {
@@ -37,7 +45,7 @@ function copyOnnxWasm(): Plugin {
       try {
         mkdirSync(outDir, { recursive: true });
         for (const file of readdirSync(wasmSrc)) {
-          if (file.endsWith('.wasm') || file.endsWith('.onnx_data')) {
+          if (COPYABLE_SUFFIXES.some((suffix) => file.endsWith(suffix))) {
             copyFileSync(join(wasmSrc, file), join(outDir, file));
           }
         }

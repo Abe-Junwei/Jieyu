@@ -1,33 +1,14 @@
 import { createLogger } from '../../observability/logger';
-import { WhisperXVadService, type DetectSpeechSegmentsOptions, type SpeechSegment } from './WhisperXVadService';
 import { vadCache, type VadCacheEntry } from './VadCacheService';
+import { getVadMediaBackend, type VadMediaBackend, type VadMediaRef } from './VadMediaBackend';
 
 const log = createLogger('VadMediaCacheService');
-
-interface AudioResponseLike {
-  ok: boolean;
-  status?: number;
-  arrayBuffer: () => Promise<ArrayBuffer>;
-  headers?: { get: (name: string) => string | null };
-}
 
 /**
  * 自动 VAD 预热的文件大小上限（字节）。超过此值跳过自动预热，避免 decodeAudioData OOM。
  * Max file size for automatic VAD warming. Files above this skip warming to prevent decodeAudioData OOM.
  */
-const VAD_AUTO_WARM_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
-
-interface AudioContextLike {
-  decodeAudioData: (audioData: ArrayBuffer) => Promise<AudioBuffer>;
-  close?: () => Promise<void> | void;
-}
-
-interface VadRuntimeLike {
-  init?: () => Promise<void>;
-  detectSpeechSegments: (buffer: AudioBuffer, options?: DetectSpeechSegmentsOptions) => Promise<SpeechSegment[]>;
-  dispose?: () => void;
-  getRuntimeEngine?: () => 'silero' | 'energy';
-}
+export const VAD_AUTO_WARM_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 
 export interface VadCacheWarmupStatus {
   state: 'warming';
@@ -40,9 +21,12 @@ export interface VadCacheWarmupStatus {
 export interface EnsureVadCacheForMediaOptions {
   mediaId?: string;
   mediaUrl?: string;
-  fetchImpl?: (input: string) => Promise<AudioResponseLike>;
-  audioContextFactory?: () => AudioContextLike;
-  vadRuntime?: VadRuntimeLike;
+  /** 已知的媒体 Blob 字节数，若提供则在 fetch 前即可跳过大文件 | Known media blob byte size; enables pre-fetch gate for large files */
+  mediaBlobSize?: number;
+  /** 终止信号 | Abort signal */
+  signal?: AbortSignal;
+  /** 测试注入用后端，生产环境通过 registerVadMediaBackend 注册 | Injected backend for testing; production uses registerVadMediaBackend */
+  backend?: VadMediaBackend;
   now?: () => number;
 }
 
@@ -90,25 +74,6 @@ export function subscribeVadCacheWarmupStatus(mediaId: string | undefined, onSto
   };
 }
 
-function createBrowserAudioContext(): AudioContextLike {
-  const AudioContextCtor = window.AudioContext ?? (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioContextCtor) {
-    throw new Error('AudioContext unavailable');
-  }
-  return new AudioContextCtor();
-}
-
-async function closeAudioContext(audioContext: AudioContextLike | null): Promise<void> {
-  if (!audioContext?.close) return;
-  try {
-    await audioContext.close();
-  } catch (error) {
-    log.warn('Failed to close VAD media AudioContext', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
 export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOptions): Promise<VadCacheEntry | null> {
   const { mediaId, mediaUrl } = options;
   if (!mediaId || !mediaUrl) return null;
@@ -119,66 +84,35 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
   const inflight = inflightByMediaId.get(mediaId);
   if (inflight) return inflight;
 
-  const fetchImpl = options.fetchImpl ?? (async (input: string) => {
-    const response = await fetch(input);
-    return response as AudioResponseLike;
-  });
-  const audioContextFactory = options.audioContextFactory ?? createBrowserAudioContext;
-  const vadRuntime = options.vadRuntime ?? new WhisperXVadService();
-  const ownsVadRuntime = options.vadRuntime === undefined;
+  const backend = options.backend ?? getVadMediaBackend();
+  if (!backend) {
+    log.warn('No VAD media backend registered, skipping VAD warming', { mediaId });
+    return null;
+  }
+
+  const ref: VadMediaRef = { mediaId, mediaUrl, ...(options.mediaBlobSize !== undefined && { byteSize: options.mediaBlobSize }) };
+  if (!backend.canProcess(ref)) {
+    log.info('VAD backend cannot process media (size/format gate)', { mediaId, byteSize: options.mediaBlobSize });
+    return null;
+  }
+
   const now = options.now ?? Date.now;
 
   const task = (async () => {
-    let audioContext: AudioContextLike | null = null;
     try {
-      const initialEngine = vadRuntime.getRuntimeEngine?.();
       setWarmupStatus(mediaId, {
         state: 'warming',
-        ...(initialEngine !== undefined ? { engine: initialEngine } : {}),
         progressRatio: 0,
         processedFrames: 0,
         totalFrames: 0,
       });
-      if (vadRuntime.init) {
-        try {
-          await vadRuntime.init();
-        } catch (error) {
-          log.warn('VAD runtime init failed, continuing with fallback engine', {
-            mediaId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
 
-      const response = await fetchImpl(mediaUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch media for VAD cache: ${response.status ?? 'unknown'}`);
-      }
-
-      // 大文件跳过自动预热，避免 decodeAudioData 分配数 GB PCM 导致 OOM | Skip large files to prevent multi-GB PCM allocation from decodeAudioData
-      const contentLength = Number(response.headers?.get('content-length') ?? 0);
-      if (contentLength > VAD_AUTO_WARM_MAX_BYTES) {
-        log.info('Skipping automatic VAD warming for large media file', { mediaId, contentLength });
-        clearWarmupStatus(mediaId);
-        return null;
-      }
-
-      const audioData = await response.arrayBuffer();
-      // 二次校验：Content-Length 可能为 0（blob URL），用实际大小兜底 | Double-check with actual size; Content-Length may be 0 for blob URLs
-      if (audioData.byteLength > VAD_AUTO_WARM_MAX_BYTES) {
-        log.info('Skipping automatic VAD warming for large media file', { mediaId, byteLength: audioData.byteLength });
-        clearWarmupStatus(mediaId);
-        return null;
-      }
-
-      audioContext = audioContextFactory();
-      const audioBuffer = await audioContext.decodeAudioData(audioData);
-      const segments = await vadRuntime.detectSpeechSegments(audioBuffer, {
+      const result = await backend.run(ref, {
+        ...(options.signal !== undefined && { signal: options.signal }),
         onProgress: (progress) => {
-          const progressEngine = vadRuntime.getRuntimeEngine?.();
           setWarmupStatus(mediaId, {
             state: 'warming',
-            ...(progressEngine !== undefined ? { engine: progressEngine } : {}),
+            ...(progress.engine !== undefined ? { engine: progress.engine } : {}),
             progressRatio: progress.ratio,
             processedFrames: progress.processedFrames,
             totalFrames: progress.totalFrames,
@@ -187,9 +121,9 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
       });
 
       const entry: VadCacheEntry = {
-        engine: vadRuntime.getRuntimeEngine?.() ?? 'energy',
-        segments,
-        durationSec: audioBuffer.duration,
+        engine: result.engine,
+        segments: result.segments,
+        durationSec: result.durationSec,
         cachedAt: now(),
       };
       vadCache.set(mediaId, entry);
@@ -205,10 +139,6 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
       return null;
     } finally {
       inflightByMediaId.delete(mediaId);
-      await closeAudioContext(audioContext);
-      if (ownsVadRuntime) {
-        vadRuntime.dispose?.();
-      }
     }
   })();
 

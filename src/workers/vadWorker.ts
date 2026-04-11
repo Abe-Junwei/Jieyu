@@ -8,6 +8,9 @@
  * 消息协议 | Message protocol:
  *   In:  { type: 'init', modelUrl: string }
  *        { type: 'detect', id: string, pcm: Float32Array, sampleRate: number }
+ *        { type: 'detect-stream-start', id: string, sampleRate: number }
+ *        { type: 'detect-stream-chunk', id: string, pcm: Float32Array }
+ *        { type: 'detect-stream-end', id: string }
  *        { type: 'cancel', id: string }
  *        { type: 'reset' }
  *   Out: { type: 'ready' }
@@ -45,9 +48,23 @@ type OnnxTensor = {
 };
 
 let session: OnnxSession | null = null;
+let ort: typeof import('onnxruntime-web') | null = null;
 let h0: Float32Array = new Float32Array(2 * 1 * 64); // hidden state
 let c0: Float32Array = new Float32Array(2 * 1 * 64); // cell state
 const cancelledRequestIds = new Set<string>();
+
+// ── 流式推理会话状态 | Streaming inference session state ─────────────────────
+
+interface StreamingSessionState {
+  id: string;
+  sampleRate: number;
+  leftover: Float32Array;
+  frameProbs: number[];
+  processedFrames: number;
+}
+
+let streamSession: StreamingSessionState | null = null;
+let streamProcessQueue: Promise<void> = Promise.resolve();
 
 function resetState(): void {
   h0.fill(0);
@@ -62,7 +79,7 @@ self.onmessage = async (event: MessageEvent) => {
   switch (msg.type) {
     case 'init': {
       try {
-        const ort = await import('onnxruntime-web');
+        ort = await import('onnxruntime-web');
         // 锁定 WASM 加载路径，dev 由中间件伺服，build 由 copyOnnxWasm 复制 | Pin WASM path; dev served by middleware, build by copyOnnxWasm plugin
         ort.env.wasm.wasmPaths = '/onnx-wasm/';
         session = await ort.InferenceSession.create(msg.modelUrl ?? '/models/silero_vad.onnx', {
@@ -126,8 +143,51 @@ self.onmessage = async (event: MessageEvent) => {
       break;
     }
 
+    case 'detect-stream-start': {
+      if (!session) {
+        self.postMessage({ type: 'error', id: msg.id, message: 'VAD session not initialized' });
+        return;
+      }
+      // 若存在旧流式会话，向主线程发错误以拒绝其挂起请求 | Reject pending request for old streaming session if exists
+      if (streamSession) {
+        self.postMessage({ type: 'error', id: streamSession.id, message: 'Streaming session superseded by new session' });
+      }
+      cancelledRequestIds.delete(msg.id!);
+      resetState();
+      streamSession = {
+        id: msg.id!,
+        sampleRate: msg.sampleRate ?? SILERO_SAMPLE_RATE,
+        leftover: new Float32Array(0),
+        frameProbs: [],
+        processedFrames: 0,
+      };
+      streamProcessQueue = Promise.resolve();
+      break;
+    }
+
+    case 'detect-stream-chunk': {
+      if (!streamSession || streamSession.id !== msg.id) {
+        self.postMessage({ type: 'error', id: msg.id, message: 'No active streaming session for this id' });
+        return;
+      }
+      if (cancelledRequestIds.has(msg.id!)) return;
+      const chunkPcm = msg.pcm!;
+      streamProcessQueue = streamProcessQueue.then(() => processStreamChunk(msg.id!, chunkPcm));
+      break;
+    }
+
+    case 'detect-stream-end': {
+      if (!streamSession || streamSession.id !== msg.id) {
+        self.postMessage({ type: 'error', id: msg.id, message: 'No active streaming session for this id' });
+        return;
+      }
+      streamProcessQueue = streamProcessQueue.then(() => finalizeStream(msg.id!));
+      break;
+    }
+
     case 'reset': {
       resetState();
+      streamSession = null;
       break;
     }
 
@@ -137,6 +197,32 @@ self.onmessage = async (event: MessageEvent) => {
 };
 
 // ── Silero VAD 推理 | Silero VAD inference ───────────────────────────────────
+
+/**
+ * 对单帧 PCM 运行 Silero VAD ONNX 推理，返回语音概率。
+ * Runs Silero VAD ONNX inference on a single frame, returning speech probability.
+ */
+async function runSingleFrame(frame: Float32Array): Promise<number> {
+  if (!ort) throw new Error('onnxruntime-web not loaded');
+  const inputTensor = new ort.Tensor('float32', frame, [1, FRAME_SIZE]);
+  const srTensor = new ort.Tensor('int64', BigInt64Array.from([BigInt(SILERO_SAMPLE_RATE)]), [1]);
+  const hTensor = new ort.Tensor('float32', h0, [2, 1, 64]);
+  const cTensor = new ort.Tensor('float32', c0, [2, 1, 64]);
+
+  const outputs = await session!.run({
+    input: inputTensor as unknown as OnnxTensor,
+    sr: srTensor as unknown as OnnxTensor,
+    h: hTensor as unknown as OnnxTensor,
+    c: cTensor as unknown as OnnxTensor,
+  });
+
+  const prob = (outputs['output']?.data as Float32Array)[0] ?? 0;
+  const newH = outputs['hn']?.data as Float32Array;
+  const newC = outputs['cn']?.data as Float32Array;
+  if (newH) h0 = new Float32Array(newH);
+  if (newC) c0 = new Float32Array(newC);
+  return prob;
+}
 
 /**
  * 对 PCM 数据逐帧运行 Silero VAD ONNX 推理，返回语音段列表。
@@ -150,7 +236,6 @@ async function runSileroVad(
     onProgress?: (processedFrames: number, totalFrames: number) => void;
   },
 ): Promise<VadWorkerSegment[]> {
-  const ort = await import('onnxruntime-web');
   const frameCount = Math.floor(pcm.length / FRAME_SIZE);
   const frameProbs: number[] = [];
 
@@ -162,27 +247,7 @@ async function runSileroVad(
     }
 
     const frame = pcm.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
-
-    const inputTensor = new ort.Tensor('float32', frame, [1, FRAME_SIZE]);
-    const srTensor = new ort.Tensor('int64', BigInt64Array.from([BigInt(SILERO_SAMPLE_RATE)]), [1]);
-    const hTensor = new ort.Tensor('float32', h0, [2, 1, 64]);
-    const cTensor = new ort.Tensor('float32', c0, [2, 1, 64]);
-
-    const outputs = await session!.run({
-      input: inputTensor as unknown as OnnxTensor,
-      sr: srTensor as unknown as OnnxTensor,
-      h: hTensor as unknown as OnnxTensor,
-      c: cTensor as unknown as OnnxTensor,
-    });
-
-    const prob = (outputs['output']?.data as Float32Array)[0] ?? 0;
-    frameProbs.push(prob);
-
-    // 更新状态 | Update hidden/cell state
-    const newH = outputs['hn']?.data as Float32Array;
-    const newC = outputs['cn']?.data as Float32Array;
-    if (newH) h0 = new Float32Array(newH);
-    if (newC) c0 = new Float32Array(newC);
+    frameProbs.push(await runSingleFrame(frame));
 
     if (options.onProgress && (fi === frameCount - 1 || (fi + 1) % 16 === 0)) {
       options.onProgress(fi + 1, frameCount);
@@ -191,6 +256,86 @@ async function runSileroVad(
 
   options.onProgress?.(frameCount, frameCount);
   return frameProbsToSegments(frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
+}
+
+// ── 流式推理处理 | Streaming inference processing ────────────────────────────
+
+/**
+ * 处理一个流式 PCM 块：重采样、拼接剩余、逐帧推理。
+ * Process a streaming PCM chunk: resample, concatenate leftover, run per-frame inference.
+ */
+async function processStreamChunk(id: string, rawPcm: Float32Array): Promise<void> {
+  if (!streamSession || streamSession.id !== id) return;
+  if (cancelledRequestIds.has(id)) {
+    streamSession = null;
+    self.postMessage({ type: 'error', id, message: 'VAD detect aborted' });
+    return;
+  }
+
+  const sr = streamSession.sampleRate;
+  const resampled = sr === SILERO_SAMPLE_RATE ? rawPcm : resampleLinear(rawPcm, sr, SILERO_SAMPLE_RATE);
+
+  // 拼接剩余 + 新数据 | Concatenate leftover + new data
+  const combined = new Float32Array(streamSession.leftover.length + resampled.length);
+  combined.set(streamSession.leftover);
+  combined.set(resampled, streamSession.leftover.length);
+
+  // 处理完整帧 | Process complete frames
+  const completeFrames = Math.floor(combined.length / FRAME_SIZE);
+  for (let fi = 0; fi < completeFrames; fi++) {
+    if (cancelledRequestIds.has(id)) {
+      streamSession = null;
+      self.postMessage({ type: 'error', id, message: 'VAD detect aborted' });
+      return;
+    }
+    const frame = combined.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
+    streamSession.frameProbs.push(await runSingleFrame(frame));
+    streamSession.processedFrames++;
+
+    if (streamSession.processedFrames % 16 === 0) {
+      self.postMessage({
+        type: 'progress',
+        id,
+        processedFrames: streamSession.processedFrames,
+        totalFrames: 0,
+        ratio: 0,
+      });
+    }
+  }
+
+  // 保存剩余 | Keep leftover
+  streamSession.leftover = combined.slice(completeFrames * FRAME_SIZE);
+}
+
+/**
+ * 结束流式会话：处理剩余帧、后处理、返回结果。
+ * Finalize streaming session: process remaining frames, post-process, return results.
+ */
+async function finalizeStream(id: string): Promise<void> {
+  if (!streamSession || streamSession.id !== id) return;
+
+  // 处理剩余完整帧 | Process remaining complete frames
+  const leftover = streamSession.leftover;
+  const remainingFrames = Math.floor(leftover.length / FRAME_SIZE);
+  for (let fi = 0; fi < remainingFrames; fi++) {
+    const frame = leftover.slice(fi * FRAME_SIZE, (fi + 1) * FRAME_SIZE);
+    streamSession.frameProbs.push(await runSingleFrame(frame));
+    streamSession.processedFrames++;
+  }
+
+  const segments = frameProbsToSegments(streamSession.frameProbs, FRAME_SIZE, SILERO_SAMPLE_RATE);
+
+  self.postMessage({
+    type: 'progress',
+    id,
+    processedFrames: streamSession.processedFrames,
+    totalFrames: streamSession.processedFrames,
+    ratio: 1,
+  });
+
+  self.postMessage({ type: 'result', id, segments });
+  cancelledRequestIds.delete(id);
+  streamSession = null;
 }
 
 /**
