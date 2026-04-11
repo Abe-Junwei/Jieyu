@@ -31,6 +31,22 @@ function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
   return 'none';
 }
 
+function prewarmLanguageAssetPanel(panel: LanguageAssetPanel): void {
+  if (panel === 'language-metadata') {
+    void import('./pages/LanguageMetadataWorkspacePage');
+    return;
+  }
+  if (panel === 'orthographies') {
+    void import('./pages/OrthographyManagerPage');
+    return;
+  }
+  if (panel === 'orthography-bridges') {
+    void import('./pages/OrthographyBridgeWorkspacePage');
+  }
+}
+
+const SHOULD_PREWARM_LANGUAGE_ASSET_PANELS = import.meta.env.MODE !== 'test';
+
 type ThemeMode = 'light' | 'dark' | 'system';
 
 type NavItem = {
@@ -298,6 +314,42 @@ export function App() {
     void import('./pages/TranscriptionPage.Orchestrator');
   }, [location.pathname]);
 
+  useEffect(() => {
+    if (!SHOULD_PREWARM_LANGUAGE_ASSET_PANELS) {
+      return;
+    }
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+
+    const prewarm = () => {
+      if (cancelled) return;
+      prewarmLanguageAssetPanel('language-metadata');
+      prewarmLanguageAssetPanel('orthographies');
+      prewarmLanguageAssetPanel('orthography-bridges');
+    };
+
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(prewarm, { timeout: 6500 });
+    } else {
+      timeoutHandle = window.setTimeout(prewarm, 1200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle !== null) {
+        idleWindow.cancelIdleCallback?.(idleHandle);
+      }
+      if (timeoutHandle !== null) {
+        window.clearTimeout(timeoutHandle);
+      }
+    };
+  }, []);
+
   const navGroups = useMemo<NavGroup[]>(() => [
     {
       id: 'workspace-core',
@@ -394,6 +446,9 @@ export function App() {
 
   const openAssetPanelFromTarget = useCallback((to: string) => {
     const panelId = pathToPanelId(to);
+    if (SHOULD_PREWARM_LANGUAGE_ASSET_PANELS) {
+      prewarmLanguageAssetPanel(panelId);
+    }
     setOpenAssetPanel(panelId);
 
     const nextSearch = searchFromTarget(to);
