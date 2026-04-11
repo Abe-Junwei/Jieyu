@@ -11,8 +11,6 @@ import {
   buildAcousticBatchExportFileStem,
   buildAcousticExportFileStem,
   buildAcousticInspectorSlice,
-  type AcousticPanelBatchDetail,
-  type AcousticPanelDetail,
   type AcousticPanelTrend,
 } from '../utils/acousticPanelDetail';
 import {

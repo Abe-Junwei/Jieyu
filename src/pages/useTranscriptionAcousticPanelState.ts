@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { AcousticInspectorReadout } from '../contexts/AiPanelContext';
+import type { AcousticInspectorReadout, VadCacheStatus } from '../contexts/AiPanelContext';
 import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
 import type { AcousticAnalysisConfig } from '../utils/acousticOverlayTypes';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
@@ -14,7 +14,7 @@ type UseTranscriptionAcousticPanelStateInput = {
   waveformHoverReadout: WaveformHoverReadout | null;
   spectrogramHoverReadout: SpectrogramHoverReadout | null;
   acousticProviderPreference: string | null;
-  vadCacheStatus: { state?: string } | null | undefined;
+  vadCacheStatus: VadCacheStatus | null | undefined;
 };
 
 export function useTranscriptionAcousticPanelState({

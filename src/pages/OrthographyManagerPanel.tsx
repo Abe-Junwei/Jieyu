@@ -156,9 +156,7 @@ export function OrthographyManagerPanel({
           <section className="ws-summary-card om-summary la-panel-section" aria-labelledby="om-summary-title">
             <div className="ws-summary-header">
               <div className="ws-summary-copy">
-                <span className="ws-kicker">{t(locale, 'workspace.orthography.title')}</span>
                 <h2 id="om-summary-title" className="ws-summary-title">{formatOrthographyOptionLabel(selectedOrthography, locale)}</h2>
-                <p className="ws-summary-description">{t(locale, 'workspace.orthography.summary')}</p>
               </div>
               <div className="om-summary-meta">
                 <PanelChip>{resolveLabel(selectedOrthography.languageId)}</PanelChip>
@@ -197,6 +195,7 @@ export function OrthographyManagerPanel({
         <div className="panel-section__body om-browser-body">
           <div className="om-browser-header">
             <p className="om-browser-title">{t(locale, 'workspace.orthography.listTitle')}</p>
+            <p className="panel-section__description">{t(locale, 'workspace.orthography.listDescription')}</p>
           </div>
           <div className="om-toolbar orthography-builder-group-body">
             <input
