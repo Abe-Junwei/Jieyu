@@ -181,6 +181,7 @@ export function useTranscriptionData() {
 
   const {
     selectedMediaUrl,
+    selectedMediaBlobSize,
     selectedMediaIsVideo,
   } = useTranscriptionMediaSelection({
     mediaItems,
@@ -460,6 +461,7 @@ export function useTranscriptionData() {
     selectedUtterance,
     selectedUtteranceMedia,
     selectedMediaUrl,
+    selectedMediaBlobSize,
     selectedMediaIsVideo,
     utterancesOnCurrentMedia,
     visibleUtterances,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MediaItemDocType } from '../db';
 
 type Params = {
@@ -108,8 +108,16 @@ export function useTranscriptionMediaSelection({
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
   }, []);
 
+  // 缓存已选媒体的 Blob 字节数，用于 VAD 预热前置门控 | Cache selected media blob byte size for VAD pre-fetch gate
+  const selectedMediaBlobSize = useMemo(() => {
+    const details = selectedUtteranceMedia?.details as Record<string, unknown> | undefined;
+    const blob = details?.audioBlob;
+    return blob instanceof Blob ? blob.size : undefined;
+  }, [selectedUtteranceMedia]);
+
   return {
     selectedMediaUrl,
+    selectedMediaBlobSize,
     selectedMediaIsVideo: selectedUtteranceMedia ? isMediaVideo(selectedUtteranceMedia) : false,
   };
 }

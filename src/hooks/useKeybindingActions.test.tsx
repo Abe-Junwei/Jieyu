@@ -124,4 +124,68 @@ describe('useKeybindingActions segment routing', () => {
 
     expect(playRegion).toHaveBeenCalledWith(3, 4.5, true);
   });
+
+  it('markSegment completes creation with keep-current behavior and avoids post-create reselection race', async () => {
+    const setSegMarkStart = vi.fn();
+    const selectTimelineUnit = vi.fn();
+    const createUtteranceFromSelection = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: { getCurrentTime: () => 2.4 } as unknown as import('wavesurfer.js').default },
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUtterance: undefined,
+        selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg_42', kind: 'segment' as const },
+        selectedUtteranceIds: new Set<string>(),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: 1.1,
+        setSegMarkStart,
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        utterancesOnCurrentMedia: [],
+        markingModeRef: { current: true },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUtteranceFromSelection,
+        selectTimelineUnit,
+        selectUtterance: vi.fn(),
+        selectAllUtterances: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch: vi.fn(),
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    await act(async () => {
+      result.current.executeAction('markSegment');
+      await Promise.resolve();
+    });
+
+    expect(createUtteranceFromSelection).toHaveBeenCalledWith(1.1, 2.4, {
+      selectionBehavior: 'keep-current',
+    });
+    expect(selectTimelineUnit).toHaveBeenCalledTimes(1);
+    expect(selectTimelineUnit).toHaveBeenCalledWith(null);
+    expect(setSegMarkStart).toHaveBeenCalledWith(null);
+  });
 });

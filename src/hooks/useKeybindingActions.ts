@@ -34,7 +34,11 @@ interface UseKeybindingActionsInput {
   manualSelectTsRef: React.MutableRefObject<number>;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
   // Utterance operations
-  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
+  createUtteranceFromSelection: (
+    start: number,
+    end: number,
+    options?: { selectionBehavior?: 'select-created' | 'keep-current' },
+  ) => Promise<void>;
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
   selectUtterance: (id: string) => void;
   selectAllUtterances: () => void;
@@ -122,9 +126,11 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
           if (end - s >= 0.05) {
             skipSeekForIdRef.current = '__next_created__';
             creatingSegmentRef.current = true;
-            fireAndForget(createUtteranceFromSelection(s, end).then(() => {
-              if (!markingModeRef.current) return;
+            if (markingModeRef.current) {
               selectTimelineUnit?.(null);
+            }
+            fireAndForget(createUtteranceFromSelection(s, end, {
+              selectionBehavior: 'keep-current',
             }).finally(() => { creatingSegmentRef.current = false; }));
           }
           setSegMarkStart(null);

@@ -98,6 +98,8 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
   mediaId?: string;
+  /** 已选媒体 Blob 字节数，传给 VAD 预热前置门控 | Selected media blob byte size for VAD pre-fetch gate */
+  mediaBlobSize?: number;
 }
 
 export interface UseTranscriptionWaveformBridgeControllerResult {

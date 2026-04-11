@@ -7,7 +7,7 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { LinguisticService } from '../services/LinguisticService';
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
-import { ensureVadCacheForMedia } from '../services/vad/VadMediaCacheService';
+import { ensureVadCacheForMedia, VAD_AUTO_WARM_MAX_BYTES } from '../services/vad/VadMediaCacheService';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
@@ -52,13 +52,26 @@ interface UseTranscriptionProjectMediaControllerResult {
   setProjectDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-async function resolveAutoSegmentCandidates(mediaId: string | undefined, mediaUrl: string): Promise<Array<{ start: number; end: number }>> {
+async function resolveAutoSegmentCandidates(mediaId: string | undefined, mediaUrl: string, mediaBlobSize?: number): Promise<Array<{ start: number; end: number }>> {
   const cachedEntry = await ensureVadCacheForMedia({
     ...(mediaId !== undefined ? { mediaId } : {}),
     mediaUrl,
+    ...(mediaBlobSize !== undefined && { mediaBlobSize }),
   });
   if (cachedEntry) {
     return cachedEntry.segments;
+  }
+
+  // 大文件跳过 loadAudioBuffer 回退，避免全量 fetch+decodeAudioData 导致 OOM | Skip loadAudioBuffer fallback for large files to prevent full fetch+decode OOM
+  if (mediaBlobSize !== undefined && mediaBlobSize > VAD_AUTO_WARM_MAX_BYTES) {
+    log.warn('Media file too large for in-memory VAD, skipping auto-segment', { mediaId, mediaBlobSize });
+    return [];
+  }
+
+  // blob URL 且大小未知时，避免回退到全量 decode 路径导致潜在 OOM | Avoid full decode fallback for blob URLs with unknown size to prevent potential OOM
+  if (mediaBlobSize === undefined && mediaUrl.startsWith('blob:')) {
+    log.warn('Blob media size unknown, skipping in-memory VAD fallback to avoid OOM risk', { mediaId });
+    return [];
   }
 
   const audioBuffer = await loadAudioBuffer(mediaUrl);
@@ -106,9 +119,13 @@ export function useTranscriptionProjectMediaController(
     const mediaUrl = selectedMediaUrl;
     if (!mediaUrl || autoSegmentBusy) return;
     setAutoSegmentBusy(true);
+    // 从媒体详情中提取 Blob 大小，用于 VAD 大文件门控 | Extract blob size from media details for VAD large-file gate
+    const details = selectedTimelineMedia?.details as Record<string, unknown> | undefined;
+    const blob = details?.audioBlob;
+    const blobSize = blob instanceof Blob ? blob.size : undefined;
     fireAndForget((async () => {
       try {
-        const segments = await resolveAutoSegmentCandidates(selectedTimelineMedia?.id, mediaUrl);
+        const segments = await resolveAutoSegmentCandidates(selectedTimelineMedia?.id, mediaUrl, blobSize);
         const newSegs = segments.filter((seg) => !utterancesOnCurrentMedia.some(
           (utterance) => utterance.startTime < seg.end - 0.05 && utterance.endTime > seg.start + 0.05,
         ));

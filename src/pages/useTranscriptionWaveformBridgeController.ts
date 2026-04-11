@@ -41,7 +41,7 @@ export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
   const { setZoomPercent, setZoomMode, setAmplitudeScale } = input;
-  useEnsureVadCache(input.mediaId, input.selectedMediaUrl);
+  useEnsureVadCache(input.mediaId, input.selectedMediaUrl, input.mediaBlobSize);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);

@@ -26,6 +26,7 @@ vi.mock('../hooks/useMediaImport', () => ({
 
 vi.mock('../services/vad/VadMediaCacheService', () => ({
   ensureVadCacheForMedia: (options: { mediaId?: string; mediaUrl?: string }) => mockEnsureVadCacheForMedia(options),
+  VAD_AUTO_WARM_MAX_BYTES: 100 * 1024 * 1024,
 }));
 
 vi.mock('../services/VadService', () => ({
@@ -144,6 +145,12 @@ describe('useTranscriptionProjectMediaController', () => {
     const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
       createUtteranceFromSelectionRouted,
       setSaveState,
+      selectedTimelineMedia: {
+        ...makeMedia(),
+        details: {
+          audioBlob: new Blob([new Uint8Array(16)]),
+        },
+      } as MediaItemDocType,
     })));
 
     act(() => {
@@ -161,6 +168,32 @@ describe('useTranscriptionProjectMediaController', () => {
       kind: 'done',
       message: 'transcription.projectMedia.vadDone:2',
     });
+  });
+
+  it('skips loadAudioBuffer fallback when blob size is unknown', async () => {
+    mockEnsureVadCacheForMedia.mockResolvedValue(null);
+    const createUtteranceFromSelectionRouted = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
+      createUtteranceFromSelectionRouted,
+      setSaveState,
+      selectedTimelineMedia: makeMedia(),
+    })));
+
+    act(() => {
+      result.current.handleAutoSegment();
+    });
+
+    await waitFor(() => {
+      expect(setSaveState).toHaveBeenLastCalledWith({
+        kind: 'done',
+        message: 'transcription.projectMedia.vadDone:0',
+      });
+    });
+
+    expect(createUtteranceFromSelectionRouted).not.toHaveBeenCalled();
+    expect(mockLoadAudioBuffer).not.toHaveBeenCalled();
+    expect(mockDetectVadSegments).not.toHaveBeenCalled();
   });
 
   it('does not fall back when cached VAD detects no speech segments', async () => {

@@ -5,7 +5,7 @@
  * 从轻量壳组件中拆出的 ready 态重运行时 | Heavy ready-state runtime extracted from the lightweight shell.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -185,6 +185,7 @@ function TranscriptionPageReadyWorkspace({
     selectedUtterance,
     selectedUtteranceMedia,
     selectedMediaUrl,
+    selectedMediaBlobSize,
     selectedMediaIsVideo,
     utterancesOnCurrentMedia,
     aiConfidenceAvg,
@@ -717,6 +718,7 @@ function TranscriptionPageReadyWorkspace({
     resolveNoteIndicatorTarget,
     tierContainerRef,
     ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
+    ...(selectedMediaBlobSize !== undefined && { mediaBlobSize: selectedMediaBlobSize }),
   });
 
   const selectionSnapshot = useTranscriptionSelectionSnapshot({
@@ -834,8 +836,8 @@ function TranscriptionPageReadyWorkspace({
     deferredAiRuntime,
     setDeferredAiRuntime,
     setAcousticProviderPreference,
-    selectedTimelineMediaId: selectedTimelineMedia?.id,
-    selectedMediaUrl,
+    ...(selectedTimelineMedia?.id !== undefined ? { selectedTimelineMediaId: selectedTimelineMedia.id } : {}),
+    ...(selectedMediaUrl !== undefined ? { selectedMediaUrl } : {}),
     waveformHoverReadout,
     spectrogramHoverReadout,
     acousticProviderPreference,
