@@ -50,6 +50,9 @@ export function useTranscriptionWaveformBridgeController(
   const [globalLoopPlayback, setGlobalLoopPlayback] = useState(false);
   const [segmentPlaybackRate, setSegmentPlaybackRate] = useState(readDefaultPlaybackRate);
   const [hoverTime, setHoverTime] = useState<{ time: number; x: number; y: number } | null>(null);
+  // RAF 聚合悬停时间，避免 mousemove 无上限触发 setState | RAF-coalesce hover time to cap mousemove setState at 60fps
+  const pendingHoverTimeRef = useRef<{ time: number; x: number; y: number } | null | undefined>(undefined);
+  const hoverTimeRafRef = useRef<number | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
   const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
   const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(null);
@@ -70,6 +73,9 @@ export function useTranscriptionWaveformBridgeController(
   const handleWaveformRegionUpdateRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
   const handleWaveformRegionUpdateEndRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
   const handleWaveformTimeUpdateRef = useRef<((time: number) => void) | undefined>(undefined);
+  // RAF 聚合拖拽中的 region update，避免每像素的 dragPreview+snapGuide 双 setState | RAF-coalesce region drag updates
+  const pendingDragUpdateRef = useRef<{ regionId: string; start: number; end: number } | null>(null);
+  const dragUpdateRafRef = useRef<number | null>(null);
 
   const {
     useSegmentWaveformRegions,
@@ -126,9 +132,24 @@ export function useTranscriptionWaveformBridgeController(
       handleWaveformRegionDoubleClickRef.current?.(regionId, start, end);
     },
     onRegionUpdate: (regionId, start, end) => {
-      handleWaveformRegionUpdateRef.current?.(regionId, start, end);
+      // RAF 聚合：拖拽中每像素触发，合并到单帧 | Coalesce per-pixel drag to one frame
+      pendingDragUpdateRef.current = { regionId, start, end };
+      if (dragUpdateRafRef.current !== null) return;
+      dragUpdateRafRef.current = requestAnimationFrame(() => {
+        dragUpdateRafRef.current = null;
+        const pending = pendingDragUpdateRef.current;
+        pendingDragUpdateRef.current = null;
+        if (!pending) return;
+        handleWaveformRegionUpdateRef.current?.(pending.regionId, pending.start, pending.end);
+      });
     },
     onRegionUpdateEnd: (regionId, start, end) => {
+      // 拖拽结束时刷新最终位置并立即提交 | Flush final position on drag end immediately
+      if (dragUpdateRafRef.current !== null) {
+        cancelAnimationFrame(dragUpdateRafRef.current);
+        dragUpdateRafRef.current = null;
+      }
+      pendingDragUpdateRef.current = null;
       handleWaveformRegionUpdateEndRef.current?.(regionId, start, end);
     },
     onRegionCreate: (start, end) => {
@@ -147,6 +168,19 @@ export function useTranscriptionWaveformBridgeController(
       lastDurationRef.current = player.duration;
     }
   }, [player.duration]);
+
+  // RAF 聚合悬停时间 | RAF-coalesce hover time
+  const scheduleHoverTime = useCallback((next: { time: number; x: number; y: number } | null) => {
+    pendingHoverTimeRef.current = next;
+    if (hoverTimeRafRef.current !== null) return;
+    hoverTimeRafRef.current = requestAnimationFrame(() => {
+      hoverTimeRafRef.current = null;
+      const pending = pendingHoverTimeRef.current;
+      pendingHoverTimeRef.current = undefined;
+      if (pending === undefined) return;
+      setHoverTime(pending);
+    });
+  }, []);
 
   const commitWaveformScrollLeft = useCallback((nextScrollLeft: number) => {
     setWaveformScrollLeft((prev) => (Math.abs(prev - nextScrollLeft) > 0.5 ? nextScrollLeft : prev));
@@ -176,6 +210,16 @@ export function useTranscriptionWaveformBridgeController(
   }, [player.isReady, player.instanceRef, scheduleWaveformScrollLeft]);
 
   useEffect(() => () => {
+    if (hoverTimeRafRef.current !== null) {
+      cancelAnimationFrame(hoverTimeRafRef.current);
+      hoverTimeRafRef.current = null;
+    }
+    pendingHoverTimeRef.current = undefined;
+    if (dragUpdateRafRef.current !== null) {
+      cancelAnimationFrame(dragUpdateRafRef.current);
+      dragUpdateRafRef.current = null;
+    }
+    pendingDragUpdateRef.current = null;
     if (waveformScrollRafRef.current !== null) {
       cancelAnimationFrame(waveformScrollRafRef.current);
       waveformScrollRafRef.current = null;
@@ -289,7 +333,7 @@ export function useTranscriptionWaveformBridgeController(
   const handleWaveformAreaMouseMove = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
     const el = waveCanvasRef.current;
     if (!el || !player.isReady) {
-      setHoverTime(null);
+      scheduleHoverTime(null);
       return;
     }
     const rect = el.getBoundingClientRect();
@@ -299,20 +343,26 @@ export function useTranscriptionWaveformBridgeController(
       || event.clientY < rect.top
       || event.clientY > rect.bottom + 30
     ) {
-      setHoverTime(null);
+      scheduleHoverTime(null);
       return;
     }
     const ws = player.instanceRef.current;
     const scrollLeft = ws ? ws.getScroll() : 0;
     const time = (scrollLeft + (event.clientX - rect.left)) / zoomPxPerSec;
-    setHoverTime({
+    scheduleHoverTime({
       time: Math.max(0, Math.min(time, player.duration)),
       x: event.clientX,
       y: rect.top - 4,
     });
-  }, [player.duration, player.instanceRef, player.isReady, zoomPxPerSec]);
+  }, [player.duration, player.instanceRef, player.isReady, scheduleHoverTime, zoomPxPerSec]);
 
   const handleWaveformAreaMouseLeave = useCallback(() => {
+    // 离开时立即清除，不走 RAF，避免残留 tooltip | Clear immediately on leave, skip RAF to avoid stale tooltip
+    if (hoverTimeRafRef.current !== null) {
+      cancelAnimationFrame(hoverTimeRafRef.current);
+      hoverTimeRafRef.current = null;
+    }
+    pendingHoverTimeRef.current = undefined;
     setHoverTime(null);
   }, []);
 

@@ -63,6 +63,8 @@ self.onmessage = async (event: MessageEvent) => {
     case 'init': {
       try {
         const ort = await import('onnxruntime-web');
+        // 锁定 WASM 加载路径，dev 由中间件伺服，build 由 copyOnnxWasm 复制 | Pin WASM path; dev served by middleware, build by copyOnnxWasm plugin
+        ort.env.wasm.wasmPaths = '/onnx-wasm/';
         session = await ort.InferenceSession.create(msg.modelUrl ?? '/models/silero_vad.onnx', {
           executionProviders: ['wasm'],
         }) as unknown as OnnxSession;

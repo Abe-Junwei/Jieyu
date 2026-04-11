@@ -8,7 +8,14 @@ interface AudioResponseLike {
   ok: boolean;
   status?: number;
   arrayBuffer: () => Promise<ArrayBuffer>;
+  headers?: { get: (name: string) => string | null };
 }
+
+/**
+ * 自动 VAD 预热的文件大小上限（字节）。超过此值跳过自动预热，避免 decodeAudioData OOM。
+ * Max file size for automatic VAD warming. Files above this skip warming to prevent decodeAudioData OOM.
+ */
+const VAD_AUTO_WARM_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 
 interface AudioContextLike {
   decodeAudioData: (audioData: ArrayBuffer) => Promise<AudioBuffer>;
@@ -148,7 +155,22 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
         throw new Error(`Failed to fetch media for VAD cache: ${response.status ?? 'unknown'}`);
       }
 
+      // 大文件跳过自动预热，避免 decodeAudioData 分配数 GB PCM 导致 OOM | Skip large files to prevent multi-GB PCM allocation from decodeAudioData
+      const contentLength = Number(response.headers?.get('content-length') ?? 0);
+      if (contentLength > VAD_AUTO_WARM_MAX_BYTES) {
+        log.info('Skipping automatic VAD warming for large media file', { mediaId, contentLength });
+        clearWarmupStatus(mediaId);
+        return null;
+      }
+
       const audioData = await response.arrayBuffer();
+      // 二次校验：Content-Length 可能为 0（blob URL），用实际大小兜底 | Double-check with actual size; Content-Length may be 0 for blob URLs
+      if (audioData.byteLength > VAD_AUTO_WARM_MAX_BYTES) {
+        log.info('Skipping automatic VAD warming for large media file', { mediaId, byteLength: audioData.byteLength });
+        clearWarmupStatus(mediaId);
+        return null;
+      }
+
       audioContext = audioContextFactory();
       const audioBuffer = await audioContext.decodeAudioData(audioData);
       const segments = await vadRuntime.detectSpeechSegments(audioBuffer, {

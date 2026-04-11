@@ -199,7 +199,8 @@ export async function loadAudioBuffer(
 
   const audioCtx = new AudioContext();
   try {
-    return await audioCtx.decodeAudioData(combined.buffer.slice(0));
+    // 直接用底层 ArrayBuffer，避免多余拷贝 | Use underlying ArrayBuffer directly to avoid redundant copy
+    return await audioCtx.decodeAudioData(combined.buffer as ArrayBuffer);
   } finally {
     void audioCtx.close();
   }

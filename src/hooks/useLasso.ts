@@ -1,9 +1,91 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UtteranceDocType } from '../db';
 import { computeLassoOutcome } from '../utils/waveformSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLatest } from './useLatest';
+
+type TimelineHitIndex = {
+  isSortedByStart: boolean;
+  starts: number[];
+  prefixMaxEnds: number[];
+};
+
+function buildTimelineHitIndex(items: Array<{ startTime: number; endTime: number }>): TimelineHitIndex {
+  if (items.length < 2) {
+    const single = items[0];
+    return {
+      isSortedByStart: true,
+      starts: single ? [single.startTime] : [],
+      prefixMaxEnds: single ? [single.endTime] : [],
+    };
+  }
+
+  for (let i = 1; i < items.length; i += 1) {
+    if (items[i]!.startTime < items[i - 1]!.startTime) {
+      return {
+        isSortedByStart: false,
+        starts: [],
+        prefixMaxEnds: [],
+      };
+    }
+  }
+
+  const starts = new Array<number>(items.length);
+  const prefixMaxEnds = new Array<number>(items.length);
+  let runningMaxEnd = Number.NEGATIVE_INFINITY;
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i]!;
+    starts[i] = item.startTime;
+    if (item.endTime > runningMaxEnd) {
+      runningMaxEnd = item.endTime;
+    }
+    prefixMaxEnds[i] = runningMaxEnd;
+  }
+
+  return {
+    isSortedByStart: true,
+    starts,
+    prefixMaxEnds,
+  };
+}
+
+function upperBound(values: number[], target: number): number {
+  let low = 0;
+  let high = values.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if ((values[middle] ?? Number.NEGATIVE_INFINITY) <= target) {
+      low = middle + 1;
+    } else {
+      high = middle;
+    }
+  }
+  return low;
+}
+
+function hasTimelineHitAtTime(
+  index: TimelineHitIndex,
+  items: Array<{ startTime: number; endTime: number }>,
+  time: number,
+  eps: number,
+): boolean {
+  if (items.length === 0) {
+    return false;
+  }
+
+  if (!index.isSortedByStart) {
+    return items.some((item) => item.startTime - eps <= time && item.endTime + eps >= time);
+  }
+
+  const lastStartAtOrBeforeTime = upperBound(index.starts, time + eps) - 1;
+  if (lastStartAtOrBeforeTime < 0) {
+    return false;
+  }
+
+  return (index.prefixMaxEnds[lastStartAtOrBeforeTime] ?? Number.NEGATIVE_INFINITY) >= time - eps;
+}
 
 export type SubSelectDrag = {
   active: boolean;
@@ -97,6 +179,8 @@ export function useLasso(input: UseLassoInput) {
   // Sync refs for values used inside effects
   const timelineItemsRef = useLatest(timelineItems);
   const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
+  const timelineHitIndex = useMemo(() => buildTimelineHitIndex(timelineItems), [timelineItems]);
+  const timelineHitIndexRef = useLatest(timelineHitIndex);
 
   const scheduleLassoSelectionUpdate = useCallback((ids: Set<string>, primaryId: string) => {
     pendingLassoSelectionRef.current = { ids, primaryId };
@@ -147,9 +231,12 @@ export function useLasso(input: UseLassoInput) {
       const eps = totalWidth > 0 && dur > 0
         ? Math.min(0.03, Math.max(0.005, 3 / totalWidth * dur))
         : 0.01;
-        // 用当前活跃层条目判断（独立层用 segment，默认层用 utterance）| Use active-layer items (segments for independent layers, utterances for default)
-        return timelineItemsRef.current.some(
-        (u) => u.startTime - eps <= time && u.endTime + eps >= time,
+      // 用当前活跃层条目判断（独立层用 segment，默认层用 utterance）| Use active-layer items (segments for independent layers, utterances for default)
+      return hasTimelineHitAtTime(
+        timelineHitIndexRef.current,
+        timelineItemsRef.current,
+        time,
+        eps,
       );
     };
 

@@ -6,16 +6,34 @@ import { resolve, join } from 'node:path';
 import type { Plugin as EsbuildPlugin } from 'esbuild';
 
 /**
- * 将 onnxruntime-web WASM 文件复制到构建输出，供 @huggingface/transformers Worker 运行时加载。
- * Copies onnxruntime-web WASM files to build output so the @huggingface/transformers worker can load them at runtime.
+ * 将 onnxruntime-web WASM 文件复制到构建输出，并在开发服务器中正确伺服。
+ * Copies onnxruntime-web WASM files to build output and serves them correctly in dev server.
  */
 function copyOnnxWasm(): Plugin {
+  const wasmSrc = resolve('node_modules/onnxruntime-web/dist');
   return {
     name: 'copy-onnx-wasm',
-    apply: 'build',
+    // 开发模式：拦截 /onnx-wasm/*.wasm 请求，从 node_modules 返回正确 MIME | Dev: intercept /onnx-wasm/*.wasm and serve from node_modules with correct MIME
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url?.startsWith('/onnx-wasm/') && req.url.endsWith('.wasm')) {
+          const filename = req.url.slice('/onnx-wasm/'.length);
+          try {
+            const data = readFileSync(join(wasmSrc, filename));
+            res.setHeader('Content-Type', 'application/wasm');
+            res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+            res.end(data);
+          } catch {
+            next();
+          }
+        } else {
+          next();
+        }
+      });
+    },
+    // 构建模式：复制到输出目录 | Build: copy to output directory
     closeBundle() {
-      const outDir = resolve('dist/assets');
-      const wasmSrc = resolve('node_modules/onnxruntime-web/dist');
+      const outDir = resolve('dist/onnx-wasm');
       try {
         mkdirSync(outDir, { recursive: true });
         for (const file of readdirSync(wasmSrc)) {

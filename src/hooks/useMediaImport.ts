@@ -43,6 +43,8 @@ export function useMediaImport({
     try {
       // Get duration
       const media = document.createElement(isVideo ? 'video' : 'audio') as HTMLMediaElement;
+      // 仅加载元数据，避免大文件预缓冲 | Only load metadata, skip buffering to prevent large-file OOM
+      media.preload = 'metadata';
       const objectUrl = URL.createObjectURL(file);
       media.src = objectUrl;
       const duration = await new Promise<number>((resolve) => {
@@ -68,7 +70,8 @@ export function useMediaImport({
         textId = result.textId;
         setActiveTextId(textId);
       }
-      const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+      // 直接用 File（File 是 Blob 子类），避免 arrayBuffer() 复制导致大文件 OOM | Use File directly (File extends Blob) to avoid OOM from arrayBuffer() copy on large files
+      const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
       const { mediaId } = await LinguisticService.importAudio({
         textId,
         audioBlob: blob,

@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { startTransition, useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
@@ -12,16 +12,13 @@ import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
 } from './transcriptionUnitTargetResolver';
-
 type ContextMenuUnitKind = 'segment' | 'utterance';
-
 interface WaveformTimelineItemLike {
   id: string;
   startTime: number;
   endTime: number;
   mediaId?: string;
 }
-
 interface WaveSurferInstanceLike {
   getCurrentTime: () => number;
   getWrapper: () => HTMLElement;
@@ -393,7 +390,10 @@ export function useTranscriptionTimelineInteractionController(
     input.endTimingGesture(regionId);
     input.setDragPreview(null);
     input.manualSelectTsRef.current = Date.now();
-    input.selectTimelineUnit(resolveWaveformUnitTarget(regionId));
+    // 选区更新不阻塞拖拽结束帧 | Selection update should not block drag-end paint
+    startTransition(() => {
+      input.selectTimelineUnit(resolveWaveformUnitTarget(regionId));
+    });
 
     let finalStart = start;
     let finalEnd = end;

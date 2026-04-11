@@ -215,7 +215,7 @@ export function useTranscriptionProjectMediaController(
       textId = result.textId;
       setActiveTextId(textId);
     }
-    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
     const { mediaId } = await LinguisticService.importAudio({
       textId,
       audioBlob: blob,
