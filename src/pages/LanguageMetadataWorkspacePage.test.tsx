@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
@@ -22,6 +23,7 @@ const {
   mockLookupIso639_3Seed,
   mockForwardGeocode,
   mockReverseGeocode,
+  mockSearchLanguageCatalogSuggestions,
 } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
   mockListLanguageCatalogHistory: vi.fn(),
@@ -33,6 +35,7 @@ const {
   mockLookupIso639_3Seed: vi.fn(),
   mockForwardGeocode: vi.fn(),
   mockReverseGeocode: vi.fn(),
+  mockSearchLanguageCatalogSuggestions: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService.languageCatalog', () => ({
@@ -44,6 +47,10 @@ vi.mock('../services/LinguisticService.languageCatalog', () => ({
   upsertCustomFieldDefinition: mockUpsertCustomFieldDefinition,
   deleteCustomFieldDefinition: mockDeleteCustomFieldDefinition,
   lookupIso639_3Seed: mockLookupIso639_3Seed,
+}));
+
+vi.mock('../services/LanguageCatalogSearchService', () => ({
+  searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
 }));
 
 vi.mock('../components/languageGeocoder', () => ({
@@ -238,6 +245,7 @@ function createEntry(overrides: Partial<LanguageCatalogEntry> = {}): LanguageCat
 
 function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng', locale: 'zh-CN' | 'en-US' = 'zh-CN') {
   return render(
+    <QueryClientProvider client={queryClient}>
     <MemoryRouter initialEntries={[initialPath]}>
       <LocaleProvider locale={locale}>
         <AppSidePaneProvider>
@@ -247,7 +255,8 @@ function renderWorkspace(initialPath = '/assets/language-metadata?languageId=eng
           </Routes>
         </AppSidePaneProvider>
       </LocaleProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
@@ -273,8 +282,11 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+let queryClient: QueryClient;
+
 describe('LanguageMetadataWorkspacePage', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     currentEntries = [
       createEntry(),
       createEntry({
@@ -313,6 +325,30 @@ describe('LanguageMetadataWorkspacePage', () => {
     mockLookupIso639_3Seed.mockReset();
     mockForwardGeocode.mockReset();
     mockReverseGeocode.mockReset();
+    mockSearchLanguageCatalogSuggestions.mockReset();
+
+    mockSearchLanguageCatalogSuggestions.mockImplementation(async ({ query }: { query: string; locale: string }) => {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (!normalizedQuery) return [];
+      return currentEntries
+        .filter((entry) => [
+          entry.id,
+          entry.languageCode,
+          entry.localName,
+          entry.englishName,
+          ...(entry.aliases ?? []),
+        ]
+          .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+          .some((v) => v.toLowerCase().includes(normalizedQuery)))
+        .map((entry) => ({
+          id: entry.id,
+          languageCode: entry.languageCode,
+          primaryLabel: entry.localName,
+          matchedLabel: entry.localName,
+          matchSource: 'localName' as const,
+          rank: 0,
+        }));
+    });
 
     mockListLanguageCatalogEntries.mockImplementation(async (input: {
       searchText?: string;
@@ -448,10 +484,9 @@ describe('LanguageMetadataWorkspacePage', () => {
     fireEvent.change(screen.getByRole('searchbox', { name: '按名称、别名、代码或标准标识定位' }), { target: { value: '示例' } });
 
     await waitFor(() => {
-      expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith(expect.objectContaining({
+      expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith(expect.objectContaining({
+        query: '示例',
         locale: 'zh-CN',
-        searchText: '示例',
-        includeHidden: true,
       }));
     });
 

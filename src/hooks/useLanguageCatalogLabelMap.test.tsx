@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
 import { useLanguageCatalogLabelMap } from './useLanguageCatalogLabelMap';
@@ -31,7 +32,12 @@ function ScopedHookHarness() {
 }
 
 describe('useLanguageCatalogLabelMap', () => {
+  let queryClient: QueryClient;
+
   beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     mockListLanguageCatalogEntries.mockReset();
     mockListLanguageCatalogEntries.mockResolvedValue([
       {
@@ -56,9 +62,11 @@ describe('useLanguageCatalogLabelMap', () => {
 
   it('returns current-locale labels for resolveLabel but respects targetLocale for cross-locale resolution', async () => {
     render(
-      <LocaleProvider locale="zh-CN">
-        <HookHarness />
-      </LocaleProvider>,
+      <QueryClientProvider client={queryClient}>
+        <LocaleProvider locale="zh-CN">
+          <HookHarness />
+        </LocaleProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -70,18 +78,20 @@ describe('useLanguageCatalogLabelMap', () => {
 
   it('scopes catalog loading to the requested language ids when provided', async () => {
     render(
-      <LocaleProvider locale="zh-CN">
-        <ScopedHookHarness />
-      </LocaleProvider>,
+      <QueryClientProvider client={queryClient}>
+        <LocaleProvider locale="zh-CN">
+          <ScopedHookHarness />
+        </LocaleProvider>
+      </QueryClientProvider>,
     );
 
     await waitFor(() => {
       expect(screen.getByTestId('scoped-label').textContent).toBe('英语资产标签');
     });
 
+    // 现在始终获取全量目录，客户端按 languageIds 过滤 | Now always fetches full catalog, filters client-side by languageIds
     expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
       locale: 'zh-CN',
-      languageIds: ['eng', 'zho'],
     });
   });
 });

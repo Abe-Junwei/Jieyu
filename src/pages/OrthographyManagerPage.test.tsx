@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
@@ -42,8 +43,11 @@ function SidePaneSnapshot() {
   );
 }
 
+let queryClient: QueryClient;
+
 describe('OrthographyManagerPage', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockListOrthographies.mockReset();
     mockUpdateOrthography.mockReset();
     mockListLanguageCatalogEntries.mockReset();
@@ -142,7 +146,7 @@ describe('OrthographyManagerPage', () => {
 
   it('loads the orthography manager, selects the requested orthography, and registers side-pane summary', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
@@ -151,7 +155,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -165,7 +169,6 @@ describe('OrthographyManagerPage', () => {
     await waitFor(() => {
       expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
         locale: 'zh-CN',
-        languageIds: ['eng', 'zho'],
       });
     });
 
@@ -184,7 +187,7 @@ describe('OrthographyManagerPage', () => {
 
   it('saves edited orthography metadata from the workspace panel', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -192,7 +195,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const nameInput = (await screen.findAllByDisplayValue('Bridge Orthography'))[0]!;
@@ -222,7 +225,7 @@ describe('OrthographyManagerPage', () => {
 
   it('resets the language input UI together with the draft state', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -230,7 +233,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
@@ -253,7 +256,7 @@ describe('OrthographyManagerPage', () => {
 
   it('does not auto-infer a language from a two-character code while the user is still typing', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -261,7 +264,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
@@ -284,7 +287,7 @@ describe('OrthographyManagerPage', () => {
 
   it('allows continuing deletion after a normalized code has fallen back to a two-character draft', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -292,7 +295,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
@@ -308,7 +311,7 @@ describe('OrthographyManagerPage', () => {
 
   it('commits a new language after the previous name has been cleared and replaced', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -316,7 +319,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
@@ -361,7 +364,7 @@ describe('OrthographyManagerPage', () => {
 
   it('saves additional localized name labels from the workspace panel', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -369,7 +372,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     fireEvent.click(await screen.findByRole('button', { name: '添加语言标签' }));
@@ -392,7 +395,7 @@ describe('OrthographyManagerPage', () => {
 
   it('clears detected locale tags when switching from a tagged code to a plain language', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -400,7 +403,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
@@ -430,7 +433,7 @@ describe('OrthographyManagerPage', () => {
 
   it('clears detected locale tags after editing the language name without a fresh match', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -438,7 +441,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageNameInput = await screen.findByRole('combobox', { name: '语言' });
@@ -470,7 +473,7 @@ describe('OrthographyManagerPage', () => {
 
   it('keeps unsaved draft edits when the locale changes and only relocalizes the language display', async () => {
     const renderPage = (locale: 'zh-CN' | 'en-US') => (
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale={locale}>
           <AppSidePaneProvider>
             <Routes>
@@ -478,7 +481,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>
+      </MemoryRouter></QueryClientProvider>
     );
 
     const { rerender } = render(renderPage('zh-CN'));
@@ -544,7 +547,7 @@ describe('OrthographyManagerPage', () => {
     ]);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-custom']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-custom']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -552,7 +555,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
@@ -589,7 +592,7 @@ describe('OrthographyManagerPage', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source&fromLayerId=layer_trc_bridge']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source&fromLayerId=layer_trc_bridge']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
@@ -598,7 +601,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     expect(await screen.findByText('当前入口来自转写侧栏；桥接规则维护已迁移到独立的正字法桥接工作台。')).toBeTruthy();
@@ -631,7 +634,7 @@ describe('OrthographyManagerPage', () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthographies?orthographyId=orth-source']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -639,7 +642,7 @@ describe('OrthographyManagerPage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     fireEvent.change(await screen.findByLabelText('英文名称'), { target: { value: 'Dirty Bridge Orthography' } });

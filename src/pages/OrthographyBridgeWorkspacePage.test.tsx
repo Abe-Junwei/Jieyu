@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../contexts/AppSidePaneContext';
@@ -59,8 +60,11 @@ function SidePaneSnapshot() {
   );
 }
 
+let queryClient: QueryClient;
+
 describe('OrthographyBridgeWorkspacePage', () => {
   beforeEach(() => {
+    queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     mockProjectLanguageIds.splice(0, mockProjectLanguageIds.length);
     mockListOrthographies.mockReset();
     mockListLanguageCatalogEntries.mockReset();
@@ -163,7 +167,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     ]);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
@@ -172,7 +176,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -182,7 +186,6 @@ describe('OrthographyBridgeWorkspacePage', () => {
     expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true, orthographyIds: ['orth-target'] });
     expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
       locale: 'zh-CN',
-      languageIds: ['eng', 'zho'],
     });
 
     // 目录标签异步加载，需等待渲染更新 | Catalog labels load asynchronously, need to wait for render update
@@ -213,7 +216,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     mockListLanguageCatalogEntries.mockResolvedValue([]);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -221,7 +224,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -280,7 +283,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     ]);
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-custom-target']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-custom-target']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -288,7 +291,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -306,7 +309,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     mockProjectLanguageIds.push('eng');
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-alt']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-alt']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -314,7 +317,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -330,7 +333,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     mockProjectLanguageIds.push('eng');
 
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges?targetOrthographyId=orth-target']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -338,7 +341,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     await waitFor(() => {
@@ -359,7 +362,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
 
   it('keeps the bridge list idle without project context until search or explicit browse-all', async () => {
     render(
-      <MemoryRouter initialEntries={['/assets/orthography-bridges']}>
+      <QueryClientProvider client={queryClient}><MemoryRouter initialEntries={['/assets/orthography-bridges']}>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <Routes>
@@ -367,7 +370,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
             </Routes>
           </AppSidePaneProvider>
         </LocaleProvider>
-      </MemoryRouter>,
+      </MemoryRouter></QueryClientProvider>,
     );
 
     expect(await screen.findByText('当前没有项目语言上下文。先搜索目标正字法，或手动展开全部目录。')).toBeTruthy();
