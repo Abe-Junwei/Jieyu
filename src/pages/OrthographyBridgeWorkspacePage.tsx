@@ -241,9 +241,7 @@ export function OrthographyBridgeWorkspacePage({
       <section className="ws-summary-card ob-summary la-panel-section" aria-labelledby="orthography-bridge-workspace-title">
         <div className="ws-summary-header">
           <div className="ws-summary-copy">
-            <span className="ws-kicker">{t(locale, 'workspace.orthographyBridge.title')}</span>
             <h2 id="orthography-bridge-workspace-title" className="ws-summary-title">{selectedOrthographyLabel}</h2>
-            <p className="ws-summary-description">{t(locale, 'workspace.orthographyBridge.summary')}</p>
           </div>
           <div className="ob-summary-meta">
             {selectedBadge ? <span className={selectedBadge.className}>{selectedBadge.label}</span> : <span>{t(locale, 'workspace.orthographyBridge.notSet')}</span>}

@@ -88,9 +88,6 @@ export function LanguageMetadataWorkspaceDetailColumn({
   const summaryCode = draft.languageCode.trim() || draft.iso6393.trim() || selectedEntry?.languageCode || t(locale, 'workspace.languageMetadata.notSet');
   const summaryCanonicalTag = draft.canonicalTag.trim() || selectedEntry?.canonicalTag || t(locale, 'workspace.languageMetadata.notSet');
   const summaryId = selectedEntry?.id || draft.idInput.trim() || t(locale, 'workspace.languageMetadata.notSet');
-  const summaryDescription = summaryEnglish !== summaryName
-    ? summaryEnglish
-    : t(locale, 'workspace.languageMetadata.detailDescription');
   const summaryClassification = classificationPathPreview || t(locale, 'workspace.languageMetadata.notSet');
 
   return (
@@ -98,9 +95,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
       <section className="ws-summary-card lm-summary la-panel-section" aria-labelledby="lm-workspace-title">
         <div className="ws-summary-header">
           <div className="ws-summary-copy">
-            <span className="ws-kicker">{t(locale, 'workspace.languageMetadata.title')}</span>
             <h2 id="lm-workspace-title" className="ws-summary-title">{summaryName}</h2>
-            <p className="ws-summary-description">{summaryDescription}</p>
           </div>
           <div className="lm-summary-meta-row">
             <span className="lm-chip lm-chip-subtle">{entryKindLabel}</span>
