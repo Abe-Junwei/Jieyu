@@ -1,0 +1,47 @@
+.la-shell .dialog-body {
+  --la-section-gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--la-section-gap);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.la-shell .dialog-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-header, 20);
+}
+
+.la-panel-stack {
+  display: grid;
+  gap: var(--la-section-gap, 16px);
+  min-width: 0;
+  min-height: 0;
+  align-content: start;
+}
+
+.la-panel-section {
+  min-width: 0;
+  min-height: 0;
+}
+
+.la-list-section .panel-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--la-list-gap, 10px);
+  min-height: 0;
+  max-height: var(--la-list-max-height, none);
+  overflow: hidden;
+}
+
+.la-list-scroll {
+  display: grid;
+  gap: var(--la-list-gap, 10px);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-inline-end: 2px;
+  scrollbar-gutter: stable;
+}

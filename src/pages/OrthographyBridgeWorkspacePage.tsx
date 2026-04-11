@@ -221,8 +221,8 @@ export function OrthographyBridgeWorkspacePage({
 
   return (
     <EmbeddedPanelShell
-      className="ob-shell ob-workspace"
-      bodyClassName="ob-layout"
+      className="ob-shell ob-workspace la-shell"
+      bodyClassName="ob-layout la-panel-stack"
       footerClassName="ob-shell-footer"
       title={t(locale, 'workspace.orthographyBridge.title')}
       actions={panelActions}
@@ -238,7 +238,7 @@ export function OrthographyBridgeWorkspacePage({
       ) : undefined}
       aria-label={t(locale, 'workspace.orthographyBridge.title')}
     >
-      <section className="ws-summary-card ob-summary" aria-labelledby="orthography-bridge-workspace-title">
+      <section className="ws-summary-card ob-summary la-panel-section" aria-labelledby="orthography-bridge-workspace-title">
         <div className="ws-summary-header">
           <div className="ws-summary-copy">
             <span className="ws-kicker">{t(locale, 'workspace.orthographyBridge.title')}</span>
@@ -275,7 +275,7 @@ export function OrthographyBridgeWorkspacePage({
       </section>
 
       <PanelSection
-        className="ob-list-panel"
+        className="ob-list-panel la-panel-section la-list-section"
         title={t(locale, 'workspace.orthographyBridge.listTitle')}
         description={t(locale, 'workspace.orthographyBridge.listDescription')}
       >
@@ -309,7 +309,7 @@ export function OrthographyBridgeWorkspacePage({
         {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <p className="ob-state ob-state-warning">{t(locale, 'workspace.orthographyBridge.searchNoResults')}</p> : null}
         {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <p className="ob-state">{t(locale, 'workspace.orthographyBridge.emptyList')}</p> : null}
 
-        <div className="ob-list" role="list" ref={kbListRef} aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
+        <div className="ob-list la-list-scroll" role="list" ref={kbListRef} aria-label={t(locale, 'workspace.orthographyBridge.listTitle')}>
           {filteredOrthographies.map((orthography, index) => {
             const active = orthography.id === selectedOrthography?.id;
             const highlighted = index === kbActiveIndex;
@@ -333,8 +333,8 @@ export function OrthographyBridgeWorkspacePage({
         </div>
       </PanelSection>
 
-      <div className="ob-detail-column">
-        <PanelSection className="ob-bridge-panel" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
+      <div className="ob-detail-column la-panel-section">
+        <PanelSection className="ob-bridge-panel la-panel-section" title={t(locale, 'workspace.orthographyBridge.managerTitle')} description={t(locale, 'workspace.orthographyBridge.managerDescription')}>
           <OrthographyBridgeManager
             targetOrthography={selectedOrthography ?? undefined}
             languageOptions={languageOptions}

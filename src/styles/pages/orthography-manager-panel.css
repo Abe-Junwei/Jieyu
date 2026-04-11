@@ -8,6 +8,7 @@
 .om-page {
   --ws-note-size: calc(12px * var(--ui-font-scale, 1));
   --om-unified-title-size: calc(12px * var(--ui-font-scale, 1));
+  --la-section-gap: 16px;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -30,7 +31,7 @@
   box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
 }
 
-.om-body { display: grid; gap: 16px; }
+.om-body { display: grid; gap: 16px; min-height: 0; }
 .om-header { padding-right: 0; }
 .om-footer { display: flex; justify-content: flex-end; gap: 10px; }
 
@@ -279,6 +280,8 @@
 /* ── Browser ── */
 
 .om-browser {
+  --la-list-gap: 12px;
+  --la-list-max-height: min(46vh, 500px);
   padding: 16px;
   border-radius: 20px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 66%, transparent);
@@ -286,7 +289,11 @@
   box-shadow: none;
 }
 
-.om-browser-body { gap: 12px; }
+.om-browser-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+}
 .om-browser-header { display: flex; align-items: center; justify-content: center; }
 
 .om-browser-title {
@@ -334,8 +341,8 @@
 /* ── List ── */
 
 .om-list {
-  display: grid;
-  gap: 10px;
+  max-height: min(46vh, 500px);
+  min-height: 120px;
   border: 0;
   border-radius: 0;
   background: transparent;

@@ -512,15 +512,15 @@ export function LanguageMetadataWorkspacePage({
 
   return (
     <EmbeddedPanelShell
-      className="lm-shell lm-workspace"
-      bodyClassName="lm-layout"
+      className="lm-shell lm-workspace la-shell"
+      bodyClassName="lm-layout la-panel-stack"
       footerClassName="lm-footer"
       title={t(locale, 'workspace.languageMetadata.title')}
       actions={panelActions}
       footer={panelFooter}
       aria-label={t(locale, 'workspace.languageMetadata.title')}
     >
-      <div className="lm-toolbar">
+      <div className="lm-toolbar la-panel-section">
         <input
           className="input lm-search"
           type="search"

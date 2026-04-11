@@ -132,9 +132,9 @@ export function OrthographyManagerPanel({
 
   return (
     <EmbeddedPanelShell
-      className="om-shell"
+      className="om-shell la-shell"
       headerClassName="om-header"
-      bodyClassName="ws-flow om-body"
+      bodyClassName="ws-flow om-body la-panel-stack"
       footerClassName="om-footer"
       title={t(locale, 'workspace.orthography.title')}
       actions={panelActions}
@@ -153,7 +153,7 @@ export function OrthographyManagerPanel({
 
       {selectedOrthography ? (
         <>
-          <section className="ws-summary-card om-summary" aria-labelledby="om-summary-title">
+          <section className="ws-summary-card om-summary la-panel-section" aria-labelledby="om-summary-title">
             <div className="ws-summary-header">
               <div className="ws-summary-copy">
                 <span className="ws-kicker">{t(locale, 'workspace.orthography.title')}</span>
@@ -193,8 +193,8 @@ export function OrthographyManagerPanel({
         </>
       ) : null}
 
-      <section className="om-browser panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
-        <div className="panel-section__body orthography-builder-group-body om-browser-body">
+      <section className="om-browser panel-section la-panel-section" aria-label={t(locale, 'workspace.orthography.listTitle')}>
+        <div className="panel-section__body om-browser-body">
           <div className="om-browser-header">
             <p className="om-browser-title">{t(locale, 'workspace.orthography.listTitle')}</p>
           </div>
@@ -245,7 +245,7 @@ export function OrthographyManagerPanel({
           {!loading && !error && !showUnscopedIdleState && searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state om-state-warning">{t(locale, 'workspace.orthography.searchNoResults')}</PanelNote> : null}
           {!loading && !error && !showUnscopedIdleState && !searchText.trim() && filteredOrthographies.length === 0 ? <PanelNote className="om-state">{t(locale, 'workspace.orthography.emptyList')}</PanelNote> : null}
 
-          <div className="om-list" role="list" ref={listRef} aria-label={t(locale, 'workspace.orthography.listTitle')}>
+          <div className="om-list la-list-scroll" role="list" ref={listRef} aria-label={t(locale, 'workspace.orthography.listTitle')}>
             {filteredOrthographies.map((orthography, index) => {
               const badge = getOrthographyCatalogBadgeInfo(locale, orthography);
               const active = orthography.id === selectedOrthography?.id;

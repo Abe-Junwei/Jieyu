@@ -11,6 +11,7 @@
   --ob-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
   --ob-unified-title-size: calc(12px * var(--ui-font-scale, 1));
   --ob-section-gap: 16px;
+  --la-section-gap: var(--ob-section-gap);
   --ob-field-gap: 8px;
   --ws-note-size: var(--ob-meta-size);
   --btn-font-family: var(--font-base);
@@ -77,14 +78,28 @@
   display: flex;
   flex-direction: column;
   gap: var(--ob-section-gap);
+  min-height: 0;
 }
 
-.ob-layout > * {
-  min-height: 0;
+.ob-layout > .ob-summary {
   flex: 0 0 auto;
 }
 
-.ob-detail-column { min-width: 0; }
+.ob-layout > .ob-list-panel {
+  flex: 1 1 clamp(220px, 38vh, 420px);
+  min-height: 220px;
+}
+
+.ob-layout > .ob-detail-column {
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+
+.ob-detail-column {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+}
 
 /* ── Summary card ── */
 
@@ -163,18 +178,19 @@
 /* ── List panel ── */
 
 .ob-list-panel {
+  --la-list-gap: 10px;
+  --la-list-max-height: clamp(220px, 38vh, 420px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border: 1px solid color-mix(in srgb, var(--border-soft) 60%, transparent);
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-header) 34%, var(--surface-panel));
 }
 
 .ob-list-panel .panel-section__body {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex: 1 1 auto;
   min-height: 0;
-  max-height: min(48vh, 520px);
-  overflow: hidden;
 }
 
 .ob-workspace :is(.ob-list-panel .panel-section__title, .ob-bridge-panel .panel-section__title, .orthography-builder-panel-compact .orthography-builder-group-title) {
@@ -222,16 +238,6 @@
   border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
   background: var(--state-info-solid);
   color: var(--surface-panel);
-}
-
-.ob-list {
-  display: grid;
-  flex: 1 1 auto;
-  gap: 10px;
-  min-height: 0;
-  overflow-y: auto;
-  padding-inline-end: 2px;
-  scrollbar-gutter: stable;
 }
 
 .ob-list-item {
@@ -326,6 +332,7 @@
 /* ── Bridge panel ── */
 
 .ob-bridge-panel {
+  height: 100%;
   border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, var(--surface-header));

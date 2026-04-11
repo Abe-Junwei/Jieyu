@@ -94,8 +94,8 @@ export function LanguageMetadataWorkspaceDetailColumn({
   const summaryClassification = classificationPathPreview || t(locale, 'workspace.languageMetadata.notSet');
 
   return (
-    <div className="lm-detail-column">
-      <section className="ws-summary-card lm-summary" aria-labelledby="lm-workspace-title">
+    <div className="lm-detail-column la-panel-stack">
+      <section className="ws-summary-card lm-summary la-panel-section" aria-labelledby="lm-workspace-title">
         <div className="ws-summary-header">
           <div className="ws-summary-copy">
             <span className="ws-kicker">{t(locale, 'workspace.languageMetadata.title')}</span>
@@ -127,7 +127,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         </div>
       </section>
 
-      <PanelSection className="lm-editor-panel">
+      <PanelSection className="lm-editor-panel la-panel-section">
         <div className="ws-form-stack">
           <details className="ws-subsection lm-subsection" open>
             <summary className="lm-subsection-header">
@@ -517,7 +517,7 @@ export function LanguageMetadataWorkspaceDetailColumn({
         </div>
       </PanelSection>
 
-      <PanelSection className="lm-editor-panel lm-history-panel" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
+      <PanelSection className="lm-editor-panel lm-history-panel la-panel-section" title={t(locale, 'workspace.languageMetadata.historyTitle')} description={t(locale, 'workspace.languageMetadata.historyDescription')}>
         {historyItems.length > 0 ? (
           <ol className="lm-history-list">
             {historyItems.map((item) => (
