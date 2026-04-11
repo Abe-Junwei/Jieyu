@@ -3358,6 +3358,12 @@ class JieyuDexie extends Dexie {
     this.version(35).stores({
       custom_field_definitions: 'id, sortOrder, updatedAt',
     });
+
+    // v36: 恢复 utterances 的 mediaId 单字段索引（v13 重声明时意外丢失）
+    // Restore standalone mediaId index on utterances (accidentally dropped by v13 redeclaration)
+    this.version(36).stores({
+      utterances: 'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
+    });
   }
 }
 
@@ -3553,6 +3559,7 @@ const knownCollectionNames = [
   'language_display_names',
   'language_aliases',
   'language_catalog_history',
+  'custom_field_definitions',
   'speakers',
   'orthographies',
   'orthography_bridges',
@@ -3594,6 +3601,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   language_display_names: db.language_display_names,
   language_aliases: db.language_aliases,
   language_catalog_history: db.language_catalog_history,
+  custom_field_definitions: db.custom_field_definitions,
   speakers: db.speakers,
   orthographies: db.orthographies,
   orthography_bridges: db.orthography_bridges,
@@ -3632,6 +3640,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   language_display_names: (value) => validateLanguageDisplayNameDoc(value as LanguageDisplayNameDocType),
   language_aliases: (value) => validateLanguageAliasDoc(value as LanguageAliasDocType),
   language_catalog_history: (value) => validateLanguageCatalogHistoryDoc(value as LanguageCatalogHistoryDocType),
+  custom_field_definitions: (value) => validateCustomFieldDefinitionDoc(value as CustomFieldDefinitionDocType),
   speakers: (value) => validateSpeakerDoc(value as SpeakerDocType),
   orthographies: (value) => validateOrthographyDoc(value as OrthographyDocType),
   orthography_bridges: (value) => validateOrthographyBridgeDoc(value as OrthographyBridgeDocType),
