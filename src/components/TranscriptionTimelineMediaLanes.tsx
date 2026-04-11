@@ -9,7 +9,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -189,7 +189,7 @@ type TranscriptionTimelineMediaLanesProps = {
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
-export function TranscriptionTimelineMediaLanes({
+export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimelineMediaLanes({
   playerDuration,
   zoomPxPerSec,
   lassoRect,
@@ -724,4 +724,6 @@ export function TranscriptionTimelineMediaLanes({
       />
     </TimelineStyledContainer>
   );
-}
+});
+
+TranscriptionTimelineMediaLanes.displayName = 'TranscriptionTimelineMediaLanes';

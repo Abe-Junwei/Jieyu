@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { startTransition, useCallback, useMemo } from 'react';
 import { getDb } from '../db';
 import type {
   AnchorDocType,
@@ -30,6 +30,10 @@ import {
   stripSpeakerAssociationFromTranslationText,
 } from './useTranscriptionUtteranceActions.helpers';
 import { createTranscriptionUtteranceBatchActions } from './useTranscriptionUtteranceActions.batchActions';
+import { createLogger } from '../observability/logger';
+import { isTranscriptionPerfDebugEnabled } from '../utils/transcriptionPerfDebug';
+
+const log = createLogger('useTranscriptionUtteranceActions');
 
 export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
@@ -85,6 +89,21 @@ export function useTranscriptionUtteranceActions({
   allowOverlapInTranscription = false,
 }: TranscriptionUtteranceActionsParams) {
   const locale = useLocale();
+
+  const scheduleCreatePerfPaintProbe = useCallback((startedAtMs: number, context: Record<string, unknown>) => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') return;
+    window.requestAnimationFrame(() => {
+      const firstPaintMs = Math.round(performance.now() - startedAtMs);
+      window.requestAnimationFrame(() => {
+        const settledPaintMs = Math.round(performance.now() - startedAtMs);
+        log.info('Create utterance perf paint probe', {
+          ...context,
+          firstPaintMs,
+          settledPaintMs,
+        });
+      });
+    });
+  }, []);
 
   const selectUtterancePrimary = useCallback((id: string) => {
     setSelectedUtteranceIds(id ? new Set([id]) : new Set());
@@ -401,6 +420,9 @@ export function useTranscriptionUtteranceActions({
     end: number,
     options?: { speakerId?: string; focusedLayerId?: string; selectionBehavior?: 'select-created' | 'keep-current' },
   ) => {
+    const perfDebugEnabled = isTranscriptionPerfDebugEnabled();
+    const perfStartMs = perfDebugEnabled ? performance.now() : 0;
+
     const media = selectedUtteranceMedia;
     if (!media) {
       reportValidationError({
@@ -448,8 +470,11 @@ export function useTranscriptionUtteranceActions({
       return;
     }
 
+    const beforeUndoMs = perfDebugEnabled ? performance.now() : 0;
     pushUndo(getUndoLabel(locale, 'createFromSelection'));
+    const afterUndoMs = perfDebugEnabled ? performance.now() : 0;
 
+    const beforeCreateMs = perfDebugEnabled ? performance.now() : 0;
     const db = await getDb();
     const now = new Date().toISOString();
     const finalStart = Number(boundedStart.toFixed(3));
@@ -480,8 +505,8 @@ export function useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId,
       options?.focusedLayerId,
     );
+    const projectedTexts: UtteranceTextDocType[] = [];
     if (projectionLayerIds.length > 0) {
-      const projectedTexts: UtteranceTextDocType[] = [];
       for (const projectionLayerId of projectionLayerIds) {
         const emptyText: UtteranceTextDocType = {
           ...withUtteranceTextLayerId({
@@ -497,22 +522,47 @@ export function useTranscriptionUtteranceActions({
         await syncUtteranceTextToSegmentationV2(db, newUtterance, emptyText);
         projectedTexts.push(emptyText);
       }
-      setTranslations((prev) => [...prev, ...projectedTexts]);
     }
 
-    setUtterances((prev) => [...prev, newUtterance]);
-    setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
-    if (options?.selectionBehavior !== 'keep-current') {
-      selectUtterancePrimary(createdId);
-    }
-    setSaveState({
-      kind: 'done',
-      message: tf(locale, 'transcription.utteranceAction.done.createFromSelection', {
-        start: formatTime(finalStart),
-        end: formatTime(finalEnd),
-      }),
+    const afterCreateMs = perfDebugEnabled ? performance.now() : 0;
+
+    // 创建后渲染降为可中断优先级，防止连续创建时累积阻塞 | Mark creation renders as interruptible to prevent cumulative blocking during rapid creation
+    startTransition(() => {
+      if (projectedTexts.length > 0) {
+        setTranslations((prev) => [...prev, ...projectedTexts]);
+      }
+      setUtterances((prev) => [...prev, newUtterance]);
+      setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
+      if (options?.selectionBehavior !== 'keep-current') {
+        selectUtterancePrimary(createdId);
+      }
+      setSaveState({
+        kind: 'done',
+        message: tf(locale, 'transcription.utteranceAction.done.createFromSelection', {
+          start: formatTime(finalStart),
+          end: formatTime(finalEnd),
+        }),
+      });
     });
-  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
+
+    if (perfDebugEnabled) {
+      const afterTransitionScheduleMs = performance.now();
+      const context = {
+        mediaId: media.id,
+        createdId,
+        projectedTextCount: projectedTexts.length,
+        selectionBehavior: options?.selectionBehavior ?? 'select-created',
+      } as Record<string, unknown>;
+      log.info('Create utterance perf breakdown', {
+        ...context,
+        totalMs: Math.round(afterTransitionScheduleMs - perfStartMs),
+        undoMs: Math.round(afterUndoMs - beforeUndoMs),
+        createMs: Math.round(afterCreateMs - beforeCreateMs),
+        transitionScheduleMs: Math.round(afterTransitionScheduleMs - afterCreateMs),
+      });
+      scheduleCreatePerfPaintProbe(perfStartMs, context);
+    }
+  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, scheduleCreatePerfPaintProbe, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
 
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);

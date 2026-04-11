@@ -3,6 +3,7 @@
  * Transcription layer lane shell with header, overlap hint, resize handle
  */
 
+import { memo } from 'react';
 import type React from 'react';
 import type {
   LayerDocType,
@@ -117,7 +118,7 @@ interface TranscriptionLaneProps {
   onLanePointerDown: (layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => void;
 }
 
-export function TranscriptionTimelineMediaTranscriptionLane({
+export const TranscriptionTimelineMediaTranscriptionLane = memo(function TranscriptionTimelineMediaTranscriptionLane({
   layer,
   layerIndex,
   zoomPxPerSec,
@@ -292,4 +293,6 @@ export function TranscriptionTimelineMediaTranscriptionLane({
       />}
     </TimelineStyledContainer>
   );
-}
+});
+
+TranscriptionTimelineMediaTranscriptionLane.displayName = 'TranscriptionTimelineMediaTranscriptionLane';

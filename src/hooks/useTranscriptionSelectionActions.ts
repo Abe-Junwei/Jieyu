@@ -9,6 +9,9 @@ import {
   type TimelineUnitKind,
 } from './transcriptionTypes';
 
+// 空 Set 常量：避免每次 clear 都创建新引用触发 React 渲染 | Constant empty Set: avoid creating new reference on every clear
+const EMPTY_SET: ReadonlySet<string> = new Set<string>();
+
 type Params = {
   selectedUtteranceUnitIdRef: React.MutableRefObject<string>;
   selectedUtteranceIdsRef: React.MutableRefObject<Set<string>>;
@@ -38,7 +41,7 @@ export function useTranscriptionSelectionActions({
 
   const clearSelectionState = useCallback(() => {
     setSelectedTimelineUnit(null);
-    setSelectedUtteranceIds(new Set());
+    setSelectedUtteranceIds(EMPTY_SET as Set<string>);
   }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
 
   const resolveRequiredLayerId = useCallback((rawLayerId: string, source: string): string | null => {
@@ -76,7 +79,7 @@ export function useTranscriptionSelectionActions({
       return;
     }
     setSelectedLayerId(layerId);
-    setSelectedUtteranceIds(input.keepSelectionSet ? next.ids : new Set());
+    setSelectedUtteranceIds(input.keepSelectionSet ? next.ids : EMPTY_SET as Set<string>);
     setSelectedTimelineUnit(createTimelineUnit(layerId, next.primaryId, input.kind));
   }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
 
@@ -111,6 +114,11 @@ export function useTranscriptionSelectionActions({
       clearSelectionState();
       return;
     }
+    // 结构去重：选区未变时跳过 setState（Descript / DAW 模式）| Structural dedup: skip setState when selection is unchanged
+    const prev = selectedTimelineUnitRef.current;
+    if (prev && prev.unitId === unit.unitId && prev.layerId === unit.layerId && prev.kind === unit.kind) {
+      return;
+    }
     applyUnitSelection({
       primaryId: unit.unitId,
       ids: unit.unitId ? [unit.unitId] : [],
@@ -119,7 +127,7 @@ export function useTranscriptionSelectionActions({
       kind: unit.kind,
       keepSelectionSet: !isSegmentTimelineUnit(unit),
     });
-  }, [applyUnitSelection, clearSelectionState]);
+  }, [applyUnitSelection, clearSelectionState, selectedTimelineUnitRef]);
 
   const selectUtterance = useCallback((id: string) => {
     setUtteranceSelection(id, id ? [id] : []);

@@ -1,4 +1,4 @@
-import { useCallback, type MouseEvent, type ReactNode } from 'react';
+import { startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
@@ -111,58 +111,61 @@ export function useTimelineAnnotationHelpers({
   ) => {
     manualSelectTsRef.current = Date.now();
     if (player.isPlaying) player.stop();
-    const targetUnit = resolveTranscriptionUnitTarget({
-      layerId,
-      unitId: uttId,
-      preferredKind: 'utterance',
-      independentLayerIds,
-    });
-    if (targetUnit.kind === 'segment') {
-      if (selectTimelineUnit) {
-        selectTimelineUnit(targetUnit);
-      } else {
-        selectSegment(uttId);
+    // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
+    startTransition(() => {
+      const targetUnit = resolveTranscriptionUnitTarget({
+        layerId,
+        unitId: uttId,
+        preferredKind: 'utterance',
+        independentLayerIds,
+      });
+      if (targetUnit.kind === 'segment') {
+        if (selectTimelineUnit) {
+          selectTimelineUnit(targetUnit);
+        } else {
+          selectSegment(uttId);
+        }
+        player.seekTo(uttStartTime);
+        setSelectedLayerId(layerId);
+        onFocusLayerRow(layerId);
+        return;
       }
-      player.seekTo(uttStartTime);
+      const selectedUtteranceUnitId = resolveTranscriptionSelectionAnchor({
+        expectedKind: 'utterance',
+        fallbackUnitId: '',
+        selectedTimelineUnit,
+      });
+      if (e.shiftKey && selectedUtteranceUnitId) {
+        selectUtteranceRange(selectedUtteranceUnitId, uttId);
+      } else if (e.metaKey || e.ctrlKey) {
+        toggleUtteranceSelection(uttId);
+      } else if (
+        selectedUtteranceUnitId === uttId
+        && overlapCycleItems
+        && overlapCycleItems.length > 1
+      ) {
+        const index = overlapCycleItems.findIndex((item) => item.id === uttId);
+        const next = overlapCycleItems[(index + 1) % overlapCycleItems.length];
+        if (next) {
+          selectUtterance(next.id);
+          player.seekTo(next.startTime);
+          onOverlapCycleToast?.(
+            Math.max(1, ((index + 1) % overlapCycleItems.length) + 1),
+            overlapCycleItems.length,
+            next.id,
+          );
+        }
+      } else {
+        if (selectTimelineUnit) {
+          selectTimelineUnit(targetUnit);
+        } else {
+          selectUtterance(uttId);
+        }
+        player.seekTo(uttStartTime);
+      }
       setSelectedLayerId(layerId);
       onFocusLayerRow(layerId);
-      return;
-    }
-    const selectedUtteranceUnitId = resolveTranscriptionSelectionAnchor({
-      expectedKind: 'utterance',
-      fallbackUnitId: '',
-      selectedTimelineUnit,
     });
-    if (e.shiftKey && selectedUtteranceUnitId) {
-      selectUtteranceRange(selectedUtteranceUnitId, uttId);
-    } else if (e.metaKey || e.ctrlKey) {
-      toggleUtteranceSelection(uttId);
-    } else if (
-      selectedUtteranceUnitId === uttId
-      && overlapCycleItems
-      && overlapCycleItems.length > 1
-    ) {
-      const index = overlapCycleItems.findIndex((item) => item.id === uttId);
-      const next = overlapCycleItems[(index + 1) % overlapCycleItems.length];
-      if (next) {
-        selectUtterance(next.id);
-        player.seekTo(next.startTime);
-        onOverlapCycleToast?.(
-          Math.max(1, ((index + 1) % overlapCycleItems.length) + 1),
-          overlapCycleItems.length,
-          next.id,
-        );
-      }
-    } else {
-      if (selectTimelineUnit) {
-        selectTimelineUnit(targetUnit);
-      } else {
-        selectUtterance(uttId);
-      }
-      player.seekTo(uttStartTime);
-    }
-    setSelectedLayerId(layerId);
-    onFocusLayerRow(layerId);
   }, [
     manualSelectTsRef,
     player,

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { startTransition, useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import type { LayerLinkDocType, SpeakerDocType, LayerDocType, UtteranceDocType, UtteranceTextDocType, LayerSegmentDocType, LayerSegmentContentDocType, SegmentLinkDocType } from '../db';
 import { CommandHistory, type ReversibleCommand } from '../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
@@ -80,23 +80,28 @@ export function useTranscriptionUndo({
   // 外部注入：Orchestrator 加载 segment 数据后填充 | External injection: Orchestrator populates after segment hooks are ready
   const segmentUndoRef = useRef<SegmentUndoCallbacks | null>(null);
 
+  // 以引用方式抓取快照，避免高频操作时 O(n) 数组拷贝 | Capture snapshot by reference to avoid O(n) array copies on hot paths
+  // 依赖前提：状态更新采用不可变写法（返回新数组）| Assumes immutable state updates (new array on write)
+  const snapshotCurrentState = useCallback((label: string, segSnapshot?: { segments: LayerSegmentDocType[]; contents: LayerSegmentContentDocType[]; links: SegmentLinkDocType[] }): UndoEntry => ({
+    label,
+    utterances: utterancesRef.current,
+    translations: translationsRef.current,
+    layers: layersRef.current,
+    layerLinks: layerLinksRef.current,
+    speakers: speakersRef.current,
+    ...(segSnapshot ? { layerSegments: segSnapshot.segments, layerSegmentContents: segSnapshot.contents, segmentLinks: segSnapshot.links } : {}),
+  }), [layerLinksRef, layersRef, speakersRef, translationsRef, utterancesRef]);
+
   const pushUndo = useCallback((label: string) => {
     dirtyRef.current = true;
     const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
-    undoStackRef.current.push({
-      label,
-      utterances: [...utterancesRef.current],
-      translations: [...translationsRef.current],
-      layers: [...layersRef.current],
-      layerLinks: [...layerLinksRef.current],
-      speakers: [...speakersRef.current],
-      ...(segSnapshot ? { layerSegments: segSnapshot.segments, layerSegmentContents: segSnapshot.contents, segmentLinks: segSnapshot.links } : {}),
-    });
+    undoStackRef.current.push(snapshotCurrentState(label, segSnapshot));
     if (undoStackRef.current.length > MAX_UNDO) undoStackRef.current.shift();
     redoStackRef.current = [];
-    setUndoRedoVersion((v) => v + 1);
+    // undo 按钮状态为低优先级渲染 | Undo button state is low-priority render
+    startTransition(() => { setUndoRedoVersion((v) => v + 1); });
     scheduleRecoverySave();
-  }, [dirtyRef, layerLinksRef, layersRef, scheduleRecoverySave, segmentUndoRef, speakersRef, translationsRef, utterancesRef]);
+  }, [dirtyRef, scheduleRecoverySave, segmentUndoRef, snapshotCurrentState]);
 
   const beginTimingGesture = useCallback((utteranceId: string) => {
     const current = timingGestureRef.current;
@@ -141,15 +146,7 @@ export function useTranscriptionUndo({
     const entry = undoStackRef.current.pop();
     if (!entry) return;
     const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
-    const redoEntry: UndoEntry = {
-      label: entry.label,
-      utterances: [...utterancesRef.current],
-      translations: [...translationsRef.current],
-      layers: [...layersRef.current],
-      layerLinks: [...layerLinksRef.current],
-      speakers: [...speakersRef.current],
-      ...(segSnapshot ? { layerSegments: segSnapshot.segments, layerSegmentContents: segSnapshot.contents, segmentLinks: segSnapshot.links } : {}),
-    };
+    const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
     redoStackRef.current.push(redoEntry);
     try {
       await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
@@ -181,7 +178,7 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, snapshotCurrentState, syncToDb]);
 
   const undoToHistoryIndex = useCallback(async (historyIndex: number) => {
     const previousUndoStack = [...undoStackRef.current];
@@ -201,15 +198,7 @@ export function useTranscriptionUndo({
       if (!entry) continue;
       if (j === stack.length - 1) {
         // 第一步：捕获当前活跃状态 | First step: capture current live state
-        redoAdds.push({
-          label: entry.label,
-          utterances: [...utterancesRef.current],
-          translations: [...translationsRef.current],
-          layers: [...layersRef.current],
-          layerLinks: [...layerLinksRef.current],
-          speakers: [...speakersRef.current],
-          ...(currentSegSnapshot ? { layerSegments: currentSegSnapshot.segments, layerSegmentContents: currentSegSnapshot.contents, segmentLinks: currentSegSnapshot.links } : {}),
-        });
+        redoAdds.push(snapshotCurrentState(entry.label, currentSegSnapshot));
       } else {
         // 后续步骤：从栈中上一条条目获取中间状态 | Subsequent: intermediate state from stack entry above
         const above = stack[j + 1]!;
@@ -264,21 +253,13 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, snapshotCurrentState, syncToDb]);
 
   const redo = useCallback(async () => {
     const entry = redoStackRef.current.pop();
     if (!entry) return;
     const segSnapshot = segmentUndoRef.current?.snapshotLayerSegments();
-    const undoEntry: UndoEntry = {
-      label: entry.label,
-      utterances: [...utterancesRef.current],
-      translations: [...translationsRef.current],
-      layers: [...layersRef.current],
-      layerLinks: [...layerLinksRef.current],
-      speakers: [...speakersRef.current],
-      ...(segSnapshot ? { layerSegments: segSnapshot.segments, layerSegmentContents: segSnapshot.contents, segmentLinks: segSnapshot.links } : {}),
-    };
+    const undoEntry = snapshotCurrentState(entry.label, segSnapshot);
     undoStackRef.current.push(undoEntry);
     try {
       await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
@@ -310,7 +291,7 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, syncToDb, translationsRef, utterancesRef]);
+  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, snapshotCurrentState, syncToDb]);
 
   const canUndo = useMemo(() => undoStackRef.current.length > 0, [_undoRedoVersion]);
   const canRedo = useMemo(() => redoStackRef.current.length > 0, [_undoRedoVersion]);

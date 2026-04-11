@@ -1,4 +1,4 @@
-import { startTransition, useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { startTransition, useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
@@ -7,12 +7,15 @@ import { handleTranscriptionCitationJump } from './TranscriptionPage.citationJum
 import { snapToZeroCrossing } from '../services/AudioAnalysisService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { t } from '../i18n';
+import { createLogger } from '../observability/logger';
 import { readStoredWaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
+import { isTranscriptionPerfDebugEnabled } from '../utils/transcriptionPerfDebug';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
 } from './transcriptionUnitTargetResolver';
 type ContextMenuUnitKind = 'segment' | 'utterance';
+const log = createLogger('useTranscriptionTimelineInteractionController');
 interface WaveformTimelineItemLike {
   id: string;
   startTime: number;
@@ -327,38 +330,41 @@ export function useTranscriptionTimelineInteractionController(
     input.setSubSelectionRange(null);
     input.manualSelectTsRef.current = Date.now();
     input.player.seekTo(clickTime);
+    // 选段级联渲染降为低优先级；WaveSurfer 已即时处理视觉高亮 | Defer selection cascade render; WaveSurfer already handles visual highlight
     const nextTarget = resolveWaveformUnitTarget(regionId);
-    if (nextTarget.kind === 'segment') {
+    startTransition(() => {
+      if (nextTarget.kind === 'segment') {
+        if (event.shiftKey) {
+          const anchor = resolveTranscriptionSelectionAnchor({
+            expectedKind: 'segment',
+            fallbackUnitId: regionId,
+            selectedTimelineUnit: input.selectedTimelineUnit,
+          });
+          input.selectSegmentRange(anchor, regionId, input.waveformTimelineItems);
+          return;
+        }
+        if (event.metaKey || event.ctrlKey) {
+          input.toggleSegmentSelection(regionId);
+          return;
+        }
+        input.selectTimelineUnit(nextTarget);
+        return;
+      }
       if (event.shiftKey) {
         const anchor = resolveTranscriptionSelectionAnchor({
-          expectedKind: 'segment',
+          expectedKind: 'utterance',
           fallbackUnitId: regionId,
           selectedTimelineUnit: input.selectedTimelineUnit,
         });
-        input.selectSegmentRange(anchor, regionId, input.waveformTimelineItems);
+        input.selectUtteranceRange(anchor, regionId);
         return;
       }
       if (event.metaKey || event.ctrlKey) {
-        input.toggleSegmentSelection(regionId);
+        input.toggleUtteranceSelection(regionId);
         return;
       }
       input.selectTimelineUnit(nextTarget);
-      return;
-    }
-    if (event.shiftKey) {
-      const anchor = resolveTranscriptionSelectionAnchor({
-        expectedKind: 'utterance',
-        fallbackUnitId: regionId,
-        selectedTimelineUnit: input.selectedTimelineUnit,
-      });
-      input.selectUtteranceRange(anchor, regionId);
-      return;
-    }
-    if (event.metaKey || event.ctrlKey) {
-      input.toggleUtteranceSelection(regionId);
-      return;
-    }
-    input.selectTimelineUnit(nextTarget);
+    });
   }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUtteranceRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUtteranceSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
@@ -371,6 +377,13 @@ export function useTranscriptionTimelineInteractionController(
   }, [input.createUtteranceFromSelection, input.useSegmentWaveformRegions, input.zoomToUtterance]);
 
   const handleWaveformRegionCreate = useCallback((start: number, end: number) => {
+    if (isTranscriptionPerfDebugEnabled()) {
+      log.warn('Waveform region create requested', {
+        start,
+        end,
+        spanMs: Math.round(Math.max(0, end - start) * 1000),
+      });
+    }
     fireAndForget(input.createUtteranceFromSelection(start, end));
   }, [input.createUtteranceFromSelection]);
 
@@ -454,10 +467,16 @@ export function useTranscriptionTimelineInteractionController(
     fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId));
   }, [getNeighborBoundsRouted, input.activeLayerIdForEdits, input.endTimingGesture, input.makeSnapGuide, input.manualSelectTsRef, input.player.instanceRef, input.reloadSegments, input.resolveSegmentRoutingForLayer, input.selectTimelineUnit, input.setDragPreview, input.setSaveState, input.setSnapGuide, input.snapEnabled, input.utterancesOnCurrentMedia, input.useSegmentWaveformRegions, input.waveformTimelineItems, saveTimingRouted, waveformLayerId]);
 
+  // 播放跟随选区：节流 + startTransition（Descript / DAW 模式）| Playback follow-selection: throttle + startTransition (Descript / DAW pattern)
+  const timeUpdateThrottleRef = useRef(0);
   const handleWaveformTimeUpdate = useCallback((time: number) => {
     if (Date.now() - input.manualSelectTsRef.current < 600) return;
     if (input.creatingSegmentRef.current) return;
     if (input.markingModeRef.current) return;
+    // 节流：播放中跟随选区不必每帧触发，120ms≈8fps 足够 | Throttle: follow-selection during playback at ~8fps is sufficient
+    const now = Date.now();
+    if (now - timeUpdateThrottleRef.current < 120) return;
+    timeUpdateThrottleRef.current = now;
     const items = input.waveformTimelineItems;
     let low = 0;
     let high = items.length - 1;
@@ -476,7 +495,10 @@ export function useTranscriptionTimelineInteractionController(
       }
     }
     if (!hit || hit.id === input.selectedWaveformRegionId) return;
-    input.selectTimelineUnit(resolveWaveformUnitTarget(hit.id));
+    // WaveSurfer 原生高亮已提供即时视觉反馈，React 选区同步降为低优先级 | WaveSurfer native highlight already gives instant visual feedback; React selection sync is low-priority
+    startTransition(() => {
+      input.selectTimelineUnit(resolveWaveformUnitTarget(hit!.id));
+    });
   }, [input.activeLayerIdForEdits, input.creatingSegmentRef, input.manualSelectTsRef, input.markingModeRef, input.selectTimelineUnit, input.selectedWaveformRegionId, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   return {
