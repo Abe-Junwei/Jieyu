@@ -225,6 +225,7 @@ export default defineConfig({
     },
   },
   test: {
+    setupFiles: ['src/test/vitestLocalStorageSetup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
