@@ -205,23 +205,20 @@
   --timeline-item-divider-color: color-mix(in srgb, var(--text-secondary) 72%, transparent);
 }
 
-/* 聚焦 Lane — 蓝色左描边(box-shadow 避免错位) + 浅底 | Focused lane — blue left accent via inset shadow (no layout shift) */
+/* 聚焦 Lane（临时关闭行高亮）| Focused lane (temporarily no row highlight) */
 .timeline-lane-focused {
-  background: var(--surface-header);
-  box-shadow: inset 3px 0 0 0 var(--state-info-solid),
-              inset 0 1px 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent),
-              inset 0 -1px 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent),
-              inset -1px 0 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  background: transparent;
+  box-shadow: none;
 }
 
 .timeline-lane-focused::after {
-  background: color-mix(in srgb, var(--state-info-solid) 26%, transparent);
+  background: color-mix(in srgb, var(--border-soft) 50%, transparent);
 }
 
 .timeline-lane-focused .timeline-lane-label {
-  color: var(--text-primary);
-  border-right-color: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-  background: var(--surface-header);
+  color: var(--text-secondary);
+  border-right-color: var(--border-soft);
+  background: var(--surface-elevated);
 }
 
 .timeline-lane-focused .timeline-lane-header:focus-visible {
