@@ -11,6 +11,11 @@ type TimelineHitIndex = {
   prefixMaxEnds: number[];
 };
 
+type SelectionSnapshot = {
+  primaryId: string;
+  ids: Set<string>;
+};
+
 function buildTimelineHitIndex(items: Array<{ startTime: number; endTime: number }>): TimelineHitIndex {
   if (items.length < 2) {
     const single = items[0];
@@ -85,6 +90,20 @@ function hasTimelineHitAtTime(
   }
 
   return (index.prefixMaxEnds[lastStartAtOrBeforeTime] ?? Number.NEGATIVE_INFINITY) >= time - eps;
+}
+
+function areSelectionIdsEqual(left: Set<string>, right: Set<string>): boolean {
+  if (left.size !== right.size) return false;
+  for (const id of left) {
+    if (!right.has(id)) return false;
+  }
+  return true;
+}
+
+function areSelectionSnapshotsEqual(left: SelectionSnapshot | null, right: SelectionSnapshot | null): boolean {
+  if (!left || !right) return false;
+  if (left.primaryId !== right.primaryId) return false;
+  return areSelectionIdsEqual(left.ids, right.ids);
 }
 
 export type SubSelectDrag = {
@@ -166,6 +185,7 @@ export function useLasso(input: UseLassoInput) {
   const waveLassoHintTimerRef = useRef<number | undefined>(undefined);
   const pendingLassoSelectionRef = useRef<{ ids: Set<string>; primaryId: string } | null>(null);
   const lassoSelectionRafRef = useRef<number | null>(null);
+  const lastDispatchedSelectionRef = useRef<SelectionSnapshot | null>(null);
   const pendingTimelineLassoMoveRef = useRef<{
     left: number;
     top: number;
@@ -179,20 +199,48 @@ export function useLasso(input: UseLassoInput) {
   // Sync refs for values used inside effects
   const timelineItemsRef = useLatest(timelineItems);
   const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
+  const selectedUtteranceUnitIdRef = useLatest(selectedUtteranceUnitId);
   const timelineHitIndex = useMemo(() => buildTimelineHitIndex(timelineItems), [timelineItems]);
   const timelineHitIndexRef = useLatest(timelineHitIndex);
 
   const scheduleLassoSelectionUpdate = useCallback((ids: Set<string>, primaryId: string) => {
-    pendingLassoSelectionRef.current = { ids, primaryId };
+    const normalizedIds = new Set(ids);
+    const nextSelection: SelectionSnapshot = { primaryId, ids: normalizedIds };
+
+    const currentSelection: SelectionSnapshot = {
+      primaryId: selectedUtteranceUnitIdRef.current,
+      ids: new Set(selectedUtteranceIdsRef.current),
+    };
+    if (areSelectionSnapshotsEqual(nextSelection, currentSelection)) {
+      pendingLassoSelectionRef.current = null;
+      return;
+    }
+
+    const pendingSelection = pendingLassoSelectionRef.current
+      ? { primaryId: pendingLassoSelectionRef.current.primaryId, ids: pendingLassoSelectionRef.current.ids }
+      : null;
+    if (areSelectionSnapshotsEqual(nextSelection, pendingSelection)) {
+      return;
+    }
+
+    if (areSelectionSnapshotsEqual(nextSelection, lastDispatchedSelectionRef.current)) {
+      return;
+    }
+
+    pendingLassoSelectionRef.current = nextSelection;
     if (lassoSelectionRafRef.current !== null) return;
     lassoSelectionRafRef.current = requestAnimationFrame(() => {
       lassoSelectionRafRef.current = null;
       const pending = pendingLassoSelectionRef.current;
       pendingLassoSelectionRef.current = null;
       if (!pending) return;
+      lastDispatchedSelectionRef.current = {
+        primaryId: pending.primaryId,
+        ids: new Set(pending.ids),
+      };
       setUtteranceSelection(pending.primaryId, pending.ids);
     });
-  }, [setUtteranceSelection]);
+  }, [selectedUtteranceIdsRef, selectedUtteranceUnitIdRef, setUtteranceSelection]);
 
   // Clear sub-selection when the selected utterance changes
   useEffect(() => {

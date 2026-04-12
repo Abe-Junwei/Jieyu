@@ -229,4 +229,36 @@ describe('useTranscriptionSelectionActions', () => {
     expect(consoleErrorSpy.mock.calls[0]?.[0]).toContain('Missing layerId in setUtteranceSelection');
     consoleErrorSpy.mockRestore();
   });
+
+  it('skips state updates when setUtteranceSelection receives an unchanged selection', () => {
+    const setSelectedTimelineUnit = vi.fn();
+    const setSelectedUtteranceIds = vi.fn();
+    const setSelectedLayerId = vi.fn();
+
+    const { result } = renderHook(() => {
+      const selectedUtteranceUnitIdRef = useRef('utt-1');
+      const selectedUtteranceIdsRef = useRef(new Set<string>(['utt-1', 'utt-2']));
+      const selectedLayerIdRef = useRef('layer-a');
+      const selectedTimelineUnitRef = useRef({ layerId: 'layer-a', unitId: 'utt-1', kind: 'utterance' as const });
+      const utterancesOnCurrentMediaRef = useRef([]);
+      return useTranscriptionSelectionActions({
+        selectedUtteranceUnitIdRef,
+        selectedUtteranceIdsRef,
+        selectedLayerIdRef,
+        selectedTimelineUnitRef,
+        utterancesOnCurrentMediaRef,
+        setSelectedLayerId,
+        setSelectedUtteranceIds,
+        setSelectedTimelineUnit,
+      });
+    });
+
+    act(() => {
+      result.current.setUtteranceSelection('utt-1', new Set(['utt-2', 'utt-1']));
+    });
+
+    expect(setSelectedLayerId).not.toHaveBeenCalled();
+    expect(setSelectedUtteranceIds).not.toHaveBeenCalled();
+    expect(setSelectedTimelineUnit).not.toHaveBeenCalled();
+  });
 });

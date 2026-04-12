@@ -12,6 +12,14 @@ import {
 // 空 Set 常量：避免每次 clear 都创建新引用触发 React 渲染 | Constant empty Set: avoid creating new reference on every clear
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
 
+function hasSameSelectionIds(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
+  if (left.size !== right.size) return false;
+  for (const id of left) {
+    if (!right.has(id)) return false;
+  }
+  return true;
+}
+
 type Params = {
   selectedUtteranceUnitIdRef: React.MutableRefObject<string>;
   selectedUtteranceIdsRef: React.MutableRefObject<Set<string>>;
@@ -78,10 +86,34 @@ export function useTranscriptionSelectionActions({
       clearSelectionState();
       return;
     }
+
+    const nextIds = input.keepSelectionSet ? next.ids : EMPTY_SET as Set<string>;
+    const currentTimelineUnit = selectedTimelineUnitRef.current;
+    if (
+      selectedLayerIdRef.current === layerId
+      && selectedUtteranceUnitIdRef.current === next.primaryId
+      && hasSameSelectionIds(selectedUtteranceIdsRef.current, nextIds)
+      && currentTimelineUnit?.layerId === layerId
+      && currentTimelineUnit?.unitId === next.primaryId
+      && currentTimelineUnit?.kind === input.kind
+    ) {
+      return;
+    }
+
     setSelectedLayerId(layerId);
-    setSelectedUtteranceIds(input.keepSelectionSet ? next.ids : EMPTY_SET as Set<string>);
+    setSelectedUtteranceIds(nextIds);
     setSelectedTimelineUnit(createTimelineUnit(layerId, next.primaryId, input.kind));
-  }, [clearSelectionState, resolveRequiredLayerId, setSelectedLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+  }, [
+    clearSelectionState,
+    resolveRequiredLayerId,
+    selectedLayerIdRef,
+    selectedTimelineUnitRef,
+    selectedUtteranceIdsRef,
+    selectedUtteranceUnitIdRef,
+    setSelectedLayerId,
+    setSelectedTimelineUnit,
+    setSelectedUtteranceIds,
+  ]);
 
   const setUtteranceSelection = useCallback((primaryId: string, ids: Iterable<string>) => {
     applyUnitSelection({
