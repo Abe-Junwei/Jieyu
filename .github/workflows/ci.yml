@@ -136,6 +136,25 @@ jobs:
       - name: M7 extension gate (enforce)
         run: npm run gate:m7-extension
 
+  m8-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M8 collaboration gate (enforce)
+        run: npm run gate:m8-collaboration
+
   build-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 30
