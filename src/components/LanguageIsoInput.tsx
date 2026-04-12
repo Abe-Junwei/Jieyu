@@ -3,7 +3,6 @@ import type { ChangeEvent, KeyboardEvent } from 'react';
 import {
   formatLanguageCatalogMatch,
   getLanguageCatalogEntry,
-  pickAutoFillLanguageMatchFromSuggestions,
   type LanguageCatalogMatch,
   type LanguageCatalogMatchSource,
   type LanguageSearchLocale,
@@ -159,15 +158,12 @@ export function LanguageIsoInput({
           const nextMatches = suggestions
             .map((suggestion) => toLanguageCatalogMatch(suggestion))
             .filter((match): match is LanguageCatalogMatch => Boolean(match));
-          const autoFillMatch = pickAutoFillLanguageMatchFromSuggestions(nextMatches);
 
+          // 始终展示下拉列表，由用户手动选择，不自动填充 | Always show dropdown for manual selection, no auto-fill
           dispatch({
             type: 'nameSuggestionsResolved',
             query: activeNameQuery,
             suggestions: nextMatches,
-            ...(autoFillMatch
-              ? { autoFillMatch }
-              : {}),
           });
         } catch {
           if (cancelled) {

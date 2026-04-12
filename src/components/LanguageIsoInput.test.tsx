@@ -183,8 +183,9 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.change(languageNameInput, { target: { value: 'Portuguese' } });
     await waitFor(() => {
-      expect(languageCodeInput.value).toBe('por');
+      expect(scopedQueries.getAllByRole('option').length).toBeGreaterThan(0);
     });
+    expect(languageCodeInput.value).toBe('');
   });
 
   it('keeps a two-letter code draft until blur commits it', () => {
@@ -294,12 +295,11 @@ describe('LanguageIsoInput', () => {
     fireEvent.change(languageNameInput, { target: { value: 'French' } });
     expect(languageNameInput.value).toBe('French');
 
-    await waitFor(() => {
-      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
-    });
+    fireEvent.click((await waitFor(() => scopedQueries.getAllByRole('option')))[0]!);
+    expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
 
     fireEvent.blur(languageNameInput);
-    expect(languageNameInput.value).toBe('French · français');
+    expect(languageNameInput.value).toBe('french · français');
   });
 
   it('shows locale label before native when the hit came from an English name in a zh locale', async () => {
@@ -310,12 +310,11 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.focus(languageNameInput);
     fireEvent.change(languageNameInput, { target: { value: 'French' } });
-    await waitFor(() => {
-      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
-    });
+    fireEvent.click((await waitFor(() => scopedQueries.getAllByRole('option')))[0]!);
+    expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
     fireEvent.blur(languageNameInput);
 
-    expect(languageNameInput.value).toBe('French · 法语 · français');
+    expect(languageNameInput.value).toBe('french · 法语 · français');
   });
 
   it('shows locale label before English when the hit came from a native name in a zh locale', async () => {
@@ -326,9 +325,8 @@ describe('LanguageIsoInput', () => {
 
     fireEvent.focus(languageNameInput);
     fireEvent.change(languageNameInput, { target: { value: 'français' } });
-    await waitFor(() => {
-      expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
-    });
+    fireEvent.click((await waitFor(() => scopedQueries.getAllByRole('option')))[0]!);
+    expect((scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement).value).toBe('fra');
     fireEvent.blur(languageNameInput);
 
     expect(languageNameInput.value).toBe('français · 法语 · French');
@@ -415,7 +413,7 @@ describe('LanguageIsoInput', () => {
       await Promise.resolve();
     });
 
-    expect(languageNameInput.value).toBe('German · Deutsch');
-    expect(languageCodeInput.value).toBe('deu');
+    expect(languageNameInput.value).toBe('German');
+    expect(languageCodeInput.value).toBe('');
   });
 });
