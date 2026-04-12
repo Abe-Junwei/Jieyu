@@ -168,6 +168,27 @@ export class LayerSegmentationV2Service {
     );
   }
 
+  /**
+   * 批量删除 segment（原子）| Batch delete segments (atomic)
+   */
+  static async deleteSegmentsBatch(segmentIds: readonly string[]): Promise<void> {
+    const ids = [...new Set(segmentIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+    if (ids.length === 0) return;
+
+    const db = await getDb();
+    await db.dexie.transaction(
+      'rw',
+      [
+        db.dexie.layer_units,
+        db.dexie.layer_unit_contents,
+        db.dexie.unit_relations,
+      ],
+      async () => {
+        await deleteLayerSegmentGraphBySegmentIds(db, ids);
+      },
+    );
+  }
+
   static async cleanupOrphanSegments(candidateSegmentIds?: Iterable<string>): Promise<string[]> {
     const db = await getDb();
     return cleanupOrphanSegmentsBridge(db, candidateSegmentIds);

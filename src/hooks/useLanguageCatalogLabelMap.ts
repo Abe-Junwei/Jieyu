@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useContext, useMemo, useRef } from 'react';
+import { QueryClient, QueryClientContext, useQuery } from '@tanstack/react-query';
 import type { Locale } from '../i18n';
 import type { LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
 import { listLanguageCatalogEntries } from '../services/LinguisticService.languageCatalog';
@@ -10,10 +10,28 @@ import { getLanguageDisplayName } from '../utils/langMapping';
 const LANGUAGE_CATALOG_QUERY_KEY = 'languageCatalogFull';
 function catalogQueryKey(locale: Locale) { return [LANGUAGE_CATALOG_QUERY_KEY, locale] as const; }
 
+function createFallbackLanguageCatalogQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+      },
+      mutations: {
+        retry: false,
+        gcTime: 0,
+      },
+    },
+  });
+}
+
 /** 数据变动后刷新缓存（如保存/删除条目后调用） | Invalidate after data changes (call after save/delete) */
 export function useInvalidateLanguageCatalogLabelMap() {
-  const queryClient = useQueryClient();
+  const queryClient = useContext(QueryClientContext);
   return useCallback(() => {
+    if (!queryClient) {
+      return;
+    }
     void queryClient.invalidateQueries({ queryKey: [LANGUAGE_CATALOG_QUERY_KEY] });
   }, [queryClient]);
 }
@@ -38,6 +56,12 @@ export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguage
   resolveLabel: (languageId: string | undefined) => string;
   resolveLanguageDisplayName: ResolveLanguageDisplayName;
 } {
+  const contextQueryClient = useContext(QueryClientContext);
+  const fallbackQueryClientRef = useRef<QueryClient | null>(null);
+  if (!contextQueryClient && fallbackQueryClientRef.current === null) {
+    fallbackQueryClientRef.current = createFallbackLanguageCatalogQueryClient();
+  }
+  const queryClient = contextQueryClient ?? fallbackQueryClientRef.current!;
   const normalizedLanguageIds = useMemo(() => {
     if (!options?.languageIds) {
       return undefined;
@@ -61,7 +85,7 @@ export function useLanguageCatalogLabelMap(locale: Locale, options?: UseLanguage
     queryFn: () => listLanguageCatalogEntries({ locale }),
     // 空 languageIds 时不需要数据 | No data needed when languageIds is explicitly empty
     enabled: !(normalizedLanguageIds && normalizedLanguageIds.length === 0),
-  });
+  }, queryClient);
 
   // 客户端过滤 | Client-side filter
   const entries = useMemo(() => {

@@ -14,6 +14,11 @@
   min-height: 0;
 }
 
+.ob-shell {
+  max-width: none;
+  min-height: 0;
+}
+
 /* Shell + Header + padding 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
 /* ── Page grid ── */
@@ -40,7 +45,6 @@
 
 /* ── Summary card ── */
 
-.ob-summary .ws-summary-description { font-size: var(--la-body-size); }
 .ob-summary .ws-summary-fact-label { font-size: var(--la-meta-size); }
 .ob-summary .ws-summary-fact-note { font-size: var(--la-meta-size); }
 
@@ -123,7 +127,8 @@
   color: var(--text-secondary);
 }
 
-.ob-filter-toggle .btn:hover:not(:disabled) {
+.ob-filter-toggle .btn:hover:not(:disabled),
+.ob-filter-toggle .btn:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
 }
@@ -132,6 +137,11 @@
   border-color: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
   background: var(--state-info-solid);
   color: var(--surface-panel);
+}
+
+.ob-list {
+  display: grid;
+  gap: var(--la-list-gap);
 }
 
 /* List item base 已收入 .la-shell 合约层 | unified via .la-shell contract */

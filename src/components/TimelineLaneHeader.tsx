@@ -165,10 +165,11 @@ export function TimelineLaneHeader({
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
   const hasResolvableConnectorData = connectorLayout.maxColumns > 0;
   const effectiveShowConnectors = showConnectors && hasResolvableConnectorData;
-  const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
+  const { bundleBoundaryIndexes, bundleRootIds, bundleRanges, bundleRoleByLayerId } = useMemo(() => {
     const boundaries = new Set<number>([0, allLayers.length]);
     const rootIds = new Set<string>();
     const ranges: Array<{ rootId: string; start: number; end: number }> = [];
+    const roleByLayerId = new Map<string, 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end' | 'bundle-detached-root'>();
     let cursor = 0;
     for (const bundle of buildLayerBundles(allLayers)) {
       const start = cursor;
@@ -176,6 +177,16 @@ export function TimelineLaneHeader({
       if (!bundle.detached) {
         rootIds.add(bundle.root.id);
       }
+      roleByLayerId.set(bundle.root.id, bundle.detached ? 'bundle-detached-root' : 'bundle-root');
+
+      const dependents = [...bundle.transcriptionDependents, ...bundle.translationDependents];
+      dependents.forEach((dependent, dependentIndex) => {
+        roleByLayerId.set(
+          dependent.id,
+          dependentIndex === dependents.length - 1 ? 'bundle-child-end' : 'bundle-child-middle',
+        );
+      });
+
       cursor += 1 + bundle.transcriptionDependents.length + bundle.translationDependents.length;
       boundaries.add(cursor);
       ranges.push({ rootId: bundle.root.id, start, end: cursor });
@@ -184,6 +195,7 @@ export function TimelineLaneHeader({
       bundleBoundaryIndexes: [...boundaries].sort((left, right) => left - right),
       bundleRootIds: rootIds,
       bundleRanges: ranges,
+      bundleRoleByLayerId: roleByLayerId,
     };
   }, [allLayers]);
 
@@ -443,6 +455,7 @@ export function TimelineLaneHeader({
     : false;
   const isDropAbove = !isDropInsideDraggedBlock && dropTargetIndex === layerIndex && !isDragged;
   const isDropBelow = !isDropInsideDraggedBlock && dropTargetIndex === layerIndex + 1 && !isDragged;
+  const laneBundleRole = bundleRoleByLayerId.get(layer.id);
 
   return (
     <div className="timeline-lane-header-wrapper">
@@ -460,7 +473,7 @@ export function TimelineLaneHeader({
 
       <span
         ref={headerRef}
-        className={`timeline-lane-label timeline-lane-header ${isDragged ? 'timeline-lane-header-dragging' : ''}`}
+        className={`timeline-lane-label timeline-lane-header ${isDragged ? 'timeline-lane-header-dragging' : ''}${laneBundleRole ? ` timeline-lane-label-${laneBundleRole}` : ''}`}
         onContextMenu={handleContextMenu}
         onMouseDown={handleMouseDown}
         onClick={(e) => {

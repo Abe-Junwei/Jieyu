@@ -1,0 +1,45 @@
+/* ══════════════════════════════════════════════════════════════
+   可访问性与媒体查询 | Accessibility & media queries
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 统一 focus-visible 规则 | Unified focus-visible rules ── */
+.timeline-annotation:focus-visible,
+.timeline-annotation-active:focus-visible,
+.timeline-annotation-selected:focus-visible,
+.timeline-annotation-resize-handle:focus-visible,
+.timeline-empty-actions-row:focus-visible,
+.timeline-translation-audio-btn:focus-visible,
+.timeline-translation-audio-btn-delete:focus-visible {
+  outline: 2px solid var(--focus-ring-strong, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+/* ── 移动端适配 | Mobile adaptation ── */
+@media (max-width: 640px) {
+  .timeline-scroll {
+    flex: 1;
+    min-height: 0;
+    transition: none;
+    filter: none;
+  }
+}
+
+/* ── 减弱动效偏好 | Reduced motion preference ── */
+@media (prefers-reduced-motion: reduce) {
+  .timeline-scroll,
+  .timeline-lane,
+  .timeline-annotation,
+  .timeline-annotation-input,
+  .timeline-text-item,
+  .timeline-text-input,
+  .timeline-lane-label,
+  .lane-link-connector-svg-trunk,
+  .lane-link-connector-svg-elbow,
+  .lane-link-connector-svg-dot,
+  .lane-link-connector-svg-arrow,
+  .time-ruler-lane-toggle,
+  .transcription-waveform-resize-handle {
+    transition: none !important;
+    animation: none !important;
+  }
+}

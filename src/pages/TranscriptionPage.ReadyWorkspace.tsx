@@ -5,7 +5,7 @@
  * 从轻量壳组件中拆出的 ready 态重运行时 | Heavy ready-state runtime extracted from the lightweight shell.
  */
 
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -85,54 +85,24 @@ import { useTranscriptionAcousticPanelState } from './useTranscriptionAcousticPa
 import { useTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarControllerInput';
 import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
 import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
+import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
+import { buildSharedLaneProps } from './transcriptionReadyWorkspacePropsBuilders';
+import { buildOrchestratorViewModelsInput } from './transcriptionReadyWorkspaceOrchestratorInput';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
-import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
-
-const TranscriptionPageAiSidebar = lazy(async () => import('./TranscriptionPage.AiSidebar').then((module) => ({
-  default: module.TranscriptionPageAiSidebar,
-})));
-
-const TranscriptionPageToolbar = lazy(async () => import('./TranscriptionPage.Toolbar').then((module) => ({
-  default: module.TranscriptionPageToolbar,
-})));
-
-const TranscriptionPageBatchOps = lazy(async () => import('./TranscriptionPage.BatchOps').then((module) => ({
-  default: module.TranscriptionPageBatchOps,
-})));
-
-const TranscriptionPageDialogs = lazy(async () => import('./TranscriptionPage.Dialogs').then((module) => ({
-  default: module.TranscriptionPageDialogs,
-})));
-
-const TranscriptionPageTimelineContent = lazy(async () => import('./TranscriptionPage.TimelineContent').then((module) => ({
-  default: module.TranscriptionPageTimelineContent,
-})));
-
-const TranscriptionPageTimelineTop = lazy(async () => import('./TranscriptionPage.TimelineTop').then((module) => ({
-  default: module.TranscriptionPageTimelineTop,
-})));
-
-const TranscriptionPageSidePane = lazy(async () => import('./TranscriptionPage.SidePane').then((module) => ({
-  default: module.TranscriptionPageSidePane,
-})));
-
-const TranscriptionOverlays = lazy(async () => import('../components/TranscriptionOverlays').then((module) => ({
-  default: module.TranscriptionOverlays,
-})));
-
-const RecoveryBanner = lazy(async () => import('../components/RecoveryBanner').then((module) => ({
-  default: module.RecoveryBanner,
-})));
-
-const TranscriptionPagePdfRuntime = lazy(async () => import('./TranscriptionPage.PdfRuntime').then((module) => ({
-  default: module.TranscriptionPagePdfRuntime,
-})));
-
-const TranscriptionPageAssistantBridge = lazy(async () => import('./TranscriptionPage.AssistantBridge').then((module) => ({
-  default: module.TranscriptionPageAssistantBridge,
- })));
-
+import {
+  RecoveryBanner,
+  TranscriptionOverlays,
+  TranscriptionPageAiSidebar,
+  TranscriptionPageAssistantBridge,
+  TranscriptionPageBatchOps,
+  TranscriptionPageDialogs,
+  TranscriptionPagePdfRuntime,
+  TranscriptionPageSidePane,
+  TranscriptionPageTimelineContent,
+  TranscriptionPageTimelineTop,
+  TranscriptionPageToolbar,
+} from './TranscriptionPage.ReadyWorkspace.runtime';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
@@ -738,47 +708,13 @@ function TranscriptionPageReadyWorkspace({
   const [aiSidebarError, setAiSidebarError] = useState<string | null>(null);
   const [embeddingProviderConfig, setEmbeddingProviderConfig] = useState(() => loadEmbeddingProviderConfig());
   const [acousticProviderPreference, setAcousticProviderPreference] = useState<string | null>(null);
-  const [deferredAiRuntime, setDeferredAiRuntime] = useState<DeferredTranscriptionAiRuntimeState>(() => ({
-    aiChat: {
-      enabled: false,
-      providerLabel: undefined,
-      settings: undefined,
-      messages: [],
-      isStreaming: false,
-      lastError: null,
-      connectionTestStatus: 'idle',
-      connectionTestMessage: null,
-      contextDebugSnapshot: null,
-      pendingToolCall: null,
-      taskSession: null,
-      metrics: null,
-      sessionMemory: null,
-      updateSettings: undefined,
-      testConnection: undefined,
-      send: undefined,
-      stop: undefined,
-      clear: undefined,
-      confirmPendingToolCall: undefined,
-      cancelPendingToolCall: undefined,
-      trackRecommendationEvent: undefined,
-    },
-    aiToolDecisionLogs: [],
-    acousticRuntimeStatus: { state: 'idle' },
-    acousticSummary: null,
-    acousticDetail: null,
-    acousticDetailFullMedia: null,
-    acousticBatchDetails: [],
-    acousticBatchSelectionCount: 0,
-    acousticBatchDroppedSelectionRanges: [],
-    acousticCalibrationStatus: 'exploratory',
-    acousticProviderState: {
-      requestedProviderId: 'local-yin-spectral',
-      effectiveProviderId: 'local-yin-spectral',
-      reachability: { id: 'local-yin-spectral', available: true, latencyMs: 0 },
-      fellBackToLocal: false,
-    },
-    onJumpToAcousticHotspot: () => undefined,
-  } as unknown as DeferredTranscriptionAiRuntimeState));
+  const {
+    deferredAiRuntime,
+    deferredAiRuntimeForSidebar,
+    setDeferredAiRuntime,
+    handleDeferredAiRuntimeChange,
+    flushDeferredAiRuntime,
+  } = useDeferredAiRuntimeBridge();
 
   const {
     lexemeMatches,
@@ -811,10 +747,6 @@ function TranscriptionPageReadyWorkspace({
       fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
     }
   }, [actionableObserverRecommendations, handleExecuteRecommendation]);
-
-  const handleDeferredAiRuntimeChange = (runtimeState: DeferredTranscriptionAiRuntimeState) => {
-    setDeferredAiRuntime(runtimeState);
-  };
 
   const {
     waveformAcousticRuntimeStatus,
@@ -1084,8 +1016,8 @@ function TranscriptionPageReadyWorkspace({
     selectedText: selectionSnapshot.selectedText,
     selectedTimeRangeLabel: selectionSnapshot.selectedTimeRangeLabel ?? null,
     lexemeMatches,
-    aiChat: deferredAiRuntime.aiChat,
-    aiToolDecisionLogs: deferredAiRuntime.aiToolDecisionLogs,
+    aiChat: deferredAiRuntimeForSidebar.aiChat,
+    aiToolDecisionLogs: deferredAiRuntimeForSidebar.aiToolDecisionLogs,
     observerStage: observerResult.stage,
     observerRecommendations: actionableObserverRecommendations,
     onJumpToCitation: handleJumpToCitation,
@@ -1464,8 +1396,7 @@ function TranscriptionPageReadyWorkspace({
     effectiveLaneLockMap,
   });
 
-  // ── 共享轨道属性 | Shared lane props for mediaLanes / textOnly ──
-  const sharedLaneProps = {
+  const sharedLaneProps = buildSharedLaneProps({
     transcriptionLayers,
     translationLayers,
     segmentsByLayer,
@@ -1474,32 +1405,32 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineUnit,
     flashLayerRowId,
     focusedLayerRowId,
-    activeUtteranceUnitId: selectedTimelineUtteranceId,
-    allLayersOrdered: orderedLayers,
-    onReorderLayers: reorderLayers,
+    selectedTimelineUtteranceId,
+    orderedLayers,
+    reorderLayers,
     deletableLayers,
-    onFocusLayer: handleFocusLayerRow,
+    handleFocusLayerRow,
     layerLinks,
-    showConnectors: showAllLayerConnectors,
-    ...(activeTextPrimaryLanguageId ? { defaultLanguageId: activeTextPrimaryLanguageId } : {}),
-    ...(activeTextPrimaryOrthographyId ? { defaultOrthographyId: activeTextPrimaryOrthographyId } : {}),
-    onToggleConnectors: handleToggleAllLayerConnectors,
-    laneHeights: timelineLaneHeights,
-    onLaneHeightChange: handleTimelineLaneHeightChange,
-    trackDisplayMode: transcriptionTrackMode,
-    onToggleTrackDisplayMode: handleToggleTrackDisplayMode,
-    onSetTrackDisplayMode: setTrackDisplayMode,
-    laneLockMap: effectiveLaneLockMap,
-    onLockSelectedSpeakersToLane: handleLockSelectedSpeakersToLane,
-    onUnlockSelectedSpeakers: handleUnlockSelectedSpeakers,
-    onResetTrackAutoLayout: handleResetTrackAutoLayout,
-    selectedSpeakerNamesForLock: selectedSpeakerNamesForTrackLock,
+    showAllLayerConnectors,
+    activeTextPrimaryLanguageId,
+    activeTextPrimaryOrthographyId,
+    handleToggleAllLayerConnectors,
+    timelineLaneHeights,
+    handleTimelineLaneHeightChange,
+    transcriptionTrackMode,
+    handleToggleTrackDisplayMode,
+    setTrackDisplayMode,
+    effectiveLaneLockMap,
+    handleLockSelectedSpeakersToLane,
+    handleUnlockSelectedSpeakers,
+    handleResetTrackAutoLayout,
+    selectedSpeakerNamesForTrackLock,
     speakerLayerLayout,
     speakerFocusMode,
-    ...(resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: resolvedSpeakerFocusTargetKey } : {}),
+    resolvedSpeakerFocusTargetKey,
     activeSpeakerFilterKey,
     speakerQuickActions,
-    onLaneLabelWidthResize: handleLaneLabelWidthResizeStart,
+    handleLaneLabelWidthResizeStart,
     translationAudioByLayer,
     mediaItems: _mediaItems,
     recording,
@@ -1509,43 +1440,29 @@ function TranscriptionPageReadyWorkspace({
     stopRecording: _stopRecording,
     deleteVoiceTranslation,
     displayStyleControl,
-  };
+  });
 
-  const {
-    toolbarProps,
-    timelineTopProps,
-    timelineContentProps,
-    aiSidebarProps,
-    dialogsProps,
-  } = useOrchestratorViewModels({
-    selectedMediaUrl: selectedMediaUrl ?? null,
-    playerIsReady: player.isReady,
-    playerDuration: player.duration,
-    layersCount: layers.length,
+  const orchestratorViewModelsInput = buildOrchestratorViewModelsInput({
+    selectedMediaUrl,
+    player,
+    layers,
     locale,
     importFileRef,
-    layerActionSetCreateTranscription: () => layerAction.setLayerActionPanel('create-transcription'),
-    mediaLanesPropsInput: {
-      ...sharedLaneProps,
-      zoomPxPerSec,
-      lassoRect,
-      timelineRenderUtterances,
-      defaultTranscriptionLayerId,
-      renderAnnotationItem,
-      speakerSortKeyById,
-    },
-    textOnlyPropsInput: {
-      ...sharedLaneProps,
-      utterancesOnCurrentMedia: filteredUtterancesOnCurrentMedia,
-      defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
-      scrollContainerRef: tierContainerRef,
-      handleAnnotationClick,
-      handleAnnotationContextMenu,
-      navigateUtteranceFromInput,
-      speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-    },
-    selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
-    player,
+    layerAction,
+    sharedLaneProps,
+    zoomPxPerSec,
+    lassoRect,
+    timelineRenderUtterances,
+    defaultTranscriptionLayerId,
+    renderAnnotationItem,
+    speakerSortKeyById,
+    filteredUtterancesOnCurrentMedia,
+    tierContainerRef,
+    handleAnnotationClick,
+    handleAnnotationContextMenu,
+    navigateUtteranceFromInput,
+    speakerVisualByTimelineUnitId,
+    selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
     waveformVisualStyle,
@@ -1558,10 +1475,9 @@ function TranscriptionPageReadyWorkspace({
     canUndo,
     canRedo,
     undoLabel,
-    hasSelectedTimelineMedia: Boolean(selectedTimelineMedia),
-    hasActiveTextId: Boolean(activeTextId),
-    selectedTimelineUnit: selectedTimelineUnit ?? null,
-    notePopoverOpen: Boolean(notePopover),
+    activeTextId,
+    selectedTimelineUnit,
+    notePopover,
     showExportMenu,
     exportMenuRef,
     loadSnapshot,
@@ -1585,15 +1501,13 @@ function TranscriptionPageReadyWorkspace({
     handleExportJym,
     handleImportFile,
     utterancesOnCurrentMedia,
-    rulerView: rulerView ?? null,
-    zoomPxPerSec,
+    rulerView,
     isTimelineLaneHeaderCollapsed,
     toggleTimelineLaneHeader,
     waveCanvasRef,
-    tierContainerRef,
     showSearch,
     searchableItems,
-    orthographies: displayStyleControl.orthographies,
+    displayStyleControl,
     activeLayerIdForEdits,
     selectedTimelineUtteranceId,
     searchOverlayRequest,
@@ -1602,48 +1516,53 @@ function TranscriptionPageReadyWorkspace({
     handleSearchReplace,
     setShowSearch,
     setSearchOverlayRequest,
-    sidebarSectionsInput: {
-      locale,
-      isAiPanelCollapsed,
-      hubSidebarTab,
-      setHubSidebarTab,
-      assistantRuntimeProps,
-      analysisRuntimeProps,
-      selectedAiWarning,
-      selectedTranslationGapCount,
-      aiSidebarError,
-      speakerDialogState: speakerDialogStateRouted,
-      speakerSaving: speakerSavingRouted,
-      closeSpeakerDialog: closeSpeakerDialogRouted,
-      confirmSpeakerDialog: confirmSpeakerDialogRouted,
-      updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
-      updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
-      showProjectSetup,
-      setShowProjectSetup,
-      handleProjectSetupSubmit,
-      showAudioImport,
-      setShowAudioImport,
-      handleAudioImport,
-      mediaFileInputRef,
-      handleDirectMediaImport,
-      audioDeleteConfirm,
-      setAudioDeleteConfirm,
-      handleConfirmAudioDelete,
-      projectDeleteConfirm,
-      setProjectDeleteConfirm,
-      handleConfirmProjectDelete,
-      showShortcuts,
-      closeShortcuts,
-      isFocusMode,
-      exitFocusMode,
-    },
+    isAiPanelCollapsed,
+    hubSidebarTab,
+    setHubSidebarTab,
+    assistantRuntimeProps,
+    analysisRuntimeProps,
+    selectedAiWarning,
+    selectedTranslationGapCount,
+    aiSidebarError,
+    speakerDialogStateRouted,
+    speakerSavingRouted,
+    closeSpeakerDialogRouted,
+    confirmSpeakerDialogRouted,
+    updateSpeakerDialogDraftNameRouted,
+    updateSpeakerDialogTargetKeyRouted,
+    showProjectSetup,
+    handleProjectSetupSubmit,
+    showAudioImport,
+    handleAudioImport,
+    mediaFileInputRef,
+    handleDirectMediaImport,
+    audioDeleteConfirm,
+    setAudioDeleteConfirm,
+    handleConfirmAudioDelete,
+    projectDeleteConfirm,
+    setProjectDeleteConfirm,
+    handleConfirmProjectDelete,
+    showShortcuts,
+    closeShortcuts,
+    isFocusMode,
+    exitFocusMode,
   });
 
+  const {
+    toolbarProps,
+    timelineTopProps,
+    timelineContentProps,
+    aiSidebarProps,
+    dialogsProps,
+  } = useOrchestratorViewModels(orchestratorViewModelsInput);
+
   useEffect(() => {
-    if (!isAiPanelCollapsed) {
-      setHasActivatedAiSidebar(true);
+    if (isAiPanelCollapsed) {
+      return;
     }
-  }, [isAiPanelCollapsed]);
+    setHasActivatedAiSidebar(true);
+    flushDeferredAiRuntime();
+  }, [flushDeferredAiRuntime, isAiPanelCollapsed]);
 
   useEffect(() => {
     if (!assistantRuntimeProps.aiChatContextValue.aiPendingToolCall) return;
@@ -2005,74 +1924,72 @@ function TranscriptionPageReadyWorkspace({
                 handleAiPanelToggle={handleAiPanelToggle}
               />
 
-              {shouldRenderAiSidebar ? (
-                <Suspense fallback={null}>
-                  <TranscriptionPageAssistantBridge
-                    controllerInput={{
-                      utterances,
-                      utterancesOnCurrentMedia,
-                      selectedUnitIds: selectedUtteranceIds,
-                      selectedUtterance: selectedUtterance ?? null,
-                      selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
-                      selectedTimelineSegment: selectedTimelineSegment ?? null,
-                      ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
-                      ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
-                      selectedLayerId,
-                      activeLayerIdForEdits,
-                      resolveSegmentRoutingForLayer,
-                      segmentsByLayer,
-                      segmentContentByLayer,
-                      selectionSnapshot,
-                      layers,
-                      transcriptionLayers,
-                      translationLayers,
-                      layerLinks,
-                      getUtteranceTextForLayer,
-                      formatTime,
-                      utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
-                      translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
-                      aiConfidenceAvg,
-                      undoHistory,
-                      createLayerWithActiveContext,
-                      createTranscriptionSegment: createNextSegmentRouted,
-                      splitTranscriptionSegment: splitRouted,
-                      mergeWithPrevious: mergeWithPreviousRouted,
-                      mergeWithNext: mergeWithNextRouted,
-                      mergeSelectedUtterances,
-                      mergeSelectedSegments: mergeSelectedSegmentsRouted,
-                      deleteUtterance: deleteUtteranceRouted,
-                      deleteSelectedUtterances: deleteSelectedUtterancesRouted,
-                      deleteLayer,
-                      toggleLayerLink,
-                      saveUtteranceText,
-                      saveTextTranslationForUtterance,
-                      saveSegmentContentForLayer,
-                      updateTokenPos,
-                      batchUpdateTokenPosByForm,
-                      updateTokenGloss,
-                      selectUtterance,
-                      setSaveState,
-                      translationDrafts,
-                      translationTextByLayer,
-                      locale,
-                      playerCurrentTime: player.currentTime,
-                      executeActionRef,
-                      openSearchRef,
-                      seekToTimeRef,
-                      splitAtTimeRef,
-                      zoomToSegmentRef,
-                      handleExecuteRecommendation,
-                      aiSidebarError,
-                      setAiSidebarError,
-                      embeddingProviderConfig,
-                      setEmbeddingProviderConfig,
-                      acousticConfigOverride,
-                      acousticProviderPreference,
-                    }}
-                    onRuntimeStateChange={handleDeferredAiRuntimeChange}
-                  />
-                </Suspense>
-              ) : null}
+              <Suspense fallback={null}>
+                <TranscriptionPageAssistantBridge
+                  controllerInput={{
+                    utterances,
+                    utterancesOnCurrentMedia,
+                    selectedUnitIds: selectedUtteranceIds,
+                    selectedUtterance: selectedUtterance ?? null,
+                    selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
+                    selectedTimelineSegment: selectedTimelineSegment ?? null,
+                    ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
+                    ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
+                    selectedLayerId,
+                    activeLayerIdForEdits,
+                    resolveSegmentRoutingForLayer,
+                    segmentsByLayer,
+                    segmentContentByLayer,
+                    selectionSnapshot,
+                    layers,
+                    transcriptionLayers,
+                    translationLayers,
+                    layerLinks,
+                    getUtteranceTextForLayer,
+                    formatTime,
+                    utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
+                    translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
+                    aiConfidenceAvg,
+                    undoHistory,
+                    createLayerWithActiveContext,
+                    createTranscriptionSegment: createNextSegmentRouted,
+                    splitTranscriptionSegment: splitRouted,
+                    mergeWithPrevious: mergeWithPreviousRouted,
+                    mergeWithNext: mergeWithNextRouted,
+                    mergeSelectedUtterances,
+                    mergeSelectedSegments: mergeSelectedSegmentsRouted,
+                    deleteUtterance: deleteUtteranceRouted,
+                    deleteSelectedUtterances: deleteSelectedUtterancesRouted,
+                    deleteLayer,
+                    toggleLayerLink,
+                    saveUtteranceText,
+                    saveTextTranslationForUtterance,
+                    saveSegmentContentForLayer,
+                    updateTokenPos,
+                    batchUpdateTokenPosByForm,
+                    updateTokenGloss,
+                    selectUtterance,
+                    setSaveState,
+                    translationDrafts,
+                    translationTextByLayer,
+                    locale,
+                    playerCurrentTime: player.currentTime,
+                    executeActionRef,
+                    openSearchRef,
+                    seekToTimeRef,
+                    splitAtTimeRef,
+                    zoomToSegmentRef,
+                    handleExecuteRecommendation,
+                    aiSidebarError,
+                    setAiSidebarError,
+                    embeddingProviderConfig,
+                    setEmbeddingProviderConfig,
+                    acousticConfigOverride,
+                    acousticProviderPreference,
+                  }}
+                  onRuntimeStateChange={handleDeferredAiRuntimeChange}
+                />
+              </Suspense>
 
               <AiPanelContext.Provider value={aiPanelContextValue}>
                 <Suspense fallback={null}>

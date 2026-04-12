@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
+import { getTranscriptionAppService } from '../app/index';
 import type { LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, useLocale } from '../i18n';
-import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
+import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
 interface UseTranscriptionSegmentBatchMergeInput {
   activeLayerIdForEdits: string;
@@ -29,6 +30,18 @@ function setSegmentBatchMergeError(
   setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
 }
 
+function recordBatchMergeLatency(status: 'success' | 'error', startedAtMs: number): void {
+  try {
+    recordDurationMetric(
+      'business.transcription.segment_action_latency_ms',
+      startedAtMs,
+      createMetricTags('transcription', { action: 'merge_selection', status }),
+    );
+  } catch {
+    // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
+  }
+}
+
 export function useTranscriptionSegmentBatchMerge({
   activeLayerIdForEdits,
   resolveSegmentRoutingForLayer,
@@ -45,6 +58,7 @@ export function useTranscriptionSegmentBatchMerge({
   const locale = useLocale();
 
   return useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
     const routing = resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
@@ -58,12 +72,14 @@ export function useTranscriptionSegmentBatchMerge({
         if (selectedIndexes.length < 2) {
           const message = t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo');
           setSaveState({ kind: 'error', message });
+          recordBatchMergeLatency('error', startedAtMs);
           throw new Error(message);
         }
         const hasGap = selectedIndexes.some((index, currentIndex) => currentIndex > 0 && index !== selectedIndexes[currentIndex - 1]! + 1);
         if (hasGap) {
           const message = t(locale, 'transcription.error.validation.segmentMergeRequireAdjacentSelection');
           setSaveState({ kind: 'error', message });
+          recordBatchMergeLatency('error', startedAtMs);
           throw new Error(message);
         }
 
@@ -77,27 +93,38 @@ export function useTranscriptionSegmentBatchMerge({
           if (!parentUtt) {
             const message = t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange');
             setSaveState({ kind: 'error', message });
+            recordBatchMergeLatency('error', startedAtMs);
             throw new Error(message);
           }
         }
 
         pushUndo(t(locale, 'transcription.utteranceAction.undo.mergeSelection'));
         try {
+          const appService = getTranscriptionAppService();
           for (let index = 1; index < orderedSegments.length; index += 1) {
-            await LayerSegmentationV2Service.mergeAdjacentSegments(firstSegment.id, orderedSegments[index]!.id);
+            await appService.mergeAdjacentSegments(firstSegment.id, orderedSegments[index]!.id);
           }
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(createSegmentTarget(firstSegment.id, targetLayerId));
+          recordBatchMergeLatency('success', startedAtMs);
         } catch (error) {
           setSegmentBatchMergeError(setSaveState, t(locale, 'transcription.utteranceAction.undo.mergeSelection'), error);
+          recordBatchMergeLatency('error', startedAtMs);
           throw error instanceof Error ? error : new Error(String(error));
         }
         return;
       }
-      case 'utterance':
-        await mergeSelectedUtterances(ids);
+      case 'utterance': {
+        try {
+          await mergeSelectedUtterances(ids);
+          recordBatchMergeLatency('success', startedAtMs);
+        } catch (error) {
+          recordBatchMergeLatency('error', startedAtMs);
+          throw error;
+        }
         return;
+      }
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeSelectedUtterances, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
 }

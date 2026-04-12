@@ -306,11 +306,11 @@
 }
 
 .waveform-analysis-band-overlap {
-  fill: color-mix(in srgb, var(--state-danger-solid) 18%, transparent);
-  stroke: color-mix(in srgb, var(--state-danger-solid) 42%, transparent);
+  fill: color-mix(in srgb, var(--state-danger-solid) 8%, transparent);
+  stroke: color-mix(in srgb, var(--state-danger-solid) 24%, transparent);
 }
 
 .waveform-analysis-band-label-overlap {
-  fill: var(--state-danger-text);
+  fill: color-mix(in srgb, var(--state-danger-text) 72%, var(--text-secondary));
 }
 

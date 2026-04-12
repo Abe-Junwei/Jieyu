@@ -94,7 +94,16 @@
   color: var(--surface-panel);
 }
 
-.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):hover:not(:disabled) {
+.la-shell .panel-button--primary:hover:not(:disabled),
+.la-shell .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active):hover:not(:disabled),
+.la-shell .btn-active:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
+  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
+}
+
+.la-shell .panel-button--primary:focus-visible:not(:disabled),
+.la-shell .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active):focus-visible:not(:disabled),
+.la-shell .btn-active:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
   border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
 }
@@ -105,7 +114,14 @@
   color: var(--text-secondary);
 }
 
-.la-shell :is(.panel-button--ghost, .btn-ghost):hover:not(:disabled) {
+.la-shell .panel-button--ghost:hover:not(:disabled),
+.la-shell .btn-ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
+  color: var(--text-primary);
+}
+
+.la-shell .panel-button--ghost:focus-visible:not(:disabled),
+.la-shell .btn-ghost:focus-visible:not(:disabled) {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
 }
@@ -133,12 +149,6 @@
   display: grid;
   gap: 4px;
   min-width: 0;
-}
-
-.la-shell .ws-kicker {
-  font-size: var(--la-meta-size);
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 
 .la-shell .ws-summary-title {

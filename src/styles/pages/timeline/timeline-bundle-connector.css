@@ -1,0 +1,123 @@
+/* ── Bundle 层级连接线 | Bundle hierarchy connector ─── */
+
+/*
+  设计语义（Bundle trunk + child elbow | Bundle trunk + child elbow）：
+  - root：Bundle 根层只画一段向下 trunk
+  - child-middle：中间子层画贯穿 trunk，并接一段横向 elbow
+  - child-end：最后一个子层画向上收口的 trunk，并接一段横向 elbow
+*/
+
+.lane-link-stack {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  z-index: var(--z-raised);
+  pointer-events: none;
+  overflow: visible;
+}
+
+.lane-link-stack-svg {
+  width: auto;
+  height: 100%;
+  display: block;
+}
+
+.lane-link-connector-svg {
+  --lane-link-color: color-mix(in srgb, var(--text-secondary) 54%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--text-primary) 78%, transparent);
+  --lane-link-stroke: 1px;
+}
+
+.lane-link-connector-svg-color-0 {
+  --lane-link-color: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
+}
+
+.lane-link-connector-svg-color-1 {
+  --lane-link-color: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-success-solid) 88%, transparent);
+}
+
+.lane-link-connector-svg-color-2 {
+  --lane-link-color: color-mix(in srgb, var(--state-warning-text) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-warning-text) 88%, transparent);
+}
+
+.lane-link-connector-svg-color-3 {
+  --lane-link-color: color-mix(in srgb, var(--state-info-solid) 52%, var(--state-danger-solid) 10%);
+  --lane-link-color-active: color-mix(in srgb, var(--state-info-solid) 74%, var(--state-danger-solid) 14%);
+}
+
+.lane-link-connector-svg-color-4 {
+  --lane-link-color: color-mix(in srgb, var(--state-danger-solid) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--state-danger-solid) 88%, transparent);
+}
+
+.lane-link-connector-svg-color-5 {
+  --lane-link-color: color-mix(in srgb, var(--text-secondary) 62%, transparent);
+  --lane-link-color-active: color-mix(in srgb, var(--text-primary) 88%, transparent);
+}
+
+.lane-link-connector-svg-trunk,
+.lane-link-connector-svg-elbow,
+.lane-link-connector-svg-dot,
+.lane-link-connector-svg-arrow {
+  transition: stroke 160ms ease, fill 160ms ease, opacity 160ms ease;
+}
+
+.timeline-lane-label-bundle-root .lane-link-connector-svg-trunk {
+  stroke-width: 1.25px;
+  opacity: 0.96;
+}
+
+.timeline-lane-label-bundle-root .lane-link-connector-svg-elbow {
+  opacity: 0.9;
+}
+
+.timeline-lane-label-bundle-child-middle .lane-link-connector-svg-trunk,
+.timeline-lane-label-bundle-child-end .lane-link-connector-svg-trunk {
+  opacity: 0.84;
+}
+
+.timeline-lane-label-bundle-detached-root .lane-link-connector-svg-trunk,
+.timeline-lane-label-bundle-detached-root .lane-link-connector-svg-elbow,
+.timeline-lane-label-bundle-detached-root .lane-link-connector-svg-dot,
+.timeline-lane-label-bundle-detached-root .lane-link-connector-svg-arrow {
+  opacity: 0.52;
+}
+
+.lane-link-connector-svg-trunk,
+.lane-link-connector-svg-elbow {
+  stroke: var(--lane-link-color);
+  stroke-width: var(--lane-link-stroke);
+  vector-effect: non-scaling-stroke;
+}
+
+.lane-link-connector-svg-elbow {
+  opacity: 0.86;
+}
+
+.lane-link-connector-svg-dot {
+  fill: var(--lane-link-color);
+  opacity: 0.82;
+}
+
+.lane-link-connector-svg-arrow {
+  fill: var(--lane-link-color);
+  opacity: 0.76;
+}
+.timeline-lane-label:hover .lane-link-connector-svg-trunk,
+.timeline-lane-label:hover .lane-link-connector-svg-elbow,
+.timeline-lane-label:focus-within .lane-link-connector-svg-trunk,
+.timeline-lane-label:focus-within .lane-link-connector-svg-elbow {
+  stroke: var(--lane-link-color-active);
+}
+
+.timeline-lane-label:hover .lane-link-connector-svg-dot,
+.timeline-lane-label:hover .lane-link-connector-svg-arrow,
+.timeline-lane-label:focus-within .lane-link-connector-svg-dot,
+.timeline-lane-label:focus-within .lane-link-connector-svg-arrow {
+  fill: var(--lane-link-color-active);
+}

@@ -84,7 +84,6 @@ export function LanguageMetadataWorkspaceDetailColumn({
     }));
   };
   const summaryName = draft.localName.trim() || selectedEntry?.localName || t(locale, 'workspace.languageMetadata.createCustom');
-  const summaryEnglish = draft.englishName.trim() || selectedEntry?.englishName || t(locale, 'workspace.languageMetadata.notSet');
   const summaryCode = draft.languageCode.trim() || draft.iso6393.trim() || selectedEntry?.languageCode || t(locale, 'workspace.languageMetadata.notSet');
   const summaryCanonicalTag = draft.canonicalTag.trim() || selectedEntry?.canonicalTag || t(locale, 'workspace.languageMetadata.notSet');
   const summaryId = selectedEntry?.id || draft.idInput.trim() || t(locale, 'workspace.languageMetadata.notSet');

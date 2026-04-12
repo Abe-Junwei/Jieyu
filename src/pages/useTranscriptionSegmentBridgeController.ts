@@ -11,6 +11,7 @@ import {
   snapshotLayerSegmentGraphByLayerIds,
 } from '../services/LayerSegmentGraphService';
 import { fireAndForget } from '../utils/fireAndForget';
+import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
 interface SegmentUndoRefValue {
   snapshotLayerSegments?: () => LayerSegmentGraphSnapshot;
@@ -42,6 +43,18 @@ interface UseTranscriptionSegmentBridgeControllerResult {
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentTimelineRoutingResult;
   refreshSegmentUndoSnapshot: () => Promise<void>;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
+}
+
+function recordSegmentSaveLatency(layerId: string, status: 'success' | 'error', startedAtMs: number): void {
+  try {
+    recordDurationMetric(
+      'business.transcription.segment_action_latency_ms',
+      startedAtMs,
+      createMetricTags('transcription', { action: 'save_content', status, layerId }),
+    );
+  } catch {
+    // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
+  }
 }
 
 export function useTranscriptionSegmentBridgeController(
@@ -119,6 +132,7 @@ export function useTranscriptionSegmentBridgeController(
   }, [input.independentLayerIds, input.reloadSegmentContents, input.reloadSegments, input.segmentUndoRef, refreshSegmentUndoSnapshot]);
 
   const saveSegmentContentForLayer = useCallback(async (segmentId: string, layerId: string, value: string) => {
+    const startedAtMs = performance.now();
     const layer = input.layerById.get(layerId);
     if (!layer) return;
     const sourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId);
@@ -128,10 +142,16 @@ export function useTranscriptionSegmentBridgeController(
     const existing = input.segmentContentByLayer.get(layerId)?.get(segmentId);
 
     if (!trimmed) {
-      if (existing) {
-        await LayerSegmentationV2Service.deleteSegmentContent(existing.id);
+      try {
+        if (existing) {
+          await LayerSegmentationV2Service.deleteSegmentContent(existing.id);
+        }
+        await input.reloadSegmentContents();
+        recordSegmentSaveLatency(layerId, 'success', startedAtMs);
+      } catch (error) {
+        recordSegmentSaveLatency(layerId, 'error', startedAtMs);
+        throw error;
       }
-      await input.reloadSegmentContents();
       return;
     }
 
@@ -148,9 +168,15 @@ export function useTranscriptionSegmentBridgeController(
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
-    await LayerSegmentationV2Service.upsertSegmentContent(next);
-    await input.reloadSegmentContents();
-    await refreshSegmentUndoSnapshot();
+    try {
+      await LayerSegmentationV2Service.upsertSegmentContent(next);
+      await input.reloadSegmentContents();
+      await refreshSegmentUndoSnapshot();
+      recordSegmentSaveLatency(layerId, 'success', startedAtMs);
+    } catch (error) {
+      recordSegmentSaveLatency(layerId, 'error', startedAtMs);
+      throw error;
+    }
   }, [input.defaultTranscriptionLayerId, input.layerById, input.reloadSegmentContents, input.segmentContentByLayer, input.segmentsByLayer, refreshSegmentUndoSnapshot]);
 
   return {

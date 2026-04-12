@@ -1,0 +1,302 @@
+/* ── 文本条目卡片 + 输入框 + 状态 | Text item card + input + states ──
+ *
+ * 状态优先级链（从低到高）| State priority chain (low → high):
+ * default < hover < selected < focus-within < editing
+ *
+ * 设计原则：轻常态，重编辑态 | Light default, heavy editing state
+ * ─────────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════
+   文本条目基础
+   ═══════════════════════════════════════ */
+
+.timeline-text-item {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: background-color var(--duration-fast, 120ms), border-color var(--duration-fast, 120ms), box-shadow var(--duration-fast, 120ms);
+  padding-left: 2px;
+  padding-right: 2px;
+  margin-left: 1px;
+  margin-right: 1px;
+  --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 10%, var(--surface-panel));
+  --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 8%, var(--surface-panel));
+  --timeline-neutral-active-bg: color-mix(in srgb, var(--text-secondary) 17%, var(--surface-panel));
+  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 22%, var(--surface-panel));
+  --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 68%, transparent);
+  --timeline-neutral-divider-active: color-mix(in srgb, var(--text-secondary) 78%, transparent);
+  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 66%, transparent);
+  --timeline-neutral-outline-active: color-mix(in srgb, var(--text-secondary) 20%, transparent);
+  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 26%, transparent);
+  --timeline-item-divider-width: 0;
+  --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
+}
+
+/* 空段（未转写）显示极浅灰底色 | Empty segment: faint bg as slot indicator */
+.timeline-text-item-empty {
+  background: var(--timeline-neutral-empty-bg);
+}
+
+/* 左侧说话人指示器（局部，非全高 — 避免 ELAN 式僵硬网格感） */
+.timeline-text-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 15%;   /* 不贯穿上下，减少僵硬感 */
+  bottom: 15%;
+  width: var(--timeline-item-divider-width);
+  background: var(--timeline-item-divider-color);
+  border-radius: 1px;
+  pointer-events: none;
+  transition: width var(--duration-fast, 120ms), background-color var(--duration-fast, 120ms);
+}
+
+/* Hover 时显示指示器，提供明确反馈 | Show indicator on hover for feedback */
+.timeline-text-item:hover::before {
+  width: 2px;
+  background: var(--timeline-neutral-divider-hover);
+}
+
+/* 有说话人标识时加粗，提供更多视觉权重 */
+.timeline-text-item-has-speaker {
+  --timeline-item-divider-width: 3px;
+  --timeline-item-divider-color: var(--speaker-color, var(--state-info-solid));
+}
+
+.timeline-text-item-has-speaker::before {
+  top: 10%;   /* 说话人指示器更长一些 */
+  bottom: 10%;
+}
+
+/* speaker-badge 已迁至 divider-color 方案 | speaker-badge migrated to divider-color */
+.timeline-text-item-speaker-badge {
+  display: none;
+}
+
+/* ═══════════════════════════════════════
+   状态优先级链 | State priority chain
+   ═══════════════════════════════════════ */
+
+/* 编辑态下其他 Item 淡化 */
+.timeline-content-text-only.timeline-content-editing .timeline-text-item {
+  opacity: 0.58;
+}
+
+.timeline-content-text-only.timeline-content-editing .timeline-text-item:focus-within {
+  opacity: 1;
+}
+
+/* 淡化/隐藏状态 */
+.timeline-text-item.timeline-text-item-dimmed {
+  opacity: 0.58;
+}
+
+.timeline-text-item.timeline-text-item-focus-dim {
+  opacity: 0.48;
+}
+
+.timeline-text-item.timeline-text-item-focus-hidden {
+  display: none;
+}
+
+/* ── Hover ── */
+.timeline-text-item:hover {
+  background: var(--timeline-neutral-hover-bg);
+  --timeline-item-divider-color: var(--timeline-neutral-divider-hover);
+}
+
+/* ── Active / Selected ── */
+.timeline-text-item.timeline-text-item-active {
+  background: var(--timeline-neutral-active-bg);
+  --timeline-item-divider-color: var(--timeline-neutral-divider-active);
+  box-shadow: inset 0 0 0 1px var(--timeline-neutral-outline-active);
+}
+
+/* ── Focus within (input focused) ── */
+.timeline-text-item:focus-within {
+  background: var(--timeline-neutral-focus-bg);
+  --timeline-item-divider-color: var(--timeline-neutral-divider-focus);
+  box-shadow: inset 0 0 0 1px var(--timeline-neutral-outline-focus);
+}
+
+/* ═══════════════════════════════════════
+   编辑态（核心改进：四边边界 + 光晕）
+   ═══════════════════════════════════════ */
+
+.timeline-text-item.timeline-text-item-editing {
+  opacity: 1;
+  background: color-mix(in srgb, var(--header-accent) 6%, var(--surface-panel));
+  border: 1.5px solid var(--header-accent);
+  --timeline-item-divider-color: var(--header-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--header-accent) 18%, transparent);
+  z-index: var(--z-raised, 2); /* 浮起于其他内容 */
+}
+
+/* 编辑态隐藏 ::before 分隔线，避免与左边框冲突 */
+.timeline-text-item.timeline-text-item-editing::before {
+  display: none;
+}
+
+/* 编辑态时 input 底部线由容器边框统一表达 */
+.timeline-text-item-editing .timeline-text-input {
+  border-bottom-color: transparent;
+}
+
+/* ═══════════════════════════════════════
+   状态点（保存状态）
+   ═══════════════════════════════════════ */
+
+.timeline-text-item-status-dot {
+  position: absolute;
+  top: 4px;     /* 居中调整 */
+  right: 6px;   /* 与工具栏对齐 */
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+  z-index: var(--z-overlay-base);
+  opacity: 0.88;
+}
+
+.timeline-text-item-has-tools .timeline-text-item-status-dot {
+  right: 52px;
+}
+
+.timeline-text-item-status-dot-action {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.timeline-text-item-status-dot-action:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.timeline-text-item-status-dot-error {
+  background: var(--state-danger-solid);
+}
+
+/* Saving 状态脉冲动画（优化：更平滑的节奏） */
+@keyframes timeline-status-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.timeline-text-item-saving .timeline-text-item-status-dot {
+  animation: timeline-status-pulse 1.2s ease-in-out infinite;
+  background: var(--state-info-solid);
+}
+
+.timeline-text-item-dirty .timeline-text-item-status-dot {
+  background: var(--text-tertiary);
+  opacity: 0.6;
+}
+
+.timeline-text-item-saved .timeline-text-item-status-dot {
+  background: var(--state-success-solid);
+  opacity: 0.8;
+}
+
+/* ═══════════════════════════════════════
+   置信度指示（新增 — 对应设计稿要求）
+   ═══════════════════════════════════════ */
+
+/* Mid 置信度：虚线下划线 */
+.timeline-text-item-confidence-mid {
+  position: relative;
+}
+
+.timeline-text-item-confidence-mid::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  border-top: 1px dashed var(--text-secondary);
+  background: transparent;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Low 置信度：红色实线下划线 */
+.timeline-text-item-confidence-low {
+  position: relative;
+}
+
+.timeline-text-item-confidence-low::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: var(--state-danger-solid);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── 文本输入框 | Text input ── */
+
+.timeline-text-input {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  padding: 0 20px 0 8px;
+  margin: 0;
+  box-sizing: border-box;
+  transition: border-color 140ms ease;
+}
+
+.timeline-text-item-has-speaker .timeline-text-input {
+  padding-top: 0;
+}
+
+.timeline-text-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.timeline-text-item:hover .timeline-text-input {
+  /* hover 时保持透明背景不变，由容器提供视觉差异 | Container provides hover visual, input stays transparent */
+}
+
+.timeline-text-input:focus {
+  background: transparent;
+  border-bottom-color: transparent; /* 编辑态由容器边框统一表达 */
+  box-shadow: none;
+}
+
+
+.timeline-text-item-has-tools .timeline-text-input {
+  padding-right: 62px;
+}
+
+.timeline-text-item-tools {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  z-index: var(--z-overlay-base);
+}
+
+.timeline-text-item-audio-only {
+  justify-content: center;
+  padding: 0 10px;
+}

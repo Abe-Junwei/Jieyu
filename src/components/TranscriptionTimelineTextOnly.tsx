@@ -473,10 +473,16 @@ export function TranscriptionTimelineTextOnly({
             const subTrackIndex = usesSegmentTimeline && isMultiTrackMode
               ? (activeLayout.placements.get(utt.id)?.subTrackIndex ?? 0)
               : 0;
+            const conf = utt.ai_metadata?.confidence;
+            const confidenceClass = typeof conf === 'number' && conf < 0.5
+              ? ' timeline-text-item-confidence-low'
+              : typeof conf === 'number' && conf >= 0.5 && conf < 0.75
+                ? ' timeline-text-item-confidence-mid'
+                : '';
             return (
               <TimelineStyledContainer
                 key={utt.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,

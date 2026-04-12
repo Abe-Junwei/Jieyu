@@ -164,7 +164,6 @@
 
 /* ── Summary ── */
 
-.om-summary .ws-summary-description { font-size: calc(12px * var(--ui-font-scale, 1)); }
 .om-summary .ws-summary-fact-label { font-size: calc(11px * var(--ui-font-scale, 1)); }
 .om-summary .ws-summary-fact-note { font-size: calc(11px * var(--ui-font-scale, 1)); }
 

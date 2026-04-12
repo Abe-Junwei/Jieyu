@@ -1,0 +1,38 @@
+/* ── 鸟瞰导航条 | Waveform overview / minimap bar ── */
+
+.waveform-overview-bar {
+  position: relative;
+  width: 100%;
+  height: 20px;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.waveform-overview-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.waveform-overview-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  width: 1px;
+  background: var(--border-soft);
+  pointer-events: none;
+  z-index: var(--z-overlay-base);
+}
+
+.waveform-overview-canvas {
+  display: block;
+  width: calc(100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px)));
+  margin-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  height: 20px;
+  cursor: pointer;
+}

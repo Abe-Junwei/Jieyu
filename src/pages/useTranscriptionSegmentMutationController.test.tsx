@@ -10,10 +10,12 @@ const {
   mockSplitSegment,
   mockMergeAdjacentSegments,
   mockDeleteSegment,
+  mockDeleteSegmentsBatch,
 } = vi.hoisted(() => ({
   mockSplitSegment: vi.fn<(segmentId: string, splitTime: number) => Promise<{ second: { id: string } }>>(async () => ({ second: { id: 'seg-right' } })),
   mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegment: vi.fn<(segmentId: string) => Promise<void>>(async () => undefined),
+  mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(async () => undefined),
 }));
 
 vi.mock('../services/LayerSegmentationV2Service', () => ({
@@ -21,6 +23,7 @@ vi.mock('../services/LayerSegmentationV2Service', () => ({
     splitSegment: (segmentId: string, splitTime: number) => mockSplitSegment(segmentId, splitTime),
     mergeAdjacentSegments: (leftId: string, rightId: string) => mockMergeAdjacentSegments(leftId, rightId),
     deleteSegment: (segmentId: string) => mockDeleteSegment(segmentId),
+    deleteSegmentsBatch: (segmentIds: readonly string[]) => mockDeleteSegmentsBatch(segmentIds),
   },
 }));
 
@@ -98,6 +101,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     mockSplitSegment.mockClear();
     mockMergeAdjacentSegments.mockClear();
     mockDeleteSegment.mockClear();
+    mockDeleteSegmentsBatch.mockClear();
   });
 
   afterEach(() => {
@@ -273,7 +277,7 @@ describe('useTranscriptionSegmentMutationController', () => {
   });
 
   it('reloads segments and surfaces error when batch segment delete fails', async () => {
-    mockDeleteSegment.mockImplementationOnce(async () => undefined).mockImplementationOnce(async () => {
+    mockDeleteSegmentsBatch.mockImplementationOnce(async () => {
       throw new Error('delete failed');
     });
     const pushUndo = vi.fn();
@@ -290,8 +294,8 @@ describe('useTranscriptionSegmentMutationController', () => {
     });
 
     expect(pushUndo).toHaveBeenCalledWith('批量删除句段');
-    expect(mockDeleteSegment).toHaveBeenNthCalledWith(1, 'seg-1');
-    expect(mockDeleteSegment).toHaveBeenNthCalledWith(2, 'seg-2');
+    expect(mockDeleteSegmentsBatch).toHaveBeenCalledWith(['seg-1', 'seg-2']);
+    expect(mockDeleteSegment).not.toHaveBeenCalled();
     expect(reloadSegments).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',

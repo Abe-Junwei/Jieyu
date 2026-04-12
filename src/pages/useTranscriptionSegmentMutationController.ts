@@ -1,12 +1,18 @@
 import { useCallback } from 'react';
+import {
+  legacyDeleteSegment,
+  legacyDeleteSegments,
+  legacyMergeAdjacentSegments,
+  legacySplitSegment,
+} from '../app/index';
 import type { LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, useLocale } from '../i18n';
-import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
+import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
 interface UseTranscriptionSegmentMutationControllerInput {
   activeLayerIdForEdits: string;
@@ -45,6 +51,18 @@ function setSegmentMutationActionError(
   setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) });
 }
 
+function recordSegmentMutationLatency(action: string, status: 'success' | 'error', startedAtMs: number): void {
+  try {
+    recordDurationMetric(
+      'business.transcription.segment_action_latency_ms',
+      startedAtMs,
+      createMetricTags('transcription', { action, status }),
+    );
+  } catch {
+    // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
+  }
+}
+
 export function useTranscriptionSegmentMutationController(
   input: UseTranscriptionSegmentMutationControllerInput,
 ): UseTranscriptionSegmentMutationControllerResult {
@@ -60,6 +78,7 @@ export function useTranscriptionSegmentMutationController(
     selectTimelineUnit, createSegmentTarget, segmentsByLayer, utterancesOnCurrentMedia, setSaveState, mergeSelectedUtterances,
   });
   const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
     const routing = resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
@@ -67,20 +86,32 @@ export function useTranscriptionSegmentMutationController(
       case 'time-subdivision': {
         pushUndo(t(locale, 'transcription.utteranceAction.undo.split'));
         try {
-          const splitResult = await LayerSegmentationV2Service.splitSegment(id, splitTime);
+          const splitResult = await legacySplitSegment(id, splitTime);
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(createSegmentTarget(splitResult.second.id, targetLayerId));
+          recordSegmentMutationLatency('split', 'success', startedAtMs);
         } catch (error) {
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.split'), 'transcription.error.action.segmentSplitFailed', error);
+          recordSegmentMutationLatency('split', 'error', startedAtMs);
         }
         return;
       }
-      case 'utterance': await splitUtterance(id, splitTime); return;
+      case 'utterance': {
+        try {
+          await splitUtterance(id, splitTime);
+          recordSegmentMutationLatency('split', 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentMutationLatency('split', 'error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, splitUtterance]);
 
   const mergeWithPreviousRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
     const routing = resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
@@ -99,25 +130,38 @@ export function useTranscriptionSegmentMutationController(
           );
           if (parentUtt && (prevSeg.startTime < parentUtt.startTime - 0.001 || curSeg.endTime > parentUtt.endTime + 0.001)) {
             setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange') });
+            recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
             return;
           }
         }
         pushUndo(t(locale, 'transcription.utteranceAction.undo.mergePrevious'));
         try {
-          await LayerSegmentationV2Service.mergeAdjacentSegments(prevSeg.id, id);
+          await legacyMergeAdjacentSegments(prevSeg.id, id);
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(createSegmentTarget(prevSeg.id, targetLayerId));
+          recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
         } catch (error) {
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.mergePrevious'), 'transcription.error.action.segmentMergeFailed', error);
+          recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
         }
         return;
       }
-      case 'utterance': await mergeWithPrevious(id); return;
+      case 'utterance': {
+        try {
+          await mergeWithPrevious(id);
+          recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithPrevious, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
 
   const mergeWithNextRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? input.activeLayerIdForEdits;
     const routing = input.resolveSegmentRoutingForLayer(targetLayerId);
     switch (routing.editMode) {
@@ -136,43 +180,68 @@ export function useTranscriptionSegmentMutationController(
           );
           if (parentUtt && (curSeg.startTime < parentUtt.startTime - 0.001 || nextSeg.endTime > parentUtt.endTime + 0.001)) {
             input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange') });
+            recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
             return;
           }
         }
         pushUndo(t(locale, 'transcription.utteranceAction.undo.mergeNext'));
         try {
-          await LayerSegmentationV2Service.mergeAdjacentSegments(id, nextSeg.id);
+          await legacyMergeAdjacentSegments(id, nextSeg.id);
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(createSegmentTarget(id, targetLayerId));
+          recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
         } catch (error) {
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.mergeNext'), 'transcription.error.action.segmentMergeFailed', error);
+          recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
         }
         return;
       }
-      case 'utterance': await mergeWithNext(id); return;
+      case 'utterance': {
+        try {
+          await mergeWithNext(id);
+          recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
     }
   }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithNext, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, segmentsByLayer, selectTimelineUnit, setSaveState, utterancesOnCurrentMedia]);
   const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     switch (routing.editMode) {
       case 'independent-segment':
       case 'time-subdivision':
         pushUndo(t(locale, 'transcription.utteranceAction.undo.delete'));
         try {
-          await LayerSegmentationV2Service.deleteSegment(id);
+          await legacyDeleteSegment(id);
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(null);
+          recordSegmentMutationLatency('delete', 'success', startedAtMs);
         } catch (error) {
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.delete'), 'transcription.error.action.segmentDeleteFailed', error);
+          recordSegmentMutationLatency('delete', 'error', startedAtMs);
         }
         return;
-      case 'utterance': await deleteUtterance(id); return;
+      case 'utterance': {
+        try {
+          await deleteUtterance(id);
+          recordSegmentMutationLatency('delete', 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentMutationLatency('delete', 'error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
     }
   }, [activeLayerIdForEdits, deleteUtterance, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 
   const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
     const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     switch (routing.editMode) {
       case 'independent-segment':
@@ -180,19 +249,28 @@ export function useTranscriptionSegmentMutationController(
         if (ids.size === 0) return;
         try {
           pushUndo(t(locale, 'transcription.utteranceAction.undo.deleteSelection'));
-          for (const id of ids) {
-            await LayerSegmentationV2Service.deleteSegment(id);
-          }
+          await legacyDeleteSegments([...ids]);
           await reloadSegments();
           await refreshSegmentUndoSnapshot();
           selectTimelineUnit(null);
+          recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
         } catch (error) {
           await reloadSegments();
           setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.deleteSelection'), 'transcription.error.action.segmentBatchDeleteFailed', error);
+          recordSegmentMutationLatency('delete_selection', 'error', startedAtMs);
         }
         return;
       }
-      case 'utterance': await deleteSelectedUtterances(ids); return;
+      case 'utterance': {
+        try {
+          await deleteSelectedUtterances(ids);
+          recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
+        } catch (error) {
+          recordSegmentMutationLatency('delete_selection', 'error', startedAtMs);
+          throw error;
+        }
+        return;
+      }
     }
   }, [activeLayerIdForEdits, deleteSelectedUtterances, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState]);
 

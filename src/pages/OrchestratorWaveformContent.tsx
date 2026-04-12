@@ -452,7 +452,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                         leftPx,
                         widthPx,
                         tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount }),
-                        widthPx >= 52 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
+                        widthPx >= 120 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
                       ))}
 
                     </svg>

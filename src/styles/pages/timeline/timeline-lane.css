@@ -1,0 +1,335 @@
+/* ── 层行（lane）基础、拖拽排序、resize | Lane row, drag-sort, resize ──
+ *
+ * 分隔策略：Lane 使用弱分隔线（::after），Item 使用左侧局部指示器（::before）
+ * 避免 ELAN 式完整网格边框，减少视觉僵硬感
+ * ─────────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════
+   基础 Lane
+   ═══════════════════════════════════════ */
+
+.timeline-lane {
+  position: relative;
+  height: var(--timeline-lane-height, 54px);
+  border-bottom: none; /* 改进：移除硬边界，统一用 ::after 弱分隔 */
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 统一弱分隔线 — 仅内容区可见 */
+.timeline-lane::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: var(--timeline-label-offset, 80px); /* 从标签区域之后开始 */
+  right: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 50%, transparent);
+  pointer-events: none;
+}
+
+.timeline-lane-speaker-layered {
+  /* 不能设置任何 overflow（包括 overflow-y:hidden），否则会成为 sticky 的最近滚动容器，导致标题随内容移动 | Avoid any overflow here, otherwise sticky header may scroll with content */
+  overflow: visible;
+}
+
+.timeline-annotation-subtrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: var(--z-base);
+  pointer-events: none;
+}
+
+.timeline-annotation-subtrack-focus-dim {
+  opacity: 0.34;
+  filter: saturate(0.75);
+}
+
+.timeline-annotation-subtrack-focus-hidden {
+  display: none;
+}
+
+.timeline-lane-resizing {
+  z-index: var(--z-overlay);
+}
+
+.waveform-area-resizing {
+  z-index: var(--z-overlay);
+}
+
+.transcription-waveform-resize-handle {
+  flex-shrink: 0;
+  height: 8px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.14s ease;
+  position: relative;
+  z-index: var(--z-toolbar);
+}
+
+.transcription-waveform-resize-handle:hover,
+.transcription-waveform-resize-handle-resizing {
+  background: var(--state-info-bg);
+}
+
+.transcription-waveform-resize-dots {
+  width: 34px;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+  position: relative;
+}
+
+.transcription-waveform-resize-dots::before,
+.transcription-waveform-resize-dots::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--text-secondary);
+}
+
+.transcription-waveform-resize-dots::before { top: -4px; }
+.transcription-waveform-resize-dots::after { bottom: -4px; }
+
+.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots,
+.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots::before,
+.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots::after,
+.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots,
+.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots::before,
+.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots::after {
+  background: var(--state-info-solid);
+}
+
+.timeline-lane-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: var(--z-overlay);
+  touch-action: none;
+}
+
+.timeline-lane-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
+  height: 2px;
+  background: color-mix(in srgb, var(--text-tertiary) 0%, transparent);
+  transition: background-color 140ms ease;
+  border-radius: 1px;
+}
+
+.timeline-lane:hover .timeline-lane-resize-handle::after,
+.timeline-lane-resizing .timeline-lane-resize-handle::after {
+  background: color-mix(in srgb, var(--state-info-solid) 65%, transparent);
+}
+
+.timeline-lane-row-dragging {
+  transform: translateY(var(--timeline-lane-drag-offset, 0px));
+  z-index: var(--z-overlay);
+  will-change: transform;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  filter: saturate(1.02);
+  transition: none;
+}
+
+.timeline-lane-row-shift {
+  transform: translateY(var(--timeline-lane-shift-offset, 0px));
+  will-change: transform;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.timeline-lane-boundary-highlight-top::before,
+.timeline-lane-boundary-highlight-bottom::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 95%, transparent) 18%, color-mix(in srgb, var(--state-info-solid) 95%, transparent) 82%, color-mix(in srgb, var(--state-info-solid) 22%, transparent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 0 14px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+  pointer-events: none;
+  z-index: calc(var(--z-overlay) + 1);
+}
+
+.timeline-lane-boundary-highlight-top::before {
+  top: -1px;
+}
+
+.timeline-lane-boundary-highlight-bottom::after {
+  bottom: -1px;
+}
+
+.timeline-lane-bundle-target {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 8%, transparent), color-mix(in srgb, var(--state-info-solid) 14%, transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+}
+
+.timeline-lane-bundle-target .timeline-lane-label {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 96%, transparent), color-mix(in srgb, var(--state-info-bg) 92%, transparent));
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 34%, transparent);
+  color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+}
+
+.timeline-lane-bundle-target .timeline-lane-label::after {
+  background: color-mix(in srgb, var(--state-info-solid) 32%, transparent);
+}
+
+/* 层状态：translation / focused / collapsed / flash / overlap */
+
+.timeline-lane-translation {
+  background: transparent;
+}
+
+.timeline-lane-translation .timeline-text-item {
+  --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
+}
+
+.timeline-lane-translation .timeline-text-item:hover {
+  --timeline-item-divider-color: color-mix(in srgb, var(--text-secondary) 64%, transparent);
+}
+
+.timeline-lane-translation .timeline-text-item-active {
+  --timeline-item-divider-color: color-mix(in srgb, var(--text-secondary) 72%, transparent);
+}
+
+/* 聚焦 Lane — 蓝色左描边(box-shadow 避免错位) + 浅底 | Focused lane — blue left accent via inset shadow (no layout shift) */
+.timeline-lane-focused {
+  background: var(--surface-header);
+  box-shadow: inset 3px 0 0 0 var(--state-info-solid),
+              inset 0 1px 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent),
+              inset 0 -1px 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent),
+              inset -1px 0 0 0 color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+}
+
+.timeline-lane-focused::after {
+  background: color-mix(in srgb, var(--state-info-solid) 26%, transparent);
+}
+
+.timeline-lane-focused .timeline-lane-label {
+  color: var(--text-primary);
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
+  background: var(--surface-header);
+}
+
+.timeline-lane-focused .timeline-lane-header:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  outline-offset: -2px;
+}
+
+/* 折叠 Lane — 弱化分隔 */
+.timeline-lane-collapsed {
+  cursor: pointer;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 42%, transparent) 0%, color-mix(in srgb, var(--surface-header) 38%, transparent) 100%);
+}
+
+.timeline-lane-collapsed::after {
+  background: color-mix(in srgb, var(--border-soft) 20%, transparent);
+}
+
+.timeline-lane-collapsed.timeline-lane-text-only {
+  min-height: 14px;
+  height: 14px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.timeline-lane-collapsed .timeline-lane-label {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.timeline-lane-overlap-hint {
+  position: absolute;
+  width: 48px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-overlay-base);
+  pointer-events: auto;
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--state-warning-solid) 45%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 92%, transparent);
+  color: var(--state-warning-text);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  line-height: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.timeline-lane-overlap-hint:hover {
+  border-color: color-mix(in srgb, var(--state-warning-solid) 65%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 96%, transparent);
+}
+
+.timeline-lane-overlap-hint:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.timeline-lane-flash {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg) 50%, transparent) 0%, color-mix(in srgb, var(--state-info-bg) 45%, transparent) 100%);
+}
+
+.timeline-lane-flash .timeline-lane-label {
+  border-right-color: color-mix(in srgb, var(--state-info-solid) 45%, transparent);
+  background: linear-gradient(180deg, var(--state-info-bg) 0%, var(--state-info-border) 100%);
+  color: var(--state-info-solid);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 32%, transparent);
+}
+
+/* ═══════════════════════════════════════
+   文本-only 层 | Text-only lanes
+   ═══════════════════════════════════════ */
+
+.timeline-lane-text-only {
+  position: relative;
+  display: block;
+  min-height: var(--timeline-lane-height, 54px);
+  height: var(--timeline-lane-height, 54px);
+  border-bottom: none; /* 统一用 ::after */
+  padding-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.timeline-lane-text-only::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: color-mix(in srgb, var(--border-soft) 50%, transparent);
+  pointer-events: none;
+}
+
+.timeline-lane-text-only-track {
+  position: relative;
+  height: 100%;
+  min-height: var(--timeline-lane-content-height, 42px);
+  /* 防止在无语段或过渡态时宽度塌为 0，导致看起来"错位悬空" | Keep lane track at least viewport width to avoid 0px collapse */
+  width: max(var(--timeline-lane-track-width, 0px), 100%);
+}
+
+.timeline-lane-text-only > .timeline-lane-header-wrapper > .timeline-lane-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--lane-label-width);
+  display: inline-flex;
+}

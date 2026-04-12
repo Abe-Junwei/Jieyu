@@ -88,6 +88,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         isSelected ? 'timeline-annotation-selected' : '',
         isActive ? 'timeline-annotation-active' : '',
         isCompact ? 'timeline-annotation-compact' : '',
+        !draft.trim() && !isActive ? 'timeline-annotation-empty' : '',
         speakerLabel ? 'timeline-annotation-has-speaker' : '',
         hasTrailingTools ? 'timeline-annotation-has-tools' : '',
         typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',

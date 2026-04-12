@@ -7,8 +7,18 @@ import type { OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { clearFontCoverageVerificationCache } from '../utils/layerDisplayStyle';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 
+const { mockListLanguageCatalogEntries } = vi.hoisted(() => ({
+  mockListLanguageCatalogEntries: vi.fn(),
+}));
+
+vi.mock('../services/LinguisticService.languageCatalog', () => ({
+  listLanguageCatalogEntries: mockListLanguageCatalogEntries,
+}));
+
 beforeEach(() => {
   clearFontCoverageVerificationCache();
+  mockListLanguageCatalogEntries.mockReset();
+  mockListLanguageCatalogEntries.mockResolvedValue([]);
   Object.defineProperty(document, 'fonts', {
     configurable: true,
     value: {

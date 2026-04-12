@@ -113,7 +113,6 @@ export function TranscriptionPageToolbar({
 }: TranscriptionPageToolbarProps) {
   const locale = useLocale();
   const showToolbarAiProgress = acousticRuntimeStatus?.state === 'loading'
-    || acousticRuntimeStatus?.state === 'error'
     || vadCacheStatus?.state === 'warming';
 
   return (

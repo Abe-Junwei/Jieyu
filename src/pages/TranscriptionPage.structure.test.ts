@@ -133,19 +133,19 @@ describe('TranscriptionPage structure invariants', () => {
   });
 
   it('preserves hotspot selection during loading recompute and clears stale selection when summary is unavailable', () => {
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const acousticPanelStatePath = path.resolve(process.cwd(), 'src/pages/useTranscriptionAcousticPanelState.ts');
+    const acousticPanelStateCode = fs.readFileSync(acousticPanelStatePath, 'utf8');
 
-    expect(orchestratorCode.includes('const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];')).toBe(true);
-    expect(orchestratorCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
-    expect(orchestratorCode.includes('setPinnedInspector(null);')).toBe(true);
-    expect(orchestratorCode.includes("if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {")).toBe(true);
-    expect(orchestratorCode.includes('if (deferredAiRuntime.acousticSummary == null) {')).toBe(true);
-    expect(orchestratorCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
-    expect(orchestratorCode.includes('const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);')).toBe(true);
-    expect(orchestratorCode.includes('const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;')).toBe(true);
-    expect(orchestratorCode.includes('const isTerminalSelection = selectionEnd !== undefined')).toBe(true);
-    expect(orchestratorCode.includes('(isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd)')).toBe(true);
+    expect(acousticPanelStateCode.includes('const activeAcousticHotspots = deferredAiRuntime.acousticSummary?.hotspots ?? [];')).toBe(true);
+    expect(acousticPanelStateCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
+    expect(acousticPanelStateCode.includes('setPinnedInspector(null);')).toBe(true);
+    expect(acousticPanelStateCode.includes("if (deferredAiRuntime.acousticRuntimeStatus?.state === 'loading') {")).toBe(true);
+    expect(acousticPanelStateCode.includes('if (deferredAiRuntime.acousticSummary == null) {')).toBe(true);
+    expect(acousticPanelStateCode.includes('setSelectedHotspotTimeSec(null);')).toBe(true);
+    expect(acousticPanelStateCode.includes('const stillExists = activeAcousticHotspots.some((hotspot) => Math.abs(hotspot.timeSec - selectedHotspotTimeSec) <= 0.01);')).toBe(true);
+    expect(acousticPanelStateCode.includes('const selectionDuration = deferredAiRuntime.acousticSummary?.durationSec;')).toBe(true);
+    expect(acousticPanelStateCode.includes('const isTerminalSelection = selectionEnd !== undefined')).toBe(true);
+    expect(acousticPanelStateCode.includes('(isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd)')).toBe(true);
   });
 
   it('keeps media-scoped speaker focus memory restore logic', () => {
@@ -591,6 +591,8 @@ describe('TranscriptionPage structure invariants', () => {
     const assistantRuntimeCode = fs.readFileSync(assistantRuntimePath, 'utf8');
     const analysisRuntimePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.AnalysisRuntime.tsx');
     const analysisRuntimeCode = fs.readFileSync(analysisRuntimePath, 'utf8');
+    const orchestratorInputBuilderPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts');
+    const orchestratorInputBuilderCode = fs.readFileSync(orchestratorInputBuilderPath, 'utf8');
     const pdfRuntimePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.PdfRuntime.tsx');
     const pdfRuntimeCode = fs.readFileSync(pdfRuntimePath, 'utf8');
     const runtimeContractsPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.runtimeContracts.ts');
@@ -599,7 +601,10 @@ describe('TranscriptionPage structure invariants', () => {
     const timelineContentHookCode = fs.readFileSync(timelineContentHookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
-    expect(orchestratorCode.includes("sidebarSectionsInput: {")).toBe(true);
+    expect(
+      orchestratorCode.includes('sidebarSectionsInput: {')
+      || orchestratorInputBuilderCode.includes('sidebarSectionsInput: {'),
+    ).toBe(true);
     expect(orchestratorCode.includes("useOrchestratorViewModels(")).toBe(true);
     expect(orchestratorCode.includes('const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;')).toBe(true);
     expect(orchestratorCode.includes('const shouldRenderDialogs = Boolean(')).toBe(true);

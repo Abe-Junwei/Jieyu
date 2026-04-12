@@ -11,6 +11,11 @@
   min-height: 0;
 }
 
+.lm-shell {
+  max-width: none;
+  min-height: 0;
+}
+
 /* Shell + Header + padding 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
 /* ── Page grid ── */
@@ -50,7 +55,6 @@
   justify-content: flex-end;
 }
 
-.lm-summary .ws-summary-description { font-size: var(--la-body-size); }
 .lm-summary .ws-summary-fact-label { font-size: var(--la-meta-size); }
 .lm-summary .ws-summary-fact-note { font-size: var(--la-meta-size); }
 

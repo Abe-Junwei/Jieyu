@@ -383,25 +383,34 @@
 }
 
 .toolbar-track-mode-badge {
-  padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, var(--state-info-border) 92%, transparent);
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
+  border: 1px solid color-mix(in srgb, var(--state-info-border) 94%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--state-info-bg-strong) 70%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg-strong) 78%, transparent), color-mix(in srgb, var(--state-info-bg) 70%, transparent));
   color: var(--state-info-solid);
   font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: default;
   white-space: nowrap;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
 .toolbar-lock-conflict-badge {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
   border: 1px solid color-mix(in srgb, var(--state-danger-border) 92%, transparent);
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--state-danger-bg) 90%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-danger-bg) 92%, transparent), color-mix(in srgb, var(--state-danger-bg) 84%, transparent));
   color: var(--state-danger-text);
   font-size: 0.72rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -411,7 +420,10 @@
 }
 
 .toolbar-focus-mode-badge {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 9px;
   border: 1px solid color-mix(in srgb, var(--border-strong) 28%, transparent);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--border-soft) 72%, transparent);
@@ -435,7 +447,7 @@
 .toolbar-focus-target-select {
   width: fit-content;
   inline-size: fit-content;
-  min-width: 14ch;
+  min-width: 12ch;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--text-tertiary) 45%, transparent);
   background: var(--surface-panel);
@@ -455,7 +467,7 @@
 .track-focus-toolbar-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   flex-wrap: nowrap;
 }
@@ -497,9 +509,9 @@
 }
 
 .toolbar-ai-progress-badge-error {
-  border-color: color-mix(in srgb, var(--state-danger-border) 92%, transparent);
-  background: color-mix(in srgb, var(--state-danger-bg) 90%, transparent);
-  color: var(--state-danger-text);
+  border-color: color-mix(in srgb, var(--state-danger-border) 48%, transparent);
+  background: color-mix(in srgb, var(--state-danger-bg) 38%, transparent);
+  color: color-mix(in srgb, var(--state-danger-text) 74%, var(--text-primary));
 }
 
 .play-btn {

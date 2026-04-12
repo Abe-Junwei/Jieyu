@@ -126,6 +126,39 @@
   --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
   --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+
+  /* 字号档位 | Type scale ─────────────────────────────────────── */
+  --font-size-2xs: 0.62rem;
+  --font-size-xs: 0.68rem;
+  --font-size-sm: 0.78rem;
+  --font-size-base: 0.84rem;
+  --font-size-md: 0.92rem;
+  --font-size-lg: 1rem;
+
+  /* 不透明度档位 | Opacity scale ──────────────────────────────── */
+  --opacity-disabled: 0.38;
+  --opacity-dimmed: 0.54;
+  --opacity-muted: 0.72;
+  --opacity-subtle: 0.88;
+
+  /* 动效时长与缓动 | Motion duration & easing ────────────────── */
+  --duration-fast: 120ms;
+  --duration-normal: 160ms;
+  --duration-slow: 220ms;
+  --duration-slower: 240ms;
+  --ease-default: ease;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* 混色浓度档位 | Mix-percentage scale ───────────────────────── */
+  --mix-subtle: 8%;
+  --mix-light: 16%;
+  --mix-medium: 32%;
+  --mix-strong: 56%;
+  --mix-heavy: 76%;
+
+  /* 时间轴偏移复合变量 | Timeline label offset shorthand ─────── */
+  --timeline-label-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
 }
 
 /* ── 暗色主题 | Dark theme ── */
@@ -184,4 +217,11 @@
   --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
   --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
+
+  /* 暗色主题混色浓度覆盖 | Dark theme mix-percentage overrides ─ */
+  --mix-subtle: 12%;
+  --mix-light: 20%;
+  --mix-medium: 38%;
+  --mix-strong: 62%;
+  --mix-heavy: 80%;
 }

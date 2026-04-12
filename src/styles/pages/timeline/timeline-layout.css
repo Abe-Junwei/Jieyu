@@ -1,0 +1,165 @@
+/* ── 时间轴布局骨架与滚动容器 | Timeline layout skeleton & scroll container ── */
+/* 状态优先级链（从低到高）| State priority chain (low → high):
+ * default < hover < selected < active < editing < focus-within
+ * 具体级联通过双类选择器确保 specificity 一致
+ * Cascade ensured via double-class selectors for state overrides
+ */
+
+.timeline-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  min-height: 0;
+  background: var(--surface-panel);
+  transition: filter var(--duration-fast, 120ms) var(--ease-default, ease);
+  position: relative;
+  /* 默认显示细滚动条，滚动时淡入提示位置 | Show thin scrollbar for scroll position visibility */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-tertiary) 40%, transparent) transparent;
+}
+
+.timeline-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-tertiary) 36%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.timeline-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.timeline-content {
+  --timeline-content-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  width: calc(100% - var(--timeline-content-offset));
+  min-width: 0;
+  position: relative;
+  /* 与波形区偏移对齐（含左侧视频面板偏移）| Align with waveform offset, including optional left-video panel offset */
+  margin-left: var(--timeline-content-offset);
+}
+
+.timeline-content-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.timeline-lasso-rect {
+  border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+  pointer-events: none;
+  z-index: var(--z-header);
+}
+
+.timeline-lasso-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.timeline-content-text-only {
+  min-width: 0;
+  padding: 0;
+}
+
+.timeline-resize-tooltip {
+  position: fixed;
+  z-index: var(--z-timeline-tooltip);
+  transform: translate(-50%, -100%);
+  background: color-mix(in srgb, var(--shadow-color) 86%, transparent);
+  color: var(--surface-elevated);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.3;
+  pointer-events: none;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+}
+
+.timeline-lane-header-wrapper {
+  position: relative;
+  display: contents;
+}
+
+.timeline-lane-drop-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--color-primary, var(--state-info-solid));
+  z-index: var(--z-header);
+}
+
+.timeline-lane-drop-indicator-top {
+  top: 0;
+}
+
+.timeline-lane-drop-indicator-bottom {
+  bottom: 0;
+}
+
+.timeline-empty-state {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+  text-align: center;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.timeline-empty-actions-shell {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.timeline-empty-actions-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.timeline-empty-actions-row > button {
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+  color: var(--text-primary);
+  border: 1px solid var(--border-soft);
+  box-shadow: none;
+}
+
+.timeline-empty-actions-row > button:hover {
+  background: var(--border-soft);
+  border-color: var(--text-secondary);
+}
+
+.timeline-empty-actions-row:focus-within > button {
+  background: var(--border-soft);
+  border-color: var(--text-secondary);
+}
+
+.timeline-empty-action-icon {
+  margin-right: 6px;
+}
