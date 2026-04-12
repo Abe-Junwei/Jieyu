@@ -109,6 +109,7 @@ describe('useAiAssistantHubContextValue', () => {
       'onSendAiMessage',
       'onStopAiMessage',
       'onTestAiConnection',
+      'onToggleAiMessagePin',
       'onTrackAiRecommendationEvent',
       'onUpdateAiChatSettings',
       'onVoiceCancel',

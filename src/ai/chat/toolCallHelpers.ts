@@ -1531,7 +1531,7 @@ export function buildClarifyCandidates(
     });
   }
   if (reason === 'missing-language-target' && callName === 'create_transcription_layer') {
-    const lastLang = sessionMemory?.lastLanguage;
+    const lastLang = sessionMemory?.preferences?.lastLanguage ?? sessionMemory?.lastLanguage;
     if (lastLang && lastLang !== 'zho' && lastLang !== 'eng') {
       candidates.push({ key: `${candidates.length}`, label: `\\u4e0a\\u6b21\\u4f7f\\u7528（${lastLang}）`, argsPatch: { languageId: lastLang } });
     }

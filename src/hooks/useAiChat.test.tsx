@@ -189,6 +189,33 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__LOCAL_CONTEXT_TOOL_FENCED__') && !userText.includes('__LOCAL_TOOL_RESULT__')) {
+          yield {
+            delta: [
+              '```json',
+              '{"tool_call":{"name":"get_current_selection","arguments":{}}}',
+              '```',
+            ].join('\n'),
+          };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__LOCAL_CONTEXT_TOOL_CALLS_SINGLE__') && !userText.includes('__LOCAL_TOOL_RESULT__')) {
+          yield {
+            delta: JSON.stringify({
+              tool_calls: [
+                { name: 'get_current_selection', arguments: {} },
+              ],
+            }),
+          };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__LOCAL_TOOL_RESULT__')) {
+          yield { delta: '基于本地上下文，这是下一步回复。' };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__STALL_NO_FIRST_CHUNK__')) {
           while (!signal?.aborted) {
             await new Promise((resolve) => setTimeout(resolve, 5));
@@ -258,6 +285,12 @@ async function clearAiTables(): Promise<void> {
 function clearAiLocalStorage(): void {
   window.localStorage.removeItem('jieyu.aiChat.settings');
   window.localStorage.removeItem('jieyu.aiChat.settings.secure');
+}
+
+function estimateTokensFromTextForTest(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
 }
 
 const defaultSelectedSegmentShortTerm = {
@@ -2302,6 +2335,109 @@ describe('useAiChat abort and recovery', () => {
     const [assistantMessageId, content] = onMessageComplete.mock.calls[0] ?? [];
     expect(typeof assistantMessageId).toBe('string');
     expect(content).toContain('普通对话回复');
+  });
+
+  it('should count output tokens using actual model output text during local-tool agent loop', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__LOCAL_CONTEXT_TOOL_FENCED__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const firstModelOutput = [
+      '```json',
+      '{"tool_call":{"name":"get_current_selection","arguments":{}}}',
+      '```',
+    ].join('\n');
+    const secondModelOutput = '基于本地上下文，这是下一步回复。';
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.content).toContain(secondModelOutput);
+
+    const expectedOutputTokens = estimateTokensFromTextForTest(firstModelOutput)
+      + estimateTokensFromTextForTest(secondModelOutput);
+    expect(result.current.metrics.totalOutputTokens).toBe(expectedOutputTokens);
+    expect(result.current.metrics.currentTurnTokens).toBeGreaterThanOrEqual(expectedOutputTokens);
+
+    const stepLogs = await db.audit_logs
+      .where('[collection+field+timestamp]')
+      .between(
+        ['ai_messages', 'ai_agent_loop_step', ''],
+        ['ai_messages', 'ai_agent_loop_step', '\uffff'],
+      )
+      .toArray();
+    expect(stepLogs.length).toBeGreaterThan(0);
+  });
+
+  it('should execute local tool when model returns single-item tool_calls array', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__LOCAL_CONTEXT_TOOL_CALLS_SINGLE__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.content).toContain('基于本地上下文，这是下一步回复。');
+  });
+
+  it('should reset task session to idle after loop budget warning', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'x'.repeat(12000)}`;
+    await act(async () => {
+      await result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.content).toMatch(/预计继续执行还需约|Estimated remaining cost is ~/);
+    expect(result.current.taskSession.status).toBe('idle');
   });
 
   it('should track interaction metrics across tool execution lifecycle', async () => {

@@ -38,6 +38,7 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
     send: AiChatContextValue['onSendAiMessage'];
     stop: AiChatContextValue['onStopAiMessage'];
     clear: AiChatContextValue['onClearAiMessages'];
+    toggleMessagePinned?: AiChatContextValue['onToggleAiMessagePin'];
     confirmPendingToolCall: AiChatContextValue['onConfirmPendingToolCall'];
     cancelPendingToolCall: AiChatContextValue['onCancelPendingToolCall'];
     trackRecommendationEvent: AiChatContextValue['onTrackAiRecommendationEvent'];
@@ -98,6 +99,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onSendAiMessage: aiChat.send,
     onStopAiMessage: aiChat.stop,
     onClearAiMessages: aiChat.clear,
+    onToggleAiMessagePin: aiChat.toggleMessagePinned,
     onConfirmPendingToolCall: aiChat.confirmPendingToolCall,
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
@@ -120,6 +122,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     aiChat.sessionMemory,
     aiChat.settings,
     aiChat.stop,
+    aiChat.toggleMessagePinned,
     aiChat.taskSession,
     aiChat.testConnection,
     aiChat.trackRecommendationEvent,

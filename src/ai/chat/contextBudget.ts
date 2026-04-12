@@ -1,0 +1,145 @@
+import type { AiChatProviderKind } from '../providers/providerCatalog';
+
+const DEFAULT_CONTEXT_LIMIT_TOKENS = 16_000;
+const MAX_USABLE_INPUT_TOKENS = 64_000;
+const RESERVED_OUTPUT_RATIO = 0.3;
+const CHARS_PER_TOKEN_ESTIMATE = 4;
+const MIN_CONTEXT_CHARS = 1200;
+const MIN_HISTORY_CHARS = 6000;
+
+const BUILTIN_PROVIDER_CONTEXT_LIMITS: Record<string, number> = {
+  'deepseek-chat': 64_000,
+  'deepseek-reasoner': 64_000,
+  'gemini-2.0-flash': 1_000_000,
+  'gemini-2.5-flash': 1_000_000,
+  'claude-sonnet': 200_000,
+  'claude-3-5-sonnet-latest': 200_000,
+  'qwen-plus': 128_000,
+  'gpt-4o': 128_000,
+  'gpt-4o-mini': 128_000,
+  deepseek: 64_000,
+  gemini: 1_000_000,
+  anthropic: 200_000,
+  qwen: 128_000,
+  'openai-compatible': 128_000,
+  minimax: 128_000,
+  ollama: 16_000,
+  mock: 16_000,
+};
+
+export interface ContextBudgetTokens {
+  totalContextTokens: number;
+  usableInputTokens: number;
+  systemBudgetTokens: number;
+  historyBudgetTokens: number;
+  toolResultBudgetTokens: number;
+}
+
+export interface ContextCharBudgets extends ContextBudgetTokens {
+  maxContextChars: number;
+  historyCharBudget: number;
+}
+
+let limitsCache: Record<string, number> | null = null;
+let loadPromise: Promise<Record<string, number>> | null = null;
+
+function normalizeKey(raw: string): string {
+  return raw.trim().toLowerCase();
+}
+
+function normalizeProviderLimits(input: unknown): Record<string, number> {
+  if (!input || typeof input !== 'object') return {};
+  const next: Record<string, number> = {};
+  for (const [rawKey, rawValue] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof rawValue !== 'number' || !Number.isFinite(rawValue) || rawValue <= 0) continue;
+    next[normalizeKey(rawKey)] = Math.floor(rawValue);
+  }
+  return next;
+}
+
+function resolveContextLimitTokens(
+  providerKind: string,
+  model: string,
+  limits: Record<string, number>,
+): number {
+  const modelKey = normalizeKey(model);
+  const providerKey = normalizeKey(providerKind);
+  if (modelKey && limits[modelKey] !== undefined) return limits[modelKey]!;
+
+  const scopedModelKey = `${providerKey}:${modelKey}`;
+  if (modelKey && limits[scopedModelKey] !== undefined) return limits[scopedModelKey]!;
+
+  if (limits[providerKey] !== undefined) return limits[providerKey]!;
+  return DEFAULT_CONTEXT_LIMIT_TOKENS;
+}
+
+function tokensToChars(tokenBudget: number): number {
+  return Math.max(0, Math.floor(tokenBudget * CHARS_PER_TOKEN_ESTIMATE));
+}
+
+export function computeContextBudget(
+  providerKind: string,
+  model: string,
+  limits: Record<string, number>,
+): ContextBudgetTokens {
+  const totalContextTokens = resolveContextLimitTokens(providerKind, model, limits);
+  const usableInputTokens = Math.max(
+    0,
+    Math.floor(Math.min(totalContextTokens * (1 - RESERVED_OUTPUT_RATIO), MAX_USABLE_INPUT_TOKENS)),
+  );
+
+  return {
+    totalContextTokens,
+    usableInputTokens,
+    systemBudgetTokens: Math.floor(Math.min(2000, (usableInputTokens * 15) / 100)),
+    historyBudgetTokens: Math.floor(Math.min((usableInputTokens * 50) / 100, 32_000)),
+    toolResultBudgetTokens: Math.floor(Math.min((usableInputTokens * 35) / 100, 24_000)),
+  };
+}
+
+export async function loadProviderContextLimits(): Promise<Record<string, number>> {
+  if (limitsCache) return limitsCache;
+  if (loadPromise) return loadPromise;
+
+  loadPromise = (async () => {
+    const mergedLimits: Record<string, number> = { ...BUILTIN_PROVIDER_CONTEXT_LIMITS };
+    if (typeof fetch === 'function') {
+      try {
+        const response = await fetch('/data/provider-context-limits.json');
+        if (response.ok) {
+          Object.assign(mergedLimits, normalizeProviderLimits(await response.json()));
+        }
+      } catch {
+        // Ignore config fetch failures and keep builtin fallback limits.
+      }
+    }
+    limitsCache = mergedLimits;
+    loadPromise = null;
+    return mergedLimits;
+  })();
+
+  return loadPromise;
+}
+
+export async function resolveContextCharBudgets(input: {
+  providerKind: AiChatProviderKind;
+  model: string;
+  maxContextCharsOverride?: number;
+  historyCharBudgetOverride?: number;
+}): Promise<ContextCharBudgets> {
+  const limits = await loadProviderContextLimits();
+  const tokenBudget = computeContextBudget(input.providerKind, input.model, limits);
+
+  return {
+    ...tokenBudget,
+    maxContextChars: input.maxContextCharsOverride
+      ?? Math.max(MIN_CONTEXT_CHARS, tokensToChars(tokenBudget.systemBudgetTokens)),
+    historyCharBudget: input.historyCharBudgetOverride
+      ?? Math.max(MIN_HISTORY_CHARS, tokensToChars(tokenBudget.historyBudgetTokens)),
+  };
+}
+
+export function resetProviderContextLimitsCacheForTests(): void {
+  limitsCache = null;
+  loadPromise = null;
+}

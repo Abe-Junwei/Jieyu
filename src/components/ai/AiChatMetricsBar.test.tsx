@@ -28,6 +28,9 @@ describe('AiChatMetricsBar', () => {
           explainFallbackCount: 1,
           cancelCount: 1,
           recoveryCount: 1,
+          totalInputTokens: 120,
+          totalOutputTokens: 88,
+          currentTurnTokens: 34,
         }}
         aiSessionMemory={{
           lastToolName: 'delete_layer',
@@ -45,6 +48,9 @@ describe('AiChatMetricsBar', () => {
     expect(root.textContent).toContain('Cancel 1');
     expect(root.textContent).toContain('Explain 1');
     expect(root.textContent).toContain('Recover 1');
+    expect(root.textContent).toContain('In 120');
+    expect(root.textContent).toContain('Out 88');
+    expect(root.textContent).toContain('Turn 34');
     expect(screen.getByTitle('Last tool').textContent).toContain('Delete Layer');
   });
 });

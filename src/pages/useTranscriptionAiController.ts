@@ -242,7 +242,7 @@ export function useTranscriptionAiController(
     systemPersonaKey: aiDerivedPersona,
     getContext: buildAiPromptContext,
     maxContextChars: 2400,
-    historyCharBudget: 6000,
+    historyCharBudget: 12000,
     // 转写页首屏关闭自动连通性探测，避免未交互时触发远程请求 | Disable auto connection probing on transcription first screen to avoid remote calls before user interaction
     autoConnectionProbeEnabled: false,
     embeddingSearchService,

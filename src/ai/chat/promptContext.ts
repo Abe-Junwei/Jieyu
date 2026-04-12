@@ -2,6 +2,7 @@ import { trimTextToMax } from './historyTrim';
 import type { AiPromptContext, AiSystemPersonaKey } from '../../hooks/useAiChat';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import { decodeEscapedUnicode } from '../../utils/decodeEscapedUnicode';
+import { buildLocalContextToolGuide } from './localContextTools';
 
 // ─── Template constants ────────────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ export function buildAiSystemPrompt(
   contextBlock: string,
   style: AiToolFeedbackStyle = 'detailed',
 ): string {
-  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}`;
+  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}\n${buildLocalContextToolGuide()}`;
   return contextBlock.trim().length > 0 ? `${base}\n${contextBlock}` : base;
 }
 

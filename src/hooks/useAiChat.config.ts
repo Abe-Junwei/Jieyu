@@ -25,6 +25,9 @@ export const INITIAL_METRICS: AiInteractionMetrics = {
   explainFallbackCount: 0,
   cancelCount: 0,
   recoveryCount: 0,
+  totalInputTokens: 0,
+  totalOutputTokens: 0,
+  currentTurnTokens: 0,
 };
 
 export const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
@@ -82,6 +85,9 @@ interface AiInteractionMetrics {
   explainFallbackCount: number;
   cancelCount: number;
   recoveryCount: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  currentTurnTokens: number;
 }
 
 // Note: Message formatters are in ../ai/messages - import from there

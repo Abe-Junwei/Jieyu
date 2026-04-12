@@ -12,6 +12,7 @@ import {
   formatNoExecutorToolFailureDetail,
   formatToolExecutionFallbackError,
 } from '../ai/messages';
+import { patchSessionMemoryPreferences } from '../ai/chat/sessionMemory';
 import { nowIso } from './useAiChat.helpers';
 import type { Locale } from '../i18n';
 import type {
@@ -188,12 +189,21 @@ export async function executeConfirmedToolCall({
 
     if (result.ok) {
       bumpMetric('successCount');
-      const nextSessionMemory: AiSessionMemory = {
+      let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
         ...sessionMemory,
         lastToolName: call.name,
-      };
+      }, {
+        lastToolName: call.name,
+      });
       const lang = typeof call.arguments.language === 'string' ? call.arguments.language : undefined;
-      if (lang) nextSessionMemory.lastLanguage = lang;
+      if (lang) {
+        nextSessionMemory = patchSessionMemoryPreferences({
+          ...nextSessionMemory,
+          lastLanguage: lang,
+        }, {
+          lastLanguage: lang,
+        });
+      }
       updateSessionMemory(nextSessionMemory);
       persistSessionMemory(nextSessionMemory);
     } else {

@@ -15,7 +15,7 @@ import {
   readDevRagContextTimeoutMs,
   readDevStreamPersistIntervalMs,
 } from './useAiChat.config';
-import { newMessageId, nowIso } from './useAiChat.helpers';
+import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
@@ -23,10 +23,31 @@ import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
-import { trimHistoryByChars } from '../ai/chat/historyTrim';
-import { loadSessionMemory, persistSessionMemory } from '../ai/chat/sessionMemory';
+import {
+  buildConversationSummaryFromHistory,
+  countHistoryUserTurns,
+  estimateSummaryCoverageSimilarity,
+  splitHistoryByRecentRounds,
+  trimHistoryByChars,
+  type HistoryChatMessage,
+} from '../ai/chat/historyTrim';
+import {
+  clearConversationSummaryMemory,
+  loadSessionMemory,
+  persistSessionMemory,
+  setSessionMemoryMessagePinned,
+  updateConversationSummaryMemory,
+} from '../ai/chat/sessionMemory';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
+import {
+  buildAgentLoopContinuationInput,
+  DEFAULT_AGENT_LOOP_CONFIG,
+  estimateRemainingLoopTokens,
+  shouldWarnTokenBudget,
+  shouldContinueAgentLoop,
+} from '../ai/chat/agentLoop';
+import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
@@ -54,6 +75,7 @@ import {
   loadAiChatSettingsFromStorage,
   persistAiChatSettings,
 } from '../ai/config/aiChatSettingsStorage';
+import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type {
@@ -66,6 +88,16 @@ import type {
   UseAiChatOptions,
   AiRecommendationEvent,
 } from './useAiChat.types';
+
+function estimateTokensFromText(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function estimateTokensFromHistory(messages: ChatMessage[]): number {
+  return messages.reduce((sum, item) => sum + estimateTokensFromText(item.content), 0);
+}
 export type {
   AiChatProviderKind,
   AiChatSettings,
@@ -105,8 +137,8 @@ export function useAiChat(options?: UseAiChatOptions) {
   const systemPersonaKey = options?.systemPersonaKey ?? 'transcription';
   const systemPersonaKeyRef = useLatest(systemPersonaKey);
   const getContext = options?.getContext;
-  const maxContextChars = options?.maxContextChars ?? 2400;
-  const historyCharBudget = options?.historyCharBudget ?? 6000;
+  const maxContextCharsOverride = options?.maxContextChars;
+  const historyCharBudgetOverride = options?.historyCharBudget;
   const allowDestructiveToolCalls = options?.allowDestructiveToolCalls ?? false;
   const embeddingSearchService = options?.embeddingSearchService;
   const streamPersistIntervalMs = normalizeStreamPersistInterval(
@@ -146,6 +178,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
   }, []);
   const abortRef = useRef<AbortController | null>(null);
+  const localToolCallCountRef = useRef(0);
 
   const provider = useMemo(() => createAiChatProvider(settings), [settings]);
   // 备用 provider：主模型限速/不可用时自动降级 | Fallback provider for auto-degradation
@@ -247,6 +280,15 @@ export function useAiChat(options?: UseAiChatOptions) {
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
+  const toggleMessagePinned = useCallback((messageId: string) => {
+    const normalizedMessageId = messageId.trim();
+    if (!normalizedMessageId) return;
+    const currentlyPinned = (sessionMemoryRef.current.pinnedMessageIds ?? []).includes(normalizedMessageId);
+    sessionMemoryRef.current = setSessionMemoryMessagePinned(sessionMemoryRef.current, normalizedMessageId, !currentlyPinned);
+    persistSessionMemory(sessionMemoryRef.current);
+    setMessages((prev) => [...prev]);
+  }, []);
+
   const applyAssistantMessageResult = useCallback(async (
     messageId: string,
     content: string,
@@ -315,6 +357,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     }
 
     setLastError(null);
+    localToolCallCountRef.current = 0;
     sessionMemoryRef.current = updateSessionMemoryWithPrompt(sessionMemoryRef.current, trimmed);
     persistSessionMemory(sessionMemoryRef.current);
     bumpMetric('turnCount');
@@ -353,6 +396,24 @@ export function useAiChat(options?: UseAiChatOptions) {
     let firstChunkArrived = false;
     let connectionMarkedSuccess = false;
     let timedOutBeforeFirstChunk = false;
+    let totalModelOutputTokens = 0;
+    const sendStartedAtMs = performance.now();
+    const aiMetricTags = createMetricTags('ai-chat', {
+      provider: provider.id,
+      model: settingsRef.current.model || provider.id,
+    });
+    let firstTokenMetricRecorded = false;
+    const recordCompletionSuccessMetric = () => {
+      try {
+        recordMetric({
+          id: 'ai.chat.completion_success_count',
+          value: 1,
+          tags: aiMetricTags,
+        });
+      } catch {
+        // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
+      }
+    };
     // DeepSeek 和 MiniMax 思考链较长，默认首包超时延长至 60s；若调用方显式覆盖则尊重调用方配置。
     // DeepSeek often needs longer thinking time; default timeout is extended to 60s,
     // but explicit overrides should be honored (tests/dev tuning).
@@ -378,6 +439,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
 
     let assistantContent = '';
+    let estimatedInputTokens = 0;
 
     try {
       activeConversationId = await ensureConversation();
@@ -420,11 +482,52 @@ export function useAiChat(options?: UseAiChatOptions) {
       // Convert UI order (newest-first) back to chronological order for model context.
       // 排除当前轮次的 userMsg 和空 assistantSeed，因为 assembleMessages 会独立添加 userText
       // | Exclude current turn's userMsg and empty assistantSeed — assembleMessages adds userText separately
-      const historyRaw: ChatMessage[] = [...messagesRef.current]
+      const pinnedMessageIds = new Set(sessionMemoryRef.current.pinnedMessageIds ?? []);
+      const historyRaw: HistoryChatMessage[] = [...messagesRef.current]
         .filter((m) => m.id !== userMsg.id && m.id !== assistantId)
         .reverse()
-        .map((m) => ({ role: m.role, content: m.content }));
-      const history = trimHistoryByChars(historyRaw, historyCharBudget);
+        .map((m) => ({
+          role: m.role,
+          content: m.content,
+          messageId: m.id,
+          ...(pinnedMessageIds.has(m.id) ? { pinned: true } : {}),
+        }));
+      const summaryRecentRounds = 3;
+      const summaryTriggerTurns = 5;
+      const summaryCandidateHistory = historyRaw.filter((message) => !message.pinned);
+      const { olderMessages } = splitHistoryByRecentRounds(summaryCandidateHistory, summaryRecentRounds);
+      const coveredTurnTarget = countHistoryUserTurns(olderMessages);
+      const previousCoveredTurns = sessionMemoryRef.current.summaryTurnCount ?? 0;
+      if (coveredTurnTarget - previousCoveredTurns >= summaryTriggerTurns) {
+        const conversationSummary = buildConversationSummaryFromHistory(olderMessages);
+        if (conversationSummary) {
+          const similarityScore = estimateSummaryCoverageSimilarity(olderMessages, conversationSummary);
+          sessionMemoryRef.current = updateConversationSummaryMemory(
+            sessionMemoryRef.current,
+            conversationSummary,
+            coveredTurnTarget,
+            {
+              similarityScore,
+              qualityWarningThreshold: 0.85,
+            },
+          );
+          persistSessionMemory(sessionMemoryRef.current);
+        }
+      }
+      const contextCharBudgets = await resolveContextCharBudgets({
+        providerKind: settingsRef.current.providerKind,
+        model: settingsRef.current.model,
+        ...(maxContextCharsOverride !== undefined ? { maxContextCharsOverride } : {}),
+        ...(historyCharBudgetOverride !== undefined ? { historyCharBudgetOverride } : {}),
+      });
+      const historyCharBudget = contextCharBudgets.historyCharBudget;
+      const maxContextChars = contextCharBudgets.maxContextChars;
+      const history = trimHistoryByChars(
+        historyRaw,
+        historyCharBudget,
+        summaryRecentRounds,
+        sessionMemoryRef.current.conversationSummary,
+      );
       const aiContext = getContextRef.current?.() ?? null;
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
@@ -456,6 +559,20 @@ export function useAiChat(options?: UseAiChatOptions) {
         aiContext,
       });
 
+      const systemPrompt = buildAiSystemPrompt(
+        systemPersonaKeyRef.current,
+        contextBlock,
+        settingsRef.current.toolFeedbackStyle,
+      );
+      estimatedInputTokens = estimateTokensFromText(trimmed)
+        + estimateTokensFromText(systemPrompt)
+        + estimateTokensFromHistory(history);
+      setMetrics((prev) => ({
+        ...prev,
+        totalInputTokens: prev.totalInputTokens + estimatedInputTokens,
+        currentTurnTokens: 0,
+      }));
+
       const {
         stream,
         generationSource,
@@ -465,7 +582,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         clarifyFastPathCall,
         history,
         orchestrator,
-        systemPrompt: buildAiSystemPrompt(systemPersonaKeyRef.current, contextBlock, settingsRef.current.toolFeedbackStyle),
+        systemPrompt,
         signal: controller.signal,
         taskSessionStatus: taskSessionRef.current.status,
         model: settingsRef.current.model,
@@ -493,6 +610,14 @@ export function useAiChat(options?: UseAiChatOptions) {
       for await (const chunk of stream) {
         if (!firstChunkArrived) {
           firstChunkArrived = true;
+          if (!firstTokenMetricRecorded) {
+            firstTokenMetricRecorded = true;
+            try {
+              recordDurationMetric('ai.chat.first_token_latency_ms', sendStartedAtMs, aiMetricTags);
+            } catch {
+              // 忽略指标上报异常，避免影响主流程 | Ignore metric reporting errors to avoid affecting the main flow
+            }
+          }
           if (shouldTrackRemoteStatus && !connectionMarkedSuccess) {
             connectionMarkedSuccess = true;
             setConnectionTestStatus('success');
@@ -506,6 +631,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           const errorText = chunk.error;
           streamFinalized = true;
+          totalModelOutputTokens += estimateTokensFromText(assistantContent);
           await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
           setLastError(errorText);
           if (shouldTrackRemoteStatus) {
@@ -550,11 +676,13 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.done) {
           streamFinalized = true;
           await flushAssistantDraft(assistantContent, true);
+          totalModelOutputTokens += estimateTokensFromText(assistantContent);
           const {
             finalContent,
             finalStatus,
             finalErrorMessage,
             connectionErrorMessage,
+            localToolResults,
           } = await resolveAiChatStreamCompletion({
             assistantId,
             assistantContent,
@@ -585,19 +713,202 @@ export function useAiChat(options?: UseAiChatOptions) {
             bumpMetric,
             shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
             genRequestId,
+            localToolCallCountRef,
           });
 
-          if (connectionErrorMessage && shouldTrackRemoteStatus) {
-            setConnectionTestStatus('error');
-            setConnectionTestMessage(connectionErrorMessage);
+          let resolvedContent = finalContent;
+          let resolvedStatus = finalStatus;
+          let resolvedErrorMessage = finalErrorMessage;
+          let resolvedConnectionErrorMessage = connectionErrorMessage;
+          let resolvedLocalToolResults = localToolResults;
+          let rawAssistantContentForLoop = assistantContent;
+          let loopStep = 1;
+          let loopExecuted = false;
+
+          while (
+            featureFlags.aiChatAgentLoopEnabled
+            && shouldContinueAgentLoop(loopStep, DEFAULT_AGENT_LOOP_CONFIG, resolvedLocalToolResults)
+            && !controller.signal.aborted
+          ) {
+            loopExecuted = true;
+            setTaskSession({
+              id: taskSessionRef.current.id,
+              status: 'executing',
+              updatedAt: nowIso(),
+              step: loopStep,
+              maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+            });
+
+            const continuationUserText = buildAgentLoopContinuationInput(trimmed, resolvedLocalToolResults!, loopStep);
+            const continuationHistory = trimHistoryByChars([
+              ...history,
+              { role: 'assistant', content: rawAssistantContentForLoop },
+            ], historyCharBudget, 3, sessionMemoryRef.current.conversationSummary);
+            const continuationInputTokens = estimateTokensFromText(continuationUserText)
+              + estimateTokensFromText(systemPrompt)
+              + estimateTokensFromHistory(continuationHistory);
+            const estimatedRemainingTokens = estimateRemainingLoopTokens(
+              continuationInputTokens,
+              loopStep,
+              DEFAULT_AGENT_LOOP_CONFIG,
+            );
+            if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
+              const budgetHint = `\n\nEstimated remaining cost is ~${estimatedRemainingTokens} tokens. Reply "continue" to proceed.`;
+              resolvedContent = `${resolvedContent}${budgetHint}`;
+              resolvedStatus = 'done';
+              resolvedLocalToolResults = undefined;
+              break;
+            }
+            estimatedInputTokens += continuationInputTokens;
+            setMetrics((prev) => ({
+              ...prev,
+              totalInputTokens: prev.totalInputTokens + continuationInputTokens,
+            }));
+
+            const {
+              stream: continuationStream,
+            } = createAssistantStream({
+              userText: continuationUserText,
+              clarifyFastPathCall: null,
+              history: continuationHistory,
+              orchestrator,
+              systemPrompt,
+              signal: controller.signal,
+              taskSessionStatus: 'executing',
+              model: settingsRef.current.model,
+              ...(settingsRef.current.explainModel
+                ? { explainModel: settingsRef.current.explainModel }
+                : {}),
+            });
+
+            let continuationAssistantContent = '';
+            let continuationReasoningContent = '';
+            let continuationStreamError: string | null = null;
+            const loopStepStartedAt = Date.now();
+
+            for await (const continuationChunk of continuationStream) {
+              if ((continuationChunk.delta ?? '').length > 0) {
+                continuationAssistantContent += continuationChunk.delta ?? '';
+              }
+              if ((continuationChunk.reasoningContent ?? '').length > 0) {
+                continuationReasoningContent += continuationChunk.reasoningContent ?? '';
+              }
+              if (continuationChunk.error) {
+                continuationStreamError = continuationChunk.error;
+                break;
+              }
+              if (continuationChunk.done) {
+                break;
+              }
+            }
+
+            assistantReasoningContent += continuationReasoningContent;
+            totalModelOutputTokens += estimateTokensFromText(continuationAssistantContent);
+
+            if (continuationStreamError) {
+              resolvedStatus = 'error';
+              resolvedErrorMessage = continuationStreamError;
+              resolvedConnectionErrorMessage = continuationStreamError;
+              resolvedContent = continuationAssistantContent;
+              break;
+            }
+
+            const continuationResult = await resolveAiChatStreamCompletion({
+              assistantId,
+              assistantContent: continuationAssistantContent,
+              userText: continuationUserText,
+              aiContext,
+              messages: messagesRef.current,
+              providerId: provider.id,
+              model: settingsRef.current.model,
+              toolFeedbackLocale,
+              toolDecisionMode: toolDecisionModeRef.current,
+              toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+              allowDestructiveToolCalls,
+              ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
+              ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
+              ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
+              hasPersistedExecutionForRequest,
+              writeToolDecisionAuditLog,
+              writeToolIntentAuditLog,
+              sessionMemory: sessionMemoryRef.current,
+              updateSessionMemory: (nextMemory) => {
+                sessionMemoryRef.current = nextMemory;
+              },
+              persistSessionMemory,
+              setTaskSession,
+              setPendingToolCall,
+              taskSessionId: taskSessionRef.current.id,
+              markExecutedRequestId,
+              bumpMetric,
+              shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
+              genRequestId,
+              localToolCallCountRef,
+            });
+
+            const loopStepDurationMs = Date.now() - loopStepStartedAt;
+            const loopStepTokenEstimate = continuationInputTokens + estimateTokensFromText(continuationAssistantContent);
+            await db.collections.audit_logs.insert({
+              id: newAuditLogId(),
+              collection: 'ai_messages',
+              documentId: assistantId,
+              action: 'update',
+              field: 'ai_agent_loop_step',
+              oldValue: `step:${loopStep}`,
+              newValue: continuationResult.finalStatus,
+              source: 'ai',
+              timestamp: nowIso(),
+              requestId: `${assistantId}_loop_${loopStep}`,
+              metadataJson: JSON.stringify({
+                schemaVersion: 1,
+                phase: 'agent_loop_step',
+                requestId: `${assistantId}_loop_${loopStep}`,
+                step: loopStep,
+                maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+                inputSummary: continuationUserText.slice(0, 500),
+                outputSummary: continuationAssistantContent.slice(0, 500),
+                durationMs: loopStepDurationMs,
+                tokenEstimate: loopStepTokenEstimate,
+              }),
+            });
+
+            resolvedContent = continuationResult.finalContent;
+            resolvedStatus = continuationResult.finalStatus;
+            resolvedErrorMessage = continuationResult.finalErrorMessage;
+            resolvedConnectionErrorMessage = continuationResult.connectionErrorMessage ?? resolvedConnectionErrorMessage;
+            resolvedLocalToolResults = continuationResult.localToolResults;
+            rawAssistantContentForLoop = continuationAssistantContent;
+
+            loopStep += 1;
           }
-          if (finalErrorMessage) setLastError(finalErrorMessage);
-          await finalizeAssistantMessage(finalStatus, finalContent, finalErrorMessage, ragCitations, assistantReasoningContent);
+
+          if (loopExecuted) {
+            setTaskSession((prev) => {
+              if (prev.status !== 'executing') return prev;
+              return {
+                id: prev.id,
+                status: 'idle',
+                updatedAt: nowIso(),
+              };
+            });
+          }
+
+          if (resolvedConnectionErrorMessage && shouldTrackRemoteStatus) {
+            setConnectionTestStatus('error');
+            setConnectionTestMessage(resolvedConnectionErrorMessage);
+          }
+          if (resolvedErrorMessage) setLastError(resolvedErrorMessage);
+          if (resolvedStatus === 'done') {
+            recordCompletionSuccessMetric();
+          }
+          await finalizeAssistantMessage(resolvedStatus, resolvedContent, resolvedErrorMessage, ragCitations, assistantReasoningContent);
           break;
         }
       }
 
       if (!streamFinalized && !controller.signal.aborted) {
+        totalModelOutputTokens += estimateTokensFromText(assistantContent);
+        recordCompletionSuccessMetric();
         await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
       }
     } catch (error) {
@@ -619,12 +930,14 @@ export function useAiChat(options?: UseAiChatOptions) {
           setConnectionTestMessage(null);
         }
         const abortedContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
+        totalModelOutputTokens += estimateTokensFromText(abortedContent);
         await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
         return;
       }
 
       const message = normalizeAiProviderError(error, provider.label);
       const errorContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
+      totalModelOutputTokens += estimateTokensFromText(errorContent);
       await finalizeAssistantMessage('error', errorContent, message);
       setLastError(message);
       if (shouldTrackRemoteStatus) {
@@ -641,18 +954,43 @@ export function useAiChat(options?: UseAiChatOptions) {
         setIsStreaming(false);
       }
       // Fire onMessageComplete once per stream — prefer latest stream buffer to avoid stale ref reads.
-      const completionContent = assistantContent.trim().length > 0
-        ? assistantContent
-        : (messagesRef.current.find((m) => m.id === assistantId)?.content ?? '');
+      const completionContent = messagesRef.current.find((m) => m.id === assistantId)?.content
+        ?? (assistantContent.trim().length > 0
+          ? assistantContent
+          : '');
+      const outputTokens = totalModelOutputTokens;
+      setMetrics((prev) => ({
+        ...prev,
+        totalOutputTokens: prev.totalOutputTokens + outputTokens,
+        currentTurnTokens: estimatedInputTokens + outputTokens,
+      }));
       if (completionContent) {
         onMessageCompleteRef.current?.(assistantId, completionContent);
       }
     }
-  }, [allowDestructiveToolCalls, ensureConversation, firstChunkTimeoutMs, historyCharBudget, isStreaming, maxContextChars, onMessageCompleteRef, onToolCallRef, onToolRiskCheckRef, orchestrator, provider.id, provider.label, taskSessionRef, writeToolDecisionAuditLog, writeToolIntentAuditLog]);
+  }, [
+    allowDestructiveToolCalls,
+    ensureConversation,
+    firstChunkTimeoutMs,
+    historyCharBudgetOverride,
+    isStreaming,
+    maxContextCharsOverride,
+    onMessageCompleteRef,
+    onToolCallRef,
+    onToolRiskCheckRef,
+    orchestrator,
+    provider.id,
+    provider.label,
+    taskSessionRef,
+    writeToolDecisionAuditLog,
+    writeToolIntentAuditLog,
+  ]);
 
   const clear = useCallback(() => {
     if (clearInFlightRef.current) return;
     clearInFlightRef.current = true;
+    sessionMemoryRef.current = clearConversationSummaryMemory(sessionMemoryRef.current);
+    persistSessionMemory(sessionMemoryRef.current);
     setMessages([]);
     setLastError(null);
     setPendingToolCall(null);
@@ -704,5 +1042,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     confirmPendingToolCall,
     cancelPendingToolCall,
     trackRecommendationEvent,
+    toggleMessagePinned,
   };
 }

@@ -35,6 +35,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
     onSendAiMessage: P.onSendAiMessage,
     onStopAiMessage: P.onStopAiMessage,
     onClearAiMessages: P.onClearAiMessages,
+    onToggleAiMessagePin: P.onToggleAiMessagePin,
     onConfirmPendingToolCall: P.onConfirmPendingToolCall,
     onCancelPendingToolCall: P.onCancelPendingToolCall,
     onTrackAiRecommendationEvent: P.onTrackAiRecommendationEvent,

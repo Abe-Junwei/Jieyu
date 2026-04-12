@@ -25,6 +25,7 @@ import {
 } from './aiChatReplayUtils';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
+import { AiChatMetricsBar } from './AiChatMetricsBar';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
@@ -99,6 +100,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     aiConnectionTestMessage,
     aiPendingToolCall,
     aiTaskSession,
+    aiInteractionMetrics,
     aiSessionMemory,
     aiToolDecisionLogs,
     onUpdateAiChatSettings,
@@ -106,6 +108,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     onSendAiMessage,
     onStopAiMessage,
     onClearAiMessages,
+    onToggleAiMessagePin,
     onConfirmPendingToolCall,
     onCancelPendingToolCall,
     onTrackAiRecommendationEvent,
@@ -131,6 +134,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const visibleRecommendationSignatureRef = useRef<string | null>(null);
   const exposedRecommendationRef = useRef<{ prompt: string; source: 'fallback' | 'llm'; signature: string } | null>(null);
   const [dismissedRecommendationSignature, setDismissedRecommendationSignature] = useState<string | null>(null);
+  const sessionAdaptiveInputProfile = aiSessionMemory?.preferences?.adaptiveInputProfile ?? aiSessionMemory?.adaptiveInputProfile;
+  const sessionLastToolName = aiSessionMemory?.preferences?.lastToolName ?? aiSessionMemory?.lastToolName;
 
   const activeProviderDefinition = aiChatSettings
     ? getAiChatProviderDefinition(aiChatSettings.providerKind)
@@ -167,9 +172,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const adaptiveInputProfile = useMemo(
     () => mergeAdaptiveProfiles(
       deriveAdaptiveProfileFromMessages(aiMessages ?? []),
-      aiSessionMemory?.adaptiveInputProfile,
+      sessionAdaptiveInputProfile,
     ),
-    [aiMessages, aiSessionMemory?.adaptiveInputProfile],
+    [aiMessages, sessionAdaptiveInputProfile],
   );
 
   const {
@@ -214,6 +219,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     return cardMessages.providerStatusLabel(kind, aiConnectionTestStatus);
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus, cardMessages]);
 
+  const showAgentLoopProgress = aiTaskSession?.status === 'executing'
+    && typeof aiTaskSession.step === 'number'
+    && typeof aiTaskSession.maxSteps === 'number'
+    && aiTaskSession.maxSteps > 0;
+
   const providerStatusTone = useMemo(() => {
     const kind = aiChatSettings?.providerKind ?? 'mock';
     if (aiConnectionTestStatus === 'error') return 'error';
@@ -232,7 +242,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     annotationStatus: selectedUtterance?.annotationStatus ?? null,
     confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
     lexemeCount: lexemeMatches.length,
-    lastToolName: aiTaskSession?.toolName ?? aiSessionMemory?.lastToolName ?? null,
+    lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
     preferredMode: profile.preferences.preferredMode,
     confirmationThreshold: profile.preferences.confirmationThreshold,
     selectedUnitKind: selectedUnitKind ?? null,
@@ -249,7 +259,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     adaptiveInputProfile?.topKeywords,
     aiPanelContext?.aiCurrentTask,
     aiTaskSession?.toolName,
-    aiSessionMemory?.lastToolName,
+    sessionLastToolName,
     cardMessages,
     currentPage,
     lexemeMatches.length,
@@ -286,7 +296,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     annotationStatus: selectedUtterance?.annotationStatus ?? null,
     confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
     lexemeCount: lexemeMatches.length,
-    lastToolName: aiTaskSession?.toolName ?? aiSessionMemory?.lastToolName ?? null,
+    lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
     preferredMode: profile.preferences.preferredMode,
     confirmationThreshold: profile.preferences.confirmationThreshold,
     selectedUnitKind: selectedUnitKind ?? null,
@@ -338,6 +348,24 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
   const messages = aiMessages ?? [];
+  const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? [];
+  const pinnedMessageIdSet = useMemo(() => new Set(pinnedMessageIds), [pinnedMessageIds]);
+  const summaryChain = aiSessionMemory?.summaryChain ?? [];
+  const latestConversationSummary = (aiSessionMemory?.conversationSummary ?? '').trim();
+  const hasConversationSummary = latestConversationSummary.length > 0 || summaryChain.length > 0;
+  const summaryEntries = useMemo(() => {
+    if (summaryChain.length > 0) {
+      return [...summaryChain].slice(-4).reverse();
+    }
+    if (!latestConversationSummary) return [];
+    return [{
+      id: 'latest-summary',
+      summary: latestConversationSummary,
+      coveredTurnCount: aiSessionMemory?.summaryTurnCount ?? 0,
+      createdAt: '',
+    }];
+  }, [aiSessionMemory?.summaryTurnCount, latestConversationSummary, summaryChain]);
+  const summaryQualityWarning = aiSessionMemory?.summaryQualityWarning ?? null;
   const turns = useMemo(() => {
     const newestTurns: Array<{ assistant?: typeof messages[number]; user?: typeof messages[number] }> = [];
     let index = 0;
@@ -400,6 +428,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const [showAlertBar, setShowAlertBar] = useState(() => alertCount > 0);
   const [showDecisionPanel, setShowDecisionPanel] = useState(false);
   const [showReplayDetailPanel, setShowReplayDetailPanel] = useState(false);
+  const [showConversationSummary, setShowConversationSummary] = useState(false);
   const [dismissedErrorWarning, setDismissedErrorWarning] = useState(false);
   const [voiceDrawerMaxHeight, setVoiceDrawerMaxHeight] = useState<number | null>(null);
   const [decisionPanelMaxHeight, setDecisionPanelMaxHeight] = useState<number | null>(null);
@@ -417,6 +446,12 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const voiceResizeStartHeightRef = useRef(0);
   const decisionResizeStartYRef = useRef(0);
   const decisionResizeStartHeightRef = useRef(0);
+
+  useEffect(() => {
+    if (!hasConversationSummary && showConversationSummary) {
+      setShowConversationSummary(false);
+    }
+  }, [hasConversationSummary, showConversationSummary]);
 
   const resolveVoiceDrawerHeightBounds = (): { min: number; max: number; preferred: number } => {
     if (typeof window === 'undefined') {
@@ -822,6 +857,41 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
         <p className="small-text">{t(locale, 'ai.chat.disabled')}</p>
       ) : (
         <>
+          {hasConversationSummary && (
+            <section className={`ai-chat-summary-panel ${showConversationSummary ? 'is-open' : ''}`}>
+              <div className="ai-chat-summary-header-row">
+                <button
+                  type="button"
+                  className="ai-chat-summary-toggle"
+                  onClick={() => setShowConversationSummary((prev) => !prev)}
+                >
+                  {showConversationSummary ? cardMessages.hideConversationSummary : cardMessages.showConversationSummary}
+                </button>
+                {summaryQualityWarning && (
+                  <span className="ai-chat-summary-warning" role="status" aria-live="polite">
+                    {cardMessages.summaryQualityWarning(summaryQualityWarning.similarity, summaryQualityWarning.threshold)}
+                  </span>
+                )}
+              </div>
+              {showConversationSummary && (
+                <div className="ai-chat-summary-body">
+                  <p className="ai-chat-summary-title">{cardMessages.conversationSummaryTitle}</p>
+                  {summaryEntries.length === 0 ? (
+                    <p className="ai-chat-summary-empty">{cardMessages.summaryEmpty}</p>
+                  ) : summaryEntries.map((entry) => (
+                    <article key={entry.id} className="ai-chat-summary-entry">
+                      <div className="ai-chat-summary-entry-meta">
+                        <span>{cardMessages.summaryCoveredTurns(entry.coveredTurnCount)}</span>
+                        {entry.createdAt ? <span>{new Date(entry.createdAt).toLocaleString(locale)}</span> : null}
+                      </div>
+                      <p className="ai-chat-summary-entry-content">{entry.summary}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Message viewport */}
           <div ref={messageViewportRef} className="ai-chat-message-viewport">
             {messages.length === 0 ? (
@@ -869,9 +939,11 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   const generatedLabel = generatedModelName.length > 0
                     ? cardMessages.generatedByModel(generatedModelName)
                     : cardMessages.aiGenerated;
+                  const isAssistantPinned = pinnedMessageIdSet.has(assistantMsg?.id ?? '');
                   const userContent = userMsg
                     ? (userMsg.content || (userMsg.status === 'streaming' ? '...' : (userMsg.status === 'aborted' ? cardMessages.aborted : '')))
                     : '';
+                  const isUserPinned = pinnedMessageIdSet.has(userMsg?.id ?? '');
 
                   return (
                     <div
@@ -883,6 +955,17 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         <div className="ai-chat-message-bubble ai-chat-message-user">
                           <div className="ai-chat-message-surface">
                             <span className="ai-chat-message-content">{userContent}</span>
+                            {onToggleAiMessagePin && (
+                              <div className="ai-chat-message-actions">
+                                <button
+                                  type="button"
+                                  className={`ai-chat-message-action-btn ${isUserPinned ? 'is-active' : ''}`}
+                                  onClick={() => onToggleAiMessagePin(userMsg.id)}
+                                >
+                                  {isUserPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -927,8 +1010,17 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 <div>{reasoningContent}</div>
                               </div>
                             )}
-                            {(hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
+                            {(onToggleAiMessagePin || hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
                               <div className="ai-chat-message-actions">
+                                {onToggleAiMessagePin && (
+                                  <button
+                                    type="button"
+                                    className={`ai-chat-message-action-btn ${isAssistantPinned ? 'is-active' : ''}`}
+                                    onClick={() => onToggleAiMessagePin(assistantMsg.id)}
+                                  >
+                                    {isAssistantPinned ? cardMessages.unpinMessage : cardMessages.pinMessage}
+                                  </button>
+                                )}
                                 {hasCopyableAssistantContent && (
                                   <button
                                     type="button"
@@ -1044,6 +1136,16 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
           {/* Input row */}
           <div className="ai-chat-composer">
+            {showAgentLoopProgress && (
+              <div className="ai-chat-agent-loop-progress" role="status" aria-live="polite">
+                {`Agent loop ${aiTaskSession.step}/${aiTaskSession.maxSteps}`}
+              </div>
+            )}
+            <AiChatMetricsBar
+              isZh={isZh}
+              aiInteractionMetrics={aiInteractionMetrics}
+              aiSessionMemory={aiSessionMemory}
+            />
             {quickPromptTemplates.length > 0 && (
               <div className="ai-chat-composer-shortcuts">
                 <div className="ai-chat-composer-shortcuts-list">

@@ -9,6 +9,8 @@ export const featureFlags = {
   aiChatGrayMode: false,
   /** AI 聊天回滚模式开关 | AI chat rollback mode toggle */
   aiChatRollbackMode: false,
+  /** AI 多步推理循环开关 | AI multi-step agent loop toggle */
+  aiChatAgentLoopEnabled: true,
 } as const;
 
 export type FeatureFlags = typeof featureFlags;

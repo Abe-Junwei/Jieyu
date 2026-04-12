@@ -60,6 +60,7 @@ export interface AiChatContextValue {
   onSendAiMessage: ((text: string) => Promise<void>) | undefined;
   onStopAiMessage: (() => void) | undefined;
   onClearAiMessages: (() => void) | undefined;
+  onToggleAiMessagePin: ((messageId: string) => void) | undefined;
   onConfirmPendingToolCall: (() => Promise<void>) | undefined;
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
@@ -99,6 +100,7 @@ export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   onSendAiMessage: undefined,
   onStopAiMessage: undefined,
   onClearAiMessages: undefined,
+  onToggleAiMessagePin: undefined,
   onConfirmPendingToolCall: undefined,
   onCancelPendingToolCall: undefined,
   onTrackAiRecommendationEvent: undefined,

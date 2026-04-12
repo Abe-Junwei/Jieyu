@@ -42,6 +42,8 @@ export interface AiTaskSession {
   toolName?: AiChatToolName;
   clarifyReason?: ToolPlannerClarifyReason;
   candidates?: AiClarifyCandidate[];
+  step?: number;
+  maxSteps?: number;
   updatedAt: string;
 }
 
@@ -64,6 +66,12 @@ export interface AiInteractionMetrics {
   cancelCount: number;
   /** 失败后恢复（重试成功）次数 | Recovery-after-failure count */
   recoveryCount: number;
+  /** 估算输入 token 总量 | Estimated total input tokens */
+  totalInputTokens: number;
+  /** 估算输出 token 总量 | Estimated total output tokens */
+  totalOutputTokens: number;
+  /** 当前轮次估算 token | Estimated token usage for current turn */
+  currentTurnTokens: number;
 }
 
 export type AiAdaptiveIntent =
@@ -117,11 +125,57 @@ export interface AiRecommendationTelemetry {
   recentEvents?: AiRecommendationEvent[];
 }
 
+export interface AiSessionMemoryProjectFact {
+  fact: string;
+  source: 'user' | 'inferred';
+  createdAt: string;
+}
+
+export interface AiSessionMemoryPreferences {
+  lastLanguage?: string;
+  lastToolName?: AiChatToolName;
+  lastLayerId?: string;
+  adaptiveInputProfile?: AiAdaptiveInputProfile;
+  preferredResponseStyle?: 'concise' | 'detailed';
+}
+
+export interface AiSessionMemorySummaryEntry {
+  id: string;
+  summary: string;
+  coveredTurnCount: number;
+  createdAt: string;
+  similarityScore?: number;
+  qualityWarning?: boolean;
+}
+
+export interface AiSessionMemorySummaryQualityWarning {
+  similarity: number;
+  threshold: number;
+  generatedAt: string;
+  coveredTurnCount: number;
+}
+
 /**
  * 会话级短期偏好记忆 | Session-scoped short-term preference memory
  * 在一次对话中累积用户偏好，用于候选排序 & 默认值预填。
  */
 export interface AiSessionMemory {
+  /** 对话摘要链（跨轮压缩）| Compressed summary across turns */
+  conversationSummary?: string;
+  /** 已被摘要覆盖的用户轮次计数 | Number of user turns covered by summary */
+  summaryTurnCount?: number;
+  /** 摘要历史链（用于可视化）| Summary history chain for UI visualization */
+  summaryChain?: AiSessionMemorySummaryEntry[];
+  /** 摘要质量告警（相似度阈值）| Summary quality warning with similarity score */
+  summaryQualityWarning?: AiSessionMemorySummaryQualityWarning;
+  /** 用户钉住消息 ID 列表 | User-pinned message IDs */
+  pinnedMessageIds?: string[];
+  /** 分层偏好记忆 | Layered preference memory */
+  preferences?: AiSessionMemoryPreferences;
+  /** 项目事实记忆 | Persistent project facts */
+  projectFacts?: AiSessionMemoryProjectFact[];
+
+  // Legacy flat fields (backward compatibility)
   /** 最近一次成功使用的语言代码 | Last language code used successfully */
   lastLanguage?: string;
   /** 最近一次执行的工具名 | Last tool name executed */
@@ -266,6 +320,7 @@ export interface AiLongTermContext {
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;
   };
+  acousticSummary?: unknown;
   waveformAnalysis?: {
     lowConfidenceCount?: number;
     overlapCount?: number;

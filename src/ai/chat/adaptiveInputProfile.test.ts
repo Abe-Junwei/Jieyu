@@ -22,6 +22,7 @@ describe('adaptiveInputProfile', () => {
 
     expect(memory.adaptiveInputProfile?.dominantIntent).toBe('gloss');
     expect(memory.adaptiveInputProfile?.recentPrompts?.length).toBe(1);
+    expect(memory.preferences?.adaptiveInputProfile?.dominantIntent).toBe('gloss');
   });
 
   it('derives profile from user messages and merges with persisted profile', () => {

@@ -183,8 +183,16 @@ export type AiChatCardMessages = {
   reasoning: string;
   copied: string;
   copy: string;
+  pinMessage: string;
+  unpinMessage: string;
   hideReasoning: string;
   showReasoning: string;
+  showConversationSummary: string;
+  hideConversationSummary: string;
+  conversationSummaryTitle: string;
+  summaryCoveredTurns: (turnCount: number) => string;
+  summaryQualityWarning: (similarity: number, threshold: number) => string;
+  summaryEmpty: string;
   more: string;
   ragQuickScenarios: string;
   stopGenerating: string;
@@ -244,8 +252,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       reasoning: '\ud83d\udcad \u63a8\u7406\u8fc7\u7a0b',
       copied: '\u5df2\u590d\u5236',
       copy: '\u590d\u5236',
+      pinMessage: '\u9489\u4f4f\u6d88\u606f',
+      unpinMessage: '\u53d6\u6d88\u9489\u4f4f',
       hideReasoning: '\u25b2 \u9690\u85cf\u63a8\u7406',
       showReasoning: '\u25bc \u67e5\u770b\u63a8\u7406',
+      showConversationSummary: '\u67e5\u770b\u5bf9\u8bdd\u6458\u8981',
+      hideConversationSummary: '\u6536\u8d77\u5bf9\u8bdd\u6458\u8981',
+      conversationSummaryTitle: '\u5bf9\u8bdd\u6458\u8981\u94fe',
+      summaryCoveredTurns: (turnCount) => `\u5df2\u8986\u76d6 ${turnCount} \u8f6e`,
+      summaryQualityWarning: (similarity, threshold) => `\u6458\u8981\u53ef\u80fd\u9057\u6f0f\u5173\u952e\u4fe1\u606f (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
+      summaryEmpty: '\u6682\u65e0\u6458\u8981\u8bb0\u5f55',
       more: '\u66f4\u591a',
       ragQuickScenarios: 'RAG \u5feb\u6377\u573a\u666f',
       stopGenerating: '\u505c\u6b62\u751f\u6210',
@@ -304,8 +320,16 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     reasoning: '\ud83d\udcad Reasoning',
     copied: 'Copied',
     copy: 'Copy',
+    pinMessage: 'Pin message',
+    unpinMessage: 'Unpin message',
     hideReasoning: '\u25b2 Hide reasoning',
     showReasoning: '\u25bc Show reasoning',
+    showConversationSummary: 'View summary',
+    hideConversationSummary: 'Hide summary',
+    conversationSummaryTitle: 'Conversation summary chain',
+    summaryCoveredTurns: (turnCount) => `Covers ${turnCount} turns`,
+    summaryQualityWarning: (similarity, threshold) => `Summary may miss key details (${Math.round(similarity * 100)}% < ${Math.round(threshold * 100)}%)`,
+    summaryEmpty: 'No summary history yet',
     more: 'More',
     ragQuickScenarios: 'RAG Quick Scenarios',
     stopGenerating: 'Stop generating',

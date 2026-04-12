@@ -15,6 +15,7 @@ export function AiChatMetricsBar({
 }: AiChatMetricsBarProps) {
   if (!aiInteractionMetrics) return null;
   const messages = getAiChatMetricsBarMessages(isZh);
+  const lastToolName = aiSessionMemory?.preferences?.lastToolName ?? aiSessionMemory?.lastToolName;
 
   return (
     <div className="ai-chat-metrics-bar">
@@ -37,9 +38,18 @@ export function AiChatMetricsBar({
       {aiInteractionMetrics.recoveryCount > 0 && (
         <span className="ai-chat-metrics-bar__item ai-chat-metrics-bar__item--recovery" title={messages.recoveriesTitle}>{messages.recoveriesLabel} {aiInteractionMetrics.recoveryCount}</span>
       )}
-      {aiSessionMemory?.lastToolName && (
+      <span title={messages.totalInputTokensTitle}>
+        {messages.totalInputTokensLabel} {aiInteractionMetrics.totalInputTokens}
+      </span>
+      <span title={messages.totalOutputTokensTitle}>
+        {messages.totalOutputTokensLabel} {aiInteractionMetrics.totalOutputTokens}
+      </span>
+      <span title={messages.currentTurnTokensTitle}>
+        {messages.currentTurnTokensLabel} {aiInteractionMetrics.currentTurnTokens}
+      </span>
+      {lastToolName && (
         <span className="ai-chat-metrics-bar__last-tool" title={messages.lastToolTitle}>
-          {formatToolName(isZh, aiSessionMemory.lastToolName)}
+          {formatToolName(isZh, lastToolName)}
         </span>
       )}
     </div>

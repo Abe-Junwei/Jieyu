@@ -1563,6 +1563,14 @@ select.ai-cfg-input {
   flex-shrink: 0;
 }
 
+.ai-chat-agent-loop-progress {
+  min-width: 0;
+  padding: 3px 0;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--state-info-solid);
+  flex-shrink: 0;
+}
+
 .ai-chat-metrics-bar__item {
   color: inherit;
 }

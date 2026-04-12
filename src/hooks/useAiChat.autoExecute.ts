@@ -8,6 +8,7 @@ import {
   formatNoExecutorToolFailureDetail,
   formatToolExecutionFallbackError,
 } from '../ai/messages';
+import { patchSessionMemoryPreferences } from '../ai/chat/sessionMemory';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
 import type {
@@ -116,14 +117,30 @@ export async function executeAutoToolCall({
 
     if (result.ok) {
       bumpMetric('successCount');
-      const nextSessionMemory: AiSessionMemory = {
+      let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
         ...sessionMemory,
         lastToolName: toolCall.name,
-      };
+      }, {
+        lastToolName: toolCall.name,
+      });
       const lang = typeof toolCall.arguments.language === 'string' ? toolCall.arguments.language : undefined;
-      if (lang) nextSessionMemory.lastLanguage = lang;
+      if (lang) {
+        nextSessionMemory = patchSessionMemoryPreferences({
+          ...nextSessionMemory,
+          lastLanguage: lang,
+        }, {
+          lastLanguage: lang,
+        });
+      }
       const layerId = typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined;
-      if (layerId) nextSessionMemory.lastLayerId = layerId;
+      if (layerId) {
+        nextSessionMemory = patchSessionMemoryPreferences({
+          ...nextSessionMemory,
+          lastLayerId: layerId,
+        }, {
+          lastLayerId: layerId,
+        });
+      }
       updateSessionMemory(nextSessionMemory);
       persistSessionMemory(nextSessionMemory);
       if (shouldBumpRecovery) {

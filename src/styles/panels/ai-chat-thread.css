@@ -8,6 +8,83 @@
   position: relative;
 }
 
+.ai-chat-summary-panel {
+  border: 1px solid color-mix(in srgb, var(--border-soft) 62%, transparent);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin: 0 0 10px;
+  background: color-mix(in srgb, var(--surface-header) 76%, var(--surface-panel));
+}
+
+.ai-chat-summary-header-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-chat-summary-toggle {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ai-chat-summary-warning {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--state-warning-solid);
+  line-height: 1.4;
+}
+
+.ai-chat-summary-body {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.ai-chat-summary-title {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ai-chat-summary-empty {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.ai-chat-summary-entry {
+  border-left: 2px solid color-mix(in srgb, var(--header-accent) 40%, transparent);
+  padding-left: 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.ai-chat-summary-entry-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+}
+
+.ai-chat-summary-entry-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
 .ai-chat-message-toolbar {
   position: sticky;
   left: 0;
@@ -161,9 +238,9 @@
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-.ai-chat-message-assistant:hover .ai-chat-message-actions,
-.ai-chat-message-assistant:focus-within .ai-chat-message-actions,
-.ai-chat-turn:focus-within .ai-chat-message-assistant .ai-chat-message-actions {
+.ai-chat-message-bubble:hover .ai-chat-message-actions,
+.ai-chat-message-bubble:focus-within .ai-chat-message-actions,
+.ai-chat-turn:focus-within .ai-chat-message-actions {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
@@ -215,6 +292,12 @@
 .ai-chat-message-action-btn:hover {
   color: var(--text-primary);
   background: transparent;
+  text-decoration-color: currentColor;
+  opacity: 1;
+}
+
+.ai-chat-message-action-btn.is-active {
+  color: var(--header-accent);
   text-decoration-color: currentColor;
   opacity: 1;
 }

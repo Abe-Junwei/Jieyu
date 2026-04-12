@@ -5,6 +5,11 @@ import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import type { Plugin as EsbuildPlugin } from 'esbuild';
 
+const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version?: string };
+const appVersion = typeof packageJson.version === 'string' && packageJson.version.trim().length > 0
+  ? packageJson.version.trim()
+  : '0.0.0-dev';
+
 /**
  * 将 onnxruntime-web WASM 文件复制到构建输出，并在开发服务器中正确伺服。
  * Copies onnxruntime-web WASM files to build output and serves them correctly in dev server.
@@ -85,6 +90,9 @@ function muteSpectrogramWorkerThreads(): EsbuildPlugin {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [react(), copyOnnxWasm()],
   server: {
     host: true,

@@ -6,6 +6,14 @@ import {
   planToolCallTargets,
 } from '../ai/chat/toolCallHelpers';
 import {
+  executeLocalContextToolCallsBatch,
+  executeLocalContextToolCall,
+  formatLocalContextToolBatchResultMessage,
+  formatLocalContextToolResultMessage,
+  type LocalContextToolResult,
+  parseLocalContextToolCallsFromText,
+} from '../ai/chat/localContextTools';
+import {
   formatEmptyModelReply,
   formatEmptyModelResponseError,
 } from '../ai/messages';
@@ -66,6 +74,7 @@ interface ResolveAiChatStreamCompletionParams {
   bumpMetric: (key: keyof AiInteractionMetrics) => void;
   shouldBumpRecovery: boolean;
   genRequestId: (call: AiChatToolCall, scopeMessageId?: string) => string;
+  localToolCallCountRef: { current: number };
 }
 
 interface ResolveAiChatStreamCompletionResult {
@@ -73,6 +82,7 @@ interface ResolveAiChatStreamCompletionResult {
   finalStatus: 'done' | 'error';
   finalErrorMessage?: string;
   connectionErrorMessage?: string;
+  localToolResults?: LocalContextToolResult[];
 }
 
 export async function resolveAiChatStreamCompletion({
@@ -103,6 +113,7 @@ export async function resolveAiChatStreamCompletion({
   bumpMetric,
   shouldBumpRecovery,
   genRequestId,
+  localToolCallCountRef,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError();
@@ -117,6 +128,41 @@ export async function resolveAiChatStreamCompletion({
   let finalContent = assistantContent;
   let finalStatus: 'done' | 'error' = 'done';
   let finalErrorMessage: string | undefined;
+
+  const localToolCalls = parseLocalContextToolCallsFromText(assistantContent);
+  if (localToolCalls.length > 1) {
+    const localToolResults = await executeLocalContextToolCallsBatch(
+      localToolCalls,
+      aiContext,
+      localToolCallCountRef,
+    );
+    finalContent = formatLocalContextToolBatchResultMessage(localToolResults);
+    finalStatus = localToolResults.some((item) => !item.ok) ? 'error' : 'done';
+    finalErrorMessage = finalStatus === 'error' ? 'local context tool batch failed' : undefined;
+    return {
+      finalContent,
+      finalStatus,
+      ...(finalErrorMessage ? { finalErrorMessage } : {}),
+      localToolResults,
+    };
+  }
+
+  if (localToolCalls.length === 1) {
+    const localToolResult = await executeLocalContextToolCall(
+      localToolCalls[0]!,
+      aiContext,
+      localToolCallCountRef,
+    );
+    finalContent = formatLocalContextToolResultMessage(localToolResult);
+    finalStatus = localToolResult.ok ? 'done' : 'error';
+    finalErrorMessage = localToolResult.ok ? undefined : (localToolResult.error ?? 'local context tool failed');
+    return {
+      finalContent,
+      finalStatus,
+      ...(finalErrorMessage ? { finalErrorMessage } : {}),
+      localToolResults: [localToolResult],
+    };
+  }
 
   const parsedToolCall = parseToolCallFromText(assistantContent) ?? parseLegacyNarratedToolCall(assistantContent);
   const planner = parsedToolCall ? planToolCallTargets(parsedToolCall, userText, aiContext) : null;

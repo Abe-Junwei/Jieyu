@@ -216,6 +216,49 @@ describe('AiChatCard input submit', () => {
     });
   });
 
+  it('renders chat metrics bar once even when quick prompt templates are listed', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        aiInteractionMetrics: {
+          turnCount: 2,
+          successCount: 1,
+          failureCount: 0,
+          clarifyCount: 0,
+          explainFallbackCount: 0,
+          cancelCount: 0,
+          recoveryCount: 0,
+          totalInputTokens: 20,
+          totalOutputTokens: 10,
+          currentTurnTokens: 8,
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(view.container.querySelectorAll('.ai-chat-metrics-bar')).toHaveLength(1);
+  });
+
+  it('shows agent loop progress when task session is executing with step metadata', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        aiTaskSession: {
+          id: 'task-loop',
+          status: 'executing',
+          updatedAt: new Date().toISOString(),
+          step: 2,
+          maxSteps: 6,
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(within(view.container).getByText(/Agent loop 2\/6|多步推理 2\/6/)).toBeTruthy();
+  });
+
   it('shows stop button while assistant is streaming without persistent hint', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -867,8 +910,10 @@ describe('AiChatCard input submit', () => {
       fireEvent.click(replayDetailToggle);
     }
     // 模拟选中文件并触发导入 | Simulate file selection and trigger import
+    await waitFor(() => {
+      expect(view.container.querySelector('input[type="file"][accept=".json"]')).not.toBeNull();
+    });
     const fileInput = view.container.querySelector('input[type="file"][accept=".json"]') as HTMLInputElement;
-    expect(fileInput).not.toBeNull();
     const file = new File([snapshotPayload], 'golden.json', { type: 'application/json' });
     Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
     fireEvent.change(fileInput);

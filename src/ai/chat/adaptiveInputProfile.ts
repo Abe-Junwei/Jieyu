@@ -5,6 +5,7 @@ import type {
   AiSessionMemory,
   UiChatMessage,
 } from '../../hooks/useAiChat.types';
+import { patchSessionMemoryPreferences } from './sessionMemory';
 
 const MAX_RECENT_PROMPTS = 20;
 const MAX_KEYWORDS = 5;
@@ -154,10 +155,18 @@ export function updateAdaptiveInputProfile(
 }
 
 export function updateSessionMemoryWithPrompt(memory: AiSessionMemory, prompt: string): AiSessionMemory {
-  return {
+  const nextAdaptiveInputProfile = updateAdaptiveInputProfile(memory.adaptiveInputProfile, prompt);
+  const preferredResponseStyle = nextAdaptiveInputProfile.preferredResponseStyle === 'concise'
+    || nextAdaptiveInputProfile.preferredResponseStyle === 'detailed'
+    ? nextAdaptiveInputProfile.preferredResponseStyle
+    : undefined;
+  return patchSessionMemoryPreferences({
     ...memory,
-    adaptiveInputProfile: updateAdaptiveInputProfile(memory.adaptiveInputProfile, prompt),
-  };
+    adaptiveInputProfile: nextAdaptiveInputProfile,
+  }, {
+    adaptiveInputProfile: nextAdaptiveInputProfile,
+    ...(preferredResponseStyle !== undefined ? { preferredResponseStyle } : {}),
+  });
 }
 
 export function deriveAdaptiveProfileFromMessages(messages: UiChatMessage[]): AiAdaptiveInputProfile {

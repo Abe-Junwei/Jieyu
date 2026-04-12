@@ -4,10 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { initSentryForReleaseStage } from './observability/sentry';
+import { initLcpMetricObserver } from './observability/webVitals';
 import './services/vad/VadMediaBackend.browser'; // 注册浏览器端 VAD 后端 | Register browser VAD backend
 import './styles/app-foundation.css';
 
 void initSentryForReleaseStage();
+initLcpMetricObserver();
 
 const queryClient = new QueryClient({
   defaultOptions: {
