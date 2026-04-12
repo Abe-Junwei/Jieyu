@@ -223,8 +223,9 @@
   top: 0;
   bottom: 0;
   width: 0;
-  right: var(--transcription-ai-visible-width);
-  transition: right var(--shell-motion-base) ease;
+  right: 0;
+  transform: translateX(calc(-1 * var(--transcription-ai-visible-width)));
+  transition: transform var(--shell-motion-base) ease;
   z-index: calc(var(--z-popover) + 21);
 }
 

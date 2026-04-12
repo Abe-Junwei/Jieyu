@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
 interface UseTranscriptionWorkspaceTopCssVarInput {
   enabled: boolean;
@@ -11,7 +11,7 @@ export function useTranscriptionWorkspaceTopCssVar({
   screenRef,
   waveformSectionRef,
 }: UseTranscriptionWorkspaceTopCssVarInput) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
     if (!enabled) return;
 

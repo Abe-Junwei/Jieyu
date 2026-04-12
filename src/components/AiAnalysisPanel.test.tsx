@@ -16,6 +16,60 @@ import {
 } from '../contexts/EmbeddingContext';
 import { pickEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 
+function ensureLocalStorageApi(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const currentStorage = window.localStorage as Partial<Storage> | undefined;
+  const hasFullApi = Boolean(
+    currentStorage
+    && typeof currentStorage.getItem === 'function'
+    && typeof currentStorage.setItem === 'function'
+    && typeof currentStorage.removeItem === 'function'
+    && typeof currentStorage.clear === 'function'
+    && typeof currentStorage.key === 'function',
+  );
+
+  if (hasFullApi) {
+    return;
+  }
+
+  const store = new Map<string, string>();
+  const fallbackStorage: Storage = {
+    get length() {
+      return store.size;
+    },
+    clear() {
+      store.clear();
+    },
+    getItem(key: string) {
+      return store.has(key) ? store.get(key)! : null;
+    },
+    key(index: number) {
+      return [...store.keys()][index] ?? null;
+    },
+    removeItem(key: string) {
+      store.delete(key);
+    },
+    setItem(key: string, value: string) {
+      store.set(key, value);
+    },
+  };
+
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: fallbackStorage,
+  });
+}
+
+function safeClearLocalStorage(): void {
+  if (typeof window === 'undefined' || typeof window.localStorage?.clear !== 'function') {
+    return;
+  }
+  window.localStorage.clear();
+}
+
 function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
   return {
     id: 'utt-1',
@@ -49,12 +103,13 @@ function makeEmbeddingContextValue(overrides: Partial<EmbeddingContextValue> = {
 
 describe('AiAnalysisPanel embedding integration', () => {
   beforeEach(() => {
-    window.localStorage.clear();
+    ensureLocalStorageApi();
+    safeClearLocalStorage();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    window.localStorage.clear();
+    safeClearLocalStorage();
   });
 
   function setupProviderHealthPanel(): HTMLElement {

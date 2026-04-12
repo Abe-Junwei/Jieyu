@@ -114,15 +114,31 @@ export function OrthographyBuilderPanel({
   const normalizedResolvedSourceLanguageCode = resolvedSourceLanguageCode.trim().toLowerCase();
   const showBridgeSection = picker.canConfigureBridge && (!compact || picker.createMode === 'derive-other');
   const lastSyncedSourceLanguageCodeRef = useRef(normalizedResolvedSourceLanguageCode);
+  const lastSyncedLocaleRef = useRef(locale);
+  const hasSyncedSourceLanguageInputRef = useRef(false);
 
   useEffect(() => {
+    const initialSyncNeeded = !hasSyncedSourceLanguageInputRef.current;
+    const localeChanged = locale !== lastSyncedLocaleRef.current;
     const externalCodeChanged = normalizedResolvedSourceLanguageCode !== lastSyncedSourceLanguageCodeRef.current;
-    if (!externalCodeChanged && !normalizedResolvedSourceLanguageCode) {
+    if (!initialSyncNeeded && !externalCodeChanged && !localeChanged) {
       return;
     }
 
+    hasSyncedSourceLanguageInputRef.current = true;
+    lastSyncedLocaleRef.current = locale;
     lastSyncedSourceLanguageCodeRef.current = normalizedResolvedSourceLanguageCode;
-    setSourceLanguageInput((prev) => syncLanguageInputWithExternalCode(prev, normalizedResolvedSourceLanguageCode, locale, resolveLanguageDisplayName, resolveLanguageCode));
+    setSourceLanguageInput((prev) => {
+      const next = syncLanguageInputWithExternalCode(prev, normalizedResolvedSourceLanguageCode, locale, resolveLanguageDisplayName, resolveLanguageCode);
+      if (
+        prev.languageName === next.languageName
+        && prev.languageCode === next.languageCode
+        && prev.languageAssetId === next.languageAssetId
+      ) {
+        return prev;
+      }
+      return next;
+    });
   }, [locale, normalizedResolvedSourceLanguageCode, resolveLanguageCode, resolveLanguageDisplayName]);
 
   const handleSourceLanguageInputChange = (nextValue: LanguageIsoInputValue) => {

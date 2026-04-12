@@ -137,8 +137,9 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: calc(var(--left-rail-offset) + var(--side-pane-width));
-  transition: left var(--shell-motion-base) ease;
+  left: var(--left-rail-offset);
+  transform: translateX(var(--side-pane-width));
+  transition: transform var(--shell-motion-base) ease;
   z-index: calc(var(--z-popover) + 21);
 }
 

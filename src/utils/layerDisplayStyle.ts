@@ -165,7 +165,11 @@ function normalizeProbeText(value: string): string {
 function readFontCoverageCache(): Record<string, StoredFontCoverageVerification> {
   if (fontCoverageCacheLoaded) return fontCoverageCache;
   fontCoverageCacheLoaded = true;
-  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') {
+  if (
+    typeof window === 'undefined'
+    || typeof window.localStorage === 'undefined'
+    || typeof window.localStorage.getItem !== 'function'
+  ) {
     fontCoverageCache = {};
     return fontCoverageCache;
   }
@@ -179,7 +183,11 @@ function readFontCoverageCache(): Record<string, StoredFontCoverageVerification>
 }
 
 function persistFontCoverageCache(): void {
-  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+  if (
+    typeof window === 'undefined'
+    || typeof window.localStorage === 'undefined'
+    || typeof window.localStorage.setItem !== 'function'
+  ) return;
   try {
     window.localStorage.setItem(FONT_COVERAGE_CACHE_STORAGE_KEY, JSON.stringify(fontCoverageCache));
   } catch {
@@ -190,7 +198,11 @@ function persistFontCoverageCache(): void {
 export function clearFontCoverageVerificationCache(): void {
   fontCoverageCacheLoaded = true;
   fontCoverageCache = {};
-  if (typeof window === 'undefined' || typeof window.localStorage === 'undefined') return;
+  if (
+    typeof window === 'undefined'
+    || typeof window.localStorage === 'undefined'
+    || typeof window.localStorage.removeItem !== 'function'
+  ) return;
   window.localStorage.removeItem(FONT_COVERAGE_CACHE_STORAGE_KEY);
 }
 
