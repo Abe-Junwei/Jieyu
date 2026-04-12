@@ -15,6 +15,15 @@ const ALLOWED_IMPORT_FILES = new Set([
   'src/services/LinguisticService.ts',
 ]);
 
+const ALLOWED_IMPORT_PREFIXES = [
+  'src/db/',
+];
+
+function isAllowedImportFile(relPath) {
+  if (ALLOWED_IMPORT_FILES.has(relPath)) return true;
+  return ALLOWED_IMPORT_PREFIXES.some((prefix) => relPath.startsWith(prefix));
+}
+
 function walk(dir) {
   const entries = readdirSync(dir);
   const files = [];
@@ -84,7 +93,7 @@ function main() {
   for (const file of files) {
     const rel = relative(ROOT, file).replaceAll('\\\\', '/');
     if (TEST_FILE_SUFFIXES.some((suffix) => rel.endsWith(suffix))) continue;
-    if (ALLOWED_IMPORT_FILES.has(rel)) continue;
+    if (isAllowedImportFile(rel)) continue;
 
     const content = readFileSync(file, 'utf8');
     const hits = findTierTypeImports(content, file);

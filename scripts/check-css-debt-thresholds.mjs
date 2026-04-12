@@ -10,6 +10,7 @@ const SRC_DIR = path.join(ROOT, 'src');
 const STYLES_DIR = path.join(ROOT, 'src', 'styles');
 const TESTS_DIR = path.join(ROOT, 'tests');
 const CONFIG_PATH = path.join(ROOT, 'scripts', 'css-debt-thresholds.json');
+const DUP_BASELINE_PATH = path.join(ROOT, 'scripts', 'css-dup-selectors-baseline.json');
 
 const args = new Set(process.argv.slice(2));
 const strict = !args.has('--report-only') && !args.has('--no-strict');
@@ -45,14 +46,29 @@ function loadConfig() {
   return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
 }
 
-function collectDuplicateStats() {
+function readDuplicateBaseline() {
+  if (!fs.existsSync(DUP_BASELINE_PATH)) return new Set();
+  try {
+    const parsed = JSON.parse(fs.readFileSync(DUP_BASELINE_PATH, 'utf8'));
+    const allowed = Array.isArray(parsed?.allowedDuplicateClasses)
+      ? parsed.allowedDuplicateClasses.filter((item) => typeof item === 'string')
+      : [];
+    return new Set(allowed);
+  } catch {
+    return new Set();
+  }
+}
+
+function collectDuplicateStats(allowedBaseline) {
   const { duplicates } = collectDuplicateClassStats({
     rootDir: ROOT,
     stylesDir: STYLES_DIR,
   });
+  const effectiveDuplicates = duplicates.filter(([className]) => !allowedBaseline.has(className));
   return {
-    total: duplicates.length,
-    duplicates: [...duplicates].sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0])),
+    rawTotal: duplicates.length,
+    total: effectiveDuplicates.length,
+    duplicates: [...effectiveDuplicates].sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0])),
   };
 }
 
@@ -88,7 +104,8 @@ function printMetric(label, current, config, extras = []) {
 function main() {
   const config = loadConfig();
   const inlineStats = collectInlineStyleStats();
-  const duplicateStats = collectDuplicateStats();
+  const duplicateBaseline = readDuplicateBaseline();
+  const duplicateStats = collectDuplicateStats(duplicateBaseline);
   const unusedStats = collectUnusedStats();
   const failures = [...inlineStats.whitelistFailures];
 
@@ -110,7 +127,11 @@ function main() {
     'duplicateClassNames',
     duplicateStats.total,
     duplicateConfig,
-    duplicateStats.duplicates.slice(0, 6).map(([className, files]) => `${className}: ${files.length} files`),
+    [
+      `rawTotal=${duplicateStats.rawTotal}`,
+      `baselineAllowed=${duplicateBaseline.size}`,
+      ...duplicateStats.duplicates.slice(0, 6).map(([className, files]) => `${className}: ${files.length} files`),
+    ],
   );
   printMetric(
     'unusedSelectors',

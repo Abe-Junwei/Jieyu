@@ -19,6 +19,8 @@ const ALLOWED_PATH_SEGMENTS = [
   // 测试文件统一放行 | All test files allowed
   '.test.ts',
   '.test.tsx',
+  // db 模块拆分后，tierId 迁移/兼容字段仍在数据库边界内允许出现 | After db module split, tierId migration/compat fields are allowed within db boundary
+  '/src/db/',
   // 互操作服务 | Interop services (EAF)
   '/src/services/EafService.ts',
   // 互操作 hooks | Interop hooks (import/export)

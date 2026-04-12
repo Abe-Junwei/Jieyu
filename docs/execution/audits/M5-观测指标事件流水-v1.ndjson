@@ -1,0 +1,4 @@
+{"id":"business.e2e.main_path_success_rate","value":1,"at":"2026-04-12T13:56:10.406Z","tags":{"version":"1.0.0","module":"release-gate","environment":"local","source":"vitest-main-path","passed":102,"total":102,"failed":0,"p50":1,"p95":1}}
+{"id":"business.e2e.main_path_success_rate","value":1,"at":"2026-04-12T13:57:23.207Z","tags":{"version":"1.0.0","module":"release-gate","environment":"local","source":"vitest-main-path","passed":102,"total":102,"failed":0,"p50":1,"p95":1}}
+{"id":"business.e2e.main_path_success_rate","value":1,"at":"2026-04-12T14:05:22.800Z","tags":{"version":"1.0.0","module":"release-gate","environment":"local","source":"vitest-main-path","passed":102,"total":102,"failed":0,"p50":1,"p95":1}}
+{"id":"business.e2e.main_path_success_rate","value":1,"at":"2026-04-12T14:06:08.907Z","tags":{"version":"1.0.0","module":"release-gate","environment":"local","source":"vitest-main-path","passed":102,"total":102,"failed":0,"p50":1,"p95":1}}

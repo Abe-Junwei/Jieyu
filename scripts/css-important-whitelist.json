@@ -36,6 +36,16 @@
       "reason": "Side pane drag interaction override"
     },
     {
+      "file": "src/styles/pages/timeline/timeline-a11y.css",
+      "snippet": "transition: none !important;",
+      "reason": "减弱动效偏好下禁用时间轴过渡 | Disable timeline transitions for reduced-motion users"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-a11y.css",
+      "snippet": "animation: none !important;",
+      "reason": "减弱动效偏好下禁用时间轴动画 | Disable timeline animations for reduced-motion users"
+    },
+    {
       "file": "src/styles/pages/transcription-waveform.css",
       "snippet": "scrollbar-width: none !important;",
       "reason": "Hide native waveform scrollbars"

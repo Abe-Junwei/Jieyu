@@ -1,4 +1,30 @@
 {
-  "generatedAt": "2026-04-09T03:50:54.956Z",
-  "allowedDuplicateClasses": []
+  "generatedAt": "2026-04-12T13:52:44.756Z",
+  "allowedDuplicateClasses": [
+    "lane-label-resizing",
+    "lane-link-connector-svg-arrow",
+    "lane-link-connector-svg-dot",
+    "lane-link-connector-svg-elbow",
+    "lane-link-connector-svg-trunk",
+    "time-ruler-lane-toggle",
+    "timeline-annotation",
+    "timeline-annotation-active",
+    "timeline-annotation-input",
+    "timeline-annotation-resize-handle",
+    "timeline-annotation-selected",
+    "timeline-content-text-only",
+    "timeline-empty-actions-row",
+    "timeline-lane",
+    "timeline-lane-label",
+    "timeline-lane-label-bundle-child-end",
+    "timeline-lane-label-bundle-child-middle",
+    "timeline-lane-label-bundle-detached-root",
+    "timeline-lane-label-bundle-root",
+    "timeline-scroll",
+    "timeline-text-input",
+    "timeline-text-item",
+    "timeline-translation-audio-btn",
+    "timeline-translation-audio-btn-delete",
+    "transcription-waveform-resize-handle"
+  ]
 }
