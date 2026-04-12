@@ -1,6 +1,6 @@
-# M7 扩展可控化门禁判定报告（自动生成）
+# M8 协作演进 RC 评审报告（自动生成）
 
-- 生成时间：2026/4/13 07:10:43
+- 生成时间：2026/4/13 07:10:45
 - 模式：enforce
 - 结论：go
 
@@ -8,9 +8,9 @@
 
 | 指标 | 阈值 | 当前值 | 判定 |
 |---|---:|---:|---|
-| undeclared_capability_block_rate | 100% | 100.00% (1/1) | PASS |
-| load_failure_degrade_rate | 100% | 100.00% (1/1) | PASS |
-| compatibility_contract_pass_rate | 100% | 100.00% (5/5) | PASS |
+| conflict_detection_rate | 100% | 100.00% (3/3) | PASS |
+| consistency_after_resolution_rate | >= 99.90% | 100.00% (1/1) | PASS |
+| resolution_contract_pass_rate | 100% | 100.00% (2/2) | PASS |
 
 ## 分级门禁发现
 
@@ -22,5 +22,5 @@
 
 1. enforce 模式：存在任一 P0 即 no-go 并返回非零退出码。
 2. shadow 模式：存在 P0 仅告警，不阻断流水线。
-3. M7 核心指标均要求 100%，不足即进入 P0。
+3. RC 阶段要求冲突可检测率=100%，一致率>=99.9%，P0=0。
 
