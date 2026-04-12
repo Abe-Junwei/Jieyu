@@ -37,6 +37,11 @@ function resolveEnvironmentTag() {
   return env;
 }
 
+function resolveRunId() {
+  const runId = String(process.env.M5_GATE_RUN_ID ?? process.env.M6_GATE_RUN_ID ?? '').trim();
+  return runId || null;
+}
+
 function quantile(sortedValues, ratio) {
   if (sortedValues.length === 0) return 0;
   const index = Math.min(sortedValues.length - 1, Math.max(0, Math.ceil(ratio * sortedValues.length) - 1));
@@ -84,6 +89,7 @@ async function main() {
   const successRate = total > 0 ? passed / total : 0;
 
   const eventAt = new Date().toISOString();
+  const runId = resolveRunId();
   const event = {
     id: 'business.e2e.main_path_success_rate',
     value: Number(successRate.toFixed(6)),
@@ -98,6 +104,7 @@ async function main() {
       failed,
       p50: quantile([successRate], 0.5),
       p95: quantile([successRate], 0.95),
+      ...(runId ? { runId } : {}),
     },
   };
 

@@ -32,6 +32,20 @@ function parseModeArg() {
   return 'enforce';
 }
 
+function parseRunIdArg() {
+  const raw = process.argv.find((arg) => arg.startsWith('--run-id='));
+  if (!raw) return null;
+  const runId = raw.slice('--run-id='.length).trim();
+  return runId || null;
+}
+
+function resolveRunId() {
+  const fromArg = parseRunIdArg();
+  if (fromArg) return fromArg;
+  const fromEnv = String(process.env.M6_GATE_RUN_ID ?? process.env.M5_GATE_RUN_ID ?? '').trim();
+  return fromEnv || null;
+}
+
 function resolveEnvironmentTag() {
   const env = String(process.env.VITE_M5_OBSERVABILITY_ENV ?? process.env.NODE_ENV ?? '').trim().toLowerCase();
   if (!env) return process.env.CI ? 'ci' : 'local';
@@ -94,12 +108,63 @@ function parseMetricEvents(rawText) {
   return events;
 }
 
-function filterByDimension(events, metricId, version, environment) {
+function filterByDimension(events, metricId, version, environment, runId) {
   return events.filter((event) => (
     event.id === metricId
     && String(event.tags.version ?? '') === version
     && String(event.tags.environment ?? '') === environment
+    && (!runId || String(event.tags.runId ?? '') === runId)
   ));
+}
+
+function toPositiveFiniteNumber(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function getEventSampleCount(event) {
+  const fromSampleCount = toPositiveFiniteNumber(event.tags.sampleCount);
+  if (fromSampleCount) return fromSampleCount;
+  const fromTotal = toPositiveFiniteNumber(event.tags.total);
+  if (fromTotal) return fromTotal;
+  return 1;
+}
+
+function getMeasurementClass(event) {
+  const measurementClass = String(event.tags.measurementClass ?? '').trim();
+  if (measurementClass) return measurementClass;
+  const source = String(event.tags.source ?? '').trim();
+  if (source === 'vitest-runtime-latency-probe') return 'synthetic-test-probe';
+  return 'runtime';
+}
+
+function summarizeMetricEvents(events) {
+  if (events.length === 0) return null;
+  const values = events.map((event) => event.value);
+  const summary = summarizeValues(values);
+  const sampleCount = events.reduce((total, event) => total + getEventSampleCount(event), 0);
+  const measurementClasses = [...new Set(events.map((event) => getMeasurementClass(event)))].sort();
+  return {
+    ...summary,
+    eventCount: events.length,
+    sampleCount,
+    measurementClasses,
+  };
+}
+
+function selectLatencyEvents(events) {
+  const runtimeEvents = events.filter((event) => getMeasurementClass(event) !== 'synthetic-test-probe');
+  if (runtimeEvents.length > 0) {
+    return {
+      events: runtimeEvents,
+      usesSyntheticFallback: false,
+    };
+  }
+  return {
+    events,
+    usesSyntheticFallback: events.length > 0,
+  };
 }
 
 function runBuildCheck() {
@@ -129,10 +194,13 @@ function buildMarkdownReport(input) {
     mode,
     version,
     environment,
+    runId,
     buildCheck,
     aiSummary,
     transcriptionSummary,
     mainPathSummary,
+    aiUsesSyntheticFallback,
+    transcriptionUsesSyntheticFallback,
     p0Findings,
     p1Findings,
     p2Findings,
@@ -146,6 +214,9 @@ function buildMarkdownReport(input) {
   lines.push(`- 生成时间：${generatedAt}`);
   lines.push(`- 模式：${mode}`);
   lines.push(`- 维度：version=${version}, environment=${environment}`);
+  if (runId) {
+    lines.push(`- 运行ID：${runId}`);
+  }
   lines.push(`- 结论：${gateDecision}`);
   lines.push('');
 
@@ -154,10 +225,22 @@ function buildMarkdownReport(input) {
   lines.push('| 指标 | 阈值 | 当前值 | 样本数 | 判定 |');
   lines.push('|---|---:|---:|---:|---|');
   lines.push(`| build.success_rate | 1.0000 | ${buildCheck.ok ? '1.0000' : '0.0000'} | 1 | ${buildCheck.ok ? 'PASS' : 'FAIL'} |`);
-  lines.push(`| ai.chat.first_token_latency_ms.p95 | <= ${SLO.aiFirstTokenP95Ms} | ${aiSummary ? aiSummary.p95.toFixed(2) : 'N/A'} | ${aiSummary ? aiSummary.count : 0} | ${aiSummary ? (aiSummary.p95 <= SLO.aiFirstTokenP95Ms ? 'PASS' : 'WARN') : 'MISSING'} |`);
-  lines.push(`| business.transcription.segment_action_latency_ms.p95 | <= ${SLO.transcriptionLatencyP95Ms} | ${transcriptionSummary ? transcriptionSummary.p95.toFixed(2) : 'N/A'} | ${transcriptionSummary ? transcriptionSummary.count : 0} | ${transcriptionSummary ? (transcriptionSummary.p95 <= SLO.transcriptionLatencyP95Ms ? 'PASS' : 'WARN') : 'MISSING'} |`);
-  lines.push(`| business.e2e.main_path_success_rate | >= ${SLO.mainPathSuccessRate} | ${mainPathSummary ? mainPathSummary.p95.toFixed(4) : 'N/A'} | ${mainPathSummary ? mainPathSummary.count : 0} | ${mainPathSummary ? (mainPathSummary.p95 >= SLO.mainPathSuccessRate ? 'PASS' : 'FAIL') : 'MISSING'} |`);
+  lines.push(`| ai.chat.first_token_latency_ms.p95 | <= ${SLO.aiFirstTokenP95Ms} | ${aiSummary ? aiSummary.p95.toFixed(2) : 'N/A'} | ${aiSummary ? aiSummary.sampleCount : 0} | ${aiSummary ? (aiSummary.p95 <= SLO.aiFirstTokenP95Ms ? 'PASS' : 'WARN') : 'MISSING'} |`);
+  lines.push(`| business.transcription.segment_action_latency_ms.p95 | <= ${SLO.transcriptionLatencyP95Ms} | ${transcriptionSummary ? transcriptionSummary.p95.toFixed(2) : 'N/A'} | ${transcriptionSummary ? transcriptionSummary.sampleCount : 0} | ${transcriptionSummary ? (transcriptionSummary.p95 <= SLO.transcriptionLatencyP95Ms ? 'PASS' : 'WARN') : 'MISSING'} |`);
+  lines.push(`| business.e2e.main_path_success_rate | >= ${SLO.mainPathSuccessRate} | ${mainPathSummary ? mainPathSummary.p95.toFixed(4) : 'N/A'} | ${mainPathSummary ? mainPathSummary.sampleCount : 0} | ${mainPathSummary ? (mainPathSummary.p95 >= SLO.mainPathSuccessRate ? 'PASS' : 'FAIL') : 'MISSING'} |`);
   lines.push('');
+
+  if (aiUsesSyntheticFallback || transcriptionUsesSyntheticFallback) {
+    lines.push('## 样本来源说明');
+    lines.push('');
+    if (aiUsesSyntheticFallback) {
+      lines.push('- AI 首包时延当前来自 synthetic-test-probe 样本。');
+    }
+    if (transcriptionUsesSyntheticFallback) {
+      lines.push('- 转写操作时延当前来自 synthetic-test-probe 样本。');
+    }
+    lines.push('');
+  }
 
   lines.push('## 分级门禁发现');
   lines.push('');
@@ -205,6 +288,7 @@ async function main() {
   const mode = parseModeArg();
   const version = await readAppVersion();
   const environment = resolveEnvironmentTag();
+  const runId = resolveRunId();
 
   const buildCheck = runBuildCheck();
 
@@ -216,13 +300,16 @@ async function main() {
     events = [];
   }
 
-  const aiEvents = filterByDimension(events, 'ai.chat.first_token_latency_ms', version, environment);
-  const transcriptionEvents = filterByDimension(events, 'business.transcription.segment_action_latency_ms', version, environment);
-  const mainPathEvents = filterByDimension(events, 'business.e2e.main_path_success_rate', version, environment);
+  const aiEvents = filterByDimension(events, 'ai.chat.first_token_latency_ms', version, environment, runId);
+  const transcriptionEvents = filterByDimension(events, 'business.transcription.segment_action_latency_ms', version, environment, runId);
+  const mainPathEvents = filterByDimension(events, 'business.e2e.main_path_success_rate', version, environment, runId);
 
-  const aiSummary = aiEvents.length > 0 ? summarizeValues(aiEvents.map((event) => event.value)) : null;
-  const transcriptionSummary = transcriptionEvents.length > 0 ? summarizeValues(transcriptionEvents.map((event) => event.value)) : null;
-  const mainPathSummary = mainPathEvents.length > 0 ? summarizeValues(mainPathEvents.map((event) => event.value)) : null;
+  const aiSelection = selectLatencyEvents(aiEvents);
+  const transcriptionSelection = selectLatencyEvents(transcriptionEvents);
+
+  const aiSummary = summarizeMetricEvents(aiSelection.events);
+  const transcriptionSummary = summarizeMetricEvents(transcriptionSelection.events);
+  const mainPathSummary = summarizeMetricEvents(mainPathEvents);
 
   const p0Findings = [];
   const p1Findings = [];
@@ -250,11 +337,11 @@ async function main() {
     p1Findings.push(`转写关键操作时延超阈：p95=${transcriptionSummary.p95.toFixed(2)}ms > ${SLO.transcriptionLatencyP95Ms}ms。`);
   }
 
-  if (aiSummary && aiSummary.count < 20) {
-    p2Findings.push(`AI 首包样本数偏少（count=${aiSummary.count}，建议 >= 20）。`);
+  if (aiSummary && aiSummary.sampleCount < 20) {
+    p2Findings.push(`AI 首包样本数偏少（sampleCount=${aiSummary.sampleCount}，建议 >= 20）。`);
   }
-  if (transcriptionSummary && transcriptionSummary.count < 20) {
-    p2Findings.push(`转写操作样本数偏少（count=${transcriptionSummary.count}，建议 >= 20）。`);
+  if (transcriptionSummary && transcriptionSummary.sampleCount < 20) {
+    p2Findings.push(`转写操作样本数偏少（sampleCount=${transcriptionSummary.sampleCount}，建议 >= 20）。`);
   }
 
   const blocked = p0Findings.length > 0;
@@ -264,10 +351,13 @@ async function main() {
     mode,
     version,
     environment,
+    runId,
     buildCheck,
     aiSummary,
     transcriptionSummary,
     mainPathSummary,
+    aiUsesSyntheticFallback: aiSelection.usesSyntheticFallback,
+    transcriptionUsesSyntheticFallback: transcriptionSelection.usesSyntheticFallback,
     p0Findings,
     p1Findings,
     p2Findings,

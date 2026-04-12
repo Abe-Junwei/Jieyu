@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-04-12T22:51:43.210Z",
-  "aggregate": "d7567771688bec848b6169f4bc3aea754db886406e29ca7788bd9723469f91d6",
+  "generatedAt": "2026-04-12T22:59:00.049Z",
+  "aggregate": "046cfa3b5a897accabe138c112b0dbae0fa0c3337b17b2e3948f949b828f1f56",
   "fileHashes": {
     "src/styles/ai-hub.css": "4ba1cbc13251b6428cbb6bddde967453c0b8b1030e574792a1ff15165633d7eb",
     "src/styles/ai-sidebar-entry.css": "dc4b8437154cc412cce21ef93322de40f2f561960e95393ecc05624282680dd5",
@@ -15,8 +15,8 @@
     "src/styles/foundation/panel-primitives.css": "65e814ba64ce591b65bca1ea53db9e2bc96c648ae1d3531235a455d4524b1d34",
     "src/styles/foundation/waveform-display.css": "694d96f77f8c30fc65f4096d22665c39f647e1cd592aaa7f5ff0be3250439b83",
     "src/styles/global.css": "399adee0a0f5c68ba93127439fb5e854e403d0cfa844a2fe6a085469e5a4cef4",
-    "src/styles/pages/ai-sidebar-shell.css": "75b84de87c965a263c990601e8456fbf2ab649a0f39733c544b9c00ac69f27da",
-    "src/styles/pages/app-shell-layout.css": "70c27ad41533df410a349533ecec3beaf9924942bbb7054092a6a645197455b3",
+    "src/styles/pages/ai-sidebar-shell.css": "6289c0c3492aa2ba62de42e3946497d2ff78e9f11e03151954956ab7ecfbc5d2",
+    "src/styles/pages/app-shell-layout.css": "86dbce008c9cc4e6f84a309c75a1457d134547756da4ec790f69ba9c09e8e82d",
     "src/styles/pages/feature-availability.css": "3dc8547e00a4f05f5d3c7b413f6d48a399e21bfbc85c7e38cdc65f1b4e52a40f",
     "src/styles/pages/language-metadata-workspace.css": "5132679f510f557a60e040d1a048313a1a3389e73de801d48dcbab347db10390",
     "src/styles/pages/lexicon-workspace.css": "cbe38af4dceaf6d518ec49aeeec33a5d5ce2caada1b658cbca3b08b59880f5d6",

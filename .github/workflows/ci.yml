@@ -98,6 +98,44 @@ jobs:
       - name: M2 mainpath gate
         run: npm run gate:m2
 
+  m6-release-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M6 release gate (enforce)
+        run: npm run gate:m6-release
+
+  m7-extension-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M7 extension gate (enforce)
+        run: npm run gate:m7-extension
+
   build-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 30
