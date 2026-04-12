@@ -4,7 +4,7 @@
   position: sticky;
   left: 0;
   /* 高于 active annotation (z-raised=2)，确保标签始终遮盖下方滚动内容 | Above active annotations so label always covers scrolled content */
-  z-index: var(--z-overlay-base);
+  z-index: var(--z-overlay);
   display: inline-flex;
   flex-direction: column;
   align-items: center;
@@ -22,7 +22,7 @@
   padding: 2px 4px;
   pointer-events: none;
   white-space: nowrap;
-  border-right: 1px solid var(--border-soft);
+  border-right: none;
   line-height: 1.3;
   text-align: center;
   box-sizing: border-box;
@@ -33,16 +33,7 @@
 }
 
 .timeline-lane-label::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 2px;
-  bottom: 2px;
-  width: 2px;
-  background: var(--timeline-bundle-accent-color);
-  opacity: var(--timeline-bundle-accent-opacity);
-  pointer-events: none;
-  transition: opacity 160ms ease, background-color 160ms ease;
+  display: none;
 }
 
 .timeline-lane-label-bundle-root {
@@ -99,6 +90,11 @@
 .timeline-lane-header-dragging {
   opacity: 0.5;
   cursor: grabbing;
+}
+
+.timeline-lane-header:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  outline-offset: -2px;
 }
 
 .lane-label-resize-handle {

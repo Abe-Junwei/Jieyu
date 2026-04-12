@@ -128,11 +128,11 @@
 .transcription-toolbar-sep {
   width: 1px;
   height: 20px;
-  background: color-mix(in srgb, var(--text-tertiary) 30%, transparent);
+  background: var(--divider-subtle);
 }
 
 .transcription-wave-toolbar {
-  --icon-btn-border: 1px solid var(--border-soft);
+  --icon-btn-border: 1px solid var(--divider-base);
   --icon-btn-background: var(--surface-panel);
   --icon-btn-color: var(--text-primary);
   --icon-btn-hover-transform: translateY(-1px);
@@ -264,7 +264,7 @@
   align-items: center;
   gap: 10px;
   padding: 6px 12px 8px;
-  border-top: 1px solid color-mix(in srgb, var(--text-tertiary) 28%, transparent);
+  border-top: 1px solid var(--divider-subtle);
   background: color-mix(in srgb, var(--border-soft) 28%, transparent);
   flex-shrink: 0;
 }
@@ -336,7 +336,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 18px;
-  border: 1px dashed color-mix(in srgb, var(--text-tertiary) 50%, transparent);
+  border: 1px dashed var(--divider-subtle);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-panel) 70%, transparent);
   color: var(--text-secondary);
@@ -578,7 +578,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
-  border-top: 1px solid color-mix(in srgb, var(--surface-header) 84%, transparent);
+  border-top: 1px solid var(--divider-subtle);
   background: var(--surface-panel);
   min-width: 0;
   position: relative;
@@ -587,6 +587,7 @@
 
 .transcription-list-toolbar-zoom-only {
   justify-content: space-between;
+  min-height: 42px;
 }
 
 .transcription-list-toolbar-left,

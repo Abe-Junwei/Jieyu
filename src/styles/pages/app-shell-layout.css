@@ -31,7 +31,7 @@
   position: relative;
   width: var(--left-rail-width);
   height: 100%;
-  border-right: 1px solid var(--header-border);
+  border-right: 1px solid var(--divider-base);
   background: color-mix(in srgb, var(--surface-header) 96%, var(--surface-panel));
   z-index: var(--z-header);
   padding: 8px 4px;
@@ -49,7 +49,7 @@
 .app-left-rail-secondary {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--divider-subtle);
   display: grid;
   gap: 6px;
 }
@@ -67,7 +67,7 @@
 .app-left-rail-bottom-slot {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid var(--divider-subtle);
   min-height: 0;
   flex: 1;
   display: flex;

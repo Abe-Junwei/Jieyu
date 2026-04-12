@@ -19,12 +19,6 @@
   pointer-events: auto;
   margin-left: 1px;
   margin-right: 1px;
-  --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 10%, var(--surface-panel));
-  --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 8%, var(--surface-panel));
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--text-secondary) 17%, var(--surface-panel));
-  --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 68%, transparent);
-  --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 76%, transparent);
-  --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 20%, transparent);
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
 }
@@ -81,14 +75,19 @@
 
 .timeline-annotation:hover {
   background: var(--timeline-neutral-hover-bg);
+}
+
+.timeline-annotation:hover:not(.timeline-annotation-has-speaker) {
   --timeline-item-divider-color: var(--timeline-neutral-divider-hover);
 }
 
 .timeline-annotation > span:not(.timeline-annotation-speaker-badge) {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 0 6px;
+  line-height: 1.4;
+  padding: 1px 6px 2px;
   min-width: 0;
 }
 
@@ -183,8 +182,9 @@
   outline: none;
   background: transparent;
   font: inherit;
+  line-height: normal;
   color: inherit;
-  padding: 0 8px;
+  padding: 2px 8px 3px;
   margin: 0;
   box-sizing: border-box;
   transition: border-color 140ms ease;
@@ -210,7 +210,26 @@
 
 .timeline-annotation:focus-within {
   background: var(--surface-panel);
-  border: 1px solid var(--state-info-solid);
-  border-bottom-width: 1.5px;
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 48%, transparent);
   --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
+              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent),
+              0 0 0 2px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+}
+
+/* 编辑态输入框：保持原始单层框架，不再叠加内层边框 | Keep single-frame editing box, no inner framed input */
+.timeline-annotation:focus-within .timeline-annotation-input {
+  height: 100%;
+  margin: 0;
+  padding: 2px 8px 3px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: normal;
+  box-shadow: none;
+}
+
+.timeline-annotation:focus-within .timeline-annotation-input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }

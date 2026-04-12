@@ -11,14 +11,24 @@ const { mockListLanguageCatalogEntries } = vi.hoisted(() => ({
   mockListLanguageCatalogEntries: vi.fn(),
 }));
 
+const { mockSearchLanguageCatalogSuggestions } = vi.hoisted(() => ({
+  mockSearchLanguageCatalogSuggestions: vi.fn(),
+}));
+
 vi.mock('../services/LinguisticService.languageCatalog', () => ({
   listLanguageCatalogEntries: mockListLanguageCatalogEntries,
+}));
+
+vi.mock('../services/LanguageCatalogSearchService', () => ({
+  searchLanguageCatalogSuggestions: mockSearchLanguageCatalogSuggestions,
 }));
 
 beforeEach(() => {
   clearFontCoverageVerificationCache();
   mockListLanguageCatalogEntries.mockReset();
   mockListLanguageCatalogEntries.mockResolvedValue([]);
+  mockSearchLanguageCatalogSuggestions.mockReset();
+  mockSearchLanguageCatalogSuggestions.mockResolvedValue([]);
   Object.defineProperty(document, 'fonts', {
     configurable: true,
     value: {
@@ -26,7 +36,9 @@ beforeEach(() => {
       load: vi.fn(async () => []),
     },
   });
-  window.localStorage.clear();
+  if (typeof window !== 'undefined' && typeof window.localStorage?.clear === 'function') {
+    window.localStorage.clear();
+  }
 });
 
 afterEach(() => {

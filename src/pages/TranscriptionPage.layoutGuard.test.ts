@@ -215,20 +215,27 @@ describe('Transcription layout guard', () => {
     const entryCode = fs.readFileSync(entryPath, 'utf8');
     expect(entryCode).toContain("@import './pages/transcription-timeline.css';");
 
-    const cssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
-    const cssCode = fs.readFileSync(cssPath, 'utf8');
+    const timelineHubPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
+    const timelineHubCode = fs.readFileSync(timelineHubPath, 'utf8');
+    expect(timelineHubCode).toContain("@import './timeline/timeline-layout.css';");
+    expect(timelineHubCode).toContain("@import './timeline/timeline-lane.css';");
+
+    const layoutCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-layout.css');
+    const layoutCssCode = fs.readFileSync(layoutCssPath, 'utf8');
 
     const scrollSelector = '.timeline-scroll {';
-    const scrollStart = cssCode.indexOf(scrollSelector);
+    const scrollStart = layoutCssCode.indexOf(scrollSelector);
     expect(scrollStart).toBeGreaterThanOrEqual(0);
-    const scrollEnd = cssCode.indexOf('}', scrollStart);
+    const scrollEnd = layoutCssCode.indexOf('}', scrollStart);
     expect(scrollEnd).toBeGreaterThan(scrollStart);
-    const scrollBlock = cssCode.slice(scrollStart, scrollEnd + 1);
+    const scrollBlock = layoutCssCode.slice(scrollStart, scrollEnd + 1);
     expect(scrollBlock).toContain('overflow-x: auto;');
     expect(scrollBlock).toContain('overflow-y: auto;');
 
+    const laneCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane.css');
+    const laneCssCode = fs.readFileSync(laneCssPath, 'utf8');
     const laneSelector = '.timeline-lane {';
-    const laneStart = cssCode.indexOf(laneSelector);
+    const laneStart = laneCssCode.indexOf(laneSelector);
     expect(laneStart).toBeGreaterThanOrEqual(0);
 
     const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
@@ -254,13 +261,13 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps timeline lane label and focused styles in timeline css', () => {
-    const timelineCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
+    const timelineCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane-label.css');
     const timelineCssCode = fs.readFileSync(timelineCssPath, 'utf8');
 
     const laneLabelRegex = /^\.timeline-lane-label\s*\{/m;
     expect(laneLabelRegex.test(timelineCssCode)).toBe(true);
 
-    const laneFocusedRegex = /^\.timeline-lane-focused\s*\{/m;
+    const laneFocusedRegex = /^\.timeline-lane-header:focus-visible\s*\{/m;
     expect(laneFocusedRegex.test(timelineCssCode)).toBe(true);
 
     const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
@@ -293,7 +300,7 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps lane-label resize handle interactive styles in timeline css', () => {
-    const cssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
+    const cssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane-label.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 
     const selector = '.lane-label-resize-handle {';
@@ -317,27 +324,29 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps subtrack wrappers in timeline css while annotation items stay interactive', () => {
-    const timelineCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
-    const timelineCssCode = fs.readFileSync(timelineCssPath, 'utf8');
+    const laneCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-lane.css');
+    const laneCssCode = fs.readFileSync(laneCssPath, 'utf8');
 
     const subtrackSelector = '.timeline-annotation-subtrack {';
-    const subtrackStart = timelineCssCode.indexOf(subtrackSelector);
+    const subtrackStart = laneCssCode.indexOf(subtrackSelector);
     expect(subtrackStart).toBeGreaterThanOrEqual(0);
-    const subtrackEnd = timelineCssCode.indexOf('}', subtrackStart);
+    const subtrackEnd = laneCssCode.indexOf('}', subtrackStart);
     expect(subtrackEnd).toBeGreaterThan(subtrackStart);
-    const subtrackBlock = timelineCssCode.slice(subtrackStart, subtrackEnd + 1);
+    const subtrackBlock = laneCssCode.slice(subtrackStart, subtrackEnd + 1);
     expect(subtrackBlock).toContain('pointer-events: none;');
 
     const legacyCssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-waveform.css');
     const legacyCssCode = fs.readFileSync(legacyCssPath, 'utf8');
     expect(legacyCssCode).not.toContain(subtrackSelector);
 
+    const annotationCssPath = path.resolve(process.cwd(), 'src/styles/pages/timeline/timeline-annotation.css');
+    const annotationCssCode = fs.readFileSync(annotationCssPath, 'utf8');
     const annotationSelector = '.timeline-annotation {';
-    const annotationStart = timelineCssCode.indexOf(annotationSelector);
+    const annotationStart = annotationCssCode.indexOf(annotationSelector);
     expect(annotationStart).toBeGreaterThanOrEqual(0);
-    const annotationEnd = timelineCssCode.indexOf('}', annotationStart);
+    const annotationEnd = annotationCssCode.indexOf('}', annotationStart);
     expect(annotationEnd).toBeGreaterThan(annotationStart);
-    const annotationBlock = timelineCssCode.slice(annotationStart, annotationEnd + 1);
+    const annotationBlock = annotationCssCode.slice(annotationStart, annotationEnd + 1);
     expect(annotationBlock).toContain('pointer-events: auto;');
 
     expect(legacyCssCode).not.toContain(annotationSelector);

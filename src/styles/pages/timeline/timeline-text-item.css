@@ -26,15 +26,6 @@
   padding-right: 2px;
   margin-left: 1px;
   margin-right: 1px;
-  --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 10%, var(--surface-panel));
-  --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 8%, var(--surface-panel));
-  --timeline-neutral-active-bg: color-mix(in srgb, var(--text-secondary) 17%, var(--surface-panel));
-  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 22%, var(--surface-panel));
-  --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 68%, transparent);
-  --timeline-neutral-divider-active: color-mix(in srgb, var(--text-secondary) 78%, transparent);
-  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 66%, transparent);
-  --timeline-neutral-outline-active: color-mix(in srgb, var(--text-secondary) 20%, transparent);
-  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 26%, transparent);
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
 }
@@ -58,10 +49,10 @@
   transition: width var(--duration-fast, 120ms), background-color var(--duration-fast, 120ms);
 }
 
-/* Hover 时显示指示器，提供明确反馈 | Show indicator on hover for feedback */
-.timeline-text-item:hover::before {
-  width: 2px;
-  background: var(--timeline-neutral-divider-hover);
+/* Hover 时仅给无说话人项轻提示，避免与说话人语义冲突 | Gentle non-speaker hover indicator to avoid speaker-semantic clash */
+.timeline-text-item:hover:not(.timeline-text-item-has-speaker)::before {
+  width: 1px;
+  background: var(--timeline-neutral-divider-indicator);
 }
 
 /* 有说话人标识时加粗，提供更多视觉权重 */
@@ -109,21 +100,29 @@
 /* ── Hover ── */
 .timeline-text-item:hover {
   background: var(--timeline-neutral-hover-bg);
+}
+
+.timeline-text-item:hover:not(.timeline-text-item-has-speaker) {
   --timeline-item-divider-color: var(--timeline-neutral-divider-hover);
 }
 
 /* ── Active / Selected ── */
 .timeline-text-item.timeline-text-item-active {
-  background: var(--timeline-neutral-active-bg);
-  --timeline-item-divider-color: var(--timeline-neutral-divider-active);
-  box-shadow: inset 0 0 0 1px var(--timeline-neutral-outline-active);
+  background: var(--surface-panel);
+  border: 1px solid var(--state-info-solid);
+  border-bottom-width: 1.5px;
+  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 74%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  z-index: var(--z-raised, 2);
 }
 
 /* ── Focus within (input focused) ── */
 .timeline-text-item:focus-within {
-  background: var(--timeline-neutral-focus-bg);
-  --timeline-item-divider-color: var(--timeline-neutral-divider-focus);
-  box-shadow: inset 0 0 0 1px var(--timeline-neutral-outline-focus);
+  background: var(--surface-panel);
+  border: 1px solid var(--state-info-solid);
+  border-bottom-width: 1.5px;
+  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
 }
 
 /* ═══════════════════════════════════════
@@ -132,11 +131,19 @@
 
 .timeline-text-item.timeline-text-item-editing {
   opacity: 1;
-  background: color-mix(in srgb, var(--header-accent) 6%, var(--surface-panel));
-  border: 1.5px solid var(--header-accent);
+  background: var(--surface-panel);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 48%, transparent);
   --timeline-item-divider-color: var(--header-accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--header-accent) 18%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
+              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent);
   z-index: var(--z-raised, 2); /* 浮起于其他内容 */
+}
+
+.timeline-text-item.timeline-text-item-editing:focus-within {
+  border-color: color-mix(in srgb, var(--state-info-solid) 56%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
+              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent),
+              0 0 0 2px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
 }
 
 /* 编辑态隐藏 ::before 分隔线，避免与左边框冲突 */
@@ -144,9 +151,22 @@
   display: none;
 }
 
-/* 编辑态时 input 底部线由容器边框统一表达 */
+/* 编辑态输入框：保持原始单层框架，不再叠加内层边框 | Keep single-frame editing box, no inner framed input */
 .timeline-text-item-editing .timeline-text-input {
+  height: 100%;
+  margin: 0;
+  padding: 2px 20px 3px 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   border-bottom-color: transparent;
+  line-height: 1.3;
+  box-shadow: none;
+}
+
+.timeline-text-item-editing .timeline-text-input:focus {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 /* ═══════════════════════════════════════
@@ -255,16 +275,17 @@
   border-radius: 0;
   outline: none;
   background: transparent;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
+  line-height: 1.3;
   color: var(--text-primary);
-  padding: 0 20px 0 8px;
+  padding: 2px 20px 3px 8px;
   margin: 0;
   box-sizing: border-box;
   transition: border-color 140ms ease;
 }
 
 .timeline-text-item-has-speaker .timeline-text-input {
-  padding-top: 0;
+  padding-top: 2px;
 }
 
 .timeline-text-input::placeholder {

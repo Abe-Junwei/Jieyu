@@ -35,11 +35,36 @@
 
 .timeline-content {
   --timeline-content-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  /* 语段状态灰度阶梯（默认：柔和版，无需额外配置）| Segment neutral ladder (default: soft, no extra setup) */
+  --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 6%, var(--surface-panel));
+  --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 9%, var(--surface-panel));
+  --timeline-neutral-selected-bg: color-mix(in srgb, var(--text-secondary) 14%, var(--surface-panel));
+  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 18%, var(--surface-panel));
+  --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 58%, transparent);
+  --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 68%, transparent);
+  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 60%, transparent);
+  --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 16%, transparent);
+  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 22%, transparent);
+  --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
   width: calc(100% - var(--timeline-content-offset));
   min-width: 0;
   position: relative;
   /* 与波形区偏移对齐（含左侧视频面板偏移）| Align with waveform offset, including optional left-video panel offset */
   margin-left: var(--timeline-content-offset);
+}
+
+/* 语段状态灰度阶梯（可选：清晰版）| Segment neutral ladder (optional: clear preset) */
+:root[data-timeline-segment-contrast='clear'] .timeline-content {
+  --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 8%, var(--surface-panel));
+  --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 12%, var(--surface-panel));
+  --timeline-neutral-selected-bg: color-mix(in srgb, var(--text-secondary) 18%, var(--surface-panel));
+  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 22%, var(--surface-panel));
+  --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 66%, transparent);
+  --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 76%, transparent);
+  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 68%, transparent);
+  --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 22%, transparent);
+  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+  --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 46%, transparent);
 }
 
 .timeline-content-placeholder {
@@ -146,7 +171,7 @@
 .timeline-empty-actions-row > button {
   background: color-mix(in srgb, var(--surface-header) 84%, transparent);
   color: var(--text-primary);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--divider-base);
   box-shadow: none;
 }
 

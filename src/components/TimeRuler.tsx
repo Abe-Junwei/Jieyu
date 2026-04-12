@@ -20,6 +20,12 @@ interface TimeRulerProps {
 
 const NICE_STEPS = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
 const SUB_DIVS = [10, 5, 4, 2, 1];
+const RULER_HEIGHT_PX = 30;
+const RULER_MINOR_TICK_Y2_PX = 6;
+const RULER_MAJOR_TICK_Y2_PX = 13;
+const RULER_LABEL_Y_PX = 23;
+const RULER_HEAT_BAND_HEIGHT_PX = 4;
+const RULER_HEAT_BAND_Y_PX = RULER_HEIGHT_PX - RULER_HEAT_BAND_HEIGHT_PX;
 
 export function TimeRuler({
   duration,
@@ -191,9 +197,9 @@ export function TimeRuler({
                 key={`heat-${i}`}
                 className={`time-ruler-heat-band time-ruler-heat-band-level-${seg.level}`}
                 x={`${Math.max(0, leftPct)}%`}
-                y={24}
+                y={RULER_HEAT_BAND_Y_PX}
                 width={`${Math.min(100, leftPct + widthPct) - Math.max(0, leftPct)}%`}
-                height={4}
+                height={RULER_HEAT_BAND_HEIGHT_PX}
                 rx={1}
                 ry={1}
               />
@@ -209,13 +215,13 @@ export function TimeRuler({
                   x1={left}
                   x2={left}
                   y1={0}
-                  y2={tk.kind === 'major' ? 12 : 6}
+                  y2={tk.kind === 'major' ? RULER_MAJOR_TICK_Y2_PX : RULER_MINOR_TICK_Y2_PX}
                 />
                 {tk.kind === 'major' ? (
                   <text
                     className="time-ruler-label-text"
                     x={left}
-                    y={21}
+                    y={RULER_LABEL_Y_PX}
                     dx={2}
                   >
                     {fmtLabel(tk.time)}
@@ -229,7 +235,7 @@ export function TimeRuler({
             x1={`${((currentTime - start) / windowSec) * 100}%`}
             x2={`${((currentTime - start) / windowSec) * 100}%`}
             y1={0}
-            y2={28}
+            y2={RULER_HEIGHT_PX}
           />
         </svg>
       </div>
