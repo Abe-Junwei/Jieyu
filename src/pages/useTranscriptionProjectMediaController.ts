@@ -1,82 +1,23 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
-import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { MediaItemDocType } from '../db';
+import {
+  legacyCreateProject,
+  legacyDeleteAudio,
+  legacyDeleteProject,
+  legacyImportAudio,
+  legacyResolveAutoSegmentCandidates,
+} from '../app/index';
 import { useMediaImport } from '../hooks/useMediaImport';
-import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
-import { LinguisticService } from '../services/LinguisticService';
-import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
-import { ensureVadCacheForMedia, VAD_AUTO_WARM_MAX_BYTES } from '../services/vad/VadMediaCacheService';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
+import type {
+  UseTranscriptionProjectMediaControllerInput,
+  UseTranscriptionProjectMediaControllerResult,
+} from '../types/useTranscriptionProjectMediaController.types';
 const log = createLogger('useTranscriptionProjectMediaController');
-
-export interface UseTranscriptionProjectMediaControllerInput {
-  activeTextId: string | null;
-  getActiveTextId: () => Promise<string | null>;
-  setActiveTextId: (id: string | null) => void;
-  setShowAudioImport: (visible: boolean) => void;
-  addMediaItem: (item: MediaItemDocType) => void;
-  setSaveState: (state: SaveState) => void;
-  selectedMediaUrl: string | null;
-  selectedTimelineMedia: MediaItemDocType | null;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  createUtteranceFromSelectionRouted: (start: number, end: number) => Promise<void>;
-  loadSnapshot: () => Promise<void>;
-  selectTimelineUnit: (unit: TimelineUnit | null) => void;
-  locale: Locale;
-  tfB: (key: string, opts?: Record<string, unknown>) => string;
-  transcriptionLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
-  translationLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
-  translationTextByLayer: ReadonlyMap<string, Map<string, UtteranceTextDocType>>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-}
-
-interface UseTranscriptionProjectMediaControllerResult {
-  mediaFileInputRef: React.MutableRefObject<HTMLInputElement | null>;
-  handleDirectMediaImport: (event: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
-  audioDeleteConfirm: { filename: string } | null;
-  projectDeleteConfirm: boolean;
-  autoSegmentBusy: boolean;
-  handleAutoSegment: () => void;
-  handleDeleteCurrentAudio: () => void;
-  handleConfirmAudioDelete: () => void;
-  handleDeleteCurrentProject: () => void;
-  handleConfirmProjectDelete: () => void;
-  handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
-  handleAudioImport: (file: File, duration: number) => Promise<void>;
-  searchableItems: SearchableItem[];
-  setAudioDeleteConfirm: React.Dispatch<React.SetStateAction<{ filename: string } | null>>;
-  setProjectDeleteConfirm: React.Dispatch<React.SetStateAction<boolean>>;
-}
-
-async function resolveAutoSegmentCandidates(mediaId: string | undefined, mediaUrl: string, mediaBlobSize?: number): Promise<Array<{ start: number; end: number }>> {
-  const cachedEntry = await ensureVadCacheForMedia({
-    ...(mediaId !== undefined ? { mediaId } : {}),
-    mediaUrl,
-    ...(mediaBlobSize !== undefined && { mediaBlobSize }),
-  });
-  if (cachedEntry) {
-    return cachedEntry.segments;
-  }
-
-  // 大文件跳过 loadAudioBuffer 回退，避免全量 fetch+decodeAudioData 导致 OOM | Skip loadAudioBuffer fallback for large files to prevent full fetch+decode OOM
-  if (mediaBlobSize !== undefined && mediaBlobSize > VAD_AUTO_WARM_MAX_BYTES) {
-    log.warn('Media file too large for in-memory VAD, skipping auto-segment', { mediaId, mediaBlobSize });
-    return [];
-  }
-
-  // blob URL 且大小未知时，避免回退到全量 decode 路径导致潜在 OOM | Avoid full decode fallback for blob URLs with unknown size to prevent potential OOM
-  if (mediaBlobSize === undefined && mediaUrl.startsWith('blob:')) {
-    log.warn('Blob media size unknown, skipping in-memory VAD fallback to avoid OOM risk', { mediaId });
-    return [];
-  }
-
-  const audioBuffer = await loadAudioBuffer(mediaUrl);
-  return detectVadSegments(audioBuffer);
-}
 
 export function useTranscriptionProjectMediaController(
   input: UseTranscriptionProjectMediaControllerInput,
@@ -115,17 +56,23 @@ export function useTranscriptionProjectMediaController(
     tf: tfB,
   });
 
+  const selectedMediaBlobSize = useMemo(() => {
+    const details = selectedTimelineMedia?.details as Record<string, unknown> | undefined;
+    const blob = details?.audioBlob;
+    return blob instanceof Blob ? blob.size : undefined;
+  }, [selectedTimelineMedia]);
+
   const handleAutoSegment = useCallback(() => {
     const mediaUrl = selectedMediaUrl;
     if (!mediaUrl || autoSegmentBusy) return;
     setAutoSegmentBusy(true);
-    // 从媒体详情中提取 Blob 大小，用于 VAD 大文件门控 | Extract blob size from media details for VAD large-file gate
-    const details = selectedTimelineMedia?.details as Record<string, unknown> | undefined;
-    const blob = details?.audioBlob;
-    const blobSize = blob instanceof Blob ? blob.size : undefined;
     fireAndForget((async () => {
       try {
-        const segments = await resolveAutoSegmentCandidates(selectedTimelineMedia?.id, mediaUrl, blobSize);
+        const segments = await legacyResolveAutoSegmentCandidates({
+          ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
+          mediaUrl,
+          ...(selectedMediaBlobSize !== undefined ? { mediaBlobSize: selectedMediaBlobSize } : {}),
+        });
         const newSegs = segments.filter((seg) => !utterancesOnCurrentMedia.some(
           (utterance) => utterance.startTime < seg.end - 0.05 && utterance.endTime > seg.start + 0.05,
         ));
@@ -143,7 +90,7 @@ export function useTranscriptionProjectMediaController(
         setAutoSegmentBusy(false);
       }
     })());
-  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, locale, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, utterancesOnCurrentMedia]);
+  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, locale, selectedMediaBlobSize, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, utterancesOnCurrentMedia]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
     if (!selectedTimelineMedia) return;
@@ -156,7 +103,7 @@ export function useTranscriptionProjectMediaController(
     setAudioDeleteConfirm(null);
     fireAndForget((async () => {
       try {
-        await LinguisticService.deleteAudio(media.id);
+        await legacyDeleteAudio(media.id);
         await loadSnapshot();
         selectTimelineUnit(null);
         setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
@@ -189,7 +136,7 @@ export function useTranscriptionProjectMediaController(
     setProjectDeleteConfirm(false);
     fireAndForget((async () => {
       try {
-        await LinguisticService.deleteProject(currentActiveTextId);
+        await legacyDeleteProject(currentActiveTextId);
         setActiveTextId(null);
         selectTimelineUnit(null);
         await loadSnapshot();
@@ -213,7 +160,7 @@ export function useTranscriptionProjectMediaController(
   }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB]);
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
-    const result = await LinguisticService.createProject(projectInput);
+    const result = await legacyCreateProject(projectInput);
     setActiveTextId(result.textId);
     setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }) });
     setShowAudioImport(true);
@@ -224,7 +171,7 @@ export function useTranscriptionProjectMediaController(
     let textId = activeTextId ?? (await getActiveTextId());
     if (!textId) {
       const baseName = file.name.replace(/\.[^.]+$/, '');
-      const result = await LinguisticService.createProject({
+      const result = await legacyCreateProject({
         primaryTitle: baseName,
         englishFallbackTitle: baseName,
         primaryLanguageId: 'und',
@@ -233,7 +180,7 @@ export function useTranscriptionProjectMediaController(
       setActiveTextId(textId);
     }
     const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
-    const { mediaId } = await LinguisticService.importAudio({
+    const { mediaId } = await legacyImportAudio({
       textId,
       audioBlob: blob,
       filename: file.name,

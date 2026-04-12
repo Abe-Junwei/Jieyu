@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useRef } from 'react';
-import { LinguisticService } from '../services/LinguisticService';
+import { getTranscriptionAppService } from '../app/index';
 import type { MediaItemDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
 import { reportActionError } from '../utils/actionErrorReporter';
@@ -41,6 +41,8 @@ export function useMediaImport({
     }
 
     try {
+      const appService = getTranscriptionAppService();
+
       // Get duration
       const media = document.createElement(isVideo ? 'video' : 'audio') as HTMLMediaElement;
       // 仅加载元数据，避免大文件预缓冲 | Only load metadata, skip buffering to prevent large-file OOM
@@ -62,7 +64,7 @@ export function useMediaImport({
       let textId = activeTextId ?? (await getActiveTextId());
       if (!textId) {
         const baseName = file.name.replace(/\.[^.]+$/, '');
-        const result = await LinguisticService.createProject({
+        const result = await appService.createProject({
           primaryTitle: baseName,
           englishFallbackTitle: baseName,
           primaryLanguageId: 'und',
@@ -72,7 +74,7 @@ export function useMediaImport({
       }
       // 直接用 File（File 是 Blob 子类），避免 arrayBuffer() 复制导致大文件 OOM | Use File directly (File extends Blob) to avoid OOM from arrayBuffer() copy on large files
       const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
-      const { mediaId } = await LinguisticService.importAudio({
+      const { mediaId } = await appService.importAudio({
         textId,
         audioBlob: blob,
         filename: file.name,

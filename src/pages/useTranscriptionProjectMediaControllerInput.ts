@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { UseTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaController';
+import type { UseTranscriptionProjectMediaControllerInput } from '../types/useTranscriptionProjectMediaController.types';
 
 export function useTranscriptionProjectMediaControllerInput(
   input: UseTranscriptionProjectMediaControllerInput,

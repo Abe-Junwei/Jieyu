@@ -6,12 +6,13 @@ import { useMediaImport } from './useMediaImport';
 
 const mockCreateProject = vi.hoisted(() => vi.fn());
 const mockImportAudio = vi.hoisted(() => vi.fn());
+const mockGetTranscriptionAppService = vi.hoisted(() => vi.fn(() => ({
+  createProject: mockCreateProject,
+  importAudio: mockImportAudio,
+})));
 
-vi.mock('../services/LinguisticService', () => ({
-  LinguisticService: {
-    createProject: mockCreateProject,
-    importAudio: mockImportAudio,
-  },
+vi.mock('../app/index', () => ({
+  getTranscriptionAppService: () => mockGetTranscriptionAppService(),
 }));
 
 function createInput() {
@@ -82,6 +83,7 @@ describe('useMediaImport', () => {
     vi.restoreAllMocks();
     mockCreateProject.mockReset();
     mockImportAudio.mockReset();
+    mockGetTranscriptionAppService.mockClear();
     installMediaMetadataMock();
   });
 
@@ -102,6 +104,7 @@ describe('useMediaImport', () => {
       message: 'audio-import-failed: disk full',
       errorMeta: expect.objectContaining({ category: 'action', action: 'transcription.toolbar.importAudio' }),
     }));
+    expect(mockGetTranscriptionAppService).toHaveBeenCalledTimes(1);
     expect(fileInput.value).toBe('');
     expect(input.addMediaItem).not.toHaveBeenCalled();
   });
@@ -125,6 +128,40 @@ describe('useMediaImport', () => {
       message: 'conflict-message',
       errorMeta: expect.objectContaining({ category: 'conflict', action: 'transcription.toolbar.importAudio' }),
     }));
+    expect(mockGetTranscriptionAppService).toHaveBeenCalledTimes(1);
     expect(fileInput.value).toBe('');
+  });
+
+  it('creates project through app service when no active text exists', async () => {
+    const input = {
+      ...createInput(),
+      activeTextId: null,
+      getActiveTextId: vi.fn(async () => null),
+    };
+    mockCreateProject.mockResolvedValueOnce({ textId: 'text-new' });
+    mockImportAudio.mockResolvedValueOnce({ mediaId: 'media-new' });
+
+    const { result } = renderHook(() => useMediaImport(input));
+    const file = new File(['demo'], 'new-project.wav', { type: 'audio/wav' });
+    const { event } = createChangeEvent(file);
+
+    await act(async () => {
+      await result.current.handleDirectMediaImport(event);
+    });
+
+    expect(mockCreateProject).toHaveBeenCalledWith({
+      primaryTitle: 'new-project',
+      englishFallbackTitle: 'new-project',
+      primaryLanguageId: 'und',
+    });
+    expect(input.setActiveTextId).toHaveBeenCalledWith('text-new');
+    expect(mockImportAudio).toHaveBeenCalledWith(expect.objectContaining({
+      textId: 'text-new',
+      filename: 'new-project.wav',
+    }));
+    expect(input.addMediaItem).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'media-new',
+      textId: 'text-new',
+    }));
   });
 });
