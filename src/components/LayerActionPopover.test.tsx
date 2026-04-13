@@ -164,9 +164,11 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }), {
+    const codeInputForCmn = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i });
+    fireEvent.change(codeInputForCmn, {
       target: { value: 'cmn' },
     });
+    fireEvent.blur(codeInputForCmn);
 
     fireEvent.click(await screen.findByRole('button', { name: '新建' }));
 
@@ -174,9 +176,11 @@ describe('LayerActionPopover orthography creation', () => {
       target: { value: 'derive-other' },
     });
 
-    fireEvent.change(await screen.findByPlaceholderText('来源语言 ISO 639-3 代码（如 eng）'), {
+    const sourceLanguageCodeInput = await screen.findByPlaceholderText('来源语言 ISO 639-3 代码（如 eng）');
+    fireEvent.change(sourceLanguageCodeInput, {
       target: { value: 'eng' },
     });
+    fireEvent.blur(sourceLanguageCodeInput);
 
     await waitFor(() => {
       const sourceOrthographySelect = screen.getByRole('combobox', { name: '来源正字法' }) as HTMLSelectElement;
@@ -240,9 +244,11 @@ describe('LayerActionPopover orthography creation', () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }), {
+    const codeInputForEng = screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i });
+    fireEvent.change(codeInputForEng, {
       target: { value: 'eng' },
     });
+    fireEvent.blur(codeInputForEng);
 
     await waitFor(() => {
       expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);
@@ -306,6 +312,7 @@ describe('LayerActionPopover orthography creation', () => {
     });
 
     fireEvent.change(languageCodeInput, { target: { value: 'jpn' } });
+    fireEvent.blur(languageCodeInput);
 
     await waitFor(() => {
       expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('jpn');
@@ -405,6 +412,7 @@ describe('LayerActionPopover orthography creation', () => {
     });
 
     fireEvent.change(languageCodeInput, { target: { value: 'jpn' } });
+    fireEvent.blur(languageCodeInput);
     fireEvent.change(aliasInput, { target: { value: 'draft alias' } });
 
     await waitFor(() => {

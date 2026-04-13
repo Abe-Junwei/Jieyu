@@ -18,6 +18,7 @@ import { OrthographyManagerPanel } from './OrthographyManagerPanel';
 import {
   buildOrthographyBrowseSelector,
   buildOrthographyBrowseState,
+  WORKSPACE_LANGUAGE_SEARCH_LIMIT,
 } from './orthographyBrowse.shared';
 import {
   areDraftsEqual,
@@ -97,7 +98,7 @@ export function OrthographyManagerPage({
           ? (await searchLanguageCatalogSuggestions({
             query: normalizedSearchText,
             locale,
-            limit: 24,
+            limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
           })).map((suggestion) => suggestion.id)
           : [];
         const selector = buildOrthographyBrowseSelector({
@@ -118,9 +119,9 @@ export function OrthographyManagerPage({
         setOrthographies(records);
         setError('');
 
-        // 加载后自动选择首项（不依赖 searchParams） | Post-load auto-select first item (avoids dep on searchParams)
+        // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
         const currentId = selectedOrthographyIdRef.current;
-        if (records.length > 0 && !records.some((r) => r.id === currentId)) {
+        if (records.length > 0 && !currentId) {
           const nextParams = new URLSearchParams(searchParamsRef.current);
           nextParams.set(ORTHOGRAPHY_ID_PARAM, records[0]!.id);
           setSearchParams(nextParams, { replace: true });

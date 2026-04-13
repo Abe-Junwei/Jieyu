@@ -18,9 +18,9 @@
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 16%, transparent), color-mix(in srgb, var(--state-info-solid) 92%, transparent) 16%, color-mix(in srgb, var(--state-info-solid) 92%, transparent) 84%, color-mix(in srgb, var(--state-info-solid) 16%, transparent));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--state-info-border) 12%, transparent), 0 0 12px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  opacity: 0.85;
   pointer-events: none;
-  z-index: calc(var(--z-overlay) + 1);
+  z-index: var(--z-timeline-annotation);
 }
 
 .transcription-side-pane-item-row-boundary-highlight-top::before {
@@ -88,7 +88,7 @@
 .transcription-side-pane-item-chip {
   width: 20px;
   height: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -399,8 +399,6 @@
   overflow-y: auto;
   padding: 4px 2px;
   scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--text-secondary) 35%, transparent) transparent;
 }
 
 .transcription-side-pane-overview-portaled {
@@ -521,18 +519,7 @@
   background: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 }
 
-.transcription-side-pane-overview::-webkit-scrollbar {
-  width: 4px;
-}
-
-.transcription-side-pane-overview::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.transcription-side-pane-overview::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-secondary) 35%, transparent);
-  border-radius: var(--radius-pill);
-}
+/* Scrollbar handled globally via global.css — no per-component overrides needed */
 
 /* ── 聚焦层详情 | Focused layer inspector ── */
 .transcription-side-pane-inspector {

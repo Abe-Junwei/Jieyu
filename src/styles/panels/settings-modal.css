@@ -59,7 +59,7 @@
   font-weight: 600;
   color: var(--text-secondary);
   border-left: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   transition: color var(--shell-motion-fast, 140ms), border-color var(--shell-motion-fast, 140ms), background var(--shell-motion-fast, 140ms);
   line-height: 1.3;
   white-space: nowrap;
@@ -179,6 +179,7 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  min-width: 0;
 }
 
 /* ── 选项按钮组 | Option button group ── */
@@ -186,7 +187,7 @@
   display: flex;
   gap: 0;
   border: 1px solid var(--border-soft);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
@@ -514,7 +515,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 768px) {
   .pnl-settings-modal {
     width: min(680px, 96vw);
   }
@@ -569,7 +570,7 @@
   }
 }
 
-@media (max-width: 620px) {
+@media (max-width: 640px) {
   .settings-layout {
     grid-template-columns: 1fr;
   }
@@ -586,7 +587,7 @@
   .settings-tab-btn {
     border-left: none;
     border-bottom: 2px solid transparent;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
   }
 
   .settings-tab-btn[aria-selected="true"] {

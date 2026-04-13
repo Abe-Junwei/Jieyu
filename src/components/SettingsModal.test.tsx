@@ -171,6 +171,21 @@ describe('Shortcuts tab', () => {
 // ── AI 标签 | AI tab ───────────────────────────────────────
 
 describe('AI tab', () => {
+  it('stops shortcut capture after leaving shortcuts tab', async () => {
+    renderModal();
+    fireEvent.click(screen.getByText('快捷键'));
+    fireEvent.click(screen.getByText('SPACE'));
+    expect(screen.getByText(/请按下快捷键/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText('AI'));
+    await waitFor(() => expect(screen.queryByText(/请按下快捷键/)).toBeNull());
+
+    const keydown = new KeyboardEvent('keydown', { key: 'a', cancelable: true });
+    const notCanceled = document.dispatchEvent(keydown);
+    expect(notCanceled).toBe(true);
+    expect(keydown.defaultPrevented).toBe(false);
+  });
+
   it('loads AI settings and renders provider select', async () => {
     renderModal();
     fireEvent.click(screen.getByText('AI'));

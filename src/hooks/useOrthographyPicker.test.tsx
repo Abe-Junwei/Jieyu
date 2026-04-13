@@ -134,6 +134,11 @@ describe('useOrthographyPicker render warnings', () => {
       result.current.setCreateMode('copy-current');
     });
 
+    // 显式设置源正字法（不再自动选中首项） | Explicitly set source orthography (no longer auto-selects first)
+    act(() => {
+      result.current.setSourceOrthographyId('ortho-source');
+    });
+
     await waitFor(() => {
       expect(result.current.sourceOrthographyId).toBe('ortho-source');
     });
@@ -187,6 +192,11 @@ describe('useOrthographyPicker render warnings', () => {
       result.current.setCreateMode('copy-current');
     });
 
+    // 显式设置源正字法 | Explicitly set source orthography
+    act(() => {
+      result.current.setSourceOrthographyId('eng-latn');
+    });
+
     await waitFor(() => {
       expect(result.current.sourceOrthographyId).toBe('eng-latn');
     });
@@ -221,6 +231,11 @@ describe('useOrthographyPicker render warnings', () => {
     act(() => {
       result.current.handleSelectionChange('__create_new_orthography__');
       result.current.setCreateMode('copy-current');
+    });
+
+    // 显式设置源正字法 | Explicitly set source orthography
+    act(() => {
+      result.current.setSourceOrthographyId('eng-latn');
     });
 
     await waitFor(() => {

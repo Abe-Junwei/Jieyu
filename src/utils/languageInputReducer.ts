@@ -497,6 +497,33 @@ export function reduceLanguageInput(
         return withChangeSource(model, 'user-code-input');
       }
 
+      // 尝试构造候选项让用户确认，而非直接自动填充 | Try to show candidate for user confirmation instead of auto-filling
+      const resolvedEntry = getLanguageCatalogEntry(committed.languageAssetId ?? committed.languageCode);
+      if (resolvedEntry) {
+        const suggestion: LanguageCatalogMatch = {
+          entry: resolvedEntry,
+          score: 100,
+          matchSource: 'iso6393-exact',
+          matchedLabel: resolvedEntry.iso6393 === sanitizedInput.toLowerCase() ? resolvedEntry.iso6393 : sanitizedInput,
+          matchedLabelKind: 'code',
+          warnings: [],
+        };
+        return {
+          draft: {
+            nameInput: '',
+            codeInput: sanitizedInput,
+            activeField: 'code',
+          },
+          committed: null,
+          selectedOption: committed, // 预存完整提交值（含 BCP 47 标签）| Pre-store full committed value (incl. BCP 47 tags)
+          suggestions: [suggestion],
+          activeSuggestionIndex: -1,
+          status: 'suggesting',
+          lastChangeSource: 'user-code-input',
+        };
+      }
+
+      // 无目录条目（自定义语言等），回退到自动提交 | No catalog entry (custom language etc.), fall back to auto-commit
       return {
         draft: {
           nameInput: committed.languageName,
@@ -567,12 +594,13 @@ export function reduceLanguageInput(
       if (!match) {
         return model;
       }
-      const committed = buildCommittedValueFromMatch(match, locale, options);
+      // 如果 selectedOption 已由代码输入预构建（含 BCP 47 标签），直接使用 | If selectedOption was pre-built by code input (with BCP 47 tags), use it directly
+      const committed = model.selectedOption ?? buildCommittedValueFromMatch(match, locale, options);
       return {
         draft: {
           nameInput: committed.languageName,
           codeInput: committed.languageCode,
-          activeField: 'name',
+          activeField: model.draft.activeField ?? 'name',
         },
         committed,
         selectedOption: committed,
@@ -612,6 +640,25 @@ export function reduceLanguageInput(
           lastChangeSource: 'blur-commit',
         };
       }
+
+      // 代码输入产生的候选项在 blur 时自动提交 | Auto-commit code-derived suggestions on blur
+      if (model.status === 'suggesting' && model.suggestions.length > 0 && model.lastChangeSource === 'user-code-input') {
+        const committed = model.selectedOption ?? buildCommittedValueFromMatch(model.suggestions[0]!, locale, options);
+        return {
+          draft: {
+            nameInput: committed.languageName,
+            codeInput: committed.languageCode,
+            activeField: null,
+          },
+          committed,
+          selectedOption: committed,
+          suggestions: [],
+          activeSuggestionIndex: -1,
+          status: 'selected',
+          lastChangeSource: 'blur-commit',
+        };
+      }
+
       if (model.draft.activeField !== 'code') {
         return model;
       }

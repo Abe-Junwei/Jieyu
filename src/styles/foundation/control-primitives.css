@@ -29,8 +29,8 @@
   border-radius: var(--input-border-radius, var(--radius-md));
   background: var(--input-background, var(--surface-panel));
   color: var(--input-color, var(--text-primary));
-  padding: var(--input-padding, 8px 10px);
-  font-size: var(--input-font-size, calc(0.76rem * var(--ui-font-scale, 1)));
+  padding: var(--input-padding, var(--space-2, 8px) var(--space-3, 10px));
+  font-size: var(--input-font-size, var(--font-size-sm));
   line-height: var(--input-line-height, 1.4);
   box-sizing: border-box;
 }
@@ -46,13 +46,24 @@
   border-radius: var(--btn-border-radius, var(--radius-md));
   background: var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)));
   color: var(--btn-color, var(--state-info-solid));
-  padding: var(--btn-padding, 6px 10px);
+  padding: var(--btn-padding, var(--space-1-5, 6px) var(--space-3, 10px));
   cursor: pointer;
   font-family: var(--btn-font-family, inherit);
-  font-size: var(--btn-font-size, calc(0.76rem * var(--ui-font-scale, 1)));
+  font-size: var(--btn-font-size, var(--font-size-sm));
   line-height: var(--btn-line-height, 1.4);
   font-weight: var(--btn-font-weight, 600);
   box-shadow: var(--btn-box-shadow, none);
+  transition: transform var(--duration-instant), background var(--duration-instant), border-color var(--duration-instant), box-shadow var(--duration-instant);
+}
+
+.btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+.btn:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .btn-ghost {

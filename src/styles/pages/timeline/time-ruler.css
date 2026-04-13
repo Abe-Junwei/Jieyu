@@ -5,7 +5,7 @@
   height: 30px;
   max-width: 100%;
   flex-shrink: 0;
-  border-top: 1px solid var(--text-secondary);
+  border-top: 1px solid var(--divider-base);
   border-bottom: 1px solid color-mix(in srgb, var(--border-strong) 55%, transparent);
   /* 顶部轻语义色带 + 主背景，增强与编辑区区分 | Subtle top semantic strip + base background to separate ruler from editor */
   background:
@@ -19,7 +19,7 @@
   box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--surface-panel) 22%, transparent);
   user-select: none;
   overflow: visible;
-  z-index: calc(var(--z-timeline-sticky) + 2);
+  z-index: var(--z-timeline-sticky);
 }
 
 .time-ruler-placeholder {
@@ -54,7 +54,7 @@
   width: 18px;
   height: 16px;
   border: 1px solid color-mix(in srgb, var(--text-secondary) 45%, transparent);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
   color: var(--text-secondary);
   display: inline-flex;
@@ -62,10 +62,10 @@
   justify-content: center;
   padding: 0;
   cursor: pointer;
-  z-index: calc(var(--z-timeline-sticky) + 3);
-  transition: left 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    background 160ms ease, border-color 160ms ease,
-    box-shadow 160ms ease, transform 160ms ease;
+  z-index: var(--z-timeline-sticky);
+  transition: left var(--duration-normal) var(--ease-smooth),
+    background var(--duration-fast) ease, border-color var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease, transform var(--duration-fast) ease;
 }
 
 /* 拖拽调整 lane-label 宽度期间禁用 left transition | Disable left transition during lane-label resize drag */

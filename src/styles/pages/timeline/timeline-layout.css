@@ -50,7 +50,7 @@
   min-width: 0;
   position: relative;
   /* 与波形区偏移对齐（含左侧视频面板偏移）| Align with waveform offset, including optional left-video panel offset */
-  margin-left: var(--timeline-content-offset);
+  padding-left: var(--timeline-content-offset);
 }
 
 /* 语段状态灰度阶梯（可选：清晰版）| Segment neutral ladder (optional: clear preset) */
@@ -76,7 +76,7 @@
   border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
   pointer-events: none;
-  z-index: var(--z-header);
+  z-index: var(--z-overlay);
 }
 
 .timeline-lasso-overlay {
@@ -120,7 +120,7 @@
   right: 0;
   height: 2px;
   background: var(--color-primary, var(--state-info-solid));
-  z-index: var(--z-header);
+  z-index: var(--z-overlay);
 }
 
 .timeline-lane-drop-indicator-top {

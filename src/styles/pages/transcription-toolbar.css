@@ -636,7 +636,7 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1024px) {
   .transcription-list-toolbar {
     flex-wrap: wrap;
     row-gap: 6px;

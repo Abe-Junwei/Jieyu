@@ -1,5 +1,10 @@
 import type { ListOrthographyRecordsSelector } from '../services/LinguisticService.orthography';
 
+/**
+ * 工作台页面语言搜索的统一查询上限 | Shared search limit for workspace-level language catalog search
+ */
+export const WORKSPACE_LANGUAGE_SEARCH_LIMIT = 50;
+
 export type OrthographyBrowseState = {
   browseLanguageIds: string[];
   normalizedSearchText: string;
@@ -66,20 +71,20 @@ export function buildOrthographyBrowseSelector(input: {
   }
 
   if (input.state.normalizedSearchText) {
+    // 搜索模式下不注入当前选中 ID，避免固定项混入搜索结果 | Do NOT inject selected ID in search mode to keep results clean
     return {
       includeBuiltIns: true,
       searchText: input.state.normalizedSearchText,
       ...(input.state.shouldLoadProjectSubset ? { languageIds: input.state.browseLanguageIds } : {}),
-      ...(normalizedSelectedOrthographyId ? { orthographyIds: [normalizedSelectedOrthographyId] } : {}),
       ...(normalizedSearchLanguageIds.length > 0 ? { searchLanguageIds: normalizedSearchLanguageIds } : {}),
     };
   }
 
   if (input.state.shouldLoadProjectSubset) {
+    // 项目子集浏览下不注入当前选中 ID，避免固定项混入列表 | Do NOT inject selected ID in project-subset browse to keep list clean
     return {
       includeBuiltIns: true,
       languageIds: input.state.browseLanguageIds,
-      ...(normalizedSelectedOrthographyId ? { orthographyIds: [normalizedSelectedOrthographyId] } : {}),
     };
   }
 

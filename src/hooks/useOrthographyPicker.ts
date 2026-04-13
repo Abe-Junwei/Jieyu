@@ -669,7 +669,8 @@ export function useOrthographyPicker(
       setSourceOrthographyId(value);
       return;
     }
-    setSourceOrthographyId(sourceOrthographies[0]?.id ?? '');
+    // 不自动选中首项，留空让用户显式选择 | Do NOT auto-select first; leave empty for explicit user choice
+    setSourceOrthographyId('');
   }, [createMode, isCreating, sourceOrthographies, sourceOrthographyId, value]);
 
   const handleSelectionChange = useCallback((nextValue: string) => {

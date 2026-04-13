@@ -308,7 +308,13 @@ export function OrthographyBridgeManager({
     if (sourceOrthographies.some((orthography) => orthography.id === sourceOrthographyId)) {
       return;
     }
-    setSourceOrthographyId(sourceOrthographies[0]?.id ?? '');
+    // 新建时不自动选首项，留空让用户显式选择；编辑已有桥接时回退到首项以恢复匹配
+    // New: leave empty for explicit choice; Editing: fall back to first to restore match
+    if (isCreatingNew) {
+      setSourceOrthographyId('');
+    } else {
+      setSourceOrthographyId(sourceOrthographies[0]?.id ?? '');
+    }
   }, [editingBridgeId, isCreatingNew, resolvedSourceLanguageId, sourceOrthographies, sourceOrthographyId]);
 
   const saveBridge = useCallback(async () => {

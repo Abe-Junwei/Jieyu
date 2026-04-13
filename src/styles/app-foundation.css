@@ -1,7 +1,13 @@
-@import './global.css';
-@import './foundation/control-primitives.css';
-@import './pages/app-shell-layout.css';
-@import './foundation/dialog-shell.css';
-@import './foundation/panel-primitives.css';
-@import './foundation/panel-design-presets.css';
-@import './foundation/language-asset-section-contract.css';
+/* ── CSS Cascade Layers ──────────────────────────────────────
+ * 优先级：reset < tokens < foundation < theme < components < overrides
+ * 浏览器支持：Chrome 99+, Firefox 97+, Safari 15.4+, 2025 全量覆盖
+ * ─────────────────────────────────────────────────────────── */
+@layer reset, tokens, foundation, theme, components, overrides;
+
+@import './global.css';         /* layer: reset (implicitly uses default) */
+@import './foundation/control-primitives.css';    /* components */
+@import './pages/app-shell-layout.css';           /* components */
+@import './foundation/dialog-shell.css';          /* components */
+@import './foundation/panel-primitives.css';      /* components */
+@import './foundation/panel-design-presets.css';  /* theme */
+@import './foundation/language-asset-section-contract.css'; /* components */

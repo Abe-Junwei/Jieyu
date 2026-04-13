@@ -109,12 +109,12 @@
 
 .panel-design-match :is(.panel-section, .panel-section--emphasis),
 .panel-design-match-content :is(.panel-section, .panel-section--emphasis) {
-  gap: 8px;
-  padding: 8px;
+  gap: var(--space-2, 8px);
+  padding: var(--space-2, 8px);
   border: 0;
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--panel-design-surface-color) 96%, white);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  background: color-mix(in srgb, var(--panel-design-surface-color) 96%, var(--surface-bg));
+  box-shadow: var(--shadow-card);
 }
 
 .panel-design-match :is(.panel-section__header, .panel-section__meta),

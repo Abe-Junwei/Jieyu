@@ -1,33 +1,209 @@
 /* ── 设计令牌 | Design Tokens ─────────────────────────────────
  * 纯自定义属性定义，不含任何元素样式。
  * Pure custom property definitions — no element styles.
+ *
+ * 架构说明：通过 @layer tokens 声明令牌层，由 cascade layer 控制优先级。
+ * 色彩体系参照 Radix Colors 12-step scale，确保 WCAG AA 对比度。
  * ─────────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════════════════════
+   Gray 色阶 — 12-step scale（对标 Radix Mauve/Gray）
+   应用层只引用语义 token（--surface-* / --border-* / --text-*），
+   不直接引用 gray-N。换肤只需替换 gray-N 和语义映射。
+   ═══════════════════════════════════════════════════════════ */
 
 /* ── 浅色主题 | Light theme ── */
 :root {
-  --font-base: "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
-  --font-chat: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", "Noto Sans", sans-serif;
-  --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", "Noto Sans", serif;
-  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-  --color-white: #ffffff;
-  --text-primary: #24292f;
-  --text-secondary: #57606a;
-  --text-on-solid: #ffffff;
-  --surface-bg: #f3f3f3;
-  --surface-panel: #ffffff;
-  --surface-header: #f8f8f8;
-  --shadow-color: #0f172a;
-  --border-soft: #d8dee4;
-  --border-strong: #c7ced6;
-  --tab-text: #3d444d;
-  --tab-hover: #1f2328;
-  --tab-active: #eaeef2;
+  /* Gray 阶梯（浅色）— 微暖 Mauve 色调（对标 Linear/Radix Mauve）
+   * 与 blue-9 产生色调共鸣，避免"灰蓝割裂" */
+  --gray-1: #fcfcfd;
+  --gray-2: #f7f7f8;
+  --gray-3: #f0f0f2;
+  --gray-4: #e8e8eb;
+  --gray-5: #e0e0e4;
+  --gray-6: #d4d4da;
+  --gray-7: #c4c4cd;
+  --gray-8: #aeaeb9;
+  --gray-9: #868694;
+  --gray-10: #6a6a7b;
+  --gray-11: #474758;
+  --gray-12: #1b1b24;
 
-  --header-brand-font: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-  --header-accent: #0969da;
+  /* 语义映射 — 表面与底色 */
+  --surface-bg: var(--gray-3);
+  --surface-panel: var(--gray-1);
+  --surface-header: var(--gray-2);
+  --surface-elevated: color-mix(in srgb, var(--gray-2) 88%, var(--gray-1));
+  --surface-overlay: var(--gray-1);
+  --surface-dark-card: color-mix(in srgb, var(--gray-1) 60%, transparent);
+
+  /* 语义映射 — 边框与分隔 */
+  --border-subtle: var(--gray-5);
+  --border-soft: var(--gray-6);
+  --border-strong: var(--gray-7);
+
+  /* 语义映射 — 文本 */
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-10);
+  --text-tertiary: var(--gray-9);     /* AA 达标：~4.6:1 on white */
+  --text-on-solid: #ffffff;
+  --color-white: #ffffff;
+
+  /* ═══════════════════════════════════════════════════════
+     品牌色与功能色 — 对标 Geist 10-step scale
+     当前使用蓝色 (--blue-9)，可替换为品牌色（如紫色 --purple-9）
+     ═══════════════════════════════════════════════════════ */
+
+  /* 功能色基色（base-9 = 标准强度） */
+  --blue-9: #0066ff;
+  --green-9: #22c55e;
+  --amber-9: #f59e0b;
+  --red-9: #ef4444;
+  --purple-9: #8b5cf6;
+
+  /* 强调色（保留别名兼容旧引用） */
+  --header-accent: var(--blue-9);
+
+  /* Info 状态 — 从 blue 派生 */
+  --state-info-solid: var(--blue-9);
+  --state-info-text: var(--blue-9);
+  --state-info-bg: color-mix(in srgb, var(--blue-9) 12%, var(--surface-panel));
+  --state-info-bg-strong: color-mix(in srgb, var(--blue-9) 20%, var(--surface-panel));
+  --state-info-border: color-mix(in srgb, var(--blue-9) 30%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--blue-9) 42%, transparent);
+
+  /* Success 状态 — 从 green 派生 */
+  --state-success-solid: var(--green-9);
+  --state-success-text: color-mix(in srgb, var(--green-9) 72%, var(--gray-11));
+  --state-success-bg: color-mix(in srgb, var(--green-9) 6%, var(--surface-panel));
+  --state-success-border: color-mix(in srgb, var(--green-9) 20%, transparent);
+
+  /* Warning 状态 — 从 amber 派生 */
+  --state-warning-solid: var(--amber-9);
+  --state-warning-text: color-mix(in srgb, var(--amber-9) 80%, var(--gray-11));
+  --state-warning-bg: color-mix(in srgb, var(--amber-9) 6%, var(--surface-panel));
+  --state-warning-border: color-mix(in srgb, var(--amber-9) 20%, transparent);
+
+  /* Danger 状态 — 从 red 派生 */
+  --state-danger-solid: var(--red-9);
+  --state-danger-text: color-mix(in srgb, var(--red-9) 72%, var(--gray-11));
+  --state-danger-bg: color-mix(in srgb, var(--red-9) 6%, var(--surface-panel));
+  --state-danger-border: color-mix(in srgb, var(--red-9) 20%, transparent);
+
+  /* 不确定状态（低置信度/待确认）— 通过 warning 语义 token 复用 */
+  --state-uncertainty-solid: var(--state-warning-solid);
+  --state-uncertainty-text: var(--state-warning-text);
+  --state-uncertainty-bg: var(--state-warning-bg);
+  --state-uncertainty-border: var(--state-warning-border);
+
+  /* 半透明状态底色（徽章/标签用） */
+  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 12%, transparent);
+  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 10%, transparent);
+  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 12%, transparent);
+
+  /* ═══════════════════════════════════════════════════════
+     字体 — 统一为 2 套策略（对标 Linear/Geist）
+     Sans: 所有 UI 文本 + Noto 多语言兜底
+     Mono: 代码/时间戳/IPA（濒危语言研究刚需保留 IPA 字体）
+     ═══════════════════════════════════════════════════════ */
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code", monospace;
+  --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", serif;
+
+  /* 兼容别名 */
+  --font-base: var(--font-sans);
+  --font-chat: var(--font-sans);
+
+  /* ═══════════════════════════════════════════════════════
+     阴影系统 — 4 级分层（对标 Linear）
+     ═══════════════════════════════════════════════════════ */
+
+  --shadow-xs: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+  --shadow-sm: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  --shadow-md: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --shadow-lg: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
+
+  /* 语义映射 */
+  --shadow-card: var(--shadow-xs);
+  --shadow-popover: var(--shadow-sm);
+  --shadow-float: var(--shadow-md);
+  --shadow-modal: var(--shadow-lg);
+
+  --shadow-color: #1b1b24;   /* Mauve 深黑，非纯冷蓝黑 */
+
+  /* ═══════════════════════════════════════════════════════
+     间距 — 4px 网格（对标 Raycast）
+     ═══════════════════════════════════════════════════════ */
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ═══════════════════════════════════════════════════════
+     圆角 — 保留现有体系（已合理）
+     ═══════════════════════════════════════════════════════ */
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 16px;
+  --radius-pill: 999px;
+
+  /* ═══════════════════════════════════════════════════════
+     字号 — 标准化档位（对标 Geist Type Scale）
+     11 / 12 / 13 / 14 / 16 / 18px（0.6875 / 0.75 / 0.8125 / 0.875 / 1 / 1.125rem）
+     ═══════════════════════════════════════════════════════ */
+
+  --font-size-2xs: 0.6875rem;   /* 11px — 标签、角标 */
+  --font-size-xs: 0.75rem;      /* 12px — 辅助说明 */
+  --font-size-sm: 0.8125rem;    /* 13px — 表格/密集列表 */
+  --font-size-base: 0.875rem;   /* 14px — 正文（默认） */
+  --font-size-md: 1rem;         /* 16px — 小标题 */
+  --font-size-lg: 1.125rem;     /* 18px — 页面标题 */
+
+  /* ═══════════════════════════════════════════════════════
+     动效 — 3 档 + 场景分配（对标 Linear/Apple HIG）
+     instant: 瞬时反馈 (80-120ms)
+     fast: 标准过渡 (200ms)
+     normal: 布局变化 (300ms)
+     ═══════════════════════════════════════════════════════ */
+
+  --duration-instant: 100ms;    /* 按钮 hover、checkbox */
+  --duration-fast: 200ms;       /* 面板展开/折叠、tooltip */
+  --duration-normal: 300ms;     /* 侧栏伸缩、重排序 */
+
+  --ease-instant: ease-out;
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);   /* Linear 标准 */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);   /* Linear 弹性 */
+
+  /* 兼容别名 */
+  --ease-default: var(--ease-instant);
+  --ease-out: var(--ease-smooth);
+  --ease-out-expo: var(--ease-smooth);
+  --duration-slow: var(--duration-fast);
+  --duration-slower: var(--duration-normal);
+
+  /* ═══════════════════════════════════════════════════════
+     Shell 布局参数（保留现有）
+     ═══════════════════════════════════════════════════════ */
+
+  --header-brand-font: var(--font-mono);
+  --header-accent: var(--blue-9);
   --header-bg: rgba(248, 248, 248, 0.9);
-  --header-border: #d0d7de;
-  --header-shadow: 0 1px 2px rgba(31, 35, 40, 0.08);
+  --header-border: var(--gray-5);
+  --header-shadow: var(--shadow-xs);
   --header-height: 52px;
   --header-radius: 8px;
   --left-rail-width: 52px;
@@ -37,38 +213,43 @@
   --side-pane-width: 272px;
   --side-pane-gap: 0px;
   --shell-left-offset: 0px;
-  --shell-motion-fast: 140ms;
-  --shell-motion-base: 220ms;
+  --shell-motion-fast: var(--duration-fast);
+  --shell-motion-base: var(--duration-normal);
+
+  /* 标签页 */
+  --tab-text: var(--gray-11);
   --tab-text-muted: var(--text-secondary);
-  --tab-underline-hover: rgba(9, 105, 218, 0.1);
+  --tab-hover: var(--gray-12);
+  --tab-active: var(--gray-4);
+  --tab-underline-hover: color-mix(in srgb, var(--blue-9) 10%, transparent);
 
-  --surface-elevated: color-mix(in srgb, var(--surface-header) 88%, var(--surface-panel));
-  --surface-overlay: var(--surface-panel);
+  /* 焦点指示器 — 统一基线 */
   --focus-ring: color-mix(in srgb, var(--header-accent) 24%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 
-  --state-info-solid: var(--header-accent);
-  --state-info-text: var(--header-accent);
-  --state-info-bg: color-mix(in srgb, var(--header-accent) 12%, var(--surface-panel));
-  --state-info-bg-strong: color-mix(in srgb, var(--header-accent) 20%, var(--surface-panel));
-  --state-info-border: color-mix(in srgb, var(--header-accent) 30%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--header-accent) 42%, transparent);
+  /* 悬停覆盖层 */
+  --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
+  --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
+  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 
-  --state-success-solid: #22c55e;
-  --state-success-text: #15803d;
-  --state-success-bg: #f0fdf4;
-  --state-success-border: #bbf7d0;
+  /* 混色浓度档位 */
+  --mix-subtle: 8%;
+  --mix-light: 16%;
+  --mix-medium: 32%;
+  --mix-strong: 56%;
+  --mix-heavy: 76%;
 
-  --state-warning-solid: #f59e0b;
-  --state-warning-text: #92400e;
-  --state-warning-bg: #fffbeb;
-  --state-warning-border: #fcd34d;
+  /* 不透明度档位 */
+  --opacity-disabled: 0.38;
+  --opacity-dimmed: 0.54;
+  --opacity-muted: 0.72;
+  --opacity-subtle: 0.88;
 
-  --state-danger-solid: #ef4444;
-  --state-danger-text: #b91c1c;
-  --state-danger-bg: #fef2f2;
-  --state-danger-border: #fecaca;
-
-  --lane-label-width: 64px;
+  /* ═══════════════════════════════════════════════════════
+     Z-Index 层级（语义化档位 + 预留扩展槽）
+     ═══════════════════════════════════════════════════════ */
 
   --z-base: 1;
   --z-raised: 2;
@@ -85,17 +266,19 @@
   --z-popover: 170;
   --z-timeline-tooltip: 175;
   --z-context-menu: 180;
+  --z-timeline-annotation: 190;
+  --z-timeline-annotation-strong: 200;
   --z-floating-panel: 420;
+  --z-side-pane-handle: 430;
   --z-hub-sidebar: 1100;
   --z-modal-backdrop: 1200;
   --z-modal: 1220;
-  --z-modal-topmost: 10020;
-  --select-caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.25 5 6.25 8 3.25' fill='none' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --z-modal-topmost: 1240;
 
-  /* 三级文本色（图标、芯片等弱化元素） | Tertiary text color (icons, chips, muted elements) */
-  --text-tertiary: #94a3b8;
+  /* ═══════════════════════════════════════════════════════
+     控件尺寸（保留现有）
+     ═══════════════════════════════════════════════════════ */
 
-  /* 尺寸档位 | Size scale ────────────────────────────────────── */
   --input-h-sm: 30px;
   --input-h-md: 32px;
   --input-h-lg: 36px;
@@ -104,60 +287,18 @@
   --btn-h-md: 32px;
   --btn-h-compact: 30px;
 
-  /* 圆角档位 | Radius scale ──────────────────────────────────── */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-3xl: 16px;
-  --radius-pill: 999px;
+  /* 时间轴 */
+  --lane-label-width: 64px;
+  --timeline-lane-height: 54px;
 
-  /* 半透明状态底色（徽章/标签用） | Tinted state backgrounds ─── */
-  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
-  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 12%, transparent);
-  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 10%, transparent);
-  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 12%, transparent);
-  --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
-  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 7%, transparent);
-  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 60%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  /* 选择框箭头 SVG */
+  --select-caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.25 5 6.25 8 3.25' fill='none' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
-  /* 字号档位 | Type scale ─────────────────────────────────────── */
-  --font-size-2xs: 0.62rem;
-  --font-size-xs: 0.68rem;
-  --font-size-sm: 0.78rem;
-  --font-size-base: 0.84rem;
-  --font-size-md: 0.92rem;
-  --font-size-lg: 1rem;
+  /* ═══════════════════════════════════════════════════════
+     派生令牌 — 时间轴、分隔线、浮层等
+     ═══════════════════════════════════════════════════════ */
 
-  /* 不透明度档位 | Opacity scale ──────────────────────────────── */
-  --opacity-disabled: 0.38;
-  --opacity-dimmed: 0.54;
-  --opacity-muted: 0.72;
-  --opacity-subtle: 0.88;
-
-  /* 动效时长与缓动 | Motion duration & easing ────────────────── */
-  --duration-fast: 120ms;
-  --duration-normal: 160ms;
-  --duration-slow: 220ms;
-  --duration-slower: 240ms;
-  --ease-default: ease;
-  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
-
-  /* 混色浓度档位 | Mix-percentage scale ───────────────────────── */
-  --mix-subtle: 8%;
-  --mix-light: 16%;
-  --mix-medium: 32%;
-  --mix-strong: 56%;
-  --mix-heavy: 76%;
-
-  /* 时间轴中性状态色 | Timeline neutral states ───────────────── */
+  /* 时间轴中性状态色 */
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--border-soft) 18%, transparent);
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
@@ -165,7 +306,7 @@
   --timeline-neutral-divider-selected: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
   --timeline-neutral-outline-selected: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
 
-  /* 时间轴 Bundle 链接色 | Timeline bundle link colors ───────── */
+  /* 时间轴 Bundle 链接色 */
   --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
   --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
   --timeline-link-color-1: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
@@ -179,95 +320,124 @@
   --timeline-link-color-5: color-mix(in srgb, var(--text-secondary) 62%, transparent);
   --timeline-link-color-active-5: color-mix(in srgb, var(--text-primary) 88%, transparent);
 
-  /* 时间轴刻度与分隔 | Timeline ticks and separators ─────────── */
+  /* 时间轴刻度与分隔 */
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
-
-  /* 时间轴偏移复合变量 | Timeline label offset shorthand ─────── */
   --timeline-label-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
 
-  /* 时间尺配色 | Time ruler colors ───────────────────────────── */
+  /* 时间尺配色 */
   --ruler-top-accent-start: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   --ruler-top-accent-end: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
 
-  /* 分隔线体系 | Divider system ──────────────────────────────── */
+  /* 分隔线体系 */
   --divider-subtle: color-mix(in srgb, var(--border-soft) 60%, transparent);
   --divider-base: var(--border-soft);
   --divider-strong: var(--border-strong);
 
-  /* 浮层配色 | Popover colors ───────────────────────────────── */
+  /* 浮层配色 */
   --popover-bg: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --popover-border: var(--border-soft);
-  --popover-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  --popover-shadow: var(--shadow-md);
 
-  /* 强调色别名（兼容旧引用） | Accent color alias ───────────── */
+  /* 强调色别名 */
   --accent-primary: var(--header-accent);
-
-  /* 不确定状态色（低置信度/待确认） | Uncertainty states ─────── */
-  --state-uncertainty-solid: #f59e0b;
-  --state-uncertainty-text: #92400e;
-  --state-uncertainty-bg: #fffbeb;
-  --state-uncertainty-border: #fcd34d;
 }
 
-/* ── 暗色主题 | Dark theme ── */
+/* ═══════════════════════════════════════════════════════
+   暗色主题 | Dark theme
+   通过覆盖 gray-N 实现自动适配所有语义映射
+   ═══════════════════════════════════════════════════════ */
+
 :root[data-theme='dark'] {
+  /* Gray 阶梯（暗色）— 微暖 Mauve 色调，增强表面区分度
+   * 每级 delta L* 更大，确保 bg/panel/header 层次可感知 */
+  --gray-1: #0d0d10;
+  --gray-2: #141418;
+  --gray-3: #1c1c21;
+  --gray-4: #282830;
+  --gray-5: #31313a;
+  --gray-6: #3b3b45;
+  --gray-7: #4a4a56;
+  --gray-8: #5c5c6a;
+  --gray-9: #8b8b9e;
+  --gray-10: #a4a4b4;
+  --gray-11: #c8c8d4;
+  --gray-12: #ededf2;
+
+  /* 语义映射自动跟随 gray-N */
+  --surface-bg: var(--gray-2);
+  --surface-panel: var(--gray-3);
+  --surface-header: var(--gray-4);
+  --surface-elevated: color-mix(in srgb, var(--gray-4) 94%, var(--gray-3));
+  --surface-overlay: var(--gray-3);
+  --surface-dark-card: color-mix(in srgb, var(--gray-3) 66%, transparent);
+
+  --border-subtle: var(--gray-5);
+  --border-soft: var(--gray-6);
+  --border-strong: var(--gray-7);
+
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-10);
+  --text-tertiary: var(--gray-9);
+
   --color-white: #ffffff;
-  --text-primary: #e6edf3;
-  --text-secondary: #8b949e;
-  --surface-bg: #1e1e1e;
-  --surface-panel: #252526;
-  --surface-header: #252526;
+  --text-on-solid: #ffffff;
   --shadow-color: #000000;
-  --border-soft: #3f3f46;
-  --border-strong: #4b5563;
-  --tab-text: #c9d1d9;
-  --tab-hover: #f0f6fc;
-  --tab-active: #2d333b;
+
+  /* 强调色（暗色更亮） */
   --header-accent: #58a6ff;
   --header-bg: rgba(37, 37, 38, 0.94);
-  --header-border: #3f3f46;
+  --header-border: var(--gray-6);
   --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+
+  /* 标签页 */
+  --tab-text: var(--gray-11);
   --tab-text-muted: var(--text-secondary);
+  --tab-hover: #f0f6fc;
+  --tab-active: var(--gray-4);
   --tab-underline-hover: rgba(88, 166, 255, 0.16);
 
-  --surface-elevated: color-mix(in srgb, var(--surface-header) 94%, var(--surface-panel));
-  --surface-overlay: var(--surface-panel);
-  --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
+  /* 阴影覆盖 — 暗色下更扩散 */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
 
+  /* 状态色覆盖 — 暗色更亮 */
   --state-info-solid: var(--header-accent);
-  --state-info-text: #79c0ff;
+  --state-info-text: color-mix(in srgb, var(--header-accent) 70%, var(--gray-11));
   --state-info-bg: color-mix(in srgb, var(--header-accent) 16%, transparent);
   --state-info-bg-strong: color-mix(in srgb, var(--header-accent) 22%, transparent);
   --state-info-border: color-mix(in srgb, var(--header-accent) 38%, transparent);
   --state-info-border-strong: color-mix(in srgb, var(--header-accent) 50%, transparent);
 
-  --state-success-solid: #22c55e;
-  --state-success-text: #4ade80;
-  --state-success-bg: color-mix(in srgb, #22c55e 18%, transparent);
-  --state-success-border: color-mix(in srgb, #22c55e 38%, transparent);
+  --state-success-solid: var(--green-9);
+  --state-success-text: color-mix(in srgb, var(--green-9) 70%, var(--gray-10));
+  --state-success-bg: color-mix(in srgb, var(--green-9) 18%, transparent);
+  --state-success-border: color-mix(in srgb, var(--green-9) 38%, transparent);
 
-  --state-warning-solid: #f59e0b;
-  --state-warning-text: #fbbf24;
-  --state-warning-bg: color-mix(in srgb, #f59e0b 16%, transparent);
-  --state-warning-border: color-mix(in srgb, #f59e0b 38%, transparent);
+  --state-warning-solid: var(--amber-9);
+  --state-warning-text: color-mix(in srgb, var(--amber-9) 80%, var(--gray-10));
+  --state-warning-bg: color-mix(in srgb, var(--amber-9) 16%, transparent);
+  --state-warning-border: color-mix(in srgb, var(--amber-9) 38%, transparent);
 
-  --state-danger-solid: #ef4444;
-  --state-danger-text: #f87171;
-  --state-danger-bg: color-mix(in srgb, #ef4444 16%, transparent);
-  --state-danger-border: color-mix(in srgb, #ef4444 38%, transparent);
+  --state-danger-solid: var(--red-9);
+  --state-danger-text: color-mix(in srgb, var(--red-9) 70%, var(--gray-10));
+  --state-danger-bg: color-mix(in srgb, var(--red-9) 16%, transparent);
+  --state-danger-border: color-mix(in srgb, var(--red-9) 38%, transparent);
 
-  --text-tertiary: #6e7681;
-  --text-on-solid: #ffffff;
-  --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 7%, transparent);
-  --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 5%, transparent);
-  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 9%, transparent);
-  --surface-dark-card: color-mix(in srgb, var(--surface-panel) 66%, transparent);
+  /* 焦点覆盖 */
+  --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
   --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
   --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
 
-  /* 暗色主题混色浓度覆盖 | Dark theme mix-percentage overrides ─ */
+  /* 悬停覆盖 */
+  --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 7%, transparent);
+  --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 5%, transparent);
+  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 9%, transparent);
+
+  /* 暗色主题混色浓度覆盖 */
   --mix-subtle: 12%;
   --mix-light: 20%;
   --mix-medium: 38%;

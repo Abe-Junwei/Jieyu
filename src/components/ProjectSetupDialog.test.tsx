@@ -165,9 +165,11 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+    const setupCodeInput = screen.getByRole('textbox', { name: /语言代码/ });
+    fireEvent.change(setupCodeInput, {
       target: { value: 'eng' },
     });
+    fireEvent.blur(setupCodeInput);
 
     await waitFor(() => {
       expect(screen.getByRole('combobox', { name: '正字法 / 书写系统' })).toBeTruthy();
@@ -228,9 +230,11 @@ describe('ProjectSetupDialog orthography creation', () => {
     fireEvent.change(screen.getByRole('combobox', { name: /目标语言/ }), {
       target: { value: 'English' },
     });
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码/ }), {
+    const badgeCodeInput = screen.getByRole('textbox', { name: /语言代码/ });
+    fireEvent.change(badgeCodeInput, {
       target: { value: 'eng' },
     });
+    fireEvent.blur(badgeCodeInput);
 
     await waitFor(() => {
       expect(screen.getAllByText('English Reviewed · Latn · practical').length).toBeGreaterThan(0);

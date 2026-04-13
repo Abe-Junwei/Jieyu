@@ -28,7 +28,7 @@
   cursor: pointer;
   color: var(--text-primary);
   font-size: inherit;
-  font-weight: 520;
+  font-weight: 500;
   text-align: left;
   transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -128,7 +128,7 @@
 .context-menu-danger .context-menu-item-icon {
   color: currentColor;
   border-color: color-mix(in srgb, var(--state-danger-solid) 16%, transparent);
-  background: linear-gradient(180deg, var(--state-danger-bg) 0%, var(--state-danger-bg) 100%);
+  background: var(--state-danger-bg);
   opacity: 0.92;
 }
 

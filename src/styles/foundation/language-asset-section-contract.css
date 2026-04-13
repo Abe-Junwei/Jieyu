@@ -1,10 +1,10 @@
 .la-shell .dialog-header {
   min-height: auto;
-  padding: 12px 16px;
+  padding: var(--space-3, 12px) var(--space-4, 16px);
   align-items: flex-start;
-  gap: 10px 14px;
+  gap: var(--space-3, 10px) var(--space-4, 14px);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--color-white)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 94%, var(--surface-bg)), color-mix(in srgb, var(--surface-panel) 88%, var(--surface-header)) 100%);
 }
 
 /* 统一标题右侧留白 | Shared title right padding */
@@ -69,11 +69,11 @@
 /* ── 统一设计 Token | Unified design tokens ── */
 
 .la-shell {
-  --la-body-size: calc(0.82rem * var(--ui-font-scale, 1));
-  --la-meta-size: calc(0.78rem * var(--ui-font-scale, 1));
-  --la-note-size: calc(0.76rem * var(--ui-font-scale, 1));
-  --la-unified-title-size: calc(12px * var(--ui-font-scale, 1));
-  --la-field-gap: 8px;
+  --la-body-size: var(--font-size-sm);
+  --la-meta-size: var(--font-size-sm);
+  --la-note-size: var(--font-size-sm);
+  --la-unified-title-size: 12px;
+  --la-field-gap: var(--space-2, 8px);
   --ws-note-size: var(--la-meta-size);
   /* 面板外壳 | Panel shell */
   --dialog-auto-width: 100%;
@@ -82,8 +82,8 @@
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
-  box-shadow: 0 18px 42px color-mix(in srgb, var(--shadow-color) 11%, transparent);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--surface-bg)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ── 统一按钮样式 | Shared button styles ── */
@@ -216,9 +216,9 @@
 .la-shell :is(.ob-list-item, .om-list-item) {
   position: relative;
   display: grid;
-  gap: 8px;
+  gap: var(--space-2, 8px);
   width: 100%;
-  padding: 12px 14px;
+  padding: var(--space-3, 12px) var(--space-4, 14px);
   border: 1px solid transparent;
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
@@ -229,18 +229,18 @@
   -webkit-appearance: none;
   cursor: pointer;
   box-shadow: none;
-  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  transition: background var(--duration-instant) ease, border-color var(--duration-instant) ease, box-shadow var(--duration-instant) ease;
 }
 
 .la-shell :is(.ob-list-item, .om-list-item)::before {
   content: '';
   position: absolute;
-  inset: 10px auto 10px 0;
+  inset: var(--space-3, 10px) auto var(--space-3, 10px) 0;
   width: 3px;
   border-radius: var(--radius-pill);
   background: transparent;
   pointer-events: none;
-  transition: background 140ms ease;
+  transition: background var(--duration-instant) ease;
 }
 
 .la-shell :is(.ob-list-item, .om-list-item):hover {

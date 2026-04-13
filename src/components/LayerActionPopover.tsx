@@ -41,7 +41,9 @@ import {
   buildLanguageInputSeed,
   getDisplayedLanguageInputLabel,
   normalizeLanguageInputAssetId,
+  normalizeLanguageInputCode,
 } from '../utils/languageInputHostState';
+import { isKnownIso639_3Code } from '../utils/langMapping';
 import { escapeRegExp } from '../utils/escapeRegExp';
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
@@ -185,7 +187,11 @@ export function LayerActionPopover({
     () => (selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null),
     [locale, selectedOrthography],
   );
-  const customLanguageError = '';
+  // 内联 ISO 639-3 校验，与 ProjectSetupDialog 对齐（纯 ISO 码而非 assetId） | Inline ISO 639-3 validation, aligned with ProjectSetupDialog (pure ISO code, not assetId)
+  const effectiveLangForValidation = normalizeLanguageInputCode(languageInput);
+  const customLanguageError = effectiveLangForValidation && !isKnownIso639_3Code(effectiveLangForValidation)
+    ? actionMessages.invalidLanguageCode
+    : '';
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? actionMessages.invalidOrthographySelection
     : '';

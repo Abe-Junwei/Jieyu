@@ -67,7 +67,7 @@
 .dialog-header h3,
 .dialog-shell__title {
   margin: 0;
-  font-size: calc(0.96rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-md);
   line-height: 1.25;
   font-weight: 700;
 }
@@ -107,11 +107,11 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: calc(0.84rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-base);
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-xs);
-  transition: color 0.15s;
+  transition: color var(--duration-fast);
   white-space: nowrap;
 }
 
@@ -135,11 +135,11 @@
 }
 
 .dialog-body {
-  padding: 12px 16px;
+  padding: 20px 20px;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   overflow-y: auto;
 }
 
@@ -154,7 +154,7 @@
 
 .dialog-hint {
   margin: 0;
-  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -169,9 +169,9 @@
 /* 通用反馈卡片（错误/信息） | Generic feedback card (error / info) */
 .panel-feedback {
   margin: 0;
-  padding: 9px 11px;
+  padding: var(--space-1-5, 9px) var(--space-3, 11px);
   border-radius: var(--radius-md);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: 12px;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -233,7 +233,7 @@
 
 .dialog-field label,
 .dialog-field > span {
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -343,10 +343,10 @@
 .script-tag-combobox-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: var(--space-2, 8px);
+  padding: var(--space-1-5, 6px) var(--space-3, 10px);
   cursor: pointer;
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
 }
 
 .script-tag-combobox-option:hover,
@@ -377,7 +377,7 @@
 
 .dialog-card-compact .dialog-header h3,
 .dialog-card-compact .dialog-shell__title {
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
 }
 
 .dialog-card-compact .dialog-body {
@@ -405,12 +405,12 @@
 
 .dialog-segmented-tab {
   min-height: 32px;
-  padding: 0 12px;
+  padding: 0 var(--space-4, 12px);
   border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   background: var(--surface-panel);
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
 }

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-04-12T22:59:00.049Z",
-  "aggregate": "046cfa3b5a897accabe138c112b0dbae0fa0c3337b17b2e3948f949b828f1f56",
+  "generatedAt": "2026-04-13T01:49:45.539Z",
+  "aggregate": "38d8354c0fbc93305d4c06bb957ca22eec49c33de5ea8998b198750683bbae63",
   "fileHashes": {
-    "src/styles/ai-hub.css": "4ba1cbc13251b6428cbb6bddde967453c0b8b1030e574792a1ff15165633d7eb",
+    "src/styles/ai-hub.css": "6b2a579dbd76ee22d8f0b38abcd7807c7e16c4d88ffeb77ff9c23d001919e2f2",
     "src/styles/ai-sidebar-entry.css": "dc4b8437154cc412cce21ef93322de40f2f561960e95393ecc05624282680dd5",
     "src/styles/app-foundation.css": "ab2f24701634066a9cfd581b5f1777672f6dcbf44d1d28e1a162e5b6fd444f10",
     "src/styles/components/orthography-builder.css": "28a200170766323a867dc8c06e9cd9f209e57617c91bfb46c2b1964cde50109b",
-    "src/styles/foundation/context-menu.css": "e8cfb1e99bfabce78354bbc8d2f83c8a77d13caecb1af0c916f258ab2c1deddf",
+    "src/styles/foundation/context-menu.css": "56a676c1930988f75dd5dddc6b7aa3ba4b7d19d037ec96b3d2a9209e27df4c96",
     "src/styles/foundation/control-primitives.css": "5072261e88e00e6232da26a9878fbb981dcc01be7ace44a9c793422dd049bf4f",
     "src/styles/foundation/dialog-shell.css": "e233cd94422dcd281f555befda9a96357233f8aadc39fac3ebe556c88d10fa9c",
     "src/styles/foundation/language-asset-section-contract.css": "dc0eb1255751243d0ec152dfb8a42ca1d266552619190864fc75f0c7ae759875",
@@ -27,7 +27,7 @@
     "src/styles/pages/timeline/timeline-annotation.css": "0134b36a25f81875aa68ebee712577a0ca30b87f2d345e0849e7af4436382391",
     "src/styles/pages/timeline/timeline-bundle-connector.css": "bda514c9cf30daed22a044405dfffe1e1ecea5df74fe46ebd3d5d0529fefdc96",
     "src/styles/pages/timeline/timeline-lane-label.css": "0f255c452becf83f600c1a23518a3f586c8977a9dc222450021a170652121463",
-    "src/styles/pages/timeline/timeline-lane.css": "bc01c6ba06540e3bb6c8fffba6a88e11c5a5d9a0956b22690263164fe81a73bb",
+    "src/styles/pages/timeline/timeline-lane.css": "5d5f844cb7c89d2e704f501fd8829988276c36d11b06f2328534d1fb8581075c",
     "src/styles/pages/timeline/timeline-layout.css": "323d295e56d6b0c3dfe99b1d86aa76f954b939728b7e1dbac126acec50f0ffa5",
     "src/styles/pages/timeline/timeline-overview.css": "2bc4c47eac41aa1b6a396c5b75cd24d1e8394dc759241786cdb6a26fc7b6909b",
     "src/styles/pages/timeline/timeline-text-item.css": "ccb5010d176733f2d1ab119d52e7f7e23b1b365cb64d3f5d239b4d07812ac2dd",
@@ -57,7 +57,7 @@
     "src/styles/panels/shortcuts-panel.css": "34f86529d164062bb2f8f8913163a7da18e7e60df5bcbb10199bae8b60a57518",
     "src/styles/panels/undo-history.css": "fd4546e470efa7e5373c5039e5a37ff19b3fe520e24716578dd82c20defbb0e5",
     "src/styles/panels/voice-agent.css": "9467f94efa11cbb9cce8a2a0878ba3a2c9ed63f0ff8bb82af99a8bfdfebdcf2c",
-    "src/styles/tokens.css": "0ab490131de594bbaa0c7eea3db06f2a8ceea6589b0b66935e029cbcf17d5141",
+    "src/styles/tokens.css": "ed6c19b5f66318fac34ebfc09d182cc64e0e9c6eeac439e13257ae8d0eff3efa",
     "src/styles/transcription-entry.css": "3a3d52e47e4211277f3931307301a1db4f0fb09bac712ec1a94677fa31721ff8"
   }
 }

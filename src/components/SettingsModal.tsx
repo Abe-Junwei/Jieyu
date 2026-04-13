@@ -397,7 +397,7 @@ export function SettingsModal({
 
   // 快捷键监听：捕获下一个按键作为新快捷键 | Key capture: intercept next keydown as new combo
   useEffect(() => {
-    if (!editingKeybindingId) return;
+    if (!editingKeybindingId || activeTab !== 'shortcuts') return;
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
       e.stopPropagation();
@@ -410,7 +410,14 @@ export function SettingsModal({
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [editingKeybindingId]);
+  }, [activeTab, editingKeybindingId]);
+
+  // 离开快捷键页时强制退出录制态，避免全局键盘拦截影响其他输入框。
+  useEffect(() => {
+    if (activeTab !== 'shortcuts' && editingKeybindingId) {
+      setEditingKeybindingId(null);
+    }
+  }, [activeTab, editingKeybindingId]);
 
   const handleResetKeybinding = (id: string) => {
     removeUserOverride(id);
@@ -457,7 +464,7 @@ export function SettingsModal({
   const aiProviderGroups = useMemo(() => {
     const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
     const compatKinds: AiChatProviderKind[] = ['openai-compatible'];
-    const localKinds: AiChatProviderKind[] = ['mock', 'custom-http'];
+    const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
     const byKind = new Map(aiChatProviderDefinitions.map((p) => [p.kind, p]));
     const pick = (kinds: AiChatProviderKind[]) =>
       kinds.map((k) => byKind.get(k)).filter((p): p is NonNullable<typeof p> => Boolean(p));

@@ -21,6 +21,7 @@ import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
 import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
+import { WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 import {
   LANGUAGE_ID_PARAM,
   NEW_LANGUAGE_ID,
@@ -100,7 +101,7 @@ export function LanguageMetadataWorkspacePage({
         const suggestions = await searchLanguageCatalogSuggestions({
           query: normalizedSearchText,
           locale,
-          limit: 50,
+          limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
         });
         const nextSuggestionMap = new Map<string, LanguageCatalogSearchSuggestion>();
         suggestions.forEach((suggestion) => nextSuggestionMap.set(suggestion.id, suggestion));
@@ -150,8 +151,8 @@ export function LanguageMetadataWorkspacePage({
       if (cancelled) return;
       const currentId = selectedLanguageIdRef.current;
       if (currentId === NEW_LANGUAGE_ID || records.length === 0) return;
-      const inResults = records.some((r) => r.id === currentId);
-      if (!currentId || !inResults) {
+      // 仅在无当前选择时自动选中首项，搜索缩窄时不强制切换 | Only auto-select first on initial load; do NOT force-switch when current is filtered out
+      if (!currentId) {
         const nextParams = new URLSearchParams(searchParamsRef.current);
         nextParams.set(LANGUAGE_ID_PARAM, records[0]!.id);
         setSearchParams(nextParams, { replace: true });

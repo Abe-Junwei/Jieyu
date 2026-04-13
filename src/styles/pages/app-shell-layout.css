@@ -244,11 +244,14 @@
 .app-side-pane-body {
   flex: 1;
   min-height: 0;
-  padding: 8px 6px;
+  padding: var(--space-2, 8px) var(--space-1-5, 6px);
   overflow-x: visible;
   overflow-y: hidden;
   display: flex;
   flex-direction: column;
+  /* 容器查询：根据自身宽度而非视口响应 | Container query: respond to own width, not viewport */
+  container-type: inline-size;
+  container-name: side-pane;
 }
 
 .app-side-pane-body-slot {
@@ -291,7 +294,7 @@
   }
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1024px) {
   :root {
     --side-pane-width: 0px;
     --side-pane-gap: 0px;
@@ -323,13 +326,17 @@
     margin-top: 6px;
     padding-top: 6px;
   }
-}
-/* ── App shell layout (from global.css) ── */
-/* Action buttons */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+
+  .header-actions {
+    gap: 4px;
+  }
+  .left-rail-btn {
+    min-height: 46px;
+    border-radius: var(--radius-md);
+  }
+  .left-rail-btn span {
+    display: none;
+  }
 }
 
 .app-side-pane-group {
@@ -492,4 +499,18 @@
 .app-route-loading {
   flex: 1;
   min-height: 120px;
+}
+
+/* ── 容器查询：侧栏窄宽度时隐藏文本，仅保留图标 | Container query: side-pane narrow mode ── */
+@container side-pane (max-width: 200px) {
+  .side-pane-nav-link span {
+    display: none;
+  }
+  .side-pane-nav-link {
+    justify-content: center;
+    padding: var(--space-2, 8px);
+  }
+  .app-side-pane-subtitle {
+    display: none;
+  }
 }

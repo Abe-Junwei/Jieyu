@@ -268,6 +268,45 @@ export function LanguageIsoInput({
     dispatch({ type: 'codeChanged', value: event.target.value });
   };
 
+  // 代码字段也支持候选项键盘导航 | Code field also supports suggestion keyboard navigation
+  const handleLanguageCodeKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const suggestionCount = visibleSuggestionMatches.length;
+    if (suggestionCount === 0) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      dispatch({ type: 'highlightNextSuggestion', visibleCount: suggestionCount });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      dispatch({ type: 'highlightPreviousSuggestion', visibleCount: suggestionCount });
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      dispatch({ type: 'clearSuggestionHighlight' });
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      // 有高亮项 → 提交高亮项 | Has highlight → commit highlighted item
+      if (model.activeSuggestionIndex >= 0 && model.activeSuggestionIndex < suggestionCount) {
+        event.preventDefault();
+        dispatch({ type: 'nameSuggestionCommitted', index: model.activeSuggestionIndex, source: 'enter' });
+        return;
+      }
+      // 仅一个候选项 → 直接提交 | Single suggestion → commit directly
+      if (suggestionCount === 1) {
+        event.preventDefault();
+        dispatch({ type: 'nameSuggestionCommitted', index: 0, source: 'enter' });
+      }
+    }
+  };
+
   const handleLanguageCodeFocus = () => {
     dispatch({ type: 'codeFocused' });
   };
@@ -310,6 +349,7 @@ export function LanguageIsoInput({
             type="text"
             value={presentedValue.languageCode}
             onChange={handleLanguageCodeChange}
+            onKeyDown={handleLanguageCodeKeyDown}
             onFocus={handleLanguageCodeFocus}
             onBlur={handleLanguageCodeBlur}
             placeholder={codePlaceholder}

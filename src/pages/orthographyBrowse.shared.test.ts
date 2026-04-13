@@ -21,7 +21,7 @@ describe('orthographyBrowse shared helpers', () => {
     })).toBeNull();
   });
 
-  it('uses project languages plus explicit selected orthography in project-only mode', () => {
+  it('uses project languages without injecting selected orthography in project-only mode', () => {
     const state = buildOrthographyBrowseState({
       projectLanguageIds: ['eng', 'eng', 'zho'],
       projectOnly: true,
@@ -36,7 +36,6 @@ describe('orthographyBrowse shared helpers', () => {
     })).toEqual({
       includeBuiltIns: true,
       languageIds: ['eng', 'zho'],
-      orthographyIds: ['orth-alt'],
     });
   });
 
@@ -56,7 +55,6 @@ describe('orthographyBrowse shared helpers', () => {
     })).toEqual({
       includeBuiltIns: true,
       languageIds: ['eng'],
-      orthographyIds: ['orth-source'],
       searchLanguageIds: ['eng'],
       searchText: 'English',
     });

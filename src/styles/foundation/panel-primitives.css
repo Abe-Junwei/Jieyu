@@ -1,17 +1,19 @@
 .panel-section {
   display: grid;
-  gap: 10px;
+  gap: var(--space-3, 12px);
   min-width: 0;
-  padding: 12px;
+  padding: var(--space-3, 12px);
   border: 0;
   border-radius: var(--radius-xl);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, white), color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header)) 100%);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-bg));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 60%, transparent),
+              var(--shadow-card);
 }
 
 .panel-section--emphasis {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-header) 90%, white), color-mix(in srgb, var(--surface-header) 82%, var(--surface-panel)) 100%);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 86%, var(--surface-bg));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-panel) 40%, transparent),
+              var(--shadow-float);
 }
 
 .panel-section__header {
@@ -30,7 +32,7 @@
 
 .panel-section__title {
   color: var(--text-primary);
-  font-size: calc(0.84rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-base);
   line-height: 1.45;
   font-weight: 700;
 }
@@ -38,7 +40,7 @@
 .panel-title-primary {
   margin: 0;
   color: var(--text-primary);
-  font-size: calc(0.84rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-base);
   line-height: 1.45;
   font-weight: 700;
   text-align: center;
@@ -47,7 +49,7 @@
 .panel-title-secondary {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: 12px;
   line-height: 1.45;
   font-weight: 600;
 }
@@ -56,7 +58,7 @@
 .app-side-pane-section-title {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(0.7rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-xs);
   line-height: 1.3;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -66,7 +68,7 @@
 .panel-section__description {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
@@ -89,7 +91,7 @@
 .dialog-supporting-note {
   margin: 0;
   color: var(--text-secondary);
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
@@ -101,14 +103,14 @@
 .panel-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1, 4px);
   min-height: 24px;
   padding: 2px 8px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   color: var(--text-secondary);
-  font-size: calc(0.72rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-xs);
   line-height: 1.4;
   font-weight: 600;
 }
@@ -154,18 +156,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--space-1-5, 6px);
   min-height: var(--btn-h-md);
-  padding: 6px 10px;
+  padding: var(--space-1-5, 6px) var(--space-3, 10px);
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   color: var(--text-primary);
   font: inherit;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: background var(--duration-instant), color var(--duration-instant), border-color var(--duration-instant);
 }
 
 .panel-button:hover:not(:disabled) {
@@ -225,8 +227,8 @@
 }
 
 .panel-fieldset legend {
-  padding: 0 4px;
-  font-size: calc(0.74rem * var(--ui-font-scale, 1));
+  padding: 0 var(--space-1, 4px);
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -234,8 +236,8 @@
 .panel-radio {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  gap: var(--space-2, 8px);
+  font-size: var(--font-size-sm);
   color: var(--text-primary);
   line-height: 1.45;
 }
@@ -248,25 +250,25 @@
 .panel-button--compact { min-height: var(--btn-h-compact); border-radius: var(--radius-sm); }
 
 /* ── 表单字段修饰 | Form field modifiers ──────────────────────── */
-.dialog-field--half { flex: 1 1 calc(50% - 6px); min-width: 120px; }
-.dialog-field--third { flex: 1 1 calc(33.3% - 6px); min-width: 100px; }
+.dialog-field--half { flex: 1 1 50%; min-width: 120px; }
+.dialog-field--third { flex: 1 1 33.3%; min-width: 100px; }
 
 .dialog-field-label {
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-secondary);
 }
 
 .dialog-field-hint {
   margin: 0;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .dialog-field-error {
   margin: 0;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   color: var(--state-danger-text);
   font-weight: 500;
   line-height: 1.4;
@@ -299,14 +301,14 @@
 }
 
 .panel-state-display-title {
-  font-size: calc(0.88rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .panel-state-display-desc {
   margin: 0;
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   line-height: 1.5;
   max-width: 36ch;

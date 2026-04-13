@@ -10,10 +10,10 @@
 
 .timeline-lane {
   position: relative;
-  height: var(--timeline-lane-height, 54px);
+  height: var(--timeline-lane-height);
   --timeline-lane-separator-color: color-mix(in srgb, var(--text-tertiary) 58%, transparent);
   border-bottom: none; /* 改进：移除硬边界，统一用 ::after 弱分隔 */
-  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--duration-normal) var(--ease-spring), box-shadow var(--duration-normal) var(--ease-spring);
 }
 
 /* 统一弱分隔线 — 仅内容区可见 */
@@ -21,7 +21,8 @@
   content: '';
   position: absolute;
   bottom: 0;
-  left: var(--timeline-label-offset, 80px); /* 从标签区域之后开始 */
+  /* lane 已处于 timeline-content 偏移坐标系内，这里不再二次叠加 label/video 偏移 | Lane is already in timeline-content offset coordinates; avoid applying label/video offset twice */
+  left: 0;
   right: 0;
   height: 1px;
   background: var(--timeline-lane-separator-color);
@@ -127,8 +128,8 @@
   right: 0;
   bottom: 3px;
   height: 2px;
-  background: color-mix(in srgb, var(--text-tertiary) 0%, transparent);
-  transition: background-color 140ms ease;
+  background: color-mix(in srgb, var(--text-tertiary) 4%, transparent);
+  transition: background-color var(--duration-instant) ease;
   border-radius: 1px;
 }
 
@@ -160,7 +161,7 @@
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 22%, transparent), color-mix(in srgb, var(--state-info-solid) 95%, transparent) 18%, color-mix(in srgb, var(--state-info-solid) 95%, transparent) 82%, color-mix(in srgb, var(--state-info-solid) 22%, transparent));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 16%, transparent), 0 0 14px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+  opacity: 0.85;
   pointer-events: none;
   z-index: calc(var(--z-overlay) + 1);
 }
@@ -277,25 +278,18 @@
 .timeline-lane-text-only {
   position: relative;
   display: block;
-  min-height: var(--timeline-lane-height, 54px);
-  height: var(--timeline-lane-height, 54px);
+  min-height: var(--timeline-lane-height);
+  height: var(--timeline-lane-height);
   --timeline-lane-separator-color: color-mix(in srgb, var(--text-tertiary) 58%, transparent);
   border-bottom: none; /* 统一用 ::after */
-  padding-left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
+  /* timeline-content 已承担标签/视频偏移，text-only lane 不再二次偏移 | timeline-content already applies label/video offset; avoid double offset in text-only lanes */
+  padding-left: 0;
   padding-top: 0;
   padding-bottom: 0;
 }
 
 .timeline-lane-text-only::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: calc(-1 * var(--video-left-panel-width, 0px));
-  right: 0;
-  height: 1px;
-  background: var(--timeline-lane-separator-color);
-  z-index: var(--z-overlay-base);
-  pointer-events: none;
+  display: none;
 }
 
 .timeline-lane-text-only.timeline-lane-translation {
@@ -308,6 +302,19 @@
   min-height: var(--timeline-lane-content-height, 42px);
   /* 防止在无语段或过渡态时宽度塌为 0，导致看起来"错位悬空" | Keep lane track at least viewport width to avoid 0px collapse */
   width: max(var(--timeline-lane-track-width, 0px), 100%);
+}
+
+.timeline-lane-text-only-track::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--video-left-panel-width, 0px));
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--timeline-lane-separator-color);
+  /* 分割线绘制在条目之上，避免 100% 缩放时被首段覆盖 | Keep divider above items so 100% zoom doesn't hide the segment start */
+  z-index: var(--z-overlay);
+  pointer-events: none;
 }
 
 .timeline-lane-text-only > .timeline-lane-header-wrapper > .timeline-lane-label {

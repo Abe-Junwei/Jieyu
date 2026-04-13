@@ -200,12 +200,11 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith({
         query: '英语资产标签',
         locale: 'zh-CN',
-        limit: 24,
+        limit: 50,
       });
       const lastCall = mockListOrthographies.mock.calls[mockListOrthographies.mock.calls.length - 1]?.[0] as Record<string, unknown> | undefined;
       expect(lastCall).toEqual(expect.objectContaining({
         includeBuiltIns: true,
-        orthographyIds: ['orth-target'],
         searchText: '英语资产标签',
       }));
       expect(screen.getAllByText('Bridge Orthography · Latn · practical').length).toBeGreaterThan(0);
@@ -324,7 +323,6 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(mockListOrthographies).toHaveBeenCalledWith({
         includeBuiltIns: true,
         languageIds: ['eng'],
-        orthographyIds: ['orth-alt'],
       });
     });
   });
@@ -348,7 +346,6 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(mockListOrthographies).toHaveBeenCalledWith({
         includeBuiltIns: true,
         languageIds: ['eng'],
-        orthographyIds: ['orth-target'],
       });
     });
 
