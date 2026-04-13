@@ -12,6 +12,7 @@ import { MockLLMProvider } from './MockLLMProvider';
 import { OllamaProvider } from './OllamaProvider';
 import { OpenAICompatibleProvider } from './OpenAICompatibleProvider';
 import { QwenProvider } from './QwenProvider';
+import { WebLLMProvider } from './WebLLMProvider';
 
 export type AiChatProviderKind =
   | 'mock'
@@ -21,6 +22,7 @@ export type AiChatProviderKind =
   | 'anthropic'
   | 'gemini'
   | 'ollama'
+  | 'webllm'
   | 'custom-http'
   | 'minimax';
 
@@ -220,6 +222,17 @@ const PROVIDER_DEFINITIONS: Record<AiChatProviderKind, AiChatProviderDefinition>
     create: (cfg): LLMProvider =>
       new OllamaProvider(buildOllamaConfig(cfg)),
   },
+  webllm: {
+    kind: 'webllm',
+    label: 'WebLLM (\u6d4f\u89c8\u5668\u672c\u5730)',
+    description: '\u4f7f\u7528\u6d4f\u89c8\u5668\u7aef\u672c\u5730\u63a8\u7406\u8fd0\u884c\u5bf9\u8bdd\u6a21\u578b\uff08WebGPU / Prompt API\uff09\u3002',
+    tag: '\u672c\u5730',
+    fields: [
+      { key: 'model', label: 'Model', type: 'text', placeholder: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', required: true },
+    ],
+    create: (cfg): LLMProvider =>
+      new WebLLMProvider({ model: cfg.model || 'Llama-3.2-1B-Instruct-q4f16_1-MLC' }),
+  },
   'custom-http': {
     kind: 'custom-http',
     label: 'Custom HTTP',
@@ -340,6 +353,14 @@ const DEFAULT_SETTINGS: Record<AiChatProviderKind, AiChatSettings> = {
     baseUrlsByProvider: {},
     toolFeedbackStyle: 'detailed',
     endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'none', responseFormat: 'ollama-jsonl',
+  },
+  webllm: {
+    providerKind: 'webllm', baseUrl: '', model: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', apiKey: '',
+    apiKeysByProvider: {},
+    modelsByProvider: {},
+    baseUrlsByProvider: {},
+    toolFeedbackStyle: 'detailed',
+    endpointUrl: '', authHeaderName: 'Authorization', authScheme: 'none', responseFormat: 'plain-json',
   },
   'custom-http': {
     providerKind: 'custom-http', baseUrl: '', model: 'custom-model', apiKey: '',
@@ -558,6 +579,7 @@ function settingsToCreateConfig(settings: AiChatSettings): AiChatProviderCreateC
     case 'anthropic': return { kind: 'anthropic', baseUrl: settings.baseUrl, apiKey: settings.apiKey, model: settings.model };
     case 'gemini': return { kind: 'gemini', baseUrl: settings.baseUrl, apiKey: settings.apiKey, model: settings.model };
     case 'ollama': return { kind: 'ollama', baseUrl: settings.baseUrl, model: settings.model };
+    case 'webllm': return { kind: 'webllm', model: settings.model };
     case 'custom-http': return {
       kind: 'custom-http',
       endpointUrl: settings.endpointUrl,

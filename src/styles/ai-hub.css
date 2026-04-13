@@ -529,7 +529,7 @@
   min-height: 30px;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
 
   [data-ai-analysis-panel] .transcription-assistant-hub-tab:hover:not(.transcription-assistant-hub-tab-active),
   [data-ai-analysis-panel] .transcription-assistant-hub-tab:focus-visible:not(.transcription-assistant-hub-tab-active) {
@@ -643,6 +643,7 @@
   border-radius: 0;
   background: transparent;
   padding: 0;
+  width: 100%;
   height: 100%;
 }
 
@@ -1096,6 +1097,99 @@ select.ai-cfg-input {
   word-break: break-word;
 }
 
+.ai-webllm-runtime-card {
+  margin-top: 2px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  background: color-mix(in srgb, var(--state-info-bg) 38%, transparent);
+  display: grid;
+  gap: 3px;
+}
+
+.ai-webllm-runtime-card.is-unavailable {
+  border-color: color-mix(in srgb, var(--state-warning-solid) 28%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 58%, transparent);
+}
+
+.ai-webllm-runtime-title {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-webllm-runtime-line {
+  margin: 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.ai-webllm-runtime-line strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ai-webllm-runtime-message {
+  margin: 2px 0 0;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.35;
+}
+
+.ai-webllm-runtime-message.is-success {
+  color: var(--state-success-text);
+}
+
+.ai-webllm-runtime-message.is-error {
+  color: var(--state-danger-text);
+}
+
+.ai-webllm-runtime-message.is-info {
+  color: var(--state-info-text);
+}
+
+.ai-chat-provider-config-action-btn-cancel {
+  border-color: color-mix(in srgb, var(--state-warning-solid) 40%, transparent);
+  color: var(--state-warning-text);
+}
+
+.ai-chat-provider-config-action-btn-cancel:hover,
+.ai-chat-provider-config-action-btn-cancel:focus-visible {
+  background: color-mix(in srgb, var(--state-warning-bg) 56%, transparent);
+}
+
+.ai-webllm-progress {
+  margin-top: 4px;
+  display: grid;
+  gap: 4px;
+}
+
+.ai-webllm-progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  overflow: hidden;
+}
+
+.ai-webllm-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--state-info-solid) 68%, var(--brand-strong)),
+    color-mix(in srgb, var(--state-success-solid) 72%, var(--brand-strong))
+  );
+  transition: width 160ms ease;
+}
+
+.ai-webllm-progress-detail {
+  font-size: calc(10px * var(--ui-font-scale, 1));
+  color: var(--text-tertiary);
+}
+
 @keyframes aiStatusDotPulse {
   0% {
     transform: scale(1);
@@ -1232,7 +1326,6 @@ select.ai-cfg-input {
   }
 }
 
-@media (max-width: 640px) {
 /* Toast notification bar — fixed bottom, doesn't push content. */
 .transcription-toast-container {
   position: fixed;
@@ -1240,7 +1333,7 @@ select.ai-cfg-input {
   bottom: calc(env(safe-area-inset-bottom, 0px) + 84px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: var(--z-toast);
+  z-index: calc(var(--z-context-menu) + 2);
   background: transparent;
   flex-direction: column;
   align-items: center;
@@ -1266,6 +1359,31 @@ select.ai-cfg-input {
   opacity: 0;
   transform: translateY(8px) scale(0.98);
   filter: saturate(0.92);
+}
+
+.toast-info {
+  background: var(--state-info-bg);
+  color: var(--state-info-text);
+  border: 1px solid var(--state-info-border);
+}
+
+.toast-success {
+  background: var(--state-success-bg);
+  color: var(--state-success-text);
+  border: 1px solid var(--state-success-border);
+}
+
+.toast-error {
+  background: var(--state-danger-bg);
+  color: var(--state-danger-text);
+  border: 1px solid var(--state-danger-border);
+}
+
+.toast-recording,
+.toast-ai-thinking {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+  border: 1px solid var(--state-warning-border);
 }
 
 /* Voice agent toast variants */
@@ -1299,8 +1417,6 @@ select.ai-cfg-input {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
 }
 
 
@@ -1373,7 +1489,7 @@ select.ai-cfg-input {
   text-align: right;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1024px) {
   .waveform-zoom-bar-bottom {
     flex-wrap: wrap;
     row-gap: 4px;

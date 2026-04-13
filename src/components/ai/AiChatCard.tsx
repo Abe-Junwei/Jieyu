@@ -1,4 +1,4 @@
-import { Fragment, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
 import {
   diffAiToolSnapshot,
@@ -36,6 +36,12 @@ import { useGlobalContext } from '../../services/GlobalContextService';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
+import {
+  detectWebLLMRuntimeStatus,
+  warmupWebLLMModel,
+  type WebLLMRuntimeStatus,
+  type WebLLMWarmupProgress,
+} from '../../ai/providers/webllmRuntime';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -200,7 +206,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const providerGroups = useMemo(() => {
     const directKinds: AiChatProviderKind[] = ['deepseek', 'qwen', 'anthropic', 'gemini', 'ollama', 'minimax'];
     const compatibleKinds: AiChatProviderKind[] = ['openai-compatible'];
-    const localKinds: AiChatProviderKind[] = ['mock', 'custom-http'];
+    const localKinds: AiChatProviderKind[] = ['mock', 'webllm', 'custom-http'];
     const byKind = new Map(aiChatProviderDefinitions.map((provider) => [provider.kind, provider]));
 
     const pick = (kinds: AiChatProviderKind[]) => kinds
@@ -219,6 +225,149 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     return cardMessages.providerStatusLabel(kind, aiConnectionTestStatus);
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus, cardMessages]);
 
+  const [webllmRuntimeStatus, setWebllmRuntimeStatus] = useState<WebLLMRuntimeStatus>(() => detectWebLLMRuntimeStatus());
+  const [webllmWarmupState, setWebllmWarmupState] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
+  const [webllmWarmupProgress, setWebllmWarmupProgress] = useState<WebLLMWarmupProgress | null>(null);
+  const [webllmWarmupMessage, setWebllmWarmupMessage] = useState<string | null>(null);
+  const webllmWarmupAbortRef = useRef<AbortController | null>(null);
+  const webllmWarmupRunIdRef = useRef(0);
+
+  const webllmFallbackDefinition = useMemo(() => {
+    const fallbackKind = aiChatSettings?.fallbackProviderKind;
+    if (!fallbackKind || fallbackKind === 'webllm') {
+      return getAiChatProviderDefinition('mock');
+    }
+    return getAiChatProviderDefinition(fallbackKind);
+  }, [aiChatSettings?.fallbackProviderKind]);
+
+  const webllmSourceLabel = useMemo(() => {
+    if (webllmRuntimeStatus.source === 'injected-runtime') return cardMessages.webllmRuntimeSourceInjected;
+    if (webllmRuntimeStatus.source === 'prompt-api') return cardMessages.webllmRuntimeSourcePromptApi;
+    return cardMessages.webllmRuntimeSourceUnavailable;
+  }, [cardMessages.webllmRuntimeSourceInjected, cardMessages.webllmRuntimeSourcePromptApi, cardMessages.webllmRuntimeSourceUnavailable, webllmRuntimeStatus.source]);
+
+  const refreshWebllmRuntimeStatus = useCallback(() => {
+    setWebllmRuntimeStatus(detectWebLLMRuntimeStatus());
+  }, []);
+
+  const dispatchWebllmWarmupEvent = useCallback((status: 'success' | 'error' | 'cancelled', message: string) => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
+      detail: { status, message },
+    }));
+  }, []);
+
+  const webllmWarmupPercent = useMemo(() => {
+    if (!webllmWarmupProgress) {
+      return webllmWarmupState === 'success' ? 100 : 0;
+    }
+    return Math.max(0, Math.min(100, Math.round(webllmWarmupProgress.progress * 100)));
+  }, [webllmWarmupProgress, webllmWarmupState]);
+
+  const webllmWarmupPhaseLabel = useMemo(() => {
+    if (!webllmWarmupProgress) return null;
+    if (webllmWarmupProgress.phase === 'downloading') return cardMessages.webllmWarmupPhaseDownloading;
+    if (webllmWarmupProgress.phase === 'initializing') return cardMessages.webllmWarmupPhaseInitializing;
+    if (webllmWarmupProgress.phase === 'ready') return cardMessages.webllmWarmupPhaseReady;
+    return cardMessages.webllmWarmupPhasePreparing;
+  }, [
+    cardMessages.webllmWarmupPhaseDownloading,
+    cardMessages.webllmWarmupPhaseInitializing,
+    cardMessages.webllmWarmupPhasePreparing,
+    cardMessages.webllmWarmupPhaseReady,
+    webllmWarmupProgress,
+  ]);
+
+  const webllmWarmupFailureMessage = useCallback((reason?: string | null) => {
+    const trimmed = (reason ?? '').trim();
+    if (!trimmed) return cardMessages.webllmWarmupFailed;
+    const normalized = trimmed.length > 160 ? `${trimmed.slice(0, 157)}...` : trimmed;
+    return cardMessages.webllmWarmupFailedWithReason(normalized);
+  }, [cardMessages]);
+
+  useEffect(() => {
+    if (aiChatSettings?.providerKind !== 'webllm') return;
+    refreshWebllmRuntimeStatus();
+  }, [aiChatSettings?.providerKind, showProviderConfig, refreshWebllmRuntimeStatus]);
+
+  useEffect(() => {
+    return () => {
+      webllmWarmupAbortRef.current?.abort();
+    };
+  }, []);
+
+  const handleWarmupWebllmModel = useCallback(async () => {
+    if (!aiChatSettings || aiChatSettings.providerKind !== 'webllm') return;
+    webllmWarmupAbortRef.current?.abort();
+    const runId = webllmWarmupRunIdRef.current + 1;
+    webllmWarmupRunIdRef.current = runId;
+    const abortController = new AbortController();
+    webllmWarmupAbortRef.current = abortController;
+    setWebllmWarmupState('running');
+    setWebllmWarmupProgress({ phase: 'preparing', progress: 0, message: cardMessages.webllmWarmupPreparing });
+    setWebllmWarmupMessage(null);
+    try {
+      const status = await warmupWebLLMModel(aiChatSettings.model, {
+        signal: abortController.signal,
+        onProgress: (progress) => {
+          if (runId !== webllmWarmupRunIdRef.current) return;
+          setWebllmWarmupProgress(progress);
+        },
+      });
+      if (runId !== webllmWarmupRunIdRef.current) return;
+      webllmWarmupAbortRef.current = null;
+      setWebllmRuntimeStatus(status);
+      if (status.available) {
+        setWebllmWarmupState('success');
+        setWebllmWarmupMessage(cardMessages.webllmWarmupDone);
+        setWebllmWarmupProgress({ phase: 'ready', progress: 1, message: cardMessages.webllmWarmupDone });
+        dispatchWebllmWarmupEvent('success', cardMessages.webllmWarmupDone);
+        return;
+      }
+      const failedMessage = webllmWarmupFailureMessage(status.detail);
+      setWebllmWarmupState('error');
+      setWebllmWarmupMessage(failedMessage);
+      dispatchWebllmWarmupEvent('error', failedMessage);
+    } catch (error) {
+      if (runId !== webllmWarmupRunIdRef.current) return;
+      webllmWarmupAbortRef.current = null;
+      const isAbort = typeof error === 'object' && error !== null && 'name' in error && (error as { name?: string }).name === 'AbortError';
+      if (isAbort) {
+        setWebllmWarmupState('idle');
+        setWebllmWarmupProgress(null);
+        setWebllmWarmupMessage(cardMessages.webllmWarmupCancelled);
+        dispatchWebllmWarmupEvent('cancelled', cardMessages.webllmWarmupCancelled);
+        return;
+      }
+      const failedReason = typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string'
+        ? (error as { message: string }).message
+        : null;
+      const failedMessage = webllmWarmupFailureMessage(failedReason);
+      setWebllmWarmupState('error');
+      setWebllmWarmupMessage(failedMessage);
+      dispatchWebllmWarmupEvent('error', failedMessage);
+    }
+  }, [
+    aiChatSettings,
+    cardMessages.webllmWarmupCancelled,
+    cardMessages.webllmWarmupDone,
+    cardMessages.webllmWarmupFailed,
+    cardMessages.webllmWarmupPreparing,
+    dispatchWebllmWarmupEvent,
+    webllmWarmupFailureMessage,
+  ]);
+
+  const handleCancelWebllmWarmup = useCallback(() => {
+    if (webllmWarmupState !== 'running') return;
+    webllmWarmupRunIdRef.current += 1;
+    webllmWarmupAbortRef.current?.abort();
+    webllmWarmupAbortRef.current = null;
+    setWebllmWarmupState('idle');
+    setWebllmWarmupProgress(null);
+    setWebllmWarmupMessage(cardMessages.webllmWarmupCancelled);
+    dispatchWebllmWarmupEvent('cancelled', cardMessages.webllmWarmupCancelled);
+  }, [cardMessages.webllmWarmupCancelled, dispatchWebllmWarmupEvent, webllmWarmupState]);
+
   const showAgentLoopProgress = aiTaskSession?.status === 'executing'
     && typeof aiTaskSession.step === 'number'
     && typeof aiTaskSession.maxSteps === 'number'
@@ -228,7 +377,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     const kind = aiChatSettings?.providerKind ?? 'mock';
     if (aiConnectionTestStatus === 'error') return 'error';
     if (aiConnectionTestStatus === 'success') return 'ok';
-    if (kind === 'mock' || kind === 'ollama') return 'local';
+    if (kind === 'mock' || kind === 'ollama' || kind === 'webllm') return 'local';
     return 'idle';
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus]);
 
@@ -837,6 +986,29 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   ? <><Check size={12} strokeWidth={2.5} className="ai-chat-provider-config-check-icon" />{cardMessages.connected}</>
                   : t(locale, 'ai.chat.testConnection')}
             </button>
+            {aiChatSettings.providerKind === 'webllm' && (
+              <button
+                type="button"
+                className={`icon-btn ai-chat-provider-config-action-btn${webllmWarmupState === 'success' ? ' ai-conn-ok' : ''}`}
+                disabled={webllmWarmupState === 'running'}
+                onClick={() => {
+                  void handleWarmupWebllmModel();
+                }}
+              >
+                {webllmWarmupState === 'running'
+                  ? cardMessages.webllmWarmingUp
+                  : cardMessages.webllmWarmup}
+              </button>
+            )}
+            {aiChatSettings.providerKind === 'webllm' && webllmWarmupState === 'running' && (
+              <button
+                type="button"
+                className="icon-btn ai-chat-provider-config-action-btn ai-chat-provider-config-action-btn-cancel"
+                onClick={handleCancelWebllmWarmup}
+              >
+                {cardMessages.webllmWarmupCancel}
+              </button>
+            )}
             {hasApiKeyField && (
               <button
                 type="button"
@@ -849,6 +1021,36 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
           </div>
           {aiConnectionTestStatus === 'error' && aiConnectionTestMessage && (
             <p className="ai-conn-error-msg">{aiConnectionTestMessage}</p>
+          )}
+          {aiChatSettings.providerKind === 'webllm' && (
+            <div className={`ai-webllm-runtime-card ${webllmRuntimeStatus.available ? 'is-available' : 'is-unavailable'}`}>
+              <p className="ai-webllm-runtime-title">{cardMessages.webllmRuntimeTitle}</p>
+              <p className="ai-webllm-runtime-line"><span>{cardMessages.webllmRuntimeSource}:</span> <strong>{webllmSourceLabel}</strong></p>
+              <p className="ai-webllm-runtime-line"><span>{cardMessages.webllmRuntimeDetail}:</span> {webllmRuntimeStatus.detail}</p>
+              <p className="ai-webllm-runtime-line"><span>{cardMessages.webllmRuntimeRoute}:</span> {webllmFallbackDefinition.label}</p>
+              {(webllmWarmupState === 'running' || webllmWarmupState === 'success') && (
+                <div className="ai-webllm-progress" role="status" aria-live="polite">
+                  <p className="ai-webllm-runtime-line"><span>{cardMessages.webllmWarmupProgressLabel}:</span> {webllmWarmupPercent}%</p>
+                  <div className="ai-webllm-progress-track">
+                    <span className="ai-webllm-progress-fill" style={{ width: `${webllmWarmupPercent}%` }} />
+                  </div>
+                  {webllmWarmupPhaseLabel && (
+                    <p className="ai-webllm-runtime-line ai-webllm-progress-detail">{webllmWarmupPhaseLabel}</p>
+                  )}
+                </div>
+              )}
+              {webllmWarmupMessage && (
+                <p className={`ai-webllm-runtime-message ${
+                  webllmWarmupState === 'error'
+                    ? 'is-error'
+                    : webllmWarmupState === 'success'
+                      ? 'is-success'
+                      : 'is-info'
+                }`}>
+                  {webllmWarmupMessage}
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -1138,7 +1340,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
           <div className="ai-chat-composer">
             {showAgentLoopProgress && (
               <div className="ai-chat-agent-loop-progress" role="status" aria-live="polite">
-                {`Agent loop ${aiTaskSession.step}/${aiTaskSession.maxSteps}`}
+                {cardMessages.agentLoopProgress(aiTaskSession.step!, aiTaskSession.maxSteps!)}
               </div>
             )}
             <AiChatMetricsBar

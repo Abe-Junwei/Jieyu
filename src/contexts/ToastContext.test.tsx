@@ -136,6 +136,31 @@ describe('ToastContext', () => {
       act(() => { vi.advanceTimersByTime(2); });
       expect(screen.queryByRole('status')).toBeNull();
     });
+
+    it('dedupes same message+variant in throttle window and does not reset dismiss timer', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+
+      act(() => { ctx!.showToast('dedupe', 'info'); });
+      act(() => { vi.advanceTimersByTime(1500); });
+      act(() => { ctx!.showToast('dedupe', 'info'); });
+      act(() => { vi.advanceTimersByTime(500); });
+
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('allows same message+variant again after dedupe window', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+
+      act(() => { ctx!.showToast('dedupe-window', 'info'); });
+      act(() => { vi.advanceTimersByTime(2600); });
+      act(() => { ctx!.showToast('dedupe-window', 'info'); });
+
+      expect(screen.getByRole('status').textContent).toBe('dedupe-window');
+    });
   });
 
   describe('showSaveState', () => {
@@ -176,6 +201,45 @@ describe('ToastContext', () => {
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
       act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成' }); });
       expect(screen.getByRole('status').textContent).toBe('保存完成');
+    });
+
+    it('throttles done save toasts within cooldown window', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 A' }); });
+      expect(screen.getByRole('status').textContent).toBe('保存完成 A');
+
+      act(() => { vi.advanceTimersByTime(1500); });
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 B' }); });
+      expect(screen.getByRole('status').textContent).toBe('保存完成 A');
+
+      act(() => { vi.advanceTimersByTime(500); });
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('allows done save toast again after cooldown window', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 A' }); });
+      act(() => { vi.advanceTimersByTime(6100); });
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成 B' }); });
+
+      expect(screen.getByRole('status').textContent).toBe('保存完成 B');
+    });
+
+    it('does not throttle save error toast even after done toast', () => {
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+
+      act(() => { ctx!.showSaveState({ kind: 'done', message: '保存完成' }); });
+      act(() => { ctx!.showSaveState({ kind: 'error', message: '保存失败' }); });
+
+      expect(screen.getByRole('status').textContent).toBe('保存失败');
+      expect(document.querySelector('.toast-error')).not.toBeNull();
     });
 
     it('error uses default message when none provided', () => {
@@ -299,14 +363,24 @@ describe('ToastContext', () => {
       expect(screen.getByRole('status').textContent).toBe('🎤 Dictation mode — speak to insert');
     });
 
-    it('dismisses toast when mode is null', () => {
+    it('dismisses voice toast when mode is null', () => {
       vi.useFakeTimers();
       let ctx: ReturnType<typeof useToast>;
       renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
-      act(() => { ctx!.showToast('some toast', 'info'); });
+      act(() => { ctx!.showVoiceState('command', true); });
       act(() => { ctx!.showVoiceState(null); });
       act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
       expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('does not dismiss non-voice toast when mode is null', () => {
+      vi.useFakeTimers();
+      let ctx: ReturnType<typeof useToast>;
+      renderInProvider(<TestConsumer onMount={(c) => { ctx = c; }} />);
+      act(() => { ctx!.showToast('some toast', 'info', 0); });
+      act(() => { ctx!.showVoiceState(null); });
+      act(() => { vi.advanceTimersByTime(TOAST_FADE_OUT_MS); });
+      expect(screen.getByRole('status').textContent).toBe('some toast');
     });
 
     it('renders with listening variant class', () => {

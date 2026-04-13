@@ -24,6 +24,7 @@ const BUILTIN_PROVIDER_CONTEXT_LIMITS: Record<string, number> = {
   'openai-compatible': 128_000,
   minimax: 128_000,
   ollama: 16_000,
+  webllm: 16_000,
   mock: 16_000,
 };
 

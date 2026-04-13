@@ -86,6 +86,7 @@ import { useTranscriptionAssistantSidebarControllerInput } from './useTranscript
 import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
 import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
 import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
+import { ToastController } from './TranscriptionPage.ToastController';
 import { buildSharedLaneProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { buildOrchestratorViewModelsInput } from './transcriptionReadyWorkspaceOrchestratorInput';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
@@ -1612,6 +1613,22 @@ function TranscriptionPageReadyWorkspace({
       {state.phase === 'ready' && (
         <>
           <ToastProvider>
+            <ToastController
+              mode="core-only"
+              voiceAgent={{
+                agentState: 'idle',
+                mode: 'command',
+                listening: false,
+                isRecording: false,
+              }}
+              saveState={assistantRuntimeProps.frame.saveState}
+              recording={assistantRuntimeProps.frame.recording}
+              recordingUtteranceId={assistantRuntimeProps.frame.recordingUtteranceId}
+              recordingError={assistantRuntimeProps.frame.recordingError}
+              {...(assistantRuntimeProps.frame.overlapCycleToast !== undefined ? { overlapCycleToast: assistantRuntimeProps.frame.overlapCycleToast } : {})}
+              {...(assistantRuntimeProps.frame.lockConflictToast !== undefined ? { lockConflictToast: assistantRuntimeProps.frame.lockConflictToast } : {})}
+              tf={assistantRuntimeProps.frame.tf}
+            />
             {shouldRenderRecoveryBanner ? (
               <Suspense fallback={null}>
                 <RecoveryBanner

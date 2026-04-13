@@ -116,7 +116,7 @@ export function useAiChatConnectionProbe({
     if (isBootstrapping) return;
     if (isStreaming) return;
     if (testAbortRef.current) return;
-    if (providerKind === 'mock' || providerKind === 'ollama') return;
+    if (providerKind === 'mock' || providerKind === 'ollama' || providerKind === 'webllm') return;
     if (apiKey.trim().length === 0) return;
 
     let cancelled = false;

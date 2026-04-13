@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../services/VoiceAgentService';
 import { isDictKey, t, useLocale, type Locale } from '../i18n';
@@ -49,6 +49,8 @@ export function useToast(): ToastContextValue {
 const DISMISS_DELAY_MS = 2000;
 const DISMISS_ERROR_MS = 2000;
 const DISMISS_FADE_OUT_MS = 260;
+const TOAST_DEDUP_WINDOW_MS = 2500;
+const SAVE_DONE_TOAST_COOLDOWN_MS = 6000;
 
 function nextId(): string {
   return `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -119,6 +121,13 @@ function getVoiceToastMessage(locale: Locale, mode: Exclude<VoiceAgentMode, 'idl
   return t(locale, key);
 }
 
+function isVoiceToastVariant(variant: ToastVariant): boolean {
+  return variant === 'listening'
+    || variant === 'routing'
+    || variant === 'executing'
+    || variant === 'ai-thinking';
+}
+
 // ── ToastProvider ─────────────────────────────────────────────────────────────
 
 interface Props {
@@ -128,8 +137,15 @@ interface Props {
 export function ToastProvider({ children }: Props) {
   const locale = useLocale();
   const [current, setCurrent] = useState<ToastItem | null>(null);
+  const currentRef = useRef<ToastItem | null>(null);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const removeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastToastRef = useRef<{ message: string; variant: ToastVariant; timestamp: number } | null>(null);
+  const lastSaveDoneToastAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    currentRef.current = current;
+  }, [current]);
 
   const clearTimers = useCallback(() => {
     if (dismissTimerRef.current !== null) {
@@ -156,6 +172,17 @@ export function ToastProvider({ children }: Props) {
     variant: ToastVariant = 'info',
     autoDismissMs: number | undefined = undefined,
   ) => {
+    const now = Date.now();
+    const previousToast = lastToastRef.current;
+    if (
+      previousToast
+      && previousToast.message === message
+      && previousToast.variant === variant
+      && now - previousToast.timestamp < TOAST_DEDUP_WINDOW_MS
+    ) {
+      return;
+    }
+
     clearTimers();
 
     // Auto-dismiss defaults
@@ -168,6 +195,7 @@ export function ToastProvider({ children }: Props) {
     );
 
     const item: ToastItem = { id: nextId(), message, variant, exiting: false };
+    lastToastRef.current = { message, variant, timestamp: now };
     setCurrent(item);
 
     if (totalDelay > 0) {
@@ -180,6 +208,15 @@ export function ToastProvider({ children }: Props) {
       dismiss();
       return;
     }
+
+    if (state.kind === 'done') {
+      const now = Date.now();
+      if (now - lastSaveDoneToastAtRef.current < SAVE_DONE_TOAST_COOLDOWN_MS) {
+        return;
+      }
+      lastSaveDoneToastAtRef.current = now;
+    }
+
     const defaultVariant = SAVE_STATE_VARIANT[state.kind];
     const message = state.kind === 'done'
       ? (state.message || t(locale, 'transcription.toast.saved'))
@@ -201,6 +238,10 @@ export function ToastProvider({ children }: Props) {
     isListening = false,
   ) => {
     if (mode === null) {
+      const active = currentRef.current;
+      if (!active || !isVoiceToastVariant(active.variant)) {
+        return;
+      }
       dismiss();
       return;
     }

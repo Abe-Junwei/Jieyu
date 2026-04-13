@@ -216,6 +216,28 @@ export type AiChatCardMessages = {
   replayCompare: string;
   snapshotExported: string;
   exportSnapshot: string;
+  webllmRuntimeTitle: string;
+  webllmRuntimeSource: string;
+  webllmRuntimeDetail: string;
+  webllmRuntimeRoute: string;
+  webllmRuntimeSourceInjected: string;
+  webllmRuntimeSourcePromptApi: string;
+  webllmRuntimeSourceUnavailable: string;
+  webllmWarmup: string;
+  webllmWarmingUp: string;
+  webllmWarmupPreparing: string;
+  webllmWarmupProgressLabel: string;
+  webllmWarmupCancel: string;
+  webllmWarmupCancelled: string;
+  webllmWarmupDone: string;
+  webllmWarmupFailed: string;
+  webllmWarmupFailedWithReason: (reason: string) => string;
+  webllmWarmupPhasePreparing: string;
+  webllmWarmupPhaseDownloading: string;
+  webllmWarmupPhaseInitializing: string;
+  webllmWarmupPhaseReady: string;
+  agentLoopProgress: (step: number, maxSteps: number) => string;
+  tokenBudgetWarning: (estimatedTokens: number) => string;
   recommendedInputPlaceholder: (input: RecommendedPlaceholderInput) => string;
 };
 
@@ -227,7 +249,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       providerGroupLocalCustom: '\u672c\u5730/\u81ea\u5b9a\u4e49',
       providerStatusLabel: (kind, status) => {
         if (kind === 'mock') return '\u6a21\u62df';
-        if (kind === 'ollama') return '\u672c\u5730';
+        if (kind === 'ollama' || kind === 'webllm') return '\u672c\u5730';
         if (status === 'success') return '\u5df2\u8fde\u63a5';
         if (status === 'error') return '\u5f02\u5e38';
         return '\u672a\u9a8c\u8bc1';
@@ -285,6 +307,28 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       replayCompare: '\u67e5\u770b\u56de\u653e/\u5bf9\u6bd4',
       snapshotExported: '\u5df2\u5bfc\u51fa\u5feb\u7167',
       exportSnapshot: '\u5bfc\u51fa\u5feb\u7167',
+      webllmRuntimeTitle: 'WebLLM \u672c\u5730\u6a21\u578b\u72b6\u6001',
+      webllmRuntimeSource: '\u8fd0\u884c\u65f6\u6765\u6e90',
+      webllmRuntimeDetail: '\u68c0\u6d4b\u8be6\u60c5',
+      webllmRuntimeRoute: '\u79bb\u7ebf\u964d\u7ea7\u8def\u7531',
+      webllmRuntimeSourceInjected: 'Injected Runtime',
+      webllmRuntimeSourcePromptApi: 'Browser Prompt API',
+      webllmRuntimeSourceUnavailable: '\u672a\u68c0\u6d4b\u5230\u8fd0\u884c\u65f6',
+      webllmWarmup: '\u9884\u70ed\u6a21\u578b',
+      webllmWarmingUp: '\u9884\u70ed\u4e2d...',
+      webllmWarmupPreparing: '\u6b63\u5728\u521d\u59cb\u5316\u9884\u70ed',
+      webllmWarmupProgressLabel: '\u9884\u70ed\u8fdb\u5ea6',
+      webllmWarmupCancel: '\u53d6\u6d88\u9884\u70ed',
+      webllmWarmupCancelled: '\u5df2\u53d6\u6d88\u9884\u70ed',
+      webllmWarmupDone: '\u6a21\u578b\u5df2\u5c31\u7eea',
+      webllmWarmupFailed: '\u9884\u70ed\u5931\u8d25',
+      webllmWarmupFailedWithReason: (reason) => `\u9884\u70ed\u5931\u8d25\uff1a${reason}`,
+      webllmWarmupPhasePreparing: '\u68c0\u6d4b\u8fd0\u884c\u73af\u5883',
+      webllmWarmupPhaseDownloading: '\u4e0b\u8f7d\u6a21\u578b\u8d44\u6e90',
+      webllmWarmupPhaseInitializing: '\u521d\u59cb\u5316\u6a21\u578b',
+      webllmWarmupPhaseReady: '\u6a21\u578b\u5c31\u7eea',
+      agentLoopProgress: (step, maxSteps) => `\u591a\u6b65\u63a8\u7406 ${step}/${maxSteps}`,
+      tokenBudgetWarning: (estimatedTokens) => `\n\n\u5269\u4f59\u6b65\u9aa4\u9884\u8ba1\u6d88\u8017 ~${estimatedTokens} tokens\uff0c\u56de\u590d\u201c\u7ee7\u7eed\u201d\u4ee5\u6267\u884c\u3002`,
       recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('zh-CN', input),
     };
   }
@@ -295,7 +339,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     providerGroupLocalCustom: 'Local / Custom',
     providerStatusLabel: (kind, status) => {
       if (kind === 'mock') return 'Mock';
-      if (kind === 'ollama') return 'Local';
+      if (kind === 'ollama' || kind === 'webllm') return 'Local';
       if (status === 'success') return 'Connected';
       if (status === 'error') return 'Error';
       return 'Unverified';
@@ -353,6 +397,28 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     replayCompare: 'Replay / Compare',
     snapshotExported: 'Snapshot Exported',
     exportSnapshot: 'Export Snapshot',
+    webllmRuntimeTitle: 'WebLLM Local Model Status',
+    webllmRuntimeSource: 'Runtime source',
+    webllmRuntimeDetail: 'Detection detail',
+    webllmRuntimeRoute: 'Offline fallback route',
+    webllmRuntimeSourceInjected: 'Injected Runtime',
+    webllmRuntimeSourcePromptApi: 'Browser Prompt API',
+    webllmRuntimeSourceUnavailable: 'No runtime detected',
+    webllmWarmup: 'Warm up model',
+    webllmWarmingUp: 'Warming up...',
+    webllmWarmupPreparing: 'Preparing warmup...',
+    webllmWarmupProgressLabel: 'Warmup progress',
+    webllmWarmupCancel: 'Cancel warmup',
+    webllmWarmupCancelled: 'Warmup cancelled',
+    webllmWarmupDone: 'Model ready',
+    webllmWarmupFailed: 'Warmup failed',
+    webllmWarmupFailedWithReason: (reason) => `Warmup failed: ${reason}`,
+    webllmWarmupPhasePreparing: 'Checking runtime',
+    webllmWarmupPhaseDownloading: 'Downloading model assets',
+    webllmWarmupPhaseInitializing: 'Initializing model runtime',
+    webllmWarmupPhaseReady: 'Model ready',
+    agentLoopProgress: (step, maxSteps) => `Agent loop ${step}/${maxSteps}`,
+    tokenBudgetWarning: (estimatedTokens) => `\n\nEstimated remaining cost is ~${estimatedTokens} tokens. Reply "continue" to proceed.`,
     recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('en-US', input),
   };
 }

@@ -49,6 +49,7 @@ import {
 } from '../ai/chat/agentLoop';
 import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
+import { getAiChatCardMessages } from '../i18n/aiChatCardMessages';
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
@@ -753,7 +754,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               DEFAULT_AGENT_LOOP_CONFIG,
             );
             if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
-              const budgetHint = `\n\nEstimated remaining cost is ~${estimatedRemainingTokens} tokens. Reply "continue" to proceed.`;
+              const budgetHint = getAiChatCardMessages(locale === 'zh-CN').tokenBudgetWarning(estimatedRemainingTokens);
               resolvedContent = `${resolvedContent}${budgetHint}`;
               resolvedStatus = 'done';
               resolvedLocalToolResults = undefined;

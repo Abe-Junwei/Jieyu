@@ -69,6 +69,7 @@ function AssistantRuntimeFrame({
       <AiChatProvider value={aiChatContextValue}>
         <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
           <ToastController
+            mode="voice-only"
             voiceAgent={toastVoiceAgent}
             saveState={frame.saveState}
             recording={frame.recording}

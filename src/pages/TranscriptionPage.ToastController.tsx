@@ -7,6 +7,39 @@ import { useEffect } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import type { SaveState } from '../hooks/transcriptionTypes';
 
+type VoiceToastMode = 'command' | 'dictation' | 'analysis';
+
+type TaskRecoveredDetail = { count: number };
+
+type WebllmWarmupDetail = {
+  status?: 'success' | 'error' | 'cancelled';
+  message?: string;
+};
+
+const WINDOW_TOAST_EVENTS = ['taskrunner:stale-recovered', 'ai:webllm-warmup'] as const;
+
+function resolveVoiceToastMode(mode: string): VoiceToastMode | null {
+  if (mode === 'command' || mode === 'dictation' || mode === 'analysis') {
+    return mode;
+  }
+  return null;
+}
+
+function buildLockConflictMessage(
+  tf: (key: string, opts?: Record<string, unknown>) => string,
+  lockConflictToast: { count: number; speakers: string[] },
+): string {
+  if (lockConflictToast.speakers.length > 0) {
+    return tf('transcription.toast.lockConflictWithSpeakers', {
+      count: lockConflictToast.count,
+      speakers: lockConflictToast.speakers.join('、'),
+    });
+  }
+  return tf('transcription.toast.lockConflict', {
+    count: lockConflictToast.count,
+  });
+}
+
 interface ToastControllerProps {
   /** Subset of useVoiceAgent return value needed for toast routing */
   voiceAgent: {
@@ -22,6 +55,7 @@ interface ToastControllerProps {
   recordingError: string | null;
   overlapCycleToast?: { index: number; total: number; nonce: number } | null;
   lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
+  mode?: 'all' | 'core-only' | 'voice-only';
   /** i18n function for recording toast message */
   tf: (key: string, opts?: Record<string, unknown>) => string;
 }
@@ -34,31 +68,38 @@ export function ToastController({
   recordingError,
   overlapCycleToast,
   lockConflictToast,
+  mode = 'all',
   tf,
 }: ToastControllerProps) {
   const { showToast, showSaveState, showVoiceState } = useToast();
+  const shouldSyncCore = mode !== 'voice-only';
+  const shouldSyncVoice = mode !== 'core-only';
 
   // SaveState changes → toast
   useEffect(() => {
+    if (!shouldSyncCore) return;
     showSaveState(saveState);
-  }, [saveState, showSaveState]);
+  }, [saveState, shouldSyncCore, showSaveState]);
 
   // Recording error → error toast
   useEffect(() => {
+    if (!shouldSyncCore) return;
     if (recordingError) {
       showToast(recordingError, 'error', 0);
     }
-  }, [recordingError, showToast]);
+  }, [recordingError, shouldSyncCore, showToast]);
 
   // Voice agent error (including wake-word startup failures) → error toast
   useEffect(() => {
+    if (!shouldSyncVoice) return;
     if (voiceAgent.error) {
       showToast(voiceAgent.error, 'error', 0);
     }
-  }, [showToast, voiceAgent.error]);
+  }, [shouldSyncVoice, showToast, voiceAgent.error]);
 
   // Recording active → persistent recording toast
   useEffect(() => {
+    if (!shouldSyncCore) return;
     if (recording) {
       showToast(
         tf('transcription.toast.recording', {
@@ -68,39 +109,27 @@ export function ToastController({
         0,
       );
     }
-  }, [recording, recordingUtteranceId, showToast, tf]);
+  }, [recording, recordingUtteranceId, shouldSyncCore, showToast, tf]);
 
   useEffect(() => {
+    if (!shouldSyncCore) return;
     if (!overlapCycleToast) return;
     showToast(tf('transcription.toast.overlapCandidates', {
       index: overlapCycleToast.index,
       total: overlapCycleToast.total,
     }), 'info', 2000);
-  }, [overlapCycleToast, showToast, tf]);
+  }, [overlapCycleToast, shouldSyncCore, showToast, tf]);
 
   useEffect(() => {
+    if (!shouldSyncCore) return;
     if (!lockConflictToast) return;
-    if (lockConflictToast.speakers.length > 0) {
-      showToast(tf('transcription.toast.lockConflictWithSpeakers', {
-        count: lockConflictToast.count,
-        speakers: lockConflictToast.speakers.join('、'),
-      }), 'info', 2000);
-      return;
-    }
-    showToast(tf('transcription.toast.lockConflict', {
-      count: lockConflictToast.count,
-    }), 'info', 2000);
-  }, [lockConflictToast, showToast, tf]);
+    showToast(buildLockConflictMessage(tf, lockConflictToast), 'info', 2000);
+  }, [lockConflictToast, shouldSyncCore, showToast, tf]);
 
   // Voice agent state → toast
   useEffect(() => {
-    const toastMode = (
-      voiceAgent.mode === 'command'
-      || voiceAgent.mode === 'dictation'
-      || voiceAgent.mode === 'analysis'
-    )
-      ? voiceAgent.mode
-      : null;
+    if (!shouldSyncVoice) return;
+    const toastMode = resolveVoiceToastMode(voiceAgent.mode);
 
     if (toastMode && (voiceAgent.listening || voiceAgent.isRecording || voiceAgent.agentState !== 'idle')) {
       showVoiceState(
@@ -110,19 +139,38 @@ export function ToastController({
     } else {
       showVoiceState(null);
     }
-  }, [voiceAgent.agentState, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.mode, showVoiceState]);
+  }, [shouldSyncVoice, voiceAgent.agentState, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.mode, showVoiceState]);
 
-  // TaskRunner stale task recovery → alert toast
+  // TaskRunner stale task recovery + WebLLM warmup events → toast
   useEffect(() => {
-    const handler = (e: Event) => {
-      const count = (e as CustomEvent<{ count: number }>).detail?.count ?? 0;
-      if (count > 0) {
-        showToast(tf('transcription.toast.taskRecovered', { count }), 'info');
+    if (!shouldSyncCore) return;
+
+    const dispatchWindowToastEvent = (eventName: (typeof WINDOW_TOAST_EVENTS)[number], e: Event) => {
+      if (eventName === 'taskrunner:stale-recovered') {
+        const count = (e as CustomEvent<TaskRecoveredDetail>).detail?.count ?? 0;
+        if (count > 0) {
+          showToast(tf('transcription.toast.taskRecovered', { count }), 'info');
+        }
+        return;
       }
+
+      const detail = (e as CustomEvent<WebllmWarmupDetail>).detail;
+      if (!detail?.message) return;
+      showToast(detail.message, detail.status === 'error' ? 'error' : 'info', 2000);
     };
-    window.addEventListener('taskrunner:stale-recovered', handler);
-    return () => window.removeEventListener('taskrunner:stale-recovered', handler);
-  }, [showToast, tf]);
+
+    const listeners = WINDOW_TOAST_EVENTS.map((eventName) => {
+      const listener = (e: Event) => dispatchWindowToastEvent(eventName, e);
+      window.addEventListener(eventName, listener);
+      return { eventName, listener };
+    });
+
+    return () => {
+      listeners.forEach(({ eventName, listener }) => {
+        window.removeEventListener(eventName, listener);
+      });
+    };
+  }, [shouldSyncCore, showToast, tf]);
 
   // This component renders nothing — it only manages side-effects via the toast context.
   return null;

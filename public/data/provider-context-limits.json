@@ -15,5 +15,6 @@
   "openai-compatible": 128000,
   "minimax": 128000,
   "ollama": 16000,
+  "webllm": 16000,
   "mock": 16000
 }

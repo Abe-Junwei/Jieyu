@@ -268,7 +268,9 @@ export class AiHybridRecommendationService {
     if (!input.enabled || !input.composerIdle || !input.aiChatSettings) return false;
     if (input.aiChatSettings.providerKind === 'mock') return false;
     if (input.connectionTestStatus === 'error' || input.connectionTestStatus === 'testing') return false;
-    if (input.aiChatSettings.providerKind !== 'ollama' && input.connectionTestStatus !== 'success') return false;
+    if (input.aiChatSettings.providerKind !== 'ollama'
+      && input.aiChatSettings.providerKind !== 'webllm'
+      && input.connectionTestStatus !== 'success') return false;
     if (this.isRemoteCooldownActive(input.recommendationTelemetry)) return false;
     return true;
   }

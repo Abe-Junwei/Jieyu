@@ -158,7 +158,7 @@
 }
 
 :root[data-theme='dark'] .voice-agent-mode-bar {
-  background: color-mix(in srgb, var(--surface-panel) 6%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 12%, transparent);
 }
 
 .voice-agent-mode-btn {
@@ -166,7 +166,7 @@
   height: 30px;
   padding: 0 12px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: calc(12px * var(--ui-font-scale, 1));
@@ -455,7 +455,7 @@
   line-height: 1.45;
 }
 
-@media (max-width: 840px) {
+@media (max-width: 768px) {
   .voice-agent-header-main {
     align-items: flex-start;
   }
@@ -980,7 +980,7 @@
   height: 28px;
   padding: 0 10px;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
   font-size: calc(12px * var(--ui-font-scale, 1));

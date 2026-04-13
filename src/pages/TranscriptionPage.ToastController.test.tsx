@@ -122,4 +122,86 @@ describe('ToastController overlap cycle toast', () => {
 
     expect(showVoiceState).toHaveBeenCalledWith('dictation', false);
   });
+
+  it('core-only mode skips voice toast syncing', () => {
+    render(
+      <ToastController
+        {...baseProps}
+        mode="core-only"
+        saveState={{ kind: 'done', message: '保存完成' }}
+        voiceAgent={{
+          ...baseProps.voiceAgent,
+          mode: 'dictation',
+          listening: true,
+          agentState: 'listening',
+        }}
+      />,
+    );
+
+    expect(showSaveState).toHaveBeenCalledWith({ kind: 'done', message: '保存完成' });
+    expect(showVoiceState).not.toHaveBeenCalled();
+  });
+
+  it('voice-only mode skips core toast syncing', () => {
+    render(
+      <ToastController
+        {...baseProps}
+        mode="voice-only"
+        saveState={{ kind: 'done', message: '保存完成' }}
+        recordingError="录音异常"
+        voiceAgent={{
+          ...baseProps.voiceAgent,
+          mode: 'dictation',
+          listening: true,
+          agentState: 'listening',
+        }}
+      />,
+    );
+
+    expect(showSaveState).not.toHaveBeenCalled();
+    expect(showToast).not.toHaveBeenCalledWith('录音异常', 'error', 0);
+    expect(showVoiceState).toHaveBeenCalledWith('dictation', true);
+  });
+
+  it('shows webllm warmup event as toast', () => {
+    render(
+      <ToastController
+        {...baseProps}
+      />,
+    );
+
+    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
+      detail: { status: 'success', message: '模型已就绪' },
+    }));
+
+    expect(showToast).toHaveBeenCalledWith('模型已就绪', 'info', 2000);
+  });
+
+  it('shows cancelled webllm warmup event as info toast', () => {
+    render(
+      <ToastController
+        {...baseProps}
+      />,
+    );
+
+    window.dispatchEvent(new CustomEvent('ai:webllm-warmup', {
+      detail: { status: 'cancelled', message: '已取消预热' },
+    }));
+
+    expect(showToast).toHaveBeenCalledWith('已取消预热', 'info', 2000);
+  });
+
+  it('shows taskrunner stale recovered event as toast', () => {
+    render(
+      <ToastController
+        {...baseProps}
+      />,
+    );
+
+    window.dispatchEvent(new CustomEvent('taskrunner:stale-recovered', {
+      detail: { count: 3 },
+    }));
+
+    expect(showToast).toHaveBeenCalledWith('transcription.toast.taskRecovered', 'info');
+  });
 });

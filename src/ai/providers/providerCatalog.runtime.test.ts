@@ -75,4 +75,11 @@ describe('providerCatalog runtime fallbacks', () => {
     const backToQwen = applyAiChatSettingsPatch(backToMiniMax, { providerKind: 'qwen' });
     expect(backToQwen.baseUrl).toBe('https://qwen.example/compatible-mode/v1');
   });
+
+  it('provides default settings for webllm', () => {
+    const webllm = getDefaultAiChatSettings('webllm');
+    expect(webllm.providerKind).toBe('webllm');
+    expect(webllm.model).toContain('Llama');
+    expect(webllm.apiKey).toBe('');
+  });
 });
