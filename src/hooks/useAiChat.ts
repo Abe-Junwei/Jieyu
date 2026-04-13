@@ -260,11 +260,22 @@ export function useAiChat(options?: UseAiChatOptions) {
   });
 
   const updateSettings = useCallback((patch: Partial<AiChatSettings>) => {
-    abortRef.current?.abort();
     userDirtyRef.current = true;
     setSettings((current) => applyAiChatSettingsPatch(current, patch));
-    invalidateConnectionProbe();
-    resetConnectionProbe();
+    
+    // 只在影响连接的设置变更时才重置连接探测
+    const shouldResetConnection = (
+      patch.providerKind !== undefined ||
+      patch.baseUrl !== undefined ||
+      patch.model !== undefined ||
+      patch.apiKey !== undefined
+    );
+    
+    if (shouldResetConnection) {
+      abortRef.current?.abort();
+      invalidateConnectionProbe();
+      resetConnectionProbe();
+    }
   }, [invalidateConnectionProbe, resetConnectionProbe]);
 
   const stop = useCallback(() => {

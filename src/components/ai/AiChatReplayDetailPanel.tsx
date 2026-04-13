@@ -44,6 +44,7 @@ export function AiChatReplayDetailPanel({
   const locale = useLocale();
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
   const viewportWidth = useViewportWidth();
+  
   const compactWidth = useMemo(() => computeAdaptivePanelWidth({
     baseWidth: 360,
     locale,
@@ -54,6 +55,7 @@ export function AiChatReplayDetailPanel({
     maxWidth: 620,
     ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
+  
   const wideWidth = useMemo(() => computeAdaptivePanelWidth({
     baseWidth: 760,
     locale,
@@ -64,6 +66,7 @@ export function AiChatReplayDetailPanel({
     maxWidth: 900,
     ...(viewportWidth !== undefined ? { viewportWidth } : {}),
   }), [locale, uiTextDirection, uiFontScale, viewportWidth]);
+  
   const messages = getAiChatReplayDetailPanelMessages(isZh);
   const latestDecisionLabel = selectedReplayBundle.latestDecision
     ? formatToolDecision(isZh, selectedReplayBundle.latestDecision.decision)
@@ -82,7 +85,9 @@ export function AiChatReplayDetailPanel({
       title={messages.title}
       footer={(
         <div className="ai-chat-replay-panel-actions ai-chat-replay-panel-actions-footer">
-          <PanelButton className="ai-chat-replay-panel-btn" onClick={onToggleDetail}>{showReplayDetailPanel ? messages.hideDetail : messages.showDetail}</PanelButton>
+          <PanelButton className="ai-chat-replay-panel-btn" onClick={onToggleDetail}>
+            {showReplayDetailPanel ? messages.hideDetail : messages.showDetail}
+          </PanelButton>
           <PanelButton className="ai-chat-replay-panel-btn" onClick={onClose}>{messages.close}</PanelButton>
         </div>
       )}

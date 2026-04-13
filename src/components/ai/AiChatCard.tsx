@@ -12,7 +12,7 @@ import {
   aiChatProviderDefinitions,
   getAiChatProviderDefinition,
 } from '../../ai/providers/providerCatalog';
-import type { AiChatProviderKind, AiChatSettings } from '../../ai/providers/providerCatalog';
+import type { AiChatProviderKind, AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import {
   formatCitationLabel,
@@ -126,6 +126,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   const [chatInput, setChatInput] = useState('');
   const [showProviderConfig, setShowProviderConfig] = useState(false);
+  const [testConnectionPending, setTestConnectionPending] = useState(false);
   const [showPromptLab, setShowPromptLab] = useState(false);
   const [selectedReplayBundle, setSelectedReplayBundle] = useState<AiToolReplayBundle | null>(null);
   const [replayLoadingRequestId, setReplayLoadingRequestId] = useState<string | null>(null);
@@ -149,6 +150,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   const isZh = locale === 'zh-CN';
   const cardMessages = useMemo(() => getAiChatCardMessages(isZh), [isZh]);
+  const toolFeedbackStyleResolved: AiToolFeedbackStyle = useMemo(
+    () => (aiChatSettings?.toolFeedbackStyle === 'concise' ? 'concise' : 'detailed'),
+    [aiChatSettings?.toolFeedbackStyle],
+  );
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const hasApiKeyField = useMemo(() => activeProviderDefinition.fields.some((field) => field.key === 'apiKey'), [activeProviderDefinition.fields]);
 
@@ -380,6 +385,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (kind === 'mock' || kind === 'ollama' || kind === 'webllm') return 'local';
     return 'idle';
   }, [aiChatSettings?.providerKind, aiConnectionTestStatus]);
+
+  const isTestingConnection = testConnectionPending || aiConnectionTestStatus === 'testing';
 
   const inputPlaceholder = useMemo(() => cardMessages.recommendedInputPlaceholder({
     fallback: t(locale, 'ai.chat.inputPlaceholder'),
@@ -895,19 +902,23 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             <div className="transcription-ai-mode-switch" role="group" aria-label={cardMessages.toolFeedbackStyle}>
               <button
                 type="button"
-                className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed' ? 'is-active' : ''}`}
-                disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
-                aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'detailed'}
-                onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' })}
+                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'detailed' ? 'is-active' : ''}`}
+                aria-pressed={toolFeedbackStyleResolved === 'detailed'}
+                onClick={() => {
+                  if (toolFeedbackStyleResolved === 'detailed') return;
+                  onUpdateAiChatSettings?.({ toolFeedbackStyle: 'detailed' });
+                }}
               >
                 {cardMessages.detailed}
               </button>
               <button
                 type="button"
-                className={`transcription-ai-mode-btn ${(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise' ? 'is-active' : ''}`}
-                disabled={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
-                aria-pressed={(aiChatSettings?.toolFeedbackStyle ?? 'detailed') === 'concise'}
-                onClick={() => onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' })}
+                className={`transcription-ai-mode-btn ${toolFeedbackStyleResolved === 'concise' ? 'is-active' : ''}`}
+                aria-pressed={toolFeedbackStyleResolved === 'concise'}
+                onClick={() => {
+                  if (toolFeedbackStyleResolved === 'concise') return;
+                  onUpdateAiChatSettings?.({ toolFeedbackStyle: 'concise' });
+                }}
               >
                 {cardMessages.concise}
               </button>
@@ -948,7 +959,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
       {/* P0: Provider config panel (collapsible below header) */}
       {aiChatSettings && showProviderConfig && (
-        <div className="ai-chat-provider-config-panel">
+        <form
+          className="ai-chat-provider-config-panel"
+          onSubmit={(event) => event.preventDefault()}
+        >
           {activeProviderDefinition.fields.map((field) => (
             <div key={field.key} className="ai-chat-provider-config-row">
               <span className="ai-cfg-label">{field.label}</span>
@@ -977,14 +991,18 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             <button
               type="button"
               className={`icon-btn ai-chat-provider-config-action-btn${aiConnectionTestStatus === 'success' ? ' ai-conn-ok' : ''}`}
-              disabled={!onTestAiConnection || aiConnectionTestStatus === 'testing'}
-              onClick={() => { if (!onTestAiConnection) return; void onTestAiConnection(); }}
+              disabled={!onTestAiConnection || isTestingConnection}
+              onClick={() => {
+                if (!onTestAiConnection) return;
+                setTestConnectionPending(true);
+                void onTestAiConnection().finally(() => {
+                  setTestConnectionPending(false);
+                });
+              }}
             >
-              {aiConnectionTestStatus === 'testing'
+              {isTestingConnection
                 ? t(locale, 'ai.chat.testing')
-                : aiConnectionTestStatus === 'success'
-                  ? <><Check size={12} strokeWidth={2.5} className="ai-chat-provider-config-check-icon" />{cardMessages.connected}</>
-                  : t(locale, 'ai.chat.testConnection')}
+                : t(locale, 'ai.chat.testConnection')}
             </button>
             {aiChatSettings.providerKind === 'webllm' && (
               <button
@@ -1052,7 +1070,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               )}
             </div>
           )}
-        </div>
+        </form>
       )}
 
       {!aiChatEnabled ? (
