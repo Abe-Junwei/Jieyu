@@ -150,8 +150,8 @@ export function detectCollaborationConflicts(
 
   if (!(local.deleted === true || remote.deleted === true)) {
     for (const fieldKey of unionFieldKeys(local, remote)) {
-      const leftValue = local.fields[fieldKey] ?? null;
-      const rightValue = remote.fields[fieldKey] ?? null;
+      const leftValue = local.fields[fieldKey];
+      const rightValue = remote.fields[fieldKey];
       if (!Object.is(leftValue, rightValue)) {
         conflicts.push({
           scope: 'field',

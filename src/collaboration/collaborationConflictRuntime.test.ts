@@ -71,6 +71,23 @@ describe('collaboration conflict runtime', () => {
     expect(result.conflicts.some((item) => item.scope === 'session' && item.code === 'session-concurrency-overlap')).toBe(true);
   });
 
+  it('[detect] treats missing field and explicit null as divergent', () => {
+    const local = buildRecord({
+      fields: {},
+      sessionId: 'session-A',
+      updatedAt: 1_000,
+    });
+    const remote = buildRecord({
+      fields: { text: null },
+      sessionId: 'session-B',
+      updatedAt: 2_000,
+    });
+
+    const result = detectCollaborationConflicts(local, remote, { stage: 'async' });
+    expect(result.hasConflict).toBe(true);
+    expect(result.conflicts.some((item) => item.scope === 'field' && item.fieldKey === 'text')).toBe(true);
+  });
+
   it('[resolve] resolves with deterministic digest under last-write-wins', () => {
     const local = buildRecord({ updatedAt: 2_000 });
     const remote = buildRecord({

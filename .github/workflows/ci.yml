@@ -155,6 +155,101 @@ jobs:
       - name: M8 collaboration gate (enforce)
         run: npm run gate:m8-collaboration
 
+  m9-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M9 collaboration gate (enforce)
+        run: npm run gate:m9-collaboration
+
+  m10-collaboration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M10 collaboration gate (enforce)
+        run: npm run gate:m10-collaboration
+
+  m11-cross-device-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M11 cross-device gate (enforce)
+        run: npm run gate:m11-cross-device
+
+  m12-multi-replica-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M12 multi-replica gate (enforce)
+        run: npm run gate:m12-multi-replica
+
+  m13-transaction-sync-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: M13 transaction sync gate (enforce)
+        run: npm run gate:m13-transaction-sync
+
   build-guard:
     runs-on: ubuntu-latest
     timeout-minutes: 30

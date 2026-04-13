@@ -1,14 +1,14 @@
 # M8 协作演进 RC 评审报告（自动生成）
 
-- 生成时间：2026/4/13 07:10:45
-- 模式：enforce
+- 生成时间：2026/4/13 11:48:46
+- 模式：shadow
 - 结论：go
 
 ## 指标评估结果
 
 | 指标 | 阈值 | 当前值 | 判定 |
 |---|---:|---:|---|
-| conflict_detection_rate | 100% | 100.00% (3/3) | PASS |
+| conflict_detection_rate | 100% | 100.00% (4/4) | PASS |
 | consistency_after_resolution_rate | >= 99.90% | 100.00% (1/1) | PASS |
 | resolution_contract_pass_rate | 100% | 100.00% (2/2) | PASS |
 
