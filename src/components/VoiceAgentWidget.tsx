@@ -325,7 +325,20 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
     setProviderError(null);
     providerTestVersionRef.current += 1;
     lastTestRef.current = null; // invalidate cached test result
-  }, [commercialProviderConfig, commercialProviderKind, localWhisperConfig, sttEnhancementConfig, sttEnhancementKind]);
+  }, [
+    commercialProviderKind,
+    commercialProviderConfig.apiKey,
+    commercialProviderConfig.baseUrl,
+    commercialProviderConfig.model,
+    commercialProviderConfig.appId,
+    commercialProviderConfig.accessToken,
+    localWhisperConfig?.baseUrl,
+    localWhisperConfig?.model,
+    sttEnhancementKind,
+    sttEnhancementConfig?.endpointUrl,
+    sttEnhancementConfig?.model,
+    sttEnhancementConfig?.language,
+  ]);
 
   useEffect(() => {
     if (!showSettings || !onRefreshProviderStatus) return;
@@ -857,7 +870,10 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                       )}
                     </div>
 
-                    <div className="voice-agent-commercial-fields">
+                    <form
+                      className="voice-agent-commercial-fields"
+                      onSubmit={(event) => event.preventDefault()}
+                    >
                       {engine === 'whisper-local' ? (
                         <>
                           <input
@@ -930,7 +946,7 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                           />
                         </>
                       )}
-                    </div>
+                    </form>
                   </div>
                 )}
 

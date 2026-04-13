@@ -216,6 +216,30 @@
 .om-toolbar { display: grid; gap: 10px; }
 .om-search { width: 100%; }
 
+.om-search-combobox {
+  display: grid;
+  gap: 0;
+}
+
+.om-search-suggestions {
+  margin-top: 6px;
+}
+
+.om-search-suggestion-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.om-search-suggestion-code {
+  flex: 0 0 auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
 .om-filter-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .om-filter-toggle .panel-button {

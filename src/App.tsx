@@ -13,6 +13,7 @@ import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
 import { ModalPanel } from './components/ui/ModalPanel';
 import { AssetPanelProvider, type AssetPanelContextValue, type LanguageAssetPanel } from './contexts/AssetPanelContext';
+import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -89,18 +90,9 @@ function readPersistedSidePaneWidth(): number {
 }
 
 function readInitialThemeMode(): ThemeMode {
-  const stored = readLocalStorageValue('jieyu-theme');
+  const stored = readLocalStorageValue(THEME_MODE_STORAGE_KEY);
   if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
   return 'system';
-}
-
-/** 将主题模式解析为实际 data-theme 值 | Resolve theme mode to actual applied theme */
-function resolveAppliedTheme(mode: ThemeMode): 'light' | 'dark' {
-  if (mode === 'light' || mode === 'dark') return mode;
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'light';
 }
 
 function readInitialSidePaneCollapsed(): boolean {
@@ -195,13 +187,12 @@ export function App() {
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
 
   useEffect(() => {
-    const applied = resolveAppliedTheme(themeMode);
-    document.documentElement.setAttribute('data-theme', applied);
     try {
-      window.localStorage.setItem('jieyu-theme', themeMode);
+      window.localStorage.setItem(THEME_MODE_STORAGE_KEY, themeMode);
     } catch {
       // Ignore theme persistence failures and keep the current session theme.
     }
+    syncDocumentDataTheme();
   }, [themeMode]);
 
   // 跟随系统主题变化 | Listen for system color-scheme changes when mode is 'system'
@@ -210,7 +201,7 @@ export function App() {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      document.documentElement.setAttribute('data-theme', mql.matches ? 'dark' : 'light');
+      syncDocumentDataTheme();
     };
     mql.addEventListener('change', handler);
     return () => mql.removeEventListener('change', handler);

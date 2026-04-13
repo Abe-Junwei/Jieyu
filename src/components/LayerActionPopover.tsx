@@ -607,6 +607,7 @@ export function LayerActionPopover({
                 locale={locale}
                 value={languageInput}
                 onChange={setLanguageInput}
+                searchScope="language"
                 resolveLanguageDisplayName={resolveLanguageDisplayName}
                 nameLabel={actionMessages.languageNameLabel}
                 codeLabel={actionMessages.languageCodeLabel}

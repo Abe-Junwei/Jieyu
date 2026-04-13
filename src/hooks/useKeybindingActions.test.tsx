@@ -5,6 +5,73 @@ import { useRef } from 'react';
 import { useKeybindingActions } from './useKeybindingActions';
 
 describe('useKeybindingActions segment routing', () => {
+  it('does not trigger global shortcuts while typing in input elements', () => {
+    const setShowSearch = vi.fn();
+
+    renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: { getCurrentTime: () => 0 } as unknown as import('wavesurfer.js').default },
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUtterance: undefined,
+        selectedTimelineUnit: null,
+        selectedUtteranceIds: new Set<string>(),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: null,
+        setSegMarkStart: vi.fn(),
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        utterancesOnCurrentMedia: [],
+        markingModeRef: { current: false },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUtteranceFromSelection: vi.fn(async () => undefined),
+        selectUtterance: vi.fn(),
+        selectAllUtterances: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch,
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'f',
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    const notCanceled = input.dispatchEvent(event);
+
+    expect(notCanceled).toBe(true);
+    expect(event.defaultPrevented).toBe(false);
+    expect(setShowSearch).not.toHaveBeenCalled();
+
+    input.remove();
+  });
+
   it('routes delete/merge/split shortcuts to selected segment when utterance is empty', () => {
     const runDeleteSelection = vi.fn();
     const runMergePrev = vi.fn();

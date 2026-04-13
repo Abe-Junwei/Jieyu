@@ -1,0 +1,2761 @@
+{
+  "version": "2.10",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": -1262,
+      "y": -691,
+      "name": "Frame",
+      "width": 3318,
+      "fill": "#F0EDE6",
+      "layout": "vertical",
+      "gap": 36,
+      "padding": [
+        60,
+        64
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "6B5fZ",
+          "name": "title",
+          "fill": "#1A1A1A",
+          "content": "解语 Jieyu — 配色方案",
+          "fontFamily": "Inter",
+          "fontSize": 52,
+          "fontWeight": "800",
+          "letterSpacing": -0.5
+        },
+        {
+          "type": "text",
+          "id": "N2nAL",
+          "name": "subtitle",
+          "fill": "#888888",
+          "content": "十种主题配色 · 濒危语言科研协作平台 · 视觉降噪 × 语义区分",
+          "fontFamily": "Inter",
+          "fontSize": 17,
+          "fontWeight": "normal",
+          "letterSpacing": 0.5
+        },
+        {
+          "type": "line",
+          "id": "2onaS",
+          "name": "div1",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "FwHgM",
+          "name": "cat1h",
+          "fill": "#444444",
+          "content": "一、中国风 — 强调文化底蕴与严谨性",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "gp1k1",
+          "name": "row1a",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "ohZN1",
+              "name": "card1",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F2E6CE",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "B6nmE",
+                  "name": "top1",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hvPy0",
+                      "name": "t1",
+                      "fill": "#2C3E50",
+                      "content": "01  简牍青墨",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "GJm9M",
+                      "name": "st1",
+                      "fill": "#2C3E5080",
+                      "content": "竹简与水墨 · 中国风 · Surface #F2E6CE",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "l0EZy",
+                      "name": "d1",
+                      "fill": "#2C3E50CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "模拟古籍整理的沉浸感。像是在一张古老的宣纸上进行数字化转写。IPA 用墨黑，翻译层用赭石色。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "epVpl",
+                  "name": "s1a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#2C3E50",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rvMuO",
+                      "name": "s1al",
+                      "fill": "#FFFFFF",
+                      "content": "Primary 主色 · 黛蓝墨色 · #2C3E50",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Dfpq5",
+                  "name": "s1b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#A67C52",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "JLNux",
+                      "name": "s1bl",
+                      "fill": "#FFFFFF",
+                      "content": "Accent 辅助 · 老竹黄 · #A67C52",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "KtwlQ",
+                  "name": "s1c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#3E2723",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jjUNq",
+                      "name": "s1cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier 层级 · 墨黑赭石 · #3E2723",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "IQByU",
+              "name": "card2",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F9F9F9",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "nRr5b",
+                  "name": "top2",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vU8M9",
+                      "name": "t2",
+                      "fill": "#8C2222",
+                      "content": "02  宫墙映雪",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "4JgI1",
+                      "name": "st2",
+                      "fill": "#8C222280",
+                      "content": "故宫红墙与白雪 · 中国风 · Surface #F9F9F9",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "unFh8",
+                      "name": "d2",
+                      "fill": "#8C2222CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "经典皇家配色，具有极高的权威感。稳重、大气，适合展示正式的学术研究成果。重点标注用朱红，普通标注用铁灰。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xBOqb",
+                  "name": "s2a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#8C2222",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "4tgNx",
+                      "name": "s2al",
+                      "fill": "#FFFFFF",
+                      "content": "Primary 主色 · 宫墙红 · #8C2222",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "bthVv",
+                  "name": "s2b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#2A2A2A",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Aq9VW",
+                      "name": "s2bl",
+                      "fill": "#FFFFFF",
+                      "content": "Sidebar 侧栏 · 玄色 · #2A2A2A",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Fhndh",
+                  "name": "s2c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#C0392B",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "6QgK9",
+                      "name": "s2cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier 标注 · 朱红 · #C0392B",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "m6EHX",
+          "name": "row1b",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "fcoFc",
+              "name": "card3",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#E8EFEE",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "o6gY6",
+                  "name": "top3",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dmfce",
+                      "name": "t3",
+                      "fill": "#224C44",
+                      "content": "03  远山叠翠",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "bxg6M",
+                      "name": "st3",
+                      "fill": "#224C4480",
+                      "content": "山水画意象 · 中国风 · Surface #E8EFEE",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "dOI0K",
+                      "name": "d3",
+                      "fill": "#224C44CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "利用绿色系的视觉保护功能。清新护眼，长时间标注不易疲劳。转写层用深绿，语音分析用淡青。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "TJAOc",
+                  "name": "s3a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#224C44",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "O6rbt",
+                      "name": "s3al",
+                      "fill": "#FFFFFF",
+                      "content": "Primary 主色 · 深潭绿 · #224C44",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Eag3T",
+                  "name": "s3b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#5F867E",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "UtRa0",
+                      "name": "s3bl",
+                      "fill": "#FFFFFF",
+                      "content": "Wave 波形 · 松柏绿 · #5F867E",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Ry7pZ",
+                  "name": "s3c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#8FB8AE",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "uQ0By",
+                      "name": "s3cl",
+                      "fill": "#224C44",
+                      "content": "Tier 层级 · 淡青 · #8FB8AE",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "rCXzy",
+          "name": "div2",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "G69yf",
+          "name": "cat2h",
+          "fill": "#444444",
+          "content": "二、科技风 — 强调效率、精密与未来感",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "tEE0k",
+          "name": "row2",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "i3eaM",
+              "name": "card4",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#0D1117",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#30363D"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000030",
+                "offset": {
+                  "x": 0,
+                  "y": 6
+                },
+                "blur": 28
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "RE9fj",
+                  "name": "top4",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rm88r",
+                      "name": "t4",
+                      "fill": "#58A6FF",
+                      "content": "04  深空霓虹",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JS5TU",
+                      "name": "st4",
+                      "fill": "#58A6FF80",
+                      "content": "Dark Tech · 科技风 · Surface #0D1117",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "zNII0",
+                      "name": "d4",
+                      "fill": "#C9D1D9",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "模拟高端 IDE 的暗色生产力环境。代码级质感，AI 指令和波形细节极度清晰。不同层使用高饱和度的青、紫、橙色线条区分。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "qPTBW",
+                  "name": "s4a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#58A6FF",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "BTCiT",
+                      "name": "s4al",
+                      "fill": "#0D1117",
+                      "content": "Primary 主色 · 电子蓝 · #58A6FF",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "wae0n",
+                  "name": "s4b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#79FE0C",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "4QCeW",
+                      "name": "s4bl",
+                      "fill": "#0D1117",
+                      "content": "Neon 高亮 · 荧光绿 · #79FE0C",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xlRhi",
+                  "name": "s4c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#BC8CFF",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "BC1zM",
+                      "name": "s4cl",
+                      "fill": "#0D1117",
+                      "content": "Tier 层级 · 霓虹紫 · #BC8CFF",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "2oyT7",
+              "name": "card5",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#E1E4E8",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "sfbU8",
+                  "name": "top5",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "GfQXQ",
+                      "name": "t5",
+                      "fill": "#0366D6",
+                      "content": "05  银色机甲",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZEYvR",
+                      "name": "st5",
+                      "fill": "#0366D680",
+                      "content": "Clean Sci-Fi · 科技风 · Surface #E1E4E8",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "VHvrE",
+                      "name": "d5",
+                      "fill": "#24292ECC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "冷色调工业风。极其冷静，适合需要高度专注的声学数据审计。采用细窄的蓝色线条和半透明遮罩。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ieNu7",
+                  "name": "s5a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#0366D6",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ndpjn",
+                      "name": "s5al",
+                      "fill": "#FFFFFF",
+                      "content": "Primary 主色 · 精密蓝 · #0366D6",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ET4dp",
+                  "name": "s5b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#6A737D",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "O6YaI",
+                      "name": "s5bl",
+                      "fill": "#FFFFFF",
+                      "content": "UI 装饰 · 冷钢灰 · #6A737D",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "fVgnH",
+                  "name": "s5c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#959DA5",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CxaaR",
+                      "name": "s5cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier 层级 · 淡钢灰 · #959DA5",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "eUUsd",
+          "name": "div3",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "2yPbx",
+          "name": "cat3h",
+          "fill": "#444444",
+          "content": "三、敦煌风 — 异域色彩与历史厚重感",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "ry0at",
+          "name": "row3",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "hCUON",
+              "name": "card6",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#D9B48F",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000020",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "EnCqO",
+                  "name": "top6",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "BB8Mh",
+                      "name": "t6",
+                      "fill": "#4B644B",
+                      "content": "06  鸣沙石窟",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "3kUzy",
+                      "name": "st6",
+                      "fill": "#4B644B80",
+                      "content": "反弹琵琶意象 · 敦煌风 · Surface #D9B48F",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "DL3H3",
+                      "name": "d6",
+                      "fill": "#3E2723CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "濒危语言具有极强的文化独特性，敦煌色系完美契合。色彩浓郁且不刺眼，赋予语料库「数字博物馆」的质感。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "TmtVl",
+                  "name": "s6a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#4B644B",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "MXXz1",
+                      "name": "s6al",
+                      "fill": "#FFFFFF",
+                      "content": "Primary 主色 · 石绿 · #4B644B",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hy3Ye",
+                  "name": "s6b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#B35B47",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "hm7ub",
+                      "name": "s6bl",
+                      "fill": "#FFFFFF",
+                      "content": "Detail 对比 · 壁画土红 · #B35B47",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "HYOLj",
+                  "name": "s6c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#7D5A3C",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "xtBpi",
+                      "name": "s6cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier 层级 · 赭石 · #7D5A3C",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "a8wU7",
+          "name": "div4",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "yC7Pi",
+          "name": "cat4h",
+          "fill": "#444444",
+          "content": "四、极简风 — 参考 Obsidian Minimal",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "zgEOT",
+          "name": "row4",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "dn1LB",
+              "name": "card7",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#FFFFFF",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#E5E5E5"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000012",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m6jj7",
+                  "name": "top7",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "GZBSD",
+                      "name": "t7",
+                      "fill": "#1A1A1A",
+                      "content": "07  纯粹禅意",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "NGmHV",
+                      "name": "st7",
+                      "fill": "#1A1A1A60",
+                      "content": "Obsidian Light Minimal · 极简风 · Surface #FFFFFF",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "ekEMp",
+                      "name": "d7",
+                      "fill": "#1A1A1ACC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "极致的空气感，让文本自己说话。屏幕上几乎只有文字和波形，没有视觉噪音。不使用背景色，仅通过字体粗细和微小的下划线区分。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lL9n5",
+                  "name": "s7a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#1A1A1A",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "b5hmn",
+                      "name": "s7al",
+                      "fill": "#FFFFFF",
+                      "content": "Text 文字 · 深灰 · #1A1A1A",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "7RhKE",
+                  "name": "s7b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#E5E5E5",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ZYDMT",
+                      "name": "s7bl",
+                      "fill": "#666666",
+                      "content": "Border 边框 · 极细灰线 · #E5E5E5",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eMPHb",
+                  "name": "s7c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#CCCCCC",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "qnWok",
+                      "name": "s7cl",
+                      "fill": "#333333",
+                      "content": "Tier 层级 · 浅灰 · #CCCCCC",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YWVO9",
+              "name": "card8",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#111111",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#2F2F2F"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000030",
+                "offset": {
+                  "x": 0,
+                  "y": 6
+                },
+                "blur": 28
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "8EQYv",
+                  "name": "top8",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "cRo1Y",
+                      "name": "t8",
+                      "fill": "#EDEDED",
+                      "content": "08  深邃黑岩",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "X0mFS",
+                      "name": "st8",
+                      "fill": "#EDEDED60",
+                      "content": "Obsidian Dark Minimal · 极简风 · Surface #111111",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "edfgQ",
+                      "name": "d8",
+                      "fill": "#EDEDEDCC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "极致的暗黑极简。非常专业，适合在暗光环境下长时间工作的科研人员。使用不同透明度的灰色填充区分层级。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CBoqb",
+                  "name": "s8a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#EDEDED",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "v4dsN",
+                      "name": "s8al",
+                      "fill": "#111111",
+                      "content": "Text 文字 · 灰白 · #EDEDED",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "BXDJW",
+                  "name": "s8b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#2F2F2F",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vzzDl",
+                      "name": "s8bl",
+                      "fill": "#EDEDED",
+                      "content": "Selection 选区 · 暗灰块 · #2F2F2F",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "RYwND",
+                  "name": "s8c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#4A4A4A",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "veS85",
+                      "name": "s8cl",
+                      "fill": "#EDEDED",
+                      "content": "Tier 层级 · 中灰 · #4A4A4A",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "wqpDT",
+          "name": "div5",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "nwPQj",
+          "name": "cat5h",
+          "fill": "#444444",
+          "content": "五、灰度风 — 专业审计与极致中性",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "xi1p1",
+          "name": "row5",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "iOVxB",
+              "name": "card9",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F5F5F5",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#E0E0E0"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000015",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "uaCjz",
+                  "name": "top9",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ZiF7E",
+                      "name": "t9",
+                      "fill": "#333333",
+                      "content": "09  铅印实验室",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AwdPZ",
+                      "name": "st9",
+                      "fill": "#33333360",
+                      "content": "Monochrome Lab · 灰度风 · Surface #F5F5F5",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "3MWA6",
+                      "name": "d9",
+                      "fill": "#333333CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "完全通过明度而非色相来区分信息。避开色彩干扰，研究者可以根据灰度的深浅直观感受标注的密度和层级关系。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "c32Um",
+                  "name": "s9a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#333333",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OGRtj",
+                      "name": "s9al",
+                      "fill": "#FFFFFF",
+                      "content": "Text 文字 · 炭灰 · #333333",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "L3ovb",
+                  "name": "s9b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#E0E0E0",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "SuQOQ",
+                      "name": "s9bl",
+                      "fill": "#333333",
+                      "content": "Tier-A 浅灰 · #E0E0E0",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "wWmVT",
+                  "name": "s9c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#9E9E9E",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "wnGiy",
+                      "name": "s9cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier-B 中灰 · #9E9E9E",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "gzm7q",
+          "name": "div6",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "FXBy1",
+          "name": "cat6h",
+          "fill": "#444444",
+          "content": "六、人文地理风 — 优秀视觉案例扩展",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "KPBOR",
+          "name": "row6",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "ZxPKK",
+              "name": "card10",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F4F1EA",
+              "cornerRadius": 16,
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "VzcdI",
+                  "name": "top10",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "7U6dQ",
+                      "name": "t10",
+                      "fill": "#000000",
+                      "content": "10  国家地理",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "sZBvz",
+                      "name": "st10",
+                      "fill": "#00000060",
+                      "content": "人文探索风 · National Geographic · Surface #F4F1EA",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "V9Dn2",
+                      "name": "d10",
+                      "fill": "#000000CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "模拟《国家地理》杂志的色彩体系。具有极强的探险与纪实感，让田野调查工作充满使命感。使用明黄色的左侧指示条。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "KghG6",
+                  "name": "s10a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#FFCF00",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "A3QlW",
+                      "name": "s10al",
+                      "fill": "#000000",
+                      "content": "Primary 主色 · 经典明黄 · #FFCF00",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "PwHyX",
+                  "name": "s10b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#000000",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "9oUUr",
+                      "name": "s10bl",
+                      "fill": "#FFFFFF",
+                      "content": "Secondary 辅色 · 纯黑 · #000000",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "oItSb",
+                  "name": "s10c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#D4A017",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Uw8vO",
+                      "name": "s10cl",
+                      "fill": "#FFFFFF",
+                      "content": "Tier 层级 · 暗金 · #D4A017",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "line",
+          "id": "JHnxo",
+          "name": "div7",
+          "fill": "#D5D0C8",
+          "width": "fill_container",
+          "height": 1
+        },
+        {
+          "type": "text",
+          "id": "abgmn",
+          "name": "cat7h",
+          "fill": "#444444",
+          "content": "七、面板极简风 — 来自「面板—极简」设计稿",
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "600"
+        },
+        {
+          "type": "frame",
+          "id": "pkqp5",
+          "name": "row7",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "0BbVd",
+              "name": "c3",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F3F5F2",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#CCD3CF"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "cCFcp",
+                  "name": "tp3",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "ASu4a",
+                      "name": "tt3",
+                      "fill": "#37474F",
+                      "content": "方案三｜水墨数智",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "zerD5",
+                      "name": "ts3",
+                      "fill": "#59656A",
+                      "content": "宣纸白 + 黛蓝 + 藏蓝荧光 + 烟灰 · 来自面板极简",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "HCrfI",
+                      "name": "td3",
+                      "fill": "#37474FCC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "宣纸留白承载长文本，青蓝微光承担交互提示。适配：语料库检索、跨地区调查、长时阅读型知识库。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "1C6CF",
+                  "name": "b3a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#F5F5F0",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#D8D8CF"
+                  },
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "jLP5y",
+                      "name": "b3al",
+                      "fill": "#41413D",
+                      "content": "宣纸色 · #F5F5F0",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "f4LQu",
+                  "name": "b3b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#37474F",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Km4YR",
+                      "name": "b3bl",
+                      "fill": "#E2ECEF",
+                      "content": "黛蓝 · #37474F",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "dPy5h",
+                  "name": "b3c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#00BCD4",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "kmn4K",
+                      "name": "b3cl",
+                      "fill": "#053C43",
+                      "content": "藏蓝荧光 · #00BCD4",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "y68l8",
+                  "name": "b3d",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#CFD8DC",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "4aKrX",
+                      "name": "b3dl",
+                      "fill": "#344148",
+                      "content": "烟灰 · #CFD8DC",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "yn5a1",
+              "name": "c1",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#EEF3F6",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#C7D4DC"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "BMd0I",
+                  "name": "tp1",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "fWBO0",
+                      "name": "tt1",
+                      "fill": "#1A237E",
+                      "content": "方案一｜数字青金",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "WsjfX",
+                      "name": "ts1",
+                      "fill": "#4E5D6E",
+                      "content": "藏蓝 + 石绿 + 敦煌金 + 极光银 · 来自面板极简",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "a9ZNT",
+                      "name": "td1",
+                      "fill": "#1A237ECC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "深蓝数据星空中，以石绿描绘语言流动。适配：语言地图、时序演化、多源数据汇总看板。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "tUnk5",
+                  "name": "b1a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#1A237E",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "QnzVK",
+                      "name": "b1al",
+                      "fill": "#E2E7FF",
+                      "content": "藏蓝 · #1A237E",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "EtuTs",
+                  "name": "b1b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#4DB6AC",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "yQ1eu",
+                      "name": "b1bl",
+                      "fill": "#093734",
+                      "content": "石绿 · #4DB6AC",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "yh8Hl",
+                  "name": "b1c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#FFB74D",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "oR5Fo",
+                      "name": "b1cl",
+                      "fill": "#4A2E08",
+                      "content": "敦煌金 · #FFB74D",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "fntZR",
+                  "name": "b1d",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#E0E0E0",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#C7C7C7"
+                  },
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ck4IL",
+                      "name": "b1dl",
+                      "fill": "#454545",
+                      "content": "极光银 · #E0E0E0",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "9cSk1",
+              "name": "c4",
+              "clip": true,
+              "width": "fill_container",
+              "fill": "#F4F0EA",
+              "cornerRadius": 16,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#D6CDBF"
+              },
+              "effect": {
+                "type": "shadow",
+                "shadowType": "outer",
+                "color": "#00000018",
+                "offset": {
+                  "x": 0,
+                  "y": 4
+                },
+                "blur": 24
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "K5EQL",
+                  "name": "tp4",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": 28,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "C2gK2",
+                      "name": "tt4",
+                      "fill": "#283593",
+                      "content": "方案四｜壁画矿脉",
+                      "fontFamily": "Inter",
+                      "fontSize": 24,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "vmSFX",
+                      "name": "ts4",
+                      "fill": "#5D5B66",
+                      "content": "藏蓝 + 赭石 + 冷金 + 青莲 · 来自面板极简",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.3
+                    },
+                    {
+                      "type": "text",
+                      "id": "WJHyR",
+                      "name": "td4",
+                      "fill": "#283593CC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "壁画重彩进入数字界面，叙事感与层级感都更强。适配：文化叙事型平台、数字展陈、重彩信息仪表盘。",
+                      "lineHeight": 1.6,
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZEXIO",
+                  "name": "b4a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#283593",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Wr2RI",
+                      "name": "b4al",
+                      "fill": "#E0E6FF",
+                      "content": "藏蓝 · #283593",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "uzOEv",
+                  "name": "b4b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#D84315",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "mtyJK",
+                      "name": "b4bl",
+                      "fill": "#FFE9E2",
+                      "content": "赭石 · #D84315",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Ps4gK",
+                  "name": "b4c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#FBC02D",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "nS447",
+                      "name": "b4cl",
+                      "fill": "#4A3708",
+                      "content": "冷金 · #FBC02D",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "u9K1p",
+                  "name": "b4d",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#7986CB",
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "rVqmf",
+                      "name": "b4dl",
+                      "fill": "#F0F2FD",
+                      "content": "青莲 · #7986CB",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "500",
+                      "letterSpacing": 0.5
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "g9WXV",
+          "name": "row7b",
+          "width": "fill_container",
+          "gap": 32,
+          "children": [
+            {
+              "type": "frame",
+              "id": "eLXBu",
+              "name": "card11",
+              "clip": true,
+              "width": 380,
+              "cornerRadius": 16,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "v6M3c",
+                  "name": "c11top",
+                  "width": "fill_container",
+                  "height": 160,
+                  "fill": "#1C2B4B",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    20,
+                    18
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "n3Dd6",
+                      "fill": "#E6E9ED",
+                      "content": "11 莫高窟叙事",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "xD3iD",
+                      "fill": "#A9B7D0",
+                      "content": "敦煌矿物色系 + 藏蓝骨架",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SBf1G",
+                      "fill": "#6B8BAA",
+                      "content": "大漠黄沙与高原星空的对话",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Na3Et",
+                  "name": "b11a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#1C2B4B",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "0A1G4",
+                      "fill": "#E6E9ED",
+                      "content": "藏蓝",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hyDld",
+                      "fill": "#A9B7D0",
+                      "content": "#1C2B4B",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "2J277",
+                  "name": "b11b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#A6523D",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "PctHx",
+                      "fill": "#F6E5E1",
+                      "content": "敦煌土红",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "NrSpo",
+                      "fill": "#F0CFC8",
+                      "content": "#A6523D",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "AuiFc",
+                  "name": "b11c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#D9A05B",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CF2zo",
+                      "fill": "#3E2D18",
+                      "content": "秋葵黄",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "SLrBw",
+                      "fill": "#5B4528",
+                      "content": "#D9A05B",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "0weMq",
+                  "name": "b11d",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#E6E9ED",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "0OOZg",
+                      "fill": "#2A3440",
+                      "content": "冷灰",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "7ldWT",
+                      "fill": "#5C6977",
+                      "content": "#E6E9ED",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "PmzbT",
+              "name": "card12",
+              "clip": true,
+              "width": 380,
+              "cornerRadius": 16,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "aZiOd",
+                  "name": "c12top",
+                  "width": "fill_container",
+                  "height": 160,
+                  "fill": "#2C2C2C",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    20,
+                    18
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "lHV44",
+                      "fill": "#EDE6DA",
+                      "content": "12 古建筑与朱墨",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "6sIi1",
+                      "fill": "#BEB7A8",
+                      "content": "故宫红墙黛瓦",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "KavaW",
+                      "fill": "#8A8278",
+                      "content": "朱墨对照，强化规范性与庄重气质",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "M2it2",
+                  "name": "b12a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#923131",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "4vGVl",
+                      "fill": "#F6E7E7",
+                      "content": "城赭",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZsYaY",
+                      "fill": "#E3BCBC",
+                      "content": "#923131",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "k1vp0",
+                  "name": "b12b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#2C2C2C",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "zhoUW",
+                      "fill": "#E4E0D6",
+                      "content": "墨色",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "CZAFW",
+                      "fill": "#BEB7A8",
+                      "content": "#2C2C2C",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "80KPc",
+                  "name": "b12c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#D4AF37",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "JBzf3",
+                      "fill": "#3E3110",
+                      "content": "洒金",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ilnhi",
+                      "fill": "#65501B",
+                      "content": "#D4AF37",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "4oNXm",
+              "name": "card13",
+              "clip": true,
+              "width": 380,
+              "cornerRadius": 16,
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "rv5ex",
+                  "name": "c13top",
+                  "width": "fill_container",
+                  "height": 160,
+                  "fill": "#425066",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    20,
+                    18
+                  ],
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "3fU9i",
+                      "fill": "#E8EEF3",
+                      "content": "13 烟雨江南",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Osst0",
+                      "fill": "#B5C0CE",
+                      "content": "苏州园林水墨",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "Cw0kM",
+                      "fill": "#7A8BA0",
+                      "content": "低饱和中冷调，适合大规模语料与长期阅读",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "x3DLP",
+                  "name": "b13a",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#425066",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Lzex5",
+                      "fill": "#E5ECF4",
+                      "content": "黛蓝",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "r8B2g",
+                      "fill": "#B5C0CE",
+                      "content": "#425066",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "feeVR",
+                  "name": "b13b",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#A18594",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OnNUM",
+                      "fill": "#F5EDF1",
+                      "content": "藕荷",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "OPMJM",
+                      "fill": "#E5D6DE",
+                      "content": "#A18594",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "t2NVE",
+                  "name": "b13c",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#D6E0E6",
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "9bu03",
+                      "fill": "#3D4A59",
+                      "content": "月白",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ww8YN",
+                      "fill": "#607080",
+                      "content": "#D6E0E6",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,15 @@ import { isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
 import { fireAndForget } from '../utils/fireAndForget';
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  const element = target instanceof HTMLElement ? target : null;
+  if (!element) return false;
+  const tagName = element.tagName;
+  if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
+  if (element.isContentEditable) return true;
+  return Boolean(element.closest('[contenteditable="true"]'));
+}
+
 interface UseKeybindingActionsInput {
   player: {
     isReady: boolean;
@@ -259,6 +268,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       ...(toggleVoice ? { toggleVoice } : {}),
     };
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e.target)) return;
       for (const [actionId, combo] of keymap) {
         const entry = DEFAULT_KEYBINDINGS.find((b) => b.id === actionId);
         if (!entry || entry.scope !== 'global') continue;

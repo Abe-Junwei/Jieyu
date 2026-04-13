@@ -292,12 +292,19 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     ? (selectedHotspotTimeSec * zoomPxPerSec) - waveformScrollLeft
     : null;
   const waveformGuideOverlayWidth = Math.max(1, acousticOverlayViewportWidth);
+  const waveformGuideOverlayHeight = Math.max(1, waveformHeight);
+  const waveformGuideLabelY = Math.max(1, Math.min(14, waveformGuideOverlayHeight - 1));
+  const waveformGuideHotspotTopY = Math.min(4, Math.max(0, waveformGuideOverlayHeight - 1));
+  const waveformGuideHotspotBottomY = Math.max(
+    waveformGuideHotspotTopY,
+    waveformGuideOverlayHeight - waveformGuideHotspotTopY,
+  );
   const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'
     && selectedHotspotLeftPx != null
     && Number.isFinite(selectedHotspotLeftPx)
     && selectedHotspotLeftPx >= -6
     && selectedHotspotLeftPx <= acousticOverlayViewportWidth + 6;
-  const snapGuideWindowSec = snapGuideVisible && playerDuration > 0 && rulerView
+  const snapGuideWindowSec = snapEnabled && snapGuideVisible && playerDuration > 0 && rulerView
     ? rulerView.end - rulerView.start
     : null;
   const snapGuideLeftPx = snapGuideWindowSec && snapGuideWindowSec > 0
@@ -358,7 +365,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     <>
       <WaveformAreaSection
         containerRef={waveformAreaRef}
-        className={`transcription-waveform-area ${snapGuideNearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
+        className={`transcription-waveform-area ${snapEnabled && snapGuideNearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
         layoutStyle={{ '--waveform-height': `${waveformHeight}px` } as React.CSSProperties}
         tabIndex={0}
         onKeyDown={handleWaveformKeyDown}
@@ -472,7 +479,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                     {(shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null) ? (
                       <svg
                         className="waveform-guide-overlay"
-                        viewBox={`0 0 ${waveformGuideOverlayWidth} 100`}
+                        viewBox={`0 0 ${waveformGuideOverlayWidth} ${waveformGuideOverlayHeight}`}
                         preserveAspectRatio="none"
                         aria-hidden="true"
                       >
@@ -481,8 +488,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                             className="waveform-analysis-hotspot-line"
                             x1={selectedHotspotLeftPx as number}
                             x2={selectedHotspotLeftPx as number}
-                            y1={4}
-                            y2={96}
+                            y1={waveformGuideHotspotTopY}
+                            y2={waveformGuideHotspotBottomY}
                           />
                         ) : null}
                         {snapGuideLeftPx != null ? (
@@ -492,12 +499,12 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                               x1={snapGuideLeftPx}
                               x2={snapGuideLeftPx}
                               y1={0}
-                              y2={100}
+                              y2={waveformGuideOverlayHeight}
                             />
                             <text
                               className={`waveform-snap-guide-label waveform-snap-guide-label-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
                               x={snapGuideLeftPx}
-                              y={14}
+                              y={waveformGuideLabelY}
                               textAnchor="middle"
                             >
                               L
@@ -511,12 +518,12 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                               x1={snapGuideRightPx}
                               x2={snapGuideRightPx}
                               y1={0}
-                              y2={100}
+                              y2={waveformGuideOverlayHeight}
                             />
                             <text
                               className={`waveform-snap-guide-label waveform-snap-guide-label-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
                               x={snapGuideRightPx}
-                              y={14}
+                              y={waveformGuideLabelY}
                               textAnchor="middle"
                             >
                               R

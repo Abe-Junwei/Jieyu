@@ -194,7 +194,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
     });
     expect(screen.getByTestId('side-pane-title').textContent).toBe('正字法桥接工作台');
 
-    fireEvent.change(screen.getByRole('searchbox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '英语资产标签' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '英语资产标签' } });
 
     await waitFor(() => {
       expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith({
@@ -297,7 +297,7 @@ describe('OrthographyBridgeWorkspacePage', () => {
       expect(screen.getByTestId('orthography-bridge-manager').textContent).toContain('user:demo-language:示例语言资产');
     });
 
-    fireEvent.change(screen.getByRole('searchbox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '示例语言资产' } });
+    fireEvent.change(screen.getByRole('combobox', { name: '按语言、名称或脚本筛选目标正字法' }), { target: { value: '示例语言资产' } });
 
     await waitFor(() => {
       expect(screen.getAllByText('Custom Orthography · Latn · practical').length).toBeGreaterThan(0);

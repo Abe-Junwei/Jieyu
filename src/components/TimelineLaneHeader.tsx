@@ -64,9 +64,9 @@ interface LaneLockDialogState {
 }
 
 const LANE_LINK_COLUMN_WIDTH = 18;
-const LANE_LINK_TRUNK_X = 16;
-const LANE_LINK_MARKER_X = 2;
-const LANE_LINK_ELBOW_START_X = 6;
+const LANE_LINK_TRUNK_X = 16.5;
+const LANE_LINK_MARKER_X = 2.5;
+const LANE_LINK_ELBOW_START_X = 6.5;
 
 function renderLaneLinkConnectorSvg(
   segment: { column: number; colorIndex: number; role: 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end' },
@@ -488,7 +488,11 @@ export function TimelineLaneHeader({
         {!isCollapsed && effectiveShowConnectors && rowSegments.length > 0 && (() => {
           const connectorStackWidth = getLayerLinkStackWidth(connectorLayout.maxColumns);
           return (
-            <span className="lane-link-stack" aria-hidden="true">
+            <span
+              className="lane-link-stack"
+              aria-hidden="true"
+              style={{ '--lane-link-stack-width': `${connectorStackWidth}px` } as React.CSSProperties}
+            >
               <svg
                 className="lane-link-stack-svg"
                 width={connectorStackWidth}

@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-13
 source_of_truth: execution-plan-index
 ---
 
@@ -12,6 +12,8 @@ source_of_truth: execution-plan-index
 这里保存某个专题如何推进、如何验收、如何判断开放条件的执行方案。
 
 ## 当前文档
+
+- [M1-M13-执行合并总文档-2026-04-13.md](M1-M13-%E6%89%A7%E8%A1%8C%E5%90%88%E5%B9%B6%E6%80%BB%E6%96%87%E6%A1%A3-2026-04-13.md)（单一入口，按当前代码状态更新）
 
 - [16周执行版路线图-2026-04-12.md](16%E5%91%A8%E6%89%A7%E8%A1%8C%E7%89%88%E8%B7%AF%E7%BA%BF%E5%9B%BE-2026-04-12.md)
 - [M1-覆盖范围与量化口径-2026-04-12.md](M1-%E8%A6%86%E7%9B%96%E8%8C%83%E5%9B%B4%E4%B8%8E%E9%87%8F%E5%8C%96%E5%8F%A3%E5%BE%84-2026-04-12.md)

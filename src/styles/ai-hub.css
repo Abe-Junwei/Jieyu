@@ -608,8 +608,7 @@
   color: var(--text-primary);
 }
 
-.transcription-ai-mode-btn.is-active,
-.transcription-ai-mode-btn:disabled {
+.transcription-ai-mode-btn.is-active {
   background: var(--header-accent);
   color: var(--surface-panel);
   cursor: default;

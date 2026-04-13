@@ -22,6 +22,7 @@ import { getLanguageInputMessages } from '../i18n/languageInputMessages';
 import type { Locale } from '../i18n/index';
 import { PanelFeedback } from './ui';
 import {
+  type LanguageCatalogSearchScope,
   searchLanguageCatalogSuggestions,
   type LanguageCatalogSearchSuggestion,
 } from '../services/LanguageCatalogSearchService';
@@ -83,6 +84,7 @@ type LanguageIsoInputProps = {
   /** 抑制组件内部的 codeError 显示，由外部统一展示 | Suppress internal codeError, let parent render it */
   suppressCodeError?: boolean;
   className?: string;
+  searchScope?: LanguageCatalogSearchScope;
   resolveLanguageDisplayName?: ResolveLanguageDisplayName;
 };
 
@@ -99,6 +101,7 @@ export function LanguageIsoInput({
   error = '',
   suppressCodeError = false,
   className = '',
+  searchScope = 'orthography',
   resolveLanguageDisplayName,
 }: LanguageIsoInputProps) {
   const fieldIdPrefix = useId();
@@ -150,6 +153,7 @@ export function LanguageIsoInput({
             query: activeNameQuery,
             locale,
             limit: LANGUAGE_SUGGESTION_LIMIT,
+            catalogScope: searchScope,
           });
           if (cancelled) {
             return;
@@ -182,7 +186,7 @@ export function LanguageIsoInput({
       cancelled = true;
       window.clearTimeout(timerId);
     };
-  }, [disabled, locale, model.draft.activeField, model.draft.codeInput, model.draft.nameInput, model.status]);
+  }, [disabled, locale, model.draft.activeField, model.draft.codeInput, model.draft.nameInput, model.status, searchScope]);
 
   useEffect(() => {
     const localeChanged = locale !== lastSeenLocaleRef.current;

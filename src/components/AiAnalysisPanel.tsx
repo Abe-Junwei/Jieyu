@@ -1524,7 +1524,10 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                     </select>
                   </span>
                 </div>
-                <div className="transcription-analysis-acoustic-param-grid transcription-analysis-acoustic-provider-grid">
+                <form
+                  className="transcription-analysis-acoustic-param-grid transcription-analysis-acoustic-provider-grid"
+                  onSubmit={(event) => event.preventDefault()}
+                >
                   <label className="transcription-analysis-acoustic-provider-toggle">
                     <input
                       type="checkbox"
@@ -1564,7 +1567,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                       onChange={handleProviderApiKeyChange}
                     />
                   </label>
-                </div>
+                </form>
                 <div className="transcription-analysis-acoustic-inspector-actions">
                   <button
                     type="button"

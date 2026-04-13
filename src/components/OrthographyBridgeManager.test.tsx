@@ -164,7 +164,9 @@ describe('OrthographyBridgeManager', () => {
     expect(Array.from(document.querySelectorAll('.panel-chip')).some((node) => node.textContent === '已审校主项')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|Source language code/i }), { target: { value: 'eng' } });
+    const bridgeCodeInput1 = screen.getByRole('textbox', { name: /语言代码|Source language code/i });
+    fireEvent.change(bridgeCodeInput1, { target: { value: 'eng' } });
+    fireEvent.blur(bridgeCodeInput1);
 
     await waitFor(() => {
       const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;
@@ -276,7 +278,9 @@ describe('OrthographyBridgeManager', () => {
     await screen.findByRole('dialog', { name: '正字法写入桥接规则' });
 
     fireEvent.click(screen.getByRole('button', { name: '新建规则' }));
-    fireEvent.change(screen.getByRole('textbox', { name: /语言代码|Source language code/i }), { target: { value: 'eng' } });
+    const bridgeCodeInput2 = screen.getByRole('textbox', { name: /语言代码|Source language code/i });
+    fireEvent.change(bridgeCodeInput2, { target: { value: 'eng' } });
+    fireEvent.blur(bridgeCodeInput2);
 
     await waitFor(() => {
       const select = screen.getByLabelText('来源正字法') as HTMLSelectElement;

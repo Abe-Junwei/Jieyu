@@ -131,6 +131,11 @@
   flex: 1;
 }
 
+/* 左缘拖拽缩放条 (handle-cluster) z-index 高于面板内容，避免顶部「详细/简洁」命中区落在 resizer 之下 */
+.transcription-ai-panel .transcription-ai-card-embedded .ai-chat-header {
+  padding-left: 22px;
+}
+
 .transcription-ai-panel,
 .transcription-ai-panel-toggle,
 .transcription-ai-panel-resizer::before,

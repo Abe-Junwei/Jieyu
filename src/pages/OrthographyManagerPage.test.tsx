@@ -240,6 +240,7 @@ describe('OrthographyManagerPage', () => {
     const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'zho' } });
+    fireEvent.blur(languageCodeInput);
 
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('zho');
@@ -326,6 +327,7 @@ describe('OrthographyManagerPage', () => {
     const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'eng' } });
+    fireEvent.blur(languageCodeInput);
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
       expect((languageNameInput as HTMLInputElement).value).toBe('英语 · English');
@@ -344,6 +346,7 @@ describe('OrthographyManagerPage', () => {
     });
 
     fireEvent.change(languageCodeInput, { target: { value: 'por' } });
+    fireEvent.blur(languageCodeInput);
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('por');
     });
@@ -409,11 +412,13 @@ describe('OrthographyManagerPage', () => {
     const languageCodeInput = await screen.findByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'en-US' } });
+    fireEvent.blur(languageCodeInput);
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
     });
 
     fireEvent.change(languageCodeInput, { target: { value: 'zho' } });
+    fireEvent.blur(languageCodeInput);
     fireEvent.click(screen.getAllByRole('button', { name: '保存元数据' })[0]!);
 
     await waitFor(() => {
@@ -448,6 +453,7 @@ describe('OrthographyManagerPage', () => {
     const languageCodeInput = screen.getByRole('textbox', { name: '来源语言代码' });
 
     fireEvent.change(languageCodeInput, { target: { value: 'en-US' } });
+    fireEvent.blur(languageCodeInput);
     await waitFor(() => {
       expect((languageCodeInput as HTMLInputElement).value).toBe('eng');
     });

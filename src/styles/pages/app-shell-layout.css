@@ -420,7 +420,10 @@
   min-height: 48px;
   border-radius: var(--radius-xs);
   border: 0;
+  appearance: none;
+  -webkit-appearance: none;
   border-left: 2px solid transparent;
+  background: transparent;
   color: var(--tab-text-muted);
   text-decoration: none;
   display: inline-flex;
@@ -433,6 +436,11 @@
   text-align: center;
   padding: 6px 4px;
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.left-rail-btn svg {
+  color: currentColor;
+  stroke: currentColor;
 }
 
 .left-rail-btn:hover {

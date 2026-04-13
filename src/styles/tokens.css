@@ -1,33 +1,49 @@
 /* ── 设计令牌 | Design Tokens ─────────────────────────────────
- * 纯自定义属性定义，不含任何元素样式。
- * Pure custom property definitions — no element styles.
+ * 架构：data-appearance（配色方案）+ data-theme（明暗模式）
  *
- * 架构说明：通过 @layer tokens 声明令牌层，由 cascade layer 控制优先级。
- * 色彩体系参照 Radix Colors 12-step scale，确保 WCAG AA 对比度。
+ * data-appearance="…|googleLightModern|solarizedDark|…" — 配色方案（完整列表见文末主题块与 theme.ts）
+ *   默认（default）= 墨域数轴（纯灰度）
+ * data-theme="dark" — 暗色模式（不设 = 浅色）；solarizedDark 时由 JS 固定为 dark
+ *
+ * CSS 选择器优先级：
+ *   :root                                          → 默认浅色
+ *   :root[data-theme='dark']                       → 默认暗色
+ *   :root[data-appearance='xxx']                   → 主题浅色（覆盖默认浅色）
+ *   :root[data-appearance='xxx'][data-theme='dark'] → 主题暗色（覆盖主题浅色）
+ *
+ * 可用主题：default(铅印实验室) / mogao(鸣沙石窟) / qinglv(远山叠翠)
+ *          / digital(数字青金) / mural(壁画矿脉)
+ *          / mogaoNarrative(莫高窟叙事) / palaceVermilion(古建筑与朱墨) / jiangnanMist(烟雨江南)
+ *          / googleLightModern(Light Modern) / solarizedDark(Solarized Dark)
+ *          / antigravity(纯粹禅意)
+ *
+ * 配色色阶以本文件为唯一事实源（与 src/utils/theme.ts 中展示用文案配合）。
  * ─────────────────────────────────────────────────────────── */
 
 /* ═══════════════════════════════════════════════════════════
-   Gray 色阶 — 12-step scale（对标 Radix Mauve/Gray）
+   Gray 色阶 — 12-step（对标 Radix Mauve 微暖灰）
    应用层只引用语义 token（--surface-* / --border-* / --text-*），
-   不直接引用 gray-N。换肤只需替换 gray-N 和语义映射。
+   不直接引用 gray-N。
    ═══════════════════════════════════════════════════════════ */
 
-/* ── 浅色主题 | Light theme ── */
+/* ── 默认浅色 | Default light ── */
 :root {
-  /* Gray 阶梯（浅色）— 微暖 Mauve 色调（对标 Linear/Radix Mauve）
-   * 与 blue-9 产生色调共鸣，避免"灰蓝割裂" */
-  --gray-1: #fcfcfd;
-  --gray-2: #f7f7f8;
-  --gray-3: #f0f0f2;
-  --gray-4: #e8e8eb;
-  --gray-5: #e0e0e4;
-  --gray-6: #d4d4da;
-  --gray-7: #c4c4cd;
-  --gray-8: #aeaeb9;
-  --gray-9: #868694;
-  --gray-10: #6a6a7b;
-  --gray-11: #474758;
-  --gray-12: #1b1b24;
+  /* ═══════════════════════════════════════════════════════
+     铅印实验室 — 纯灰度阶梯（浅色）
+     留白(#FFFFFF) → 面板灰(#F5F5F5) → 分层灰(#9E9E9E) → 正文炭灰(#333333)
+     ═══════════════════════════════════════════════════════ */
+  --gray-1:  #ffffff;
+  --gray-2:  #fafafa;
+  --gray-3:  #f5f5f5;
+  --gray-4:  #eeeeee;
+  --gray-5:  #e0e0e0;
+  --gray-6:  #cccccc;
+  --gray-7:  #b0b0b0;
+  --gray-8:  #9e9e9e;
+  --gray-9:  #757575;
+  --gray-10: #616161;
+  --gray-11: #333333;
+  --gray-12: #2b2b2b;
 
   /* 语义映射 — 表面与底色 */
   --surface-bg: var(--gray-3);
@@ -44,99 +60,74 @@
 
   /* 语义映射 — 文本 */
   --text-primary: var(--gray-12);
-  --text-secondary: var(--gray-10);
-  --text-tertiary: var(--gray-9);     /* AA 达标：~4.6:1 on white */
+  --text-secondary: var(--gray-11);
+  --text-tertiary: var(--gray-9);
   --text-on-solid: #ffffff;
   --color-white: #ffffff;
 
-  /* ═══════════════════════════════════════════════════════
-     品牌色与功能色 — 对标 Geist 10-step scale
-     当前使用蓝色 (--blue-9)，可替换为品牌色（如紫色 --purple-9）
-     ═══════════════════════════════════════════════════════ */
-
-  /* 功能色基色（base-9 = 标准强度） */
+  /* 功能色基色 */
   --blue-9: #0066ff;
   --green-9: #22c55e;
   --amber-9: #f59e0b;
   --red-9: #ef4444;
   --purple-9: #8b5cf6;
 
-  /* 强调色（保留别名兼容旧引用） */
-  --header-accent: var(--blue-9);
+  /* 强调色 = 玄黑 */
+  --header-accent: var(--gray-12);
 
-  /* Info 状态 — 从 blue 派生 */
-  --state-info-solid: var(--blue-9);
-  --state-info-text: var(--blue-9);
-  --state-info-bg: color-mix(in srgb, var(--blue-9) 12%, var(--surface-panel));
-  --state-info-bg-strong: color-mix(in srgb, var(--blue-9) 20%, var(--surface-panel));
-  --state-info-border: color-mix(in srgb, var(--blue-9) 30%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--blue-9) 42%, transparent);
+  /* Info 状态 — 从玄黑派生 */
+  --state-info-solid: var(--gray-12);
+  --state-info-text: var(--gray-12);
+  --state-info-bg: var(--gray-4);
+  --state-info-bg-strong: var(--gray-5);
+  --state-info-border: var(--gray-7);
+  --state-info-border-strong: var(--gray-8);
 
-  /* Success 状态 — 从 green 派生 */
-  --state-success-solid: var(--green-9);
-  --state-success-text: color-mix(in srgb, var(--green-9) 72%, var(--gray-11));
-  --state-success-bg: color-mix(in srgb, var(--green-9) 6%, var(--surface-panel));
-  --state-success-border: color-mix(in srgb, var(--green-9) 20%, transparent);
+  /* Success / Warning / Danger 保留最小色彩编码 */
+  --state-success-solid: #16a34a;
+  --state-success-text: #15803d;
+  --state-success-bg: #f0fdf4;
+  --state-success-border: #bbf7d0;
 
-  /* Warning 状态 — 从 amber 派生 */
-  --state-warning-solid: var(--amber-9);
-  --state-warning-text: color-mix(in srgb, var(--amber-9) 80%, var(--gray-11));
-  --state-warning-bg: color-mix(in srgb, var(--amber-9) 6%, var(--surface-panel));
-  --state-warning-border: color-mix(in srgb, var(--amber-9) 20%, transparent);
+  --state-warning-solid: #d97706;
+  --state-warning-text: #92400e;
+  --state-warning-bg: #fffbeb;
+  --state-warning-border: #fcd34d;
 
-  /* Danger 状态 — 从 red 派生 */
-  --state-danger-solid: var(--red-9);
-  --state-danger-text: color-mix(in srgb, var(--red-9) 72%, var(--gray-11));
-  --state-danger-bg: color-mix(in srgb, var(--red-9) 6%, var(--surface-panel));
-  --state-danger-border: color-mix(in srgb, var(--red-9) 20%, transparent);
+  --state-danger-solid: #dc2626;
+  --state-danger-text: #b91c1c;
+  --state-danger-bg: #fef2f2;
+  --state-danger-border: #fecaca;
 
-  /* 不确定状态（低置信度/待确认）— 通过 warning 语义 token 复用 */
   --state-uncertainty-solid: var(--state-warning-solid);
   --state-uncertainty-text: var(--state-warning-text);
   --state-uncertainty-bg: var(--state-warning-bg);
   --state-uncertainty-border: var(--state-warning-border);
 
-  /* 半透明状态底色（徽章/标签用） */
-  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
-  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 12%, transparent);
-  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 10%, transparent);
-  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 12%, transparent);
+  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 10%, transparent);
+  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 8%, transparent);
+  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 10%, transparent);
 
-  /* ═══════════════════════════════════════════════════════
-     字体 — 统一为 2 套策略（对标 Linear/Geist）
-     Sans: 所有 UI 文本 + Noto 多语言兜底
-     Mono: 代码/时间戳/IPA（濒危语言研究刚需保留 IPA 字体）
-     ═══════════════════════════════════════════════════════ */
-
+  /* 字体 */
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
   --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code", monospace;
   --font-ipa: "Charis SIL", "Doulos SIL", "Gentium Plus", "Andika", serif;
-
-  /* 兼容别名 */
   --font-base: var(--font-sans);
   --font-chat: var(--font-sans);
 
-  /* ═══════════════════════════════════════════════════════
-     阴影系统 — 4 级分层（对标 Linear）
-     ═══════════════════════════════════════════════════════ */
-
+  /* 阴影 */
+  --shadow-color: #333333;
   --shadow-xs: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --shadow-sm: 0 2px 8px color-mix(in srgb, var(--shadow-color) 8%, transparent);
   --shadow-md: 0 8px 24px color-mix(in srgb, var(--shadow-color) 12%, transparent);
   --shadow-lg: 0 16px 48px color-mix(in srgb, var(--shadow-color) 16%, transparent);
-
-  /* 语义映射 */
   --shadow-card: var(--shadow-xs);
   --shadow-popover: var(--shadow-sm);
   --shadow-float: var(--shadow-md);
   --shadow-modal: var(--shadow-lg);
 
-  --shadow-color: #1b1b24;   /* Mauve 深黑，非纯冷蓝黑 */
-
-  /* ═══════════════════════════════════════════════════════
-     间距 — 4px 网格（对标 Raycast）
-     ═══════════════════════════════════════════════════════ */
-
+  /* 间距 */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -148,10 +139,7 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* ═══════════════════════════════════════════════════════
-     圆角 — 保留现有体系（已合理）
-     ═══════════════════════════════════════════════════════ */
-
+  /* 圆角 */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -161,47 +149,30 @@
   --radius-3xl: 16px;
   --radius-pill: 999px;
 
-  /* ═══════════════════════════════════════════════════════
-     字号 — 标准化档位（对标 Geist Type Scale）
-     11 / 12 / 13 / 14 / 16 / 18px（0.6875 / 0.75 / 0.8125 / 0.875 / 1 / 1.125rem）
-     ═══════════════════════════════════════════════════════ */
+  /* 字号 */
+  --font-size-2xs: 0.6875rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.8125rem;
+  --font-size-base: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
 
-  --font-size-2xs: 0.6875rem;   /* 11px — 标签、角标 */
-  --font-size-xs: 0.75rem;      /* 12px — 辅助说明 */
-  --font-size-sm: 0.8125rem;    /* 13px — 表格/密集列表 */
-  --font-size-base: 0.875rem;   /* 14px — 正文（默认） */
-  --font-size-md: 1rem;         /* 16px — 小标题 */
-  --font-size-lg: 1.125rem;     /* 18px — 页面标题 */
-
-  /* ═══════════════════════════════════════════════════════
-     动效 — 3 档 + 场景分配（对标 Linear/Apple HIG）
-     instant: 瞬时反馈 (80-120ms)
-     fast: 标准过渡 (200ms)
-     normal: 布局变化 (300ms)
-     ═══════════════════════════════════════════════════════ */
-
-  --duration-instant: 100ms;    /* 按钮 hover、checkbox */
-  --duration-fast: 200ms;       /* 面板展开/折叠、tooltip */
-  --duration-normal: 300ms;     /* 侧栏伸缩、重排序 */
-
+  /* 动效 */
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-normal: 300ms;
   --ease-instant: ease-out;
-  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);   /* Linear 标准 */
-  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);   /* Linear 弹性 */
-
-  /* 兼容别名 */
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-default: var(--ease-instant);
   --ease-out: var(--ease-smooth);
   --ease-out-expo: var(--ease-smooth);
   --duration-slow: var(--duration-fast);
   --duration-slower: var(--duration-normal);
 
-  /* ═══════════════════════════════════════════════════════
-     Shell 布局参数（保留现有）
-     ═══════════════════════════════════════════════════════ */
-
+  /* Shell */
   --header-brand-font: var(--font-mono);
-  --header-accent: var(--blue-9);
-  --header-bg: rgba(248, 248, 248, 0.9);
+  --header-bg: rgba(250, 250, 250, 0.92);
   --header-border: var(--gray-5);
   --header-shadow: var(--shadow-xs);
   --header-height: 52px;
@@ -216,40 +187,31 @@
   --shell-motion-fast: var(--duration-fast);
   --shell-motion-base: var(--duration-normal);
 
-  /* 标签页 */
   --tab-text: var(--gray-11);
   --tab-text-muted: var(--text-secondary);
-  --tab-hover: var(--gray-12);
+  --tab-hover: var(--gray-5);
   --tab-active: var(--gray-4);
-  --tab-underline-hover: color-mix(in srgb, var(--blue-9) 10%, transparent);
+  --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
-  /* 焦点指示器 — 统一基线 */
-  --focus-ring: color-mix(in srgb, var(--header-accent) 24%, transparent);
+  --focus-ring: color-mix(in srgb, var(--gray-12) 24%, transparent);
   --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
   --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 
-  /* 悬停覆盖层 */
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
   --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 7%, transparent);
 
-  /* 混色浓度档位 */
   --mix-subtle: 8%;
   --mix-light: 16%;
   --mix-medium: 32%;
   --mix-strong: 56%;
   --mix-heavy: 76%;
 
-  /* 不透明度档位 */
   --opacity-disabled: 0.38;
   --opacity-dimmed: 0.54;
   --opacity-muted: 0.72;
   --opacity-subtle: 0.88;
-
-  /* ═══════════════════════════════════════════════════════
-     Z-Index 层级（语义化档位 + 预留扩展槽）
-     ═══════════════════════════════════════════════════════ */
 
   --z-base: 1;
   --z-raised: 2;
@@ -275,10 +237,6 @@
   --z-modal: 1220;
   --z-modal-topmost: 1240;
 
-  /* ═══════════════════════════════════════════════════════
-     控件尺寸（保留现有）
-     ═══════════════════════════════════════════════════════ */
-
   --input-h-sm: 30px;
   --input-h-md: 32px;
   --input-h-lg: 36px;
@@ -287,26 +245,18 @@
   --btn-h-md: 32px;
   --btn-h-compact: 30px;
 
-  /* 时间轴 */
   --lane-label-width: 64px;
   --timeline-lane-height: 54px;
 
-  /* 选择框箭头 SVG */
-  --select-caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.25 5 6.25 8 3.25' fill='none' stroke='%2394a3b8' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --select-caret-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.25 5 6.25 8 3.25' fill='none' stroke='%23757575' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 
-  /* ═══════════════════════════════════════════════════════
-     派生令牌 — 时间轴、分隔线、浮层等
-     ═══════════════════════════════════════════════════════ */
-
-  /* 时间轴中性状态色 */
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--border-soft) 18%, transparent);
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+  --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 64%, transparent);
   --timeline-neutral-divider-selected: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
   --timeline-neutral-outline-selected: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
 
-  /* 时间轴 Bundle 链接色 */
   --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
   --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
   --timeline-link-color-1: color-mix(in srgb, var(--state-success-solid) 62%, transparent);
@@ -320,51 +270,49 @@
   --timeline-link-color-5: color-mix(in srgb, var(--text-secondary) 62%, transparent);
   --timeline-link-color-active-5: color-mix(in srgb, var(--text-primary) 88%, transparent);
 
-  /* 时间轴刻度与分隔 */
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
   --timeline-label-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
 
-  /* 时间尺配色 */
   --ruler-top-accent-start: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
   --ruler-top-accent-end: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
 
-  /* 分隔线体系 */
   --divider-subtle: color-mix(in srgb, var(--border-soft) 60%, transparent);
   --divider-base: var(--border-soft);
   --divider-strong: var(--border-strong);
 
-  /* 浮层配色 */
   --popover-bg: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --popover-border: var(--border-soft);
   --popover-shadow: var(--shadow-md);
 
-  /* 强调色别名 */
+  /* 毛玻璃工具类基底 | global.css .glass* */
+  --glass-bg: color-mix(in srgb, var(--surface-panel) 70%, transparent);
+  --glass-bg-subtle: color-mix(in srgb, var(--surface-panel) 50%, transparent);
+  --glass-bg-strong: color-mix(in srgb, var(--surface-panel) 85%, transparent);
+  --glass-border: color-mix(in srgb, var(--color-white) 28%, transparent);
+  --glass-shadow: 0 4px 30px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+  --glass-shadow-strong: 0 8px 32px color-mix(in srgb, var(--shadow-color) 10%, transparent);
+
   --accent-primary: var(--header-accent);
+  --accent-secondary: var(--gray-9);
+  --border-accent: var(--border-soft);
 }
 
-/* ═══════════════════════════════════════════════════════
-   暗色主题 | Dark theme
-   通过覆盖 gray-N 实现自动适配所有语义映射
-   ═══════════════════════════════════════════════════════ */
-
+/* ── 默认暗色 | Default dark ── */
 :root[data-theme='dark'] {
-  /* Gray 阶梯（暗色）— 微暖 Mauve 色调，增强表面区分度
-   * 每级 delta L* 更大，确保 bg/panel/header 层次可感知 */
-  --gray-1: #0d0d10;
-  --gray-2: #141418;
-  --gray-3: #1c1c21;
-  --gray-4: #282830;
-  --gray-5: #31313a;
-  --gray-6: #3b3b45;
-  --gray-7: #4a4a56;
-  --gray-8: #5c5c6a;
-  --gray-9: #8b8b9e;
-  --gray-10: #a4a4b4;
-  --gray-11: #c8c8d4;
-  --gray-12: #ededf2;
+  --gray-1:  #111111;
+  --gray-2:  #151515;
+  --gray-3:  #1b1b1b;
+  --gray-4:  #2f2f2f;
+  --gray-5:  #3a3a3a;
+  --gray-6:  #4a4a4a;
+  --gray-7:  #6b6b6b;
+  --gray-8:  #8a8a8a;
+  --gray-9:  #a7a7a7;
+  --gray-10: #c8c8c8;
+  --gray-11: #e0e0e0;
+  --gray-12: #ededed;
 
-  /* 语义映射自动跟随 gray-N */
   --surface-bg: var(--gray-2);
   --surface-panel: var(--gray-3);
   --surface-header: var(--gray-4);
@@ -380,67 +328,533 @@
   --text-secondary: var(--gray-10);
   --text-tertiary: var(--gray-9);
 
-  --color-white: #ffffff;
-  --text-on-solid: #ffffff;
+  --text-on-solid: #111111;
   --shadow-color: #000000;
 
-  /* 强调色（暗色更亮） */
-  --header-accent: #58a6ff;
-  --header-bg: rgba(37, 37, 38, 0.94);
+  --header-accent: var(--gray-11);
+  --header-bg: rgba(17, 17, 17, 0.92);
   --header-border: var(--gray-6);
-  --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --header-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 
-  /* 标签页 */
-  --tab-text: var(--gray-11);
-  --tab-text-muted: var(--text-secondary);
-  --tab-hover: #f0f6fc;
-  --tab-active: var(--gray-4);
-  --tab-underline-hover: rgba(88, 166, 255, 0.16);
+  --tab-hover: var(--gray-5);
+  --tab-underline-hover: color-mix(in srgb, var(--header-accent) 16%, transparent);
 
-  /* 阴影覆盖 — 暗色下更扩散 */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
 
-  /* 状态色覆盖 — 暗色更亮 */
-  --state-info-solid: var(--header-accent);
-  --state-info-text: color-mix(in srgb, var(--header-accent) 70%, var(--gray-11));
-  --state-info-bg: color-mix(in srgb, var(--header-accent) 16%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, var(--header-accent) 22%, transparent);
-  --state-info-border: color-mix(in srgb, var(--header-accent) 38%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--header-accent) 50%, transparent);
+  --state-info-solid: var(--gray-11);
+  --state-info-text: var(--gray-11);
+  --state-info-bg: color-mix(in srgb, var(--gray-11) 12%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, var(--gray-11) 18%, transparent);
+  --state-info-border: color-mix(in srgb, var(--gray-11) 30%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--gray-11) 42%, transparent);
 
-  --state-success-solid: var(--green-9);
-  --state-success-text: color-mix(in srgb, var(--green-9) 70%, var(--gray-10));
-  --state-success-bg: color-mix(in srgb, var(--green-9) 18%, transparent);
-  --state-success-border: color-mix(in srgb, var(--green-9) 38%, transparent);
+  --state-success-solid: #22c55e;
+  --state-success-text: #4ade80;
+  --state-success-bg: color-mix(in srgb, #22c55e 14%, transparent);
+  --state-success-border: color-mix(in srgb, #22c55e 30%, transparent);
 
-  --state-warning-solid: var(--amber-9);
-  --state-warning-text: color-mix(in srgb, var(--amber-9) 80%, var(--gray-10));
-  --state-warning-bg: color-mix(in srgb, var(--amber-9) 16%, transparent);
-  --state-warning-border: color-mix(in srgb, var(--amber-9) 38%, transparent);
+  --state-warning-solid: #f59e0b;
+  --state-warning-text: #fbbf24;
+  --state-warning-bg: color-mix(in srgb, #f59e0b 12%, transparent);
+  --state-warning-border: color-mix(in srgb, #f59e0b 30%, transparent);
 
-  --state-danger-solid: var(--red-9);
-  --state-danger-text: color-mix(in srgb, var(--red-9) 70%, var(--gray-10));
-  --state-danger-bg: color-mix(in srgb, var(--red-9) 16%, transparent);
-  --state-danger-border: color-mix(in srgb, var(--red-9) 38%, transparent);
+  --state-danger-solid: #ef4444;
+  --state-danger-text: #f87171;
+  --state-danger-bg: color-mix(in srgb, #ef4444 12%, transparent);
+  --state-danger-border: color-mix(in srgb, #ef4444 30%, transparent);
 
-  /* 焦点覆盖 */
   --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
   --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
   --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
   --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
 
-  /* 悬停覆盖 */
-  --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 7%, transparent);
-  --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 5%, transparent);
-  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 9%, transparent);
+  --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
+  --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);
+  --overlay-dark-hover: color-mix(in srgb, var(--surface-panel) 10%, transparent);
 
-  /* 暗色主题混色浓度覆盖 */
   --mix-subtle: 12%;
   --mix-light: 20%;
   --mix-medium: 38%;
   --mix-strong: 62%;
   --mix-heavy: 80%;
+
+  --glass-border: color-mix(in srgb, var(--gray-12) 12%, transparent);
+  --glass-shadow: 0 4px 30px color-mix(in srgb, #000000 30%, transparent);
+  --glass-shadow-strong: 0 8px 32px color-mix(in srgb, #000000 40%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════
+   主题覆盖 | Theme overrides
+   data-appearance="xxx" 覆盖浅色
+   data-appearance="xxx"[data-theme='dark'] 覆盖暗色
+   ═══════════════════════════════════════════════════════ */
+
+/* ── 鸣沙石窟 / 敦煌风 (Mogao) ── */
+:root[data-appearance='mogao'] {
+  --gray-1: #F4E4D2;
+  --gray-2: #EFD6BD;
+  --gray-3: #E7C6A7;
+  --gray-4: #D9B48F;
+  --gray-5: #C79A72;
+  --gray-6: #B8845F;
+  --gray-7: #A06F4F;
+  --gray-8: #7D5A3C;
+  --gray-9: #6A4A33;
+  --gray-10: #5A3E2B;
+  --gray-11: #4B644B;
+  --gray-12: #3E2723;
+  --header-accent: #B35B47;
+  --accent-secondary: #7D5A3C;
+  --border-accent: #CDA77E;
+  --header-border: #CDA77E;
+  --shadow-color: #7D5A3C;
+  --header-bg: rgba(217, 180, 143, 0.94);
+  --tab-text: #5A3E2B;
+  --tab-text-muted: #6A4A33;
+  --tab-hover: color-mix(in srgb, #B35B47 14%, #EFD6BD);
+  --tab-active: color-mix(in srgb, #B35B47 20%, #E7C6A7);
+  --state-info-solid: #B35B47;
+  --state-info-text: #7D3F2F;
+  --state-info-bg: color-mix(in srgb, #B35B47 16%, #EFD6BD);
+  --state-info-bg-strong: color-mix(in srgb, #B35B47 24%, #E7C6A7);
+  --state-info-border: color-mix(in srgb, #B35B47 46%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #B35B47 62%, transparent);
+  --focus-ring: color-mix(in srgb, #B35B47 28%, transparent);
+  --focus-ring-soft: color-mix(in srgb, #B35B47 20%, transparent);
+  --focus-ring-strong: color-mix(in srgb, #B35B47 42%, transparent);
+  --focus-ring-glow: color-mix(in srgb, #B35B47 26%, transparent);
+}
+:root[data-appearance='mogao'][data-theme='dark'] {
+  --gray-1: #2A1E1A;
+  --gray-2: #332520;
+  --gray-3: #3E2C25;
+  --gray-4: #4A352C;
+  --gray-5: #5A4034;
+  --gray-6: #7D5A3C;
+  --gray-7: #9E7750;
+  --gray-8: #B35B47;
+  --gray-9: #C58A63;
+  --gray-10: #D7A980;
+  --gray-11: #E8C7A6;
+  --gray-12: #F2DEC9;
+  --header-accent: #B35B47;
+  --accent-secondary: #D7A980;
+  --border-accent: #7D5A3C;
+  --header-border: #7D5A3C;
+  --shadow-color: #000000;
+  --header-bg: rgba(42, 30, 26, 0.96);
+  --tab-text: #E8C7A6;
+  --tab-text-muted: #C58A63;
+  --tab-hover: color-mix(in srgb, #B35B47 20%, #4A352C);
+  --tab-active: color-mix(in srgb, #B35B47 28%, #5A4034);
+  --state-info-solid: #D7A980;
+  --state-info-text: #E8C7A6;
+  --state-info-bg: color-mix(in srgb, #D7A980 16%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, #D7A980 24%, transparent);
+  --state-info-border: color-mix(in srgb, #D7A980 36%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #D7A980 48%, transparent);
+  --focus-ring: color-mix(in srgb, #D7A980 32%, transparent);
+  --focus-ring-soft: color-mix(in srgb, #D7A980 24%, transparent);
+  --focus-ring-strong: color-mix(in srgb, #D7A980 46%, transparent);
+  --focus-ring-glow: color-mix(in srgb, #D7A980 28%, transparent);
+}
+
+/* ── 远山叠翠 / 山水画意象 (Qinglv) ── */
+:root[data-appearance='qinglv'] {
+  --gray-1: #ffffff;
+  --gray-2: #F4F8F7;
+  --gray-3: #EDF4F2;
+  --gray-4: #E8EFEE;
+  --gray-5: #D4E1DE;
+  --gray-6: #B9CCC7;
+  --gray-7: #8FB8AE;
+  --gray-8: #5F867E;
+  --gray-9: #3D655E;
+  --gray-10: #2E5750;
+  --gray-11: #224C44;
+  --gray-12: #1C3D37;
+  --header-accent: #5F867E;
+  --shadow-color: #224C44;
+  --header-bg: rgba(232, 239, 238, 0.94);
+}
+:root[data-appearance='qinglv'][data-theme='dark'] {
+  --gray-1: #0F2320;
+  --gray-2: #16302C;
+  --gray-3: #1C3D37;
+  --gray-4: #224C44;
+  --gray-5: #2F6057;
+  --gray-6: #3D7A6F;
+  --gray-7: #5F867E;
+  --gray-8: #8FB8AE;
+  --gray-9: #A8C9C0;
+  --gray-10: #C2DCD6;
+  --gray-11: #D9E9E5;
+  --gray-12: #EDF4F2;
+  --header-accent: #8FB8AE;
+  --shadow-color: #000000;
+  --header-bg: rgba(15, 35, 32, 0.96);
+}
+
+/* ── 数字青金 (Digital) ── */
+:root[data-appearance='digital'] {
+  --gray-1: #ffffff;
+  --gray-2: #F5F8FA;
+  --gray-3: #EEF3F6;
+  --gray-4: #E0E0E0;
+  --gray-5: #C7D4DC;
+  --gray-6: #9FB3C1;
+  --gray-7: #4DB6AC;
+  --gray-8: #2A7F78;
+  --gray-9: #4A2E08;
+  --gray-10: #FFB74D;
+  --gray-11: #1A237E;
+  --gray-12: #151B61;
+  --header-accent: #4DB6AC;
+  --accent-secondary: #FFB74D;
+  --border-accent: #C7D4DC;
+  --shadow-color: #1A237E;
+  --header-bg: rgba(238, 243, 246, 0.94);
+}
+:root[data-appearance='digital'][data-theme='dark'] {
+  --gray-1: #0E1628;
+  --gray-2: #111C33;
+  --gray-3: #142447;
+  --gray-4: #1A237E;
+  --gray-5: #2E3E8F;
+  --gray-6: #4DB6AC;
+  --gray-7: #7BC8C0;
+  --gray-8: #9AAEC0;
+  --gray-9: #C7D4DC;
+  --gray-10: #E0E0E0;
+  --gray-11: #E2E7FF;
+  --gray-12: #F2F4FF;
+  --header-accent: #4DB6AC;
+  --accent-secondary: #FFB74D;
+  --border-accent: #2E3E8F;
+  --shadow-color: #000000;
+  --header-bg: rgba(14, 22, 40, 0.96);
+}
+
+/* ── 壁画矿脉 (Mural) ── */
+:root[data-appearance='mural'] {
+  --gray-1: #ffffff;
+  --gray-2: #F8F4EE;
+  --gray-3: #F4F0EA;
+  --gray-4: #E6DCD0;
+  --gray-5: #D6CDBF;
+  --gray-6: #7986CB;
+  --gray-7: #D84315;
+  --gray-8: #FBC02D;
+  --gray-9: #4A3708;
+  --gray-10: #3B4AA4;
+  --gray-11: #283593;
+  --gray-12: #1F2A74;
+  --header-accent: #D84315;
+  --accent-secondary: #7986CB;
+  --border-accent: #D6CDBF;
+  --shadow-color: #283593;
+  --header-bg: rgba(244, 240, 234, 0.94);
+}
+:root[data-appearance='mural'][data-theme='dark'] {
+  --gray-1: #1B1F3D;
+  --gray-2: #232A52;
+  --gray-3: #283593;
+  --gray-4: #32429B;
+  --gray-5: #4B5CAD;
+  --gray-6: #7986CB;
+  --gray-7: #D84315;
+  --gray-8: #FBC02D;
+  --gray-9: #C9A95A;
+  --gray-10: #D8DDF8;
+  --gray-11: #E3E8FF;
+  --gray-12: #F0F2FD;
+  --header-accent: #D84315;
+  --accent-secondary: #7986CB;
+  --border-accent: #4B5CAD;
+  --shadow-color: #000000;
+  --header-bg: rgba(27, 31, 61, 0.96);
+}
+
+/* ── 纯粹禅意 / Obsidian Minimal (Antigravity) ── */
+:root[data-appearance='antigravity'] {
+  --gray-1: #ffffff;
+  --gray-2: #FAFAFA;
+  --gray-3: #F5F5F5;
+  --gray-4: #EEEEEE;
+  --gray-5: #E5E5E5;
+  --gray-6: #D9D9D9;
+  --gray-7: #CCCCCC;
+  --gray-8: #B3B3B3;
+  --gray-9: #8A8A8A;
+  --gray-10: #666666;
+  --gray-11: #333333;
+  --gray-12: #1A1A1A;
+
+  --header-accent: #1A1A1A;
+  --accent-secondary: #CCCCCC;
+  --border-accent: #E5E5E5;
+
+  --shadow-color: #1A1A1A;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+  --header-bg: rgba(255, 255, 255, 0.9);
+
+  --state-info-solid: #1A1A1A;
+  --state-info-text: #1A1A1A;
+  --state-info-bg: #F5F5F5;
+  --state-info-bg-strong: #EEEEEE;
+  --state-info-border: #D9D9D9;
+  --state-info-border-strong: #CCCCCC;
+}
+
+:root[data-appearance='antigravity'][data-theme='dark'] {
+  --gray-1: #111111;
+  --gray-2: #151515;
+  --gray-3: #1B1B1B;
+  --gray-4: #2F2F2F;
+  --gray-5: #3A3A3A;
+  --gray-6: #4A4A4A;
+  --gray-7: #6B6B6B;
+  --gray-8: #8A8A8A;
+  --gray-9: #A7A7A7;
+  --gray-10: #C8C8C8;
+  --gray-11: #E0E0E0;
+  --gray-12: #EDEDED;
+
+  --header-accent: #EDEDED;
+  --accent-secondary: #8A8A8A;
+  --border-accent: #2F2F2F;
+
+  --shadow-color: #000000;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  --header-bg: rgba(17, 17, 17, 0.92);
+
+  --state-info-solid: #EDEDED;
+  --state-info-text: #E0E0E0;
+  --state-info-bg: rgba(237, 237, 237, 0.12);
+  --state-info-bg-strong: rgba(237, 237, 237, 0.2);
+  --state-info-border: rgba(237, 237, 237, 0.28);
+  --state-info-border-strong: rgba(237, 237, 237, 0.4);
+}
+
+/* ── 莫高窟叙事 (配色稿 card11) ── */
+:root[data-appearance='mogaoNarrative'] {
+  --gray-1: #ffffff;
+  --gray-2: #FBF8F2;
+  --gray-3: #F5F1E8;
+  --gray-4: #F2EEE6;
+  --gray-5: #E6E9ED;
+  --gray-6: #A9B7D0;
+  --gray-7: #5C6977;
+  --gray-8: #6B5D51;
+  --gray-9: #5B4528;
+  --gray-10: #3E2D18;
+  --gray-11: #1C2B4B;
+  --gray-12: #152238;
+  --header-accent: #D9A05B;
+  --accent-secondary: #A6523D;
+  --border-accent: #D9C9B3;
+  --shadow-color: #1C2B4B;
+  --header-bg: rgba(251, 248, 242, 0.94);
+}
+:root[data-appearance='mogaoNarrative'][data-theme='dark'] {
+  --gray-1: #0E243F;
+  --gray-2: #0B1D33;
+  --gray-3: #102846;
+  --gray-4: #1C2B4B;
+  --gray-5: #2A3440;
+  --gray-6: #6B5D51;
+  --gray-7: #A9B7D0;
+  --gray-8: #B6C6DB;
+  --gray-9: #C9D8EA;
+  --gray-10: #D7E3F3;
+  --gray-11: #E7EEF8;
+  --gray-12: #E7EEF8;
+  --header-accent: #E3B04B;
+  --accent-secondary: #D4826E;
+  --border-accent: #5B4E42;
+  --shadow-color: #000000;
+  --header-bg: rgba(14, 36, 63, 0.96);
+}
+
+/* ── 古建筑与朱墨 (配色稿 card12) ── */
+:root[data-appearance='palaceVermilion'] {
+  --gray-1: #FFFCF7;
+  --gray-2: #F7F2EA;
+  --gray-3: #EDE6DA;
+  --gray-4: #E0D8CB;
+  --gray-5: #D4CFC4;
+  --gray-6: #BEB7A8;
+  --gray-7: #8A8278;
+  --gray-8: #923131;
+  --gray-9: #6B3030;
+  --gray-10: #2C2C2C;
+  --gray-11: #2C2C2C;
+  --gray-12: #1C1C1C;
+  --header-accent: #923131;
+  --accent-secondary: #D4AF37;
+  --border-accent: #C4B8A8;
+  --shadow-color: #2C2C2C;
+  --header-bg: rgba(237, 230, 218, 0.94);
+}
+:root[data-appearance='palaceVermilion'][data-theme='dark'] {
+  --gray-1: #1A1A1A;
+  --gray-2: #222222;
+  --gray-3: #2C2C2C;
+  --gray-4: #3A3A3A;
+  --gray-5: #4A4A4A;
+  --gray-6: #6B6560;
+  --gray-7: #923131;
+  --gray-8: #D4AF37;
+  --gray-9: #BEB7A8;
+  --gray-10: #D4CFC4;
+  --gray-11: #EDE6DA;
+  --gray-12: #F5F0E6;
+  --header-accent: #D4AF37;
+  --accent-secondary: #E3BCBC;
+  --border-accent: #5A5248;
+  --shadow-color: #000000;
+  --header-bg: rgba(26, 26, 26, 0.94);
+}
+
+/* ── 烟雨江南 (配色稿 card13) ── */
+:root[data-appearance='jiangnanMist'] {
+  --gray-1: #ffffff;
+  --gray-2: #F4F7FA;
+  --gray-3: #E8EEF3;
+  --gray-4: #D6E0E6;
+  --gray-5: #C5D0D8;
+  --gray-6: #A8B4C2;
+  --gray-7: #8B9BB0;
+  --gray-8: #6D7F96;
+  --gray-9: #5A6B82;
+  --gray-10: #425066;
+  --gray-11: #425066;
+  --gray-12: #2F3A4A;
+  --header-accent: #425066;
+  --accent-secondary: #A18594;
+  --border-accent: #B5C0CE;
+  --shadow-color: #425066;
+  --header-bg: rgba(232, 238, 243, 0.94);
+}
+:root[data-appearance='jiangnanMist'][data-theme='dark'] {
+  --gray-1: #1A2229;
+  --gray-2: #1E2833;
+  --gray-3: #242F3D;
+  --gray-4: #2E3B4C;
+  --gray-5: #425066;
+  --gray-6: #5A6B82;
+  --gray-7: #7A8BA0;
+  --gray-8: #A18594;
+  --gray-9: #B5C0CE;
+  --gray-10: #D6E0E6;
+  --gray-11: #E5ECF4;
+  --gray-12: #E8EEF3;
+  --header-accent: #B5C0CE;
+  --accent-secondary: #A18594;
+  --border-accent: #5A6B82;
+  --shadow-color: #000000;
+  --header-bg: rgba(26, 34, 41, 0.96);
+}
+
+/* ── Google Light Modern — 中性阶梯参考 Google Material 产品灰 + Google Blue（浅色/深色各一套） ── */
+:root[data-appearance='googleLightModern'] {
+  --gray-1: #ffffff;
+  --gray-2: #f8f9fa;
+  --gray-3: #f1f3f4;
+  --gray-4: #e8eaed;
+  --gray-5: #dadce0;
+  --gray-6: #bdc1c6;
+  --gray-7: #9aa0a6;
+  --gray-8: #80868b;
+  --gray-9: #5f6368;
+  --gray-10: #3c4043;
+  --gray-11: #202124;
+  --gray-12: #202124;
+  --header-accent: #1a73e8;
+  --accent-secondary: #174ea6;
+  --border-accent: #dadce0;
+  --shadow-color: #3c4043;
+  --header-bg: rgba(255, 255, 255, 0.92);
+  --state-info-solid: #1a73e8;
+  --state-info-text: #174ea6;
+  --state-info-bg: color-mix(in srgb, #1a73e8 10%, #ffffff);
+  --state-info-bg-strong: color-mix(in srgb, #1a73e8 16%, #ffffff);
+  --state-info-border: color-mix(in srgb, #1a73e8 34%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #1a73e8 48%, transparent);
+}
+:root[data-appearance='googleLightModern'][data-theme='dark'] {
+  --gray-1: #202124;
+  --gray-2: #292a2d;
+  --gray-3: #35363a;
+  --gray-4: #3c4043;
+  --gray-5: #5f6368;
+  --gray-6: #80868b;
+  --gray-7: #9aa0a6;
+  --gray-8: #bdc1c6;
+  --gray-9: #dadce0;
+  --gray-10: #e8eaed;
+  --gray-11: #f1f3f4;
+  --gray-12: #f8f9fa;
+  --header-accent: #8ab4f8;
+  --accent-secondary: #aecbfa;
+  --border-accent: #5f6368;
+  --shadow-color: #000000;
+  --header-bg: rgba(32, 33, 36, 0.94);
+  --state-info-solid: #8ab4f8;
+  --state-info-text: #aecbfa;
+  --state-info-bg: color-mix(in srgb, #8ab4f8 14%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, #8ab4f8 22%, transparent);
+  --state-info-border: color-mix(in srgb, #8ab4f8 36%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #8ab4f8 50%, transparent);
+}
+
+/* ── Solarized Dark — 色值取自 Ethan Schoonover 官方表（base03…accent） ── */
+:root[data-appearance='solarizedDark'],
+:root[data-appearance='solarizedDark'][data-theme='dark'] {
+  --gray-1: #002b36;
+  --gray-2: #032b35;
+  --gray-3: #073642;
+  --gray-4: #0c3a47;
+  --gray-5: #586e75;
+  --gray-6: #657b83;
+  --gray-7: #6f8791;
+  --gray-8: #839496;
+  --gray-9: #8b999b;
+  --gray-10: #93a1a1;
+  --gray-11: #a4aeb0;
+  --gray-12: #eee8d5;
+  --header-accent: #268bd2;
+  --accent-secondary: #2aa198;
+  --border-accent: #073642;
+  --shadow-color: #002b36;
+  --header-bg: rgba(0, 43, 54, 0.96);
+  --state-info-solid: #268bd2;
+  --state-info-text: #93a1a1;
+  --state-info-bg: color-mix(in srgb, #268bd2 14%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, #268bd2 22%, transparent);
+  --state-info-border: color-mix(in srgb, #268bd2 40%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #268bd2 55%, transparent);
+  --state-success-solid: #859900;
+  --state-success-text: #859900;
+  --state-success-bg: color-mix(in srgb, #859900 12%, transparent);
+  --state-success-border: color-mix(in srgb, #859900 32%, transparent);
+  --state-warning-solid: #b58900;
+  --state-warning-text: #b58900;
+  --state-warning-bg: color-mix(in srgb, #b58900 12%, transparent);
+  --state-warning-border: color-mix(in srgb, #b58900 30%, transparent);
+  --state-danger-solid: #dc322f;
+  --state-danger-text: #dc322f;
+  --state-danger-bg: color-mix(in srgb, #dc322f 12%, transparent);
+  --state-danger-border: color-mix(in srgb, #dc322f 30%, transparent);
 }

@@ -209,6 +209,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   setLanguageInputError('');
                 }
               }}
+              searchScope="language"
               resolveLanguageDisplayName={resolveLanguageDisplayName}
               nameLabel={messages.languageLabel}
               codeLabel={messages.languageCodeLabel}

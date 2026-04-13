@@ -61,6 +61,76 @@ describe('AiChatCard input submit', () => {
     expect(onSendAiMessage).toHaveBeenCalledWith('你好');
   });
 
+  it('shows testing label during connection test and reverts to test-connection label afterwards', async () => {
+    let resolveTest: (() => void) | null = null;
+    const onTestAiConnection = vi.fn(() => new Promise<void>((resolve) => {
+      resolveTest = resolve;
+    }));
+
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onTestAiConnection,
+          aiChatSettings: normalizeAiChatSettings({ providerKind: 'anthropic' }),
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
+
+    const testButton = within(view.container).getByRole('button', { name: /测试连接|test connection/i }) as HTMLButtonElement;
+    fireEvent.click(testButton);
+
+    expect(onTestAiConnection).toHaveBeenCalledTimes(1);
+    const testingButton = within(view.container).getByRole('button', { name: /测试中|testing/i }) as HTMLButtonElement;
+    expect(testingButton.disabled).toBe(true);
+
+    resolveTest?.();
+
+    await waitFor(() => {
+      const revertedButton = within(view.container).getByRole('button', { name: /测试连接|test connection/i }) as HTMLButtonElement;
+      expect(revertedButton.disabled).toBe(false);
+    });
+  });
+
+  it('keeps connection button label as test-connection when status is success', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiConnectionTestStatus: 'success',
+          aiChatSettings: normalizeAiChatSettings({ providerKind: 'anthropic' }),
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
+
+    expect(within(view.container).getByRole('button', { name: /测试连接|test connection/i })).toBeTruthy();
+    expect(within(view.container).queryByRole('button', { name: /已连接|connected/i })).toBeNull();
+  });
+
+  it('renders provider password input inside a non-submitting form container', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          aiChatSettings: normalizeAiChatSettings({ providerKind: 'anthropic' }),
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
+
+    const passwordInput = view.container.querySelector('input.ai-cfg-input[type="password"]') as HTMLInputElement | null;
+    expect(passwordInput).toBeTruthy();
+    expect(passwordInput?.closest('form')).toBeTruthy();
+  });
+
   it('renders the recommendation as an in-input ghost suggestion and nowhere else', () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({

@@ -280,6 +280,11 @@ describe('LanguageIsoInput', () => {
     const languageCodeInput = scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement;
 
     fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
+
+    // 验证代码输入后候选列表出现（option 角色） | Verify suggestion list appears after code input
+    const options = scopedQueries.queryAllByRole('option');
+    expect(options.length).toBeGreaterThan(0);
+
     fireEvent.blur(languageCodeInput);
 
     expect(languageNameInput.value).toBe('法语 · français · French');

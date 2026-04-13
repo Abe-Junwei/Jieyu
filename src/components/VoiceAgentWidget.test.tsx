@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { VoiceAgentWidget } from './VoiceAgentWidget';
 import type { VoiceAgentWidgetProps } from './VoiceAgentWidget';
@@ -259,5 +260,45 @@ describe('VoiceAgentWidget', () => {
       model: 'ggml-next.bin',
     });
     expect(onRefreshProviderStatus).toHaveBeenCalled();
+  });
+
+  it('keeps commercial api key input editable across parent re-renders', async () => {
+    function Harness() {
+      const [tick, setTick] = useState(0);
+      return (
+        <VoiceAgentWidget
+          {...makeProps({
+            engine: 'commercial',
+            commercialProviderKind: 'groq',
+            commercialProviderConfig: {
+              apiKey: '',
+              baseUrl: '',
+              model: '',
+              appId: '',
+              accessToken: '',
+            },
+            onCommercialConfigChange: () => {
+              setTick((value) => value + 1);
+            },
+          })}
+          environmentSummary={`中文 · Commercial (${tick})`}
+        />
+      );
+    }
+
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: /Toggle voice settings|切换语音设置/i }));
+
+    const apiKeyInput = (await screen.findByLabelText(/API Key|api key/i)) as HTMLInputElement;
+
+    fireEvent.change(apiKeyInput, { target: { value: 'sk-live-123' } });
+    await waitFor(() => {
+      expect(apiKeyInput.value).toBe('sk-live-123');
+    });
+
+    fireEvent.change(apiKeyInput, { target: { value: '' } });
+    await waitFor(() => {
+      expect(apiKeyInput.value).toBe('');
+    });
   });
 });

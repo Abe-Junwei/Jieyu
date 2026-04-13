@@ -193,4 +193,43 @@ describe('LanguageCatalogSearchService', () => {
     expect(detail?.aliases).toEqual(expect.arrayContaining(['法语别名', '法文']));
     expect(list.map((entry) => entry.id)).toEqual(['fra', 'eng']);
   });
+
+  it('falls back to ISO639-3 seed when querying an exact non-top500 code like mvm in language scope', async () => {
+    const suggestions = await searchLanguageCatalogSuggestions({
+      query: 'mvm',
+      locale: 'zh-CN',
+      limit: 5,
+      catalogScope: 'language',
+    });
+
+    expect(suggestions[0]).toMatchObject({
+      id: 'mvm',
+      languageCode: 'mvm',
+      matchedLabel: 'mvm',
+      matchedLabelKind: 'code',
+      matchSource: 'code-exact',
+    });
+    expect(suggestions[0]?.primaryLabel.toLowerCase()).toContain('muya');
+  });
+
+  it('matches non-top500 english name in language scope but not in orthography scope', async () => {
+    const languageScope = await searchLanguageCatalogSuggestions({
+      query: 'muya',
+      locale: 'zh-CN',
+      limit: 5,
+      catalogScope: 'language',
+    });
+    const orthographyScope = await searchLanguageCatalogSuggestions({
+      query: 'muya',
+      locale: 'zh-CN',
+      limit: 5,
+      catalogScope: 'orthography',
+    });
+
+    expect(languageScope[0]).toMatchObject({
+      id: 'mvm',
+      languageCode: 'mvm',
+    });
+    expect(orthographyScope).toHaveLength(0);
+  });
 });

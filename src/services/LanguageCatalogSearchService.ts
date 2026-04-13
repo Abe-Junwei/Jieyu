@@ -5,6 +5,7 @@ import {
   type LanguageQueryIndexLocaleRecord,
   type LanguageQueryLabelEntry,
 } from '../data/languageNameTypes';
+import { getIso639_3SeedMap } from '../data/iso6393Seed';
 import MiniSearch from 'minisearch';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
@@ -88,7 +89,12 @@ export type SearchLanguageCatalogSuggestionsOptions = {
   query: string;
   locale: LanguageNameQueryLocale;
   limit?: number;
+  catalogScope?: LanguageCatalogSearchScope;
 };
+
+export type LanguageCatalogSearchScope = 'orthography' | 'language';
+
+const ISO6393_EXACT_CODE_PATTERN = /^[a-z]{3}$/;
 
 let displayCorePromise: Promise<LanguageDisplayCorePayload> | null = null;
 let queryAliasPromise: Promise<LanguageQueryAliasPayload> | null = null;
@@ -312,6 +318,8 @@ function buildCandidate(
     return null;
   }
 
+  const isoSeed = getIso639_3SeedMap().get(normalizedId);
+
   const mergedByLocale = {
     ...(coreEntry?.byLocale ?? {}),
     ...(runtimeEntry?.byLocale ?? {}),
@@ -320,12 +328,15 @@ function buildCandidate(
     ...(aliasPayload.aliasesByCode[normalizedId] ?? []),
     ...(runtimeEntry?.aliases ?? []),
   ]);
+  const seedQueryEntries: LanguageQueryLabelEntry[] = isoSeed
+    ? [{ label: isoSeed.name, kind: 'english' }]
+    : [];
   const mergedQueryEntries = mergeQueryEntries(
-    queryEntries,
+    [...queryEntries, ...seedQueryEntries],
     buildRuntimeQueryEntries(runtimeEntry, locale),
   );
   const languageCode = runtimeEntry?.languageCode?.trim().toLowerCase() || normalizedId;
-  const englishName = runtimeEntry?.english?.trim() || coreEntry?.english?.trim() || languageCode;
+  const englishName = runtimeEntry?.english?.trim() || coreEntry?.english?.trim() || isoSeed?.name || languageCode;
   const nativeName = runtimeEntry?.native?.trim() || coreEntry?.native?.trim() || undefined;
   const visibility = runtimeEntry?.visibility === 'hidden' ? 'hidden' : 'visible';
 
@@ -468,7 +479,40 @@ function evaluateCandidateMatch(query: string, candidate: LanguageCatalogCandida
   return compareMatches(codeMatch, labelMatch) <= 0 ? codeMatch : labelMatch;
 }
 
-async function buildCatalogCandidateIndex(locale: LanguageNameQueryLocale): Promise<Map<string, LanguageCatalogCandidate>> {
+function buildIso6393ExactCodeFallbackSuggestion(
+  query: string,
+  runtimeSnapshot: RuntimeLanguageCatalogSnapshot,
+): LanguageCatalogSearchSuggestion | null {
+  if (!ISO6393_EXACT_CODE_PATTERN.test(query)) {
+    return null;
+  }
+
+  const runtimeEntry = runtimeSnapshot.entries[query];
+  if (runtimeEntry?.visibility === 'hidden') {
+    return null;
+  }
+
+  const seed = getIso639_3SeedMap().get(query);
+  if (!seed) {
+    return null;
+  }
+
+  return {
+    id: query,
+    languageCode: query,
+    primaryLabel: seed.name,
+    matchedLabel: query,
+    matchedLabelKind: 'code',
+    matchSource: 'code-exact',
+    rank: 0,
+    hasRuntimeOverride: false,
+  };
+}
+
+async function buildCatalogCandidateIndex(
+  locale: LanguageNameQueryLocale,
+  catalogScope: LanguageCatalogSearchScope,
+): Promise<Map<string, LanguageCatalogCandidate>> {
   const [displayCore, aliasPayload, queryIndexPayload] = await Promise.all([
     loadLanguageDisplayCore(),
     loadLanguageQueryAliases(),
@@ -481,6 +525,12 @@ async function buildCatalogCandidateIndex(locale: LanguageNameQueryLocale): Prom
     ...Object.keys(runtimeSnapshot.entries),
   ]);
   const candidates = new Map<string, LanguageCatalogCandidate>();
+
+  if (catalogScope === 'language') {
+    getIso639_3SeedMap().forEach((_, code) => {
+      candidateIds.add(code);
+    });
+  }
 
   candidateIds.forEach((candidateId) => {
     const candidate = buildCandidate(
@@ -501,13 +551,15 @@ async function buildCatalogCandidateIndex(locale: LanguageNameQueryLocale): Prom
 }
 
 // ── MiniSearch 模糊索引 | MiniSearch fuzzy index ──
-const miniSearchByLocale = new Map<LanguageNameQueryLocale, MiniSearch>();
+const miniSearchByScopeAndLocale = new Map<string, MiniSearch>();
 
 function buildMiniSearchIndex(
   candidates: Map<string, LanguageCatalogCandidate>,
   locale: LanguageNameQueryLocale,
+  catalogScope: LanguageCatalogSearchScope,
 ): MiniSearch {
-  const existing = miniSearchByLocale.get(locale);
+  const cacheKey = `${catalogScope}:${locale}`;
+  const existing = miniSearchByScopeAndLocale.get(cacheKey);
   if (existing) return existing;
 
   const ms = new MiniSearch<{ id: string; code: string; labels: string }>({
@@ -532,7 +584,7 @@ function buildMiniSearchIndex(
     ].filter(Boolean).join(' '),
   }));
   ms.addAll(docs);
-  miniSearchByLocale.set(locale, ms);
+  miniSearchByScopeAndLocale.set(cacheKey, ms);
   return ms;
 }
 
@@ -544,8 +596,10 @@ export async function searchLanguageCatalogSuggestions(
     return [];
   }
 
+  const catalogScope = options.catalogScope ?? 'orthography';
   const limit = options.limit && options.limit > 0 ? options.limit : 10;
-  const candidates = await buildCatalogCandidateIndex(options.locale);
+  const runtimeSnapshot = readRuntimeLanguageCatalogSnapshot();
+  const candidates = await buildCatalogCandidateIndex(options.locale, catalogScope);
   const matches = Array.from(candidates.values())
     .map((candidate) => {
       const match = evaluateCandidateMatch(normalizedQuery, candidate);
@@ -583,9 +637,17 @@ export async function searchLanguageCatalogSuggestions(
 
   const exactMatches = matches.slice(0, limit);
 
+  // 对非 top500 但合法 ISO639-3 代码做兜底，确保代码直搜可达 | Fallback for valid non-top500 ISO639-3 code queries
+  if (catalogScope === 'language' && exactMatches.length === 0) {
+    const fallback = buildIso6393ExactCodeFallbackSuggestion(normalizedQuery, runtimeSnapshot);
+    if (fallback) {
+      return [fallback];
+    }
+  }
+
   // 精确/前缀/包含搜索无结果时，降级到 MiniSearch 模糊搜索 | Fallback to fuzzy search when no exact/prefix/contains hits
   if (exactMatches.length === 0) {
-    const ms = buildMiniSearchIndex(candidates, options.locale);
+    const ms = buildMiniSearchIndex(candidates, options.locale, catalogScope);
     const fuzzyResults = ms.search(normalizedQuery);
     const fuzzyHits = fuzzyResults.slice(0, limit).map((result) => {
       const candidate = candidates.get(result.id);
@@ -621,7 +683,25 @@ export async function lookupLanguageCatalogEntryById(
   const candidates = await buildCatalogCandidateIndex(locale);
   const candidate = candidates.get(normalizedId);
   if (!candidate) {
-    return null;
+    const runtimeSnapshot = readRuntimeLanguageCatalogSnapshot();
+    if (runtimeSnapshot.entries[normalizedId]?.visibility === 'hidden') {
+      return null;
+    }
+
+    const seed = getIso639_3SeedMap().get(normalizedId);
+    if (!seed) {
+      return null;
+    }
+
+    return {
+      id: normalizedId,
+      languageCode: normalizedId,
+      englishName: seed.name,
+      localName: seed.name,
+      aliases: [],
+      visibility: 'visible',
+      hasRuntimeOverride: false,
+    };
   }
 
   return {
@@ -654,5 +734,5 @@ export function resetLanguageCatalogSearchServiceForTests(): void {
   displayCorePromise = null;
   queryAliasPromise = null;
   queryIndexPromiseByLocale.clear();
-  miniSearchByLocale.clear();
+  miniSearchByScopeAndLocale.clear();
 }

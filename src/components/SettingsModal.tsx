@@ -28,6 +28,7 @@ import {
 import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
+import { THEMES, setAppearance, type ThemeId } from '../utils/theme';
 import {
   ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
   WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
@@ -387,6 +388,22 @@ export function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
+
+  // ── 配色主题 | Appearance theme ──
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('jieyu-appearance') : null;
+    return (stored as ThemeId) || 'default';
+  });
+
+  const handleThemeChange = useCallback((themeId: ThemeId) => {
+    setActiveTheme(themeId);
+    setAppearance(themeId);
+  }, []);
+
+  // 解析实际明暗模式（system → 查媒体查询）| Resolve actual light/dark from tri-state mode
+  const resolvedMode: 'light' | 'dark' = themeMode === 'dark' ? 'dark'
+    : themeMode === 'light' ? 'light'
+    : (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
   // ── 快捷键编辑 | Shortcut editing ──
 
@@ -908,6 +925,36 @@ export function SettingsModal({
               <SettingsSection title={msg.themeLabel}>
                 <OptionGroup value={themeMode} options={themeOptions} onChange={onThemeChange} />
               </SettingsSection>
+
+              {/* ── 配色方案 | Color theme ── */}
+              <SettingsSection title="配色方案">
+                <div className="theme-grid">
+                  {THEMES.map((theme) => (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      className={`theme-card${activeTheme === theme.id ? ' theme-card-active' : ''}`}
+                      onClick={() => handleThemeChange(theme.id)}
+                    >
+                      <div className="theme-card-preview">
+                        <span
+                          className="theme-card-swatch-accent"
+                          style={{ backgroundColor: resolvedMode === 'dark' ? theme.swatchDark : theme.swatchLight }}
+                        />
+                        <span
+                          className="theme-card-swatch-bg"
+                          style={{ backgroundColor: resolvedMode === 'dark' ? theme.bgDark : theme.bgLight }}
+                        />
+                      </div>
+                      <div className="theme-card-info">
+                        <span className="theme-card-name">{theme.name}</span>
+                        <span className="theme-card-subtitle">{theme.subtitle}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </SettingsSection>
+
               <SettingsSection title={msg.localeLabel}>
                 <OptionGroup value={locale} options={localeOptions} onChange={onLocaleChange} />
               </SettingsSection>

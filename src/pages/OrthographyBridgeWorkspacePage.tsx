@@ -17,7 +17,11 @@ import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { listOrthographyRecords } from '../services/LinguisticService.orthography';
-import { searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
+import {
+  type LanguageCatalogSearchSuggestion,
+  searchLanguageCatalogSuggestions,
+} from '../services/LanguageCatalogSearchService';
+import { formatLanguageCatalogSearchSuggestion } from '../utils/langMapping';
 import {
   buildOrthographyBrowseSelector,
   buildOrthographyBrowseState,
@@ -40,6 +44,9 @@ export function OrthographyBridgeWorkspacePage({
   const [error, setError] = useState('');
   const [shellFooterState, setShellFooterState] = useState<OrthographyBridgeShellFooterState | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState<LanguageCatalogSearchSuggestion[]>([]);
+  const [searchSuggestionActiveIndex, setSearchSuggestionActiveIndex] = useState(-1);
+  const [searchInputFocused, setSearchInputFocused] = useState(false);
   const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const deferredSearchText = useDeferredValue(searchText);
   const { projectLanguageIds } = useProjectLanguageIds();
@@ -65,6 +72,7 @@ export function OrthographyBridgeWorkspacePage({
     normalizedSearchText,
     showUnscopedIdleState,
   } = browseState;
+  const hasVisibleSearchSuggestions = searchInputFocused && searchSuggestions.length > 0;
 
   // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
   const searchParamsRef = useRef(searchParams);
@@ -82,13 +90,14 @@ export function OrthographyBridgeWorkspacePage({
       setLoading(true);
 
       try {
-        const searchLanguageIds = normalizedSearchText
+        const suggestions = normalizedSearchText
           ? (await searchLanguageCatalogSuggestions({
             query: normalizedSearchText,
             locale,
             limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-          })).map((suggestion) => suggestion.id)
+          }))
           : [];
+        const searchLanguageIds = suggestions.map((suggestion) => suggestion.id);
         const selector = buildOrthographyBrowseSelector({
           selectedOrthographyId,
           searchLanguageIds,
@@ -97,6 +106,8 @@ export function OrthographyBridgeWorkspacePage({
 
         if (!selector) {
           if (cancelled) return;
+          setSearchSuggestions(suggestions);
+          setSearchSuggestionActiveIndex(-1);
           setOrthographies([]);
           setError('');
           return;
@@ -104,6 +115,8 @@ export function OrthographyBridgeWorkspacePage({
 
         const records = await listOrthographyRecords(selector);
         if (cancelled) return;
+        setSearchSuggestions(suggestions);
+        setSearchSuggestionActiveIndex((prev) => (prev >= 0 && prev < suggestions.length ? prev : -1));
         setOrthographies(records);
         setError('');
 
@@ -116,6 +129,8 @@ export function OrthographyBridgeWorkspacePage({
         }
       } catch (loadError) {
         if (cancelled) return;
+        setSearchSuggestions([]);
+        setSearchSuggestionActiveIndex(-1);
         setOrthographies([]);
         setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.orthographyBridge.errorFallback'));
       } finally {
@@ -148,6 +163,67 @@ export function OrthographyBridgeWorkspacePage({
     onSelect: handleSelectForKeyboard,
   });
   useEffect(() => { kbReset(); }, [filteredOrthographies, kbReset]);
+
+  const handleSearchTextChange = useCallback((value: string) => {
+    setSearchText(value);
+    setSearchSuggestionActiveIndex(-1);
+    setSearchInputFocused(true);
+  }, []);
+
+  const handleSearchSuggestionSelect = useCallback((suggestion: LanguageCatalogSearchSuggestion) => {
+    setSearchText(suggestion.primaryLabel);
+    setSearchSuggestionActiveIndex(-1);
+    setSearchInputFocused(false);
+  }, []);
+
+  const handleSearchInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!hasVisibleSearchSuggestions) {
+      kbSearchKeyDown(event);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex((prev) => {
+        if (searchSuggestions.length === 0) return -1;
+        if (prev < 0) return 0;
+        return Math.min(prev + 1, searchSuggestions.length - 1);
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex((prev) => {
+        if (searchSuggestions.length === 0) return -1;
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex(-1);
+      setSearchInputFocused(false);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (searchSuggestions.length === 0) return;
+      event.preventDefault();
+      const targetIndex = searchSuggestionActiveIndex >= 0
+        ? searchSuggestionActiveIndex
+        : 0;
+      const suggestion = searchSuggestions[targetIndex];
+      if (suggestion) {
+        handleSearchSuggestionSelect(suggestion);
+      }
+      return;
+    }
+
+    kbSearchKeyDown(event);
+  }, [hasVisibleSearchSuggestions, handleSearchSuggestionSelect, kbSearchKeyDown, searchSuggestionActiveIndex, searchSuggestions]);
 
   const selectedOrthography = orthographies.find((orthography) => orthography.id === selectedOrthographyId) ?? null;
   const selectedBadge = selectedOrthography ? getOrthographyCatalogBadgeInfo(locale, selectedOrthography) : null;
@@ -278,16 +354,59 @@ export function OrthographyBridgeWorkspacePage({
         title={t(locale, 'workspace.orthographyBridge.listTitle')}
         description={t(locale, 'workspace.orthographyBridge.listDescription')}
       >
-        <input
-          className="input ob-search"
-          type="search"
-          value={searchText}
-          onChange={(event) => setSearchText(event.target.value)}
-          onKeyDown={kbSearchKeyDown}
-          placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
-          aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
-          aria-activedescendant={kbActiveIndex >= 0 ? `ob-item-${filteredOrthographies[kbActiveIndex]?.id ?? ''}` : undefined}
-        />
+        <div className="ob-search-combobox">
+          <input
+            className="input ob-search"
+            type="search"
+            role="combobox"
+            value={searchText}
+            onChange={(event) => handleSearchTextChange(event.target.value)}
+            onKeyDown={handleSearchInputKeyDown}
+            onFocus={() => setSearchInputFocused(true)}
+            onBlur={() => {
+              setSearchInputFocused(false);
+              setSearchSuggestionActiveIndex(-1);
+            }}
+            placeholder={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
+            aria-label={t(locale, 'workspace.orthographyBridge.searchPlaceholder')}
+            aria-autocomplete="list"
+            aria-haspopup="listbox"
+            aria-expanded={hasVisibleSearchSuggestions}
+            aria-controls={hasVisibleSearchSuggestions ? 'ob-search-suggestions' : undefined}
+            aria-activedescendant={hasVisibleSearchSuggestions
+              ? (searchSuggestionActiveIndex >= 0 && searchSuggestionActiveIndex < searchSuggestions.length
+                ? `ob-search-suggestion-${searchSuggestionActiveIndex}`
+                : undefined)
+              : (kbActiveIndex >= 0 ? `ob-item-${filteredOrthographies[kbActiveIndex]?.id ?? ''}` : undefined)}
+          />
+          <div
+            className={`language-iso-input-suggestions ob-search-suggestions${hasVisibleSearchSuggestions ? '' : ' is-empty'}`}
+            {...(hasVisibleSearchSuggestions
+              ? {
+                id: 'ob-search-suggestions',
+                role: 'listbox' as const,
+                'aria-label': t(locale, 'workspace.orthographyBridge.searchPlaceholder'),
+              }
+              : { 'aria-hidden': 'true' as const })}
+          >
+            {hasVisibleSearchSuggestions
+              ? searchSuggestions.map((suggestion, index) => (
+                <div
+                  id={`ob-search-suggestion-${index}`}
+                  key={`${suggestion.id}-${index}`}
+                  role="option"
+                  aria-selected={searchSuggestionActiveIndex === index}
+                  className={`language-iso-input-suggestion${searchSuggestionActiveIndex === index ? ' is-active' : ''}`}
+                  onMouseEnter={() => setSearchSuggestionActiveIndex(index)}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => handleSearchSuggestionSelect(suggestion)}
+                >
+                  <span className="ob-search-suggestion-label">{formatLanguageCatalogSearchSuggestion(suggestion, locale)}</span>
+                </div>
+              ))
+              : null}
+          </div>
+        </div>
         {projectLanguageIds.length > 0 ? (
           <div className="ob-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthographyBridge.filterProjectOnly')}>
             <button type="button" role="radio" aria-checked={projectOnly} className={`btn${projectOnly ? ' btn-active' : ''}`} onClick={() => setProjectOnly(true)}>{t(locale, 'workspace.orthographyBridge.filterProjectOnly')}</button>

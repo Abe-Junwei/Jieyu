@@ -487,6 +487,7 @@ describe('LanguageMetadataWorkspacePage', () => {
       expect(mockSearchLanguageCatalogSuggestions).toHaveBeenCalledWith(expect.objectContaining({
         query: '示例',
         locale: 'zh-CN',
+        catalogScope: 'language',
       }));
     });
 

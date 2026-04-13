@@ -11,6 +11,7 @@ export interface AiStateWorkerSlice {
   aiChatFailureCount: number;
   aiChatProviderKind: string;
   aiChatModel: string;
+  aiChatSettingsFingerprint: string;
   aiChatContextChars: number;
   aiChatHistoryChars: number;
   aiToolDecisionLogCount: number;
@@ -58,6 +59,7 @@ export function buildAiStateWorkerFingerprint(slice: AiStateWorkerSlice): string
     String(slice.aiChatFailureCount),
     slice.aiChatProviderKind,
     slice.aiChatModel,
+    slice.aiChatSettingsFingerprint,
     String(slice.aiChatContextChars),
     String(slice.aiChatHistoryChars),
     String(slice.aiToolDecisionLogCount),
@@ -94,6 +96,7 @@ export function computeAiStateWorkerSignalWeight(slice: AiStateWorkerSlice): num
     + slice.aiChatTaskSessionStatus.length
     + slice.aiChatProviderKind.length
     + slice.aiChatModel.length
+    + slice.aiChatSettingsFingerprint.length
     + slice.acousticRuntimeState.length
     + slice.acousticRuntimePhase.length
     + slice.acousticCalibrationStatus.length

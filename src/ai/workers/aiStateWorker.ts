@@ -58,6 +58,7 @@ function scheduleIdleFlush(): void {
 }
 
 function consumeSlice(slice: AiStateWorkerSlice): void {
+  const previousSlice = latestSlice;
   latestSlice = slice;
 
   const currentSignalWeight = computeAiStateWorkerSignalWeight(slice);
@@ -66,6 +67,16 @@ function consumeSlice(slice: AiStateWorkerSlice): void {
   }
   lastSignalWeight = currentSignalWeight;
   pendingOpCount += 1;
+
+  const settingsFingerprintChanged = previousSlice != null
+    && previousSlice.aiChatSettingsFingerprint !== slice.aiChatSettingsFingerprint;
+
+  if (settingsFingerprintChanged) {
+    emitIfFingerprintChanged(slice);
+    resetPendingCounters();
+    clearIdleTimer();
+    return;
+  }
 
   const reachedThreshold = pendingCharDelta >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.charDelta
     || pendingOpCount >= AI_STATE_WORKER_DEFAULT_THRESHOLDS.opCount;

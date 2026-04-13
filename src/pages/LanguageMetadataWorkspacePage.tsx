@@ -102,6 +102,7 @@ export function LanguageMetadataWorkspacePage({
           query: normalizedSearchText,
           locale,
           limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
+          catalogScope: 'language',
         });
         const nextSuggestionMap = new Map<string, LanguageCatalogSearchSuggestion>();
         suggestions.forEach((suggestion) => nextSuggestionMap.set(suggestion.id, suggestion));
@@ -539,6 +540,29 @@ export function LanguageMetadataWorkspacePage({
               : t(locale, 'workspace.languageMetadata.searchLocateHint')}
         </p>
       </div>
+
+      {/* 搜索结果条目列表（master-detail 的 master 侧） | Search result entry list (master side of master-detail) */}
+      {entries.length > 0 && (
+        <nav className="lm-entry-list la-panel-section" aria-label={t(locale, 'workspace.languageMetadata.title')}>
+          {entries.map((entry) => {
+            const isSelected = entry.id === selectedLanguageId;
+            const suggestion = searchSuggestionMap.get(entry.id);
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                className={`lm-entry-item${isSelected ? ' is-selected' : ''}`}
+                aria-current={isSelected ? 'true' : undefined}
+                onClick={() => handleSelectEntry(entry.id)}
+              >
+                <span className="lm-entry-item-name">{entry.localName || entry.englishName || entry.id}</span>
+                <span className="lm-entry-item-code">{entry.languageCode}</span>
+                {suggestion && <span className="lm-entry-item-match">{suggestion.matchedLabel}</span>}
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       <LanguageMetadataWorkspaceDetailColumn
         locale={locale}

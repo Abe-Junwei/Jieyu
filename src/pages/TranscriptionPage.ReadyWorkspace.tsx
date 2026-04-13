@@ -5,7 +5,7 @@
  * 从轻量壳组件中拆出的 ready 态重运行时 | Heavy ready-state runtime extracted from the lightweight shell.
  */
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Merge as _Merge,
   Pause as _Pause,
@@ -1005,6 +1005,24 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformTimeUpdate,
   });
 
+  const aiChatForSidebar = useMemo(() => ({
+    ...deferredAiRuntimeForSidebar.aiChat,
+    providerLabel: deferredAiRuntime.aiChat.providerLabel,
+    settings: deferredAiRuntime.aiChat.settings,
+    connectionTestStatus: deferredAiRuntime.aiChat.connectionTestStatus,
+    connectionTestMessage: deferredAiRuntime.aiChat.connectionTestMessage,
+    updateSettings: deferredAiRuntime.aiChat.updateSettings,
+    testConnection: deferredAiRuntime.aiChat.testConnection,
+  }), [
+    deferredAiRuntime.aiChat.connectionTestMessage,
+    deferredAiRuntime.aiChat.connectionTestStatus,
+    deferredAiRuntime.aiChat.providerLabel,
+    deferredAiRuntime.aiChat.settings,
+    deferredAiRuntime.aiChat.testConnection,
+    deferredAiRuntime.aiChat.updateSettings,
+    deferredAiRuntimeForSidebar.aiChat,
+  ]);
+
   const assistantSidebarControllerInput = useTranscriptionAssistantSidebarControllerInput({
     locale,
     analysisTab,
@@ -1017,7 +1035,7 @@ function TranscriptionPageReadyWorkspace({
     selectedText: selectionSnapshot.selectedText,
     selectedTimeRangeLabel: selectionSnapshot.selectedTimeRangeLabel ?? null,
     lexemeMatches,
-    aiChat: deferredAiRuntimeForSidebar.aiChat,
+    aiChat: aiChatForSidebar,
     aiToolDecisionLogs: deferredAiRuntimeForSidebar.aiToolDecisionLogs,
     observerStage: observerResult.stage,
     observerRecommendations: actionableObserverRecommendations,

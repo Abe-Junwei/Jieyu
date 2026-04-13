@@ -21,6 +21,7 @@ import {
   normalizeLanguageCatalogRuntimeLookupKey,
   readLanguageCatalogRuntimeCache,
 } from '../data/languageCatalogRuntimeCache';
+import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 
 /**
  * ISO 639-3 → BCP-47 静态映射表。
@@ -1044,6 +1045,25 @@ export function formatLanguageCatalogMatch(match: LanguageCatalogMatch, locale: 
     ? (locale === 'zh-CN' ? '宏语言' : 'macrolanguage')
     : match.entry.scope;
   return `${displayName} · ${match.entry.iso6393}${scopeLabel !== 'individual' ? ` · ${scopeLabel}` : ''}`;
+}
+
+export function formatLanguageCatalogSearchSuggestion(
+  suggestion: LanguageCatalogSearchSuggestion,
+  locale: LanguageSearchLocale = 'zh-CN',
+): string {
+  const entry = getLanguageCatalogEntry(suggestion.id) ?? getLanguageCatalogEntry(suggestion.languageCode);
+  if (!entry) {
+    return `${suggestion.primaryLabel} · ${suggestion.languageCode}`;
+  }
+
+  return formatLanguageCatalogMatch({
+    entry,
+    score: suggestion.rank,
+    matchSource: suggestion.matchedLabelKind === 'code' ? 'iso6393-exact' : 'contains',
+    matchedLabel: suggestion.matchedLabel,
+    matchedLabelKind: suggestion.matchedLabelKind,
+    warnings: [],
+  }, locale);
 }
 
 export function pickAutoFillLanguageMatch(

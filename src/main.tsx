@@ -5,11 +5,13 @@ import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
+import { initTheme } from './utils/theme';
 import './services/vad/VadMediaBackend.browser'; // 注册浏览器端 VAD 后端 | Register browser VAD backend
 import './styles/app-foundation.css';
 
 void initSentryForReleaseStage();
 initLcpMetricObserver();
+initTheme(); // 初始化配色主题 | Initialize appearance theme
 
 const queryClient = new QueryClient({
   defaultOptions: {

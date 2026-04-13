@@ -15,8 +15,10 @@ import type { OrthographyDocType } from '../db';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import type { OrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
+import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
+import { formatLanguageCatalogSearchSuggestion } from '../utils/langMapping';
 import {
   resolveCatalogPriorityLabel,
   resolveCatalogReviewStatusLabel,
@@ -62,6 +64,12 @@ type OrthographyManagerPanelProps = {
   activeIndex?: number;
   /** 键盘导航：列表容器 ref | Keyboard nav: list container ref */
   listRef?: React.Ref<HTMLDivElement>;
+  searchSuggestions?: LanguageCatalogSearchSuggestion[];
+  searchSuggestionActiveIndex?: number;
+  onSearchSuggestionHover?: (index: number) => void;
+  onSearchSuggestionSelect?: (suggestion: LanguageCatalogSearchSuggestion) => void;
+  onSearchInputFocus?: () => void;
+  onSearchInputBlur?: () => void;
 };
 
 export function OrthographyManagerPanel({
@@ -99,7 +107,19 @@ export function OrthographyManagerPanel({
   onSearchKeyDown,
   activeIndex = -1,
   listRef,
+  searchSuggestions = [],
+  searchSuggestionActiveIndex = -1,
+  onSearchSuggestionHover,
+  onSearchSuggestionSelect,
+  onSearchInputFocus,
+  onSearchInputBlur,
 }: OrthographyManagerPanelProps) {
+  const hasVisibleSearchSuggestions = searchSuggestions.length > 0;
+  const searchSuggestionListId = 'orthography-manager-search-suggestions';
+  const activeSearchSuggestionId = searchSuggestionActiveIndex >= 0 && searchSuggestionActiveIndex < searchSuggestions.length
+    ? `om-search-suggestion-${searchSuggestionActiveIndex}`
+    : undefined;
+
   const bridgeButton = selectedOrthography ? (
     <LanguageAssetRouteLink
       to={bridgeWorkspaceHref}
@@ -198,16 +218,54 @@ export function OrthographyManagerPanel({
             <p className="panel-section__description">{t(locale, 'workspace.orthography.listDescription')}</p>
           </div>
           <div className="om-toolbar orthography-builder-group-body">
-            <input
-              className="panel-input om-search"
-              type="search"
-              value={searchText}
-              onChange={(event) => onSearchTextChange(event.target.value)}
-              onKeyDown={onSearchKeyDown}
-              placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
-              aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
-              aria-activedescendant={activeIndex >= 0 ? `om-item-${filteredOrthographies[activeIndex]?.id ?? ''}` : undefined}
-            />
+            <div className="om-search-combobox">
+              <input
+                className="panel-input om-search"
+                type="search"
+                role="combobox"
+                value={searchText}
+                onChange={(event) => onSearchTextChange(event.target.value)}
+                onKeyDown={onSearchKeyDown}
+                onFocus={onSearchInputFocus}
+                onBlur={onSearchInputBlur}
+                placeholder={t(locale, 'workspace.orthography.searchPlaceholder')}
+                aria-label={t(locale, 'workspace.orthography.searchPlaceholder')}
+                aria-autocomplete="list"
+                aria-haspopup="listbox"
+                aria-expanded={hasVisibleSearchSuggestions}
+                aria-controls={hasVisibleSearchSuggestions ? searchSuggestionListId : undefined}
+                aria-activedescendant={hasVisibleSearchSuggestions
+                  ? activeSearchSuggestionId
+                  : (activeIndex >= 0 ? `om-item-${filteredOrthographies[activeIndex]?.id ?? ''}` : undefined)}
+              />
+              <div
+                className={`language-iso-input-suggestions om-search-suggestions${hasVisibleSearchSuggestions ? '' : ' is-empty'}`}
+                {...(hasVisibleSearchSuggestions
+                  ? {
+                    id: searchSuggestionListId,
+                    role: 'listbox' as const,
+                    'aria-label': t(locale, 'workspace.orthography.searchPlaceholder'),
+                  }
+                  : { 'aria-hidden': 'true' as const })}
+              >
+                {hasVisibleSearchSuggestions
+                  ? searchSuggestions.map((suggestion, index) => (
+                    <div
+                      id={`om-search-suggestion-${index}`}
+                      key={`${suggestion.id}-${index}`}
+                      role="option"
+                      aria-selected={searchSuggestionActiveIndex === index}
+                      className={`language-iso-input-suggestion${searchSuggestionActiveIndex === index ? ' is-active' : ''}`}
+                      onMouseEnter={() => onSearchSuggestionHover?.(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => onSearchSuggestionSelect?.(suggestion)}
+                    >
+                      <span className="om-search-suggestion-label">{formatLanguageCatalogSearchSuggestion(suggestion, locale)}</span>
+                    </div>
+                  ))
+                  : null}
+              </div>
+            </div>
             {projectLanguageIds.length > 0 ? (
               <div className="om-filter-toggle" role="radiogroup" aria-label={t(locale, 'workspace.orthography.filterProjectOnly')}>
                 <PanelButton

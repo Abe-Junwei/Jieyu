@@ -99,6 +99,33 @@ export const TranscriptionPageAssistantBridge = lazy(async () => import('./Trans
   default: module.TranscriptionPageAssistantBridge,
 })));
 
+function hashRuntimeSettingValue(value: string | undefined): string {
+  if (!value) return '';
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${value.length}:${(hash >>> 0).toString(36)}`;
+}
+
+function buildAiChatSettingsFingerprint(state: DeferredTranscriptionAiRuntimeState): string {
+  const settings = state.aiChat.settings;
+  if (!settings) return '';
+  return [
+    settings.providerKind,
+    hashRuntimeSettingValue(settings.apiKey),
+    hashRuntimeSettingValue(settings.baseUrl),
+    hashRuntimeSettingValue(settings.model),
+    hashRuntimeSettingValue(settings.explainModel),
+    hashRuntimeSettingValue(settings.endpointUrl),
+    hashRuntimeSettingValue(settings.authHeaderName),
+    settings.authScheme,
+    settings.responseFormat,
+    settings.fallbackProviderKind ?? '',
+  ].join('::');
+}
+
 export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeState): AiStateWorkerSlice {
   const pendingToolCallId = state.aiChat.pendingToolCall?.requestId
     ?? state.aiChat.pendingToolCall?.call.requestId
@@ -117,6 +144,7 @@ export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeSta
     aiChatFailureCount: state.aiChat.metrics?.failureCount ?? 0,
     aiChatProviderKind: state.aiChat.settings?.providerKind ?? '',
     aiChatModel: state.aiChat.settings?.model ?? '',
+    aiChatSettingsFingerprint: buildAiChatSettingsFingerprint(state),
     aiChatContextChars: state.aiChat.contextDebugSnapshot?.contextChars ?? 0,
     aiChatHistoryChars: state.aiChat.contextDebugSnapshot?.historyChars ?? 0,
     aiToolDecisionLogCount: state.aiToolDecisionLogs.length,

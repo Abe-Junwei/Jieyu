@@ -115,6 +115,30 @@
 
 .ob-search { width: 100%; }
 
+.ob-search-combobox {
+  display: grid;
+  gap: 0;
+}
+
+.ob-search-suggestions {
+  margin-top: 6px;
+}
+
+.ob-search-suggestion-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ob-search-suggestion-code {
+  flex: 0 0 auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--text-secondary);
+  font-size: var(--la-note-size);
+}
+
 .ob-filter-toggle {
   display: flex;
   flex-wrap: wrap;

@@ -32,7 +32,10 @@ import {
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
-import { searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
+import {
+  type LanguageCatalogSearchSuggestion,
+  searchLanguageCatalogSuggestions,
+} from '../services/LanguageCatalogSearchService';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 
@@ -53,6 +56,9 @@ export function OrthographyManagerPage({
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saving, setSaving] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState<LanguageCatalogSearchSuggestion[]>([]);
+  const [searchSuggestionActiveIndex, setSearchSuggestionActiveIndex] = useState(-1);
+  const [searchInputFocused, setSearchInputFocused] = useState(false);
   const [browseAllWithoutProject, setBrowseAllWithoutProject] = useState(false);
   const [draft, setDraft] = useState<OrthographyDraft | null>(null);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>({ languageName: '', languageCode: '' });
@@ -80,6 +86,7 @@ export function OrthographyManagerPage({
     normalizedSearchText,
     showUnscopedIdleState,
   } = browseState;
+  const hasVisibleSearchSuggestions = searchInputFocused && searchSuggestions.length > 0;
 
   // 用 ref 追踪最新值，避免加载 effect 依赖 searchParams 导致循环 | Track latest via refs to avoid circular deps
   const searchParamsRef = useRef(searchParams);
@@ -94,13 +101,14 @@ export function OrthographyManagerPage({
       setLoading(true);
 
       try {
-        const searchLanguageIds = normalizedSearchText
+        const suggestions = normalizedSearchText
           ? (await searchLanguageCatalogSuggestions({
             query: normalizedSearchText,
             locale,
             limit: WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-          })).map((suggestion) => suggestion.id)
+          }))
           : [];
+        const searchLanguageIds = suggestions.map((suggestion) => suggestion.id);
         const selector = buildOrthographyBrowseSelector({
           selectedOrthographyId,
           searchLanguageIds,
@@ -109,6 +117,8 @@ export function OrthographyManagerPage({
 
         if (!selector) {
           if (cancelled) return;
+          setSearchSuggestions(suggestions);
+          setSearchSuggestionActiveIndex(-1);
           setOrthographies([]);
           setError('');
           return;
@@ -116,6 +126,8 @@ export function OrthographyManagerPage({
 
         const records = await listOrthographyRecords(selector);
         if (cancelled) return;
+        setSearchSuggestions(suggestions);
+        setSearchSuggestionActiveIndex((prev) => (prev >= 0 && prev < suggestions.length ? prev : -1));
         setOrthographies(records);
         setError('');
 
@@ -128,6 +140,8 @@ export function OrthographyManagerPage({
         }
       } catch (loadError) {
         if (cancelled) return;
+        setSearchSuggestions([]);
+        setSearchSuggestionActiveIndex(-1);
         setOrthographies([]);
         setError(loadError instanceof Error ? loadError.message : t(locale, 'workspace.orthography.errorFallback'));
       } finally {
@@ -241,6 +255,67 @@ export function OrthographyManagerPage({
     setSearchParams(nextParams);
   };
   selectOrthographyRef.current = handleSelectOrthography;
+
+  const handleSearchTextChange = useCallback((value: string) => {
+    setSearchText(value);
+    setSearchSuggestionActiveIndex(-1);
+    setSearchInputFocused(true);
+  }, []);
+
+  const handleSearchSuggestionSelect = useCallback((suggestion: LanguageCatalogSearchSuggestion) => {
+    setSearchText(suggestion.primaryLabel);
+    setSearchSuggestionActiveIndex(-1);
+    setSearchInputFocused(false);
+  }, []);
+
+  const handleSearchInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!hasVisibleSearchSuggestions) {
+      kbSearchKeyDown(event);
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex((prev) => {
+        if (searchSuggestions.length === 0) return -1;
+        if (prev < 0) return 0;
+        return Math.min(prev + 1, searchSuggestions.length - 1);
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex((prev) => {
+        if (searchSuggestions.length === 0) return -1;
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setSearchSuggestionActiveIndex(-1);
+      setSearchInputFocused(false);
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      if (searchSuggestions.length === 0) return;
+      event.preventDefault();
+      const targetIndex = searchSuggestionActiveIndex >= 0
+        ? searchSuggestionActiveIndex
+        : 0;
+      const suggestion = searchSuggestions[targetIndex];
+      if (suggestion) {
+        handleSearchSuggestionSelect(suggestion);
+      }
+      return;
+    }
+
+    kbSearchKeyDown(event);
+  }, [hasVisibleSearchSuggestions, handleSearchSuggestionSelect, kbSearchKeyDown, searchSuggestionActiveIndex, searchSuggestions]);
 
   const handleDraftChange = <K extends keyof OrthographyDraft>(key: K, value: OrthographyDraft[K]) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -518,7 +593,7 @@ export function OrthographyManagerPage({
         saveError={saveError}
         saveSuccess={saveSuccess}
         bridgeWorkspaceHref={bridgeWorkspaceHref}
-        onSearchTextChange={setSearchText}
+        onSearchTextChange={handleSearchTextChange}
         onProjectOnlyChange={setProjectOnly}
         onBrowseAll={() => setBrowseAllWithoutProject(true)}
         onSelectOrthography={handleSelectOrthography}
@@ -529,9 +604,18 @@ export function OrthographyManagerPage({
           void handleSaveDraft();
         }}
         onBeforeOpenBridge={confirmDiscardDirtyDraft}
-        onSearchKeyDown={kbSearchKeyDown}
+        onSearchKeyDown={handleSearchInputKeyDown}
         activeIndex={kbActiveIndex}
         listRef={kbListRef}
+        searchSuggestions={hasVisibleSearchSuggestions ? searchSuggestions : []}
+        searchSuggestionActiveIndex={searchSuggestionActiveIndex}
+        onSearchSuggestionHover={setSearchSuggestionActiveIndex}
+        onSearchSuggestionSelect={handleSearchSuggestionSelect}
+        onSearchInputFocus={() => setSearchInputFocused(true)}
+        onSearchInputBlur={() => {
+          setSearchInputFocused(false);
+          setSearchSuggestionActiveIndex(-1);
+        }}
       />
     </section>
   );
