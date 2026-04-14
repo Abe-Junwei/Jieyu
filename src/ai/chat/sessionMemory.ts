@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import type { AiSessionMemory } from '../../hooks/useAiChat';
+import type { AiSessionMemory } from './chatDomain.types';
 
 const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
 const log = createLogger('aiChatSessionMemory');

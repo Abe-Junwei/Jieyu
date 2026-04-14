@@ -1,51 +1,83 @@
-interface BuildSharedLanePropsInput {
-  transcriptionLayers: any;
-  translationLayers: any;
-  segmentsByLayer: any;
-  segmentContentByLayer: any;
-  saveSegmentContentForLayer: any;
-  selectedTimelineUnit: any;
-  flashLayerRowId: any;
-  focusedLayerRowId: any;
+import type { TranscriptionPageTimelineMediaLanesProps } from './TranscriptionPage.TimelineContent';
+
+type MediaLanesProps = TranscriptionPageTimelineMediaLanesProps;
+
+type SharedLaneFields = Pick<
+  MediaLanesProps,
+  | 'transcriptionLayers'
+  | 'translationLayers'
+  | 'segmentsByLayer'
+  | 'segmentContentByLayer'
+  | 'saveSegmentContentForLayer'
+  | 'selectedTimelineUnit'
+  | 'flashLayerRowId'
+  | 'focusedLayerRowId'
+  | 'deletableLayers'
+  | 'layerLinks'
+  | 'speakerLayerLayout'
+  | 'speakerFocusMode'
+  | 'activeSpeakerFilterKey'
+  | 'speakerQuickActions'
+  | 'translationAudioByLayer'
+  | 'mediaItems'
+  | 'recording'
+  | 'recordingUtteranceId'
+  | 'recordingLayerId'
+  | 'startRecordingForUtterance'
+  | 'stopRecording'
+  | 'deleteVoiceTranslation'
+  | 'displayStyleControl'
+>;
+
+/**
+ * ReadyWorkspace 侧字段名与 TranscriptionTimelineMediaLanes  props 的对应关系
+ * （避免 any，并保持与 buildSharedLaneProps 映射一致）。
+ */
+export type BuildSharedLanePropsInput = SharedLaneFields & {
   selectedTimelineUtteranceId: string;
-  orderedLayers: any;
-  reorderLayers: any;
-  deletableLayers: any;
-  handleFocusLayerRow: any;
-  layerLinks: any;
+  orderedLayers: MediaLanesProps['allLayersOrdered'];
+  reorderLayers: MediaLanesProps['onReorderLayers'];
+  handleFocusLayerRow: MediaLanesProps['onFocusLayer'];
   showAllLayerConnectors: boolean;
   activeTextPrimaryLanguageId: string | null;
   activeTextPrimaryOrthographyId: string | null;
-  handleToggleAllLayerConnectors: any;
-  timelineLaneHeights: any;
-  handleTimelineLaneHeightChange: any;
-  transcriptionTrackMode: any;
-  handleToggleTrackDisplayMode: any;
-  setTrackDisplayMode: any;
-  effectiveLaneLockMap: any;
-  handleLockSelectedSpeakersToLane: any;
-  handleUnlockSelectedSpeakers: any;
-  handleResetTrackAutoLayout: any;
-  selectedSpeakerNamesForTrackLock: any;
-  speakerLayerLayout: any;
-  speakerFocusMode: any;
+  handleToggleAllLayerConnectors: MediaLanesProps['onToggleConnectors'];
+  timelineLaneHeights: MediaLanesProps['laneHeights'];
+  handleTimelineLaneHeightChange: MediaLanesProps['onLaneHeightChange'];
+  transcriptionTrackMode: MediaLanesProps['trackDisplayMode'];
+  handleToggleTrackDisplayMode: MediaLanesProps['onToggleTrackDisplayMode'];
+  setTrackDisplayMode: MediaLanesProps['onSetTrackDisplayMode'];
+  effectiveLaneLockMap: MediaLanesProps['laneLockMap'];
+  handleLockSelectedSpeakersToLane: MediaLanesProps['onLockSelectedSpeakersToLane'];
+  handleUnlockSelectedSpeakers: MediaLanesProps['onUnlockSelectedSpeakers'];
+  handleResetTrackAutoLayout: MediaLanesProps['onResetTrackAutoLayout'];
+  selectedSpeakerNamesForTrackLock: MediaLanesProps['selectedSpeakerNamesForLock'];
   resolvedSpeakerFocusTargetKey: string | null;
-  activeSpeakerFilterKey: any;
-  speakerQuickActions: any;
-  handleLaneLabelWidthResizeStart: any;
-  translationAudioByLayer: any;
-  mediaItems: any;
-  recording: any;
-  recordingUtteranceId: any;
-  recordingLayerId: any;
-  startRecordingForUtterance: any;
-  stopRecording: any;
-  deleteVoiceTranslation: any;
-  displayStyleControl: any;
+  handleLaneLabelWidthResizeStart: MediaLanesProps['onLaneLabelWidthResize'];
+};
+
+export type BuiltSharedLaneProps = Omit<
+  MediaLanesProps,
+  | 'playerDuration'
+  | 'zoomPxPerSec'
+  | 'lassoRect'
+  | 'timelineRenderUtterances'
+  | 'defaultTranscriptionLayerId'
+  | 'renderAnnotationItem'
+  | 'speakerSortKeyById'
+>;
+
+/** exactOptionalPropertyTypes：去掉显式 undefined，避免把可选键写成 undefined。 */
+export function dropUndefinedKeys<T extends Record<string, unknown>>(obj: T): T {
+  const next = { ...obj } as Record<string, unknown>;
+  for (const key of Object.keys(next)) {
+    if (next[key] === undefined) delete next[key];
+  }
+  return next as T;
 }
 
-export function buildSharedLaneProps(input: BuildSharedLanePropsInput) {
-  return {
+export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSharedLaneProps {
+  return dropUndefinedKeys({
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
     segmentsByLayer: input.segmentsByLayer,
@@ -89,5 +121,5 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput) {
     stopRecording: input.stopRecording,
     deleteVoiceTranslation: input.deleteVoiceTranslation,
     displayStyleControl: input.displayStyleControl,
-  };
+  }) as BuiltSharedLaneProps;
 }

@@ -5,7 +5,7 @@
  * Migration helpers: v22/v28 回填辅助函数
  * Instance: 单例管理与 JieyuDatabase 工厂
  */
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 import type {
   TextDocType, MediaItemDocType, UtteranceDocType, UtteranceTokenDocType,
   UtteranceMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType,
@@ -379,11 +379,9 @@ export class JieyuDexie extends Dexie {
 
     this.version(6).stores({
       anchors: 'id, mediaId, [mediaId+time], time',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utterancesTable = typedTx.table('utterances');
-      const anchorsTable = typedTx.table('anchors');
+    }).upgrade(async (tx: Transaction) => {
+      const utterancesTable = tx.table('utterances');
+      const anchorsTable = tx.table('anchors');
       const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
 
       if (allUtterances.length === 0) return;
@@ -415,10 +413,8 @@ export class JieyuDexie extends Dexie {
 
     this.version(7).stores({
       corpus_lexicon_links: 'id, utteranceId, lexemeId, annotationId',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const linksTable = typedTx.table('corpus_lexicon_links');
+    }).upgrade(async (tx: Transaction) => {
+      const linksTable = tx.table('corpus_lexicon_links');
       const allLinks = (await linksTable.toArray()) as Array<{ id: string; utteranceId: string; lexemeId: string; annotationId: string; wordIndex?: number }>;
       if (allLinks.length === 0) return;
       const updated = allLinks.map((link) => {
@@ -442,19 +438,17 @@ export class JieyuDexie extends Dexie {
     this.version(10).stores({
       utterance_translations: null,
       utterance_texts: 'id, utteranceId, translationLayerId, [utteranceId+translationLayerId], updatedAt',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
+    }).upgrade(async (tx: Transaction) => {
       // 1. Copy all rows from old table to new table
-      const oldTable = typedTx.table('utterance_translations');
-      const newTable = typedTx.table('utterance_texts');
+      const oldTable = tx.table('utterance_translations');
+      const newTable = tx.table('utterance_texts');
       const allRows = await oldTable.toArray();
       if (allRows.length > 0) {
         await newTable.bulkPut(allRows);
       }
 
       // 2. Migrate utterance.transcription.default → utterance_texts if not yet present
-      const utterancesTable = typedTx.table('utterances');
+      const utterancesTable = tx.table('utterances');
       const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
 
       for (const utt of allUtterances) {
@@ -488,20 +482,18 @@ export class JieyuDexie extends Dexie {
     // v11: Add textId to translation_layers (scope layers per text)
     this.version(11).stores({
       translation_layers: 'id, textId, key, languageId, updatedAt, layerType',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const layersTable = typedTx.table('translation_layers');
+    }).upgrade(async (tx: Transaction) => {
+      const layersTable = tx.table('translation_layers');
       const allLayers = (await layersTable.toArray()) as LayerDocType[];
       if (allLayers.length === 0) return;
 
       // Find textId from utterances or texts
-      const utterancesTable = typedTx.table('utterances');
+      const utterancesTable = tx.table('utterances');
       const firstUtt = await utterancesTable.toCollection().first();
       let textId = firstUtt?.textId;
 
       if (!textId) {
-        const textsTable = typedTx.table('texts');
+        const textsTable = tx.table('texts');
         const firstText = await textsTable.toCollection().first();
         textId = firstText?.id;
       }
@@ -516,12 +508,10 @@ export class JieyuDexie extends Dexie {
     this.version(12).stores({
       translation_layers: null,
       tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const layersTable = typedTx.table('translation_layers');
-      const tiersTable = typedTx.table('tier_definitions');
-      const annotationsTable = typedTx.table('tier_annotations');
+    }).upgrade(async (tx: Transaction) => {
+      const layersTable = tx.table('translation_layers');
+      const tiersTable = tx.table('tier_definitions');
+      const annotationsTable = tx.table('tier_annotations');
 
       const layers: LayerDocType[] = await layersTable.toArray();
       if (layers.length === 0) return;
@@ -600,10 +590,8 @@ export class JieyuDexie extends Dexie {
     this.version(14).stores({});
 
     // v15: Phase A/B foundation — provenance envelope + stable word/morpheme ids.
-    this.version(15).stores({}).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utterancesTable = typedTx.table('utterances');
+    this.version(15).stores({}).upgrade(async (tx: Transaction) => {
+      const utterancesTable = tx.table('utterances');
       const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
       if (allUtterances.length === 0) return;
 
@@ -659,12 +647,10 @@ export class JieyuDexie extends Dexie {
     this.version(16).stores({
       utterance_tokens: 'id, textId, utteranceId, [utteranceId+tokenIndex], lexemeId',
       utterance_morphemes: 'id, textId, utteranceId, tokenId, [tokenId+morphemeIndex], lexemeId',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utterancesTable = typedTx.table('utterances');
-      const tokensTable = typedTx.table('utterance_tokens');
-      const morphemesTable = typedTx.table('utterance_morphemes');
+    }).upgrade(async (tx: Transaction) => {
+      const utterancesTable = tx.table('utterances');
+      const tokensTable = tx.table('utterance_tokens');
+      const morphemesTable = tx.table('utterance_morphemes');
       const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
       if (allUtterances.length === 0) return;
 
@@ -762,15 +748,13 @@ export class JieyuDexie extends Dexie {
       layer_segments: 'id, textId, mediaId, layerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
       layer_segment_contents: 'id, textId, segmentId, layerId, [segmentId+layerId], [layerId+updatedAt], sourceType, updatedAt',
       segment_links: 'id, textId, sourceSegmentId, targetSegmentId, [sourceSegmentId+targetSegmentId], linkType, utteranceId',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utterancesTable = typedTx.table('utterances');
-      const utteranceTextsTable = typedTx.table('utterance_texts');
-      const tierDefinitionsTable = typedTx.table('tier_definitions');
-      const layerSegmentsTable = typedTx.table('layer_segments');
-      const layerSegmentContentsTable = typedTx.table('layer_segment_contents');
-      const segmentLinksTable = typedTx.table('segment_links');
+    }).upgrade(async (tx: Transaction) => {
+      const utterancesTable = tx.table('utterances');
+      const utteranceTextsTable = tx.table('utterance_texts');
+      const tierDefinitionsTable = tx.table('tier_definitions');
+      const layerSegmentsTable = tx.table('layer_segments');
+      const layerSegmentContentsTable = tx.table('layer_segment_contents');
+      const segmentLinksTable = tx.table('segment_links');
 
       const utterances: UtteranceDocType[] = await utterancesTable.toArray();
       if (utterances.length === 0) return;
@@ -805,11 +789,8 @@ export class JieyuDexie extends Dexie {
     this.version(24).stores({
       utterance_texts: 'id, utteranceId, layerId, [utteranceId+layerId], updatedAt',
       layer_links: 'id, transcriptionLayerKey, layerId',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-
-      const utteranceTextsTable = typedTx.table('utterance_texts');
+    }).upgrade(async (tx: Transaction) => {
+      const utteranceTextsTable = tx.table('utterance_texts');
       await utteranceTextsTable.toCollection().modify((row: Record<string, unknown>) => {
         if ('tierId' in row) {
           row.layerId = row.tierId;
@@ -817,7 +798,7 @@ export class JieyuDexie extends Dexie {
         }
       });
 
-      const layerLinksTable = typedTx.table('layer_links');
+      const layerLinksTable = tx.table('layer_links');
       await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
         if ('tierId' in row) {
           row.layerId = row.tierId;
@@ -830,10 +811,8 @@ export class JieyuDexie extends Dexie {
     // Add utteranceId index to layer_segments, eliminating full table scan in removeUtteranceCascade
     this.version(25).stores({
       layer_segments: 'id, textId, mediaId, layerId, utteranceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId]',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const layerSegmentsTable = typedTx.table('layer_segments');
+    }).upgrade(async (tx: Transaction) => {
+      const layerSegmentsTable = tx.table('layer_segments');
 
       const prefixes = ['segv2_', 'segv22_'];
       await layerSegmentsTable.toCollection().modify((row: Record<string, unknown>) => {
@@ -857,10 +836,8 @@ export class JieyuDexie extends Dexie {
     // Migration: read from LocalStorage (v1 PoC), write to DB, then clear LocalStorage.
     this.version(26).stores({
       track_entities: 'id, textId, mediaId, [textId+mediaId]',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const trackEntitiesTable = typedTx.table('track_entities');
+    }).upgrade(async (tx: Transaction) => {
+      const trackEntitiesTable = tx.table('track_entities');
 
       // Read v1 LocalStorage data
       const STORAGE_KEY = 'jieyu:track-entity-state:v1';
@@ -919,13 +896,11 @@ export class JieyuDexie extends Dexie {
     // 统一时间单元基座：先回填默认转写层与独立段层，后续逐步替换业务读写。
     this.version(27).stores({
       layer_utterances: 'id, textId, mediaId, layerId, sourceKind, sourceId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [textId+layerId], [layerId+sourceKind+sourceId]',
-    }).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utterancesTable = typedTx.table('utterances');
-      const tiersTable = typedTx.table('tier_definitions');
-      const layerSegmentsTable = typedTx.table('layer_segments');
-      const layerUtterancesTable = typedTx.table('layer_utterances');
+    }).upgrade(async (tx: Transaction) => {
+      const utterancesTable = tx.table('utterances');
+      const tiersTable = tx.table('tier_definitions');
+      const layerSegmentsTable = tx.table('layer_segments');
+      const layerUtterancesTable = tx.table('layer_utterances');
 
       const [utterances, tiers, segments] = await Promise.all([
         utterancesTable.toArray() as Promise<UtteranceDocType[]>,
@@ -990,7 +965,7 @@ export class JieyuDexie extends Dexie {
           ...(utt.speakerId ? { speakerId: utt.speakerId } : {}),
           ...(utt.startAnchorId ? { startAnchorId: utt.startAnchorId } : {}),
           ...(utt.endAnchorId ? { endAnchorId: utt.endAnchorId } : {}),
-          ...((utt as any).ordinal !== undefined && typeof (utt as any).ordinal === 'number' ? { ordinal: (utt as any).ordinal } : {}),
+          ...(typeof utt.ordinal === 'number' ? { ordinal: utt.ordinal } : {}),
           createdAt: utt.createdAt,
           updatedAt: utt.updatedAt,
         });
@@ -1026,13 +1001,11 @@ export class JieyuDexie extends Dexie {
     // 确保每一条 utterance_texts 行都有对应 V2 条目；v22 迁移的条目用 segv22_ 前缀，
     // 后续 BridgeService 写入的用 segv2_ 前缀，此处按 content ID 幂等补全。
     // Ensure every utterance_texts row has a corresponding V2 entry. Idempotent by content ID.
-    this.version(28).stores({}).upgrade(async (tx: unknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const typedTx = tx as any;
-      const utteranceTextsTable = typedTx.table('utterance_texts');
-      const utterancesTable     = typedTx.table('utterances');
-      const layerSegmentsTable  = typedTx.table('layer_segments');
-      const layerSegmentContentsTable = typedTx.table('layer_segment_contents');
+    this.version(28).stores({}).upgrade(async (tx: Transaction) => {
+      const utteranceTextsTable = tx.table('utterance_texts');
+      const utterancesTable     = tx.table('utterances');
+      const layerSegmentsTable  = tx.table('layer_segments');
+      const layerSegmentContentsTable = tx.table('layer_segment_contents');
 
       const [allTexts, allUtterances, existingContents, existingSegmentIds] = await Promise.all([
         utteranceTextsTable.toArray() as Promise<UtteranceTextDocType[]>,

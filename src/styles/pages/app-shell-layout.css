@@ -102,7 +102,8 @@
 }
 
 .app-side-pane-collapsed {
-  border-color: transparent;
+  /* 折入后勿留 1px 边线（transparent 在亚像素下仍可能显灰线）| No hairline after collapse */
+  border-right: none;
   pointer-events: none;
 }
 
@@ -183,6 +184,11 @@
 .app-shell-side-pane-collapsed .app-side-pane-hover-zone {
   right: -6px;
   width: 20px;
+}
+
+/* 折入时隐藏拖拽条中线；展开钮保留边框便于发现 | Hide resizer stem when collapsed; keep toggle border visible */
+.app-shell-side-pane-collapsed .app-side-pane-resizer::before {
+  content: none;
 }
 
 .app-side-pane-resizer::before {

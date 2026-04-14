@@ -124,7 +124,25 @@ export function toErrorChunk(message: string): ChatChunk {
 function stripThinkBlocks(raw: string): string {
   return raw
     .replace(/<think>[\s\S]*?(<\/think>|$)/gi, '')
-    .replace(/<\/think>/gi, '');
+    .replace(/<\/think>/gi, '')
+    .replace(/<redacted_thinking>[\s\S]*?(<\/redacted_thinking>|$)/gi, '')
+    .replace(/<\/redacted_thinking>/gi, '');
+}
+
+/** 从最后一个可能是未写完的标签起始 < 起扣留到末尾，避免误发碎片，且不必固定扣 8 字 | Hold back from last `<` that prefixes a known tag */
+function streamVisibleHoldBackLength(visible: string): number {
+  if (visible.length === 0) return 0;
+  const sentinels = ['<think>', '</think>', '<redacted_thinking>', '</redacted_thinking>'] as const;
+  for (let i = visible.length - 1; i >= 0; i -= 1) {
+    if (visible[i] !== '<') continue;
+    const tail = visible.slice(i);
+    for (const tag of sentinels) {
+      if (tag.length > tail.length && tag.startsWith(tail)) {
+        return visible.length - i;
+      }
+    }
+  }
+  return 0;
 }
 
 export interface ThinkTagStripper {
@@ -138,13 +156,13 @@ export interface ThinkTagStripper {
 export function createThinkTagStripper(): ThinkTagStripper {
   let raw = '';
   let emittedVisibleLength = 0;
-  const holdBackChars = 8;
 
   return {
     feed(chunk: string, flush = false): string {
       if (chunk.length > 0) raw += chunk;
       const visible = stripThinkBlocks(raw);
-      const commitLength = flush ? visible.length : Math.max(0, visible.length - holdBackChars);
+      const holdBack = flush ? 0 : streamVisibleHoldBackLength(visible);
+      const commitLength = Math.max(0, visible.length - holdBack);
 
       if (commitLength <= emittedVisibleLength) {
         emittedVisibleLength = Math.min(emittedVisibleLength, commitLength);

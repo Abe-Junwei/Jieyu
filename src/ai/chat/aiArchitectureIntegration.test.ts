@@ -34,7 +34,7 @@ import {
   setSessionMemoryMessagePinned,
   updateConversationSummaryMemory,
 } from './sessionMemory';
-import type { AiPromptContext } from '../../hooks/useAiChat.types';
+import type { AiPromptContext } from './chatDomain.types';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // 1. Agent Loop 多步推理 — 边界场景 | Agent Loop multi-step edge cases

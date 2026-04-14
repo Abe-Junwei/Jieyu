@@ -126,4 +126,10 @@ describe('createThinkTagStripper', () => {
     const p3 = stripper.feed('ink>world', true);
     expect(`${p1}${p2}${p3}`).toBe('helloworld');
   });
+
+  it('does not split visible text before a think tag that arrives in the next chunk', () => {
+    const stripper = createThinkTagStripper();
+    const p1 = stripper.feed('hello<th');
+    expect(p1).toBe('hello');
+  });
 });

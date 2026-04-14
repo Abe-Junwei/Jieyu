@@ -505,6 +505,23 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   color: var(--text-secondary);
 }
 
+.lm-geography-official-override {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.lm-geography-official-override-field {
+  display: grid;
+  gap: 6px;
+}
+
+.lm-geography-official-textarea {
+  width: 100%;
+  min-height: 2.75rem;
+  resize: vertical;
+}
+
 /* ── Geo row (lat + lng + geocode) ── */
 
 .lm-geo-row {

@@ -54,7 +54,10 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? messages.invalidOrthographySelection
     : '';
-  const canSubmit = primaryTitle.trim()
+  const canSubmit = Boolean(primaryTitle.trim())
+    && Boolean(effectiveLang)
+    && !customLanguageError
+    && !orthographySelectionError
     && !submitting
     && !orthographyPicker.isCreating;
 

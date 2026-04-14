@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { AiAdaptiveInputProfile } from '../../hooks/useAiChat.types';
+import type { AiAdaptiveInputProfile } from '../../ai/chat/chatDomain.types';
 import { useLocale } from '../../i18n';
 import { getAiChatQuickPromptTemplates } from '../../i18n/aiChatQuickPromptTemplates';
 import {

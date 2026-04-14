@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { AiChatToolCall, AiPromptContext } from '../../hooks/useAiChat';
+import type { AiChatToolCall, AiPromptContext } from './chatDomain.types';
 import {
   buildClarifyCandidates,
   extractClarifySplitPositionPatch,

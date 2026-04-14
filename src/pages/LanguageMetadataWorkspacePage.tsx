@@ -354,6 +354,7 @@ export function LanguageMetadataWorkspacePage({
         ...(draft.speakerCountYear.trim() ? { speakerCountYear: Number(draft.speakerCountYear.trim()) } : {}),
         ...(draft.speakerTrend.trim() ? { speakerTrend: draft.speakerTrend as NonNullable<LanguageCatalogEntry['speakerTrend']> } : {}),
         ...(draft.countriesText.trim() ? { countries: draft.countriesText.split(',').map((c) => c.trim()).filter(Boolean) } : {}),
+        countriesOfficial: draft.countriesOfficialText.split(',').map((c) => c.trim()).filter(Boolean),
         ...(draft.macroarea.trim() ? { macroarea: draft.macroarea as NonNullable<LanguageCatalogEntry['macroarea']> } : {}),
         ...(draft.administrativeDivisionsText.trim() ? { administrativeDivisions: parseAdministrativeDivisionText(draft.administrativeDivisionsText) } : {}),
         ...(draft.intergenerationalTransmission.trim() ? { intergenerationalTransmission: draft.intergenerationalTransmission as NonNullable<LanguageCatalogEntry['intergenerationalTransmission']> } : {}),

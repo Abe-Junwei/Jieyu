@@ -13,6 +13,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  iso6393-country-baselines:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify committed ISO 639-3 country baselines artifact
+        run: npm run verify:iso6393-country-baselines
+
   docs-governance:
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -4,7 +4,7 @@
  * 统一设置入口：外观、快捷键、AI、播放、数据管理、关于。
  * Unified settings: Appearance, Shortcuts, AI, Playback, Data, About.
  */
-import { useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
 import { ModalPanel } from './ui';
 import {
   DEFAULT_KEYBINDINGS,
@@ -372,7 +372,7 @@ function SettingsSection({
 
 // ── 主组件 | Main component ─────────────────────────────────
 
-export function SettingsModal({
+export const SettingsModal = memo(function SettingsModal({
   isOpen,
   onClose,
   locale,
@@ -1463,4 +1463,4 @@ export function SettingsModal({
       </div>
     </ModalPanel>
   );
-}
+});

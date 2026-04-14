@@ -17,6 +17,8 @@ Build report
 ------------
 Running `npm run data:iso6393-country-baselines` writes `.tmp/iso6393-country-baselines-report.json` with coverage counts and a sample of symmetric differences between distribution and official sets (for regression review only), and regenerates `reports/iso6393-country-baselines.md` (human-readable rule summary).
 
+`npm run verify:iso6393-country-baselines` validates the committed JSON offline (gzip size ceiling and per-code key count); CI runs this on every push/PR.
+
 Glottolog coordinates (orthography seeds)
 -----------------------------------------
 `scripts/inject-glottolog-coordinates.mjs` downloads the same pinned Glottolog CLDF tag as the country baselines script (see that file’s `GLOTTOLOG_CSV_URL`) when injecting latitude/longitude into `top500-language-orthography-seeds.json`.

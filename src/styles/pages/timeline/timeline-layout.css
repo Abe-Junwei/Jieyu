@@ -46,9 +46,11 @@
   --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 16%, transparent);
   --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 22%, transparent);
   --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
-  width: calc(100% - var(--timeline-content-offset));
+  /* border-box：全宽 + padding-left 留出标签/左视频列；勿再减 width，否则内容区会少一列宽，lane 底部分割线比标尺/波形提前结束 | Full width with left padding for label/video gutter; avoid shrinking width or lane dividers stop short of ruler/waveform */
+  width: 100%;
   min-width: 0;
   position: relative;
+  box-sizing: border-box;
   /* 与波形区偏移对齐（含左侧视频面板偏移）| Align with waveform offset, including optional left-video panel offset */
   padding-left: var(--timeline-content-offset);
 }
@@ -90,7 +92,9 @@
 
 .timeline-content-text-only {
   min-width: 0;
-  padding: 0;
+  padding-top: 0;
+  padding-right: 0;
+  padding-bottom: 0;
 }
 
 .timeline-resize-tooltip {

@@ -268,7 +268,7 @@ export function OrthographyManagerPage({
     setSearchInputFocused(false);
   }, []);
 
-  const handleSearchInputKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleSearchInputKeyDown = useCallback((event: React.KeyboardEvent<Element>) => {
     if (!hasVisibleSearchSuggestions) {
       kbSearchKeyDown(event);
       return;

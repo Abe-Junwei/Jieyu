@@ -1,11 +1,125 @@
 // @vitest-environment jsdom
-import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
-import { db } from '../../db';
 import { EmbeddingService, type EmbeddingBuildSource } from '../embeddings/EmbeddingService';
 import type { EmbeddingProvider } from '../embeddings/EmbeddingProvider';
 import { useAiChat } from '../../hooks/useAiChat';
+
+const hoisted = vi.hoisted(() => {
+  const messageById = new Map<string, Record<string, unknown>>();
+  const conversationById = new Map<string, Record<string, unknown>>();
+
+  const doc = (row: Record<string, unknown>) => ({
+    toJSON: () => ({ ...row }),
+  });
+
+  const aiMessagesInsert = vi.fn(async (row: Record<string, unknown>) => {
+    const id = row.id as string;
+    messageById.set(id, { ...(messageById.get(id) ?? {}), ...row });
+  });
+
+  const aiMessagesFindOne = vi.fn(({ selector }: { selector: { id?: string } }) => ({
+    exec: async () => {
+      const r = selector.id ? messageById.get(selector.id) : undefined;
+      return r ? doc(r) : null;
+    },
+  }));
+
+  const aiMessagesFindByIndex = vi.fn(async () => []);
+
+  const aiConversationsInsert = vi.fn(async (row: Record<string, unknown>) => {
+    conversationById.set(row.id as string, { ...row });
+  });
+
+  const aiConversationsFind = vi.fn(() => ({
+    exec: async () => [...conversationById.values()].map((r) => doc(r)),
+  }));
+
+  const aiConversationsFindOne = vi.fn(({ selector }: { selector: { id?: string } }) => ({
+    exec: async () => {
+      const r = selector.id ? conversationById.get(selector.id) : undefined;
+      return r ? doc(r) : null;
+    },
+  }));
+
+  const taskById = new Map<string, Record<string, unknown>>();
+  const aiTasksInsert = vi.fn(async (row: Record<string, unknown>) => {
+    const id = row.id as string;
+    taskById.set(id, { ...(taskById.get(id) ?? {}), ...row });
+  });
+  const aiTasksFindByIndex = vi.fn(async () => []);
+  const aiTasksFindOne = vi.fn(({ selector }: { selector: { id?: string } }) => ({
+    exec: async () => {
+      const r = selector.id ? taskById.get(selector.id) : undefined;
+      return r ? doc(r) : null;
+    },
+  }));
+  const aiTasksUpdate = vi.fn(async (id: string, patch: Record<string, unknown>) => {
+    const prev = taskById.get(id) ?? {};
+    taskById.set(id, { ...prev, ...patch });
+  });
+
+  const mockDb = {
+    collections: {
+      ai_messages: {
+        insert: aiMessagesInsert,
+        findOne: aiMessagesFindOne,
+        findByIndex: aiMessagesFindByIndex,
+        removeBySelector: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+      },
+      ai_conversations: {
+        insert: aiConversationsInsert,
+        find: aiConversationsFind,
+        findOne: aiConversationsFindOne,
+      },
+      ai_tasks: {
+        insert: aiTasksInsert,
+        findByIndex: aiTasksFindByIndex,
+        findOne: aiTasksFindOne,
+        update: aiTasksUpdate,
+      },
+      embeddings: {
+        findByIndexAnyOf: vi.fn().mockResolvedValue([]),
+        bulkInsert: vi.fn().mockResolvedValue(undefined),
+      },
+      audit_logs: {
+        insert: vi.fn().mockResolvedValue(undefined),
+      },
+    },
+  };
+
+  return {
+    mockDb,
+    aiMessagesInsert,
+    resetStores: () => {
+      messageById.clear();
+      conversationById.clear();
+      taskById.clear();
+      aiMessagesInsert.mockClear();
+      aiConversationsInsert.mockClear();
+      aiMessagesFindOne.mockClear();
+      aiMessagesFindByIndex.mockClear();
+      aiConversationsFind.mockClear();
+      aiConversationsFindOne.mockClear();
+      aiTasksInsert.mockClear();
+      aiTasksFindByIndex.mockClear();
+      aiTasksFindOne.mockClear();
+      aiTasksUpdate.mockClear();
+    },
+  };
+});
+
+vi.mock('../../db', () => ({
+  getDb: vi.fn(() => Promise.resolve(hoisted.mockDb)),
+  db: {
+    open: vi.fn().mockResolvedValue(undefined),
+    ai_messages: { clear: vi.fn().mockResolvedValue(undefined), put: vi.fn() },
+    ai_conversations: { clear: vi.fn().mockResolvedValue(undefined) },
+    ai_tasks: { clear: vi.fn().mockResolvedValue(undefined) },
+    embeddings: { clear: vi.fn().mockResolvedValue(undefined) },
+  },
+}));
 
 vi.mock('../../ai/ChatOrchestrator', () => {
   class MockChatOrchestrator {
@@ -54,37 +168,18 @@ class TimedRuntime implements EmbeddingProvider {
   }
 }
 
-async function clearAiTables(): Promise<void> {
-  await Promise.all([
-    db.ai_messages.clear(),
-    db.ai_conversations.clear(),
-    db.ai_tasks.clear(),
-    db.embeddings.clear(),
-  ]);
-}
-
 describe('AI performance baseline', () => {
-  beforeEach(async () => {
-    await db.open();
-    await clearAiTables();
+  beforeEach(() => {
+    hoisted.resetStores();
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     cleanup();
-    vi.restoreAllMocks();
-    await clearAiTables();
   });
 
-  it('chat stream persistence interval significantly reduces ai_messages.put frequency', async () => {
+  it('chat stream persistence interval significantly reduces ai_messages.insert frequency', async () => {
     const runScenario = async (intervalMs: number): Promise<number> => {
-      await clearAiTables();
-
-      let putCount = 0;
-      const originalPut = db.ai_messages.put.bind(db.ai_messages);
-      const putSpy = vi.spyOn(db.ai_messages, 'put').mockImplementation((value, key) => {
-        putCount += 1;
-        return originalPut(value, key as string | undefined);
-      });
+      hoisted.resetStores();
 
       const { result, unmount } = renderHook(() => useAiChat({ streamPersistIntervalMs: intervalMs }));
 
@@ -100,16 +195,15 @@ describe('AI performance baseline', () => {
         expect(result.current.isStreaming).toBe(false);
       });
 
+      const insertCount = hoisted.aiMessagesInsert.mock.calls.length;
       unmount();
-      putSpy.mockRestore();
-      return putCount;
+      return insertCount;
     };
 
     const denseWrites = await runScenario(16);
     const sparseWrites = await runScenario(500);
 
     expect(denseWrites).toBeGreaterThan(sparseWrites);
-    // Expect at least 40% reduction to ensure interval control has real effect.
     expect(sparseWrites).toBeLessThan(Math.floor(denseWrites * 0.6));
 
     // eslint-disable-next-line no-console

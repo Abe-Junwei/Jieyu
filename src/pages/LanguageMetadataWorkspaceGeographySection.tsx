@@ -51,6 +51,20 @@ export function LanguageMetadataWorkspaceGeographySection({
               onAdministrativeDivisionsTextChange={(value) => onDraftChange('administrativeDivisionsText', value)}
               onLocateSuggestion={map.handleGeocodeSelect}
             />
+            <div className="lm-geography-official-override">
+              <label className="lm-geography-official-override-field">
+                <span className="lm-geo-label">{t(locale, 'workspace.languageMetadata.countriesOfficialLabel')}</span>
+                <textarea
+                  className="input lm-geography-official-textarea"
+                  rows={2}
+                  value={draft.countriesOfficialText}
+                  onChange={(event) => onDraftChange('countriesOfficialText', event.target.value)}
+                  placeholder={t(locale, 'workspace.languageMetadata.countriesOfficialPlaceholder')}
+                  aria-label={t(locale, 'workspace.languageMetadata.countriesOfficialLabel')}
+                />
+              </label>
+              <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.countriesOfficialDescription')}</p>
+            </div>
             {(draft.baselineOfficialCountriesUi || draft.baselineOfficialCountriesEndonym) ? (
               <div className="lm-geography-baseline-official">
                 <h4 className="panel-title-secondary lm-geography-baseline-official-title">

@@ -32,17 +32,21 @@ function mapAssetPathToPanel(pathname: string): LanguageAssetPanel {
   return 'none';
 }
 
+function prewarmLanguageAssetChunk(p: Promise<unknown>): void {
+  void p.catch(() => undefined);
+}
+
 function prewarmLanguageAssetPanel(panel: LanguageAssetPanel): void {
   if (panel === 'language-metadata') {
-    void import('./pages/LanguageMetadataWorkspacePage');
+    prewarmLanguageAssetChunk(import('./pages/LanguageMetadataWorkspacePage'));
     return;
   }
   if (panel === 'orthographies') {
-    void import('./pages/OrthographyManagerPage');
+    prewarmLanguageAssetChunk(import('./pages/OrthographyManagerPage'));
     return;
   }
   if (panel === 'orthography-bridges') {
-    void import('./pages/OrthographyBridgeWorkspacePage');
+    prewarmLanguageAssetChunk(import('./pages/OrthographyBridgeWorkspacePage'));
   }
 }
 
@@ -301,8 +305,8 @@ export function App() {
     if (location.pathname !== '/' && !location.pathname.startsWith('/transcription')) {
       return;
     }
-    void import('./pages/TranscriptionPage');
-    void import('./pages/TranscriptionPage.Orchestrator');
+    prewarmLanguageAssetChunk(import('./pages/TranscriptionPage'));
+    prewarmLanguageAssetChunk(import('./pages/TranscriptionPage.Orchestrator'));
   }, [location.pathname]);
 
   useEffect(() => {

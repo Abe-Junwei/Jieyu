@@ -64,6 +64,19 @@ export function createAssistantPersistenceHelpers({
     lastPersistedAt = now;
   };
 
+  /** 串行持久化且不阻塞 SSE 消费；若 await 每段 flush 会卡住 for-await，缓冲后一次性渲染 | Serialized persistence without blocking stream consumption */
+  let persistTail: Promise<void> = Promise.resolve();
+
+  const queueFlushAssistantDraft = (content: string, force = false): void => {
+    persistTail = persistTail
+      .then(() => flushAssistantDraft(content, force))
+      .catch(() => {
+        // 避免队列因单次写入失败而中断 | Keep chain alive after a failed write
+      });
+  };
+
+  const awaitQueuedPersistence = (): Promise<void> => persistTail;
+
   const finalizeAssistantMessage = async (
     status: 'done' | 'error' | 'aborted',
     content: string,
@@ -113,6 +126,8 @@ export function createAssistantPersistenceHelpers({
 
   return {
     flushAssistantDraft,
+    queueFlushAssistantDraft,
+    awaitQueuedPersistence,
     finalizeAssistantMessage,
   };
 }

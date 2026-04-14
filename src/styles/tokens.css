@@ -587,17 +587,18 @@
   --gray-5: #E5E5E5;
   --gray-6: #D9D9D9;
   --gray-7: #CCCCCC;
-  --gray-8: #B3B3B3;
-  --gray-9: #8A8A8A;
-  --gray-10: #666666;
-  --gray-11: #333333;
-  --gray-12: #1A1A1A;
+  /* 略加深中灰，改善白底上的次要文字对比度 | Darker mid-grays for WCAG on white */
+  --gray-8: #9E9E9E;
+  --gray-9: #757575;
+  --gray-10: #5F6368;
+  --gray-11: #3C4043;
+  --gray-12: #202124;
 
-  --header-accent: #1A1A1A;
+  --header-accent: #202124;
   --accent-secondary: #CCCCCC;
   --border-accent: #E5E5E5;
 
-  --shadow-color: #1A1A1A;
+  --shadow-color: #202124;
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
@@ -605,8 +606,8 @@
 
   --header-bg: rgba(255, 255, 255, 0.9);
 
-  --state-info-solid: #1A1A1A;
-  --state-info-text: #1A1A1A;
+  --state-info-solid: #202124;
+  --state-info-text: #202124;
   --state-info-bg: #F5F5F5;
   --state-info-bg-strong: #EEEEEE;
   --state-info-border: #D9D9D9;

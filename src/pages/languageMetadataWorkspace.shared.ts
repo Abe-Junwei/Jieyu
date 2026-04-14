@@ -56,6 +56,8 @@ export type LanguageMetadataDraft = {
   speakerCountYear: string;
   speakerTrend: string;
   countriesText: string;
+  /** User override for official-status countries (comma-separated; overrides CLDR baseline when non-empty) */
+  countriesOfficialText: string;
   /** Read-only CLDR official baseline (formatted) */
   baselineOfficialCountriesUi: string;
   baselineOfficialCountriesEndonym: string;
@@ -464,6 +466,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       speakerCountYear: '',
       speakerTrend: '',
       countriesText: '',
+      countriesOfficialText: '',
       baselineOfficialCountriesUi: '',
       baselineOfficialCountriesEndonym: '',
       macroarea: '',
@@ -523,6 +526,7 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       ?? (entry.baselineDistributionCountryCodes?.length
         ? entry.baselineDistributionCountryCodes.join(', ')
         : ''),
+    countriesOfficialText: entry.countriesOfficial?.join(', ') ?? '',
     baselineOfficialCountriesUi: entry.baselineOfficialCountryCodes?.length
       ? formatIso3166Alpha2ListUi(entry.baselineOfficialCountryCodes, locale)
       : '',
@@ -576,6 +580,8 @@ export function readHistoryFieldLabel(locale: WorkspaceLocale, field: string): s
     classificationPath: 'workspace.languageMetadata.classificationPathLabel',
     macrolanguage: 'workspace.languageMetadata.macrolanguageLabel',
     languageType: 'workspace.languageMetadata.languageTypeLabel',
+    countries: 'workspace.languageMetadata.countriesLabel',
+    countriesOfficial: 'workspace.languageMetadata.countriesOfficialLabel',
     dialects: 'workspace.languageMetadata.dialectsLabel',
     vernaculars: 'workspace.languageMetadata.vernacularsLabel',
     visibility: 'workspace.languageMetadata.visibilityLabel',

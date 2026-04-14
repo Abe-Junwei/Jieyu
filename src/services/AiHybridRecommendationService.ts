@@ -8,7 +8,7 @@ import type {
   AiConnectionTestStatus,
   AiRecommendationSource,
   AiRecommendationTelemetry,
-} from '../hooks/useAiChat.types';
+} from '../ai/chat/chatDomain.types';
 import {
   AI_HYBRID_RECOMMENDATION_CONFIG,
   createAiHybridRecommendationConfig,

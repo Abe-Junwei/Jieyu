@@ -305,6 +305,7 @@ const languageDocSchema = z.object({
   speakerCountYear: z.number().int().optional(),
   speakerTrend: z.enum(['growing', 'stable', 'shrinking', 'unknown']).optional(),
   countries: z.array(z.string().min(1)).optional(),
+  countriesOfficial: z.array(z.string().min(1)).optional(),
   macroarea: z.enum(['Africa', 'Eurasia', 'Papunesia', 'Australia', 'North America', 'South America']).optional(),
   administrativeDivisions: z.array(z.object({
     country: z.string().optional(),

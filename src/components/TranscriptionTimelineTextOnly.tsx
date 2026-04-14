@@ -9,7 +9,7 @@ import type {
   UtteranceDocType,
   UtteranceTextDocType,
 } from '../db';
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -136,7 +136,7 @@ type TranscriptionTimelineTextOnlyProps = {
 
 type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
 
-export function TranscriptionTimelineTextOnly({
+export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimelineTextOnly({
   transcriptionLayers,
   translationLayers,
   utterancesOnCurrentMedia,
@@ -772,4 +772,4 @@ export function TranscriptionTimelineTextOnly({
       />
     </div>
   );
-}
+});

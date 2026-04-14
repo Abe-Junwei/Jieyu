@@ -21,7 +21,7 @@ import type {
   AiToolDecisionMode,
   PreviewContract,
   UiChatMessage,
-} from '../../hooks/useAiChat';
+} from './chatDomain.types';
 import type { Locale } from '../../i18n';
 import {
   extractJsonCandidates,

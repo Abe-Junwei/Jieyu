@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getDb, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useOrthographies } from '../hooks/useOrthographies';
@@ -80,7 +80,7 @@ function formatBridgeSampleCasesText(bridge: OrthographyBridgeDocType): string {
     .join('\n');
 }
 
-export function OrthographyBridgeManager({
+export const OrthographyBridgeManager = memo(function OrthographyBridgeManager({
   targetOrthography,
   languageOptions,
   compact = false,
@@ -761,4 +761,4 @@ export function OrthographyBridgeManager({
       )}
     </div>
   );
-}
+});

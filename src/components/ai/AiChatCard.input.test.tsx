@@ -62,9 +62,9 @@ describe('AiChatCard input submit', () => {
   });
 
   it('shows testing label during connection test and reverts to test-connection label afterwards', async () => {
-    let resolveTest: (() => void) | null = null;
+    const deferred = { resolve: null as (() => void) | null };
     const onTestAiConnection = vi.fn(() => new Promise<void>((resolve) => {
-      resolveTest = resolve;
+      deferred.resolve = resolve;
     }));
 
     const view = render(
@@ -87,7 +87,7 @@ describe('AiChatCard input submit', () => {
     const testingButton = within(view.container).getByRole('button', { name: /测试中|testing/i }) as HTMLButtonElement;
     expect(testingButton.disabled).toBe(true);
 
-    resolveTest?.();
+    deferred.resolve?.();
 
     await waitFor(() => {
       const revertedButton = within(view.container).getByRole('button', { name: /测试连接|test connection/i }) as HTMLButtonElement;

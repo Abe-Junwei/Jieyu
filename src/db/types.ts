@@ -129,6 +129,8 @@ export interface UtteranceDocType {
   language?: string;
   startTime: number;
   endTime: number;
+  /** 历史迁移或外部数据可能出现的显式顺序字段 | Optional ordering from legacy migrations */
+  ordinal?: number;
   startAnchorId?: string;
   endAnchorId?: string;
   notes?: MultiLangString;
@@ -351,6 +353,8 @@ export interface LanguageDocType {
   speakerCountYear?: number;
   speakerTrend?: 'growing' | 'stable' | 'shrinking' | 'unknown';
   countries?: string[];
+  /** User override for CLDR official-status territory list (ISO 3166-1 alpha-2 or labels); empty/absent uses baseline. */
+  countriesOfficial?: string[];
   macroarea?: 'Africa' | 'Eurasia' | 'Papunesia' | 'Australia' | 'North America' | 'South America';
   administrativeDivisions?: { country?: string; province?: string; city?: string; county?: string; township?: string; village?: string; freeText?: string }[];
   intergenerationalTransmission?: 'all_ages' | 'adults_only' | 'elderly_only' | 'very_few' | 'none';

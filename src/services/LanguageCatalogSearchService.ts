@@ -21,6 +21,7 @@ type RuntimeLanguageCatalogEntry = {
   byLocale?: Record<string, string>;
   aliases?: string[];
   visibility?: 'visible' | 'hidden';
+  countriesOfficial?: string[];
 };
 
 type RuntimeLanguageCatalogSnapshot = {
@@ -162,8 +163,9 @@ function sanitizeRuntimeEntry(value: unknown): RuntimeLanguageCatalogEntry | und
   const byLocale = sanitizeLocaleMap(record.byLocale);
   const aliases = sanitizeStringList(record.aliases);
   const visibility = record.visibility === 'hidden' ? 'hidden' : 'visible';
+  const countriesOfficial = sanitizeStringList(record.countriesOfficial);
 
-  if (!languageCode && !english && !native && !byLocale && aliases.length === 0 && visibility === 'visible') {
+  if (!languageCode && !english && !native && !byLocale && aliases.length === 0 && visibility === 'visible' && countriesOfficial.length === 0) {
     return undefined;
   }
 
@@ -173,6 +175,7 @@ function sanitizeRuntimeEntry(value: unknown): RuntimeLanguageCatalogEntry | und
     ...(native ? { native } : {}),
     ...(byLocale ? { byLocale } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
+    ...(countriesOfficial.length > 0 ? { countriesOfficial } : {}),
     visibility,
   };
 }
@@ -377,6 +380,8 @@ function buildCandidate(
 
   const bDist = countryBaselines?.distributionByIso6393[normalizedId];
   const bOff = countryBaselines?.officialByIso6393[normalizedId];
+  const userOfficial = sanitizeStringList(runtimeEntry?.countriesOfficial);
+  const effectiveOfficial = userOfficial.length > 0 ? userOfficial : bOff;
 
   return {
     id: normalizedId,
@@ -389,7 +394,7 @@ function buildCandidate(
     hasRuntimeOverride: Boolean(runtimeEntry),
     queryEntries: mergedQueryEntries,
     ...(bDist?.length ? { baselineDistributionCountryCodes: bDist } : {}),
-    ...(bOff?.length ? { baselineOfficialCountryCodes: bOff } : {}),
+    ...(effectiveOfficial?.length ? { baselineOfficialCountryCodes: effectiveOfficial } : {}),
   };
 }
 

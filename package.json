@@ -17,6 +17,7 @@
     "data:language-catalog:baseline": "node scripts/generate-language-name-indexes.mjs",
     "data:language-name-indexes": "node scripts/generate-language-name-indexes.mjs",
     "data:iso6393-country-baselines": "node scripts/build-iso6393-country-baselines.mjs",
+    "verify:iso6393-country-baselines": "node scripts/verify-iso6393-country-baselines.mjs",
     "acoustic:calibrate": "node scripts/evaluate-acoustic-calibration.mjs",
     "typecheck": "tsc --noEmit",
     "check:css": "node scripts/check-css.cjs",

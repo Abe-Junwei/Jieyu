@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useLatest } from './useLatest';
 import { useLocale, useOptionalLocale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
@@ -440,7 +441,8 @@ export function useAiChat(options?: UseAiChatOptions) {
       }, effectiveTimeoutMs)
       : null;
     const {
-      flushAssistantDraft,
+      queueFlushAssistantDraft,
+      awaitQueuedPersistence,
       finalizeAssistantMessage,
     } = createAssistantPersistenceHelpers({
       assistantId,
@@ -644,6 +646,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           const errorText = chunk.error;
           streamFinalized = true;
           totalModelOutputTokens += estimateTokensFromText(assistantContent);
+          await awaitQueuedPersistence();
           await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
           setLastError(errorText);
           if (shouldTrackRemoteStatus) {
@@ -656,12 +659,14 @@ export function useAiChat(options?: UseAiChatOptions) {
         if ((chunk.delta ?? '').length > 0) {
           const delta = chunk.delta ?? '';
           assistantContent += delta;
-          setMessages((prev) => prev.map((msg) => (
-            msg.id === assistantId
-              ? { ...msg, content: msg.content + delta, ...(assistantThinking ? { thinking: false } : {}) }
-              : msg
-          )));
-          await flushAssistantDraft(assistantContent);
+          flushSync(() => {
+            setMessages((prev) => prev.map((msg) => (
+              msg.id === assistantId
+                ? { ...msg, content: msg.content + delta, ...(assistantThinking ? { thinking: false } : {}) }
+                : msg
+            )));
+          });
+          queueFlushAssistantDraft(assistantContent);
         }
 
         // 思考中状态：非reasoning_content型provider的首包到达前显示"正在思考"
@@ -687,7 +692,8 @@ export function useAiChat(options?: UseAiChatOptions) {
 
         if (chunk.done) {
           streamFinalized = true;
-          await flushAssistantDraft(assistantContent, true);
+          queueFlushAssistantDraft(assistantContent, true);
+          await awaitQueuedPersistence();
           totalModelOutputTokens += estimateTokensFromText(assistantContent);
           const {
             finalContent,
@@ -921,6 +927,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       if (!streamFinalized && !controller.signal.aborted) {
         totalModelOutputTokens += estimateTokensFromText(assistantContent);
         recordCompletionSuccessMetric();
+        await awaitQueuedPersistence();
         await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
       }
     } catch (error) {
@@ -929,6 +936,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           const isLongThinkProvider = provider.id === 'deepseek' || provider.id === 'minimax';
           const timeoutMessage = formatFirstChunkTimeoutError(isLongThinkProvider, provider.label);
           const timeoutContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
+          await awaitQueuedPersistence();
           await finalizeAssistantMessage('error', timeoutContent, timeoutMessage);
           setLastError(timeoutMessage);
           if (shouldTrackRemoteStatus) {
@@ -943,6 +951,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         }
         const abortedContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
         totalModelOutputTokens += estimateTokensFromText(abortedContent);
+        await awaitQueuedPersistence();
         await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
         return;
       }
@@ -950,6 +959,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       const message = normalizeAiProviderError(error, provider.label);
       const errorContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
       totalModelOutputTokens += estimateTokensFromText(errorContent);
+      await awaitQueuedPersistence();
       await finalizeAssistantMessage('error', errorContent, message);
       setLastError(message);
       if (shouldTrackRemoteStatus) {

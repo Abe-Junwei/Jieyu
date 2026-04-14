@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
 import { t, useLocale } from '../../i18n';
 import {
@@ -25,7 +26,7 @@ interface AiChatAlertsPanelProps {
   onCancelPendingToolCall?: (() => Promise<void>) | undefined;
 }
 
-export function AiChatAlertsPanel({
+export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   isZh,
   errorWarningText,
   dismissedErrorWarning,
@@ -135,4 +136,6 @@ export function AiChatAlertsPanel({
       )}
     </>
   );
-}
+});
+
+AiChatAlertsPanel.displayName = 'AiChatAlertsPanel';

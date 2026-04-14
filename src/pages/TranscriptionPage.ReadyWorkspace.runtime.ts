@@ -123,6 +123,7 @@ function buildAiChatSettingsFingerprint(state: DeferredTranscriptionAiRuntimeSta
     settings.authScheme,
     settings.responseFormat,
     settings.fallbackProviderKind ?? '',
+    settings.toolFeedbackStyle,
   ].join('::');
 }
 
@@ -131,10 +132,14 @@ export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeSta
     ?? state.aiChat.pendingToolCall?.call.requestId
     ?? state.aiChat.pendingToolCall?.assistantMessageId
     ?? '';
+  const streamingMsg = state.aiChat.isStreaming
+    ? state.aiChat.messages.find((m) => m.status === 'streaming')
+    : undefined;
   return {
     aiChatEnabled: state.aiChat.enabled,
     aiChatMessageCount: state.aiChat.messages.length,
     aiChatIsStreaming: state.aiChat.isStreaming,
+    aiChatStreamingContentLength: streamingMsg?.content.length ?? 0,
     aiChatLastError: state.aiChat.lastError ?? '',
     aiChatConnectionTestStatus: state.aiChat.connectionTestStatus,
     aiChatPendingToolCallId: pendingToolCallId,

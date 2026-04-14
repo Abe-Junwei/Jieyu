@@ -340,6 +340,8 @@ export type LanguageCatalogEntry = {
   baselineDistributionCountryCodes?: string[];
   /** From runtime cache / LinguisticService projection (CLDR baseline) */
   baselineOfficialCountryCodes?: string[];
+  /** User override for official countries (Dexie) */
+  countriesOfficial?: string[];
 };
 
 export type LanguageCatalogMatchSource =
@@ -599,6 +601,9 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
           : {}),
         ...(runtimeEntry.baselineOfficialCountryCodes?.length
           ? { baselineOfficialCountryCodes: [...runtimeEntry.baselineOfficialCountryCodes] }
+          : {}),
+        ...(runtimeEntry.countriesOfficial?.length
+          ? { countriesOfficial: [...runtimeEntry.countriesOfficial] }
           : {}),
       };
     })

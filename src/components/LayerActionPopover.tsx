@@ -1,4 +1,4 @@
-import React, { useId, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useId, useState, useCallback, useEffect, useMemo, memo } from 'react';
 import ReactDOM from 'react-dom';
 import { ChevronLeft, Plus, RotateCcw, X } from 'lucide-react';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
@@ -94,7 +94,7 @@ function formatParentLayerOptionLabel(layer: LayerDocType): string {
   return alias ? `${type} · ${lang} · ${alias}` : `${type} · ${lang}`;
 }
 
-export function LayerActionPopover({
+export const LayerActionPopover = memo(function LayerActionPopover({
   action,
   layerId,
   deletableLayers,
@@ -815,4 +815,4 @@ export function LayerActionPopover({
   );
 
   return ReactDOM.createPortal(popover, document.body);
-}
+});

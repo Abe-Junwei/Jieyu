@@ -2,7 +2,7 @@ import type {
   AiRecommendationEvent,
   AiRecommendationTelemetry,
   AiSessionMemory,
-} from '../../hooks/useAiChat.types';
+} from './chatDomain.types';
 
 const MAX_RECENT_EVENTS = 24;
 

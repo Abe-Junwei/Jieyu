@@ -28,3 +28,7 @@ coverage/
 .mcp.json
 
 .jieyu-models/
+
+# Local agent / temp build output
+.qwen/
+.tmp/

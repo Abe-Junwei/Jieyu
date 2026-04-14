@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 import {
   buildAiStateWorkerFingerprint,
@@ -21,12 +21,14 @@ export interface DeferredAiRuntimeBridgeResult {
 
 export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const [deferredAiRuntime, setDeferredAiRuntime] = useState<DeferredTranscriptionAiRuntimeState>(() => createInitialDeferredAiRuntimeState());
-  const deferredAiRuntimeForSidebar = useDeferredValue(deferredAiRuntime);
+  /** 与主快照同步；不用 useDeferredValue，避免侧边栏交互晚一帧 */
+  const deferredAiRuntimeForSidebar = deferredAiRuntime;
 
   const aiStateWorkerRef = useRef<Worker | null>(null);
   const latestBridgeRuntimeRef = useRef<DeferredTranscriptionAiRuntimeState>(deferredAiRuntime);
   const latestRuntimeSliceRef = useRef<AiStateWorkerSlice>(buildAiStateWorkerSlice(deferredAiRuntime));
   const fallbackFingerprintRef = useRef<string>(buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current));
+  const lastAiChatSettingsFingerprintRef = useRef<string>('');
 
   useEffect(() => {
     if (typeof Worker === 'undefined') {
@@ -53,10 +55,18 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     const nextSlice = buildAiStateWorkerSlice(runtimeState);
     latestRuntimeSliceRef.current = nextSlice;
 
+    const nextSettingsFp = nextSlice.aiChatSettingsFingerprint;
+    const settingsFingerprintChanged = lastAiChatSettingsFingerprintRef.current !== nextSettingsFp;
+    lastAiChatSettingsFingerprintRef.current = nextSettingsFp;
+
     const worker = aiStateWorkerRef.current;
     if (worker) {
       const message: AiStateWorkerRequest = { type: 'state_slice', payload: nextSlice };
       worker.postMessage(message);
+      // 设置指纹变则立刻 setState；仅依赖 Worker 回传会晚一拍
+      if (settingsFingerprintChanged) {
+        setDeferredAiRuntime(runtimeState);
+      }
       return;
     }
 

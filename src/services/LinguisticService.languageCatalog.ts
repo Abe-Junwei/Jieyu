@@ -79,6 +79,8 @@ export type LanguageCatalogEntry = {
   speakerCountYear?: number;
   speakerTrend?: LanguageDocType['speakerTrend'];
   countries?: string[];
+  /** Persisted override for official-status countries (replaces CLDR baseline in UI/search when set). */
+  countriesOfficial?: string[];
   /** Glottolog CLDF baseline (read-only) */
   baselineDistributionCountryCodes?: readonly string[];
   /** CLDR official-status baseline (read-only) */
@@ -138,6 +140,7 @@ export type UpsertLanguageCatalogEntryInput = {
   speakerCountYear?: number;
   speakerTrend?: LanguageDocType['speakerTrend'];
   countries?: string[];
+  countriesOfficial?: string[];
   macroarea?: LanguageDocType['macroarea'];
   administrativeDivisions?: LanguageDocType['administrativeDivisions'];
   intergenerationalTransmission?: LanguageDocType['intergenerationalTransmission'];
@@ -336,6 +339,10 @@ function buildComparableHistoryPatch(entry: LanguageCatalogEntry | null): Record
     modality: entry.modality ?? null,
     dialects: entry.dialects ?? null,
     vernaculars: entry.vernaculars ?? null,
+    countries: entry.countries?.length ? [...entry.countries].sort((left, right) => left.localeCompare(right)) : null,
+    countriesOfficial: entry.countriesOfficial?.length
+      ? [...entry.countriesOfficial].sort((left, right) => left.localeCompare(right))
+      : null,
     reviewStatus: entry.reviewStatus ?? null,
     visibility: entry.visibility,
     ...(normalizedNotes ? { notes: normalizedNotes } : {}),
@@ -821,6 +828,7 @@ function buildRuntimeCacheEntry(
     ...(baseEntry.baselineOfficialCountryCodes?.length
       ? { baselineOfficialCountryCodes: [...baseEntry.baselineOfficialCountryCodes] }
       : {}),
+    ...(baseEntry.countriesOfficial?.length ? { countriesOfficial: [...baseEntry.countriesOfficial] } : {}),
   };
 }
 
@@ -1025,6 +1033,7 @@ function projectLanguageCatalogEntry(input: {
     ...(languageDoc?.speakerCountYear !== undefined ? { speakerCountYear: languageDoc.speakerCountYear } : {}),
     ...(languageDoc?.speakerTrend ? { speakerTrend: languageDoc.speakerTrend } : {}),
     ...(languageDoc?.countries?.length ? { countries: languageDoc.countries } : {}),
+    ...(languageDoc?.countriesOfficial?.length ? { countriesOfficial: languageDoc.countriesOfficial } : {}),
     ...(baselineDist?.length ? { baselineDistributionCountryCodes: baselineDist } : {}),
     ...(baselineOff?.length ? { baselineOfficialCountryCodes: baselineOff } : {}),
     ...(languageDoc?.macroarea ? { macroarea: languageDoc.macroarea } : {}),
@@ -1167,6 +1176,7 @@ export async function listLanguageCatalogEntries(input: {
       entry.subfamily,
       entry.branch,
       entry.classificationPath,
+      ...(entry.countriesOfficial ?? []),
       ...(entry.dialects ?? []),
       ...(entry.vernaculars ?? []),
       entry.glottocode,
@@ -1327,6 +1337,9 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ...(hasOwnField(input, 'speakerCountYear') ? (input.speakerCountYear !== undefined ? { speakerCountYear: input.speakerCountYear } : {}) : existing?.speakerCountYear !== undefined ? { speakerCountYear: existing.speakerCountYear } : {}),
     ...(hasOwnField(input, 'speakerTrend') ? (input.speakerTrend ? { speakerTrend: input.speakerTrend } : {}) : existing?.speakerTrend ? { speakerTrend: existing.speakerTrend } : {}),
     ...(hasOwnField(input, 'countries') ? (input.countries?.length ? { countries: input.countries } : {}) : existing?.countries?.length ? { countries: existing.countries } : {}),
+    ...(hasOwnField(input, 'countriesOfficial')
+      ? (input.countriesOfficial?.length ? { countriesOfficial: input.countriesOfficial } : {})
+      : existing?.countriesOfficial?.length ? { countriesOfficial: existing.countriesOfficial } : {}),
     ...(hasOwnField(input, 'macroarea') ? (input.macroarea ? { macroarea: input.macroarea } : {}) : existing?.macroarea ? { macroarea: existing.macroarea } : {}),
     ...(hasOwnField(input, 'administrativeDivisions') ? (input.administrativeDivisions?.length ? { administrativeDivisions: input.administrativeDivisions } : {}) : existing?.administrativeDivisions?.length ? { administrativeDivisions: existing.administrativeDivisions } : {}),
     ...(hasOwnField(input, 'intergenerationalTransmission') ? (input.intergenerationalTransmission ? { intergenerationalTransmission: input.intergenerationalTransmission } : {}) : existing?.intergenerationalTransmission ? { intergenerationalTransmission: existing.intergenerationalTransmission } : {}),

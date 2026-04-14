@@ -1,4 +1,4 @@
-import type { AiAdaptiveInputProfile } from '../../hooks/useAiChat.types';
+import type { AiAdaptiveInputProfile } from '../../ai/chat/chatDomain.types';
 import type { PromptTemplateItem } from './aiChatCardUtils';
 
 interface RankableTextItem {

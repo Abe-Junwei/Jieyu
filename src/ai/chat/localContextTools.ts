@@ -1,5 +1,5 @@
 import { getDb } from '../../db';
-import type { AiPromptContext } from '../../hooks/useAiChat.types';
+import type { AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
 
 export type LocalContextToolName =

@@ -4,7 +4,7 @@ import type {
   AiAdaptiveResponseStyle,
   AiSessionMemory,
   UiChatMessage,
-} from '../../hooks/useAiChat.types';
+} from './chatDomain.types';
 import { patchSessionMemoryPreferences } from './sessionMemory';
 
 const MAX_RECENT_PROMPTS = 20;

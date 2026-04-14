@@ -173,3 +173,5 @@ export function useLayerActionPanel({
     checkLayerHasContent: _checkLayerHasContent,
   };
 }
+
+export type LayerActionPanelHandle = ReturnType<typeof useLayerActionPanel>;

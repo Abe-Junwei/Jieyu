@@ -258,6 +258,11 @@
   display: block;
 }
 
+/* AI 侧栏折入：仅隐藏拖拽条中线；展开钮保留边框便于发现 | Collapsed: hide resizer stem only; keep toggle bordered */
+.transcription-ai-panel-handle-cluster.transcription-ai-panel-handle-collapsed .transcription-ai-panel-resizer::before {
+  content: none;
+}
+
 .transcription-ai-panel-resizer::before {
   content: '';
   position: absolute;

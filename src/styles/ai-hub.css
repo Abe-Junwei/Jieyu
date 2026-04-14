@@ -603,7 +603,8 @@
   transition: background 0.16s ease, color 0.16s ease;
 }
 
-.transcription-ai-mode-btn:hover:not(:disabled) {
+/* :hover 特异性会压过后面的 .is-active，导致指针停在按钮上时一直像「没切过去」 */
+.transcription-ai-mode-btn:hover:not(:disabled):not(.is-active) {
   background: color-mix(in srgb, var(--text-tertiary) 14%, transparent);
   color: var(--text-primary);
 }

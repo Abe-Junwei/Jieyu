@@ -30,6 +30,8 @@ export type LanguageCatalogRuntimeEntry = {
   baselineDistributionCountryCodes?: string[];
   /** CLDR official-status baseline ISO2, sorted */
   baselineOfficialCountryCodes?: string[];
+  /** User override for official countries (same shape as Dexie `countriesOfficial`) */
+  countriesOfficial?: string[];
 };
 
 export type LanguageCatalogRuntimeCache = {
@@ -174,11 +176,17 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
   const visibility = record.visibility === 'hidden' ? 'hidden' : record.visibility === 'visible' ? 'visible' : undefined;
   const baselineDistributionCountryCodes = normalizeBaselineIso2Array(record.baselineDistributionCountryCodes);
   const baselineOfficialCountryCodes = normalizeBaselineIso2Array(record.baselineOfficialCountryCodes);
+  const countriesOfficial = Array.isArray(record.countriesOfficial)
+    ? record.countriesOfficial
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
+    : undefined;
 
   if (!languageCode && !canonicalTag && !iso6391 && !iso6392B && !iso6392T && !iso6393
     && !english && !native && !byLocale && (!aliases || aliases.length === 0)
     && !scope && !languageType && !macrolanguage && !visibility
-    && !baselineDistributionCountryCodes && !baselineOfficialCountryCodes) {
+    && !baselineDistributionCountryCodes && !baselineOfficialCountryCodes
+    && !(countriesOfficial && countriesOfficial.length > 0)) {
     return undefined;
   }
 
@@ -199,6 +207,7 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
     ...(visibility ? { visibility } : {}),
     ...(baselineDistributionCountryCodes?.length ? { baselineDistributionCountryCodes } : {}),
     ...(baselineOfficialCountryCodes?.length ? { baselineOfficialCountryCodes } : {}),
+    ...(countriesOfficial && countriesOfficial.length > 0 ? { countriesOfficial } : {}),
   };
 }
 

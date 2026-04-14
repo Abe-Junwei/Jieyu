@@ -466,8 +466,9 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     <TimelineStyledContainer
       className="timeline-content"
       layoutStyle={{
-        width: `calc(${playerDuration * zoomPxPerSec}px - (var(--lane-label-width) + var(--video-left-panel-width, 0px)))`,
-        minWidth: 'calc(100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px)))',
+        /* 时间轴像素宽 + 左侧 padding 同宽的 gutter，与 .timeline-content padding-left 一致，避免轨道内容区比标尺窄一列 | Timeline px + left gutter matches padding so lane area aligns with ruler */
+        width: `calc(${playerDuration * zoomPxPerSec}px + var(--timeline-content-offset))`,
+        minWidth: '100%',
       }}
     >
       {lassoRect && (

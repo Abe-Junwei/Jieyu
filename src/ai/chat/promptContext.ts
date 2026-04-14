@@ -1,5 +1,5 @@
 import { trimTextToMax } from './historyTrim';
-import type { AiPromptContext, AiSystemPersonaKey } from '../../hooks/useAiChat';
+import type { AiPromptContext, AiSystemPersonaKey } from './chatDomain.types';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import { decodeEscapedUnicode } from '../../utils/decodeEscapedUnicode';
 import { buildLocalContextToolGuide } from './localContextTools';

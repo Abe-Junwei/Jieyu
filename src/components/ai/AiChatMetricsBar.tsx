@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { AiInteractionMetrics, AiSessionMemory } from '../../hooks/useAiChat';
 import { formatToolName } from './aiChatCardUtils';
 import { getAiChatMetricsBarMessages } from '../../i18n/aiChatMetricsBarMessages';
@@ -8,7 +9,7 @@ interface AiChatMetricsBarProps {
   aiSessionMemory: AiSessionMemory | null | undefined;
 }
 
-export function AiChatMetricsBar({
+export const AiChatMetricsBar = memo(function AiChatMetricsBar({
   isZh,
   aiInteractionMetrics,
   aiSessionMemory,
@@ -54,4 +55,6 @@ export function AiChatMetricsBar({
       )}
     </div>
   );
-}
+});
+
+AiChatMetricsBar.displayName = 'AiChatMetricsBar';
