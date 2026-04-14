@@ -1,5 +1,6 @@
 import type { LayerDocType, UtteranceDocType } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
+import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
@@ -14,7 +15,7 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   draft: string;
   draftKey: string;
   sourceText: string;
-  usesSegmentTimeline: boolean;
+  unitKind: TimelineUnitKind;
   overlapCycleItems?: Array<{ id: string; startTime: number }>;
   overlapCycleStatus?: { index: number; total: number };
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
@@ -48,7 +49,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   draft,
   draftKey,
   sourceText,
-  usesSegmentTimeline,
+  unitKind,
   overlapCycleItems,
   overlapCycleStatus,
   saveSegmentContentForLayer,
@@ -70,11 +71,11 @@ export function TranscriptionTimelineMediaTranscriptionRow({
       {renderAnnotationItem(utt, layerForDisplay, draft, {
         ...(overlapCycleItems ? { overlapCycleItems } : {}),
         ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
-        ...(usesSegmentTimeline ? { placeholder: t(locale, 'transcription.timeline.placeholder.segment') } : {}),
+        ...(unitKind === 'segment' ? { placeholder: t(locale, 'transcription.timeline.placeholder.segment') } : {}),
         onChange: (e) => {
           const value = normalizeSingleLine(e.target.value);
           setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
-          if (usesSegmentTimeline) {
+          if (unitKind === 'segment') {
             if (!saveSegmentContentForLayer) return;
             scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
               await saveSegmentContentForLayer(utt.id, layer.id, value);
@@ -89,7 +90,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
         },
         onBlur: (e) => {
           const value = normalizeSingleLine(e.target.value);
-          if (usesSegmentTimeline) {
+          if (unitKind === 'segment') {
             clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
             if (saveSegmentContentForLayer && value !== sourceText) {
               fireAndForget(saveSegmentContentForLayer(utt.id, layer.id, value));

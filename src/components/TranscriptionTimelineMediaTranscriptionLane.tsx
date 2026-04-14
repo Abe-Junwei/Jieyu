@@ -15,6 +15,7 @@ import type {
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimelineMediaTranscriptionRow';
 import { TimelineStyledButton, TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -28,7 +29,7 @@ interface TranscriptionLaneProps {
   zoomPxPerSec: number;
   flashLayerRowId: string;
   focusedLayerRowId: string;
-  activeUtteranceUnitId?: string;
+  activeUnitId?: string;
   defaultTranscriptionLayerId?: string;
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -72,9 +73,8 @@ interface TranscriptionLaneProps {
   activeLayerLayout: SpeakerLayerLayoutResult;
   collapsedOverlapMarkers: Array<{ id: string; speakerCount: number; centerTime: number }>;
   // Data
-  visibleUtterances: Array<{ id: string; startTime: number; endTime: number }>;
+  visibleUnits: TimelineUnitView[];
   overlapCycleItemsByUtteranceId: Map<string, Array<{ id: string; startTime: number }>>;
-  usesSegmentTimeline: boolean;
   segmentSourceLayerId: string;
   segmentSpeakerIdByLayer: Map<string, Map<string, string>>;
   segmentContentByLayer?: Map<string, Map<string, { text?: string }>>;
@@ -146,9 +146,8 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   layerForDisplay,
   activeLayerLayout,
   collapsedOverlapMarkers,
-  visibleUtterances,
+  visibleUnits,
   overlapCycleItemsByUtteranceId,
-  usesSegmentTimeline,
   segmentSourceLayerId,
   segmentSpeakerIdByLayer,
   segmentContentByLayer,
@@ -232,25 +231,27 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
           {group.speakerCount}人
         </TimelineStyledButton>
       ))}
-      {!effectiveCollapsed && visibleUtterances.map((utt) => {
-        const sourceText = usesSegmentTimeline
-          ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
-          : getUtteranceTextForLayer(utt as UtteranceDocType, layer.id);
-        const draftKey = `trc-${layer.id}-${utt.id}`;
+      {!effectiveCollapsed && visibleUnits.map((unit) => {
+        const realUtt = utteranceById.get(unit.id);
+        const sourceText = unit.kind === 'segment'
+          ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
+          : (realUtt ? getUtteranceTextForLayer(realUtt, layer.id) : unit.text);
+        const draftKey = `trc-${layer.id}-${unit.id}`;
         const draft = utteranceDrafts[draftKey] ?? sourceText;
-        const placement = activeLayerLayout.placements.get(utt.id);
-        const overlapCycleItems = overlapCycleItemsByUtteranceId.get(utt.id);
+        const placement = activeLayerLayout.placements.get(unit.id);
+        const overlapCycleItems = overlapCycleItemsByUtteranceId.get(unit.id);
         const overlapCycleStatus = overlapCycleItems && overlapCycleItems.length > 1
           ? {
-              index: Math.max(1, overlapCycleItems.findIndex((item) => item.id === utt.id) + 1),
+              index: Math.max(1, overlapCycleItems.findIndex((item) => item.id === unit.id) + 1),
               total: overlapCycleItems.length,
             }
           : undefined;
         const subTrackTop = (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight;
+        const uttForRender = realUtt ?? unit as unknown as UtteranceDocType;
         return (
           <TranscriptionTimelineMediaTranscriptionRow
-            key={`trc-sub-${layer.id}-${utt.id}`}
-            utt={utt as UtteranceDocType}
+            key={`trc-sub-${layer.id}-${unit.id}`}
+            utt={uttForRender}
             layer={layer}
             layerForDisplay={layerForDisplay}
             baseLaneHeight={baseLaneHeight}
@@ -258,7 +259,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             draft={draft}
             draftKey={draftKey}
             sourceText={sourceText}
-            usesSegmentTimeline={usesSegmentTimeline}
+            unitKind={unit.kind}
             {...(overlapCycleItems ? { overlapCycleItems } : {})}
             {...(overlapCycleStatus ? { overlapCycleStatus } : {})}
             saveSegmentContentForLayer={saveSegmentContentForLayer}

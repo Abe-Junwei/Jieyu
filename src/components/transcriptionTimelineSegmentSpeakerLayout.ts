@@ -1,5 +1,6 @@
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { getUtteranceSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import {
@@ -29,6 +30,10 @@ export function resolveSpeakerFocusKeyFromUtterance(
 ): string {
   if (!utterance) return 'unknown-speaker';
   return normalizeSpeakerFocusKey(getUtteranceSpeakerKey(utterance));
+}
+
+export function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
+  return normalizeSpeakerFocusKey(view.speakerId);
 }
 
 export function resolveSpeakerFocusKeyFromSegment(

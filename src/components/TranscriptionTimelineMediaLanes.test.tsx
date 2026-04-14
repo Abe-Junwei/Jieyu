@@ -640,6 +640,44 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(latestProps?.trackModeControl?.lockConflictCount).toBeUndefined();
   });
 
+  it('renders segment items via visibleUnits when transcription layer uses independent boundary', () => {
+    const layer = {
+      ...makeLayer('trc-view-test'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        { id: 'seg-view-1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+        { id: 'seg-view-2', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+      ]],
+    ]);
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={[]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={segmentsByLayer}
+      />,
+    );
+
+    expect(screen.getByTestId('ann-seg-view-1')).toBeTruthy();
+    expect(screen.getByTestId('ann-seg-view-2')).toBeTruthy();
+  });
+
   it('renders recording controls for audio translation rows and starts recording', () => {
     const transcriptionLayer = makeLayer('trc-base');
     const translationLayer = {

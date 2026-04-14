@@ -233,7 +233,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         trackDisplayMode="multi-auto"
         onToggleTrackDisplayMode={vi.fn()}
         speakerLayerLayout={speakerLayerLayout}
-        activeUtteranceUnitId="u1"
+        activeUnitId="u1"
       />,
     );
 
@@ -506,6 +506,90 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(2);
     expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(0);
     expect(container.querySelectorAll('.timeline-text-item-focus-dim').length).toBe(0);
+  });
+
+  it('resolves segment text via segmentContentByLayer when unit.kind is segment', () => {
+    const layer = {
+      ...makeLayer('trc-seg-text'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        { id: 'seg_text_1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+      ]],
+    ]);
+    const segmentContentByLayer = new Map<string, Map<string, LayerSegmentContentDocType>>([
+      [layer.id, new Map([
+        ['seg_text_1', { id: 'sc-1', textId: 't1', segmentId: 'seg_text_1', layerId: layer.id, modality: 'text', text: 'segment hello', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
+      ])],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[]}
+        segmentsByLayer={segmentsByLayer}
+        segmentContentByLayer={segmentContentByLayer}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByDisplayValue('segment hello');
+    expect(input).toBeTruthy();
+  });
+
+  it('shows segment placeholder text for segment-based timeline items', () => {
+    const layer = {
+      ...makeLayer('trc-seg-placeholder'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const segmentsByLayer = new Map([
+      [layer.id, [
+        { id: 'seg_ph_1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+      ]],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[]}
+        segmentsByLayer={segmentsByLayer}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUtteranceFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    expect(input.placeholder).toBeTruthy();
   });
 
   it('does not use independent segment highlighting in single-axis mode', () => {

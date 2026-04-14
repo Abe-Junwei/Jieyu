@@ -30,6 +30,7 @@ import {
   type SpeakerLayerLayoutResult,
 } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import { utteranceToView, segmentToView, type TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -50,13 +51,13 @@ type LassoRect = {
 
 function prioritizeOverlapCycleItems(
   itemsByUtteranceId: Map<string, Array<{ id: string; startTime: number }>>,
-  activeUtteranceUnitId?: string,
+  activeUnitId?: string,
 ): Map<string, Array<{ id: string; startTime: number }>> {
-  if (!activeUtteranceUnitId) return itemsByUtteranceId;
+  if (!activeUnitId) return itemsByUtteranceId;
 
   const next = new Map<string, Array<{ id: string; startTime: number }>>();
   for (const [utteranceId, items] of itemsByUtteranceId.entries()) {
-    const selectedIndex = items.findIndex((item) => item.id === activeUtteranceUnitId);
+    const selectedIndex = items.findIndex((item) => item.id === activeUnitId);
     if (selectedIndex <= 0) {
       next.set(utteranceId, items);
       continue;
@@ -112,7 +113,7 @@ type TranscriptionTimelineMediaLanesProps = {
   timelineRenderUtterances: UtteranceDocType[];
   flashLayerRowId: string;
   focusedLayerRowId: string;
-  activeUtteranceUnitId?: string;
+  activeUnitId?: string;
   selectedTimelineUnit?: TimelineUnit | null;
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
@@ -196,7 +197,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   timelineRenderUtterances,
   flashLayerRowId,
   focusedLayerRowId,
-  activeUtteranceUnitId,
+  activeUnitId,
   selectedTimelineUnit,
   defaultTranscriptionLayerId,
   renderAnnotationItem,
@@ -358,13 +359,13 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     return next;
   }, [speakerLayerLayout.placements, timelineRenderUtterances]);
   const overlapCycleItemsByGroupId = useMemo(() => {
-    const selectedOverlapUtteranceId = selectedTimelineUnit?.unitId ?? activeUtteranceUnitId;
+    const selectedOverlapUtteranceId = selectedTimelineUnit?.unitId ?? activeUnitId;
     const next = new Map<string, Map<string, Array<{ id: string; startTime: number }>>>();
     for (const [groupId, itemsByUtterance] of speakerLayerLayout.overlapCycleItemsByGroupId.entries()) {
       next.set(groupId, prioritizeOverlapCycleItems(itemsByUtterance, selectedOverlapUtteranceId));
     }
     return next;
-  }, [activeUtteranceUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
+  }, [activeUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
 
   const toggleLayerCollapsed = (layerId: string) => {
     setCollapsedLayerIds((prev) => {
@@ -514,7 +515,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
         const collapsedOverlapMarkers = isMultiTrackMode
           ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
           : [];
-        const visibleUtterances = usesSegmentTimeline
+        const rawVisibleItems = usesSegmentTimeline
           ? (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
               ? (segmentItemsByOverlapGroupByLayer.get(segmentSourceLayerId)?.get(activeOverlapGroupId) ?? [])
               : ((segmentsByLayer?.get(segmentSourceLayerId) ?? []).filter((segment) => (
@@ -524,6 +525,10 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? (utterancesByOverlapGroupId.get(activeOverlapGroupId) ?? [])
           : timelineRenderUtterances;
+        const defaultLayerId = defaultTranscriptionLayerId ?? '';
+        const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
+          ? rawVisibleItems.map((s) => segmentToView(s as LayerSegmentDocType, () => ''))
+          : rawVisibleItems.map((u) => utteranceToView(u as UtteranceDocType, defaultLayerId));
         const overlapCycleItemsByUtteranceId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? ((usesSegmentTimeline
               ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
@@ -570,9 +575,8 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             layerForDisplay={layerForDisplay}
             activeLayerLayout={activeLayerLayout}
             collapsedOverlapMarkers={collapsedOverlapMarkers}
-            visibleUtterances={visibleUtterances}
+            visibleUnits={visibleUnits}
             overlapCycleItemsByUtteranceId={overlapCycleItemsByUtteranceId}
-            usesSegmentTimeline={usesSegmentTimeline}
             segmentSourceLayerId={segmentSourceLayerId}
             segmentSpeakerIdByLayer={segmentSpeakerIdByLayer}
             {...(segmentContentByLayer ? { segmentContentByLayer } : {})}

@@ -26,8 +26,8 @@ type VideoPreviewSectionProps = {
   videoPreviewHeight: number;
   videoRightPanelWidth: number;
   waveformRegions: WaveSurferRegion[];
-  selectedUtteranceIds: Set<string>;
-  activeUtteranceUnitId: string;
+  selectedUnitIds: Set<string>;
+  activeUnitId: string;
   segmentLoopPlayback: boolean;
   subSelectionRange: { start: number; end: number } | null;
   isResizingVideoPreview: boolean;
@@ -53,8 +53,8 @@ export function VideoPreviewSection({
   videoPreviewHeight,
   videoRightPanelWidth,
   waveformRegions,
-  selectedUtteranceIds,
-  activeUtteranceUnitId,
+  selectedUnitIds,
+  activeUnitId,
   segmentLoopPlayback,
   subSelectionRange,
   isResizingVideoPreview,
@@ -157,8 +157,8 @@ export function VideoPreviewSection({
           <VideoPlayer
             mediaUrl={selectedMediaUrl}
             regions={waveformRegions}
-            activeRegionIds={selectedUtteranceIds}
-            primaryRegionId={activeUtteranceUnitId}
+            activeRegionIds={selectedUnitIds}
+            primaryRegionId={activeUnitId}
             onRegionClick={(regionId) => {
               const region = waveformRegions.find((r) => r.id === regionId);
               if (!region) return;
