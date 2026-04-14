@@ -36,6 +36,8 @@ function createDraft(customFieldValues: Record<string, string>): LanguageMetadat
     speakerCountYear: '',
     speakerTrend: '',
     countriesText: '',
+    baselineOfficialCountriesUi: '',
+    baselineOfficialCountriesEndonym: '',
     macroarea: '',
     administrativeDivisionsText: '',
     intergenerationalTransmission: '',

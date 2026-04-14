@@ -1,0 +1,22 @@
+Third-party data (country baselines)
+====================================
+
+Glottolog (distribution countries)
+----------------------------------
+- Source: Glottolog CLDF `languages.csv`, pinned in `scripts/build-iso6393-country-baselines.mjs` (e.g. tag v5.3).
+- License: CC-BY 4.0 — see https://glottolog.org/meta/downloads
+- The built artifact `public/data/language-support/iso6393-country-baselines.json` includes distribution data derived from the `Countries` column for languoids at language level, merged by ISO 639-3 code.
+
+Unicode Common Locale Data Repository (CLDR) — official-status countries
+------------------------------------------------------------------------
+- Source: `common/supplemental/supplementalData.xml`, pinned in `scripts/build-iso6393-country-baselines.mjs` (e.g. release-46).
+- License: Unicode License v3 — see https://www.unicode.org/license.html
+- The same JSON artifact includes `officialByIso6393` derived from `languagePopulation` entries whose `officialStatus` is in the script’s whitelist (`official`, `official_regional`, `de_facto_official`), mapped to ISO 639-3 and ISO 3166-1 alpha-2 territories.
+
+Build report
+------------
+Running `npm run data:iso6393-country-baselines` writes `.tmp/iso6393-country-baselines-report.json` with coverage counts and a sample of symmetric differences between distribution and official sets (for regression review only), and regenerates `reports/iso6393-country-baselines.md` (human-readable rule summary).
+
+Glottolog coordinates (orthography seeds)
+-----------------------------------------
+`scripts/inject-glottolog-coordinates.mjs` downloads the same pinned Glottolog CLDF tag as the country baselines script (see that file’s `GLOTTOLOG_CSV_URL`) when injecting latitude/longitude into `top500-language-orthography-seeds.json`.

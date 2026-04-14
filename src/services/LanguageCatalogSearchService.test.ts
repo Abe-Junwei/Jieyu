@@ -60,10 +60,21 @@ const zhQueryIndexPayload = {
   },
 } as const;
 
+/** Mutate per test before the first search so the mocked fetch returns the right baselines. */
+let countryBaselinesPayload: {
+  distributionByIso6393: Record<string, string[]>;
+  officialByIso6393: Record<string, string[]>;
+};
+
 describe('LanguageCatalogSearchService', () => {
   beforeEach(() => {
     resetLanguageCatalogSearchServiceForTests();
     window.localStorage.clear();
+
+    countryBaselinesPayload = {
+      distributionByIso6393: {},
+      officialByIso6393: {},
+    };
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -75,6 +86,9 @@ describe('LanguageCatalogSearchService', () => {
       }
       if (url.endsWith('language-query-index.zh-CN.json')) {
         return new Response(JSON.stringify(zhQueryIndexPayload), { status: 200 });
+      }
+      if (url.endsWith('iso6393-country-baselines.json')) {
+        return new Response(JSON.stringify(countryBaselinesPayload), { status: 200 });
       }
       throw new Error(`Unexpected fetch: ${url}`);
     });
@@ -102,7 +116,7 @@ describe('LanguageCatalogSearchService', () => {
 
     expect(first[0]?.id).toBe('fra');
     expect(second[0]?.id).toBe('eng');
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(4);
   });
 
   it('prioritizes exact code and exact label hits over weaker substring matches', async () => {
@@ -231,5 +245,20 @@ describe('LanguageCatalogSearchService', () => {
       languageCode: 'mvm',
     });
     expect(orthographyScope).toHaveLength(0);
+  });
+
+  it('includes formatted distribution and official country labels when baselines define ISO2 lists', async () => {
+    countryBaselinesPayload.distributionByIso6393.fra = ['FR', 'BE'];
+    countryBaselinesPayload.officialByIso6393.fra = ['FR'];
+
+    const suggestions = await searchLanguageCatalogSuggestions({
+      query: 'fra',
+      locale: 'zh-CN',
+      limit: 3,
+    });
+
+    expect(suggestions[0]?.id).toBe('fra');
+    expect(suggestions[0]?.distributionCountriesUi).toBeTruthy();
+    expect(suggestions[0]?.officialCountriesUi).toBeTruthy();
   });
 });

@@ -6,8 +6,8 @@
  * 用法 | Usage:
  *   node scripts/inject-glottolog-coordinates.mjs
  *
- * 数据源：https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/languages.csv
- * Source: Glottolog CLDF languages.csv (ID = glottocode, with Latitude/Longitude columns)
+ * 数据源：Glottolog CLDF languages.csv（与 `build-iso6393-country-baselines.mjs` 同钉版）
+ * Source: Glottolog CLDF languages.csv (pinned tag, same as country-baselines build)
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -15,7 +15,8 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SEED_PATH = join(__dirname, '..', 'public', 'data', 'language-support', 'top500-language-orthography-seeds.json');
-const GLOTTOLOG_CSV_URL = 'https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/languages.csv';
+/** Pin Glottolog CLDF release — keep in sync with `scripts/build-iso6393-country-baselines.mjs`. */
+const GLOTTOLOG_CSV_URL = 'https://raw.githubusercontent.com/glottolog/glottolog-cldf/v5.3/cldf/languages.csv';
 
 async function fetchGlottologCSV() {
   console.log('⬇  正在下载 Glottolog CLDF languages.csv … | Downloading Glottolog CLDF languages.csv …');

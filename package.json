@@ -16,6 +16,7 @@
     "data:language-seeds:validate-independent:publish-variant:map-to-mnk": "LANGUAGE_SEEDS_INPUT=public/data/language-support/top500-language-orthography-seeds.publish-whitelist.map-to-mnk.json LANGUAGE_SEEDS_VALIDATION_REPORT=public/data/language-support/orthography-independent-validation-report.publish-whitelist.map-to-mnk.json node scripts/validate-language-orthography-independent.mjs",
     "data:language-catalog:baseline": "node scripts/generate-language-name-indexes.mjs",
     "data:language-name-indexes": "node scripts/generate-language-name-indexes.mjs",
+    "data:iso6393-country-baselines": "node scripts/build-iso6393-country-baselines.mjs",
     "acoustic:calibrate": "node scripts/evaluate-acoustic-calibration.mjs",
     "typecheck": "tsc --noEmit",
     "check:css": "node scripts/check-css.cjs",

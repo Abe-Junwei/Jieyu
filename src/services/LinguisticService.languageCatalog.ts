@@ -20,6 +20,7 @@ import {
   type LanguageCatalogRuntimeEntry,
 } from '../data/languageCatalogRuntimeCache';
 import { GENERATED_LANGUAGE_ALIASES_BY_CODE, GENERATED_LANGUAGE_DISPLAY_NAME_CORE } from '../data/generated/languageNameCatalog.generated';
+import { loadIso6393CountryBaselines, type Iso6393CountryBaselinesPayload } from '../data/iso6393CountryBaselinesLoader';
 import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageNameQueryLocale } from '../data/languageNameTypes';
 import { t, tf, type Locale } from '../i18n';
 import { isKnownIso639_3Code } from '../utils/langMapping';
@@ -78,6 +79,10 @@ export type LanguageCatalogEntry = {
   speakerCountYear?: number;
   speakerTrend?: LanguageDocType['speakerTrend'];
   countries?: string[];
+  /** Glottolog CLDF baseline (read-only) */
+  baselineDistributionCountryCodes?: readonly string[];
+  /** CLDR official-status baseline (read-only) */
+  baselineOfficialCountryCodes?: readonly string[];
   macroarea?: LanguageDocType['macroarea'];
   administrativeDivisions?: LanguageDocType['administrativeDivisions'];
   intergenerationalTransmission?: LanguageDocType['intergenerationalTransmission'];
@@ -810,6 +815,12 @@ function buildRuntimeCacheEntry(
     ...(baseEntry.languageType ? { languageType: baseEntry.languageType } : {}),
     ...(baseEntry.macrolanguage?.trim() ? { macrolanguage: baseEntry.macrolanguage.trim().toLowerCase() } : {}),
     visibility: baseEntry.visibility,
+    ...(baseEntry.baselineDistributionCountryCodes?.length
+      ? { baselineDistributionCountryCodes: [...baseEntry.baselineDistributionCountryCodes] }
+      : {}),
+    ...(baseEntry.baselineOfficialCountryCodes?.length
+      ? { baselineOfficialCountryCodes: [...baseEntry.baselineOfficialCountryCodes] }
+      : {}),
   };
 }
 
@@ -920,6 +931,7 @@ function projectLanguageCatalogEntry(input: {
   languageDoc?: LanguageDocType;
   displayNames: readonly LanguageDisplayNameDocType[];
   aliases: readonly LanguageAliasDocType[];
+  countryBaselines?: Pick<Iso6393CountryBaselinesPayload, 'distributionByIso6393' | 'officialByIso6393'> | null;
 }): LanguageCatalogEntry {
   const isoRecord = lookupIso639_3Seed(input.languageId);
   const generated = GENERATED_LANGUAGE_DISPLAY_NAME_CORE[input.languageId];
@@ -960,6 +972,9 @@ function projectLanguageCatalogEntry(input: {
   const resolvedIso6392B = languageDoc?.iso6392B ?? isoRecord?.iso6392B;
   const resolvedIso6392T = languageDoc?.iso6392T ?? isoRecord?.iso6392T;
   const resolvedIso6393 = languageDoc?.iso6393 ?? isoRecord?.iso6393 ?? (isKnownIso639_3Code(input.languageId) ? input.languageId : undefined);
+  const baselineLookupKey = (resolvedIso6393 ?? input.languageId).trim().toLowerCase();
+  const baselineDist = input.countryBaselines?.distributionByIso6393[baselineLookupKey];
+  const baselineOff = input.countryBaselines?.officialByIso6393[baselineLookupKey];
   const resolvedGlottocode = languageDoc?.glottocode;
   const resolvedWikidataId = languageDoc?.wikidataId;
   const resolvedScope = languageDoc?.scope ?? isoRecord?.scope;
@@ -1010,6 +1025,8 @@ function projectLanguageCatalogEntry(input: {
     ...(languageDoc?.speakerCountYear !== undefined ? { speakerCountYear: languageDoc.speakerCountYear } : {}),
     ...(languageDoc?.speakerTrend ? { speakerTrend: languageDoc.speakerTrend } : {}),
     ...(languageDoc?.countries?.length ? { countries: languageDoc.countries } : {}),
+    ...(baselineDist?.length ? { baselineDistributionCountryCodes: baselineDist } : {}),
+    ...(baselineOff?.length ? { baselineOfficialCountryCodes: baselineOff } : {}),
     ...(languageDoc?.macroarea ? { macroarea: languageDoc.macroarea } : {}),
     ...(languageDoc?.administrativeDivisions?.length ? { administrativeDivisions: languageDoc.administrativeDivisions } : {}),
     ...(languageDoc?.intergenerationalTransmission ? { intergenerationalTransmission: languageDoc.intergenerationalTransmission } : {}),
@@ -1086,6 +1103,17 @@ async function readLanguageCatalogProjection(
     aliasesByLanguageId.set(row.languageId, bucket);
   });
 
+  let countryBaselines: Pick<Iso6393CountryBaselinesPayload, 'distributionByIso6393' | 'officialByIso6393'> | null = null;
+  try {
+    const loaded = await loadIso6393CountryBaselines();
+    countryBaselines = {
+      distributionByIso6393: loaded.distributionByIso6393,
+      officialByIso6393: loaded.officialByIso6393,
+    };
+  } catch {
+    countryBaselines = null;
+  }
+
   const projected = Array.from(languageIds)
     .map((languageId) => {
       const doc = languageById.get(languageId);
@@ -1095,6 +1123,7 @@ async function readLanguageCatalogProjection(
         ...(doc ? { languageDoc: doc } : {}),
         displayNames: displayNamesByLanguageId.get(languageId) ?? [],
         aliases: aliasesByLanguageId.get(languageId) ?? [],
+        countryBaselines,
       });
     });
 

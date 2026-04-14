@@ -49,6 +49,8 @@ function createDraft(overrides: Partial<LanguageMetadataDraft> = {}): LanguageMe
     speakerCountYear: '',
     speakerTrend: '',
     countriesText: '',
+    baselineOfficialCountriesUi: '',
+    baselineOfficialCountriesEndonym: '',
     macroarea: '',
     administrativeDivisionsText: '',
     intergenerationalTransmission: '',

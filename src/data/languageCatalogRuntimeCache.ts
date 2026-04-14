@@ -26,6 +26,10 @@ export type LanguageCatalogRuntimeEntry = {
   languageType?: LanguageDocType['languageType'];
   macrolanguage?: string;
   visibility?: LanguageCatalogVisibility;
+  /** Glottolog CLDF baseline ISO 3166-1 alpha-2 (uppercase), sorted */
+  baselineDistributionCountryCodes?: string[];
+  /** CLDR official-status baseline ISO2, sorted */
+  baselineOfficialCountryCodes?: string[];
 };
 
 export type LanguageCatalogRuntimeCache = {
@@ -87,6 +91,19 @@ const BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE = buildBaselineLanguageCatalogRunt
 let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
 // 标记是否已从 localStorage 水合过 | Whether the cache has been hydrated from localStorage
 let localStorageHydrated = false;
+
+function normalizeBaselineIso2Array(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const upper = value
+    .filter((item): item is string => typeof item === 'string' && /^[A-Za-z]{2}$/.test(item.trim()))
+    .map((item) => item.trim().toUpperCase());
+  if (!upper.length) {
+    return undefined;
+  }
+  return [...new Set(upper)].sort((a, b) => a.localeCompare(b));
+}
 
 function normalizeRuntimeLocaleMap(value: unknown): Record<string, string> | undefined {
   if (!value || typeof value !== 'object') {
@@ -155,10 +172,13 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
     ? record.macrolanguage.trim().toLowerCase()
     : undefined;
   const visibility = record.visibility === 'hidden' ? 'hidden' : record.visibility === 'visible' ? 'visible' : undefined;
+  const baselineDistributionCountryCodes = normalizeBaselineIso2Array(record.baselineDistributionCountryCodes);
+  const baselineOfficialCountryCodes = normalizeBaselineIso2Array(record.baselineOfficialCountryCodes);
 
   if (!languageCode && !canonicalTag && !iso6391 && !iso6392B && !iso6392T && !iso6393
     && !english && !native && !byLocale && (!aliases || aliases.length === 0)
-    && !scope && !languageType && !macrolanguage && !visibility) {
+    && !scope && !languageType && !macrolanguage && !visibility
+    && !baselineDistributionCountryCodes && !baselineOfficialCountryCodes) {
     return undefined;
   }
 
@@ -177,6 +197,8 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
     ...(languageType ? { languageType } : {}),
     ...(macrolanguage ? { macrolanguage } : {}),
     ...(visibility ? { visibility } : {}),
+    ...(baselineDistributionCountryCodes?.length ? { baselineDistributionCountryCodes } : {}),
+    ...(baselineOfficialCountryCodes?.length ? { baselineOfficialCountryCodes } : {}),
   };
 }
 

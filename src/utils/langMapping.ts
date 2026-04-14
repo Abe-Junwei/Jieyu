@@ -336,6 +336,10 @@ export type LanguageCatalogEntry = {
   preferredIso6393?: string;
   suppressScript?: string;
   macrolanguage?: string;
+  /** From runtime cache / LinguisticService projection (Glottolog baseline) */
+  baselineDistributionCountryCodes?: string[];
+  /** From runtime cache / LinguisticService projection (CLDR baseline) */
+  baselineOfficialCountryCodes?: string[];
 };
 
 export type LanguageCatalogMatchSource =
@@ -590,6 +594,12 @@ function buildRuntimeLanguageCatalogEntries(includeHidden = false): LanguageCata
         ...(baseEntry?.preferredIso6393 ? { preferredIso6393: baseEntry.preferredIso6393 } : {}),
         ...(baseEntry?.suppressScript ? { suppressScript: baseEntry.suppressScript } : {}),
         ...(runtimeEntry.macrolanguage?.trim() ? { macrolanguage: runtimeEntry.macrolanguage.trim().toLowerCase() } : baseEntry?.macrolanguage ? { macrolanguage: baseEntry.macrolanguage } : {}),
+        ...(runtimeEntry.baselineDistributionCountryCodes?.length
+          ? { baselineDistributionCountryCodes: [...runtimeEntry.baselineDistributionCountryCodes] }
+          : {}),
+        ...(runtimeEntry.baselineOfficialCountryCodes?.length
+          ? { baselineOfficialCountryCodes: [...runtimeEntry.baselineOfficialCountryCodes] }
+          : {}),
       };
     })
     .filter((entry): entry is LanguageCatalogEntry => Boolean(entry));
@@ -1047,23 +1057,49 @@ export function formatLanguageCatalogMatch(match: LanguageCatalogMatch, locale: 
   return `${displayName} · ${match.entry.iso6393}${scopeLabel !== 'individual' ? ` · ${scopeLabel}` : ''}`;
 }
 
+function appendLanguageCatalogSearchCountrySuffix(
+  base: string,
+  suggestion: LanguageCatalogSearchSuggestion,
+  locale: LanguageSearchLocale,
+): string {
+  const bits: string[] = [];
+  if (suggestion.distributionCountriesUi) {
+    bits.push(locale === 'zh-CN' ? `分布：${suggestion.distributionCountriesUi}` : `Distribution: ${suggestion.distributionCountriesUi}`);
+  }
+  if (suggestion.officialCountriesUi) {
+    bits.push(locale === 'zh-CN' ? `官方：${suggestion.officialCountriesUi}` : `Official: ${suggestion.officialCountriesUi}`);
+  }
+  if (!bits.length) {
+    return base;
+  }
+  return `${base} · ${bits.join(' · ')}`;
+}
+
 export function formatLanguageCatalogSearchSuggestion(
   suggestion: LanguageCatalogSearchSuggestion,
   locale: LanguageSearchLocale = 'zh-CN',
 ): string {
   const entry = getLanguageCatalogEntry(suggestion.id) ?? getLanguageCatalogEntry(suggestion.languageCode);
   if (!entry) {
-    return `${suggestion.primaryLabel} · ${suggestion.languageCode}`;
+    return appendLanguageCatalogSearchCountrySuffix(
+      `${suggestion.primaryLabel} · ${suggestion.languageCode}`,
+      suggestion,
+      locale,
+    );
   }
 
-  return formatLanguageCatalogMatch({
-    entry,
-    score: suggestion.rank,
-    matchSource: suggestion.matchedLabelKind === 'code' ? 'iso6393-exact' : 'contains',
-    matchedLabel: suggestion.matchedLabel,
-    matchedLabelKind: suggestion.matchedLabelKind,
-    warnings: [],
-  }, locale);
+  return appendLanguageCatalogSearchCountrySuffix(
+    formatLanguageCatalogMatch({
+      entry,
+      score: suggestion.rank,
+      matchSource: suggestion.matchedLabelKind === 'code' ? 'iso6393-exact' : 'contains',
+      matchedLabel: suggestion.matchedLabel,
+      matchedLabelKind: suggestion.matchedLabelKind,
+      warnings: [],
+    }, locale),
+    suggestion,
+    locale,
+  );
 }
 
 export function pickAutoFillLanguageMatch(

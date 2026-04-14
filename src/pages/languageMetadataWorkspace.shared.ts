@@ -1,6 +1,7 @@
 import type { LanguageCatalogHistoryDocType } from '../db';
 import { t } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
+import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';
 import {
   buildCustomFieldDraftValues,
   formatCustomFieldOptionsEditorValue,
@@ -55,6 +56,9 @@ export type LanguageMetadataDraft = {
   speakerCountYear: string;
   speakerTrend: string;
   countriesText: string;
+  /** Read-only CLDR official baseline (formatted) */
+  baselineOfficialCountriesUi: string;
+  baselineOfficialCountriesEndonym: string;
   macroarea: string;
   administrativeDivisionsText: string;
   intergenerationalTransmission: string;
@@ -460,6 +464,8 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
       speakerCountYear: '',
       speakerTrend: '',
       countriesText: '',
+      baselineOfficialCountriesUi: '',
+      baselineOfficialCountriesEndonym: '',
       macroarea: '',
       administrativeDivisionsText: '',
       intergenerationalTransmission: '',
@@ -513,7 +519,16 @@ export function buildDraft(entry: LanguageCatalogEntry | null, locale: Workspace
     speakerCountSource: entry.speakerCountSource ?? '',
     speakerCountYear: entry.speakerCountYear !== undefined ? String(entry.speakerCountYear) : '',
     speakerTrend: entry.speakerTrend ?? '',
-    countriesText: entry.countries?.join(', ') ?? '',
+    countriesText: entry.countries?.join(', ')
+      ?? (entry.baselineDistributionCountryCodes?.length
+        ? entry.baselineDistributionCountryCodes.join(', ')
+        : ''),
+    baselineOfficialCountriesUi: entry.baselineOfficialCountryCodes?.length
+      ? formatIso3166Alpha2ListUi(entry.baselineOfficialCountryCodes, locale)
+      : '',
+    baselineOfficialCountriesEndonym: entry.baselineOfficialCountryCodes?.length
+      ? formatIso3166Alpha2ListEndonyms(entry.baselineOfficialCountryCodes)
+      : '',
     macroarea: entry.macroarea ?? '',
     administrativeDivisionsText: entry.administrativeDivisions?.map((d) => d.freeText ?? buildAdministrativeDivisionDisplayLine(locale, d)).join('\n') ?? '',
     intergenerationalTransmission: entry.intergenerationalTransmission ?? '',

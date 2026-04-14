@@ -51,6 +51,26 @@ export function LanguageMetadataWorkspaceGeographySection({
               onAdministrativeDivisionsTextChange={(value) => onDraftChange('administrativeDivisionsText', value)}
               onLocateSuggestion={map.handleGeocodeSelect}
             />
+            {(draft.baselineOfficialCountriesUi || draft.baselineOfficialCountriesEndonym) ? (
+              <div className="lm-geography-baseline-official">
+                <h4 className="panel-title-secondary lm-geography-baseline-official-title">
+                  {t(locale, 'workspace.languageMetadata.baselineOfficialCountriesTitle')}
+                </h4>
+                <p className="lm-subgroup-description">{t(locale, 'workspace.languageMetadata.baselineOfficialCountriesDescription')}</p>
+                {draft.baselineOfficialCountriesUi ? (
+                  <div className="lm-geo-row lm-geography-baseline-row">
+                    <span className="lm-geo-label">{t(locale, 'workspace.languageMetadata.baselineOfficialUiLabel')}</span>
+                    <span className="lm-state lm-geography-baseline-value">{draft.baselineOfficialCountriesUi}</span>
+                  </div>
+                ) : null}
+                {draft.baselineOfficialCountriesEndonym ? (
+                  <div className="lm-geo-row lm-geography-baseline-row">
+                    <span className="lm-geo-label">{t(locale, 'workspace.languageMetadata.baselineOfficialEndonymLabel')}</span>
+                    <span className="lm-state lm-geography-baseline-value">{draft.baselineOfficialCountriesEndonym}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

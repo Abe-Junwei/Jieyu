@@ -483,6 +483,28 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   color: var(--text-secondary);
 }
 
+.lm-geography-baseline-official {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-soft);
+  display: grid;
+  gap: 8px;
+}
+
+.lm-geography-baseline-official-title {
+  margin: 0;
+}
+
+.lm-geography-baseline-row {
+  grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.lm-geography-baseline-value {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
 /* ── Geo row (lat + lng + geocode) ── */
 
 .lm-geo-row {
