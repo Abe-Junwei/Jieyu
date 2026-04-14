@@ -135,11 +135,14 @@ export function buildAiStateWorkerSlice(state: DeferredTranscriptionAiRuntimeSta
   const streamingMsg = state.aiChat.isStreaming
     ? state.aiChat.messages.find((m) => m.status === 'streaming')
     : undefined;
+  const streamingPayloadChars = streamingMsg
+    ? streamingMsg.content.length + (streamingMsg.reasoningContent?.length ?? 0)
+    : 0;
   return {
     aiChatEnabled: state.aiChat.enabled,
     aiChatMessageCount: state.aiChat.messages.length,
     aiChatIsStreaming: state.aiChat.isStreaming,
-    aiChatStreamingContentLength: streamingMsg?.content.length ?? 0,
+    aiChatStreamingPayloadChars: streamingPayloadChars,
     aiChatLastError: state.aiChat.lastError ?? '',
     aiChatConnectionTestStatus: state.aiChat.connectionTestStatus,
     aiChatPendingToolCallId: pendingToolCallId,

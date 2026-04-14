@@ -2,7 +2,8 @@ export interface AiStateWorkerSlice {
   aiChatEnabled: boolean;
   aiChatMessageCount: number;
   aiChatIsStreaming: boolean;
-  aiChatStreamingContentLength: number;
+  /** 流式中可见正文 + reasoning 字符数，用于 deferred 指纹（避免只出推理时侧边栏仍冻结） */
+  aiChatStreamingPayloadChars: number;
   aiChatLastError: string;
   aiChatConnectionTestStatus: string;
   aiChatPendingToolCallId: string;
@@ -51,7 +52,7 @@ export function buildAiStateWorkerFingerprint(slice: AiStateWorkerSlice): string
     slice.aiChatEnabled ? '1' : '0',
     String(slice.aiChatMessageCount),
     slice.aiChatIsStreaming ? '1' : '0',
-    String(slice.aiChatStreamingContentLength),
+    String(slice.aiChatStreamingPayloadChars),
     slice.aiChatLastError,
     slice.aiChatConnectionTestStatus,
     slice.aiChatPendingToolCallId,
@@ -82,7 +83,7 @@ export function computeAiStateWorkerSignalWeight(slice: AiStateWorkerSlice): num
   return (
     slice.aiChatMessageCount * 8
     + (slice.aiChatIsStreaming ? 19 : 0)
-    + slice.aiChatStreamingContentLength
+    + slice.aiChatStreamingPayloadChars
     + slice.aiChatTurnCount * 7
     + slice.aiChatSuccessCount * 11
     + slice.aiChatFailureCount * 13
