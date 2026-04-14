@@ -29,6 +29,9 @@ coverage/
 
 .jieyu-models/
 
+# Design sources (large binaries; keep local only)
+*.pen
+
 # Local agent / temp build output
 .qwen/
 .tmp/
