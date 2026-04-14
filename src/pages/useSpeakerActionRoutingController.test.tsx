@@ -94,7 +94,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectedBatchSegmentsForSpeakerActions: [segment],
     selectedUnitIdsForSpeakerActions: ['seg-1'],
     segmentByIdForSpeakerActions: new Map([['seg-1', segment]]),
-    selectedUtteranceIdsForSpeakerActionsSet: new Set(['utt-1']),
+    selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
     resolveSpeakerActionUtteranceIds: (ids) => Array.from(ids).map((id) => (id === 'seg-1' ? 'utt-1' : id)),
     selectedBatchUtterances: [utterance],
     selectedSpeakerSummary: '当前统一说话人：Alice',
@@ -124,7 +124,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     refreshSpeakerReferenceStats: vi.fn(async () => undefined),
     selectedTimelineUnit: null as TimelineUnit | null,
     selectTimelineUnit: vi.fn(),
-    setSelectedUtteranceIds: vi.fn() as unknown as Dispatch<SetStateAction<Set<string>>>,
+    setSelectedUnitIds: vi.fn() as unknown as Dispatch<SetStateAction<Set<string>>>,
     formatTime: (seconds) => seconds.toFixed(2),
     t,
     tf,
@@ -159,11 +159,11 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('routes speaker unit selection to segment timeline state and derives track-lock speakers', () => {
     const selectTimelineUnit = vi.fn();
-    const setSelectedUtteranceIds = vi.fn() as unknown as Dispatch<SetStateAction<Set<string>>>;
+    const setSelectedUnitIds = vi.fn() as unknown as Dispatch<SetStateAction<Set<string>>>;
     const setActiveSpeakerFilterKey = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
     const { result } = renderHook(() => useSpeakerActionRoutingController(createBaseInput({
       selectTimelineUnit,
-      setSelectedUtteranceIds,
+      setSelectedUnitIds,
       setActiveSpeakerFilterKey,
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' },
     })));
@@ -173,7 +173,7 @@ describe('useSpeakerActionRoutingController', () => {
     });
 
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
-    expect(setSelectedUtteranceIds).toHaveBeenCalledWith(new Set(['seg-1']));
+    expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['seg-1']));
     expect(setActiveSpeakerFilterKey).toHaveBeenCalledWith('spk-a');
     expect(result.current.selectedSpeakerIdsForTrackLock).toEqual(['spk-a']);
     expect(result.current.selectedSpeakerNamesForTrackLock).toEqual(['Alice']);
@@ -206,7 +206,7 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUtteranceIdsForSpeakerActionsSet: new Set(['utt-1']),
+      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       undo,
       setSaveState,
     })));
@@ -270,7 +270,7 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUtteranceIdsForSpeakerActionsSet: new Set(['utt-1']),
+      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       setSaveState,
     })));
 
@@ -303,7 +303,7 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUtteranceIdsForSpeakerActionsSet: new Set(['utt-1']),
+      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       setSaveState,
       setBatchSpeakerId,
       setSpeakerDraftName,
@@ -348,7 +348,7 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUtteranceIdsForSpeakerActionsSet: new Set(['utt-1']),
+      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       undo,
       setSaveState,
       setBatchSpeakerId,

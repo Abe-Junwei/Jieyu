@@ -43,7 +43,7 @@ interface UseSpeakerActionRoutingControllerInput {
   selectedBatchSegmentsForSpeakerActions: LayerSegmentDocType[];
   selectedUnitIdsForSpeakerActions: string[];
   segmentByIdForSpeakerActions: ReadonlyMap<string, LayerSegmentDocType>;
-  selectedUtteranceIdsForSpeakerActionsSet: Set<string>;
+  selectedUnitIdsForSpeakerActionsSet: Set<string>;
   resolveSpeakerActionUtteranceIds: (ids: Iterable<string>) => string[];
   selectedBatchUtterances: UtteranceDocType[];
   selectedSpeakerSummary: string;
@@ -73,7 +73,7 @@ interface UseSpeakerActionRoutingControllerInput {
   refreshSpeakerReferenceStats: () => Promise<void>;
   selectedTimelineUnit: TimelineUnit | null;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
-  setSelectedUtteranceIds: Dispatch<SetStateAction<Set<string>>>;
+  setSelectedUnitIds: Dispatch<SetStateAction<Set<string>>>;
   formatTime: (seconds: number) => string;
   t: SpeakerTranslate;
   tf: SpeakerFormat;
@@ -123,7 +123,7 @@ export function useSpeakerActionRoutingController({
   selectedBatchSegmentsForSpeakerActions,
   selectedUnitIdsForSpeakerActions,
   segmentByIdForSpeakerActions,
-  selectedUtteranceIdsForSpeakerActionsSet,
+  selectedUnitIdsForSpeakerActionsSet,
   resolveSpeakerActionUtteranceIds,
   selectedBatchUtterances,
   selectedSpeakerSummary,
@@ -153,7 +153,7 @@ export function useSpeakerActionRoutingController({
   refreshSpeakerReferenceStats,
   selectedTimelineUnit,
   selectTimelineUnit,
-  setSelectedUtteranceIds,
+  setSelectedUnitIds,
   formatTime,
   t,
   tf,
@@ -167,16 +167,16 @@ export function useSpeakerActionRoutingController({
   setSpeakers,
   openSpeakerManagementPanel,
 }: UseSpeakerActionRoutingControllerInput): UseSpeakerActionRoutingControllerResult {
-  const selectedUtteranceIdsForSpeakerActions = useMemo(
-    () => Array.from(selectedUtteranceIdsForSpeakerActionsSet),
-    [selectedUtteranceIdsForSpeakerActionsSet],
+  const selectedUnitIdsForSpeakerActionsList = useMemo(
+    () => Array.from(selectedUnitIdsForSpeakerActionsSet),
+    [selectedUnitIdsForSpeakerActionsSet],
   );
 
   const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(
     () => resolveSpeakerActionUtteranceIds(
-      selectedUnitIdsForSpeakerActions.filter((id) => !segmentByIdForSpeakerActions.has(id)),
+      selectedUnitIdsForSpeakerActionsList.filter((id) => !segmentByIdForSpeakerActions.has(id)),
     ),
-    [resolveSpeakerActionUtteranceIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions],
+    [resolveSpeakerActionUtteranceIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActionsList],
   );
 
   const findExistingSpeakerEntityByName = (rawName: string) => {
@@ -446,7 +446,7 @@ export function useSpeakerActionRoutingController({
     const ids = getSegmentIdsForSpeakerKey(speakerKey);
     if (ids.length === 0) {
       selectTimelineUnit(null);
-      setSelectedUtteranceIds(new Set());
+      setSelectedUnitIds(new Set());
       return;
     }
 
@@ -458,9 +458,9 @@ export function useSpeakerActionRoutingController({
       unitId: primary,
       preferredKind: 'segment',
     }));
-    setSelectedUtteranceIds(new Set(ids));
+    setSelectedUnitIds(new Set(ids));
     setActiveSpeakerFilterKey(speakerKey);
-  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleSelectSpeakerUtterances, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey, setSelectedUtteranceIds]);
+  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleSelectSpeakerUtterances, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey, setSelectedUnitIds]);
 
   const handleClearSpeakerAssignmentsRouted = useCallback((speakerKey: string) => {
     if (!activeSpeakerManagementLayer) {
@@ -628,8 +628,8 @@ export function useSpeakerActionRoutingController({
       await handleAssignSpeakerToSegments(selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id), undefined);
       return;
     }
-    await handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, undefined);
-  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUtteranceIdsForSpeakerActions]);
+    await handleAssignSpeakerToUtterances(selectedUnitIdsForSpeakerActionsList, undefined);
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
 
   const handleCreateSpeakerAndAssignRouted = useCallback(async () => {
     if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
@@ -652,12 +652,12 @@ export function useSpeakerActionRoutingController({
       fireAndForget(handleAssignSpeakerToSegments(selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id), speakerId));
       return true;
     }
-    if (selectedUtteranceIdsForSpeakerActions.length > 0) {
-      fireAndForget(handleAssignSpeakerToUtterances(selectedUtteranceIdsForSpeakerActions, speakerId));
+    if (selectedUnitIdsForSpeakerActionsList.length > 0) {
+      fireAndForget(handleAssignSpeakerToUtterances(selectedUnitIdsForSpeakerActionsList, speakerId));
       return true;
     }
     return false;
-  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUtteranceIdsForSpeakerActions]);
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
 
   const speakerQuickActions = useMemo(() => ({
     selectedCount: selectedSpeakerActionCount,
@@ -686,7 +686,7 @@ export function useSpeakerActionRoutingController({
     }
     const utteranceMap = new Map(utterancesOnCurrentMedia.map((utterance) => [utterance.id, utterance] as const));
     const unique = new Set<string>();
-    for (const utteranceId of selectedUtteranceIdsForSpeakerActions) {
+    for (const utteranceId of selectedUnitIdsForSpeakerActionsList) {
       const utterance = utteranceMap.get(utteranceId);
       if (!utterance) continue;
       const speakerKey = getUtteranceSpeakerKey(utterance);
@@ -694,7 +694,7 @@ export function useSpeakerActionRoutingController({
       unique.add(speakerKey);
     }
     return Array.from(unique);
-  }, [getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUtteranceIdsForSpeakerActions, utterancesOnCurrentMedia]);
+  }, [getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUnitIdsForSpeakerActionsList, utterancesOnCurrentMedia]);
 
   const selectedSpeakerNamesForTrackLock = useMemo(
     () => selectedSpeakerIdsForTrackLock.map((id) => getSpeakerDisplayNameByKey(id, speakerByIdMap)),

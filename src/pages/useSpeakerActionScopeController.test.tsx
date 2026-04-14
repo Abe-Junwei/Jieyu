@@ -74,7 +74,7 @@ describe('useSpeakerActionScopeController', () => {
       layers: [makeLayer('layer-seg', 'independent_boundary')],
       defaultTranscriptionLayerId: 'layer-seg',
       selectedLayerId: 'layer-seg',
-      selectedUtteranceIds: new Set(['seg-explicit', 'seg-inherited']),
+      selectedUnitIds: new Set(['seg-explicit', 'seg-inherited']),
       selectedTimelineUnit: null,
       getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
     }));
@@ -100,7 +100,7 @@ describe('useSpeakerActionScopeController', () => {
       layers: [makeLayer('layer-seg', 'independent_boundary')],
       defaultTranscriptionLayerId: 'layer-seg',
       selectedLayerId: 'layer-seg',
-      selectedUtteranceIds: new Set(),
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { unitId: 'seg-1' },
       getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
     }));

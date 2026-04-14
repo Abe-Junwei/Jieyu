@@ -57,7 +57,7 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   utterances: UtteranceDocType[];
-  selectUtterance: (utteranceId: string) => void;
+  selectUnit: (utteranceId: string) => void;
   manualSelectTsRef: MutableRefObject<number>;
   player: PlayerLike;
   locale: string;
@@ -75,8 +75,8 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   selectedTimelineUnit: TimelineUnit | null;
   toggleSegmentSelection: (segmentId: string) => void;
   selectSegmentRange: (anchorId: string, targetId: string, items: WaveformTimelineItemLike[]) => void;
-  toggleUtteranceSelection: (utteranceId: string) => void;
-  selectUtteranceRange: (anchorId: string, targetId: string) => void;
+  toggleUnitSelection: (utteranceId: string) => void;
+  selectUnitRange: (anchorId: string, targetId: string) => void;
   setSubSelectionRange: (range: { start: number; end: number } | null) => void;
   subSelectDragRef: MutableRefObject<SubSelectDragLike | null>;
   waveCanvasRef: MutableRefObject<HTMLElement | null>;
@@ -93,7 +93,7 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   reloadSegments: () => Promise<void>;
   saveUtteranceTiming: (id: string, start: number, end: number) => Promise<void>;
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedWaveformRegionId: string | null;
   beginTimingGesture: (id: string) => void;
   endTimingGesture: (id: string) => void;

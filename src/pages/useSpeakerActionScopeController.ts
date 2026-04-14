@@ -5,7 +5,7 @@ import {
   buildSpeakerFilterOptionsFromKeys,
   buildSpeakerVisualMapFromKeys,
 } from '../hooks/speakerManagement/speakerUtils';
-import { resolveMappedUtteranceIds } from './selectionIdResolvers';
+import { resolveMappedUnitIds } from './selectionIdResolvers';
 
 type SelectedTimelineUnitLike = {
   unitId: string;
@@ -23,7 +23,7 @@ interface UseSpeakerActionScopeControllerInput {
   layers: LayerDocType[];
   defaultTranscriptionLayerId?: string;
   selectedLayerId?: string | null;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedTimelineUnit: SelectedTimelineUnitLike;
   getUtteranceSpeakerKey: (utterance: UtteranceDocType) => string;
 }
@@ -51,7 +51,7 @@ export function useSpeakerActionScopeController({
   layers,
   defaultTranscriptionLayerId,
   selectedLayerId,
-  selectedUtteranceIds,
+  selectedUnitIds,
   selectedTimelineUnit,
   getUtteranceSpeakerKey,
 }: UseSpeakerActionScopeControllerInput): UseSpeakerActionScopeControllerResult {
@@ -151,14 +151,14 @@ export function useSpeakerActionScopeController({
   );
 
   const selectedUnitIdsForSpeakerActions = useMemo(() => {
-    if (selectedUtteranceIds.size > 0) {
-      return Array.from(selectedUtteranceIds).map((id) => id.trim()).filter((id) => id.length > 0);
+    if (selectedUnitIds.size > 0) {
+      return Array.from(selectedUnitIds).map((id) => id.trim()).filter((id) => id.length > 0);
     }
     if (selectedTimelineUnit?.unitId) {
       return selectedTimelineUnit.unitId.trim().length > 0 ? [selectedTimelineUnit.unitId] : [];
     }
     return [];
-  }, [selectedTimelineUnit, selectedUtteranceIds]);
+  }, [selectedTimelineUnit, selectedUnitIds]);
 
   const selectedSegmentIdsForSpeakerActions = useMemo(() => (
     Array.from(new Set(selectedUnitIdsForSpeakerActions.filter((id) => segmentByIdForSpeakerActions.has(id))))
@@ -173,7 +173,7 @@ export function useSpeakerActionScopeController({
   );
 
   const resolveSpeakerActionUtteranceIds = useCallback((ids: Iterable<string>) => {
-    return resolveMappedUtteranceIds(ids, speakerActionUtteranceIdByUnitId);
+    return resolveMappedUnitIds(ids, speakerActionUtteranceIdByUnitId);
   }, [speakerActionUtteranceIdByUnitId]);
 
   const selectedSpeakerUnitIdsForActionsSet = useMemo(

@@ -26,10 +26,10 @@ interface UseKeybindingActionsInput {
   };
   subSelectionRange: { start: number; end: number } | null;
   setSubSelectionRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
-  selectedUtterance: UtteranceDocType | undefined;
+  selectedUnit: UtteranceDocType | undefined;
   selectedPlayableRange?: { startTime: number; endTime: number } | null;
   selectedTimelineUnit?: TimelineUnit | null;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedMediaUrl: string | undefined;
   segMarkStart: number | null;
   setSegMarkStart: React.Dispatch<React.SetStateAction<number | null>>;
@@ -49,8 +49,8 @@ interface UseKeybindingActionsInput {
     options?: { selectionBehavior?: 'select-created' | 'keep-current' },
   ) => Promise<void>;
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
-  selectUtterance: (id: string) => void;
-  selectAllUtterances: () => void;
+  selectUnit: (id: string) => void;
+  selectAllUnits: () => void;
   runDeleteSelection: (id: string, ids: Set<string>) => void;
   runMergePrev: (id: string) => void;
   runMergeNext: (id: string) => void;
@@ -69,7 +69,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   const {
     player,
     subSelectionRange, setSubSelectionRange,
-    selectedUtterance, selectedPlayableRange, selectedTimelineUnit, selectedUtteranceIds,
+    selectedUnit, selectedPlayableRange, selectedTimelineUnit, selectedUnitIds,
     selectedMediaUrl,
     segMarkStart, setSegMarkStart,
     segmentLoopPlayback, setSegmentLoopPlayback,
@@ -78,7 +78,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     waveformAreaRef,
     createUtteranceFromSelection,
     selectTimelineUnit,
-    selectUtterance, selectAllUtterances,
+    selectUnit, selectAllUnits,
     runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime,
     runSelectBefore, runSelectAfter,
     undo, redo, setShowSearch, toggleNotes, toggleVoice,
@@ -95,12 +95,12 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       player.playRegion(subSelectionRange.start, subSelectionRange.end, true);
     } else if (selectedPlayableRange) {
       player.playRegion(selectedPlayableRange.startTime, selectedPlayableRange.endTime, true);
-    } else if (selectedUtterance) {
-      player.playRegion(selectedUtterance.startTime, selectedUtterance.endTime, true);
+    } else if (selectedUnit) {
+      player.playRegion(selectedUnit.startTime, selectedUnit.endTime, true);
     } else {
       player.togglePlayback();
     }
-  }, [player, selectedPlayableRange, subSelectionRange, selectedUtterance]);
+  }, [player, selectedPlayableRange, subSelectionRange, selectedUnit]);
 
   // Top toolbar play button controls global timeline playback.
   const handleGlobalPlayPauseAction = useCallback(() => {
@@ -114,7 +114,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   // The individual callbacks are stable via useCallback; we mutate .current in useEffect.
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
   const activeSelectionId = selectedTimelineUnit?.unitId ?? '';
-  const activeUtteranceId = isUtteranceTimelineUnit(selectedTimelineUnit)
+  const activeUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 
@@ -154,7 +154,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
       deleteSegment: () => {
-        runDeleteSelection(activeSelectionId, selectedUtteranceIds);
+        runDeleteSelection(activeSelectionId, selectedUnitIds);
       },
       mergePrev: () => { runMergePrev(activeSelectionId); },
       mergeNext: () => { runMergeNext(activeSelectionId); },
@@ -165,7 +165,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       },
       selectBefore: () => { runSelectBefore(activeSelectionId); },
       selectAfter:  () => { runSelectAfter(activeSelectionId); },
-      selectAll:    () => { selectAllUtterances(); },
+      selectAll:    () => { selectAllUnits(); },
       stepBack: () => {
         if (player.isPlaying) player.stop();
         player.seekBySeconds(-(1 / 25));
@@ -175,57 +175,57 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         player.seekBySeconds(1 / 25);
       },
       navPrev: (e) => {
-        if (!activeUtteranceId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId);
+        if (!activeUnitId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
         const target = utterancesOnCurrentMedia[idx - 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) {
             player.stop();
           }
-          selectUtterance(target.id);
+          selectUnit(target.id);
           const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
         }
       },
       navNext: (e) => {
-        if (!activeUtteranceId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId);
+        if (!activeUnitId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
         const target = utterancesOnCurrentMedia[idx + 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) {
             player.stop();
           }
-          selectUtterance(target.id);
+          selectUnit(target.id);
           const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
         }
       },
       tabNext: () => {
-        if (!activeUtteranceId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId);
+        if (!activeUnitId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
         const target = utterancesOnCurrentMedia[idx + 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
-          selectUtterance(target.id);
+          selectUnit(target.id);
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
         }
       },
       tabPrev: () => {
-        if (!activeUtteranceId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId);
+        if (!activeUnitId) return;
+        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
         const target = utterancesOnCurrentMedia[idx - 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
-          selectUtterance(target.id);
+          selectUnit(target.id);
           if (player.isReady) player.playRegion(target.startTime, target.endTime);
         }
       },
       reviewNext: () => {
         // 跳到当前句段之后第一个低置信度句段（< 0.75）| Jump to next low-confidence utterance after current
-        const curIdx = activeUtteranceId
-          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId)
+        const curIdx = activeUnitId
+          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId)
           : -1;
         const lowList = utterancesOnCurrentMedia
           .map((u, i) => ({ u, i }))
@@ -234,14 +234,14 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) player.stop();
-          selectUtterance(target.u.id);
+          selectUnit(target.u.id);
           if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
         }
       },
       reviewPrev: () => {
         // 跳到当前句段之前最近一个低置信度句段（< 0.75）| Jump to prev low-confidence utterance before current
-        const curIdx = activeUtteranceId
-          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId)
+        const curIdx = activeUnitId
+          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId)
           : utterancesOnCurrentMedia.length;
         const lowList = utterancesOnCurrentMedia
           .map((u, i) => ({ u, i }))
@@ -251,12 +251,12 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) player.stop();
-          selectUtterance(target.u.id);
+          selectUnit(target.u.id);
           if (player.isReady) player.playRegion(target.u.startTime, target.u.endTime);
         }
       },
     };
-  }, [activeSelectionId, activeUtteranceId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUtteranceIds, utterancesOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUtterances, selectUtterance, selectTimelineUnit, manualSelectTsRef]);
+  }, [activeSelectionId, activeUnitId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUnitIds, utterancesOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUnits, selectUnit, selectTimelineUnit, manualSelectTsRef]);
 
   // Global keybinding handler (undo, redo, search)
   useEffect(() => {
@@ -288,16 +288,16 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     (e: React.KeyboardEvent<HTMLInputElement>, direction: 1 | -1) => {
       e.preventDefault();
       (e.target as HTMLInputElement).blur();
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUtteranceId);
+      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
       if (idx < 0) return;
       const target = utterancesOnCurrentMedia[idx + direction];
       if (target) {
         manualSelectTsRef.current = Date.now();
-        selectUtterance(target.id);
+        selectUnit(target.id);
         if (player.isReady) player.playRegion(target.startTime, target.endTime);
       }
     },
-    [utterancesOnCurrentMedia, activeUtteranceId, selectUtterance, player, manualSelectTsRef],
+    [utterancesOnCurrentMedia, activeUnitId, selectUnit, player, manualSelectTsRef],
   );
 
   // Waveform keydown via keybinding dispatch
@@ -318,10 +318,10 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
 
   // Auto-focus waveform when multiple utterances selected
   useEffect(() => {
-    if (selectedUtteranceIds.size > 1) {
+    if (selectedUnitIds.size > 1) {
       waveformAreaRef.current?.focus();
     }
-  }, [selectedUtteranceIds.size, waveformAreaRef]);
+  }, [selectedUnitIds.size, waveformAreaRef]);
 
   /**
    * Programmatically execute any registered action by ID.
@@ -347,13 +347,13 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         if (!target) break;
         manualSelectTsRef.current = Date.now();
         if (player.isPlaying) player.stop();
-        selectUtterance(target.id);
+        selectUnit(target.id);
         if (player.isReady) player.playRegion(target.startTime, target.endTime);
         break;
       }
       default: break;
     }
-  }, [undo, redo, setShowSearch, toggleNotes, utterancesOnCurrentMedia, selectUtterance, player, manualSelectTsRef]);
+  }, [undo, redo, setShowSearch, toggleNotes, utterancesOnCurrentMedia, selectUnit, player, manualSelectTsRef]);
 
   return {
     handlePlayPauseAction,

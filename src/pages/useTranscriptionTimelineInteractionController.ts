@@ -44,12 +44,13 @@ export function useTranscriptionTimelineInteractionController(
 
   const handleJumpToEmbeddingMatch = useCallback((utteranceId: string) => {
     if (!utteranceId) return;
-    const target = input.utterances.find((item) => item.id === utteranceId);
-    input.selectUtterance(utteranceId);
+    const target = input.utterances.find((item) => item.id === utteranceId)
+      ?? input.waveformTimelineItems.find((item) => item.id === utteranceId);
+    input.selectUnit(utteranceId);
     if (!target) return;
     input.manualSelectTsRef.current = Date.now();
     input.player.seekTo(target.startTime);
-  }, [input.manualSelectTsRef, input.player, input.selectUtterance, input.utterances]);
+  }, [input.manualSelectTsRef, input.player, input.selectUnit, input.utterances, input.waveformTimelineItems]);
 
   const handleJumpToCitation = useCallback(async (
     citationType: 'utterance' | 'note' | 'pdf' | 'schema',
@@ -167,7 +168,7 @@ export function useTranscriptionTimelineInteractionController(
       input.player.stop();
     }
     const nextTarget = resolveWaveformUnitTarget(regionId);
-    const shouldPreserveMultiSelection = input.selectedUtteranceIds.has(regionId) && input.selectedUtteranceIds.size > 1;
+    const shouldPreserveMultiSelection = input.selectedUnitIds.has(regionId) && input.selectedUnitIds.size > 1;
     if (!shouldPreserveMultiSelection) {
       input.selectTimelineUnit(nextTarget);
     }
@@ -195,7 +196,7 @@ export function useTranscriptionTimelineInteractionController(
       splitTime,
       source: 'waveform',
     });
-  }, [input.activeLayerIdForEdits, input.player, input.selectTimelineUnit, input.selectedUtteranceIds, input.setCtxMenu, input.useSegmentWaveformRegions]);
+  }, [input.activeLayerIdForEdits, input.player, input.selectTimelineUnit, input.selectedUnitIds, input.setCtxMenu, input.useSegmentWaveformRegions]);
 
   const handleWaveformRegionAltPointerDown = useCallback((regionId: string, time: number, pointerId: number, _clientX: number) => {
     input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };
@@ -235,16 +236,16 @@ export function useTranscriptionTimelineInteractionController(
           fallbackUnitId: regionId,
           selectedTimelineUnit: input.selectedTimelineUnit,
         });
-        input.selectUtteranceRange(anchor, regionId);
+        input.selectUnitRange(anchor, regionId);
         return;
       }
       if (event.metaKey || event.ctrlKey) {
-        input.toggleUtteranceSelection(regionId);
+        input.toggleUnitSelection(regionId);
         return;
       }
       input.selectTimelineUnit(nextTarget);
     });
-  }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUtteranceRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUtteranceSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
+  }, [input.activeLayerIdForEdits, input.manualSelectTsRef, input.player, input.selectSegmentRange, input.selectTimelineUnit, input.selectUnitRange, input.selectedTimelineUnit, input.setSubSelectionRange, input.toggleSegmentSelection, input.toggleUnitSelection, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
     const preferCreateSegment = readStoredWaveformDoubleClickAction() === 'create-segment';
