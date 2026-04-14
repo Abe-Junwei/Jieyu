@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
@@ -64,6 +64,8 @@ export type TranscriptionPageToolbarProps = {
   autoSegmentBusy?: boolean;
   acousticRuntimeStatus?: AcousticRuntimeStatus;
   vadCacheStatus?: VadCacheStatus;
+  /** 波形工具栏主行尾部（与波形区同条展示）| Inline trailing on wave toolbar row */
+  leftToolbarExtras?: ReactNode;
 };
 
 export function TranscriptionPageToolbar({
@@ -110,6 +112,7 @@ export function TranscriptionPageToolbar({
   autoSegmentBusy,
   acousticRuntimeStatus,
   vadCacheStatus,
+  leftToolbarExtras,
 }: TranscriptionPageToolbarProps) {
   const locale = useLocale();
   const showToolbarAiProgress = acousticRuntimeStatus?.state === 'loading'
@@ -140,6 +143,7 @@ export function TranscriptionPageToolbar({
       {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
       autoSegmentRunTitle={t(locale, 'transcription.toolbar.autoSegmentRun')}
       autoSegmentRunningTitle={t(locale, 'transcription.toolbar.autoSegmentRunning')}
+      leftToolbarExtras={leftToolbarExtras}
     >
       {lowConfidenceCount != null && lowConfidenceCount > 0 && (
         <span

@@ -15,8 +15,6 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   draftKey: string;
   sourceText: string;
   usesSegmentTimeline: boolean;
-  shouldHideForFocus: boolean;
-  shouldDimForFocus: boolean;
   overlapCycleItems?: Array<{ id: string; startTime: number }>;
   overlapCycleStatus?: { index: number; total: number };
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
@@ -51,8 +49,6 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   draftKey,
   sourceText,
   usesSegmentTimeline,
-  shouldHideForFocus,
-  shouldDimForFocus,
   overlapCycleItems,
   overlapCycleStatus,
   saveSegmentContentForLayer,
@@ -65,7 +61,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   const locale = useLocale();
   return (
     <TimelineStyledContainer
-      className={`timeline-annotation-subtrack${shouldHideForFocus ? ' timeline-annotation-subtrack-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-annotation-subtrack-focus-dim' : ''}`}
+      className="timeline-annotation-subtrack"
       layoutStyle={{
         top: subTrackTop,
         height: baseLaneHeight,

@@ -163,6 +163,16 @@
   margin: 0 1px 0 2px;
 }
 
+.transcription-wave-toolbar-left > .transcription-wave-toolbar-extras-sep {
+  flex-shrink: 0;
+  margin: 0 2px;
+}
+
+.transcription-wave-toolbar-left > .transcription-ai-observer-status-bar {
+  margin-left: auto;
+  min-width: 0;
+}
+
 .transcription-wave-toolbar-left .play-btn {
   border: 1px solid color-mix(in srgb, var(--border-soft) 68%, var(--header-border));
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
@@ -191,12 +201,141 @@
   color: var(--text-primary);
 }
 
-.transcription-wave-toolbar-style-select {
-  min-width: 92px;
+.waveform-view-options-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 }
 
-.transcription-wave-toolbar-mode-select {
-  min-width: 104px;
+.waveform-view-options-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--text-tertiary) 36%, transparent);
+  border-radius: var(--radius-md);
+  background-color: color-mix(in srgb, var(--surface-panel) 78%, transparent);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.waveform-view-options-trigger:hover {
+  transform: translateY(-1px);
+}
+
+.waveform-view-options-trigger:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--state-info-solid) 40%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-border) 20%, transparent);
+}
+
+.waveform-view-options-trigger[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--state-info-solid) 36%, transparent);
+}
+
+.waveform-view-options-trigger-chevron {
+  flex-shrink: 0;
+  opacity: 0.72;
+  transition: transform 0.15s ease;
+}
+
+.waveform-view-options-trigger[aria-expanded='true'] .waveform-view-options-trigger-chevron {
+  transform: rotate(180deg);
+}
+
+.waveform-view-options-panel {
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(100% + 6px);
+  z-index: 24;
+  width: min(320px, calc(100vw - 28px));
+  padding: 12px 14px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+}
+
+.waveform-view-options-dialog-title {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.waveform-view-options-section {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.waveform-view-options-section:first-of-type {
+  margin-top: 0;
+}
+
+.waveform-view-options-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.waveform-view-options-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.waveform-view-options-seg-btn {
+  flex: 1 1 auto;
+  min-width: 4.6em;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 70%, var(--surface-panel));
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.waveform-view-options-seg-btn:hover {
+  border-color: color-mix(in srgb, var(--state-info-solid) 28%, var(--border-soft));
+}
+
+.waveform-view-options-seg-btn:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--state-info-border) 22%, transparent);
+}
+
+.waveform-view-options-seg-btn-active {
+  border-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 12%, var(--surface-panel));
+  color: var(--text-primary);
+}
+
+.waveform-view-options-select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.waveform-view-options-hint {
+  margin: 0 0 2px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
 }
 
 :root[data-theme='dark'] .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right {
@@ -286,7 +425,7 @@
   background: color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
-/* Observer status bar inside transcription-list-toolbar-left */
+/* Observer status bar（波形主工具栏内与时间轴底栏均可用）| Observer strip in wave toolbar row or timeline footer */
 .transcription-ai-observer-status-bar {
   display: flex;
   align-items: center;
@@ -380,96 +519,6 @@
   font-weight: 700;
   cursor: default;
   white-space: nowrap;
-}
-
-.toolbar-track-mode-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 9px;
-  border: 1px solid color-mix(in srgb, var(--state-info-border) 94%, transparent);
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-bg-strong) 78%, transparent), color-mix(in srgb, var(--state-info-bg) 70%, transparent));
-  color: var(--state-info-solid);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  cursor: default;
-  white-space: nowrap;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
-}
-
-.toolbar-lock-conflict-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 9px;
-  border: 1px solid color-mix(in srgb, var(--state-danger-border) 92%, transparent);
-  border-radius: var(--radius-pill);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-danger-bg) 92%, transparent), color-mix(in srgb, var(--state-danger-bg) 84%, transparent));
-  color: var(--state-danger-text);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.toolbar-lock-conflict-badge:hover {
-  background: color-mix(in srgb, var(--state-danger-border) 82%, transparent);
-}
-
-.toolbar-focus-mode-badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 9px;
-  border: 1px solid color-mix(in srgb, var(--border-strong) 28%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--border-soft) 72%, transparent);
-  color: var(--text-primary);
-  font-size: 0.72rem;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.toolbar-focus-mode-badge:hover {
-  background: var(--overlay-hover-soft);
-}
-
-.toolbar-focus-mode-badge-active {
-  border-color: color-mix(in srgb, var(--state-info-border-strong) 88%, transparent);
-  background: color-mix(in srgb, var(--state-info-bg-strong) 70%, transparent);
-  color: var(--state-info-text);
-}
-
-.toolbar-focus-target-select {
-  width: fit-content;
-  inline-size: fit-content;
-  min-width: 12ch;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--text-tertiary) 45%, transparent);
-  background: var(--surface-panel);
-  color: var(--text-primary);
-  padding: 5px 34px 5px 10px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  line-height: 1.2;
-}
-
-.toolbar-focus-target-select:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--state-info-border-strong) 92%, transparent);
-  box-shadow: 0 0 0 2px var(--focus-ring-soft);
-}
-
-.track-focus-toolbar-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  flex-wrap: nowrap;
 }
 
 .toolbar-ai-progress {
@@ -606,24 +655,6 @@
   flex-shrink: 0;
   position: relative;
   overflow: visible;
-}
-
-.toolbar-focus-target-select {
-  -webkit-appearance: none;
-  appearance: none;
-  field-sizing: content;
-  width: fit-content;
-  inline-size: fit-content;
-  max-width: 100%;
-  height: auto;
-  line-height: 1.25;
-  padding-right: 34px;
-  background-image:
-    linear-gradient(180deg, color-mix(in srgb, var(--text-tertiary) 26%, transparent), color-mix(in srgb, var(--text-tertiary) 12%, transparent)),
-    var(--select-caret-icon);
-  background-repeat: no-repeat;
-  background-position: calc(100% - 26px) 50%, calc(100% - 10px) 50%;
-  background-size: 1px 14px, 10px 10px;
 }
 
 .transcription-ai-observer-rec-btn:focus-visible {

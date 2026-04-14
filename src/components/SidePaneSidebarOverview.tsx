@@ -73,7 +73,7 @@ export function SidePaneSidebarOverview({
         <div className="transcription-side-pane-empty">
           <span className="transcription-side-pane-empty-icon">📂</span>
           <span>{messages.emptyLayerHint}</span>
-          <span className="transcription-side-pane-empty-hint">↓</span>
+          <span className="transcription-side-pane-empty-hint" aria-hidden="true">←</span>
         </div>
       );
     }

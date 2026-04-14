@@ -95,10 +95,9 @@ afterEach(cleanup);
 // ── 外观标签 | Appearance tab ──────────────────────────────
 
 describe('Appearance tab', () => {
-  it('renders theme, locale, and font-scale settings', () => {
+  it('renders theme and font-scale settings', () => {
     renderModal();
     expect(screen.getByText('主题')).toBeTruthy();
-    expect(screen.getByText('界面语言')).toBeTruthy();
     expect(screen.getByText('字体缩放')).toBeTruthy();
   });
 
@@ -107,13 +106,6 @@ describe('Appearance tab', () => {
     renderModal({ onThemeChange });
     fireEvent.click(screen.getByText('浅色'));
     expect(onThemeChange).toHaveBeenCalledWith('light');
-  });
-
-  it('calls onLocaleChange when clicking locale option', () => {
-    const onLocaleChange = vi.fn();
-    renderModal({ onLocaleChange });
-    fireEvent.click(screen.getByText('English'));
-    expect(onLocaleChange).toHaveBeenCalledWith('en-US');
   });
 
   it('calls onFontScaleModeChange when toggling font mode', () => {
@@ -134,6 +126,22 @@ describe('Appearance tab', () => {
 
     const titleText = section.querySelector('.settings-section-title-text');
     expect(titleText?.textContent).toBe('主题');
+  });
+});
+
+describe('Language tab', () => {
+  it('renders locale options', () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('tab', { name: '语言' }));
+    expect(screen.getByText('界面语言')).toBeTruthy();
+  });
+
+  it('calls onLocaleChange when clicking locale option', () => {
+    const onLocaleChange = vi.fn();
+    renderModal({ onLocaleChange });
+    fireEvent.click(screen.getByRole('tab', { name: '语言' }));
+    fireEvent.click(screen.getByText('English'));
+    expect(onLocaleChange).toHaveBeenCalledWith('en-US');
   });
 });
 
@@ -373,9 +381,9 @@ describe('About tab', () => {
 // ── 标签切换 | Tab switching ───────────────────────────────
 
 describe('Tab switching', () => {
-  it('switches between all 6 tabs', () => {
+  it('switches between all 7 tabs', () => {
     renderModal();
-    const tabLabels = ['外观', '快捷键', 'AI', '播放', '数据', '关于'];
+    const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '关于'];
     for (const label of tabLabels) {
       fireEvent.click(screen.getByRole('tab', { name: label }));
     }

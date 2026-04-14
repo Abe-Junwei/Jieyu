@@ -1,0 +1,207 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Lucide · 解语统一封装（jieyu-lucide）
+
+   目的：用 CSS 变量 + 工具类固定「尺寸 + stroke」，组件里只挂 `className={JIEYU_LUCIDE_*}`，
+   一般不再写 `size` / `strokeWidth`，也不为每个图标 fork SVG。
+
+   分档与适用场景（按区域选类即可）：
+   ───────────────────────────────────────────────────────────────────────────
+   --nav / JIEYU_LUCIDE_NAV
+     左侧主导航、资源库、设置、左栏层按钮、项目包等（17px · stroke 2）
+
+   --wave / WAVE
+     波形顶栏：进退、非主播放的常规按钮（16px）
+
+   --wave-play / WAVE_PLAY
+     波形与视频内：播放 / 暂停主钮（18px）
+
+   --wave-md / WAVE_MD
+     波形：循环、音量、闪电、删除等 15px 档
+
+   --wave-trigger / WAVE_TRIGGER + --wave-trigger-chevron
+     波形「波形显示」触发条：滑块 + 下拉箭头（15px / 14px）
+
+   --undo-chip / UNDO_CHIP
+     时间轴底栏撤销 / 重做芯片（13px）
+
+   --ai-panel / --ai-panel-sm / AI_PANEL*
+     AI 分析面板标题与统计行（14px / 12px）
+
+   --panel / PANEL
+     弹层、工作区顶栏：关闭 X（16px）、返回 Chevron、视频条次要控制（与 wave 同 16 时可混用本档）
+
+   --panel-close-lg / PANEL_CLOSE_LG
+     宽侧栏、层操作、批处理等偏大关闭钮（18px）
+
+   --inline / INLINE
+     表单内加号、卡片角设置、缩放控件等（14px · stroke 2）
+
+   --inline-tight / INLINE_TIGHT
+     聊天复制/勾选、区域条小钮、语音洞察 Tab 等（13px）
+
+   --micro / MICRO
+     树/列表勾、刷新、备注小删（12px）
+
+   --micro-xs / MICRO_XS
+     极小号警示等（11px）
+
+   --hero / HERO
+     导入对话框中央大图标（28px）
+
+   --voice-mic / VOICE_MIC
+     语音挂件主麦克风（22px）
+
+   调参：改下方 :root 变量即可全局生效。
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+  :root {
+    --jieyu-lucide-nav-size: 17px;
+    --jieyu-lucide-nav-stroke: 2;
+
+    --jieyu-lucide-wave-size: 16px;
+    --jieyu-lucide-wave-stroke: 1.75;
+
+    --jieyu-lucide-wave-play-size: 18px;
+
+    --jieyu-lucide-wave-md-size: 15px;
+
+    --jieyu-lucide-wave-trigger-size: 15px;
+    --jieyu-lucide-wave-trigger-chevron-size: 14px;
+
+    --jieyu-lucide-undo-chip-size: 13px;
+    --jieyu-lucide-undo-chip-stroke: 1.75;
+
+    --jieyu-lucide-ai-panel-size: 14px;
+    --jieyu-lucide-ai-panel-sm-size: 12px;
+
+    --jieyu-lucide-panel-size: 16px;
+    --jieyu-lucide-panel-stroke: 2;
+
+    --jieyu-lucide-panel-close-lg-size: 18px;
+
+    --jieyu-lucide-inline-size: 14px;
+    --jieyu-lucide-inline-stroke: 2;
+
+    --jieyu-lucide-inline-tight-size: 13px;
+    --jieyu-lucide-inline-tight-stroke: 1.75;
+
+    --jieyu-lucide-micro-size: 12px;
+    --jieyu-lucide-micro-stroke: 1.75;
+
+    --jieyu-lucide-micro-xs-size: 11px;
+    --jieyu-lucide-micro-xs-stroke: 1.75;
+
+    --jieyu-lucide-hero-size: 28px;
+    --jieyu-lucide-hero-stroke: 1.5;
+
+    --jieyu-lucide-voice-mic-size: 22px;
+    --jieyu-lucide-voice-mic-stroke: 2;
+  }
+
+  .jieyu-lucide {
+    flex-shrink: 0;
+    color: inherit;
+  }
+
+  .jieyu-lucide--nav {
+    width: var(--jieyu-lucide-nav-size);
+    height: var(--jieyu-lucide-nav-size);
+    stroke-width: var(--jieyu-lucide-nav-stroke);
+  }
+
+  .jieyu-lucide--wave {
+    width: var(--jieyu-lucide-wave-size);
+    height: var(--jieyu-lucide-wave-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--wave-play {
+    width: var(--jieyu-lucide-wave-play-size);
+    height: var(--jieyu-lucide-wave-play-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--wave-md {
+    width: var(--jieyu-lucide-wave-md-size);
+    height: var(--jieyu-lucide-wave-md-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--wave-trigger {
+    width: var(--jieyu-lucide-wave-trigger-size);
+    height: var(--jieyu-lucide-wave-trigger-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--wave-trigger-chevron {
+    width: var(--jieyu-lucide-wave-trigger-chevron-size);
+    height: var(--jieyu-lucide-wave-trigger-chevron-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--undo-chip {
+    width: var(--jieyu-lucide-undo-chip-size);
+    height: var(--jieyu-lucide-undo-chip-size);
+    stroke-width: var(--jieyu-lucide-undo-chip-stroke);
+  }
+
+  .jieyu-lucide--ai-panel {
+    width: var(--jieyu-lucide-ai-panel-size);
+    height: var(--jieyu-lucide-ai-panel-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--ai-panel-sm {
+    width: var(--jieyu-lucide-ai-panel-sm-size);
+    height: var(--jieyu-lucide-ai-panel-sm-size);
+    stroke-width: var(--jieyu-lucide-wave-stroke);
+  }
+
+  .jieyu-lucide--panel {
+    width: var(--jieyu-lucide-panel-size);
+    height: var(--jieyu-lucide-panel-size);
+    stroke-width: var(--jieyu-lucide-panel-stroke);
+  }
+
+  .jieyu-lucide--panel-close-lg {
+    width: var(--jieyu-lucide-panel-close-lg-size);
+    height: var(--jieyu-lucide-panel-close-lg-size);
+    stroke-width: var(--jieyu-lucide-panel-stroke);
+  }
+
+  .jieyu-lucide--inline {
+    width: var(--jieyu-lucide-inline-size);
+    height: var(--jieyu-lucide-inline-size);
+    stroke-width: var(--jieyu-lucide-inline-stroke);
+  }
+
+  .jieyu-lucide--inline-tight {
+    width: var(--jieyu-lucide-inline-tight-size);
+    height: var(--jieyu-lucide-inline-tight-size);
+    stroke-width: var(--jieyu-lucide-inline-tight-stroke);
+  }
+
+  .jieyu-lucide--micro {
+    width: var(--jieyu-lucide-micro-size);
+    height: var(--jieyu-lucide-micro-size);
+    stroke-width: var(--jieyu-lucide-micro-stroke);
+  }
+
+  .jieyu-lucide--micro-xs {
+    width: var(--jieyu-lucide-micro-xs-size);
+    height: var(--jieyu-lucide-micro-xs-size);
+    stroke-width: var(--jieyu-lucide-micro-xs-stroke);
+  }
+
+  .jieyu-lucide--hero {
+    width: var(--jieyu-lucide-hero-size);
+    height: var(--jieyu-lucide-hero-size);
+    stroke-width: var(--jieyu-lucide-hero-stroke);
+  }
+
+  .jieyu-lucide--voice-mic {
+    width: var(--jieyu-lucide-voice-mic-size);
+    height: var(--jieyu-lucide-voice-mic-size);
+    stroke-width: var(--jieyu-lucide-voice-mic-stroke);
+  }
+}

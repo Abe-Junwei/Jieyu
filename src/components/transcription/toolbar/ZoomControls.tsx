@@ -7,6 +7,7 @@
 
 import { type FC, useCallback } from 'react';
 import { Maximize2, Focus } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE } from '../../../utils/jieyuLucideIcon';
 import { t, tf, useLocale } from '../../../i18n';
 
 export interface ZoomControlsProps {
@@ -77,7 +78,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         onClick={handleFitAll}
         title={t(locale, 'transcription.zoom.fitAll')}
       >
-        <Maximize2 size={14} />
+        <Maximize2 className={JIEYU_LUCIDE_INLINE} />
       </button>
       <button
         className="icon-btn"
@@ -85,7 +86,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         title={t(locale, 'transcription.zoom.fitSelection')}
         disabled={!activeUtteranceUnitId}
       >
-        <Focus size={14} />
+        <Focus className={JIEYU_LUCIDE_INLINE} />
       </button>
       <button
         className="icon-btn"

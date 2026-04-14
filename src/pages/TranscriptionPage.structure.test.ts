@@ -148,44 +148,20 @@ describe('TranscriptionPage structure invariants', () => {
     expect(acousticPanelStateCode.includes('(isTerminalSelection ? activeReadout.timeSec <= selectionEnd : activeReadout.timeSec < selectionEnd)')).toBe(true);
   });
 
-  it('keeps media-scoped speaker focus memory restore logic', () => {
+  it('keeps speaker routing stack without speaker-focus controller', () => {
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const controllerPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSpeakerController.ts');
     const controllerCode = fs.readFileSync(controllerPath, 'utf8');
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerFocusController.ts');
-    const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';")).toBe(true);
     expect(orchestratorCode.includes('} = useTranscriptionSpeakerController({')).toBe(true);
-    expect(orchestratorCode.includes("import { useSpeakerFocusController } from './useSpeakerFocusController';")).toBe(false);
-    expect(controllerCode.includes("import { useSpeakerFocusController } from './useSpeakerFocusController';")).toBe(true);
-    expect(controllerCode.includes('} = useSpeakerFocusController({')).toBe(true);
+    expect(controllerCode.includes("import { useSpeakerFocusController } from './useSpeakerFocusController';")).toBe(false);
     expect(controllerCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(controllerCode.includes("import { useSpeakerActions } from '../hooks/useSpeakerActions';")).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActions({')).toBe(true);
-
-    // 媒体维度记忆映射存在 | Media-scoped memory map exists
-    expect(hookCode.includes('speakerFocusTargetMemoryByMediaRef')).toBe(true);
-    // 以媒体 id 作为记忆键 | Uses media id as memory key
-    expect(hookCode.includes("const speakerFocusMediaKey = selectedTimelineMediaId ?? '__no-media__';")).toBe(true);
-    // 切换媒体时恢复记忆 | Restores memory on media switch
-    expect(hookCode.includes('const saved = speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey];')).toBe(true);
-    expect(hookCode.includes('setSpeakerFocusTargetKey(saved ?? null);')).toBe(true);
-    // 更新聚焦目标时写回当前媒体记忆 | Persists selection back to current media memory
-    expect(hookCode.includes('speakerFocusTargetMemoryByMediaRef.current[speakerFocusMediaKey] = nextKey;')).toBe(true);
-  });
-
-  it('keeps speaker focus fallback guard for invalid explicit target', () => {
-    const hookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerFocusController.ts');
-    const code = fs.readFileSync(hookPath, 'utf8');
-
-    // 显式目标不在当前媒体可选集合时，解析为 null | Resolve to null when explicit target is not in current media options
-    expect(code.includes('return speakerFocusOptionKeySet.has(speakerFocusTargetKey) ? speakerFocusTargetKey : null;')).toBe(true);
-    // 检测到无效目标后回写清空，防止 focus-hard 全空白 | Clear invalid explicit target to avoid focus-hard blank state
-    expect(code.includes('if (speakerFocusOptionKeySet.has(speakerFocusTargetKey)) return;')).toBe(true);
-    expect(code.includes('setSpeakerFocusTargetForCurrentMedia(null);')).toBe(true);
+    expect(orchestratorCode.includes('speakerFocusTargetMemoryByMediaRef')).toBe(false);
   });
 
   it('keeps media-scoped track entity persistence integration', () => {
@@ -214,16 +190,6 @@ describe('TranscriptionPage structure invariants', () => {
     expect(persistenceHookCode.includes('const next = upsertTrackEntityState(')).toBe(true);
     expect(persistenceHookCode.includes('saveTrackEntityStateMap(next')).toBe(true);
     expect(persistenceHookCode.includes('saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!)')).toBe(true);
-  });
-
-  it('clears explicit focus target safely by forcing mode back to all', () => {
-    const filePath = path.resolve(process.cwd(), 'src/pages/useSpeakerFocusController.ts');
-    const code = fs.readFileSync(filePath, 'utf8');
-
-    expect(code.includes('const normalized = speakerKey.trim();')).toBe(true);
-    expect(code.includes('if (normalized.length === 0) {')).toBe(true);
-    expect(code.includes('setSpeakerFocusTargetForCurrentMedia(null);')).toBe(true);
-    expect(code.includes("setSpeakerFocusMode('all');")).toBe(true);
   });
 
   it('keeps assistant sidebar assembly outside orchestrator inline glue', () => {
@@ -351,11 +317,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes("localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights));")).toBe(true);
   });
 
-  it('persists focused speaker metadata on newly created independent segments', () => {
+  it('inherits speaker metadata on newly created independent segments from overlapping utterance', () => {
     const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
     const code = fs.readFileSync(actionPath, 'utf8');
 
-    expect(code.includes('...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),')).toBe(true);
     expect(code.includes('if (!newSeg.speakerId && overlappingUtt.speakerId) {')).toBe(true);
     expect(code.includes('newSeg.speakerId = overlappingUtt.speakerId;')).toBe(true);
   });
@@ -832,7 +797,6 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('function hasOverlaps(items: OverlapLike[]): boolean {')).toBe(true);
     expect(hookCode.includes('const effectiveLaneLockMap = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const handleResetTrackAutoLayout = useCallback(() => {')).toBe(true);
-    expect(hookCode.includes('const trackLockDiagnostics = useMemo(() => {')).toBe(true);
   });
 
   it('keeps waveform runtime controller extracted into dedicated hook', () => {

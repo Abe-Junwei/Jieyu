@@ -39,6 +39,20 @@ describe('sessionMemory P2 helpers', () => {
     expect(loaded.preferences?.lastToolName).toBe('set_transcription_text');
   });
 
+  it('normalizes local tool state from storage', () => {
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
+      localToolState: {
+        lastIntent: 'utterance.search',
+        lastQuery: '  你好  ',
+        lastResultUtteranceIds: ['utt-1', '', 'utt-2'],
+      },
+    }));
+    const loaded = loadSessionMemory();
+    expect(loaded.localToolState?.lastIntent).toBe('utterance.search');
+    expect(loaded.localToolState?.lastQuery).toBe('你好');
+    expect(loaded.localToolState?.lastResultUtteranceIds).toEqual(['utt-1', 'utt-2']);
+  });
+
   it('updates and clears conversation summary memory', () => {
     const withSummary = updateConversationSummaryMemory({}, 'summary text', 8, {
       similarityScore: 0.72,

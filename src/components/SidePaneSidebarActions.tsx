@@ -20,12 +20,8 @@ interface SidePaneSidebarActionsProps {
   hasSidePaneHost: boolean;
   messages: SidePaneSidebarMessages;
   layerActionRootRef: React.RefObject<HTMLElement | null>;
-  disableCreateTranslationEntry: boolean;
   constraintRepairBusy: boolean;
   sidePaneRowsLength: number;
-  uiFontScalePercent: number;
-  uiFontScaleMode: 'auto' | 'manual';
-  uiFontScaleModeLabel: string;
   layerActionPanel: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
   quickDeleteLayerId: string;
   quickDeleteKeepUtterances: boolean;
@@ -41,11 +37,7 @@ interface SidePaneSidebarActionsProps {
   constraintRepairDetailsCollapsed: boolean;
   groupedConstraintRepairDetails: ConstraintRepairDetailGroup[];
   speakerCtx: SpeakerRailContextValue;
-  onOpenCreateTranscription: () => void;
-  onOpenCreateTranslation: () => void;
   onRunRepair: () => Promise<void>;
-  onUiFontScaleChange?: (nextScale: number) => void;
-  onUiFontScaleReset?: () => void;
   setLayerActionPanel: (value: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null) => void;
   setQuickDeleteLayerId: (value: string) => void;
   setQuickDeleteKeepUtterances: (value: boolean) => void;
@@ -57,12 +49,8 @@ export function SidePaneSidebarActions({
   hasSidePaneHost,
   messages,
   layerActionRootRef,
-  disableCreateTranslationEntry,
   constraintRepairBusy,
   sidePaneRowsLength,
-  uiFontScalePercent,
-  uiFontScaleMode,
-  uiFontScaleModeLabel,
   layerActionPanel,
   quickDeleteLayerId,
   quickDeleteKeepUtterances,
@@ -73,11 +61,7 @@ export function SidePaneSidebarActions({
   constraintRepairDetailsCollapsed,
   groupedConstraintRepairDetails,
   speakerCtx,
-  onOpenCreateTranscription,
-  onOpenCreateTranslation,
   onRunRepair,
-  onUiFontScaleChange,
-  onUiFontScaleReset,
   setLayerActionPanel,
   setQuickDeleteLayerId,
   setQuickDeleteKeepUtterances,
@@ -94,23 +78,6 @@ export function SidePaneSidebarActions({
       <button
         type="button"
         className="transcription-side-pane-quick-action"
-        onClick={onOpenCreateTranscription}
-      >
-        <span className="transcription-side-pane-quick-action-icon" aria-hidden="true">✏️</span>
-        <span className="transcription-side-pane-quick-action-label">{messages.quickActionCreateTranscription}</span>
-      </button>
-      <button
-        type="button"
-        className="transcription-side-pane-quick-action"
-        disabled={disableCreateTranslationEntry}
-        onClick={onOpenCreateTranslation}
-      >
-        <span className="transcription-side-pane-quick-action-icon" aria-hidden="true">🌐</span>
-        <span className="transcription-side-pane-quick-action-label">{messages.quickActionCreateTranslation}</span>
-      </button>
-      <button
-        type="button"
-        className="transcription-side-pane-quick-action"
         disabled={constraintRepairBusy || sidePaneRowsLength === 0}
         onClick={() => {
           fireAndForget(onRunRepair());
@@ -119,37 +86,6 @@ export function SidePaneSidebarActions({
         <span className="transcription-side-pane-quick-action-icon" aria-hidden="true">🔧</span>
         <span className="transcription-side-pane-quick-action-label">{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</span>
       </button>
-
-      <div
-        aria-label={messages.uiFontScaleAria}
-        className="transcription-side-pane-card"
-      >
-        <div className="transcription-side-pane-card-header">
-          <strong>{messages.uiFontScaleTitle}</strong>
-          <span>{messages.uiFontScaleValue(uiFontScalePercent)} · {uiFontScaleModeLabel}</span>
-        </div>
-        <input
-          type="range"
-          min={85}
-          max={140}
-          step={5}
-          value={uiFontScalePercent}
-          aria-label={messages.uiFontScaleLabel}
-          onChange={(event) => {
-            onUiFontScaleChange?.(Number(event.target.value) / 100);
-          }}
-        />
-        <div className="transcription-side-pane-card-footer">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={uiFontScaleMode === 'auto'}
-            onClick={() => onUiFontScaleReset?.()}
-          >
-            {messages.uiFontScaleUseAuto}
-          </button>
-        </div>
-      </div>
 
       {layerActionPanel === 'speaker-management' && (
         <SidePaneSidebarSpeakerManagement

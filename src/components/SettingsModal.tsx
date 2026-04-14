@@ -4,7 +4,7 @@
  * 统一设置入口：外观、快捷键、AI、播放、数据管理、关于。
  * Unified settings: Appearance, Shortcuts, AI, Playback, Data, About.
  */
-import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { ModalPanel } from './ui';
 import {
   DEFAULT_KEYBINDINGS,
@@ -52,7 +52,12 @@ import {
 } from '../utils/transcriptionInteractionPreferences';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import type { UiFontScaleMode } from '../utils/panelAdaptiveLayout';
+import {
+  type UiFontScaleMode,
+  computeAdaptivePanelWidth,
+  resolveTextDirectionFromLocale,
+} from '../utils/panelAdaptiveLayout';
+import { useViewportWidth } from '../hooks/useViewportWidth';
 import {
   WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY,
   WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY,
@@ -142,7 +147,7 @@ export interface SettingsModalProps {
   version?: string;
 }
 
-type SettingsTab = 'appearance' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'about';
+type SettingsTab = 'appearance' | 'language' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'about';
 
 // ── 辅助函数 | Helpers ──────────────────────────────────────
 
@@ -388,6 +393,26 @@ export const SettingsModal = memo(function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
+  const viewportWidth = useViewportWidth();
+  const settingsShellTextDirection = useMemo(
+    () => resolveTextDirectionFromLocale(locale),
+    [locale],
+  );
+  const settingsModalFluidWidthPx = useMemo(
+    () => computeAdaptivePanelWidth({
+      baseWidth: 600,
+      locale,
+      direction: settingsShellTextDirection,
+      uiFontScale: fontScale,
+      density: 'standard',
+      minWidth: 300,
+      maxWidth: 960,
+      scaleWidthByFont: true,
+      scaleWidthByScript: true,
+      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
+    }),
+    [fontScale, locale, settingsShellTextDirection, viewportWidth],
+  );
 
   // ── 配色主题 | Appearance theme ──
   const [activeTheme, setActiveTheme] = useState<ThemeId>(() => {
@@ -783,6 +808,7 @@ export const SettingsModal = memo(function SettingsModal({
 
   const tabs = useMemo(() => [
     { id: 'appearance' as const, label: msg.tabAppearance },
+    { id: 'language' as const, label: msg.tabLanguage },
     { id: 'shortcuts' as const, label: msg.tabShortcuts },
     { id: 'ai' as const, label: msg.tabAi },
     { id: 'playback' as const, label: msg.tabPlayback },
@@ -907,6 +933,7 @@ export const SettingsModal = memo(function SettingsModal({
       isOpen={isOpen}
       onClose={onClose}
       topmost
+      dir={settingsShellTextDirection}
       className="pnl-settings-modal panel-design-match panel-design-match-dialog"
       ariaLabel={msg.title}
       title={msg.title}
@@ -914,6 +941,9 @@ export const SettingsModal = memo(function SettingsModal({
       bodyClassName="settings-modal-body"
       titleClassName="settings-modal-title"
       closeLabel={msg.close}
+      layoutStyle={{
+        ['--settings-modal-fluid-width' as string]: `${settingsModalFluidWidthPx}px`,
+      } as CSSProperties}
     >
       <div className="settings-layout">
         <SettingsTabBar activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />
@@ -955,9 +985,6 @@ export const SettingsModal = memo(function SettingsModal({
                 </div>
               </SettingsSection>
 
-              <SettingsSection title={msg.localeLabel}>
-                <OptionGroup value={locale} options={localeOptions} onChange={onLocaleChange} />
-              </SettingsSection>
               <SettingsSection title={msg.fontScaleLabel}>
                 <SettingRow label={msg.fontScaleModeLabel}>
                   <OptionGroup
@@ -989,6 +1016,14 @@ export const SettingsModal = memo(function SettingsModal({
                     </button>
                   )}
                 </div>
+              </SettingsSection>
+            </div>
+          )}
+
+          {activeTab === 'language' && (
+            <div className="settings-sections-stack">
+              <SettingsSection title={msg.localeLabel}>
+                <OptionGroup value={locale} options={localeOptions} onChange={onLocaleChange} />
               </SettingsSection>
             </div>
           )}

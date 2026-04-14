@@ -7,6 +7,7 @@
 
 import type { FC } from 'react';
 import { Play, Repeat, Square } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE_TIGHT } from '../../utils/jieyuLucideIcon';
 import { t, tf, useLocale } from '../../i18n';
 
 export interface RegionActionOverlayProps {
@@ -84,7 +85,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onToggleLoop(); }}
         >
-          <Repeat size={13} />
+          <Repeat className={JIEYU_LUCIDE_INLINE_TIGHT} />
         </button>
       )}
       <button
@@ -93,7 +94,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onTogglePlay(); }}
       >
-        {isPlaying ? <Square size={13} /> : <Play size={13} />}
+        {isPlaying ? <Square className={JIEYU_LUCIDE_INLINE_TIGHT} /> : <Play className={JIEYU_LUCIDE_INLINE_TIGHT} />}
       </button>
     </div>
   );

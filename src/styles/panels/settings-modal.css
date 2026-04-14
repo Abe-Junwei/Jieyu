@@ -1,8 +1,9 @@
 /* ── 设置面板 | Settings Modal ───────────────────────────── */
 
 .pnl-settings-modal {
-  width: min(520px, 92vw);
-  max-width: 92vw;
+  /* 像素上限由 JS 写入 --settings-modal-fluid-width，随 UI 字号缩放 | Pixel cap from JS, scales with UI font */
+  width: min(var(--settings-modal-fluid-width, 600px), 94vw);
+  max-width: 94vw;
   max-height: 80vh;
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   border-radius: var(--radius-xl);
@@ -105,14 +106,17 @@
   padding: 0;
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .settings-layout {
   display: grid;
-  grid-template-columns: 108px 1fr;
-  min-height: 280px;
+  grid-template-columns: 108px minmax(0, 1fr);
   height: 100%;
   flex: 1 1 auto;
+  min-height: 0;
+  align-items: stretch;
 }
 
 /* ── 标签页导航 | Tab bar ── */
@@ -163,7 +167,8 @@
   padding: 16px;
   overflow-y: auto;
   flex: 1 1 auto;
-  min-height: 200px;
+  min-height: 0;
+  min-width: 0;
   background: var(--surface-panel);
 }
 
@@ -592,7 +597,8 @@
 
 @media (max-width: 768px) {
   .pnl-settings-modal {
-    width: min(680px, 96vw);
+    width: min(var(--settings-modal-fluid-width, 600px), 96vw);
+    max-width: 96vw;
   }
 
   .settings-layout {

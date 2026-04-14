@@ -11,6 +11,7 @@ import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
@@ -36,6 +37,8 @@ export interface UseTranscriptionAiControllerInput {
   selectedTimelineMedia?: MediaItemDocType;
   selectedMediaUrl?: string;
   selectedLayerId: string;
+  /** Primary transcription layer id for utterance rows in `buildTimelineUnitViewIndex`. */
+  defaultTranscriptionLayerId?: string;
   activeLayerIdForEdits?: string;
   resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
   segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
@@ -48,6 +51,8 @@ export interface UseTranscriptionAiControllerInput {
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
   utteranceCount: number;
+  /** Optional shared read-model index from ReadyWorkspace to avoid duplicate rebuilds. */
+  timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   undoHistory: unknown[];

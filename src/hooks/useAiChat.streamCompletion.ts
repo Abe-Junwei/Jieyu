@@ -6,13 +6,17 @@ import {
   planToolCallTargets,
 } from '../ai/chat/toolCallHelpers';
 import {
-  executeLocalContextToolCallsBatch,
   executeLocalContextToolCall,
   formatLocalContextToolBatchResultMessage,
   formatLocalContextToolResultMessage,
+  type LocalContextToolCall,
   type LocalContextToolResult,
   parseLocalContextToolCallsFromText,
 } from '../ai/chat/localContextTools';
+import {
+  buildLocalToolStatePatchFromCallResult,
+  resolveLocalToolCalls,
+} from '../ai/chat/localToolSlotResolver';
 import {
   formatEmptyModelReply,
   formatEmptyModelResponseError,
@@ -85,6 +89,33 @@ interface ResolveAiChatStreamCompletionResult {
   localToolResults?: LocalContextToolResult[];
 }
 
+function mergeLocalToolSessionState(
+  sessionMemory: AiSessionMemory,
+  callResults: Array<{ call: LocalContextToolCall; ok: boolean; result: unknown }>,
+): AiSessionMemory {
+  const base = sessionMemory.localToolState ?? {
+    updatedAt: new Date().toISOString(),
+  };
+  const merged = { ...base };
+  for (const item of callResults) {
+    const patch = buildLocalToolStatePatchFromCallResult(
+      item.call,
+      { ok: item.ok, result: item.result },
+    );
+    if (patch.lastIntent) merged.lastIntent = patch.lastIntent;
+    if (patch.lastQuery) merged.lastQuery = patch.lastQuery;
+    if (patch.clearLastQuery) delete merged.lastQuery;
+    if (patch.lastResultUtteranceIds !== undefined) {
+      merged.lastResultUtteranceIds = patch.lastResultUtteranceIds;
+    }
+  }
+  merged.updatedAt = new Date().toISOString();
+  return {
+    ...sessionMemory,
+    localToolState: merged,
+  };
+}
+
 export async function resolveAiChatStreamCompletion({
   assistantId,
   assistantContent,
@@ -129,13 +160,31 @@ export async function resolveAiChatStreamCompletion({
   let finalStatus: 'done' | 'error' = 'done';
   let finalErrorMessage: string | undefined;
 
-  const localToolCalls = parseLocalContextToolCallsFromText(assistantContent);
-  if (localToolCalls.length > 1) {
-    const localToolResults = await executeLocalContextToolCallsBatch(
-      localToolCalls,
-      aiContext,
-      localToolCallCountRef,
-    );
+  const localToolCallsParsed = parseLocalContextToolCallsFromText(assistantContent);
+  if (localToolCallsParsed.length > 1) {
+    const localToolResults: LocalContextToolResult[] = [];
+    let rollingMemory = sessionMemory;
+    for (let index = 0; index < localToolCallsParsed.length; index += 1) {
+      const rawCall = localToolCallsParsed[index]!;
+      const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory);
+      const stepCall = stepCalls[0]!;
+      const result = await executeLocalContextToolCall(
+        stepCall,
+        aiContext,
+        localToolCallCountRef,
+      );
+      localToolResults.push(result);
+      rollingMemory = mergeLocalToolSessionState(rollingMemory, [
+        {
+          call: { name: stepCall.name, arguments: stepCall.arguments },
+          ok: result.ok,
+          result: result.result,
+        },
+      ]);
+    }
+    const mergedMemory = rollingMemory;
+    updateSessionMemory(mergedMemory);
+    persistSessionMemory(mergedMemory);
     finalContent = formatLocalContextToolBatchResultMessage(localToolResults);
     finalStatus = localToolResults.some((item) => !item.ok) ? 'error' : 'done';
     finalErrorMessage = finalStatus === 'error' ? 'local context tool batch failed' : undefined;
@@ -147,12 +196,27 @@ export async function resolveAiChatStreamCompletion({
     };
   }
 
-  if (localToolCalls.length === 1) {
+  if (localToolCallsParsed.length === 1) {
+    const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory);
+    const resolvedCall = singleCalls[0]!;
     const localToolResult = await executeLocalContextToolCall(
-      localToolCalls[0]!,
+      resolvedCall,
       aiContext,
       localToolCallCountRef,
     );
+    const mergedMemory = mergeLocalToolSessionState(
+      sessionMemory,
+      [{
+        call: {
+          name: resolvedCall.name,
+          arguments: resolvedCall.arguments,
+        },
+        ok: localToolResult.ok,
+        result: localToolResult.result,
+      }],
+    );
+    updateSessionMemory(mergedMemory);
+    persistSessionMemory(mergedMemory);
     finalContent = formatLocalContextToolResultMessage(localToolResult);
     finalStatus = localToolResult.ok ? 'done' : 'error';
     finalErrorMessage = localToolResult.ok ? undefined : (localToolResult.error ?? 'local context tool failed');
@@ -209,9 +273,52 @@ export async function resolveAiChatStreamCompletion({
       ?? normalizeLegacyRiskNarration(finalContent, toolFeedbackStyle);
   }
 
+  finalContent = appendHallucinationWarningIfSuspicious(finalContent, aiContext);
+
   return {
     finalContent,
     finalStatus,
     ...(finalErrorMessage ? { finalErrorMessage } : {}),
   };
+}
+
+const NUMBERED_LIST_RE = /(?:^|\n)\s*(?:\d+\.\s+\*{0,2}\d{2}:\d{2}|\d+\.\s+\*{0,2}#?\d+\s)/g;
+const TIMESTAMP_RE = /\d{2}:\d{2}[.:]\d/g;
+const HALLUCINATION_WARNING = '\n\n> \u26a0\ufe0f \u4ee5\u4e0a\u5217\u8868\u53ef\u80fd\u5305\u542b\u4e0d\u51c6\u786e\u7684\u4fe1\u606f\u3002\u5efa\u8bae\u4f7f\u7528\u201c\u5217\u51fa\u6240\u6709\u8bed\u6bb5\u201d\u6307\u4ee4\u83b7\u53d6\u51c6\u786e\u6570\u636e\u3002';
+
+function appendHallucinationWarningIfSuspicious(
+  content: string,
+  context: AiPromptContext | null,
+): string {
+  if (!content || content.length < 50) return content;
+
+  const numberedMatches = content.match(NUMBERED_LIST_RE);
+  const timestampMatches = content.match(TIMESTAMP_RE);
+  const hasNumberedList = numberedMatches !== null && numberedMatches.length >= 4;
+  const hasTimestampCluster = timestampMatches !== null && new Set(timestampMatches).size >= 4;
+
+  if (!hasNumberedList && !hasTimestampCluster) return content;
+
+  const expected = context?.shortTerm?.projectUnitCount
+    ?? context?.longTerm?.projectStats?.unitCount
+    ?? context?.shortTerm?.projectUtteranceCount
+    ?? context?.longTerm?.projectStats?.utteranceCount
+    ?? context?.shortTerm?.currentMediaUnitCount
+    ?? context?.shortTerm?.utterancesOnCurrentMediaCount;
+  if (typeof expected === 'number' && expected > 0) {
+    const countClaim = content.match(/(?:\u5171\u6709|total[:\s]|a\s+total\s+of)\s*(\d+)\s*(?:\u4e2a|\u6761|\u6bb5|units?\b|utterances?\b|segments?\b)/i);
+    if (countClaim) {
+      const claimed = parseInt(countClaim[1]!, 10);
+      if (claimed !== expected) {
+        return `${content}${HALLUCINATION_WARNING}`;
+      }
+      return content;
+    }
+  }
+
+  if (hasNumberedList && hasTimestampCluster) {
+    return `${content}${HALLUCINATION_WARNING}`;
+  }
+
+  return content;
 }

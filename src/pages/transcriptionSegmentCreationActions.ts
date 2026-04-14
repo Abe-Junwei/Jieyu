@@ -22,7 +22,6 @@ export interface UseTranscriptionSegmentCreationControllerInput {
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;
   selectedTimelineMedia: MediaItemDocType | null;
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  speakerFocusTargetKey: string | null;
   utterancesOnCurrentMedia: UtteranceDocType[];
   pushUndo: (label: string) => void;
   reloadSegments: () => Promise<void>;
@@ -166,11 +165,7 @@ export function createTranscriptionSegmentCreationActions(
         layerId: routing.sourceLayerId,
         startTime,
         endTime,
-        ...(input.speakerFocusTargetKey
-          ? { speakerId: input.speakerFocusTargetKey }
-          : targetSegment.speakerId
-            ? { speakerId: targetSegment.speakerId }
-            : {}),
+        ...(targetSegment.speakerId ? { speakerId: targetSegment.speakerId } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -246,7 +241,6 @@ export function createTranscriptionSegmentCreationActions(
         layerId: routing.sourceLayerId,
         startTime: finalStart,
         endTime: finalEnd,
-        ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
         createdAt: now,
         updatedAt: now,
       };
@@ -283,7 +277,6 @@ export function createTranscriptionSegmentCreationActions(
       return;
     }
     await input.createUtteranceFromSelection(start, end, {
-      ...(input.speakerFocusTargetKey ? { speakerId: input.speakerFocusTargetKey } : {}),
       ...(input.activeLayerIdForEdits ? { focusedLayerId: input.activeLayerIdForEdits } : {}),
       selectionBehavior: readStoredNewSegmentSelectionBehavior(),
     });

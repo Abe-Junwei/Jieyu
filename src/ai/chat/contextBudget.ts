@@ -104,19 +104,22 @@ export async function loadProviderContextLimits(): Promise<Record<string, number
 
   loadPromise = (async () => {
     const mergedLimits: Record<string, number> = { ...BUILTIN_PROVIDER_CONTEXT_LIMITS };
-    if (typeof fetch === 'function') {
-      try {
-        const response = await fetch('/data/provider-context-limits.json');
-        if (response.ok) {
-          Object.assign(mergedLimits, normalizeProviderLimits(await response.json()));
+    try {
+      if (typeof fetch === 'function') {
+        try {
+          const response = await fetch('/data/provider-context-limits.json');
+          if (response.ok) {
+            Object.assign(mergedLimits, normalizeProviderLimits(await response.json()));
+          }
+        } catch {
+          // Ignore config fetch failures and keep builtin fallback limits.
         }
-      } catch {
-        // Ignore config fetch failures and keep builtin fallback limits.
       }
+      limitsCache = mergedLimits;
+      return mergedLimits;
+    } finally {
+      loadPromise = null;
     }
-    limitsCache = mergedLimits;
-    loadPromise = null;
-    return mergedLimits;
   })();
 
   return loadPromise;

@@ -100,6 +100,11 @@ function estimateTokensFromText(text: string): number {
 function estimateTokensFromHistory(messages: ChatMessage[]): number {
   return messages.reduce((sum, item) => sum + estimateTokensFromText(item.content), 0);
 }
+
+/** 生成侧估算：可见正文 + 推理/思考链（与常见 API 的 completion_tokens 更接近） */
+function estimateOutputTokensFromAssistantParts(content: string, reasoning: string): number {
+  return estimateTokensFromText(content) + estimateTokensFromText(reasoning);
+}
 export type {
   AiChatProviderKind,
   AiChatSettings,
@@ -133,6 +138,8 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const locale = useLocale();
   const toolFeedbackLocale = useOptionalLocale() ?? 'zh-CN';
+  const localeRef = useLatest(locale);
+  const toolFeedbackLocaleRef = useLatest(toolFeedbackLocale);
   const onToolCall = options?.onToolCall;
   const onToolRiskCheck = options?.onToolRiskCheck;
   const preparePendingToolCall = options?.preparePendingToolCall;
@@ -645,7 +652,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           const errorText = chunk.error;
           streamFinalized = true;
-          totalModelOutputTokens += estimateTokensFromText(assistantContent);
+          totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
           await awaitQueuedPersistence();
           await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
           setLastError(errorText);
@@ -694,7 +701,7 @@ export function useAiChat(options?: UseAiChatOptions) {
           streamFinalized = true;
           queueFlushAssistantDraft(assistantContent, true);
           await awaitQueuedPersistence();
-          totalModelOutputTokens += estimateTokensFromText(assistantContent);
+          totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
           const {
             finalContent,
             finalStatus,
@@ -709,7 +716,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             messages: messagesRef.current,
             providerId: provider.id,
             model: settingsRef.current.model,
-            toolFeedbackLocale,
+            toolFeedbackLocale: toolFeedbackLocaleRef.current,
             toolDecisionMode: toolDecisionModeRef.current,
             toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
             allowDestructiveToolCalls,
@@ -749,6 +756,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             && !controller.signal.aborted
           ) {
             loopExecuted = true;
+            const loopAiContext = getContextRef.current?.() ?? aiContext;
             setTaskSession({
               id: taskSessionRef.current.id,
               status: 'executing',
@@ -771,7 +779,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               DEFAULT_AGENT_LOOP_CONFIG,
             );
             if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
-              const budgetHint = getAiChatCardMessages(locale === 'zh-CN').tokenBudgetWarning(estimatedRemainingTokens);
+              const budgetHint = getAiChatCardMessages(localeRef.current === 'zh-CN').tokenBudgetWarning(estimatedRemainingTokens);
               resolvedContent = `${resolvedContent}${budgetHint}`;
               resolvedStatus = 'done';
               resolvedLocalToolResults = undefined;
@@ -821,7 +829,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             }
 
             assistantReasoningContent += continuationReasoningContent;
-            totalModelOutputTokens += estimateTokensFromText(continuationAssistantContent);
+            totalModelOutputTokens += estimateOutputTokensFromAssistantParts(continuationAssistantContent, continuationReasoningContent);
 
             if (continuationStreamError) {
               resolvedStatus = 'error';
@@ -835,11 +843,11 @@ export function useAiChat(options?: UseAiChatOptions) {
               assistantId,
               assistantContent: continuationAssistantContent,
               userText: continuationUserText,
-              aiContext,
+              aiContext: loopAiContext,
               messages: messagesRef.current,
               providerId: provider.id,
               model: settingsRef.current.model,
-              toolFeedbackLocale,
+              toolFeedbackLocale: toolFeedbackLocaleRef.current,
               toolDecisionMode: toolDecisionModeRef.current,
               toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
               allowDestructiveToolCalls,
@@ -925,7 +933,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       }
 
       if (!streamFinalized && !controller.signal.aborted) {
-        totalModelOutputTokens += estimateTokensFromText(assistantContent);
+        totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
         recordCompletionSuccessMetric();
         await awaitQueuedPersistence();
         await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
@@ -949,16 +957,20 @@ export function useAiChat(options?: UseAiChatOptions) {
           setConnectionTestStatus('idle');
           setConnectionTestMessage(null);
         }
-        const abortedContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
-        totalModelOutputTokens += estimateTokensFromText(abortedContent);
+        const abortedMsg = messagesRef.current.find((msg) => msg.id === assistantId);
+        const abortedContent = abortedMsg?.content ?? '';
+        const abortedReasoning = abortedMsg?.reasoningContent ?? '';
+        totalModelOutputTokens += estimateOutputTokensFromAssistantParts(abortedContent, abortedReasoning);
         await awaitQueuedPersistence();
         await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
         return;
       }
 
       const message = normalizeAiProviderError(error, provider.label);
-      const errorContent = messagesRef.current.find((msg) => msg.id === assistantId)?.content ?? '';
-      totalModelOutputTokens += estimateTokensFromText(errorContent);
+      const errorMsg = messagesRef.current.find((msg) => msg.id === assistantId);
+      const errorContent = errorMsg?.content ?? '';
+      const errorReasoning = errorMsg?.reasoningContent ?? '';
+      totalModelOutputTokens += estimateOutputTokensFromAssistantParts(errorContent, errorReasoning);
       await awaitQueuedPersistence();
       await finalizeAssistantMessage('error', errorContent, message);
       setLastError(message);
@@ -1016,6 +1028,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     setMessages([]);
     setLastError(null);
     setPendingToolCall(null);
+    setMetrics({ ...INITIAL_METRICS });
     setTaskSession({
       id: newMessageId('task'),
       status: 'idle',

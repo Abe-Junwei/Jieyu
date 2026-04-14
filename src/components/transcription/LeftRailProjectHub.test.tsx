@@ -88,13 +88,13 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
 beforeEach(() => {
   showToastMock.mockReset();
   const host = document.createElement('div');
-  host.id = 'left-rail-bottom-slot';
+  host.id = 'left-rail-project-hub-slot';
   document.body.appendChild(host);
 });
 
 afterEach(() => {
   cleanup();
-  document.getElementById('left-rail-bottom-slot')?.remove();
+  document.getElementById('left-rail-project-hub-slot')?.remove();
 });
 
 describe('LeftRailProjectHub project import dialog', () => {

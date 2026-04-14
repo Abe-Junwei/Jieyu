@@ -5,6 +5,7 @@ import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { db } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { useAiChat, type AiChatToolCall } from './useAiChat';
+import { INITIAL_METRICS } from './useAiChat.config';
 
 let lastSystemPrompt = '';
 
@@ -2335,6 +2336,32 @@ describe('useAiChat abort and recovery', () => {
     const [assistantMessageId, content] = onMessageComplete.mock.calls[0] ?? [];
     expect(typeof assistantMessageId).toBe('string');
     expect(content).toContain('普通对话回复');
+  });
+
+  it('resets interaction metrics when clearing the conversation', async () => {
+    const { result } = renderHook(() => useAiChat({}));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__PLAIN_REPLY__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(result.current.metrics.turnCount).toBeGreaterThan(0);
+    expect(result.current.messages.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      result.current.clear();
+    });
+
+    expect(result.current.messages).toHaveLength(0);
+    expect(result.current.metrics).toEqual({ ...INITIAL_METRICS });
   });
 
   it('should count output tokens using actual model output text during local-tool agent loop', async () => {

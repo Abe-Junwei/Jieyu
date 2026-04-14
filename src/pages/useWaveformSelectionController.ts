@@ -5,9 +5,11 @@ import {
   isUtteranceTimelineUnit,
   type TimelineUnit,
 } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 
-type WaveformTimelineItem = LayerSegmentDocType | UtteranceDocType;
+type WaveformTimelineItem = TimelineUnitView;
 
 interface UseWaveformSelectionControllerInput {
   activeLayerIdForEdits: string;
@@ -16,6 +18,7 @@ interface UseWaveformSelectionControllerInput {
   defaultTranscriptionLayerId?: string;
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
   utterancesOnCurrentMedia: UtteranceDocType[];
+  timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
   selectedUtteranceIds: Set<string>;
 }
@@ -39,6 +42,7 @@ export function useWaveformSelectionController({
   defaultTranscriptionLayerId,
   segmentsByLayer,
   utterancesOnCurrentMedia,
+  timelineUnitViewIndex,
   selectedTimelineUnit,
   selectedUtteranceIds,
 }: UseWaveformSelectionControllerInput): UseWaveformSelectionControllerResult {
@@ -55,12 +59,52 @@ export function useWaveformSelectionController({
   const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);
 
   const waveformTimelineItems = useMemo(() => {
+    const unitRowsFromIndex = timelineUnitViewIndex?.currentMediaUnits;
+    if (unitRowsFromIndex && unitRowsFromIndex.length > 0) {
+      if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
+        return unitRowsFromIndex
+          .filter((unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id)
+          .sort((a, b) => a.startTime - b.startTime);
+      }
+      return unitRowsFromIndex
+        .filter((unit) => unit.kind === 'utterance')
+        .sort((a, b) => a.startTime - b.startTime);
+    }
     if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
       const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];
-      return [...segments].sort((a, b) => a.startTime - b.startTime);
+      return [...segments]
+        .sort((a, b) => a.startTime - b.startTime)
+        .map((segment) => ({
+          id: segment.id,
+          kind: 'segment',
+          mediaId: segment.mediaId,
+          layerId: segment.layerId,
+          startTime: segment.startTime,
+          endTime: segment.endTime,
+          text: '',
+          ...(segment.speakerId ? { speakerId: segment.speakerId } : {}),
+          ...(segment.utteranceId ? { parentUtteranceId: segment.utteranceId } : {}),
+        } satisfies TimelineUnitView));
     }
-    return utterancesOnCurrentMedia;
-  }, [activeWaveformSegmentSourceLayer, segmentsByLayer, useSegmentWaveformRegions, utterancesOnCurrentMedia]);
+    return utterancesOnCurrentMedia.map((utterance) => ({
+      id: utterance.id,
+      kind: 'utterance',
+      mediaId: utterance.mediaId ?? '',
+      layerId: defaultTranscriptionLayerId ?? activeLayerIdForEdits,
+      startTime: utterance.startTime,
+      endTime: utterance.endTime,
+      text: '',
+      ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
+    } satisfies TimelineUnitView));
+  }, [
+    activeLayerIdForEdits,
+    activeWaveformSegmentSourceLayer,
+    defaultTranscriptionLayerId,
+    segmentsByLayer,
+    timelineUnitViewIndex?.currentMediaUnits,
+    useSegmentWaveformRegions,
+    utterancesOnCurrentMedia,
+  ]);
 
   const waveformRegions = useMemo(() =>
     waveformTimelineItems.map((item) => ({

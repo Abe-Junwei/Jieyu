@@ -81,8 +81,9 @@
   min-height: auto;
   border-radius: 24px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 76%, transparent);
+  /* LM/OM/OB 外壳高光与 tokens `--color-white` 对齐 | Chrome highlight anchor */
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--surface-bg)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-panel) 98%, var(--color-white)), color-mix(in srgb, var(--surface-header) 28%, var(--surface-panel)) 100%);
   box-shadow: var(--shadow-lg);
 }
 

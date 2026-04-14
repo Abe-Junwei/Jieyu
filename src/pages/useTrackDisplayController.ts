@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import { t, useLocale } from '../i18n';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import {
   buildSpeakerLayerLayoutWithOptions,
   buildStableSpeakerLaneMap,
@@ -21,6 +21,7 @@ type LockConflictToastState = {
 
 interface UseTrackDisplayControllerInput {
   utterancesOnCurrentMedia: UtteranceDocType[];
+  timelineUnitsOnCurrentMedia?: ReadonlyArray<TimelineUnitView>;
   timelineRenderUtterances: UtteranceDocType[];
   activeLayerIdForEdits: string;
   defaultTranscriptionLayerId?: string;
@@ -46,13 +47,6 @@ interface UseTrackDisplayControllerResult {
   handleLockSelectedSpeakersToLane: (laneIndex: number) => void;
   handleUnlockSelectedSpeakers: () => void;
   handleResetTrackAutoLayout: () => void;
-  trackModeLabel: string;
-  trackConflictLabel: string;
-  trackLockDiagnostics: {
-    count: number;
-    speakerNames: string[];
-  };
-  handleOpenLockConflictDetails: () => void;
 }
 
 type OverlapLike = {
@@ -78,6 +72,7 @@ function hasOverlaps(items: OverlapLike[]): boolean {
 
 export function useTrackDisplayController({
   utterancesOnCurrentMedia,
+  timelineUnitsOnCurrentMedia,
   timelineRenderUtterances,
   activeLayerIdForEdits,
   defaultTranscriptionLayerId,
@@ -93,10 +88,17 @@ export function useTrackDisplayController({
   setLockConflictToast,
   getUtteranceSpeakerKey,
 }: UseTrackDisplayControllerInput): UseTrackDisplayControllerResult {
-  const locale = useLocale();
+  const utteranceUnitsOnCurrentMedia = useMemo(() => (
+    timelineUnitsOnCurrentMedia?.filter((unit) => unit.kind === 'utterance') ?? []
+  ), [timelineUnitsOnCurrentMedia]);
+
   const hasOverlappingUtterancesOnCurrentMedia = useMemo(
-    () => hasOverlaps(utterancesOnCurrentMedia),
-    [utterancesOnCurrentMedia],
+    () => hasOverlaps(
+      utteranceUnitsOnCurrentMedia.length > 0
+        ? utteranceUnitsOnCurrentMedia
+        : utterancesOnCurrentMedia,
+    ),
+    [utteranceUnitsOnCurrentMedia, utterancesOnCurrentMedia],
   );
 
   const hasOverlappingSegmentsOnActiveLayer = useMemo(() => {
@@ -112,7 +114,11 @@ export function useTrackDisplayController({
   }, [hasOverlappingSegmentsOnActiveLayer, hasOverlappingUtterancesOnCurrentMedia, setTranscriptionTrackMode, transcriptionTrackMode]);
 
   const speakerSortKeyById = useMemo(() => {
-    const sorted = [...utterancesOnCurrentMedia].sort((a, b) => {
+    const sorted = [
+      ...(utteranceUnitsOnCurrentMedia.length > 0
+        ? utteranceUnitsOnCurrentMedia
+        : utterancesOnCurrentMedia),
+    ].sort((a, b) => {
       if (a.startTime !== b.startTime) return a.startTime - b.startTime;
       if (a.endTime !== b.endTime) return a.endTime - b.endTime;
       return a.id.localeCompare(b.id);
@@ -120,18 +126,25 @@ export function useTrackDisplayController({
     const next: Record<string, number> = {};
     let order = 0;
     for (const utterance of sorted) {
-      const key = getUtteranceSpeakerKey(utterance);
+      const key = 'kind' in utterance
+        ? (utterance.speakerId ?? 'unknown-speaker')
+        : getUtteranceSpeakerKey(utterance);
       if (key in next) continue;
       next[key] = order;
       order += 1;
     }
     return next;
-  }, [getUtteranceSpeakerKey, utterancesOnCurrentMedia]);
+  }, [getUtteranceSpeakerKey, utteranceUnitsOnCurrentMedia, utterancesOnCurrentMedia]);
 
   const currentSpeakerIdsForTrackMode = useMemo(() => {
     const next = new Set<string>();
-    for (const utterance of utterancesOnCurrentMedia) {
-      const speakerKey = getUtteranceSpeakerKey(utterance);
+    const source = utteranceUnitsOnCurrentMedia.length > 0
+      ? utteranceUnitsOnCurrentMedia
+      : utterancesOnCurrentMedia;
+    for (const utterance of source) {
+      const speakerKey = 'kind' in utterance
+        ? (utterance.speakerId ?? 'unknown-speaker')
+        : getUtteranceSpeakerKey(utterance);
       if (!speakerKey) continue;
       next.add(speakerKey);
     }
@@ -141,7 +154,7 @@ export function useTrackDisplayController({
       next.add(speakerKey);
     }
     return Array.from(next);
-  }, [getUtteranceSpeakerKey, segmentSpeakerAssignmentsOnCurrentMedia, utterancesOnCurrentMedia]);
+  }, [getUtteranceSpeakerKey, segmentSpeakerAssignmentsOnCurrentMedia, utteranceUnitsOnCurrentMedia, utterancesOnCurrentMedia]);
 
   const effectiveLaneLockMap = useMemo(() => {
     if (transcriptionTrackMode !== 'multi-speaker-fixed') return laneLockMap;
@@ -216,37 +229,6 @@ export function useTrackDisplayController({
     }
   }, [setLaneLockMap, setLockConflictToast, setTranscriptionTrackMode, speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
 
-  const trackModeLabel = useMemo(() => {
-    if (transcriptionTrackMode === 'single') return t(locale, 'transcription.trackFocus.mode.single');
-    if (transcriptionTrackMode === 'multi-speaker-fixed') return t(locale, 'transcription.trackFocus.mode.multiSpeakerFixed');
-    if (transcriptionTrackMode === 'multi-locked') return t(locale, 'transcription.trackFocus.mode.multiLocked');
-    return t(locale, 'transcription.trackFocus.mode.multiAuto');
-  }, [locale, transcriptionTrackMode]);
-
-  const trackConflictLabel = useMemo(
-    () => transcriptionTrackMode === 'multi-speaker-fixed'
-      ? t(locale, 'transcription.trackFocus.conflictLabel.multiSpeakerFixed')
-      : t(locale, 'transcription.trackFocus.conflictLabel.multiLocked'),
-    [locale, transcriptionTrackMode],
-  );
-
-  const trackLockDiagnostics = useMemo(() => {
-    const speakerNames = speakerLayerLayout.lockConflictSpeakerIds.map((id) => speakerNameById[id] ?? id);
-    return {
-      count: speakerLayerLayout.lockConflictCount,
-      speakerNames,
-    };
-  }, [speakerLayerLayout.lockConflictCount, speakerLayerLayout.lockConflictSpeakerIds, speakerNameById]);
-
-  const handleOpenLockConflictDetails = useCallback(() => {
-    if (trackLockDiagnostics.count <= 0) return;
-    setLockConflictToast({
-      count: trackLockDiagnostics.count,
-      speakers: trackLockDiagnostics.speakerNames,
-      nonce: Date.now(),
-    });
-  }, [setLockConflictToast, trackLockDiagnostics.count, trackLockDiagnostics.speakerNames]);
-
   return {
     speakerSortKeyById,
     effectiveLaneLockMap,
@@ -256,9 +238,5 @@ export function useTrackDisplayController({
     handleLockSelectedSpeakersToLane,
     handleUnlockSelectedSpeakers,
     handleResetTrackAutoLayout,
-    trackModeLabel,
-    trackConflictLabel,
-    trackLockDiagnostics,
-    handleOpenLockConflictDetails,
   };
 }

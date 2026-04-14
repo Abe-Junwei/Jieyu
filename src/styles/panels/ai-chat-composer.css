@@ -102,7 +102,7 @@
   font: inherit;
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-style: italic;
-  cursor: text;
+  pointer-events: none;
   overflow: hidden;
 }
 

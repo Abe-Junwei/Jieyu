@@ -92,13 +92,6 @@ export type SidePaneSidebarMessages = {
   deleteButton: string;
   cancelButton: string;
   closeButton: string;
-  uiFontScaleAria: string;
-  uiFontScaleTitle: string;
-  uiFontScaleLabel: string;
-  uiFontScaleUseAuto: string;
-  uiFontScaleModeAuto: string;
-  uiFontScaleModeManual: string;
-  uiFontScaleValue: (percent: number) => string;
   repairDetailsAria: string;
   repairDetailsTitle: string;
   repairDetailsExpandAria: string;
@@ -107,6 +100,7 @@ export type SidePaneSidebarMessages = {
   repairDetailsCollapse: string;
   quickActionsCardAria: string;
   quickActionsCardTitle: string;
+  layerCreateStripAria: string;
   inlinePaneAria: string;
   paneTitle: string;
   paneSubtitle: string;
@@ -175,7 +169,7 @@ const zhCN: SidePaneSidebarMessages = {
   draggableLayerRoleDesc: '\u53ef\u62d6\u62fd\u5c42',
   layerTypeTranslationShort: '\u8bd1',
   layerTypeTranscriptionShort: '\u5199',
-  emptyLayerHint: '\u6682\u65e0\u5c42\uff0c\u70b9\u51fb\u4e0b\u65b9\u6309\u94ae\u65b0\u5efa',
+  emptyLayerHint: '\u6682\u65e0\u5c42\uff0c\u8bf7\u5728\u5de6\u4fa7\u680f\u4e2d\u90e8\u9884\u7559\u533a\u70b9\u300c\u65b0\u5efa\u8f6c\u5199\u5c42\u300d',
   inspectorAria: '\u5f53\u524d\u5c42\u8be6\u60c5',
   inspectorEmpty: '\u8bf7\u9009\u62e9\u4e00\u4e2a\u5c42\u67e5\u770b\u8be6\u60c5\u3002',
   inspectorDeleteCurrentLayerTitle: '\u5220\u9664\u5f53\u524d\u5c42',
@@ -208,13 +202,6 @@ const zhCN: SidePaneSidebarMessages = {
   deleteButton: '\u5220\u9664',
   cancelButton: '\u53d6\u6d88',
   closeButton: '\u5173\u95ed',
-  uiFontScaleAria: '\u754c\u9762\u5b57\u53f7\u8c03\u8282',
-  uiFontScaleTitle: '\u754c\u9762\u5b57\u53f7',
-  uiFontScaleLabel: '\u8c03\u8282\u754c\u9762\u5b57\u53f7',
-  uiFontScaleUseAuto: '\u5207\u56de\u81ea\u52a8',
-  uiFontScaleModeAuto: '\u81ea\u52a8',
-  uiFontScaleModeManual: '\u624b\u52a8',
-  uiFontScaleValue: (percent) => `${percent}%`,
   repairDetailsAria: '\u7ea6\u675f\u4fee\u590d\u660e\u7ec6',
   repairDetailsTitle: '\u4fee\u590d\u660e\u7ec6',
   repairDetailsExpandAria: '\u5c55\u5f00\u4fee\u590d\u660e\u7ec6',
@@ -223,6 +210,7 @@ const zhCN: SidePaneSidebarMessages = {
   repairDetailsCollapse: '\u6536\u8d77\u660e\u7ec6',
   quickActionsCardAria: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c\u5361\u7247',
   quickActionsCardTitle: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c',
+  layerCreateStripAria: '\u65b0\u5efa\u8f6c\u5199\u4e0e\u7ffb\u8bd1\u5c42',
   inlinePaneAria: '\u6587\u672c\u533a\u5c42\u6eda\u52a8\u680f',
   paneTitle: '\u6587\u672c\u5c42\u5de5\u4f5c\u53f0',
   paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
@@ -291,7 +279,7 @@ const enUS: SidePaneSidebarMessages = {
   draggableLayerRoleDesc: 'Draggable layer',
   layerTypeTranslationShort: 'TR',
   layerTypeTranscriptionShort: 'TX',
-  emptyLayerHint: 'No layers yet, click below to create one',
+  emptyLayerHint: 'No layers yet — use “Create transcription layer” in the left rail middle slot',
   inspectorAria: 'Current layer details',
   inspectorEmpty: 'Select a layer to view details.',
   inspectorDeleteCurrentLayerTitle: 'Delete current layer',
@@ -324,13 +312,6 @@ const enUS: SidePaneSidebarMessages = {
   deleteButton: 'Delete',
   cancelButton: 'Cancel',
   closeButton: 'Close',
-  uiFontScaleAria: 'UI font size controls',
-  uiFontScaleTitle: 'UI font size',
-  uiFontScaleLabel: 'Adjust UI font size',
-  uiFontScaleUseAuto: 'Use Auto',
-  uiFontScaleModeAuto: 'Auto',
-  uiFontScaleModeManual: 'Manual',
-  uiFontScaleValue: (percent) => `${percent}%`,
   repairDetailsAria: 'Constraint repair details',
   repairDetailsTitle: 'Repair details',
   repairDetailsExpandAria: 'Expand repair details',
@@ -339,6 +320,7 @@ const enUS: SidePaneSidebarMessages = {
   repairDetailsCollapse: 'Collapse details',
   quickActionsCardAria: 'Layer management quick actions card',
   quickActionsCardTitle: 'Layer management quick actions',
+  layerCreateStripAria: 'Create transcription and translation layers',
   inlinePaneAria: 'Text-area layer rail',
   paneTitle: 'Text Layer Workspace',
   paneSubtitle: 'Layer list, current layer details and quick actions',

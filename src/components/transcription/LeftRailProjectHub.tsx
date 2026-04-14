@@ -1,6 +1,5 @@
-import {
-  FolderKanban,
-} from 'lucide-react';
+import { Package } from 'lucide-react';
+import { JIEYU_LUCIDE_NAV } from '../../utils/jieyuLucideIcon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
@@ -103,7 +102,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    setHostElement(document.getElementById('left-rail-bottom-slot'));
+    setHostElement(document.getElementById('left-rail-project-hub-slot'));
   }, []);
 
   const syncPanelPosition = useCallback(() => {
@@ -345,7 +344,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         aria-label={t(locale, 'transcription.projectHub.toggle')}
         title={t(locale, 'transcription.projectHub.toggle')}
       >
-        <FolderKanban size={17} aria-hidden="true" />
+        <Package aria-hidden className={JIEYU_LUCIDE_NAV} />
         <span>{t(locale, 'transcription.projectHub.shortTitle')}</span>
       </button>
       <input

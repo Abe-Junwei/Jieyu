@@ -1,6 +1,7 @@
 import React, { useId, useState, useCallback, useEffect, useMemo, memo } from 'react';
 import ReactDOM from 'react-dom';
 import { ChevronLeft, Plus, RotateCcw, X } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_PANEL, JIEYU_LUCIDE_PANEL_CLOSE_LG, JIEYU_LUCIDE_WAVE_MD } from '../utils/jieyuLucideIcon';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import type { LayerConstraint, LayerDocType } from '../db';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
@@ -459,7 +460,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const builderBreadcrumbTitle = (
     <span className="dialog-breadcrumb-title">
       <button type="button" className="dialog-breadcrumb-back" onClick={orthographyPicker.cancelCreate} aria-label={label}>
-        <ChevronLeft size={16} />
+        <ChevronLeft className={JIEYU_LUCIDE_PANEL} />
         <span>{label}</span>
       </button>
       <span className="dialog-breadcrumb-separator">/</span>
@@ -531,7 +532,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                 aria-label={actionMessages.resetForm}
                 title={actionMessages.resetForm}
               >
-                <RotateCcw size={15} />
+                <RotateCcw className={JIEYU_LUCIDE_WAVE_MD} />
               </button>
             )}
             <button
@@ -541,7 +542,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
               aria-label={`${label} ${actionMessages.cancel}`}
               title={`${label} ${actionMessages.cancel}`}
             >
-              <X size={18} />
+              <X className={JIEYU_LUCIDE_PANEL_CLOSE_LG} />
             </button>
           </>
         )}
@@ -658,7 +659,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                       onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                       title={actionMessages.createOrthography}
                     >
-                      <Plus size={14} />
+                      <Plus className={JIEYU_LUCIDE_INLINE} />
                       <span>{actionMessages.newOrthographyButton}</span>
                     </PanelButton>
                   </div>

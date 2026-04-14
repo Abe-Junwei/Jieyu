@@ -25,8 +25,6 @@ import {
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
-import { TrackFocusToolbarControls } from '../components/transcription/toolbar/TrackFocusToolbarControls';
-import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -44,6 +42,7 @@ import {
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useLayerSegments } from '../hooks/useLayerSegments';
 import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
+import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
@@ -249,9 +248,6 @@ function TranscriptionPageReadyWorkspace({
     aiPanelWidth,
     setAiPanelWidth,
     uiFontScale,
-    uiFontScaleMode,
-    setUiFontScale,
-    resetUiFontScale,
     uiTextDirection,
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
@@ -275,7 +271,6 @@ function TranscriptionPageReadyWorkspace({
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
-    activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
     searchOverlayRequest,
@@ -369,7 +364,6 @@ function TranscriptionPageReadyWorkspace({
     splitAtTimeRef,
     zoomToSegmentRef,
     utteranceRowRef,
-    speakerFocusTargetMemoryByMediaRef,
     overlapCycleTelemetryRef,
     manualSelectTsRef,
     tierContainerRef,
@@ -445,8 +439,6 @@ function TranscriptionPageReadyWorkspace({
     handleTimelineLaneHeightChange,
   });
 
-  const [speakerFocusMode, setSpeakerFocusMode] = useState<'all' | 'focus-soft' | 'focus-hard'>('all');
-  const [speakerFocusTargetKey, setSpeakerFocusTargetKey] = useState<string | null>(null);
   const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
 
@@ -533,7 +525,6 @@ function TranscriptionPageReadyWorkspace({
     resolveSegmentRoutingForLayer,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
     segmentsByLayer,
-    speakerFocusTargetKey,
     utterancesOnCurrentMedia,
     pushUndo,
     reloadSegments,
@@ -599,6 +590,17 @@ function TranscriptionPageReadyWorkspace({
     runMergePrev,
     runMergeNext,
     runSplitAtTime,
+  });
+
+  const timelineUnitViewIndex = useTimelineUnitViewIndex({
+    utterances,
+    utterancesOnCurrentMedia,
+    segmentsByLayer,
+    segmentContentByLayer,
+    currentMediaId: selectedTimelineMedia?.id,
+    activeLayerIdForEdits,
+    defaultTranscriptionLayerId,
+    utteranceCount: utterances.length,
   });
 
   const {
@@ -669,6 +671,7 @@ function TranscriptionPageReadyWorkspace({
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     segmentsByLayer,
     utterancesOnCurrentMedia,
+    timelineUnitViewIndex,
     selectedTimelineUnit,
     selectedTimelineUnitForTime,
     selectedUtteranceIds,
@@ -752,8 +755,6 @@ function TranscriptionPageReadyWorkspace({
   const {
     waveformAcousticRuntimeStatus,
     waveformVadCacheStatus,
-    bottomToolbarAcousticRuntimeStatus,
-    showBottomToolbarAiProgress,
     pinnedInspector,
     selectedHotspotTimeSec,
     acousticConfigOverride,
@@ -1247,11 +1248,6 @@ function TranscriptionPageReadyWorkspace({
     selectedSpeakerIdsForTrackLock,
     selectedSpeakerNamesForTrackLock,
     speakerNameById,
-    speakerFocusOptions,
-    resolvedSpeakerFocusTargetKey,
-    resolvedSpeakerFocusTargetName,
-    cycleSpeakerFocusMode,
-    handleSpeakerFocusTargetChange,
     handleOpenSpeakerManagementPanel,
     handleAssignSpeakerFromMenu,
   } = useTranscriptionSpeakerController({
@@ -1285,11 +1281,6 @@ function TranscriptionPageReadyWorkspace({
     resolveSpeakerActionUtteranceIds,
     speakerFilterOptionsForActions,
     segmentSpeakerAssignmentsOnCurrentMedia,
-    speakerFocusMode,
-    setSpeakerFocusMode,
-    speakerFocusTargetKey,
-    setSpeakerFocusTargetKey,
-    speakerFocusTargetMemoryByMediaRef,
     selectTimelineUnit,
     setSelectedUtteranceIds: _setSelectedUtteranceIds,
     reloadSegments,
@@ -1384,12 +1375,9 @@ function TranscriptionPageReadyWorkspace({
     handleLockSelectedSpeakersToLane,
     handleUnlockSelectedSpeakers,
     handleResetTrackAutoLayout,
-    trackModeLabel,
-    trackConflictLabel,
-    trackLockDiagnostics,
-    handleOpenLockConflictDetails,
   } = useTrackDisplayController({
     utterancesOnCurrentMedia,
+    timelineUnitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     timelineRenderUtterances,
     activeLayerIdForEdits,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
@@ -1431,8 +1419,6 @@ function TranscriptionPageReadyWorkspace({
     handleFocusLayerRow,
     layerLinks,
     showAllLayerConnectors,
-    activeTextPrimaryLanguageId,
-    activeTextPrimaryOrthographyId,
     handleToggleAllLayerConnectors,
     timelineLaneHeights,
     handleTimelineLaneHeightChange,
@@ -1445,8 +1431,6 @@ function TranscriptionPageReadyWorkspace({
     handleResetTrackAutoLayout,
     selectedSpeakerNamesForTrackLock,
     speakerLayerLayout,
-    speakerFocusMode,
-    resolvedSpeakerFocusTargetKey,
     activeSpeakerFilterKey,
     speakerQuickActions,
     handleLaneLabelWidthResizeStart,
@@ -1662,6 +1646,16 @@ function TranscriptionPageReadyWorkspace({
               <Suspense fallback={null}>
                 <TranscriptionPageToolbar
                   {...toolbarProps}
+                  leftToolbarExtras={(
+                    <>
+                      <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+                      <ObserverStatusSection
+                        observerStage={observerResult.stage}
+                        recommendations={actionableObserverRecommendations || []}
+                        onExecuteRecommendation={handleExecuteObserverRecommendation}
+                      />
+                    </>
+                  )}
                   acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}
                   vadCacheStatus={vadCacheStatus}
                 />
@@ -1855,13 +1849,7 @@ function TranscriptionPageReadyWorkspace({
                           deletableLayers,
                           layerCreateMessage,
                           layerAction,
-                          ...(activeTextPrimaryLanguageId ? { defaultLanguageId: activeTextPrimaryLanguageId } : {}),
-                          ...(activeTextPrimaryOrthographyId ? { defaultOrthographyId: activeTextPrimaryOrthographyId } : {}),
                           onReorderLayers: reorderLayers,
-                          uiFontScale,
-                          uiFontScaleMode,
-                          onUiFontScaleChange: setUiFontScale,
-                          onUiFontScaleReset: resetUiFontScale,
                         }}
                       />
                     </Suspense>
@@ -1912,31 +1900,6 @@ function TranscriptionPageReadyWorkspace({
                       onSnapEnabledChange={setSnapEnabled}
                       onAutoScrollEnabledChange={setAutoScrollEnabled}
                     />
-                    <div className="toolbar-sep toolbar-sep-compact-gap" />
-                    <TrackFocusToolbarControls
-                      trackModeLabel={trackModeLabel}
-                      laneLockCount={Object.keys(effectiveLaneLockMap).length}
-                      lockConflictCount={trackLockDiagnostics.count}
-                      lockConflictSpeakerNames={trackLockDiagnostics.speakerNames}
-                      trackConflictLabel={trackConflictLabel}
-                      onOpenLockConflictDetails={handleOpenLockConflictDetails}
-                      speakerFocusMode={speakerFocusMode}
-                      {...(resolvedSpeakerFocusTargetName ? { speakerFocusTargetName: resolvedSpeakerFocusTargetName } : {})}
-                      speakerFocusOptions={speakerFocusOptions}
-                      speakerFocusTargetKey={speakerFocusTargetKey ?? ''}
-                      onSpeakerFocusTargetKeyChange={handleSpeakerFocusTargetChange}
-                      onCycleSpeakerFocusMode={cycleSpeakerFocusMode}
-                    />
-                    {showBottomToolbarAiProgress ? <div className="toolbar-sep toolbar-sep-compact-gap" /> : null}
-                    <ToolbarAiProgress
-                      {...(bottomToolbarAcousticRuntimeStatus ? { acousticRuntimeStatus: bottomToolbarAcousticRuntimeStatus } : {})}
-                    />
-                    <div className="toolbar-sep toolbar-sep-compact-gap" />
-                    <ObserverStatusSection
-                      observerStage={observerResult.stage}
-                      recommendations={actionableObserverRecommendations || []}
-                      onExecuteRecommendation={handleExecuteObserverRecommendation}
-                    />
                   </ToolbarLeftSection>
                   <ToolbarRightSection
                     canUndo={canUndo}
@@ -1982,8 +1945,9 @@ function TranscriptionPageReadyWorkspace({
                     layerLinks,
                     getUtteranceTextForLayer,
                     formatTime,
-                    utteranceCount: state.phase === 'ready' ? state.utteranceCount : utterances.length,
-                    translationLayerCount: state.phase === 'ready' ? state.translationLayerCount : translationLayers.length,
+                    utteranceCount: utterances.length,
+                    timelineUnitViewIndex,
+                    translationLayerCount: translationLayers.length,
                     aiConfidenceAvg,
                     undoHistory,
                     createLayerWithActiveContext,
@@ -2021,6 +1985,7 @@ function TranscriptionPageReadyWorkspace({
                     setEmbeddingProviderConfig,
                     acousticConfigOverride,
                     acousticProviderPreference,
+                    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
                   }}
                   onRuntimeStateChange={handleDeferredAiRuntimeChange}
                 />

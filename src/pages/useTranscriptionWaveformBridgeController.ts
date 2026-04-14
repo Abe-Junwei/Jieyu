@@ -14,6 +14,7 @@ import { useZoom } from '../hooks/useZoom';
 import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
+import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import type {
   UseTranscriptionWaveformBridgeControllerInput,
   UseTranscriptionWaveformBridgeControllerResult,
@@ -92,6 +93,7 @@ export function useTranscriptionWaveformBridgeController(
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     segmentsByLayer: input.segmentsByLayer,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    ...(input.timelineUnitViewIndex ? { timelineUnitViewIndex: input.timelineUnitViewIndex } : {}),
     selectedTimelineUnit: input.selectedTimelineUnit,
     selectedUtteranceIds: input.selectedUtteranceIds,
   });
@@ -244,7 +246,9 @@ export function useTranscriptionWaveformBridgeController(
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
   } = useWaveformSignalOverlays({
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    utterancesOnCurrentMedia: input.timelineUnitViewIndex
+      ? timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits)
+      : input.utterancesOnCurrentMedia,
     ...(vadSegments ? { vadSegments } : {}),
     waveformTimelineItems,
     activeLayerIdForEdits: input.activeLayerIdForEdits,

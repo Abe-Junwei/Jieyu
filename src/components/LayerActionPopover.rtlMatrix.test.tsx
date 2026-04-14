@@ -100,17 +100,11 @@ describe('LayerActionPopover RTL matrix', () => {
   it.each([
     { direction: 'ltr' as const },
     { direction: 'rtl' as const },
-  ])('keeps confirm/cancel/close interaction order stable in $direction mode', async ({ direction }) => {
+  ])('completes create flow then supports header close without create in $direction mode', async ({ direction }) => {
     resolveTextDirectionFromLocaleMock.mockReturnValue(direction);
 
-    const events: string[] = [];
-    const createLayer = vi.fn(async () => {
-      events.push('confirm');
-      return true;
-    });
-    const onClose = vi.fn(() => {
-      events.push('close');
-    });
+    const createLayer = vi.fn(async () => true);
+    const onClose = vi.fn();
 
     renderWithLocale(
       <LayerActionPopover
@@ -126,6 +120,8 @@ describe('LayerActionPopover RTL matrix', () => {
 
     const languageCodeInput = screen.getByRole('textbox', { name: /language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'cmn' } });
+    const mandarinOption = screen.getByRole('option', { name: /Mandarin/ });
+    fireEvent.click(mandarinOption);
 
     const createButton = screen.getByRole('button', { name: /^new transcription layer$/i });
     fireEvent.click(createButton);
@@ -135,13 +131,24 @@ describe('LayerActionPopover RTL matrix', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    const cancelButton = screen.getByRole('button', { name: /^new transcription layer cancel$/i });
-    events.push('cancel-click');
-    fireEvent.click(cancelButton);
+    cleanup();
 
-    events.push('close-click');
-    fireEvent.click(cancelButton);
+    const createLayerB = vi.fn(async () => false);
+    const onCloseB = vi.fn();
+    renderWithLocale(
+      <LayerActionPopover
+        action="create-transcription"
+        layerId={undefined}
+        deletableLayers={[]}
+        createLayer={createLayerB}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={onCloseB}
+      />,
+      'en-US',
+    );
 
-    expect(events).toEqual(['confirm', 'close', 'cancel-click', 'close', 'close-click', 'close']);
+    fireEvent.click(screen.getByRole('button', { name: /New Transcription Layer Cancel/i }));
+    expect(onCloseB).toHaveBeenCalledTimes(1);
+    expect(createLayerB).not.toHaveBeenCalled();
   });
 });

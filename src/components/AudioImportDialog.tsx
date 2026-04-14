@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Upload, FileAudio, FileVideo } from 'lucide-react';
+import { JIEYU_LUCIDE_HERO } from '../utils/jieyuLucideIcon';
 import { t, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { ModalPanel, PanelButton, PanelFeedback } from './ui';
@@ -118,7 +119,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           >
             {selectedFile ? (
               <>
-                {isVideoFile ? <FileVideo size={28} /> : <FileAudio size={28} />}
+                {isVideoFile ? <FileVideo className={JIEYU_LUCIDE_HERO} /> : <FileAudio className={JIEYU_LUCIDE_HERO} />}
                 <strong>{selectedFile.name}</strong>
                 <span className="small-text">
                   {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
@@ -127,7 +128,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
               </>
             ) : (
               <>
-                <Upload size={28} />
+                <Upload className={JIEYU_LUCIDE_HERO} />
                 <strong>{t(locale, 'transcription.importDialog.selectMedia')}</strong>
                 <span className="small-text">{t(locale, 'transcription.importDialog.supportedFormats')}</span>
               </>

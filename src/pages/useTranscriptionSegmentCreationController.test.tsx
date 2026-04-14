@@ -99,7 +99,6 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     }),
     selectedTimelineMedia: makeMedia(),
     segmentsByLayer: new Map([['layer-seg', [makeSegment('seg-a', 'layer-seg', 0, 1), makeSegment('seg-b', 'layer-seg', 3, 4)]]]),
-    speakerFocusTargetKey: null,
     utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.1, 2.5, 'spk-parent')],
     pushUndo: vi.fn(),
     reloadSegments: vi.fn(async () => undefined),
@@ -126,12 +125,11 @@ describe('useTranscriptionSegmentCreationController', () => {
     window.localStorage.removeItem('jieyu:new-segment-selection-behavior');
   });
 
-  it('creates independent segments with overlapping utterance linkage and focused speaker', async () => {
+  it('creates independent segments with overlapping utterance linkage and inherits overlapping utterance speaker', async () => {
     const pushUndo = vi.fn();
     const selectTimelineUnit = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
-      speakerFocusTargetKey: 'spk-focus',
       pushUndo,
       selectTimelineUnit,
       setSaveState,
@@ -147,7 +145,7 @@ describe('useTranscriptionSegmentCreationController', () => {
       startTime: 1.2,
       endTime: 2.4,
       utteranceId: 'utt-1',
-      speakerId: 'spk-focus',
+      speakerId: 'spk-parent',
     }));
     expect(selectTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
       layerId: 'layer-seg',
@@ -277,7 +275,6 @@ describe('useTranscriptionSegmentCreationController', () => {
         sourceLayerId: '',
         editMode: 'utterance',
       }),
-      speakerFocusTargetKey: 'spk-focus',
       utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2, 'spk-focus')],
       createNextUtterance,
       createUtteranceFromSelection,
@@ -288,7 +285,6 @@ describe('useTranscriptionSegmentCreationController', () => {
     });
 
     expect(createUtteranceFromSelection).toHaveBeenCalledWith(4, 5, {
-      speakerId: 'spk-focus',
       focusedLayerId: 'layer-seg',
       selectionBehavior: 'select-created',
     });

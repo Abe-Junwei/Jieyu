@@ -48,8 +48,8 @@ describe('AiChatMetricsBar', () => {
     expect(root.textContent).toContain('Cancel 1');
     expect(root.textContent).toContain('Explain 1');
     expect(root.textContent).toContain('Recover 1');
-    expect(root.textContent).toContain('In 120');
-    expect(root.textContent).toContain('Out 88');
+    expect(root.textContent).toContain('Prompt 120');
+    expect(root.textContent).toContain('Gen 88');
     expect(root.textContent).toContain('Turn 34');
     expect(screen.getByTitle('Last tool').textContent).toContain('Delete Layer');
   });

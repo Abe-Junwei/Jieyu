@@ -75,6 +75,53 @@
   overflow: hidden;
 }
 
+.left-rail-context-actions-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: auto;
+  overflow-x: hidden;
+  gap: 2px;
+}
+
+.left-rail-layer-actions-root {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.left-rail-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.app-left-rail-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider-subtle);
+}
+
+.left-rail-project-hub-anchor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.left-rail-resources-root {
+  position: relative;
+  width: 100%;
+}
+
 .app-side-pane {
   position: absolute;
   left: var(--left-rail-offset);

@@ -44,7 +44,7 @@ describe('Agent Loop multi-step integration', () => {
   it('stops on mixed ok/failed results within a batch', () => {
     const mixed = [
       { ok: true, name: 'get_project_stats' as const, result: { segments: 42 } },
-      { ok: false, name: 'search_utterances' as const, result: null, error: 'query is required' },
+      { ok: false, name: 'get_utterance_detail' as const, result: null, error: 'utteranceId is required' },
     ];
     expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, mixed)).toBe(false);
   });
@@ -236,7 +236,11 @@ describe('Local context tool execution chain', () => {
     const call: LocalContextToolCall = { name: 'get_current_selection', arguments: {} };
     const result = await executeLocalContextToolCall(call, mockContext, { current: 0 });
     expect(result.ok).toBe(true);
-    expect(result.result).toEqual(mockContext.shortTerm);
+    expect(result.result).toEqual({
+      ...mockContext.shortTerm,
+      projectUnitCount: mockContext.longTerm!.projectStats!.utteranceCount,
+      projectUtteranceCount: mockContext.longTerm!.projectStats!.utteranceCount,
+    });
   });
 
   it('get_project_stats returns long-term stats', async () => {

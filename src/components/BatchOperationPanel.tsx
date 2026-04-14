@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { JIEYU_LUCIDE_PANEL_CLOSE_LG } from '../utils/jieyuLucideIcon';
 import type { UtteranceDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
@@ -612,7 +613,7 @@ export function BatchOperationPanel({
               aria-label={messages.close}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <X size={18} />
+              <X className={JIEYU_LUCIDE_PANEL_CLOSE_LG} />
             </button>
           </>
         )}

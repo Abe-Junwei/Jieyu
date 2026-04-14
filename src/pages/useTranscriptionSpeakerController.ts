@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type {
   LayerDocType,
   LayerSegmentContentDocType,
@@ -13,9 +13,6 @@ import type { SaveState, TimelineUnit, TimelineUnitKind } from '../hooks/transcr
 import { isDictKey, t as translate, tf as formatMessage, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
-import { useSpeakerFocusController } from './useSpeakerFocusController';
-
-type SpeakerFocusMode = 'all' | 'focus-soft' | 'focus-hard';
 type SegmentUpdater = (segment: LayerSegmentDocType) => LayerSegmentDocType;
 
 interface UseTranscriptionSpeakerControllerInput {
@@ -52,11 +49,6 @@ interface UseTranscriptionSpeakerControllerInput {
   resolveSpeakerActionUtteranceIds: (ids: Iterable<string>) => string[];
   speakerFilterOptionsForActions: SpeakerFilterOption[];
   segmentSpeakerAssignmentsOnCurrentMedia: Array<{ speakerKey: string }>;
-  speakerFocusMode: SpeakerFocusMode;
-  setSpeakerFocusMode: Dispatch<SetStateAction<SpeakerFocusMode>>;
-  speakerFocusTargetKey: string | null;
-  setSpeakerFocusTargetKey: Dispatch<SetStateAction<string | null>>;
-  speakerFocusTargetMemoryByMediaRef: MutableRefObject<Record<string, string | null>>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   setSelectedUtteranceIds: Dispatch<SetStateAction<Set<string>>>;
   reloadSegments: () => Promise<void>;
@@ -222,30 +214,6 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     openSpeakerManagementPanel: handleOpenSpeakerManagementPanel,
   });
 
-  const {
-    speakerFocusOptions,
-    resolvedSpeakerFocusTargetKey,
-    resolvedSpeakerFocusTargetName,
-    cycleSpeakerFocusMode,
-    handleSpeakerFocusTargetChange,
-  } = useSpeakerFocusController({
-    speakerFocusMode: input.speakerFocusMode,
-    setSpeakerFocusMode: input.setSpeakerFocusMode,
-    speakerFocusTargetKey: input.speakerFocusTargetKey,
-    setSpeakerFocusTargetKey: input.setSpeakerFocusTargetKey,
-    speakerFocusTargetMemoryByMediaRef: input.speakerFocusTargetMemoryByMediaRef,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    segmentSpeakerAssignmentsOnCurrentMedia: input.segmentSpeakerAssignmentsOnCurrentMedia,
-    speakerOptions,
-    selectedTimelineMediaId: input.selectedTimelineMediaId,
-    selectedTimelineUnit: input.selectedTimelineUnit,
-    selectedUtterance: input.selectedUtterance,
-    segmentByIdForSpeakerActions: input.segmentByIdForSpeakerActions,
-    resolveSpeakerKeyForSegment: input.resolveSpeakerKeyForSegment,
-    getUtteranceSpeakerKey: input.getUtteranceSpeakerKey,
-    speakerByIdMap,
-  });
-
   const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {
     if (kind === 'segment') {
       fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));
@@ -289,11 +257,6 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     selectedSpeakerNamesForTrackLock,
     speakerByIdMap,
     speakerNameById,
-    speakerFocusOptions,
-    resolvedSpeakerFocusTargetKey,
-    resolvedSpeakerFocusTargetName,
-    cycleSpeakerFocusMode,
-    handleSpeakerFocusTargetChange,
     handleOpenSpeakerManagementPanel,
     handleAssignSpeakerFromMenu,
   };

@@ -1,5 +1,16 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { AudioLines, BookType, Brain, FolderKanban, GitBranch, Languages, Settings, StickyNote, type LucideIcon } from 'lucide-react';
+import {
+  AudioLines,
+  BookMarked,
+  BookType,
+  Brain,
+  FolderKanban,
+  GitBranch,
+  Languages,
+  Settings,
+  StickyNote,
+  type LucideIcon,
+} from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
@@ -11,9 +22,13 @@ import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type 
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
+import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
+import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { ModalPanel } from './components/ui/ModalPanel';
 import { AssetPanelProvider, type AssetPanelContextValue, type LanguageAssetPanel } from './contexts/AssetPanelContext';
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
+import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
+import { JIEYU_LUCIDE_NAV } from './utils/jieyuLucideIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -180,7 +195,7 @@ export function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const assetPanelFromRoute = useMemo(() => mapAssetPathToPanel(location.pathname), [location.pathname]);
-  const isTranscriptionRoute = location.pathname.startsWith('/transcription') || assetPanelFromRoute !== 'none';
+  const isTranscriptionRoute = isTranscriptionWorkspacePathname(location.pathname);
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
@@ -377,7 +392,7 @@ export function App() {
         {
           to: '/lexicon',
           label: t(locale, 'app.nav.lexicon'),
-          icon: Languages,
+          icon: BookMarked,
           summary: t(locale, 'app.nav.summary.lexicon'),
         },
       ],
@@ -489,12 +504,6 @@ export function App() {
     setIsSidePaneCollapsed((prev) => !prev);
   }, []);
 
-  const handleLocaleToggle = useCallback(() => {
-    const nextLocale: Locale = locale === 'zh-CN' ? 'en-US' : 'zh-CN';
-    setStoredLocalePreference(nextLocale);
-    setLocale(nextLocale);
-  }, [locale]);
-
   const handleLocaleChange = useCallback((nextLocale: Locale) => {
     setStoredLocalePreference(nextLocale);
     setLocale(nextLocale);
@@ -555,7 +564,7 @@ export function App() {
           >
             <div ref={shellBodyRef} className="app-shell-body">
             <aside className="app-left-rail" aria-label={t(locale, 'app.leftRail.aria.navigation')}>
-              <div className="app-left-rail-group">
+              <nav className="app-left-rail-group app-left-rail-primary" aria-label={t(locale, 'app.navGroup.core')}>
                 {primaryNavItems.map((item) => {
                   const ItemIcon = item.icon;
                   return (
@@ -568,57 +577,52 @@ export function App() {
                       title={item.label}
                       aria-label={item.label}
                     >
-                      <ItemIcon size={17} aria-hidden="true" />
+                      <ItemIcon aria-hidden className={JIEYU_LUCIDE_NAV} />
                       <span>{item.label}</span>
                     </NavLink>
                   );
                 })}
-              </div>
-              <div className="app-left-rail-secondary" aria-label={t(locale, 'app.leftRail.aria.languageAssets')}>
-                <p className="app-left-rail-section-label">{t(locale, 'app.navGroup.language')}</p>
-                <div className="app-left-rail-group">
-                  {secondaryNavItems.map((item) => {
-                    const ItemIcon = item.icon;
-                    return (
-                      <button
-                        key={item.to}
-                        type="button"
-                        className={isAssetPanelActive(item.to) ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'}
-                        title={item.label}
-                        aria-label={item.label}
-                        onClick={() => handleAssetPanelToggle(item.to)}
-                      >
-                        <ItemIcon size={17} aria-hidden="true" />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              </nav>
               <div
-                id="left-rail-bottom-slot"
                 className="app-left-rail-bottom-slot"
-                aria-label={t(locale, 'app.leftRail.aria.quickActions')}
-              />
-              <button
-                type="button"
-                className="left-rail-btn left-rail-btn-utility"
-                aria-label={locale === 'zh-CN' ? t(locale, 'app.locale.switchToEnglish') : t(locale, 'app.locale.switchToChinese')}
-                title={locale === 'zh-CN' ? t(locale, 'app.locale.switchToEnglish') : t(locale, 'app.locale.switchToChinese')}
-                onClick={handleLocaleToggle}
+                aria-hidden={!isTranscriptionRoute}
+                {...(isTranscriptionRoute
+                  ? { 'aria-label': t(locale, 'app.leftRail.aria.contextSlot') }
+                  : {})}
               >
-                <Languages size={17} aria-hidden="true" />
-                <span>{locale === 'zh-CN' ? 'EN' : 'ZH'}</span>
-              </button>
-              <button
-                type="button"
-                className="left-rail-btn left-rail-btn-utility"
-                aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
-                title={t(locale, 'transcription.voiceWidget.settings.button')}
-                onClick={handleSettingsOpen}
-              >
-                <Settings size={17} aria-hidden="true" />
-              </button>
+                {isTranscriptionRoute ? (
+                  <div
+                    id={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                    className="left-rail-context-actions-host"
+                    data-testid={LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID}
+                  />
+                ) : null}
+              </div>
+              <div className="app-left-rail-footer" aria-label={t(locale, 'app.leftRail.aria.footer')}>
+                <div
+                  id="left-rail-project-hub-slot"
+                  className="left-rail-project-hub-anchor"
+                  aria-hidden="true"
+                />
+                <LeftRailResourcesMenu
+                  locale={locale}
+                  items={secondaryNavItems.map((item) => ({
+                    to: item.to,
+                    label: item.label,
+                  }))}
+                  isItemActive={isAssetPanelActive}
+                  onPick={handleAssetPanelToggle}
+                />
+                <button
+                  type="button"
+                  className="left-rail-btn left-rail-btn-utility"
+                  aria-label={t(locale, 'transcription.voiceWidget.settings.button')}
+                  title={t(locale, 'transcription.voiceWidget.settings.button')}
+                  onClick={handleSettingsOpen}
+                >
+                  <Settings aria-hidden className={JIEYU_LUCIDE_NAV} />
+                </button>
+              </div>
             </aside>
 
             <AppShellSidePane

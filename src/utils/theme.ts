@@ -117,13 +117,13 @@ export const THEMES: ThemeInfo[] = [
   {
     id: 'googleLightModern',
     name: 'Light Modern',
-    subtitle: 'Google 中性灰 × Google Blue',
+    subtitle: 'Google 浅色 × Slate + Blue 深色',
     description:
-      'Google 产品常见中性灰阶 + Google Blue（浅 #1A73E8 / 深 #8AB4F8）。官方无单独名为 Light Modern 的固定色板，按 Material 系公开色落地。',
+      '浅色仍为 Google Material 中性灰 + Google Blue。深色模式对齐专业音频桌面参考稿：Tailwind Slate（950/900 层次、700/800 边线）+ Tailwind Blue（400/500 强调与信息态），替代原 Google 深灰 + #8AB4F8。',
     swatchLight: '#1A73E8',
-    swatchDark: '#8AB4F8',
+    swatchDark: '#60A5FA',
     bgLight: '#F8F9FA',
-    bgDark: '#202124',
+    bgDark: '#0F172A',
   },
   {
     id: 'solarizedDark',

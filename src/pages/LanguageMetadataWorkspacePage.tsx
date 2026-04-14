@@ -1,6 +1,7 @@
 import '../styles/pages/language-metadata-workspace.css';
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyPanelLink } from '../components/OrthographyPanelLink';
@@ -485,7 +486,7 @@ export function LanguageMetadataWorkspacePage({
       aria-label={t(locale, 'transcription.importDialog.close')}
       title={t(locale, 'transcription.importDialog.close')}
     >
-      <X size={16} />
+      <X className={JIEYU_LUCIDE_PANEL} />
     </button>
   ) : undefined;
 

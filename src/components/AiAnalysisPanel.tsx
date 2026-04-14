@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Bot, WandSparkles } from 'lucide-react';
+import { JIEYU_LUCIDE_AI_PANEL, JIEYU_LUCIDE_AI_PANEL_SM } from '../utils/jieyuLucideIcon';
 import { t, tf, useLocale } from '../i18n';
 import { useAiPanelContext } from '../contexts/AiPanelContext';
 import { AiEmbeddingCard } from './ai/AiEmbeddingCard';
@@ -577,7 +578,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
     <div className="pnl-analysis-panel panel-design-match-content" data-ai-analysis-panel="true">
       <div className="transcription-analysis-panel-header">
         <div className="transcription-ai-header-title">
-          <Bot size={14} />
+          <Bot aria-hidden className={JIEYU_LUCIDE_AI_PANEL} />
           <span className="transcription-analysis-toolbar-title">{t(locale, 'ai.header.title')}</span>
         </div>
         <div className="transcription-ai-mode-switch" role="group" aria-label={t(locale, 'ai.header.modeSwitch')}>
@@ -642,7 +643,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
                 </div>
                 <div className="transcription-analysis-stats-row transcription-analysis-stats-row-accent">
                   <span className="transcription-analysis-stats-label transcription-analysis-stats-label-accent">
-                    <WandSparkles size={12} />
+                    <WandSparkles aria-hidden className={JIEYU_LUCIDE_AI_PANEL_SM} />
                     <span>{currentTaskLabel}</span>
                   </span>
                   <span className="transcription-analysis-stats-value">

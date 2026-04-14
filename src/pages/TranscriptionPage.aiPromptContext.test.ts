@@ -1,6 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import { buildTranscriptionAiPromptContext, buildUtteranceTimelineDigest } from './TranscriptionPage.aiPromptContext';
 import { buildPromptContextBlock } from '../ai/chat/promptContext';
+
+const MOCK_UTTERANCE_DIGEST_ROWS = [
+  { id: 'utt-1', startTime: 0, endTime: 35.1, transcription: 'Hello world' },
+  { id: 'utt-2', startTime: 35.1, endTime: 48.4, transcription: 'Second segment' },
+  { id: 'utt-3', startTime: 48.4, endTime: 59.9 },
+  { id: 'utt-4', startTime: 59.9, endTime: 73.3, transcription: 'Fourth' },
+  { id: 'utt-5', startTime: 73.3, endTime: 86.7, transcription: 'Fifth segment text' },
+  { id: 'utt-6', startTime: 86.7, endTime: 100.1, transcription: 'Sixth' },
+];
+
+const MOCK_CURRENT_MEDIA_UNITS: TimelineUnitView[] = MOCK_UTTERANCE_DIGEST_ROWS.map((u) => ({
+  id: u.id,
+  kind: 'utterance',
+  mediaId: 'media-1',
+  layerId: 'layer-1',
+  startTime: u.startTime,
+  endTime: u.endTime,
+  text: u.transcription ?? '',
+}));
 
 describe('buildTranscriptionAiPromptContext', () => {
   it('injects acousticSummary into longTerm context without frame arrays', () => {
@@ -20,6 +40,7 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: null,
       },
       selectedUnitIds: ['utt-1'],
+      currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
       utteranceCount: 12,
       translationLayerCount: 2,
       aiConfidenceAvg: 0.91,
@@ -67,8 +88,18 @@ describe('buildTranscriptionAiPromptContext', () => {
 
     expect(context.longTerm).toBeDefined();
     expect(JSON.stringify(context.longTerm)).not.toContain('frames');
+    expect(context.shortTerm?.projectUtteranceCount).toBe(12);
+    expect(context.shortTerm?.utterancesOnCurrentMediaCount).toBe(6);
+    expect(context.shortTerm?.utteranceTimeline).toContain('#1');
+    expect(context.shortTerm?.utteranceTimeline).toContain('Hello world');
 
     const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('projectUtteranceCount=12 [authoritative');
+    expect(block).toContain('currentTrack.utteranceCount=6 [current audio track only');
+    expect(block).toContain('utteranceTimeline=');
+    expect(block).toContain('[current audio track digest; #N are line indices, not utterance ids]');
+    expect(block).toContain('selectedUnitStartSec=1.20');
+    expect(block).toContain('selectedUnitEndSec=3.40');
     expect(block).toContain('acousticSummary(');
     expect(block).toContain('selectionSec=1.20-3.40');
     expect(block).toContain('f0Mean=195');
@@ -83,5 +114,151 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('formantF2Mean=1760');
     expect(block).toContain('runtime=yin-v2-spectral@16000Hz');
     expect(block).toContain('hotspots=pitch_break@2.10s|intensity_peak@2.80s');
+    expect(block).toContain('waveformAnalysis(trackLowConfidence=0, trackOverlaps=0, trackGaps=1, trackMaxGapSec=0.4');
+  });
+
+  it('sets localUtteranceIndex from projectUnitsForTools without serializing it into [CONTEXT]', () => {
+    const projectUnitsForTools: TimelineUnitView[] = [
+      { id: 'u1', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'alpha', textId: 't1' },
+      { id: 'u2', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 4, text: 'beta' },
+    ];
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: null,
+        selectedRowMeta: null,
+        selectedUnitKind: 'utterance',
+        selectedUnitStartSec: 0,
+        selectedUnitEndSec: 1,
+        selectedLayerId: 'layer-1',
+        selectedLayerType: 'transcription',
+        selectedTranscriptionLayerId: 'layer-1',
+        selectedText: '',
+        selectedTimeRangeLabel: '',
+        timelineUnit: null,
+      },
+      selectedUnitIds: [],
+      currentMediaUnits: [],
+      projectUnitsForTools,
+      utteranceCount: 2,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      recentEdits: [],
+    });
+
+    expect(context.shortTerm?.localUtteranceIndex).toHaveLength(2);
+    expect(context.shortTerm?.localUtteranceIndex?.[0]).toMatchObject({
+      id: 'u1',
+      textId: 't1',
+      mediaId: 'm1',
+      transcription: 'alpha',
+    });
+    const secondRow = context.shortTerm?.localUtteranceIndex?.[1] as { transcription?: string } | undefined;
+    expect(secondRow?.transcription).toBe('beta');
+
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).not.toContain('localUtteranceIndex');
+    expect(block).not.toContain('alpha');
+  });
+
+  it('renders a stable scope snapshot for project/current-track/selection', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: null,
+        selectedRowMeta: null,
+        selectedUnitKind: 'segment',
+        selectedUnitStartSec: 1.2,
+        selectedUnitEndSec: 1.9,
+        selectedLayerId: 'layer-1',
+        selectedLayerType: 'transcription',
+        selectedTranscriptionLayerId: 'layer-1',
+        selectedText: 'alpha',
+        selectedTimeRangeLabel: '00:01.2-00:01.9',
+        timelineUnit: { layerId: 'layer-1', unitId: 'seg-1', kind: 'segment' },
+      },
+      selectedUnitIds: ['seg-1'],
+      currentMediaUnits: [],
+      utteranceCount: 4,
+      translationLayerCount: 1,
+      aiConfidenceAvg: 0.912,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      recentEdits: [],
+    });
+
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('projectUnitCount=4 [authoritative');
+    expect(block).toContain('currentTrack.unitCount=0 [current audio track only');
+    expect(block).toContain('projectUtteranceCount=4 [authoritative');
+    expect(block).toContain('projectStats(units=4, translationLayers=1, aiConfidenceAvg=0.912)');
+  });
+
+  it('keeps scope-critical ShortTerm counters when context block is trimmed', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUtteranceUnitId: 'utt-1',
+        selectedUtterance: null,
+        selectedRowMeta: null,
+        selectedUnitKind: 'utterance',
+        selectedUnitStartSec: 0,
+        selectedUnitEndSec: 1,
+        selectedLayerId: 'layer-1',
+        selectedLayerType: 'transcription',
+        selectedTranscriptionLayerId: 'layer-1',
+        selectedText: 'trim-check',
+        selectedTimeRangeLabel: '00:00.0-00:01.0',
+        timelineUnit: null,
+      },
+      selectedUnitIds: ['utt-1'],
+      currentMediaUnits: [],
+      utteranceCount: 4,
+      translationLayerCount: 2,
+      aiConfidenceAvg: 0.5,
+      observerStage: 'review',
+      topLexemes: ['x'.repeat(120)],
+      recommendations: ['y'.repeat(220)],
+      recentEdits: ['z'.repeat(120)],
+    });
+
+    const block = buildPromptContextBlock(context, 420);
+    expect(block).toContain('projectUnitCount=4 [authoritative');
+    expect(block).toContain('currentTrack.unitCount=0 [current audio track only');
+    expect(block).toContain('projectUtteranceCount=4 [authoritative');
+    expect(block).not.toContain('recommendations=');
+  });
+});
+
+describe('buildUtteranceTimelineDigest', () => {
+  it('returns empty string for empty array', () => {
+    expect(buildUtteranceTimelineDigest([])).toBe('');
+  });
+
+  it('formats utterances with time ranges and truncated text', () => {
+    const result = buildUtteranceTimelineDigest(MOCK_UTTERANCE_DIGEST_ROWS);
+    expect(result).toContain('#1 00:00.0');
+    expect(result).toContain('#3');
+    expect(result).toContain('#6');
+    expect(result).not.toContain('#7');
+  });
+
+  it('omits text for utterances without transcription', () => {
+    const result = buildUtteranceTimelineDigest([
+      { id: 'a', startTime: 0, endTime: 5 },
+    ]);
+    expect(result).toContain('#1 00:00.0');
+    expect(result).not.toContain('"');
+  });
+
+  it('truncates text longer than 30 characters', () => {
+    const result = buildUtteranceTimelineDigest([
+      { id: 'a', startTime: 0, endTime: 5, transcription: 'A'.repeat(50) },
+    ]);
+    expect(result).toContain('A'.repeat(30));
+    expect(result).toContain('\u2026');
   });
 });

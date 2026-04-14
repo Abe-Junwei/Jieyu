@@ -473,7 +473,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(pointerDown.defaultPrevented).toBe(false);
   });
 
-  it('hides non-target utterances in focus-hard mode', () => {
+  it('renders multiple utterance editors without speaker-focus hidden styling', () => {
     const layer = makeLayer('trc-1');
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
@@ -496,8 +496,6 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         navigateUtteranceFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        speakerFocusMode="focus-hard"
-        speakerFocusSpeakerKey="s1"
         speakerVisualByUtteranceId={{
           u1: { name: 'S1', color: '#ff0000' },
           u2: { name: 'S2', color: '#00ff00' },
@@ -506,10 +504,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
 
     expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(2);
-    const dimmed = document.querySelectorAll('.timeline-text-item-focus-dim');
-    expect(dimmed.length).toBe(0);
-    const hidden = container.querySelectorAll('.timeline-text-item-focus-hidden');
-    expect(hidden.length).toBe(1);
+    expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(0);
+    expect(container.querySelectorAll('.timeline-text-item-focus-dim').length).toBe(0);
   });
 
   it('does not use independent segment highlighting in single-axis mode', () => {
@@ -602,12 +598,11 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         navigateUtteranceFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        speakerFocusMode="focus-hard"
-        speakerFocusSpeakerKey="s2"
       />,
     );
 
-    expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(1);
+    expect(screen.getAllByRole('textbox').length).toBeGreaterThanOrEqual(1);
+    expect(container.querySelectorAll('.timeline-text-item-focus-hidden').length).toBe(0);
   });
 
   it('shows speaker badge for independent segments when unit visuals include segment ids', () => {

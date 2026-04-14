@@ -1,6 +1,14 @@
-import { Children, memo, type ReactNode } from 'react';
-import { FastForward, Pause, Play, Repeat, Rewind, Trash2, Volume2, Zap } from 'lucide-react';
+import { Children, memo, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, FastForward, Pause, Play, Repeat, Rewind, SlidersHorizontal, Trash2, Volume2, Zap } from 'lucide-react';
 import { t, tf, useLocale } from '../i18n';
+import {
+  jieyuLucideClass,
+  JIEYU_LUCIDE_WAVE,
+  JIEYU_LUCIDE_WAVE_MD,
+  JIEYU_LUCIDE_WAVE_PLAY,
+  JIEYU_LUCIDE_WAVE_TRIGGER,
+  JIEYU_LUCIDE_WAVE_TRIGGER_CHEVRON,
+} from '../utils/jieyuLucideIcon';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -29,6 +37,8 @@ interface WaveformToolbarProps {
   autoSegmentBusy?: boolean;
   autoSegmentRunTitle?: string;
   autoSegmentRunningTitle?: string;
+  /** 主控件行尾部（轨道/聚焦、Observer 等）| Trailing cluster on the main toolbar row */
+  leftToolbarExtras?: ReactNode;
   children?: ReactNode;
 }
 
@@ -56,10 +66,40 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   autoSegmentBusy,
   autoSegmentRunTitle,
   autoSegmentRunningTitle,
+  leftToolbarExtras,
   children,
 }: WaveformToolbarProps) {
   const locale = useLocale();
   const hasRightControls = Children.toArray(children).length > 0;
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
+  const viewOptionsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const viewOptionsPanelId = useId();
+  const viewOptionsDialogTitleId = useId();
+  const viewOptionsCanvasLabelId = useId();
+  const viewOptionsOverlayLabelId = useId();
+  const viewOptionsStyleLabelId = useId();
+
+  const closeViewOptions = useCallback(() => setViewOptionsOpen(false), []);
+
+  useEffect(() => {
+    if (!viewOptionsOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeViewOptions();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [viewOptionsOpen, closeViewOptions]);
+
+  useEffect(() => {
+    if (!viewOptionsOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = viewOptionsAnchorRef.current;
+      if (!root || root.contains(event.target as Node)) return;
+      closeViewOptions();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [viewOptionsOpen, closeViewOptions]);
 
   return (
     <div className={`transcription-wave-toolbar transcription-wave-toolbar-shell${hasRightControls ? ' transcription-wave-toolbar-shell-has-right-controls' : ''}`}>
@@ -70,7 +110,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           </div>
         </div>
         <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')} aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}>
-          <Rewind size={16} />
+          <Rewind aria-hidden className={JIEYU_LUCIDE_WAVE} />
         </button>
         <button
           className="play-btn"
@@ -79,10 +119,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           aria-label={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
           title={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
         >
-          {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+          {isPlaying ? <Pause aria-hidden className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Play aria-hidden className={JIEYU_LUCIDE_WAVE_PLAY} />}
         </button>
         <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')} aria-label={t(locale, 'transcription.wave.toolbar.forward10')}>
-          <FastForward size={16} />
+          <FastForward aria-hidden className={JIEYU_LUCIDE_WAVE} />
         </button>
         <select
           className="speed-select"
@@ -97,56 +137,104 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           <option value="1.5">1.5x</option>
           <option value="2">2.0x</option>
         </select>
-        <select
-          className="speed-select transcription-wave-toolbar-mode-select"
-          value={waveformDisplayMode}
-          onChange={(event) => onWaveformDisplayModeChange(event.target.value as WaveformDisplayMode)}
-          aria-label={t(locale, 'transcription.wave.toolbar.displayMode')}
-          title={t(locale, 'transcription.wave.toolbar.displayMode')}
-        >
-          {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
-            <option key={mode} value={mode}>
-              {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="speed-select transcription-wave-toolbar-style-select"
-          value={acousticOverlayMode}
-          onChange={(event) => onAcousticOverlayModeChange(event.target.value as AcousticOverlayMode)}
-          aria-label={t(locale, 'transcription.wave.toolbar.acousticOverlay')}
-          title={t(locale, 'transcription.wave.toolbar.acousticOverlay')}
-        >
-          {ACOUSTIC_OVERLAY_MODES.map((mode) => (
-            <option key={mode} value={mode}>
-              {t(locale, `transcription.wave.toolbar.acousticOverlay.${mode}` as const)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="speed-select transcription-wave-toolbar-style-select"
-          value={waveformVisualStyle}
-          onChange={(event) => onWaveformVisualStyleChange(event.target.value as WaveformVisualStyle)}
-          aria-label={t(locale, 'transcription.wave.toolbar.visualStyle')}
-          title={t(locale, 'transcription.wave.toolbar.visualStyle')}
-          disabled={waveformDisplayMode === 'spectrogram'}
-        >
-          {WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => (
-            <option key={style} value={style}>
-              {t(locale, `transcription.wave.toolbar.visualStyle.${style}` as const)}
-            </option>
-          ))}
-        </select>
+        <div className="waveform-view-options-anchor" ref={viewOptionsAnchorRef}>
+          <button
+            type="button"
+            className="waveform-view-options-trigger"
+            aria-expanded={viewOptionsOpen}
+            aria-controls={viewOptionsPanelId}
+            aria-haspopup="dialog"
+            title={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
+            onClick={() => setViewOptionsOpen((open) => !open)}
+          >
+            <SlidersHorizontal aria-hidden className={JIEYU_LUCIDE_WAVE_TRIGGER} />
+            <span>{t(locale, 'transcription.wave.toolbar.viewOptions.trigger')}</span>
+            <ChevronDown className={jieyuLucideClass(JIEYU_LUCIDE_WAVE_TRIGGER_CHEVRON, 'waveform-view-options-trigger-chevron')} aria-hidden />
+          </button>
+          <div
+            id={viewOptionsPanelId}
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby={viewOptionsDialogTitleId}
+            className="waveform-view-options-panel"
+            hidden={!viewOptionsOpen}
+          >
+            <h2 id={viewOptionsDialogTitleId} className="waveform-view-options-dialog-title">
+              {t(locale, 'transcription.wave.toolbar.viewOptions.dialogTitle')}
+            </h2>
+            <div className="waveform-view-options-section">
+              <div id={viewOptionsCanvasLabelId} className="waveform-view-options-section-label">
+                {t(locale, 'transcription.wave.toolbar.viewOptions.sectionCanvas')}
+              </div>
+              <div className="waveform-view-options-seg" role="radiogroup" aria-labelledby={viewOptionsCanvasLabelId}>
+                {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`waveform-view-options-seg-btn${waveformDisplayMode === mode ? ' waveform-view-options-seg-btn-active' : ''}`}
+                    role="radio"
+                    aria-checked={waveformDisplayMode === mode}
+                    onClick={() => onWaveformDisplayModeChange(mode)}
+                  >
+                    {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="waveform-view-options-section">
+              <div id={viewOptionsOverlayLabelId} className="waveform-view-options-section-label">
+                {t(locale, 'transcription.wave.toolbar.acousticOverlay')}
+              </div>
+              <select
+                id={`${viewOptionsPanelId}-overlay`}
+                className="speed-select waveform-view-options-select"
+                value={acousticOverlayMode}
+                onChange={(event) => onAcousticOverlayModeChange(event.target.value as AcousticOverlayMode)}
+                aria-labelledby={viewOptionsOverlayLabelId}
+              >
+                {ACOUSTIC_OVERLAY_MODES.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {t(locale, `transcription.wave.toolbar.acousticOverlay.${mode}` as const)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="waveform-view-options-section">
+              <div id={viewOptionsStyleLabelId} className="waveform-view-options-section-label">
+                {t(locale, 'transcription.wave.toolbar.visualStyle')}
+              </div>
+              {waveformDisplayMode === 'spectrogram' ? (
+                <p className="waveform-view-options-hint" role="note">
+                  {t(locale, 'transcription.wave.toolbar.viewOptions.waveformDrawHint')}
+                </p>
+              ) : null}
+              <select
+                id={`${viewOptionsPanelId}-style`}
+                className="speed-select waveform-view-options-select"
+                value={waveformVisualStyle}
+                onChange={(event) => onWaveformVisualStyleChange(event.target.value as WaveformVisualStyle)}
+                aria-labelledby={viewOptionsStyleLabelId}
+                disabled={waveformDisplayMode === 'spectrogram'}
+              >
+                {WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => (
+                  <option key={style} value={style}>
+                    {t(locale, `transcription.wave.toolbar.visualStyle.${style}` as const)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
         <button
           className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}
           onClick={() => onLoopChange(!loop)}
           title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
           aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
         >
-          <Repeat size={15} />
+          <Repeat aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
         </button>
         <label className="player-control volume-control compact-volume transcription-wave-toolbar-volume">
-          <Volume2 size={15} />
+          <Volume2 aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
           <input
             type="range"
             min={0}
@@ -168,7 +256,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
                 aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
               >
-                <Zap size={15} />
+                <Zap aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
               </button>
             )}
             {onDeleteCurrentAudio && (
@@ -179,11 +267,12 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
                 aria-label={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
               >
-                <Trash2 size={15} />
+                <Trash2 aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
               </button>
             )}
           </>
         )}
+        {leftToolbarExtras}
       </div>
       {hasRightControls ? (
         <div className="transcription-wave-toolbar-right transcription-wave-toolbar-right-portaled">

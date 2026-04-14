@@ -55,12 +55,8 @@ interface BuildTranscriptionAssistantContextValueInput {
 export function buildTranscriptionAssistantContextValue(input: BuildTranscriptionAssistantContextValueInput): AiPanelContextValue {
   return {
     dbName: input.state.phase === 'ready' ? input.state.dbName ?? '' : '',
-    utteranceCount: input.state.phase === 'ready'
-      ? input.state.utteranceCount ?? input.utterancesLength
-      : input.utterancesLength,
-    translationLayerCount: input.state.phase === 'ready'
-      ? input.state.translationLayerCount ?? input.translationLayersLength
-      : input.translationLayersLength,
+    utteranceCount: input.utterancesLength,
+    translationLayerCount: input.translationLayersLength,
     aiConfidenceAvg: input.aiConfidenceAvg,
     selectedUtterance: input.selectedTimelineOwnerUtterance,
     selectedRowMeta: input.selectedTimelineRowMeta,

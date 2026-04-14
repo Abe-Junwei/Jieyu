@@ -53,7 +53,7 @@ describe('Transcription layout guard', () => {
     expect(paneBlock).toContain('position: absolute;');
     expect(paneBlock).toContain('width: var(--side-pane-width);');
 
-    const responsiveStart = cssCode.indexOf('@media (max-width: 1080px) {');
+    const responsiveStart = cssCode.indexOf('@media (max-width: 1024px) {');
     expect(responsiveStart).toBeGreaterThanOrEqual(0);
     const responsiveSlice = cssCode.slice(responsiveStart);
     expect(responsiveSlice).toContain('.app-side-pane {');

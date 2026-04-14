@@ -211,3 +211,20 @@ export const COMMON_LANGUAGES = [
 export function newId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/**
+ * Extract a single displayable transcription string from a multi-key
+ * transcription record (e.g. `{ default: "...", eng: "..." }`).
+ * Returns the `default` key first, then falls back to any non-empty value.
+ */
+export function pickDefaultTranscriptionText(transcription: unknown): string {
+  if (!transcription || typeof transcription !== 'object') return '';
+  const record = transcription as Record<string, unknown>;
+  const direct = typeof record.default === 'string' ? record.default.trim() : '';
+  if (direct.length > 0) return direct;
+  for (const value of Object.values(record)) {
+    const next = typeof value === 'string' ? value.trim() : '';
+    if (next.length > 0) return next;
+  }
+  return '';
+}

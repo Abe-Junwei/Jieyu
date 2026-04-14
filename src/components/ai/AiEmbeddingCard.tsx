@@ -3,6 +3,7 @@ import { useLocale } from '../../i18n';
 import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
 import { Check } from 'lucide-react';
+import { JIEYU_LUCIDE_MICRO } from '../../utils/jieyuLucideIcon';
 import { getAiEmbeddingCardMessages } from '../../i18n/aiEmbeddingCardMessages';
 
 function formatEmbeddingScore(score: number): string {
@@ -127,7 +128,7 @@ export function AiEmbeddingCard() {
         </button>
         {embeddingAvailability === 'available' && (
           <span className="ai-embed-status ai-embed-status-available">
-            <Check size={12} /> {messages.available}
+            <Check className={JIEYU_LUCIDE_MICRO} /> {messages.available}
           </span>
         )}
         {embeddingAvailability === 'unavailable' && (

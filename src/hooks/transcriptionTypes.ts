@@ -5,8 +5,11 @@ export type DbState =
   | {
       phase: 'ready';
       dbName: string;
+      /** Mirrors `utterances.length` — kept in sync after edits via useTranscriptionData */
       utteranceCount: number;
+      /** Mirrors translation layers only (`layerType === 'translation'`), synced with live `layers` */
       translationLayerCount: number;
+      /** Mirrors `translations.length` (segmentation utterance texts) */
       translationRecordCount: number;
     }
   | { phase: 'error'; message: string };

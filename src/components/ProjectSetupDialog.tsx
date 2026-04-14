@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { ChevronLeft, Plus } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
@@ -54,12 +55,6 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const orthographySelectionError = orthographyId && !orthographyPicker.isCreating && !selectedOrthography
     ? messages.invalidOrthographySelection
     : '';
-  const canSubmit = Boolean(primaryTitle.trim())
-    && Boolean(effectiveLang)
-    && !customLanguageError
-    && !orthographySelectionError
-    && !submitting
-    && !orthographyPicker.isCreating;
 
   const reset = () => {
     setPrimaryTitle('');
@@ -77,7 +72,10 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (submitting || orthographyPicker.isCreating) return;
+    if (!primaryTitle.trim()) {
+      return;
+    }
     if (!effectiveLang || customLanguageError) {
       setLanguageInputError(customLanguageError || messages.invalidLanguageCode);
       setError('');
@@ -112,7 +110,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const builderBreadcrumbTitle = (
     <span className="dialog-breadcrumb-title">
       <button type="button" className="dialog-breadcrumb-back" onClick={orthographyPicker.cancelCreate} aria-label={messages.title}>
-        <ChevronLeft size={16} />
+        <ChevronLeft className={JIEYU_LUCIDE_PANEL} />
         <span>{messages.title}</span>
       </button>
       <span className="dialog-breadcrumb-separator">/</span>
@@ -158,7 +156,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
           </PanelButton>
           <PanelButton
             variant="primary"
-            disabled={!canSubmit}
+            disabled={submitting}
             onClick={() => {
               void handleSubmit();
             }}
@@ -250,7 +248,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                   title={messages.createOrthography}
                 >
-                  <Plus size={14} />
+                  <Plus className={JIEYU_LUCIDE_INLINE} />
                   <span>{messages.newOrthographyButton}</span>
                 </PanelButton>
               </div>

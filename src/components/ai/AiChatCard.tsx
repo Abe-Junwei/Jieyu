@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_INLINE_TIGHT, JIEYU_LUCIDE_PANEL } from '../../utils/jieyuLucideIcon';
 import {
   diffAiToolSnapshot,
   type AiToolGoldenSnapshot,
@@ -28,6 +29,7 @@ import { AiChatCandidateChips } from './AiChatCandidateChips';
 import { AiChatMetricsBar } from './AiChatMetricsBar';
 import { AiChatPromptLabModal } from './AiChatPromptLabModal';
 import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
+import { StreamWordsText } from './streamAssistantWords';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
@@ -504,6 +506,16 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
   const chatTitle = useMemo(() => t(locale, 'ai.chat.title').replace(/\s*[（(]MVP[）)]\s*/gi, ''), [locale]);
   const messages = aiMessages ?? [];
+  /** 流式阶段正文+推理长度；用于贴底滚动依赖，避免仅 messages.length 变化时才滚动 | Scroll anchor during token stream */
+  const streamingThreadScrollSignature = useMemo(() => {
+    if (!aiIsStreaming) return 0;
+    let sum = 0;
+    for (const m of messages) {
+      if (m.role !== 'assistant' || m.status !== 'streaming') continue;
+      sum += (m.content?.length ?? 0) + (m.reasoningContent?.length ?? 0);
+    }
+    return sum;
+  }, [aiIsStreaming, messages]);
   const pinnedMessageIds = aiSessionMemory?.pinnedMessageIds ?? [];
   const pinnedMessageIdSet = useMemo(() => new Set(pinnedMessageIds), [pinnedMessageIds]);
   const summaryChain = aiSessionMemory?.summaryChain ?? [];
@@ -550,18 +562,22 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     if (messages.length === 0) return;
     const viewport = messageViewportRef.current;
     if (!viewport) return;
-    // \\u6d88\\u606f\\u6309\\u65f6\\u95f4\\u6b63\\u5e8f\\u5c55\\u793a，\\u4fdd\\u6301\\u89c6\\u53e3\\u951a\\u5b9a\\u5728\\u5e95\\u90e8 | Messages are shown in chronological order, keep viewport anchored at the bottom.
+    // 消息按时间正序展示；仅在用户已靠近底部时自动跟随，避免强行打断向上阅读 | Stick to bottom only when already near bottom
     if (typeof window === 'undefined') {
       viewport.scrollTop = viewport.scrollHeight;
       return;
     }
 
+    const stickThresholdPx = 120;
     const rafId = window.requestAnimationFrame(() => {
-      viewport.scrollTop = viewport.scrollHeight;
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      if (distanceFromBottom <= stickThresholdPx) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     });
 
     return () => window.cancelAnimationFrame(rafId);
-  }, [aiIsStreaming, messages.length]);
+  }, [aiIsStreaming, messages.length, streamingThreadScrollSignature]);
 
   // P0: count active alerts for the alert bar
   const hasToolPending = !!aiPendingToolCall;
@@ -951,7 +967,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
               onClick={() => setShowProviderConfig((prev) => !prev)}
             >
-              <Settings size={14} strokeWidth={2} />
+              <Settings className={JIEYU_LUCIDE_INLINE} />
             </button>
           </div>
         </div>
@@ -1195,9 +1211,20 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                           <div className="ai-chat-message-surface">
                             <span className="ai-chat-message-content">
                               {hasInlineMarkers
-                                ? splitCitationMarkers(assistantContent, rawCitations.length).map((seg, i) =>
+                                ? splitCitationMarkers(assistantContent, rawCitations.length).map((seg, i) => (
                                     seg.type === 'text'
-                                      ? <Fragment key={i}>{seg.value}</Fragment>
+                                      ? (
+                                        assistantMsg.status === 'streaming'
+                                          ? (
+                                            <StreamWordsText
+                                              key={`${assistantMsg.id}-cit-${i}`}
+                                              streamKey={`${assistantMsg.id}-cit-${i}`}
+                                              text={seg.value}
+                                              locale={locale}
+                                            />
+                                          )
+                                          : <Fragment key={i}>{seg.value}</Fragment>
+                                      )
                                       : (
                                         <sup
                                           key={i}
@@ -1217,9 +1244,17 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                         >
                                           {seg.value}
                                         </sup>
-                                      ),
+                                      )
+                                  ))
+                                : assistantMsg.status === 'streaming'
+                                  ? (
+                                    <StreamWordsText
+                                      streamKey={assistantMsg.id}
+                                      text={assistantContent}
+                                      locale={locale}
+                                    />
                                   )
-                                : assistantContent}
+                                  : assistantContent}
                             </span>
                             {/* \\u53ef\\u6298\\u53e0\\u7684\\u63a8\\u7406\\u8fc7\\u7a0b | Collapsible reasoning content */}
                             {hasReasoning && isReasoningExpanded && (
@@ -1227,7 +1262,17 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                 <div className="ai-chat-reasoning-title">
                                   {cardMessages.reasoning}
                                 </div>
-                                <div>{reasoningContent}</div>
+                                <div className="ai-chat-reasoning-body">
+                                  {assistantMsg.status === 'streaming'
+                                    ? (
+                                      <StreamWordsText
+                                        streamKey={`${assistantMsg.id}-reasoning`}
+                                        text={reasoningContent ?? ''}
+                                        locale={locale}
+                                      />
+                                    )
+                                    : reasoningContent}
+                                </div>
                               </div>
                             )}
                             {(onToggleAiMessagePin || hasCopyableAssistantContent || orderedCitations.length > 0 || hasReasoning || showAiGeneratedText) && (
@@ -1265,7 +1310,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                       }
                                     }}
                                   >
-                                    {copiedMessageId === assistantMsg.id ? <Check size={13} /> : <Copy size={13} />}
+                                    {copiedMessageId === assistantMsg.id ? <Check className={JIEYU_LUCIDE_INLINE_TIGHT} /> : <Copy className={JIEYU_LUCIDE_INLINE_TIGHT} />}
                                   </button>
                                 )}
                                 {hasReasoning && (
@@ -1396,7 +1441,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     const native = e.nativeEvent as KeyboardEvent;
                     // \\u8f93\\u5165\\u6cd5\\u7ec4\\u5408\\u671f\\u95f4\\u56de\\u8f66\\u7528\\u4e8e\\u9009\\u8bcd，\\u4e0d\\u5e94\\u89e6\\u53d1\\u53d1\\u9001 | Enter should not submit while IME composition is active.
                     if (native.isComposing || native.keyCode === 229) return;
-                    if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && showInlineRecommendation && e.key === 'ArrowRight') {
+                    if (!e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && showInlineRecommendation && (e.key === 'ArrowRight' || e.key === 'Tab')) {
                       const input = chatInputRef.current;
                       const caretAtStart = !input || ((input.selectionStart ?? 0) === 0 && (input.selectionEnd ?? 0) === 0);
                       if (caretAtStart) {
@@ -1416,16 +1461,13 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   }}
                 />
                 {showInlineRecommendation && (
-                  <button
-                    type="button"
+                  <div
                     className="ai-chat-input-ghost-suggestion"
-                    onClick={applyInlineRecommendation}
-                    aria-label={hybridInputSuggestion}
-                    title={hybridInputSuggestion}
+                    aria-hidden="true"
                   >
                     <span className="ai-chat-input-ghost-prefix">{cardMessages.recommendationTitle}</span>
                     <span className="ai-chat-input-ghost-text">{hybridInputSuggestion}</span>
-                  </button>
+                  </div>
                 )}
               </div>
               <button
@@ -1441,7 +1483,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   submitChatInput();
                 }}
               >
-                {aiIsStreaming ? cardMessages.stop : <ArrowUp size={16} strokeWidth={2} />}
+                {aiIsStreaming ? cardMessages.stop : <ArrowUp className={JIEYU_LUCIDE_PANEL} />}
               </button>
             </div>
             {(transientBlockedReason || inputBlockedReason) && (

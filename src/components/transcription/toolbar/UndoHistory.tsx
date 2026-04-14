@@ -8,6 +8,7 @@
 import { type FC, useCallback } from 'react';
 import { Redo2, Undo2 } from 'lucide-react';
 import { t, tf, useLocale } from '../../../i18n';
+import { JIEYU_LUCIDE_AI_PANEL_SM, JIEYU_LUCIDE_UNDO_CHIP } from '../../../utils/jieyuLucideIcon';
 
 export interface UndoHistoryProps {
   // 状态 | State
@@ -64,7 +65,7 @@ const UndoHistory: FC<UndoHistoryProps> = ({
           : t(locale, 'transcription.toolbar.redo')}
         onClick={handleChipClick}
       >
-        {canShowUndoChip ? <Undo2 size={13} /> : <Redo2 size={13} />}
+        {canShowUndoChip ? <Undo2 aria-hidden className={JIEYU_LUCIDE_UNDO_CHIP} /> : <Redo2 aria-hidden className={JIEYU_LUCIDE_UNDO_CHIP} />}
         <span className="transcription-undo-chip-label">
           {canShowUndoChip
             ? tf(locale, 'transcription.undo.current', { label: undoLabel })
@@ -83,7 +84,7 @@ const UndoHistory: FC<UndoHistoryProps> = ({
               onClick={handleRedoClick}
               title={t(locale, 'transcription.toolbar.redo')}
             >
-              <Redo2 size={12} />
+              <Redo2 aria-hidden className={JIEYU_LUCIDE_AI_PANEL_SM} />
               <span>{t(locale, 'transcription.toolbar.redo')}</span>
             </button>
           )}

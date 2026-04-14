@@ -4,6 +4,7 @@ export type SettingsModalMessages = {
   title: string;
   close: string;
   tabAppearance: string;
+  tabLanguage: string;
   tabShortcuts: string;
   tabAi: string;
   tabPlayback: string;
@@ -124,6 +125,7 @@ const zhCN: SettingsModalMessages = {
   title: '设置',
   close: '关闭设置',
   tabAppearance: '外观',
+  tabLanguage: '语言',
   tabShortcuts: '快捷键',
   tabAi: 'AI',
   tabPlayback: '播放',
@@ -237,6 +239,7 @@ const enUS: SettingsModalMessages = {
   title: 'Settings',
   close: 'Close settings',
   tabAppearance: 'Appearance',
+  tabLanguage: 'Language',
   tabShortcuts: 'Shortcuts',
   tabAi: 'AI',
   tabPlayback: 'Playback',

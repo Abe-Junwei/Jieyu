@@ -13,13 +13,10 @@ import type {
   LayerDisplaySettings,
 } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
-import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimelineMediaTranscriptionRow';
-import {
-  resolveSpeakerFocusKeyFromUtterance,
-} from './transcriptionTimelineSegmentSpeakerLayout';
 import { TimelineStyledButton, TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
 
@@ -82,8 +79,6 @@ interface TranscriptionLaneProps {
   segmentSpeakerIdByLayer: Map<string, Map<string, string>>;
   segmentContentByLayer?: Map<string, Map<string, { text?: string }>>;
   utteranceById: Map<string, UtteranceDocType>;
-  speakerFocusMode: SpeakerFocusMode;
-  speakerFocusSpeakerKey?: string;
   activeOverlapGroupId?: string;
   // Editor bindings
   utteranceDrafts: Record<string, string>;
@@ -158,8 +153,6 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   segmentSpeakerIdByLayer,
   segmentContentByLayer,
   utteranceById,
-  speakerFocusMode,
-  speakerFocusSpeakerKey,
   utteranceDrafts,
   getUtteranceTextForLayer,
   saveSegmentContentForLayer,
@@ -240,12 +233,6 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         </TimelineStyledButton>
       ))}
       {!effectiveCollapsed && visibleUtterances.map((utt) => {
-        const utteranceSpeakerKey = usesSegmentTimeline
-          ? (segmentSpeakerIdByLayer.get(segmentSourceLayerId)?.get(utt.id) ?? 'unknown-speaker')
-          : resolveSpeakerFocusKeyFromUtterance(utt as UtteranceDocType);
-        const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
-        const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
-        const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
         const sourceText = usesSegmentTimeline
           ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
           : getUtteranceTextForLayer(utt as UtteranceDocType, layer.id);
@@ -272,8 +259,6 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             draftKey={draftKey}
             sourceText={sourceText}
             usesSegmentTimeline={usesSegmentTimeline}
-            shouldHideForFocus={shouldHideForFocus}
-            shouldDimForFocus={shouldDimForFocus}
             {...(overlapCycleItems ? { overlapCycleItems } : {})}
             {...(overlapCycleStatus ? { overlapCycleStatus } : {})}
             saveSegmentContentForLayer={saveSegmentContentForLayer}

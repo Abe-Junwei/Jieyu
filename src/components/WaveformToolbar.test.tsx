@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
 import { WaveformToolbar } from './WaveformToolbar';
@@ -37,9 +37,11 @@ describe('WaveformToolbar', () => {
     );
 
     fireEvent.change(screen.getByRole('combobox', { name: /语段播放速度/i }), { target: { value: '1.5' } });
-    fireEvent.change(screen.getByRole('combobox', { name: /显示模式/i }), { target: { value: 'split' } });
-    fireEvent.change(screen.getByRole('combobox', { name: /声学叠加/i }), { target: { value: 'both' } });
-    fireEvent.change(screen.getByRole('combobox', { name: /波形样式/i }), { target: { value: 'contrast' } });
+    fireEvent.click(screen.getByRole('button', { name: /波形显示/i }));
+    const viewPanel = screen.getByRole('dialog', { name: /波形与声学显示/i });
+    fireEvent.click(within(viewPanel).getByRole('radio', { name: '上下分屏' }));
+    fireEvent.change(within(viewPanel).getByRole('combobox', { name: /声学叠加/i }), { target: { value: 'both' } });
+    fireEvent.change(within(viewPanel).getByRole('combobox', { name: /波形样式/i }), { target: { value: 'contrast' } });
     fireEvent.change(screen.getByRole('slider', { name: /音量/i }), { target: { value: '0.8' } });
 
     expect(screen.getByRole('button', { name: '后退 10 秒' })).toBeTruthy();

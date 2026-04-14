@@ -34,11 +34,6 @@ export function useTranscriptionAcousticPanelState({
   const waveformVadCacheStatus = vadCacheStatus?.state === 'warming'
     ? vadCacheStatus
     : undefined;
-  const bottomToolbarAcousticRuntimeStatus = deferredAiRuntime.acousticRuntimeStatus?.state === 'error'
-    ? deferredAiRuntime.acousticRuntimeStatus
-    : undefined;
-  // 时间轴底栏保持清爽，仅在 AI 面板内承载错误细节 | Keep timeline footer clean; error details stay in AI panel
-  const showBottomToolbarAiProgress = false;
 
   const [pinnedInspector, setPinnedInspector] = useState<AcousticInspectorReadout | null>(null);
   const [selectedHotspotTimeSec, setSelectedHotspotTimeSec] = useState<number | null>(null);
@@ -153,8 +148,6 @@ export function useTranscriptionAcousticPanelState({
   return {
     waveformAcousticRuntimeStatus,
     waveformVadCacheStatus,
-    bottomToolbarAcousticRuntimeStatus,
-    showBottomToolbarAiProgress,
     pinnedInspector,
     selectedHotspotTimeSec,
     acousticConfigOverride,

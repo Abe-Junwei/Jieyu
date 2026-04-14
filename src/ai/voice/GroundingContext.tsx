@@ -7,6 +7,7 @@
 
 import { memo, useId, useState } from 'react';
 import { ChevronDown, ChevronRight, Brain, User, Layers, AlertTriangle } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE_TIGHT, JIEYU_LUCIDE_MICRO, JIEYU_LUCIDE_MICRO_XS } from '../../utils/jieyuLucideIcon';
 import type { GroundingContextData } from '../../services/VoiceAgentGroundingContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -38,7 +39,7 @@ const SegmentCard = memo(function SegmentCard({ seg }: { seg: NonNullable<Ground
   return (
     <div className="gc-card gc-segment-card">
       <div className="gc-card-header">
-        <Layers size={12} />
+        <Layers className={JIEYU_LUCIDE_MICRO} />
         <span>{`\u5f53\u524d\u53e5\u6bb5 #${seg.index}`}</span>
         {seg.isMarked && <span className="gc-marked-badge">{'\u5df2\u6807\u8bb0'}</span>}
       </div>
@@ -67,7 +68,7 @@ const UserProfileCard = memo(function UserProfileCard({ profile }: { profile: Gr
   return (
     <div className="gc-card gc-profile-card">
       <div className="gc-card-header">
-        <User size={12} />
+        <User className={JIEYU_LUCIDE_MICRO} />
         <span>{'\u7528\u6237\u753b\u50cf'}</span>
         <FatigueBadge score={profile.fatigueScore} />
       </div>
@@ -89,7 +90,7 @@ const UserProfileCard = memo(function UserProfileCard({ profile }: { profile: Gr
       </div>
       {profile.fatigueScore > 0.6 && (
         <div className="gc-profile-warning">
-          <AlertTriangle size={11} />
+          <AlertTriangle className={JIEYU_LUCIDE_MICRO_XS} />
           <span>{'\u75b2\u52b3\u5ea6\u8f83\u9ad8\uff0cAI \u5c06\u51cf\u5c11\u6253\u6270\u6027\u5efa\u8bae'}</span>
         </div>
       )}
@@ -104,7 +105,7 @@ const HotspotsCard = memo(function HotspotsCard({ hotspots }: { hotspots: Ground
   return (
     <div className="gc-card gc-hotspots-card">
       <div className="gc-card-header">
-        <AlertTriangle size={12} />
+        <AlertTriangle className={JIEYU_LUCIDE_MICRO} />
         <span>{'\u6ce8\u610f\u529b\u70ed\u70b9'}</span>
         <span className="gc-badge-count">{hotspots.length}</span>
       </div>
@@ -140,7 +141,7 @@ const CorpusCard = memo(function CorpusCard({ corpus }: { corpus: GroundingConte
   return (
     <div className="gc-card gc-corpus-card">
       <div className="gc-card-header">
-        <Brain size={12} />
+        <Brain className={JIEYU_LUCIDE_MICRO} />
         <span>{'\u76f8\u5173\u8bed\u6599'}</span>
         <span className="gc-badge-count">{corpus.length}</span>
       </div>
@@ -183,7 +184,7 @@ export const GroundingContext = memo(function GroundingContext({
     return (
       <div className="grounding-context grounding-context-empty">
         <button type="button" className="gc-toggle" onClick={onToggle} aria-expanded={visible}>
-          <Brain size={13} />
+          <Brain className={JIEYU_LUCIDE_INLINE_TIGHT} />
           <span>{'AI \u4e0a\u4e0b\u6587'}</span>
         </button>
       </div>
@@ -202,7 +203,7 @@ export const GroundingContext = memo(function GroundingContext({
         aria-expanded={visible}
         title={'\u663e\u793a/\u9690\u85cf AI \u51b3\u7b56\u4e0a\u4e0b\u6587'}
       >
-        <Brain size={13} />
+        <Brain className={JIEYU_LUCIDE_INLINE_TIGHT} />
         <span>{'AI \u4e0a\u4e0b\u6587'}</span>
         {data.aiAdoptionRate !== null && (
           <span className="gc-adoption-rate" title={'AI \u91c7\u7eb3\u7387'}>
@@ -220,7 +221,7 @@ export const GroundingContext = memo(function GroundingContext({
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
             >
-              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {expanded ? <ChevronDown className={JIEYU_LUCIDE_MICRO} /> : <ChevronRight className={JIEYU_LUCIDE_MICRO} />}
             </button>
             <span className="gc-panel-title">{'AI \u51b3\u7b56\u4e0a\u4e0b\u6587'}</span>
             <span className="gc-panel-age">{`\u66f4\u65b0\u4e8e ${ageLabel}`}</span>

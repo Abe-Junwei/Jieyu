@@ -61,7 +61,40 @@ function normalizePinnedMessageIds(memory: AiSessionMemory): string[] | undefine
   return normalized.slice(-MAX_PINNED_MESSAGE_IDS);
 }
 
+function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['localToolState'] {
+  const state = memory.localToolState;
+  if (!state || typeof state !== 'object') return undefined;
+  const lastIntent = state.lastIntent;
+  const normalizedIntent = lastIntent === 'utterance.list'
+    || lastIntent === 'utterance.search'
+    || lastIntent === 'utterance.detail'
+    ? lastIntent
+    : undefined;
+  const lastQuery = typeof state.lastQuery === 'string' && state.lastQuery.trim().length > 0
+    ? state.lastQuery.trim()
+    : undefined;
+  const lastResultUtteranceIds = Array.isArray(state.lastResultUtteranceIds)
+    ? state.lastResultUtteranceIds
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
+      .slice(0, 200)
+    : undefined;
+  if (!normalizedIntent && !lastQuery && (!lastResultUtteranceIds || lastResultUtteranceIds.length === 0)) {
+    return undefined;
+  }
+  return {
+    ...(normalizedIntent ? { lastIntent: normalizedIntent } : {}),
+    ...(lastQuery ? { lastQuery } : {}),
+    ...(lastResultUtteranceIds && lastResultUtteranceIds.length > 0 ? { lastResultUtteranceIds } : {}),
+    updatedAt: typeof state.updatedAt === 'string' && state.updatedAt.trim().length > 0
+      ? state.updatedAt
+      : nowIso(),
+  };
+}
+
 function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
+  // Migrate legacy top-level fields (lastLanguage, etc.) into preferences,
+  // then re-project them back to the top level for backward compatibility.
   const mergedPreferences = {
     ...(memory.preferences ?? {}),
     ...(memory.lastLanguage !== undefined ? { lastLanguage: memory.lastLanguage } : {}),
@@ -73,6 +106,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
   const hasPreferences = Object.keys(mergedPreferences).length > 0;
   const normalizedSummaryChain = normalizeSummaryChain(memory);
   const normalizedPinnedMessageIds = normalizePinnedMessageIds(memory);
+  const normalizedLocalToolState = normalizeLocalToolState(memory);
   const normalizedSummaryQualityWarning = memory.summaryQualityWarning
     && typeof memory.summaryQualityWarning.similarity === 'number'
     && Number.isFinite(memory.summaryQualityWarning.similarity)
@@ -90,11 +124,19 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
       }
     : undefined;
 
+  // Strip legacy top-level shorthand fields before spreading, so the
+  // authoritative values always come from mergedPreferences (lines below).
+  const {
+    lastLanguage: _ll, lastToolName: _lt, lastLayerId: _lli, adaptiveInputProfile: _aip,
+    ...baseMemory
+  } = memory;
+
   return {
-    ...memory,
+    ...baseMemory,
     ...(hasPreferences ? { preferences: mergedPreferences } : {}),
     ...(normalizedSummaryChain !== undefined ? { summaryChain: normalizedSummaryChain } : {}),
     ...(normalizedPinnedMessageIds !== undefined ? { pinnedMessageIds: normalizedPinnedMessageIds } : {}),
+    ...(normalizedLocalToolState !== undefined ? { localToolState: normalizedLocalToolState } : {}),
     ...(normalizedSummaryQualityWarning !== undefined ? { summaryQualityWarning: normalizedSummaryQualityWarning } : {}),
     ...(mergedPreferences.lastLanguage !== undefined ? { lastLanguage: mergedPreferences.lastLanguage } : {}),
     ...(mergedPreferences.lastToolName !== undefined ? { lastToolName: mergedPreferences.lastToolName } : {}),

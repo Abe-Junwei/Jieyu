@@ -11,7 +11,7 @@ import type {
 } from '../db';
 import { memo, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
-import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
@@ -152,8 +152,6 @@ type TranscriptionTimelineMediaLanesProps = {
   selectedSpeakerNamesForLock?: string[];
   speakerSortKeyById?: Record<string, number>;
   speakerLayerLayout?: SpeakerLayerLayoutResult;
-  speakerFocusMode?: SpeakerFocusMode;
-  speakerFocusSpeakerKey?: string;
   activeSpeakerFilterKey?: string;
   speakerQuickActions?: {
     selectedCount: number;
@@ -223,8 +221,6 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   selectedSpeakerNamesForLock,
   speakerSortKeyById,
   speakerLayerLayout: incomingSpeakerLayerLayout,
-  speakerFocusMode = 'all',
-  speakerFocusSpeakerKey,
   activeSpeakerFilterKey = 'all',
   speakerQuickActions,
   onLaneLabelWidthResize,
@@ -581,8 +577,6 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             segmentSpeakerIdByLayer={segmentSpeakerIdByLayer}
             {...(segmentContentByLayer ? { segmentContentByLayer } : {})}
             utteranceById={utteranceById}
-            speakerFocusMode={speakerFocusMode}
-            {...(speakerFocusSpeakerKey ? { speakerFocusSpeakerKey } : {})}
             {...(activeOverlapGroupId ? { activeOverlapGroupId } : {})}
             utteranceDrafts={utteranceDrafts}
             getUtteranceTextForLayer={getUtteranceTextForLayer}

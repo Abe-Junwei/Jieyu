@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { afterEach, describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import type { SpeakerDocType } from '../db';
 import type { LayerDocType } from '../db';
+import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './transcription/TranscriptionLeftRailLayerActions';
 import { SidePaneSidebar } from './SidePaneSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { LocaleProvider } from '../i18n';
@@ -16,6 +18,25 @@ const { mockUseOrthographies } = vi.hoisted(() => ({
 vi.mock('../hooks/useOrthographies', () => ({
   useOrthographies: mockUseOrthographies,
 }));
+
+function wrapSidebarTestTree(node: ReactNode) {
+  return (
+    <MemoryRouter initialEntries={['/transcription']}>
+      {node}
+    </MemoryRouter>
+  );
+}
+
+function ensureLeftRailLayerActionsHost(): void {
+  if (document.getElementById(LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID)) return;
+  const el = document.createElement('div');
+  el.id = LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID;
+  document.body.appendChild(el);
+}
+
+function removeLeftRailLayerActionsHost(): void {
+  document.getElementById(LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID)?.remove();
+}
 
 function createLayerActionStub() {
   return {
@@ -122,36 +143,10 @@ function renderSidebar(input?: {
   };
 
   const rendered = render(
-    <LocaleProvider locale="zh-CN">
-      <SpeakerRailProvider
-        speakerManagement={speakerManagement}
-        selectedUtteranceIds={new Set(['utt-1'])}
-        handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
-        handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
-      >
-        <SidePaneSidebar
-          sidePaneRows={[] as LayerDocType[]}
-          focusedLayerRowId=""
-          flashLayerRowId=""
-          onFocusLayer={vi.fn()}
-          transcriptionLayers={[]}
-          toggleLayerLink={vi.fn(async () => undefined)}
-          deletableLayers={[]}
-          layerCreateMessage=""
-          layerAction={{ ...layerAction, layerActionPanel: actionPanel } as never}
-          onReorderLayers={vi.fn(async () => undefined)}
-        />
-      </SpeakerRailProvider>
-    </LocaleProvider>,
-  );
-
-  return {
-    rerender: (speakerFilterOptions = input?.speakerFilterOptions ?? [
-      { key: 'spk-1', name: 'Alice', count: 3 },
-    ]) => rendered.rerender(
+    wrapSidebarTestTree(
       <LocaleProvider locale="zh-CN">
         <SpeakerRailProvider
-          speakerManagement={{ ...speakerManagement, speakerFilterOptions }}
+          speakerManagement={speakerManagement}
           selectedUtteranceIds={new Set(['utt-1'])}
           handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
           handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
@@ -170,6 +165,36 @@ function renderSidebar(input?: {
           />
         </SpeakerRailProvider>
       </LocaleProvider>,
+    ),
+  );
+
+  return {
+    rerender: (speakerFilterOptions = input?.speakerFilterOptions ?? [
+      { key: 'spk-1', name: 'Alice', count: 3 },
+    ]) => rendered.rerender(
+      wrapSidebarTestTree(
+        <LocaleProvider locale="zh-CN">
+          <SpeakerRailProvider
+            speakerManagement={{ ...speakerManagement, speakerFilterOptions }}
+            selectedUtteranceIds={new Set(['utt-1'])}
+            handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
+            handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
+          >
+            <SidePaneSidebar
+              sidePaneRows={[] as LayerDocType[]}
+              focusedLayerRowId=""
+              flashLayerRowId=""
+              onFocusLayer={vi.fn()}
+              transcriptionLayers={[]}
+              toggleLayerLink={vi.fn(async () => undefined)}
+              deletableLayers={[]}
+              layerCreateMessage=""
+              layerAction={{ ...layerAction, layerActionPanel: actionPanel } as never}
+              onReorderLayers={vi.fn(async () => undefined)}
+            />
+          </SpeakerRailProvider>
+        </LocaleProvider>,
+      ),
     ),
     layerAction,
     onRenameSpeaker,
@@ -256,27 +281,29 @@ function renderSidebarForDeleteFlow(input: {
   };
 
   return render(
-    <LocaleProvider locale="zh-CN">
-      <SpeakerRailProvider
-        speakerManagement={speakerManagement}
-        selectedUtteranceIds={new Set<string>()}
-        handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
-        handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
-      >
-        <SidePaneSidebar
-          sidePaneRows={input.deletableLayers}
-          focusedLayerRowId={input.deletableLayers[0]?.id ?? ''}
-          flashLayerRowId=""
-          onFocusLayer={vi.fn()}
-          transcriptionLayers={input.deletableLayers.filter((l) => l.layerType === 'transcription')}
-          toggleLayerLink={vi.fn(async () => undefined)}
-          deletableLayers={input.deletableLayers}
-          layerCreateMessage=""
-          layerAction={layerAction as never}
-          onReorderLayers={vi.fn(async () => undefined)}
-        />
-      </SpeakerRailProvider>
-    </LocaleProvider>,
+    wrapSidebarTestTree(
+      <LocaleProvider locale="zh-CN">
+        <SpeakerRailProvider
+          speakerManagement={speakerManagement}
+          selectedUtteranceIds={new Set<string>()}
+          handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
+          handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
+        >
+          <SidePaneSidebar
+            sidePaneRows={input.deletableLayers}
+            focusedLayerRowId={input.deletableLayers[0]?.id ?? ''}
+            flashLayerRowId=""
+            onFocusLayer={vi.fn()}
+            transcriptionLayers={input.deletableLayers.filter((l) => l.layerType === 'transcription')}
+            toggleLayerLink={vi.fn(async () => undefined)}
+            deletableLayers={input.deletableLayers}
+            layerCreateMessage=""
+            layerAction={layerAction as never}
+            onReorderLayers={vi.fn(async () => undefined)}
+          />
+        </SpeakerRailProvider>
+      </LocaleProvider>,
+    ),
   );
 }
 
@@ -340,27 +367,29 @@ function renderSidebarForCreateContextMenuFlow(input: {
   };
 
   return render(
-    <LocaleProvider locale="zh-CN">
-      <SpeakerRailProvider
-        speakerManagement={speakerManagement}
-        selectedUtteranceIds={new Set<string>()}
-        handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
-        handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
-      >
-        <SidePaneSidebar
-          sidePaneRows={input.layerRows}
-          focusedLayerRowId={input.focusedLayerRowId ?? input.layerRows[0]?.id ?? ''}
-          flashLayerRowId=""
-          onFocusLayer={vi.fn()}
-          transcriptionLayers={input.transcriptionLayers}
-          toggleLayerLink={toggleLayerLink}
-          deletableLayers={input.layerRows}
-          layerCreateMessage={input.layerCreateMessage ?? ''}
-          layerAction={layerAction as never}
-          onReorderLayers={onReorderLayers}
-        />
-      </SpeakerRailProvider>
-    </LocaleProvider>,
+    wrapSidebarTestTree(
+      <LocaleProvider locale="zh-CN">
+        <SpeakerRailProvider
+          speakerManagement={speakerManagement}
+          selectedUtteranceIds={new Set<string>()}
+          handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
+          handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
+        >
+          <SidePaneSidebar
+            sidePaneRows={input.layerRows}
+            focusedLayerRowId={input.focusedLayerRowId ?? input.layerRows[0]?.id ?? ''}
+            flashLayerRowId=""
+            onFocusLayer={vi.fn()}
+            transcriptionLayers={input.transcriptionLayers}
+            toggleLayerLink={toggleLayerLink}
+            deletableLayers={input.layerRows}
+            layerCreateMessage={input.layerCreateMessage ?? ''}
+            layerAction={layerAction as never}
+            onReorderLayers={onReorderLayers}
+          />
+        </SpeakerRailProvider>
+      </LocaleProvider>,
+    ),
   );
 }
 
@@ -389,15 +418,20 @@ async function openSpeakerManagementPanel(sidebar: { layerAction: ReturnType<typ
 }
 
 async function clickCreateAction(actionName: string) {
-  fireEvent.click(screen.getByRole('button', { name: actionName }));
+  fireEvent.click(await screen.findByRole('button', { name: actionName }));
 }
 
 describe('SidePaneSidebar speaker actions interaction', () => {
+  beforeEach(() => {
+    ensureLeftRailLayerActionsHost();
+  });
+
   afterEach(() => {
     mockUseOrthographies.mockReset();
     mockUseOrthographies.mockImplementation(() => []);
     vi.useRealTimers();
     cleanup();
+    removeLeftRailLayerActionsHost();
     vi.restoreAllMocks();
   });
 
@@ -533,9 +567,11 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     }
 
     render(
-      <LocaleProvider locale="zh-CN">
-        <StatefulSidebarHost />
-      </LocaleProvider>,
+      wrapSidebarTestTree(
+        <LocaleProvider locale="zh-CN">
+          <StatefulSidebarHost />
+        </LocaleProvider>,
+      ),
     );
 
     expect(screen.getByRole('button', { name: '清空已选说话人' }).className).toContain('panel-button');
@@ -628,9 +664,11 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     }
 
     render(
-      <LocaleProvider locale="zh-CN">
-        <StatefulGroupActionHost />
-      </LocaleProvider>,
+      wrapSidebarTestTree(
+        <LocaleProvider locale="zh-CN">
+          <StatefulGroupActionHost />
+        </LocaleProvider>,
+      ),
     );
 
     fireEvent.click(screen.getByRole('button', { name: '选中' }));
@@ -691,7 +729,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(deleteLayer).toHaveBeenCalledWith('layer_trc_1', { keepUtterances: false });
   });
 
-  it('opens unified LayerActionPopover from sidebar context menu for both create actions', async () => {
+  it('opens unified LayerActionPopover from side pane create strip for both create actions', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
       id: 'layer_trc_1',
@@ -726,17 +764,14 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       translationLayers: [trlLayer],
     });
 
-    const layerButton = screen.getByRole('button', { name: /中文/ });
-    fireEvent.contextMenu(layerButton);
-    fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
+    await clickCreateAction('新建转写层');
     const transcriptionDialog = await screen.findByRole('dialog', { name: '新建转写层' });
     expect(transcriptionDialog).toBeTruthy();
     expect(within(transcriptionDialog).queryByText(/时间细分/)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '新建转写层 取消' }));
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: /中文/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
+    await clickCreateAction('新建翻译层');
     const translationDialog = await screen.findByRole('dialog', { name: '新建翻译层' });
     expect(translationDialog).toBeTruthy();
     expect(within(translationDialog).queryByText(/时间细分/)).toBeNull();
@@ -780,8 +815,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       createLayer,
     });
 
-    fireEvent.contextMenu(screen.getByRole('button', { name: /中文/ }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: '新建转写层' }));
+    await clickCreateAction('新建转写层');
 
     const dialog = await screen.findByRole('dialog', { name: '新建转写层' });
     fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'eng' } });
@@ -923,7 +957,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(createLayer).not.toHaveBeenCalled();
   });
 
-  it('uses the clicked transcription row as the default parent when creating a translation layer', async () => {
+  it('submits translation layer creation with explicitly chosen parent transcription layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayerA = {
       id: 'layer_trc_1',
@@ -962,15 +996,15 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       createLayer,
     });
 
-    fireEvent.contextMenu(screen.getByTitle('转写 · 日语 jpn'));
-    fireEvent.click(await screen.findByRole('menuitem', { name: '新建翻译层' }));
+    await clickCreateAction('新建翻译层');
 
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
     const parentSelect = within(dialog)
       .getAllByRole('combobox')
       .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement)
       .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
-    expect(parentSelect?.value).toBe('layer_trc_2');
+    expect(parentSelect).toBeTruthy();
+    fireEvent.change(parentSelect as HTMLSelectElement, { target: { value: 'layer_trc_2' } });
 
     fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'fra' } });
     await waitFor(() => {
@@ -1148,68 +1182,70 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(screen.getByText('请选择一个层查看详情。')).toBeTruthy();
 
     view.rerender(
-      <LocaleProvider locale="zh-CN">
-        <SpeakerRailProvider
-          speakerManagement={{
-            speakerOptions: [] as SpeakerDocType[],
-            speakerDraftName: '',
-            setSpeakerDraftName: vi.fn(),
-            batchSpeakerId: '',
-            setBatchSpeakerId: vi.fn(),
-            speakerSaving: false,
-            activeSpeakerFilterKey: 'all',
-            setActiveSpeakerFilterKey: vi.fn(),
-            speakerDialogState: null,
-            speakerVisualByUtteranceId: {},
-            speakerFilterOptions: [],
-            speakerReferenceStats: {},
-            speakerReferenceStatsReady: true,
-            selectedSpeakerSummary: '',
-            handleSelectSpeakerUtterances: vi.fn(),
-            handleClearSpeakerAssignments: vi.fn(),
-            handleExportSpeakerSegments: vi.fn(),
-            handleRenameSpeaker: vi.fn(),
-            handleMergeSpeaker: vi.fn(),
-            handleDeleteSpeaker: vi.fn(),
-            handleDeleteUnusedSpeakers: vi.fn(async () => undefined),
-            handleAssignSpeakerToSelected: vi.fn(async () => undefined),
-            handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
-            handleCreateSpeakerOnly: vi.fn(async () => undefined),
-            closeSpeakerDialog: vi.fn(),
-            updateSpeakerDialogDraftName: vi.fn(),
-            updateSpeakerDialogTargetKey: vi.fn(),
-            confirmSpeakerDialog: vi.fn(async () => undefined),
-          }}
-          selectedUtteranceIds={new Set<string>()}
-          handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
-          handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
-        >
-          <SidePaneSidebar
-            sidePaneRows={[trcLayer]}
-            focusedLayerRowId={trcLayer.id}
-            flashLayerRowId=""
-            onFocusLayer={vi.fn()}
-            transcriptionLayers={[trcLayer]}
-            toggleLayerLink={vi.fn(async () => undefined)}
-            deletableLayers={[trcLayer]}
-            layerCreateMessage=""
-            layerAction={{
-              layerActionPanel: null,
-              setLayerActionPanel: vi.fn(),
-              layerActionRootRef: { current: null },
-              quickDeleteLayerId: trcLayer.id,
-              setQuickDeleteLayerId: vi.fn(),
-              quickDeleteKeepUtterances: false,
-              setQuickDeleteKeepUtterances: vi.fn(),
-              createLayer: vi.fn(async () => false),
-              deleteLayer: vi.fn(async () => undefined),
-              deleteLayerWithoutConfirm: vi.fn(async () => undefined),
-              checkLayerHasContent: vi.fn(async () => 0),
-            } as never}
-            onReorderLayers={vi.fn(async () => undefined)}
-          />
-        </SpeakerRailProvider>
-      </LocaleProvider>,
+      wrapSidebarTestTree(
+        <LocaleProvider locale="zh-CN">
+          <SpeakerRailProvider
+            speakerManagement={{
+              speakerOptions: [] as SpeakerDocType[],
+              speakerDraftName: '',
+              setSpeakerDraftName: vi.fn(),
+              batchSpeakerId: '',
+              setBatchSpeakerId: vi.fn(),
+              speakerSaving: false,
+              activeSpeakerFilterKey: 'all',
+              setActiveSpeakerFilterKey: vi.fn(),
+              speakerDialogState: null,
+              speakerVisualByUtteranceId: {},
+              speakerFilterOptions: [],
+              speakerReferenceStats: {},
+              speakerReferenceStatsReady: true,
+              selectedSpeakerSummary: '',
+              handleSelectSpeakerUtterances: vi.fn(),
+              handleClearSpeakerAssignments: vi.fn(),
+              handleExportSpeakerSegments: vi.fn(),
+              handleRenameSpeaker: vi.fn(),
+              handleMergeSpeaker: vi.fn(),
+              handleDeleteSpeaker: vi.fn(),
+              handleDeleteUnusedSpeakers: vi.fn(async () => undefined),
+              handleAssignSpeakerToSelected: vi.fn(async () => undefined),
+              handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
+              handleCreateSpeakerOnly: vi.fn(async () => undefined),
+              closeSpeakerDialog: vi.fn(),
+              updateSpeakerDialogDraftName: vi.fn(),
+              updateSpeakerDialogTargetKey: vi.fn(),
+              confirmSpeakerDialog: vi.fn(async () => undefined),
+            }}
+            selectedUtteranceIds={new Set<string>()}
+            handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
+            handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
+          >
+            <SidePaneSidebar
+              sidePaneRows={[trcLayer]}
+              focusedLayerRowId={trcLayer.id}
+              flashLayerRowId=""
+              onFocusLayer={vi.fn()}
+              transcriptionLayers={[trcLayer]}
+              toggleLayerLink={vi.fn(async () => undefined)}
+              deletableLayers={[trcLayer]}
+              layerCreateMessage=""
+              layerAction={{
+                layerActionPanel: null,
+                setLayerActionPanel: vi.fn(),
+                layerActionRootRef: { current: null },
+                quickDeleteLayerId: trcLayer.id,
+                setQuickDeleteLayerId: vi.fn(),
+                quickDeleteKeepUtterances: false,
+                setQuickDeleteKeepUtterances: vi.fn(),
+                createLayer: vi.fn(async () => false),
+                deleteLayer: vi.fn(async () => undefined),
+                deleteLayerWithoutConfirm: vi.fn(async () => undefined),
+                checkLayerHasContent: vi.fn(async () => 0),
+              } as never}
+              onReorderLayers={vi.fn(async () => undefined)}
+            />
+          </SpeakerRailProvider>
+        </LocaleProvider>,
+      ),
     );
 
     const inspector = within(screen.getByLabelText('当前层详情'));

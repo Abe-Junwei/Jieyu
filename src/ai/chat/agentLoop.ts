@@ -53,5 +53,6 @@ export function buildAgentLoopContinuationInput(
     `original_user_request: ${JSON.stringify(originalUserText)}`,
     `tool_result_payload: ${payload}`,
     'Please continue from this tool result and provide the next best response. If more tool calls are needed, return tool_call JSON.',
+    'IMPORTANT: Only use data present in the tool result above. Do NOT fabricate, infer, or extrapolate items, times, or IDs beyond what the tool returned.',
   ].join('\n');
 }

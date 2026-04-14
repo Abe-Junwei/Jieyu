@@ -1,5 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { Plus, Trash2, X } from 'lucide-react';
+import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_MICRO, JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
@@ -116,7 +117,7 @@ export const NotePanel = memo(function NotePanel({
       titleClassName="note-panel-title"
       actions={(
         <button type="button" className="note-panel-close icon-btn" onClick={onClose} aria-label={messages.closePanel}>
-          <X size={16} />
+          <X className={JIEYU_LUCIDE_PANEL} />
         </button>
       )}
       dir={uiTextDirection}
@@ -180,7 +181,7 @@ export const NotePanel = memo(function NotePanel({
                     title={messages.deleteNote}
                     aria-label={messages.deleteNote}
                   >
-                    <Trash2 size={12} />
+                    <Trash2 className={JIEYU_LUCIDE_MICRO} />
                   </button>
                 </div>
               )}
@@ -217,7 +218,7 @@ export const NotePanel = memo(function NotePanel({
             ))}
           </select>
           <PanelButton variant="primary" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus size={14} /> {messages.add}
+            <Plus className={JIEYU_LUCIDE_INLINE} /> {messages.add}
           </PanelButton>
         </div>
       </PanelSection>

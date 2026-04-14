@@ -149,8 +149,7 @@ describe('AiChatCard input submit', () => {
     const input = within(view.container).getByRole('textbox') as HTMLInputElement;
     expect(input.value).toBe('');
     expect(input.placeholder).toBe('');
-    const ghost = within(view.container).getByRole('button', { name: /row 8/i });
-    expect(ghost.textContent).toContain('translation layer');
+    expect(view.container.querySelector('.ai-chat-input-ghost-suggestion')?.textContent).toMatch(/row 8/i);
     expect(within(view.container).getByText(/translation layer/i)).toBeTruthy();
     expect(within(view.container).queryByRole('button', { name: /填入输入框|Use suggestion|忽略本条推荐|Dismiss suggestion/i })).toBeNull();
   });
@@ -182,13 +181,14 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    const ghost = within(view.container).getByRole('button', { name: /recent ask/i });
-    expect(ghost.textContent).toContain('recent ask');
-    expect(ghost.textContent).toContain('focus on');
-    expect(ghost.textContent).toContain('译文');
+    const ghost = view.container.querySelector('.ai-chat-input-ghost-suggestion');
+    expect(ghost).not.toBeNull();
+    expect(ghost!.textContent).toContain('recent ask');
+    expect(ghost!.textContent).toContain('focus on');
+    expect(ghost!.textContent).toContain('译文');
   });
 
-  it('tracks recommendation exposure and exact adoption after clicking the ghost suggestion', async () => {
+  it('tracks recommendation exposure and exact adoption after Tab accepts suggestion', async () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
     const onTrackAiRecommendationEvent = vi.fn();
 
@@ -217,7 +217,7 @@ describe('AiChatCard input submit', () => {
       expect(recommendationPrompt.length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(within(view.container).getByRole('button', { name: recommendationPrompt }));
+    fireEvent.keyDown(input, { key: 'Tab', code: 'Tab' });
     expect(input.value).toBe(recommendationPrompt);
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
@@ -226,6 +226,23 @@ describe('AiChatCard input submit', () => {
       type: 'accepted_exact',
       prompt: recommendationPrompt,
     }));
+  });
+
+  it('focus click does not auto-apply recommendation text', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        currentPage: 'transcription',
+        selectedLayerType: 'translation',
+        selectedText: '这里是一条待处理的译文',
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const input = within(view.container).getByRole('textbox') as HTMLInputElement;
+    fireEvent.click(input);
+    expect(input.value).toBe('');
   });
 
   it('tracks a fresh shown event when the same recommendation becomes visible again', async () => {

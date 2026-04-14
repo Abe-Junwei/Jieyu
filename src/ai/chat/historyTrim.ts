@@ -16,15 +16,18 @@ export function trimTextToMax(input: string, maxChars: number): string {
 /**
  * 压缩单条消息内容（截取首尾，保留关键信息） | Compress one message while preserving key tool info.
  */
+const TOOL_RESULT_PREFIX = 'Local context tool';
+
 function compressMessageContent(content: string, maxLen: number): string {
-  if (content.length <= maxLen) return content;
-  // 保留工具调用 JSON 的名称 | Preserve tool-call name when JSON is present
+  const effectiveMax = content.startsWith(TOOL_RESULT_PREFIX) ? Math.max(maxLen, 280) : maxLen;
+  if (content.length <= effectiveMax) return content;
   const toolMatch = content.match(/"name"\s*:\s*"([^"]+)"/);
   if (toolMatch) {
-    return `[tool: ${toolMatch[1]}] ${content.slice(0, Math.max(40, maxLen - 30))}...`;
+    return `[tool: ${toolMatch[1]}] ${content.slice(0, Math.max(40, effectiveMax - 30))}...`;
   }
-  const half = Math.floor(maxLen / 2);
-  return `${content.slice(0, half)}…${content.slice(-Math.max(20, maxLen - half - 1))}`;
+  // head/tail split: front half + "…" (1 char) + back portion = effectiveMax total
+  const half = Math.floor(effectiveMax / 2);
+  return `${content.slice(0, half)}…${content.slice(-Math.max(20, effectiveMax - half - 1))}`;
 }
 
 function sumChars(messages: HistoryChatMessage[]): number {
@@ -49,7 +52,17 @@ function selectMessagesByPriority(messages: HistoryChatMessage[], maxChars: numb
   const selected = new Map<number, HistoryChatMessage>();
   for (const candidate of ranked) {
     const messageChars = candidate.message.content.length;
-    if (usedChars + messageChars > maxChars) continue;
+    if (usedChars + messageChars > maxChars) {
+      const remaining = maxChars - usedChars;
+      if (remaining >= 60) {
+        selected.set(candidate.index, {
+          ...candidate.message,
+          content: compressMessageContent(candidate.message.content, remaining),
+        });
+        usedChars += remaining;
+      }
+      continue;
+    }
     selected.set(candidate.index, candidate.message);
     usedChars += messageChars;
   }

@@ -10,7 +10,7 @@ import { buildLocalContextToolGuide } from './localContextTools';
 const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '\\u4f60\\u662f\\u8bed\\u97f3\\u6807\\u6ce8\\u5de5\\u4f5c\\u6d41\\u52a9\\u624b。',
   '\\u5f53\\u7528\\u6237\\u8981\\u6c42\\u6267\\u884c\\u64cd\\u4f5c（\\u5982\\u521b\\u5efa\\u53e5\\u6bb5、\\u5199\\u5165\\u8f6c\\u5199、\\u5199\\u5165\\u7ffb\\u8bd1）\\u65f6，\\u5fc5\\u987b\\u53ea\\u8fd4\\u56de JSON。',
-  '\\u5f53\\u7528\\u6237\\u53ea\\u662f\\u95ee\\u5019、\\u95f2\\u804a、\\u63d0\\u95ee、\\u89e3\\u91ca\\u6216\\u603b\\u7ed3\\u65f6，\\u4e25\\u7981\\u8fd4\\u56de tool_call JSON，\\u5fc5\\u987b\\u8fd4\\u56de\\u81ea\\u7136\\u8bed\\u8a00。',
+  '\\u5f53\\u7528\\u6237\\u53ea\\u662f\\u95ee\\u5019、\\u95f2\\u804a、\\u63d0\\u95ee、\\u89e3\\u91ca\\u6216\\u603b\\u7ed3\\u65f6\\uff0c\\u4e25\\u7981\\u8fd4\\u56de\\u64cd\\u4f5c\\u7c7b tool_call JSON\\uff08create/delete/set/merge/split/link/unlink/auto_gloss/set_token_*\\uff09\\u3002\\u4f46\\u53ef\\u4ee5\\u4e14\\u5e94\\u5f53\\u8fd4\\u56de\\u67e5\\u8be2\\u7c7b tool_call JSON\\uff08list_units/search_units/get_unit_detail/get_current_selection/get_project_stats/get_waveform_analysis/get_acoustic_summary\\uff09\\u4ee5\\u83b7\\u53d6\\u51c6\\u786e\\u6570\\u636e\\u3002',
   'JSON \\u683c\\u5f0f：{"tool_call":{"name":"<tool_name>","arguments":{...}}}',
   '\\u53ef\\u7528 tool_name \\u53ca\\u8bed\\u4e49（\\u4e25\\u683c\\u533a\\u5206，\\u52ff\\u6df7\\u7528）：',
   '  \\u53e5\\u6bb5\\u64cd\\u4f5c（segment = \\u4e00\\u6761\\u5e26\\u65f6\\u95f4\\u533a\\u95f4\\u7684\\u8f6c\\u5199\\u5355\\u5143，\\u65e0\\u8bed\\u8a00\\u5f52\\u5c5e）：',
@@ -40,7 +40,9 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '【\\u53c2\\u6570\\u7ea6\\u675f】\\u6267\\u884c\\u5199\\u5165/\\u6e05\\u7a7a/\\u5220\\u9664/\\u5207\\u5206/\\u81ea\\u52a8\\u6807\\u6ce8/\\u5c42\\u94fe\\u63a5\\u52a8\\u4f5c\\u65f6，\\u5fc5\\u987b\\u663e\\u5f0f\\u63d0\\u4f9b\\u76ee\\u6807 id（segmentId/layerId/transcriptionLayerId \\u7b49），\\u4e0d\\u8981\\u7701\\u7565。',
   '【\\u5173\\u952e\\u5224\\u65ad】\\u7528\\u6237\\u8bf4"\\u5220\\u9664××\\u8bed\\u8f6c\\u5199\\u884c/\\u8f6c\\u5199\\u5c42/\\u7ffb\\u8bd1\\u5c42" → \\u6709\\u8bed\\u8a00\\u9650\\u5b9a\\u8bcd → \\u6307\\u5411\\u6574\\u5c42 → delete_layer。',
   '【\\u5173\\u952e\\u5224\\u65ad】\\u7528\\u6237\\u8bf4"\\u5220\\u9664\\u8fd9\\u6761/\\u8fd9\\u4e2a\\u53e5\\u6bb5/\\u8fd9\\u4e00\\u884c" → \\u65e0\\u8bed\\u8a00\\u9650\\u5b9a\\u8bcd → \\u6307\\u5411\\u5355\\u6761\\u53e5\\u6bb5 → delete_transcription_segment。',
-  '\\u5982\\u679c\\u7528\\u6237\\u4e0d\\u662f\\u5728\\u8bf7\\u6c42\\u6267\\u884c\\u52a8\\u4f5c，\\u5219\\u6b63\\u5e38\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d。',
+  '\\u5982\\u679c\\u7528\\u6237\\u4e0d\\u662f\\u5728\\u8bf7\\u6c42\\u6267\\u884c\\u52a8\\u4f5c\\uff0c\\u5219\\u6b63\\u5e38\\u81ea\\u7136\\u8bed\\u8a00\\u56de\\u590d\\u3002',
+  '\\u3010\\u53cd\\u5e7b\\u89c9\\u89c4\\u5219\\u3011\\u5f53\\u4f60\\u9700\\u8981\\u5217\\u4e3e\\u5177\\u4f53\\u6761\\u76ee\\uff08\\u8bed\\u6bb5\\u5217\\u8868\\u3001\\u65f6\\u95f4\\u8303\\u56f4\\u3001ID\\u3001\\u6587\\u672c\\u5185\\u5bb9\\u3001\\u58f0\\u5b66\\u7ec6\\u8282\\uff09\\u5374\\u6ca1\\u6709\\u8db3\\u591f\\u6570\\u636e\\u65f6\\uff0c\\u5fc5\\u987b\\u5148\\u8c03\\u7528\\u67e5\\u8be2\\u5de5\\u5177\\u83b7\\u53d6\\u771f\\u5b9e\\u6570\\u636e\\uff0c\\u7981\\u6b62\\u51ed\\u805a\\u5408\\u6570\\u5b57\\u63a8\\u6d4b\\u6216\\u7f16\\u9020\\u3002\\u82e5\\u5de5\\u5177\\u4e0d\\u53ef\\u7528\\u6216\\u7ed3\\u679c\\u88ab\\u622a\\u65ad\\uff0c\\u660e\\u786e\\u544a\\u77e5\\u7528\\u6237\\u6570\\u636e\\u4e0d\\u5b8c\\u6574\\u3002\\u4e0a\\u4e0b\\u6587\\u4e2d\\u7684 utteranceTimeline \\u662f\\u771f\\u5b9e\\u6570\\u636e\\uff0c\\u53ef\\u76f4\\u63a5\\u5f15\\u7528\\u3002',
+  '\\u3010\\u4e0a\\u4e0b\\u6587\\u4f18\\u5148\\u89c4\\u5219\\u3011[CONTEXT] \\u662f\\u5b9e\\u65f6\\u5feb\\u7167\\uff0c\\u59cb\\u7ec8\\u53cd\\u6620\\u6700\\u65b0\\u72b6\\u6001\\u3002\\u82e5 [CONTEXT] \\u4e2d\\u7684\\u6570\\u636e\\uff08\\u5982 utterancesOnCurrentMediaCount\\u3001utteranceTimeline\\u3001projectStats\\uff09\\u4e0e\\u4e4b\\u524d\\u5bf9\\u8bdd\\u4e2d\\u7684\\u56de\\u7b54\\u77db\\u76fe\\uff0c\\u59cb\\u7ec8\\u4ee5 [CONTEXT] \\u4e3a\\u51c6\\u2014\\u2014\\u7528\\u6237\\u53ef\\u80fd\\u5df2\\u589e\\u5220\\u8bed\\u6bb5\\u6216\\u4fee\\u6539\\u9879\\u76ee\\u3002\\u4e0d\\u8981\\u91cd\\u590d\\u65e7\\u7684\\u56de\\u7b54\\u3002',
 ].map(decodeEscapedUnicode).join('\n');
 
 /** Persona \\u5b9a\\u4e49 */
@@ -48,6 +50,8 @@ const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
   transcription: [
     '\\u4f60\\u5f53\\u524d\\u626e\\u6f14\\u8bed\\u97f3\\u5b66\\u4e0e\\u8f6c\\u5199\\u52a9\\u624b。',
     '\\u4f18\\u5148\\u5173\\u6ce8\\u65f6\\u95f4\\u5bf9\\u9f50、\\u5206\\u6bb5\\u8fb9\\u754c、\\u8f6c\\u5199\\u51c6\\u786e\\u6027\\u4e0e\\u53ef\\u542c\\u8fa8\\u6027。',
+    '\\u4e0a\\u4e0b\\u6587\\u4e2d waveformAnalysis \\u7684 gaps \\u4ec5\\u8868\\u793a\\u300c\\u5206\\u6790\\u7528\\u65f6\\u95f4\\u6761\\u4e4b\\u95f4\\u8d85\\u8fc7\\u9608\\u503c\\u7684\\u95f4\\u9699\\u6bb5\\u300d\\u6570\\u91cf\\uff0c\\u4e0d\\u53ef\\u7528 gaps+1 \\u6216\\u968f\\u610f\\u62df\\u9020\\u8bed\\u6bb5\\u603b\\u6570\\u6216\\u5b8c\\u6574\\u65f6\\u95f4\\u8868\\u3002',
+    'projectUnitCount = total units in the whole project (authoritative). currentTrack.unitCount = units only on the currently selected audio track; they may differ. When user asks count questions, prioritize projectUnitCount. list_units/search_units cover the whole project. selectedUnitIds represents current selection only. waveformAnalysis gaps count track gap segments, not unit count.',
   ].map(decodeEscapedUnicode).join('\n'),
   glossing: [
     '\\u4f60\\u5f53\\u524d\\u626e\\u6f14\\u5f62\\u6001\\u5b66\\u4e0e\\u8bed\\u4e49\\u6807\\u6ce8\\u52a9\\u624b。',
@@ -78,12 +82,38 @@ interface ContextFieldTemplate {
 
 const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
   { key: 'page', render: (v) => `page=${v}` },
+  {
+    key: 'projectUnitCount',
+    render: (v) => (typeof v === 'number' && Number.isFinite(v)
+      ? `projectUnitCount=${v} [authoritative — total units in project]`
+      : null),
+  },
+  {
+    key: 'currentMediaUnitCount',
+    render: (v) => (typeof v === 'number' && Number.isFinite(v)
+      ? `currentTrack.unitCount=${v} [current audio track only, may differ from projectUnitCount]`
+      : null),
+  },
+  { key: 'unitTimeline', render: (v) => (typeof v === 'string' && v.length > 0 ? `unitTimeline=${v} [current audio track digest; #N are line indices, not unit ids]` : null) },
+  {
+    key: 'projectUtteranceCount',
+    render: (v) => (typeof v === 'number' && Number.isFinite(v)
+      ? `projectUtteranceCount=${v} [authoritative — total utterances in project]`
+      : null),
+  },
+  {
+    key: 'utterancesOnCurrentMediaCount',
+    render: (v) => (typeof v === 'number' && Number.isFinite(v)
+      ? `currentTrack.utteranceCount=${v} [current audio track only, may differ from projectUtteranceCount]`
+      : null),
+  },
+  { key: 'utteranceTimeline', render: (v) => (typeof v === 'string' && v.length > 0 ? `utteranceTimeline=${v} [current audio track digest; #N are line indices, not utterance ids]` : null) },
   { key: 'activeUtteranceUnitId', render: (v) => `activeUtteranceUnitId=${v}` },
   { key: 'activeSegmentUnitId', render: (v) => `activeSegmentUnitId=${v}` },
   { key: 'selectedUnitKind', render: (v) => `selectedUnitKind=${v}` },
   { key: 'selectedUnitIds', render: (v) => `selectedUnitIds=${(v as string[]).join(',')}` },
-  { key: 'selectedUtteranceStartSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceStartSec=${(v as number).toFixed(2)}` : null },
-  { key: 'selectedUtteranceEndSec', render: (v) => Number.isFinite(v as number) ? `selectedUtteranceEndSec=${(v as number).toFixed(2)}` : null },
+  { key: 'selectedUtteranceStartSec', render: (v) => Number.isFinite(v as number) ? `selectedUnitStartSec=${(v as number).toFixed(2)} [utterance or segment per selectedUnitKind]` : null },
+  { key: 'selectedUtteranceEndSec', render: (v) => Number.isFinite(v as number) ? `selectedUnitEndSec=${(v as number).toFixed(2)} [utterance or segment per selectedUnitKind]` : null },
   { key: 'selectedLayerId', render: (v) => `selectedLayerId=${v}` },
   { key: 'selectedLayerType', render: (v) => `selectedLayerType=${v}` },
   { key: 'selectedTranslationLayerId', render: (v) => `selectedTranslationLayerId=${v}` },
@@ -98,8 +128,8 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
   {
     key: 'projectStats',
     render: (v) => {
-      const s = v as { utteranceCount?: number; translationLayerCount?: number; aiConfidenceAvg?: number | null };
-      return `projectStats(utterances=${s.utteranceCount ?? 0}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
+      const s = v as { unitCount?: number; utteranceCount?: number; translationLayerCount?: number; aiConfidenceAvg?: number | null };
+      return `projectStats(units=${s.unitCount ?? s.utteranceCount ?? 0}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
   {
@@ -116,10 +146,10 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
         activeSignals?: string[];
       };
       const segments = [
-        `lowConfidence=${summary.lowConfidenceCount ?? 0}`,
-        `overlaps=${summary.overlapCount ?? 0}`,
-        `gaps=${summary.gapCount ?? 0}`,
-        `maxGapSec=${typeof summary.maxGapSeconds === 'number' ? summary.maxGapSeconds.toFixed(1) : '0.0'}`,
+        `trackLowConfidence=${summary.lowConfidenceCount ?? 0}`,
+        `trackOverlaps=${summary.overlapCount ?? 0}`,
+        `trackGaps=${summary.gapCount ?? 0}`,
+        `trackMaxGapSec=${typeof summary.maxGapSeconds === 'number' ? summary.maxGapSeconds.toFixed(1) : '0.0'}`,
       ];
       if (summary.selectionLowConfidenceCount !== undefined) segments.push(`selectionLowConfidence=${summary.selectionLowConfidenceCount}`);
       if (summary.selectionOverlapCount !== undefined) segments.push(`selectionOverlaps=${summary.selectionOverlapCount}`);
@@ -198,7 +228,7 @@ export function buildPromptContextBlock(context: AiPromptContext | null | undefi
   if (shortLines.length === 0 && longLines.length === 0) return '';
 
   const render = (shortPart: string[], longPart: string[]): string => {
-    const blocks: string[] = ['[CONTEXT]'];
+    const blocks: string[] = ['[CONTEXT — real-time snapshot, overrides any prior conversation data]'];
     if (shortPart.length > 0) {
       blocks.push('ShortTerm:');
       blocks.push(...shortPart.map((line) => `- ${line}`));

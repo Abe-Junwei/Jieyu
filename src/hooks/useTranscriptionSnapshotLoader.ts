@@ -181,11 +181,12 @@ export function useTranscriptionSnapshotLoader({
     });
 
     dbNameRef.current = db.name;
+    const translationLayerRows = layerRows.filter((l) => l.layerType === 'translation');
     setState({
       phase: 'ready',
       dbName: db.name,
       utteranceCount: utteranceRows.length,
-      translationLayerCount: layerRows.length,
+      translationLayerCount: translationLayerRows.length,
       translationRecordCount: translationRows.length,
     });
   }, [

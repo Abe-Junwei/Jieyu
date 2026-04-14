@@ -4,6 +4,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { JIEYU_LUCIDE_PANEL_CLOSE_LG } from '../utils/jieyuLucideIcon';
 import { useLocale } from '../i18n';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
@@ -99,7 +100,7 @@ export function SidePaneActionModal({
             aria-label={`${ariaLabel} ${closeLabel}`}
             title={`${ariaLabel} ${closeLabel}`}
           >
-            <X size={18} />
+            <X className={JIEYU_LUCIDE_PANEL_CLOSE_LG} />
           </button>
         )}
         onClick={(event) => event.stopPropagation()}

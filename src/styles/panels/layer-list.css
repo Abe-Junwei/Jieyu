@@ -716,28 +716,6 @@
   cursor: not-allowed;
 }
 
-.transcription-side-pane-card {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-md);
-  padding: 8px 10px;
-  background: var(--surface-elevated);
-  display: grid;
-  gap: 6px;
-}
-
-.transcription-side-pane-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.72rem;
-}
-
-.transcription-side-pane-card-footer {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .transcription-side-pane-inline-checkbox {
   display: inline-flex;
   align-items: center;

@@ -11,7 +11,7 @@ import type {
 } from '../db';
 import { memo, useCallback, useMemo, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { SpeakerFocusMode, TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
+import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
@@ -37,7 +37,6 @@ import {
   EMPTY_SPEAKER_LAYOUT,
   normalizeSpeakerFocusKey,
   resolveSpeakerFocusKeyFromSegment,
-  resolveSpeakerFocusKeyFromUtterance,
 } from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
 
@@ -104,8 +103,6 @@ type TranscriptionTimelineTextOnlyProps = {
   selectedSpeakerNamesForLock?: string[];
   speakerLayerLayout?: SpeakerLayerLayoutResult;
   activeUtteranceUnitId?: string;
-  speakerFocusMode?: SpeakerFocusMode;
-  speakerFocusSpeakerKey?: string;
   activeSpeakerFilterKey?: string;
   speakerVisualByUtteranceId?: Record<string, { name: string; color: string }>;
   speakerQuickActions?: {
@@ -172,8 +169,6 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   selectedSpeakerNamesForLock,
   speakerLayerLayout = EMPTY_SPEAKER_LAYOUT,
   activeUtteranceUnitId,
-  speakerFocusMode = 'all',
-  speakerFocusSpeakerKey,
   activeSpeakerFilterKey = 'all',
   speakerVisualByUtteranceId = {},
   speakerQuickActions,
@@ -291,10 +286,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     () => new Map(mediaItems.map((item) => [item.id, item] as const)),
     [mediaItems],
   );
-  const {
-    segmentSpeakerLayoutByLayer,
-    segmentSpeakerIdByLayer,
-  } = useMemo(() => buildSegmentSpeakerLayoutMaps({
+  const { segmentSpeakerLayoutByLayer } = useMemo(() => buildSegmentSpeakerLayoutMaps({
     transcriptionLayers,
     layerById,
     utteranceById,
@@ -443,12 +435,6 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const rawItem = layerItems[virtualItem.index];
             if (!rawItem) return null;
             const utt = rawItem as UtteranceDocType;
-            const utteranceSpeakerKey = usesSegmentTimeline
-              ? (segmentSpeakerIdByLayer.get(segmentSourceLayerId)?.get(utt.id) ?? 'unknown-speaker')
-              : resolveSpeakerFocusKeyFromUtterance(utt);
-            const focusMatched = speakerFocusMode === 'all' || !speakerFocusSpeakerKey || utteranceSpeakerKey === speakerFocusSpeakerKey;
-            const shouldHideForFocus = speakerFocusMode === 'focus-hard' && !focusMatched;
-            const shouldDimForFocus = speakerFocusMode === 'focus-soft' && !focusMatched;
             const speakerVisual = speakerVisualByUtteranceId[utt.id];
             const sourceText = usesSegmentTimeline
               ? (segmentContentByLayer?.get(layer.id)?.get(utt.id)?.text ?? '')
@@ -482,7 +468,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             return (
               <TimelineStyledContainer
                 key={utt.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${shouldHideForFocus ? ' timeline-text-item-focus-hidden' : ''}${shouldDimForFocus ? ' timeline-text-item-focus-dim' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,

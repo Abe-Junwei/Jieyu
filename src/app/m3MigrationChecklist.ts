@@ -222,15 +222,6 @@ export const m3MigrationChecklist: MigrationEntry[] = [
     notes: 'Speaker scope controller',
   },
   {
-    file: 'src/pages/useSpeakerFocusController.ts',
-    domain: 'transcription',
-    priority: 'P3-low',
-    status: 'frozen',
-    dbImports: 1,
-    serviceImports: 0,
-    notes: 'Speaker focus controller',
-  },
-  {
     file: 'src/pages/useTrackDisplayController.ts',
     domain: 'transcription',
     priority: 'P3-low',

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useLatest } from './useLatest';
 import { useTranscriptionState } from './useTranscriptionState';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
@@ -178,6 +179,29 @@ export function useTranscriptionData() {
     utterances,
     translations,
   });
+
+  useEffect(() => {
+    if (state.phase !== 'ready') return;
+    const nextUtteranceCount = utterances.length;
+    const nextTranslationLayerCount = translationLayers.length;
+    const nextTranslationRecordCount = translations.length;
+    setState((prev) => {
+      if (prev.phase !== 'ready') return prev;
+      if (
+        prev.utteranceCount === nextUtteranceCount
+        && prev.translationLayerCount === nextTranslationLayerCount
+        && prev.translationRecordCount === nextTranslationRecordCount
+      ) {
+        return prev;
+      }
+      return {
+        ...prev,
+        utteranceCount: nextUtteranceCount,
+        translationLayerCount: nextTranslationLayerCount,
+        translationRecordCount: nextTranslationRecordCount,
+      };
+    });
+  }, [state.phase, utterances.length, translationLayers.length, translations.length, setState]);
 
   const {
     selectedMediaUrl,

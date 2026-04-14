@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { LayerDocType } from '../db';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -7,6 +8,7 @@ import { ContextMenu } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { LayerActionPopover } from './LayerActionPopover';
 import { SidePaneSidebarOverview } from './SidePaneSidebarOverview';
+import { TranscriptionLeftRailLayerActions } from './transcription/TranscriptionLeftRailLayerActions';
 import { SidePaneSidebarActions } from './SidePaneSidebarActions';
 import { buildSidePaneSidebarContextMenuItems } from './SidePaneSidebar.contextMenu';
 import { useSidePaneSidebarConstraintRepair } from './SidePaneSidebar.constraintRepair';
@@ -23,7 +25,7 @@ import {
 import {
   buildLayerBundles,
 } from '../services/LayerOrderingService';
-import type { UiFontScaleMode } from '../utils/panelAdaptiveLayout';
+import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
 
@@ -40,10 +42,6 @@ interface SidePaneSidebarProps {
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
-  uiFontScale?: number;
-  uiFontScaleMode?: UiFontScaleMode;
-  onUiFontScaleChange?: (nextScale: number) => void;
-  onUiFontScaleReset?: () => void;
 }
 
 export function SidePaneSidebar({
@@ -59,11 +57,9 @@ export function SidePaneSidebar({
   defaultLanguageId,
   defaultOrthographyId,
   onReorderLayers,
-  uiFontScale = 1,
-  uiFontScaleMode = 'manual',
-  onUiFontScaleChange,
-  onUiFontScaleReset,
 }: SidePaneSidebarProps) {
+  const location = useLocation();
+  const showLeftRailLayerActions = isTranscriptionWorkspacePathname(location.pathname);
   const locale = useLocale();
   const messages = getSidePaneSidebarMessages(locale);
 
@@ -171,10 +167,6 @@ export function SidePaneSidebar({
     onReorderLayers,
   });
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
-  const uiFontScalePercent = useMemo(() => Math.round(Math.max(0.85, Math.min(1.4, uiFontScale)) * 100), [uiFontScale]);
-  const uiFontScaleModeLabel = uiFontScaleMode === 'auto'
-    ? messages.uiFontScaleModeAuto
-    : messages.uiFontScaleModeManual;
   const focusedLayer = useMemo(
     () => sidePaneRows.find((layer) => layer.id === focusedLayerRowId) ?? null,
     [focusedLayerRowId, sidePaneRows],
@@ -212,17 +204,12 @@ export function SidePaneSidebar({
   const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
     layerId: contextMenu?.layerId ?? null,
     messages,
-    disableCreateTranslationEntry,
     deletableLayers,
-    openCreateLayerPopover,
     requestDeleteLayer,
-    closeContextMenu: () => setContextMenu(null),
   }), [
     contextMenu?.layerId,
     deletableLayers,
-    disableCreateTranslationEntry,
     messages,
-    openCreateLayerPopover,
     requestDeleteLayer,
   ]);
 
@@ -289,12 +276,8 @@ export function SidePaneSidebar({
       hasSidePaneHost={hasSidePaneHost}
       messages={messages}
       layerActionRootRef={layerActionRootRef}
-      disableCreateTranslationEntry={disableCreateTranslationEntry}
       constraintRepairBusy={constraintRepairBusy}
       sidePaneRowsLength={sidePaneRows.length}
-      uiFontScalePercent={uiFontScalePercent}
-      uiFontScaleMode={uiFontScaleMode}
-      uiFontScaleModeLabel={uiFontScaleModeLabel}
       layerActionPanel={layerActionPanel}
       quickDeleteLayerId={quickDeleteLayerId}
       quickDeleteKeepUtterances={quickDeleteKeepUtterances}
@@ -305,11 +288,7 @@ export function SidePaneSidebar({
       constraintRepairDetailsCollapsed={constraintRepairDetailsCollapsed}
       groupedConstraintRepairDetails={groupedConstraintRepairDetails}
       speakerCtx={speakerCtx}
-      onOpenCreateTranscription={() => openCreateLayerPopover('create-transcription')}
-      onOpenCreateTranslation={() => openCreateLayerPopover('create-translation')}
       onRunRepair={handleRepairLayerConstraints}
-      {...(onUiFontScaleChange ? { onUiFontScaleChange } : {})}
-      {...(onUiFontScaleReset ? { onUiFontScaleReset } : {})}
       setLayerActionPanel={setLayerActionPanel}
       setQuickDeleteLayerId={setQuickDeleteLayerId}
       setQuickDeleteKeepUtterances={setQuickDeleteKeepUtterances}
@@ -320,12 +299,8 @@ export function SidePaneSidebar({
     hasSidePaneHost,
     messages,
     layerActionRootRef,
-    disableCreateTranslationEntry,
     constraintRepairBusy,
     sidePaneRows.length,
-    uiFontScalePercent,
-    uiFontScaleMode,
-    uiFontScaleModeLabel,
     layerActionPanel,
     quickDeleteLayerId,
     quickDeleteKeepUtterances,
@@ -336,10 +311,7 @@ export function SidePaneSidebar({
     constraintRepairDetailsCollapsed,
     groupedConstraintRepairDetails,
     speakerCtx,
-    openCreateLayerPopover,
     handleRepairLayerConstraints,
-    onUiFontScaleChange,
-    onUiFontScaleReset,
     setLayerActionPanel,
     setQuickDeleteLayerId,
     setQuickDeleteKeepUtterances,
@@ -381,6 +353,14 @@ export function SidePaneSidebar({
 
   return (
     <SidePaneLayerProvider deletableLayers={deletableLayers} checkLayerHasContent={checkLayerHasContent} deleteLayer={deleteLayer} deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}>
+      {showLeftRailLayerActions ? (
+        <TranscriptionLeftRailLayerActions
+          messages={messages}
+          disableCreateTranslationEntry={disableCreateTranslationEntry}
+          onCreateTranscription={() => openCreateLayerPopover('create-transcription')}
+          onCreateTranslation={() => openCreateLayerPopover('create-translation')}
+        />
+      ) : null}
       {sidePaneHost ? null : sidePaneInlineFallbackNode}
 
       {/* Context menu for right-click on layer items */}

@@ -321,85 +321,87 @@ export function LanguageIsoInput({
 
   return (
     <div className={`language-iso-input ${className}`.trim()}>
-      <div className="language-iso-input-grid">
-        <label className="dialog-field">
-          <span>{nameLabel}{required ? ' *' : ''}</span>
-          <input
-            id={languageNameInputId}
-            className="input panel-input"
-            type="text"
-            role="combobox"
-            value={presentedValue.languageName}
-            onChange={handleLanguageNameChange}
-            onKeyDown={handleLanguageNameKeyDown}
-            onFocus={() => setIsNameInputFocused(true)}
-            onBlur={() => setIsNameInputFocused(false)}
-            placeholder={namePlaceholder}
-            autoComplete="off"
-            aria-autocomplete="list"
-            aria-haspopup="listbox"
-            aria-expanded={visibleSuggestionMatches.length > 0}
-            aria-controls={visibleSuggestionMatches.length > 0 ? suggestionListId : undefined}
-            aria-activedescendant={activeSuggestionId}
-            disabled={disabled}
-          />
-        </label>
-        <label className="dialog-field">
-          <span>{codeLabel}{required ? ' *' : ''}</span>
-          <input
-            id={`${fieldIdPrefix}-language-code`}
-            ref={languageCodeInputRef}
-            className="input panel-input"
-            type="text"
-            value={presentedValue.languageCode}
-            onChange={handleLanguageCodeChange}
-            onKeyDown={handleLanguageCodeKeyDown}
-            onFocus={handleLanguageCodeFocus}
-            onBlur={handleLanguageCodeBlur}
-            placeholder={codePlaceholder}
-            autoComplete="off"
-            spellCheck={false}
-            data-language-iso-code-input="true"
-            aria-invalid={visibleCodeError ? 'true' : undefined}
-            aria-describedby={visibleCodeError ? codeErrorId : undefined}
-            disabled={disabled}
-          />
-        </label>
-      </div>
+      <div className="language-iso-input-anchor">
+        <div className="language-iso-input-grid">
+          <label className="dialog-field">
+            <span>{nameLabel}{required ? ' *' : ''}</span>
+            <input
+              id={languageNameInputId}
+              className="input panel-input"
+              type="text"
+              role="combobox"
+              value={presentedValue.languageName}
+              onChange={handleLanguageNameChange}
+              onKeyDown={handleLanguageNameKeyDown}
+              onFocus={() => setIsNameInputFocused(true)}
+              onBlur={() => setIsNameInputFocused(false)}
+              placeholder={namePlaceholder}
+              autoComplete="off"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-expanded={visibleSuggestionMatches.length > 0}
+              aria-controls={visibleSuggestionMatches.length > 0 ? suggestionListId : undefined}
+              aria-activedescendant={activeSuggestionId}
+              disabled={disabled}
+            />
+          </label>
+          <label className="dialog-field">
+            <span>{codeLabel}{required ? ' *' : ''}</span>
+            <input
+              id={`${fieldIdPrefix}-language-code`}
+              ref={languageCodeInputRef}
+              className="input panel-input"
+              type="text"
+              value={presentedValue.languageCode}
+              onChange={handleLanguageCodeChange}
+              onKeyDown={handleLanguageCodeKeyDown}
+              onFocus={handleLanguageCodeFocus}
+              onBlur={handleLanguageCodeBlur}
+              placeholder={codePlaceholder}
+              autoComplete="off"
+              spellCheck={false}
+              data-language-iso-code-input="true"
+              aria-invalid={visibleCodeError ? 'true' : undefined}
+              aria-describedby={visibleCodeError ? codeErrorId : undefined}
+              disabled={disabled}
+            />
+          </label>
+        </div>
 
-      <div
-        className={`language-iso-input-suggestions${hasVisibleSuggestions ? '' : ' is-empty'}`}
-        {...(hasVisibleSuggestions
-          ? {
-            id: suggestionListId,
-            role: 'listbox' as const,
-            'aria-label': nameLabel,
-            'aria-labelledby': languageNameInputId,
-          }
-          : { 'aria-hidden': 'true' as const })}
-      >
-        {hasVisibleSuggestions
-          ? visibleSuggestionMatches.map((match, index) => (
-            <div
-              id={`${fieldIdPrefix}-language-suggestion-${index}`}
-              key={`${match.entry.iso6393}-${index}`}
-              role="option"
-              aria-selected={model.activeSuggestionIndex === index}
-              aria-disabled={disabled ? 'true' : undefined}
-              className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
-              onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => {
-                if (disabled) {
-                  return;
-                }
-                dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
-              }}
-            >
-              {formatLanguageCatalogMatch(match, locale)}
-            </div>
-          ))
-          : null}
+        <div
+          className={`language-iso-input-suggestions${hasVisibleSuggestions ? '' : ' is-empty'}`}
+          {...(hasVisibleSuggestions
+            ? {
+              id: suggestionListId,
+              role: 'listbox' as const,
+              'aria-label': nameLabel,
+              'aria-labelledby': languageNameInputId,
+            }
+            : { 'aria-hidden': 'true' as const })}
+        >
+          {hasVisibleSuggestions
+            ? visibleSuggestionMatches.map((match, index) => (
+              <div
+                id={`${fieldIdPrefix}-language-suggestion-${index}`}
+                key={`${match.entry.iso6393}-${index}`}
+                role="option"
+                aria-selected={model.activeSuggestionIndex === index}
+                aria-disabled={disabled ? 'true' : undefined}
+                className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
+                onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  if (disabled) {
+                    return;
+                  }
+                  dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
+                }}
+              >
+                {formatLanguageCatalogMatch(match, locale)}
+              </div>
+            ))
+            : null}
+        </div>
       </div>
 
       <div className="language-iso-input-feedback-slot" aria-live="polite">

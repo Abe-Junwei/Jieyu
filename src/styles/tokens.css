@@ -328,6 +328,9 @@
   --text-secondary: var(--gray-10);
   --text-tertiary: var(--gray-9);
 
+  /* 与浅色根一致，供 color-mix / 语言资产面板等引用 | Same paper-white token as light root */
+  --color-white: #ffffff;
+
   --text-on-solid: #111111;
   --shadow-color: #000000;
 
@@ -794,30 +797,31 @@
   --state-info-border: color-mix(in srgb, #1a73e8 34%, transparent);
   --state-info-border-strong: color-mix(in srgb, #1a73e8 48%, transparent);
 }
+/* 深色：对齐 Tailwind Slate 专业音频桌面稿（slate-950/900 底、slate-700/800 边线、blue-400/500 强调） */
 :root[data-appearance='googleLightModern'][data-theme='dark'] {
-  --gray-1: #202124;
-  --gray-2: #292a2d;
-  --gray-3: #35363a;
-  --gray-4: #3c4043;
-  --gray-5: #5f6368;
-  --gray-6: #80868b;
-  --gray-7: #9aa0a6;
-  --gray-8: #bdc1c6;
-  --gray-9: #dadce0;
-  --gray-10: #e8eaed;
-  --gray-11: #f1f3f4;
-  --gray-12: #f8f9fa;
-  --header-accent: #8ab4f8;
-  --accent-secondary: #aecbfa;
-  --border-accent: #5f6368;
+  --gray-1: #020617; /* slate-950 工作区最深底 */
+  --gray-2: #0f172a; /* slate-900 顶栏 / 侧栏 / 主壳 */
+  --gray-3: #1e293b; /* slate-800 卡片、波形槽、hover 面 */
+  --gray-4: #334155; /* slate-700 边框、分隔、输入轨 */
+  --gray-5: #475569; /* slate-600 */
+  --gray-6: #64748b; /* slate-500 标尺、弱控件 */
+  --gray-7: #7c8ea1; /* 500→400 之间，边线强调档 */
+  --gray-8: #94a3b8; /* slate-400 说明、静音图标 */
+  --gray-9: #94a3b8; /* text-tertiary */
+  --gray-10: #cbd5e1; /* slate-300 辅文 */
+  --gray-11: #e2e8f0; /* slate-200 */
+  --gray-12: #f8fafc; /* slate-50 主文 */
+  --header-accent: #60a5fa; /* blue-400 品牌/图标强调 */
+  --accent-secondary: #3b82f6; /* blue-500 主按钮、播放头、选中描边 */
+  --border-accent: #334155; /* slate-700 */
   --shadow-color: #000000;
-  --header-bg: rgba(32, 33, 36, 0.94);
-  --state-info-solid: #8ab4f8;
-  --state-info-text: #aecbfa;
-  --state-info-bg: color-mix(in srgb, #8ab4f8 14%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, #8ab4f8 22%, transparent);
-  --state-info-border: color-mix(in srgb, #8ab4f8 36%, transparent);
-  --state-info-border-strong: color-mix(in srgb, #8ab4f8 50%, transparent);
+  --header-bg: rgba(15, 23, 42, 0.94);
+  --state-info-solid: #3b82f6; /* blue-500 */
+  --state-info-text: #93c5fd; /* blue-300 */
+  --state-info-bg: color-mix(in srgb, #3b82f6 14%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, #3b82f6 22%, transparent);
+  --state-info-border: color-mix(in srgb, #3b82f6 38%, transparent);
+  --state-info-border-strong: color-mix(in srgb, #3b82f6 52%, transparent);
 }
 
 /* ── Solarized Dark — 色值取自 Ethan Schoonover 官方表（base03…accent） ── */

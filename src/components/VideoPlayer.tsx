@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
+import { JIEYU_LUCIDE_WAVE, JIEYU_LUCIDE_WAVE_PLAY } from '../utils/jieyuLucideIcon';
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, useLocale } from '../i18n';
@@ -211,7 +212,7 @@ export function VideoPlayer({
               onClick={() => player.togglePlayback()}
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+              {isPlaying ? <Pause className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Play className={JIEYU_LUCIDE_WAVE_PLAY} />}
             </button>
 
             {/* Skip back 5s */}
@@ -220,7 +221,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(-5)}
               title="Rewind 5s (←)"
             >
-              <SkipBack size={16} />
+              <SkipBack className={JIEYU_LUCIDE_WAVE} />
             </button>
 
             {/* Skip forward 5s */}
@@ -229,7 +230,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(5)}
               title="Forward 5s (→)"
             >
-              <SkipForward size={16} />
+              <SkipForward className={JIEYU_LUCIDE_WAVE} />
             </button>
 
             {/* Time display */}
@@ -246,7 +247,7 @@ export function VideoPlayer({
                 onClick={() => setShowSettings((v) => !v)}
                 title="Playback speed"
               >
-                <Settings size={16} />
+                <Settings className={JIEYU_LUCIDE_WAVE} />
                 <span className="video-player-rate-label">{playbackRate}x</span>
               </button>
               {showSettings && (
@@ -279,7 +280,7 @@ export function VideoPlayer({
               }}
               title={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              {isMuted || volume === 0 ? <VolumeX className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Volume2 className={JIEYU_LUCIDE_WAVE_PLAY} />}
             </button>
 
             {/* Fit/Fill/Original display mode */}
@@ -329,7 +330,7 @@ export function VideoPlayer({
               }}
               title="Fullscreen"
             >
-              <Maximize size={16} />
+              <Maximize className={JIEYU_LUCIDE_WAVE} />
             </button>
           </div>
         </div>

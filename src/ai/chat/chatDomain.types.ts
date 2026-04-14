@@ -7,6 +7,7 @@ import type { AiMessageCitation } from '../../db';
 import type { EmbeddingSearchService } from '../embeddings/EmbeddingSearchService';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { VoiceActionToolName } from '../voice/VoiceActionTools';
+import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 
 // ── Core Types ─────────────────────────────────────────────────────────────────
 
@@ -145,6 +146,22 @@ export interface AiSessionMemorySummaryQualityWarning {
   coveredTurnCount: number;
 }
 
+export type LocalToolIntent =
+  | 'unit.list'
+  | 'unit.search'
+  | 'unit.detail'
+  | 'utterance.list'
+  | 'utterance.search'
+  | 'utterance.detail';
+
+export interface AiSessionMemoryLocalToolState {
+  lastIntent?: LocalToolIntent;
+  lastQuery?: string;
+  lastResultUnitIds?: string[];
+  lastResultUtteranceIds?: string[];
+  updatedAt: string;
+}
+
 export interface AiSessionMemory {
   conversationSummary?: string;
   summaryTurnCount?: number;
@@ -158,6 +175,7 @@ export interface AiSessionMemory {
   lastLayerId?: string;
   adaptiveInputProfile?: AiAdaptiveInputProfile;
   recommendationTelemetry?: AiRecommendationTelemetry;
+  localToolState?: AiSessionMemoryLocalToolState;
 }
 
 export type ToolPlannerClarifyReason =
@@ -247,6 +265,17 @@ export interface AiToolRiskCheckResult {
 
 export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
+export interface AiLegacyLocalUtteranceToolRow {
+  id: string;
+  textId?: string;
+  mediaId?: string;
+  startTime: number;
+  endTime: number;
+  transcription: string;
+  speakerId?: string;
+  annotationStatus?: string;
+}
+
 export interface AiShortTermContext {
   page?: string;
   activeUtteranceUnitId?: string;
@@ -262,11 +291,28 @@ export interface AiShortTermContext {
   selectedText?: string;
   selectionTimeRange?: string;
   audioTimeSec?: number;
+  /** Project-wide unit count (same source as projectStats.unitCount). */
+  projectUnitCount?: number;
+  /** Current media unit count for waveform/timeline analysis rows. */
+  currentMediaUnitCount?: number;
+  /** Timeline digest on current media (utterance or segment). */
+  unitTimeline?: string;
+  /** Full-project unit snapshot for local list/search/detail tools (not serialized into prompt text). */
+  localUnitIndex?: ReadonlyArray<TimelineUnitView>;
+  /** @deprecated Use projectUnitCount */
+  projectUtteranceCount?: number;
+  /** @deprecated Use currentMediaUnitCount */
+  utterancesOnCurrentMediaCount?: number;
+  /** @deprecated Use unitTimeline */
+  utteranceTimeline?: string;
+  /** @deprecated Use localUnitIndex */
+  localUtteranceIndex?: ReadonlyArray<TimelineUnitView | AiLegacyLocalUtteranceToolRow>;
   recentEdits?: string[];
 }
 
 export interface AiLongTermContext {
   projectStats?: {
+    unitCount?: number;
     utteranceCount?: number;
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;

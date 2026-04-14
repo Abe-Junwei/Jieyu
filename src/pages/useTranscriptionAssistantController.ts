@@ -37,8 +37,6 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.setAiPanelMode,
     input.state.dbName,
     input.state.phase,
-    input.state.translationLayerCount,
-    input.state.utteranceCount,
     input.translationLayersLength,
     input.utterancesLength,
     input.vadCacheStatus,

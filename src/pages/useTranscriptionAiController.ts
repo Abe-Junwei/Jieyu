@@ -5,10 +5,12 @@ import { useAiChat } from '../hooks/useAiChat';
 import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
+import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
+import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
@@ -198,29 +200,44 @@ export function useTranscriptionAiController(
     return aiToolCallHandler(preparedCall);
   }, [aiToolCallHandler, materializeAiToolCall]);
 
+  const unitIndex = useTimelineUnitViewIndex({
+    utterances: input.utterances,
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    segmentsByLayer: input.segmentsByLayer,
+    segmentContentByLayer: input.segmentContentByLayer,
+    currentMediaId: input.selectedTimelineMedia?.id,
+    activeLayerIdForEdits: input.activeLayerIdForEdits,
+    defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+    utteranceCount: input.utteranceCount,
+  });
+  const effectiveUnitIndex = input.timelineUnitViewIndex ?? unitIndex;
+
   const buildAiPromptContext = useCallback(() => {
     const currentMediaId = input.selectedTimelineMedia?.id;
     const cachedVad = currentMediaId ? vadCache.get(currentMediaId) : null;
+    const waveformRows = timelineUnitsToWaveformAnalysisRows(effectiveUnitIndex.currentMediaUnits);
     return buildTranscriptionAiPromptContext({
-    waveformAnalysis: buildWaveformAnalysisPromptSummary(input.utterancesOnCurrentMedia, {
-      ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec } : {}),
-      ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndTime: input.selectionSnapshot.selectedUnitEndSec } : {}),
+      currentMediaUnits: effectiveUnitIndex.currentMediaUnits,
+      projectUnitsForTools: effectiveUnitIndex.allUnits,
+      waveformAnalysis: buildWaveformAnalysisPromptSummary(waveformRows, {
+        ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec } : {}),
+        ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndTime: input.selectionSnapshot.selectedUnitEndSec } : {}),
+        audioTimeSec: aiAudioTimeRef.current,
+        ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
+      }),
+      ...(acousticSummary ? { acousticSummary } : {}),
+      selectionSnapshot: input.selectionSnapshot,
+      selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
+      utteranceCount: effectiveUnitIndex.totalCount,
+      translationLayerCount: input.translationLayerCount,
+      aiConfidenceAvg: input.aiConfidenceAvg ?? 0,
+      observerStage: aiObserverStageRef.current,
+      topLexemes: aiLexemeSummaryRef.current,
+      recommendations: aiRecommendationRef.current,
       audioTimeSec: aiAudioTimeRef.current,
-      ...(cachedVad ? { vadSegments: cachedVad.segments } : {}),
-    }),
-    ...(acousticSummary ? { acousticSummary } : {}),
-    selectionSnapshot: input.selectionSnapshot,
-    selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
-    utteranceCount: input.utteranceCount,
-    translationLayerCount: input.translationLayerCount,
-    aiConfidenceAvg: input.aiConfidenceAvg ?? 0,
-    observerStage: aiObserverStageRef.current,
-    topLexemes: aiLexemeSummaryRef.current,
-    recommendations: aiRecommendationRef.current,
-    audioTimeSec: aiAudioTimeRef.current,
-    recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
-  });
-  }, [acousticSummary, input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory, input.utteranceCount, input.utterancesOnCurrentMedia]);
+      recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
+    });
+  }, [acousticSummary, effectiveUnitIndex, input.aiConfidenceAvg, input.selectedUnitIds, input.selectionSnapshot, input.selectedTimelineMedia?.id, input.translationLayerCount, input.undoHistory]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,

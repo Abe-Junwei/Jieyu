@@ -15,7 +15,6 @@ type SharedLaneFields = Pick<
   | 'deletableLayers'
   | 'layerLinks'
   | 'speakerLayerLayout'
-  | 'speakerFocusMode'
   | 'activeSpeakerFilterKey'
   | 'speakerQuickActions'
   | 'translationAudioByLayer'
@@ -30,8 +29,9 @@ type SharedLaneFields = Pick<
 >;
 
 /**
- * ReadyWorkspace 侧字段名与 TranscriptionTimelineMediaLanes  props 的对应关系
+ * ReadyWorkspace 侧字段名与 TranscriptionTimelineMediaLanes props 的对应关系
  * （避免 any，并保持与 buildSharedLaneProps 映射一致）。
+ * 新建层弹窗的语言/正字法默认留空，不再从项目主语言注入。
  */
 export type BuildSharedLanePropsInput = SharedLaneFields & {
   selectedTimelineUtteranceId: string;
@@ -39,8 +39,6 @@ export type BuildSharedLanePropsInput = SharedLaneFields & {
   reorderLayers: MediaLanesProps['onReorderLayers'];
   handleFocusLayerRow: MediaLanesProps['onFocusLayer'];
   showAllLayerConnectors: boolean;
-  activeTextPrimaryLanguageId: string | null;
-  activeTextPrimaryOrthographyId: string | null;
   handleToggleAllLayerConnectors: MediaLanesProps['onToggleConnectors'];
   timelineLaneHeights: MediaLanesProps['laneHeights'];
   handleTimelineLaneHeightChange: MediaLanesProps['onLaneHeightChange'];
@@ -52,7 +50,6 @@ export type BuildSharedLanePropsInput = SharedLaneFields & {
   handleUnlockSelectedSpeakers: MediaLanesProps['onUnlockSelectedSpeakers'];
   handleResetTrackAutoLayout: MediaLanesProps['onResetTrackAutoLayout'];
   selectedSpeakerNamesForTrackLock: MediaLanesProps['selectedSpeakerNamesForLock'];
-  resolvedSpeakerFocusTargetKey: string | null;
   handleLaneLabelWidthResizeStart: MediaLanesProps['onLaneLabelWidthResize'];
 };
 
@@ -93,8 +90,6 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     onFocusLayer: input.handleFocusLayerRow,
     layerLinks: input.layerLinks,
     showConnectors: input.showAllLayerConnectors,
-    ...(input.activeTextPrimaryLanguageId ? { defaultLanguageId: input.activeTextPrimaryLanguageId } : {}),
-    ...(input.activeTextPrimaryOrthographyId ? { defaultOrthographyId: input.activeTextPrimaryOrthographyId } : {}),
     onToggleConnectors: input.handleToggleAllLayerConnectors,
     laneHeights: input.timelineLaneHeights,
     onLaneHeightChange: input.handleTimelineLaneHeightChange,
@@ -107,8 +102,6 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     onResetTrackAutoLayout: input.handleResetTrackAutoLayout,
     selectedSpeakerNamesForLock: input.selectedSpeakerNamesForTrackLock,
     speakerLayerLayout: input.speakerLayerLayout,
-    speakerFocusMode: input.speakerFocusMode,
-    ...(input.resolvedSpeakerFocusTargetKey ? { speakerFocusSpeakerKey: input.resolvedSpeakerFocusTargetKey } : {}),
     activeSpeakerFilterKey: input.activeSpeakerFilterKey,
     speakerQuickActions: input.speakerQuickActions,
     onLaneLabelWidthResize: input.handleLaneLabelWidthResizeStart,
