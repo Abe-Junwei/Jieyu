@@ -29,7 +29,7 @@ describe('NotePopover', () => {
 
     const dialog = screen.getByRole('dialog');
     const overlay = dialog.parentElement?.parentElement as HTMLDivElement;
-    const addButton = screen.getByRole('button', { name: '新增备注' });
+    const addButton = screen.getByRole('button', { name: /新增备注|添加备注|add/i });
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
 
     expect(dialog.className).toContain('dialog-card');

@@ -64,10 +64,10 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
       utteranceCount: 1,
       translationLayerCount: 1,
     },
-    utterancesLength: 1,
+    unitsLength: 1,
     translationLayersLength: 1,
     aiConfidenceAvg: 0.9,
-    selectedTimelineOwnerUtterance: utterance,
+    selectedTimelineOwnerUnit: utterance,
     selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 1 },
     selectedAiWarning: false,
     lexemeMatches: [{ id: 'lex-1', lemma: { eng: 'hello' } }],
@@ -97,7 +97,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     saveTextTranslationForUtterance: vi.fn(async () => undefined),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
     nextUtteranceIdForVoiceDictation: 'utt-2',
-    selectUtterance: vi.fn(),
+    selectUnit: vi.fn(),
     aiChatEnabled: true,
     aiChatSettings: {
       provider: 'mock',
@@ -115,7 +115,7 @@ describe('useTranscriptionAssistantController', () => {
   it('transforms dictation text before writing to the default transcription layer when no layer is explicitly selected', async () => {
     mockBridgeTextForLayerTarget.mockResolvedValueOnce('xf:translated text');
     const saveUtteranceText = vi.fn(async () => undefined);
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       selectedLayerId: null,
       layers: [
@@ -123,7 +123,7 @@ describe('useTranscriptionAssistantController', () => {
         { ...makeLayer('layer-tr', 'translation'), orthographyId: 'orth-target' } as LayerDocType,
       ],
       saveUtteranceText,
-      selectUtterance,
+      selectUnit,
     })));
 
     act(() => {
@@ -142,7 +142,7 @@ describe('useTranscriptionAssistantController', () => {
         fallbackSourceOrthographyId: 'orth-source',
       });
       expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'xf:translated text', 'layer-main');
-      expect(selectUtterance).toHaveBeenCalledWith('utt-2');
+      expect(selectUnit).toHaveBeenCalledWith('utt-2');
     });
   });
 
@@ -262,7 +262,7 @@ describe('useTranscriptionAssistantController', () => {
     await waitFor(() => {
       expect(setAiPanelContext).toHaveBeenCalledWith(expect.objectContaining({
         dbName: 'jieyu',
-        utteranceCount: 1,
+        unitCount: 1,
         translationLayerCount: 1,
         selectedTranslationGapCount: 2,
         vadCacheStatus: { state: 'ready', engine: 'silero', segmentCount: 4 },
@@ -327,11 +327,11 @@ describe('useTranscriptionAssistantController', () => {
 
   it('persists dictation to the default transcription layer and auto-advances', async () => {
     const saveUtteranceText = vi.fn(async () => undefined);
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       selectedLayerId: null,
       saveUtteranceText,
-      selectUtterance,
+      selectUnit,
     })));
 
     act(() => {
@@ -340,7 +340,7 @@ describe('useTranscriptionAssistantController', () => {
 
     await waitFor(() => {
       expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'translated text', 'layer-main');
-      expect(selectUtterance).toHaveBeenCalledWith('utt-2');
+      expect(selectUnit).toHaveBeenCalledWith('utt-2');
     });
   });
 
@@ -349,12 +349,12 @@ describe('useTranscriptionAssistantController', () => {
     const utterance2 = makeUtterance('utt-2');
     const getUtteranceTextForLayer = vi.fn((utterance: UtteranceDocType) => (utterance.id === 'utt-1' ? '' : '已有内容'));
     const saveUtteranceText = vi.fn(async () => undefined);
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       utterancesOnCurrentMedia: [utterance1, utterance2],
       getUtteranceTextForLayer,
       saveUtteranceText,
-      selectUtterance,
+      selectUnit,
     })));
 
     expect(result.current.voiceDictationPipeline?.config?.targetLayer).toBe('transcription');
@@ -369,7 +369,7 @@ describe('useTranscriptionAssistantController', () => {
     expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'voice text', 'layer-main');
 
     result.current.voiceDictationPipeline?.callbacks.navigateTo('utt-2');
-    expect(selectUtterance).toHaveBeenCalledWith('utt-2');
+    expect(selectUnit).toHaveBeenCalledWith('utt-2');
   });
 
   it('skips LLM voice intent resolution when AI chat is disabled', async () => {

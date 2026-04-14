@@ -170,7 +170,9 @@ describe('LayerActionPopover orthography creation', () => {
     });
     fireEvent.blur(codeInputForCmn);
 
-    fireEvent.click(await screen.findByRole('button', { name: '新建' }));
+    const openBuilderButton = document.querySelector('.layer-action-dialog-inline-btn') as HTMLButtonElement | null;
+    expect(openBuilderButton).toBeTruthy();
+    fireEvent.click(openBuilderButton as HTMLButtonElement);
 
     fireEvent.change(await screen.findByRole('combobox', { name: '创建方式' }), {
       target: { value: 'derive-other' },

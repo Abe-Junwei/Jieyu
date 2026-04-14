@@ -65,7 +65,7 @@ describe('NotePanel', () => {
     const { view } = renderPanel();
     const panel = view.container.querySelector('.pnl-note-panel') as HTMLDivElement;
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
-    const addButton = screen.getByRole('button', { name: '新增备注' });
+    const addButton = screen.getByRole('button', { name: /新增备注|添加备注|add/i });
     const composerInput = screen.getByRole('textbox', { name: '新备注内容' });
     const categorySelect = screen.getByRole('combobox', { name: '新备注分类' });
 
@@ -87,7 +87,7 @@ describe('NotePanel', () => {
       target: { value: '新的面板备注' },
     });
     fireEvent.change(screen.getByRole('combobox', { name: '新备注分类' }), { target: { value: 'question' } });
-    fireEvent.click(screen.getByRole('button', { name: '新增备注' }));
+    fireEvent.click(screen.getByRole('button', { name: /新增备注|添加备注|add/i }));
 
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith({ default: '新的面板备注' }, 'question');

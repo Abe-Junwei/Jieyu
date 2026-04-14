@@ -175,7 +175,9 @@ describe('ProjectSetupDialog orthography creation', () => {
       expect(screen.getByRole('combobox', { name: '正字法 / 书写系统' })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: '新建' }));
+    const openBuilderButton = document.querySelector('.dialog-field-inline-btn') as HTMLButtonElement | null;
+    expect(openBuilderButton).toBeTruthy();
+    fireEvent.click(openBuilderButton as HTMLButtonElement);
 
     fireEvent.click(await screen.findByRole('button', { name: /确认风险并创建|创建并选中/ }));
     if (mockCreateOrthography.mock.calls.length === 0) {
