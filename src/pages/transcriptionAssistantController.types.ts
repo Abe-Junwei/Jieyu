@@ -22,10 +22,10 @@ interface ReadyStateLike {
 
 export interface UseTranscriptionAssistantControllerInput {
   state: ReadyStateLike;
-  utterancesLength: number;
+  unitsLength: number;
   translationLayersLength: number;
   aiConfidenceAvg: number | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineRowMeta: SelectedRowMetaLike | null;
   selectedAiWarning: boolean;
   lexemeMatches: AiPanelContextValue['lexemeMatches'];
@@ -75,7 +75,7 @@ export interface UseTranscriptionAssistantControllerInput {
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
   setSaveState: (state: SaveState) => void;
   nextUtteranceIdForVoiceDictation?: string;
-  selectUtterance: (utteranceId: string) => void;
+  selectUnit: (utteranceId: string) => void;
   aiChatEnabled: boolean;
   aiChatSettings: AiChatSettings;
   pushUndo: (label: string) => void;

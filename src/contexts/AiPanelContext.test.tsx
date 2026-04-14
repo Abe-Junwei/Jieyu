@@ -8,7 +8,7 @@ function Probe() {
   return (
     <div>
       <span data-testid="db-name">{value.dbName}</span>
-      <span data-testid="utt-count">{value.utteranceCount}</span>
+      <span data-testid="utt-count">{value.unitCount}</span>
       <button
         type="button"
         onClick={() => {
@@ -23,10 +23,10 @@ function Probe() {
 
 const makeContextValue = (overrides: Partial<AiPanelContextValue> = {}): AiPanelContextValue => ({
   dbName: 'db-a',
-  utteranceCount: 3,
+  unitCount: 3,
   translationLayerCount: 1,
   aiConfidenceAvg: null,
-  selectedUtterance: null,
+  selectedUnit: null,
   selectedRowMeta: null,
   selectedAiWarning: false,
   lexemeMatches: [],
@@ -56,7 +56,7 @@ describe('useAiPanelContext', () => {
     expect(onUpdateTokenPos).toHaveBeenCalledWith('tok_1', 'N');
 
     rerender(
-      <AiPanelContext.Provider value={makeContextValue({ dbName: 'db-b', utteranceCount: 7, onUpdateTokenPos })}>
+      <AiPanelContext.Provider value={makeContextValue({ dbName: 'db-b', unitCount: 7, onUpdateTokenPos })}>
         <Probe />
       </AiPanelContext.Provider>,
     );

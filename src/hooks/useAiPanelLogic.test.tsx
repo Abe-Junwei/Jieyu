@@ -35,14 +35,14 @@ const utt = (id: string, extra: Record<string, unknown> = {}): any => ({
 const makeInput = (overrides: Partial<UseAiPanelLogicInput> = {}): UseAiPanelLogicInput => ({
   locale: 'zh-CN',
   utterances: [],
-  selectedUtterance: undefined,
-  selectedUtteranceText: '',
+  selectedUnit: undefined,
+  selectedUnitText: '',
   translationLayers: [],
   translationDrafts: {},
   translationTextByLayer: new Map(),
   aiChatConnectionTestStatus: 'idle',
   aiPanelMode: 'auto',
-  selectUtterance: vi.fn(),
+  selectUnit: vi.fn(),
   setSaveState: vi.fn(),
   ...overrides,
 });
@@ -68,7 +68,7 @@ describe('selectedTranslationGapCount', () => {
   it('returns 0 when there are no translation layers', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [],
       }))
     );
@@ -78,7 +78,7 @@ describe('selectedTranslationGapCount', () => {
   it('counts each layer that is missing translation text', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [{ id: 'l1', key: 'en' }, { id: 'l2', key: 'fr' }],
         translationTextByLayer: new Map([
           ['l1', new Map([['u1', { text: 'Hello' }]])],
@@ -92,7 +92,7 @@ describe('selectedTranslationGapCount', () => {
   it('counts 0 when all layers have persisted text', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [{ id: 'l1', key: 'en' }],
         translationTextByLayer: new Map([
           ['l1', new Map([['u1', { text: 'filled' }]])],
@@ -105,7 +105,7 @@ describe('selectedTranslationGapCount', () => {
   it('treats a non-empty draft as filling the gap', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [{ id: 'l1', key: 'en' }],
         // no persisted text
         translationDrafts: { 'l1-u1': 'draft text' },
@@ -117,7 +117,7 @@ describe('selectedTranslationGapCount', () => {
   it('counts 2 when two layers both lack text', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [{ id: 'l1', key: 'en' }, { id: 'l2', key: 'fr' }],
         // no entries for u1 in either layer
         translationTextByLayer: new Map(),
@@ -186,7 +186,7 @@ describe('nextTranslationGapUtteranceId', () => {
 
 describe('handleJumpToTranslationGap', () => {
   it('selects the first utterance with a translation gap', async () => {
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const setSaveState = vi.fn();
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
@@ -196,15 +196,15 @@ describe('handleJumpToTranslationGap', () => {
           ['l1', new Map([['u1', { text: 'filled' }]])],
           // u2 has no entry
         ]),
-        selectUtterance,
+        selectUnit,
         setSaveState,
       }))
     );
 
     await act(async () => { result.current.handleJumpToTranslationGap(); });
 
-    expect(selectUtterance).toHaveBeenCalledOnce();
-    expect(selectUtterance).toHaveBeenCalledWith('u2');
+    expect(selectUnit).toHaveBeenCalledOnce();
+    expect(selectUnit).toHaveBeenCalledWith('u2');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
@@ -256,7 +256,7 @@ describe('aiCurrentTask', () => {
   it('returns translation when the selected utterance has a translation gap', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1'),
+        selectedUnit: utt('u1'),
         translationLayers: [{ id: 'l1', key: 'en' }],
         // no text → gap → translation task
       }))
@@ -265,15 +265,15 @@ describe('aiCurrentTask', () => {
   });
 
   it('returns pos_tagging when selected utterance has a word with empty pos', () => {
-    // selectedUtteranceText must be ≤ 1 char so selectedAiWarning stays false
+    // selectedUnitText must be ≤ 1 char so selectedAiWarning stays false
     // (selectedAiWarning = true would short-circuit to risk_review first).
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1', {
+        selectedUnit: utt('u1', {
           words: [{ form: { default: 'w' }, pos: '' }],
         }),
         translationLayers: [],
-        selectedUtteranceText: 'w', // length === 1 → selectedAiWarning === false
+        selectedUnitText: 'w', // length === 1 → selectedAiWarning === false
       }))
     );
     expect(result.current.aiCurrentTask).toBe('pos_tagging');
@@ -300,8 +300,8 @@ describe('aiCurrentTask', () => {
           overlappingSelectedUtterance,
           utt('u-gap', { startTime: 3.5, endTime: 4.1 }),
         ],
-        selectedUtterance: overlappingSelectedUtterance,
-        selectedUtteranceText: 'a',
+        selectedUnit: overlappingSelectedUtterance,
+        selectedUnitText: 'a',
       }))
     );
 
@@ -314,16 +314,16 @@ describe('aiCurrentTask', () => {
 // ---------------------------------------------------------------------------
 
 describe('selectedAiWarning', () => {
-  it('is false when selectedUtteranceText is empty', () => {
+  it('is false when selectedUnitText is empty', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ selectedUtteranceText: '' }))
+      useAiPanelLogic(makeInput({ selectedUnitText: '' }))
     );
     expect(result.current.selectedAiWarning).toBe(false);
   });
 
-  it('is false when selectedUtteranceText is a single character', () => {
+  it('is false when selectedUnitText is a single character', () => {
     const { result } = renderHook(() =>
-      useAiPanelLogic(makeInput({ selectedUtteranceText: 'a' }))
+      useAiPanelLogic(makeInput({ selectedUnitText: 'a' }))
     );
     expect(result.current.selectedAiWarning).toBe(false);
   });
@@ -340,15 +340,15 @@ describe('lexemeMatches', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
 
     const { result, rerender } = renderHook(
-      ({ selectedUtteranceText }) => useAiPanelLogic(makeInput({ selectedUtteranceText })),
-      { initialProps: { selectedUtteranceText: 'alpha' } },
+      ({ selectedUnitText }) => useAiPanelLogic(makeInput({ selectedUnitText })),
+      { initialProps: { selectedUnitText: 'alpha' } },
     );
 
     await act(async () => {
       vi.advanceTimersByTime(120);
     });
 
-    rerender({ selectedUtteranceText: 'beta' });
+    rerender({ selectedUnitText: 'beta' });
 
     await act(async () => {
       vi.advanceTimersByTime(120);
@@ -408,8 +408,8 @@ describe('taskToPersona (F31d dynamic persona auto-switch)', () => {
   it('returns glossing persona when pos_tagging task is inferred', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1', { ai_metadata: { confidence: 0.6 } }),
-        selectedUtteranceText: 'test text',
+        selectedUnit: utt('u1', { ai_metadata: { confidence: 0.6 } }),
+        selectedUnitText: 'test text',
         translationLayers: [{ id: 'l1', key: 'en' }],
         translationTextByLayer: new Map([
           ['l1', new Map([['u1', { text: 'filled' }]])],
@@ -423,10 +423,10 @@ describe('taskToPersona (F31d dynamic persona auto-switch)', () => {
   it('returns review persona when risk_review task is active', () => {
     const { result } = renderHook(() =>
       useAiPanelLogic(makeInput({
-        selectedUtterance: utt('u1', {
+        selectedUnit: utt('u1', {
           ai_metadata: { confidence: 0.3, model: 'test' },
         }),
-        selectedUtteranceText: 'risky text',
+        selectedUnitText: 'risky text',
       }))
     );
     // Low confidence → selectedAiWarning true → risk_review → review persona

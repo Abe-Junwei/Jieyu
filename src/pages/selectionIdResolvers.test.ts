@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  hasSelectionSourceForUtteranceMapping,
-  resolveMappedUtteranceIds,
-  resolveMappedUtteranceIdsFromSelection,
-  resolveUtteranceSelectionMapping,
+  hasSelectionSourceForUnitMapping,
+  resolveMappedUnitIds,
+  resolveMappedUnitIdsFromSelection,
+  resolveUnitSelectionMapping,
 } from './selectionIdResolvers';
 
 describe('selectionIdResolvers', () => {
@@ -14,7 +14,7 @@ describe('selectionIdResolvers', () => {
       ['seg-b', 'utt-2'],
     ]);
 
-    const result = resolveMappedUtteranceIds(['utt-1', 'seg-a', 'seg-b'], map);
+    const result = resolveMappedUnitIds(['utt-1', 'seg-a', 'seg-b'], map);
 
     expect(result.sort()).toEqual(['utt-1', 'utt-2']);
   });
@@ -22,19 +22,19 @@ describe('selectionIdResolvers', () => {
   it('ignores blank or unknown unit ids', () => {
     const map = new Map<string, string>([['utt-1', 'utt-1']]);
 
-    const result = resolveMappedUtteranceIds(['', '   ', 'unknown', 'utt-1'], map);
+    const result = resolveMappedUnitIds(['', '   ', 'unknown', 'utt-1'], map);
 
     expect(result).toEqual(['utt-1']);
   });
 
-  it('prefers selectedUtteranceIds when non-empty', () => {
+  it('prefers selectedUnitIds when non-empty', () => {
     const map = new Map<string, string>([
       ['utt-1', 'utt-1'],
       ['seg-a', 'utt-2'],
     ]);
 
-    const result = resolveMappedUtteranceIdsFromSelection({
-      selectedUtteranceIds: new Set(['seg-a']),
+    const result = resolveMappedUnitIdsFromSelection({
+      selectedUnitIds: new Set(['seg-a']),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'utt-1', kind: 'utterance' },
       unitToUtteranceId: map,
     });
@@ -48,8 +48,8 @@ describe('selectionIdResolvers', () => {
       ['seg-a', 'utt-2'],
     ]);
 
-    const result = resolveMappedUtteranceIdsFromSelection({
-      selectedUtteranceIds: new Set(),
+    const result = resolveMappedUnitIdsFromSelection({
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-a', kind: 'segment' },
       unitToUtteranceId: map,
     });
@@ -58,8 +58,8 @@ describe('selectionIdResolvers', () => {
   });
 
   it('detects mapping source from explicit selection set', () => {
-    const result = hasSelectionSourceForUtteranceMapping({
-      selectedUtteranceIds: new Set(['seg-a']),
+    const result = hasSelectionSourceForUnitMapping({
+      selectedUnitIds: new Set(['seg-a']),
       selectedTimelineUnit: null,
     });
 
@@ -67,8 +67,8 @@ describe('selectionIdResolvers', () => {
   });
 
   it('detects mapping source from selected timeline unit fallback', () => {
-    const result = hasSelectionSourceForUtteranceMapping({
-      selectedUtteranceIds: new Set(),
+    const result = hasSelectionSourceForUnitMapping({
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: ' seg-a ', kind: 'segment' },
     });
 
@@ -76,8 +76,8 @@ describe('selectionIdResolvers', () => {
   });
 
   it('returns false when no selection source can be resolved', () => {
-    const result = hasSelectionSourceForUtteranceMapping({
-      selectedUtteranceIds: new Set(),
+    const result = hasSelectionSourceForUnitMapping({
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: '   ', kind: 'segment' },
     });
 
@@ -90,8 +90,8 @@ describe('selectionIdResolvers', () => {
       ['seg-b', 'utt-2'],
     ]);
 
-    const result = resolveUtteranceSelectionMapping({
-      selectedUtteranceIds: new Set(['seg-a', 'unknown', 'seg-b']),
+    const result = resolveUnitSelectionMapping({
+      selectedUnitIds: new Set(['seg-a', 'unknown', 'seg-b']),
       selectedTimelineUnit: null,
       unitToUtteranceId: map,
     });
@@ -99,12 +99,12 @@ describe('selectionIdResolvers', () => {
     expect(result.hasSelectionSource).toBe(true);
     expect(result.sourceUnitCount).toBe(3);
     expect(result.unmappedSourceCount).toBe(1);
-    expect(Array.from(result.mappedUtteranceIds).sort()).toEqual(['utt-1', 'utt-2']);
+    expect(Array.from(result.mappedUnitIds).sort()).toEqual(['utt-1', 'utt-2']);
   });
 
   it('reports fully unmappable selection when selected unit cannot resolve utterance', () => {
-    const result = resolveUtteranceSelectionMapping({
-      selectedUtteranceIds: new Set(),
+    const result = resolveUnitSelectionMapping({
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-x', kind: 'segment' },
       unitToUtteranceId: new Map<string, string>(),
     });
@@ -112,6 +112,6 @@ describe('selectionIdResolvers', () => {
     expect(result.hasSelectionSource).toBe(true);
     expect(result.sourceUnitCount).toBe(1);
     expect(result.unmappedSourceCount).toBe(1);
-    expect(result.mappedUtteranceIds.size).toBe(0);
+    expect(result.mappedUnitIds.size).toBe(0);
   });
 });

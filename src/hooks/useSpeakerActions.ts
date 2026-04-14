@@ -67,11 +67,11 @@ export interface UseSpeakerActionsOptions {
   speakers: SpeakerDocType[];
   setSpeakers: SpeakerStateSetter;
   utterancesOnCurrentMedia: UtteranceDocType[];
-  activeUtteranceUnitId: string | null;
-  selectedUtteranceIds: Set<string>;
+  activeUnitId: string | null;
+  selectedUnitIds: Set<string>;
   selectedBatchUtterances: UtteranceDocType[];
   isReady: boolean;
-  setUtteranceSelection: (primaryId: string, ids: string[]) => void;
+  setUnitSelection: (primaryId: string, ids: string[]) => void;
   data: {
     pushUndo: (label: string) => void;
     undo: () => Promise<void>;
@@ -127,11 +127,11 @@ export function useSpeakerActions({
   speakers,
   setSpeakers,
   utterancesOnCurrentMedia,
-  activeUtteranceUnitId,
-  selectedUtteranceIds,
+  activeUnitId,
+  selectedUnitIds,
   selectedBatchUtterances,
   isReady,
-  setUtteranceSelection,
+  setUnitSelection,
   data,
   setSaveState,
   getUtteranceTextForLayer,
@@ -239,13 +239,13 @@ export function useSpeakerActions({
   const handleSelectSpeakerUtterances = useCallback((speakerKey: string) => {
     const ids = getUtteranceIdsForSpeakerKey(speakerKey);
     if (ids.length === 0) {
-      setUtteranceSelection('', []);
+      setUnitSelection('', []);
       return;
     }
-    const primary = ids.includes(activeUtteranceUnitId ?? '') ? (activeUtteranceUnitId ?? ids[0]!) : ids[0]!;
-    setUtteranceSelection(primary, ids);
+    const primary = ids.includes(activeUnitId ?? '') ? (activeUnitId ?? ids[0]!) : ids[0]!;
+    setUnitSelection(primary, ids);
     setActiveSpeakerFilterKey(speakerKey);
-  }, [activeUtteranceUnitId, getUtteranceIdsForSpeakerKey, setUtteranceSelection]);
+  }, [activeUnitId, getUtteranceIdsForSpeakerKey, setUnitSelection]);
 
   const handleClearSpeakerAssignments = useCallback((speakerKey: string) => {
     const target = speakerFilterOptions.find((option) => option.key === speakerKey);
@@ -385,15 +385,15 @@ export function useSpeakerActions({
   }, [setSaveState, speakerById, speakerOptions, speakerReferenceStats, t]);
 
   const handleAssignSpeakerToSelected = useCallback(async () => {
-    if (selectedUtteranceIds.size === 0 && !activeUtteranceUnitId) return;
+    if (selectedUnitIds.size === 0 && !activeUnitId) return;
     if (speakerSaving) return;
     setSpeakerSaving(true);
     try {
       data.pushUndo(getSpeakerUndoLabel('assign', t));
       const speaker = batchSpeakerId ? speakerById.get(batchSpeakerId) : undefined;
-      const targetIds = selectedUtteranceIds.size > 0
-        ? Array.from(selectedUtteranceIds) 
-        : (activeUtteranceUnitId ? [activeUtteranceUnitId] : []);
+      const targetIds = selectedUnitIds.size > 0
+        ? Array.from(selectedUnitIds) 
+        : (activeUnitId ? [activeUnitId] : []);
       
       const updated = await LinguisticService.assignSpeakerToUtterances(
         targetIds,
@@ -417,7 +417,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUtteranceUnitId, applySpeakerLocally, batchSpeakerId, data, refreshSpeakerReferenceStats, selectedUtteranceIds, setBatchSpeakerId, setSaveState, speakerById, speakerSaving, t, tf]);
+  }, [activeUnitId, applySpeakerLocally, batchSpeakerId, data, refreshSpeakerReferenceStats, selectedUnitIds, setBatchSpeakerId, setSaveState, speakerById, speakerSaving, t, tf]);
 
   const handleAssignSpeakerToUtterances = useCallback(async (utteranceIds: Iterable<string>, speakerId?: string) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
@@ -453,7 +453,7 @@ export function useSpeakerActions({
   const handleCreateSpeakerAndAssign = useCallback(async () => {
     const name = speakerDraftName.trim();
     if (!name || speakerSaving) return;
-    if (selectedUtteranceIds.size === 0 && !activeUtteranceUnitId) return;
+    if (selectedUnitIds.size === 0 && !activeUnitId) return;
 
     setSpeakerSaving(true);
     let undoPushed = false;
@@ -461,9 +461,9 @@ export function useSpeakerActions({
       const existing = findExistingSpeakerByName(name);
       data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
-      const targetIds = selectedUtteranceIds.size > 0
-        ? Array.from(selectedUtteranceIds) 
-        : (activeUtteranceUnitId ? [activeUtteranceUnitId] : []);
+      const targetIds = selectedUnitIds.size > 0
+        ? Array.from(selectedUnitIds) 
+        : (activeUnitId ? [activeUnitId] : []);
 
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name });
       const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, targetSpeaker.id);
@@ -490,7 +490,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeUtteranceUnitId, applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, selectedUtteranceIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving, t, tf]);
+  }, [activeUnitId, applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, selectedUnitIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving, t, tf]);
 
   const handleCreateSpeakerAndAssignToUtterances = useCallback(async (name: string, utteranceIds: Iterable<string>) => {
     const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);

@@ -10,10 +10,10 @@ interface SelectedRowMetaLike {
 
 interface BuildTranscriptionAssistantContextValueInput {
   state: { phase: string; dbName?: string; utteranceCount?: number; translationLayerCount?: number };
-  utterancesLength: number;
+  unitsLength: number;
   translationLayersLength: number;
   aiConfidenceAvg: number | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineRowMeta: SelectedRowMetaLike | null;
   selectedAiWarning: boolean;
   lexemeMatches: AiPanelContextValue['lexemeMatches'];
@@ -55,10 +55,10 @@ interface BuildTranscriptionAssistantContextValueInput {
 export function buildTranscriptionAssistantContextValue(input: BuildTranscriptionAssistantContextValueInput): AiPanelContextValue {
   return {
     dbName: input.state.phase === 'ready' ? input.state.dbName ?? '' : '',
-    utteranceCount: input.utterancesLength,
+    unitCount: input.unitsLength,
     translationLayerCount: input.translationLayersLength,
     aiConfidenceAvg: input.aiConfidenceAvg,
-    selectedUtterance: input.selectedTimelineOwnerUtterance,
+    selectedUnit: input.selectedTimelineOwnerUnit,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedAiWarning: input.selectedAiWarning,
     lexemeMatches: input.lexemeMatches,

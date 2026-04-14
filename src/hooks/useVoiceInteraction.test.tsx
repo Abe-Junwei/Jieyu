@@ -65,8 +65,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: '',
         selectedUnitKind: 'utterance',
@@ -119,8 +119,8 @@ describe('useVoiceInteraction', () => {
       dictationPipeline,
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: trcDefault.id,
         selectedUnitKind: 'utterance',
@@ -148,7 +148,7 @@ describe('useVoiceInteraction', () => {
     expect(latestCall?.[0]).toEqual(expect.objectContaining({ dictationPipeline }));
   });
 
-  it('treats selectedRowMeta as a valid analysis target even when selectedUtterance is null', () => {
+  it('treats selectedRowMeta as a valid analysis target even when selectedUnit is null', () => {
     const trcDefault = makeLayer('trc-default', 'transcription');
 
     mockUseVoiceAgent.mockReturnValue({
@@ -182,8 +182,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: null,
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: trcDefault.id,
         selectedUnitKind: 'utterance',
@@ -244,8 +244,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: trcDefault.id,
         selectedUnitKind: 'utterance',
@@ -314,8 +314,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult,
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 12, endTime: 15 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: 'trc-default',
         selectedUnitKind: 'utterance',
@@ -396,8 +396,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 12, endTime: 15 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: 'trc-default',
         selectedUnitKind: 'utterance',
@@ -475,8 +475,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: 'trc-default',
         selectedUnitKind: 'utterance',
@@ -541,8 +541,8 @@ describe('useVoiceInteraction', () => {
       handleVoiceDictation: vi.fn(),
       onVoiceAnalysisResult: vi.fn(),
       selection: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: { id: 'utt-1', startTime: 0, endTime: 1 },
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: 'trc-default',
         selectedUnitKind: 'utterance',

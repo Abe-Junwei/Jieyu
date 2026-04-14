@@ -86,9 +86,9 @@ function makeContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanel
   return {
     ...DEFAULT_AI_PANEL_CONTEXT_VALUE,
     dbName: 'jieyudb',
-    utteranceCount: 1,
+    unitCount: 1,
     translationLayerCount: 1,
-    selectedUtterance: makeUtterance(),
+    selectedUnit: makeUtterance(),
     lexemeMatches: [],
     ...overrides,
   };
@@ -153,7 +153,7 @@ describe('AiAnalysisPanel embedding integration', () => {
     const onFindSimilarUtterances = vi.fn().mockResolvedValue(undefined);
     const baseContext = makeContextValue();
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUtterance: baseContext.selectedUtterance,
+      selectedUnit: baseContext.selectedUnit,
       onFindSimilarUtterances,
     });
 
@@ -174,10 +174,10 @@ describe('AiAnalysisPanel embedding integration', () => {
   it('invokes jump callback and highlights active similarity match', () => {
     const onJumpToEmbeddingMatch = vi.fn();
     const baseContext = makeContextValue({
-      selectedUtterance: makeUtterance({ id: 'utt-2' }),
+      selectedUnit: makeUtterance({ id: 'utt-2' }),
     });
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUtterance: makeUtterance({ id: 'utt-2' }),
+      selectedUnit: makeUtterance({ id: 'utt-2' }),
       aiEmbeddingMatches: [
         {
           utteranceId: 'utt-2',

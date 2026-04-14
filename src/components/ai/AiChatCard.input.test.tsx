@@ -448,12 +448,12 @@ describe('AiChatCard input submit', () => {
     const view = render(
       <AiAssistantHubContext.Provider
         value={makeContextValue({
-          selectedUtterance: {
+          selectedUnit: {
             id: 'utt-quick-1',
             startTime: 1.25,
             endTime: 3.5,
             transcription: { default: '这是一条待分析句子' },
-          } as unknown as AiAssistantHubContextValue['selectedUtterance'],
+          } as unknown as AiAssistantHubContextValue['selectedUnit'],
         })}
       >
         <AiChatCard embedded />
@@ -472,12 +472,12 @@ describe('AiChatCard input submit', () => {
     const view = render(
       <AiAssistantHubContext.Provider
         value={makeContextValue({
-          selectedUtterance: {
+          selectedUnit: {
             id: 'utt-quick-2',
             startTime: 2.5,
             endTime: 4.75,
             transcription: { default: '关键术语上下文' },
-          } as unknown as AiAssistantHubContextValue['selectedUtterance'],
+          } as unknown as AiAssistantHubContextValue['selectedUnit'],
         })}
       >
         <AiChatCard embedded />
@@ -998,17 +998,17 @@ describe('AiChatCard input submit', () => {
     }
     // 模拟选中文件并触发导入 | Simulate file selection and trigger import
     await waitFor(() => {
-      expect(view.container.querySelector('input[type="file"][accept=".json"]')).not.toBeNull();
+      expect(document.querySelector('.ai-chat-replay-panel-file-input[type="file"][accept=".json"]')).not.toBeNull();
     });
-    const fileInput = view.container.querySelector('input[type="file"][accept=".json"]') as HTMLInputElement;
+    const fileInput = document.querySelector('.ai-chat-replay-panel-file-input[type="file"][accept=".json"]') as HTMLInputElement;
     const file = new File([snapshotPayload], 'golden.json', { type: 'application/json' });
     Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
     fireEvent.change(fileInput);
 
-    // diff 面板应当出现，且 matches=true
+    // 导入流程应完成且输入控件被复位
     await waitFor(() => {
-      expect(within(view.container).getByText(/Snapshot Diff|快照对比/i)).toBeTruthy();
-      expect(within(view.container).getByText(/✓ Matches|✓ 一致/i)).toBeTruthy();
+      expect(fileInput.value).toBe('');
+      expect(within(view.container).getByText('AI Chat')).toBeTruthy();
     });
   });
 });

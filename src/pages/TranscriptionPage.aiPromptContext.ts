@@ -3,8 +3,20 @@ import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
+import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
 
 export type { AcousticDiagnosticKey, AcousticPromptSummary } from './transcriptionAcousticSummary';
+
+interface LayerPromptInput {
+  id: string;
+  key: string;
+  name: Record<string, unknown>;
+}
+
+interface MediaItemPromptInput {
+  id: string;
+  filename: string;
+}
 
 interface UtteranceTimelineEntry {
   id: string;
@@ -60,6 +72,7 @@ interface BuildTranscriptionAiPromptContextParams {
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
   /** Full-project list for local list/search/detail tools. */
   projectUnitsForTools?: ReadonlyArray<TimelineUnitView>;
+  unitIndexComplete?: boolean;
   utteranceCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
@@ -69,7 +82,12 @@ interface BuildTranscriptionAiPromptContextParams {
   topLexemes: string[];
   recommendations: string[];
   audioTimeSec?: number;
+  layers?: ReadonlyArray<LayerPromptInput>;
+  mediaItems?: ReadonlyArray<MediaItemPromptInput>;
+  currentMediaId?: string;
+  activeLayerIdForEdits?: string;
   recentEdits: string[];
+  recentActions?: string[];
 }
 
 export function buildTranscriptionAiPromptContext({
@@ -77,6 +95,7 @@ export function buildTranscriptionAiPromptContext({
   selectedUnitIds,
   currentMediaUnits,
   projectUnitsForTools,
+  unitIndexComplete = true,
   utteranceCount,
   translationLayerCount,
   aiConfidenceAvg,
@@ -86,31 +105,36 @@ export function buildTranscriptionAiPromptContext({
   topLexemes,
   recommendations,
   audioTimeSec,
+  layers = [],
+  mediaItems,
+  currentMediaId,
+  activeLayerIdForEdits,
   recentEdits,
+  recentActions,
 }: BuildTranscriptionAiPromptContextParams): AiPromptContext {
   const digestEntries = timelineUnitsToDigestEntries(currentMediaUnits);
   const unitTimeline = buildUtteranceTimelineDigest(digestEntries);
   const localUnitIndex =
-    projectUnitsForTools && projectUnitsForTools.length > 0
+    (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) && projectUnitsForTools && projectUnitsForTools.length > 0
       ? projectUnitsForTools
       : undefined;
-  const localUtteranceIndex = localUnitIndex
-    ? localUnitIndex.map((u) => ({
-        id: u.id,
-        ...(u.textId !== undefined ? { textId: u.textId } : {}),
-        ...(u.mediaId ? { mediaId: u.mediaId } : {}),
-        startTime: u.startTime,
-        endTime: u.endTime,
-        transcription: u.text,
-        ...(u.speakerId !== undefined ? { speakerId: u.speakerId } : {}),
-        ...(u.annotationStatus !== undefined ? { annotationStatus: u.annotationStatus } : {}),
-      }))
-    : undefined;
+
+  const worldModelSnapshot = buildWorldModelSnapshot({
+    allUnits: projectUnitsForTools ?? currentMediaUnits,
+    currentMediaUnits,
+    layers,
+    ...(mediaItems ? { mediaItems } : {}),
+    ...(currentMediaId !== undefined ? { currentMediaId } : {}),
+    selectedUnitIds,
+    ...(selectionSnapshot.selectedLayerId !== null ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+    ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
+    maxChars: 1000,
+  });
 
   return {
     shortTerm: {
       page: 'transcription',
-      ...(selectionSnapshot.activeUtteranceUnitId ? { activeUtteranceUnitId: selectionSnapshot.activeUtteranceUnitId } : {}),
+      ...(selectionSnapshot.activeUnitId ? { activeUnitId: selectionSnapshot.activeUnitId } : {}),
       ...(selectionSnapshot.selectedUnitKind === 'segment' && selectionSnapshot.timelineUnit
         ? { activeSegmentUnitId: selectionSnapshot.timelineUnit.unitId }
         : {}),
@@ -118,27 +142,25 @@ export function buildTranscriptionAiPromptContext({
       ...(selectedUnitIds.length > 0 ? { selectedUnitIds } : {}),
       ...(selectionSnapshot.selectedUnitStartSec !== undefined && selectionSnapshot.selectedUnitEndSec !== undefined
         ? {
-            selectedUtteranceStartSec: selectionSnapshot.selectedUnitStartSec,
-            selectedUtteranceEndSec: selectionSnapshot.selectedUnitEndSec,
+            selectedUnitStartSec: selectionSnapshot.selectedUnitStartSec,
+            selectedUnitEndSec: selectionSnapshot.selectedUnitEndSec,
           }
         : {}),
       ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
       ...(selectionSnapshot.selectedLayerType ? { selectedLayerType: selectionSnapshot.selectedLayerType } : {}),
       ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
       ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),
-      selectedText: selectionSnapshot.selectedText,
+      ...(selectionSnapshot.selectedText !== null ? { selectedText: selectionSnapshot.selectedText } : {}),
       ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
       projectUnitCount: utteranceCount,
       currentMediaUnitCount: currentMediaUnits.length,
+      ...(unitIndexComplete ? {} : { unitIndexComplete: false }),
+      ...(worldModelSnapshot ? { worldModelSnapshot } : {}),
       ...(unitTimeline ? { unitTimeline } : {}),
       ...(localUnitIndex ? { localUnitIndex } : {}),
-      // Compatibility fields kept for one transition cycle.
-      projectUtteranceCount: utteranceCount,
-      utterancesOnCurrentMediaCount: currentMediaUnits.length,
-      ...(unitTimeline ? { utteranceTimeline: unitTimeline } : {}),
-      ...(localUtteranceIndex ? { localUtteranceIndex } : {}),
       recentEdits,
+      ...(recentActions && recentActions.length > 0 ? { recentActions } : {}),
     },
     longTerm: {
       projectStats: {

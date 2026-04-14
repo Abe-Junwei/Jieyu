@@ -84,7 +84,7 @@ export interface UseOrchestratorViewModelsInput {
   selectedTimelineUtteranceId: string;
   searchOverlayRequest: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['searchOverlayRequest'];
   manualSelectTsRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['manualSelectTsRef'];
-  selectUtterance: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['selectUtterance'];
+  selectUnit: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['selectUnit'];
   handleSearchReplace: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleSearchReplace'];
   setShowSearch: (v: boolean) => void;
   setSearchOverlayRequest: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['setSearchOverlayRequest'];
@@ -175,7 +175,7 @@ export function useOrchestratorViewModels(
     selectedTimelineUtteranceId: input.selectedTimelineUtteranceId,
     searchOverlayRequest: input.searchOverlayRequest,
     manualSelectTsRef: input.manualSelectTsRef,
-    selectUtterance: input.selectUtterance,
+    selectUnit: input.selectUnit,
     handleSearchReplace: input.handleSearchReplace,
     setShowSearch: input.setShowSearch,
     setSearchOverlayRequest: input.setSearchOverlayRequest,

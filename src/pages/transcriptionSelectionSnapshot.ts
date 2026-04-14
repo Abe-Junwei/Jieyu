@@ -18,7 +18,7 @@ interface SegmentContentLike {
 export interface BuildTranscriptionSelectionSnapshotInput {
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineSegment: LayerSegmentDocType | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   layers: LayerDocType[];
@@ -30,8 +30,8 @@ export interface BuildTranscriptionSelectionSnapshotInput {
 export interface TranscriptionSelectionSnapshot {
   timelineUnit: TimelineUnit | null;
   selectedUnitKind: TimelineUnitKind | null;
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: UtteranceDocType | null;
+  activeUnitId: string | null;
+  selectedUnit: UtteranceDocType | null;
   selectedRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   selectedText: string;
@@ -62,13 +62,13 @@ export function buildTranscriptionSelectionSnapshot(
     : null;
   const selectedText = selectedSegmentUnit
     ? (input.segmentContentByLayer.get(selectedSegmentUnit.layerId)?.get(selectedSegmentUnit.unitId)?.text ?? '')
-    : input.selectedTimelineOwnerUtterance
-      ? input.getUtteranceTextForLayer(input.selectedTimelineOwnerUtterance, input.selectedLayerId ?? undefined)
+    : input.selectedTimelineOwnerUnit
+      ? input.getUtteranceTextForLayer(input.selectedTimelineOwnerUnit, input.selectedLayerId ?? undefined)
       : '';
 
   const selectedTimeSource = selectedSegmentUnit
     ? input.selectedTimelineSegment
-    : input.selectedTimelineOwnerUtterance;
+    : input.selectedTimelineOwnerUnit;
   const selectedTimeRangeLabel = selectedTimeSource
     ? `${input.formatTime(selectedTimeSource.startTime)}-${input.formatTime(selectedTimeSource.endTime)}`
     : undefined;
@@ -76,8 +76,8 @@ export function buildTranscriptionSelectionSnapshot(
   return {
     timelineUnit: input.selectedTimelineUnit,
     selectedUnitKind: input.selectedTimelineUnit?.kind ?? null,
-    activeUtteranceUnitId: input.selectedTimelineOwnerUtterance?.id ?? null,
-    selectedUtterance: input.selectedTimelineOwnerUtterance,
+    activeUnitId: input.selectedTimelineOwnerUnit?.id ?? null,
+    selectedUnit: input.selectedTimelineOwnerUnit,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedLayerId: input.selectedLayerId,
     selectedText,

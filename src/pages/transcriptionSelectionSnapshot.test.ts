@@ -51,7 +51,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit: { layerId: 'layer-tr', unitId: 'utt-1', kind: 'utterance' },
       selectedTimelineSegment: null,
-      selectedTimelineOwnerUtterance: utterance,
+      selectedTimelineOwnerUnit: utterance,
       selectedTimelineRowMeta: { rowNumber: 2, start: 1, end: 3 },
       selectedLayerId: 'layer-tr',
       layers: [makeLayer('layer-main'), translationLayer],
@@ -73,7 +73,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit,
       selectedTimelineSegment: segment,
-      selectedTimelineOwnerUtterance: makeUtterance('utt-1'),
+      selectedTimelineOwnerUnit: makeUtterance('utt-1'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 1, end: 3 },
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
@@ -89,5 +89,67 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     expect(snapshot.selectedTimeRangeLabel).toBe('1.2-1.8');
     expect(snapshot.selectedUnitStartSec).toBe(1.2);
     expect(snapshot.selectedUnitEndSec).toBe(1.8);
+  });
+
+  it('returns null fields when nothing is selected', () => {
+    const snapshot = buildTranscriptionSelectionSnapshot({
+      selectedTimelineUnit: null,
+      selectedTimelineSegment: null,
+      selectedTimelineOwnerUnit: null,
+      selectedTimelineRowMeta: null,
+      selectedLayerId: null,
+      layers: [makeLayer('layer-main')],
+      segmentContentByLayer: new Map(),
+      getUtteranceTextForLayer: () => '',
+      formatTime: (seconds) => seconds.toFixed(1),
+    });
+
+    expect(snapshot.timelineUnit).toBeNull();
+    expect(snapshot.selectedUnitKind).toBeNull();
+    expect(snapshot.activeUnitId).toBeNull();
+    expect(snapshot.selectedUnit).toBeNull();
+    expect(snapshot.selectedText).toBe('');
+    expect(snapshot.selectedTimeRangeLabel).toBeUndefined();
+  });
+
+  it('derives activeUnitId from owner utterance for segment selection', () => {
+    const ownerUtterance = makeUtterance('utt-owner');
+    const segment = makeSegment('seg-1');
+
+    const snapshot = buildTranscriptionSelectionSnapshot({
+      selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' },
+      selectedTimelineSegment: segment,
+      selectedTimelineOwnerUnit: ownerUtterance,
+      selectedTimelineRowMeta: null,
+      selectedLayerId: 'layer-seg',
+      layers: [makeLayer('layer-seg')],
+      segmentContentByLayer: new Map([
+        ['layer-seg', new Map([['seg-1', { text: 'seg text' }]])],
+      ]),
+      getUtteranceTextForLayer: () => '',
+      formatTime: (seconds) => seconds.toFixed(1),
+    });
+
+    expect(snapshot.activeUnitId).toBe('utt-owner');
+    expect(snapshot.selectedUnitKind).toBe('segment');
+    expect(snapshot.selectedUnit).toBe(ownerUtterance);
+  });
+
+  it('sets transcription layer fields when transcription layer is selected', () => {
+    const snapshot = buildTranscriptionSelectionSnapshot({
+      selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'utterance' },
+      selectedTimelineSegment: null,
+      selectedTimelineOwnerUnit: makeUtterance('utt-1'),
+      selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
+      selectedLayerId: 'layer-main',
+      layers: [makeLayer('layer-main', 'transcription')],
+      segmentContentByLayer: new Map(),
+      getUtteranceTextForLayer: () => '转写文本',
+      formatTime: (seconds) => seconds.toFixed(1),
+    });
+
+    expect(snapshot.selectedLayerType).toBe('transcription');
+    expect(snapshot.selectedTranscriptionLayerId).toBe('layer-main');
+    expect(snapshot.selectedTranslationLayerId).toBeUndefined();
   });
 });

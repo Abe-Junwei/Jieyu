@@ -83,7 +83,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     selectedTimelineUnit: input.selectedTimelineUnit,
     flashLayerRowId: input.flashLayerRowId,
     focusedLayerRowId: input.focusedLayerRowId,
-    activeUtteranceUnitId: input.selectedTimelineUtteranceId,
+    activeUnitId: input.selectedTimelineUtteranceId,
     allLayersOrdered: input.orderedLayers,
     onReorderLayers: input.reorderLayers,
     deletableLayers: input.deletableLayers,

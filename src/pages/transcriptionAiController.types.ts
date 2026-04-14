@@ -31,8 +31,8 @@ export interface UseTranscriptionAiControllerInput {
   utterances: UtteranceDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
   selectedUnitIds: Set<string>;
-  selectedUtterance: UtteranceDocType | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineSegment?: LayerSegmentDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
   selectedMediaUrl?: string;
@@ -53,6 +53,7 @@ export interface UseTranscriptionAiControllerInput {
   utteranceCount: number;
   /** Optional shared read-model index from ReadyWorkspace to avoid duplicate rebuilds. */
   timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
+  segmentsLoadComplete?: boolean;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   undoHistory: unknown[];
@@ -77,7 +78,7 @@ export interface UseTranscriptionAiControllerInput {
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void> | void;
   batchUpdateTokenPosByForm: (utteranceId: string, form: string, pos: string | null) => Promise<number> | number;
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
   translationDrafts: Record<string, string>;
   translationTextByLayer: Map<string, Map<string, { text?: string }>>;

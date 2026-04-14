@@ -24,10 +24,10 @@ interface PersistVoiceDictationToUtteranceInput extends TransformVoiceDictationT
 }
 
 interface CreateVoiceDictationPipelineInput extends ResolveVoiceDictationTargetInput {
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   utterancesOnCurrentMedia: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  selectUtterance: (utteranceId: string) => void;
+  selectUnit: (utteranceId: string) => void;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
   saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
 }
@@ -92,7 +92,7 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
           existingGloss: null,
         };
       }),
-      getCurrentSegmentId: () => input.selectedTimelineOwnerUtterance?.id ?? null,
+      getCurrentSegmentId: () => input.selectedTimelineOwnerUnit?.id ?? null,
       transformTextForFill: ({ text }) => bridgeVoiceDictationText({
         text,
         targetLayerId,
@@ -113,7 +113,7 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
         }
         await input.saveTextTranslationForUtterance(segmentId, previousText ?? '', targetLayerId);
       },
-      navigateTo: (segmentId) => input.selectUtterance(segmentId),
+      navigateTo: (segmentId) => input.selectUnit(segmentId),
       navigateToNextUnannotated: () => null,
     },
     config: {

@@ -26,8 +26,8 @@ describe('buildTranscriptionAiPromptContext', () => {
   it('injects acousticSummary into longTerm context without frame arrays', () => {
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: null,
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
         selectedRowMeta: null,
         selectedUnitKind: 'utterance',
         selectedUnitStartSec: 1.2,
@@ -88,18 +88,16 @@ describe('buildTranscriptionAiPromptContext', () => {
 
     expect(context.longTerm).toBeDefined();
     expect(JSON.stringify(context.longTerm)).not.toContain('frames');
-    expect(context.shortTerm?.projectUtteranceCount).toBe(12);
-    expect(context.shortTerm?.utterancesOnCurrentMediaCount).toBe(6);
-    expect(context.shortTerm?.utteranceTimeline).toContain('#1');
-    expect(context.shortTerm?.utteranceTimeline).toContain('Hello world');
+    expect(context.shortTerm?.projectUnitCount).toBe(12);
+    expect(context.shortTerm?.currentMediaUnitCount).toBe(6);
+    expect(context.shortTerm?.unitTimeline).toContain('#1');
+    expect(context.shortTerm?.unitTimeline).toContain('Hello world');
 
     const block = buildPromptContextBlock(context, 4000);
-    expect(block).toContain('projectUtteranceCount=12 [authoritative');
-    expect(block).toContain('currentTrack.utteranceCount=6 [current audio track only');
-    expect(block).toContain('utteranceTimeline=');
-    expect(block).toContain('[current audio track digest; #N are line indices, not utterance ids]');
-    expect(block).toContain('selectedUnitStartSec=1.20');
-    expect(block).toContain('selectedUnitEndSec=3.40');
+    expect(block).toContain('projectUnitCount=12 [authoritative');
+    expect(block).toContain('currentTrack.unitCount=6 [current audio track only');
+    expect(block).toContain('unitTimeline=');
+    expect(block).toContain('[current audio track digest; #N are line indices, not unit ids]');
     expect(block).toContain('acousticSummary(');
     expect(block).toContain('selectionSec=1.20-3.40');
     expect(block).toContain('f0Mean=195');
@@ -117,15 +115,15 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('waveformAnalysis(trackLowConfidence=0, trackOverlaps=0, trackGaps=1, trackMaxGapSec=0.4');
   });
 
-  it('sets localUtteranceIndex from projectUnitsForTools without serializing it into [CONTEXT]', () => {
+  it('keeps localUnitIndex out of serialized context while exposing world model snapshot', () => {
     const projectUnitsForTools: TimelineUnitView[] = [
       { id: 'u1', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'alpha', textId: 't1' },
       { id: 'u2', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 4, text: 'beta' },
     ];
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: null,
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
         selectedRowMeta: null,
         selectedUnitKind: 'utterance',
         selectedUnitStartSec: 0,
@@ -149,26 +147,27 @@ describe('buildTranscriptionAiPromptContext', () => {
       recentEdits: [],
     });
 
-    expect(context.shortTerm?.localUtteranceIndex).toHaveLength(2);
-    expect(context.shortTerm?.localUtteranceIndex?.[0]).toMatchObject({
+    expect(context.shortTerm?.localUnitIndex).toHaveLength(2);
+    expect(context.shortTerm?.localUnitIndex?.[0]).toMatchObject({
       id: 'u1',
       textId: 't1',
       mediaId: 'm1',
-      transcription: 'alpha',
+      text: 'alpha',
     });
-    const secondRow = context.shortTerm?.localUtteranceIndex?.[1] as { transcription?: string } | undefined;
-    expect(secondRow?.transcription).toBe('beta');
+    const secondRow = context.shortTerm?.localUnitIndex?.[1] as { text?: string } | undefined;
+    expect(secondRow?.text).toBe('beta');
 
     const block = buildPromptContextBlock(context, 4000);
-    expect(block).not.toContain('localUtteranceIndex');
-    expect(block).not.toContain('alpha');
+    expect(block).not.toContain('localUnitIndex');
+    expect(block).toContain('worldModelSnapshot=');
+    expect(block).toContain('alpha');
   });
 
   it('renders a stable scope snapshot for project/current-track/selection', () => {
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: null,
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
         selectedRowMeta: null,
         selectedUnitKind: 'segment',
         selectedUnitStartSec: 1.2,
@@ -194,15 +193,14 @@ describe('buildTranscriptionAiPromptContext', () => {
     const block = buildPromptContextBlock(context, 4000);
     expect(block).toContain('projectUnitCount=4 [authoritative');
     expect(block).toContain('currentTrack.unitCount=0 [current audio track only');
-    expect(block).toContain('projectUtteranceCount=4 [authoritative');
     expect(block).toContain('projectStats(units=4, translationLayers=1, aiConfidenceAvg=0.912)');
   });
 
   it('keeps scope-critical ShortTerm counters when context block is trimmed', () => {
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
-        activeUtteranceUnitId: 'utt-1',
-        selectedUtterance: null,
+        activeUnitId: 'utt-1',
+        selectedUnit: null,
         selectedRowMeta: null,
         selectedUnitKind: 'utterance',
         selectedUnitStartSec: 0,
@@ -228,8 +226,39 @@ describe('buildTranscriptionAiPromptContext', () => {
     const block = buildPromptContextBlock(context, 420);
     expect(block).toContain('projectUnitCount=4 [authoritative');
     expect(block).toContain('currentTrack.unitCount=0 [current audio track only');
-    expect(block).toContain('projectUtteranceCount=4 [authoritative');
+    expect(block).toContain('worldModelSnapshot=');
     expect(block).not.toContain('recommendations=');
+  });
+
+  it('withholds empty local unit index while segment-backed data is still loading', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: null,
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: null,
+        selectedLayerId: null,
+        selectedText: '',
+        selectedTimeRangeLabel: '',
+        timelineUnit: null,
+      },
+      selectedUnitIds: [],
+      currentMediaUnits: [],
+      projectUnitsForTools: [],
+      unitIndexComplete: false,
+      utteranceCount: 0,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      recentEdits: [],
+    });
+
+    expect(context.shortTerm?.unitIndexComplete).toBe(false);
+    expect(context.shortTerm?.localUnitIndex).toBeUndefined();
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('unitIndexComplete=false');
   });
 });
 

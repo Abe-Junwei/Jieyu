@@ -67,7 +67,7 @@ type UseAiEmbeddingStateParams = {
   taskRunner: TaskRunnerLike;
   embeddingService: EmbeddingServiceLike;
   embeddingSearchService: EmbeddingSearchServiceLike;
-  selectedUtterance: UtteranceLike | null | undefined;
+  selectedUnit: UtteranceLike | null | undefined;
   utterancesOnCurrentMedia: UtteranceLike[];
   getUtteranceTextForLayer: (utterance: UtteranceLike, layerId?: string) => string;
   formatTime: (seconds: number) => string;
@@ -79,12 +79,12 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
   taskRunner,
   embeddingService,
   embeddingSearchService,
-  selectedUtterance,
+  selectedUnit,
   utterancesOnCurrentMedia,
   getUtteranceTextForLayer,
   formatTime,
-}: Omit<UseAiEmbeddingStateParams, 'selectedUtterance' | 'utterancesOnCurrentMedia' | 'getUtteranceTextForLayer'> & {
-  selectedUtterance: TUtterance | null | undefined;
+}: Omit<UseAiEmbeddingStateParams, 'selectedUnit' | 'utterancesOnCurrentMedia' | 'getUtteranceTextForLayer'> & {
+  selectedUnit: TUtterance | null | undefined;
   utterancesOnCurrentMedia: TUtterance[];
   getUtteranceTextForLayer: (utterance: TUtterance, layerId?: string) => string;
 }) {
@@ -391,14 +391,14 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
 
   const handleFindSimilarUtterances = useCallback(async () => {
     const requestId = beginRequest();
-    if (!selectedUtterance) {
+    if (!selectedUnit) {
       if (isRequestActive(requestId)) {
-        setAiEmbeddingLastError(messages.selectUtteranceFirst);
+        setAiEmbeddingLastError(messages.selectUnitFirst);
       }
       return;
     }
 
-    const queryText = getUtteranceTextForLayer(selectedUtterance).trim();
+    const queryText = getUtteranceTextForLayer(selectedUnit).trim();
     if (!queryText) {
       if (isRequestActive(requestId)) {
         setAiEmbeddingLastError(messages.currentUtteranceEmpty);
@@ -434,7 +434,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
       }
 
       const mapped = result.matches
-        .filter((item) => item.sourceId !== selectedUtterance.id)
+        .filter((item) => item.sourceId !== selectedUnit.id)
         .map((item) => ({
           utteranceId: item.sourceId,
           score: item.score,
@@ -457,7 +457,7 @@ export function useAiEmbeddingState<TUtterance extends UtteranceLike>({
         setAiEmbeddingBusy(false);
       }
     }
-  }, [embeddingSearchService, formatTime, getUtteranceTextForLayer, messages, selectedUtterance, utterancesOnCurrentMedia]);
+  }, [embeddingSearchService, formatTime, getUtteranceTextForLayer, messages, selectedUnit, utterancesOnCurrentMedia]);
 
   return {
     aiEmbeddingBusy,

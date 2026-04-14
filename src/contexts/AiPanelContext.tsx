@@ -43,11 +43,11 @@ export type AcousticInspectorReadout = {
 export type AiPanelContextValue = {
   // ── Database / session stats ──
   dbName: string;
-  utteranceCount: number;
+  unitCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   // ── Selection ──
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
   selectedAiWarning: boolean;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;
@@ -102,10 +102,10 @@ export type AiPanelContextValue = {
 
 export const DEFAULT_AI_PANEL_CONTEXT_VALUE: AiPanelContextValue = {
   dbName: '',
-  utteranceCount: 0,
+  unitCount: 0,
   translationLayerCount: 0,
   aiConfidenceAvg: null,
-  selectedUtterance: null,
+  selectedUnit: null,
   selectedRowMeta: null,
   selectedAiWarning: false,
   lexemeMatches: [],

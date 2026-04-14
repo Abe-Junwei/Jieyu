@@ -7,10 +7,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Merge as _Merge,
-  Pause as _Pause,
-} from 'lucide-react';
-import {
   TimelineRailSection,
   TimelineScrollSection,
 } from '../components/transcription/TranscriptionTimelineSections';
@@ -127,9 +123,9 @@ function TranscriptionPageReadyWorkspace({
     layerLinks,
     mediaItems: _mediaItems,
     selectedTimelineUnit,
-    selectedUtteranceIds,
+    selectedUnitIds,
 
-    setUtteranceSelection,
+    setUnitSelection,
     setSelectedMediaId: _setSelectedMediaId,
     selectedLayerId,
     setSelectedLayerId,
@@ -152,8 +148,8 @@ function TranscriptionPageReadyWorkspace({
     defaultTranscriptionLayerId,
     sidePaneRows,
     deletableLayers,
-    selectedUtterance,
-    selectedUtteranceMedia,
+    selectedUnit,
+    selectedUnitMedia,
     selectedMediaUrl,
     selectedMediaBlobSize,
     selectedMediaIsVideo,
@@ -175,17 +171,17 @@ function TranscriptionPageReadyWorkspace({
     mergeWithNext,
     splitUtterance,
     selectTimelineUnit,
-    selectUtterance,
+    selectUnit,
     selectSegment,
-    toggleUtteranceSelection,
-    selectUtteranceRange,
+    toggleUnitSelection,
+    selectUnitRange,
     selectAllBefore,
     selectAllAfter,
-    selectAllUtterances,
-    clearUtteranceSelection,
+    selectAllUnits,
+    clearUnitSelection,
     toggleSegmentSelection,
     selectSegmentRange,
-    setSelectedUtteranceIds: _setSelectedUtteranceIds,
+    setSelectedUnitIds: _setSelectedUnitIds,
     transcriptionTrackMode,
     setTranscriptionTrackMode,
     deleteSelectedUtterances,
@@ -226,10 +222,15 @@ function TranscriptionPageReadyWorkspace({
     : '';
 
   // 独立边界层 segments 加载 | Load segments for independent-boundary layers
-  const { segmentsByLayer, reloadSegments, updateSegmentsLocally } = useLayerSegments(layers, selectedUtteranceMedia?.id, defaultTranscriptionLayerId);
+  const {
+    segmentsByLayer,
+    segmentsLoadComplete,
+    reloadSegments,
+    updateSegmentsLocally,
+  } = useLayerSegments(layers, selectedUnitMedia?.id, defaultTranscriptionLayerId);
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
-    selectedUtteranceMedia?.id,
+    selectedUnitMedia?.id,
     segmentsByLayer,
     defaultTranscriptionLayerId,
   );
@@ -300,7 +301,7 @@ function TranscriptionPageReadyWorkspace({
   const {
     layerById,
     selectedTimelineSegment,
-    selectedTimelineOwnerUtterance,
+    selectedTimelineOwnerUnit,
     selectedTimelineMedia,
     selectedTimelineUnitForTime,
     selectedTimelineRowMeta,
@@ -314,8 +315,8 @@ function TranscriptionPageReadyWorkspace({
     mediaItems: _mediaItems,
     utterances,
     utterancesOnCurrentMedia,
-    selectedUtterance: selectedUtterance ?? null,
-    ...(selectedUtteranceMedia ? { selectedUtteranceMedia } : {}),
+    selectedUnit: selectedUnit ?? null,
+    ...(selectedUnitMedia ? { selectedUnitMedia } : {}),
     selectedTimelineUnit,
     segmentsByLayer,
   });
@@ -419,7 +420,7 @@ function TranscriptionPageReadyWorkspace({
     toggleSnapEnabled,
   } = useTranscriptionWorkspaceLayoutController({
     layers,
-    selectedTimelineOwnerUtteranceId: selectedTimelineOwnerUtterance?.id,
+    selectedTimelineOwnerUnitId: selectedTimelineOwnerUnit?.id,
     utteranceRowRef,
   });
 
@@ -452,7 +453,7 @@ function TranscriptionPageReadyWorkspace({
   } = useRecording({
     saveVoiceTranslation,
     setSaveState,
-    selectUtterance,
+    selectUnit,
     manualSelectTsRef,
   });
 
@@ -483,7 +484,7 @@ function TranscriptionPageReadyWorkspace({
     handleBatchUpdateTokenPosByForm,
     handleExecuteRecommendation,
   } = useNoteHandlers({
-    activeUtteranceUnitId: selectedTimelineUtteranceId,
+    activeUnitId: selectedTimelineUtteranceId,
     focusedLayerRowId,
     utterances,
     timelineUnitIds: noteTimelineUnitIds,
@@ -491,7 +492,7 @@ function TranscriptionPageReadyWorkspace({
     translationLayers,
     updateTokenPos,
     batchUpdateTokenPosByForm,
-    selectUtterance,
+    selectUnit,
     setSaveState,
   });
 
@@ -601,6 +602,7 @@ function TranscriptionPageReadyWorkspace({
     activeLayerIdForEdits,
     defaultTranscriptionLayerId,
     utteranceCount: utterances.length,
+    segmentsLoadComplete,
   });
 
   const {
@@ -674,7 +676,7 @@ function TranscriptionPageReadyWorkspace({
     timelineUnitViewIndex,
     selectedTimelineUnit,
     selectedTimelineUnitForTime,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedMediaUrl,
     waveformHeight,
     amplitudeScale,
@@ -686,9 +688,9 @@ function TranscriptionPageReadyWorkspace({
     setZoomPercent,
     zoomMode,
     setZoomMode,
-    clearUtteranceSelection,
+    clearUnitSelection,
     createUtteranceFromSelection: createUtteranceFromSelectionRouted,
-    setUtteranceSelection,
+    setUnitSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
     ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
@@ -698,7 +700,7 @@ function TranscriptionPageReadyWorkspace({
   const selectionSnapshot = useTranscriptionSelectionSnapshot({
     selectedTimelineUnit,
     selectedTimelineSegment,
-    selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedTimelineOwnerUnit: selectedTimelineOwnerUnit ?? null,
     selectedTimelineRowMeta,
     selectedLayerId,
     layers,
@@ -733,14 +735,14 @@ function TranscriptionPageReadyWorkspace({
   } = useAiPanelLogic({
     locale,
     utterances,
-    selectedUtterance: selectedTimelineOwnerUtterance ?? undefined,
-    selectedUtteranceText: selectionSnapshot.selectedText,
+    selectedUnit: selectedTimelineOwnerUnit ?? undefined,
+    selectedUnitText: selectionSnapshot.selectedText,
     translationLayers,
     translationDrafts,
     translationTextByLayer,
     aiChatConnectionTestStatus: deferredAiRuntime.aiChat.connectionTestStatus,
     aiPanelMode,
-    selectUtterance,
+    selectUnit,
     setSaveState,
     ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
   });
@@ -802,7 +804,7 @@ function TranscriptionPageReadyWorkspace({
     saveUtteranceText: (utteranceId, text, layerId) => saveUtteranceText(utteranceId, text, layerId),
     saveTextTranslationForUtterance,
     utterances,
-    selectUtterance,
+    selectUnit,
     manualSelectTsRef,
     player,
     locale,
@@ -824,8 +826,8 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineUnit,
     toggleSegmentSelection,
     selectSegmentRange,
-    toggleUtteranceSelection,
-    selectUtteranceRange,
+    toggleUnitSelection,
+    selectUnitRange,
     setSubSelectionRange,
     subSelectDragRef,
     waveCanvasRef,
@@ -838,7 +840,7 @@ function TranscriptionPageReadyWorkspace({
     reloadSegments,
     saveUtteranceTiming,
     setSaveState,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedWaveformRegionId,
     beginTimingGesture,
     endTimingGesture,
@@ -856,7 +858,7 @@ function TranscriptionPageReadyWorkspace({
     zoomPxPerSec,
     manualSelectTsRef,
     player,
-    selectUtterance,
+    selectUnit,
     selectSegment,
     setSelectedLayerId,
     setFocusedLayerRowId,
@@ -879,10 +881,10 @@ function TranscriptionPageReadyWorkspace({
     handleVoiceAnalysisResult,
   } = useTranscriptionAssistantController({
     state,
-    utterancesLength: utterances.length,
+    unitsLength: utterances.length,
     translationLayersLength: translationLayers.length,
     aiConfidenceAvg,
-    selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedTimelineOwnerUnit: selectedTimelineOwnerUnit ?? null,
     selectedTimelineRowMeta,
     selectedAiWarning,
     lexemeMatches,
@@ -932,7 +934,7 @@ function TranscriptionPageReadyWorkspace({
     saveTextTranslationForUtterance,
     setSaveState,
     ...(nextUtteranceIdForVoiceDictation ? { nextUtteranceIdForVoiceDictation } : {}),
-    selectUtterance,
+    selectUnit,
     aiChatEnabled: deferredAiRuntime.aiChat.enabled,
     aiChatSettings: deferredAiRuntime.aiChat.settings,
     pushUndo,
@@ -949,10 +951,10 @@ function TranscriptionPageReadyWorkspace({
     player,
     subSelectionRange,
     setSubSelectionRange,
-    selectedUtterance: selectedTimelineOwnerUtterance ?? undefined,
+    selectedUnit: selectedTimelineOwnerUnit ?? undefined,
     selectedPlayableRange: selectedTimelineUnitForTime,
     selectedTimelineUnit,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedMediaUrl,
     segMarkStart,
     setSegMarkStart,
@@ -966,8 +968,8 @@ function TranscriptionPageReadyWorkspace({
     waveformAreaRef,
     createUtteranceFromSelection: createUtteranceFromSelectionRouted,
     selectTimelineUnit,
-    selectUtterance,
-    selectAllUtterances,
+    selectUnit,
+    selectAllUnits,
     runDeleteSelection,
     runMergePrev,
     runMergeNext,
@@ -1029,7 +1031,7 @@ function TranscriptionPageReadyWorkspace({
     analysisTab,
     onAnalysisTabChange: setAnalysisTab,
     currentPage: 'transcription',
-    selectedUtterance: selectedTimelineOwnerUtterance ?? null,
+    selectedUnit: selectedTimelineOwnerUnit ?? null,
     selectedRowMeta: selectedTimelineRowMeta,
     selectedUnitKind: selectionSnapshot.selectedUnitKind,
     selectedLayerType: selectionSnapshot.selectedLayerType,
@@ -1104,7 +1106,7 @@ function TranscriptionPageReadyWorkspace({
   const importExportInput = useTranscriptionImportExportInput({
     activeTextId,
     getActiveTextId,
-    selectedUtteranceMedia: selectedTimelineMedia,
+    selectedUnitMedia: selectedTimelineMedia,
     utterancesOnCurrentMedia,
     anchors,
     layers,
@@ -1192,20 +1194,20 @@ function TranscriptionPageReadyWorkspace({
     layers,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     ...(selectedLayerId !== undefined ? { selectedLayerId } : {}),
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedTimelineUnit,
     getUtteranceSpeakerKey,
   });
 
   const {
-    selectedUtteranceIdsForSpeakerActionsSet,
+    selectedUnitIdsForSpeakerActionsSet,
     selectedBatchUtterances,
     handleBatchOffset,
     handleBatchScale,
     handleBatchSplitByRegex,
     handleBatchMerge,
   } = useBatchOperationController({
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedTimelineUnit,
     unitToUtteranceId: speakerActionUtteranceIdByUnitId,
     utterancesOnCurrentMedia,
@@ -1257,14 +1259,14 @@ function TranscriptionPageReadyWorkspace({
     setSpeakers,
     utterancesOnCurrentMedia,
     selectedTimelineUtteranceId,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedBatchUtterances,
-    selectedUtteranceIdsForSpeakerActionsSet,
+    selectedUnitIdsForSpeakerActionsSet,
     selectedTimelineUnit,
     selectedTimelineMediaId: selectedTimelineMedia?.id ?? null,
-    selectedUtterance: selectedUtterance ?? null,
+    selectedUnit: selectedUnit ?? null,
     statePhase: state.phase,
-    setUtteranceSelection,
+    setUnitSelection,
     data,
     setSaveState,
     getUtteranceTextForLayer,
@@ -1282,7 +1284,7 @@ function TranscriptionPageReadyWorkspace({
     speakerFilterOptionsForActions,
     segmentSpeakerAssignmentsOnCurrentMedia,
     selectTimelineUnit,
-    setSelectedUtteranceIds: _setSelectedUtteranceIds,
+    setSelectedUnitIds: _setSelectedUnitIds,
     reloadSegments,
     refreshSegmentUndoSnapshot,
     updateSegmentsLocally,
@@ -1303,10 +1305,10 @@ function TranscriptionPageReadyWorkspace({
     manualSelectTsRef,
     player,
     selectedTimelineUnit,
-    selectUtteranceRange,
-    toggleUtteranceSelection,
+    selectUnitRange,
+    toggleUnitSelection,
     selectTimelineUnit,
-    selectUtterance,
+    selectUnit,
     selectSegment,
     setSelectedLayerId,
     onFocusLayerRow: handleFocusLayerRow,
@@ -1316,7 +1318,7 @@ function TranscriptionPageReadyWorkspace({
     navigateUtteranceFromInput,
     waveformAreaRef,
     dragPreview,
-    selectedUtteranceIds,
+    selectedUnitIds,
     focusedLayerRowId,
     zoomToUtterance,
     startTimelineResizeDrag,
@@ -1515,7 +1517,7 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineUtteranceId,
     searchOverlayRequest,
     manualSelectTsRef,
-    selectUtterance,
+    selectUnit,
     handleSearchReplace,
     setShowSearch,
     setSearchOverlayRequest,
@@ -1724,7 +1726,7 @@ function TranscriptionPageReadyWorkspace({
                   toggleSnapEnabled={toggleSnapEnabled}
                   playerPlaybackRate={player.playbackRate}
                   playerCurrentTime={player.currentTime}
-                  selectedUtteranceDuration={selectedTimelineUnitForTime
+                  selectedUnitDuration={selectedTimelineUnitForTime
                     ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
                     : null}
                   amplitudeScale={amplitudeScale}
@@ -1736,7 +1738,7 @@ function TranscriptionPageReadyWorkspace({
                   videoPreviewHeight={videoPreviewHeight}
                   videoRightPanelWidth={videoRightPanelWidth}
                   waveformRegions={waveformRegions}
-                  selectedUtteranceIds={selectedUtteranceIds}
+                  selectedUnitIds={selectedUnitIds}
                   selectedTimelineUtteranceId={selectedTimelineUtteranceId}
                   segmentLoopPlayback={segmentLoopPlayback}
                   subSelectionRange={subSelectionRange}
@@ -1836,7 +1838,7 @@ function TranscriptionPageReadyWorkspace({
                           updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
                           confirmSpeakerDialog: confirmSpeakerDialogRouted,
                         }}
-                        selectedUtteranceIds={selectedSpeakerUnitIdsForActionsSet}
+                        selectedUnitIds={selectedSpeakerUnitIdsForActionsSet}
                         handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
                         handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
                         sidebarProps={{
@@ -1891,7 +1893,7 @@ function TranscriptionPageReadyWorkspace({
                       zoomPercent={zoomPercent}
                       snapEnabled={snapEnabled}
                       autoScrollEnabled={autoScrollEnabled}
-                      activeUtteranceUnitId={selectedWaveformRegionId || null}
+                      activeUnitId={selectedWaveformRegionId || null}
                       utterancesOnCurrentMedia={waveformTimelineItems}
                       fitPxPerSec={fitPxPerSec}
                       maxZoomPercent={maxZoomPercent}
@@ -1927,9 +1929,9 @@ function TranscriptionPageReadyWorkspace({
                   controllerInput={{
                     utterances,
                     utterancesOnCurrentMedia,
-                    selectedUnitIds: selectedUtteranceIds,
-                    selectedUtterance: selectedUtterance ?? null,
-                    selectedTimelineOwnerUtterance: selectedTimelineOwnerUtterance ?? null,
+                    selectedUnitIds: selectedUnitIds,
+                    selectedUnit: selectedUnit ?? null,
+                    selectedTimelineOwnerUnit: selectedTimelineOwnerUnit ?? null,
                     selectedTimelineSegment: selectedTimelineSegment ?? null,
                     ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
                     ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
@@ -1947,6 +1949,7 @@ function TranscriptionPageReadyWorkspace({
                     formatTime,
                     utteranceCount: utterances.length,
                     timelineUnitViewIndex,
+                    segmentsLoadComplete,
                     translationLayerCount: translationLayers.length,
                     aiConfidenceAvg,
                     undoHistory,
@@ -1967,7 +1970,7 @@ function TranscriptionPageReadyWorkspace({
                     updateTokenPos,
                     batchUpdateTokenPosByForm,
                     updateTokenGloss,
-                    selectUtterance,
+                    selectUnit,
                     setSaveState,
                     translationDrafts,
                     translationTextByLayer,
@@ -2017,7 +2020,7 @@ function TranscriptionPageReadyWorkspace({
             <Suspense fallback={null}>
               <TranscriptionPageBatchOps
                 showBatchOperationPanel={showBatchOperationPanel}
-                selectedUtteranceIds={selectedUtteranceIds}
+                selectedUnitIds={selectedUnitIds}
                 selectedBatchUtterances={selectedBatchUtterances}
                 utterancesOnCurrentMedia={utterancesOnCurrentMedia}
                 selectedBatchUtteranceTextById={selectedBatchUtteranceTextById}
@@ -2030,7 +2033,7 @@ function TranscriptionPageReadyWorkspace({
                 onBatchScale={handleBatchScale}
                 onBatchSplitByRegex={handleBatchSplitByRegex}
                 onBatchMerge={handleBatchMerge}
-                onBatchJumpToUtterance={selectUtterance}
+                onBatchJumpToUtterance={selectUnit}
               />
             </Suspense>
           ) : null}
@@ -2043,7 +2046,7 @@ function TranscriptionPageReadyWorkspace({
           uttOpsMenu={uttOpsMenu}
           onCloseUttOpsMenu={() => setUttOpsMenu(null)}
           selectedTimelineUnit={selectedTimelineUnit ?? null}
-          selectedUtteranceIds={selectedUtteranceIds}
+          selectedUnitIds={selectedUnitIds}
           runDeleteSelection={runOverlayDeleteSelection}
           runMergeSelection={runOverlayMergeSelection}
           runSelectBefore={runSelectBefore}

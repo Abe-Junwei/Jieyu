@@ -122,13 +122,13 @@ interface UseLassoInput {
   utterancesOnCurrentMedia: UtteranceDocType[];
   /** Items to select against — utterances for default layer, segments for independent layers */
   timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
-  selectedUtteranceIds: Set<string>;
-  selectedUtteranceUnitId: string;
+  selectedUnitIds: Set<string>;
+  selectedUnitId: string;
   zoomPxPerSec: number;
   skipSeekForIdRef: React.MutableRefObject<string | null>;
-  clearUtteranceSelection: () => void;
+  clearUnitSelection: () => void;
   createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
-  setUtteranceSelection: (primaryId: string, ids: Set<string>) => void;
+  setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   playerSeekTo: (time: number) => void;
   // Lifted state (shared with useWaveSurfer)
   subSelectionRange: { start: number; end: number } | null;
@@ -142,10 +142,10 @@ export function useLasso(input: UseLassoInput) {
     playerInstanceRef, playerIsReady,
     selectedMediaUrl,
     timelineItems,
-    selectedUtteranceIds, selectedUtteranceUnitId,
+    selectedUnitIds, selectedUnitId,
     zoomPxPerSec,
     skipSeekForIdRef,
-    clearUtteranceSelection, createUtteranceFromSelection, setUtteranceSelection,
+    clearUnitSelection, createUtteranceFromSelection, setUnitSelection,
     playerSeekTo,
     subSelectionRange: _subSelectionRange, setSubSelectionRange, subSelectDragRef,
   } = input;
@@ -198,8 +198,8 @@ export function useLasso(input: UseLassoInput) {
 
   // Sync refs for values used inside effects
   const timelineItemsRef = useLatest(timelineItems);
-  const selectedUtteranceIdsRef = useLatest(selectedUtteranceIds);
-  const selectedUtteranceUnitIdRef = useLatest(selectedUtteranceUnitId);
+  const selectedUnitIdsRef = useLatest(selectedUnitIds);
+  const selectedUnitIdRef = useLatest(selectedUnitId);
   const timelineHitIndex = useMemo(() => buildTimelineHitIndex(timelineItems), [timelineItems]);
   const timelineHitIndexRef = useLatest(timelineHitIndex);
 
@@ -208,8 +208,8 @@ export function useLasso(input: UseLassoInput) {
     const nextSelection: SelectionSnapshot = { primaryId, ids: normalizedIds };
 
     const currentSelection: SelectionSnapshot = {
-      primaryId: selectedUtteranceUnitIdRef.current,
-      ids: new Set(selectedUtteranceIdsRef.current),
+      primaryId: selectedUnitIdRef.current,
+      ids: new Set(selectedUnitIdsRef.current),
     };
     if (areSelectionSnapshotsEqual(nextSelection, currentSelection)) {
       pendingLassoSelectionRef.current = null;
@@ -238,14 +238,14 @@ export function useLasso(input: UseLassoInput) {
         primaryId: pending.primaryId,
         ids: new Set(pending.ids),
       };
-      setUtteranceSelection(pending.primaryId, pending.ids);
+      setUnitSelection(pending.primaryId, pending.ids);
     });
-  }, [selectedUtteranceIdsRef, selectedUtteranceUnitIdRef, setUtteranceSelection]);
+  }, [selectedUnitIdsRef, selectedUnitIdRef, setUnitSelection]);
 
   // Clear sub-selection when the selected utterance changes
   useEffect(() => {
     setSubSelectionRange(null);
-  }, [selectedUtteranceUnitId]);
+  }, [selectedUnitId]);
 
   // ---- Waveform pointer interactions ----
   // Default drag on region = sub-range selection; Alt+drag = move/resize region.
@@ -318,7 +318,7 @@ export function useLasso(input: UseLassoInput) {
       if (anchorTime === null) return;
 
       const baseIds = e.shiftKey
-        ? new Set(selectedUtteranceIdsRef.current)
+        ? new Set(selectedUnitIdsRef.current)
         : new Set<string>();
       waveLassoRef.current = {
         active: false,
@@ -496,7 +496,7 @@ export function useLasso(input: UseLassoInput) {
         // Only clear when pointerup is still on empty area; don't clear if the
         // click actually landed on an existing segment.
         if (!hitTestExistingAtClientX(e.clientX)) {
-          clearUtteranceSelection();
+          clearUnitSelection();
           // Click-to-seek: move playback position to the clicked time
           const clickTime = clientXToTime(e.clientX);
           if (clickTime !== null) {
@@ -527,7 +527,7 @@ export function useLasso(input: UseLassoInput) {
         subSelectPreviewRef.current = null;
       }
     };
-  }, [selectedMediaUrl, playerIsReady, clearUtteranceSelection, createUtteranceFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef]);
+  }, [selectedMediaUrl, playerIsReady, clearUnitSelection, createUtteranceFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef]);
 
   // RAF & timer cleanup
   useEffect(() => () => {
@@ -582,7 +582,7 @@ export function useLasso(input: UseLassoInput) {
     const container = tierContainerRef.current;
     if (!container) return;
 
-    const baseIds = e.shiftKey ? new Set(selectedUtteranceIds) : new Set<string>();
+    const baseIds = e.shiftKey ? new Set(selectedUnitIds) : new Set<string>();
 
     lassoRef.current = {
       active: false,
@@ -596,7 +596,7 @@ export function useLasso(input: UseLassoInput) {
     };
 
     e.currentTarget.setPointerCapture(e.pointerId);
-  }, [selectedUtteranceIds, tierContainerRef]);
+  }, [selectedUnitIds, tierContainerRef]);
 
   const handleLassoPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const info = lassoRef.current;
@@ -660,7 +660,7 @@ export function useLasso(input: UseLassoInput) {
         !target.closest('input, textarea, select, button')
       ) {
         if (!(e.shiftKey || e.metaKey || e.ctrlKey)) {
-          clearUtteranceSelection();
+          clearUnitSelection();
         }
       }
     } else if (info && info.active) {
@@ -670,7 +670,7 @@ export function useLasso(input: UseLassoInput) {
         fireAndForget(createUtteranceFromSelection(s, end));
       }
     }
-  }, [clearUtteranceSelection, createUtteranceFromSelection, flushTimelineLassoMove]);
+  }, [clearUnitSelection, createUtteranceFromSelection, flushTimelineLassoMove]);
 
   useEffect(() => () => {
     if (timelineLassoMoveRafRef.current !== null) {

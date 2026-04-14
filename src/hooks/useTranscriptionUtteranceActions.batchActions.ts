@@ -39,7 +39,7 @@ type BatchActionsInput = {
     db: Awaited<ReturnType<typeof getDb>>,
     now: string,
   ) => Promise<{ newTranslations: UtteranceTextDocType[]; updatedTranslations: UtteranceTextDocType[] }>;
-  selectUtterancePrimary: (id: string) => void;
+  selectUnitPrimary: (id: string) => void;
   setSaveState: (s: SaveState) => void;
   setTranslations: Dispatch<SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
@@ -59,7 +59,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     pruneOrphanAnchors,
     getUtteranceTextForLayer,
     reassignTranslations,
-    selectUtterancePrimary,
+    selectUnitPrimary,
     setSaveState,
     setTranslations,
     setUtterances,
@@ -412,7 +412,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       setTranslations((prev) => [...prev, ...copiedTranslations]);
       setUtteranceDrafts((prev) => ({ ...prev, ...nextDraftEntries }));
       if (inserts.length > 0) {
-        selectUtterancePrimary(inserts[0]!.id);
+        selectUnitPrimary(inserts[0]!.id);
       }
       setSaveState({
         kind: 'done',
@@ -494,7 +494,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
         ...allUpdatedTranslations,
         ...allNewTranslations,
       ]);
-      selectUtterancePrimary(first.id);
+      selectUnitPrimary(first.id);
 
       await pruneOrphanAnchors(db, removeIds);
       setSaveState({

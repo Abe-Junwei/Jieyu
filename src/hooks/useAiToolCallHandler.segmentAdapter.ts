@@ -33,8 +33,8 @@ export const segmentAdapter: ToolObjectAdapter = {
       if (!baseUtterance) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
       }
-      const mediaDuration = typeof ctx.selectedUtteranceMedia?.duration === 'number'
-        ? ctx.selectedUtteranceMedia.duration
+      const mediaDuration = typeof ctx.selectedUnitMedia?.duration === 'number'
+        ? ctx.selectedUnitMedia.duration
         : baseUtterance.endTime + 2;
       await ctx.createNextUtterance(baseUtterance, mediaDuration);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };

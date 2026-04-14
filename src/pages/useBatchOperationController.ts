@@ -3,12 +3,12 @@ import type { UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { resolveUtteranceSelectionMapping } from './selectionIdResolvers';
+import { resolveUnitSelectionMapping } from './selectionIdResolvers';
 
 type BatchOperationSelectionAction = (targetIds: Set<string>) => Promise<void>;
 
 interface UseBatchOperationControllerInput {
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitToUtteranceId: ReadonlyMap<string, string>;
   utterancesOnCurrentMedia: UtteranceDocType[];
@@ -20,7 +20,7 @@ interface UseBatchOperationControllerInput {
 }
 
 interface UseBatchOperationControllerResult {
-  selectedUtteranceIdsForSpeakerActionsSet: Set<string>;
+  selectedUnitIdsForSpeakerActionsSet: Set<string>;
   selectedBatchUtterances: UtteranceDocType[];
   handleBatchOffset: (deltaSec: number) => Promise<void>;
   handleBatchScale: (factor: number, anchorTime?: number) => Promise<void>;
@@ -29,7 +29,7 @@ interface UseBatchOperationControllerResult {
 }
 
 export function useBatchOperationController({
-  selectedUtteranceIds,
+  selectedUnitIds,
   selectedTimelineUnit,
   unitToUtteranceId,
   utterancesOnCurrentMedia,
@@ -41,40 +41,40 @@ export function useBatchOperationController({
 }: UseBatchOperationControllerInput): UseBatchOperationControllerResult {
   const locale = useLocale();
   const batchUtteranceSelectionMapping = useMemo(() => {
-    return resolveUtteranceSelectionMapping({
-      selectedUtteranceIds,
+    return resolveUnitSelectionMapping({
+      selectedUnitIds,
       selectedTimelineUnit,
       unitToUtteranceId,
     });
-  }, [selectedTimelineUnit, selectedUtteranceIds, unitToUtteranceId]);
-  const selectedUtteranceIdsForSpeakerActionsSet = batchUtteranceSelectionMapping.mappedUtteranceIds;
+  }, [selectedTimelineUnit, selectedUnitIds, unitToUtteranceId]);
+  const selectedUnitIdsForSpeakerActionsSet = batchUtteranceSelectionMapping.mappedUnitIds;
   const hasBatchSelectionSource = batchUtteranceSelectionMapping.hasSelectionSource;
   const selectedBatchUtterances = useMemo(
     () => utterancesOnCurrentMedia
-      .filter((utt) => selectedUtteranceIdsForSpeakerActionsSet.has(utt.id))
+      .filter((utt) => selectedUnitIdsForSpeakerActionsSet.has(utt.id))
       .sort((a, b) => a.startTime - b.startTime),
-    [selectedUtteranceIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
+    [selectedUnitIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
   );
   const resolveBatchUtteranceTargetIds = useCallback(() => {
     if (!hasBatchSelectionSource) return null;
-    if (selectedUtteranceIdsForSpeakerActionsSet.size > 0) {
+    if (selectedUnitIdsForSpeakerActionsSet.size > 0) {
       if (batchUtteranceSelectionMapping.unmappedSourceCount > 0) {
         setSaveState({
           kind: 'done',
           message: tf(locale, 'transcription.batchOperation.mappingIgnored', {
             ignored: batchUtteranceSelectionMapping.unmappedSourceCount,
-            count: selectedUtteranceIdsForSpeakerActionsSet.size,
+            count: selectedUnitIdsForSpeakerActionsSet.size,
           }),
         });
       }
-      return selectedUtteranceIdsForSpeakerActionsSet;
+      return selectedUnitIdsForSpeakerActionsSet;
     }
     setSaveState({
       kind: 'error',
       message: t(locale, 'transcription.batchOperation.mappingUnavailable'),
     });
     return null;
-  }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedUtteranceIdsForSpeakerActionsSet, setSaveState]);
+  }, [batchUtteranceSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedUnitIdsForSpeakerActionsSet, setSaveState]);
   const runMappedBatchAction = useCallback(async (
     actionLabelKey: Parameters<typeof t>[1],
     i18nKey: Parameters<typeof t>[1],
@@ -110,7 +110,7 @@ export function useBatchOperationController({
     await runMappedBatchAction('transcription.utteranceAction.undo.mergeSelection', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUtterances(targetIds));
   }, [mergeSelectedUtterances, runMappedBatchAction]);
   return {
-    selectedUtteranceIdsForSpeakerActionsSet,
+    selectedUnitIdsForSpeakerActionsSet,
     selectedBatchUtterances,
     handleBatchOffset,
     handleBatchScale,

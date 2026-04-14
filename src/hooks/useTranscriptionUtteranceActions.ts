@@ -38,8 +38,8 @@ const log = createLogger('useTranscriptionUtteranceActions');
 export type TranscriptionUtteranceActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
   layerById: Map<string, LayerDocType>;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
-  activeUtteranceUnitId: string;
+  selectedUnitMedia?: MediaItemDocType | undefined;
+  activeUnitId: string;
   translations: UtteranceTextDocType[];
   utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
   utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
@@ -57,7 +57,7 @@ export type TranscriptionUtteranceActionsParams = {
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setSelectedUtteranceIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedUnitIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
 };
@@ -65,8 +65,8 @@ export type TranscriptionUtteranceActionsParams = {
 export function useTranscriptionUtteranceActions({
   defaultTranscriptionLayerId,
   layerById,
-  selectedUtteranceMedia,
-  activeUtteranceUnitId,
+  selectedUnitMedia,
+  activeUnitId,
   translations,
   utterancesRef,
   utterancesOnCurrentMediaRef,
@@ -84,7 +84,7 @@ export function useTranscriptionUtteranceActions({
   setTranslations,
   setUtterances,
   setUtteranceDrafts,
-  setSelectedUtteranceIds,
+  setSelectedUnitIds,
   setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
 }: TranscriptionUtteranceActionsParams) {
@@ -105,15 +105,15 @@ export function useTranscriptionUtteranceActions({
     });
   }, []);
 
-  const selectUtterancePrimary = useCallback((id: string) => {
-    setSelectedUtteranceIds(id ? new Set([id]) : new Set());
+  const selectUnitPrimary = useCallback((id: string) => {
+    setSelectedUnitIds(id ? new Set([id]) : new Set());
     setSelectedTimelineUnit?.(id ? createTimelineUnit(defaultTranscriptionLayerId ?? '', id, 'utterance') : null);
-  }, [defaultTranscriptionLayerId, setSelectedTimelineUnit, setSelectedUtteranceIds]);
+  }, [defaultTranscriptionLayerId, setSelectedTimelineUnit, setSelectedUnitIds]);
 
   const clearSelection = useCallback(() => {
-    setSelectedUtteranceIds(new Set());
+    setSelectedUnitIds(new Set());
     setSelectedTimelineUnit?.(null);
-  }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
+  }, [setSelectedTimelineUnit, setSelectedUnitIds]);
 
   const resolveUtteranceById = useCallback(async (db: Awaited<ReturnType<typeof getDb>>, utteranceId: string) => {
     const local = utterancesRef.current.find((item) => item.id === utteranceId);
@@ -405,7 +405,7 @@ export function useTranscriptionUtteranceActions({
 
     setUtterances((prev) => [...prev, newUtterance]);
     setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
-    selectUtterancePrimary(createdId);
+    selectUnitPrimary(createdId);
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.utteranceAction.done.createNext', {
@@ -413,7 +413,7 @@ export function useTranscriptionUtteranceActions({
         end: formatTime(finalEnd),
       }),
     });
-  }, [createAnchor, locale, pushUndo, selectUtterancePrimary, setSaveState, setUtteranceDrafts, setUtterances]);
+  }, [createAnchor, locale, pushUndo, selectUnitPrimary, setSaveState, setUtteranceDrafts, setUtterances]);
 
   const createUtteranceFromSelection = useCallback(async (
     start: number,
@@ -423,7 +423,7 @@ export function useTranscriptionUtteranceActions({
     const perfDebugEnabled = isTranscriptionPerfDebugEnabled();
     const perfStartMs = perfDebugEnabled ? performance.now() : 0;
 
-    const media = selectedUtteranceMedia;
+    const media = selectedUnitMedia;
     if (!media) {
       reportValidationError({
         message: t(locale, 'transcription.error.validation.mediaRequired'),
@@ -534,7 +534,7 @@ export function useTranscriptionUtteranceActions({
       setUtterances((prev) => [...prev, newUtterance]);
       setUtteranceDrafts((prev) => ({ ...prev, [createdId]: '' }));
       if (options?.selectionBehavior !== 'keep-current') {
-        selectUtterancePrimary(createdId);
+        selectUnitPrimary(createdId);
       }
       setSaveState({
         kind: 'done',
@@ -562,7 +562,7 @@ export function useTranscriptionUtteranceActions({
       });
       scheduleCreatePerfPaintProbe(perfStartMs, context);
     }
-  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, scheduleCreatePerfPaintProbe, selectedUtteranceMedia, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
+  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, scheduleCreatePerfPaintProbe, selectedUnitMedia, selectUnitPrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, utterancesRef]);
 
   const deleteUtterance = useCallback(async (utteranceId: string) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
@@ -580,13 +580,13 @@ export function useTranscriptionUtteranceActions({
 
     setUtterances((prev) => prev.filter((u) => u.id !== utteranceId));
     setTranslations((prev) => prev.filter((t) => t.utteranceId !== utteranceId));
-    if (activeUtteranceUnitId === utteranceId) clearSelection();
+    if (activeUnitId === utteranceId) clearSelection();
 
     const db = await getDb();
     await pruneOrphanAnchors(db, new Set([utteranceId]));
 
     setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.deleted') });
-  }, [activeUtteranceUnitId, clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
+  }, [activeUnitId, clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const reassignTranslations = useCallback(async (
     survivorId: string,
@@ -670,7 +670,7 @@ export function useTranscriptionUtteranceActions({
         ...newTranslations,
       ];
     });
-    selectUtterancePrimary(prev.id);
+    selectUnitPrimary(prev.id);
     await pruneOrphanAnchors(db, new Set([curr.id]));
     setSaveState({
       kind: 'done',
@@ -679,7 +679,7 @@ export function useTranscriptionUtteranceActions({
         end: formatTime(updated.endTime),
       }),
     });
-  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
+  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUnitPrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const mergeWithNext = useCallback(async (utteranceId: string) => {
     const sorted = utterancesRef.current
@@ -719,7 +719,7 @@ export function useTranscriptionUtteranceActions({
         ...newTranslations,
       ];
     });
-    selectUtterancePrimary(curr.id);
+    selectUnitPrimary(curr.id);
     await pruneOrphanAnchors(db, new Set([next.id]));
     setSaveState({
       kind: 'done',
@@ -728,7 +728,7 @@ export function useTranscriptionUtteranceActions({
         end: formatTime(updated.endTime),
       }),
     });
-  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUtterancePrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
+  }, [locale, pruneOrphanAnchors, pushUndo, reassignTranslations, selectUnitPrimary, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
   const splitUtterance = useCallback(async (utteranceId: string, splitTime: number) => {
     const target = utterancesRef.current.find((u) => u.id === utteranceId);
@@ -800,7 +800,7 @@ export function useTranscriptionUtteranceActions({
     ]);
     setTranslations((prev) => [...prev, ...copiedTranslations]);
     setUtteranceDrafts((prev) => ({ ...prev, [utteranceId]: text, [secondId]: text }));
-    selectUtterancePrimary(secondId);
+    selectUnitPrimary(secondId);
     setSaveState({
       kind: 'done',
       message: tf(locale, 'transcription.utteranceAction.done.split', {
@@ -808,7 +808,7 @@ export function useTranscriptionUtteranceActions({
         secondRange: `${formatTime(secondHalf.startTime)}-${formatTime(secondHalf.endTime)}`,
       }),
     });
-  }, [createAnchor, getUtteranceTextForLayer, locale, pushUndo, selectUtterancePrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
+  }, [createAnchor, getUtteranceTextForLayer, locale, pushUndo, selectUnitPrimary, setSaveState, setTranslations, setUtteranceDrafts, setUtterances, translations, utterancesRef]);
 
   const deleteSelectedUtterances = useCallback(async (ids: Set<string>) => {
     const targets = utterancesRef.current.filter((u) => ids.has(u.id));
@@ -848,7 +848,7 @@ export function useTranscriptionUtteranceActions({
     pruneOrphanAnchors,
     getUtteranceTextForLayer,
     reassignTranslations,
-    selectUtterancePrimary,
+    selectUnitPrimary,
     setSaveState,
     setTranslations,
     setUtterances,
@@ -865,7 +865,7 @@ export function useTranscriptionUtteranceActions({
     pruneOrphanAnchors,
     getUtteranceTextForLayer,
     reassignTranslations,
-    selectUtterancePrimary,
+    selectUnitPrimary,
     setSaveState,
     setTranslations,
     setUtterances,

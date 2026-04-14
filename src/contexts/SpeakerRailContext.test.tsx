@@ -74,7 +74,7 @@ describe('SpeakerRailContext', () => {
       speakerReferenceStats: {},
       speakerReferenceStatsReady: true,
       selectedSpeakerSummary: 'Alice',
-      selectedUtteranceIds: new Set<string>(),
+      selectedUnitIds: new Set<string>(),
       handleSelectSpeakerUtterances: () => undefined,
       handleClearSpeakerAssignments: () => undefined,
       handleExportSpeakerSegments: () => undefined,
@@ -95,7 +95,7 @@ describe('SpeakerRailContext', () => {
     const { getByText } = render(
       <SpeakerRailProvider
         speakerManagement={speakerManagement}
-        selectedUtteranceIds={new Set<string>()}
+        selectedUnitIds={new Set<string>()}
         handleAssignSpeakerToSelectedRouted={async () => undefined}
         handleClearSpeakerOnSelectedRouted={async () => undefined}
       >

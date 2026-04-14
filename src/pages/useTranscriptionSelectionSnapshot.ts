@@ -11,7 +11,7 @@ export function useTranscriptionSelectionSnapshot(input: BuildTranscriptionSelec
     input.layers,
     input.segmentContentByLayer,
     input.selectedLayerId,
-    input.selectedTimelineOwnerUtterance,
+    input.selectedTimelineOwnerUnit,
     input.selectedTimelineRowMeta,
     input.selectedTimelineSegment,
     input.selectedTimelineUnit,

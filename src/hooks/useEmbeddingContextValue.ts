@@ -5,7 +5,7 @@ export type EmbeddingContextSource = Partial<EmbeddingContextValue>;
 
 export function pickEmbeddingContextValue(P: EmbeddingContextSource): EmbeddingContextValue {
   return {
-    selectedUtterance: P.selectedUtterance ?? null,
+    selectedUnit: P.selectedUnit ?? null,
     aiEmbeddingBusy: P.aiEmbeddingBusy ?? false,
     aiEmbeddingProgressLabel: P.aiEmbeddingProgressLabel ?? null,
     aiEmbeddingLastResult: P.aiEmbeddingLastResult ?? null,

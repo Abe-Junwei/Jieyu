@@ -17,7 +17,7 @@ export interface NotePopoverState {
 }
 
 export interface UseNoteHandlersInput {
-  activeUtteranceUnitId: string | null | undefined;
+  activeUnitId: string | null | undefined;
   focusedLayerRowId: string;
   utterances: Array<{ id: string }>;
   timelineUnitIds: string[];
@@ -25,7 +25,7 @@ export interface UseNoteHandlersInput {
   translationLayers: Array<{ id: string }>;
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void>;
   batchUpdateTokenPosByForm: (utteranceId: string, form: string, pos: string | null) => Promise<number>;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   setSaveState: (s: SaveState) => void;
 }
 
@@ -33,7 +33,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   const locale = useOptionalLocale() ?? 'zh-CN';
   const messages = getNoteHandlersMessages(locale);
   const {
-    activeUtteranceUnitId,
+    activeUnitId,
     focusedLayerRowId,
     utterances,
     timelineUnitIds,
@@ -41,7 +41,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     translationLayers,
     updateTokenPos,
     batchUpdateTokenPosByForm,
-    selectUtterance,
+    selectUnit,
     setSaveState,
   } = input;
 
@@ -90,10 +90,10 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   const toggleNotes = useCallback(() => {
     if (notePopover) {
       setNotePopover(null);
-    } else if (activeUtteranceUnitId) {
-      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: activeUtteranceUnitId, layerId: focusedLayerRowId, scope: 'timeline' });
+    } else if (activeUnitId) {
+      setNotePopover({ x: window.innerWidth / 2 - 160, y: window.innerHeight / 3, uttId: activeUnitId, layerId: focusedLayerRowId, scope: 'timeline' });
     }
-  }, [activeUtteranceUnitId, focusedLayerRowId, notePopover]);
+  }, [activeUnitId, focusedLayerRowId, notePopover]);
 
   const handleNoteClick = useCallback(
     (uttId: string, layerId: string | undefined, e: React.MouseEvent) => {
@@ -227,7 +227,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
 
       const updated = await handleBatchUpdateTokenPosByForm(item.targetUtteranceId, item.targetForm, item.targetPos);
       if (updated > 0) {
-        selectUtterance(item.targetUtteranceId);
+        selectUnit(item.targetUtteranceId);
         setSaveState({ kind: 'done', message: messages.recommendationBatchApplied(updated, item.targetForm, item.targetPos) });
       }
       return;
@@ -242,7 +242,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       return;
     }
 
-    selectUtterance(item.targetUtteranceId);
+    selectUnit(item.targetUtteranceId);
     if (item.actionType === 'risk_review') {
       const confidenceText = typeof item.targetConfidence === 'number'
         ? messages.confidenceSuffix(item.targetConfidence)
@@ -252,7 +252,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
     }
 
     setSaveState({ kind: 'done', message: messages.recommendationJumped });
-  }, [handleBatchUpdateTokenPosByForm, messages, selectUtterance, setSaveState]);
+  }, [handleBatchUpdateTokenPosByForm, messages, selectUnit, setSaveState]);
 
   return {
     notePopover,

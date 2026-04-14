@@ -7,7 +7,7 @@ export function pickAiChatContextValue(P: AiChatContextSource): AiChatContextVal
   const observerRecommendations = (P.observerRecommendations ?? []).map((item) => ({ ...item }));
   return {
     currentPage: P.currentPage ?? 'other',
-    selectedUtterance: P.selectedUtterance ?? null,
+    selectedUnit: P.selectedUnit ?? null,
     selectedRowMeta: P.selectedRowMeta ?? null,
     selectedUnitKind: P.selectedUnitKind ?? null,
     selectedText: P.selectedText ?? '',

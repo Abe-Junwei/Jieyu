@@ -1,21 +1,21 @@
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 
 type SelectionMappingInput = {
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
 };
 
-export type UtteranceSelectionMappingResult = {
+export type UnitSelectionMappingResult = {
   hasSelectionSource: boolean;
   sourceUnitCount: number;
   unmappedSourceCount: number;
-  mappedUtteranceIds: Set<string>;
+  mappedUnitIds: Set<string>;
 };
 
 function resolveSelectionSourceUnitIds(input: SelectionMappingInput): string[] {
-  if (input.selectedUtteranceIds.size > 0) {
+  if (input.selectedUnitIds.size > 0) {
     return Array.from(new Set(
-      Array.from(input.selectedUtteranceIds)
+      Array.from(input.selectedUnitIds)
         .map((id) => id.trim())
         .filter((id) => id.length > 0),
     ));
@@ -24,7 +24,7 @@ function resolveSelectionSourceUnitIds(input: SelectionMappingInput): string[] {
   return selectedUnitId.length > 0 ? [selectedUnitId] : [];
 }
 
-export function resolveMappedUtteranceIds(
+export function resolveMappedUnitIds(
   unitIds: Iterable<string>,
   unitToUtteranceId: ReadonlyMap<string, string>,
 ): string[] {
@@ -39,23 +39,23 @@ export function resolveMappedUtteranceIds(
   return Array.from(unique);
 }
 
-export function resolveMappedUtteranceIdsFromSelection(input: {
-  selectedUtteranceIds: Set<string>;
+export function resolveMappedUnitIdsFromSelection(input: {
+  selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitToUtteranceId: ReadonlyMap<string, string>;
 }): Set<string> {
-  return resolveUtteranceSelectionMapping(input).mappedUtteranceIds;
+  return resolveUnitSelectionMapping(input).mappedUnitIds;
 }
 
-export function hasSelectionSourceForUtteranceMapping(input: SelectionMappingInput): boolean {
+export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): boolean {
   return resolveSelectionSourceUnitIds(input).length > 0;
 }
 
-export function resolveUtteranceSelectionMapping(input: {
-  selectedUtteranceIds: Set<string>;
+export function resolveUnitSelectionMapping(input: {
+  selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitToUtteranceId: ReadonlyMap<string, string>;
-}): UtteranceSelectionMappingResult {
+}): UnitSelectionMappingResult {
   const sourceUnitIds = resolveSelectionSourceUnitIds(input);
   const hasSelectionSource = sourceUnitIds.length > 0;
   if (!hasSelectionSource) {
@@ -63,23 +63,23 @@ export function resolveUtteranceSelectionMapping(input: {
       hasSelectionSource: false,
       sourceUnitCount: 0,
       unmappedSourceCount: 0,
-      mappedUtteranceIds: new Set<string>(),
+      mappedUnitIds: new Set<string>(),
     };
   }
 
   let mappedSourceCount = 0;
-  const mappedUtteranceIds = new Set<string>();
+  const mappedUnitIds = new Set<string>();
   for (const unitId of sourceUnitIds) {
-    const mappedUtteranceId = input.unitToUtteranceId.get(unitId);
-    if (!mappedUtteranceId) continue;
+    const mappedUnitId = input.unitToUtteranceId.get(unitId);
+    if (!mappedUnitId) continue;
     mappedSourceCount += 1;
-    mappedUtteranceIds.add(mappedUtteranceId);
+    mappedUnitIds.add(mappedUnitId);
   }
 
   return {
     hasSelectionSource,
     sourceUnitCount: sourceUnitIds.length,
     unmappedSourceCount: sourceUnitIds.length - mappedSourceCount,
-    mappedUtteranceIds,
+    mappedUnitIds,
   };
 }

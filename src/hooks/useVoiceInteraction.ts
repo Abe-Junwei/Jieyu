@@ -39,8 +39,8 @@ interface SelectedUtteranceLike {
 }
 
 interface VoiceSelectionLike {
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: SelectedUtteranceLike | null;
+  activeUnitId: string | null;
+  selectedUnit: SelectedUtteranceLike | null;
   selectedRowMeta: SelectedRowMetaLike | null;
   selectedLayerId: string | null;
   selectedUnitKind: 'utterance' | 'segment' | null;
@@ -183,7 +183,7 @@ export function useVoiceInteraction({
     executeAction,
     sendToAiChat: (text: string) => {
       runVoiceTask(async () => {
-        const utteranceId = selection.activeUtteranceUnitId;
+        const utteranceId = selection.activeUnitId;
         voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
           runVoiceTask(async () => {
             const result = await onVoiceAnalysisResult(utteranceId, analysisText);
@@ -221,12 +221,12 @@ export function useVoiceInteraction({
   voiceAgentRef.current = voiceAgent;
 
   const voiceTargetSummary = useMemo(() => {
-    const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUtterance);
+    const hasSelection = Boolean(selection.selectedRowMeta || selection.selectedUnit);
     const rowLabel = selection.selectedUnitKind === 'segment'
       ? messages.currentIndependentSegment
       : selection.selectedRowMeta
         ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
-        : (selection.selectedUtterance ? messages.currentUtterance : messages.noUtteranceSelected);
+        : (selection.selectedUnit ? messages.currentUtterance : messages.noUtteranceSelected);
 
     if (voiceAgent.mode === 'command') {
       return messages.currentPageAction;
@@ -329,8 +329,8 @@ export function useVoiceInteraction({
     if (selection.selectedRowMeta) {
       return `${formatTime(selection.selectedRowMeta.start)} - ${formatTime(selection.selectedRowMeta.end)}`;
     }
-    if (selection.selectedUtterance) {
-      return `${formatTime(selection.selectedUtterance.startTime)} - ${formatTime(selection.selectedUtterance.endTime)}`;
+    if (selection.selectedUnit) {
+      return `${formatTime(selection.selectedUnit.startTime)} - ${formatTime(selection.selectedUnit.endTime)}`;
     }
     return messages.unknownSegment;
   }, [formatTime, messages, selection]);

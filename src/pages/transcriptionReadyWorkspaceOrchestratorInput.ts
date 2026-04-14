@@ -86,7 +86,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   selectedTimelineUtteranceId: UseTranscriptionSectionViewModelsInput['selectedTimelineUtteranceId'];
   searchOverlayRequest: UseTranscriptionSectionViewModelsInput['searchOverlayRequest'];
   manualSelectTsRef: UseTranscriptionSectionViewModelsInput['manualSelectTsRef'];
-  selectUtterance: UseTranscriptionSectionViewModelsInput['selectUtterance'];
+  selectUnit: UseTranscriptionSectionViewModelsInput['selectUnit'];
   handleSearchReplace: UseTranscriptionSectionViewModelsInput['handleSearchReplace'];
   setShowSearch: UseTranscriptionSectionViewModelsInput['setShowSearch'];
   setSearchOverlayRequest: UseTranscriptionSectionViewModelsInput['setSearchOverlayRequest'];
@@ -195,7 +195,7 @@ export function buildOrchestratorViewModelsInput(
     selectedTimelineUtteranceId,
     searchOverlayRequest,
     manualSelectTsRef,
-    selectUtterance,
+    selectUnit,
     handleSearchReplace,
     setShowSearch,
     setSearchOverlayRequest,
@@ -312,7 +312,7 @@ export function buildOrchestratorViewModelsInput(
     selectedTimelineUtteranceId,
     searchOverlayRequest,
     manualSelectTsRef,
-    selectUtterance,
+    selectUnit,
     handleSearchReplace,
     setShowSearch,
     setSearchOverlayRequest,

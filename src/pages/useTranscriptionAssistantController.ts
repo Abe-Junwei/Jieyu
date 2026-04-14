@@ -31,14 +31,14 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.handleUpdateTokenPos,
     input.lexemeMatches,
     input.selectedAiWarning,
-    input.selectedTimelineOwnerUtterance,
+    input.selectedTimelineOwnerUnit,
     input.selectedTimelineRowMeta,
     input.selectedTranslationGapCount,
     input.setAiPanelMode,
     input.state.dbName,
     input.state.phase,
     input.translationLayersLength,
-    input.utterancesLength,
+    input.unitsLength,
     input.vadCacheStatus,
     input.acousticRuntimeStatus,
     input.acousticSummary,
@@ -110,7 +110,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       })());
       return;
     }
-    const targetUtterance = input.selectedTimelineOwnerUtterance;
+    const targetUtterance = input.selectedTimelineOwnerUnit;
     if (!targetUtterance) {
       reportValidationError({
         message: '\u8bf7\u5148\u9009\u62e9\u8981\u586b\u5145\u7684\u53e5\u6bb5',
@@ -137,7 +137,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     const persistAndAdvance = async (persist: () => Promise<void>) => {
       await persist();
       if (!input.nextUtteranceIdForVoiceDictation) return;
-      input.selectUtterance(input.nextUtteranceIdForVoiceDictation);
+      input.selectUnit(input.nextUtteranceIdForVoiceDictation);
     };
     fireAndForget(persistAndAdvance(async () => {
       await persistVoiceDictationToUtterance({
@@ -158,9 +158,9 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.saveSegmentContentForLayer,
     input.saveTextTranslationForUtterance,
     input.saveUtteranceText,
-    input.selectUtterance,
+    input.selectUnit,
     input.selectedLayerId,
-    input.selectedTimelineOwnerUtterance,
+    input.selectedTimelineOwnerUnit,
     input.selectedTimelineUnit,
     input.setSaveState,
     input.translationLayers,
@@ -173,10 +173,10 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
-      selectedTimelineOwnerUtterance: input.selectedTimelineOwnerUtterance,
+      selectedTimelineOwnerUnit: input.selectedTimelineOwnerUnit,
       utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
       getUtteranceTextForLayer: input.getUtteranceTextForLayer,
-      selectUtterance: input.selectUtterance,
+      selectUnit: input.selectUnit,
       saveUtteranceText: input.saveUtteranceText,
       saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
     });
@@ -186,9 +186,9 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.layers,
     input.saveTextTranslationForUtterance,
     input.saveUtteranceText,
-    input.selectUtterance,
+    input.selectUnit,
     input.selectedLayerId,
-    input.selectedTimelineOwnerUtterance,
+    input.selectedTimelineOwnerUnit,
     input.selectedTimelineUnit,
     input.translationLayers,
     input.utterancesOnCurrentMedia,

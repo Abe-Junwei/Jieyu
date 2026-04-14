@@ -17,8 +17,8 @@ interface UseTranscriptionSelectionContextControllerInput {
   mediaItems: MediaItemDocType[];
   utterances: UtteranceDocType[];
   utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUtterance: UtteranceDocType | null;
-  selectedUtteranceMedia?: MediaItemDocType;
+  selectedUnit: UtteranceDocType | null;
+  selectedUnitMedia?: MediaItemDocType;
   selectedTimelineUnit: TimelineUnit | null;
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
 }
@@ -27,7 +27,7 @@ interface UseTranscriptionSelectionContextControllerResult {
   layerById: Map<string, LayerDocType>;
   mediaItemById: Map<string, MediaItemDocType>;
   selectedTimelineSegment: LayerSegmentDocType | null;
-  selectedTimelineOwnerUtterance: UtteranceDocType | null;
+  selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineMedia: MediaItemDocType | undefined;
   selectedTimelineUnitForTime: Pick<UtteranceDocType, 'startTime' | 'endTime'> | Pick<LayerSegmentDocType, 'startTime' | 'endTime'> | null;
   selectedTimelineRowMeta: SelectedTimelineRowMeta | null;
@@ -56,8 +56,8 @@ export function useTranscriptionSelectionContextController(
     return input.segmentsByLayer.get(selectedUnit.layerId)?.find((segment) => segment.id === selectedUnit.unitId) ?? null;
   }, [input.segmentsByLayer, input.selectedTimelineUnit]);
 
-  const selectedTimelineOwnerUtterance = useMemo(() => {
-    if (input.selectedUtterance) return input.selectedUtterance;
+  const selectedTimelineOwnerUnit = useMemo(() => {
+    if (input.selectedUnit) return input.selectedUnit;
     if (!selectedTimelineSegment) return null;
 
     const explicitOwnerId = selectedTimelineSegment.utteranceId?.trim();
@@ -72,20 +72,20 @@ export function useTranscriptionSelectionContextController(
       return item.startTime <= selectedTimelineSegment.endTime - 0.01
         && item.endTime >= selectedTimelineSegment.startTime + 0.01;
     }) ?? null;
-  }, [input.selectedUtterance, input.utterances, selectedTimelineSegment]);
+  }, [input.selectedUnit, input.utterances, selectedTimelineSegment]);
 
   const selectedTimelineMedia = useMemo(() => {
-    if (input.selectedUtteranceMedia) return input.selectedUtteranceMedia;
-    const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUtterance?.mediaId ?? '';
+    if (input.selectedUnitMedia) return input.selectedUnitMedia;
+    const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUnit?.mediaId ?? '';
     return mediaId ? mediaItemById.get(mediaId) : undefined;
-  }, [input.selectedUtteranceMedia, mediaItemById, selectedTimelineOwnerUtterance?.mediaId, selectedTimelineSegment?.mediaId]);
+  }, [input.selectedUnitMedia, mediaItemById, selectedTimelineOwnerUnit?.mediaId, selectedTimelineSegment?.mediaId]);
 
-  const selectedTimelineUnitForTime = selectedTimelineSegment ?? selectedTimelineOwnerUtterance ?? null;
+  const selectedTimelineUnitForTime = selectedTimelineSegment ?? selectedTimelineOwnerUnit ?? null;
 
   const selectedTimelineRowMeta = useMemo<SelectedTimelineRowMeta | null>(() => {
-    if (!selectedTimelineOwnerUtterance) return null;
+    if (!selectedTimelineOwnerUnit) return null;
 
-    const rowIndex = input.utterancesOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUtterance.id);
+    const rowIndex = input.utterancesOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
     if (rowIndex >= 0) {
       const row = input.utterancesOnCurrentMedia[rowIndex];
       if (!row) return null;
@@ -97,9 +97,9 @@ export function useTranscriptionSelectionContextController(
     }
 
     const sameMediaRows = [...input.utterances]
-      .filter((item) => item.mediaId === selectedTimelineOwnerUtterance.mediaId)
+      .filter((item) => item.mediaId === selectedTimelineOwnerUnit.mediaId)
       .sort((a, b) => a.startTime - b.startTime);
-    const fallbackIndex = sameMediaRows.findIndex((item) => item.id === selectedTimelineOwnerUtterance.id);
+    const fallbackIndex = sameMediaRows.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
     const fallbackRow = fallbackIndex >= 0 ? sameMediaRows[fallbackIndex] : undefined;
     if (!fallbackRow) return null;
     return {
@@ -107,12 +107,12 @@ export function useTranscriptionSelectionContextController(
       start: fallbackRow.startTime,
       end: fallbackRow.endTime,
     };
-  }, [input.utterances, input.utterancesOnCurrentMedia, selectedTimelineOwnerUtterance]);
+  }, [input.utterances, input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit]);
 
   const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({
     utteranceIdsOnCurrentMedia: input.utterancesOnCurrentMedia.map((item) => item.id),
-    activeUtteranceId: selectedTimelineOwnerUtterance?.id,
-  }), [input.utterancesOnCurrentMedia, selectedTimelineOwnerUtterance?.id]);
+    activeUnitId: selectedTimelineOwnerUnit?.id ?? null,
+  }), [input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit?.id]);
 
   const independentLayerIds = useMemo(() => new Set(
     input.layers.filter((layer) => layerUsesOwnSegments(layer, input.defaultTranscriptionLayerId)).map((layer) => layer.id),
@@ -141,7 +141,7 @@ export function useTranscriptionSelectionContextController(
     layerById,
     mediaItemById,
     selectedTimelineSegment,
-    selectedTimelineOwnerUtterance,
+    selectedTimelineOwnerUnit,
     selectedTimelineMedia,
     selectedTimelineUnitForTime,
     selectedTimelineRowMeta,

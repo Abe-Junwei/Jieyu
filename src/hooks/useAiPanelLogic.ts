@@ -98,14 +98,14 @@ export type { ActionableRecommendation };
 export interface UseAiPanelLogicInput {
   locale: Locale;
   utterances: UtteranceDocType[];
-  selectedUtterance: UtteranceDocType | undefined;
-  selectedUtteranceText: string;
+  selectedUnit: UtteranceDocType | undefined;
+  selectedUnitText: string;
   translationLayers: Array<{ id: string; key: string }>;
   translationDrafts: Record<string, string>;
   translationTextByLayer: Map<string, Map<string, { text?: string }>>;
   aiChatConnectionTestStatus: string;
   aiPanelMode: AiPanelMode;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   setSaveState: (s: SaveState) => void;
   /** 当前媒体 ID，用于读取 VAD 缓存 | Current media ID for VAD cache lookup */
   mediaId?: string;
@@ -114,14 +114,14 @@ export interface UseAiPanelLogicInput {
 export function useAiPanelLogic({
   locale,
   utterances,
-  selectedUtterance,
-  selectedUtteranceText,
+  selectedUnit,
+  selectedUnitText,
   translationLayers,
   translationDrafts,
   translationTextByLayer,
   aiChatConnectionTestStatus,
   aiPanelMode,
-  selectUtterance,
+  selectUnit,
   setSaveState,
   mediaId,
 }: UseAiPanelLogicInput) {
@@ -130,7 +130,7 @@ export function useAiPanelLogic({
   const lexemeSearchRequestRef = useRef(0);
 
   useEffect(() => {
-    const query = selectedUtteranceText.trim();
+    const query = selectedUnitText.trim();
     if (!query) {
       lexemeSearchRequestRef.current += 1;
       setLexemeMatches([]);
@@ -162,7 +162,7 @@ export function useAiPanelLogic({
       lexemeSearchRequestRef.current += 1;
       window.clearTimeout(timer);
     };
-  }, [selectedUtterance?.id, selectedUtteranceText]);
+  }, [selectedUnit?.id, selectedUnitText]);
 
   const vadCacheEntry = useVadCacheEntry(mediaId);
   const vadWarmupStatus = useVadCacheWarmupStatus(mediaId);
@@ -196,9 +196,9 @@ export function useAiPanelLogic({
   }), [utterances, vadSegments]);
 
   const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisPromptSummary(utterances, {
-    ...(selectedUtterance ? { selectionStartTime: selectedUtterance.startTime, selectionEndTime: selectedUtterance.endTime } : {}),
+    ...(selectedUnit ? { selectionStartTime: selectedUnit.startTime, selectionEndTime: selectedUnit.endTime } : {}),
     ...(vadSegments ? { vadSegments } : {}),
-  }), [selectedUtterance, utterances, vadSegments]);
+  }), [selectedUnit, utterances, vadSegments]);
 
   // ── Project observer ──
   const observer = useMemo(() => new ProjectObserver(), []);
@@ -270,8 +270,8 @@ export function useAiPanelLogic({
       || (waveformAnalysisSummary.selectionOverlapCount ?? 0) > 0
       || (waveformAnalysisSummary.selectionGapCount ?? 0) > 0;
 
-    const riskTargetUtterance = hasSelectedWaveformRisk && selectedUtterance
-      ? selectedUtterance
+    const riskTargetUtterance = hasSelectedWaveformRisk && selectedUnit
+      ? selectedUnit
       : riskCandidate ?? overlapCandidate ?? gapCandidate;
 
     const batchPosCandidate = (() => {
@@ -387,29 +387,29 @@ export function useAiPanelLogic({
         ...(targetUtteranceId ? { targetUtteranceId } : {}),
       };
     });
-  }, [locale, observerResult.recommendations, observerResult.stage, selectedUtterance, utterances, waveformAnalysisOverlaySummary.gapBands, waveformAnalysisOverlaySummary.overlapBands, waveformAnalysisSummary.gapCount, waveformAnalysisSummary.lowConfidenceCount, waveformAnalysisSummary.overlapCount, waveformAnalysisSummary.selectionGapCount, waveformAnalysisSummary.selectionLowConfidenceCount, waveformAnalysisSummary.selectionOverlapCount]);
+  }, [locale, observerResult.recommendations, observerResult.stage, selectedUnit, utterances, waveformAnalysisOverlaySummary.gapBands, waveformAnalysisOverlaySummary.overlapBands, waveformAnalysisSummary.gapCount, waveformAnalysisSummary.lowConfidenceCount, waveformAnalysisSummary.overlapCount, waveformAnalysisSummary.selectionGapCount, waveformAnalysisSummary.selectionLowConfidenceCount, waveformAnalysisSummary.selectionOverlapCount]);
 
   // ── AI-derived values ──
   const selectedAiWarning = useMemo(() => {
-    if (selectedUtteranceText.trim().length <= 1) return false;
+    if (selectedUnitText.trim().length <= 1) return false;
     return lexemeMatches.length === 0;
-  }, [lexemeMatches.length, selectedUtteranceText]);
+  }, [lexemeMatches.length, selectedUnitText]);
 
   const selectedTranslationGapCount = useMemo(() => {
-    if (!selectedUtterance || translationLayers.length === 0) return 0;
+    if (!selectedUnit || translationLayers.length === 0) return 0;
 
     let missing = 0;
     for (const layer of translationLayers) {
-      const draftKey = `${layer.id}-${selectedUtterance.id}`;
+      const draftKey = `${layer.id}-${selectedUnit.id}`;
       const draft = translationDrafts[draftKey];
-      const persisted = translationTextByLayer.get(layer.id)?.get(selectedUtterance.id)?.text ?? '';
+      const persisted = translationTextByLayer.get(layer.id)?.get(selectedUnit.id)?.text ?? '';
       const text = (draft ?? persisted).trim();
       if (text.length === 0) {
         missing += 1;
       }
     }
     return missing;
-  }, [selectedUtterance, translationDrafts, translationLayers, translationTextByLayer]);
+  }, [selectedUnit, translationDrafts, translationLayers, translationTextByLayer]);
 
   const nextTranslationGapUtteranceId = useMemo(() => {
     if (translationLayers.length === 0) return undefined;
@@ -430,11 +430,11 @@ export function useAiPanelLogic({
   const aiCurrentTask = useMemo<AiPanelTask>(() => {
     if (aiChatConnectionTestStatus === 'error') return 'ai_chat_setup';
 
-    if (!selectedUtterance) {
+    if (!selectedUnit) {
       return observerResult.stage === 'collecting' ? 'segmentation' : 'transcription';
     }
 
-    const confidence = selectedUtterance.ai_metadata?.confidence;
+    const confidence = selectedUnit.ai_metadata?.confidence;
     const selectedWaveformRisk = (waveformAnalysisSummary.selectionLowConfidenceCount ?? 0) > 0
       || (waveformAnalysisSummary.selectionOverlapCount ?? 0) > 0
       || (waveformAnalysisSummary.selectionGapCount ?? 0) > 0;
@@ -447,14 +447,14 @@ export function useAiPanelLogic({
       return 'translation';
     }
 
-    const hasUntaggedPos = Array.isArray(selectedUtterance.words)
-      && selectedUtterance.words.some((word) => (word.pos ?? '').trim().length === 0);
+    const hasUntaggedPos = Array.isArray(selectedUnit.words)
+      && selectedUnit.words.some((word) => (word.pos ?? '').trim().length === 0);
     if (hasUntaggedPos) {
       return 'pos_tagging';
     }
 
     if (observerResult.stage === 'collecting') {
-      return selectedUtteranceText.trim().length > 0 ? 'transcription' : 'segmentation';
+      return selectedUnitText.trim().length > 0 ? 'transcription' : 'segmentation';
     }
     if (observerResult.stage === 'transcribing') {
       return 'transcription';
@@ -468,8 +468,8 @@ export function useAiPanelLogic({
     observerResult.stage,
     selectedAiWarning,
     selectedTranslationGapCount,
-    selectedUtterance,
-    selectedUtteranceText,
+    selectedUnit,
+    selectedUnitText,
     waveformAnalysisSummary.selectionGapCount,
     waveformAnalysisSummary.selectionLowConfidenceCount,
     waveformAnalysisSummary.selectionOverlapCount,
@@ -591,9 +591,9 @@ export function useAiPanelLogic({
       return;
     }
 
-    selectUtterance(nextTranslationGapUtteranceId);
+    selectUnit(nextTranslationGapUtteranceId);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.ai.translationGap.jumped') });
-  }, [locale, nextTranslationGapUtteranceId, selectUtterance, setSaveState]);
+  }, [locale, nextTranslationGapUtteranceId, selectUnit, setSaveState]);
 
   return {
     lexemeMatches,

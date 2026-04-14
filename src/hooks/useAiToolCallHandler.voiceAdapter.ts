@@ -197,7 +197,7 @@ export const voiceAdapter: ToolObjectAdapter = {
       return { ok: true, message: tf(locale, 'transcription.aiTool.voice.zoomSegmentNavigateFallbackDone', { segmentId: segId }) };
     }
     if (call.name === 'get_current_segment') {
-      const utt = ctx.selectedUtterance;
+      const utt = ctx.selectedUnit;
       if (!utt) return { ok: false, message: t(locale, 'transcription.aiTool.voice.currentSegmentNone') };
       const dur = (utt.endTime - utt.startTime).toFixed(2);
       const status = utt.annotationStatus ?? 'raw';
@@ -246,7 +246,7 @@ export const voiceAdapter: ToolObjectAdapter = {
           total,
           done,
           pct,
-          selected: ctx.selectedUtterance ? 1 : 0,
+          selected: ctx.selectedUnit ? 1 : 0,
         }),
       };
     }

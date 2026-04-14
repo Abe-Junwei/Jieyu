@@ -29,7 +29,7 @@ describe('useTimelineAnnotationHelpers', () => {
   it('preserves existing multi-selection when context-clicking a selected segment', () => {
     const selectTimelineUnit = vi.fn();
     const selectSegment = vi.fn();
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const setSelectedLayerId = vi.fn();
     const onFocusLayerRow = vi.fn();
     const setCtxMenu = vi.fn();
@@ -42,10 +42,10 @@ describe('useTimelineAnnotationHelpers', () => {
         seekTo: vi.fn(),
       },
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' },
-      selectUtteranceRange: vi.fn(),
-      toggleUtteranceSelection: vi.fn(),
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
       selectTimelineUnit,
-      selectUtterance,
+      selectUnit,
       selectSegment,
       setSelectedLayerId,
       onFocusLayerRow,
@@ -55,7 +55,7 @@ describe('useTimelineAnnotationHelpers', () => {
       navigateUtteranceFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
-      selectedUtteranceIds: new Set(['seg-1', 'seg-2']),
+      selectedUnitIds: new Set(['seg-1', 'seg-2']),
       focusedLayerRowId: 'layer-seg',
       zoomToUtterance: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
@@ -78,7 +78,7 @@ describe('useTimelineAnnotationHelpers', () => {
 
     expect(selectTimelineUnit).not.toHaveBeenCalled();
     expect(selectSegment).not.toHaveBeenCalled();
-    expect(selectUtterance).not.toHaveBeenCalled();
+    expect(selectUnit).not.toHaveBeenCalled();
     expect(setSelectedLayerId).toHaveBeenCalledWith('layer-seg');
     expect(onFocusLayerRow).toHaveBeenCalledWith('layer-seg');
     expect(setCtxMenu).toHaveBeenCalledWith({
@@ -102,10 +102,10 @@ describe('useTimelineAnnotationHelpers', () => {
         seekTo: vi.fn(),
       },
       selectedTimelineUnit: { layerId: 'layer-dependent', unitId: 'seg-1', kind: 'segment' },
-      selectUtteranceRange: vi.fn(),
-      toggleUtteranceSelection: vi.fn(),
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
       selectTimelineUnit: vi.fn(),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       selectSegment: vi.fn(),
       setSelectedLayerId: vi.fn(),
       onFocusLayerRow: vi.fn(),
@@ -115,7 +115,7 @@ describe('useTimelineAnnotationHelpers', () => {
       navigateUtteranceFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
-      selectedUtteranceIds: new Set(['seg-1']),
+      selectedUnitIds: new Set(['seg-1']),
       focusedLayerRowId: 'layer-dependent',
       zoomToUtterance: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
@@ -154,10 +154,10 @@ describe('useTimelineAnnotationHelpers', () => {
         seekTo: vi.fn(),
       },
       selectedTimelineUnit: { layerId: 'layer-input', unitId: 'utt-1', kind: 'utterance' },
-      selectUtteranceRange: vi.fn(),
-      toggleUtteranceSelection: vi.fn(),
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
       selectTimelineUnit: vi.fn(),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       selectSegment: vi.fn(),
       setSelectedLayerId: vi.fn(),
       onFocusLayerRow: vi.fn(),
@@ -167,7 +167,7 @@ describe('useTimelineAnnotationHelpers', () => {
       navigateUtteranceFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
-      selectedUtteranceIds: new Set(['utt-1']),
+      selectedUnitIds: new Set(['utt-1']),
       focusedLayerRowId: 'layer-input',
       zoomToUtterance: vi.fn(),
       startTimelineResizeDrag: vi.fn(),

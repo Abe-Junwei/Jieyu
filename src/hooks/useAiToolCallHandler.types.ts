@@ -13,8 +13,8 @@ export interface CompensationEntry {
 
 export type UseAiToolCallHandlerParams = {
   utterances: UtteranceDocType[];
-  selectedUtterance: UtteranceDocType | undefined;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnit: UtteranceDocType | undefined;
+  selectedUnitMedia?: MediaItemDocType | undefined;
   selectedLayerId: string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
@@ -65,8 +65,8 @@ export interface ExecutionContext {
   call: AiChatToolCall;
   locale: Locale;
   utterances: UtteranceDocType[];
-  selectedUtterance: UtteranceDocType | undefined;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnit: UtteranceDocType | undefined;
+  selectedUnitMedia: MediaItemDocType | undefined;
   selectedLayerId: string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];

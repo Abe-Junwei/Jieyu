@@ -114,7 +114,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   });
 
   const analysisRuntimeProps = useTranscriptionAnalysisRuntimeProps({
-    selectedUtterance: input.selectionSnapshot.selectedUtterance,
+    selectedUnit: input.selectionSnapshot.selectedUnit,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,

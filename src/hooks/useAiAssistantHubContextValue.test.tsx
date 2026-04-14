@@ -12,7 +12,7 @@ import { pickVoiceAgentContextValue } from './useVoiceAgentContextValue';
 
 function makeAiChatSource(overrides: Partial<AiChatContextValue> = {}): Partial<AiChatContextValue> {
   return {
-    selectedUtterance: null,
+    selectedUnit: null,
     selectedRowMeta: null,
     lexemeMatches: [],
     aiChatEnabled: false,
@@ -121,7 +121,7 @@ describe('useAiAssistantHubContextValue', () => {
       'selectedText',
       'selectedTimeRangeLabel',
       'selectedUnitKind',
-      'selectedUtterance',
+      'selectedUnit',
       'voiceConfidence',
       'voiceEnabled',
       'voiceError',

@@ -30,7 +30,7 @@ describe('useBatchOperationController', () => {
 
   it('maps selection to utterances and sorts selected batch utterances', () => {
     const { result } = renderHook(() => useBatchOperationController({
-      selectedUtteranceIds: new Set(['seg-b', 'seg-a']),
+      selectedUnitIds: new Set(['seg-b', 'seg-a']),
       selectedTimelineUnit: null,
       unitToUtteranceId: new Map([
         ['seg-a', 'utt-2'],
@@ -47,7 +47,7 @@ describe('useBatchOperationController', () => {
       mergeSelectedUtterances: vi.fn(async () => undefined),
     }));
 
-    expect(Array.from(result.current.selectedUtteranceIdsForSpeakerActionsSet).sort()).toEqual(['utt-1', 'utt-2']);
+    expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet).sort()).toEqual(['utt-1', 'utt-2']);
     expect(result.current.selectedBatchUtterances.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
   });
 
@@ -56,7 +56,7 @@ describe('useBatchOperationController', () => {
     const offsetSelectedTimes = vi.fn(async () => undefined);
 
     const { result } = renderHook(() => useBatchOperationController({
-      selectedUtteranceIds: new Set(['seg-a', 'missing']),
+      selectedUnitIds: new Set(['seg-a', 'missing']),
       selectedTimelineUnit: null,
       unitToUtteranceId: new Map([['seg-a', 'utt-1']]),
       utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2)],
@@ -75,7 +75,7 @@ describe('useBatchOperationController', () => {
       kind: 'done',
       message: expect.stringContaining('已忽略 1 个不可映射选中项'),
     }));
-    expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedUtteranceIdsForSpeakerActionsSet, 1.5);
+    expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedUnitIdsForSpeakerActionsSet, 1.5);
   });
 
   it('closes batch action failures into saveState error after partial mapping feedback', async () => {
@@ -85,7 +85,7 @@ describe('useBatchOperationController', () => {
     });
 
     const { result } = renderHook(() => useBatchOperationController({
-      selectedUtteranceIds: new Set(['seg-a', 'missing']),
+      selectedUnitIds: new Set(['seg-a', 'missing']),
       selectedTimelineUnit: null,
       unitToUtteranceId: new Map([['seg-a', 'utt-1']]),
       utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2)],
@@ -120,7 +120,7 @@ describe('useBatchOperationController', () => {
     const mergeSelectedUtterances = vi.fn(async () => undefined);
 
     const { result } = renderHook(() => useBatchOperationController({
-      selectedUtteranceIds: new Set(['seg-missing']),
+      selectedUnitIds: new Set(['seg-missing']),
       selectedTimelineUnit: null,
       unitToUtteranceId: new Map(),
       utterancesOnCurrentMedia: [],
@@ -146,7 +146,7 @@ describe('useBatchOperationController', () => {
     const scaleSelectedTimes = vi.fn(async () => undefined);
 
     const { result } = renderHook(() => useBatchOperationController({
-      selectedUtteranceIds: new Set(),
+      selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-a', kind: 'segment' },
       unitToUtteranceId: new Map([['seg-a', 'utt-2']]),
       utterancesOnCurrentMedia: [
@@ -160,7 +160,7 @@ describe('useBatchOperationController', () => {
       mergeSelectedUtterances: vi.fn(async () => undefined),
     }));
 
-    expect(Array.from(result.current.selectedUtteranceIdsForSpeakerActionsSet)).toEqual(['utt-2']);
+    expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet)).toEqual(['utt-2']);
     expect(result.current.selectedBatchUtterances.map((item) => item.id)).toEqual(['utt-2']);
 
     await act(async () => {

@@ -31,7 +31,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      activeUtteranceUnitId: 'utt-1',
+      activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1', 'seg-1'],
@@ -39,7 +39,7 @@ describe('useNoteHandlers error reporting', () => {
       translationLayers: [],
       updateTokenPos: vi.fn(),
       batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       setSaveState: vi.fn(),
     }));
 
@@ -62,7 +62,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      activeUtteranceUnitId: 'utt-1',
+      activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1', 'seg-1'],
@@ -70,7 +70,7 @@ describe('useNoteHandlers error reporting', () => {
       translationLayers: [],
       updateTokenPos: vi.fn(),
       batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       setSaveState: vi.fn(),
     }));
 
@@ -87,7 +87,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      activeUtteranceUnitId: 'utt-1',
+      activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
@@ -95,7 +95,7 @@ describe('useNoteHandlers error reporting', () => {
       translationLayers: [],
       updateTokenPos,
       batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       setSaveState,
     }));
 
@@ -118,7 +118,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     const { result } = renderHook(() => useNoteHandlers({
-      activeUtteranceUnitId: 'utt-1',
+      activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
@@ -126,7 +126,7 @@ describe('useNoteHandlers error reporting', () => {
       translationLayers: [],
       updateTokenPos,
       batchUpdateTokenPosByForm: vi.fn(async () => 0),
-      selectUtterance: vi.fn(),
+      selectUnit: vi.fn(),
       setSaveState,
     }));
 
@@ -144,11 +144,11 @@ describe('useNoteHandlers error reporting', () => {
   it('executes batch_pos recommendation and keeps selection/save-state in sync', async () => {
     mockUseNoteCounts.mockImplementation(() => new Map());
     const setSaveState = vi.fn();
-    const selectUtterance = vi.fn();
+    const selectUnit = vi.fn();
     const batchUpdateTokenPosByForm = vi.fn(async () => 3);
 
     const { result } = renderHook(() => useNoteHandlers({
-      activeUtteranceUnitId: 'utt-1',
+      activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
       utterances: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
@@ -156,7 +156,7 @@ describe('useNoteHandlers error reporting', () => {
       translationLayers: [],
       updateTokenPos: vi.fn(),
       batchUpdateTokenPosByForm,
-      selectUtterance,
+      selectUnit,
       setSaveState,
     }));
 
@@ -170,7 +170,7 @@ describe('useNoteHandlers error reporting', () => {
     });
 
     expect(batchUpdateTokenPosByForm).toHaveBeenCalledWith('utt-1', 'walk', 'VERB');
-    expect(selectUtterance).toHaveBeenCalledWith('utt-1');
+    expect(selectUnit).toHaveBeenCalledWith('utt-1');
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已批量赋值 3 个 token（walk → VERB）' });
   });
 });

@@ -19,12 +19,12 @@ export function useTranscriptionState() {
   const speakersRef = useLatest(docState.speakers);
   const selectedTimelineUnitRef = useLatest(selectionState.selectedTimelineUnit);
   const selectedLayerIdRef = useLatest(selectionState.selectedLayerId);
-  const selectedUtteranceUnitIdRef = useLatest(
+  const selectedUnitIdRef = useLatest(
     isUtteranceTimelineUnit(selectionState.selectedTimelineUnit)
       ? selectionState.selectedTimelineUnit.unitId
       : '',
   );
-  const selectedUtteranceIdsRef = useLatest(selectionState.selectedUtteranceIds);
+  const selectedUnitIdsRef = useLatest(selectionState.selectedUnitIds);
 
   return {
     ...dbState,
@@ -39,7 +39,7 @@ export function useTranscriptionState() {
     speakersRef,
     selectedTimelineUnitRef,
     selectedLayerIdRef,
-    selectedUtteranceUnitIdRef,
-    selectedUtteranceIdsRef,
+    selectedUnitIdRef,
+    selectedUnitIdsRef,
   };
 }

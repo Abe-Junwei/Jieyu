@@ -49,8 +49,8 @@ function makeParams(
 ): Parameters<typeof useAiToolCallHandler>[0] {
   return {
     utterances: [],
-    selectedUtterance: undefined,
-    selectedUtteranceMedia: undefined,
+    selectedUnit: undefined,
+    selectedUnitMedia: undefined,
     selectedLayerId: '',
     transcriptionLayers: [],
     translationLayers: [],
@@ -89,7 +89,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
           saveTextTranslationForUtterance: saveSpy,
@@ -121,7 +121,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [],
-          selectedUtterance: undefined,
+          selectedUnit: undefined,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
           saveTextTranslationForUtterance: saveSpy,
@@ -149,7 +149,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           selectedLayerId: '',
           translationLayers: [],
           saveTextTranslationForUtterance: saveSpy,
@@ -179,7 +179,7 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [selected, target],
-          selectedUtterance: selected,
+          selectedUnit: selected,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
           saveTextTranslationForUtterance: saveSpy,
@@ -374,7 +374,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
             { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
             { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
           ],
-          selectedUtterance: selected,
+          selectedUnit: selected,
           deleteUtterance: deleteSpy,
         }),
       ),
@@ -402,7 +402,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
             { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
             { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
           ],
-          selectedUtterance: selected,
+          selectedUnit: selected,
           deleteUtterance: deleteSpy,
         }),
       ),
@@ -681,7 +681,7 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
         }),
       ),
     );
@@ -771,7 +771,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           saveUtteranceText: saveSpy,
         }),
       ),
@@ -940,7 +940,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           createNextUtterance: createNextSpy,
         }),
       ),
@@ -1062,7 +1062,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
         }),
       ),
     );
@@ -1257,7 +1257,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           selectedLayerId: 'trc-source',
           transcriptionLayers: [{
             id: 'trc-source',
@@ -1310,7 +1310,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [utterance],
-          selectedUtterance: utterance,
+          selectedUnit: utterance,
           selectedLayerId: 'trc-alt',
           transcriptionLayers: [selectedLayer],
           saveUtteranceText: saveSpy,

@@ -17,7 +17,7 @@ export type AiEmbeddingStateMessages = {
   pdfCompleted: string;
   pdfRunningPrefix: string;
   pdfFailed: string;
-  selectUtteranceFirst: string;
+  selectUnitFirst: string;
   currentUtteranceEmpty: string;
   searchingSimilar: string;
   noEmbeddingForQueryWarning: string;
@@ -43,7 +43,7 @@ const zhCN: AiEmbeddingStateMessages = {
   pdfCompleted: 'PDF embedding \u5b8c\u6210\u3002',
   pdfRunningPrefix: '\u5411\u91cf\u5316 PDF',
   pdfFailed: 'PDF embedding \u5931\u8d25\u3002',
-  selectUtteranceFirst: '\u8bf7\u5148\u9009\u62e9\u4e00\u6761\u8bed\u53e5\u3002',
+  selectUnitFirst: '\u8bf7\u5148\u9009\u62e9\u4e00\u6761\u8bed\u53e5\u3002',
   currentUtteranceEmpty: '\u5f53\u524d\u8bed\u53e5\u4e3a\u7a7a\uff0c\u65e0\u6cd5\u68c0\u7d22\u3002',
   searchingSimilar: '\u68c0\u7d22\u76f8\u4f3c\u8bed\u53e5\u4e2d...',
   noEmbeddingForQueryWarning: '\u5f53\u524d\u68c0\u7d22\u672a\u751f\u6210\u53ef\u7528 embedding\uff0c\u5df2\u8df3\u8fc7\u76f8\u4f3c\u8bed\u53e5\u53ec\u56de\u3002',
@@ -69,7 +69,7 @@ const enUS: AiEmbeddingStateMessages = {
   pdfCompleted: 'PDF embedding completed.',
   pdfRunningPrefix: 'Embedding PDF',
   pdfFailed: 'PDF embedding failed.',
-  selectUtteranceFirst: 'Select an utterance first.',
+  selectUnitFirst: 'Select an utterance first.',
   currentUtteranceEmpty: 'Current utterance is empty.',
   searchingSimilar: 'Searching similar utterances...',
   noEmbeddingForQueryWarning: 'No usable embedding was generated for this query, so similar-utterance retrieval was skipped.',

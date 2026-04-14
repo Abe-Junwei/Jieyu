@@ -32,7 +32,7 @@ export interface SpeakerRailContextValue {
   speakerReferenceStatsReady: boolean;
   speakerDialogState: SpeakerActionDialogState | null;
   speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedSpeakerSummary: string;
   speakerSaving: boolean;
   // State setters
@@ -112,7 +112,7 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   speakerReferenceStatsReady: false,
   speakerDialogState: null,
   speakerVisualByUtteranceId: {},
-  selectedUtteranceIds: new Set<string>(),
+  selectedUnitIds: new Set<string>(),
   selectedSpeakerSummary: '',
   speakerSaving: false,
   speakerDraftName: '',
@@ -182,14 +182,14 @@ type SpeakerRailProviderProps = {
     | 'updateSpeakerDialogTargetKey'
     | 'confirmSpeakerDialog'
   >;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   handleAssignSpeakerToSelectedRouted: () => Promise<void>;
   handleClearSpeakerOnSelectedRouted: () => Promise<void>;
 };
 
 // ── Provider Implementation ───────────────────────────────────────────────────
 
-export function SpeakerRailProvider({ children, speakerManagement, handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUtteranceIds }: SpeakerRailProviderProps) {
+export function SpeakerRailProvider({ children, speakerManagement, handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUnitIds }: SpeakerRailProviderProps) {
   const value = useMemo<SpeakerRailContextValue>(() => ({
     speakerOptions: speakerManagement.speakerOptions,
     speakerDraftName: speakerManagement.speakerDraftName,
@@ -205,7 +205,7 @@ export function SpeakerRailProvider({ children, speakerManagement, handleAssignS
     speakerReferenceStats: speakerManagement.speakerReferenceStats,
     speakerReferenceStatsReady: speakerManagement.speakerReferenceStatsReady,
     selectedSpeakerSummary: speakerManagement.selectedSpeakerSummary,
-    selectedUtteranceIds,
+    selectedUnitIds,
     handleSelectSpeakerUtterances: speakerManagement.handleSelectSpeakerUtterances,
     handleClearSpeakerAssignments: speakerManagement.handleClearSpeakerAssignments,
     handleExportSpeakerSegments: speakerManagement.handleExportSpeakerSegments,
@@ -222,7 +222,7 @@ export function SpeakerRailProvider({ children, speakerManagement, handleAssignS
     updateSpeakerDialogDraftName: speakerManagement.updateSpeakerDialogDraftName,
     updateSpeakerDialogTargetKey: speakerManagement.updateSpeakerDialogTargetKey,
     confirmSpeakerDialog: speakerManagement.confirmSpeakerDialog,
-  }), [handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUtteranceIds, speakerManagement]);
+  }), [handleAssignSpeakerToSelectedRouted, handleClearSpeakerOnSelectedRouted, selectedUnitIds, speakerManagement]);
 
   return (
     <SpeakerRailContext.Provider value={value}>

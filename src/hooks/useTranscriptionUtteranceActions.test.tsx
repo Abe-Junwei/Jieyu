@@ -94,7 +94,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -112,8 +112,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -148,7 +148,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -166,8 +166,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -192,7 +192,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -210,8 +210,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -277,7 +277,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
           updatedAt: now,
         }],
       ]) as never,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: [] },
@@ -295,8 +295,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations,
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -343,7 +343,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
           updatedAt: now,
         }],
       ]) as never,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: [utterance] },
@@ -361,8 +361,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -415,7 +415,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
           updatedAt: now,
         }],
       ]) as never,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: [utterance] },
@@ -433,8 +433,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -468,7 +468,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map([[translationLayer.id, translationLayer]]),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       translations: [],
       utterancesRef: { current: [utterance] },
       utterancesOnCurrentMediaRef: { current: [utterance] },
@@ -485,8 +485,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations,
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -544,7 +544,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
           updatedAt: now,
         }],
       ]) as never,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
 
       translations: [],
       utterancesRef: { current: [utterance] },
@@ -562,8 +562,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -604,7 +604,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -623,8 +623,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -662,7 +662,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -681,8 +681,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -723,7 +723,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -742,8 +742,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -780,7 +780,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -804,8 +804,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -845,7 +845,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       
       translations: [],
       utterancesRef: { current: utterancesState },
@@ -864,8 +864,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
@@ -893,13 +893,13 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       selectedTimelineUnits.push(next);
     });
 
-    const setSelectedUtteranceIds = vi.fn();
+    const setSelectedUnitIds = vi.fn();
     const setUtterances = vi.fn();
 
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map(),
-      selectedUtteranceMedia: {
+      selectedUnitMedia: {
         id: 'media-1',
         textId: 'text-1',
         filename: 'demo.wav',
@@ -929,8 +929,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances,
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds,
+      activeUnitId: '',
+      setSelectedUnitIds,
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
     }));
 
@@ -953,7 +953,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map(),
-      selectedUtteranceMedia: {
+      selectedUnitMedia: {
         id: 'media-1',
         textId: 'text-1',
         filename: 'demo.wav',
@@ -983,8 +983,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
     }));
 
@@ -1019,7 +1019,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         [rootLayer.id, rootLayer],
         [dependentLayer.id, dependentLayer],
       ]),
-      selectedUtteranceMedia: {
+      selectedUnitMedia: {
         id: 'media-1',
         textId: 't1',
         filename: 'demo.wav',
@@ -1049,8 +1049,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
       setUtteranceDrafts: vi.fn(),
-      activeUtteranceUnitId: '',
-      setSelectedUtteranceIds: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {

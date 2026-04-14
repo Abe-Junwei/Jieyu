@@ -17,8 +17,8 @@ import { AI_TOOL_CALL_ADAPTER_MAP } from './useAiToolCallHandler.adapters';
 
 export function useAiToolCallHandler({
   utterances,
-  selectedUtterance,
-  selectedUtteranceMedia,
+  selectedUnit,
+  selectedUnitMedia,
   selectedLayerId,
   transcriptionLayers,
   translationLayers,
@@ -54,8 +54,8 @@ export function useAiToolCallHandler({
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
   const locale = useLocale();
   const utterancesRef = useLatest(utterances);
-  const selectedUtteranceRef = useLatest(selectedUtterance);
-  const selectedUtteranceMediaRef = useLatest(selectedUtteranceMedia);
+  const selectedUnitRef = useLatest(selectedUnit);
+  const selectedUnitMediaRef = useLatest(selectedUnitMedia);
   const selectedLayerIdRef = useLatest(selectedLayerId);
   const transcriptionLayersRef = useLatest(transcriptionLayers);
   const translationLayersRef = useLatest(translationLayers);
@@ -69,8 +69,8 @@ export function useAiToolCallHandler({
 
   return useCallback(async (call: AiChatToolCall): Promise<AiChatToolResult> => {
     const currentUtterances = utterancesRef.current;
-    const currentSelectedUtterance = selectedUtteranceRef.current;
-    const currentSelectedUtteranceMedia = selectedUtteranceMediaRef.current;
+    const currentSelectedUtterance = selectedUnitRef.current;
+    const currentSelectedUnitMedia = selectedUnitMediaRef.current;
     const currentTranscriptionLayers = transcriptionLayersRef.current;
     const currentTranslationLayers = translationLayersRef.current;
     const currentLayerLinks = layerLinksRef.current;
@@ -200,8 +200,8 @@ export function useAiToolCallHandler({
       call,
       locale,
       utterances: currentUtterances,
-      selectedUtterance: currentSelectedUtterance,
-      selectedUtteranceMedia: currentSelectedUtteranceMedia,
+      selectedUnit: currentSelectedUtterance,
+      selectedUnitMedia: currentSelectedUnitMedia,
       selectedLayerId: selectedLayerIdRef.current,
       transcriptionLayers: currentTranscriptionLayers,
       translationLayers: currentTranslationLayers,
@@ -282,8 +282,8 @@ export function useAiToolCallHandler({
     zoomToSegment,
     bridgeTextForLayerWrite,
     utterancesRef,
-    selectedUtteranceRef,
-    selectedUtteranceMediaRef,
+    selectedUnitRef,
+    selectedUnitMediaRef,
     selectedLayerIdRef,
     transcriptionLayersRef,
     translationLayersRef,

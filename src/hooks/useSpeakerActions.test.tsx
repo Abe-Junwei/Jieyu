@@ -71,11 +71,11 @@ function makeOptions(
     speakers: overrides.speakers ?? [makeSpeaker()],
     setSpeakers: overrides.setSpeakers ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setSpeakers']),
     utterancesOnCurrentMedia: overrides.utterancesOnCurrentMedia ?? utterances,
-    activeUtteranceUnitId: overrides.activeUtteranceUnitId ?? utterances[0]?.id ?? null,
-    selectedUtteranceIds: overrides.selectedUtteranceIds ?? new Set<string>(),
+    activeUnitId: overrides.activeUnitId ?? utterances[0]?.id ?? null,
+    selectedUnitIds: overrides.selectedUnitIds ?? new Set<string>(),
     selectedBatchUtterances: overrides.selectedBatchUtterances ?? [],
     isReady: overrides.isReady ?? false,
-    setUtteranceSelection: overrides.setUtteranceSelection ?? vi.fn(),
+    setUnitSelection: overrides.setUnitSelection ?? vi.fn(),
     data: overrides.data ?? {
       pushUndo: vi.fn(),
       undo: vi.fn(async () => {}),
@@ -375,7 +375,7 @@ describe('useSpeakerActions dialog flows', () => {
     const { result } = renderSpeakerActions({
       utterances: [makeUtterance({ id: 'utt-1' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: 'Alice' })],
-      selectedUtteranceIds: new Set(['utt-1']),
+      selectedUnitIds: new Set(['utt-1']),
       setSaveState,
       data: {
         pushUndo: vi.fn(),
@@ -449,7 +449,7 @@ describe('useSpeakerActions dialog flows', () => {
     const { result } = renderSpeakerActions({
       utterances: [makeUtterance({ id: 'utt-1' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: '说话人甲' })],
-      selectedUtteranceIds: new Set(['utt-1']),
+      selectedUnitIds: new Set(['utt-1']),
       setSaveState,
       data: {
         pushUndo: vi.fn(),

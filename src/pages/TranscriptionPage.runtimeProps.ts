@@ -66,7 +66,7 @@ interface CreateAssistantRuntimePropsInput {
 }
 
 interface CreateAnalysisRuntimePropsInput {
-  selectedUtterance: UtteranceDocType | null | undefined;
+  selectedUnit: UtteranceDocType | null | undefined;
   utterancesOnCurrentMedia: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
@@ -131,8 +131,8 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
 
   const voiceTarget: TranscriptionPageAssistantRuntimeVoiceTargetProps = {
     selection: {
-      activeUtteranceUnitId: input.selection.activeUtteranceUnitId,
-      selectedUtterance: input.selection.selectedUtterance,
+      activeUnitId: input.selection.activeUnitId,
+      selectedUnit: input.selection.selectedUnit,
       selectedRowMeta: input.selection.selectedRowMeta,
       selectedLayerId: input.selection.selectedLayerId,
       selectedUnitKind: input.selection.selectedUnitKind,
@@ -161,7 +161,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
 
 export function createAnalysisRuntimeProps(input: CreateAnalysisRuntimePropsInput): AnalysisRuntimeProps {
   const source: TranscriptionPageAnalysisEmbeddingSourceProps = {
-    selectedUtterance: input.selectedUtterance ?? null,
+    selectedUnit: input.selectedUnit ?? null,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,

@@ -44,10 +44,10 @@ type UseTimelineAnnotationHelpersParams = {
     seekTo: (time: number) => void;
   };
   selectedTimelineUnit?: TimelineUnit | null;
-  selectUtteranceRange: (startId: string, endId: string) => void;
-  toggleUtteranceSelection: (id: string) => void;
+  selectUnitRange: (startId: string, endId: string) => void;
+  toggleUnitSelection: (id: string) => void;
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   selectSegment: (id: string) => void;
   setSelectedLayerId: (id: string) => void;
   onFocusLayerRow: (id: string) => void;
@@ -57,7 +57,7 @@ type UseTimelineAnnotationHelpersParams = {
   navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
   dragPreview: TimelineDragPreview;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   focusedLayerRowId: string;
   zoomToUtterance: (start: number, end: number) => void;
   startTimelineResizeDrag: (
@@ -78,10 +78,10 @@ export function useTimelineAnnotationHelpers({
   manualSelectTsRef,
   player,
   selectedTimelineUnit,
-  selectUtteranceRange,
-  toggleUtteranceSelection,
+  selectUnitRange,
+  toggleUnitSelection,
   selectTimelineUnit,
-  selectUtterance,
+  selectUnit,
   selectSegment,
   setSelectedLayerId,
   onFocusLayerRow,
@@ -91,7 +91,7 @@ export function useTimelineAnnotationHelpers({
   navigateUtteranceFromInput,
   waveformAreaRef,
   dragPreview,
-  selectedUtteranceIds,
+  selectedUnitIds,
   focusedLayerRowId,
   zoomToUtterance,
   startTimelineResizeDrag,
@@ -136,9 +136,9 @@ export function useTimelineAnnotationHelpers({
         selectedTimelineUnit,
       });
       if (e.shiftKey && selectedUtteranceUnitId) {
-        selectUtteranceRange(selectedUtteranceUnitId, uttId);
+        selectUnitRange(selectedUtteranceUnitId, uttId);
       } else if (e.metaKey || e.ctrlKey) {
-        toggleUtteranceSelection(uttId);
+        toggleUnitSelection(uttId);
       } else if (
         selectedUtteranceUnitId === uttId
         && overlapCycleItems
@@ -147,7 +147,7 @@ export function useTimelineAnnotationHelpers({
         const index = overlapCycleItems.findIndex((item) => item.id === uttId);
         const next = overlapCycleItems[(index + 1) % overlapCycleItems.length];
         if (next) {
-          selectUtterance(next.id);
+          selectUnit(next.id);
           player.seekTo(next.startTime);
           onOverlapCycleToast?.(
             Math.max(1, ((index + 1) % overlapCycleItems.length) + 1),
@@ -159,7 +159,7 @@ export function useTimelineAnnotationHelpers({
         if (selectTimelineUnit) {
           selectTimelineUnit(targetUnit);
         } else {
-          selectUtterance(uttId);
+          selectUnit(uttId);
         }
         player.seekTo(uttStartTime);
       }
@@ -169,10 +169,10 @@ export function useTimelineAnnotationHelpers({
   }, [
     manualSelectTsRef,
     player,
-    selectUtteranceRange,
+    selectUnitRange,
     selectedTimelineUnit,
-    toggleUtteranceSelection,
-    selectUtterance,
+    toggleUnitSelection,
+    selectUnit,
     selectTimelineUnit,
     selectSegment,
     setSelectedLayerId,
@@ -196,7 +196,7 @@ export function useTimelineAnnotationHelpers({
       preferredKind: 'utterance',
       independentLayerIds,
     });
-    const shouldPreserveMultiSelection = selectedUtteranceIds.has(uttId) && selectedUtteranceIds.size > 1;
+    const shouldPreserveMultiSelection = selectedUnitIds.has(uttId) && selectedUnitIds.size > 1;
     if (!shouldPreserveMultiSelection) {
       if (targetUnit.kind === 'segment') {
         if (selectTimelineUnit) {
@@ -208,7 +208,7 @@ export function useTimelineAnnotationHelpers({
         if (selectTimelineUnit) {
           selectTimelineUnit(targetUnit);
         } else {
-          selectUtterance(uttId);
+          selectUnit(uttId);
         }
       }
     }
@@ -235,9 +235,9 @@ export function useTimelineAnnotationHelpers({
   }, [
     manualSelectTsRef,
     player,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectTimelineUnit,
-    selectUtterance,
+    selectUnit,
     selectSegment,
     setSelectedLayerId,
     onFocusLayerRow,
@@ -293,7 +293,7 @@ export function useTimelineAnnotationHelpers({
         key={utt.id}
         left={dpStart * zoomPxPerSec}
         width={Math.max(4, (dpEnd - dpStart) * zoomPxPerSec)}
-        isSelected={selectedUtteranceIds.has(utt.id)}
+        isSelected={selectedUnitIds.has(utt.id)}
         isActive={
           layer.id === focusedLayerRowId
             && selectedTimelineUnit?.layerId === layer.id
@@ -325,7 +325,7 @@ export function useTimelineAnnotationHelpers({
   }, [
     dragPreview,
     zoomPxPerSec,
-    selectedUtteranceIds,
+    selectedUnitIds,
     selectedTimelineUnit,
     focusedLayerRowId,
     independentLayerIds,

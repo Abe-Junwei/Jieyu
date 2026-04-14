@@ -12,7 +12,7 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
   analysisTab: AnalysisBottomTab;
   onAnalysisTabChange: (tab: AnalysisBottomTab) => void;
   currentPage?: AiChatContextValue['currentPage'];
-  selectedUtterance: AiChatContextValue['selectedUtterance'];
+  selectedUnit: AiChatContextValue['selectedUnit'];
   selectedRowMeta: AiChatContextValue['selectedRowMeta'];
   selectedUnitKind?: AiChatContextValue['selectedUnitKind'];
   selectedLayerType?: AiChatContextValue['selectedLayerType'];
@@ -55,7 +55,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
   analysisTab,
   onAnalysisTabChange,
   currentPage,
-  selectedUtterance,
+  selectedUnit,
   selectedRowMeta,
   selectedUnitKind,
   selectedLayerType,
@@ -71,7 +71,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
 }: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
   const aiChatContextInput = useMemo(() => ({
     currentPage: currentPage ?? 'transcription',
-    selectedUtterance,
+    selectedUnit,
     selectedRowMeta,
     selectedUnitKind: selectedUnitKind ?? null,
     selectedText: selectedText ?? '',
@@ -138,7 +138,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     selectedText,
     selectedTimeRangeLabel,
     selectedUnitKind,
-    selectedUtterance,
+    selectedUnit,
   ]);
 
   return useMemo<UseTranscriptionAssistantSidebarControllerInput>(() => ({

@@ -1,10 +1,10 @@
 type DictationAutoAdvanceInput = {
   utteranceIdsOnCurrentMedia: readonly string[];
-  activeUtteranceId: string | null | undefined;
+  activeUnitId?: string | null;
 };
 
 export function resolveNextUtteranceIdForDictation(input: DictationAutoAdvanceInput): string | null {
-  const activeId = input.activeUtteranceId?.trim() ?? '';
+  const activeId = input.activeUnitId?.trim() ?? '';
   if (!activeId) return null;
   const activeIndex = input.utteranceIdsOnCurrentMedia.findIndex((id) => id === activeId);
   if (activeIndex < 0) return null;
