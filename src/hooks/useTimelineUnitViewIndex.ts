@@ -15,12 +15,10 @@ export interface UseTimelineUnitViewIndexInput {
   defaultTranscriptionLayerId: string | undefined;
   utteranceCount: number;
   segmentsLoadComplete?: boolean;
+  existingIndex?: TimelineUnitViewIndex;
 }
 
-export interface TimelineUnitViewIndexWithEpoch extends TimelineUnitViewIndex {
-  /** Increments on each successful rebuild — for stale-write detection (AI preview). */
-  epoch: number;
-}
+export type TimelineUnitViewIndexWithEpoch = TimelineUnitViewIndex;
 
 /**
  * Derived read model over utterances + segments; single facade for timeline AI/UI consumers.
@@ -29,8 +27,11 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
   const epochRef = useRef(0);
 
   return useMemo(() => {
+    if (input.existingIndex) {
+      return input.existingIndex;
+    }
     epochRef.current += 1;
-    const base = buildTimelineUnitViewIndex({
+    return buildTimelineUnitViewIndex({
       utterances: input.utterances,
       utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
       segmentsByLayer: input.segmentsByLayer,
@@ -39,10 +40,11 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
       activeLayerIdForEdits: input.activeLayerIdForEdits,
       defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
       utteranceCount: input.utteranceCount,
+      epoch: epochRef.current,
       ...(input.segmentsLoadComplete !== undefined ? { segmentsLoadComplete: input.segmentsLoadComplete } : {}),
     });
-    return { ...base, epoch: epochRef.current };
   }, [
+    input.existingIndex,
     input.utterances,
     input.utterancesOnCurrentMedia,
     input.segmentsByLayer,

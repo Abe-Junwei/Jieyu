@@ -9,6 +9,7 @@ import type { TimelineUnitKind } from './transcriptionTypes';
 export interface TimelineUnitView {
   id: string;
   kind: TimelineUnitKind;
+  layerRole?: 'independent' | 'referring';
   mediaId: string;
   layerId: string;
   startTime: number;
@@ -37,6 +38,8 @@ export interface BuildTimelineUnitViewIndexInput {
    * When false, segments may still be loading — tools should not treat empty index as authoritative.
    */
   segmentsLoadComplete?: boolean;
+  /** Monotonic snapshot epoch from hook-level rebuilds. */
+  epoch?: number;
 }
 
 export interface TimelineUnitViewIndex {
@@ -44,9 +47,18 @@ export interface TimelineUnitViewIndex {
   allUnits: ReadonlyArray<TimelineUnitView>;
   /** Current media rows for timeline digest / waveform bounds (former effectiveCurrentMediaRows). */
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
+  /**
+   * Union of ids from `allUnits` plus any `currentMediaUnits` ids missing there
+   * (utterance-first project can show segment rows on the current track only).
+   */
   byId: ReadonlyMap<string, TimelineUnitView>;
+  /** Units grouped by layer id; each bucket follows `allUnits` time order. */
+  byLayer: ReadonlyMap<string, ReadonlyArray<TimelineUnitView>>;
+  /** Resolve referring units (typically segments) by independent unit id. */
+  getReferringUnits: (independentUnitId: string) => ReadonlyArray<TimelineUnitView>;
   totalCount: number;
   currentMediaCount: number;
+  epoch: number;
   fallbackToSegments: boolean;
   isComplete: boolean;
 }
@@ -68,10 +80,11 @@ function resolveSegmentText(
   return '';
 }
 
-function utteranceToView(u: UtteranceDocType, defaultLayerId: string): TimelineUnitView {
+export function utteranceToView(u: UtteranceDocType, defaultLayerId: string): TimelineUnitView {
   return {
     id: u.id,
     kind: 'utterance',
+    layerRole: 'independent',
     mediaId: u.mediaId ?? '',
     layerId: defaultLayerId,
     startTime: u.startTime,
@@ -84,13 +97,14 @@ function utteranceToView(u: UtteranceDocType, defaultLayerId: string): TimelineU
   };
 }
 
-function segmentToView(
+export function segmentToView(
   row: LayerSegmentDocType,
   resolveText: (id: string) => string,
 ): TimelineUnitView {
   return {
     id: row.id,
     kind: 'segment',
+    layerRole: row.utteranceId ? 'referring' : 'independent',
     mediaId: row.mediaId,
     layerId: row.layerId,
     startTime: row.startTime,
@@ -122,25 +136,52 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
   const utteranceProjectViews = input.utterances.map((u) => utteranceToView(u, defaultLayerId));
 
   const fallbackToSegments = input.utterances.length === 0 && segmentViews.length > 0;
-  const allUnits = fallbackToSegments ? segmentViews : utteranceProjectViews;
-
-  const currentMediaId = input.currentMediaId;
-  const segmentOnMedia = currentMediaId
-    ? segmentViews.filter((v) => v.mediaId === currentMediaId)
-    : segmentViews;
-
-  const utteranceOnMediaViews = input.utterancesOnCurrentMedia.map((u) => utteranceToView(u, defaultLayerId));
-
-  const currentMediaUnits = utteranceOnMediaViews.length > 0
-    ? utteranceOnMediaViews
-    : segmentOnMedia;
-
-  const byId = new Map<string, TimelineUnitView>();
-  for (const u of allUnits) {
-    byId.set(u.id, u);
+  const mergedBySemanticKey = new Map<string, TimelineUnitView>();
+  for (const utteranceView of utteranceProjectViews) {
+    mergedBySemanticKey.set(utteranceView.id, utteranceView);
+  }
+  for (const segmentView of segmentViews) {
+    const semanticKey = segmentView.parentUtteranceId?.trim() || segmentView.id;
+    // Segment rows shadow utterance rows for the same semantic unit.
+    mergedBySemanticKey.set(semanticKey, segmentView);
   }
 
-  const totalCount = input.utteranceCount > 0 ? input.utteranceCount : allUnits.length;
+  const allUnits = Array.from(mergedBySemanticKey.values())
+    .sort((a, b) => (a.startTime !== b.startTime ? a.startTime - b.startTime : a.endTime - b.endTime));
+  const currentMediaUnits = input.currentMediaId
+    ? allUnits.filter((unit) => unit.mediaId === input.currentMediaId)
+    : allUnits;
+
+  const byId = new Map<string, TimelineUnitView>();
+  const byLayerMutable = new Map<string, TimelineUnitView[]>();
+  const referringByParentId = new Map<string, TimelineUnitView[]>();
+  for (const unit of allUnits) {
+    byId.set(unit.id, unit);
+    const layerBucket = byLayerMutable.get(unit.layerId);
+    if (layerBucket) layerBucket.push(unit);
+    else byLayerMutable.set(unit.layerId, [unit]);
+    // Keep alias lookup for referring segments addressed by parent utterance id.
+    if (unit.parentUtteranceId && !byId.has(unit.parentUtteranceId)) {
+      byId.set(unit.parentUtteranceId, unit);
+    }
+    if (unit.parentUtteranceId) {
+      const referringBucket = referringByParentId.get(unit.parentUtteranceId);
+      if (referringBucket) referringBucket.push(unit);
+      else referringByParentId.set(unit.parentUtteranceId, [unit]);
+    }
+  }
+  const byLayer = new Map<string, ReadonlyArray<TimelineUnitView>>();
+  for (const [layerId, units] of byLayerMutable.entries()) {
+    byLayer.set(layerId, units);
+  }
+  const emptyUnits: ReadonlyArray<TimelineUnitView> = [];
+  const getReferringUnits = (independentUnitId: string): ReadonlyArray<TimelineUnitView> => {
+    const normalizedId = independentUnitId.trim();
+    if (!normalizedId) return emptyUnits;
+    return referringByParentId.get(normalizedId) ?? emptyUnits;
+  };
+
+  const totalCount = allUnits.length;
   const currentMediaCount = currentMediaUnits.length;
 
   const segmentsLoadComplete = input.segmentsLoadComplete !== false;
@@ -149,8 +190,11 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     allUnits,
     currentMediaUnits,
     byId,
+    byLayer,
+    getReferringUnits,
     totalCount,
     currentMediaCount,
+    epoch: input.epoch ?? 0,
     fallbackToSegments,
     isComplete: segmentsLoadComplete,
   };
