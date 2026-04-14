@@ -20,7 +20,7 @@ interface UseWaveformSelectionControllerInput {
   utterancesOnCurrentMedia: UtteranceDocType[];
   timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
 }
 
 interface UseWaveformSelectionControllerResult {
@@ -44,7 +44,7 @@ export function useWaveformSelectionController({
   utterancesOnCurrentMedia,
   timelineUnitViewIndex,
   selectedTimelineUnit,
-  selectedUtteranceIds,
+  selectedUnitIds,
 }: UseWaveformSelectionControllerInput): UseWaveformSelectionControllerResult {
   const activeWaveformLayer = useMemo(
     () => layers.find((item) => item.id === activeLayerIdForEdits),
@@ -77,6 +77,7 @@ export function useWaveformSelectionController({
         .map((segment) => ({
           id: segment.id,
           kind: 'segment',
+          layerRole: segment.utteranceId ? 'referring' : 'independent',
           mediaId: segment.mediaId,
           layerId: segment.layerId,
           startTime: segment.startTime,
@@ -89,6 +90,7 @@ export function useWaveformSelectionController({
     return utterancesOnCurrentMedia.map((utterance) => ({
       id: utterance.id,
       kind: 'utterance',
+      layerRole: 'independent',
       mediaId: utterance.mediaId ?? '',
       layerId: defaultTranscriptionLayerId ?? activeLayerIdForEdits,
       startTime: utterance.startTime,
@@ -127,11 +129,11 @@ export function useWaveformSelectionController({
 
   const waveformActiveRegionIds = useMemo(() => {
     if (useSegmentWaveformRegions) {
-      if (selectedUtteranceIds.size > 0) return selectedUtteranceIds;
+      if (selectedUnitIds.size > 0) return selectedUnitIds;
       return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();
     }
-    return selectedUtteranceIds;
-  }, [selectedUtteranceIds, selectedWaveformRegionId, useSegmentWaveformRegions]);
+    return selectedUnitIds;
+  }, [selectedUnitIds, selectedWaveformRegionId, useSegmentWaveformRegions]);
 
   const waveformPrimaryRegionId = selectedWaveformRegionId;
 

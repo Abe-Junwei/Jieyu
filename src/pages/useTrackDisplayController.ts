@@ -9,6 +9,10 @@ import {
 } from '../utils/speakerLayerLayout';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 
+function isTimelineUnitView(item: TimelineUnitView | UtteranceDocType): item is TimelineUnitView {
+  return 'kind' in item && (item as TimelineUnitView).kind !== undefined;
+}
+
 type SegmentSpeakerAssignmentLike = {
   speakerKey: string;
 };
@@ -126,7 +130,7 @@ export function useTrackDisplayController({
     const next: Record<string, number> = {};
     let order = 0;
     for (const utterance of sorted) {
-      const key = 'kind' in utterance
+      const key = isTimelineUnitView(utterance)
         ? (utterance.speakerId ?? 'unknown-speaker')
         : getUtteranceSpeakerKey(utterance);
       if (key in next) continue;
@@ -142,7 +146,7 @@ export function useTrackDisplayController({
       ? utteranceUnitsOnCurrentMedia
       : utterancesOnCurrentMedia;
     for (const utterance of source) {
-      const speakerKey = 'kind' in utterance
+      const speakerKey = isTimelineUnitView(utterance)
         ? (utterance.speakerId ?? 'unknown-speaker')
         : getUtteranceSpeakerKey(utterance);
       if (!speakerKey) continue;

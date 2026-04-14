@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
 
 function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDocType {
@@ -59,7 +60,7 @@ describe('useWaveformSelectionController', () => {
       ]]]),
       utterancesOnCurrentMedia: [makeUtterance('utt-1', 10, 11)],
       selectedTimelineUnit,
-      selectedUtteranceIds: new Set(['seg-1', 'seg-2']),
+      selectedUnitIds: new Set(['seg-1', 'seg-2']),
     }));
 
     expect(result.current.useSegmentWaveformRegions).toBe(true);
@@ -95,7 +96,7 @@ describe('useWaveformSelectionController', () => {
       ]]]),
       utterancesOnCurrentMedia: [makeUtterance('utt-1', 10, 11)],
       selectedTimelineUnit,
-      selectedUtteranceIds: new Set(['seg-2']),
+      selectedUnitIds: new Set(['seg-2']),
     }));
 
     expect(result.current.activeWaveformSegmentSourceLayer?.id).toBe('layer-seg');
@@ -103,6 +104,96 @@ describe('useWaveformSelectionController', () => {
     expect(result.current.waveformTimelineItems.map((item) => item.id)).toEqual(['seg-1', 'seg-2']);
     expect(result.current.selectedWaveformRegionId).toBe('seg-2');
     expect(result.current.selectedWaveformTimelineItem?.id).toBe('seg-2');
+  });
+
+  it('uses index currentMediaUnits for segment-backed layers when index is provided', () => {
+    const segView: TimelineUnitView = {
+      id: 'seg-idx-1', kind: 'segment', mediaId: 'media-1', layerId: 'layer-seg',
+      startTime: 0, endTime: 1, text: 'from-index',
+    };
+    const segView2: TimelineUnitView = {
+      id: 'seg-idx-2', kind: 'segment', mediaId: 'media-1', layerId: 'layer-seg',
+      startTime: 1, endTime: 2, text: 'from-index-2',
+    };
+    const uttView: TimelineUnitView = {
+      id: 'utt-idx-1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      startTime: 0, endTime: 2, text: 'utt-text',
+    };
+    const idx: TimelineUnitViewIndex = {
+      allUnits: [segView, segView2, uttView],
+      currentMediaUnits: [segView, segView2, uttView],
+      byId: new Map([[segView.id, segView], [segView2.id, segView2], [uttView.id, uttView]]),
+      byLayer: new Map([
+        ['layer-seg', [segView, segView2]],
+        ['layer-main', [uttView]],
+      ]),
+      getReferringUnits: () => [],
+      totalCount: 3,
+      currentMediaCount: 3,
+      epoch: 1,
+      fallbackToSegments: true,
+      isComplete: true,
+    };
+    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-idx-1', kind: 'segment' };
+    const { result } = renderHook(() => useWaveformSelectionController({
+      activeLayerIdForEdits: 'layer-seg',
+      layers: [makeLayer('layer-seg', 'independent_boundary')],
+      layerById: new Map([['layer-seg', makeLayer('layer-seg', 'independent_boundary')]]),
+      defaultTranscriptionLayerId: 'layer-seg',
+      segmentsByLayer: new Map(),
+      utterancesOnCurrentMedia: [],
+      timelineUnitViewIndex: idx,
+      selectedTimelineUnit,
+      selectedUnitIds: new Set(),
+    }));
+
+    expect(result.current.useSegmentWaveformRegions).toBe(true);
+    expect(result.current.waveformTimelineItems.map((item) => item.id)).toEqual(['seg-idx-1', 'seg-idx-2']);
+    expect(result.current.selectedWaveformRegionId).toBe('seg-idx-1');
+  });
+
+  it('uses index currentMediaUnits for utterance mode when index is provided', () => {
+    const uttView1: TimelineUnitView = {
+      id: 'utt-1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      startTime: 0, endTime: 1, text: 'hello',
+    };
+    const uttView2: TimelineUnitView = {
+      id: 'utt-2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      startTime: 1, endTime: 2, text: 'world',
+    };
+    const idx: TimelineUnitViewIndex = {
+      allUnits: [uttView1, uttView2],
+      currentMediaUnits: [uttView1, uttView2],
+      byId: new Map([[uttView1.id, uttView1], [uttView2.id, uttView2]]),
+      byLayer: new Map([['layer-main', [uttView1, uttView2]]]),
+      getReferringUnits: () => [],
+      totalCount: 2,
+      currentMediaCount: 2,
+      epoch: 1,
+      fallbackToSegments: false,
+      isComplete: true,
+    };
+    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'utt-2', kind: 'utterance' };
+    const { result } = renderHook(() => useWaveformSelectionController({
+      activeLayerIdForEdits: 'layer-main',
+      layers: [makeLayer('layer-main')],
+      layerById: new Map([['layer-main', makeLayer('layer-main')]]),
+      defaultTranscriptionLayerId: 'layer-main',
+      segmentsByLayer: new Map(),
+      utterancesOnCurrentMedia: [],
+      timelineUnitViewIndex: idx,
+      selectedTimelineUnit,
+      selectedUnitIds: new Set(['utt-2']),
+    }));
+
+    expect(result.current.useSegmentWaveformRegions).toBe(false);
+    expect(result.current.waveformTimelineItems.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
+    expect(result.current.waveformRegions).toEqual([
+      { id: 'utt-1', start: 0, end: 1 },
+      { id: 'utt-2', start: 1, end: 2 },
+    ]);
+    expect(result.current.selectedWaveformRegionId).toBe('utt-2');
+    expect(result.current.selectedWaveformTimelineItem?.id).toBe('utt-2');
   });
 
   it('keeps utterance waveform mode when timeline selection kind does not match', () => {
@@ -116,7 +207,7 @@ describe('useWaveformSelectionController', () => {
       segmentsByLayer: new Map(),
       utterancesOnCurrentMedia: utterances,
       selectedTimelineUnit,
-      selectedUtteranceIds: new Set(['utt-2']),
+      selectedUnitIds: new Set(['utt-2']),
     }));
 
     expect(result.current.useSegmentWaveformRegions).toBe(false);

@@ -3,6 +3,7 @@ import { act } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { useTrackDisplayController } from './useTrackDisplayController';
 
 function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
@@ -76,6 +77,68 @@ describe('useTrackDisplayController', () => {
     }));
 
     expect(setTranscriptionTrackMode).toHaveBeenCalledWith('multi-auto');
+  });
+
+  it('switches to multi-auto using timelineUnitsOnCurrentMedia when overlapping views are provided', () => {
+    const setTranscriptionTrackMode = vi.fn();
+
+    const views: TimelineUnitView[] = [
+      { id: 'v1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'a', speakerId: 'spk-a' },
+      { id: 'v2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 3, text: 'b', speakerId: 'spk-b' },
+    ];
+
+    renderHook(() => useTrackDisplayController({
+      utterancesOnCurrentMedia: [],
+      timelineUnitsOnCurrentMedia: views,
+      timelineRenderUtterances: [
+        makeUtterance('v1', 0, 2, 'spk-a'),
+        makeUtterance('v2', 1, 3, 'spk-b'),
+      ],
+      activeLayerIdForEdits: 'layer-1',
+      defaultTranscriptionLayerId: 'layer-1',
+      layers: [makeLayer('layer-1')],
+      segmentsByLayer: new Map<string, LayerSegmentDocType[]>(),
+      segmentSpeakerAssignmentsOnCurrentMedia: [],
+      transcriptionTrackMode: 'single',
+      setTranscriptionTrackMode,
+      laneLockMap: {},
+      setLaneLockMap: vi.fn(),
+      selectedSpeakerIdsForTrackLock: [],
+      speakerNameById: {},
+      setLockConflictToast: vi.fn(),
+      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+    }));
+
+    expect(setTranscriptionTrackMode).toHaveBeenCalledWith('multi-auto');
+  });
+
+  it('uses timelineUnitsOnCurrentMedia for speaker sort keys', () => {
+    const views: TimelineUnitView[] = [
+      { id: 'v1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-b' },
+      { id: 'v2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-a' },
+    ];
+
+    const { result } = renderHook(() => useTrackDisplayController({
+      utterancesOnCurrentMedia: [],
+      timelineUnitsOnCurrentMedia: views,
+      timelineRenderUtterances: [],
+      activeLayerIdForEdits: 'layer-1',
+      defaultTranscriptionLayerId: 'layer-1',
+      layers: [makeLayer('layer-1')],
+      segmentsByLayer: new Map<string, LayerSegmentDocType[]>(),
+      segmentSpeakerAssignmentsOnCurrentMedia: [],
+      transcriptionTrackMode: 'multi-auto',
+      setTranscriptionTrackMode: vi.fn(),
+      laneLockMap: {},
+      setLaneLockMap: vi.fn(),
+      selectedSpeakerIdsForTrackLock: [],
+      speakerNameById: {},
+      setLockConflictToast: vi.fn(),
+      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+    }));
+
+    expect(result.current.speakerSortKeyById['spk-b']).toBe(0);
+    expect(result.current.speakerSortKeyById['spk-a']).toBe(1);
   });
 
   it('clears fixed layout state and surfaces conflict toast on reset', () => {

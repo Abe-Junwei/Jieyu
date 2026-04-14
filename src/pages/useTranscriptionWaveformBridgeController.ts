@@ -95,7 +95,7 @@ export function useTranscriptionWaveformBridgeController(
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     ...(input.timelineUnitViewIndex ? { timelineUnitViewIndex: input.timelineUnitViewIndex } : {}),
     selectedTimelineUnit: input.selectedTimelineUnit,
-    selectedUtteranceIds: input.selectedUtteranceIds,
+    selectedUnitIds: input.selectedUnitIds,
   });
 
   const containerWidth = waveCanvasRef.current?.clientWidth || 800;
@@ -296,13 +296,13 @@ export function useTranscriptionWaveformBridgeController(
     selectedMediaUrl: input.selectedMediaUrl,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     timelineItems: waveformTimelineItems,
-    selectedUtteranceIds: input.selectedUtteranceIds,
-    selectedUtteranceUnitId: selectedWaveformRegionId,
+    selectedUnitIds: input.selectedUnitIds,
+    selectedUnitId: selectedWaveformRegionId,
     zoomPxPerSec,
     skipSeekForIdRef,
-    clearUtteranceSelection: input.clearUtteranceSelection,
+    clearUnitSelection: input.clearUnitSelection,
     createUtteranceFromSelection: input.createUtteranceFromSelection,
-    setUtteranceSelection: input.setUtteranceSelection,
+    setUnitSelection: input.setUnitSelection,
     playerSeekTo: player.seekTo,
     subSelectionRange,
     setSubSelectionRange,

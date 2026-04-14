@@ -83,7 +83,7 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineUnitForTime: TimeRangeLike | null;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedMediaUrl: string | undefined;
   waveformHeight: number;
   amplitudeScale: number;
@@ -95,9 +95,9 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   setZoomPercent: Dispatch<SetStateAction<number>>;
   zoomMode: 'fit-all' | 'fit-selection' | 'custom';
   setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
-  clearUtteranceSelection: () => void;
+  clearUnitSelection: () => void;
   createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
-  setUtteranceSelection: (primaryId: string, ids: Set<string>) => void;
+  setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
   mediaId?: string;
