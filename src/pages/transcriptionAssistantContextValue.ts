@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
-import type { UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 
 interface SelectedRowMetaLike {
   rowNumber: number;
@@ -9,11 +9,11 @@ interface SelectedRowMetaLike {
 }
 
 interface BuildTranscriptionAssistantContextValueInput {
-  state: { phase: string; dbName?: string; utteranceCount?: number; translationLayerCount?: number };
+  state: { phase: string; dbName?: string; unitCount?: number; translationLayerCount?: number };
   unitsLength: number;
   translationLayersLength: number;
   aiConfidenceAvg: number | null;
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
+  selectedPrimaryUnitView: TimelineUnitView | null;
   selectedTimelineRowMeta: SelectedRowMetaLike | null;
   selectedAiWarning: boolean;
   lexemeMatches: AiPanelContextValue['lexemeMatches'];
@@ -58,7 +58,7 @@ export function buildTranscriptionAssistantContextValue(input: BuildTranscriptio
     unitCount: input.unitsLength,
     translationLayerCount: input.translationLayersLength,
     aiConfidenceAvg: input.aiConfidenceAvg,
-    selectedUnit: input.selectedTimelineOwnerUnit,
+    selectedUnit: input.selectedPrimaryUnitView,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedAiWarning: input.selectedAiWarning,
     lexemeMatches: input.lexemeMatches,

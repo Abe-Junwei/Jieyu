@@ -80,10 +80,10 @@ export interface UseTranscriptionSectionViewModelsInput {
   searchableItems: TranscriptionPageTimelineTopProps['searchProps']['items'];
   orthographies: OrthographyDocType[];
   activeLayerIdForEdits: string;
-  selectedTimelineUtteranceId: string;
+  activeTimelineUnitId: string;
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   handleSearchReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;

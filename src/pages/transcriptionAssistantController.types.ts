@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { LayerDocType, UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AiChatSettings } from '../hooks/useAiChat';
@@ -16,7 +17,7 @@ interface SelectedRowMetaLike {
 interface ReadyStateLike {
   phase: string;
   dbName?: string;
-  utteranceCount?: number;
+  unitCount?: number;
   translationLayerCount?: number;
 }
 
@@ -25,6 +26,8 @@ export interface UseTranscriptionAssistantControllerInput {
   unitsLength: number;
   translationLayersLength: number;
   aiConfidenceAvg: number | null;
+  selectedPrimaryUnitView: TimelineUnitView | null;
+  /** Backing utterance row for voice dictation / persistence (derived from timeline selection). */
   selectedTimelineOwnerUnit: UtteranceDocType | null;
   selectedTimelineRowMeta: SelectedRowMetaLike | null;
   selectedAiWarning: boolean;

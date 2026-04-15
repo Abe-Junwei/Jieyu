@@ -6,6 +6,7 @@ import {
 } from './transcriptionSegmentCreationActions';
 
 export type {
+  CreateUnitOptions,
   CreateUtteranceOptions,
   UseTranscriptionSegmentCreationControllerInput,
   UseTranscriptionSegmentCreationControllerResult,

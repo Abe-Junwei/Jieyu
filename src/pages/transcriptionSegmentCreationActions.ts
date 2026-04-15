@@ -4,25 +4,36 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { t, tf, type Locale } from '../i18n';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { formatTime, newId } from '../utils/transcriptionFormatters';
 import { readStoredNewSegmentSelectionBehavior, type NewSegmentSelectionBehavior } from '../utils/transcriptionInteractionPreferences';
+import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
+import {
+  type ParentUtteranceBounds,
+} from './timelineUnitViewUtteranceHelpers';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
-export interface CreateUtteranceOptions {
+export interface CreateUnitOptions {
   speakerId?: string;
   focusedLayerId?: string;
   selectionBehavior?: NewSegmentSelectionBehavior;
 }
 
+/** @deprecated Use CreateUnitOptions instead. */
+export type CreateUtteranceOptions = CreateUnitOptions;
+
 export interface UseTranscriptionSegmentCreationControllerInput {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;
   selectedTimelineMedia: MediaItemDocType | null;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
+  /** Resolve full utterance row for create-next / DB writes; must match unified view ids on current media. */
+  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
+  findUtteranceDocContainingRange: (start: number, end: number) => UtteranceDocType | undefined;
+  findOverlappingUtteranceDoc: (start: number, end: number) => UtteranceDocType | undefined;
   pushUndo: (label: string) => void;
   reloadSegments: () => Promise<void>;
   refreshSegmentUndoSnapshot: () => Promise<void>;
@@ -33,8 +44,9 @@ export interface UseTranscriptionSegmentCreationControllerInput {
   createUtteranceFromSelection: (
     start: number,
     end: number,
-    options?: CreateUtteranceOptions,
+    options?: CreateUnitOptions,
   ) => Promise<void>;
+  recordTimelineEdit?: (event: PushTimelineEditInput) => void;
 }
 
 export interface UseTranscriptionSegmentCreationControllerResult {
@@ -54,6 +66,24 @@ export function createTranscriptionSegmentCreationActions(
   input: UseTranscriptionSegmentCreationControllerInput,
   locale: Locale,
 ): UseTranscriptionSegmentCreationControllerResult {
+  const resolveParentUtteranceForSegment = (segment: {
+    parentUtteranceId?: string;
+    startTime: number;
+    endTime: number;
+  }): ParentUtteranceBounds | undefined => {
+    if (segment.parentUtteranceId) {
+      const byId = input.getUtteranceDocById(segment.parentUtteranceId);
+      if (byId) return byId;
+    }
+    return input.findUtteranceDocContainingRange(segment.startTime, segment.endTime);
+  };
+
+  const resolveSegmentUnitsForLayer = (layerId: string): TimelineUnitView[] => (
+    input.unitsOnCurrentMedia
+      .filter((unit) => unit.kind === 'segment' && unit.layerId === layerId)
+      .sort((left, right) => left.startTime - right.startTime)
+  );
+
   const finalizeCreatedSegment = async (
     segment: LayerSegmentDocType,
     messageKey: 'transcription.utteranceAction.done.createFromSelection' | 'transcription.utteranceAction.done.createNext',
@@ -71,6 +101,7 @@ export function createTranscriptionSegmentCreationActions(
         end: formatTime(segment.endTime),
       }),
     });
+    input.recordTimelineEdit?.({ action: 'create', unitId: segment.id, unitKind: 'segment' });
   };
 
   const createSegmentInRoutedLayer = async (
@@ -78,7 +109,7 @@ export function createTranscriptionSegmentCreationActions(
     routing: SegmentRoutingResult,
     options: {
       doneMessageKey: 'transcription.utteranceAction.done.createFromSelection' | 'transcription.utteranceAction.done.createNext';
-      parentUtterance?: UtteranceDocType;
+      parentUtterance?: ParentUtteranceBounds;
     },
   ) => {
     const undoKey = options.doneMessageKey === 'transcription.utteranceAction.done.createNext'
@@ -121,7 +152,7 @@ export function createTranscriptionSegmentCreationActions(
 
       const gap = 0.02;
       const minSpan = 0.05;
-      const siblings = [...(input.segmentsByLayer.get(routing.sourceLayerId) ?? [])].sort((left, right) => left.startTime - right.startTime);
+      const siblings = resolveSegmentUnitsForLayer(routing.sourceLayerId);
       const targetSegment = siblings.find((segment) => segment.id === targetId);
       if (!targetSegment) {
         input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: targetId }) });
@@ -136,13 +167,9 @@ export function createTranscriptionSegmentCreationActions(
         : Number.POSITIVE_INFINITY;
 
       let upperBound = Math.min(mediaDuration, nextSegment ? nextSegment.startTime - gap : Number.POSITIVE_INFINITY);
-      let parentUtterance: UtteranceDocType | undefined;
+      let parentUtterance: ParentUtteranceBounds | undefined;
       if (routing.editMode === 'time-subdivision') {
-        parentUtterance = targetSegment.utteranceId
-          ? input.utterancesOnCurrentMedia.find((utterance) => utterance.id === targetSegment.utteranceId)
-          : input.utterancesOnCurrentMedia.find(
-            (utterance) => utterance.startTime <= targetSegment.startTime + 0.01 && utterance.endTime >= targetSegment.endTime - 0.01,
-          );
+        parentUtterance = resolveParentUtteranceForSegment(targetSegment);
         if (!parentUtterance) {
           input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
           return;
@@ -184,7 +211,7 @@ export function createTranscriptionSegmentCreationActions(
       return;
     }
 
-    const targetUtterance = input.utterancesOnCurrentMedia.find((utterance) => utterance.id === targetId);
+    const targetUtterance = input.getUtteranceDocById(targetId);
     if (!targetUtterance) {
       input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: targetId }) });
       return;
@@ -210,8 +237,7 @@ export function createTranscriptionSegmentCreationActions(
         console.error('Missing target transcription layer');
         return;
       }
-      const layerSegments = input.segmentsByLayer.get(routing.sourceLayerId);
-      const siblings = [...(layerSegments ?? [])].sort((left, right) => left.startTime - right.startTime);
+      const siblings = resolveSegmentUnitsForLayer(routing.sourceLayerId);
       const insertionIndex = siblings.findIndex((item) => item.startTime > rawStart);
       const prev = insertionIndex < 0
         ? siblings[siblings.length - 1]
@@ -245,9 +271,7 @@ export function createTranscriptionSegmentCreationActions(
         updatedAt: now,
       };
       if (routing.editMode === 'time-subdivision') {
-        const parentUtt = input.utterancesOnCurrentMedia.find(
-          (utterance) => utterance.startTime <= finalStart + 0.01 && utterance.endTime >= finalEnd - 0.01,
-        );
+        const parentUtt = input.findUtteranceDocContainingRange(finalStart, finalEnd);
         if (!parentUtt) {
           input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentCreateNoParentSubdivision') });
           return;
@@ -261,9 +285,7 @@ export function createTranscriptionSegmentCreationActions(
           parentUtterance: parentUtt,
         });
       } else {
-        const overlappingUtt = input.utterancesOnCurrentMedia.find(
-          (utterance) => utterance.startTime <= finalEnd - 0.01 && utterance.endTime >= finalStart + 0.01,
-        );
+        const overlappingUtt = input.findOverlappingUtteranceDoc(finalStart, finalEnd);
         if (overlappingUtt) {
           newSeg.utteranceId = overlappingUtt.id;
           if (!newSeg.speakerId && overlappingUtt.speakerId) {

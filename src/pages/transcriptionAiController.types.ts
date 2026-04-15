@@ -25,14 +25,13 @@ import type {
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { useAiChat } from '../hooks/useAiChat';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
+import type { EditEvent } from '../hooks/useEditEventBuffer';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
 export interface UseTranscriptionAiControllerInput {
-  utterances: UtteranceDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
   selectedUnitIds: Set<string>;
   selectedUnit: UtteranceDocType | null;
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
+  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
   selectedTimelineSegment?: LayerSegmentDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
   selectedMediaUrl?: string;
@@ -50,13 +49,15 @@ export interface UseTranscriptionAiControllerInput {
   layerLinks: LayerLinkDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
-  utteranceCount: number;
-  /** Optional shared read-model index from ReadyWorkspace to avoid duplicate rebuilds. */
-  timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
+  /** Project-wide authoritative unit count (e.g. DbState.unitCount) for read-model consistency checks. */
+  authoritativeUnitCount?: number;
+  /** Structured recent edits for AI grounding (mutation-sourced ring buffer from ReadyWorkspace). */
+  recentTimelineEditEvents: readonly EditEvent[];
+  /** Shared read-model index from ReadyWorkspace (single source of truth for AI reads). */
+  timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   segmentsLoadComplete?: boolean;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
-  undoHistory: unknown[];
   createLayerWithActiveContext: (
     layerType: 'transcription' | 'translation',
     input: { languageId: string; alias?: string },
@@ -66,10 +67,12 @@ export interface UseTranscriptionAiControllerInput {
   splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
-  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
+  /** Batch merge by resolved timeline unit ids (typically utterance targets). */
+  mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
   mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
-  deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
+  /** Batch delete by resolved timeline unit ids. */
+  deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
   saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;

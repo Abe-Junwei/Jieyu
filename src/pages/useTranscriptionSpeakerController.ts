@@ -10,6 +10,8 @@ import { useSpeakerActions } from '../hooks/useSpeakerActions';
 import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';
 import type { SaveState, TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import { isDictKey, t as translate, tf as formatMessage, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
@@ -20,16 +22,19 @@ interface UseTranscriptionSpeakerControllerInput {
   setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
   speakers: SpeakerDocType[];
   setSpeakers: Dispatch<SetStateAction<SpeakerDocType[]>>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedTimelineUtteranceId: string;
-  selectedUtteranceIds: Set<string>;
-  selectedBatchUtterances: UtteranceDocType[];
-  selectedUtteranceIdsForSpeakerActionsSet: Set<string>;
+  /** Current-media unified rows (same source as timeline / waveform digest). */
+  unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
+  /** Resolve DB row for utterance ids (aligned with unified timeline view). */
+  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
+  activeTimelineUnitId: string;
+  selectedUnitIds: Set<string>;
+  selectedBatchUnits: TimelineUnitView[];
+  selectedUnitIdsForSpeakerActionsSet: Set<string>;
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineMediaId: string | null;
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
   statePhase: string;
-  setUtteranceSelection: (primaryId: string, ids: string[]) => void;
+  setUnitSelection: (primaryId: string, ids: string[]) => void;
   data: {
     pushUndo: (label: string) => void;
     undo: () => Promise<void>;
@@ -43,24 +48,33 @@ interface UseTranscriptionSpeakerControllerInput {
   segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerSegmentContentDocType>>;
   resolveExplicitSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
   resolveSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
-  selectedBatchSegmentsForSpeakerActions: LayerSegmentDocType[];
   selectedUnitIdsForSpeakerActions: string[];
   segmentByIdForSpeakerActions: ReadonlyMap<string, LayerSegmentDocType>;
   resolveSpeakerActionUtteranceIds: (ids: Iterable<string>) => string[];
   speakerFilterOptionsForActions: SpeakerFilterOption[];
   segmentSpeakerAssignmentsOnCurrentMedia: Array<{ speakerKey: string }>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
-  setSelectedUtteranceIds: Dispatch<SetStateAction<Set<string>>>;
+  setSelectedUnitIds: Dispatch<SetStateAction<Set<string>>>;
   reloadSegments: () => Promise<void>;
   refreshSegmentUndoSnapshot: () => Promise<void>;
   updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentUpdater) => void;
   layerAction: {
     setLayerActionPanel: (panel: LayerActionPanelKind) => void;
   };
+  recordTimelineEdit?: (event: PushTimelineEditInput) => void;
 }
 
 export function useTranscriptionSpeakerController(input: UseTranscriptionSpeakerControllerInput) {
   const { resolveSpeakerActionUtteranceIds, layerAction } = input;
+  const utterancesOnCurrentMedia = useMemo(() => {
+    const docs: UtteranceDocType[] = [];
+    for (const unit of input.unitsOnCurrentMedia) {
+      if (unit.kind !== 'utterance') continue;
+      const doc = input.getUtteranceDocById(unit.id);
+      if (doc) docs.push(doc);
+    }
+    return docs;
+  }, [input.getUtteranceDocById, input.unitsOnCurrentMedia]);
   const locale = useLocale();
   const t = useCallback((key: string) => (isDictKey(key) ? translate(locale, key) : key), [locale]);
   const tf = useCallback(
@@ -70,6 +84,20 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
         : key
     ),
     [locale],
+  );
+  const selectedBatchUtterances = useMemo(
+    () => input.selectedBatchUnits
+      .filter((unit) => unit.kind === 'utterance')
+      .map((unit) => input.getUtteranceDocById(unit.id))
+      .filter((utterance): utterance is UtteranceDocType => Boolean(utterance)),
+    [input.getUtteranceDocById, input.selectedBatchUnits],
+  );
+  const selectedBatchSegmentsForSpeakerActions = useMemo(
+    () => input.selectedBatchUnits
+      .filter((unit) => unit.kind === 'segment')
+      .map((unit) => input.segmentByIdForSpeakerActions.get(unit.id))
+      .filter((segment): segment is LayerSegmentDocType => Boolean(segment)),
+    [input.segmentByIdForSpeakerActions, input.selectedBatchUnits],
   );
   const {
     speakerOptions,
@@ -82,6 +110,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     setActiveSpeakerFilterKey,
     speakerDialogState: baseSpeakerDialogState,
     speakerReferenceStats,
+    speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady,
     selectedSpeakerSummary,
     handleSelectSpeakerUtterances,
@@ -106,12 +136,12 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     setUtterances: input.setUtterances,
     speakers: input.speakers,
     setSpeakers: input.setSpeakers,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    activeUtteranceUnitId: input.selectedTimelineUtteranceId,
-    selectedUtteranceIds: input.selectedUtteranceIds,
-    selectedBatchUtterances: input.selectedBatchUtterances,
+    utterancesOnCurrentMedia,
+    activeUnitId: input.activeTimelineUnitId,
+    selectedUnitIds: input.selectedUnitIds,
+    selectedBatchUtterances,
     isReady: input.statePhase === 'ready',
-    setUtteranceSelection: input.setUtteranceSelection,
+    setUnitSelection: input.setUnitSelection,
     data: input.data,
     setSaveState: input.setSaveState,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
@@ -123,6 +153,7 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       speakerFilterOptions: input.speakerFilterOptionsForActions,
     },
     speakerFilterOptionsOverride: input.speakerFilterOptionsForActions,
+    speakerReferenceStatsMediaId: input.selectedTimelineMediaId,
   });
 
   const speakerByIdMap = useMemo(
@@ -166,14 +197,14 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     segmentContentByLayer: input.segmentContentByLayer,
     resolveExplicitSpeakerKeyForSegment: input.resolveExplicitSpeakerKeyForSegment,
     resolveSpeakerKeyForSegment: input.resolveSpeakerKeyForSegment,
-    selectedBatchSegmentsForSpeakerActions: input.selectedBatchSegmentsForSpeakerActions,
+    selectedBatchSegmentsForSpeakerActions,
     selectedUnitIdsForSpeakerActions: input.selectedUnitIdsForSpeakerActions,
     segmentByIdForSpeakerActions: input.segmentByIdForSpeakerActions,
-    selectedUtteranceIdsForSpeakerActionsSet: input.selectedUtteranceIdsForSpeakerActionsSet,
+    selectedUnitIdsForSpeakerActionsSet: input.selectedUnitIdsForSpeakerActionsSet,
     resolveSpeakerActionUtteranceIds: input.resolveSpeakerActionUtteranceIds,
-    selectedBatchUtterances: input.selectedBatchUtterances,
+    selectedBatchUtterances,
     selectedSpeakerSummary,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    utterancesOnCurrentMedia,
     getUtteranceSpeakerKey: input.getUtteranceSpeakerKey,
     speakerFilterOptionsForActions: input.speakerFilterOptionsForActions,
     speakerOptions,
@@ -199,7 +230,7 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     refreshSpeakerReferenceStats,
     selectedTimelineUnit: input.selectedTimelineUnit,
     selectTimelineUnit: input.selectTimelineUnit,
-    setSelectedUtteranceIds: input.setSelectedUtteranceIds,
+    setSelectedUnitIds: input.setSelectedUnitIds,
     formatTime: input.formatTime,
     t,
     tf,
@@ -215,12 +246,26 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
   });
 
   const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {
+    const ids = Array.from(unitIds);
+    const head = ids[0];
+    const pushEdit = input.recordTimelineEdit;
+    if (head && pushEdit) {
+      const detailParts: string[] = [];
+      if (speakerId) detailParts.push(`speakerId=${speakerId}`);
+      if (ids.length > 1) detailParts.push(`count=${ids.length}`);
+      pushEdit({
+        action: 'assign_speaker',
+        unitId: head,
+        unitKind: kind,
+        ...(detailParts.length > 0 ? { detail: detailParts.join(';') } : {}),
+      });
+    }
     if (kind === 'segment') {
-      fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));
+      fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));
       return;
     }
-    fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(unitIds), speakerId));
-  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, resolveSpeakerActionUtteranceIds]);
+    fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(ids), speakerId));
+  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, input.recordTimelineEdit, resolveSpeakerActionUtteranceIds]);
 
   return {
     speakerOptions,
@@ -232,6 +277,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     activeSpeakerFilterKey,
     setActiveSpeakerFilterKey,
     speakerReferenceStats,
+    speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady,
     speakerDialogStateRouted,
     selectedSpeakerSummaryForActions,

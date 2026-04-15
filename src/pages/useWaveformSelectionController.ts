@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType } from '../db';
 import {
   isSegmentTimelineUnit,
   isUtteranceTimelineUnit,
@@ -16,9 +16,8 @@ interface UseWaveformSelectionControllerInput {
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
   defaultTranscriptionLayerId?: string;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
+  /** Single read-model source for waveform regions (utterance vs segment rows). */
+  timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
   selectedUnitIds: Set<string>;
 }
@@ -31,7 +30,6 @@ interface UseWaveformSelectionControllerResult {
   waveformRegions: Array<{ id: string; start: number; end: number }>;
   selectedWaveformRegionId: string;
   waveformActiveRegionIds: Set<string>;
-  waveformPrimaryRegionId: string;
   selectedWaveformTimelineItem: WaveformTimelineItem | null;
 }
 
@@ -40,8 +38,6 @@ export function useWaveformSelectionController({
   layers,
   layerById,
   defaultTranscriptionLayerId,
-  segmentsByLayer,
-  utterancesOnCurrentMedia,
   timelineUnitViewIndex,
   selectedTimelineUnit,
   selectedUnitIds,
@@ -59,53 +55,19 @@ export function useWaveformSelectionController({
   const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);
 
   const waveformTimelineItems = useMemo(() => {
-    const unitRowsFromIndex = timelineUnitViewIndex?.currentMediaUnits;
-    if (unitRowsFromIndex && unitRowsFromIndex.length > 0) {
-      if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
-        return unitRowsFromIndex
-          .filter((unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id)
-          .sort((a, b) => a.startTime - b.startTime);
-      }
+    const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;
+    if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
       return unitRowsFromIndex
-        .filter((unit) => unit.kind === 'utterance')
+        .filter((unit) => unit.kind === 'segment' && unit.layerId === activeWaveformSegmentSourceLayer.id)
         .sort((a, b) => a.startTime - b.startTime);
     }
-    if (useSegmentWaveformRegions && activeWaveformSegmentSourceLayer) {
-      const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];
-      return [...segments]
-        .sort((a, b) => a.startTime - b.startTime)
-        .map((segment) => ({
-          id: segment.id,
-          kind: 'segment',
-          layerRole: segment.utteranceId ? 'referring' : 'independent',
-          mediaId: segment.mediaId,
-          layerId: segment.layerId,
-          startTime: segment.startTime,
-          endTime: segment.endTime,
-          text: '',
-          ...(segment.speakerId ? { speakerId: segment.speakerId } : {}),
-          ...(segment.utteranceId ? { parentUtteranceId: segment.utteranceId } : {}),
-        } satisfies TimelineUnitView));
-    }
-    return utterancesOnCurrentMedia.map((utterance) => ({
-      id: utterance.id,
-      kind: 'utterance',
-      layerRole: 'independent',
-      mediaId: utterance.mediaId ?? '',
-      layerId: defaultTranscriptionLayerId ?? activeLayerIdForEdits,
-      startTime: utterance.startTime,
-      endTime: utterance.endTime,
-      text: '',
-      ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
-    } satisfies TimelineUnitView));
+    return unitRowsFromIndex
+      .filter((unit) => unit.kind === 'utterance')
+      .sort((a, b) => a.startTime - b.startTime);
   }, [
-    activeLayerIdForEdits,
     activeWaveformSegmentSourceLayer,
-    defaultTranscriptionLayerId,
-    segmentsByLayer,
-    timelineUnitViewIndex?.currentMediaUnits,
+    timelineUnitViewIndex.currentMediaUnits,
     useSegmentWaveformRegions,
-    utterancesOnCurrentMedia,
   ]);
 
   const waveformRegions = useMemo(() =>
@@ -135,8 +97,6 @@ export function useWaveformSelectionController({
     return selectedUnitIds;
   }, [selectedUnitIds, selectedWaveformRegionId, useSegmentWaveformRegions]);
 
-  const waveformPrimaryRegionId = selectedWaveformRegionId;
-
   const selectedWaveformTimelineItem = useMemo(() => {
     if (!selectedWaveformRegionId) return null;
     return waveformTimelineItems.find((item) => item.id === selectedWaveformRegionId) ?? null;
@@ -150,7 +110,6 @@ export function useWaveformSelectionController({
     waveformRegions,
     selectedWaveformRegionId,
     waveformActiveRegionIds,
-    waveformPrimaryRegionId,
     selectedWaveformTimelineItem,
   };
 }

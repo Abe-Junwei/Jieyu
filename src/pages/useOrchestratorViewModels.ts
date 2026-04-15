@@ -81,7 +81,7 @@ export interface UseOrchestratorViewModelsInput {
   searchableItems: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['searchableItems'];
   orthographies: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['orthographies'];
   activeLayerIdForEdits: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['activeLayerIdForEdits'];
-  selectedTimelineUtteranceId: string;
+  activeTimelineUnitId: string;
   searchOverlayRequest: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['searchOverlayRequest'];
   manualSelectTsRef: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['manualSelectTsRef'];
   selectUnit: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['selectUnit'];
@@ -172,7 +172,7 @@ export function useOrchestratorViewModels(
     searchableItems: input.searchableItems,
     orthographies: input.orthographies,
     activeLayerIdForEdits: input.activeLayerIdForEdits,
-    selectedTimelineUtteranceId: input.selectedTimelineUtteranceId,
+    activeTimelineUnitId: input.activeTimelineUnitId,
     searchOverlayRequest: input.searchOverlayRequest,
     manualSelectTsRef: input.manualSelectTsRef,
     selectUnit: input.selectUnit,

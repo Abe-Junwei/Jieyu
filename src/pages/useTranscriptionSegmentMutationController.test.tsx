@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
+import { segmentToView, utteranceToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';
 
@@ -69,7 +70,24 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
 
 type HookInput = Parameters<typeof useTranscriptionSegmentMutationController>[0];
 
+function createUnitsOnCurrentMedia(
+  segments: LayerSegmentDocType[],
+  utterances: UtteranceDocType[],
+  utteranceLayerId = 'layer-seg',
+) {
+  return [
+    ...segments.map((segment) => segmentToView(segment, () => '')),
+    ...utterances.map((utterance) => utteranceToView(utterance, utteranceLayerId)),
+  ];
+}
+
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
+  const defaultSegments = [
+    makeSegment('seg-1', 'layer-seg', 0, 1),
+    makeSegment('seg-2', 'layer-seg', 1, 2),
+    makeSegment('seg-3', 'layer-seg', 2, 4),
+  ];
+  const defaultUtterances = [makeUtterance('utt-1', 1.5, 2.5)];
   return {
     activeLayerIdForEdits: 'layer-seg',
     resolveSegmentRoutingForLayer: () => ({
@@ -82,8 +100,11 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     reloadSegments: vi.fn(async () => undefined),
     refreshSegmentUndoSnapshot: vi.fn(async () => undefined),
     selectTimelineUnit: vi.fn(),
-    segmentsByLayer: new Map([['layer-seg', [makeSegment('seg-1', 'layer-seg', 0, 1), makeSegment('seg-2', 'layer-seg', 1, 2), makeSegment('seg-3', 'layer-seg', 2, 4)]]]),
-    utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.5, 2.5)],
+    unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUtterances),
+    getUtteranceDocById: (id: string) => defaultUtterances.find((u) => u.id === id),
+    findUtteranceDocContainingRange: (start: number, end: number) => defaultUtterances.find(
+      (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
+    ),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
     splitUtterance: vi.fn(async () => undefined),
     mergeSelectedUtterances: vi.fn(async () => undefined),
@@ -186,6 +207,7 @@ describe('useTranscriptionSegmentMutationController', () => {
   it('blocks time-subdivision merge when merged range exceeds parent utterance', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
+    const utt = makeUtterance('utt-1', 1.5, 3.0);
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
       activeLayerIdForEdits: 'layer-sub',
       resolveSegmentRoutingForLayer: () => ({
@@ -194,8 +216,46 @@ describe('useTranscriptionSegmentMutationController', () => {
         sourceLayerId: 'layer-sub',
         editMode: 'time-subdivision',
       }),
-      segmentsByLayer: new Map([['layer-sub', [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)]]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.5, 3.0)],
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+        [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
+        [utt],
+        'layer-sub',
+      ),
+      getUtteranceDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+      findUtteranceDocContainingRange: (start: number, end: number) => (
+        utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
+      ),
+      setSaveState,
+      pushUndo,
+    })));
+
+    await act(async () => {
+      await result.current.mergeWithPreviousRouted('seg-2');
+    });
+
+    expect(mockMergeAdjacentSegments).not.toHaveBeenCalled();
+    expect(pushUndo).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
+  });
+
+  it('blocks time-subdivision merge when parent utterance cannot be resolved from raw resolver', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const pushUndo = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      activeLayerIdForEdits: 'layer-sub',
+      resolveSegmentRoutingForLayer: () => ({
+        layer: makeLayer('layer-sub', 'time_subdivision'),
+        segmentSourceLayer: makeLayer('layer-sub', 'time_subdivision'),
+        sourceLayerId: 'layer-sub',
+        editMode: 'time-subdivision',
+      }),
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+        [makeSegment('seg-1', 'layer-sub', 1, 2), makeSegment('seg-2', 'layer-sub', 2, 3)],
+        [],
+        'layer-sub',
+      ),
+      getUtteranceDocById: () => undefined,
+      findUtteranceDocContainingRange: () => undefined,
       setSaveState,
       pushUndo,
     })));
@@ -215,9 +275,16 @@ describe('useTranscriptionSegmentMutationController', () => {
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
+    const utt = makeUtterance('utt-1', 1.5, 3.0);
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
-      segmentsByLayer: new Map([['layer-seg', [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)]]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.5, 3.0)],
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia(
+        [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)],
+        [utt],
+      ),
+      getUtteranceDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+      findUtteranceDocContainingRange: (start: number, end: number) => (
+        utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
+      ),
       setSaveState,
       pushUndo,
       reloadSegments,

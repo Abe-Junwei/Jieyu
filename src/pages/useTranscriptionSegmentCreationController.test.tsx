@@ -8,6 +8,7 @@ import type {
   UtteranceDocType,
 } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
+import { segmentToView, utteranceToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';
 
@@ -88,7 +89,23 @@ function makeMedia(): MediaItemDocType {
 
 type HookInput = Parameters<typeof useTranscriptionSegmentCreationController>[0];
 
+function createUnitsOnCurrentMedia(
+  segments: LayerSegmentDocType[],
+  utterances: UtteranceDocType[],
+  utteranceLayerId = 'layer-seg',
+) {
+  return [
+    ...segments.map((segment) => segmentToView(segment, () => '')),
+    ...utterances.map((utterance) => utteranceToView(utterance, utteranceLayerId)),
+  ];
+}
+
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
+  const defaultSegments = [
+    makeSegment('seg-a', 'layer-seg', 0, 1),
+    makeSegment('seg-b', 'layer-seg', 3, 4),
+  ];
+  const defaultUtterances = [makeUtterance('utt-1', 1.1, 2.5, 'spk-parent')];
   return {
     activeLayerIdForEdits: 'layer-seg',
     resolveSegmentRoutingForLayer: () => ({
@@ -98,8 +115,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
       editMode: 'independent-segment',
     }),
     selectedTimelineMedia: makeMedia(),
-    segmentsByLayer: new Map([['layer-seg', [makeSegment('seg-a', 'layer-seg', 0, 1), makeSegment('seg-b', 'layer-seg', 3, 4)]]]),
-    utterancesOnCurrentMedia: [makeUtterance('utt-1', 1.1, 2.5, 'spk-parent')],
+    unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUtterances),
+    getUtteranceDocById: (id: string) => defaultUtterances.find((u) => u.id === id),
+    findUtteranceDocContainingRange: (start: number, end: number) => defaultUtterances.find(
+      (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
+    ),
+    findOverlappingUtteranceDoc: (start: number, end: number) => defaultUtterances.find(
+      (u) => u.startTime <= end - 0.01 && u.endTime >= start + 0.01,
+    ),
     pushUndo: vi.fn(),
     reloadSegments: vi.fn(async () => undefined),
     refreshSegmentUndoSnapshot: vi.fn(async () => undefined),
@@ -159,6 +182,7 @@ describe('useTranscriptionSegmentCreationController', () => {
 
   it('creates time-subdivision segments within parent bounds and inherits parent speaker', async () => {
     const pushUndo = vi.fn();
+    const parentUtt = makeUtterance('utt-parent', 0.5, 2.5, 'spk-parent');
     const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
       resolveSegmentRoutingForLayer: () => ({
         layer: makeLayer('layer-sub', 'time_subdivision'),
@@ -167,8 +191,14 @@ describe('useTranscriptionSegmentCreationController', () => {
         editMode: 'time-subdivision',
       }),
       activeLayerIdForEdits: 'layer-sub',
-      segmentsByLayer: new Map([['layer-sub', []]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-parent', 0.5, 2.5, 'spk-parent')],
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
+      getUtteranceDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
+      findUtteranceDocContainingRange: (start: number, end: number) => (
+        parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01 ? parentUtt : undefined
+      ),
+      findOverlappingUtteranceDoc: (start: number, end: number) => (
+        parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01 ? parentUtt : undefined
+      ),
       pushUndo,
     })));
 
@@ -239,6 +269,7 @@ describe('useTranscriptionSegmentCreationController', () => {
   it('reports an error when time-subdivision selection has no parent utterance', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const parentUtt = makeUtterance('utt-parent', 0.5, 2.5, 'spk-parent');
     const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
       resolveSegmentRoutingForLayer: () => ({
         layer: makeLayer('layer-sub', 'time_subdivision'),
@@ -247,8 +278,14 @@ describe('useTranscriptionSegmentCreationController', () => {
         editMode: 'time-subdivision',
       }),
       activeLayerIdForEdits: 'layer-sub',
-      segmentsByLayer: new Map([['layer-sub', []]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-parent', 0.5, 2.5, 'spk-parent')],
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [parentUtt], 'layer-sub'),
+      getUtteranceDocById: (id: string) => (id === 'utt-parent' ? parentUtt : undefined),
+      findUtteranceDocContainingRange: (start: number, end: number) => (
+        parentUtt.startTime <= start + 0.01 && parentUtt.endTime >= end - 0.01 ? parentUtt : undefined
+      ),
+      findOverlappingUtteranceDoc: (start: number, end: number) => (
+        parentUtt.startTime <= end - 0.01 && parentUtt.endTime >= start + 0.01 ? parentUtt : undefined
+      ),
       pushUndo,
       setSaveState,
     })));
@@ -275,7 +312,7 @@ describe('useTranscriptionSegmentCreationController', () => {
         sourceLayerId: '',
         editMode: 'utterance',
       }),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2, 'spk-focus')],
+      getUtteranceDocById: (id: string) => (id === 'utt-1' ? makeUtterance('utt-1', 1, 2, 'spk-focus') : undefined),
       createNextUtterance,
       createUtteranceFromSelection,
     })));

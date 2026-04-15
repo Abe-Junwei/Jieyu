@@ -6,6 +6,7 @@ type SharedLaneFields = Pick<
   MediaLanesProps,
   | 'transcriptionLayers'
   | 'translationLayers'
+  | 'timelineUnitViewIndex'
   | 'segmentsByLayer'
   | 'segmentContentByLayer'
   | 'saveSegmentContentForLayer'
@@ -34,7 +35,7 @@ type SharedLaneFields = Pick<
  * 新建层弹窗的语言/正字法默认留空，不再从项目主语言注入。
  */
 export type BuildSharedLanePropsInput = SharedLaneFields & {
-  selectedTimelineUtteranceId: string;
+  activeTimelineUnitId: string;
   orderedLayers: MediaLanesProps['allLayersOrdered'];
   reorderLayers: MediaLanesProps['onReorderLayers'];
   handleFocusLayerRow: MediaLanesProps['onFocusLayer'];
@@ -77,13 +78,14 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
   return dropUndefinedKeys({
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
+    timelineUnitViewIndex: input.timelineUnitViewIndex,
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
     selectedTimelineUnit: input.selectedTimelineUnit,
     flashLayerRowId: input.flashLayerRowId,
     focusedLayerRowId: input.focusedLayerRowId,
-    activeUnitId: input.selectedTimelineUtteranceId,
+    activeUnitId: input.activeTimelineUnitId,
     allLayersOrdered: input.orderedLayers,
     onReorderLayers: input.reorderLayers,
     deletableLayers: input.deletableLayers,

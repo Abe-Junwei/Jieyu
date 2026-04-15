@@ -104,7 +104,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     },
     locale: 'zh-CN',
     sidePaneRows: [],
-    selectedTimelineUtteranceId: 'utt-1',
+    activeTimelineUnitId: 'utt-1',
     onSetNotePopover: vi.fn(),
     onSetSidebarError: vi.fn(),
     onRevealSchemaLayer: vi.fn(),

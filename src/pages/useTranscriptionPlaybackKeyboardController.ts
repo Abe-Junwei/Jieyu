@@ -9,7 +9,7 @@ export function useTranscriptionPlaybackKeyboardController(
     handlePlayPauseAction: _handlePlayPauseAction,
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
-    navigateUtteranceFromInput,
+    navigateUnitFromInput,
     executeAction,
   } = useKeybindingActions({
     ...input,
@@ -19,7 +19,7 @@ export function useTranscriptionPlaybackKeyboardController(
   return {
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
-    navigateUtteranceFromInput,
+    navigateUnitFromInput,
     executeAction,
     toggleVoiceRef,
   };

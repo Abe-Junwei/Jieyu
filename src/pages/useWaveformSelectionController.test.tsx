@@ -46,19 +46,63 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
   } as LayerSegmentDocType;
 }
 
+function segmentToTimelineView(s: LayerSegmentDocType): TimelineUnitView {
+  return {
+    id: s.id,
+    kind: 'segment',
+    layerRole: s.utteranceId ? 'referring' : 'independent',
+    mediaId: s.mediaId,
+    layerId: s.layerId,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    text: '',
+    ...(s.speakerId ? { speakerId: s.speakerId } : {}),
+    ...(s.utteranceId ? { parentUtteranceId: s.utteranceId } : {}),
+  };
+}
+
+function utteranceToTimelineView(u: UtteranceDocType, layerId: string): TimelineUnitView {
+  return {
+    id: u.id,
+    kind: 'utterance',
+    layerRole: 'independent',
+    mediaId: u.mediaId ?? '',
+    layerId,
+    startTime: u.startTime,
+    endTime: u.endTime,
+    text: '',
+    ...(u.speakerId ? { speakerId: u.speakerId } : {}),
+  };
+}
+
+function makeIndex(currentMediaUnits: TimelineUnitView[]): TimelineUnitViewIndex {
+  return {
+    allUnits: currentMediaUnits,
+    currentMediaUnits,
+    byId: new Map(currentMediaUnits.map((unit) => [unit.id, unit] as const)),
+    byLayer: new Map(),
+    getReferringUnits: () => [],
+    totalCount: currentMediaUnits.length,
+    currentMediaCount: currentMediaUnits.length,
+    epoch: 1,
+    fallbackToSegments: true,
+    isComplete: true,
+  };
+}
+
 describe('useWaveformSelectionController', () => {
   it('uses segment-backed waveform regions for independent layers', () => {
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-2', kind: 'segment' };
+    const segs = [
+      makeSegment('seg-2', 'layer-seg', 1, 2),
+      makeSegment('seg-1', 'layer-seg', 0, 1),
+    ].sort((a, b) => a.startTime - b.startTime);
     const { result } = renderHook(() => useWaveformSelectionController({
       activeLayerIdForEdits: 'layer-seg',
       layers: [makeLayer('layer-seg', 'independent_boundary')],
       layerById: new Map([['layer-seg', makeLayer('layer-seg', 'independent_boundary')]]),
       defaultTranscriptionLayerId: 'layer-seg',
-      segmentsByLayer: new Map([['layer-seg', [
-        makeSegment('seg-2', 'layer-seg', 1, 2),
-        makeSegment('seg-1', 'layer-seg', 0, 1),
-      ]]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 10, 11)],
+      timelineUnitViewIndex: makeIndex(segs.map(segmentToTimelineView)),
       selectedTimelineUnit,
       selectedUnitIds: new Set(['seg-1', 'seg-2']),
     }));
@@ -81,6 +125,10 @@ describe('useWaveformSelectionController', () => {
       parentLayerId: 'layer-seg',
     } as LayerDocType;
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-dependent', unitId: 'seg-2', kind: 'segment' };
+    const segs = [
+      makeSegment('seg-2', 'layer-seg', 1, 2),
+      makeSegment('seg-1', 'layer-seg', 0, 1),
+    ].sort((a, b) => a.startTime - b.startTime);
 
     const { result } = renderHook(() => useWaveformSelectionController({
       activeLayerIdForEdits: 'layer-dependent',
@@ -90,11 +138,7 @@ describe('useWaveformSelectionController', () => {
         ['layer-dependent', dependentLayer],
       ]),
       defaultTranscriptionLayerId: 'layer-seg',
-      segmentsByLayer: new Map([['layer-seg', [
-        makeSegment('seg-2', 'layer-seg', 1, 2),
-        makeSegment('seg-1', 'layer-seg', 0, 1),
-      ]]]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 10, 11)],
+      timelineUnitViewIndex: makeIndex(segs.map(segmentToTimelineView)),
       selectedTimelineUnit,
       selectedUnitIds: new Set(['seg-2']),
     }));
@@ -140,8 +184,6 @@ describe('useWaveformSelectionController', () => {
       layers: [makeLayer('layer-seg', 'independent_boundary')],
       layerById: new Map([['layer-seg', makeLayer('layer-seg', 'independent_boundary')]]),
       defaultTranscriptionLayerId: 'layer-seg',
-      segmentsByLayer: new Map(),
-      utterancesOnCurrentMedia: [],
       timelineUnitViewIndex: idx,
       selectedTimelineUnit,
       selectedUnitIds: new Set(),
@@ -179,8 +221,6 @@ describe('useWaveformSelectionController', () => {
       layers: [makeLayer('layer-main')],
       layerById: new Map([['layer-main', makeLayer('layer-main')]]),
       defaultTranscriptionLayerId: 'layer-main',
-      segmentsByLayer: new Map(),
-      utterancesOnCurrentMedia: [],
       timelineUnitViewIndex: idx,
       selectedTimelineUnit,
       selectedUnitIds: new Set(['utt-2']),
@@ -199,13 +239,13 @@ describe('useWaveformSelectionController', () => {
   it('keeps utterance waveform mode when timeline selection kind does not match', () => {
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'seg-1', kind: 'segment' };
     const utterances = [makeUtterance('utt-1', 0, 1), makeUtterance('utt-2', 1, 2)];
+    const views = utterances.map((u) => utteranceToTimelineView(u, 'layer-main'));
     const { result } = renderHook(() => useWaveformSelectionController({
       activeLayerIdForEdits: 'layer-main',
       layers: [makeLayer('layer-main')],
       layerById: new Map([['layer-main', makeLayer('layer-main')]]),
       defaultTranscriptionLayerId: 'layer-main',
-      segmentsByLayer: new Map(),
-      utterancesOnCurrentMedia: utterances,
+      timelineUnitViewIndex: makeIndex(views),
       selectedTimelineUnit,
       selectedUnitIds: new Set(['utt-2']),
     }));

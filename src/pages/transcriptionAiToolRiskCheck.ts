@@ -8,7 +8,7 @@ import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 interface CreateTranscriptionAiToolRiskCheckInput {
   locale: Locale;
   utterances: UtteranceDocType[];
-  selectedUtterance?: UtteranceDocType;
+  selectedUnit?: UtteranceDocType;
   selectedSegmentTargetId?: string;
   segmentTargets?: SegmentTargetDescriptor[];
   transcriptionLayers: LayerDocType[];
@@ -114,7 +114,7 @@ function resolveTargetSegments(
 export function createTranscriptionAiToolRiskCheck({
   locale,
   utterances,
-  selectedUtterance,
+  selectedUnit,
   selectedSegmentTargetId,
   segmentTargets,
   transcriptionLayers,
@@ -192,7 +192,7 @@ export function createTranscriptionAiToolRiskCheck({
     const targetSegments = resolveTargetSegments(
       call,
       resolvedSegmentTargets,
-      selectedSegmentTargetId ?? selectedUtterance?.id,
+      selectedSegmentTargetId ?? selectedUnit?.id,
     );
     if (targetSegments.length === 0) {
       if (call.arguments.allSegments === true) {

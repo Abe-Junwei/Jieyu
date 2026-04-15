@@ -34,7 +34,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
-  navigateUtteranceFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUtteranceFromInput'];
+  navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUtteranceId'];
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
@@ -83,7 +83,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   searchableItems: UseTranscriptionSectionViewModelsInput['searchableItems'];
   displayStyleControl: NonNullable<TranscriptionPageTimelineMediaLanesProps['displayStyleControl']>;
   activeLayerIdForEdits: UseTranscriptionSectionViewModelsInput['activeLayerIdForEdits'];
-  selectedTimelineUtteranceId: UseTranscriptionSectionViewModelsInput['selectedTimelineUtteranceId'];
+  activeTimelineUnitId: UseTranscriptionSectionViewModelsInput['activeTimelineUnitId'];
   searchOverlayRequest: UseTranscriptionSectionViewModelsInput['searchOverlayRequest'];
   manualSelectTsRef: UseTranscriptionSectionViewModelsInput['manualSelectTsRef'];
   selectUnit: UseTranscriptionSectionViewModelsInput['selectUnit'];
@@ -143,7 +143,7 @@ export function buildOrchestratorViewModelsInput(
     tierContainerRef,
     handleAnnotationClick,
     handleAnnotationContextMenu,
-    navigateUtteranceFromInput,
+    navigateUnitFromInput,
     speakerVisualByTimelineUnitId,
     selectedTimelineMedia,
     waveformDisplayMode,
@@ -192,7 +192,7 @@ export function buildOrchestratorViewModelsInput(
     searchableItems,
     displayStyleControl,
     activeLayerIdForEdits,
-    selectedTimelineUtteranceId,
+    activeTimelineUnitId,
     searchOverlayRequest,
     manualSelectTsRef,
     selectUnit,
@@ -255,7 +255,7 @@ export function buildOrchestratorViewModelsInput(
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
-      navigateUtteranceFromInput,
+      navigateUnitFromInput,
       speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
     }) as UseOrchestratorViewModelsInput['textOnlyPropsInput'],
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
@@ -309,7 +309,7 @@ export function buildOrchestratorViewModelsInput(
     searchableItems,
     orthographies: displayStyleControl.orthographies,
     activeLayerIdForEdits,
-    selectedTimelineUtteranceId,
+    activeTimelineUnitId,
     searchOverlayRequest,
     manualSelectTsRef,
     selectUnit,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import {
   hasSelectionSourceForUnitMapping,
   resolveMappedUnitIds,
@@ -6,52 +7,69 @@ import {
   resolveUnitSelectionMapping,
 } from './selectionIdResolvers';
 
+function utt(id: string): TimelineUnitView {
+  return { id, kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' };
+}
+
+function seg(id: string, parent: string): TimelineUnitView {
+  return {
+    id,
+    kind: 'segment',
+    mediaId: 'm',
+    layerId: 'l',
+    startTime: 0,
+    endTime: 1,
+    text: '',
+    parentUtteranceId: parent,
+  };
+}
+
 describe('selectionIdResolvers', () => {
   it('maps mixed utterance/segment unit ids into unique utterance ids', () => {
-    const map = new Map<string, string>([
-      ['utt-1', 'utt-1'],
-      ['seg-a', 'utt-1'],
-      ['seg-b', 'utt-2'],
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ['utt-1', utt('utt-1')],
+      ['seg-a', seg('seg-a', 'utt-1')],
+      ['seg-b', seg('seg-b', 'utt-2')],
     ]);
 
-    const result = resolveMappedUnitIds(['utt-1', 'seg-a', 'seg-b'], map);
+    const result = resolveMappedUnitIds(['utt-1', 'seg-a', 'seg-b'], unitViewById);
 
     expect(result.sort()).toEqual(['utt-1', 'utt-2']);
   });
 
   it('ignores blank or unknown unit ids', () => {
-    const map = new Map<string, string>([['utt-1', 'utt-1']]);
+    const unitViewById = new Map<string, TimelineUnitView>([['utt-1', utt('utt-1')]]);
 
-    const result = resolveMappedUnitIds(['', '   ', 'unknown', 'utt-1'], map);
+    const result = resolveMappedUnitIds(['', '   ', 'unknown', 'utt-1'], unitViewById);
 
     expect(result).toEqual(['utt-1']);
   });
 
   it('prefers selectedUnitIds when non-empty', () => {
-    const map = new Map<string, string>([
-      ['utt-1', 'utt-1'],
-      ['seg-a', 'utt-2'],
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ['utt-1', utt('utt-1')],
+      ['seg-a', seg('seg-a', 'utt-2')],
     ]);
 
     const result = resolveMappedUnitIdsFromSelection({
       selectedUnitIds: new Set(['seg-a']),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'utt-1', kind: 'utterance' },
-      unitToUtteranceId: map,
+      unitViewById,
     });
 
     expect(Array.from(result)).toEqual(['utt-2']);
   });
 
   it('falls back to selectedTimelineUnit when selection set is empty', () => {
-    const map = new Map<string, string>([
-      ['utt-1', 'utt-1'],
-      ['seg-a', 'utt-2'],
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ['utt-1', utt('utt-1')],
+      ['seg-a', seg('seg-a', 'utt-2')],
     ]);
 
     const result = resolveMappedUnitIdsFromSelection({
       selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-a', kind: 'segment' },
-      unitToUtteranceId: map,
+      unitViewById,
     });
 
     expect(Array.from(result)).toEqual(['utt-2']);
@@ -85,15 +103,15 @@ describe('selectionIdResolvers', () => {
   });
 
   it('reports partial mapping stats when explicit selection is only partly mappable', () => {
-    const map = new Map<string, string>([
-      ['seg-a', 'utt-1'],
-      ['seg-b', 'utt-2'],
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ['seg-a', seg('seg-a', 'utt-1')],
+      ['seg-b', seg('seg-b', 'utt-2')],
     ]);
 
     const result = resolveUnitSelectionMapping({
       selectedUnitIds: new Set(['seg-a', 'unknown', 'seg-b']),
       selectedTimelineUnit: null,
-      unitToUtteranceId: map,
+      unitViewById,
     });
 
     expect(result.hasSelectionSource).toBe(true);
@@ -106,7 +124,7 @@ describe('selectionIdResolvers', () => {
     const result = resolveUnitSelectionMapping({
       selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-x', kind: 'segment' },
-      unitToUtteranceId: new Map<string, string>(),
+      unitViewById: new Map<string, TimelineUnitView>(),
     });
 
     expect(result.hasSelectionSource).toBe(true);

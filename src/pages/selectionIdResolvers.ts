@@ -1,4 +1,6 @@
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import { resolveSpeakerTargetUtteranceIdFromUnitId } from './timelineUnitViewUtteranceHelpers';
 
 type SelectionMappingInput = {
   selectedUnitIds: Set<string>;
@@ -26,13 +28,13 @@ function resolveSelectionSourceUnitIds(input: SelectionMappingInput): string[] {
 
 export function resolveMappedUnitIds(
   unitIds: Iterable<string>,
-  unitToUtteranceId: ReadonlyMap<string, string>,
+  unitViewById: ReadonlyMap<string, TimelineUnitView>,
 ): string[] {
   const unique = new Set<string>();
   for (const rawId of unitIds) {
     const id = rawId.trim();
     if (!id) continue;
-    const resolved = unitToUtteranceId.get(id);
+    const resolved = resolveSpeakerTargetUtteranceIdFromUnitId(id, unitViewById);
     if (!resolved) continue;
     unique.add(resolved);
   }
@@ -42,7 +44,7 @@ export function resolveMappedUnitIds(
 export function resolveMappedUnitIdsFromSelection(input: {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
-  unitToUtteranceId: ReadonlyMap<string, string>;
+  unitViewById: ReadonlyMap<string, TimelineUnitView>;
 }): Set<string> {
   return resolveUnitSelectionMapping(input).mappedUnitIds;
 }
@@ -54,7 +56,7 @@ export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): 
 export function resolveUnitSelectionMapping(input: {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
-  unitToUtteranceId: ReadonlyMap<string, string>;
+  unitViewById: ReadonlyMap<string, TimelineUnitView>;
 }): UnitSelectionMappingResult {
   const sourceUnitIds = resolveSelectionSourceUnitIds(input);
   const hasSelectionSource = sourceUnitIds.length > 0;
@@ -70,7 +72,7 @@ export function resolveUnitSelectionMapping(input: {
   let mappedSourceCount = 0;
   const mappedUnitIds = new Set<string>();
   for (const unitId of sourceUnitIds) {
-    const mappedUnitId = input.unitToUtteranceId.get(unitId);
+    const mappedUnitId = resolveSpeakerTargetUtteranceIdFromUnitId(unitId, input.unitViewById);
     if (!mappedUnitId) continue;
     mappedSourceCount += 1;
     mappedUnitIds.add(mappedUnitId);

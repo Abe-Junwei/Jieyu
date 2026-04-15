@@ -10,7 +10,8 @@ import {
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 
 function isTimelineUnitView(item: TimelineUnitView | UtteranceDocType): item is TimelineUnitView {
-  return 'kind' in item && (item as TimelineUnitView).kind !== undefined;
+  const kind = (item as TimelineUnitView).kind;
+  return kind === 'utterance' || kind === 'segment';
 }
 
 type SegmentSpeakerAssignmentLike = {

@@ -25,10 +25,10 @@ interface CreateTranscriptionTimelineTopPropsInput {
   searchableItems: TranscriptionPageTimelineTopProps['searchProps']['items'];
   orthographies: OrthographyDocType[];
   activeLayerIdForEdits: string;
-  selectedTimelineUtteranceId: string;
+  activeTimelineUnitId: string;
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   handleSearchReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;
@@ -57,14 +57,14 @@ export function createTranscriptionTimelineTopProps(
       items: input.searchableItems,
       orthographies: input.orthographies,
       currentLayerId: input.activeLayerIdForEdits || undefined,
-      currentUtteranceId: input.selectedTimelineUtteranceId || undefined,
+      currentUtteranceId: input.activeTimelineUnitId || undefined,
       ...(input.searchOverlayRequest?.query !== undefined && { initialQuery: input.searchOverlayRequest.query }),
       ...(input.searchOverlayRequest?.scope !== undefined && { initialScope: input.searchOverlayRequest.scope }),
       ...(input.searchOverlayRequest?.layerKinds !== undefined && { initialLayerKinds: input.searchOverlayRequest.layerKinds }),
       onNavigate: (id) => {
         input.manualSelectTsRef.current = Date.now();
         if (input.player.isPlaying) input.player.stop();
-        input.selectUtterance(id);
+        input.selectUnit(id);
       },
       onReplace: input.handleSearchReplace,
       onClose: () => {

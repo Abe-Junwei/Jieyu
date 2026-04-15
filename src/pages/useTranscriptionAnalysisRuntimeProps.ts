@@ -9,7 +9,7 @@ import { createAnalysisRuntimeProps } from './TranscriptionPage.runtimeProps';
 type UseTranscriptionAnalysisRuntimeProps = Omit<TranscriptionPageAnalysisRuntimeProps, 'panel'>;
 
 interface UseTranscriptionAnalysisRuntimePropsInput {
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
   utterancesOnCurrentMedia: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
@@ -28,7 +28,7 @@ export function useTranscriptionAnalysisRuntimeProps(
   input: UseTranscriptionAnalysisRuntimePropsInput,
 ): UseTranscriptionAnalysisRuntimeProps {
   return useMemo(() => createAnalysisRuntimeProps({
-    selectedUtterance: input.selectedUtterance,
+    selectedUnit: input.selectedUnit,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,
@@ -44,7 +44,7 @@ export function useTranscriptionAnalysisRuntimeProps(
     input.getUtteranceTextForLayer,
     input.handleJumpToCitation,
     input.handleJumpToEmbeddingMatch,
-    input.selectedUtterance,
+    input.selectedUnit,
     input.setEmbeddingProviderConfig,
     input.utterancesOnCurrentMedia,
   ]);

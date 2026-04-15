@@ -10,7 +10,7 @@ import type { useWaveSurfer } from '../hooks/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
@@ -78,9 +78,7 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
   defaultTranscriptionLayerId?: string;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  timelineUnitViewIndex?: TimelineUnitViewIndexWithEpoch;
+  timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineUnitForTime: TimeRangeLike | null;
   selectedUnitIds: Set<string>;
@@ -114,7 +112,6 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   waveformRegions: Array<{ id: string; start: number; end: number }>;
   selectedWaveformRegionId: string;
   waveformActiveRegionIds: Set<string>;
-  waveformPrimaryRegionId: string;
   selectedWaveformTimelineItem: TimelineUnitView | null;
   waveformFocused: boolean;
   segmentLoopPlayback: boolean;

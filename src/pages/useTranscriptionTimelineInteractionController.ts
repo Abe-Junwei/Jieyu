@@ -63,14 +63,14 @@ export function useTranscriptionTimelineInteractionController(
       refId,
       ...(citationRef ? { citationRef } : {}),
       sidePaneRows: input.sidePaneRows,
-      selectedTimelineUtteranceId: input.selectedTimelineUtteranceId,
+      activeTimelineUnitId: input.activeTimelineUnitId,
       onJumpToEmbeddingMatch: handleJumpToEmbeddingMatch,
       onSetNotePopover: input.onSetNotePopover,
       onSetSidebarError: input.onSetSidebarError,
       onRevealSchemaLayer: input.onRevealSchemaLayer,
       onOpenPdfPreviewRequest: input.onOpenPdfPreviewRequest,
     });
-  }, [handleJumpToEmbeddingMatch, input.sidePaneRows, input.locale, input.onOpenPdfPreviewRequest, input.onRevealSchemaLayer, input.onSetNotePopover, input.onSetSidebarError, input.selectedTimelineUtteranceId]);
+  }, [handleJumpToEmbeddingMatch, input.sidePaneRows, input.locale, input.onOpenPdfPreviewRequest, input.onRevealSchemaLayer, input.onSetNotePopover, input.onSetSidebarError, input.activeTimelineUnitId]);
 
   const handleSplitAtTimeRequest = useCallback((timeSeconds: number) => {
     const target = input.waveformTimelineItems.find((item) => item.startTime < timeSeconds && item.endTime > timeSeconds);
