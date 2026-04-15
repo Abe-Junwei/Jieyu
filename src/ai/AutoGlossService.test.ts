@@ -31,7 +31,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'dog' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -78,7 +78,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'dog' },
       gloss: { eng: 'existing' },
       tokenIndex: 0,
@@ -109,7 +109,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'Dog' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -135,7 +135,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'xyz' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -153,7 +153,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'dog' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -188,7 +188,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'walking' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -220,7 +220,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'helpfulness' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -257,7 +257,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'walk' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -293,7 +293,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'unhappiness' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -320,7 +320,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'bead' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -347,7 +347,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'ran' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -377,7 +377,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'dog' },
       tokenIndex: 0,
       createdAt: NOW,
@@ -406,7 +406,7 @@ describe('AutoGlossService', () => {
     await db.utterance_tokens.put({
       id: 'tok_1',
       textId: 't1',
-      utteranceId: 'utt_1',
+      unitId: 'utt_1',
       form: { default: 'dog' },
       tokenIndex: 0,
       createdAt: NOW,

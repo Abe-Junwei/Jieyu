@@ -161,7 +161,8 @@ export interface UtteranceDocType {
 export interface UtteranceTokenDocType {
   id: string;
   textId: string;
-  utteranceId: string;
+  /** Layer unit id (utterance-type host); M18+ canonical foreign key. */
+  unitId: string;
   form: Transcription;
   gloss?: MultiLangString;
   pos?: string;
@@ -176,7 +177,8 @@ export interface UtteranceTokenDocType {
 export interface UtteranceMorphemeDocType {
   id: string;
   textId: string;
-  utteranceId: string;
+  /** Layer unit id (utterance-type host); M18+ canonical foreign key. */
+  unitId: string;
   tokenId: string;
   form: Transcription;
   gloss?: MultiLangString;
@@ -955,7 +957,6 @@ export type CollectionAdapter<T extends { id: string }> = {
 export type JieyuCollections = {
   texts: CollectionAdapter<TextDocType>;
   media_items: CollectionAdapter<MediaItemDocType>;
-  utterances: CollectionAdapter<UtteranceDocType>;
   utterance_tokens: CollectionAdapter<UtteranceTokenDocType>;
   utterance_morphemes: CollectionAdapter<UtteranceMorphemeDocType>;
   anchors: CollectionAdapter<AnchorDocType>;

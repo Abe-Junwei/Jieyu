@@ -122,7 +122,7 @@ const anchorDocSchema = z.object({
 const utteranceTokenDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
-  utteranceId: z.string().min(1),
+  unitId: z.string().min(1),
   form: transcriptionSchema,
   gloss: multiLangStringSchema.optional(),
   pos: z.string().optional(),
@@ -136,7 +136,7 @@ const utteranceTokenDocSchema = z.object({
 const utteranceMorphemeDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
-  utteranceId: z.string().min(1),
+  unitId: z.string().min(1),
   tokenId: z.string().min(1),
   form: transcriptionSchema,
   gloss: multiLangStringSchema.optional(),

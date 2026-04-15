@@ -18,12 +18,14 @@ import type {
   UnitRelationDocType, LayerLinkDocType,
   TierDefinitionDocType, TierAnnotationDocType,
   AuditLogDocType, UserNoteDocType, TrackEntityDocType,
-  ProvenanceEnvelope, JieyuCollections,
+  ProvenanceEnvelope,
+  JieyuCollections,
   ImportConflictStrategy, ImportResult,
 } from './types';
+import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
 import {
   isoDateSchema,
-  validateTextDoc, validateMediaItemDoc, validateUtteranceDoc,
+  validateTextDoc, validateMediaItemDoc,
   validateUtteranceTokenDoc, validateUtteranceMorphemeDoc,
   validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc,
   validateAiTaskDoc, validateEmbeddingDoc,
@@ -42,7 +44,7 @@ import {
 } from './schemas';
 import { db, getDb } from './engine';
 
-const SNAPSHOT_SCHEMA_VERSION = 3;
+const SNAPSHOT_SCHEMA_VERSION = 4;
 
 async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -120,7 +122,6 @@ const databaseSnapshotSchema = z.object({
 const knownCollectionNames = [
   'texts',
   'media_items',
-  'utterances',
   'utterance_tokens',
   'utterance_morphemes',
   'anchors',
@@ -162,7 +163,6 @@ type KnownCollectionName = (typeof knownCollectionNames)[number];
 const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string }, string>>> = {
   texts: db.texts,
   media_items: db.media_items,
-  utterances: db.utterances,
   utterance_tokens: db.utterance_tokens,
   utterance_morphemes: db.utterance_morphemes,
   anchors: db.anchors,
@@ -201,7 +201,6 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
 const validatorByCollection: Record<KnownCollectionName, (value: unknown) => void> = {
   texts: (value) => validateTextDoc(value as TextDocType),
   media_items: (value) => validateMediaItemDoc(value as MediaItemDocType),
-  utterances: (value) => validateUtteranceDoc(value as UtteranceDocType),
   utterance_tokens: (value) => validateUtteranceTokenDoc(value as UtteranceTokenDocType),
   utterance_morphemes: (value) => validateUtteranceMorphemeDoc(value as UtteranceMorphemeDocType),
   anchors: (value) => validateAnchorDoc(value as AnchorDocType),
@@ -280,16 +279,60 @@ function normalizeImportedUtteranceDoc(doc: UtteranceDocType, fallbackCreatedAt:
   );
 }
 
+function mergeLegacyUtterancesIntoSnapshotCollections(
+  collections: Record<string, unknown[]>,
+  importStartedAt: string,
+): void {
+  const legacy = collections['utterances'];
+  if (!Array.isArray(legacy) || legacy.length === 0) return;
+
+  const tiers = (collections['tier_definitions'] ?? []) as TierDefinitionDocType[];
+  const MAX = Number.MAX_SAFE_INTEGER;
+  const pickLayerId = (textId: string): string | undefined => {
+    const candidates = tiers.filter((t) => t.textId === textId && t.contentType === 'transcription');
+    if (candidates.length === 0) return tiers.find((t) => t.textId === textId)?.id;
+    const def = candidates.find((t) => t.isDefault === true);
+    if (def) return def.id;
+    return [...candidates].sort((a, b) => (a.sortOrder ?? MAX) - (b.sortOrder ?? MAX))[0]?.id;
+  };
+
+  const units = [...(collections['layer_units'] ?? [])] as LayerUnitDocType[];
+  const contents = [...(collections['layer_unit_contents'] ?? [])] as LayerUnitContentDocType[];
+
+  for (const raw of legacy) {
+    const u = normalizeImportedUtteranceDoc(raw as UtteranceDocType, importStartedAt);
+    const layerId = pickLayerId(u.textId);
+    if (!layerId) continue;
+    const { unit, content } = mapUtteranceToLayerUnit(u, layerId);
+    units.push(unit);
+    contents.push(content);
+  }
+
+  collections['layer_units'] = units as unknown[];
+  collections['layer_unit_contents'] = contents as unknown[];
+  delete collections['utterances'];
+}
+
 function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown, fallbackCreatedAt: string): unknown {
   if (!doc || typeof doc !== 'object') return doc;
 
   switch (collectionName) {
-    case 'utterances':
-      return normalizeImportedUtteranceDoc(doc as UtteranceDocType, fallbackCreatedAt);
-    case 'utterance_tokens':
-      return ensureImportProvenance(doc as UtteranceTokenDocType, fallbackCreatedAt);
-    case 'utterance_morphemes':
-      return ensureImportProvenance(doc as UtteranceMorphemeDocType, fallbackCreatedAt);
+    case 'utterance_tokens': {
+      const d = { ...(doc as Record<string, unknown>) };
+      if (typeof d.utteranceId === 'string' && d.unitId === undefined) {
+        d.unitId = d.utteranceId;
+        delete d.utteranceId;
+      }
+      return ensureImportProvenance(d as unknown as UtteranceTokenDocType, fallbackCreatedAt);
+    }
+    case 'utterance_morphemes': {
+      const d = { ...(doc as Record<string, unknown>) };
+      if (typeof d.utteranceId === 'string' && d.unitId === undefined) {
+        d.unitId = d.utteranceId;
+        delete d.utteranceId;
+      }
+      return ensureImportProvenance(d as unknown as UtteranceMorphemeDocType, fallbackCreatedAt);
+    }
     case 'layer_units':
       return ensureImportProvenance(doc as LayerUnitDocType, fallbackCreatedAt);
     case 'layer_unit_contents':
@@ -333,7 +376,11 @@ async function pruneOrphanUserNotes(): Promise<number> {
     if (note.targetType === 'morpheme') morphemeIds.add(note.targetId);
   }
 
-  const existingUtteranceIds = new Set((await db.utterances.bulkGet([...utteranceIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingUtteranceIds = new Set(
+    (await db.layer_units.bulkGet([...utteranceIds])).flatMap((d) => (
+      d && d.unitType === 'utterance' && d.id ? [d.id] : []
+    )),
+  );
   const existingTextIds = new Set((await db.texts.bulkGet([...textIds])).flatMap((d) => (d?.id ? [d.id] : [])));
   const existingLexemeIds = new Set((await db.lexemes.bulkGet([...lexemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
   const existingAnnotationIds = new Set((await db.tier_annotations.bulkGet([...annotationIds])).flatMap((d) => (d?.id ? [d.id] : [])));
@@ -381,9 +428,6 @@ export async function importDatabaseFromJson(
   if ('utterance_texts' in snapshot.collections) {
     throw new Error('Legacy collection "utterance_texts" is no longer supported; import a LayerUnit snapshot.');
   }
-  if (!('layer_units' in snapshot.collections) || !('layer_unit_contents' in snapshot.collections)) {
-    throw new Error('Invalid LayerUnit snapshot: missing required collections "layer_units" or "layer_unit_contents".');
-  }
 
   const result: ImportResult = {
     importedAt: new Date().toISOString(),
@@ -392,6 +436,11 @@ export async function importDatabaseFromJson(
     ignoredCollections: [],
   };
   const importStartedAt = result.importedAt;
+
+  const cols = snapshot.collections as Record<string, unknown[]>;
+  if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
+  if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
+  mergeLegacyUtterancesIntoSnapshotCollections(cols, importStartedAt);
 
   const dbInstance = await getDb();
 

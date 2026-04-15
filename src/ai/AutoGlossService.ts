@@ -98,7 +98,7 @@ export class AutoGlossService {
 
   private async executeGloss(utteranceId: string): Promise<AutoGlossResult> {
     const db = await getDb();
-    const tokens = await db.collections.utterance_tokens.findByIndex('utteranceId', utteranceId);
+    const tokens = await db.collections.utterance_tokens.findByIndex('unitId', utteranceId);
 
     const allLexemes = await db.collections.lexemes.find().exec();
     const lexemes = allLexemes.map((d) => d.toJSON());
