@@ -33,7 +33,7 @@ export function useNotes(target: NoteTarget | null) {
 
         for (const utteranceId of utteranceCandidates) {
           const tokenByIndex = await dexieDb.utterance_tokens
-            .where('[utteranceId+tokenIndex]')
+            .where('[unitId+tokenIndex]')
             .equals([utteranceId, input.targetIndex])
             .first();
           if (tokenByIndex) {

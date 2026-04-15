@@ -21,7 +21,7 @@ export function getWaveformVisualStylePreset(style: WaveformVisualStyle | undefi
       return {
         waveColor: 'color-mix(in srgb, var(--text-secondary) 82%, transparent)',
         progressColor: 'color-mix(in srgb, var(--state-info-border) 72%, var(--state-info-solid))',
-        cursorColor: 'var(--state-danger-solid)',
+        cursorColor: 'var(--timeline-playhead-color, var(--state-danger-solid))',
         barWidth: 1,
         barGap: 1,
         barRadius: 0,
@@ -30,7 +30,7 @@ export function getWaveformVisualStylePreset(style: WaveformVisualStyle | undefi
       return {
         waveColor: 'color-mix(in srgb, var(--text-primary) 32%, var(--border-soft))',
         progressColor: 'var(--state-warning-solid)',
-        cursorColor: 'var(--state-danger-solid)',
+        cursorColor: 'var(--timeline-playhead-color, var(--state-danger-solid))',
         barWidth: 3,
         barGap: 1,
         barRadius: 2,
@@ -39,7 +39,7 @@ export function getWaveformVisualStylePreset(style: WaveformVisualStyle | undefi
       return {
         waveColor: 'color-mix(in srgb, var(--text-primary) 72%, var(--border-soft))',
         progressColor: 'color-mix(in srgb, var(--state-info-solid) 80%, var(--text-primary))',
-        cursorColor: 'var(--state-danger-solid)',
+        cursorColor: 'var(--timeline-playhead-color, var(--state-danger-solid))',
         barWidth: 0,
         barGap: 0,
         barRadius: 0,
@@ -49,7 +49,7 @@ export function getWaveformVisualStylePreset(style: WaveformVisualStyle | undefi
       return {
         waveColor: 'color-mix(in srgb, var(--text-secondary) 70%, transparent)',
         progressColor: 'var(--state-info-solid)',
-        cursorColor: 'var(--state-danger-solid)',
+        cursorColor: 'var(--timeline-playhead-color, var(--state-danger-solid))',
         barWidth: 2,
         barGap: 1,
         barRadius: 1,

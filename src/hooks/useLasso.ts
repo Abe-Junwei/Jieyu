@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { UtteranceDocType } from '../db';
 import { computeLassoOutcome } from '../utils/waveformSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';
 import type WaveSurfer from 'wavesurfer.js';
@@ -119,7 +118,6 @@ interface UseLassoInput {
   playerInstanceRef: React.RefObject<WaveSurfer | null>;
   playerIsReady: boolean;
   selectedMediaUrl: string | undefined;
-  utterancesOnCurrentMedia: UtteranceDocType[];
   /** Items to select against — utterances for default layer, segments for independent layers */
   timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   selectedUnitIds: Set<string>;

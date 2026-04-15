@@ -273,13 +273,13 @@ describe('Golden Round-trip: Toolbox', () => {
     const tokenRows: import('../../src/db').UtteranceTokenDocType[] = [];
     const morphRows: import('../../src/db').UtteranceMorphemeDocType[] = [];
     imported.utterances.forEach((u, ui) => {
-      const utteranceId = `u${ui}`;
+      const unitId = `u${ui}`;
       (u.tokens ?? []).forEach((t, ti) => {
         const tokenId = `tok_${ui}_${ti}`;
         tokenRows.push({
           id: tokenId,
           textId: 'text1',
-          utteranceId,
+          unitId,
           form: t.form,
           ...(t.gloss ? { gloss: t.gloss } : {}),
           ...(t.pos ? { pos: t.pos } : {}),
@@ -291,7 +291,7 @@ describe('Golden Round-trip: Toolbox', () => {
           morphRows.push({
             id: `morph_${ui}_${ti}_${mi}`,
             textId: 'text1',
-            utteranceId,
+            unitId,
             tokenId,
             form: m.form,
             ...(m.gloss ? { gloss: m.gloss } : {}),

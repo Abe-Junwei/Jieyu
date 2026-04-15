@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type LayerSegmentDocType, type SegmentLinkDocType } from '../db';
+import { db, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type SegmentLinkDocType } from '../db';
 import {
   buildClonedSegmentGraphForSplit,
   deleteLayerSegmentGraphByUtteranceIds,
@@ -12,19 +12,6 @@ import {
 } from './LayerSegmentGraphService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
-
-function makeSegment(overrides: Partial<LayerSegmentDocType> & { id: string }): LayerSegmentDocType {
-  return {
-    textId: 'text_1',
-    mediaId: 'media_1',
-    layerId: 'layer_independent_1',
-    startTime: 1,
-    endTime: 2,
-    createdAt: NOW,
-    updatedAt: NOW,
-    ...overrides,
-  };
-}
 
 function makeLink(overrides: Partial<SegmentLinkDocType> & { id: string; sourceSegmentId: string; targetSegmentId: string }): SegmentLinkDocType {
   return {
@@ -86,7 +73,7 @@ describe('LayerSegmentGraphService', () => {
 
     const snapshot = await snapshotLayerSegmentGraphByLayerIds(database, ['layer_independent_1']);
 
-    expect(snapshot.segments.map((segment) => segment.id)).toEqual(['seg_unit_snapshot_1']);
+    expect(snapshot.units.map((unit) => unit.id)).toEqual(['seg_unit_snapshot_1']);
     expect(snapshot.contents.map((content) => content.id)).toEqual(['cnt_unit_snapshot_1']);
     expect(snapshot.links).toEqual([
       expect.objectContaining<Partial<SegmentLinkDocType>>({
@@ -96,6 +83,38 @@ describe('LayerSegmentGraphService', () => {
         linkType: 'time_subdivision',
       }),
     ]);
+  });
+
+  it('snapshots preserve non-primary layer_unit_contents roles (undo fidelity)', async () => {
+    const database = await getDb();
+    await db.layer_units.put({
+      id: 'seg_gloss_host',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_independent_1',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'cnt_gloss_1',
+      textId: 'text_1',
+      unitId: 'seg_gloss_host',
+      layerId: 'layer_independent_1',
+      contentRole: 'gloss',
+      modality: 'text',
+      text: 'gloss-line',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const snapshot = await snapshotLayerSegmentGraphByLayerIds(database, ['layer_independent_1']);
+    const gloss = snapshot.contents.find((c) => c.id === 'cnt_gloss_1');
+    expect(gloss?.contentRole).toBe('gloss');
+    expect(gloss?.text).toBe('gloss-line');
   });
 
   it('restores snapshot into canonical tables while removing stale graph rows', async () => {
@@ -134,18 +153,29 @@ describe('LayerSegmentGraphService', () => {
     });
 
     const snapshot = {
-      segments: [makeSegment({ id: 'seg_restore_1' })],
+      units: [{
+        id: 'seg_restore_1',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_independent_1',
+        unitType: 'segment' as const,
+        startTime: 1,
+        endTime: 2,
+        createdAt: NOW,
+        updatedAt: NOW,
+      } satisfies LayerUnitDocType],
       contents: [{
         id: 'cnt_restore_1',
         textId: 'text_1',
-        segmentId: 'seg_restore_1',
+        unitId: 'seg_restore_1',
         layerId: 'layer_independent_1',
-        modality: 'text' as const,
+        contentRole: 'primary_text',
+        modality: 'text',
         text: 'restored',
-        sourceType: 'human' as const,
+        sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      }],
+      } satisfies LayerUnitContentDocType],
       links: [makeLink({ id: 'lnk_restore_1', sourceSegmentId: 'seg_restore_1', targetSegmentId: 'utt_parent_1' })],
     };
 

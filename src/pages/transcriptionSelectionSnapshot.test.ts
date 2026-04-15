@@ -1,7 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { buildTranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
+
+function utteranceView(id: string, layerId: string): TimelineUnitView {
+  return {
+    id,
+    kind: 'utterance',
+    mediaId: 'media-1',
+    layerId,
+    startTime: 1,
+    endTime: 3,
+    text: '',
+  };
+}
+
+function segmentView(id: string, layerId: string, parentUtteranceId?: string): TimelineUnitView {
+  return {
+    id,
+    kind: 'segment',
+    mediaId: 'media-1',
+    layerId,
+    startTime: 1.2,
+    endTime: 1.8,
+    text: '',
+    ...(parentUtteranceId ? { parentUtteranceId } : {}),
+  };
+}
 
 function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
   return {
@@ -52,6 +78,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineUnit: { layerId: 'layer-tr', unitId: 'utt-1', kind: 'utterance' },
       selectedTimelineSegment: null,
       selectedTimelineOwnerUnit: utterance,
+      primaryUnitView: utteranceView('utt-1', 'layer-tr'),
       selectedTimelineRowMeta: { rowNumber: 2, start: 1, end: 3 },
       selectedLayerId: 'layer-tr',
       layers: [makeLayer('layer-main'), translationLayer],
@@ -74,6 +101,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineUnit,
       selectedTimelineSegment: segment,
       selectedTimelineOwnerUnit: makeUtterance('utt-1'),
+      primaryUnitView: segmentView('seg-1', 'layer-seg', 'utt-1'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 1, end: 3 },
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
@@ -96,6 +124,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineUnit: null,
       selectedTimelineSegment: null,
       selectedTimelineOwnerUnit: null,
+      primaryUnitView: null,
       selectedTimelineRowMeta: null,
       selectedLayerId: null,
       layers: [makeLayer('layer-main')],
@@ -120,6 +149,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' },
       selectedTimelineSegment: segment,
       selectedTimelineOwnerUnit: ownerUtterance,
+      primaryUnitView: segmentView('seg-1', 'layer-seg', 'utt-owner'),
       selectedTimelineRowMeta: null,
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
@@ -132,7 +162,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
 
     expect(snapshot.activeUnitId).toBe('utt-owner');
     expect(snapshot.selectedUnitKind).toBe('segment');
-    expect(snapshot.selectedUnit).toBe(ownerUtterance);
+    expect(snapshot.selectedUnit?.id).toBe('seg-1');
   });
 
   it('sets transcription layer fields when transcription layer is selected', () => {
@@ -140,6 +170,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'utterance' },
       selectedTimelineSegment: null,
       selectedTimelineOwnerUnit: makeUtterance('utt-1'),
+      primaryUnitView: utteranceView('utt-1', 'layer-main'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
       selectedLayerId: 'layer-main',
       layers: [makeLayer('layer-main', 'transcription')],

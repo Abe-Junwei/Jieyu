@@ -1,0 +1,40 @@
+/* 动效图标主题：仍使用 Material Symbols 字形，仅增强交互态（缩放 + FILL 轴）。
+   与「减少动态效果」或 prefers-reduced-motion 时关闭。 */
+@layer components {
+  [data-icon-effect='motion'] .material-symbols-outlined.jieyu-material {
+    transition:
+      transform 0.2s ease,
+      color 0.2s ease,
+      filter 0.2s ease;
+  }
+
+  [data-icon-effect='motion'] :is(button, a, [role='button'], label):hover .jieyu-material,
+  [data-icon-effect='motion'] .jieyu-material:hover {
+    transform: scale(1.07);
+    --jieyu-material-fill: 1;
+  }
+
+  [data-icon-effect='motion'] :is(button, a, [role='button']):active .jieyu-material {
+    transform: scale(0.96);
+  }
+
+  :root.jieyu-reduced-motion [data-icon-effect='motion'] .material-symbols-outlined.jieyu-material,
+  :root.jieyu-reduced-motion [data-icon-effect='motion'] :is(button, a, [role='button'], label):hover .jieyu-material,
+  :root.jieyu-reduced-motion [data-icon-effect='motion'] .jieyu-material:hover,
+  :root.jieyu-reduced-motion [data-icon-effect='motion'] :is(button, a, [role='button']):active .jieyu-material {
+    transition: none !important;
+    transform: none !important;
+    --jieyu-material-fill: 0 !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-icon-effect='motion'] .material-symbols-outlined.jieyu-material,
+    [data-icon-effect='motion'] :is(button, a, [role='button'], label):hover .jieyu-material,
+    [data-icon-effect='motion'] .jieyu-material:hover,
+    [data-icon-effect='motion'] :is(button, a, [role='button']):active .jieyu-material {
+      transition: none !important;
+      transform: none !important;
+      --jieyu-material-fill: 0 !important;
+    }
+  }
+}

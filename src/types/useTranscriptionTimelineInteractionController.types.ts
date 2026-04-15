@@ -62,7 +62,7 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   player: PlayerLike;
   locale: string;
   sidePaneRows: LayerDocType[];
-  selectedTimelineUtteranceId: string;
+  activeTimelineUnitId: string;
   onSetNotePopover: (state: { x: number; y: number; uttId: string; layerId?: string } | null) => void;
   onSetSidebarError: (value: string | null) => void;
   onRevealSchemaLayer: (layerId: string) => void;

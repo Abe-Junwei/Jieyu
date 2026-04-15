@@ -76,6 +76,7 @@ vi.mock('../services/LayerSegmentQueryService', () => ({
 
 vi.mock('../services/LayerSegmentGraphService', () => ({
   deleteLayerSegmentGraphByLayerId: mockDeleteLayerSegmentGraphByLayerId,
+  listUtteranceUnitPrimaryKeysByTextId: (_db: unknown, _textId: string) => mockUtterancesWhereTextIdPrimaryKeys(),
 }));
 
 describe('useTranscriptionLayerActions v2 cleanup', () => {
@@ -100,18 +101,6 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
         },
         layer_links: {
           toArray: mockLayerLinksToArray,
-        },
-        utterances: {
-          where: (field: string) => {
-            if (field === 'textId') {
-              return {
-                equals: () => ({
-                  primaryKeys: mockUtterancesWhereTextIdPrimaryKeys,
-                }),
-              };
-            }
-            throw new Error(`Unexpected utterances.where field: ${field}`);
-          },
         },
       },
     });

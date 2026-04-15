@@ -343,6 +343,21 @@ export interface AiPromptContext {
   longTerm?: AiLongTermContext;
 }
 
+/**
+ * System field attached to successful local context tool JSON results (`_readModel`).
+ * Not user/annotation data; used for staleness checks and debugging.
+ */
+export interface AiLocalToolReadModelMeta {
+  /** Monotonic epoch from timeline read model when the tool ran (JIT context). */
+  timelineReadModelEpoch?: number;
+  /** False when segment-backed unit index may still be loading. */
+  unitIndexComplete: boolean;
+  /** Client clock when the snapshot was taken (ms since epoch). */
+  capturedAtMs: number;
+  /** `localUnitIndex` row count when present (may differ from `projectStats.unitCount`). */
+  indexRowCount?: number;
+}
+
 export interface AiContextDebugSnapshot {
   enabled: boolean;
   persona: AiSystemPersonaKey;

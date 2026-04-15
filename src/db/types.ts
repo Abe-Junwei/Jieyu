@@ -294,6 +294,13 @@ export interface AiMessageCitation {
   refId: string;
   label?: string;
   snippet?: string;
+  /** Timeline read-model epoch when RAG ran (same instant as prompt `timelineReadModelEpoch`). */
+  readModelEpochAtRetrieval?: number;
+  /**
+   * For `utterance` only: whether `refId` was present in `localUnitIndex` at retrieval time.
+   * Omitted when the index was incomplete or unavailable (unknown), not a confirmed hit/miss.
+   */
+  readModelIndexHit?: boolean;
 }
 
 export interface AiMessageDoc {

@@ -41,7 +41,7 @@ type UseTimelineResizeParams = {
       getDecodedData: () => AudioBuffer | null;
     } | null>;
   };
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   selectSegment?: (id: string) => void;
   setSelectedLayerId: (id: string) => void;
   setFocusedLayerRowId: (id: string) => void;
@@ -61,7 +61,7 @@ export function useTimelineResize({
   zoomPxPerSec,
   manualSelectTsRef,
   player,
-  selectUtterance,
+  selectUnit,
   selectSegment,
   setSelectedLayerId,
   setFocusedLayerRowId,
@@ -98,7 +98,7 @@ export function useTimelineResize({
     if (resolvedSegmentId && selectSegment) {
       selectSegment(utterance.id);
     } else {
-      selectUtterance(utterance.id);
+      selectUnit(utterance.id);
     }
     if (layerId) {
       setSelectedLayerId(layerId);
@@ -210,7 +210,7 @@ export function useTimelineResize({
     zoomPxPerSec,
     manualSelectTsRef,
     player,
-    selectUtterance,
+    selectUnit,
     selectSegment,
     setSelectedLayerId,
     setFocusedLayerRowId,

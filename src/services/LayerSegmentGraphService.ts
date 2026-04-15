@@ -1,7 +1,6 @@
 import {
   type JieyuDatabase,
   type LayerSegmentContentDocType,
-  type LayerSegmentDocType,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
   type SegmentLinkDocType,
@@ -12,6 +11,8 @@ import {
   projectUtteranceDocFromLayerUnit,
 } from '../db/migrations/timelineUnitMapping';
 import {
+  bulkUpsertLayerUnitContents,
+  bulkUpsertLayerUnits,
   collectLayerUnitGraphIdsByTextId,
   deleteLayerUnitCascade,
   deleteLayerUnitGraphByIds,
@@ -27,9 +28,15 @@ import {
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
 
+/**
+ * Canonical segment subgraph for independent-boundary layers.
+ * Uses `layer_units` / `layer_unit_contents` directly so undo/redo preserves fields
+ * (e.g. `contentRole`) that are lossy when round-tripped through legacy segment DTOs.
+ */
 export type LayerSegmentGraphSnapshot = {
-  segments: LayerSegmentDocType[];
-  contents: LayerSegmentContentDocType[];
+  /** Segment-type `layer_units` rows. */
+  units: LayerUnitDocType[];
+  contents: LayerUnitContentDocType[];
   links: SegmentLinkDocType[];
 };
 
@@ -305,18 +312,23 @@ export async function snapshotLayerSegmentGraphByLayerIds(
 ): Promise<LayerSegmentGraphSnapshot> {
   const ids = uniqueIds(layerIds);
   if (ids.length === 0) {
-    return { segments: [], contents: [], links: [] };
+    return { units: [], contents: [], links: [] };
   }
 
-  const segmentGroups = await Promise.all(ids.map((layerId) => LayerSegmentQueryService.listSegmentsByLayerId(layerId)));
-  const segments = segmentGroups.flat();
-  const segmentIds = segments.map((segment) => segment.id);
+  const unitGroups = await Promise.all(ids.map(async (layerId) => {
+    const rows = await db.dexie.layer_units.where('layerId').equals(layerId).toArray();
+    return rows.filter((row): row is LayerUnitDocType => row.unitType === 'segment');
+  }));
+  const units = unitGroups.flat();
+  const segmentIds = units.map((unit) => unit.id);
   const [contents, links] = await Promise.all([
-    LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds),
+    segmentIds.length === 0
+      ? Promise.resolve([] as LayerUnitContentDocType[])
+      : db.dexie.layer_unit_contents.where('unitId').anyOf(segmentIds).toArray(),
     listSegmentLinksBySegmentIds(db, segmentIds),
   ]);
 
-  return { segments, contents, links };
+  return { units, contents, links };
 }
 
 export async function restoreLayerSegmentGraphSnapshot(
@@ -326,7 +338,7 @@ export async function restoreLayerSegmentGraphSnapshot(
 ): Promise<void> {
   const targetLayerIds = uniqueIds([
     ...scopeLayerIds,
-    ...snapshot.segments.map((segment) => segment.layerId),
+    ...snapshot.units.map((unit) => unit.layerId),
     ...snapshot.contents.map((content) => content.layerId),
   ]);
   if (targetLayerIds.length === 0) return;
@@ -354,11 +366,11 @@ export async function restoreLayerSegmentGraphSnapshot(
       await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, existingSegmentIds);
     }
 
-    if (snapshot.segments.length > 0) {
-      await LayerUnitSegmentWriteService.upsertSegments(db, snapshot.segments);
+    if (snapshot.units.length > 0) {
+      await bulkUpsertLayerUnits(db, snapshot.units);
     }
     if (snapshot.contents.length > 0) {
-      await LayerUnitSegmentWriteService.upsertSegmentContents(db, snapshot.contents);
+      await bulkUpsertLayerUnitContents(db, snapshot.contents);
     }
     if (snapshot.links.length > 0) {
       await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);

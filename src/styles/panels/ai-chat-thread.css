@@ -407,6 +407,30 @@
   background: transparent;
 }
 
+/* AI change-set preview (destructive edit confirmation) */
+.ai-changeset-preview {
+  display: grid;
+  gap: 8px;
+  padding: var(--space-3, 10px) 0;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+}
+
+.ai-changeset-preview header {
+  margin: 0;
+}
+
+.ai-changeset-preview ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.ai-changeset-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
 .ai-chat-message-copy-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));

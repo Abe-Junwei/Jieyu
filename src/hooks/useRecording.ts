@@ -5,14 +5,14 @@ import type { SaveState } from './useTranscriptionData';
 interface UseRecordingOptions {
   saveVoiceTranslation: (blob: Blob, utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>;
   setSaveState: (state: SaveState) => void;
-  selectUtterance: (id: string) => void;
+  selectUnit: (id: string) => void;
   manualSelectTsRef: React.MutableRefObject<number>;
 }
 
 export function useRecording({
   saveVoiceTranslation,
   setSaveState,
-  selectUtterance,
+  selectUnit,
   manualSelectTsRef,
 }: UseRecordingOptions) {
   const [recording, setRecording] = useState(false);
@@ -40,7 +40,7 @@ export function useRecording({
         setRecordingError('');
         setSaveState({ kind: 'idle' });
         manualSelectTsRef.current = Date.now();
-        selectUtterance(utterance.id);
+        selectUnit(utterance.id);
         setRecordingUtteranceId(utterance.id);
         setRecordingLayerId(layer.id);
 
@@ -86,7 +86,7 @@ export function useRecording({
         setRecordingError(error instanceof Error ? error.message : '\u65e0\u6cd5\u542f\u52a8\u5f55\u97f3\uff0c\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650');
       }
     },
-    [saveVoiceTranslation, setSaveState, selectUtterance, manualSelectTsRef],
+    [saveVoiceTranslation, setSaveState, selectUnit, manualSelectTsRef],
   );
 
   const stopRecording = useCallback(() => {

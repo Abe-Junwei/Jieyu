@@ -1,6 +1,6 @@
 import { startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, UtteranceDocType } from '../db';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
@@ -9,7 +9,8 @@ import {
   resolveTranscriptionUnitTarget,
 } from '../pages/transcriptionUnitTargetResolver';
 
-type TimelineUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>;
+/** Rows bound into timeline annotation chrome (transcription utterances or translation / segment sources). */
+type TimelineAnnotationBoundDoc = UtteranceDocType | LayerSegmentDocType;
 
 type SpeakerVisual = {
   name: string;
@@ -54,7 +55,7 @@ type UseTimelineAnnotationHelpersParams = {
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
   zoomPxPerSec: number;
   setCtxMenu: React.Dispatch<React.SetStateAction<CtxMenuState>>;
-  navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
   dragPreview: TimelineDragPreview;
   selectedUnitIds: Set<string>;
@@ -62,7 +63,7 @@ type UseTimelineAnnotationHelpersParams = {
   zoomToUtterance: (start: number, end: number) => void;
   startTimelineResizeDrag: (
     event: React.PointerEvent<HTMLElement>,
-    utterance: TimelineUtterance,
+    row: TimelineAnnotationBoundDoc,
     edge: 'start' | 'end',
     layerId: string,
   ) => void;
@@ -88,7 +89,7 @@ export function useTimelineAnnotationHelpers({
   tierContainerRef,
   zoomPxPerSec,
   setCtxMenu,
-  navigateUtteranceFromInput,
+  navigateUnitFromInput,
   waveformAreaRef,
   dragPreview,
   selectedUnitIds,
@@ -182,7 +183,7 @@ export function useTimelineAnnotationHelpers({
 
   const handleAnnotationContextMenu = useCallback((
     uttId: string,
-    utt: TimelineUtterance,
+    utt: TimelineAnnotationBoundDoc,
     layerId: string,
     e: React.MouseEvent,
   ) => {
@@ -249,18 +250,18 @@ export function useTimelineAnnotationHelpers({
   const handleAnnotationKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.nativeEvent.isComposing) return;
     if (e.key === 'Tab') {
-      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+      navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
     } else if (e.key === 'Enter') {
-      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+      navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       (e.target as HTMLInputElement).blur();
       waveformAreaRef.current?.focus();
     }
-  }, [navigateUtteranceFromInput, waveformAreaRef]);
+  }, [navigateUnitFromInput, waveformAreaRef]);
 
   const renderAnnotationItem = useCallback((
-    utt: TimelineUtterance,
+    utt: TimelineAnnotationBoundDoc,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -305,7 +306,7 @@ export function useTimelineAnnotationHelpers({
         speakerLabel={speakerVisual?.name ?? ''}
         speakerColor={speakerVisual?.color ?? 'var(--state-info-solid)'}
         {...(overlapCycleStatus ? { overlapCycleIndicator: overlapCycleStatus } : {})}
-        {...(utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
+        {...('ai_metadata' in utt && utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
         {...(content ? { content } : {})}
         {...(tools ? { tools } : {})}
         {...(hasTrailingTools ? { hasTrailingTools } : {})}

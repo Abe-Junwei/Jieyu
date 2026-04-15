@@ -170,7 +170,7 @@ export function formatReplayableLabel(isZh: boolean, replayable: boolean): strin
 
 export function formatCitationLabel(
   isZh: boolean,
-  citation: { type: 'utterance' | 'note' | 'pdf' | 'schema'; label?: string; refId: string },
+  citation: { type: 'utterance' | 'note' | 'pdf' | 'schema'; label?: string; refId: string; readModelIndexHit?: boolean },
 ): string {
   const messages = getAiChatCardUtilityMessages(isZh);
   const fallback = citation.type === 'utterance'
@@ -182,10 +182,10 @@ export function formatCitationLabel(
         : messages.reference;
 
   const raw = (citation.label ?? '').trim();
-  if (!raw) return fallback;
-
   const legacyIdLike = /^(utt:|note:|pdf:|utt_|note_|pdf_)/i;
-  if (legacyIdLike.test(raw)) return fallback;
-
-  return raw;
+  const base = !raw || legacyIdLike.test(raw) ? fallback : raw;
+  if (citation.readModelIndexHit === false) {
+    return `${base}${messages.citationReadModelMissSuffix}`;
+  }
+  return base;
 }

@@ -89,7 +89,7 @@ describe('useAiEmbeddingState', () => {
     });
 
     expect(result.current.aiEmbeddingWarning).toContain('未生成可用 embedding');
-    expect(result.current.aiEmbeddingProgressLabel).toContain('无法完成相似语句检索');
+    expect(result.current.aiEmbeddingProgressLabel).toContain('无法完成相似语段检索');
     expect(result.current.aiEmbeddingMatches).toEqual([]);
   });
 });

@@ -12,11 +12,12 @@ import { createContext, useContext, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SpeakerDocType } from '../db';
 import { createLogger } from '../observability/logger';
-import type {
-  SpeakerActionDialogState,
-  SpeakerFilterOption,
-  SpeakerReferenceStats,
-  SpeakerVisual,
+import {
+  EMPTY_SPEAKER_REFERENCE_STATS,
+  type SpeakerActionDialogState,
+  type SpeakerFilterOption,
+  type SpeakerReferenceStats,
+  type SpeakerVisual,
 } from '../hooks/speakerManagement/types';
 import type { UseSpeakerActionsReturn } from '../hooks/useSpeakerActions';
 
@@ -29,6 +30,8 @@ export interface SpeakerRailContextValue {
   speakerOptions: SpeakerDocType[];
   speakerFilterOptions: SpeakerFilterOption[];
   speakerReferenceStats: Record<string, SpeakerReferenceStats>;
+  speakerReferenceUnassignedStats: SpeakerReferenceStats;
+  speakerReferenceStatsMediaScoped: boolean;
   speakerReferenceStatsReady: boolean;
   speakerDialogState: SpeakerActionDialogState | null;
   speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
@@ -109,6 +112,8 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   speakerOptions: [],
   speakerFilterOptions: [],
   speakerReferenceStats: {},
+  speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+  speakerReferenceStatsMediaScoped: false,
   speakerReferenceStatsReady: false,
   speakerDialogState: null,
   speakerVisualByUtteranceId: {},
@@ -165,6 +170,8 @@ type SpeakerRailProviderProps = {
     | 'speakerVisualByUtteranceId'
     | 'speakerFilterOptions'
     | 'speakerReferenceStats'
+    | 'speakerReferenceUnassignedStats'
+    | 'speakerReferenceStatsMediaScoped'
     | 'speakerReferenceStatsReady'
     | 'selectedSpeakerSummary'
     | 'handleSelectSpeakerUtterances'
@@ -203,6 +210,8 @@ export function SpeakerRailProvider({ children, speakerManagement, handleAssignS
     speakerVisualByUtteranceId: speakerManagement.speakerVisualByUtteranceId,
     speakerFilterOptions: speakerManagement.speakerFilterOptions,
     speakerReferenceStats: speakerManagement.speakerReferenceStats,
+    speakerReferenceUnassignedStats: speakerManagement.speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped: speakerManagement.speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady: speakerManagement.speakerReferenceStatsReady,
     selectedSpeakerSummary: speakerManagement.selectedSpeakerSummary,
     selectedUnitIds,

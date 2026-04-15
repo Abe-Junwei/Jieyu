@@ -244,9 +244,9 @@ export function exportToToolbox(input: ToolboxExportInput): string {
 
   const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
   for (const token of tokens) {
-    const list = tokensByUtteranceId.get(token.utteranceId) ?? [];
+    const list = tokensByUtteranceId.get(token.unitId) ?? [];
     list.push(token);
-    tokensByUtteranceId.set(token.utteranceId, list);
+    tokensByUtteranceId.set(token.unitId, list);
   }
   for (const list of tokensByUtteranceId.values()) {
     list.sort((a, b) => a.tokenIndex - b.tokenIndex);

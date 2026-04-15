@@ -55,6 +55,12 @@
   gap: 6px;
 }
 
+.speaker-management-unassigned-hint {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .transcription-side-pane-speaker-panel-meta {
   display: flex;
   flex-wrap: wrap;

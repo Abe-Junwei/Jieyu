@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Professional Audio Desktop Web V1</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style data-purpose="custom-scrollbars">
+    /* Custom Scrollbar Styles */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #1e293b; 
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569; 
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b; 
+    }
+  </style>
+  <style data-purpose="layout-utilities">
+    .grid-timeline {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-300 font-sans h-screen flex flex-col overflow-hidden">
+  <!-- BEGIN: Top Navigation Bar -->
+  <header class="bg-slate-900 border-b border-slate-800 flex items-center justify-between px-4 py-2 shrink-0 h-14">
+    <div class="flex items-center space-x-6">
+      <div class="flex items-center space-x-2 text-white">
+        <i class="w-5 h-5 text-blue-500" data-lucide="audio-lines"></i>
+        <span class="font-semibold text-sm tracking-wide">Professional Audio Desktop Web V1</span>
+      </div>
+      <nav class="hidden md:flex space-x-4 text-xs font-medium text-slate-400">
+        <a class="hover:text-white flex items-center space-x-1" href="#"><span>File</span> <i class="w-3 h-3" data-lucide="chevron-down"></i></a>
+        <a class="hover:text-white flex items-center space-x-1" href="#"><span>Edit</span> <i class="w-3 h-3" data-lucide="chevron-down"></i></a>
+        <a class="hover:text-white flex items-center space-x-1" href="#"><span>View</span> <i class="w-3 h-3" data-lucide="chevron-down"></i></a>
+        <a class="hover:text-white flex items-center space-x-1" href="#"><span>Help</span> <i class="w-3 h-3" data-lucide="chevron-down"></i></a>
+      </nav>
+    </div>
+    <div class="flex items-center space-x-3">
+      <img alt="User Profile" class="w-7 h-7 rounded-full border border-slate-700" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAJj3vQyhDBBixUoVgFVOxFb-BuUM59ndAwWdtBTPi5nsFLswasb4460xj-wtzzE1s-F7ffR1XsEkXTcGGfNSKc82RU7X9FHj-Ns934F9ltqMhGgOf7P3SpLwBa9Wg0hJes2Qqz7rjeXRZHVCvNuEVqVUjX-o5AzKUk1YuFb3c_ockNGqmWtzJQvDsEPYESzwZ6VUo5Vc5MRzGqBwmPpmt17c781DdzjusraQpCmJ3q-iaTPudTYk5MAnvXFPLVmH2unly_HWEZI-E"/>
+    </div>
+  </header>
+  <!-- END: Top Navigation Bar -->
+  
+  <!-- BEGIN: Main Application Layout -->
+  <main class="flex flex-1 overflow-hidden">
+    <!-- BEGIN: Left Sidebar -->
+    <aside class="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 space-y-6 shrink-0 z-10">
+      <button class="w-12 h-12 flex flex-col items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+        <i class="w-5 h-5 mb-1" data-lucide="folder-open"></i>
+        <span class="text-[10px]">Projects</span>
+      </button>
+      <button class="w-12 h-12 flex flex-col items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+        <i class="w-5 h-5 mb-1" data-lucide="book-open"></i>
+        <span class="text-[10px]">Library</span>
+      </button>
+      <button class="w-12 h-12 flex flex-col items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+        <i class="w-5 h-5 mb-1" data-lucide="wrench"></i>
+        <span class="text-[10px]">Tools</span>
+      </button>
+      <div class="flex-1"></div>
+      <button class="w-12 h-12 flex flex-col items-center justify-center rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+        <i class="w-5 h-5 mb-1" data-lucide="settings"></i>
+        <span class="text-[10px]">Settings</span>
+      </button>
+    </aside>
+    <!-- END: Left Sidebar -->
+    
+    <!-- BEGIN: Central Workspace -->
+    <section class="flex-1 flex flex-col min-w-0 bg-slate-950 overflow-hidden relative">
+      <!-- BEGIN: Waveform Editor Section -->
+      <div class="h-1/3 min-h-[200px] border-b border-slate-800 flex flex-col m-2 rounded-lg bg-slate-900 overflow-hidden border border-slate-700">
+        <!-- Waveform Header -->
+        <div class="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900/50">
+          <div class="flex items-center space-x-2 text-slate-300">
+            <i class="w-4 h-4" data-lucide="activity"></i>
+            <span class="text-xs font-medium">Audio Waveform</span>
+          </div>
+          <div class="flex items-center space-x-3 text-xs">
+            <span class="text-slate-400">Zoom</span>
+            <input class="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" max="100" min="1" type="range" value="50"/>
+            <button class="text-slate-400 hover:text-white"><i class="w-4 h-4" data-lucide="search"></i></button>
+          </div>
+        </div>
+        <!-- Waveform Display Area -->
+        <div class="flex-1 relative bg-slate-900 px-4 py-2 overflow-hidden flex flex-col justify-center">
+          <!-- Time Ruler -->
+          <div class="flex justify-between text-[10px] text-slate-500 mb-2 border-b border-slate-800 pb-1">
+            <span>00:00:00</span>
+            <span>00:00:10</span>
+            <span>00:00:20</span>
+            <span>00:00:30</span>
+            <span>00:00:40</span>
+            <span>00:00:50</span>
+            <span>00:01:00</span>
+            <span>00:01:10</span>
+            <span>00:01:20</span>
+            <span>00:01:30</span>
+            <span>00:01:40</span>
+            <span>00:01:50</span>
+            <span>00:02:00</span>
+            <span>00:02:10</span>
+            <span>00:02:20</span>
+          </div>
+          <!-- Waveform Graphic -->
+          <div class="w-full h-24 bg-slate-800 rounded flex items-center justify-center overflow-hidden">
+            <!-- Placeholder for actual waveform canvas/svg -->
+            <svg class="w-full h-full text-blue-400/50" preserveAspectRatio="none" viewBox="0 0 1000 100">
+              <path d="M0,50 Q10,40 20,50 T40,50 T60,50 T80,50 T100,50 T120,50 T140,50 T160,50 T180,50 T200,50 T220,50 T240,50 T260,50 T280,50 T300,50 T320,50 T340,50 T360,50 T380,50 T400,50 T420,50 T440,50 T460,50 T480,50 T500,50 T520,50 T540,50 T560,50 T580,50 T600,50 T620,50 T640,50 T660,50 T680,50 T700,50 T720,50 T740,50 T760,50 T780,50 T800,50 T820,50 T840,50 T860,50 T880,50 T900,50 T920,50 T940,50 T960,50 T980,50 T1000,50 L1000,100 L0,100 Z" fill="currentColor"></path>
+              <!-- Add some jagged lines to simulate audio -->
+              <path d="M0,50 L5,45 L10,55 L15,30 L20,70 L25,40 L30,60 L35,20 L40,80 L45,45 L50,55 L55,30 L60,70 L65,40 L70,60 L75,20 L80,80 L85,45 L90,55 L95,30 L100,70 L105,40 L110,60 L115,20 L120,80 L125,45 L130,55 L135,30 L140,70 L145,40 L150,60 L155,20 L160,80 L165,45 L170,55 L175,30 L180,70 L185,40 L190,60 L195,20 L200,80" fill="none" stroke="currentColor" transform="scale(5, 1)" vector-effect="non-scaling-stroke"></path>
+            </svg>
+          </div>
+        </div>
+        <!-- Transport Controls -->
+        <div class="flex items-center justify-between px-4 py-2 border-t border-slate-800 bg-slate-900/50">
+          <div class="flex space-x-2 text-slate-400">
+            <button class="hover:text-white p-1"><i class="w-4 h-4" data-lucide="skip-back"></i></button>
+            <button class="hover:text-white p-1"><i class="w-4 h-4" data-lucide="rewind"></i></button>
+            <button class="hover:text-white p-1"><i class="w-4 h-4" data-lucide="fast-forward"></i></button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button class="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+              <i class="w-3 h-3 fill-current" data-lucide="play"></i>
+              <span>Play</span>
+            </button>
+            <button class="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors border border-blue-500/30">
+              <i class="w-3 h-3 fill-current" data-lucide="pause"></i>
+              <span>Pause</span>
+            </button>
+            <button class="flex items-center space-x-1 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded text-xs font-medium transition-colors">
+              <i class="w-3 h-3" data-lucide="repeat"></i>
+              <span>Loop</span>
+            </button>
+            <div class="flex items-center space-x-1 bg-slate-800 px-3 py-1.5 rounded text-xs text-white border border-slate-700">
+              <span>Speed</span>
+              <i class="w-3 h-3 text-slate-400" data-lucide="chevron-down"></i>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button class="flex items-center space-x-1 text-slate-400 hover:text-white text-xs">
+              <i class="w-3 h-3" data-lucide="plus"></i>
+              <span>Add Track editor</span>
+              <i class="w-3 h-3" data-lucide="chevron-down"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <!-- END: Waveform Editor Section -->
+      
+      <!-- BEGIN: Timeline Tracks Section -->
+      <div class="flex-1 overflow-auto bg-slate-900 border border-slate-700 m-2 rounded-lg relative flex flex-col">
+        <!-- Timeline Header Ruler -->
+        <div class="grid-timeline border-b border-slate-800 sticky top-0 bg-slate-900 z-20">
+          <div class="p-2 border-r border-slate-800 flex items-center justify-center">
+            <i class="w-4 h-4 text-slate-500" data-lucide="sliders-horizontal"></i>
+          </div>
+          <div class="flex items-center text-[10px] text-slate-500 relative bg-slate-900 overflow-hidden">
+            <!-- Playhead Line -->
+            <div class="absolute left-[15%] top-0 bottom-0 w-px bg-blue-500 z-30 pointer-events-none">
+              <div class="w-2 h-2 bg-blue-500 rounded-full absolute -top-1 -left-[3px]"></div>
+            </div>
+            <!-- Ruler Marks -->
+            <div class="flex space-x-12 px-4 py-2 min-w-max">
+              <span>00:00:00</span><span>00:00:10</span><span>00:01:00</span><span>00:02:00</span><span>00:03:00</span><span>00:04:00</span><span>00:05:00</span><span>00:15:00</span><span>00:18:00</span><span>01:20:00</span>
+            </div>
+          </div>
+        </div>
+        <!-- Tracks Container -->
+        <div class="flex-1 overflow-auto bg-slate-900/50">
+          <!-- Track 1: Original -->
+          <div class="grid-timeline border-b border-slate-800 group h-40">
+            <!-- Track Controls -->
+            <div class="bg-slate-900 border-r border-slate-800 p-3 flex flex-col justify-center space-y-2 relative sticky left-0 z-10">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-200">Original</span>
+                <i class="w-3 h-3 text-blue-400 cursor-pointer" data-lucide="play"></i>
+              </div>
+            </div>
+            <!-- Track Content -->
+            <div class="relative overflow-hidden bg-slate-950 p-2 flex space-x-2 items-center min-w-max">
+              <!-- Clip 1 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>00:00:03 - 00:01:07</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:23.683</div>
+              </div>
+              <!-- Clip 2 (Selected) -->
+              <div class="h-full w-64 bg-blue-900/40 border border-blue-500 rounded p-2 flex flex-col text-xs text-slate-200 shadow-[0_0_0_1px_rgba(59,130,246,0.5)]">
+                <div class="flex justify-between mb-1 text-[10px] text-blue-300">
+                  <span>01:00:03 - 01:03:01</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Therewas an art, consectetur adipiscing elit, sed diam nonummy nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat.</p>
+                <div class="mt-auto h-8 bg-slate-900/50 rounded flex items-end">
+                  <svg class="w-full h-full text-blue-400" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,2 L10,18 L15,1 L20,19 L25,8 L30,14 L35,5 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-blue-300/70">00:01.800</div>
+              </div>
+              <!-- Clip 3 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>00:02:05 - 01:08:15</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Thex is mere preserving and tolahum-consentino polatwor id lumar at desestruio poorvtic ex owns in maness vi aem complete emont in silivai.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:02.890</div>
+              </div>
+              <!-- Clip 4 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>01:02:02 - 05:00:22</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:02.604</div>
+              </div>
+            </div>
+          </div>
+          <!-- Track 2: Translation -->
+          <div class="grid-timeline border-b border-slate-800 group h-40">
+            <!-- Track Controls -->
+            <div class="bg-slate-900 border-r border-slate-800 p-3 flex flex-col justify-center space-y-2 relative sticky left-0 z-10">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-200">Translation</span>
+                <i class="w-3 h-3 text-slate-500 hover:text-blue-400 cursor-pointer" data-lucide="play"></i>
+              </div>
+            </div>
+            <!-- Track Content -->
+            <div class="relative overflow-hidden bg-slate-950 p-2 flex space-x-2 items-center min-w-max pl-[100px]">
+              <!-- Clip 1 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>01:00:03 - 02:03:59</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:02.328</div>
+              </div>
+              <!-- Clip 2 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>01:03:02 - 02:03:02</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">There nicm tationving evadalis in consectetur eundicendt he ouismod nasnmeer incididunt ut dolore magna aliqua.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:02.237</div>
+              </div>
+              <!-- Clip 3 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>01:03:32 - 01:03:55</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">The reync esite of ivatios nos conceoaton non matros at cplon moadat in taeticcols aoroas sot doloresoont.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:04.305</div>
+              </div>
+              <!-- Clip 4 -->
+              <div class="h-full w-64 bg-slate-800 border border-slate-700 rounded p-2 flex flex-col text-xs text-slate-400">
+                <div class="flex justify-between mb-1 text-[10px]">
+                  <span>01:02:09 - 03:04:02</span>
+                </div>
+                <p class="line-clamp-3 text-[10px] mb-2">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed diam nonummy nibh euismod tincidunt ut dolore magna aliquam.</p>
+                <div class="mt-auto h-8 bg-slate-900 rounded opacity-50 flex items-end">
+                  <svg class="w-full h-full text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 20">
+                    <path d="M0,10 L5,8 L10,12 L15,5 L20,15 L25,10 L30,12 L35,8 L40,10" fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"></path>
+                  </svg>
+                </div>
+                <div class="text-[10px] mt-1 text-slate-500">00:04.280</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- END: Timeline Tracks Section -->
+    </section>
+    <!-- END: Central Workspace -->
+    
+    <!-- BEGIN: Right Inspector Sidebar -->
+    <aside class="w-72 bg-slate-900 border-l border-slate-800 flex flex-col shrink-0 z-10">
+      <!-- Inspector Header -->
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-200">Inspector</h2>
+        <button class="text-slate-400 hover:text-white"><i class="w-4 h-4" data-lucide="x"></i></button>
+      </div>
+      <!-- Inspector Tabs -->
+      <div class="flex border-b border-slate-800 text-xs font-medium">
+        <button class="flex-1 py-3 text-blue-400 border-b-2 border-blue-500 text-center">Metadata</button>
+        <button class="flex-1 py-3 text-slate-400 hover:text-slate-200 text-center">Segment Properties</button>
+      </div>
+      <!-- Inspector Content -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-6">
+        <!-- Section: Segment 1 -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-slate-300 text-xs font-semibold cursor-pointer">
+            <h3>Segment 1</h3>
+            <i class="w-4 h-4 text-slate-500" data-lucide="chevron-down"></i>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Name</span>
+              <span class="text-slate-300">Original</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Details</span>
+              <span class="text-slate-300">Details</span>
+            </div>
+          </div>
+        </div>
+        <!-- Section: Segment 2 -->
+        <div class="space-y-3 pt-4 border-t border-slate-800">
+          <div class="flex items-center justify-between text-slate-300 text-xs font-semibold cursor-pointer">
+            <h3>Segment 2</h3>
+            <i class="w-4 h-4 text-slate-500" data-lucide="chevron-up"></i>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Start</span>
+              <span class="text-slate-300">11:49:00</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Total time</span>
+              <span class="text-slate-300">11:34:25</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Loop time</span>
+              <span class="text-slate-300">13:17nox</span>
+            </div>
+          </div>
+        </div>
+        <!-- Section: Segment 3 -->
+        <div class="space-y-3 pt-4 border-t border-slate-800">
+          <div class="flex items-center justify-between text-slate-300 text-xs font-semibold cursor-pointer">
+            <h3>Segment 3</h3>
+            <i class="w-4 h-4 text-slate-500" data-lucide="chevron-down"></i>
+          </div>
+          <div class="space-y-2 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Output date</span>
+              <span class="text-slate-300">True</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <span class="text-slate-500">Segment route</span>
+              <span class="text-slate-300">120%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Action Button Area -->
+      <div class="p-4 border-t border-slate-800">
+        <button class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded shadow-sm text-sm transition-colors">
+          Process/Export
+        </button>
+      </div>
+    </aside>
+    <!-- END: Right Inspector Sidebar -->
+  </main>
+  <!-- END: Main Application Layout -->
+  
+  <script data-purpose="icon-initialization">
+    lucide.createIcons();
+  </script>
+</body>
+</html>

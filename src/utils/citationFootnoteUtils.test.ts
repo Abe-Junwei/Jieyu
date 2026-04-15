@@ -104,6 +104,20 @@ describe('buildSourceListFooter', () => {
     expect(result).toContain('[3] 文档');
   });
 
+  it('marks utterance line when readModelIndexHit is false', () => {
+    const zh = buildSourceListFooter(
+      [{ type: 'utterance', refId: 'gone', label: '句段参考', snippet: 'old', readModelIndexHit: false }],
+      'zh-CN',
+    );
+    expect(zh).toContain('[1] 句段参考 [当前时间线索引未命中]:');
+
+    const en = buildSourceListFooter(
+      [{ type: 'utterance', refId: 'gone', label: 'Unit ref', snippet: 'old', readModelIndexHit: false }],
+      'en-US',
+    );
+    expect(en).toContain('[1] Unit ref [not in current timeline index]:');
+  });
+
   it('strips bidi isolation controls and normalizes whitespace in snippets', () => {
     const result = buildSourceListFooter(
       [{ type: 'utterance', refId: 'u1', label: '句段参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],

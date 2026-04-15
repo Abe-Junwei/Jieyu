@@ -29,6 +29,8 @@ export type AiChatCardUtilityMessages = {
   noteRef: string;
   documentRef: string;
   reference: string;
+  /** Appended to citation chip when RAG ref is absent from current timeline index. */
+  citationReadModelMissSuffix: string;
 };
 
 const zhCN: AiChatCardUtilityMessages = {
@@ -70,6 +72,7 @@ const zhCN: AiChatCardUtilityMessages = {
   noteRef: '\u7b14\u8bb0\u53c2\u8003',
   documentRef: '\u6587\u6863\u53c2\u8003',
   reference: '\u53c2\u8003',
+  citationReadModelMissSuffix: '\uff08\u7d22\u5f15\u672a\u547d\u4e2d\uff09',
 };
 
 const enUS: AiChatCardUtilityMessages = {
@@ -111,6 +114,7 @@ const enUS: AiChatCardUtilityMessages = {
   noteRef: 'Note Ref',
   documentRef: 'Document Ref',
   reference: 'Reference',
+  citationReadModelMissSuffix: ' (index miss)',
 };
 
 export function getAiChatCardUtilityMessages(isZh: boolean): AiChatCardUtilityMessages {

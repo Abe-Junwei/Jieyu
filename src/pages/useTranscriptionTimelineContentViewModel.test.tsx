@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
 
@@ -13,6 +14,21 @@ function createEmptySpeakerLayerLayout(): SpeakerLayerLayoutResult {
     overlapCycleItemsByGroupId: new Map(),
     lockConflictCount: 0,
     lockConflictSpeakerIds: [],
+  };
+}
+
+function createEmptyTimelineUnitViewIndex(): TimelineUnitViewIndex {
+  return {
+    allUnits: [],
+    currentMediaUnits: [],
+    byId: new Map(),
+    byLayer: new Map(),
+    getReferringUnits: () => [],
+    totalCount: 0,
+    currentMediaCount: 0,
+    epoch: 1,
+    fallbackToSegments: false,
+    isComplete: true,
   };
 }
 
@@ -36,6 +52,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         lassoRect: null,
         transcriptionLayers: [],
         translationLayers: [],
+        timelineUnitViewIndex: createEmptyTimelineUnitViewIndex(),
         timelineRenderUtterances: [],
         flashLayerRowId: '',
         focusedLayerRowId: '',
@@ -92,7 +109,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         onReorderLayers: vi.fn(),
         deletableLayers: [],
         onFocusLayer: vi.fn(),
-        navigateUtteranceFromInput: vi.fn(),
+        navigateUnitFromInput: vi.fn(),
         layerLinks: [],
         showConnectors: true,
         onToggleConnectors: vi.fn(),

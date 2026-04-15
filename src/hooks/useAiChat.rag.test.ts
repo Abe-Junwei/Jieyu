@@ -71,7 +71,9 @@ vi.mock('../services/LayerSegmentationTextService', () => ({
   ]),
 }));
 
-import { enrichContextWithRag } from './useAiChat.rag';
+import { addMetricObserver } from '../observability/metrics';
+import type { AiPromptContext } from '../ai/chat/chatDomain.types';
+import { buildLocalUnitIdSetForRagCitationCheck, enrichContextWithRag } from './useAiChat.rag';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 
 function mockSearchService(options?: {
@@ -201,5 +203,110 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     const calls = (svc.searchMultiSourceHybrid as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls.length).toBeGreaterThanOrEqual(2);
     expect(calls[1]?.[2]?.minScore).toBe(0.05);
+  });
+
+  it('attaches readModelEpochAtRetrieval and readModelIndexHit when promptContext has index', async () => {
+    const svc = mockSearchService({
+      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.82, model: 'e5' }],
+    });
+    const promptContext: AiPromptContext = {
+      shortTerm: {
+        timelineReadModelEpoch: 99,
+        unitIndexComplete: true,
+        localUnitIndex: [
+          { id: 'u1', kind: 'utterance', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello' },
+        ],
+      },
+      longTerm: {},
+    };
+    const result = await enrichContextWithRag({
+      embeddingSearchService: svc,
+      userText: '这个语言的语音系统怎么描述？',
+      contextBlock: 'ctx',
+      ragContextTimeoutMs: 5000,
+      promptContext,
+    });
+    expect(result.citations.length).toBe(1);
+    expect(result.citations[0]).toMatchObject({
+      type: 'utterance',
+      refId: 'u1',
+      readModelEpochAtRetrieval: 99,
+      readModelIndexHit: true,
+    });
+    expect(result.contextBlock).toContain('[RELEVANT_CONTEXT]');
+  });
+
+  it('sets readModelIndexHit false and emits ai.rag_citation_read_model_miss when utterance not in index', async () => {
+    const events: Array<{ id: string }> = [];
+    const dispose = addMetricObserver((e) => events.push({ id: e.id }));
+    try {
+      const svc = mockSearchService({
+        matches: [{ sourceType: 'utterance', sourceId: 'ghost-u', score: 0.82, model: 'e5' }],
+      });
+      const result = await enrichContextWithRag({
+        embeddingSearchService: svc,
+        userText: '这个语言的语音系统怎么描述？',
+        contextBlock: '',
+        ragContextTimeoutMs: 5000,
+        promptContext: {
+          shortTerm: {
+            timelineReadModelEpoch: 1,
+            unitIndexComplete: true,
+            localUnitIndex: [
+              { id: 'u1', kind: 'utterance', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'x' },
+            ],
+          },
+          longTerm: {},
+        },
+      });
+      expect(result.citations[0]?.readModelIndexHit).toBe(false);
+      expect(result.citations[0]?.readModelEpochAtRetrieval).toBe(1);
+      expect(events.some((e) => e.id === 'ai.rag_citation_read_model_miss')).toBe(true);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('attaches epoch but omits readModelIndexHit when localUnitIndex is unavailable', async () => {
+    const svc = mockSearchService({
+      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.82, model: 'e5' }],
+    });
+    const result = await enrichContextWithRag({
+      embeddingSearchService: svc,
+      userText: '这个语言的语音系统怎么描述？',
+      contextBlock: '',
+      ragContextTimeoutMs: 5000,
+      promptContext: { shortTerm: { timelineReadModelEpoch: 7 }, longTerm: {} },
+    });
+    expect(result.citations[0]?.readModelEpochAtRetrieval).toBe(7);
+    expect(result.citations[0]?.readModelIndexHit).toBeUndefined();
+  });
+});
+
+describe('buildLocalUnitIdSetForRagCitationCheck', () => {
+  it('returns null when unitIndexComplete is false', () => {
+    expect(buildLocalUnitIdSetForRagCitationCheck({
+      shortTerm: { unitIndexComplete: false, localUnitIndex: [{ id: 'a', kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' }] },
+      longTerm: {},
+    })).toBeNull();
+  });
+
+  it('returns null when localUnitIndex is missing', () => {
+    expect(buildLocalUnitIdSetForRagCitationCheck({ shortTerm: { timelineReadModelEpoch: 1 }, longTerm: {} })).toBeNull();
+  });
+
+  it('returns id set when index is complete', () => {
+    const set = buildLocalUnitIdSetForRagCitationCheck({
+      shortTerm: {
+        unitIndexComplete: true,
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' },
+          { id: 'b', kind: 'segment', mediaId: 'm', layerId: 'l', startTime: 1, endTime: 2, text: '' },
+        ],
+      },
+      longTerm: {},
+    });
+    expect(set?.has('a')).toBe(true);
+    expect(set?.has('b')).toBe(true);
   });
 });

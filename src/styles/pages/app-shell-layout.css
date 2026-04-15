@@ -46,6 +46,10 @@
   gap: 2px;
 }
 
+.app-left-rail-primary {
+  flex-shrink: 0;
+}
+
 .app-left-rail-secondary {
   margin-top: 10px;
   padding-top: 8px;

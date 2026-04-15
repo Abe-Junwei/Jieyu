@@ -9,6 +9,7 @@ import {
   resetSpeakerRailContextDiagnosticsForTests,
   useSpeakerRailContext,
 } from './SpeakerRailContext';
+import { EMPTY_SPEAKER_REFERENCE_STATS } from '../hooks/speakerManagement/types';
 
 let capturedContext: SpeakerRailContextValue | null = null;
 
@@ -72,6 +73,8 @@ describe('SpeakerRailContext', () => {
       speakerVisualByUtteranceId: {},
       speakerFilterOptions: [],
       speakerReferenceStats: {},
+      speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+      speakerReferenceStatsMediaScoped: false,
       speakerReferenceStatsReady: true,
       selectedSpeakerSummary: 'Alice',
       selectedUnitIds: new Set<string>(),

@@ -103,7 +103,7 @@ export interface OrchestratorWaveformContentProps {
   toggleSnapEnabled: () => void;
   playerPlaybackRate: number;
   playerCurrentTime: number;
-  selectedUtteranceDuration: number | null;
+  selectedUnitDuration: number | null;
   amplitudeScale: number;
   setAmplitudeScale: (v: number) => void;
   selectedMediaIsVideo: boolean;
@@ -115,8 +115,8 @@ export interface OrchestratorWaveformContentProps {
   videoPreviewHeight: number;
   videoRightPanelWidth: number;
   waveformRegions: WaveSurferRegion[];
-  selectedUtteranceIds: Set<string>;
-  selectedTimelineUtteranceId: string;
+  selectedUnitIds: Set<string>;
+  activeTimelineUnitId: string;
   segmentLoopPlayback: boolean;
   subSelectionRange: { start: number; end: number } | null;
   isResizingVideoPreview: boolean;
@@ -205,7 +205,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     toggleSnapEnabled,
     playerPlaybackRate,
     playerCurrentTime,
-    selectedUtteranceDuration,
+    selectedUnitDuration,
     amplitudeScale,
     setAmplitudeScale,
     selectedMediaIsVideo,
@@ -215,8 +215,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     videoPreviewHeight,
     videoRightPanelWidth,
     waveformRegions,
-    selectedUtteranceIds,
-    selectedTimelineUtteranceId,
+    selectedUnitIds,
+    activeTimelineUnitId,
     segmentLoopPlayback,
     subSelectionRange,
     isResizingVideoPreview,
@@ -393,7 +393,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
             onSnapToggle={toggleSnapEnabled}
             playbackRate={playerPlaybackRate}
             currentTime={playerCurrentTime}
-            selectedUtteranceDuration={selectedUtteranceDuration}
+            selectedUnitDuration={selectedUnitDuration}
             amplitudeScale={amplitudeScale}
             onAmplitudeChange={setAmplitudeScale}
             onAmplitudeReset={handleAmplitudeReset}
@@ -414,8 +414,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 videoPreviewHeight={videoPreviewHeight}
                 videoRightPanelWidth={videoRightPanelWidth}
                 waveformRegions={waveformRegions}
-                selectedUtteranceIds={selectedUtteranceIds}
-                activeUtteranceUnitId={selectedTimelineUtteranceId}
+                selectedUnitIds={selectedUnitIds}
+                activeUnitId={activeTimelineUnitId}
                 segmentLoopPlayback={segmentLoopPlayback}
                 subSelectionRange={subSelectionRange}
                 isResizingVideoPreview={isResizingVideoPreview}

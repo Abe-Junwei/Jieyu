@@ -1,9 +1,20 @@
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import {
   isSegmentTimelineUnit,
   type TimelineUnit,
   type TimelineUnitKind,
 } from '../hooks/transcriptionTypes';
+
+function activeUtteranceIdFromPrimaryView(
+  primary: TimelineUnitView | null,
+  ownerFallback: UtteranceDocType | null,
+): string | null {
+  if (!primary) return ownerFallback?.id ?? null;
+  if (primary.kind === 'utterance') return primary.id;
+  const parent = primary.parentUtteranceId?.trim();
+  return parent ? parent : (ownerFallback?.id ?? null);
+}
 
 export interface TranscriptionSelectionRowMeta {
   rowNumber: number;
@@ -19,6 +30,8 @@ export interface BuildTranscriptionSelectionSnapshotInput {
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineSegment: LayerSegmentDocType | null;
   selectedTimelineOwnerUnit: UtteranceDocType | null;
+  /** Primary row in the unified read model (timeline unit view); null when unknown. */
+  primaryUnitView: TimelineUnitView | null;
   selectedTimelineRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   layers: LayerDocType[];
@@ -31,7 +44,7 @@ export interface TranscriptionSelectionSnapshot {
   timelineUnit: TimelineUnit | null;
   selectedUnitKind: TimelineUnitKind | null;
   activeUnitId: string | null;
-  selectedUnit: UtteranceDocType | null;
+  selectedUnit: TimelineUnitView | null;
   selectedRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   selectedText: string;
@@ -76,8 +89,8 @@ export function buildTranscriptionSelectionSnapshot(
   return {
     timelineUnit: input.selectedTimelineUnit,
     selectedUnitKind: input.selectedTimelineUnit?.kind ?? null,
-    activeUnitId: input.selectedTimelineOwnerUnit?.id ?? null,
-    selectedUnit: input.selectedTimelineOwnerUnit,
+    activeUnitId: activeUtteranceIdFromPrimaryView(input.primaryUnitView, input.selectedTimelineOwnerUnit),
+    selectedUnit: input.primaryUnitView,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedLayerId: input.selectedLayerId,
     selectedText,

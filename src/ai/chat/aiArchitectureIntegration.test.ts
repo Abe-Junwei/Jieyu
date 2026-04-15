@@ -236,10 +236,11 @@ describe('Local context tool execution chain', () => {
     const call: LocalContextToolCall = { name: 'get_current_selection', arguments: {} };
     const result = await executeLocalContextToolCall(call, mockContext, { current: 0 });
     expect(result.ok).toBe(true);
-    expect(result.result).toEqual({
+    expect(result.result).toEqual(expect.objectContaining({
       ...mockContext.shortTerm,
       projectUnitCount: mockContext.longTerm!.projectStats!.unitCount,
-    });
+    }));
+    expect((result.result as { _readModel: { unitIndexComplete: boolean } })._readModel.unitIndexComplete).toBe(true);
   });
 
   it('get_project_stats returns long-term stats', async () => {

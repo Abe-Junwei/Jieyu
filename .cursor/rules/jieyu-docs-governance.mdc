@@ -1,0 +1,33 @@
+---
+description: Repository file placement and docs governance rules
+alwaysApply: true
+---
+
+# Jieyu Repository Governance
+
+Follow this repository structure when creating or updating files:
+
+- Put product/application code under `src/`; do not place business code in `docs/`.
+- Put executable checks and automation scripts under `scripts/`.
+- Use `docs/architecture/` for long-lived current-state facts.
+- Use `docs/adr/` for durable architecture decisions; add a new ADR when superseding.
+- Use `docs/execution/plans/` for execution plans and milestone records.
+- Use `docs/execution/audits/` for audits/baselines/reports.
+- Use `docs/execution/release-gates/` for go/no-go and release gate artifacts.
+- Use `docs/execution/governance/` for process/governance ledgers.
+- Use `docs/execution/archive/manual-validation/` for manual validation scripts and records.
+
+For root-level doc naming:
+
+- Planning docs: `docs/规划-*.md`
+- Release notes: `docs/发布说明-*.md`
+- Research docs: `docs/调研-*.md`
+
+Behavior rules:
+
+- Treat `docs/规划-*` as historical planning context, not the source of current truth.
+- Prefer `docs/architecture/` + code as source of truth when conflicts exist.
+- Keep docs in the correct execution subfolder; avoid flattening into `docs/execution/`.
+- When adding/modifying governed docs, run `npm run check:docs-governance`.
+- After large doc moves/renames, run `npm run report:docs-link-debt`.
+- Before finishing substantial structural changes, run `npm run check:architecture-guard`.

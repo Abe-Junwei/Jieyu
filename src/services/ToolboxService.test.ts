@@ -203,8 +203,24 @@ describe('exportToToolbox', () => {
       layers: [makeLayer('l1', 'transcription', true)],
       translations: [],
       tokens: [
-        { id: 'tok1', utteranceId: 'u1', tokenIndex: 0, form: { default: 'I' } },
-        { id: 'tok2', utteranceId: 'u1', tokenIndex: 1, form: { default: 'go' } },
+        {
+          id: 'tok1',
+          textId: 'text_1',
+          unitId: 'u1',
+          tokenIndex: 0,
+          form: { default: 'I' },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'tok2',
+          textId: 'text_1',
+          unitId: 'u1',
+          tokenIndex: 1,
+          form: { default: 'go' },
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
       ] as never[],
       morphemes: [
         { id: 'm1', tokenId: 'tok1', morphemeIndex: 0, form: { default: 'I' }, gloss: { eng: '1SG' } },

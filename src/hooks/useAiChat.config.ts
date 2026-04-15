@@ -32,6 +32,25 @@ export const INITIAL_METRICS: AiInteractionMetrics = {
 
 export const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
 
+// ── Local tool channel & agent loop continuation budgets ───────────────────────
+// Single source of truth for Phase C / agent-loop payload shaping (see localContextTools).
+
+/** Max characters for formatted local tool JSON (single tool, batch, and agent-loop `tool_result_payload`). */
+export const AI_LOCAL_TOOL_RESULT_CHAR_BUDGET = 8000;
+
+/** Max characters of user text embedded as `originalUserRequest` inside agent-loop continuation JSON. */
+export const AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS = 3000;
+
+/** When shrinking agent-loop payloads, cap each `matches[].transcription` preview at this length. */
+export const AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS = 480;
+
+/** Upper bound on shrink iterations (truncate + pop cycles) to avoid pathological loops. */
+export const AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS = 8000;
+
+/** Deep string trim limits when match-level shrinking is insufficient (two passes, descending). */
+export const AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1 = 240;
+export const AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2 = 120;
+
 // ── System Prompts ────────────────────────────────────────────────────────────
 
 export const AI_FUNCTION_CALLING_SYSTEM_PROMPT = `You are a helpful AI assistant with access to transcription editing tools.

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { UtteranceDocType } from '../db';
-import { isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
+import type { TimelineUnitView } from './timelineUnitView';
+import type { TimelineUnit } from './transcriptionTypes';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
 import { fireAndForget } from '../utils/fireAndForget';
 
@@ -35,7 +36,8 @@ interface UseKeybindingActionsInput {
   setSegMarkStart: React.Dispatch<React.SetStateAction<number | null>>;
   segmentLoopPlayback: boolean;
   setSegmentLoopPlayback: React.Dispatch<React.SetStateAction<boolean>>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  /** Current-media timeline units (utterance + segment), same order as waveform / timeline. */
+  timelineUnitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   // Refs for avoiding re-render churn
   markingModeRef: React.MutableRefObject<boolean>;
   skipSeekForIdRef: React.MutableRefObject<string | null>;
@@ -73,7 +75,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     selectedMediaUrl,
     segMarkStart, setSegMarkStart,
     segmentLoopPlayback, setSegmentLoopPlayback,
-    utterancesOnCurrentMedia,
+    timelineUnitsOnCurrentMedia,
     markingModeRef, skipSeekForIdRef, creatingSegmentRef, manualSelectTsRef,
     waveformAreaRef,
     createUtteranceFromSelection,
@@ -114,9 +116,8 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   // The individual callbacks are stable via useCallback; we mutate .current in useEffect.
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
   const activeSelectionId = selectedTimelineUnit?.unitId ?? '';
-  const activeUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
-    ? selectedTimelineUnit.unitId
-    : '';
+  /** Primary timeline unit id for prev/next/review navigation (utterance or segment). */
+  const navFocusUnitId = selectedTimelineUnit?.unitId?.trim() ? selectedTimelineUnit.unitId : '';
 
   useEffect(() => {
     waveformActionsRef.current = {
@@ -175,37 +176,39 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         player.seekBySeconds(1 / 25);
       },
       navPrev: (e) => {
-        if (!activeUnitId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
-        const target = utterancesOnCurrentMedia[idx - 1];
+        if (!navFocusUnitId) return;
+        const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
+        const target = timelineUnitsOnCurrentMedia[idx - 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) {
             player.stop();
           }
           selectUnit(target.id);
-          const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
+          const focusFrom = e.target instanceof HTMLElement ? e.target : null;
+          const el = focusFrom?.closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
         }
       },
       navNext: (e) => {
-        if (!activeUnitId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
-        const target = utterancesOnCurrentMedia[idx + 1];
+        if (!navFocusUnitId) return;
+        const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
+        const target = timelineUnitsOnCurrentMedia[idx + 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           if (player.isPlaying) {
             player.stop();
           }
           selectUnit(target.id);
-          const el = (e.target as HTMLElement).closest('[tabindex]') as HTMLElement | null;
+          const focusFrom = e.target instanceof HTMLElement ? e.target : null;
+          const el = focusFrom?.closest('[tabindex]') as HTMLElement | null;
           if (el) requestAnimationFrame(() => el.focus());
         }
       },
       tabNext: () => {
-        if (!activeUnitId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
-        const target = utterancesOnCurrentMedia[idx + 1];
+        if (!navFocusUnitId) return;
+        const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
+        const target = timelineUnitsOnCurrentMedia[idx + 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           selectUnit(target.id);
@@ -213,9 +216,9 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
       tabPrev: () => {
-        if (!activeUnitId) return;
-        const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
-        const target = utterancesOnCurrentMedia[idx - 1];
+        if (!navFocusUnitId) return;
+        const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
+        const target = timelineUnitsOnCurrentMedia[idx - 1];
         if (target) {
           manualSelectTsRef.current = Date.now();
           selectUnit(target.id);
@@ -224,10 +227,10 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       },
       reviewNext: () => {
         // 跳到当前句段之后第一个低置信度句段（< 0.75）| Jump to next low-confidence utterance after current
-        const curIdx = activeUnitId
-          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId)
+        const curIdx = navFocusUnitId
+          ? timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId)
           : -1;
-        const lowList = utterancesOnCurrentMedia
+        const lowList = timelineUnitsOnCurrentMedia
           .map((u, i) => ({ u, i }))
           .filter(({ u }) => typeof u.ai_metadata?.confidence === 'number' && u.ai_metadata.confidence < 0.75);
         const target = lowList.find(({ i }) => i > curIdx);
@@ -240,10 +243,10 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       },
       reviewPrev: () => {
         // 跳到当前句段之前最近一个低置信度句段（< 0.75）| Jump to prev low-confidence utterance before current
-        const curIdx = activeUnitId
-          ? utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId)
-          : utterancesOnCurrentMedia.length;
-        const lowList = utterancesOnCurrentMedia
+        const curIdx = navFocusUnitId
+          ? timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId)
+          : timelineUnitsOnCurrentMedia.length;
+        const lowList = timelineUnitsOnCurrentMedia
           .map((u, i) => ({ u, i }))
           .filter(({ u }) => typeof u.ai_metadata?.confidence === 'number' && u.ai_metadata.confidence < 0.75)
           .filter(({ i }) => i < curIdx);
@@ -256,7 +259,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
     };
-  }, [activeSelectionId, activeUnitId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUnitIds, utterancesOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUnits, selectUnit, selectTimelineUnit, manualSelectTsRef]);
+  }, [activeSelectionId, navFocusUnitId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUnitIds, timelineUnitsOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUnits, selectUnit, selectTimelineUnit, manualSelectTsRef]);
 
   // Global keybinding handler (undo, redo, search)
   useEffect(() => {
@@ -284,20 +287,20 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   }, [undo, redo, keymap, setShowSearch, toggleNotes, toggleVoice]);
 
   // Navigate to prev/next utterance from an inline input
-  const navigateUtteranceFromInput = useCallback(
+  const navigateUnitFromInput = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, direction: 1 | -1) => {
       e.preventDefault();
       (e.target as HTMLInputElement).blur();
-      const idx = utterancesOnCurrentMedia.findIndex((u) => u.id === activeUnitId);
+      const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
       if (idx < 0) return;
-      const target = utterancesOnCurrentMedia[idx + direction];
+      const target = timelineUnitsOnCurrentMedia[idx + direction];
       if (target) {
         manualSelectTsRef.current = Date.now();
         selectUnit(target.id);
         if (player.isReady) player.playRegion(target.startTime, target.endTime);
       }
     },
-    [utterancesOnCurrentMedia, activeUnitId, selectUnit, player, manualSelectTsRef],
+    [timelineUnitsOnCurrentMedia, navFocusUnitId, selectUnit, player, manualSelectTsRef],
   );
 
   // Waveform keydown via keybinding dispatch
@@ -343,7 +346,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       case 'navToIndex': {
         const idx = params?.segmentIndex;
         if (idx == null || idx < 1) break;
-        const target = utterancesOnCurrentMedia[idx - 1];
+        const target = timelineUnitsOnCurrentMedia[idx - 1];
         if (!target) break;
         manualSelectTsRef.current = Date.now();
         if (player.isPlaying) player.stop();
@@ -353,13 +356,13 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
       }
       default: break;
     }
-  }, [undo, redo, setShowSearch, toggleNotes, utterancesOnCurrentMedia, selectUnit, player, manualSelectTsRef]);
+  }, [undo, redo, setShowSearch, toggleNotes, timelineUnitsOnCurrentMedia, selectUnit, player, manualSelectTsRef]);
 
   return {
     handlePlayPauseAction,
     handleGlobalPlayPauseAction,
     handleWaveformKeyDown,
-    navigateUtteranceFromInput,
+    navigateUnitFromInput,
     executeAction,
   };
 }

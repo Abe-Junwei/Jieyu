@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { SpeakerDocType, UtteranceDocType } from '../db';
 import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
 import { useSpeakerActions, type UseSpeakerActionsOptions } from './useSpeakerActions';
+import { EMPTY_SPEAKER_REFERENCE_STATS } from './speakerManagement/types';
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
@@ -14,7 +15,7 @@ vi.mock('../services/LinguisticService', () => ({
     mergeSpeakers: vi.fn(),
     deleteSpeaker: vi.fn(),
     assignSpeakerToUtterances: vi.fn(),
-    getSpeakerReferenceStats: vi.fn(async () => ({})),
+    getSpeakerReferenceStats: vi.fn(async () => ({ perSpeaker: {}, unassigned: { transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 } })),
   },
 }));
 
@@ -112,7 +113,10 @@ function renderSpeakerActions(options: Partial<UseSpeakerActionsOptions> = {}) {
 describe('useSpeakerActions dialog flows', () => {
   beforeEach(() => {
     vi.mocked(LinguisticService.getSpeakers).mockResolvedValue([]);
-    vi.mocked(LinguisticService.getSpeakerReferenceStats).mockResolvedValue({});
+    vi.mocked(LinguisticService.getSpeakerReferenceStats).mockResolvedValue({
+      perSpeaker: {},
+      unassigned: EMPTY_SPEAKER_REFERENCE_STATS,
+    });
   });
 
   it('renames a speaker through dialog flow and updates local state', async () => {
@@ -407,7 +411,10 @@ describe('useSpeakerActions dialog flows', () => {
       makeSpeaker({ id: 'speaker-2', name: 'Used' }),
     ]);
     vi.mocked(LinguisticService.getSpeakerReferenceStats).mockResolvedValueOnce({
-      'speaker-2': { utteranceCount: 1, segmentCount: 0, totalCount: 1 },
+      perSpeaker: {
+        'speaker-2': { transcriptionUnitCount: 1, segmentCount: 0, totalCount: 1 },
+      },
+      unassigned: EMPTY_SPEAKER_REFERENCE_STATS,
     });
     vi.mocked(LinguisticService.deleteSpeaker).mockResolvedValue(0);
 

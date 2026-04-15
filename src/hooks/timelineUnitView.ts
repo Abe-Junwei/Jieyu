@@ -4,7 +4,8 @@ import type { TimelineUnitKind } from './transcriptionTypes';
 
 /**
  * Unified timeline unit for read paths (AI, waveform digest, tools).
- * Write paths still branch on `kind` to the correct service.
+ * Timeline mutations route through `dispatchTimelineUnitMutation` (see `src/pages/timelineUnitMutationDispatch.ts`)
+ * so `kind` + layer edit mode pick utterance-doc vs segment-layer writes deterministically.
  */
 export interface TimelineUnitView {
   id: string;
@@ -33,7 +34,6 @@ export interface BuildTimelineUnitViewIndexInput {
   activeLayerIdForEdits: string | undefined;
   /** Used as `layerId` for utterance-shaped rows when no per-row layer exists. */
   defaultTranscriptionLayerId: string | undefined;
-  utteranceCount: number;
   /**
    * When false, segments may still be loading — tools should not treat empty index as authoritative.
    */
@@ -59,6 +59,10 @@ export interface TimelineUnitViewIndex {
   totalCount: number;
   currentMediaCount: number;
   epoch: number;
+  /**
+   * True when the project has no utterance rows but segment rows exist (segment-first / transcription-on-segment projects).
+   * Diagnostic only; `allUnits` is still the single read-model list.
+   */
   fallbackToSegments: boolean;
   isComplete: boolean;
 }
@@ -95,6 +99,27 @@ export function utteranceToView(u: UtteranceDocType, defaultLayerId: string): Ti
     ...(u.annotationStatus ? { annotationStatus: u.annotationStatus } : {}),
     ...(u.textId ? { textId: u.textId } : {}),
   };
+}
+
+/**
+ * Project-wide unit cardinality using the same semantic merge keys as `buildTimelineUnitViewIndex`
+ * (utterance id vs segment id / parent utterance shadowing).
+ */
+export function mergedTimelineUnitSemanticKeyCount(input: {
+  utteranceIds: readonly string[];
+  segments: ReadonlyArray<{ id: string; utteranceId?: string }>;
+}): number {
+  const mergedBySemanticKey = new Map<string, true>();
+  for (const rawId of input.utteranceIds) {
+    const id = rawId.trim();
+    if (id) mergedBySemanticKey.set(id, true);
+  }
+  for (const seg of input.segments) {
+    const parent = seg.utteranceId?.trim();
+    const key = parent && parent.length > 0 ? parent : seg.id;
+    mergedBySemanticKey.set(key, true);
+  }
+  return mergedBySemanticKey.size;
 }
 
 export function segmentToView(

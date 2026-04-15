@@ -1,8 +1,35 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, renderHook, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useTimelineAnnotationHelpers } from './useTimelineAnnotationHelpers';
+
+function makeSegmentDoc(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+  const now = new Date().toISOString();
+  return {
+    id,
+    textId: 'text-1',
+    mediaId: 'media-1',
+    layerId,
+    startTime,
+    endTime,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function makeUtteranceDoc(id: string, startTime: number, endTime: number): UtteranceDocType {
+  const now = new Date().toISOString();
+  return {
+    id,
+    textId: 'text-1',
+    mediaId: 'media-1',
+    startTime,
+    endTime,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
 
 function makeLayer(id: string): LayerDocType {
   const now = new Date().toISOString();
@@ -52,7 +79,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
-      navigateUtteranceFromInput: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
       selectedUnitIds: new Set(['seg-1', 'seg-2']),
@@ -65,7 +92,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      { id: 'seg-2', startTime: 1, endTime: 2 },
+      makeSegmentDoc('seg-2', 'layer-seg', 1, 2),
       makeLayer('layer-seg'),
       'segment-2',
       {
@@ -112,7 +139,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
-      navigateUtteranceFromInput: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
       selectedUnitIds: new Set(['seg-1']),
@@ -125,7 +152,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      { id: 'seg-1', startTime: 1, endTime: 2 },
+      makeSegmentDoc('seg-1', 'layer-dependent', 1, 2),
       makeLayer('layer-dependent'),
       'segment-dependent',
       {
@@ -164,7 +191,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
-      navigateUtteranceFromInput: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
       selectedUnitIds: new Set(['utt-1']),
@@ -177,7 +204,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      { id: 'utt-1', startTime: 1, endTime: 2 },
+      makeUtteranceDoc('utt-1', 1, 2),
       makeLayer('layer-input'),
       'draft text',
       {

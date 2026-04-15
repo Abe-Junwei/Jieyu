@@ -1,0 +1,144 @@
+/* Material Symbols unified rendering baseline.
+   Root cause of drift: we constrained icon spans to fixed square boxes (width/height),
+   but glyph advance/ink boxes vary by symbol and axis. This clips/overflows glyphs and
+   causes apparent top-left/top-right drift inside bordered controls. */
+@layer components {
+  :root {
+    /* 左侧栏主导航等：Material Symbols（jieyu-material--nav） */
+    --jieyu-material-nav-size: 24px;
+    --jieyu-material-wave-size: 16px;
+    --jieyu-material-wave-play-size: 18px;
+    --jieyu-material-wave-md-size: 15px;
+    --jieyu-material-wave-trigger-size: 15px;
+    --jieyu-material-wave-trigger-chevron-size: 14px;
+    --jieyu-material-undo-chip-size: 13px;
+    --jieyu-material-ai-panel-size: 14px;
+    --jieyu-material-ai-panel-sm-size: 12px;
+    --jieyu-material-panel-size: 16px;
+    --jieyu-material-panel-close-lg-size: 18px;
+    --jieyu-material-inline-size: 14px;
+    --jieyu-material-inline-tight-size: 13px;
+    --jieyu-material-micro-size: 12px;
+    --jieyu-material-micro-xs-size: 11px;
+    --jieyu-material-hero-size: 28px;
+    --jieyu-material-voice-mic-size: 22px;
+  }
+
+  /* Keep Google class semantics, but force app-level size/axes with higher specificity. */
+  span.material-symbols-outlined.jieyu-material {
+    margin: 0;
+    padding: 0;
+    display: inline-block;
+    flex-shrink: 0;
+    color: inherit;
+    white-space: nowrap;
+    vertical-align: middle;
+    user-select: none;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+    font-style: normal;
+    font-family: 'Material Symbols Outlined', sans-serif;
+    font-size: var(--jieyu-material-size, 1em);
+    font-variation-settings:
+      'FILL' var(--jieyu-material-fill, 0),
+      'wght' var(--jieyu-material-wght, 300),
+      'GRAD' var(--jieyu-material-grad, 0),
+      'opsz' var(--jieyu-material-opsz, 20);
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--nav {
+    --jieyu-material-size: var(--jieyu-material-nav-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave {
+    --jieyu-material-size: var(--jieyu-material-wave-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-play {
+    --jieyu-material-size: var(--jieyu-material-wave-play-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-md {
+    --jieyu-material-size: var(--jieyu-material-wave-md-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
+    --jieyu-material-size: var(--jieyu-material-wave-trigger-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger-chevron {
+    --jieyu-material-size: var(--jieyu-material-wave-trigger-chevron-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--undo-chip {
+    --jieyu-material-size: var(--jieyu-material-undo-chip-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--ai-panel {
+    --jieyu-material-size: var(--jieyu-material-ai-panel-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--ai-panel-sm {
+    --jieyu-material-size: var(--jieyu-material-ai-panel-sm-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--panel {
+    --jieyu-material-size: var(--jieyu-material-panel-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--panel-close-lg {
+    --jieyu-material-size: var(--jieyu-material-panel-close-lg-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--inline {
+    --jieyu-material-size: var(--jieyu-material-inline-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--inline-tight {
+    --jieyu-material-size: var(--jieyu-material-inline-tight-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--micro {
+    --jieyu-material-size: var(--jieyu-material-micro-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--micro-xs {
+    --jieyu-material-size: var(--jieyu-material-micro-xs-size);
+    --jieyu-material-opsz: 20;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--hero {
+    --jieyu-material-size: var(--jieyu-material-hero-size);
+    --jieyu-material-opsz: 24;
+  }
+
+  span.material-symbols-outlined.jieyu-material.jieyu-material--voice-mic {
+    --jieyu-material-size: var(--jieyu-material-voice-mic-size);
+    --jieyu-material-opsz: 24;
+  }
+
+  .left-rail-btn > .jieyu-material {
+    align-self: center;
+  }
+
+  .left-rail-btn .jieyu-material {
+    color: currentColor;
+  }
+}

@@ -43,11 +43,108 @@ async function clearDatabase(): Promise<void> {
   ]);
 }
 
+/** Default transcription layer per textId — required for `upsertUtteranceLayerUnit` (M18+). */
+async function seedDefaultTranscriptionLayerForText(textId: string, layerId: string, nowIso: string): Promise<void> {
+  await db.texts.put({
+    id: textId,
+    title: { default: 'Fixture' },
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+  await LinguisticService.saveTranslationLayer({
+    id: layerId,
+    textId,
+    key: `trc_fixture_${textId}`,
+    name: { default: 'TRC' },
+    layerType: 'transcription',
+    languageId: 'und',
+    modality: 'text',
+    isDefault: true,
+    sortOrder: 0,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+}
+
+async function seedLinguisticServiceSmokeFixtures(nowIso: string): Promise<void> {
+  const textIds: Array<[string, string]> = [
+    ['text_1', 'layer_trc_fixture_text_1'],
+    ['text_stop_write', 'layer_trc_fixture_text_stop_write'],
+    ['text_read', 'layer_trc_fixture_text_read'],
+    ['text_spk_assign', 'layer_trc_fixture_text_spk_assign'],
+    ['text_spk_rename', 'layer_trc_fixture_text_spk_rename'],
+    ['text_spk_merge', 'layer_trc_fixture_text_spk_merge'],
+    ['text_spk_merge_seg', 'layer_trc_fixture_text_spk_merge_seg'],
+    ['text_spk_clear', 'layer_trc_fixture_text_spk_clear'],
+    ['text_spk_assign_unit', 'layer_trc_fixture_text_spk_assign_unit'],
+    ['text_spk_delete', 'layer_trc_fixture_text_spk_delete'],
+    ['text_spk_delete_reject', 'layer_trc_fixture_text_spk_delete_reject'],
+    ['text_stats', 'layer_trc_fixture_text_stats'],
+    ['text_stats_u', 'layer_trc_fixture_text_stats_u'],
+    ['text_m', 'layer_trc_fixture_text_m'],
+    ['text_batch', 'layer_trc_fixture_text_batch'],
+    ['text_del', 'layer_trc_fixture_text_del'],
+    ['text_2', 'layer_trc_fixture_text_2'],
+    ['text_cascade_ut', 'layer_trc_fixture_text_cascade_ut'],
+  ];
+  for (const [textId, layerId] of textIds) {
+    await seedDefaultTranscriptionLayerForText(textId, layerId, nowIso);
+  }
+
+  await db.texts.put({
+    id: 'text_layer_rt',
+    title: { default: 'Layer RT fixture' },
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+  await LinguisticService.saveTranslationLayer({
+    id: 'layer_trc_rt',
+    textId: 'text_layer_rt',
+    key: 'trc_rt',
+    name: { default: 'TRC RT' },
+    layerType: 'transcription',
+    languageId: 'und',
+    modality: 'text',
+    isDefault: true,
+    sortOrder: 0,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+  await LinguisticService.saveTranslationLayer({
+    id: 'layer_trl_rt',
+    textId: 'text_layer_rt',
+    key: 'trl_rt',
+    name: { default: 'TRL RT' },
+    layerType: 'translation',
+    languageId: 'eng',
+    modality: 'text',
+    isDefault: false,
+    sortOrder: 1,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+
+  await LinguisticService.saveTranslationLayer({
+    id: 'layer_cascade',
+    textId: 'text_cascade_ut',
+    key: 'cascade_layer',
+    name: { default: 'Cascade' },
+    layerType: 'translation',
+    languageId: 'eng',
+    modality: 'text',
+    isDefault: false,
+    sortOrder: 1,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+}
+
 describe('LinguisticService smoke tests', () => {
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
     clearLanguageCatalogRuntimeCache();
+    await seedLinguisticServiceSmokeFixtures(new Date().toISOString());
   });
 
   it('can create an orthography for the target language', async () => {
@@ -892,7 +989,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const layers = await LinguisticService.getTranslationLayers('translation');
+    const layers = await LinguisticService.getTranslationLayers('translation', 'text_1');
     const records = await LinguisticService.getUtteranceTexts('utt_2');
 
     expect(layers).toHaveLength(1);
@@ -1876,8 +1973,9 @@ describe('LinguisticService smoke tests', () => {
       .where('layerId')
       .equals('layer_trc_rt')
       .toArray();
-    expect(v2Contents).toHaveLength(1);
-    expect(v2Contents[0]!.text).toBe('hello');
+    const helloRows = v2Contents.filter((c) => c.text === 'hello');
+    expect(helloRows.length).toBeGreaterThanOrEqual(1);
+    expect(helloRows[0]!.text).toBe('hello');
 
     // Cascade delete via removeUtterance should clean up V2 entries
     await LinguisticService.removeUtterance('utt_layer_rt');

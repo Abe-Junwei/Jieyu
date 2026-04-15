@@ -13,7 +13,6 @@ export interface UseTimelineUnitViewIndexInput {
   currentMediaId: string | undefined;
   activeLayerIdForEdits: string | undefined;
   defaultTranscriptionLayerId: string | undefined;
-  utteranceCount: number;
   segmentsLoadComplete?: boolean;
   existingIndex?: TimelineUnitViewIndex;
 }
@@ -39,7 +38,6 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
       currentMediaId: input.currentMediaId,
       activeLayerIdForEdits: input.activeLayerIdForEdits,
       defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
-      utteranceCount: input.utteranceCount,
       epoch: epochRef.current,
       ...(input.segmentsLoadComplete !== undefined ? { segmentsLoadComplete: input.segmentsLoadComplete } : {}),
     });
@@ -52,7 +50,6 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
     input.currentMediaId,
     input.activeLayerIdForEdits,
     input.defaultTranscriptionLayerId,
-    input.utteranceCount,
     input.segmentsLoadComplete,
   ]);
 }

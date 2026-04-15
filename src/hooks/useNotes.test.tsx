@@ -44,7 +44,7 @@ describe('useNotes canonical target resolution', () => {
     await db.utterance_tokens.put({
       id: 'utt_legacy::w2',
       textId: 'text_1',
-      utteranceId: 'utt_legacy',
+      unitId: 'utt_legacy',
       form: { default: 'tok' },
       tokenIndex: 1,
       createdAt: new Date().toISOString(),
@@ -76,7 +76,7 @@ describe('useNotes canonical target resolution', () => {
     await db.utterance_tokens.put({
       id: 'utt_read::w1',
       textId: 'text_1',
-      utteranceId: 'utt_read',
+      unitId: 'utt_read',
       form: { default: 'tok' },
       tokenIndex: 0,
       createdAt: new Date().toISOString(),

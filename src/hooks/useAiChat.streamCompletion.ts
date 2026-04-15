@@ -80,6 +80,12 @@ interface ResolveAiChatStreamCompletionParams {
   shouldBumpRecovery: boolean;
   genRequestId: (call: AiChatToolCall, scopeMessageId?: string) => string;
   localToolCallCountRef: { current: number };
+  /**
+   * Fresh prompt/read-model snapshot for **local** context tools (`list_units`, `get_project_stats`, …).
+   * Invoked at each tool execution (including each step of a multi-tool batch) so tools see current UI state,
+   * not only the `aiContext` captured when the user message was sent.
+   */
+  resolveFreshAiContext?: () => AiPromptContext | null;
 }
 
 interface ResolveAiChatStreamCompletionResult {
@@ -146,6 +152,7 @@ export async function resolveAiChatStreamCompletion({
   shouldBumpRecovery,
   genRequestId,
   localToolCallCountRef,
+  resolveFreshAiContext,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
     const finalErrorMessage = formatEmptyModelResponseError();
@@ -169,9 +176,10 @@ export async function resolveAiChatStreamCompletion({
       const rawCall = localToolCallsParsed[index]!;
       const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory);
       const stepCall = stepCalls[0]!;
+      const toolContext = resolveFreshAiContext?.() ?? aiContext;
       const result = await executeLocalContextToolCall(
         stepCall,
-        aiContext,
+        toolContext,
         localToolCallCountRef,
       );
       localToolResults.push(result);
@@ -200,9 +208,10 @@ export async function resolveAiChatStreamCompletion({
   if (localToolCallsParsed.length === 1) {
     const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory);
     const resolvedCall = singleCalls[0]!;
+    const toolContext = resolveFreshAiContext?.() ?? aiContext;
     const localToolResult = await executeLocalContextToolCall(
       resolvedCall,
-      aiContext,
+      toolContext,
       localToolCallCountRef,
     );
     const mergedMemory = mergeLocalToolSessionState(

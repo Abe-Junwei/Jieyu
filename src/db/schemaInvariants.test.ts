@@ -132,7 +132,7 @@ const utteranceTokenSuite: InvariantSuite<UtteranceTokenDocType> = {
   createValid: () => ({
     id: 'tok_valid_1',
     textId: 'text_valid_1',
-    utteranceId: 'utt_valid_1',
+    unitId: 'utt_valid_1',
     form: { default: 'hello' },
     tokenIndex: 0,
     createdAt: NOW,
@@ -152,7 +152,7 @@ const utteranceMorphemeSuite: InvariantSuite<UtteranceMorphemeDocType> = {
   createValid: () => ({
     id: 'morph_valid_1',
     textId: 'text_valid_1',
-    utteranceId: 'utt_valid_1',
+    unitId: 'utt_valid_1',
     tokenId: 'tok_valid_1',
     form: { default: 'he' },
     morphemeIndex: 0,

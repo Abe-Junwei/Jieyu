@@ -1,7 +1,7 @@
 import '../styles/pages/orthography-bridge-workspace.css';
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import { JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../components/ui/MaterialSymbol';
+import { JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { useSearchParams } from 'react-router-dom';
 import { LanguageAssetRouteLink } from '../components/LanguageAssetRouteLink';
 import { OrthographyBridgeManager } from '../components/OrthographyBridgeManager';
@@ -293,7 +293,7 @@ export function OrthographyBridgeWorkspacePage({
       aria-label={t(locale, 'transcription.importDialog.close')}
       title={t(locale, 'transcription.importDialog.close')}
     >
-      <X className={JIEYU_LUCIDE_PANEL} />
+      <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
     </button>
   ) : undefined;
 

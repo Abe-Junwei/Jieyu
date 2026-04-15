@@ -1,16 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import {
-  AudioLines,
-  BookMarked,
-  BookType,
-  Brain,
-  FolderKanban,
-  GitBranch,
-  Languages,
-  Settings,
-  StickyNote,
-  type LucideIcon,
-} from 'lucide-react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
@@ -24,11 +12,12 @@ import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
-import { ModalPanel } from './components/ui/ModalPanel';
+import { MaterialSymbol, ModalPanel } from './components/ui';
 import { AssetPanelProvider, type AssetPanelContextValue, type LanguageAssetPanel } from './contexts/AssetPanelContext';
 import { syncDocumentDataTheme, THEME_MODE_STORAGE_KEY } from './utils/theme';
+import { type IconEffect, getIconEffect, setIconEffect } from './utils/iconEffect';
 import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspaceRoute';
-import { JIEYU_LUCIDE_NAV } from './utils/jieyuLucideIcon';
+import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
@@ -72,7 +61,8 @@ type ThemeMode = 'light' | 'dark' | 'system';
 type NavItem = {
   to: string;
   label: string;
-  icon: LucideIcon;
+  /** Material Symbols ligature | https://fonts.google.com/icons */
+  icon: LeftRailNavIconName;
   summary: string;
 };
 
@@ -202,8 +192,14 @@ export function App() {
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
+  const [iconEffect, setIconEffectState] = useState<IconEffect>(() => getIconEffect());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
+
+  const handleIconEffectChange = useCallback((next: IconEffect) => {
+    setIconEffect(next);
+    setIconEffectState(next);
+  }, []);
 
   useEffect(() => {
     try {
@@ -368,31 +364,31 @@ export function App() {
         {
           to: '/transcription',
           label: t(locale, 'app.nav.transcription'),
-          icon: AudioLines,
+          icon: 'speech_to_text',
           summary: t(locale, 'app.nav.summary.transcription'),
         },
         {
           to: '/annotation',
           label: t(locale, 'app.nav.annotation'),
-          icon: FolderKanban,
+          icon: 'draw',
           summary: t(locale, 'app.nav.summary.annotation'),
         },
         {
           to: '/analysis',
           label: t(locale, 'app.nav.analysis'),
-          icon: Brain,
+          icon: 'psychology',
           summary: t(locale, 'app.nav.summary.analysis'),
         },
         {
           to: '/writing',
           label: t(locale, 'app.nav.writing'),
-          icon: StickyNote,
+          icon: 'edit_note',
           summary: t(locale, 'app.nav.summary.writing'),
         },
         {
           to: '/lexicon',
           label: t(locale, 'app.nav.lexicon'),
-          icon: BookMarked,
+          icon: 'menu_book',
           summary: t(locale, 'app.nav.summary.lexicon'),
         },
       ],
@@ -403,19 +399,19 @@ export function App() {
     {
       to: '/assets/language-metadata',
       label: t(locale, 'app.nav.languageMetadata'),
-      icon: Languages,
+      icon: 'translate',
       summary: t(locale, 'app.nav.summary.languageMetadata'),
     },
     {
       to: '/assets/orthographies',
       label: t(locale, 'app.nav.orthographies'),
-      icon: BookType,
+      icon: 'auto_stories',
       summary: t(locale, 'app.nav.summary.orthographies'),
     },
     {
       to: '/assets/orthography-bridges',
       label: t(locale, 'app.nav.orthographyBridges'),
-      icon: GitBranch,
+      icon: 'account_tree',
       summary: t(locale, 'app.nav.summary.orthographyBridges'),
     },
   ], [locale]);
@@ -565,9 +561,7 @@ export function App() {
             <div ref={shellBodyRef} className="app-shell-body">
             <aside className="app-left-rail" aria-label={t(locale, 'app.leftRail.aria.navigation')}>
               <nav className="app-left-rail-group app-left-rail-primary" aria-label={t(locale, 'app.navGroup.core')}>
-                {primaryNavItems.map((item) => {
-                  const ItemIcon = item.icon;
-                  return (
+                {primaryNavItems.map((item) => (
                     <NavLink
                       key={item.to}
                       to={item.to}
@@ -577,11 +571,10 @@ export function App() {
                       title={item.label}
                       aria-label={item.label}
                     >
-                      <ItemIcon aria-hidden className={JIEYU_LUCIDE_NAV} />
+                      <MaterialSymbol name={item.icon} aria-hidden className={JIEYU_MATERIAL_NAV} />
                       <span>{item.label}</span>
                     </NavLink>
-                  );
-                })}
+                  ))}
               </nav>
               <div
                 className="app-left-rail-bottom-slot"
@@ -620,7 +613,7 @@ export function App() {
                   title={t(locale, 'transcription.voiceWidget.settings.button')}
                   onClick={handleSettingsOpen}
                 >
-                  <Settings aria-hidden className={JIEYU_LUCIDE_NAV} />
+                  <MaterialSymbol name="settings" aria-hidden className={JIEYU_MATERIAL_NAV} />
                 </button>
               </div>
             </aside>
@@ -704,6 +697,8 @@ export function App() {
               fontScaleMode={uiFontScaleMode}
               onFontScaleChange={handleFontScaleChange}
               onFontScaleModeChange={handleFontScaleModeChange}
+              iconEffect={iconEffect}
+              onIconEffectChange={handleIconEffectChange}
             />
           </div>
         </AppSidePaneProvider>

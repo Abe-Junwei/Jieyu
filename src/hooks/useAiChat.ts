@@ -577,6 +577,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         userText: trimmed,
         contextBlock,
         ragContextTimeoutMs: ragContextTimeoutMsRef.current,
+        promptContext: aiContext,
       }));
       const contextDebugEnabled = isAiContextDebugEnabled();
       const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
@@ -730,6 +731,7 @@ export function useAiChat(options?: UseAiChatOptions) {
             assistantContent,
             userText: trimmed,
             aiContext,
+            resolveFreshAiContext: () => getContextRef.current?.() ?? null,
             messages: messagesRef.current,
             providerId: provider.id,
             model: settingsRef.current.model,
@@ -861,6 +863,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               assistantContent: continuationAssistantContent,
               userText: continuationUserText,
               aiContext: loopAiContext,
+              resolveFreshAiContext: () => getContextRef.current?.() ?? null,
               messages: messagesRef.current,
               providerId: provider.id,
               model: settingsRef.current.model,

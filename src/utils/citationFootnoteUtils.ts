@@ -105,7 +105,10 @@ export function buildSourceListFooter(
   const lines = citations.map((c, i) => {
     const label = c.label ?? c.type;
     const snippet = normalizeCitationSnippetPlainText(c.snippet ?? '').slice(0, 100);
-    return `[${i + 1}] ${label}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
+    const stale = c.readModelIndexHit === false
+      ? (locale.startsWith('zh') ? ' [当前时间线索引未命中]' : ' [not in current timeline index]')
+      : '';
+    return `[${i + 1}] ${label}${stale}: ${snippet}${snippet.length >= 100 ? '…' : ''}`;
   });
   return `\n\n---\n${header}:\n${lines.join('\n')}`;
 }

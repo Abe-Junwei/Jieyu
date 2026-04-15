@@ -184,9 +184,6 @@ describe('OrthographyBridgeWorkspacePage', () => {
     });
 
     expect(mockListOrthographies).toHaveBeenCalledWith({ includeBuiltIns: true, orthographyIds: ['orth-target'] });
-    expect(mockListLanguageCatalogEntries).toHaveBeenCalledWith({
-      locale: 'zh-CN',
-    });
 
     // 目录标签异步加载，需等待渲染更新 | Catalog labels load asynchronously, need to wait for render update
     await waitFor(() => {

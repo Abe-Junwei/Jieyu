@@ -214,7 +214,7 @@ export function useAiPanelLogic({
     const verified = utterances.filter((u) => u.annotationStatus === 'verified').length;
 
     return observer.evaluate({
-      utteranceCount: total,
+      utteranceRowCount: total,
       transcribedRate: total === 0 ? 0 : transcribed / total,
       glossedRate: total === 0 ? 0 : glossed / total,
       verifiedRate: total === 0 ? 0 : verified / total,

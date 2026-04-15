@@ -1,4 +1,5 @@
 import { type AiMessageCitation, getDb } from '../db';
+import type { AiPromptContext } from '../ai/chat/chatDomain.types';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
 import { extractPdfSnippet } from '../ai/embeddings/pdfTextUtils';
 import { splitPdfCitationRef } from '../utils/citationJumpUtils';
@@ -8,9 +9,29 @@ import { evaluateRagQuality } from '../ai/embeddings/ragQualityEvaluator';
 import { shouldRetrieve } from '../ai/ragReflection';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
+import { createMetricTags, recordMetric } from '../observability/metrics';
 import { listUtteranceTextsByUtterance } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useAiChat.rag');
+
+/**
+ * When `unitIndexComplete` is false, returns null (do not label hits/misses).
+ * When `localUnitIndex` is missing, returns null.
+ * Empty array yields an empty Set (every utterance id is a miss).
+ */
+export function buildLocalUnitIdSetForRagCitationCheck(
+  context: AiPromptContext | null | undefined,
+): Set<string> | null {
+  if (!context?.shortTerm) return null;
+  if (context.shortTerm.unitIndexComplete === false) return null;
+  const rows = context.shortTerm.localUnitIndex;
+  if (!Array.isArray(rows)) return null;
+  return new Set(
+    rows
+      .map((row) => row.id)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+  );
+}
 
 export interface RagEnrichmentResult {
   contextBlock: string;
@@ -26,6 +47,8 @@ interface EnrichContextWithRagParams {
   userText: string;
   contextBlock: string;
   ragContextTimeoutMs: number;
+  /** Same-turn prompt context: epoch + localUnitIndex for citation grounding metadata. */
+  promptContext?: AiPromptContext | null;
 }
 
 const RAG_SCENARIO_TOKEN_RE = /\[RAG_SCENARIO:(qa|review|terminology|balanced)\]/i;
@@ -80,6 +103,7 @@ export async function enrichContextWithRag({
   userText,
   contextBlock,
   ragContextTimeoutMs,
+  promptContext,
 }: EnrichContextWithRagParams): Promise<RagEnrichmentResult> {
   if (!embeddingSearchService) {
     return { contextBlock, citations: [] };
@@ -181,6 +205,8 @@ export async function enrichContextWithRag({
     }
 
     const db = await getDb();
+    const idSet = buildLocalUnitIdSetForRagCitationCheck(promptContext);
+    const readModelEpoch = promptContext?.shortTerm?.timelineReadModelEpoch;
     type RagSourceRow = {
       contextTag: string;
       safeSnippet: string;
@@ -225,15 +251,36 @@ export async function enrichContextWithRag({
         const validCitationTypes: Array<'note' | 'utterance' | 'pdf' | 'schema'> = ['note', 'utterance', 'pdf', 'schema'];
         if (!validCitationTypes.includes(match.sourceType as typeof validCitationTypes[number])) return null;
 
+        let readModelIndexHit: boolean | undefined;
+        if (match.sourceType === 'utterance' && idSet !== null) {
+          const utteranceRef = match.sourceId.trim();
+          readModelIndexHit = idSet.has(utteranceRef);
+          if (!readModelIndexHit) {
+            recordMetric({
+              id: 'ai.rag_citation_read_model_miss',
+              value: 1,
+              tags: createMetricTags('useAiChat.rag', {
+                refIdPrefix: utteranceRef.length > 48 ? `${utteranceRef.slice(0, 48)}…` : utteranceRef,
+              }),
+            });
+          }
+        }
+
+        const citation: AiMessageCitation = {
+          type: match.sourceType as 'note' | 'utterance' | 'pdf' | 'schema',
+          refId: match.sourceId,
+          label,
+          snippet: normalizedSnippet,
+          ...(typeof readModelEpoch === 'number' && Number.isFinite(readModelEpoch)
+            ? { readModelEpochAtRetrieval: readModelEpoch }
+            : {}),
+          ...(readModelIndexHit !== undefined ? { readModelIndexHit } : {}),
+        };
+
         return {
           contextTag,
           safeSnippet,
-          citation: {
-            type: match.sourceType as 'note' | 'utterance' | 'pdf' | 'schema',
-            refId: match.sourceId,
-            label,
-            snippet: normalizedSnippet,
-          },
+          citation,
         };
       }),
     );

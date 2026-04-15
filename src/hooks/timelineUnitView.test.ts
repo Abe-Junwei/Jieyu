@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerSegmentDocType, UtteranceDocType } from '../db';
-import { buildTimelineUnitViewIndex } from './timelineUnitView';
+import { buildTimelineUnitViewIndex, mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 
 function seg(
   id: string,
@@ -36,7 +36,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.fallbackToSegments).toBe(true);
     expect(index.allUnits).toHaveLength(2);
@@ -67,7 +66,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-main',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 1,
     });
     expect(index.fallbackToSegments).toBe(false);
     expect(index.allUnits).toHaveLength(2);
@@ -101,7 +99,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 1,
     });
     expect(index.fallbackToSegments).toBe(false);
     expect(index.allUnits).toHaveLength(2);
@@ -134,7 +131,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 1,
     });
     expect(index.allUnits).toHaveLength(1);
     expect(index.allUnits[0]!.id).toBe('s1');
@@ -160,7 +156,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-b',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     const unit = index.allUnits.find((u) => u.id === 's1');
     expect(unit?.text).toBe('text-from-b');
@@ -182,7 +177,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-b',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.allUnits[0]!.text).toBe('fallback-text');
   });
@@ -199,7 +193,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.allUnits[0]!.text).toBe('');
   });
@@ -219,7 +212,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.allUnits[0]!.text).toBe('hello');
   });
@@ -240,7 +232,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-preferred',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.allUnits[0]!.text).toBe('real text');
   });
@@ -259,7 +250,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
     });
     expect(index.allUnits).toHaveLength(1);
   });
@@ -273,7 +263,6 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
       segmentsLoadComplete: false,
     });
     expect(index.isComplete).toBe(false);
@@ -290,9 +279,24 @@ describe('buildTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 0,
       epoch: 42,
     });
     expect(index.epoch).toBe(42);
+  });
+});
+
+describe('mergedTimelineUnitSemanticKeyCount', () => {
+  it('shadows utterance with referring segment by parent id', () => {
+    expect(mergedTimelineUnitSemanticKeyCount({
+      utteranceIds: ['u1'],
+      segments: [{ id: 's1', utteranceId: 'u1' }],
+    })).toBe(1);
+  });
+
+  it('counts independent segment plus utterance separately', () => {
+    expect(mergedTimelineUnitSemanticKeyCount({
+      utteranceIds: ['u1'],
+      segments: [{ id: 's1' }],
+    })).toBe(2);
   });
 });

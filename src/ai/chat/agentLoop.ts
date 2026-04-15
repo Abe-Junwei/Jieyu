@@ -1,4 +1,11 @@
-import type { LocalContextToolResult } from './localContextTools';
+import {
+  buildAgentLoopContinuationToolPayload,
+  type LocalContextToolResult,
+} from './localContextTools';
+
+/** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
+const AGENT_LOOP_CONTINUATION_TRUNCATION_TAIL =
+  '\n[DATA TRUNCATED — do NOT fabricate missing items. Tell the user that the full list is too long and suggest using more specific queries or smaller limit/offset.]';
 
 export interface AgentLoopConfig {
   maxSteps: number;
@@ -41,18 +48,18 @@ export function buildAgentLoopContinuationInput(
   localToolResults: LocalContextToolResult[],
   step: number,
 ): string {
-  const payload = JSON.stringify({
-    type: 'local_tool_result',
+  const { payloadJson, truncated, cappedUserRequest } = buildAgentLoopContinuationToolPayload(
+    originalUserText,
+    localToolResults,
     step,
-    originalUserRequest: originalUserText,
-    results: localToolResults,
-  });
+  );
 
   return [
     '__LOCAL_TOOL_RESULT__',
-    `original_user_request: ${JSON.stringify(originalUserText)}`,
-    `tool_result_payload: ${payload}`,
+    `original_user_request: ${JSON.stringify(cappedUserRequest)}`,
+    `tool_result_payload: ${payloadJson}`,
     'Please continue from this tool result and provide the next best response. If more tool calls are needed, return tool_call JSON.',
     'IMPORTANT: Only use data present in the tool result above. Do NOT fabricate, infer, or extrapolate items, times, or IDs beyond what the tool returned.',
+    ...(truncated ? [AGENT_LOOP_CONTINUATION_TRUNCATION_TAIL] : []),
   ].join('\n');
 }

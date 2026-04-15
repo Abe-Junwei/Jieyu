@@ -6,13 +6,13 @@ import type { UtteranceDocType } from '../db';
 import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActions';
 
 const {
-  mockFindByIndexAnyOf,
+  mockListUtteranceDocsFromCanonicalLayerUnits,
   mockInsertTranslationLayer,
   mockSaveUtterance,
   mockClearRecoverySnapshot,
   mockSyncUtteranceTextToSegmentationV2,
 } = vi.hoisted(() => ({
-  mockFindByIndexAnyOf: vi.fn(),
+  mockListUtteranceDocsFromCanonicalLayerUnits: vi.fn(async () => [] as UtteranceDocType[]),
   mockInsertTranslationLayer: vi.fn(),
   mockSaveUtterance: vi.fn(),
   mockClearRecoverySnapshot: vi.fn(),
@@ -22,14 +22,15 @@ const {
 vi.mock('../db', () => ({
   getDb: vi.fn(async () => ({
     collections: {
-      utterances: {
-        findByIndexAnyOf: mockFindByIndexAnyOf,
-      },
       layers: {
         insert: mockInsertTranslationLayer,
       },
     },
   })),
+}));
+
+vi.mock('../services/LayerSegmentGraphService', () => ({
+  listUtteranceDocsFromCanonicalLayerUnits: mockListUtteranceDocsFromCanonicalLayerUnits,
 }));
 
 vi.mock('../services/LinguisticService', () => ({
@@ -86,7 +87,7 @@ function makeRecoveryDataWithTranslation(utterances: UtteranceDocType[]): Recove
 describe('useTranscriptionRecoveryActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFindByIndexAnyOf.mockResolvedValue([]);
+    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValue([]);
     mockInsertTranslationLayer.mockResolvedValue(undefined);
     mockSaveUtterance.mockResolvedValue(undefined);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);
@@ -95,10 +96,8 @@ describe('useTranscriptionRecoveryActions', () => {
 
   it('applyRecovery conflict should return false and set friendly saveState error', async () => {
     const currentUtt = makeUtterance('utt-1', '2026-03-23T20:00:00.000Z');
-    mockFindByIndexAnyOf.mockResolvedValueOnce([
-      {
-        toJSON: () => ({ ...currentUtt, updatedAt: '2026-03-23T20:01:00.000Z' }),
-      },
+    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValueOnce([
+      { ...currentUtt, updatedAt: '2026-03-23T20:01:00.000Z' },
     ]);
 
     const dbNameRef = { current: 'jieyudb' };
@@ -132,11 +131,7 @@ describe('useTranscriptionRecoveryActions', () => {
 
   it('applyRecovery success should return true and clear recovery snapshot', async () => {
     const currentUtt = makeUtterance('utt-1', '2026-03-23T20:00:00.000Z');
-    mockFindByIndexAnyOf.mockResolvedValueOnce([
-      {
-        toJSON: () => ({ ...currentUtt }),
-      },
-    ]);
+    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
 
     const dbNameRef = { current: 'jieyudb' };
     const utterancesRef = { current: [currentUtt] };

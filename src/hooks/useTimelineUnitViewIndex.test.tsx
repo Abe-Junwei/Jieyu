@@ -41,7 +41,6 @@ describe('useTimelineUnitViewIndex', () => {
       currentMediaId: undefined,
       activeLayerIdForEdits: undefined,
       defaultTranscriptionLayerId: undefined,
-      utteranceCount: 0,
       existingIndex,
       segmentsLoadComplete: false,
     }));
@@ -59,7 +58,6 @@ describe('useTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 1,
     }));
 
     expect(result.current.allUnits).toHaveLength(1);
@@ -83,7 +81,6 @@ describe('useTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: 1,
     }));
 
     const first = result.current;
@@ -105,7 +102,6 @@ describe('useTimelineUnitViewIndex', () => {
       currentMediaId: 'm1',
       activeLayerIdForEdits: 'layer-a',
       defaultTranscriptionLayerId: 'layer-main',
-      utteranceCount: utterances.length,
     }));
 
     const first = result.current;

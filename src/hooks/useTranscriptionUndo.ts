@@ -1,5 +1,14 @@
 import { startTransition, useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import type { LayerLinkDocType, SpeakerDocType, LayerDocType, UtteranceDocType, UtteranceTextDocType, LayerSegmentDocType, LayerSegmentContentDocType, SegmentLinkDocType } from '../db';
+import type {
+  LayerDocType,
+  LayerLinkDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  SegmentLinkDocType,
+  SpeakerDocType,
+  UtteranceDocType,
+  UtteranceTextDocType,
+} from '../db';
 import { CommandHistory, type ReversibleCommand } from '../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../utils/selectionUtils';
@@ -14,8 +23,9 @@ type UndoEntry = {
   utterances: UtteranceDocType[];
   translations: UtteranceTextDocType[];
   layers?: LayerDocType[];
-  layerSegments?: LayerSegmentDocType[];
-  layerSegmentContents?: LayerSegmentContentDocType[];
+  /** Independent-layer segment graph: canonical `layer_units` (segment-type) rows. */
+  layerSegmentUnits?: LayerUnitDocType[];
+  layerSegmentUnitContents?: LayerUnitContentDocType[];
   segmentLinks?: SegmentLinkDocType[];
   layerLinks?: LayerLinkDocType[];
   speakers?: SpeakerDocType[];
@@ -49,8 +59,8 @@ function getHistoryActionLabel(locale: Locale, action: 'undo' | 'redo'): string 
 
 /** 独立边界层 segment 快照/恢复回调 | Segment snapshot/restore callbacks for independent boundary layers */
 export type SegmentUndoCallbacks = {
-  snapshotLayerSegments: () => { segments: LayerSegmentDocType[]; contents: LayerSegmentContentDocType[]; links: SegmentLinkDocType[] };
-  restoreLayerSegments: (segments: LayerSegmentDocType[], contents: LayerSegmentContentDocType[], links: SegmentLinkDocType[]) => Promise<void>;
+  snapshotLayerSegments: () => { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: SegmentLinkDocType[] };
+  restoreLayerSegments: (units: LayerUnitDocType[], contents: LayerUnitContentDocType[], links: SegmentLinkDocType[]) => Promise<void>;
 };
 
 export function useTranscriptionUndo({
@@ -82,14 +92,18 @@ export function useTranscriptionUndo({
 
   // 以引用方式抓取快照，避免高频操作时 O(n) 数组拷贝 | Capture snapshot by reference to avoid O(n) array copies on hot paths
   // 依赖前提：状态更新采用不可变写法（返回新数组）| Assumes immutable state updates (new array on write)
-  const snapshotCurrentState = useCallback((label: string, segSnapshot?: { segments: LayerSegmentDocType[]; contents: LayerSegmentContentDocType[]; links: SegmentLinkDocType[] }): UndoEntry => ({
+  const snapshotCurrentState = useCallback((label: string, segSnapshot?: { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: SegmentLinkDocType[] }): UndoEntry => ({
     label,
     utterances: utterancesRef.current,
     translations: translationsRef.current,
     layers: layersRef.current,
     layerLinks: layerLinksRef.current,
     speakers: speakersRef.current,
-    ...(segSnapshot ? { layerSegments: segSnapshot.segments, layerSegmentContents: segSnapshot.contents, segmentLinks: segSnapshot.links } : {}),
+    ...(segSnapshot ? {
+      layerSegmentUnits: segSnapshot.units,
+      layerSegmentUnitContents: segSnapshot.contents,
+      segmentLinks: segSnapshot.links,
+    } : {}),
   }), [layerLinksRef, layersRef, speakersRef, translationsRef, utterancesRef]);
 
   const pushUndo = useCallback((label: string) => {
@@ -150,8 +164,12 @@ export function useTranscriptionUndo({
     redoStackRef.current.push(redoEntry);
     try {
       await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
-      if (entry.layerSegments && segmentUndoRef.current) {
-        await segmentUndoRef.current.restoreLayerSegments(entry.layerSegments, entry.layerSegmentContents ?? [], entry.segmentLinks ?? []);
+      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents ?? [],
+          entry.segmentLinks ?? [],
+        );
       }
       setUtterances(entry.utterances);
       setTranslations(entry.translations);
@@ -209,7 +227,11 @@ export function useTranscriptionUndo({
           layers: [...(above.layers ?? layersRef.current)],
           layerLinks: [...(above.layerLinks ?? layerLinksRef.current)],
           speakers: [...(above.speakers ?? speakersRef.current)],
-          ...(above.layerSegments ? { layerSegments: above.layerSegments, layerSegmentContents: above.layerSegmentContents ?? [], segmentLinks: above.segmentLinks ?? [] } : {}),
+          ...(above.layerSegmentUnits ? {
+            layerSegmentUnits: above.layerSegmentUnits,
+            layerSegmentUnitContents: above.layerSegmentUnitContents ?? [],
+            segmentLinks: above.segmentLinks ?? [],
+          } : {}),
         });
       }
     }
@@ -219,8 +241,12 @@ export function useTranscriptionUndo({
 
     try {
       await syncToDb(targetEntry.utterances, targetEntry.translations, targetEntry.speakers ?? [], { conflictGuard: true });
-      if (targetEntry.layerSegments && segmentUndoRef.current) {
-        await segmentUndoRef.current.restoreLayerSegments(targetEntry.layerSegments, targetEntry.layerSegmentContents ?? [], targetEntry.segmentLinks ?? []);
+      if (targetEntry.layerSegmentUnits && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          targetEntry.layerSegmentUnits,
+          targetEntry.layerSegmentUnitContents ?? [],
+          targetEntry.segmentLinks ?? [],
+        );
       }
       setUtterances(targetEntry.utterances);
       setTranslations(targetEntry.translations);
@@ -263,8 +289,12 @@ export function useTranscriptionUndo({
     undoStackRef.current.push(undoEntry);
     try {
       await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
-      if (entry.layerSegments && segmentUndoRef.current) {
-        await segmentUndoRef.current.restoreLayerSegments(entry.layerSegments, entry.layerSegmentContents ?? [], entry.segmentLinks ?? []);
+      if (entry.layerSegmentUnits && segmentUndoRef.current) {
+        await segmentUndoRef.current.restoreLayerSegments(
+          entry.layerSegmentUnits,
+          entry.layerSegmentUnitContents ?? [],
+          entry.segmentLinks ?? [],
+        );
       }
       setUtterances(entry.utterances);
       setTranslations(entry.translations);

@@ -13,12 +13,13 @@ import type { UtteranceDocType, SpeakerDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
-import type {
-  SpeakerActionDialogState,
-  SpeakerFilterOption,
-  SpeakerReferenceStats,
-  SpeakerScope,
-  SpeakerVisual,
+import {
+  EMPTY_SPEAKER_REFERENCE_STATS,
+  type SpeakerActionDialogState,
+  type SpeakerFilterOption,
+  type SpeakerReferenceStats,
+  type SpeakerScope,
+  type SpeakerVisual,
 } from './speakerManagement/types';
 import {
   applySpeakerAssignmentToUtterances,
@@ -84,6 +85,8 @@ export interface UseSpeakerActionsOptions {
   syncBatchSpeakerId?: boolean;
   speakerScopeOverride?: Partial<SpeakerScope>;
   speakerFilterOptionsOverride?: SpeakerFilterOption[];
+  /** When set, `getSpeakerReferenceStats` counts only this media; otherwise whole project. */
+  speakerReferenceStatsMediaId?: string | null;
 }
 
 export interface UseSpeakerActionsReturn {
@@ -99,6 +102,9 @@ export interface UseSpeakerActionsReturn {
   speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
   speakerFilterOptions: SpeakerFilterOption[];
   speakerReferenceStats: Record<string, SpeakerReferenceStats>;
+  speakerReferenceUnassignedStats: SpeakerReferenceStats;
+  /** True when stats are scoped to `speakerReferenceStatsMediaId` (non-empty). */
+  speakerReferenceStatsMediaScoped: boolean;
   speakerReferenceStatsReady: boolean;
   selectedSpeakerSummary: string;
   refreshSpeakers: () => Promise<void>;
@@ -141,6 +147,7 @@ export function useSpeakerActions({
   syncBatchSpeakerId = true,
   speakerScopeOverride,
   speakerFilterOptionsOverride,
+  speakerReferenceStatsMediaId = null,
 }: UseSpeakerActionsOptions): UseSpeakerActionsReturn {
   const [speakerDraftName, setSpeakerDraftName] = useState('');
   const [batchSpeakerId, setBatchSpeakerId] = useState('');
@@ -148,7 +155,12 @@ export function useSpeakerActions({
   const [activeSpeakerFilterKey, setActiveSpeakerFilterKey] = useState('all');
   const [speakerDialogState, setSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
   const [speakerReferenceStats, setSpeakerReferenceStats] = useState<Record<string, SpeakerReferenceStats>>({});
+  const [speakerReferenceUnassignedStats, setSpeakerReferenceUnassignedStats] = useState<SpeakerReferenceStats>(
+    EMPTY_SPEAKER_REFERENCE_STATS,
+  );
   const [speakerReferenceStatsReady, setSpeakerReferenceStatsReady] = useState(false);
+
+  const speakerReferenceStatsMediaScoped = Boolean(speakerReferenceStatsMediaId?.trim());
 
   const speakerOptions = speakers;
   const speakerDisplayLabels = useMemo(() => buildSpeakerDisplayLabels(t), [t]);
@@ -188,10 +200,14 @@ export function useSpeakerActions({
   }, [setSpeakers]);
 
   const refreshSpeakerReferenceStats = useCallback(async () => {
-    const nextStats = await LinguisticService.getSpeakerReferenceStats();
-    setSpeakerReferenceStats(nextStats);
+    const mediaKey = speakerReferenceStatsMediaId?.trim() ?? '';
+    const bundle = await LinguisticService.getSpeakerReferenceStats(
+      mediaKey.length > 0 ? { mediaId: mediaKey } : {},
+    );
+    setSpeakerReferenceStats(bundle.perSpeaker);
+    setSpeakerReferenceUnassignedStats(bundle.unassigned);
     setSpeakerReferenceStatsReady(true);
-  }, []);
+  }, [speakerReferenceStatsMediaId]);
 
   const findExistingSpeakerByName = useCallback((rawName: string) => {
     const normalizedName = normalizeSpeakerLookupName(rawName);
@@ -213,7 +229,7 @@ export function useSpeakerActions({
     if (!isReady) return;
     fireAndForget(refreshSpeakers());
     fireAndForget(refreshSpeakerReferenceStats());
-  }, [isReady, refreshSpeakerReferenceStats, refreshSpeakers]);
+  }, [isReady, refreshSpeakerReferenceStats, refreshSpeakers, speakerReferenceStatsMediaId]);
 
   useEffect(() => {
     if (activeSpeakerFilterKey === 'all') return;
@@ -757,6 +773,8 @@ export function useSpeakerActions({
     speakerVisualByUtteranceId,
     speakerFilterOptions,
     speakerReferenceStats,
+    speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady,
     selectedSpeakerSummary,
     refreshSpeakers,

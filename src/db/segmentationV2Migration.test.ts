@@ -11,6 +11,7 @@ import {
   type UtteranceDocType,
   type UtteranceTextDocType,
 } from './index';
+import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
 
 const NOW = '2026-03-25T00:00:00.000Z';
 
@@ -168,7 +169,6 @@ describe('buildSegmentationV2BackfillRows', () => {
     await Promise.all([
       db.texts.clear(),
       db.tier_definitions.clear(),
-      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -228,7 +228,11 @@ describe('buildSegmentationV2BackfillRows', () => {
       },
     ]);
     await db.tier_definitions.bulkPut(tiers);
-    await db.utterances.bulkPut(utterances);
+
+    const uttUnits = utterances.map((u) => mapUtteranceToLayerUnit(u, 'tier_rt_trx').unit);
+    const uttContents = utterances.map((u) => mapUtteranceToLayerUnit(u, 'tier_rt_trx').content);
+    await db.layer_units.bulkPut(uttUnits);
+    await db.layer_unit_contents.bulkPut(uttContents);
 
     await db.layer_units.bulkPut([
       {
@@ -308,7 +312,6 @@ describe('buildSegmentationV2BackfillRows', () => {
     const pickCollections = (snapshot: { collections: Record<string, unknown[]> }) => {
       const keys = [
         'texts',
-        'utterances',
         'tier_definitions',
         'layer_units',
         'layer_unit_contents',
@@ -332,7 +335,6 @@ describe('buildSegmentationV2BackfillRows', () => {
     await Promise.all([
       db.texts.clear(),
       db.tier_definitions.clear(),
-      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -344,7 +346,6 @@ describe('buildSegmentationV2BackfillRows', () => {
       dbName: database.name,
       collections: {
         texts: before.texts,
-        utterances: before.utterances,
         tier_definitions: before.tier_definitions,
         layer_units: before.layer_units,
         layer_unit_contents: before.layer_unit_contents,

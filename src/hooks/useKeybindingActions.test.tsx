@@ -2,7 +2,17 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useRef } from 'react';
+import type { TimelineUnitView } from './timelineUnitView';
 import { useKeybindingActions } from './useKeybindingActions';
+
+function makeTimelineUnit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 'id' | 'startTime' | 'endTime' | 'kind'>): TimelineUnitView {
+  return {
+    mediaId: 'media-1',
+    layerId: 'layer-1',
+    text: '',
+    ...overrides,
+  };
+}
 
 describe('useKeybindingActions segment routing', () => {
   it('does not trigger global shortcuts while typing in input elements', () => {
@@ -31,7 +41,7 @@ describe('useKeybindingActions segment routing', () => {
         setSegMarkStart: vi.fn(),
         segmentLoopPlayback: false,
         setSegmentLoopPlayback: vi.fn(),
-        utterancesOnCurrentMedia: [],
+        timelineUnitsOnCurrentMedia: [],
         markingModeRef: { current: false },
         skipSeekForIdRef: { current: null },
         creatingSegmentRef: { current: false },
@@ -101,7 +111,7 @@ describe('useKeybindingActions segment routing', () => {
         setSegMarkStart: vi.fn(),
         segmentLoopPlayback: false,
         setSegmentLoopPlayback: vi.fn(),
-        utterancesOnCurrentMedia: [],
+        timelineUnitsOnCurrentMedia: [],
         markingModeRef: { current: false },
         skipSeekForIdRef: { current: null },
         creatingSegmentRef: { current: false },
@@ -163,7 +173,7 @@ describe('useKeybindingActions segment routing', () => {
         setSegMarkStart: vi.fn(),
         segmentLoopPlayback: false,
         setSegmentLoopPlayback: vi.fn(),
-        utterancesOnCurrentMedia: [],
+        timelineUnitsOnCurrentMedia: [],
         markingModeRef: { current: false },
         skipSeekForIdRef: { current: null },
         creatingSegmentRef: { current: false },
@@ -220,7 +230,7 @@ describe('useKeybindingActions segment routing', () => {
         setSegMarkStart,
         segmentLoopPlayback: false,
         setSegmentLoopPlayback: vi.fn(),
-        utterancesOnCurrentMedia: [],
+        timelineUnitsOnCurrentMedia: [],
         markingModeRef: { current: true },
         skipSeekForIdRef: { current: null },
         creatingSegmentRef: { current: false },
@@ -254,5 +264,63 @@ describe('useKeybindingActions segment routing', () => {
     expect(selectTimelineUnit).toHaveBeenCalledTimes(1);
     expect(selectTimelineUnit).toHaveBeenCalledWith(null);
     expect(setSegMarkStart).toHaveBeenCalledWith(null);
+  });
+
+  it('navigates prev/next using unified timeline units when selection is a segment', () => {
+    const selectUnit = vi.fn();
+    const units: TimelineUnitView[] = [
+      makeTimelineUnit({ id: 'seg-a', kind: 'segment', startTime: 0, endTime: 1 }),
+      makeTimelineUnit({ id: 'seg-b', kind: 'segment', startTime: 1, endTime: 2 }),
+    ];
+
+    const { result } = renderHook(() => {
+      const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+      return useKeybindingActions({
+        player: {
+          isReady: true,
+          isPlaying: false,
+          playbackRate: 1,
+          instanceRef: { current: { getCurrentTime: () => 0 } as unknown as import('wavesurfer.js').default },
+          stop: vi.fn(),
+          playRegion: vi.fn(),
+          togglePlayback: vi.fn(),
+          seekBySeconds: vi.fn(),
+        },
+        subSelectionRange: null,
+        setSubSelectionRange: vi.fn(),
+        selectedUnit: undefined,
+        selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-a', kind: 'segment' as const },
+        selectedUnitIds: new Set<string>(['seg-a']),
+        selectedMediaUrl: 'blob:test',
+        segMarkStart: null,
+        setSegMarkStart: vi.fn(),
+        segmentLoopPlayback: false,
+        setSegmentLoopPlayback: vi.fn(),
+        timelineUnitsOnCurrentMedia: units,
+        markingModeRef: { current: false },
+        skipSeekForIdRef: { current: null },
+        creatingSegmentRef: { current: false },
+        manualSelectTsRef: { current: 0 },
+        waveformAreaRef,
+        createUtteranceFromSelection: vi.fn(async () => undefined),
+        selectUnit,
+        selectAllUnits: vi.fn(),
+        runDeleteSelection: vi.fn(),
+        runMergePrev: vi.fn(),
+        runMergeNext: vi.fn(),
+        runSplitAtTime: vi.fn(),
+        runSelectBefore: vi.fn(),
+        runSelectAfter: vi.fn(),
+        undo: vi.fn(async () => undefined),
+        redo: vi.fn(async () => undefined),
+        setShowSearch: vi.fn(),
+        toggleNotes: vi.fn(),
+      });
+    });
+
+    act(() => {
+      result.current.executeAction('navNext');
+    });
+    expect(selectUnit).toHaveBeenCalledWith('seg-b');
   });
 });
