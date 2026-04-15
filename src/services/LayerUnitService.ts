@@ -18,7 +18,7 @@ import {
   putLayerUnitContent,
   putUnitRelation,
   updateLayerUnit,
-} from './LayerUnitSegmentMirrorPrimitives';
+} from './LayerUnitSegmentWritePrimitives';
 import { newId } from '../utils/transcriptionFormatters';
 
 /**

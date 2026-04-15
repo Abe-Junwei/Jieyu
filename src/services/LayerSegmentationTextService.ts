@@ -11,7 +11,7 @@ import {
   findOrphanSegmentIds,
   listSegmentContentsByIds,
 } from './LayerSegmentGraphService';
-import { LegacyMirrorService } from './LegacyMirrorService';
+import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 
@@ -138,11 +138,11 @@ export async function syncUtteranceTextToSegmentationV2(
     const staleContentIds = getSegmentContentCandidateIds(translation.id)
       .filter((id) => id !== ids.segmentContentId);
     if (staleContentIds.length > 0) {
-      await LegacyMirrorService.deleteSegmentContentsByIds(db, staleContentIds);
+      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
     }
 
-    await LegacyMirrorService.upsertSegments(db, [segmentDoc]);
-    await LegacyMirrorService.upsertSegmentContents(db, [contentDoc]);
+    await LayerUnitSegmentWriteService.upsertSegments(db, [segmentDoc]);
+    await LayerUnitSegmentWriteService.upsertSegmentContents(db, [contentDoc]);
   });
 }
 
@@ -156,7 +156,7 @@ export async function removeUtteranceTextFromSegmentationV2(
     affectedContents.map((item) => item.segmentId),
   ));
 
-  await LegacyMirrorService.deleteSegmentContentsByIds(db, candidateContentIds);
+  await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, candidateContentIds);
   await cleanupOrphanSegments(db, affectedSegmentIds);
 }
 
@@ -171,7 +171,7 @@ export async function cleanupOrphanSegments(
 
   if (orphanSegmentIds.length === 0) return [];
 
-  await LegacyMirrorService.deleteSegmentsByIds(db, orphanSegmentIds);
+  await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, orphanSegmentIds);
 
   return orphanSegmentIds;
 }
@@ -267,7 +267,7 @@ export async function enforceTimeSubdivisionParentBounds(
 
     if (nextStart !== segment.startTime || nextEnd !== segment.endTime) {
       clippedCount += 1;
-      await LegacyMirrorService.upsertSegments(db, [{
+      await LayerUnitSegmentWriteService.upsertSegments(db, [{
         ...segment,
         startTime: nextStart,
         endTime: nextEnd,

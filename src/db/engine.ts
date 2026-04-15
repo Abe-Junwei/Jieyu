@@ -25,7 +25,7 @@ import type {
   JieyuCollections,
 } from './types';
 import {
-  validateTextDoc, validateMediaItemDoc, validateUtteranceDoc,
+  validateTextDoc, validateMediaItemDoc,
   validateUtteranceTokenDoc, validateUtteranceMorphemeDoc,
   validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc,
   validateAiTaskDoc, validateEmbeddingDoc,
@@ -46,6 +46,7 @@ import {
   DexieCollectionAdapter, TierBackedLayerCollectionAdapter,
   resolveBridgeId, BRIDGE_TIER_PREFIX,
 } from './adapter';
+import { upgradeM18LinguisticUtteranceCutover } from './migrations/m18LinguisticUtteranceCutover';
 
 const JIEYU_DB_NAME = 'jieyudb';
 
@@ -256,7 +257,6 @@ export function buildV28BackfillPlanForText(input: {
 export class JieyuDexie extends Dexie {
   texts!: Table<TextDocType, string>;
   media_items!: Table<MediaItemDocType, string>;
-  utterances!: Table<UtteranceDocType, string>;
   utterance_tokens!: Table<UtteranceTokenDocType, string>;
   utterance_morphemes!: Table<UtteranceMorphemeDocType, string>;
   anchors!: Table<AnchorDocType, string>;
@@ -654,8 +654,8 @@ export class JieyuDexie extends Dexie {
       const allUtterances: UtteranceDocType[] = await utterancesTable.toArray();
       if (allUtterances.length === 0) return;
 
-      const nextTokens: UtteranceTokenDocType[] = [];
-      const nextMorphemes: UtteranceMorphemeDocType[] = [];
+      const nextTokens: unknown[] = [];
+      const nextMorphemes: unknown[] = [];
       let tokenCounter = 0;
       let morphemeCounter = 0;
       const nowSeed = Date.now();
@@ -705,8 +705,12 @@ export class JieyuDexie extends Dexie {
         }
       }
 
-      if (nextTokens.length > 0) await tokensTable.bulkPut(nextTokens);
-      if (nextMorphemes.length > 0) await morphemesTable.bulkPut(nextMorphemes);
+      if (nextTokens.length > 0) {
+        await tokensTable.bulkPut(nextTokens as unknown as UtteranceTokenDocType[]);
+      }
+      if (nextMorphemes.length > 0) {
+        await morphemesTable.bulkPut(nextMorphemes as unknown as UtteranceMorphemeDocType[]);
+      }
     });
 
     // v17: CAM-v2 naming + token-level links + ai/embedding foundational tables.
@@ -1116,6 +1120,15 @@ export class JieyuDexie extends Dexie {
     this.version(36).stores({
       utterances: 'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
     });
+
+    // v37: M18 — utterances → layer_units; token/morpheme utteranceId → unitId; drop utterances store.
+    this.version(37).stores({
+      utterances: null,
+      utterance_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
+      utterance_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
+    }).upgrade(async (tx: Transaction) => {
+      await upgradeM18LinguisticUtteranceCutover(tx);
+    });
   }
 }
 
@@ -1149,7 +1162,6 @@ async function _createDb(): Promise<JieyuDatabase> {
   const collections: JieyuCollections = {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),
     media_items: new DexieCollectionAdapter(dexie.media_items, validateMediaItemDoc),
-    utterances: new DexieCollectionAdapter(dexie.utterances, validateUtteranceDoc),
     utterance_tokens: new DexieCollectionAdapter(dexie.utterance_tokens, validateUtteranceTokenDoc),
     utterance_morphemes: new DexieCollectionAdapter(dexie.utterance_morphemes, validateUtteranceMorphemeDoc),
     anchors: new DexieCollectionAdapter(dexie.anchors, validateAnchorDoc),

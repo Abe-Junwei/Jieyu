@@ -6,7 +6,7 @@
 import { z } from 'zod';
 import type { Table } from 'dexie';
 import type {
-  TextDocType, MediaItemDocType, UtteranceDocType, UtteranceTokenDocType,
+  TextDocType, MediaItemDocType, UtteranceTokenDocType,
   UtteranceMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType,
   AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc,
   LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType,
@@ -22,7 +22,6 @@ import type {
   JieyuCollections,
   ImportConflictStrategy, ImportResult,
 } from './types';
-import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
 import {
   isoDateSchema,
   validateTextDoc, validateMediaItemDoc,
@@ -252,84 +251,25 @@ function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope; cre
   };
 }
 
-function normalizeImportedUtteranceDoc(doc: UtteranceDocType, fallbackCreatedAt: string): UtteranceDocType {
-  const normalizedWords = doc.words?.map((word, wi) => {
-    const wordId = word.id ?? `${doc.id}_w${wi + 1}`;
-    const normalizedMorphemes = word.morphemes?.map((morpheme, mi) => {
-      const morphemeId = morpheme.id ?? `${wordId}_m${mi + 1}`;
-      return ensureImportProvenance({ ...morpheme, id: morphemeId }, fallbackCreatedAt);
-    });
-
-    return ensureImportProvenance(
-      {
-        ...word,
-        id: wordId,
-        ...(normalizedMorphemes ? { morphemes: normalizedMorphemes } : {}),
-      },
-      fallbackCreatedAt,
-    );
-  });
-
-  return ensureImportProvenance(
-    {
-      ...doc,
-      ...(normalizedWords ? { words: normalizedWords } : {}),
-    },
-    fallbackCreatedAt,
-  );
-}
-
-function mergeLegacyUtterancesIntoSnapshotCollections(
-  collections: Record<string, unknown[]>,
-  importStartedAt: string,
-): void {
-  const legacy = collections['utterances'];
-  if (!Array.isArray(legacy) || legacy.length === 0) return;
-
-  const tiers = (collections['tier_definitions'] ?? []) as TierDefinitionDocType[];
-  const MAX = Number.MAX_SAFE_INTEGER;
-  const pickLayerId = (textId: string): string | undefined => {
-    const candidates = tiers.filter((t) => t.textId === textId && t.contentType === 'transcription');
-    if (candidates.length === 0) return tiers.find((t) => t.textId === textId)?.id;
-    const def = candidates.find((t) => t.isDefault === true);
-    if (def) return def.id;
-    return [...candidates].sort((a, b) => (a.sortOrder ?? MAX) - (b.sortOrder ?? MAX))[0]?.id;
-  };
-
-  const units = [...(collections['layer_units'] ?? [])] as LayerUnitDocType[];
-  const contents = [...(collections['layer_unit_contents'] ?? [])] as LayerUnitContentDocType[];
-
-  for (const raw of legacy) {
-    const u = normalizeImportedUtteranceDoc(raw as UtteranceDocType, importStartedAt);
-    const layerId = pickLayerId(u.textId);
-    if (!layerId) continue;
-    const { unit, content } = mapUtteranceToLayerUnit(u, layerId);
-    units.push(unit);
-    contents.push(content);
-  }
-
-  collections['layer_units'] = units as unknown[];
-  collections['layer_unit_contents'] = contents as unknown[];
-  delete collections['utterances'];
-}
-
 function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown, fallbackCreatedAt: string): unknown {
   if (!doc || typeof doc !== 'object') return doc;
 
   switch (collectionName) {
     case 'utterance_tokens': {
       const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.utteranceId === 'string' && d.unitId === undefined) {
-        d.unitId = d.utteranceId;
-        delete d.utteranceId;
+      if (typeof d.utteranceId === 'string') {
+        throw new Error(
+          'Snapshot utterance_tokens use legacy field "utteranceId"; use unitId (host layer_units.id) in current-format exports.',
+        );
       }
       return ensureImportProvenance(d as unknown as UtteranceTokenDocType, fallbackCreatedAt);
     }
     case 'utterance_morphemes': {
       const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.utteranceId === 'string' && d.unitId === undefined) {
-        d.unitId = d.utteranceId;
-        delete d.utteranceId;
+      if (typeof d.utteranceId === 'string') {
+        throw new Error(
+          'Snapshot utterance_morphemes use legacy field "utteranceId"; use unitId (host layer_units.id) in current-format exports.',
+        );
       }
       return ensureImportProvenance(d as unknown as UtteranceMorphemeDocType, fallbackCreatedAt);
     }
@@ -440,7 +380,16 @@ export async function importDatabaseFromJson(
   const cols = snapshot.collections as Record<string, unknown[]>;
   if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
   if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
-  mergeLegacyUtterancesIntoSnapshotCollections(cols, importStartedAt);
+
+  const legacyUtterances = cols['utterances'];
+  if (Array.isArray(legacyUtterances) && legacyUtterances.length > 0) {
+    throw new Error(
+      'Legacy snapshot key "utterances" is not supported; import layer_units + layer_unit_contents from a current app export.',
+    );
+  }
+  if ('utterances' in cols) {
+    delete cols['utterances'];
+  }
 
   const dbInstance = await getDb();
 

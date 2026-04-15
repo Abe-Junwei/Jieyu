@@ -2,9 +2,15 @@ import {
   type JieyuDatabase,
   type LayerSegmentContentDocType,
   type LayerSegmentDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
   type SegmentLinkDocType,
   type UtteranceDocType,
 } from '../db';
+import {
+  mapUtteranceToLayerUnit,
+  projectUtteranceDocFromLayerUnit,
+} from '../db/migrations/timelineUnitMapping';
 import {
   collectLayerUnitGraphIdsByTextId,
   deleteLayerUnitCascade,
@@ -12,13 +18,13 @@ import {
   deleteLayerUnitGraphByRecordIds,
   listLayerUnitIdsByMediaId,
   normalizeMediaId,
-} from './LayerUnitSegmentMirrorPrimitives';
+} from './LayerUnitSegmentWritePrimitives';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import {
   toLegacySegmentLinkFromUnitRelation,
 } from './LayerUnitLegacyProjection';
-import { LegacyMirrorService } from './LegacyMirrorService';
+import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
 
 export type LayerSegmentGraphSnapshot = {
@@ -64,25 +70,32 @@ export async function resolveDefaultTranscriptionLayerId(
     ?.id;
 }
 
+/** Primary keys of utterance-type `layer_units` scoped to a text (e.g. last-transcription-layer delete). */
+export async function listUtteranceUnitPrimaryKeysByTextId(db: JieyuDatabase, textId: string): Promise<string[]> {
+  return (await db.dexie.layer_units
+    .where('textId')
+    .equals(textId)
+    .filter((u) => u.unitType === 'utterance')
+    .primaryKeys()) as string[];
+}
+
+export async function bulkGetLayerUnits(
+  db: JieyuDatabase,
+  ids: readonly string[],
+): Promise<Array<LayerUnitDocType | undefined>> {
+  if (ids.length === 0) return [];
+  return db.dexie.layer_units.bulkGet([...ids]);
+}
+
 export async function upsertUtteranceLayerUnit(db: JieyuDatabase, utterance: UtteranceDocType): Promise<void> {
   const layerId = await resolveDefaultTranscriptionLayerId(db, utterance.textId);
   if (!layerId) return;
+  const { unit, content } = mapUtteranceToLayerUnit(utterance, layerId);
   await db.dexie.layer_units.put({
-    id: utterance.id,
-    textId: utterance.textId,
+    ...unit,
     mediaId: normalizeMediaId(utterance.mediaId),
-    layerId,
-    unitType: 'utterance',
-    startTime: utterance.startTime,
-    endTime: utterance.endTime,
-    ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
-    ...(utterance.endAnchorId ? { endAnchorId: utterance.endAnchorId } : {}),
-    ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
-    ...(utterance.annotationStatus ? { status: utterance.annotationStatus } : {}),
-    ...(utterance.provenance ? { provenance: utterance.provenance } : {}),
-    createdAt: utterance.createdAt,
-    updatedAt: utterance.updatedAt,
   });
+  await db.dexie.layer_unit_contents.put(content);
 }
 
 export async function bulkUpsertUtteranceLayerUnits(db: JieyuDatabase, utterances: readonly UtteranceDocType[]): Promise<void> {
@@ -96,30 +109,63 @@ export async function bulkUpsertUtteranceLayerUnits(db: JieyuDatabase, utterance
     }
   }
 
-  const rows = utterances.flatMap((utterance) => {
+  const units: LayerUnitDocType[] = [];
+  const contents: LayerUnitContentDocType[] = [];
+  for (const utterance of utterances) {
     const layerId = layerIdByTextId.get(utterance.textId);
-    if (!layerId) return [];
-    return [{
-      id: utterance.id,
-      textId: utterance.textId,
+    if (!layerId) continue;
+    const { unit, content } = mapUtteranceToLayerUnit(utterance, layerId);
+    units.push({
+      ...unit,
       mediaId: normalizeMediaId(utterance.mediaId),
-      layerId,
-      unitType: 'utterance' as const,
-      startTime: utterance.startTime,
-      endTime: utterance.endTime,
-      ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
-      ...(utterance.endAnchorId ? { endAnchorId: utterance.endAnchorId } : {}),
-      ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
-      ...(utterance.annotationStatus ? { status: utterance.annotationStatus } : {}),
-      ...(utterance.provenance ? { provenance: utterance.provenance } : {}),
-      createdAt: utterance.createdAt,
-      updatedAt: utterance.updatedAt,
-    }];
-  });
-
-  if (rows.length > 0) {
-    await db.dexie.layer_units.bulkPut(rows);
+    });
+    contents.push(content);
   }
+
+  if (units.length > 0) {
+    await db.dexie.layer_units.bulkPut(units);
+  }
+  if (contents.length > 0) {
+    await db.dexie.layer_unit_contents.bulkPut(contents);
+  }
+}
+
+export async function listUtteranceDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<UtteranceDocType[]> {
+  const units = await db.dexie.layer_units.filter((u) => u.unitType === 'utterance').toArray();
+  if (units.length === 0) return [];
+  const unitIds = units.map((u) => u.id);
+  const allContents = await db.dexie.layer_unit_contents.where('unitId').anyOf(unitIds).toArray();
+  const primaryByUnit = new Map<string, LayerUnitContentDocType>();
+  for (const c of allContents) {
+    if (c.contentRole !== 'primary_text') continue;
+    const prev = primaryByUnit.get(c.unitId);
+    if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(c.unitId, c);
+  }
+  const speakers = await db.dexie.speakers.toArray();
+  const speakerNameById = new Map(speakers.map((s) => [s.id, s.name] as const));
+  return units
+    .sort((a, b) => (a.startTime !== b.startTime ? a.startTime - b.startTime : a.id.localeCompare(b.id)))
+    .map((unit) => projectUtteranceDocFromLayerUnit(
+      unit,
+      primaryByUnit.get(unit.id),
+      unit.speakerId ? speakerNameById.get(unit.speakerId) : undefined,
+    ));
+}
+
+export async function getUtteranceDocProjectionById(
+  db: JieyuDatabase,
+  id: string,
+): Promise<UtteranceDocType | undefined> {
+  const unit = await db.dexie.layer_units.get(id);
+  if (!unit || unit.unitType !== 'utterance') return undefined;
+  const primary = await db.dexie.layer_unit_contents
+    .where('[unitId+contentRole]')
+    .equals([id, 'primary_text'])
+    .first();
+  const speakerName = unit.speakerId
+    ? (await db.dexie.speakers.get(unit.speakerId))?.name
+    : undefined;
+  return projectUtteranceDocFromLayerUnit(unit, primary ?? undefined, speakerName);
 }
 
 export async function listSegmentContentsByIds(
@@ -161,7 +207,7 @@ export async function deleteSegmentLinksBySegmentIds(
   ]);
   const relationIds = uniqueIds([...sourceRelationIds, ...targetRelationIds]);
   if (relationIds.length > 0) {
-    await LegacyMirrorService.deleteSegmentLinksByIds(db, relationIds);
+    await LayerUnitSegmentWriteService.deleteSegmentLinksByIds(db, relationIds);
   }
   return relationIds;
 }
@@ -189,10 +235,10 @@ export async function deleteLayerSegmentGraphBySegmentIds(
   const deletedContentIds = uniqueIds(contents.map((content) => content.id));
 
   if (deletedContentIds.length > 0) {
-    await LegacyMirrorService.deleteSegmentContentsByIds(db, deletedContentIds);
+    await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, deletedContentIds);
   }
   await deleteSegmentLinksBySegmentIds(db, deletedSegmentIds);
-  await LegacyMirrorService.deleteSegmentsByIds(db, deletedSegmentIds);
+  await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, deletedSegmentIds);
 
   return {
     affectedUtteranceIds,
@@ -301,21 +347,21 @@ export async function restoreLayerSegmentGraphSnapshot(
     ).flat());
 
     if (staleContentIds.length > 0) {
-      await LegacyMirrorService.deleteSegmentContentsByIds(db, staleContentIds);
+      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, staleContentIds);
     }
     if (existingSegmentIds.length > 0) {
       await deleteSegmentLinksBySegmentIds(db, existingSegmentIds);
-      await LegacyMirrorService.deleteSegmentsByIds(db, existingSegmentIds);
+      await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, existingSegmentIds);
     }
 
     if (snapshot.segments.length > 0) {
-      await LegacyMirrorService.upsertSegments(db, snapshot.segments);
+      await LayerUnitSegmentWriteService.upsertSegments(db, snapshot.segments);
     }
     if (snapshot.contents.length > 0) {
-      await LegacyMirrorService.upsertSegmentContents(db, snapshot.contents);
+      await LayerUnitSegmentWriteService.upsertSegmentContents(db, snapshot.contents);
     }
     if (snapshot.links.length > 0) {
-      await LegacyMirrorService.upsertSegmentLinks(db, snapshot.links);
+      await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);
     }
   });
 }

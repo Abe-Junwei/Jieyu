@@ -6,12 +6,13 @@ import {
 } from '../db';
 import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationTextService';
 import {
+  bulkGetLayerUnits,
   buildClonedSegmentGraphForSplit,
   deleteLayerSegmentGraphBySegmentIds,
 } from './LayerSegmentGraphService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
-import { LegacyMirrorService } from './LegacyMirrorService';
+import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
 import { newId } from '../utils/transcriptionFormatters';
 
@@ -33,9 +34,9 @@ async function enforceParentBoundsForSegments(db: Awaited<ReturnType<typeof getD
     db,
   );
   if (parentIds.length === 0) return;
-  const parents = await db.dexie.utterances.bulkGet(parentIds);
+  const parents = await bulkGetLayerUnits(db, parentIds);
   for (const parent of parents) {
-    if (!parent) continue;
+    if (!parent || parent.unitType !== 'utterance') continue;
     await enforceTimeSubdivisionParentBounds(db, parent.id, parent.startTime, parent.endTime);
   }
 }
@@ -48,7 +49,7 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
     await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
-      await LegacyMirrorService.insertSegments(db, [segment]);
+      await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
     });
   }
 
@@ -62,8 +63,8 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
     await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
-      await LegacyMirrorService.insertSegments(db, [segment]);
-      await LegacyMirrorService.insertSegmentContents(db, [content]);
+      await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
+      await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
     });
   }
 
@@ -89,7 +90,7 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     const now = new Date().toISOString();
     await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.unit_relations, async () => {
-      await LegacyMirrorService.insertSegments(db, [clipped]);
+      await LayerUnitSegmentWriteService.insertSegments(db, [clipped]);
       const link = {
         id: newId('sl'),
         textId: clipped.textId,
@@ -99,7 +100,7 @@ export class LayerSegmentationV2Service {
         createdAt: now,
         updatedAt: now,
       } as SegmentLinkDocType;
-      await LegacyMirrorService.insertSegmentLinks(db, [link]);
+      await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
     });
     return clipped;
   }
@@ -115,11 +116,11 @@ export class LayerSegmentationV2Service {
           ...changes,
           id: existing.id,
         };
-        await LegacyMirrorService.upsertSegments(db, [nextRow]);
+        await LayerUnitSegmentWriteService.upsertSegments(db, [nextRow]);
         return;
       }
 
-      await LegacyMirrorService.updateSegmentPatch(db, id, changes);
+      await LayerUnitSegmentWriteService.updateSegmentPatch(db, id, changes);
     });
   }
 
@@ -130,14 +131,14 @@ export class LayerSegmentationV2Service {
   static async upsertSegmentContent(content: LayerSegmentContentDocType): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction('rw', db.dexie.layer_unit_contents, async () => {
-      await LegacyMirrorService.insertSegmentContents(db, [content]);
+      await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
     });
   }
 
   static async deleteSegmentContent(contentId: string): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction('rw', db.dexie.layer_unit_contents, async () => {
-      await LegacyMirrorService.deleteSegmentContentsByIds(db, [contentId]);
+      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, [contentId]);
     });
   }
 
@@ -148,7 +149,7 @@ export class LayerSegmentationV2Service {
   static async createSegmentLink(link: SegmentLinkDocType): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction('rw', db.dexie.unit_relations, async () => {
-      await LegacyMirrorService.insertSegmentLinks(db, [link]);
+      await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
     });
   }
 
@@ -238,13 +239,13 @@ export class LayerSegmentationV2Service {
         db.dexie.unit_relations,
       ],
       async () => {
-        await LegacyMirrorService.upsertSegments(db, [first]);
-        await LegacyMirrorService.insertSegments(db, [second]);
+        await LayerUnitSegmentWriteService.upsertSegments(db, [first]);
+        await LayerUnitSegmentWriteService.insertSegments(db, [second]);
         if (clonedContents.length > 0) {
-          await LegacyMirrorService.upsertSegmentContents(db, clonedContents);
+          await LayerUnitSegmentWriteService.upsertSegmentContents(db, clonedContents);
         }
         if (clonedLinks.length > 0) {
-          await LegacyMirrorService.insertSegmentLinks(db, clonedLinks);
+          await LayerUnitSegmentWriteService.insertSegmentLinks(db, clonedLinks);
         }
       },
     );
@@ -306,7 +307,7 @@ export class LayerSegmentationV2Service {
         db.dexie.unit_relations,
       ],
       async () => {
-        await LegacyMirrorService.upsertSegments(db, [mergedKeep]);
+        await LayerUnitSegmentWriteService.upsertSegments(db, [mergedKeep]);
         await deleteLayerSegmentGraphBySegmentIds(db, [removeId]);
       },
     );

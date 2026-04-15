@@ -1,11 +1,11 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../db';
+import type { LayerDocType } from '../db';
+import { db, getDb } from '../db';
 import { LinguisticService } from './LinguisticService';
 
 async function clearTables(): Promise<void> {
   await Promise.all([
-    db.utterances.clear(),
     db.embeddings.clear(),
     db.layer_units.clear(),
     db.layer_unit_contents.clear(),
@@ -22,6 +22,20 @@ describe('LinguisticService embedding invalidation', () => {
 
   it('invalidates utterance embeddings when embedded default transcription changes', async () => {
     const now = new Date().toISOString();
+
+    const trcLayer: LayerDocType = {
+      id: 'trc_embed_default',
+      textId: 'text_embed',
+      key: 'trc_embed',
+      name: { default: 'Transcription' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await (await getDb()).collections.layers.insert(trcLayer);
 
     await LinguisticService.saveUtterance({
       id: 'utt_embed_1',

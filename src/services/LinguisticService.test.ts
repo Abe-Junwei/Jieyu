@@ -11,7 +11,6 @@ async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.texts.clear(),
     db.media_items.clear(),
-    db.utterances.clear(),
     db.utterance_tokens.clear(),
     db.utterance_morphemes.clear(),
     db.anchors.clear(),
@@ -966,7 +965,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_2',
         textId: 'text_read',
-        utteranceId: 'utt_read_1',
+        unitId: 'utt_read_1',
         tokenIndex: 1,
         form: { default: 'word2' },
         gloss: { eng: 'second' },
@@ -977,7 +976,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_1',
         textId: 'text_read',
-        utteranceId: 'utt_read_1',
+        unitId: 'utt_read_1',
         tokenIndex: 0,
         form: { default: 'word1' },
         gloss: { eng: 'first' },
@@ -991,7 +990,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_2',
         textId: 'text_read',
-        utteranceId: 'utt_read_1',
+        unitId: 'utt_read_1',
         tokenId: 'tok_2',
         morphemeIndex: 1,
         form: { default: 'mor2' },
@@ -1002,7 +1001,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_1',
         textId: 'text_read',
-        utteranceId: 'utt_read_1',
+        unitId: 'utt_read_1',
         tokenId: 'tok_2',
         morphemeIndex: 0,
         form: { default: 'mor1' },
@@ -1309,9 +1308,55 @@ describe('LinguisticService smoke tests', () => {
       await LinguisticService.assignSpeakerToUtterances(['utt_stats_1'], speaker.id);
       await LinguisticService.assignSpeakerToSegments(['seg_stats_1'], speaker.id);
 
-      const stats = await LinguisticService.getSpeakerReferenceStats();
+      const bundle = await LinguisticService.getSpeakerReferenceStats();
 
-      expect(stats[speaker.id]).toEqual({ utteranceCount: 1, segmentCount: 1, totalCount: 2 });
+      expect(bundle.perSpeaker[speaker.id]).toEqual({ transcriptionUnitCount: 1, segmentCount: 1, totalCount: 2 });
+      expect(bundle.unassigned).toEqual({ transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 });
+    });
+
+    it('counts unassigned rows in speaker reference stats bundle', async () => {
+      const now = new Date().toISOString();
+      await LinguisticService.saveUtterance({
+        id: 'utt_unassigned_stats',
+        textId: 'text_stats_u',
+        mediaId: 'media_stats_u',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+      const bundle = await LinguisticService.getSpeakerReferenceStats();
+      expect(bundle.unassigned).toEqual({ transcriptionUnitCount: 1, segmentCount: 0, totalCount: 1 });
+      expect(Object.keys(bundle.perSpeaker)).toHaveLength(0);
+    });
+
+    it('filters speaker reference stats by mediaId', async () => {
+      const now = new Date().toISOString();
+      await LinguisticService.saveUtterance({
+        id: 'utt_m_a',
+        textId: 'text_m',
+        mediaId: 'media_a',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+      await LinguisticService.saveUtterance({
+        id: 'utt_m_b',
+        textId: 'text_m',
+        mediaId: 'media_b',
+        startTime: 0,
+        endTime: 1,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      });
+      const bundleA = await LinguisticService.getSpeakerReferenceStats({ mediaId: 'media_a' });
+      expect(bundleA.unassigned.transcriptionUnitCount).toBe(1);
+      const bundleAll = await LinguisticService.getSpeakerReferenceStats();
+      expect(bundleAll.unassigned.transcriptionUnitCount).toBe(2);
     });
 
   it('supports token/morpheme lexeme links lifecycle', async () => {
@@ -1385,7 +1430,7 @@ describe('LinguisticService smoke tests', () => {
     await LinguisticService.saveToken({
       id: 'tok_quality_1',
       textId: 'text_quality',
-      utteranceId: 'utt_quality_1',
+      unitId: 'utt_quality_1',
       tokenIndex: 0,
       form: { default: 'tok' },
       gloss: { eng: 'GLOSS' },
@@ -1460,13 +1505,13 @@ describe('LinguisticService smoke tests', () => {
 
     const backup = await LinguisticService.exportToJSON();
 
-    await db.utterances.clear();
-    expect(await db.utterances.count()).toBe(0);
+    await db.layer_units.filter((u) => u.unitType === 'utterance').delete();
+    expect(await db.layer_units.filter((u) => u.unitType === 'utterance').count()).toBe(0);
 
     const report = await LinguisticService.importFromJSON(backup, 'upsert');
 
-    expect(report.collections.utterances?.written).toBeGreaterThan(0);
-    expect(await db.utterances.count()).toBe(1);
+    expect(report.collections.layer_units?.written).toBeGreaterThan(0);
+    expect(await db.layer_units.filter((u) => u.unitType === 'utterance').count()).toBe(1);
   });
 
   it('rejects AI tier annotation writes with confirmed reviewStatus', async () => {
@@ -1540,7 +1585,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_batch_1',
         textId: 'text_batch',
-        utteranceId: 'utt_batch_1',
+        unitId: 'utt_batch_1',
         tokenIndex: 0,
         form: { default: 'a' },
         createdAt: NOW,
@@ -1549,7 +1594,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_batch_2',
         textId: 'text_batch',
-        utteranceId: 'utt_batch_2',
+        unitId: 'utt_batch_2',
         tokenIndex: 0,
         form: { default: 'b' },
         createdAt: NOW,
@@ -1561,7 +1606,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_batch_1',
         textId: 'text_batch',
-        utteranceId: 'utt_batch_1',
+        unitId: 'utt_batch_1',
         tokenId: 'tok_batch_1',
         morphemeIndex: 0,
         form: { default: 'a1' },
@@ -1571,7 +1616,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_batch_2',
         textId: 'text_batch',
-        utteranceId: 'utt_batch_2',
+        unitId: 'utt_batch_2',
         tokenId: 'tok_batch_2',
         morphemeIndex: 0,
         form: { default: 'b1' },
@@ -1651,9 +1696,9 @@ describe('LinguisticService smoke tests', () => {
 
     await LinguisticService.removeUtterancesBatch(['utt_batch_1', 'utt_batch_2']);
 
-    expect(await db.utterances.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.utterance_tokens.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.utterance_morphemes.where('utteranceId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.layer_units.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.utterance_tokens.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.utterance_morphemes.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
     expect(await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count()).toBe(0);
     expect(await db.user_notes.where('id').anyOf(['note_u_batch_1', 'note_t_batch_1', 'note_m_batch_2']).count()).toBe(0);
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
@@ -1704,7 +1749,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_del_single',
         textId: 'text_del',
-        utteranceId: 'utt_del_single',
+        unitId: 'utt_del_single',
         tokenIndex: 0,
         form: { default: 'single' },
         createdAt: NOW,
@@ -1713,7 +1758,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'tok_del_audio',
         textId: 'text_del',
-        utteranceId: 'utt_del_audio',
+        unitId: 'utt_del_audio',
         tokenIndex: 0,
         form: { default: 'audio' },
         createdAt: NOW,
@@ -1725,7 +1770,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_del_single',
         textId: 'text_del',
-        utteranceId: 'utt_del_single',
+        unitId: 'utt_del_single',
         tokenId: 'tok_del_single',
         morphemeIndex: 0,
         form: { default: 'single-m' },
@@ -1735,7 +1780,7 @@ describe('LinguisticService smoke tests', () => {
       {
         id: 'mor_del_audio',
         textId: 'text_del',
-        utteranceId: 'utt_del_audio',
+        unitId: 'utt_del_audio',
         tokenId: 'tok_del_audio',
         morphemeIndex: 0,
         form: { default: 'audio-m' },
@@ -1876,7 +1921,7 @@ describe('LinguisticService smoke tests', () => {
 
     // Canonical cascade should clean up segment contents
     expect(await db.layer_unit_contents.where('layerId').equals('layer_cascade').count()).toBe(0);
-    expect(await db.utterances.count()).toBe(0);
+    expect(await db.layer_units.where('textId').equals('text_cascade_ut').count()).toBe(0);
   });
 
   it('regression: upsertLanguageCatalogEntry clears explicitly blank persisted fields', async () => {

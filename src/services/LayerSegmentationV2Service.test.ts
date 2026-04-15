@@ -7,7 +7,9 @@ import {
   type LayerSegmentContentDocType,
   type LayerSegmentDocType,
   type SegmentLinkDocType,
+  type UtteranceDocType,
 } from '../db';
+import { putTestUtteranceAsLayerUnit } from '../db/putTestUtteranceAsLayerUnit';
 import { LayerSegmentationV2Service } from './LayerSegmentationV2Service';
 
 const NOW = '2026-03-24T00:00:00.000Z';
@@ -69,7 +71,6 @@ describe('LayerSegmentationV2Service', () => {
     await db.open();
     await Promise.all([
       db.tier_definitions.clear(),
-      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -93,7 +94,7 @@ describe('LayerSegmentationV2Service', () => {
     expect(contents[0]?.text).toBe('你好');
   });
 
-  it('mirrors segment/content writes into layer_units tables', async () => {
+  it('persists segment/content writes to canonical layer_units tables', async () => {
     const segment = makeSegment({ id: 'seg_unit_sync_1' });
     const content = makeContent({ id: 'cnt_unit_sync_1', segmentId: 'seg_unit_sync_1', text: '同步内容' });
 
@@ -403,7 +404,7 @@ describe('LayerSegmentationV2Service', () => {
   });
 
   it('re-clamps split time_subdivision children to parent utterance bounds', async () => {
-    await db.utterances.put({
+    await putTestUtteranceAsLayerUnit(db, {
       id: 'utt_parent_split_clamp',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -411,7 +412,7 @@ describe('LayerSegmentationV2Service', () => {
       endTime: 3,
       createdAt: NOW,
       updatedAt: NOW,
-    } as never);
+    } as UtteranceDocType, 'layer_trc_cmn');
     await db.layer_units.put({
       id: 'seg_split_clamp',
       textId: 'text_1',
@@ -618,7 +619,7 @@ describe('LayerSegmentationV2Service', () => {
   });
 
   it('re-clamps merged time_subdivision children to parent utterance bounds', async () => {
-    await db.utterances.put({
+    await putTestUtteranceAsLayerUnit(db, {
       id: 'utt_parent_merge_clamp',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -626,7 +627,7 @@ describe('LayerSegmentationV2Service', () => {
       endTime: 3,
       createdAt: NOW,
       updatedAt: NOW,
-    } as never);
+    } as UtteranceDocType, 'layer_trc_cmn');
     await db.layer_units.bulkPut([
       {
         id: 'seg_merge_clamp_1',

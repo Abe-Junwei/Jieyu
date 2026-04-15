@@ -1,0 +1,45 @@
+{
+  "_comment": "Golden subset after upgradeM18LinguisticUtteranceCutover on default m18LinguisticUtteranceCutover.test mock (Phase 0 fixture).",
+  "layer_units": [
+    {
+      "id": "utt-m18",
+      "textId": "text-m18",
+      "mediaId": "media-m18",
+      "layerId": "trc-m18",
+      "unitType": "utterance",
+      "startTime": 0,
+      "endTime": 1
+    }
+  ],
+  "layer_unit_contents": [
+    {
+      "id": "utt-m18",
+      "textId": "text-m18",
+      "unitId": "utt-m18",
+      "layerId": "trc-m18",
+      "contentRole": "primary_text",
+      "modality": "text",
+      "text": "hi",
+      "sourceType": "human"
+    }
+  ],
+  "tokens": [
+    {
+      "id": "tok-m18",
+      "textId": "text-m18",
+      "unitId": "utt-m18",
+      "tokenIndex": 0,
+      "form": { "default": "w" }
+    }
+  ],
+  "morphemes": [
+    {
+      "id": "morph-m18",
+      "textId": "text-m18",
+      "unitId": "utt-m18",
+      "tokenId": "tok-m18",
+      "morphemeIndex": 0,
+      "form": { "default": "m" }
+    }
+  ]
+}
