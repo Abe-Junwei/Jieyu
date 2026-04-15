@@ -296,8 +296,8 @@ describe('Playback tab', () => {
     expect(localStorage.getItem('jieyu:amplitude-scale')).toBe('1.75');
 
     const visualStyleRow = screen.getByText('默认视觉样式').closest('.settings-row') as HTMLElement;
-    fireEvent.click(within(visualStyleRow).getByRole('button', { name: 'Praat' }));
-    expect(localStorage.getItem('jieyu:waveform-visual-style')).toBe('praat');
+    fireEvent.click(within(visualStyleRow).getByRole('button', { name: '示波图式' }));
+    expect(localStorage.getItem('jieyu:waveform-visual-style')).toBe('line');
 
     const overlayRow = screen.getByText('默认声学叠加').closest('.settings-row') as HTMLElement;
     fireEvent.click(within(overlayRow).getByRole('button', { name: '基频 + 强度' }));

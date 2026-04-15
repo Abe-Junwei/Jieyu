@@ -3,7 +3,8 @@ import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings,
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
-import { useOptionalLocale } from '../i18n';
+import { t, useOptionalLocale } from '../i18n';
+import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
 import { getTranscriptionOverlaysMessages } from '../i18n/transcriptionOverlaysMessages';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -41,12 +42,20 @@ interface TranscriptionOverlaysProps {
   updateNote: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
   utterances: UtteranceDocType[];
+  /** 将右键 target id（含指代型 segment id）解析为可持久化 selfCertainty 的 utterance id */
+  resolveSelfCertaintyUtteranceIds?: (unitIds: readonly string[]) => string[];
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => void;
+  /** 句段自我确信度（仅 utterance）| Utterance self-certainty (utterance units only) */
+  onSetUtteranceSelfCertaintyFromMenu?: (
+    unitIds: Iterable<string>,
+    kind: TimelineUnitKind,
+    value: UtteranceSelfCertainty | undefined,
+  ) => void;
   onOpenSpeakerManagementPanelFromMenu?: () => void;
   /** 层显示样式控制 | Layer display style control for context menu */
   displayStyleControl?: {
@@ -93,12 +102,14 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     updateNote,
     deleteNote,
     utterances,
+    resolveSelfCertaintyUtteranceIds,
     getUtteranceTextForLayer,
     transcriptionLayers,
     translationLayers,
     speakerOptions = [],
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
+    onSetUtteranceSelfCertaintyFromMenu,
     onOpenSpeakerManagementPanelFromMenu = () => {},
     displayStyleControl,
   } = props;
@@ -166,6 +177,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const targetIds = multiCount > 1 ? Array.from(selectedUnitIds) : [id];
             const targetKind = ctxMenu.unitKind;
             const isSegmentUnitContext = targetKind === 'segment';
+            // 与「添加备注」一致：只要提供 handler 即显示；segment id / 宿主 utterance id 在点击或 ReadyWorkspace 内统一解析
+            const selfCertaintyTargetUtteranceIds = (resolveSelfCertaintyUtteranceIds?.(targetIds)
+              ?? targetIds.filter((uid) => utterances.some((u) => u.id === uid)));
+            const setSelfCertaintyFromMenu = onSetUtteranceSelfCertaintyFromMenu;
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
@@ -197,6 +212,34 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                       ]),
                   { label: messages.addNote, shortcut: '⌘⇧N', onClick: () => { onOpenNoteFromMenu(ctxMenu.x, ctxMenu.y, id, ctxMenu.layerId, ctxMenu.source ?? 'timeline'); } },
                 ];
+
+            if (setSelfCertaintyFromMenu) {
+              const scIds = selfCertaintyTargetUtteranceIds.length > 0
+                ? selfCertaintyTargetUtteranceIds
+                : targetIds;
+              items.push({
+                label: t(locale, 'transcription.ctxMenu.selfCertainty'),
+                separatorBefore: true,
+                children: [
+                  {
+                    label: t(locale, 'transcription.utterance.selfCertainty.certain'),
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'certain'); },
+                  },
+                  {
+                    label: t(locale, 'transcription.utterance.selfCertainty.uncertain'),
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'uncertain'); },
+                  },
+                  {
+                    label: t(locale, 'transcription.utterance.selfCertainty.not_understood'),
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'not_understood'); },
+                  },
+                  {
+                    label: t(locale, 'transcription.utterance.selfCertainty.clear'),
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, undefined); },
+                  },
+                ],
+              });
+            }
 
             if (isTranscriptionLayerContext) {
               const speakerManageItems: ContextMenuItem[] = [];

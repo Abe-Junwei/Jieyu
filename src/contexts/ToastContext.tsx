@@ -35,13 +35,30 @@ export interface ToastContextValue {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
+const NOOP_TOAST_CONTEXT: ToastContextValue = {
+  showToast: () => undefined,
+  showSaveState: () => undefined,
+  showVoiceState: () => undefined,
+  dismiss: () => undefined,
+};
+let hasWarnedAboutMissingToastProvider = false;
 
 export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error('useToast must be used within <ToastProvider>');
+  if (ctx) {
+    return ctx;
   }
-  return ctx;
+
+  const runtimeMode = typeof import.meta !== 'undefined' ? import.meta.env?.MODE : undefined;
+  if (runtimeMode === 'development') {
+    if (!hasWarnedAboutMissingToastProvider) {
+      hasWarnedAboutMissingToastProvider = true;
+      console.warn('[toast] Missing ToastProvider during hot reload; using a no-op fallback temporarily.');
+    }
+    return NOOP_TOAST_CONTEXT;
+  }
+
+  throw new Error('useToast must be used within <ToastProvider>');
 }
 
 // ── Auto-dismiss delays ──────────────────────────────────────────────────────

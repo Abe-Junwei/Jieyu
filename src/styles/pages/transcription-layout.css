@@ -432,3 +432,42 @@
 .video-preview-right-resize-handle:hover .video-preview-right-resize-dots::after {
   background: var(--state-info-solid);
 }
+
+/* ── Lazy timeline CSS: Suspense fallbacks (shell loads before transcription-timeline.css) | Suspense fallbacks
+ * TimelineTop / TimelineContent pull the full timeline bundle lazily; keep minimal chrome here to avoid FOUC.
+ */
+.transcription-timeline-top-suspense-fallback {
+  display: block;
+  min-height: 50px;
+  box-sizing: border-box;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--divider-base);
+}
+
+.timeline-scroll-suspense-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0 14px;
+  min-height: 120px;
+  box-sizing: border-box;
+  opacity: 0.35;
+}
+
+.timeline-scroll-suspense-fallback-row {
+  height: 12px;
+  margin-left: max(120px, var(--lane-label-width, 160px));
+  margin-right: 12px;
+  border-radius: 4px;
+  background: var(--border-soft);
+}
+
+/* Lazy OrchestratorWaveformContent + waveform CSS: minimal placeholder before chunk loads */
+.transcription-waveform-area-suspense-fallback {
+  flex-shrink: 0;
+  min-height: 88px;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--divider-base);
+}

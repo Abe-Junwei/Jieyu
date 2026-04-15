@@ -151,7 +151,17 @@ describe('Transcription layout guard', () => {
     const entryPath = path.resolve(process.cwd(), 'src/styles/transcription-entry.css');
     const entryCode = fs.readFileSync(entryPath, 'utf8');
     expect(entryCode).toContain("@import './panel-blocks.css';");
-    expect(entryCode).toContain("@import './pages/transcription-toolbar.css';");
+    expect(entryCode).not.toContain("@import './pages/transcription-toolbar.css';");
+    expect(entryCode).not.toContain("@import './pages/transcription-timeline.css';");
+    expect(entryCode).not.toContain("@import './foundation/waveform-display.css';");
+    expect(entryCode).not.toContain("@import './pages/transcription-waveform.css';");
+    expect(entryCode).toContain("@import './transcription-waveform-shell.css';");
+    const toolbarPagePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Toolbar.tsx');
+    expect(fs.readFileSync(toolbarPagePath, 'utf8')).toContain("import '../styles/pages/transcription-toolbar.css';");
+    const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    expect(waveformContentCode).toContain("import '../styles/foundation/waveform-display.css';");
+    expect(waveformContentCode).toContain("import '../styles/pages/transcription-waveform.css';");
 
     const cssPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-toolbar.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
@@ -213,7 +223,16 @@ describe('Transcription layout guard', () => {
   it('keeps timeline base styles in dedicated page timeline css', () => {
     const entryPath = path.resolve(process.cwd(), 'src/styles/transcription-entry.css');
     const entryCode = fs.readFileSync(entryPath, 'utf8');
-    expect(entryCode).toContain("@import './pages/transcription-timeline.css';");
+    expect(entryCode).not.toContain("@import './pages/transcription-timeline.css';");
+
+    const timelineChunkHubPath = path.resolve(process.cwd(), 'src/styles/transcription-timeline.css');
+    const timelineChunkHubCode = fs.readFileSync(timelineChunkHubPath, 'utf8');
+    expect(timelineChunkHubCode).toContain("@import './pages/transcription-timeline.css';");
+
+    const timelineTopPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.TimelineTop.tsx');
+    const timelineContentPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.TimelineContent.tsx');
+    expect(fs.readFileSync(timelineTopPath, 'utf8')).toContain("import '../styles/transcription-timeline.css'");
+    expect(fs.readFileSync(timelineContentPath, 'utf8')).toContain("import '../styles/transcription-timeline.css'");
 
     const timelineHubPath = path.resolve(process.cwd(), 'src/styles/pages/transcription-timeline.css');
     const timelineHubCode = fs.readFileSync(timelineHubPath, 'utf8');

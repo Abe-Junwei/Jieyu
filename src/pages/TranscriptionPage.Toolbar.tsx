@@ -1,3 +1,4 @@
+import '../styles/pages/transcription-toolbar.css';
 import type { ReactNode, RefObject } from 'react';
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';

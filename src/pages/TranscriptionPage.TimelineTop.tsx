@@ -1,3 +1,4 @@
+import '../styles/transcription-timeline.css';
 import type { ComponentProps } from 'react';
 import { SearchReplaceOverlay } from '../components/SearchReplaceOverlay';
 import { TimelineHeaderSection } from '../components/transcription/TranscriptionTimelineSections';

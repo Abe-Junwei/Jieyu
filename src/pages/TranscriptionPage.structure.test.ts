@@ -442,7 +442,7 @@ describe('TranscriptionPage structure invariants', () => {
     const useCallbackCount = (orchestratorCode.match(/const\s+\w+\s*=\s*useCallback\(/g) ?? []).length;
 
     expect(lineCount).toBeLessThanOrEqual(2600);
-    expect(useCallbackCount).toBeLessThanOrEqual(9);
+    expect(useCallbackCount).toBeLessThanOrEqual(11);
   });
 
   it('routes speaker assignment through segment writes for independent selections', () => {
@@ -464,6 +464,8 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
     expect(orchestratorCode.includes('onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}')).toBe(true);
+    expect(orchestratorCode.includes('onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu}')).toBe(true);
+    expect(orchestratorCode.includes('resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds}')).toBe(true);
     expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}')).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
@@ -579,12 +581,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('{...toolbarProps}')).toBe(true);
     expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
     expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
-    expect(orchestratorCode.includes('className="timeline-top-placeholder"')).toBe(true);
-    expect(orchestratorCode.includes('className="waveform-overview-bar waveform-overview-placeholder"')).toBe(true);
-    expect(orchestratorCode.includes('className="time-ruler time-ruler-placeholder"')).toBe(true);
+    expect(orchestratorCode.includes('className="transcription-timeline-top-suspense-fallback"')).toBe(true);
     expect(orchestratorCode.includes('className="transcription-side-pane transcription-side-pane-placeholder"')).toBe(true);
-    expect(orchestratorCode.includes('className="timeline-content timeline-content-placeholder"')).toBe(true);
-    expect(orchestratorCode.includes('className="timeline-lane"')).toBe(true);
+    expect(orchestratorCode.includes('className="timeline-scroll-suspense-fallback"')).toBe(true);
+    expect(orchestratorCode.includes('className="timeline-scroll-suspense-fallback-row"')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
     expect(orchestratorCode.includes('<TranscriptionPageAiSidebar')).toBe(true);

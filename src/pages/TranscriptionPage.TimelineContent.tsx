@@ -1,3 +1,4 @@
+import '../styles/transcription-timeline.css';
 import type { ComponentProps } from 'react';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';

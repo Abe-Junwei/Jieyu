@@ -71,6 +71,7 @@ function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
     speakerOptions: [],
     speakerFilterOptions: [],
     onAssignSpeakerFromMenu: vi.fn(),
+    onSetUtteranceSelfCertaintyFromMenu: vi.fn(),
     onOpenSpeakerManagementPanelFromMenu: vi.fn(),
   };
 }
@@ -80,6 +81,64 @@ afterEach(() => {
 });
 
 describe('TranscriptionOverlays independent selection routing', () => {
+  it('shows self-certainty submenu when ctx unitKind is segment but unitId is an utterance host', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'utt_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(await screen.findByRole('menuitem', { name: /确信程度/ })).toBeTruthy();
+  });
+
+  it('shows self-certainty when unitId is segment id if resolver maps to an utterance id', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_ref_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.resolveSelfCertaintyUtteranceIds = (ids) => ids
+      .map((raw) => (raw === 'seg_ref_1' ? 'utt_1' : raw))
+      .filter((uid) => props.utterances.some((u) => u.id === uid));
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(await screen.findByRole('menuitem', { name: /确信程度/ })).toBeTruthy();
+  });
+
+  it('shows self-certainty when handler is set even if unitId is not an utterance id, and falls back to raw target ids', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_shadow_only',
+      layerId: 'layer_default',
+      unitKind: 'utterance',
+      splitTime: 0.5,
+    };
+    delete props.resolveSelfCertaintyUtteranceIds;
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const certaintyItem = await screen.findByRole('menuitem', { name: /确信程度/ });
+    fireEvent.mouseEnter(certaintyItem);
+
+    const certainOptions = await screen.findAllByRole('menuitem', { name: /^确定$/ });
+    fireEvent.click(certainOptions[certainOptions.length - 1]!);
+
+    expect(props.onSetUtteranceSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_shadow_only'], 'utterance', 'certain');
+  });
+
   it('opens utt ops menu with selectedTimelineUnit and deletes the segment target', async () => {
     const props = makeBaseProps();
     props.uttOpsMenu = { x: 100, y: 100 };

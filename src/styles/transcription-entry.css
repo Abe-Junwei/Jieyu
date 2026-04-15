@@ -2,9 +2,6 @@
 @import './ai-sidebar-entry.css';
 @import './foundation/context-menu.css';
 @import './foundation/media-controls.css';
-@import './foundation/waveform-display.css';
 @import './panels/layer-list.css';
 @import './pages/transcription-layout.css';
-@import './pages/transcription-toolbar.css';
-@import './pages/transcription-timeline.css';
-@import './pages/transcription-waveform.css';
+@import './transcription-waveform-shell.css';

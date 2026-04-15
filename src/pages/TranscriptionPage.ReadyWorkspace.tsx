@@ -3,9 +3,12 @@
  *
  * Heavy ready-state runtime extracted from the thin orchestrator shell.
  * 从轻量壳组件中拆出的 ready 态重运行时 | Heavy ready-state runtime extracted from the lightweight shell.
+ *
+ * Styles load with this async chunk (see TranscriptionPage.Orchestrator lazy import) to split CSS away from the route shell.
  */
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import '../styles/transcription-entry.css';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
 import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import {
@@ -22,7 +25,10 @@ import {
 } from '../components/transcription/TranscriptionLayoutSections';
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
-import { OrchestratorWaveformContent } from './OrchestratorWaveformContent';
+const OrchestratorWaveformContent = lazy(async () => {
+  const mod = await import('./OrchestratorWaveformContent');
+  return { default: mod.OrchestratorWaveformContent };
+});
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -45,9 +51,14 @@ import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
   isUtteranceTimelineUnit,
+  type TimelineUnitKind,
 } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
+import {
+  resolveSelfCertaintyHostUtteranceIds,
+  type UtteranceSelfCertainty,
+} from '../utils/utteranceSelfCertainty';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
@@ -165,6 +176,7 @@ function TranscriptionPageReadyWorkspace({
     saveVoiceTranslation,
     deleteVoiceTranslation,
     saveUtteranceText,
+    saveUtteranceSelfCertainty,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
     createNextUtterance: _createNextUtterance,
@@ -1336,6 +1348,52 @@ function TranscriptionPageReadyWorkspace({
     recordTimelineEdit,
   });
 
+  const selfCertaintyHostHintsByUnitId = useMemo(() => {
+    const out = new Map<string, {
+      parentUtteranceId?: string;
+      mediaId?: string;
+      startTime?: number;
+      endTime?: number;
+    }>();
+    for (const segments of segmentsByLayer.values()) {
+      for (const seg of segments) {
+        out.set(seg.id, {
+          ...(seg.utteranceId ? { parentUtteranceId: seg.utteranceId } : {}),
+          ...(seg.mediaId ? { mediaId: seg.mediaId } : {}),
+          startTime: seg.startTime,
+          endTime: seg.endTime,
+        });
+      }
+    }
+    for (const unit of timelineUnitViewIndex.currentMediaUnits) {
+      out.set(unit.id, {
+        ...((unit.parentUtteranceId && unit.parentUtteranceId.trim().length > 0)
+          ? { parentUtteranceId: unit.parentUtteranceId }
+          : {}),
+        ...(unit.mediaId ? { mediaId: unit.mediaId } : {}),
+        startTime: unit.startTime,
+        endTime: unit.endTime,
+      });
+    }
+    return out;
+  }, [segmentsByLayer, timelineUnitViewIndex.currentMediaUnits]);
+
+  const resolveSelfCertaintyUtteranceIds = useCallback((ids: readonly string[]) => resolveSelfCertaintyHostUtteranceIds(
+    ids,
+    utterances,
+    selfCertaintyHostHintsByUnitId,
+  ), [selfCertaintyHostHintsByUnitId, utterances]);
+
+  const handleSetUtteranceSelfCertaintyFromMenu = useCallback((
+    unitIds: Iterable<string>,
+    _kind: TimelineUnitKind,
+    value: UtteranceSelfCertainty | undefined,
+  ) => {
+    const resolved = resolveSelfCertaintyUtteranceIds([...unitIds]);
+    if (resolved.length === 0) return;
+    fireAndForget(saveUtteranceSelfCertainty(resolved, value));
+  }, [saveUtteranceSelfCertainty, resolveSelfCertaintyUtteranceIds]);
+
   const {
     laneLockMap,
     setLaneLockMap,
@@ -1372,6 +1430,9 @@ function TranscriptionPageReadyWorkspace({
     speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
     independentLayerIds: segmentTimelineLayerIds,
     orthographies: displayStyleControl.orthographies,
+    // 自我确信度宿主句段可能来自历史数据或跨媒体映射，不能只限 currentMedia 子集。
+    // Self-certainty host lookup must use the full utterance set, not only the current-media subset.
+    utterancesForSelfCertainty: utterances,
     setOverlapCycleToast,
     overlapCycleTelemetryRef,
   });
@@ -1749,7 +1810,8 @@ function TranscriptionPageReadyWorkspace({
               <section
                 className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
               >
-                <OrchestratorWaveformContent
+                <Suspense fallback={<div className="transcription-waveform-area-suspense-fallback" aria-hidden="true" />}>
+                  <OrchestratorWaveformContent
                   locale={locale}
                   waveformAreaRef={waveformAreaRef}
                   snapGuideNearSide={snapGuide.nearSide}
@@ -1836,14 +1898,10 @@ function TranscriptionPageReadyWorkspace({
                   handleToggleSelectedWaveformPlay={handleToggleSelectedWaveformPlay}
                   mediaFileInputRef={mediaFileInputRef}
                   handleWaveformResizeStart={handleWaveformResizeStart}
-                />
+                  />
+                </Suspense>
                 <Suspense
-                  fallback={(
-                    <div className="timeline-top-placeholder" aria-hidden="true">
-                      <div className="waveform-overview-bar waveform-overview-placeholder" />
-                      <div className="time-ruler time-ruler-placeholder" />
-                    </div>
-                  )}
+                  fallback={<div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />}
                 >
                   <TranscriptionPageTimelineTop {...timelineTopProps} />
                 </Suspense>
@@ -1915,10 +1973,10 @@ function TranscriptionPageReadyWorkspace({
                     <TranscriptionEditorContext.Provider value={editorContextValue}>
                         <Suspense
                           fallback={(
-                            <div className="timeline-content timeline-content-placeholder" aria-hidden="true">
-                              <div className="timeline-lane" />
-                              <div className="timeline-lane" />
-                              <div className="timeline-lane" />
+                            <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
+                              <div className="timeline-scroll-suspense-fallback-row" />
+                              <div className="timeline-scroll-suspense-fallback-row" />
+                              <div className="timeline-scroll-suspense-fallback-row" />
                             </div>
                           )}
                         >
@@ -2138,12 +2196,14 @@ function TranscriptionPageReadyWorkspace({
           updateNote={updateNote}
           deleteNote={deleteNote}
           utterances={utterances}
+          resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds}
           getUtteranceTextForLayer={getUtteranceTextForLayer}
           transcriptionLayers={transcriptionLayers}
           translationLayers={translationLayers}
           speakerOptions={speakerOptions}
           speakerFilterOptions={speakerFilterOptionsForActions}
           onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}
+          onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu}
           onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}
           displayStyleControl={displayStyleControl}
         />

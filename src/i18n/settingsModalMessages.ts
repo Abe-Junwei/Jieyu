@@ -74,7 +74,7 @@ export type SettingsModalMessages = {
   waveformVisualStyleBalanced: string;
   waveformVisualStyleDense: string;
   waveformVisualStyleContrast: string;
-  waveformVisualStylePraat: string;
+  waveformVisualStyleLine: string;
   waveformOverlayLabel: string;
   waveformOverlayNone: string;
   waveformOverlayF0: string;
@@ -196,7 +196,7 @@ const zhCN: SettingsModalMessages = {
   waveformVisualStyleBalanced: '平衡',
   waveformVisualStyleDense: '紧凑',
   waveformVisualStyleContrast: '高对比',
-  waveformVisualStylePraat: 'Praat',
+  waveformVisualStyleLine: '示波图式',
   waveformOverlayLabel: '默认声学叠加',
   waveformOverlayNone: '关闭',
   waveformOverlayF0: '基频',
@@ -315,7 +315,7 @@ const enUS: SettingsModalMessages = {
   waveformVisualStyleBalanced: 'Balanced',
   waveformVisualStyleDense: 'Dense',
   waveformVisualStyleContrast: 'Contrast',
-  waveformVisualStylePraat: 'Praat',
+  waveformVisualStyleLine: 'Oscillogram',
   waveformOverlayLabel: 'Default acoustic overlay',
   waveformOverlayNone: 'None',
   waveformOverlayF0: 'F0',

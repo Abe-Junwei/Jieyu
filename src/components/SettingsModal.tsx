@@ -876,7 +876,7 @@ export const SettingsModal = memo(function SettingsModal({
         balanced: msg.waveformVisualStyleBalanced,
         dense: msg.waveformVisualStyleDense,
         contrast: msg.waveformVisualStyleContrast,
-        praat: msg.waveformVisualStylePraat,
+        line: msg.waveformVisualStyleLine,
       };
       return {
         value: style,
@@ -977,15 +977,9 @@ export const SettingsModal = memo(function SettingsModal({
                       className={`theme-card${activeTheme === theme.id ? ' theme-card-active' : ''}`}
                       onClick={() => handleThemeChange(theme.id)}
                     >
-                      <div className="theme-card-preview">
-                        <span
-                          className="theme-card-swatch-accent"
-                          style={{ backgroundColor: resolvedMode === 'dark' ? theme.swatchDark : theme.swatchLight }}
-                        />
-                        <span
-                          className="theme-card-swatch-bg"
-                          style={{ backgroundColor: resolvedMode === 'dark' ? theme.bgDark : theme.bgLight }}
-                        />
+                      <div className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${theme.id}`}>
+                        <span className="theme-card-swatch-accent" />
+                        <span className="theme-card-swatch-bg" />
                       </div>
                       <div className="theme-card-info">
                         <span className="theme-card-name">{theme.name}</span>

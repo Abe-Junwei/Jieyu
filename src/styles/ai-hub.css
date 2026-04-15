@@ -1173,9 +1173,23 @@ select.ai-cfg-input {
   overflow: hidden;
 }
 
-.ai-webllm-progress-fill {
+.ai-webllm-progress-bar {
   display: block;
+  width: 100%;
   height: 100%;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ai-webllm-progress-bar::-webkit-progress-bar {
+  background: transparent;
+}
+
+.ai-webllm-progress-bar::-webkit-progress-value {
+  display: block;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
@@ -1183,6 +1197,15 @@ select.ai-cfg-input {
     color-mix(in srgb, var(--state-success-solid) 72%, var(--brand-strong))
   );
   transition: width 160ms ease;
+}
+
+.ai-webllm-progress-bar::-moz-progress-bar {
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--state-info-solid) 68%, var(--brand-strong)),
+    color-mix(in srgb, var(--state-success-solid) 72%, var(--brand-strong))
+  );
 }
 
 .ai-webllm-progress-detail {

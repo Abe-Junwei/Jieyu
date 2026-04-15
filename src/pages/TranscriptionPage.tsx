@@ -1,5 +1,4 @@
 import { TranscriptionPage as TranscriptionPageOrchestrator } from './TranscriptionPage.Orchestrator';
-import '../styles/transcription-entry.css';
 
 interface TranscriptionPageProps {
   appSearchRequest?: import('../utils/appShellEvents').AppShellOpenSearchDetail | null;
