@@ -50,7 +50,17 @@ export function readStoredWaveformAmplitudeScalePreference(): number {
 export function readStoredWaveformVisualStylePreference(): WaveformVisualStyle {
   try {
     const stored = localStorage.getItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY);
-    if (!stored || !isWaveformVisualStyle(stored)) return 'balanced';
+    if (!stored) return 'balanced';
+    // 旧版「praat」样式键已更名为 line（示波图式连续线画），迁移本地偏好 | Legacy style id rename
+    if (stored === 'praat') {
+      try {
+        localStorage.setItem(WAVEFORM_VISUAL_STYLE_STORAGE_KEY, 'line');
+      } catch {
+        // no-op
+      }
+      return 'line';
+    }
+    if (!isWaveformVisualStyle(stored)) return 'balanced';
     return stored;
   } catch {
     return 'balanced';

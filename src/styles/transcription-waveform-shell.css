@@ -1,0 +1,9 @@
+/* Outer section `.transcription-waveform` (toolbar host) — stays in entry bundle so layout is stable before lazy Toolbar CSS loads. */
+.transcription-waveform {
+  flex-shrink: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: visible;
+  background: var(--surface-elevated);
+  border-top: 1px solid var(--border-soft);
+}

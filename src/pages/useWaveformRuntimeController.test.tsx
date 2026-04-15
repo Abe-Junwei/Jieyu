@@ -35,7 +35,7 @@ describe('useWaveformRuntimeController', () => {
       localStorage.setItem('jieyu:waveform-height', '240');
       localStorage.setItem('jieyu:waveform-display-mode', 'spectrogram');
       localStorage.setItem('jieyu:amplitude-scale', '1.8');
-      localStorage.setItem('jieyu:waveform-visual-style', 'praat');
+      localStorage.setItem('jieyu:waveform-visual-style', 'line');
       localStorage.setItem('jieyu:acoustic-overlay-mode', 'both');
       emitWaveformRuntimePreferenceChanged();
     });
@@ -43,8 +43,20 @@ describe('useWaveformRuntimeController', () => {
     expect(result.current.waveformHeight).toBe(240);
     expect(result.current.waveformDisplayMode).toBe('spectrogram');
     expect(result.current.amplitudeScale).toBe(1.8);
-    expect(result.current.waveformVisualStyle).toBe('praat');
+    expect(result.current.waveformVisualStyle).toBe('line');
     expect(result.current.acousticOverlayMode).toBe('both');
+  });
+
+  it('migrates legacy praat waveform visual style key to line in localStorage', () => {
+    localStorage.setItem('jieyu:waveform-height', '180');
+    localStorage.setItem('jieyu:waveform-display-mode', 'waveform');
+    localStorage.setItem('jieyu:amplitude-scale', '1');
+    localStorage.setItem('jieyu:waveform-visual-style', 'praat');
+    localStorage.setItem('jieyu:acoustic-overlay-mode', 'none');
+
+    const { result } = renderHook(() => useWaveformRuntimeController());
+    expect(result.current.waveformVisualStyle).toBe('line');
+    expect(localStorage.getItem('jieyu:waveform-visual-style')).toBe('line');
   });
 
   it('restores base height after auto-expand when leaving split mode', () => {

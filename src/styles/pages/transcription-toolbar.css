@@ -1,12 +1,3 @@
-.transcription-waveform {
-  flex-shrink: 0;
-  min-width: 0;
-  width: 100%;
-  overflow: visible;
-  background: var(--surface-elevated);
-  border-top: 1px solid var(--border-soft);
-}
-
 .transcription-wave-toolbar {
   position: relative;
   z-index: var(--z-popover);
@@ -79,14 +70,14 @@
   /* 浮层容器不拦截波形交互，仅内部控件可响应 | Let waveform interactions pass through container; keep children interactive */
   pointer-events: none;
   /* 与 `.transcription-wave-toolbar` 主行同一套 icon 按钮 token；高度略小以适配浮层密度 */
-  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  --icon-btn-border: none;
   --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   --icon-btn-color: var(--text-primary);
   --icon-btn-border-radius: var(--radius-md);
-  --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --icon-btn-hover-transform: none;
   --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
-  --icon-btn-hover-border-color: color-mix(in srgb, var(--border-soft) 72%, var(--text-tertiary));
+  --icon-btn-hover-border-color: transparent;
   --icon-btn-height: 28px;
   --icon-btn-min-width: 28px;
   --icon-btn-padding: 0;
@@ -119,10 +110,11 @@
   gap: 8px;
   width: 100%;
   min-height: 34px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 7px 10px;
   background: color-mix(in srgb, var(--surface-header) 88%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
 .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume input[type='range'] {
@@ -141,42 +133,21 @@
 }
 
 .transcription-wave-toolbar {
-  /* 次动作：略方角 + 中性底，高饱和蓝仅留给播放/激活态 */
-  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  /* 次动作：无边框，靠底/阴影与 :active 表达交互；高饱和蓝仅留给播放/激活态 */
+  --icon-btn-border: none;
   --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   --icon-btn-color: var(--text-primary);
   --icon-btn-border-radius: var(--radius-md);
-  --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --icon-btn-hover-transform: none;
   --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
-  --icon-btn-hover-border-color: color-mix(in srgb, var(--border-soft) 72%, var(--text-tertiary));
+  --icon-btn-hover-border-color: transparent;
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-vad-btn {
   min-width: 30px;
   padding: 0;
-  margin-left: -1px;
-  border: 1px solid color-mix(in srgb, var(--accent-primary) 28%, var(--border-soft));
-  background: color-mix(in srgb, var(--accent-primary) 8%, var(--surface-panel));
-  color: color-mix(in srgb, var(--accent-primary) 68%, var(--text-primary));
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
-}
-
-.transcription-wave-toolbar .transcription-wave-toolbar-vad-btn:hover:not(:disabled) {
-  transform: none;
-  border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--border-soft));
-  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-panel));
-  color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary));
-}
-
-.transcription-wave-toolbar .transcription-wave-toolbar-vad-btn:disabled {
-  opacity: 1;
-  cursor: not-allowed;
-  filter: grayscale(0.35);
-  color: color-mix(in srgb, var(--text-tertiary) 88%, var(--text-primary));
-  border-color: color-mix(in srgb, var(--border-soft) 92%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
-  box-shadow: none;
+  margin-left: 0;
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-delete-audio-btn {
@@ -201,40 +172,84 @@
 }
 
 .transcription-wave-toolbar-left {
-  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 86%, var(--header-border));
+  --icon-btn-border: none;
   --icon-btn-background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
-  --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+.transcription-wave-toolbar .icon-btn {
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease, filter 0.14s ease, color 0.12s ease;
+}
+
+.transcription-wave-toolbar .icon-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: inset 0 3px 10px color-mix(in srgb, var(--shadow-color) 14%, transparent);
 }
 
 .transcription-wave-toolbar-left .play-btn {
+  border: none;
   border-radius: var(--radius-pill);
-  border-color: color-mix(in srgb, var(--state-info-solid) 72%, var(--border-soft));
   background: var(--state-info-solid);
   color: var(--surface-panel);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  transition: filter 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
 }
 
 .transcription-wave-toolbar .play-btn:hover:not(:disabled) {
   transform: none;
   filter: brightness(0.97);
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+}
+
+.transcription-wave-toolbar .play-btn:active:not(:disabled) {
+  transform: scale(0.96);
+  filter: brightness(0.92);
+  box-shadow: inset 0 4px 14px color-mix(in srgb, var(--shadow-color) 22%, transparent), 0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+}
+
+.transcription-wave-toolbar .speed-select {
+  color: var(--text-primary);
+  border: none;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 7%, transparent);
+  transition: background-color 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
 }
 
 .transcription-wave-toolbar .speed-select:hover {
   transform: none;
-  border-color: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
   background-color: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 10%, transparent);
+}
+
+.transcription-wave-toolbar .speed-select:active {
+  transform: scale(0.98);
+  box-shadow: inset 0 3px 10px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-danger {
+  border: none;
 }
 
 .transcription-wave-toolbar .icon-btn:hover:not(:disabled) {
   transform: none;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 9%, transparent);
 }
 
 .transcription-wave-toolbar .icon-btn.icon-btn-active:hover:not(:disabled) {
   transform: none;
   background: color-mix(in srgb, var(--state-info-bg) 88%, var(--surface-header));
-  border-color: color-mix(in srgb, var(--state-info-solid) 52%, var(--border-soft));
+  border: none;
   color: var(--state-info-solid);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-active {
+  border: none;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-active:active:not(:disabled) {
+  transform: scale(0.96);
+  box-shadow: inset 0 3px 10px color-mix(in srgb, var(--shadow-color) 14%, transparent);
 }
 
 .transcription-wave-toolbar .icon-btn:disabled {
@@ -243,7 +258,7 @@
   transform: none;
   filter: grayscale(0.22);
   color: color-mix(in srgb, var(--text-tertiary) 75%, var(--text-primary));
-  border-color: color-mix(in srgb, var(--border-soft) 92%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
   box-shadow: none;
 }
@@ -251,7 +266,7 @@
 .transcription-wave-toolbar .icon-btn.icon-btn-danger:disabled {
   filter: grayscale(0.35);
   color: color-mix(in srgb, var(--state-danger-solid) 45%, var(--text-tertiary));
-  border-color: color-mix(in srgb, var(--border-soft) 90%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
 }
 
@@ -260,7 +275,7 @@
   cursor: not-allowed;
   transform: none;
   filter: grayscale(0.3) brightness(0.96);
-  border-color: color-mix(in srgb, var(--state-info-solid) 35%, var(--border-soft));
+  border: none;
   background: color-mix(in srgb, var(--state-info-solid) 55%, var(--surface-header));
   color: color-mix(in srgb, var(--surface-panel) 88%, var(--text-tertiary));
   box-shadow: none;
@@ -270,7 +285,7 @@
   opacity: 1;
   filter: grayscale(0.4);
   color: color-mix(in srgb, var(--state-danger-solid) 48%, var(--text-tertiary));
-  border-color: color-mix(in srgb, var(--border-soft) 90%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
   cursor: not-allowed;
   box-shadow: none;
@@ -279,8 +294,7 @@
 /* 双档字号：常规 16px，主播放 18px（仅顶栏，避免动到其他页面 wave 用法） */
 .transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave,
 .transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-md,
-.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger,
-.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger-chevron {
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
   --jieyu-material-size: 16px;
   --jieyu-material-opsz: 20;
 }
@@ -290,64 +304,22 @@
   --jieyu-material-opsz: 20;
 }
 
-.transcription-wave-toolbar .speed-select {
-  color: var(--text-primary);
-}
-
 .waveform-view-options-anchor {
   position: relative;
   display: inline-flex;
   align-items: center;
 }
 
-.waveform-view-options-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--text-tertiary) 36%, transparent);
-  border-radius: var(--radius-md);
-  background-color: color-mix(in srgb, var(--surface-panel) 78%, transparent);
-  color: var(--text-primary);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1.15;
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 6%, transparent);
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.waveform-view-options-trigger:hover {
-  transform: none;
-  border-color: color-mix(in srgb, var(--text-tertiary) 44%, transparent);
-  background-color: color-mix(in srgb, var(--surface-header) 62%, var(--surface-panel));
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 8%, transparent);
-}
-
-.waveform-view-options-trigger:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--state-info-solid) 40%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-info-border) 20%, transparent);
+/* 与顶栏 icon-btn 同套 token；仅补展开态环 | Icon-only tune; expand ring layered on icon-btn shadow */
+.transcription-wave-toolbar .waveform-view-options-trigger.icon-btn {
+  gap: 0;
+  padding: 0;
 }
 
 .waveform-view-options-trigger[aria-expanded='true'] {
-  border-color: color-mix(in srgb, var(--state-info-solid) 36%, transparent);
-}
-
-.waveform-view-options-trigger-chevron {
-  flex-shrink: 0;
-  opacity: 0.72;
-  transition: transform 0.15s ease;
-}
-
-.waveform-view-options-trigger[aria-expanded='true'] .waveform-view-options-trigger-chevron {
-  transform: rotate(180deg);
-}
-
-/* tune 略宽，与文案多留 2px，避免与「波」挤叠 */
-.waveform-view-options-trigger > span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
-  margin-inline-end: 2px;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--state-info-solid) 28%, transparent),
+    0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
 .waveform-view-options-panel {
@@ -355,7 +327,7 @@
   inset-inline-start: 0;
   top: calc(100% + 6px);
   z-index: 24;
-  width: min(320px, calc(100vw - 28px));
+  width: min(400px, calc(100vw - 28px));
   padding: 12px 14px 14px;
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
@@ -381,49 +353,90 @@
   margin-top: 0;
 }
 
+.waveform-view-options-section-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .waveform-view-options-section-label {
+  flex: 0 0 4.85rem;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-tertiary);
+  line-height: 1.25;
 }
 
-.waveform-view-options-seg {
+.waveform-view-options-section-controls {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* 与 AI 聊天头「详细/简洁」共用 .transcription-ai-mode-switch / .transcription-ai-mode-btn（ai-hub.css）| Shared AI mode pill styles */
+.waveform-view-options-panel .waveform-view-options-ai-switch--canvas {
+  width: 100%;
+}
+
+.waveform-view-options-panel .waveform-view-options-ai-switch--canvas .transcription-ai-mode-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waveform-view-options-panel .waveform-view-options-ai-switch--styles {
+  flex-wrap: wrap;
+  max-width: 100%;
+  row-gap: 4px;
+}
+
+.waveform-view-options-panel .waveform-view-options-ai-switch--styles .transcription-ai-mode-btn {
+  flex: 1 1 auto;
+  min-width: calc(38px * var(--ui-font-scale, 1));
+  padding-inline: 6px;
+  font-size: 0.7rem;
+}
+
+.waveform-view-options-panel .transcription-ai-mode-switch[aria-disabled='true'] {
+  opacity: 0.52;
+}
+
+.waveform-view-options-panel .transcription-ai-mode-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 声学：两颗独立药丸、实线描边 | Acoustic: separate solid-outline pills */
+.waveform-view-options-acoustic-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  align-items: center;
+  gap: 10px;
 }
 
-.waveform-view-options-seg-btn {
-  flex: 1 1 auto;
-  min-width: 4.6em;
-  padding: 6px 8px;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
-  background: color-mix(in srgb, var(--surface-header) 70%, var(--surface-panel));
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  font-family: inherit;
-  cursor: pointer;
-  line-height: 1.2;
+.waveform-view-options-panel .waveform-view-options-acoustic-toggle {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
-.waveform-view-options-seg-btn:hover {
-  border-color: color-mix(in srgb, var(--state-info-solid) 28%, var(--border-soft));
+.waveform-view-options-panel .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active) {
+  background: color-mix(in srgb, var(--text-tertiary) 10%, var(--surface-header));
+  border-color: color-mix(in srgb, var(--border-soft) 92%, var(--text-tertiary));
 }
 
-.waveform-view-options-seg-btn:focus-visible {
-  outline: none;
-  border-color: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--state-info-border) 22%, transparent);
-}
-
-.waveform-view-options-seg-btn-active {
-  border-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
-  background: color-mix(in srgb, var(--state-info-solid) 12%, var(--surface-panel));
-  color: var(--text-primary);
+.waveform-view-options-panel .waveform-view-options-acoustic-toggle.is-active {
+  border-color: color-mix(in srgb, var(--header-accent) 42%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
 .waveform-view-options-select {
@@ -445,8 +458,9 @@
 }
 
 :root[data-theme='dark'] .transcription-wave-toolbar-shell-has-right-controls .transcription-wave-toolbar-right .compact-volume {
-  border-color: var(--border-soft);
+  border: none;
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 10%, transparent);
 }
 
 @media (min-width: 1280px) {

@@ -1,15 +1,8 @@
 import { Children, memo, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { t, tf, useLocale } from '../i18n';
-import {
-  jieyuMaterialClass,
-  JIEYU_MATERIAL_WAVE,
-  JIEYU_MATERIAL_WAVE_MD,
-  JIEYU_MATERIAL_WAVE_PLAY,
-  JIEYU_MATERIAL_WAVE_TRIGGER,
-  JIEYU_MATERIAL_WAVE_TRIGGER_CHEVRON,
-} from '../utils/jieyuMaterialIcon';
-import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
+import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD, JIEYU_MATERIAL_WAVE_PLAY, JIEYU_MATERIAL_WAVE_TRIGGER } from '../utils/jieyuMaterialIcon';
+import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 
@@ -79,6 +72,19 @@ export const WaveformToolbar = memo(function WaveformToolbar({
   const viewOptionsOverlayLabelId = useId();
   const viewOptionsStyleLabelId = useId();
 
+  const acousticF0On = acousticOverlayMode === 'f0' || acousticOverlayMode === 'both';
+  const acousticIntensityOn = acousticOverlayMode === 'intensity' || acousticOverlayMode === 'both';
+
+  const setAcousticFromToggles = useCallback(
+    (nextF0: boolean, nextIntensity: boolean) => {
+      if (nextF0 && nextIntensity) onAcousticOverlayModeChange('both');
+      else if (nextF0) onAcousticOverlayModeChange('f0');
+      else if (nextIntensity) onAcousticOverlayModeChange('intensity');
+      else onAcousticOverlayModeChange('none');
+    },
+    [onAcousticOverlayModeChange],
+  );
+
   const closeViewOptions = useCallback(() => setViewOptionsOpen(false), []);
 
   useEffect(() => {
@@ -137,19 +143,26 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           <option value="1.5">1.5x</option>
           <option value="2">2.0x</option>
         </select>
+        <button
+          className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}
+          onClick={() => onLoopChange(!loop)}
+          title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
+          aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
+        >
+          <MaterialSymbol name="repeat" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+        </button>
         <div className="waveform-view-options-anchor" ref={viewOptionsAnchorRef}>
           <button
             type="button"
-            className="waveform-view-options-trigger"
+            className="icon-btn waveform-view-options-trigger"
             aria-expanded={viewOptionsOpen}
             aria-controls={viewOptionsPanelId}
             aria-haspopup="dialog"
+            aria-label={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
             title={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
             onClick={() => setViewOptionsOpen((open) => !open)}
           >
             <MaterialSymbol name="tune" aria-hidden className={JIEYU_MATERIAL_WAVE_TRIGGER} />
-            <span>{t(locale, 'transcription.wave.toolbar.viewOptions.trigger')}</span>
-            <MaterialSymbol name="expand_more" className={jieyuMaterialClass(JIEYU_MATERIAL_WAVE_TRIGGER_CHEVRON, 'waveform-view-options-trigger-chevron')} aria-hidden />
           </button>
           <div
             id={viewOptionsPanelId}
@@ -163,76 +176,97 @@ export const WaveformToolbar = memo(function WaveformToolbar({
               {t(locale, 'transcription.wave.toolbar.viewOptions.dialogTitle')}
             </h2>
             <div className="waveform-view-options-section">
-              <div id={viewOptionsCanvasLabelId} className="waveform-view-options-section-label">
-                {t(locale, 'transcription.wave.toolbar.viewOptions.sectionCanvas')}
-              </div>
-              <div className="waveform-view-options-seg" role="radiogroup" aria-labelledby={viewOptionsCanvasLabelId}>
-                {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    className={`waveform-view-options-seg-btn${waveformDisplayMode === mode ? ' waveform-view-options-seg-btn-active' : ''}`}
-                    role="radio"
-                    aria-checked={waveformDisplayMode === mode}
-                    onClick={() => onWaveformDisplayModeChange(mode)}
+              <div className="waveform-view-options-section-row">
+                <div id={viewOptionsCanvasLabelId} className="waveform-view-options-section-label">
+                  {t(locale, 'transcription.wave.toolbar.viewOptions.sectionCanvas')}
+                </div>
+                <div className="waveform-view-options-section-controls">
+                  <div
+                    className="transcription-ai-mode-switch waveform-view-options-ai-switch waveform-view-options-ai-switch--canvas"
+                    role="radiogroup"
+                    aria-labelledby={viewOptionsCanvasLabelId}
                   >
-                    {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
-                  </button>
-                ))}
+                    {WAVEFORM_DISPLAY_MODE_OPTIONS.map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        className={`transcription-ai-mode-btn${waveformDisplayMode === mode ? ' is-active' : ''}`}
+                        role="radio"
+                        aria-checked={waveformDisplayMode === mode}
+                        onClick={() => onWaveformDisplayModeChange(mode)}
+                      >
+                        {t(locale, `transcription.wave.toolbar.displayMode.${mode}` as const)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
             <div className="waveform-view-options-section">
-              <div id={viewOptionsOverlayLabelId} className="waveform-view-options-section-label">
-                {t(locale, 'transcription.wave.toolbar.acousticOverlay')}
-              </div>
-              <select
-                id={`${viewOptionsPanelId}-overlay`}
-                className="speed-select waveform-view-options-select"
-                value={acousticOverlayMode}
-                onChange={(event) => onAcousticOverlayModeChange(event.target.value as AcousticOverlayMode)}
-                aria-labelledby={viewOptionsOverlayLabelId}
-              >
-                {ACOUSTIC_OVERLAY_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {t(locale, `transcription.wave.toolbar.acousticOverlay.${mode}` as const)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="waveform-view-options-section">
-              <div id={viewOptionsStyleLabelId} className="waveform-view-options-section-label">
-                {t(locale, 'transcription.wave.toolbar.visualStyle')}
+              <div className="waveform-view-options-section-row">
+                <div id={viewOptionsStyleLabelId} className="waveform-view-options-section-label">
+                  {t(locale, 'transcription.wave.toolbar.visualStyle')}
+                </div>
+                <div className="waveform-view-options-section-controls">
+                  <div
+                    className="transcription-ai-mode-switch waveform-view-options-ai-switch waveform-view-options-ai-switch--styles"
+                    role="radiogroup"
+                    aria-labelledby={viewOptionsStyleLabelId}
+                    aria-disabled={waveformDisplayMode === 'spectrogram'}
+                  >
+                    {WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => (
+                      <button
+                        key={style}
+                        type="button"
+                        className={`transcription-ai-mode-btn${waveformVisualStyle === style ? ' is-active' : ''}`}
+                        role="radio"
+                        aria-checked={waveformVisualStyle === style}
+                        disabled={waveformDisplayMode === 'spectrogram'}
+                        onClick={() => onWaveformVisualStyleChange(style)}
+                      >
+                        {t(locale, `transcription.wave.toolbar.visualStyle.${style}` as const)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               {waveformDisplayMode === 'spectrogram' ? (
                 <p className="waveform-view-options-hint" role="note">
                   {t(locale, 'transcription.wave.toolbar.viewOptions.waveformDrawHint')}
                 </p>
               ) : null}
-              <select
-                id={`${viewOptionsPanelId}-style`}
-                className="speed-select waveform-view-options-select"
-                value={waveformVisualStyle}
-                onChange={(event) => onWaveformVisualStyleChange(event.target.value as WaveformVisualStyle)}
-                aria-labelledby={viewOptionsStyleLabelId}
-                disabled={waveformDisplayMode === 'spectrogram'}
-              >
-                {WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => (
-                  <option key={style} value={style}>
-                    {t(locale, `transcription.wave.toolbar.visualStyle.${style}` as const)}
-                  </option>
-                ))}
-              </select>
+            </div>
+            <div className="waveform-view-options-section">
+              <div className="waveform-view-options-section-row">
+                <div id={viewOptionsOverlayLabelId} className="waveform-view-options-section-label">
+                  {t(locale, 'transcription.wave.toolbar.acousticOverlay')}
+                </div>
+                <div className="waveform-view-options-section-controls">
+                  <div className="waveform-view-options-acoustic-actions" role="group" aria-labelledby={viewOptionsOverlayLabelId}>
+                    <button
+                      type="button"
+                      className={`transcription-ai-mode-btn waveform-view-options-acoustic-toggle${acousticF0On ? ' is-active' : ''}`}
+                      aria-pressed={acousticF0On}
+                      title={t(locale, 'transcription.wave.toolbar.acousticOverlay.toggleF0Title')}
+                      onClick={() => setAcousticFromToggles(!acousticF0On, acousticIntensityOn)}
+                    >
+                      {t(locale, 'transcription.wave.acoustic.f0')}
+                    </button>
+                    <button
+                      type="button"
+                      className={`transcription-ai-mode-btn waveform-view-options-acoustic-toggle${acousticIntensityOn ? ' is-active' : ''}`}
+                      aria-pressed={acousticIntensityOn}
+                      title={t(locale, 'transcription.wave.toolbar.acousticOverlay.toggleIntensityTitle')}
+                      onClick={() => setAcousticFromToggles(acousticF0On, !acousticIntensityOn)}
+                    >
+                      {t(locale, 'transcription.wave.acoustic.intensity')}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-        <button
-          className={`icon-btn ${loop ? 'icon-btn-active' : ''}`}
-          onClick={() => onLoopChange(!loop)}
-          title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
-          aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
-        >
-          <MaterialSymbol name="repeat" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
-        </button>
         <label className="player-control volume-control compact-volume transcription-wave-toolbar-volume">
           <MaterialSymbol name="volume_up" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
           <input
@@ -256,7 +290,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
                 aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
               >
-                <MaterialSymbol name="bolt" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
+                <MaterialSymbol name="content_cut" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
               </button>
             )}
             {onDeleteCurrentAudio && (

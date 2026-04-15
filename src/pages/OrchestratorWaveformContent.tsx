@@ -1,3 +1,6 @@
+import '../styles/foundation/waveform-display.css';
+import '../styles/pages/transcription-waveform.css';
+
 /**
  * OrchestratorWaveformContent — 波形区域内容组件
  * Renders WaveformAreaSection children: hover tooltip, status strip, video preview,
