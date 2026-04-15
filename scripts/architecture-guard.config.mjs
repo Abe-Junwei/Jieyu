@@ -677,12 +677,11 @@ export const architectureGuardRules = [
     ],
   }),
 
-  // ── ADR-006 M18: forbid resurrecting Dexie `utterances` store (allowlist: engine upgrade, io import merge, M18 migration) ──
+  // ── ADR-006 M18: forbid resurrecting Dexie `utterances` store (allowlist: engine upgrade, M18 migration) ──
   patternRule(/^src\/.*\.(ts|tsx)$/, {
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
     excludeFiles: [
       'src/db/engine.ts',
-      'src/db/io.ts',
       'src/db/migrations/m18LinguisticUtteranceCutover.ts',
     ],
     forbiddenRegexes: [

@@ -131,7 +131,7 @@ export default defineConfig({
           if (
             id.includes('/src/services/LayerSegmentationTextService.ts')
             || id.includes('/src/services/LayerSegmentGraphService.ts')
-            || id.includes('/src/services/LegacyMirrorService.ts')
+            || id.includes('/src/services/LayerUnitSegmentWriteService.ts')
             || id.includes('/src/services/LayerSegmentQueryService.ts')
             || id.includes('/src/ai/embeddings/EmbeddingInvalidationService.ts')
           ) {

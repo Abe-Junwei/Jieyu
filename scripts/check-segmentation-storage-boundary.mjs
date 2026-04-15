@@ -18,11 +18,11 @@ const SEGMENTATION_TABLES = new Set([
 
 // 允许直接访问 segmentation 真表的内部基础层文件 | Internal storage-layer files allowed to touch segmentation tables directly
 const ALLOWED_FILES = new Set([
-  'src/services/LegacyMirrorService.ts',
+  'src/services/LayerUnitSegmentWriteService.ts',
   'src/services/LayerSegmentGraphService.ts',
   'src/services/LayerSegmentQueryService.ts',
   'src/services/LayerUnitRelationQueryService.ts',
-  'src/services/LayerUnitSegmentMirrorPrimitives.ts',
+  'src/services/LayerUnitSegmentWritePrimitives.ts',
 ]);
 
 function walk(dir) {
@@ -60,29 +60,22 @@ function isSegmentationTableAccess(node) {
   return node.expression.name.text === 'dexie' || node.expression.name.text === 'collections';
 }
 
+/**
+ * True when the access sits under a CallExpression `*.transaction(...)` (e.g. Dexie rw transaction).
+ * Walk the full parent chain so nested `await db.dexie.layer_units.where(...)` inside the callback
+ * is not flagged as a violation.
+ */
 function isTransactionScopeAccess(node) {
-  let current = node;
-  while (current.parent) {
-    const parent = current.parent;
+  let current = node.parent;
+  while (current) {
     if (
-      ts.isCallExpression(parent)
-      && ts.isPropertyAccessExpression(parent.expression)
-      && parent.expression.name.text === 'transaction'
+      ts.isCallExpression(current)
+      && ts.isPropertyAccessExpression(current.expression)
+      && current.expression.name.text === 'transaction'
     ) {
       return true;
     }
-    if (
-      ts.isArrayLiteralExpression(parent)
-      || ts.isParenthesizedExpression(parent)
-      || ts.isSpreadElement(parent)
-      || ts.isAsExpression(parent)
-      || ts.isSatisfiesExpression(parent)
-      || ts.isNonNullExpression(parent)
-    ) {
-      current = parent;
-      continue;
-    }
-    return false;
+    current = current.parent;
   }
   return false;
 }

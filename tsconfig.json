@@ -43,5 +43,6 @@
 
     "moduleResolution": "bundler",
     "esModuleInterop": true,
+    "resolveJsonModule": true,
   }
 }
