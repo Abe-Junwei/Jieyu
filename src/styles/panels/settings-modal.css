@@ -227,6 +227,13 @@
   gap: 2px;
 }
 
+.settings-icon-effect-hint {
+  margin-top: 8px;
+  max-width: min(52ch, 100%);
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
 /* ── 设置行 | Setting row ── */
 .settings-row {
   display: flex;

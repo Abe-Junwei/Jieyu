@@ -78,6 +78,15 @@
   z-index: var(--z-header);
   /* 浮层容器不拦截波形交互，仅内部控件可响应 | Let waveform interactions pass through container; keep children interactive */
   pointer-events: none;
+  /* 与 `.transcription-wave-toolbar` 主行同一套 icon 按钮 token；高度略小以适配浮层密度 */
+  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  --icon-btn-color: var(--text-primary);
+  --icon-btn-border-radius: var(--radius-md);
+  --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  --icon-btn-hover-transform: none;
+  --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+  --icon-btn-hover-border-color: color-mix(in srgb, var(--border-soft) 72%, var(--text-tertiary));
   --icon-btn-height: 28px;
   --icon-btn-min-width: 28px;
   --icon-btn-padding: 0;
@@ -132,10 +141,15 @@
 }
 
 .transcription-wave-toolbar {
-  --icon-btn-border: 1px solid var(--divider-base);
-  --icon-btn-background: var(--surface-panel);
+  /* 次动作：略方角 + 中性底，高饱和蓝仅留给播放/激活态 */
+  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
   --icon-btn-color: var(--text-primary);
-  --icon-btn-hover-transform: translateY(-1px);
+  --icon-btn-border-radius: var(--radius-md);
+  --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
+  --icon-btn-hover-transform: none;
+  --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+  --icon-btn-hover-border-color: color-mix(in srgb, var(--border-soft) 72%, var(--text-tertiary));
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-vad-btn {
@@ -148,8 +162,21 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
+.transcription-wave-toolbar .transcription-wave-toolbar-vad-btn:hover:not(:disabled) {
+  transform: none;
+  border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent-primary) 14%, var(--surface-panel));
+  color: color-mix(in srgb, var(--accent-primary) 76%, var(--text-primary));
+}
+
 .transcription-wave-toolbar .transcription-wave-toolbar-vad-btn:disabled {
-  opacity: 0.7;
+  opacity: 1;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  color: color-mix(in srgb, var(--text-tertiary) 88%, var(--text-primary));
+  border-color: color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
+  box-shadow: none;
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-delete-audio-btn {
@@ -173,28 +200,94 @@
   min-width: 0;
 }
 
-.transcription-wave-toolbar-left .play-btn {
-  border: 1px solid color-mix(in srgb, var(--border-soft) 68%, var(--header-border));
-  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
-}
-
 .transcription-wave-toolbar-left {
-  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 68%, var(--header-border));
-  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
+  --icon-btn-border: 1px solid color-mix(in srgb, var(--border-soft) 86%, var(--header-border));
+  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
   --icon-btn-box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
 .transcription-wave-toolbar-left .play-btn {
+  border-radius: var(--radius-pill);
   border-color: color-mix(in srgb, var(--state-info-solid) 72%, var(--border-soft));
   background: var(--state-info-solid);
   color: var(--surface-panel);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
-.transcription-wave-toolbar .play-btn:hover:not(:disabled),
+.transcription-wave-toolbar .play-btn:hover:not(:disabled) {
+  transform: none;
+  filter: brightness(0.97);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+}
+
 .transcription-wave-toolbar .speed-select:hover {
-  transform: translateY(-1px);
+  transform: none;
+  border-color: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
+  background-color: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+}
+
+.transcription-wave-toolbar .icon-btn:hover:not(:disabled) {
+  transform: none;
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-active:hover:not(:disabled) {
+  transform: none;
+  background: color-mix(in srgb, var(--state-info-bg) 88%, var(--surface-header));
+  border-color: color-mix(in srgb, var(--state-info-solid) 52%, var(--border-soft));
+  color: var(--state-info-solid);
+}
+
+.transcription-wave-toolbar .icon-btn:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.22);
+  color: color-mix(in srgb, var(--text-tertiary) 75%, var(--text-primary));
+  border-color: color-mix(in srgb, var(--border-soft) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
+  box-shadow: none;
+}
+
+.transcription-wave-toolbar .icon-btn.icon-btn-danger:disabled {
+  filter: grayscale(0.35);
+  color: color-mix(in srgb, var(--state-danger-solid) 45%, var(--text-tertiary));
+  border-color: color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
+}
+
+.transcription-wave-toolbar .play-btn:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+  transform: none;
+  filter: grayscale(0.3) brightness(0.96);
+  border-color: color-mix(in srgb, var(--state-info-solid) 35%, var(--border-soft));
+  background: color-mix(in srgb, var(--state-info-solid) 55%, var(--surface-header));
+  color: color-mix(in srgb, var(--surface-panel) 88%, var(--text-tertiary));
+  box-shadow: none;
+}
+
+.transcription-wave-toolbar .transcription-wave-toolbar-delete-audio-btn:disabled {
+  opacity: 1;
+  filter: grayscale(0.4);
+  color: color-mix(in srgb, var(--state-danger-solid) 48%, var(--text-tertiary));
+  border-color: color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 双档字号：常规 16px，主播放 18px（仅顶栏，避免动到其他页面 wave 用法） */
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave,
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-md,
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger,
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger-chevron {
+  --jieyu-material-size: 16px;
+  --jieyu-material-opsz: 20;
+}
+
+.transcription-wave-toolbar span.material-symbols-outlined.jieyu-material.jieyu-material--wave-play {
+  --jieyu-material-size: 18px;
+  --jieyu-material-opsz: 20;
 }
 
 .transcription-wave-toolbar .speed-select {
@@ -210,7 +303,7 @@
 .waveform-view-options-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   height: 30px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--text-tertiary) 36%, transparent);
@@ -226,7 +319,10 @@
 }
 
 .waveform-view-options-trigger:hover {
-  transform: translateY(-1px);
+  transform: none;
+  border-color: color-mix(in srgb, var(--text-tertiary) 44%, transparent);
+  background-color: color-mix(in srgb, var(--surface-header) 62%, var(--surface-panel));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--shadow-color) 8%, transparent);
 }
 
 .waveform-view-options-trigger:focus-visible {
@@ -247,6 +343,11 @@
 
 .waveform-view-options-trigger[aria-expanded='true'] .waveform-view-options-trigger-chevron {
   transform: rotate(180deg);
+}
+
+/* tune 略宽，与文案多留 2px，避免与「波」挤叠 */
+.waveform-view-options-trigger > span.material-symbols-outlined.jieyu-material.jieyu-material--wave-trigger {
+  margin-inline-end: 2px;
 }
 
 .waveform-view-options-panel {

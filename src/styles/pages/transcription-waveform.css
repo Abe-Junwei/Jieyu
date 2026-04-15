@@ -290,6 +290,14 @@
   stroke-width: 2.1;
 }
 
+.region-action-btn .jieyu-material {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 500,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
 .region-action-btn:hover {
   opacity: 1;
   background: color-mix(in srgb, var(--surface-header) 84%, transparent);
@@ -313,6 +321,14 @@
 
 .region-action-btn-active svg {
   stroke-width: 2.2;
+}
+
+.region-action-btn-active .jieyu-material {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 500,
+    'GRAD' 0,
+    'opsz' 20;
 }
 
 /* Segment-level speed control (inside region overlay) */

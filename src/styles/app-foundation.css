@@ -5,7 +5,8 @@
 @layer reset, tokens, foundation, theme, components, overrides;
 
 @import './global.css';         /* layer: reset (implicitly uses default) */
-@import './foundation/lucide-jieyu.css';           /* components — Lucide 尺寸/线宽封装 */
+@import './foundation/material-jieyu.css';         /* components — Material Symbols 尺寸封装 */
+@import './foundation/icon-effect-motion.css';     /* components — data-icon-effect=motion 时交互增强 */
 @import './foundation/control-primitives.css';    /* components */
 @import './pages/app-shell-layout.css';           /* components */
 @import './foundation/dialog-shell.css';          /* components */

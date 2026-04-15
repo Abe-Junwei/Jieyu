@@ -169,7 +169,7 @@
 }
 
 .time-ruler-cursor-line {
-  stroke: var(--state-danger-solid);
+  stroke: var(--timeline-playhead-color, var(--state-danger-solid));
   stroke-width: 2;
   vector-effect: non-scaling-stroke;
 }

@@ -138,12 +138,16 @@
 }
 
 .voice-agent-disclosure-toggle svg:last-child,
-.voice-agent-disclosure-header svg:last-child {
+.voice-agent-disclosure-header svg:last-child,
+.voice-agent-disclosure-toggle .jieyu-material:last-child,
+.voice-agent-disclosure-header .jieyu-material:last-child {
   transition: transform 0.14s ease;
 }
 
 .voice-agent-disclosure-toggle.is-open svg:last-child,
-.voice-agent-disclosure.is-open .voice-agent-disclosure-header svg:last-child {
+.voice-agent-disclosure.is-open .voice-agent-disclosure-header svg:last-child,
+.voice-agent-disclosure-toggle.is-open .jieyu-material:last-child,
+.voice-agent-disclosure.is-open .voice-agent-disclosure-header .jieyu-material:last-child {
   transform: rotate(180deg);
 }
 
