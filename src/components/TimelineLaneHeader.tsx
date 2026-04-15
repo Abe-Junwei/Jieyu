@@ -492,7 +492,6 @@ export function TimelineLaneHeader({
             <span
               className="lane-link-stack"
               aria-hidden="true"
-              style={{ '--lane-link-stack-width': `${connectorStackWidth}px` } as React.CSSProperties}
             >
               <svg
                 className="lane-link-stack-svg"

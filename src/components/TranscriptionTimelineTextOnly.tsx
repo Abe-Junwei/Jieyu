@@ -41,6 +41,23 @@ import {
   resolveSpeakerFocusKeyFromSegment,
 } from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
+import {
+  resolveSelfCertaintyHostUtteranceId,
+  type UtteranceSelfCertainty,
+} from '../utils/utteranceSelfCertainty';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+
+function buildTextTimelineSelfCertaintyTitle(
+  locale: Parameters<typeof t>[0],
+  value: UtteranceSelfCertainty,
+): string {
+  const tier = value === 'certain'
+    ? t(locale, 'transcription.utterance.selfCertainty.certain')
+    : value === 'uncertain'
+      ? t(locale, 'transcription.utterance.selfCertainty.uncertain')
+      : t(locale, 'transcription.utterance.selfCertainty.not_understood');
+  return `${tier}\n${t(locale, 'transcription.utterance.selfCertainty.dimensionHint')}`;
+}
 
 function getSegmentTimelineItems(
   layer: LayerDocType,
@@ -473,10 +490,22 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 ? ' timeline-text-item-confidence-mid'
                 : '';
             const uttForContext = realUtt ?? unit as unknown as UtteranceDocType;
+            const certaintyHostId = unit.kind === 'segment'
+              ? resolveSelfCertaintyHostUtteranceId(unit.id, utterancesOnCurrentMedia, {
+                  parentUtteranceId: unit.parentUtteranceId,
+                  startTime: unit.startTime,
+                  endTime: unit.endTime,
+                })
+              : unit.id.trim();
+            const certaintyHostUtt = certaintyHostId ? utteranceById.get(certaintyHostId) : undefined;
+            const cellSelfCertainty = certaintyHostUtt?.selfCertainty;
+            const selfCertaintyTitle = cellSelfCertainty
+              ? buildTextTimelineSelfCertaintyTitle(locale, cellSelfCertainty)
+              : undefined;
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty ? ' timeline-text-item-has-self-certainty' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -589,6 +618,35 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     }
                   }}
                 />
+                {cellSelfCertainty === 'certain' && selfCertaintyTitle ? (
+                  <span
+                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
+                    title={selfCertaintyTitle}
+                    aria-label={selfCertaintyTitle}
+                  >
+                    <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+                  </span>
+                ) : null}
+                {cellSelfCertainty === 'not_understood' && selfCertaintyTitle ? (
+                  <span
+                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
+                    title={selfCertaintyTitle}
+                    aria-label={selfCertaintyTitle}
+                  >
+                    <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+                  </span>
+                ) : null}
+                {cellSelfCertainty === 'uncertain' && selfCertaintyTitle ? (
+                  <span
+                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
+                    title={selfCertaintyTitle}
+                    aria-label={selfCertaintyTitle}
+                  >
+                    <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
+                      {'\u2248'}
+                    </span>
+                  </span>
+                ) : null}
               </TimelineStyledContainer>
             );
           })}
@@ -686,6 +744,21 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const saveStatus = saveStatusByCellKey[cellKey];
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === utt.id;
+            const trHostUtt = usesOwnSegments
+              ? (() => {
+                  const seg = utt as LayerSegmentDocType;
+                  const hid = resolveSelfCertaintyHostUtteranceId(seg.id, utterancesOnCurrentMedia, {
+                    parentUtteranceId: seg.utteranceId,
+                    startTime: seg.startTime,
+                    endTime: seg.endTime,
+                  });
+                  return hid ? utteranceById.get(hid) : undefined;
+                })()
+              : utteranceById.get(utt.id);
+            const trSelfCertainty = trHostUtt?.selfCertainty;
+            const trSelfCertaintyTitle = trSelfCertainty
+              ? buildTextTimelineSelfCertaintyTitle(locale, trSelfCertainty)
+              : undefined;
             return (
               <TranscriptionTimelineTextTranslationItem
                 key={utt.id}
@@ -726,6 +799,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 navigateUnitFromInput={navigateUnitFromInput}
                 handleAnnotationClick={handleAnnotationClick}
                 handleAnnotationContextMenu={handleAnnotationContextMenu}
+                {...(trSelfCertainty && trSelfCertaintyTitle
+                  ? { selfCertainty: trSelfCertainty, selfCertaintyTitle: trSelfCertaintyTitle }
+                  : {})}
               />
             );
           })}

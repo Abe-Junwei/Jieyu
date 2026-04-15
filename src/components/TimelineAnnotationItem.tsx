@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
 import { tf, useLocale } from '../i18n';
+import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -28,6 +30,9 @@ export interface TimelineAnnotationItemProps {
   overlapCycleIndicator?: { index: number; total: number };
   /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
   confidence?: number;
+  /** 标注者自我确信度角标 | Annotator self-certainty badge */
+  selfCertainty?: UtteranceSelfCertainty;
+  selfCertaintyTitle?: string;
   content?: ReactNode;
   tools?: ReactNode;
   hasTrailingTools?: boolean;
@@ -63,6 +68,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   noteCount,
   overlapCycleIndicator,
   confidence,
+  selfCertainty,
+  selfCertaintyTitle,
   content,
   tools,
   hasTrailingTools,
@@ -93,6 +100,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         hasTrailingTools ? 'timeline-annotation-has-tools' : '',
         typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
         typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
+        selfCertainty ? 'timeline-annotation-has-self-certainty' : '',
       ].filter(Boolean).join(' ')}
       style={{
         left,
@@ -152,6 +160,35 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         <span>{draft || '\u00A0'}</span>
       )}
       {tools ? <div className="timeline-annotation-tools">{tools}</div> : null}
+      {selfCertainty === 'certain' && (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+        </span>
+      )}
+      {selfCertainty === 'not_understood' && (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+        </span>
+      )}
+      {selfCertainty === 'uncertain' && (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
+            {'\u2248'}
+          </span>
+        </span>
+      )}
       {noteCount != null && noteCount > 0 && onNoteClick && (
         <NoteDocumentIcon
           className="timeline-annotation-note-icon timeline-annotation-note-icon-active"

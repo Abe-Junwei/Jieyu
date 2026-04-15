@@ -1,4 +1,5 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -7,7 +8,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptionTimelineMediaTranscriptionRowProps {
-  utt: UtteranceDocType;
+  utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView;
   layer: LayerDocType;
   layerForDisplay: LayerDocType;
   baseLaneHeight: number;
@@ -24,7 +25,7 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
-    utt: UtteranceDocType,
+    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>

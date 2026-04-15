@@ -66,6 +66,36 @@ export function TimeRuler({
   const dur = duration;
   const { start, end } = rulerView;
   const windowSec = end - start;
+
+  /** 计算可见窗口内的语段密度色块 | Compute density segments for the heatmap strip */
+  const densitySegments = useMemo(() => {
+    if (!utterances || utterances.length === 0 || duration <= 0) return [];
+    const BINS = 200;
+    const binSize = duration / BINS;
+    const counts = new Array<number>(BINS).fill(0);
+    for (const utt of utterances) {
+      const binStart = Math.floor(utt.startTime / binSize);
+      const binEnd = Math.min(BINS - 1, Math.floor(utt.endTime / binSize));
+      for (let b = binStart; b <= binEnd; b++) counts[b]!++;
+    }
+    const maxCount = Math.max(1, ...counts);
+    type Segment = { start: number; end: number; level: number };
+    const segments: Segment[] = [];
+    let cur: Segment | null = null;
+    for (let b = 0; b < BINS; b++) {
+      const level = Math.round(((counts[b] ?? 0) / maxCount) * 4);
+      const t = b * binSize;
+      if (cur && cur.level === level) {
+        cur.end = t + binSize;
+      } else {
+        if (cur) segments.push(cur);
+        cur = { start: t, end: t + binSize, level };
+      }
+    }
+    if (cur) segments.push(cur);
+    return segments.filter((s) => s.level > 0);
+  }, [utterances, duration]);
+
   if (windowSec <= 0) return null;
 
   const approxPxPerSec = Math.max(zoomPxPerSec, 1);
@@ -103,35 +133,6 @@ export function TimeRuler({
     const isMajor = Math.abs(ratio - Math.round(ratio)) < 1e-6;
     ticks.push({ time: rounded, kind: isMajor ? 'major' : 'minor' });
   }
-
-  /** 计算可见窗口内的语段密度色块 | Compute density segments for the heatmap strip */
-  const densitySegments = useMemo(() => {
-    if (!utterances || utterances.length === 0 || duration <= 0) return [];
-    const BINS = 200;
-    const binSize = duration / BINS;
-    const counts = new Array<number>(BINS).fill(0);
-    for (const utt of utterances) {
-      const binStart = Math.floor(utt.startTime / binSize);
-      const binEnd = Math.min(BINS - 1, Math.floor(utt.endTime / binSize));
-      for (let b = binStart; b <= binEnd; b++) counts[b]!++;
-    }
-    const maxCount = Math.max(1, ...counts);
-    type Segment = { start: number; end: number; level: number };
-    const segments: Segment[] = [];
-    let cur: Segment | null = null;
-    for (let b = 0; b < BINS; b++) {
-      const level = Math.round(((counts[b] ?? 0) / maxCount) * 4);
-      const t = b * binSize;
-      if (cur && cur.level === level) {
-        cur.end = t + binSize;
-      } else {
-        if (cur) segments.push(cur);
-        cur = { start: t, end: t + binSize, level };
-      }
-    }
-    if (cur) segments.push(cur);
-    return segments.filter((s) => s.level > 0);
-  }, [utterances, duration]);
 
   return (
     <div className="time-ruler">

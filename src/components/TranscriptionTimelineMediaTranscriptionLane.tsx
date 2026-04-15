@@ -90,7 +90,7 @@ interface TranscriptionLaneProps {
   saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
-    utt: UtteranceDocType | LayerSegmentDocType,
+    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -248,7 +248,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             }
           : undefined;
         const subTrackTop = (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight;
-        const uttForRender = realUtt ?? unit as unknown as UtteranceDocType;
+        const uttForRender = realUtt ?? unit;
         return (
           <TranscriptionTimelineMediaTranscriptionRow
             key={`trc-sub-${layer.id}-${unit.id}`}

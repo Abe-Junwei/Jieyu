@@ -16,14 +16,14 @@
   margin-left: calc(-1 * (var(--lane-label-width) + var(--video-left-panel-width, 0px)));
   /* 完全不透明，阻止标注文字从标签下方透出 | Fully opaque so annotations don't bleed through */
   background: var(--surface-elevated);
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 600;
   color: var(--text-secondary);
-  padding: 2px 4px;
+  padding: 2px 6px;
   pointer-events: none;
   white-space: nowrap;
   border-right: none;
-  line-height: 1.3;
+  line-height: 1.22;
   text-align: center;
   box-sizing: border-box;
   overflow: visible;

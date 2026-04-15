@@ -233,3 +233,85 @@
   border-color: transparent;
   box-shadow: none;
 }
+
+/* 自我确信度角标（右侧居中）| Self-certainty badge (right-center anchor) */
+.timeline-annotation-self-certainty {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  transform: translateY(-50%);
+  z-index: calc(var(--z-overlay-base) + 1);
+  display: grid;
+  place-items: center;
+  min-width: 14px;
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+  pointer-events: none;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  background: color-mix(in srgb, white 92%, transparent);
+  box-shadow: 0 1px 2px color-mix(in srgb, currentColor 16%, transparent);
+  --timeline-self-certainty-symbol-color: currentColor;
+}
+
+.timeline-annotation:has(.timeline-annotation-note-icon) .timeline-annotation-self-certainty {
+  top: auto;
+  bottom: 21px;
+  transform: none;
+}
+
+:root[data-theme='dark'] .timeline-annotation-self-certainty {
+  background: color-mix(in srgb, #111827 86%, transparent);
+}
+
+.timeline-annotation-note-icon {
+  z-index: calc(var(--z-overlay-base) + 1);
+}
+
+.timeline-annotation-self-certainty-icon {
+  font-size: 11px;
+  font-variation-settings: 'FILL' 0, 'wght' 700, 'GRAD' 0, 'opsz' 20;
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  line-height: 1;
+  color: var(--timeline-self-certainty-symbol-color);
+  transform: translate(0, -0.12px);
+}
+
+.timeline-annotation-self-certainty--certain .timeline-annotation-self-certainty-icon {
+  color: var(--timeline-self-certainty-symbol-color);
+  transform: translate(0, -0.12px);
+}
+
+.timeline-annotation-self-certainty--not-understood .timeline-annotation-self-certainty-icon {
+  color: var(--timeline-self-certainty-symbol-color);
+  transform: translate(0, -0.08px);
+}
+
+.timeline-annotation-self-certainty--certain {
+  color: var(--state-success-solid, #1b7f3b);
+}
+
+.timeline-annotation-self-certainty--not-understood {
+  color: var(--state-danger-solid, #c62828);
+}
+
+.timeline-annotation-self-certainty--uncertain {
+  color: var(--state-warning-solid, #b35c00);
+}
+
+.timeline-annotation-self-certainty--uncertain .timeline-annotation-self-certainty-wavy {
+  display: grid;
+  place-items: center;
+  font-size: 0.58rem;
+  font-weight: 900;
+  width: 11px;
+  height: 11px;
+  line-height: 1;
+  color: var(--timeline-self-certainty-symbol-color);
+  transform: translate(0, -0.8px);
+  font-family: system-ui, sans-serif;
+}

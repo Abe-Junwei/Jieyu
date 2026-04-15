@@ -119,7 +119,7 @@ type TranscriptionTimelineMediaLanesProps = {
   selectedTimelineUnit?: TimelineUnit | null;
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
-    utt: UtteranceDocType | LayerSegmentDocType,
+    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>

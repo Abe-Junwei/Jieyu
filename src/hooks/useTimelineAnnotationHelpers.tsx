@@ -1,16 +1,27 @@
-import { startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
+import { Fragment, startTransition, useCallback, useMemo, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import { t, useLocale } from '../i18n';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
-import { formatTime, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import type { TimelineUnitView } from './timelineUnitView';
+import {
+  formatTime,
+  getLayerHeaderLanguageLine,
+  getOrthographyHeaderLine,
+  getLayerHeaderVarietyOrAliasLine,
+} from '../utils/transcriptionFormatters';
 import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import {
   resolveTranscriptionSelectionAnchor,
   resolveTranscriptionUnitTarget,
 } from '../pages/transcriptionUnitTargetResolver';
+import {
+  resolveSelfCertaintyHostUtteranceId,
+  type UtteranceSelfCertainty,
+} from '../utils/utteranceSelfCertainty';
 
 /** Rows bound into timeline annotation chrome (transcription utterances or translation / segment sources). */
-type TimelineAnnotationBoundDoc = UtteranceDocType | LayerSegmentDocType;
+type TimelineAnnotationBoundDoc = UtteranceDocType | LayerSegmentDocType | TimelineUnitView;
 
 type SpeakerVisual = {
   name: string;
@@ -73,6 +84,8 @@ type UseTimelineAnnotationHelpersParams = {
   onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
   independentLayerIds?: Set<string>;
   orthographies?: OrthographyDocType[];
+  /** 当前媒体 utterance 列表：segment 行角标从宿主 utterance 读取 selfCertainty */
+  utterancesForSelfCertainty?: ReadonlyArray<UtteranceDocType>;
 };
 
 export function useTimelineAnnotationHelpers({
@@ -102,7 +115,18 @@ export function useTimelineAnnotationHelpers({
   onOverlapCycleToast,
   independentLayerIds = new Set<string>(),
   orthographies = [],
+  utterancesForSelfCertainty,
 }: UseTimelineAnnotationHelpersParams) {
+  const locale = useLocale();
+
+  const selfCertaintyByUtteranceId = useMemo(() => {
+    const m = new Map<string, UtteranceSelfCertainty>();
+    for (const u of utterancesForSelfCertainty ?? []) {
+      if (u.selfCertainty) m.set(u.id, u.selfCertainty);
+    }
+    return m;
+  }, [utterancesForSelfCertainty]);
+
   const handleAnnotationClick = useCallback((
     uttId: string,
     uttStartTime: number,
@@ -289,6 +313,45 @@ export function useTimelineAnnotationHelpers({
     const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
     const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
     const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
+    const explicitParentUtteranceId = 'parentUtteranceId' in utt
+      ? utt.parentUtteranceId
+      : 'utteranceId' in utt
+        ? utt.utteranceId
+        : undefined;
+    const isSegmentRow = 'kind' in utt
+      ? utt.kind === 'segment'
+      : 'layerId' in utt || typeof explicitParentUtteranceId === 'string';
+    const uttSelfCertainty = (() => {
+      if (!isSegmentRow) {
+        return ('selfCertainty' in utt && utt.selfCertainty)
+          ? utt.selfCertainty
+          : selfCertaintyByUtteranceId.get(utt.id);
+      }
+      const ownerId = resolveSelfCertaintyHostUtteranceId(
+        utt.id,
+        utterancesForSelfCertainty ?? [],
+        {
+          ...(explicitParentUtteranceId ? { parentUtteranceId: explicitParentUtteranceId } : {}),
+          ...(('mediaId' in utt && typeof utt.mediaId === 'string' && utt.mediaId.trim().length > 0)
+            ? { mediaId: utt.mediaId }
+            : {}),
+          startTime: utt.startTime,
+          endTime: utt.endTime,
+        },
+      );
+      if (!ownerId) return undefined;
+      return selfCertaintyByUtteranceId.get(ownerId);
+    })();
+    const tierLabel = uttSelfCertainty === 'certain'
+      ? t(locale, 'transcription.utterance.selfCertainty.certain')
+      : uttSelfCertainty === 'uncertain'
+        ? t(locale, 'transcription.utterance.selfCertainty.uncertain')
+        : uttSelfCertainty === 'not_understood'
+          ? t(locale, 'transcription.utterance.selfCertainty.not_understood')
+          : '';
+    const selfCertaintyTitle = uttSelfCertainty && tierLabel
+      ? `${tierLabel}\n${t(locale, 'transcription.utterance.selfCertainty.dimensionHint')}`
+      : undefined;
     return (
       <TimelineAnnotationItem
         key={utt.id}
@@ -307,6 +370,9 @@ export function useTimelineAnnotationHelpers({
         speakerColor={speakerVisual?.color ?? 'var(--state-info-solid)'}
         {...(overlapCycleStatus ? { overlapCycleIndicator: overlapCycleStatus } : {})}
         {...('ai_metadata' in utt && utt.ai_metadata?.confidence != null ? { confidence: utt.ai_metadata.confidence } : {})}
+        {...(uttSelfCertainty && selfCertaintyTitle
+          ? { selfCertainty: uttSelfCertainty, selfCertaintyTitle }
+          : {})}
         {...(content ? { content } : {})}
         {...(tools ? { tools } : {})}
         {...(hasTrailingTools ? { hasTrailingTools } : {})}
@@ -337,17 +403,31 @@ export function useTimelineAnnotationHelpers({
     handleAnnotationKeyDown,
     handleNoteClick,
     orthographies,
+    locale,
     resolveNoteIndicatorTarget,
     speakerVisualByUtteranceId,
+    selfCertaintyByUtteranceId,
   ]);
 
   const renderLaneLabel = useCallback((layer: LayerDocType) => {
-    const parts = getLayerLabelParts(layer);
-    if (parts.alias) {
-      return <>{parts.type}<br />{parts.lang}<br />{parts.alias}</>;
-    }
-    return <>{parts.type}<br />{parts.lang}</>;
-  }, []);
+    const languageLine = getLayerHeaderLanguageLine(layer, locale);
+    const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
+    const targetOrthography = layer.orthographyId
+      ? orthographies.find((orthography) => orthography.id === layer.orthographyId)
+      : undefined;
+    const orthographyLine = getOrthographyHeaderLine(targetOrthography, locale);
+    const labelLines = [languageLine, varietyOrAliasLine, orthographyLine].filter((line) => line.trim().length > 0);
+    return (
+      <>
+        {labelLines.map((line, index) => (
+          <Fragment key={`${layer.id}-label-line-${index}`}>
+            {index > 0 && <br />}
+            {line}
+          </Fragment>
+        ))}
+      </>
+    );
+  }, [locale, orthographies]);
 
   return {
     handleAnnotationClick,

@@ -4,7 +4,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
 import { useTimelineAnnotationHelpers } from './useTimelineAnnotationHelpers';
 
-function makeSegmentDoc(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegmentDoc(
+  id: string,
+  layerId: string,
+  startTime: number,
+  endTime: number,
+  utteranceId?: string,
+): LayerSegmentDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -15,6 +21,7 @@ function makeSegmentDoc(id: string, layerId: string, startTime: number, endTime:
     endTime,
     createdAt: now,
     updatedAt: now,
+    ...(utteranceId ? { utteranceId } : {}),
   };
 }
 
@@ -223,5 +230,311 @@ describe('useTimelineAnnotationHelpers', () => {
       x: 0,
       y: 0,
     }));
+  });
+
+  it('renders self-certainty badge on segment row from host utterance', () => {
+    const host: UtteranceDocType = {
+      ...makeUtteranceDoc('utt-host', 1, 2),
+      selfCertainty: 'certain',
+    };
+    const seg = makeSegmentDoc('seg-bound', 'layer-seg', 1, 2, 'utt-host');
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-seg',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-seg']),
+      utterancesForSelfCertainty: [host],
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      seg,
+      makeLayer('layer-seg'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+  });
+
+  it('renders self-certainty badge for independent segment rows when the segment id itself is the host utterance id', () => {
+    const host: UtteranceDocType = {
+      ...makeUtteranceDoc('seg-self-host', 1, 2),
+      selfCertainty: 'uncertain',
+    };
+    const seg = makeSegmentDoc('seg-self-host', 'layer-seg', 1, 2);
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-seg',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-seg']),
+      utterancesForSelfCertainty: [host],
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      seg,
+      makeLayer('layer-seg'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--uncertain')).toBeTruthy();
+  });
+  it('renders self-certainty badge for a contained segment even without explicit parentUtteranceId', () => {
+    const host: UtteranceDocType = {
+      ...makeUtteranceDoc('utt-contained', 1, 2),
+      selfCertainty: 'uncertain',
+    };
+    const seg = makeSegmentDoc('seg-loose', 'layer-seg', 1.2, 1.8);
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-seg',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-seg']),
+      utterancesForSelfCertainty: [host],
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      seg,
+      makeLayer('layer-seg'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--uncertain')).toBeTruthy();
+  });
+
+  it('renders self-certainty badge for timeline unit view segments via parentUtteranceId', () => {
+    const host: UtteranceDocType = {
+      ...makeUtteranceDoc('utt-timeline-parent', 1, 2),
+      selfCertainty: 'certain',
+    };
+    const timelineViewLike = {
+      id: 'seg-view-1',
+      kind: 'segment' as const,
+      mediaId: 'media-1',
+      layerId: 'layer-seg',
+      startTime: 8,
+      endTime: 9,
+      text: '',
+      parentUtteranceId: 'utt-timeline-parent',
+    };
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-seg',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-seg']),
+      utterancesForSelfCertainty: [host],
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      timelineViewLike as unknown as LayerSegmentDocType,
+      makeLayer('layer-seg'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+  });
+
+  it('omits the middle blank row when a lane has no variety or alias line', () => {
+    const layer = {
+      ...makeLayer('layer-label'),
+      languageId: 'eng',
+      orthographyId: 'eng-latn',
+      name: { zho: '转写层' },
+    } as LayerDocType;
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-label',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-label']),
+      orthographies: [{
+        id: 'eng-latn',
+        languageId: 'eng',
+        name: { 'zh-CN': '英语标准拼写' },
+      } as any],
+    }));
+
+    const { container } = render(<div>{result.current.renderLaneLabel(layer)}</div>);
+
+    expect(container.querySelectorAll('br')).toHaveLength(1);
+    expect(container.textContent).toMatch(/(?:英语|English) eng/);
+    expect(container.textContent).toContain('英语标准拼写');
+  });
+
+  it('renders the localized Tibetan name for legacy tib codes in lane headers', () => {
+    const layer = {
+      ...makeLayer('layer-tibetan'),
+      languageId: 'tib',
+      name: { zho: '藏语转写层' },
+    } as LayerDocType;
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-tibetan',
+      zoomToUtterance: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-tibetan']),
+      orthographies: [],
+    }));
+
+    const { container } = render(<div>{result.current.renderLaneLabel(layer)}</div>);
+
+    expect(container.textContent).toContain('藏语');
+    expect(container.textContent).not.toContain('tib藏语转写层');
   });
 });

@@ -8,6 +8,8 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
+import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import { MaterialSymbol } from './ui/MaterialSymbol';
 
 type SaveStatus = 'dirty' | 'saving' | 'error' | undefined;
 
@@ -55,6 +57,9 @@ interface TranscriptionTimelineTextTranslationItemProps {
     layerId: string,
     e: React.MouseEvent,
   ) => void) | undefined;
+  /** 来自宿主 utterance 的确信角标（segment 翻译行经父组件解析） */
+  selfCertainty?: UtteranceSelfCertainty;
+  selfCertaintyTitle?: string;
 }
 
 export function TranscriptionTimelineTextTranslationItem({
@@ -91,6 +96,8 @@ export function TranscriptionTimelineTextTranslationItem({
   navigateUnitFromInput,
   handleAnnotationClick,
   handleAnnotationContextMenu,
+  selfCertainty,
+  selfCertaintyTitle,
 }: TranscriptionTimelineTextTranslationItemProps) {
   const locale = useLocale();
   const layerSupportsAudio = !usesOwnSegments
@@ -123,7 +130,7 @@ export function TranscriptionTimelineTextTranslationItem({
 
   return (
     <TimelineStyledContainer
-      className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}`}
+      className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}${selfCertainty ? ' timeline-text-item-has-self-certainty' : ''}`}
       layoutStyle={layoutStyle}
       dir={dir}
       onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
@@ -231,6 +238,35 @@ export function TranscriptionTimelineTextTranslationItem({
           }}
         />
       )}
+      {selfCertainty === 'certain' && selfCertaintyTitle ? (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+        </span>
+      ) : null}
+      {selfCertainty === 'not_understood' && selfCertaintyTitle ? (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+        </span>
+      ) : null}
+      {selfCertainty === 'uncertain' && selfCertaintyTitle ? (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
+          title={selfCertaintyTitle}
+          aria-label={selfCertaintyTitle}
+        >
+          <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
+            {'\u2248'}
+          </span>
+        </span>
+      ) : null}
     </TimelineStyledContainer>
   );
 }
