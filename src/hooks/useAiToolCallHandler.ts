@@ -30,9 +30,11 @@ export function useAiToolCallHandler({
   splitTranscriptionSegment,
   mergeWithPrevious,
   mergeWithNext,
+  mergeSelectedUnits,
   mergeSelectedUtterances,
   mergeSelectedSegments,
   deleteUtterance,
+  deleteSelectedUnits,
   deleteSelectedUtterances,
   deleteLayer,
   toggleLayerLink,
@@ -196,6 +198,9 @@ export function useAiToolCallHandler({
       return null;
     };
 
+    const mergeSelectedBatch = mergeSelectedUnits ?? mergeSelectedUtterances;
+    const deleteSelectedBatch = deleteSelectedUnits ?? deleteSelectedUtterances;
+
     const ctx: ExecutionContext = {
       call,
       locale,
@@ -225,10 +230,12 @@ export function useAiToolCallHandler({
       splitTranscriptionSegment,
       mergeWithPrevious,
       mergeWithNext,
-      mergeSelectedUtterances,
+      mergeSelectedUnits: mergeSelectedBatch,
+      mergeSelectedUtterances: mergeSelectedBatch,
       mergeSelectedSegments,
       deleteUtterance,
-      deleteSelectedUtterances,
+      deleteSelectedUnits: deleteSelectedBatch,
+      deleteSelectedUtterances: deleteSelectedBatch,
       deleteLayer,
       toggleLayerLink,
       saveUtteranceText,
@@ -261,10 +268,12 @@ export function useAiToolCallHandler({
     splitTranscriptionSegment,
     mergeWithPrevious,
     mergeWithNext,
+    mergeSelectedUnits,
     mergeSelectedUtterances,
     mergeSelectedSegments,
     deleteLayer,
     deleteUtterance,
+    deleteSelectedUnits,
     deleteSelectedUtterances,
     toggleLayerLink,
     saveTextTranslationForUtterance,

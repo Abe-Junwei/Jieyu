@@ -21,6 +21,7 @@ import {
   formatEmptyModelReply,
   formatEmptyModelResponseError,
 } from '../ai/messages';
+import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
@@ -105,8 +106,8 @@ function mergeLocalToolSessionState(
     if (patch.lastIntent) merged.lastIntent = patch.lastIntent;
     if (patch.lastQuery) merged.lastQuery = patch.lastQuery;
     if (patch.clearLastQuery) delete merged.lastQuery;
-    if (patch.lastResultUtteranceIds !== undefined) {
-      merged.lastResultUtteranceIds = patch.lastResultUtteranceIds;
+    if (patch.lastResultUnitIds !== undefined) {
+      merged.lastResultUnitIds = patch.lastResultUnitIds;
     }
   }
   merged.updatedAt = new Date().toISOString();
@@ -301,15 +302,21 @@ function appendHallucinationWarningIfSuspicious(
 
   const expected = context?.shortTerm?.projectUnitCount
     ?? context?.longTerm?.projectStats?.unitCount
-    ?? context?.shortTerm?.projectUtteranceCount
     ?? context?.longTerm?.projectStats?.utteranceCount
-    ?? context?.shortTerm?.currentMediaUnitCount
-    ?? context?.shortTerm?.utterancesOnCurrentMediaCount;
+    ?? context?.shortTerm?.currentMediaUnitCount;
   if (typeof expected === 'number' && expected > 0) {
     const countClaim = content.match(/(?:\u5171\u6709|total[:\s]|a\s+total\s+of)\s*(\d+)\s*(?:\u4e2a|\u6761|\u6bb5|units?\b|utterances?\b|segments?\b)/i);
     if (countClaim) {
       const claimed = parseInt(countClaim[1]!, 10);
       if (claimed !== expected) {
+        recordMetric({
+          id: 'ai.count_claim_mismatch',
+          value: 1,
+          tags: createMetricTags('useAiChat.streamCompletion', {
+            claimed,
+            expected,
+          }),
+        });
         return `${content}${HALLUCINATION_WARNING}`;
       }
       return content;

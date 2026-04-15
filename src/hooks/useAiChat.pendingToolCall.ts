@@ -6,7 +6,11 @@
 import { useCallback } from 'react';
 import { useLatest } from './useLatest';
 import { nowIso } from './useAiChat.helpers';
-import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
+import { executeConfirmedProposedChangeBatch, executeConfirmedToolCall } from './useAiChat.confirmExecution';
+import {
+  buildAiChangeSetFromPendingToolCall,
+  validateChangeSetEpoch,
+} from '../ai/changeset/AiChangeSetProtocol';
 import { persistSessionMemory } from '../ai/chat/sessionMemory';
 import {
   buildToolAuditContext,
@@ -14,7 +18,7 @@ import {
   toNaturalToolCancelled,
 } from '../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
-import type { Locale } from '../i18n';
+import { t, type Locale } from '../i18n';
 import type {
   AiChatToolCall,
   AiChatToolResult,
@@ -54,6 +58,7 @@ interface UseAiChatPendingToolCallOptions {
   setPendingToolCall: React.Dispatch<React.SetStateAction<PendingAiToolCall | null>>;
   setTaskSession: React.Dispatch<React.SetStateAction<AiTaskSession>>;
   bumpMetric: (key: keyof AiInteractionMetrics, delta?: number) => void;
+  getTimelineReadModelEpoch?: () => number | undefined;
 }
 
 export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOptions) {
@@ -72,14 +77,31 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
     setPendingToolCall,
     setTaskSession,
     bumpMetric,
+    getTimelineReadModelEpoch,
   } = options;
   const onToolCallRef = useLatest(options.onToolCall);
+  const getTimelineReadModelEpochRef = useLatest(getTimelineReadModelEpoch);
 
   const confirmPendingToolCall = useCallback(async () => {
     const pending = pendingToolCallRef.current;
     if (!pending) return;
 
     const assistantMessageId = pending.assistantMessageId;
+    const changeSet = buildAiChangeSetFromPendingToolCall(pending);
+    const currentEpoch = getTimelineReadModelEpochRef.current?.();
+    if (!validateChangeSetEpoch(changeSet, currentEpoch)) {
+      const staleMessage = t(toolFeedbackLocale, 'ai.alerts.staleReadModelConfirmBlocked');
+      setPendingToolCall(null);
+      setTaskSession({
+        id: taskSessionRef.current.id,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      bumpMetric('failureCount');
+      await applyAssistantMessageResult(assistantMessageId, staleMessage, 'error', staleMessage);
+      return;
+    }
+
     const call = pending.executionCall ?? pending.call;
     setPendingToolCall(null);
     setTaskSession({
@@ -102,6 +124,31 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       requestId: call.requestId ?? pending.requestId ?? genRequestId(call, assistantMessageId),
     };
 
+    if (pending.call.name === 'propose_changes' && pending.proposedChildCalls?.length) {
+      await executeConfirmedProposedChangeBatch({
+        assistantMessageId,
+        parentCall: callWithRequestId,
+        childCalls: pending.proposedChildCalls,
+        auditContext,
+        locale: toolFeedbackLocale,
+        toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+        hasPersistedExecutionForRequest,
+        applyAssistantMessageResult,
+        ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
+        writeToolDecisionAuditLog,
+        setTaskSession,
+        taskSessionId: taskSessionRef.current.id,
+        markExecutedRequestId,
+        sessionMemory: sessionMemoryRef.current,
+        updateSessionMemory: (nextMemory) => {
+          sessionMemoryRef.current = nextMemory;
+        },
+        persistSessionMemory,
+        bumpMetric,
+      });
+      return;
+    }
+
     await executeConfirmedToolCall({
       assistantMessageId,
       call: callWithRequestId,
@@ -122,7 +169,19 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       persistSessionMemory,
       bumpMetric,
     });
-  }, [applyAssistantMessageResult, hasPersistedExecutionForRequest, onToolCallRef, providerId, taskSessionRef, writeToolDecisionAuditLog]);
+  }, [
+    applyAssistantMessageResult,
+    bumpMetric,
+    getTimelineReadModelEpochRef,
+    hasPersistedExecutionForRequest,
+    onToolCallRef,
+    providerId,
+    setPendingToolCall,
+    setTaskSession,
+    taskSessionRef,
+    toolFeedbackLocale,
+    writeToolDecisionAuditLog,
+  ]);
 
   const cancelPendingToolCall = useCallback(async () => {
     const pending = pendingToolCallRef.current;

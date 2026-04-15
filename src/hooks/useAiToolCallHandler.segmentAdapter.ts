@@ -107,7 +107,7 @@ export const segmentAdapter: ToolObjectAdapter = {
         return { ok: false, message: t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo') };
       }
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
-      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUtterances;
+      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUnits ?? ctx.mergeSelectedUtterances;
       if (!mergeExecutor) {
         return { ok: false, message: t(locale, 'transcription.aiTool.voice.actionUnsupported') };
       }
@@ -129,8 +129,9 @@ export const segmentAdapter: ToolObjectAdapter = {
       const requestedSegmentIds = normalizeRequestedIds(call.arguments.segmentIds);
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
       if (requestedBatchIds.length > 0) {
-        if (ctx.deleteSelectedUtterances) {
-          await ctx.deleteSelectedUtterances(new Set(requestedBatchIds));
+        const deleteBatch = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUtterances;
+        if (deleteBatch) {
+          await deleteBatch(new Set(requestedBatchIds));
         } else {
           for (const targetId of requestedBatchIds) {
             await ctx.deleteUtterance(targetId);
@@ -147,8 +148,9 @@ export const segmentAdapter: ToolObjectAdapter = {
         if (allIds.length === 0) {
           return { ok: false, message: t(locale, 'transcription.aiTool.voice.navSegmentEmpty') };
         }
-        if (ctx.deleteSelectedUtterances) {
-          await ctx.deleteSelectedUtterances(new Set(allIds));
+        const deleteBatchAll = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUtterances;
+        if (deleteBatchAll) {
+          await deleteBatchAll(new Set(allIds));
         } else {
           for (const targetId of allIds) {
             await ctx.deleteUtterance(targetId);

@@ -66,6 +66,11 @@ export function resolveToolIntentOutcome({
 }: ResolveToolIntentOutcomeParams): string | null {
   const now = new Date().toISOString();
 
+  // Model-emitted batch preview: never short-circuit on user-text intent (tests use __TOOL_* hooks).
+  if (toolCallName === 'propose_changes') {
+    return null;
+  }
+
   if (intentAssessment.decision === 'ignore') {
     bumpMetric('explainFallbackCount');
     setPendingToolCall(null);

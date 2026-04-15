@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  buildSessionMemoryPromptDigest,
   clearConversationSummaryMemory,
   loadSessionMemory,
   patchSessionMemoryPreferences,
@@ -42,15 +43,15 @@ describe('sessionMemory P2 helpers', () => {
   it('normalizes local tool state from storage', () => {
     window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
       localToolState: {
-        lastIntent: 'utterance.search',
+        lastIntent: 'unit.search',
         lastQuery: '  你好  ',
-        lastResultUtteranceIds: ['utt-1', '', 'utt-2'],
+        lastResultUnitIds: ['utt-1', '', 'utt-2'],
       },
     }));
     const loaded = loadSessionMemory();
-    expect(loaded.localToolState?.lastIntent).toBe('utterance.search');
+    expect(loaded.localToolState?.lastIntent).toBe('unit.search');
     expect(loaded.localToolState?.lastQuery).toBe('你好');
-    expect(loaded.localToolState?.lastResultUtteranceIds).toEqual(['utt-1', 'utt-2']);
+    expect(loaded.localToolState?.lastResultUnitIds).toEqual(['utt-1', 'utt-2']);
   });
 
   it('updates and clears conversation summary memory', () => {
@@ -70,6 +71,21 @@ describe('sessionMemory P2 helpers', () => {
     expect(cleared.summaryTurnCount).toBe(0);
     expect(cleared.summaryChain).toBeUndefined();
     expect(cleared.summaryQualityWarning).toBeUndefined();
+  });
+
+  it('builds a compact session-memory digest for tier-2 prompt context', () => {
+    const memory = updateConversationSummaryMemory({}, '用户关注漏译与对齐', 4, { similarityScore: 0.9 });
+    const digest = buildSessionMemoryPromptDigest(memory, 500);
+    expect(digest).toContain('rollingSummary=');
+    expect(digest).toContain('用户关注漏译与对齐');
+
+    const withChain = updateConversationSummaryMemory(
+      { summaryChain: [{ id: 'a', summary: 'older theme', coveredTurnCount: 2, createdAt: '2026-01-01' }] },
+      'newer theme',
+      3,
+    );
+    const chainDigest = buildSessionMemoryPromptDigest(withChain, 400);
+    expect(chainDigest).toContain('earlierSummaries=');
   });
 
   it('toggles pinned message IDs in session memory', () => {

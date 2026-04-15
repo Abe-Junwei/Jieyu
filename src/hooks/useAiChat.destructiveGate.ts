@@ -1,5 +1,6 @@
 import { nowIso } from './useAiChat.helpers';
 import {
+  buildPreviewContract,
   buildToolDecisionAuditMetadata,
   describeAndBuildPending,
   isAmbiguousTargetRiskSummary,
@@ -7,6 +8,7 @@ import {
   toNaturalToolFailure,
   toNaturalToolPending,
 } from '../ai/chat/toolCallHelpers';
+import { parseProposedChildCallsFromArguments } from '../ai/chat/proposeChangesHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { t, type Locale } from '../i18n';
 import type { AiChatToolCall, AiPromptContext, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat';
@@ -97,6 +99,60 @@ export async function resolveDestructiveGate({
   taskSessionId,
   bumpFailureMetric,
 }: ResolveDestructiveGateParams): Promise<DestructiveGateOutcome> {
+  if (toolCall.name === 'propose_changes') {
+    const parsed = parseProposedChildCallsFromArguments(toolCall.arguments);
+    if (!parsed.ok) {
+      const finalErrorMessage = parsed.error;
+      const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
+      bumpFailureMetric();
+      setTaskSession({
+        id: taskSessionId,
+        status: 'idle',
+        updatedAt: nowIso(),
+      });
+      await writeToolDecisionAuditLog(
+        assistantMessageId,
+        `auto:${toolCall.name}`,
+        `auto_failed:${toolCall.name}:invalid_proposed_changes`,
+        'ai',
+        toolCall.requestId,
+        buildToolDecisionAuditMetadata(
+          assistantMessageId,
+          toolCall,
+          auditContext,
+          'ai',
+          'auto_failed',
+          false,
+          finalErrorMessage,
+          'invalid_proposed_changes',
+        ),
+      );
+      return { kind: 'error', finalContent, finalErrorMessage };
+    }
+
+    const impact = describeAndBuildPending(toolCall, aiContext);
+    const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
+    setTaskSession({
+      id: taskSessionId,
+      status: 'waiting_confirm',
+      toolName: toolCall.name,
+      updatedAt: nowIso(),
+    });
+    setPendingToolCall({
+      call: toolCall,
+      proposedChildCalls: parsed.children,
+      assistantMessageId,
+      riskSummary: parsed.description && parsed.description.length > 0 ? parsed.description : impact.riskSummary,
+      impactPreview: impact.impactPreview,
+      previewContract: buildPreviewContract(toolCall, aiContext),
+      ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
+      auditContext,
+      ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
+    });
+
+    return { kind: 'pending', finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle) };
+  }
+
   const destructiveBlocked = !allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name);
   let riskCheck: AiToolRiskCheckResult | null | undefined;
 
@@ -187,6 +243,7 @@ export async function resolveDestructiveGate({
       toolName: toolCall.name,
       updatedAt: nowIso(),
     });
+    const readModelEpochCaptured = aiContext?.shortTerm?.timelineReadModelEpoch;
     setPendingToolCall({
       call: toolCall,
       ...(executionCall ? { executionCall } : {}),
@@ -196,6 +253,7 @@ export async function resolveDestructiveGate({
       previewContract: impact.previewContract,
       ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
       auditContext,
+      ...(readModelEpochCaptured !== undefined ? { readModelEpochCaptured } : {}),
     });
 
     return { kind: 'pending', finalContent };

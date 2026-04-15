@@ -31,6 +31,20 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__TOOL_PROPOSE_CHANGES__')) {
+          yield {
+            delta: '{"tool_call":{"name":"propose_changes","arguments":{"description":"demo","changes":[{"tool":"set_transcription_text","arguments":{"segmentId":"u1","text":"hi"}}]}}}',
+          };
+          yield { delta: '', done: true };
+          return;
+        }
+        if (userText.includes('__TOOL_PROPOSE_CHANGES_INVALID__')) {
+          yield {
+            delta: '{"tool_call":{"name":"propose_changes","arguments":{"changes":[]}}}',
+          };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__TOOL_DELETE_SEGMENT__')) {
           yield { delta: '{"tool_call":{"name":"delete_transcription_segment","arguments":{"utteranceId":"u1"}}}' };
           yield { delta: '', done: true };
@@ -296,14 +310,14 @@ function estimateTokensFromTextForTest(text: string): number {
 
 const defaultSelectedSegmentShortTerm = {
   page: 'transcription',
-  activeUtteranceUnitId: 'utt-current',
+  activeUnitId: 'utt-current',
   activeSegmentUnitId: 'seg-current',
   selectedUnitKind: 'segment' as const,
 };
 
 const defaultSelectedTranslationShortTerm = {
   ...defaultSelectedSegmentShortTerm,
-  activeUtteranceUnitId: 'utt-selected',
+  activeUnitId: 'utt-selected',
   activeSegmentUnitId: 'seg-selected',
   selectedLayerId: 'trl-selected',
   selectedLayerType: 'translation' as const,
@@ -590,6 +604,80 @@ describe('useAiChat abort and recovery', () => {
     expect(assistant?.content).toContain('你想继续');
   });
 
+  it('should queue propose_changes for confirmation with child tool calls', async () => {
+    const onToolCall = vi.fn();
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_PROPOSE_CHANGES__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(result.current.pendingToolCall?.call.name).toBe('propose_changes');
+    expect(result.current.pendingToolCall?.proposedChildCalls?.length).toBe(1);
+    expect(result.current.pendingToolCall?.proposedChildCalls?.[0]?.name).toBe('set_transcription_text');
+    expect(result.current.taskSession.status).toBe('waiting_confirm');
+  });
+
+  it('should fail propose_changes with empty changes before confirmation', async () => {
+    const onToolCall = vi.fn();
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_PROPOSE_CHANGES_INVALID__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    expect(onToolCall).not.toHaveBeenCalled();
+    expect(result.current.pendingToolCall).toBeNull();
+    expect(result.current.taskSession.status).toBe('idle');
+  });
+
+  it('should execute proposed child tools after confirmation', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: 'ok' });
+    const { result } = renderHook(() => useAiChat({ onToolCall }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_PROPOSE_CHANGES__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.confirmPendingToolCall();
+    });
+
+    await waitFor(() => {
+      expect(result.current.pendingToolCall).toBeNull();
+    });
+
+    expect(onToolCall).toHaveBeenCalledTimes(1);
+    const confirmed = onToolCall.mock.calls[0]?.[0] as AiChatToolCall;
+    expect(confirmed?.name).toBe('set_transcription_text');
+    expect(confirmed?.arguments.segmentId).toBe('u1');
+  });
+
   it('should rewrite legacy risk narration to clarification without raw tool key', async () => {
     const onToolCall = vi.fn();
     const { result } = renderHook(() => useAiChat({ onToolCall }));
@@ -620,7 +708,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          activeUtteranceUnitId: 'u-current',
+          activeUnitId: 'u-current',
         },
       }),
     }));
@@ -651,7 +739,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          activeUtteranceUnitId: 'utt-parent',
+          activeUnitId: 'utt-parent',
           activeSegmentUnitId: 'seg-current',
           selectedUnitKind: 'segment',
         },
@@ -755,7 +843,7 @@ describe('useAiChat abort and recovery', () => {
         shortTerm: {
           page: 'transcription',
           selectedUnitKind: 'segment',
-          activeUtteranceUnitId: 'utt-current',
+          activeUnitId: 'utt-current',
           activeSegmentUnitId: 'seg-current',
         },
       }),
@@ -794,7 +882,7 @@ describe('useAiChat abort and recovery', () => {
         shortTerm: {
           page: 'transcription',
           selectedUnitKind: 'segment',
-          activeUtteranceUnitId: 'utt-current',
+          activeUnitId: 'utt-current',
           activeSegmentUnitId: 'seg-current',
         },
       }),
@@ -898,7 +986,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          activeUtteranceUnitId: 'u-current',
+          activeUnitId: 'u-current',
         },
       }),
     }));
@@ -985,7 +1073,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedSegmentShortTerm,
-          activeUtteranceUnitId: 'utt-delete',
+          activeUnitId: 'utt-delete',
           activeSegmentUnitId: 'seg-delete',
         },
       }),
@@ -1886,7 +1974,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedSegmentShortTerm,
-          activeUtteranceUnitId: 'u1',
+          activeUnitId: 'u1',
           activeSegmentUnitId: 'seg1',
           selectedUtteranceStartSec: 10,
           selectedUtteranceEndSec: 14,
@@ -1922,7 +2010,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedSegmentShortTerm,
-          activeUtteranceUnitId: 'u1',
+          activeUnitId: 'u1',
           activeSegmentUnitId: 'seg1',
           selectedUtteranceStartSec: 10,
           selectedUtteranceEndSec: 14,
@@ -2598,7 +2686,7 @@ describe('useAiChat abort and recovery', () => {
         },
         longTerm: {
           projectStats: {
-            utteranceCount: 3,
+            unitCount: 3,
             translationLayerCount: 0,
             aiConfidenceAvg: null,
           },
@@ -2722,7 +2810,7 @@ describe('useAiChat abort and recovery', () => {
         },
         longTerm: {
           projectStats: {
-            utteranceCount: 8,
+            unitCount: 8,
             translationLayerCount: 0,
             aiConfidenceAvg: null,
           },
@@ -2878,7 +2966,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedSegmentShortTerm,
-          activeUtteranceUnitId: 'u2',
+          activeUnitId: 'u2',
           activeSegmentUnitId: 'seg2',
         },
       }),
@@ -2986,7 +3074,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          activeUtteranceUnitId: 'u2',
+          activeUnitId: 'u2',
           selectedLayerId: 'tr-layer-1',
           selectedLayerType: 'translation',
           selectedTranslationLayerId: 'tr-layer-1',
@@ -3020,7 +3108,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           page: 'transcription',
-          activeUtteranceUnitId: 'u2',
+          activeUnitId: 'u2',
           selectedLayerId: 'tr-layer-1',
           selectedLayerType: 'translation',
           selectedTranslationLayerId: 'tr-layer-1',
@@ -3113,7 +3201,7 @@ describe('useAiChat abort and recovery', () => {
         },
         longTerm: {
           projectStats: {
-            utteranceCount: 3,
+            unitCount: 3,
             translationLayerCount: 0,
             aiConfidenceAvg: null,
           },
@@ -3216,7 +3304,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedSegmentShortTerm,
-          activeUtteranceUnitId: 'utt_real_001',
+          activeUnitId: 'utt_real_001',
           activeSegmentUnitId: 'seg_real_001',
           selectedTranscriptionLayerId: 'layer_trans_1',
         },
@@ -3249,7 +3337,7 @@ describe('useAiChat abort and recovery', () => {
       getContext: () => ({
         shortTerm: {
           ...defaultSelectedTranslationShortTerm,
-          activeUtteranceUnitId: 'utt_real_001',
+          activeUnitId: 'utt_real_001',
           activeSegmentUnitId: 'seg_real_001',
           selectedTranslationLayerId: 'layer_trans_real_42',
         },

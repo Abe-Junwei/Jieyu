@@ -1,4 +1,5 @@
 import type { JieyuDatabase, LayerDocType, UtteranceDocType } from '../../db';
+import { getUtteranceDocProjectionById } from '../../services/LayerSegmentGraphService';
 
 function normalizeEmbeddedDefaultText(text: string | null | undefined): string {
   return (text ?? '').trim();
@@ -110,8 +111,8 @@ export async function isDefaultTranscriptionLayerForUtteranceText(
 ): Promise<boolean> {
   if (!layerId) return false;
 
-  const utterance = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
-  const textId = utterance?.toJSON().textId;
+  const utterance = await getUtteranceDocProjectionById(db, utteranceId);
+  const textId = utterance?.textId;
   if (!textId) return false;
 
   const defaultLayerId = await resolveDefaultTranscriptionLayerIdForText(db, textId);

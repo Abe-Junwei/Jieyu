@@ -12,15 +12,14 @@ import {
 function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext['shortTerm']>> = {}): AiPromptContext {
   return {
     shortTerm: {
-      activeUtteranceUnitId: 'utt_owner_001',
+      activeUnitId: 'utt_owner_001',
       activeSegmentUnitId: 'seg_real_007',
       selectedUnitKind: 'segment',
-      recentEdits: [],
       ...extraShortTerm,
     },
     longTerm: {
       projectStats: {
-        utteranceCount: 3,
+        unitCount: 3,
         translationLayerCount: 1,
         aiConfidenceAvg: null,
       },
@@ -116,7 +115,7 @@ describe('planToolCallTargets', () => {
     expect(resolveSelectionTargetPatchForTool(callName, makeSegmentContext())).toEqual(expectedPatch);
   });
 
-  it('does not fall back to activeUtteranceUnitId for segment-only tools when no segment is selected', () => {
+  it('does not fall back to activeUnitId for segment-only tools when no segment is selected', () => {
     const context = makeSegmentContext({
       activeSegmentUnitId: '',
       selectedUnitKind: 'utterance',

@@ -239,7 +239,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
-          deleteSelectedUtterances: deleteSelectionSpy,
+          deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
     );
@@ -265,7 +265,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
       useAiToolCallHandler(
         makeParams({
           utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
-          deleteSelectedUtterances: deleteSelectionSpy,
+          deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
     );
@@ -469,7 +469,32 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(response?.ok).toBe(true);
   });
 
-  it('uses deleteSelectedUtterances for batch delete targets', async () => {
+  it('uses deleteSelectedUnits for batch delete targets', async () => {
+    const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          deleteSelectedUnits: deleteSelectionSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'delete_transcription_segment',
+        arguments: { segmentIds: ['seg-1', 'seg-2'] },
+      });
+    });
+
+    expect(deleteSelectionSpy).toHaveBeenCalledTimes(1);
+    expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-1', 'seg-2']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('已删除 2 个句段');
+  });
+
+  it('still accepts deprecated deleteSelectedUtterances for batch delete targets', async () => {
     const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
@@ -491,19 +516,18 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSelectionSpy).toHaveBeenCalledTimes(1);
     expect(Array.from(deleteSelectionSpy.mock.calls[0]?.[0] ?? [])).toEqual(['seg-1', 'seg-2']);
     expect(response?.ok).toBe(true);
-    expect(response?.message).toContain('已删除 2 个句段');
   });
 });
 
 describe('useAiToolCallHandler — merge_transcription_segments', () => {
   it('prefers mergeSelectedSegments when only segment ids are provided', async () => {
-    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+    const mergeSelectedUnits = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
     const mergeSelectedSegments = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          mergeSelectedUtterances,
+          mergeSelectedUnits,
           mergeSelectedSegments,
         }),
       ),
@@ -519,11 +543,36 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
 
     expect(mergeSelectedSegments).toHaveBeenCalledTimes(1);
     expect(Array.from(mergeSelectedSegments.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
-    expect(mergeSelectedUtterances).not.toHaveBeenCalled();
+    expect(mergeSelectedUnits).not.toHaveBeenCalled();
     expect(response?.ok).toBe(true);
   });
 
-  it('falls back to mergeSelectedUtterances when segment merge executor is unavailable', async () => {
+  it('falls back to mergeSelectedUnits when segment merge executor is unavailable', async () => {
+    const mergeSelectedUnits = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          mergeSelectedUnits,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'merge_transcription_segments',
+        arguments: { segmentIds: ['seg-a', 'seg-b'] },
+      });
+    });
+
+    expect(mergeSelectedUnits).toHaveBeenCalledTimes(1);
+    expect(Array.from(mergeSelectedUnits.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
+    expect(response?.ok).toBe(true);
+    expect(response?.message).toContain('2');
+  });
+
+  it('still accepts deprecated mergeSelectedUtterances when segment merge executor is unavailable', async () => {
     const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
@@ -545,7 +594,6 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
     expect(mergeSelectedUtterances).toHaveBeenCalledTimes(1);
     expect(Array.from(mergeSelectedUtterances.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
     expect(response?.ok).toBe(true);
-    expect(response?.message).toContain('2');
   });
 
   it('returns failure result when segment merge executor rejects', async () => {
@@ -571,12 +619,12 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
   });
 
   it('rejects batch merge when fewer than two targets are provided', async () => {
-    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+    const mergeSelectedUnits = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          mergeSelectedUtterances,
+          mergeSelectedUnits,
         }),
       ),
     );
@@ -589,7 +637,7 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
       });
     });
 
-    expect(mergeSelectedUtterances).not.toHaveBeenCalled();
+    expect(mergeSelectedUnits).not.toHaveBeenCalled();
     expect(response?.ok).toBe(false);
     expect(response?.message).toContain('至少需要选中 2 个句段');
   });

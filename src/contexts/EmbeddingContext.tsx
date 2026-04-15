@@ -19,7 +19,7 @@ import type { UtteranceDocType } from '../db';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface EmbeddingContextValue {
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
   aiEmbeddingBusy: boolean;
   aiEmbeddingProgressLabel: string | null;
   aiEmbeddingLastResult: {
@@ -70,7 +70,7 @@ export interface EmbeddingContextValue {
 }
 
 export const DEFAULT_EMBEDDING_CONTEXT_VALUE: EmbeddingContextValue = {
-  selectedUtterance: null,
+  selectedUnit: null,
   aiEmbeddingBusy: false,
   aiEmbeddingProgressLabel: null,
   aiEmbeddingLastResult: null,

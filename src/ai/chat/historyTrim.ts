@@ -41,7 +41,9 @@ function selectMessagesByPriority(messages: HistoryChatMessage[], maxChars: numb
     .map((message, index) => ({
       message,
       index,
-      priority: message.pinned ? 2 : 1,
+      priority: message.pinned
+        ? 3
+        : (message.content.startsWith(TOOL_RESULT_PREFIX) ? 2 : 1),
     }))
     .sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;

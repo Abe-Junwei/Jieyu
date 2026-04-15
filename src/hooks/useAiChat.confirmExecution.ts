@@ -14,6 +14,7 @@ import {
 } from '../ai/messages';
 import { patchSessionMemoryPreferences } from '../ai/chat/sessionMemory';
 import { nowIso } from './useAiChat.helpers';
+import { genRequestId } from './useAiChat.toolAudit';
 import type { Locale } from '../i18n';
 import type {
   AiChatToolCall,
@@ -275,5 +276,295 @@ export async function executeConfirmedToolCall({
       status: 'idle',
       updatedAt: nowIso(),
     });
+  }
+}
+
+/**
+ * Confirm path for `propose_changes`: run validated child tool calls in order with one assistant summary.
+ */
+export async function executeConfirmedProposedChangeBatch({
+  assistantMessageId,
+  parentCall,
+  childCalls,
+  auditContext,
+  locale,
+  toolFeedbackStyle,
+  hasPersistedExecutionForRequest,
+  applyAssistantMessageResult,
+  onToolCall,
+  writeToolDecisionAuditLog,
+  setTaskSession,
+  taskSessionId,
+  markExecutedRequestId,
+  sessionMemory,
+  updateSessionMemory,
+  persistSessionMemory,
+  bumpMetric,
+}: {
+  assistantMessageId: string;
+  parentCall: AiChatToolCall & { requestId: string };
+  childCalls: readonly AiChatToolCall[];
+  auditContext: Parameters<typeof buildToolDecisionAuditMetadata>[2];
+  locale: Locale;
+  toolFeedbackStyle: AiToolFeedbackStyle;
+  hasPersistedExecutionForRequest: (requestId: string) => Promise<boolean>;
+  applyAssistantMessageResult: (
+    id: string,
+    content: string,
+    status?: 'done' | 'error',
+    error?: string,
+  ) => Promise<void>;
+  onToolCall?: ((call: AiChatToolCall) => Promise<AiChatToolResult> | AiChatToolResult) | null | undefined;
+  writeToolDecisionAuditLog: (
+    assistantMessageId: string,
+    oldValue: string,
+    newValue: string,
+    source: 'human' | 'ai' | 'system',
+    requestId?: string,
+    metadata?: ReturnType<typeof buildToolDecisionAuditMetadata>,
+  ) => Promise<void>;
+  setTaskSession: (value: AiTaskSession) => void;
+  taskSessionId: string;
+  markExecutedRequestId: (requestId: string) => void;
+  sessionMemory: AiSessionMemory;
+  updateSessionMemory: (nextMemory: AiSessionMemory) => void;
+  persistSessionMemory: (memory: AiSessionMemory) => void;
+  bumpMetric: (key: keyof AiInteractionMetrics) => void;
+}): Promise<void> {
+  const finishIdle = () => {
+    setTaskSession({
+      id: taskSessionId,
+      status: 'idle',
+      updatedAt: nowIso(),
+    });
+  };
+
+  if (childCalls.length === 0) {
+    const emptyMessage = locale === 'zh-CN' ? '变更列表为空' : 'Proposed changes list is empty';
+    bumpMetric('failureCount');
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, parentCall.name, emptyMessage, toolFeedbackStyle),
+      'error',
+      emptyMessage,
+    );
+    finishIdle();
+    return;
+  }
+
+  if (await hasPersistedExecutionForRequest(parentCall.requestId)) {
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, parentCall.name, formatDuplicateRequestIgnoredDetail(), toolFeedbackStyle),
+      'error',
+      formatDuplicateRequestIgnoredError(),
+    );
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${parentCall.name}`,
+      `confirm_failed:${parentCall.name}:duplicate_requestId`,
+      'human',
+      parentCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        parentCall,
+        auditContext,
+        'human',
+        'confirm_failed',
+        false,
+        formatDuplicateRequestIgnoredError(),
+        'duplicate_requestId',
+      ),
+    );
+    finishIdle();
+    return;
+  }
+
+  if (!onToolCall) {
+    const noExecutorMessage = formatNoExecutorInternalError();
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, parentCall.name, formatNoExecutorToolFailureDetail(), toolFeedbackStyle),
+      'error',
+      noExecutorMessage,
+    );
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${parentCall.name}`,
+      `confirm_failed:${parentCall.name}:no_executor`,
+      'human',
+      parentCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        parentCall,
+        auditContext,
+        'human',
+        'confirm_failed',
+        false,
+        noExecutorMessage,
+        'no_executor',
+      ),
+    );
+    finishIdle();
+    return;
+  }
+
+  const TOOL_EXEC_TIMEOUT_MS = 30_000;
+  const execStart = performance.now();
+
+  try {
+    markExecutedRequestId(parentCall.requestId);
+    let lastOkChildName = parentCall.name;
+
+    for (let i = 0; i < childCalls.length; i += 1) {
+      const child = childCalls[i]!;
+      const argsValidationError = validateToolCallArguments(child);
+      if (argsValidationError) {
+        const invalidArgsText = formatInvalidArgsError(argsValidationError);
+        const detail = `${child.name}: ${invalidArgsText}`;
+        bumpMetric('failureCount');
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          toNaturalToolFailure(locale, parentCall.name, detail, toolFeedbackStyle),
+          'error',
+          detail,
+        );
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${parentCall.name}`,
+          `confirm_failed:${parentCall.name}:invalid_child_args`,
+          'human',
+          parentCall.requestId,
+          buildToolDecisionAuditMetadata(
+            assistantMessageId,
+            parentCall,
+            auditContext,
+            'human',
+            'confirm_failed',
+            false,
+            detail,
+            'invalid_child_args',
+            Math.round(performance.now() - execStart),
+          ),
+        );
+        finishIdle();
+        return;
+      }
+
+      const childWithRequestId: AiChatToolCall & { requestId: string } = {
+        ...child,
+        requestId: genRequestId(child, `${assistantMessageId}:propose:${i}`),
+      };
+
+      const result = await Promise.race([
+        onToolCall(childWithRequestId),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Tool execution timed out after ${TOOL_EXEC_TIMEOUT_MS}ms`)), TOOL_EXEC_TIMEOUT_MS),
+        ),
+      ]);
+
+      if (!result.ok) {
+        const detail = `${child.name}: ${result.message}`;
+        bumpMetric('failureCount');
+        await applyAssistantMessageResult(
+          assistantMessageId,
+          toNaturalToolFailure(locale, parentCall.name, detail, toolFeedbackStyle),
+          'error',
+          detail,
+        );
+        await writeToolDecisionAuditLog(
+          assistantMessageId,
+          `pending:${parentCall.name}`,
+          `confirm_failed:${parentCall.name}:child_failed`,
+          'human',
+          parentCall.requestId,
+          buildToolDecisionAuditMetadata(
+            assistantMessageId,
+            parentCall,
+            auditContext,
+            'human',
+            'confirm_failed',
+            false,
+            detail,
+            'child_failed',
+            Math.round(performance.now() - execStart),
+          ),
+        );
+        finishIdle();
+        return;
+      }
+
+      lastOkChildName = child.name;
+    }
+
+    bumpMetric('successCount');
+    let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
+      ...sessionMemory,
+      lastToolName: lastOkChildName,
+    }, {
+      lastToolName: lastOkChildName,
+    });
+    updateSessionMemory(nextSessionMemory);
+    persistSessionMemory(nextSessionMemory);
+
+    const successMessage = locale === 'zh-CN'
+      ? `已应用 ${childCalls.length} 项变更`
+      : `Applied ${childCalls.length} change(s)`;
+
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolSuccess(locale, parentCall.name, successMessage, toolFeedbackStyle),
+      'done',
+    );
+
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${parentCall.name}`,
+      `confirmed:${parentCall.name}`,
+      'human',
+      parentCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        parentCall,
+        auditContext,
+        'human',
+        'confirmed',
+        true,
+        successMessage,
+        undefined,
+        Math.round(performance.now() - execStart),
+      ),
+    );
+
+    finishIdle();
+  } catch (error) {
+    const execDurationMsErr = Math.round(performance.now() - execStart);
+    const toolErrorText = error instanceof Error ? error.message : formatToolExecutionFallbackError();
+    bumpMetric('failureCount');
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, parentCall.name, toolErrorText, toolFeedbackStyle),
+      'error',
+      toolErrorText,
+    );
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${parentCall.name}`,
+      `confirm_failed:${parentCall.name}:exception`,
+      'human',
+      parentCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        parentCall,
+        auditContext,
+        'human',
+        'confirm_failed',
+        true,
+        toolErrorText,
+        'exception',
+        execDurationMsErr,
+      ),
+    );
+    finishIdle();
   }
 }

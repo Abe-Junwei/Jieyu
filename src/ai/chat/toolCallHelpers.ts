@@ -130,6 +130,7 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   if (name === 'auto_gloss_utterance') return name;
   if (name === 'set_token_pos') return name;
   if (name === 'set_token_gloss') return name;
+  if (name === 'propose_changes') return name;
 
   if (['auto_gloss', 'auto_gloss_selected', 'gloss_utterance', 'auto_annotate'].includes(name)) {
     return 'auto_gloss_utterance';
@@ -387,9 +388,9 @@ function extractSegmentSelectorFromUserText(userText: string): Record<string, un
   return null;
 }
 
-function getContextUtteranceCount(context: AiPromptContext | null | undefined): number {
-  const count = context?.longTerm?.projectStats?.utteranceCount;
-  return typeof count === 'number' && Number.isFinite(count) && count >= 0 ? count : 0;
+function getContextProjectUnitCount(context: AiPromptContext | null | undefined): number {
+  const raw = context?.longTerm?.projectStats?.unitCount ?? context?.longTerm?.projectStats?.utteranceCount;
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : 0;
 }
 
 function describeDeleteSegmentSelectorTarget(args: Record<string, unknown>): string | null {
@@ -627,7 +628,7 @@ export function resolveSelectionTargetPatchForTool(
   context: AiPromptContext | null | undefined,
 ): Record<string, string> | null {
   const short = context?.shortTerm;
-  const activeUtteranceUnitId = getFirstNonEmptyString(short?.activeUtteranceUnitId);
+  const activeUnitId = getFirstNonEmptyString(short?.activeUnitId);
   const activeSegmentUnitId = getFirstNonEmptyString(short?.activeSegmentUnitId);
   const selectedUnitKind = short?.selectedUnitKind;
 
@@ -637,8 +638,8 @@ export function resolveSelectionTargetPatchForTool(
     }
     return null;
   }
-  if (activeUtteranceUnitId.length > 0) {
-    return { utteranceId: activeUtteranceUnitId };
+  if (activeUnitId.length > 0) {
+    return { utteranceId: activeUnitId };
   }
   return null;
 }
@@ -762,6 +763,25 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: {},
     validateArgs: (args) => validateArgId(args, 'tokenId', true),
   },
+  propose_changes: {
+    label: '\\u9884\\u89c8 AI \\u53d8\\u66f4',
+    contextFill: {},
+    validateArgs: () => null,
+    riskSpec: {
+      summary: (args) => {
+        const raw = args.changes;
+        const n = Array.isArray(raw) ? raw.length : 0;
+        return n > 0
+          ? `\\u5c06\\u5e94\\u7528 ${n} \\u9879\\u7ed3\\u6784\\u5316\\u53d8\\u66f4\\uff08\\u9700\\u786e\\u8ba4\\uff09`
+          : '\\u5c06\\u5e94\\u7528\\u6279\\u91cf\\u7ed3\\u6784\\u5316\\u53d8\\u66f4\\uff08\\u9700\\u786e\\u8ba4\\uff09';
+      },
+      preview: [
+        '\\u786e\\u8ba4\\u540e\\u4f1a\\u6309\\u5e8f\\u6267\\u884c\\u5b50\\u5de5\\u5177\\u8c03\\u7528',
+        '\\u6bcf\\u4e2a\\u5b50\\u64cd\\u4f5c\\u901a\\u5e38\\u4f1a\\u4ea7\\u751f\\u72ec\\u7acb\\u64a4\\u9500\\u70b9',
+        '\\u82e5\\u65f6\\u8f74/\\u9009\\u533a\\u5df2\\u53d8\\uff0c\\u95e8\\u63a7\\u53ef\\u80fd\\u963b\\u6b62\\u786e\\u8ba4',
+      ],
+    },
+  },
   play_pause: { label: '\\u64ad\\u653e/\\u6682\\u505c', contextFill: {}, validateArgs: () => null },
   undo: { label: '\\u64a4\\u9500', contextFill: {}, validateArgs: () => null },
   redo: { label: '\\u91cd\\u505a', contextFill: {}, validateArgs: () => null },
@@ -820,7 +840,7 @@ export function planToolCallTargets(
   context: AiPromptContext | null | undefined,
 ): ToolPlannerResult {
   const shortTerm = context?.shortTerm;
-  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUtteranceUnitId);
+  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUnitId);
   const currentSegmentId = getFirstNonEmptyString(shortTerm?.activeSegmentUnitId);
   const selectedUnitIds = getNormalizedIdList(shortTerm?.selectedUnitIds);
   const currentAudioTimeSec = typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
@@ -1332,7 +1352,7 @@ export function buildPreviewContract(call: AiChatToolCall, context?: AiPromptCon
   if (call.name === 'delete_transcription_segment') {
     if (hasDeleteAllSegmentsScope(args)) {
       return {
-        affectedCount: getContextUtteranceCount(context),
+        affectedCount: getContextProjectUnitCount(context),
         affectedIds: [],
         reversible: true,
         cascadeTypes: ['translation'],
@@ -1353,6 +1373,16 @@ export function buildPreviewContract(call: AiChatToolCall, context?: AiPromptCon
       affectedIds: lid ? [lid] : [],
       reversible: true,
       cascadeTypes: ['link', 'alignment'],
+    };
+  }
+  if (call.name === 'propose_changes') {
+    const raw = args.changes;
+    const n = Array.isArray(raw) ? raw.length : 0;
+    return {
+      affectedCount: Math.max(1, n),
+      affectedIds: [],
+      reversible: true,
+      cascadeTypes: ['transcription', 'translation'],
     };
   }
   return {

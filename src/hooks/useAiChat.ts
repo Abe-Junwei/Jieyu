@@ -33,6 +33,7 @@ import {
   type HistoryChatMessage,
 } from '../ai/chat/historyTrim';
 import {
+  buildSessionMemoryPromptDigest,
   clearConversationSummaryMemory,
   loadSessionMemory,
   persistSessionMemory,
@@ -162,6 +163,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const onToolCallRef = useLatest(onToolCall);
   const onToolRiskCheckRef = useLatest(onToolRiskCheck);
   const preparePendingToolCallRef = useLatest(preparePendingToolCall);
+  const getTimelineReadModelEpochRef = useLatest(options?.getTimelineReadModelEpoch);
   const onMessageCompleteRef = useLatest(options?.onMessageComplete);
   const toolDecisionMode = resolveAiToolDecisionMode();
   const settingsHydratedRef = useRef(false);
@@ -356,6 +358,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     setPendingToolCall,
     setTaskSession,
     bumpMetric,
+    getTimelineReadModelEpoch: () => getTimelineReadModelEpochRef.current?.(),
   });
 
   const send = useCallback(async (userText: string) => {
@@ -513,6 +516,15 @@ export function useAiChat(options?: UseAiChatOptions) {
           messageId: m.id,
           ...(pinnedMessageIds.has(m.id) ? { pinned: true } : {}),
         }));
+      const contextCharBudgets = await resolveContextCharBudgets({
+        providerKind: settingsRef.current.providerKind,
+        model: settingsRef.current.model,
+        ...(maxContextCharsOverride !== undefined ? { maxContextCharsOverride } : {}),
+        ...(historyCharBudgetOverride !== undefined ? { historyCharBudgetOverride } : {}),
+      });
+      const historyCharBudget = contextCharBudgets.historyCharBudget;
+      const maxContextChars = contextCharBudgets.maxContextChars;
+
       const summaryRecentRounds = 3;
       const summaryTriggerTurns = 5;
       const summaryCandidateHistory = historyRaw.filter((message) => !message.pinned);
@@ -520,7 +532,10 @@ export function useAiChat(options?: UseAiChatOptions) {
       const coveredTurnTarget = countHistoryUserTurns(olderMessages);
       const previousCoveredTurns = sessionMemoryRef.current.summaryTurnCount ?? 0;
       if (coveredTurnTarget - previousCoveredTurns >= summaryTriggerTurns) {
-        const conversationSummary = buildConversationSummaryFromHistory(olderMessages);
+        const conversationSummary = buildConversationSummaryFromHistory(
+          olderMessages,
+          contextCharBudgets.conversationSummaryMaxChars,
+        );
         if (conversationSummary) {
           const similarityScore = estimateSummaryCoverageSimilarity(olderMessages, conversationSummary);
           sessionMemoryRef.current = updateConversationSummaryMemory(
@@ -535,21 +550,23 @@ export function useAiChat(options?: UseAiChatOptions) {
           persistSessionMemory(sessionMemoryRef.current);
         }
       }
-      const contextCharBudgets = await resolveContextCharBudgets({
-        providerKind: settingsRef.current.providerKind,
-        model: settingsRef.current.model,
-        ...(maxContextCharsOverride !== undefined ? { maxContextCharsOverride } : {}),
-        ...(historyCharBudgetOverride !== undefined ? { historyCharBudgetOverride } : {}),
-      });
-      const historyCharBudget = contextCharBudgets.historyCharBudget;
-      const maxContextChars = contextCharBudgets.maxContextChars;
+
       const history = trimHistoryByChars(
         historyRaw,
         historyCharBudget,
         summaryRecentRounds,
         sessionMemoryRef.current.conversationSummary,
       );
-      const aiContext = getContextRef.current?.() ?? null;
+      const basePromptContext = getContextRef.current?.() ?? null;
+      const sessionMemoryDigest = buildSessionMemoryPromptDigest(
+        sessionMemoryRef.current,
+        contextCharBudgets.sessionMemoryDigestMaxChars,
+      );
+      const aiContext = sessionMemoryDigest
+        ? (basePromptContext
+          ? { ...basePromptContext, shortTerm: { ...basePromptContext.shortTerm, sessionMemoryDigest } }
+          : { shortTerm: { sessionMemoryDigest } })
+        : basePromptContext;
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
       ({

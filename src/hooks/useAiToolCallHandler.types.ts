@@ -30,9 +30,15 @@ export type UseAiToolCallHandlerParams = {
   splitTranscriptionSegment?: (targetId: string, splitTime: number) => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
+  /** Preferred: merge selected timeline units (batch targets are utterance ids after mapping). */
+  mergeSelectedUnits?: (ids: Set<string>) => Promise<void>;
+  /** @deprecated Use `mergeSelectedUnits` — same signature; legacy name from utterance-only era. */
   mergeSelectedUtterances?: (ids: Set<string>) => Promise<void>;
   mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
   deleteUtterance: (id: string) => Promise<void>;
+  /** Preferred: delete selected timeline units (batch targets are utterance ids after mapping). */
+  deleteSelectedUnits?: (ids: Set<string>) => Promise<void>;
+  /** @deprecated Use `deleteSelectedUnits` — same signature. */
   deleteSelectedUtterances?: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
@@ -90,9 +96,11 @@ export interface ExecutionContext {
   splitTranscriptionSegment?: UseAiToolCallHandlerParams['splitTranscriptionSegment'];
   mergeWithPrevious?: UseAiToolCallHandlerParams['mergeWithPrevious'];
   mergeWithNext?: UseAiToolCallHandlerParams['mergeWithNext'];
+  mergeSelectedUnits?: UseAiToolCallHandlerParams['mergeSelectedUnits'];
   mergeSelectedUtterances?: UseAiToolCallHandlerParams['mergeSelectedUtterances'];
   mergeSelectedSegments?: UseAiToolCallHandlerParams['mergeSelectedSegments'];
   deleteUtterance: UseAiToolCallHandlerParams['deleteUtterance'];
+  deleteSelectedUnits?: UseAiToolCallHandlerParams['deleteSelectedUnits'];
   deleteSelectedUtterances?: UseAiToolCallHandlerParams['deleteSelectedUtterances'];
   deleteLayer: UseAiToolCallHandlerParams['deleteLayer'];
   toggleLayerLink: UseAiToolCallHandlerParams['toggleLayerLink'];

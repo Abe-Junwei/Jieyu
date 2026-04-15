@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
 import type {
@@ -47,7 +47,7 @@ export type AiPanelContextValue = {
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   // ── Selection ──
-  selectedUnit: UtteranceDocType | null;
+  selectedUnit: TimelineUnitView | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
   selectedAiWarning: boolean;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;

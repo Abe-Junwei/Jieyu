@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ProjectStage } from '../ai/ProjectObserver';
 import type { AiConnectionTestStatus, AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage } from '../hooks/useAiChat';
@@ -16,7 +16,7 @@ import type { AiRecommendationEvent } from '../hooks/useAiChat.types';
 
 export interface AiChatContextValue {
   currentPage?: 'transcription' | 'glossing' | 'settings' | 'other';
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: TimelineUnitView | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
   selectedUnitKind?: 'utterance' | 'segment' | null;
   selectedLayerType?: 'transcription' | 'translation';
@@ -69,11 +69,13 @@ export interface AiChatContextValue {
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void) | undefined;
+  /** Current timeline read-model epoch (transcription workspace); for pending destructive tool UX. */
+  timelineReadModelEpoch?: number;
 }
 
 export const DEFAULT_AI_CHAT_CONTEXT_VALUE: AiChatContextValue = {
   currentPage: 'other',
-  selectedUtterance: null,
+  selectedUnit: null,
   selectedRowMeta: null,
   selectedUnitKind: null,
   selectedText: '',

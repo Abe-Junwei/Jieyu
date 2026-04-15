@@ -207,6 +207,25 @@ const SEGMENT_OR_UTTERANCE_TARGET_SCHEMA = z.object({
   }
 });
 
+const proposeChangeItemSchema = z.object({
+  tool: z.string().trim().min(1).max(64).optional(),
+  name: z.string().trim().min(1).max(64).optional(),
+  arguments: z.record(z.string(), z.unknown()).optional(),
+}).superRefine((row, ctx) => {
+  if (!row.tool && !row.name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: decodeEscapedUnicode('\\u6bcf\\u6761 changes \\u9700\\u8981 tool \\u6216 name\\u3002'),
+    });
+  }
+});
+
+export const proposeChangesArgsSchema = z.object({
+  description: z.string().trim().max(2000).optional(),
+  changes: z.array(proposeChangeItemSchema).min(1).max(40),
+  sourceEpoch: z.number().int().nonnegative().optional(),
+});
+
 // ─── Schema map ──────────────────────────────────────────────────────────────
 
 export const toolArgumentSchemas = {
@@ -225,6 +244,7 @@ export const toolArgumentSchemas = {
   auto_gloss_utterance: autoGlossUtteranceSchema,
   set_token_pos: setTokenPosSchema,
   set_token_gloss: setTokenGlossSchema,
+  propose_changes: proposeChangesArgsSchema,
   play_pause: NoArgs,
   undo: NoArgs,
   redo: NoArgs,
