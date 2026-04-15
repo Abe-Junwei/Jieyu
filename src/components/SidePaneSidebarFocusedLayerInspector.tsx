@@ -1,11 +1,14 @@
-import type { LayerDocType } from '../db';
-import { useOrthographies } from '../hooks/useOrthographies';
+import type { LayerDocType, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
-import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
-import { formatSidePaneLayerLabel, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import {
+  formatSidePaneLayerLabel,
+  getLayerHeaderLanguageLine,
+  getOrthographyHeaderLine,
+  getLayerHeaderVarietyOrAliasLine,
+  getLayerLabelParts,
+} from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
-import { OrthographyPanelLink } from './OrthographyPanelLink';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 
 type SidePaneSidebarFocusedLayerInspectorProps = {
@@ -14,6 +17,7 @@ type SidePaneSidebarFocusedLayerInspectorProps = {
   deletableLayers: LayerDocType[];
   focusedLayerParentKey: string;
   independentRootLayers: LayerDocType[];
+  orthographyById: Map<string, OrthographyDocType>;
   onOpenDeletePanel: (layerId: string) => void;
   onChangeLayerParent: (transcriptionKey: string, translationId: string) => void;
 };
@@ -24,11 +28,11 @@ export function SidePaneSidebarFocusedLayerInspector({
   deletableLayers,
   focusedLayerParentKey,
   independentRootLayers,
+  orthographyById,
   onOpenDeletePanel,
   onChangeLayerParent,
 }: SidePaneSidebarFocusedLayerInspectorProps) {
   const locale = useLocale();
-  const orthographies = useOrthographies(focusedLayer?.languageId ? [focusedLayer.languageId] : []);
 
   if (!focusedLayer) {
     return (
@@ -38,24 +42,28 @@ export function SidePaneSidebarFocusedLayerInspector({
     );
   }
 
-  const labelParts = getLayerLabelParts(focusedLayer);
+  const labelParts = getLayerLabelParts(focusedLayer, locale);
   const canDeleteFocusedLayer = deletableLayers.some((layer) => layer.id === focusedLayer.id);
   const canEditFocusedLayerParent = focusedLayer.layerType === 'translation'
     && independentRootLayers.length > 0;
   const hasValidFocusedParent = Boolean(focusedLayerParentKey)
     && independentRootLayers.some((candidateLayer) => candidateLayer.key === focusedLayerParentKey);
   const targetOrthography = focusedLayer.orthographyId
-    ? orthographies.find((orthography) => orthography.id === focusedLayer.orthographyId)
+    ? orthographyById.get(focusedLayer.orthographyId)
     : undefined;
+  const languageLine = getLayerHeaderLanguageLine(focusedLayer, locale);
+  const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(focusedLayer);
+  const orthographyLine = getOrthographyHeaderLine(targetOrthography, locale);
   const targetOrthographyBadge = targetOrthography ? getOrthographyCatalogBadgeInfo(locale, targetOrthography) : null;
 
   return (
     <section className="transcription-side-pane-inspector" aria-label={messages.inspectorAria}>
       <div className="transcription-side-pane-inspector-header">
-        <span className="transcription-side-pane-inspector-chip" data-layer-type={focusedLayer.layerType}>
-          {focusedLayer.layerType === 'translation' ? messages.layerTypeTranslationShort : messages.layerTypeTranscriptionShort}
+        <span className="transcription-side-pane-inspector-title-stack">
+          <span className="transcription-side-pane-inspector-title transcription-side-pane-inspector-title-primary">{languageLine}</span>
+          <span className="transcription-side-pane-inspector-title transcription-side-pane-inspector-title-secondary">{varietyOrAliasLine}</span>
+          <span className="transcription-side-pane-inspector-title transcription-side-pane-inspector-title-tertiary">{orthographyLine}</span>
         </span>
-        <span className="transcription-side-pane-inspector-title">{formatSidePaneLayerLabel(focusedLayer)}</span>
         <button
           type="button"
           className="transcription-side-pane-inspector-del-btn"
@@ -75,7 +83,7 @@ export function SidePaneSidebarFocusedLayerInspector({
           <div>
             <dt>{messages.inspectorOrthography}</dt>
             <dd>
-              <span>{formatOrthographyOptionLabel(targetOrthography, locale)}</span>
+              <span>{getOrthographyHeaderLine(targetOrthography, locale)}</span>
               {targetOrthographyBadge ? <span className={targetOrthographyBadge.className}>{targetOrthographyBadge.label}</span> : null}
             </dd>
           </div>
@@ -109,18 +117,6 @@ export function SidePaneSidebarFocusedLayerInspector({
       </dl>
       {focusedLayer.layerType === 'translation' && independentRootLayers.length === 0 ? (
         <div className="transcription-side-pane-inspector-note">{messages.inspectorNoIndependentLayer}</div>
-      ) : null}
-      {targetOrthography ? (
-        <div className="transcription-side-pane-inspector-note">
-          <OrthographyPanelLink
-            className="btn btn-ghost"
-            orthographyId={targetOrthography.id}
-            fromLayerId={focusedLayer.id}
-          >
-            {messages.inspectorBridgeRulesButton}
-          </OrthographyPanelLink>
-          <div>{messages.inspectorBridgeRulesHint}</div>
-        </div>
       ) : null}
     </section>
   );

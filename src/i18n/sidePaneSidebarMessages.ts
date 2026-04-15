@@ -64,6 +64,8 @@ export type SidePaneSidebarMessages = {
   draggableLayerRoleDesc: string;
   layerTypeTranslationShort: string;
   layerTypeTranscriptionShort: string;
+  layerHeaderVarietyFallback: string;
+  layerHeaderOrthographyFallback: string;
   emptyLayerHint: string;
   inspectorAria: string;
   inspectorEmpty: string;
@@ -73,16 +75,12 @@ export type SidePaneSidebarMessages = {
   inspectorConstraint: string;
   inspectorAlias: string;
   inspectorOrthography: string;
-  inspectorBridgeRulesButton: string;
-  inspectorBridgeRulesHint: string;
   inspectorParentLayer: string;
   inspectorParentLayerAria: string;
   inspectorSelectPlaceholder: string;
   inspectorNoIndependentLayer: string;
   overviewLayerListAria: string;
   overviewLayerListTitle: string;
-  overviewCurrentLayerCardAria: string;
-  overviewCurrentLayerTitle: string;
   quickActionsAria: string;
   quickActionCreateTranscription: string;
   quickActionCreateTranslation: string;
@@ -109,6 +107,12 @@ export type SidePaneSidebarMessages = {
   inlinePaneAria: string;
   paneTitle: string;
   paneSubtitle: string;
+  segmentListAria: string;
+  segmentListTitle: string;
+  segmentListNoSegments: string;
+  segmentListEmpty: string;
+  segmentListFilterPlaceholder: string;
+  segmentListTimeRange: (start: string, end: string) => string;
   repairNoNeed: string;
   repairFailedPrefix: string;
   repairSummary: (changedLayers: number, changedSortLayers: number, remaining: number) => string;
@@ -176,6 +180,8 @@ const zhCN: SidePaneSidebarMessages = {
   draggableLayerRoleDesc: '\u53ef\u62d6\u62fd\u5c42',
   layerTypeTranslationShort: '\u8bd1',
   layerTypeTranscriptionShort: '\u5199',
+  layerHeaderVarietyFallback: '\u672a\u8bbe\u7f6e\u65b9\u8a00\u6216\u522b\u540d',
+  layerHeaderOrthographyFallback: '\u672a\u8bbe\u7f6e\u6b63\u5b57\u6cd5',
   emptyLayerHint: '\u6682\u65e0\u5c42\uff0c\u8bf7\u5728\u5de6\u4fa7\u680f\u4e2d\u90e8\u9884\u7559\u533a\u70b9\u300c\u65b0\u5efa\u8f6c\u5199\u5c42\u300d',
   inspectorAria: '\u5f53\u524d\u5c42\u8be6\u60c5',
   inspectorEmpty: '\u8bf7\u9009\u62e9\u4e00\u4e2a\u5c42\u67e5\u770b\u8be6\u60c5\u3002',
@@ -185,16 +191,12 @@ const zhCN: SidePaneSidebarMessages = {
   inspectorConstraint: '\u7ea6\u675f',
   inspectorAlias: '\u522b\u540d',
   inspectorOrthography: '\u6b63\u5b57\u6cd5',
-  inspectorBridgeRulesButton: '\u6253\u5f00\u6b63\u5b57\u6cd5\u6865\u63a5\u5de5\u4f5c\u53f0',
-  inspectorBridgeRulesHint: '\u5199\u5165\u6865\u63a5\u89c4\u5219\u5df2\u8fc1\u79fb\u5230\u72ec\u7acb\u7684\u6b63\u5b57\u6cd5\u7ba1\u7406\u5668\uff0c\u5f53\u524d\u68c0\u89c6\u5668\u53ea\u4fdd\u7559\u8df3\u8f6c\u5165\u53e3\u3002',
   inspectorParentLayer: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
   inspectorParentLayerAria: '\u4f9d\u8d56\u8f6c\u5199\u5c42',
   inspectorSelectPlaceholder: '\u8bf7\u9009\u62e9',
   inspectorNoIndependentLayer: '\u6682\u65e0\u53ef\u7528\u7684\u72ec\u7acb\u8f6c\u5199\u5c42\u53ef\u4f9b\u7ed1\u5b9a\u3002',
   overviewLayerListAria: '\u5c42\u5217\u8868',
   overviewLayerListTitle: '\u5c42\u5217\u8868',
-  overviewCurrentLayerCardAria: '\u5f53\u524d\u5c42\u8be6\u60c5\u5361\u7247',
-  overviewCurrentLayerTitle: '\u5f53\u524d\u5c42\u8be6\u60c5',
   quickActionsAria: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c',
   quickActionCreateTranscription: '\u65b0\u5efa\u8f6c\u5199\u5c42',
   quickActionCreateTranslation: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
@@ -221,6 +223,12 @@ const zhCN: SidePaneSidebarMessages = {
   inlinePaneAria: '\u6587\u672c\u533a\u5c42\u6eda\u52a8\u680f',
   paneTitle: '\u6587\u672c\u5c42\u5de5\u4f5c\u53f0',
   paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
+  segmentListAria: '\u8bed\u6bb5\u5217\u8868',
+  segmentListTitle: '\u8bed\u6bb5\u5217\u8868',
+  segmentListNoSegments: '\u5f53\u524d\u5c42\u6682\u65e0\u8bed\u6bb5',
+  segmentListEmpty: '\u65e0\u5185\u5bb9',
+  segmentListFilterPlaceholder: '\u7b5b\u9009\u8bed\u6bb5\u2026',
+  segmentListTimeRange: (start, end) => `${start} \u2013 ${end}`,
   repairNoNeed: '\u5c42\u7ea6\u675f\u68c0\u67e5\u901a\u8fc7\uff0c\u65e0\u9700\u4fee\u590d\u3002',
   repairFailedPrefix: '\u7ea6\u675f\u4fee\u590d\u5931\u8d25\uff1a',
   repairSummary: (changedLayers, changedSortLayers, remaining) => `\u5df2\u4fee\u590d ${changedLayers} \u6761\u7ed3\u6784\u7ea6\u675f\u3001${changedSortLayers} \u6761\u987a\u5e8f\u95ee\u9898\uff0c\u4ecd\u6709 ${remaining} \u6761\u9700\u4eba\u5de5\u5904\u7406\u3002`,
@@ -288,6 +296,8 @@ const enUS: SidePaneSidebarMessages = {
   draggableLayerRoleDesc: 'Draggable layer',
   layerTypeTranslationShort: 'TR',
   layerTypeTranscriptionShort: 'TX',
+  layerHeaderVarietyFallback: 'No variety or alias',
+  layerHeaderOrthographyFallback: 'No orthography',
   emptyLayerHint: 'No layers yet — use “Create transcription layer” in the left rail middle slot',
   inspectorAria: 'Current layer details',
   inspectorEmpty: 'Select a layer to view details.',
@@ -297,16 +307,12 @@ const enUS: SidePaneSidebarMessages = {
   inspectorConstraint: 'Constraint',
   inspectorAlias: 'Alias',
   inspectorOrthography: 'Orthography',
-  inspectorBridgeRulesButton: 'Open orthography bridge workspace',
-  inspectorBridgeRulesHint: 'Write bridge rules now live in a dedicated orthography manager, and the current-layer inspector only keeps the jump entry.',
   inspectorParentLayer: 'Parent transcription layer',
   inspectorParentLayerAria: 'Parent transcription layer',
   inspectorSelectPlaceholder: 'Please select',
   inspectorNoIndependentLayer: 'No independent transcription layer available for binding.',
   overviewLayerListAria: 'Layer list',
   overviewLayerListTitle: 'Layer list',
-  overviewCurrentLayerCardAria: 'Current layer details card',
-  overviewCurrentLayerTitle: 'Current layer details',
   quickActionsAria: 'Layer management quick actions',
   quickActionCreateTranscription: 'Create transcription layer',
   quickActionCreateTranslation: 'Create translation layer',
@@ -333,6 +339,12 @@ const enUS: SidePaneSidebarMessages = {
   inlinePaneAria: 'Text-area layer rail',
   paneTitle: 'Text Layer Workspace',
   paneSubtitle: 'Layer list, current layer details and quick actions',
+  segmentListAria: 'Segment list',
+  segmentListTitle: 'Segment list',
+  segmentListNoSegments: 'No segments in the current layer',
+  segmentListEmpty: 'No content',
+  segmentListFilterPlaceholder: 'Filter segments…',
+  segmentListTimeRange: (start, end) => `${start} – ${end}`,
   repairNoNeed: 'Layer constraints are valid, no repair needed.',
   repairFailedPrefix: 'Constraint repair failed: ',
   repairSummary: (changedLayers, changedSortLayers, remaining) => `Repaired ${changedLayers} structural constraints and ${changedSortLayers} ordering issues, with ${remaining} still requiring manual handling.`,

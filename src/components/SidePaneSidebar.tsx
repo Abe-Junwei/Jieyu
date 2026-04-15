@@ -20,9 +20,6 @@ import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
 import {
-  listIndependentBoundaryTranscriptionLayers,
-} from '../services/LayerConstraintService';
-import {
   buildLayerBundles,
 } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
@@ -121,15 +118,6 @@ export function SidePaneSidebar({
     setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
   }, [setLayerActionPanel]);
 
-  const openDeletePanelForLayer = useCallback((layerId: string) => {
-    setQuickDeleteLayerId(layerId);
-    setLayerActionPanel('delete');
-  }, [setLayerActionPanel, setQuickDeleteLayerId]);
-
-  const handleChangeLayerParent = useCallback((transcriptionKey: string, translationId: string) => {
-    fireAndForget(toggleLayerLink(transcriptionKey, translationId));
-  }, [toggleLayerLink]);
-
   const sidePaneHost = useAppSidePaneHostOptional();
   const hasSidePaneHost = sidePaneHost !== null;
   const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
@@ -167,26 +155,10 @@ export function SidePaneSidebar({
     onReorderLayers,
   });
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
-  const focusedLayer = useMemo(
-    () => sidePaneRows.find((layer) => layer.id === focusedLayerRowId) ?? null,
-    [focusedLayerRowId, sidePaneRows],
-  );
-  const independentRootLayers = useMemo(
-    () => listIndependentBoundaryTranscriptionLayers(sidePaneRows),
-    [sidePaneRows],
-  );
-  const layerKeyById = useMemo(
-    () => new Map(sidePaneRows.map((layer) => [layer.id, layer.key] as const)),
-    [sidePaneRows],
-  );
   const layerLabelById = useMemo(
     () => new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
     [sidePaneRows],
   );
-  const focusedLayerParentKey = useMemo(() => {
-    if (!focusedLayer?.parentLayerId) return '';
-    return layerKeyById.get(focusedLayer.parentLayerId) ?? '';
-  }, [focusedLayer, layerKeyById]);
   const {
     constraintRepairBusy,
     constraintRepairMessage,
@@ -234,17 +206,11 @@ export function SidePaneSidebar({
       bundleRootIds={bundleRootIds}
       bundleBoundaryIndexes={bundleBoundaryIndexes}
       layerLabelById={layerLabelById}
-      deletableLayers={deletableLayers}
-      focusedLayer={focusedLayer}
-      focusedLayerParentKey={focusedLayerParentKey}
-      independentRootLayers={independentRootLayers}
       resolveTargetBundleRange={resolveTargetBundleRange}
       onFocusLayer={onFocusLayer}
       onContextMenu={handleLayerContextMenu}
       onMouseDown={handleDragStart}
       onKeyboardReorder={handleKeyboardReorder}
-      onOpenDeletePanel={openDeletePanelForLayer}
-      onChangeLayerParent={handleChangeLayerParent}
     />
   ), [
     sidePaneOverviewRef,
@@ -258,17 +224,11 @@ export function SidePaneSidebar({
     bundleRootIds,
     bundleBoundaryIndexes,
     layerLabelById,
-    deletableLayers,
-    focusedLayer,
-    focusedLayerParentKey,
-    independentRootLayers,
     resolveTargetBundleRange,
     onFocusLayer,
     handleLayerContextMenu,
     handleDragStart,
     handleKeyboardReorder,
-    openDeletePanelForLayer,
-    handleChangeLayerParent,
   ]);
 
   const sidePaneActionsNode = useMemo(() => (

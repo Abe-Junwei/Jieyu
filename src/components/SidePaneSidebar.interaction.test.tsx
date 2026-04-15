@@ -1035,240 +1035,6 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     });
   });
 
-  it('edits translation parent relation from the current layer inspector', async () => {
-    const now = '2026-03-25T00:00:00.000Z';
-    const trcLayerA = {
-      id: 'layer_trc_1',
-      textId: 'text_1',
-      key: 'trc_zh_1',
-      name: { zho: '转写层甲' },
-      layerType: 'transcription',
-      languageId: 'zho',
-      modality: 'text',
-      acceptsAudio: false,
-      constraint: 'independent_boundary',
-      sortOrder: 0,
-      createdAt: now,
-      updatedAt: now,
-    } as LayerDocType;
-    const trcLayerB = {
-      id: 'layer_trc_2',
-      textId: 'text_1',
-      key: 'trc_eng_1',
-      name: { zho: '转写层乙' },
-      layerType: 'transcription',
-      languageId: 'eng',
-      modality: 'text',
-      acceptsAudio: false,
-      constraint: 'independent_boundary',
-      sortOrder: 1,
-      createdAt: now,
-      updatedAt: now,
-    } as LayerDocType;
-    const trlLayer = {
-      id: 'layer_trl_1',
-      textId: 'text_1',
-      key: 'trl_fra_1',
-      name: { zho: '翻译层丙' },
-      layerType: 'translation',
-      languageId: 'fra',
-      modality: 'text',
-      acceptsAudio: false,
-      parentLayerId: trcLayerA.id,
-      sortOrder: 2,
-      createdAt: now,
-      updatedAt: now,
-    } as LayerDocType;
-
-    const toggleLayerLink = vi.fn(async () => undefined);
-
-    const view = renderSidebarForCreateContextMenuFlow({
-      layerRows: [trcLayerA, trcLayerB, trlLayer],
-      transcriptionLayers: [trcLayerA, trcLayerB],
-      translationLayers: [trlLayer],
-      toggleLayerLink,
-      focusedLayerRowId: trlLayer.id,
-    });
-
-    const inspector = within(screen.getByLabelText('当前层详情'));
-    expect(view.container.querySelectorAll('.transcription-side-pane-item-row')).toHaveLength(3);
-    const relationSelect = inspector.getByRole('combobox', { name: '依赖转写层' }) as HTMLSelectElement;
-
-    fireEvent.change(relationSelect, { target: { value: 'trc_eng_1' } });
-
-    await waitFor(() => {
-      expect(toggleLayerLink).toHaveBeenCalledWith('trc_eng_1', 'layer_trl_1');
-    });
-  });
-
-  it('shows an independent bridge-rule entry in current-layer inspector when the focused layer has an orthography', async () => {
-    const now = '2026-03-25T00:00:00.000Z';
-    const trcLayer = {
-      id: 'layer_trc_bridge',
-      textId: 'text_1',
-      key: 'trc_eng_bridge',
-      name: { zho: '转写层桥接' },
-      layerType: 'transcription',
-      languageId: 'eng',
-      orthographyId: 'orth-bridge',
-      modality: 'text',
-      acceptsAudio: false,
-      sortOrder: 0,
-      createdAt: now,
-      updatedAt: now,
-    } as LayerDocType;
-
-    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
-      if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth-bridge',
-          languageId: 'eng',
-          name: { eng: 'Bridge Orthography' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: now,
-          updatedAt: now,
-        }];
-      }
-      return [];
-    });
-
-    renderSidebarForCreateContextMenuFlow({
-      layerRows: [trcLayer],
-      transcriptionLayers: [trcLayer],
-      translationLayers: [],
-      focusedLayerRowId: trcLayer.id,
-    });
-
-    const inspector = within(screen.getByLabelText('当前层详情'));
-    await waitFor(() => {
-      expect(inspector.getByText('Bridge Orthography · Latn · practical')).toBeTruthy();
-      expect(inspector.getByRole('link', { name: '打开正字法桥接工作台' })).toBeTruthy();
-    });
-
-    const workspaceLink = inspector.getByRole('link', { name: '打开正字法桥接工作台' });
-    expect(workspaceLink.getAttribute('href')).toBe('/assets/orthographies?orthographyId=orth-bridge&fromLayerId=layer_trc_bridge');
-    expect(inspector.getByText('写入桥接规则已迁移到独立的正字法管理器，当前检视器只保留跳转入口。')).toBeTruthy();
-  });
-
-  it('keeps hook order stable when the focused-layer inspector switches from empty to populated', async () => {
-    const now = '2026-03-25T00:00:00.000Z';
-    const trcLayer = {
-      id: 'layer_trc_focus_toggle',
-      textId: 'text_1',
-      key: 'trc_eng_focus_toggle',
-      name: { zho: '转写层切换' },
-      layerType: 'transcription',
-      languageId: 'eng',
-      orthographyId: 'orth-focus-toggle',
-      modality: 'text',
-      acceptsAudio: false,
-      sortOrder: 0,
-      createdAt: now,
-      updatedAt: now,
-    } as LayerDocType;
-
-    mockUseOrthographies.mockImplementation((languageIds: string[]) => {
-      if (languageIds.includes('eng')) {
-        return [{
-          id: 'orth-focus-toggle',
-          languageId: 'eng',
-          name: { eng: 'Focus Toggle Orthography' },
-          scriptTag: 'Latn',
-          type: 'practical',
-          createdAt: now,
-          updatedAt: now,
-        }];
-      }
-      return [];
-    });
-
-    const view = renderSidebarForCreateContextMenuFlow({
-      layerRows: [trcLayer],
-      transcriptionLayers: [trcLayer],
-      translationLayers: [],
-      focusedLayerRowId: '',
-    });
-
-    expect(screen.getByText('请选择一个层查看详情。')).toBeTruthy();
-
-    view.rerender(
-      wrapSidebarTestTree(
-        <LocaleProvider locale="zh-CN">
-          <SpeakerRailProvider
-            speakerManagement={{
-              speakerOptions: [] as SpeakerDocType[],
-              speakerDraftName: '',
-              setSpeakerDraftName: vi.fn(),
-              batchSpeakerId: '',
-              setBatchSpeakerId: vi.fn(),
-              speakerSaving: false,
-              activeSpeakerFilterKey: 'all',
-              setActiveSpeakerFilterKey: vi.fn(),
-              speakerDialogState: null,
-              speakerVisualByUtteranceId: {},
-              speakerFilterOptions: [],
-              speakerReferenceStats: {},
-              speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
-              speakerReferenceStatsMediaScoped: false,
-              speakerReferenceStatsReady: true,
-              selectedSpeakerSummary: '',
-              handleSelectSpeakerUtterances: vi.fn(),
-              handleClearSpeakerAssignments: vi.fn(),
-              handleExportSpeakerSegments: vi.fn(),
-              handleRenameSpeaker: vi.fn(),
-              handleMergeSpeaker: vi.fn(),
-              handleDeleteSpeaker: vi.fn(),
-              handleDeleteUnusedSpeakers: vi.fn(async () => undefined),
-              handleAssignSpeakerToSelected: vi.fn(async () => undefined),
-              handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
-              handleCreateSpeakerOnly: vi.fn(async () => undefined),
-              closeSpeakerDialog: vi.fn(),
-              updateSpeakerDialogDraftName: vi.fn(),
-              updateSpeakerDialogTargetKey: vi.fn(),
-              confirmSpeakerDialog: vi.fn(async () => undefined),
-            }}
-            selectedUnitIds={new Set<string>()}
-            handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
-            handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
-          >
-            <SidePaneSidebar
-              sidePaneRows={[trcLayer]}
-              focusedLayerRowId={trcLayer.id}
-              flashLayerRowId=""
-              onFocusLayer={vi.fn()}
-              transcriptionLayers={[trcLayer]}
-              toggleLayerLink={vi.fn(async () => undefined)}
-              deletableLayers={[trcLayer]}
-              layerCreateMessage=""
-              layerAction={{
-                layerActionPanel: null,
-                setLayerActionPanel: vi.fn(),
-                layerActionRootRef: { current: null },
-                quickDeleteLayerId: trcLayer.id,
-                setQuickDeleteLayerId: vi.fn(),
-                quickDeleteKeepUtterances: false,
-                setQuickDeleteKeepUtterances: vi.fn(),
-                createLayer: vi.fn(async () => false),
-                deleteLayer: vi.fn(async () => undefined),
-                deleteLayerWithoutConfirm: vi.fn(async () => undefined),
-                checkLayerHasContent: vi.fn(async () => 0),
-              } as never}
-              onReorderLayers={vi.fn(async () => undefined)}
-            />
-          </SpeakerRailProvider>
-        </LocaleProvider>,
-      ),
-    );
-
-    const inspector = within(screen.getByLabelText('当前层详情'));
-    await waitFor(() => {
-      expect(inspector.getByText('转写 · 英语 eng')).toBeTruthy();
-      expect(inspector.getByText(/Focus Toggle Orthography/)).toBeTruthy();
-      expect(inspector.getByRole('link', { name: '打开正字法桥接工作台' })).toBeTruthy();
-    });
-  });
-
   it('shows prominent error message inside popover when create transcription fails and keeps popover open', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
@@ -1743,6 +1509,52 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.mouseUp(document, { clientY: 42 });
 
     expect(onReorderLayers).toHaveBeenCalledWith('layer_trc_root', 3);
+  });
+
+  it('shows layer constraint metadata and relation summary in the side pane rows', async () => {
+    const now = '2026-03-25T00:00:00.000Z';
+    const rootLayer = {
+      id: 'layer_trc_root_meta',
+      textId: 'text_1',
+      key: 'trc_zh_meta',
+      name: { zho: '中文层' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const translationLayer = {
+      id: 'layer_trl_meta',
+      textId: 'text_1',
+      key: 'trl_en_meta',
+      name: { zho: '英文翻译层' },
+      layerType: 'translation',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'symbolic_association',
+      parentLayerId: rootLayer.id,
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+
+    const view = renderSidebarForCreateContextMenuFlow({
+      layerRows: [rootLayer, translationLayer],
+      transcriptionLayers: [rootLayer],
+      translationLayers: [translationLayer],
+      focusedLayerRowId: 'missing-layer',
+    });
+
+    const rowButtons = Array.from(view.container.querySelectorAll<HTMLElement>('.transcription-side-pane-item'));
+    expect(rowButtons).toHaveLength(2);
+    expect(within(rowButtons[0]!).getByText('独立边界')).toBeTruthy();
+    expect(within(rowButtons[1]!).getByText('符号关联')).toBeTruthy();
+    expect(within(rowButtons[1]!).getByText(/依赖转写层/)).toBeTruthy();
   });
 
   it('shows repair detail panel after constraint repair action', async () => {

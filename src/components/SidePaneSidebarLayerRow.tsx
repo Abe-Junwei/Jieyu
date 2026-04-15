@@ -1,7 +1,12 @@
 import { memo } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, OrthographyDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
-import { formatSidePaneLayerLabel, getLayerLabelParts } from '../utils/transcriptionFormatters';
+import { useLocale } from '../i18n';
+import {
+  getLayerHeaderLanguageLine,
+  getOrthographyHeaderLine,
+  getLayerHeaderVarietyOrAliasLine,
+} from '../utils/transcriptionFormatters';
 
 type DragState = {
   draggedId: string;
@@ -21,6 +26,7 @@ type SidePaneSidebarLayerRowProps = {
   boundaryHighlight: 'top' | 'bottom' | null;
   bundleTargetHighlighted: boolean;
   parentLabel: string;
+  orthographyById: Map<string, OrthographyDocType>;
   messages: SidePaneSidebarMessages;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
@@ -38,20 +44,36 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
   boundaryHighlight,
   bundleTargetHighlighted,
   parentLabel,
+  orthographyById,
   messages,
   onFocusLayer,
   onContextMenu,
   onMouseDown,
   onKeyboardReorder,
 }: SidePaneSidebarLayerRowProps) {
-  const layerLabel = formatSidePaneLayerLabel(layer);
-  const labelParts = getLayerLabelParts(layer);
+  const locale = useLocale();
+  const languageLine = getLayerHeaderLanguageLine(layer, locale);
+  const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
+  const targetOrthography = layer.orthographyId
+    ? orthographyById.get(layer.orthographyId)
+    : undefined;
+  const orthographyLine = getOrthographyHeaderLine(targetOrthography, locale);
   const isActiveLayer = layer.id === focusedLayerRowId;
   const isFlashLayer = layer.id === flashLayerRowId;
   const isDragged = dragState?.draggedLayerIds.includes(layer.id) ?? false;
   const showDropIndicator = dropTargetIndex === index && !isDragged;
   const isTranslationLayer = layer.layerType === 'translation';
   const hasDependency = Boolean(parentLabel);
+  const effectiveConstraint = layer.constraint ?? (isTranslationLayer ? 'symbolic_association' : 'independent_boundary');
+  const constraintLabel = effectiveConstraint === 'independent_boundary'
+    ? messages.constraintIndependent
+    : effectiveConstraint === 'time_subdivision'
+      ? messages.constraintTimeSubdivision
+      : messages.constraintSymbolicAssociation;
+  const relationLine = parentLabel ? `${messages.inspectorParentLayer}：${parentLabel}` : '';
+  const layerLabel = [languageLine, varietyOrAliasLine, orthographyLine, constraintLabel, relationLine]
+    .filter((part) => part.length > 0)
+    .join(' · ');
 
   return (
     <div
@@ -82,12 +104,23 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
         aria-roledescription={messages.draggableLayerRoleDesc}
       >
         <span className="transcription-side-pane-item-drag-handle" aria-hidden="true">⠇</span>
-        <span className="transcription-side-pane-item-chip" aria-hidden="true">
-          {isTranslationLayer ? messages.layerTypeTranslationShort : messages.layerTypeTranscriptionShort}
-        </span>
         <span className="transcription-side-pane-item-label">
-          <strong className="transcription-side-pane-item-type">{labelParts.lang}</strong>
-          {labelParts.alias ? <span className="transcription-side-pane-item-alias">{labelParts.alias}</span> : null}
+          <strong className="transcription-side-pane-item-line transcription-side-pane-item-line-primary">{languageLine}</strong>
+          <span className="transcription-side-pane-item-line transcription-side-pane-item-line-secondary">{varietyOrAliasLine}</span>
+          <span className="transcription-side-pane-item-line transcription-side-pane-item-line-tertiary">
+            {orthographyLine && (
+              <span className="transcription-side-pane-item-inline-text">{orthographyLine}</span>
+            )}
+            {orthographyLine && constraintLabel && (
+              <span className="transcription-side-pane-item-inline-separator" aria-hidden="true">·</span>
+            )}
+            {constraintLabel && (
+              <span className="transcription-side-pane-item-inline-text">{constraintLabel}</span>
+            )}
+          </span>
+          {relationLine && (
+            <span className="transcription-side-pane-item-line transcription-side-pane-item-line-quaternary">{relationLine}</span>
+          )}
         </span>
       </button>
     </div>

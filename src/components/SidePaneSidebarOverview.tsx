@@ -1,8 +1,9 @@
-import type { RefObject } from 'react';
-import type { LayerDocType } from '../db';
+import { useMemo, type RefObject } from 'react';
+import type { LayerDocType, OrthographyDocType } from '../db';
+import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
-import { SidePaneSidebarFocusedLayerInspector } from './SidePaneSidebarFocusedLayerInspector';
+import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
 
 type DragState = {
   draggedId: string;
@@ -30,17 +31,11 @@ interface SidePaneSidebarOverviewProps {
   bundleRootIds: Set<string>;
   bundleBoundaryIndexes: number[];
   layerLabelById: Map<string, string>;
-  deletableLayers: LayerDocType[];
-  focusedLayer: LayerDocType | null;
-  focusedLayerParentKey: string;
-  independentRootLayers: LayerDocType[];
   resolveTargetBundleRange: (draggedId: string, dropIndex: number) => BundleRange | null;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
   onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
   onKeyboardReorder: (layerId: string, currentIndex: number, direction: 'up' | 'down') => void;
-  onOpenDeletePanel: (layerId: string) => void;
-  onChangeLayerParent: (transcriptionKey: string, translationId: string) => void;
 }
 
 export function SidePaneSidebarOverview({
@@ -55,18 +50,22 @@ export function SidePaneSidebarOverview({
   bundleRootIds,
   bundleBoundaryIndexes,
   layerLabelById,
-  deletableLayers,
-  focusedLayer,
-  focusedLayerParentKey,
-  independentRootLayers,
   resolveTargetBundleRange,
   onFocusLayer,
   onContextMenu,
   onMouseDown,
   onKeyboardReorder,
-  onOpenDeletePanel,
-  onChangeLayerParent,
 }: SidePaneSidebarOverviewProps) {
+  const orthographyLanguageIds = useMemo(
+    () => Array.from(new Set(sidePaneRows.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId)))),
+    [sidePaneRows],
+  );
+  const orthographies = useOrthographies(orthographyLanguageIds);
+  const orthographyById = useMemo<Map<string, OrthographyDocType>>(
+    () => new Map(orthographies.map((orthography) => [orthography.id, orthography] as const)),
+    [orthographies],
+  );
+
   const renderSidePaneItems = () => {
     if (sidePaneRows.length === 0) {
       return (
@@ -97,6 +96,7 @@ export function SidePaneSidebarOverview({
         boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
         bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
         parentLabel={layer.parentLayerId ? (layerLabelById.get(layer.parentLayerId) ?? '') : ''}
+        orthographyById={orthographyById}
         messages={messages}
         onFocusLayer={onFocusLayer}
         onContextMenu={onContextMenu}
@@ -105,18 +105,6 @@ export function SidePaneSidebarOverview({
       />
     ));
   };
-
-  const inspectorNode = (
-    <SidePaneSidebarFocusedLayerInspector
-      focusedLayer={focusedLayer}
-      messages={messages}
-      deletableLayers={deletableLayers}
-      focusedLayerParentKey={focusedLayerParentKey}
-      independentRootLayers={independentRootLayers}
-      onOpenDeletePanel={onOpenDeletePanel}
-      onChangeLayerParent={onChangeLayerParent}
-    />
-  );
 
   return (
     <div
@@ -134,20 +122,13 @@ export function SidePaneSidebarOverview({
               {renderSidePaneItems()}
             </div>
           </section>
-          <section className="app-side-pane-group app-side-pane-layer-group" aria-label={messages.overviewCurrentLayerCardAria}>
-            <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-              <span className="app-side-pane-section-title">{messages.overviewCurrentLayerTitle}</span>
-            </div>
-            <div className="app-side-pane-nav app-side-pane-layer-inspector-wrap">
-              {inspectorNode}
-            </div>
-          </section>
+          <SidePaneSidebarSegmentList
+            focusedLayerRowId={focusedLayerRowId}
+            messages={messages}
+          />
         </>
       ) : (
-        <>
-          {renderSidePaneItems()}
-          {inspectorNode}
-        </>
+        renderSidePaneItems()
       )}
     </div>
   );
