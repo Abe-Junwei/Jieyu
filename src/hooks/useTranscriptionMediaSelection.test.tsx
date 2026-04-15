@@ -8,8 +8,8 @@ import type { MediaItemDocType } from '../db';
 type HookProps = {
   mediaItems: MediaItemDocType[];
   selectedMediaId: string;
-  selectedUtteranceMediaId: string | undefined;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnitMediaId: string | undefined;
+  selectedUnitMedia: MediaItemDocType | undefined;
 };
 
 function makeBlobMedia(id: string, filename = 'demo.wav'): MediaItemDocType {
@@ -45,8 +45,8 @@ describe('useTranscriptionMediaSelection', () => {
       initialProps: {
         mediaItems: [media],
         selectedMediaId: 'media-1',
-        selectedUtteranceMediaId: undefined,
-        selectedUtteranceMedia: media,
+        selectedUnitMediaId: undefined,
+        selectedUnitMedia: media,
       },
     });
 
@@ -57,8 +57,8 @@ describe('useTranscriptionMediaSelection', () => {
     rerender({
       mediaItems: [media],
       selectedMediaId: 'media-1',
-      selectedUtteranceMediaId: undefined,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: undefined,
     });
 
     await waitFor(() => {
@@ -70,8 +70,8 @@ describe('useTranscriptionMediaSelection', () => {
     rerender({
       mediaItems: [media],
       selectedMediaId: '',
-      selectedUtteranceMediaId: undefined,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: undefined,
     });
 
     await waitFor(() => {
@@ -96,8 +96,8 @@ describe('useTranscriptionMediaSelection', () => {
       initialProps: {
         mediaItems: [mediaA, mediaB],
         selectedMediaId: 'media-1',
-        selectedUtteranceMediaId: undefined,
-        selectedUtteranceMedia: mediaA,
+        selectedUnitMediaId: undefined,
+        selectedUnitMedia: mediaA,
       },
     });
 
@@ -108,8 +108,8 @@ describe('useTranscriptionMediaSelection', () => {
     rerender({
       mediaItems: [mediaA, mediaB],
       selectedMediaId: 'media-2',
-      selectedUtteranceMediaId: undefined,
-      selectedUtteranceMedia: undefined,
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: undefined,
     });
 
     await waitFor(() => {
@@ -120,8 +120,8 @@ describe('useTranscriptionMediaSelection', () => {
     rerender({
       mediaItems: [mediaA, mediaB],
       selectedMediaId: 'media-2',
-      selectedUtteranceMediaId: undefined,
-      selectedUtteranceMedia: mediaB,
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: mediaB,
     });
 
     await waitFor(() => {

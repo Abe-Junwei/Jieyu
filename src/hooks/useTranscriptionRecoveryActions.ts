@@ -12,6 +12,7 @@ import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { listUtteranceDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
 
 const log = createLogger('useTranscriptionRecoveryActions');
 
@@ -62,15 +63,12 @@ export function useTranscriptionRecoveryActions({
           const expectedById = new Map(
             utterancesRef.current.map((u) => [u.id, u.updatedAt] as const),
           );
-          const persistedUtterances = await db.collections.utterances.findByIndexAnyOf(
-            'id',
-            utterancesRef.current.map((u) => u.id),
-          );
+          const ids = utterancesRef.current.map((u) => u.id);
+          const persistedUtterances = await listUtteranceDocsFromCanonicalLayerUnits(db);
           const persistedById = new Map(
-            persistedUtterances.map((u) => {
-              const doc = u.toJSON();
-              return [doc.id, doc.updatedAt] as const;
-            }),
+            persistedUtterances
+              .filter((u) => ids.includes(u.id))
+              .map((doc) => [doc.id, doc.updatedAt] as const),
           );
 
           for (const [id, expectedUpdatedAt] of expectedById) {

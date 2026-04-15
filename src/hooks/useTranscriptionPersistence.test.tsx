@@ -10,6 +10,7 @@ import {
   type UtteranceDocType,
   type UtteranceTextDocType,
 } from '../db';
+import { mapUtteranceToLayerUnit } from '../db/migrations/timelineUnitMapping';
 import {
   TranscriptionPersistenceConflictError,
   useTranscriptionPersistence,
@@ -25,7 +26,6 @@ describe('useTranscriptionPersistence', () => {
   beforeEach(async () => {
     await db.open();
     await Promise.all([
-      db.utterances.clear(),
       db.speakers.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
@@ -54,7 +54,10 @@ describe('useTranscriptionPersistence', () => {
       updatedAt: NOW,
     };
 
-    await db.utterances.put(utterance);
+    const hostLayerId = 'layer_trc';
+    const { unit: hostUnit, content: hostContent } = mapUtteranceToLayerUnit(utterance, hostLayerId);
+    await db.layer_units.put(hostUnit);
+    await db.layer_unit_contents.put(hostContent);
     await db.layer_units.put({
       id: 'seg_sync_1',
       textId: 'text_1',
@@ -115,7 +118,10 @@ describe('useTranscriptionPersistence', () => {
       updatedAt: NOW,
     };
 
-    await db.utterances.put(utterance);
+    const hostLayerId = 'layer_trc';
+    const { unit: hostUnit, content: hostContent } = mapUtteranceToLayerUnit(utterance, hostLayerId);
+    await db.layer_units.put(hostUnit);
+    await db.layer_unit_contents.put(hostContent);
     await db.layer_units.put({
       id: 'seg_sync_conflict_1',
       textId: 'text_1',

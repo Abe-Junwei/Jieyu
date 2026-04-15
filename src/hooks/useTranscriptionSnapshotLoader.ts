@@ -11,7 +11,10 @@ import type {
   UtteranceTextDocType,
   UtteranceTokenDocType,
 } from '../db';
+import { mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 import { listUtteranceTextsFromSegmentation } from '../services/LayerSegmentationTextService';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { listUtteranceDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
 import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
 
 type Params = {
@@ -22,7 +25,7 @@ type Params = {
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
-  setSelectedUtteranceIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedUnitIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   setState: React.Dispatch<React.SetStateAction<DbState>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
@@ -38,7 +41,7 @@ export function useTranscriptionSnapshotLoader({
   setMediaItems,
   setSpeakers,
   setSelectedLayerId,
-  setSelectedUtteranceIds,
+  setSelectedUnitIds,
   setSelectedTimelineUnit,
   setState,
   setTranslations,
@@ -48,7 +51,7 @@ export function useTranscriptionSnapshotLoader({
   const loadSnapshot = useCallback(async () => {
     const db = await getDb();
     const [
-      utteranceDocs,
+      utteranceRowsRaw,
       anchorDocs,
       layerDocs,
       mediaDocs,
@@ -57,7 +60,7 @@ export function useTranscriptionSnapshotLoader({
       tokenDocs,
       morphemeDocs,
     ] = await Promise.all([
-      db.collections.utterances.find().exec(),
+      listUtteranceDocsFromCanonicalLayerUnits(db),
       db.collections.anchors.find().exec(),
       db.collections.layers.find().exec(),
       db.collections.media_items.find().exec(),
@@ -66,8 +69,6 @@ export function useTranscriptionSnapshotLoader({
       db.collections.utterance_tokens.find().exec(),
       db.collections.utterance_morphemes.find().exec(),
     ]);
-
-    const utteranceRowsRaw = utteranceDocs.map((doc) => doc.toJSON() as unknown as UtteranceDocType);
     const anchorRows = anchorDocs.map((doc) => doc.toJSON() as unknown as AnchorDocType);
     const allLayerRows = layerDocs.map((doc) => doc.toJSON() as unknown as LayerDocType);
     const translationRows = await listUtteranceTextsFromSegmentation(db);
@@ -77,8 +78,8 @@ export function useTranscriptionSnapshotLoader({
     const tokenRows = tokenDocs
       .map((doc) => doc.toJSON() as unknown as UtteranceTokenDocType)
       .sort((a, b) => {
-        if (a.utteranceId === b.utteranceId) return a.tokenIndex - b.tokenIndex;
-        return a.utteranceId.localeCompare(b.utteranceId);
+        if (a.unitId === b.unitId) return a.tokenIndex - b.tokenIndex;
+        return a.unitId.localeCompare(b.unitId);
       });
     const morphemeRows = morphemeDocs
       .map((doc) => doc.toJSON() as unknown as UtteranceMorphemeDocType)
@@ -89,9 +90,9 @@ export function useTranscriptionSnapshotLoader({
 
     const tokensByUtterance = new Map<string, UtteranceTokenDocType[]>();
     tokenRows.forEach((token) => {
-      const list = tokensByUtterance.get(token.utteranceId) ?? [];
+      const list = tokensByUtterance.get(token.unitId) ?? [];
       list.push(token);
-      tokensByUtterance.set(token.utteranceId, list);
+      tokensByUtterance.set(token.unitId, list);
     });
     const morphemesByToken = new Map<string, UtteranceMorphemeDocType[]>();
     morphemeRows.forEach((morpheme) => {
@@ -169,7 +170,7 @@ export function useTranscriptionSnapshotLoader({
     const initialSelectedLayerId = layerRows.find((item) => item.layerType === 'translation')?.id
       ?? layerRows.find((item) => item.layerType === 'transcription')?.id
       ?? '';
-    setSelectedUtteranceIds?.(effectiveSelectedUtteranceId ? new Set([effectiveSelectedUtteranceId]) : new Set());
+    setSelectedUnitIds?.(effectiveSelectedUtteranceId ? new Set([effectiveSelectedUtteranceId]) : new Set());
     setSelectedTimelineUnit?.(effectiveSelectedUtteranceId
       ? createTimelineUnit(initialSelectedLayerId, effectiveSelectedUtteranceId, 'utterance')
       : null);
@@ -182,10 +183,20 @@ export function useTranscriptionSnapshotLoader({
 
     dbNameRef.current = db.name;
     const translationLayerRows = layerRows.filter((l) => l.layerType === 'translation');
+    const projectTextId = utteranceRows[0]?.textId ?? layerRows[0]?.textId ?? '';
+    let unitCount = utteranceRows.length;
+    if (projectTextId.trim()) {
+      const projectSegments = await LayerSegmentQueryService.listSegmentsByTextId(projectTextId);
+      unitCount = mergedTimelineUnitSemanticKeyCount({
+        utteranceIds: utteranceRows.map((row) => row.id),
+        segments: projectSegments,
+      });
+    }
+
     setState({
       phase: 'ready',
       dbName: db.name,
-      utteranceCount: utteranceRows.length,
+      unitCount,
       translationLayerCount: translationLayerRows.length,
       translationRecordCount: translationRows.length,
     });
@@ -197,7 +208,7 @@ export function useTranscriptionSnapshotLoader({
     setMediaItems,
     setSpeakers,
     setSelectedLayerId,
-    setSelectedUtteranceIds,
+    setSelectedUnitIds,
     setSelectedTimelineUnit,
     setState,
     setTranslations,

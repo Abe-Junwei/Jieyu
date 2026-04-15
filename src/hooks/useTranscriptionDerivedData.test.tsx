@@ -45,8 +45,8 @@ describe('useTranscriptionDerivedData', () => {
       translations: [],
     }));
 
-    expect(result.current.selectedUtterance).toBeUndefined();
-    expect(result.current.selectedUtteranceMedia?.id).toBe('media-1');
+    expect(result.current.selectedUnit).toBeUndefined();
+    expect(result.current.selectedUnitMedia?.id).toBe('media-1');
     expect(result.current.utterancesOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
     expect(result.current.selectedRowMeta).toBeNull();
   });
@@ -70,8 +70,8 @@ describe('useTranscriptionDerivedData', () => {
       translations: [],
     }));
 
-    expect(result.current.selectedUtterance?.id).toBe('utt-other');
-    expect(result.current.selectedUtteranceMedia?.id).toBe('media-1');
+    expect(result.current.selectedUnit?.id).toBe('utt-other');
+    expect(result.current.selectedUnitMedia?.id).toBe('media-1');
     expect(result.current.utterancesOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
     expect(result.current.selectedRowMeta).toBeNull();
   });

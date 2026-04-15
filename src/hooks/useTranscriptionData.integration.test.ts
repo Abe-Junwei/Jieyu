@@ -12,7 +12,6 @@ async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.texts.clear(),
     db.media_items.clear(),
-    db.utterances.clear(),
     db.utterance_tokens.clear(),
     db.utterance_morphemes.clear(),
     db.lexemes.clear(),

@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import type { AnchorDocType, LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
 import { db } from '../db';
+import { putTestUtteranceAsLayerUnit } from '../db/putTestUtteranceAsLayerUnit';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 const { mockLogWarn, mockLogError } = vi.hoisted(() => ({
   mockLogWarn: vi.fn(),
@@ -63,7 +65,6 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     await db.open();
     await Promise.all([
       db.embeddings.clear(),
-      db.utterances.clear(),
       db.tier_definitions.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
@@ -229,7 +230,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const now = new Date().toISOString();
     // Seed utterance (needed for V2 sync) | 种子 utterance（V2 sync 需要）
     const utterance = makeUtterance('utt-1', 0, 1);
-    await db.utterances.put(utterance as never);
+    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-host');
 
     // Seed LayerUnit canonical entries directly.
     await db.layer_units.put({
@@ -315,7 +316,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const now = new Date().toISOString();
     const utterance = makeUtterance('utt-default', 0, 1);
 
-    await db.utterances.put(utterance as never);
+    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
     await db.embeddings.put({
       id: 'utterance::utt-default::model::v1',
       sourceType: 'utterance',
@@ -376,7 +377,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const now = new Date().toISOString();
     const utterance = makeUtterance('utt-translation', 0, 1);
 
-    await db.utterances.put(utterance as never);
+    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
     await db.embeddings.put({
       id: 'utterance::utt-translation::model::v1',
       sourceType: 'utterance',
@@ -453,7 +454,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       acceptsAudio: true,
     });
 
-    await db.utterances.put(utterance as never);
+    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-seed');
 
     let translationsState: UtteranceTextDocType[] = [];
     let mediaItemsState: MediaItemDocType[] = [];
@@ -515,7 +516,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const now = new Date().toISOString();
     const utterance = makeUtterance('utt-stop-write', 0, 1);
 
-    await db.utterances.put(utterance as never);
+    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
 
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: 'trc-default',
@@ -570,20 +571,25 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       await result.current.saveUtteranceText('utt-stop-write', 'translation via layerunit only', 'trl-en');
     });
 
-    expect(await db.layer_units.toArray()).toEqual([
+    expect(await db.layer_units.toArray()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'utt-stop-write',
+        layerId: 'trc-default',
+        unitType: 'utterance',
+      }),
       expect.objectContaining({
         id: 'segv2_trl-en_utt-stop-write',
         layerId: 'trl-en',
         unitType: 'segment',
       }),
-    ]);
-    expect(await db.layer_unit_contents.toArray()).toEqual([
+    ]));
+    expect(await db.layer_unit_contents.toArray()).toEqual(expect.arrayContaining([
       expect.objectContaining({
         unitId: 'segv2_trl-en_utt-stop-write',
         layerId: 'trl-en',
         text: 'translation via layerunit only',
       }),
-    ]);
+    ]));
   });
 
   it('offsetSelectedTimes should rollback when persistence fails after pushUndo', async () => {
@@ -1011,7 +1017,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       parentLayerId: rootLayer.id,
       sortOrder: 1,
     });
-    await db.tier_definitions.bulkPut([rootLayer as never, dependentLayer as never]);
+    await LayerTierUnifiedService.createLayer(rootLayer);
+    await LayerTierUnifiedService.createLayer(dependentLayer);
 
     const { result } = renderHook(() => useTranscriptionUtteranceActions({
       defaultTranscriptionLayerId: rootLayer.id,
@@ -1057,9 +1064,9 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       await result.current.createUtteranceFromSelection(1, 2, { focusedLayerId: dependentLayer.id });
     });
 
-    const createdUtterances = await db.utterances.toArray();
-    expect(createdUtterances).toHaveLength(1);
-    const createdUtterance = createdUtterances[0]!;
+    const createdUtteranceUnits = await db.layer_units.where('unitType').equals('utterance').toArray();
+    expect(createdUtteranceUnits).toHaveLength(1);
+    const createdUtterance = createdUtteranceUnits[0]!;
 
     const rootSegments = await LayerSegmentQueryService.listSegmentsByLayerId(rootLayer.id);
     const dependentSegments = await LayerSegmentQueryService.listSegmentsByLayerId(dependentLayer.id);

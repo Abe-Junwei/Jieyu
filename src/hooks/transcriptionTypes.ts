@@ -5,8 +5,8 @@ export type DbState =
   | {
       phase: 'ready';
       dbName: string;
-      /** Mirrors `utterances.length` — kept in sync after edits via useTranscriptionData */
-      utteranceCount: number;
+      /** Mirrors unified timeline unit count — kept in sync after edits via useTranscriptionData */
+      unitCount: number;
       /** Mirrors translation layers only (`layerType === 'translation'`), synced with live `layers` */
       translationLayerCount: number;
       /** Mirrors `translations.length` (segmentation utterance texts) */

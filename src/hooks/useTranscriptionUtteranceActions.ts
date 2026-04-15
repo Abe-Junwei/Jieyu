@@ -31,6 +31,10 @@ import {
 } from './useTranscriptionUtteranceActions.helpers';
 import { createTranscriptionUtteranceBatchActions } from './useTranscriptionUtteranceActions.batchActions';
 import { createLogger } from '../observability/logger';
+import {
+  getUtteranceDocProjectionById,
+  listUtteranceDocsFromCanonicalLayerUnits,
+} from '../services/LayerSegmentGraphService';
 import { isTranscriptionPerfDebugEnabled } from '../utils/transcriptionPerfDebug';
 
 const log = createLogger('useTranscriptionUtteranceActions');
@@ -118,8 +122,7 @@ export function useTranscriptionUtteranceActions({
   const resolveUtteranceById = useCallback(async (db: Awaited<ReturnType<typeof getDb>>, utteranceId: string) => {
     const local = utterancesRef.current.find((item) => item.id === utteranceId);
     if (local) return local;
-    const row = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
-    return (row?.toJSON() as UtteranceDocType | undefined) ?? null;
+    return (await getUtteranceDocProjectionById(db, utteranceId)) ?? null;
   }, [utterancesRef]);
 
   const { saveVoiceTranslation, deleteVoiceTranslation } = useTranscriptionVoiceTranslationActions({
@@ -205,8 +208,8 @@ export function useTranscriptionUtteranceActions({
 
   const saveUtteranceTiming = useCallback(async (utteranceId: string, startTime: number, endTime: number) => {
     const db = await getDb();
-    const target = await db.collections.utterances.findOne({ selector: { id: utteranceId } }).exec();
-    if (!target) {
+    const current = await getUtteranceDocProjectionById(db, utteranceId);
+    if (!current) {
       reportValidationError({
         message: t(locale, 'transcription.error.validation.updateTimingTargetMissing'),
         i18nKey: 'transcription.error.validation.updateTimingTargetMissing',
@@ -215,12 +218,10 @@ export function useTranscriptionUtteranceActions({
       return;
     }
 
-    const current = target.toJSON() as unknown as UtteranceDocType;
     const minSpan = 0.05;
 
-    const allDocs = await db.collections.utterances.find().exec();
-    const siblings = allDocs
-      .map((doc) => doc.toJSON() as unknown as UtteranceDocType)
+    const allUtterances = await listUtteranceDocsFromCanonicalLayerUnits(db);
+    const siblings = allUtterances
       .filter((item) => item.id !== utteranceId && item.mediaId === current.mediaId)
       .sort((a, b) => a.startTime - b.startTime);
 

@@ -110,44 +110,44 @@ export function useTranscriptionDerivedData({
 
   const deletableLayers = layers;
 
-  const effectiveSelectedUtteranceId = isUtteranceTimelineUnit(selectedTimelineUnit)
+  const effectiveSelectedUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 
-  const selectedUtterance = useMemo(
-    () => utterances.find((item) => item.id === effectiveSelectedUtteranceId),
-    [effectiveSelectedUtteranceId, utterances],
+  const selectedUnit = useMemo(
+    () => utterances.find((item) => item.id === effectiveSelectedUnitId),
+    [effectiveSelectedUnitId, utterances],
   );
 
   const {
-    selectedUtteranceMedia,
+    selectedUnitMedia,
     utterancesOnCurrentMedia,
     selectedRowMeta,
   } = useMemo(() => {
-    const selectedUtteranceMedia = selectedMediaId
+    const selectedUnitMedia = selectedMediaId
       ? mediaItems.find((item) => item.id === selectedMediaId)
       : undefined;
     const utterancesSorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
-    const utterancesOnCurrentMedia = selectedUtteranceMedia?.id
-      ? utterancesSorted.filter((item) => item.mediaId === selectedUtteranceMedia.id)
+    const utterancesOnCurrentMedia = selectedUnitMedia?.id
+      ? utterancesSorted.filter((item) => item.mediaId === selectedUnitMedia.id)
       : (() => {
         const loadedMediaIds = new Set(mediaItems.map((m) => m.id));
         return utterancesSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
       })();
 
-    if (!effectiveSelectedUtteranceId) {
+    if (!effectiveSelectedUnitId) {
       return {
-        selectedUtteranceMedia,
+        selectedUnitMedia,
         utterancesOnCurrentMedia,
         selectedRowMeta: null,
       };
     }
 
-    const index = utterancesOnCurrentMedia.findIndex((item) => item.id === effectiveSelectedUtteranceId);
+    const index = utterancesOnCurrentMedia.findIndex((item) => item.id === effectiveSelectedUnitId);
     const row = index >= 0 ? utterancesOnCurrentMedia[index] : undefined;
 
     return {
-      selectedUtteranceMedia,
+      selectedUnitMedia,
       utterancesOnCurrentMedia,
       selectedRowMeta: row
         ? {
@@ -157,7 +157,7 @@ export function useTranscriptionDerivedData({
         }
         : null,
     };
-  }, [effectiveSelectedUtteranceId, mediaItems, selectedMediaId, utterances]);
+  }, [effectiveSelectedUnitId, mediaItems, selectedMediaId, utterances]);
 
   const visibleUtterances = utterancesOnCurrentMedia;
 
@@ -188,8 +188,8 @@ export function useTranscriptionDerivedData({
     sidePaneRows,
     deletableLayers,
     layerPendingDelete,
-    selectedUtterance,
-    selectedUtteranceMedia,
+    selectedUnit,
+    selectedUnitMedia,
     utterancesOnCurrentMedia,
     visibleUtterances,
     aiConfidenceAvg,

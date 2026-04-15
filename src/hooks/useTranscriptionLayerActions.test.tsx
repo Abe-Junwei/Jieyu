@@ -148,7 +148,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -180,7 +180,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -220,7 +220,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -269,7 +269,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -326,7 +326,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -390,7 +390,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -434,7 +434,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -497,7 +497,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -574,7 +574,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -671,7 +671,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -783,7 +783,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -867,7 +867,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -918,7 +918,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -963,7 +963,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -1008,7 +1008,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));
@@ -1053,7 +1053,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setSelectedLayerId: vi.fn(),
       setSelectedMediaId: vi.fn(),
       setMediaItems: vi.fn(),
-      setSelectedUtteranceIds: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
       setUtterances: vi.fn(),
     }));

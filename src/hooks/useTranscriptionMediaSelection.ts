@@ -5,8 +5,8 @@ type Params = {
   mediaItems: MediaItemDocType[];
   selectedMediaId: string;
   setSelectedMediaId: (id: string) => void;
-  selectedUtteranceMediaId: string | undefined;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnitMediaId: string | undefined;
+  selectedUnitMedia: MediaItemDocType | undefined;
 };
 
 const VIDEO_EXTENSIONS = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'];
@@ -33,13 +33,13 @@ export function useTranscriptionMediaSelection({
   mediaItems,
   selectedMediaId,
   setSelectedMediaId,
-  selectedUtteranceMediaId,
-  selectedUtteranceMedia,
+  selectedUnitMediaId,
+  selectedUnitMedia,
 }: Params) {
   useEffect(() => {
-    if (selectedUtteranceMediaId) {
-      if (selectedUtteranceMediaId !== selectedMediaId) {
-        setSelectedMediaId(selectedUtteranceMediaId);
+    if (selectedUnitMediaId) {
+      if (selectedUnitMediaId !== selectedMediaId) {
+        setSelectedMediaId(selectedUnitMediaId);
       }
       return;
     }
@@ -60,14 +60,14 @@ export function useTranscriptionMediaSelection({
       const firstMedia = mediaItems[0];
       if (firstMedia) setSelectedMediaId(firstMedia.id);
     }
-  }, [mediaItems, selectedMediaId, selectedUtteranceMediaId, setSelectedMediaId]);
+  }, [mediaItems, selectedMediaId, selectedUnitMediaId, setSelectedMediaId]);
 
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | undefined>();
   const objectUrlRef = useRef<string | undefined>(undefined);
   const blobMediaIdRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const media = selectedUtteranceMedia;
+    const media = selectedUnitMedia;
     const mediaId = media?.id;
 
     if (!media) {
@@ -102,7 +102,7 @@ export function useTranscriptionMediaSelection({
     }
 
     setSelectedMediaUrl(media.url);
-  }, [selectedMediaId, selectedUtteranceMedia]);
+  }, [selectedMediaId, selectedUnitMedia]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
@@ -110,14 +110,14 @@ export function useTranscriptionMediaSelection({
 
   // 缓存已选媒体的 Blob 字节数，用于 VAD 预热前置门控 | Cache selected media blob byte size for VAD pre-fetch gate
   const selectedMediaBlobSize = useMemo(() => {
-    const details = selectedUtteranceMedia?.details as Record<string, unknown> | undefined;
+    const details = selectedUnitMedia?.details as Record<string, unknown> | undefined;
     const blob = details?.audioBlob;
     return blob instanceof Blob ? blob.size : undefined;
-  }, [selectedUtteranceMedia]);
+  }, [selectedUnitMedia]);
 
   return {
     selectedMediaUrl,
     selectedMediaBlobSize,
-    selectedMediaIsVideo: selectedUtteranceMedia ? isMediaVideo(selectedUtteranceMedia) : false,
+    selectedMediaIsVideo: selectedUnitMedia ? isMediaVideo(selectedUnitMedia) : false,
   };
 }

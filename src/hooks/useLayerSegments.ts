@@ -6,7 +6,7 @@
  * When layer.constraint === 'independent_boundary', reads independent boundary data from the merged segmentation view
  * for timeline rendering. Returns segments sorted by startTime.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { type LayerDocType, type LayerSegmentDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useLatest } from './useLatest';
@@ -93,6 +93,7 @@ export function useLayerSegments(
   defaultTranscriptionLayerId: string | undefined,
 ): {
   segmentsByLayer: Map<string, LayerSegmentDocType[]>;
+  segmentsLoadComplete: boolean;
   reloadSegments: () => Promise<void>;
   updateSegmentsLocally: (
     segmentIds: Iterable<string>,
@@ -102,12 +103,20 @@ export function useLayerSegments(
   const [segmentsByLayer, setSegmentsByLayer] = useState<Map<string, LayerSegmentDocType[]>>(
     () => new Map(),
   );
+  const [segmentsLoadComplete, setSegmentsLoadComplete] = useState(false);
   const layersRef = useLatest(layers);
   const defaultLayerIdRef = useLatest(defaultTranscriptionLayerId);
+  const loadSequenceRef = useRef(0);
 
   const loadSegments = useCallback(async () => {
+    const loadSequence = loadSequenceRef.current + 1;
+    loadSequenceRef.current = loadSequence;
+    setSegmentsLoadComplete(false);
+
     if (!mediaId) {
+      if (loadSequenceRef.current !== loadSequence) return;
       setSegmentsByLayer(new Map());
+      setSegmentsLoadComplete(true);
       return;
     }
 
@@ -116,7 +125,9 @@ export function useLayerSegments(
     );
 
     if (independentLayers.length === 0) {
+      if (loadSequenceRef.current !== loadSequence) return;
       setSegmentsByLayer(new Map());
+      setSegmentsLoadComplete(true);
       return;
     }
 
@@ -127,7 +138,9 @@ export function useLayerSegments(
       result.set(layer.id, segments);
     }
 
+    if (loadSequenceRef.current !== loadSequence) return;
     setSegmentsByLayer(result);
+    setSegmentsLoadComplete(true);
   }, [mediaId]);
 
   useEffect(() => {
@@ -157,5 +170,5 @@ export function useLayerSegments(
     });
   }, []);
 
-  return { segmentsByLayer, reloadSegments: loadSegments, updateSegmentsLocally };
+  return { segmentsByLayer, segmentsLoadComplete, reloadSegments: loadSegments, updateSegmentsLocally };
 }

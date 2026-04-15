@@ -182,13 +182,13 @@ export function useTranscriptionData() {
 
   useEffect(() => {
     if (state.phase !== 'ready') return;
-    const nextUtteranceCount = utterances.length;
+    const nextUnitCount = utterances.length;
     const nextTranslationLayerCount = translationLayers.length;
     const nextTranslationRecordCount = translations.length;
     setState((prev) => {
       if (prev.phase !== 'ready') return prev;
       if (
-        prev.utteranceCount === nextUtteranceCount
+        prev.unitCount === nextUnitCount
         && prev.translationLayerCount === nextTranslationLayerCount
         && prev.translationRecordCount === nextTranslationRecordCount
       ) {
@@ -196,7 +196,7 @@ export function useTranscriptionData() {
       }
       return {
         ...prev,
-        utteranceCount: nextUtteranceCount,
+        unitCount: nextUnitCount,
         translationLayerCount: nextTranslationLayerCount,
         translationRecordCount: nextTranslationRecordCount,
       };

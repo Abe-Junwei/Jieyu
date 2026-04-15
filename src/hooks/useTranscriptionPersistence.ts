@@ -6,6 +6,7 @@ import { LinguisticService } from '../services/LinguisticService';
 import { createAsyncMutex } from '../utils/asyncMutex';
 import { createLogger } from '../observability/logger';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { listUtteranceDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
 import {
   removeUtteranceTextFromSegmentationV2,
   syncUtteranceTextToSegmentationV2,
@@ -77,9 +78,15 @@ export function useTranscriptionPersistence({
         };
 
         try {
-          await assertNoConflict('utterances', utterancesRef.current, async () => (
-            db.collections.utterances.findByIndexAnyOf('id', utterancesRef.current.map((row) => row.id))
-          ));
+          await assertNoConflict('utterances', utterancesRef.current, async () => {
+            const ids = utterancesRef.current.map((row) => row.id);
+            const projections = await listUtteranceDocsFromCanonicalLayerUnits(db);
+            const byId = new Map(projections.map((u) => [u.id, u] as const));
+            return ids.flatMap((id) => {
+              const doc = byId.get(id);
+              return doc ? [{ toJSON: () => doc }] : [];
+            });
+          });
           await assertNoConflict('translations', translationsRef.current, async () => {
             const ids = translationsRef.current.map((row) => row.id);
             const contents = await LayerSegmentQueryService.listSegmentContentsByIds(ids);

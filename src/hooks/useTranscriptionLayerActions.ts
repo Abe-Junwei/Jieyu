@@ -27,6 +27,7 @@ import {
 import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTextService';
 import {
   deleteLayerSegmentGraphByLayerId,
+  listUtteranceUnitPrimaryKeysByTextId,
 } from '../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
@@ -49,7 +50,7 @@ export type TranscriptionLayerActionsParams = {
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedMediaId: React.Dispatch<React.SetStateAction<string>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
-  setSelectedUtteranceIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSelectedUnitIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
   setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
@@ -85,7 +86,7 @@ export function useTranscriptionLayerActions({
   setSelectedLayerId,
   setSelectedMediaId,
   setMediaItems,
-  setSelectedUtteranceIds,
+  setSelectedUnitIds,
   setSelectedTimelineUnit,
   setTranslations,
   setUtterances,
@@ -183,9 +184,9 @@ export function useTranscriptionLayerActions({
   }, []);
 
   const clearTimelineSelection = useCallback(() => {
-    setSelectedUtteranceIds?.(new Set());
+    setSelectedUnitIds?.(new Set());
     setSelectedTimelineUnit?.(null);
-  }, [setSelectedTimelineUnit, setSelectedUtteranceIds]);
+  }, [setSelectedTimelineUnit, setSelectedUnitIds]);
 
   const createLayer = useCallback(async (
     layerType: 'transcription' | 'translation',
@@ -353,7 +354,7 @@ export function useTranscriptionLayerActions({
         && layers.filter((item) => item.layerType === 'transcription').length <= 1;
 
       const affectedByProjectScope = (!keepUtterances && isDeletingLastTranscription)
-        ? ((await db.dexie.utterances.where('textId').equals(targetLayer.textId).primaryKeys()) as string[])
+        ? await listUtteranceUnitPrimaryKeysByTextId(db, targetLayer.textId)
         : [];
       const { affectedUtteranceIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(db, effectiveLayerId);
       const affectedUtteranceIds = !keepUtterances
