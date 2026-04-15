@@ -84,21 +84,19 @@ export function useTranscriptionWaveformBridgeController(
     waveformRegions,
     selectedWaveformRegionId,
     waveformActiveRegionIds,
-    waveformPrimaryRegionId,
     selectedWaveformTimelineItem,
   } = useWaveformSelectionController({
     activeLayerIdForEdits: input.activeLayerIdForEdits,
     layers: input.layers,
     layerById: input.layerById,
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
-    segmentsByLayer: input.segmentsByLayer,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    ...(input.timelineUnitViewIndex ? { timelineUnitViewIndex: input.timelineUnitViewIndex } : {}),
+    timelineUnitViewIndex: input.timelineUnitViewIndex,
     selectedTimelineUnit: input.selectedTimelineUnit,
     selectedUnitIds: input.selectedUnitIds,
   });
 
-  const containerWidth = waveCanvasRef.current?.clientWidth || 800;
+  const [waveCanvasClientWidth, setWaveCanvasClientWidth] = useState(800);
+  const containerWidth = waveCanvasClientWidth;
   const safeDur = lastDurationRef.current;
   const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
   const zoomPxPerSec = fitPxPerSec * (input.zoomPercent / 100);
@@ -110,7 +108,7 @@ export function useTranscriptionWaveformBridgeController(
     mediaUrl: input.selectedMediaUrl,
     regions: waveformRegions,
     activeRegionIds: waveformActiveRegionIds,
-    primaryRegionId: waveformPrimaryRegionId,
+    primaryRegionId: selectedWaveformRegionId,
     waveformFocused,
     segmentLoop: segmentLoopPlayback,
     globalLoop: globalLoopPlayback,
@@ -170,6 +168,21 @@ export function useTranscriptionWaveformBridgeController(
       lastDurationRef.current = player.duration;
     }
   }, [player.duration]);
+
+  useLayoutEffect(() => {
+    const node = waveCanvasRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      const w = node.clientWidth;
+      setWaveCanvasClientWidth(w > 0 ? w : 800);
+    };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(node);
+    return () => {
+      ro?.disconnect();
+    };
+  }, [input.selectedMediaUrl]);
 
   // RAF 聚合悬停时间 | RAF-coalesce hover time
   const scheduleHoverTime = useCallback((next: { time: number; x: number; y: number } | null) => {
@@ -246,9 +259,7 @@ export function useTranscriptionWaveformBridgeController(
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
   } = useWaveformSignalOverlays({
-    utterancesOnCurrentMedia: input.timelineUnitViewIndex
-      ? timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits)
-      : input.utterancesOnCurrentMedia,
+    utterancesOnCurrentMedia: timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits),
     ...(vadSegments ? { vadSegments } : {}),
     waveformTimelineItems,
     activeLayerIdForEdits: input.activeLayerIdForEdits,
@@ -294,7 +305,6 @@ export function useTranscriptionWaveformBridgeController(
     playerInstanceRef: player.instanceRef,
     playerIsReady: player.isReady,
     selectedMediaUrl: input.selectedMediaUrl,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     timelineItems: waveformTimelineItems,
     selectedUnitIds: input.selectedUnitIds,
     selectedUnitId: selectedWaveformRegionId,
@@ -370,7 +380,7 @@ export function useTranscriptionWaveformBridgeController(
     setHoverTime(null);
   }, []);
 
-  const handleWaveformAreaWheel = (event: WheelEvent): void => {
+  const handleWaveformAreaWheel = useCallback((event: WheelEvent): void => {
     if (event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
@@ -385,7 +395,7 @@ export function useTranscriptionWaveformBridgeController(
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
       setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
     }
-  };
+  }, [setAmplitudeScale, setZoomMode, setZoomPercent]);
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const nextScrollLeft = event.currentTarget.scrollLeft;
@@ -476,7 +486,6 @@ export function useTranscriptionWaveformBridgeController(
     waveformRegions,
     selectedWaveformRegionId,
     waveformActiveRegionIds,
-    waveformPrimaryRegionId,
     selectedWaveformTimelineItem,
     waveformFocused,
     segmentLoopPlayback,

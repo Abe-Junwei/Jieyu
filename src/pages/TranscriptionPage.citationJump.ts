@@ -25,7 +25,7 @@ interface HandleTranscriptionCitationJumpOptions {
   refId: string;
   citationRef?: CitationRefLike;
   sidePaneRows: LayerDocType[];
-  selectedTimelineUtteranceId: string | null;
+  activeTimelineUnitId: string | null;
   onJumpToEmbeddingMatch: (utteranceId: string) => void;
   onSetNotePopover: (popover: NotePopoverState) => void;
   onSetSidebarError: (message: string) => void;
@@ -75,7 +75,7 @@ export async function handleTranscriptionCitationJump({
   refId,
   citationRef,
   sidePaneRows,
-  selectedTimelineUtteranceId,
+  activeTimelineUnitId,
   onJumpToEmbeddingMatch,
   onSetNotePopover,
   onSetSidebarError,
@@ -104,7 +104,7 @@ export async function handleTranscriptionCitationJump({
     if (utteranceId) {
       onJumpToEmbeddingMatch(utteranceId);
     }
-    onSetNotePopover(buildNotePopover(note, selectedTimelineUtteranceId));
+    onSetNotePopover(buildNotePopover(note, activeTimelineUnitId));
     return;
   }
 
@@ -193,7 +193,7 @@ export async function handleTranscriptionCitationJump({
       if (utteranceId) {
         onJumpToEmbeddingMatch(utteranceId);
       }
-      onSetNotePopover(buildNotePopover(note, selectedTimelineUtteranceId));
+      onSetNotePopover(buildNotePopover(note, activeTimelineUnitId));
       return;
     }
 

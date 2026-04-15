@@ -7,7 +7,7 @@ type SpeakerManagement = ComponentProps<typeof SpeakerRailProvider>['speakerMana
 
 interface TranscriptionPageSidePaneProps {
   speakerManagement: SpeakerManagement;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   handleAssignSpeakerToSelectedRouted: () => Promise<void>;
   handleClearSpeakerOnSelectedRouted: () => Promise<void>;
   sidebarProps: SidePaneSidebarProps;
@@ -15,7 +15,7 @@ interface TranscriptionPageSidePaneProps {
 
 export function TranscriptionPageSidePane({
   speakerManagement,
-  selectedUtteranceIds,
+  selectedUnitIds,
   handleAssignSpeakerToSelectedRouted,
   handleClearSpeakerOnSelectedRouted,
   sidebarProps,
@@ -24,7 +24,7 @@ export function TranscriptionPageSidePane({
     <>
       <SpeakerRailProvider
         speakerManagement={speakerManagement}
-        selectedUtteranceIds={selectedUtteranceIds}
+        selectedUnitIds={selectedUnitIds}
         handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
         handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
       >

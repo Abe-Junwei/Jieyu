@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { featureFlags } from '../ai/config/featureFlags';
 import { getDb, type UtteranceDocType } from '../db';
+import { getUtteranceDocProjectionById } from '../services/LayerSegmentGraphService';
+import { LinguisticService } from '../services/LinguisticService';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
@@ -31,7 +33,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.handleUpdateTokenPos,
     input.lexemeMatches,
     input.selectedAiWarning,
-    input.selectedTimelineOwnerUnit,
+    input.selectedPrimaryUnitView,
     input.selectedTimelineRowMeta,
     input.selectedTranslationGapCount,
     input.setAiPanelMode,
@@ -211,9 +213,8 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     try {
       const db = await getDb();
-      const utterances = await db.collections.utterances.find().exec();
-      const target = utterances.find((item) => item.id === utteranceId);
-      if (!target) {
+      const doc = await getUtteranceDocProjectionById(db, utteranceId);
+      if (!doc) {
         const message = t(locale, 'transcription.error.validation.voiceAnalysisTargetMissing');
         reportValidationError({
           message,
@@ -224,14 +225,13 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       }
       pushUndo(t(locale, 'transcription.assistant.undo.fillAnalysis'));
       const now = new Date().toISOString();
-      const doc = target.toJSON() as UtteranceDocType;
       const existingNotes = doc.notes ?? {};
       const updated: UtteranceDocType = {
         ...doc,
         notes: { ...existingNotes, eng: trimmed },
         updatedAt: now,
       };
-      await db.collections.utterances.insert(updated);
+      await LinguisticService.saveUtterance(updated);
       setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
       const message = t(locale, 'transcription.assistant.voiceAnalysis.saved');
       setSaveState({ kind: 'done', message });

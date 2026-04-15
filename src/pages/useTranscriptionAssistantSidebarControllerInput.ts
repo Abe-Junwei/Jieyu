@@ -47,6 +47,8 @@ interface UseTranscriptionAssistantSidebarControllerInputInput {
   observerStage: AiChatContextValue['observerStage'];
   observerRecommendations: AssistantSidebarObserverRecommendationInput[];
   onJumpToCitation: AiChatContextValue['onJumpToCitation'];
+  /** Timeline read-model epoch for pending destructive tool stale UX. */
+  timelineReadModelEpoch?: number;
   runtimePropsInput: UseTranscriptionRuntimePropsInput;
 }
 
@@ -67,6 +69,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
   observerStage,
   observerRecommendations,
   onJumpToCitation,
+  timelineReadModelEpoch,
   runtimePropsInput,
 }: UseTranscriptionAssistantSidebarControllerInputInput): UseTranscriptionAssistantSidebarControllerInput {
   const aiChatContextInput = useMemo(() => ({
@@ -104,6 +107,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     onCancelPendingToolCall: aiChat.cancelPendingToolCall,
     onTrackAiRecommendationEvent: aiChat.trackRecommendationEvent,
     onJumpToCitation,
+    ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
   }), [
     aiChat.cancelPendingToolCall,
     aiChat.clear,
@@ -139,6 +143,7 @@ export function useTranscriptionAssistantSidebarControllerInput({
     selectedTimeRangeLabel,
     selectedUnitKind,
     selectedUnit,
+    timelineReadModelEpoch,
   ]);
 
   return useMemo<UseTranscriptionAssistantSidebarControllerInput>(() => ({

@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { LayerDocType, UtteranceDocType } from '../db';
+import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
@@ -61,6 +62,7 @@ interface UseTranscriptionRuntimePropsInput {
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
   utterancesOnCurrentMedia: UtteranceDocType[];
+  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   handleJumpToCitation: (
     citationType: 'utterance' | 'note' | 'pdf' | 'schema',
@@ -114,7 +116,10 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   });
 
   const analysisRuntimeProps = useTranscriptionAnalysisRuntimeProps({
-    selectedUnit: input.selectionSnapshot.selectedUnit,
+    selectedUnit: utteranceDocForSpeakerTargetFromUnitView(
+      input.selectionSnapshot.selectedUnit,
+      input.getUtteranceDocById,
+    ),
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     formatTime: input.formatTime,

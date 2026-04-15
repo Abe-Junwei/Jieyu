@@ -40,8 +40,9 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: null,
       },
       selectedUnitIds: ['utt-1'],
+      selectedUnitCount: 1,
       currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
-      utteranceCount: 12,
+      unitCount: 12,
       translationLayerCount: 2,
       aiConfidenceAvg: 0.91,
       waveformAnalysis: {
@@ -83,21 +84,19 @@ describe('buildTranscriptionAiPromptContext', () => {
       topLexemes: ['foo'],
       recommendations: ['bar'],
       audioTimeSec: 2.1,
-      recentEdits: ['edit-1'],
     });
 
     expect(context.longTerm).toBeDefined();
     expect(JSON.stringify(context.longTerm)).not.toContain('frames');
     expect(context.shortTerm?.projectUnitCount).toBe(12);
     expect(context.shortTerm?.currentMediaUnitCount).toBe(6);
-    expect(context.shortTerm?.unitTimeline).toContain('#1');
-    expect(context.shortTerm?.unitTimeline).toContain('Hello world');
+    expect(context.shortTerm?.worldModelSnapshot).toContain('Hello world');
 
     const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('selectedUnitCount=1');
     expect(block).toContain('projectUnitCount=12 [authoritative');
     expect(block).toContain('currentTrack.unitCount=6 [current audio track only');
-    expect(block).toContain('unitTimeline=');
-    expect(block).toContain('[current audio track digest; #N are line indices, not unit ids]');
+    expect(block).toContain('worldModelSnapshot=');
     expect(block).toContain('acousticSummary(');
     expect(block).toContain('selectionSec=1.20-3.40');
     expect(block).toContain('f0Mean=195');
@@ -136,15 +135,15 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: null,
       },
       selectedUnitIds: [],
+      selectedUnitCount: 0,
       currentMediaUnits: [],
       projectUnitsForTools,
-      utteranceCount: 2,
+      unitCount: 2,
       translationLayerCount: 0,
       aiConfidenceAvg: null,
       observerStage: null,
       topLexemes: [],
       recommendations: [],
-      recentEdits: [],
     });
 
     expect(context.shortTerm?.localUnitIndex).toHaveLength(2);
@@ -180,14 +179,14 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: { layerId: 'layer-1', unitId: 'seg-1', kind: 'segment' },
       },
       selectedUnitIds: ['seg-1'],
+      selectedUnitCount: 1,
       currentMediaUnits: [],
-      utteranceCount: 4,
+      unitCount: 4,
       translationLayerCount: 1,
       aiConfidenceAvg: 0.912,
       observerStage: null,
       topLexemes: [],
       recommendations: [],
-      recentEdits: [],
     });
 
     const block = buildPromptContextBlock(context, 4000);
@@ -213,14 +212,14 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: null,
       },
       selectedUnitIds: ['utt-1'],
+      selectedUnitCount: 1,
       currentMediaUnits: [],
-      utteranceCount: 4,
+      unitCount: 4,
       translationLayerCount: 2,
       aiConfidenceAvg: 0.5,
       observerStage: 'review',
       topLexemes: ['x'.repeat(120)],
       recommendations: ['y'.repeat(220)],
-      recentEdits: ['z'.repeat(120)],
     });
 
     const block = buildPromptContextBlock(context, 420);
@@ -243,22 +242,48 @@ describe('buildTranscriptionAiPromptContext', () => {
         timelineUnit: null,
       },
       selectedUnitIds: [],
+      selectedUnitCount: 0,
       currentMediaUnits: [],
       projectUnitsForTools: [],
       unitIndexComplete: false,
-      utteranceCount: 0,
+      unitCount: 0,
       translationLayerCount: 0,
       aiConfidenceAvg: null,
       observerStage: null,
       topLexemes: [],
       recommendations: [],
-      recentEdits: [],
     });
 
     expect(context.shortTerm?.unitIndexComplete).toBe(false);
     expect(context.shortTerm?.localUnitIndex).toBeUndefined();
     const block = buildPromptContextBlock(context, 4000);
     expect(block).toContain('unitIndexComplete=false');
+  });
+
+  it('includes timelineReadModelEpoch in shortTerm when provided', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: null,
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: null,
+        selectedLayerId: null,
+        selectedText: '',
+        selectedTimeRangeLabel: '',
+        timelineUnit: null,
+      },
+      selectedUnitIds: [],
+      selectedUnitCount: 0,
+      currentMediaUnits: [],
+      unitCount: 0,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      timelineReadModelEpoch: 99,
+    });
+    expect(context.shortTerm?.timelineReadModelEpoch).toBe(99);
   });
 });
 

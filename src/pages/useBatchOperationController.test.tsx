@@ -3,8 +3,36 @@ import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import { utteranceToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useBatchOperationController } from './useBatchOperationController';
+
+function unitsWithResolver(utterances: UtteranceDocType[], layerId = 'layer-default') {
+  const unitsOnCurrentMedia = utterances.map((u) => utteranceToView(u, layerId));
+  return {
+    unitsOnCurrentMedia,
+    getUtteranceDocById: (id: string) => utterances.find((u) => u.id === id),
+  };
+}
+
+function segmentView(
+  segmentId: string,
+  parentUtteranceId: string,
+  layerId: string,
+  mediaId: string,
+): TimelineUnitView {
+  return {
+    id: segmentId,
+    kind: 'segment',
+    mediaId,
+    layerId,
+    startTime: 0,
+    endTime: 1,
+    text: '',
+    parentUtteranceId,
+  };
+}
 
 function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
   return {
@@ -29,17 +57,20 @@ describe('useBatchOperationController', () => {
   });
 
   it('maps selection to utterances and sorts selected batch utterances', () => {
+    const utt1 = makeUtterance('utt-1', 1, 2);
+    const utt2 = makeUtterance('utt-2', 3, 4);
+    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([utt2, utt1]);
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
+      ['seg-b', segmentView('seg-b', 'utt-1', 'layer-default', 'media-1')],
+      ['seg-a', segmentView('seg-a', 'utt-2', 'layer-default', 'media-1')],
+    ]);
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(['seg-b', 'seg-a']),
       selectedTimelineUnit: null,
-      unitToUtteranceId: new Map([
-        ['seg-a', 'utt-2'],
-        ['seg-b', 'utt-1'],
-      ]),
-      utterancesOnCurrentMedia: [
-        makeUtterance('utt-2', 3, 4),
-        makeUtterance('utt-1', 1, 2),
-      ],
+      unitViewById,
+      unitsOnCurrentMedia,
+      getUtteranceDocById,
       setSaveState: vi.fn(),
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes: vi.fn(async () => undefined),
@@ -55,11 +86,17 @@ describe('useBatchOperationController', () => {
     const setSaveState = vi.fn();
     const offsetSelectedTimes = vi.fn(async () => undefined);
 
+    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([makeUtterance('utt-1', 1, 2)]);
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
+      ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
+    ]);
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(['seg-a', 'missing']),
       selectedTimelineUnit: null,
-      unitToUtteranceId: new Map([['seg-a', 'utt-1']]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2)],
+      unitViewById,
+      unitsOnCurrentMedia,
+      getUtteranceDocById,
       setSaveState,
       offsetSelectedTimes,
       scaleSelectedTimes: vi.fn(async () => undefined),
@@ -84,11 +121,17 @@ describe('useBatchOperationController', () => {
       throw new Error('disk full');
     });
 
+    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([makeUtterance('utt-1', 1, 2)]);
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
+      ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
+    ]);
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(['seg-a', 'missing']),
       selectedTimelineUnit: null,
-      unitToUtteranceId: new Map([['seg-a', 'utt-1']]),
-      utterancesOnCurrentMedia: [makeUtterance('utt-1', 1, 2)],
+      unitViewById,
+      unitsOnCurrentMedia,
+      getUtteranceDocById,
       setSaveState,
       offsetSelectedTimes,
       scaleSelectedTimes: vi.fn(async () => undefined),
@@ -122,8 +165,9 @@ describe('useBatchOperationController', () => {
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(['seg-missing']),
       selectedTimelineUnit: null,
-      unitToUtteranceId: new Map(),
-      utterancesOnCurrentMedia: [],
+      unitViewById: new Map<string, TimelineUnitView>(),
+      unitsOnCurrentMedia: [],
+      getUtteranceDocById: () => undefined,
       setSaveState,
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes: vi.fn(async () => undefined),
@@ -145,14 +189,20 @@ describe('useBatchOperationController', () => {
   it('maps single selected timeline unit through segment-to-utterance fallback for batch actions', async () => {
     const scaleSelectedTimes = vi.fn(async () => undefined);
 
+    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([
+      makeUtterance('utt-1', 1, 2),
+      makeUtterance('utt-2', 3, 4),
+    ], 'layer-seg');
+    const unitViewById = new Map<string, TimelineUnitView>([
+      ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
+      ['seg-a', segmentView('seg-a', 'utt-2', 'layer-seg', 'media-1')],
+    ]);
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-a', kind: 'segment' },
-      unitToUtteranceId: new Map([['seg-a', 'utt-2']]),
-      utterancesOnCurrentMedia: [
-        makeUtterance('utt-1', 1, 2),
-        makeUtterance('utt-2', 3, 4),
-      ],
+      unitViewById,
+      unitsOnCurrentMedia,
+      getUtteranceDocById,
       setSaveState: vi.fn(),
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes,

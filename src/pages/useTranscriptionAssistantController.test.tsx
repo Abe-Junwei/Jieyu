@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, UtteranceDocType } from '../db';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import { utteranceToView } from '../hooks/timelineUnitView';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 
 const {
@@ -61,12 +62,13 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     state: {
       phase: 'ready',
       dbName: 'jieyu',
-      utteranceCount: 1,
+      unitCount: 1,
       translationLayerCount: 1,
     },
     unitsLength: 1,
     translationLayersLength: 1,
     aiConfidenceAvg: 0.9,
+    selectedPrimaryUnitView: utteranceToView(utterance, transcriptionLayer.id),
     selectedTimelineOwnerUnit: utterance,
     selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 1 },
     selectedAiWarning: false,

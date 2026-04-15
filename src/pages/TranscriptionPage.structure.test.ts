@@ -270,7 +270,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformBridgeHookCode.includes('const { rulerView, zoomToPercent, zoomToUtterance } = useZoom({')).toBe(true);
     expect(hookCode.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(hookCode.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const segments = segmentsByLayer.get(activeWaveformSegmentSourceLayer.id) ?? [];')).toBe(true);
+    expect(hookCode.includes('const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;')).toBe(true);
     expect(hookCode.includes('const waveformRegions = useMemo(() =>')).toBe(true);
 
     // 选择态应按 independent/utterance 双路径路由
@@ -280,7 +280,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('return waveformTimelineItems.some((item) => item.id === selectedTimelineUnit.unitId)')).toBe(true);
     expect(hookCode.includes('const waveformActiveRegionIds = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('return selectedWaveformRegionId ? new Set([selectedWaveformRegionId]) : new Set<string>();')).toBe(true);
-    expect(hookCode.includes('const waveformPrimaryRegionId = selectedWaveformRegionId;')).toBe(true);
+    expect(waveformBridgeHookCode.includes('primaryRegionId: selectedWaveformRegionId')).toBe(true);
     expect(hookCode.includes('const selectedWaveformTimelineItem = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('return waveformTimelineItems.find((item) => item.id === selectedWaveformRegionId) ?? null;')).toBe(true);
 
@@ -466,16 +466,16 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}')).toBe(true);
     expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}')).toBe(true);
 
-    expect(scopeHookCode.includes('const speakerActionUtteranceIdByUnitId = useMemo(() => {')).toBe(true);
-    expect(scopeHookCode.includes('const selectedBatchSegmentsForSpeakerActions = useMemo(')).toBe(true);
+    expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
+    expect(scopeHookCode.includes('selectedBatchSegmentsForSpeakerActions')).toBe(true);
     expect(scopeHookCode.includes('const resolveSpeakerActionUtteranceIds = useCallback((ids: Iterable<string>) => {')).toBe(true);
 
     expect(speakerControllerCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(true);
     expect(speakerControllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
     expect(speakerControllerCode.includes("if (kind === 'segment') {")).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(Array.from(unitIds), speakerId));')).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(unitIds), speakerId));')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(ids), speakerId));')).toBe(true);
 
     expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
@@ -643,7 +643,7 @@ describe('TranscriptionPage structure invariants', () => {
   expect(runtimeContractsCode.includes('actions: TranscriptionPageAnalysisEmbeddingProviderActionProps;')).toBe(true);
   expect(analysisRuntimeCode.includes('activeTab={panel.analysisTab}')).toBe(true);
   expect(analysisRuntimeCode.includes('locale: panel.locale,')).toBe(true);
-  expect(analysisRuntimeCode.includes('selectedUtterance: embedding.source.selectedUtterance,')).toBe(true);
+  expect(analysisRuntimeCode.includes('selectedUnit: embedding.source.selectedUnit,')).toBe(true);
   expect(analysisRuntimeCode.includes('embedding.provider.config.embeddingProviderConfig')).toBe(true);
   expect(analysisRuntimeCode.includes('onJumpToCitation: embedding.navigation.onJumpToCitation,')).toBe(true);
   expect(pdfRuntimeCode.includes("from './TranscriptionPage.runtimeContracts';")).toBe(true);
@@ -689,8 +689,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('} = useRecoveryBanner({')).toBe(true);
     expect(orchestratorCode.includes('onApply={applyRecoveryBanner}')).toBe(true);
     expect(orchestratorCode.includes('onDismiss={dismissRecoveryBanner}')).toBe(true);
-    expect(orchestratorCode.includes('const snap = recoveryDataRef.current;')).toBe(false);
-    expect(orchestratorCode.includes('fireAndForget((async () => {')).toBe(false);
+    expect(orchestratorCode.includes('recoveryDataRef')).toBe(false);
 
     expect(hookCode.includes('const applyRecoveryBanner = useCallback((): void => {')).toBe(true);
     expect(hookCode.includes('const dismissRecoveryBanner = useCallback((): void => {')).toBe(true);
@@ -829,6 +828,6 @@ describe('TranscriptionPage structure invariants', () => {
     expect(selectionHookCode.includes('const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
     expect(hookCode.includes('if (!input.nextUtteranceIdForVoiceDictation) return;')).toBe(true);
-    expect(hookCode.includes('input.selectUtterance(input.nextUtteranceIdForVoiceDictation);')).toBe(true);
+    expect(hookCode.includes('input.selectUnit(input.nextUtteranceIdForVoiceDictation);')).toBe(true);
   });
 });

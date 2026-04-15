@@ -47,7 +47,7 @@ export function TranscriptionPageAnalysisRuntime({
     taskRunner,
     embeddingService: deferredEmbeddingRuntime.embeddingService,
     embeddingSearchService: deferredEmbeddingRuntime.embeddingSearchService,
-    selectedUtterance: embedding.source.selectedUtterance,
+    selectedUnit: embedding.source.selectedUnit,
     utterancesOnCurrentMedia: embedding.source.utterancesOnCurrentMedia,
     getUtteranceTextForLayer: embedding.source.getUtteranceTextForLayer,
     formatTime: embedding.source.formatTime,
@@ -70,7 +70,7 @@ export function TranscriptionPageAnalysisRuntime({
   );
 
   const embeddingContextValue = useEmbeddingContextValue({
-    selectedUtterance: embedding.source.selectedUtterance,
+    selectedUnit: embedding.source.selectedUnit,
     aiEmbeddingBusy,
     aiEmbeddingProgressLabel,
     aiEmbeddingLastResult,

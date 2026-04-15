@@ -56,24 +56,18 @@ export function buildUtteranceTimelineDigest(utterances: UtteranceTimelineEntry[
   return lines.join(' | ');
 }
 
-function timelineUnitsToDigestEntries(units: ReadonlyArray<TimelineUnitView>): UtteranceTimelineEntry[] {
-  return units.map((u) => ({
-    id: u.id,
-    startTime: u.startTime,
-    endTime: u.endTime,
-    transcription: u.text,
-  }));
-}
-
 interface BuildTranscriptionAiPromptContextParams {
   selectionSnapshot: TranscriptionSelectionSnapshot;
   selectedUnitIds: string[];
+  /** Total selected timeline units (may exceed `selectedUnitIds.length` when capped). */
+  selectedUnitCount: number;
   /** Current media timeline rows (utterance or segment), single read model. */
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
   /** Full-project list for local list/search/detail tools. */
   projectUnitsForTools?: ReadonlyArray<TimelineUnitView>;
   unitIndexComplete?: boolean;
-  utteranceCount: number;
+  /** Project-wide timeline unit count (utterance + segment read model). */
+  unitCount: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   waveformAnalysis?: WaveformAnalysisPromptSummary;
@@ -86,17 +80,19 @@ interface BuildTranscriptionAiPromptContextParams {
   mediaItems?: ReadonlyArray<MediaItemPromptInput>;
   currentMediaId?: string;
   activeLayerIdForEdits?: string;
-  recentEdits: string[];
   recentActions?: string[];
+  /** Timeline read-model epoch for destructive tool stale guards. */
+  timelineReadModelEpoch?: number;
 }
 
 export function buildTranscriptionAiPromptContext({
   selectionSnapshot,
   selectedUnitIds,
+  selectedUnitCount,
   currentMediaUnits,
   projectUnitsForTools,
   unitIndexComplete = true,
-  utteranceCount,
+  unitCount,
   translationLayerCount,
   aiConfidenceAvg,
   waveformAnalysis,
@@ -109,11 +105,9 @@ export function buildTranscriptionAiPromptContext({
   mediaItems,
   currentMediaId,
   activeLayerIdForEdits,
-  recentEdits,
   recentActions,
+  timelineReadModelEpoch,
 }: BuildTranscriptionAiPromptContextParams): AiPromptContext {
-  const digestEntries = timelineUnitsToDigestEntries(currentMediaUnits);
-  const unitTimeline = buildUtteranceTimelineDigest(digestEntries);
   const localUnitIndex =
     (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) && projectUnitsForTools && projectUnitsForTools.length > 0
       ? projectUnitsForTools
@@ -139,6 +133,7 @@ export function buildTranscriptionAiPromptContext({
         ? { activeSegmentUnitId: selectionSnapshot.timelineUnit.unitId }
         : {}),
       ...(selectionSnapshot.selectedUnitKind ? { selectedUnitKind: selectionSnapshot.selectedUnitKind } : {}),
+      ...(selectedUnitCount > 0 ? { selectedUnitCount } : {}),
       ...(selectedUnitIds.length > 0 ? { selectedUnitIds } : {}),
       ...(selectionSnapshot.selectedUnitStartSec !== undefined && selectionSnapshot.selectedUnitEndSec !== undefined
         ? {
@@ -153,19 +148,17 @@ export function buildTranscriptionAiPromptContext({
       ...(selectionSnapshot.selectedText !== null ? { selectedText: selectionSnapshot.selectedText } : {}),
       ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
-      projectUnitCount: utteranceCount,
+      projectUnitCount: unitCount,
       currentMediaUnitCount: currentMediaUnits.length,
+      ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
       ...(unitIndexComplete ? {} : { unitIndexComplete: false }),
       ...(worldModelSnapshot ? { worldModelSnapshot } : {}),
-      ...(unitTimeline ? { unitTimeline } : {}),
       ...(localUnitIndex ? { localUnitIndex } : {}),
-      recentEdits,
       ...(recentActions && recentActions.length > 0 ? { recentActions } : {}),
     },
     longTerm: {
       projectStats: {
-        unitCount: utteranceCount,
-        utteranceCount,
+        unitCount,
         translationLayerCount,
         aiConfidenceAvg,
       },

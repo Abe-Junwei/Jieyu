@@ -5,11 +5,11 @@ import { useAiChat } from '../hooks/useAiChat';
 import { useAiPanelLogic, taskToPersona } from '../hooks/useAiPanelLogic';
 import { useAiToolCallHandler } from '../hooks/useAiToolCallHandler';
 import { materializePendingToolCallTargets } from '../hooks/useAiToolCallHandler.segmentTargeting';
-import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
+import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
 import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -18,8 +18,9 @@ import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskChe
 import { buildAiSegmentTargetDescriptors, resolveAiSegmentTargetScopeUtterances } from './useTranscriptionAiController.segmentTargets';
 import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import { vadCache } from '../services/vad/VadCacheService';
-import { useEditEventBuffer, formatRecentActions } from '../hooks/useEditEventBuffer';
+import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
+import type { UtteranceDocType } from '../db';
 import type {
   UseTranscriptionAiControllerInput,
   UseTranscriptionAiControllerResult,
@@ -36,6 +37,16 @@ const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5b
 export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
 ): UseTranscriptionAiControllerResult {
+  const toSyntheticUtterance = useCallback((unit: { id: string; mediaId: string; textId?: string; startTime: number; endTime: number; speakerId?: string }): UtteranceDocType => ({
+    id: unit.id,
+    mediaId: unit.mediaId,
+    textId: unit.textId ?? '',
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    ...(unit.speakerId ? { speakerId: unit.speakerId } : {}),
+    createdAt: '',
+    updatedAt: '',
+  }), []);
   const {
     transcriptionLayers,
     translationLayers,
@@ -58,23 +69,23 @@ export function useTranscriptionAiController(
     () => createDeferredEmbeddingSearchService(() => embeddingProviderConfig),
     [embeddingProviderConfig],
   );
+  const resolvedOwnerUtteranceForAi = useMemo(
+    () => utteranceDocForSpeakerTargetFromUnitView(input.selectionSnapshot.selectedUnit, input.getUtteranceDocById),
+    [input.getUtteranceDocById, input.selectionSnapshot.selectedUnit],
+  );
   const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; requestId?: string; timestamp: string }>>([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
-  const unitIndex = useTimelineUnitViewIndex({
-    utterances: input.utterances,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    segmentsByLayer: input.segmentsByLayer,
-    segmentContentByLayer: input.segmentContentByLayer,
-    currentMediaId: input.selectedTimelineMedia?.id,
-    activeLayerIdForEdits: input.activeLayerIdForEdits,
-    defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
-    utteranceCount: input.utteranceCount,
-    ...(input.segmentsLoadComplete !== undefined ? { segmentsLoadComplete: input.segmentsLoadComplete } : {}),
-    ...(input.timelineUnitViewIndex ? { existingIndex: input.timelineUnitViewIndex } : {}),
-  });
-  const effectiveUnitIndex = unitIndex;
+  const effectiveUnitIndex = input.timelineUnitViewIndex;
+  const allUnitsAsUtterances = useMemo(
+    () => effectiveUnitIndex.allUnits.map((unit) => toSyntheticUtterance(unit)),
+    [effectiveUnitIndex.allUnits, toSyntheticUtterance],
+  );
+  const currentMediaUnitsAsUtterances = useMemo(
+    () => effectiveUnitIndex.currentMediaUnits.map((unit) => toSyntheticUtterance(unit)),
+    [effectiveUnitIndex.currentMediaUnits, toSyntheticUtterance],
+  );
   const acousticBatchSelectionRanges = useMemo(() => {
     const selectedUnits = new Map<string, (typeof effectiveUnitIndex.currentMediaUnits)[number]>();
     const selectedMediaId = input.selectedTimelineMedia?.id;
@@ -133,8 +144,8 @@ export function useTranscriptionAiController(
   }, []);
 
   const segmentTargetScopeUtterances = resolveAiSegmentTargetScopeUtterances({
-    utterances: input.utterances,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    utterances: allUnitsAsUtterances,
+    utterancesOnCurrentMedia: currentMediaUnitsAsUtterances,
     ...(input.selectedTimelineMedia ? { selectedTimelineMedia: input.selectedTimelineMedia } : {}),
   });
 
@@ -149,17 +160,17 @@ export function useTranscriptionAiController(
   });
   const selectedSegmentTargetId = input.selectionSnapshot.selectedUnitKind === 'segment'
     ? (input.selectedTimelineSegment?.id ?? input.selectionSnapshot.timelineUnit?.unitId ?? undefined)
-    : input.selectedTimelineOwnerUnit?.id ?? undefined;
+    : resolvedOwnerUtteranceForAi?.id ?? undefined;
 
   const materializeAiToolCall = useCallback((call: Parameters<typeof materializePendingToolCallTargets>[0]) => materializePendingToolCallTargets(call, {
     utterances: segmentTargetScopeUtterances,
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    ...(input.selectedTimelineOwnerUnit ? { selectedUnit: input.selectedTimelineOwnerUnit } : {}),
+    ...(resolvedOwnerUtteranceForAi ? { selectedUnit: resolvedOwnerUtteranceForAi } : {}),
     segmentTargets: segmentTargetDescriptors,
     ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
   }), [
-    input.selectedTimelineOwnerUnit,
+    resolvedOwnerUtteranceForAi,
     input.transcriptionLayers,
     input.translationLayers,
     segmentTargetDescriptors,
@@ -189,7 +200,7 @@ export function useTranscriptionAiController(
 
   const aiToolCallHandler = useAiToolCallHandler({
     utterances: segmentTargetScopeUtterances,
-    selectedUnit: input.selectedTimelineOwnerUnit ?? undefined,
+    selectedUnit: resolvedOwnerUtteranceForAi ?? undefined,
     selectedUnitMedia: input.selectedTimelineMedia,
     selectedLayerId: input.selectedLayerId,
     transcriptionLayers: input.transcriptionLayers,
@@ -202,10 +213,10 @@ export function useTranscriptionAiController(
     splitTranscriptionSegment: input.splitTranscriptionSegment,
     ...(input.mergeWithPrevious ? { mergeWithPrevious: input.mergeWithPrevious } : {}),
     ...(input.mergeWithNext ? { mergeWithNext: input.mergeWithNext } : {}),
-    mergeSelectedUtterances: input.mergeSelectedUtterances,
+    mergeSelectedUnits: input.mergeSelectedUnits,
     ...(input.mergeSelectedSegments ? { mergeSelectedSegments: input.mergeSelectedSegments } : {}),
     deleteUtterance: input.deleteUtterance,
-    deleteSelectedUtterances: input.deleteSelectedUtterances,
+    deleteSelectedUnits: input.deleteSelectedUnits,
     deleteLayer: input.deleteLayer,
     toggleLayerLink: input.toggleLayerLink,
     saveUtteranceText: input.saveUtteranceText,
@@ -230,12 +241,6 @@ export function useTranscriptionAiController(
     return aiToolCallHandler(preparedCall);
   }, [aiToolCallHandler, materializeAiToolCall]);
 
-  const recentActionEvents = useEditEventBuffer({
-    labels: input.undoHistory.slice(0, 5).map((item) => String(item)),
-    selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 3),
-    selectedUnitKind: input.selectionSnapshot.selectedUnitKind ?? 'segment',
-  });
-
   const buildAiPromptContext = useCallback(() => {
     const currentMediaId = input.selectedTimelineMedia?.id;
     const cachedVad = currentMediaId ? vadCache.get(currentMediaId) : null;
@@ -243,25 +248,26 @@ export function useTranscriptionAiController(
     const projectUnitsForTools = effectiveUnitIndex.isComplete || effectiveUnitIndex.allUnits.length > 0
       ? effectiveUnitIndex.allUnits
       : undefined;
-    if (projectUnitsForTools && input.utterances.length === 0 && projectUnitsForTools.some((unit) => unit.kind === 'segment')) {
+    if (projectUnitsForTools && !projectUnitsForTools.some((unit) => unit.kind === 'utterance') && projectUnitsForTools.some((unit) => unit.kind === 'segment')) {
       recordMetric({
         id: 'ai.segment_only_project_context_build',
         value: 1,
         tags: createMetricTags('useTranscriptionAiController', { currentMediaId: currentMediaId ?? 'unknown' }),
       });
     }
-    if (import.meta.env.DEV && effectiveUnitIndex.totalCount !== input.utteranceCount) {
-      console.warn('[timeline_unit_count_mismatch]', {
-        source: 'useTranscriptionAiController',
-        indexTotalCount: effectiveUnitIndex.totalCount,
-        utteranceCount: input.utteranceCount,
-      });
-      recordMetric({
-        id: 'ai.timeline_unit_count_mismatch',
+    if (typeof input.authoritativeUnitCount === 'number' && Number.isFinite(input.authoritativeUnitCount) && effectiveUnitIndex.totalCount !== input.authoritativeUnitCount) {
+      if (import.meta.env.DEV) {
+        console.warn('[timeline_unit_count_mismatch]', {
+          source: 'useTranscriptionAiController',
+          indexTotalCount: effectiveUnitIndex.totalCount,
+          authoritativeUnitCount: input.authoritativeUnitCount,
+        });
+      }
+      recordMetric({ id: 'ai.timeline_unit_count_mismatch',
         value: 1,
         tags: createMetricTags('useTranscriptionAiController', {
           indexTotalCount: effectiveUnitIndex.totalCount,
-          utteranceCount: input.utteranceCount,
+          authoritativeUnitCount: input.authoritativeUnitCount,
         }),
       });
     }
@@ -277,8 +283,9 @@ export function useTranscriptionAiController(
       }),
       ...(acousticSummary ? { acousticSummary } : {}),
       selectionSnapshot: input.selectionSnapshot,
+      selectedUnitCount: input.selectedUnitIds.size,
       selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
-      utteranceCount: effectiveUnitIndex.totalCount,
+      unitCount: effectiveUnitIndex.totalCount,
       translationLayerCount: input.translationLayerCount,
       aiConfidenceAvg: input.aiConfidenceAvg ?? 0,
       observerStage: aiObserverStageRef.current,
@@ -289,15 +296,15 @@ export function useTranscriptionAiController(
       ...(input.selectedTimelineMedia ? { mediaItems: [input.selectedTimelineMedia] } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
       ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
-      recentEdits: input.undoHistory.slice(0, 5).map((item) => String(item)),
-      recentActions: formatRecentActions(recentActionEvents),
+      recentActions: formatRecentActions(input.recentTimelineEditEvents),
+      timelineReadModelEpoch: effectiveUnitIndex.epoch,
     });
-  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.layers, input.selectedTimelineMedia, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount, input.undoHistory, input.utteranceCount, input.utterances.length, recentActionEvents]);
+  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.layers, input.recentTimelineEditEvents, input.selectedTimelineMedia, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
     utterances: segmentTargetScopeUtterances,
-    ...(input.selectedTimelineOwnerUnit ? { selectedUnit: input.selectedTimelineOwnerUnit } : {}),
+    ...(resolvedOwnerUtteranceForAi ? { selectedUnit: resolvedOwnerUtteranceForAi } : {}),
     ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
     segmentTargets: segmentTargetDescriptors,
     transcriptionLayers,
@@ -307,12 +314,18 @@ export function useTranscriptionAiController(
     translationTextByLayer,
   });
 
+  const getTimelineReadModelEpoch = useCallback(
+    () => effectiveUnitIndex.epoch,
+    [effectiveUnitIndex.epoch],
+  );
+
   const aiChat = useAiChat({
     onToolCall: handleAiToolCall,
     onToolRiskCheck: handleAiToolRiskCheck,
     preparePendingToolCall: materializeAiToolCall,
     systemPersonaKey: aiDerivedPersona,
     getContext: buildAiPromptContext,
+    getTimelineReadModelEpoch,
     maxContextChars: 2400,
     historyCharBudget: 12000,
     // 转写页首屏关闭自动连通性探测，避免未交互时触发远程请求 | Disable auto connection probing on transcription first screen to avoid remote calls before user interaction
@@ -333,8 +346,8 @@ export function useTranscriptionAiController(
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     locale: input.locale,
-    utterances: input.utterances,
-    selectedUnit: input.selectedTimelineOwnerUnit ?? undefined,
+    utterances: allUnitsAsUtterances,
+    selectedUnit: resolvedOwnerUtteranceForAi ?? undefined,
     selectedUnitText: input.selectionSnapshot.selectedText,
     translationLayers: input.translationLayers,
     translationDrafts: input.translationDrafts,

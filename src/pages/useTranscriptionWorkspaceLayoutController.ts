@@ -27,7 +27,7 @@ const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
 
 type UseTranscriptionWorkspaceLayoutControllerInput = {
   layers: LayerDocType[];
-  selectedTimelineOwnerUtteranceId: string | undefined;
+  selectedTimelineOwnerUnitId: string | undefined;
   utteranceRowRef: MutableRefObject<Record<string, HTMLDivElement | null>>;
 };
 
@@ -212,10 +212,10 @@ export function useTranscriptionWorkspaceLayoutController(
 
   useEffect(() => {
     if (!autoScrollEnabled) return;
-    if (!input.selectedTimelineOwnerUtteranceId) return;
-    const row = input.utteranceRowRef.current[input.selectedTimelineOwnerUtteranceId];
+    if (!input.selectedTimelineOwnerUnitId) return;
+    const row = input.utteranceRowRef.current[input.selectedTimelineOwnerUnitId];
     row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [autoScrollEnabled, input.selectedTimelineOwnerUtteranceId, input.utteranceRowRef]);
+  }, [autoScrollEnabled, input.selectedTimelineOwnerUnitId, input.utteranceRowRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

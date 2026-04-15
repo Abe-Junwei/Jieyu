@@ -4,7 +4,7 @@ import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 type TranscriptionPageBatchOpsProps = {
   showBatchOperationPanel: boolean;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   selectedBatchUtterances: Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime'>[];
   utterancesOnCurrentMedia: UtteranceDocType[];
   selectedBatchUtteranceTextById: Record<string, string>;
@@ -22,7 +22,7 @@ type TranscriptionPageBatchOpsProps = {
 
 export function TranscriptionPageBatchOps({
   showBatchOperationPanel,
-  selectedUtteranceIds,
+  selectedUnitIds,
   selectedBatchUtterances,
   utterancesOnCurrentMedia,
   selectedBatchUtteranceTextById,
@@ -40,7 +40,7 @@ export function TranscriptionPageBatchOps({
   if (!showBatchOperationPanel) return null;
   return (
     <BatchOperationPanel
-      selectedCount={selectedUtteranceIds.size}
+      selectedCount={selectedUnitIds.size}
       selectedUtterances={selectedBatchUtterances}
       allUtterancesOnMedia={utterancesOnCurrentMedia}
       utteranceTextById={selectedBatchUtteranceTextById}

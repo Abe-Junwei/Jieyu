@@ -2,6 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { useTranscriptionAiController } from './useTranscriptionAiController';
 
 const {
@@ -108,6 +109,25 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
   } as LayerSegmentDocType;
 }
 
+function makeTimelineUnitViewIndex(input: {
+  utterances: UtteranceDocType[];
+  utterancesOnCurrentMedia: UtteranceDocType[];
+  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
+  currentMediaId?: string;
+}) {
+  return buildTimelineUnitViewIndex({
+    utterances: input.utterances,
+    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    segmentsByLayer: input.segmentsByLayer,
+    segmentContentByLayer: input.segmentContentByLayer,
+    currentMediaId: input.currentMediaId,
+    activeLayerIdForEdits: undefined,
+    defaultTranscriptionLayerId: undefined,
+    segmentsLoadComplete: true,
+  });
+}
+
 function renderIndependentSegmentTimelineController(overrides?: {
   selectedSegmentId?: string;
   selectedSegmentText?: string;
@@ -116,14 +136,37 @@ function renderIndependentSegmentTimelineController(overrides?: {
 }) {
   const handler = vi.fn(async () => ({ ok: true, message: 'ok' }));
   mockUseAiToolCallHandler.mockImplementation(() => handler);
+  const utterances = [makeUtteranceWithId('utt-1', 'media-1')];
+  const utterancesOnCurrentMedia = [makeUtteranceWithId('utt-1', 'media-1')];
+  const segmentsByLayer = new Map([
+    ['layer-independent', [
+      makeSegment('seg-1', 'layer-independent', 0, 1),
+      makeSegment('seg-2', 'layer-independent', 2, 3),
+      makeSegment('seg-3', 'layer-independent', 4, 5),
+    ]],
+  ]);
+  const segmentContentByLayer = new Map([
+    ['layer-independent', new Map([
+      ['seg-1', { text: '第一段' }],
+      ['seg-2', { text: overrides?.selectedSegmentText ?? '第二段' }],
+      ['seg-3', { text: '第三段' }],
+    ])],
+  ]);
+
+  const selectedSegmentId = overrides?.selectedSegmentId ?? 'seg-2';
+  const timelineUnitViewIndex = makeTimelineUnitViewIndex({
+    utterances,
+    utterancesOnCurrentMedia,
+    segmentsByLayer,
+    segmentContentByLayer,
+    currentMediaId: 'media-1',
+  });
 
   renderHook(() => useTranscriptionAiController({
-    utterances: [makeUtteranceWithId('utt-1', 'media-1')],
-    utterancesOnCurrentMedia: [makeUtteranceWithId('utt-1', 'media-1')],
-    selectedUnitIds: new Set([overrides?.selectedSegmentId ?? 'seg-2']),
+    selectedUnitIds: new Set([selectedSegmentId]),
     selectedUnit: null,
-    selectedTimelineOwnerUnit: null,
-    selectedTimelineSegment: makeSegment(overrides?.selectedSegmentId ?? 'seg-2', 'layer-independent', 2, 3),
+    getUtteranceDocById: (id) => utterances.find((item) => item.id === id),
+    selectedTimelineSegment: makeSegment(selectedSegmentId, 'layer-independent', 2, 3),
     selectedLayerId: 'layer-independent',
     activeLayerIdForEdits: 'layer-independent',
     resolveSegmentRoutingForLayer: () => ({
@@ -132,25 +175,13 @@ function renderIndependentSegmentTimelineController(overrides?: {
       sourceLayerId: 'layer-independent',
       editMode: 'independent-segment',
     }),
-    segmentsByLayer: new Map([
-      ['layer-independent', [
-        makeSegment('seg-1', 'layer-independent', 0, 1),
-        makeSegment('seg-2', 'layer-independent', 2, 3),
-        makeSegment('seg-3', 'layer-independent', 4, 5),
-      ]],
-    ]),
-    segmentContentByLayer: new Map([
-      ['layer-independent', new Map([
-        ['seg-1', { text: '第一段' }],
-        ['seg-2', { text: overrides?.selectedSegmentText ?? '第二段' }],
-        ['seg-3', { text: '第三段' }],
-      ])],
-    ]),
+    segmentsByLayer,
+    segmentContentByLayer,
     selectionSnapshot: {
-      timelineUnit: { layerId: 'layer-independent', unitId: overrides?.selectedSegmentId ?? 'seg-2', kind: 'segment' },
+      timelineUnit: { layerId: 'layer-independent', unitId: selectedSegmentId, kind: 'segment' },
       selectedUnitKind: 'segment',
       activeUnitId: null,
-      selectedUnit: null,
+      selectedUnit: timelineUnitViewIndex.byId.get(selectedSegmentId) ?? null,
       selectedRowMeta: null,
       selectedLayerId: 'layer-independent',
       selectedText: overrides?.selectedSegmentText ?? '第二段',
@@ -161,18 +192,18 @@ function renderIndependentSegmentTimelineController(overrides?: {
     layerLinks: [],
     getUtteranceTextForLayer: () => '',
     formatTime: (seconds) => `${seconds}`,
-    utteranceCount: 1,
+    timelineUnitViewIndex,
     translationLayerCount: 0,
     aiConfidenceAvg: null,
-    undoHistory: [],
+    recentTimelineEditEvents: [],
     createLayerWithActiveContext: vi.fn(async () => true),
     createTranscriptionSegment: vi.fn(async () => undefined),
     splitTranscriptionSegment: vi.fn(async () => undefined),
     ...(overrides?.mergeWithPrevious ? { mergeWithPrevious: overrides.mergeWithPrevious } : {}),
     ...(overrides?.mergeWithNext ? { mergeWithNext: overrides.mergeWithNext } : {}),
-    mergeSelectedUtterances: vi.fn(async () => undefined),
+    mergeSelectedUnits: vi.fn(async () => undefined),
     deleteUtterance: vi.fn(async () => undefined),
-    deleteSelectedUtterances: vi.fn(async () => undefined),
+    deleteSelectedUnits: vi.fn(async () => undefined),
     deleteLayer: vi.fn(async () => undefined),
     toggleLayerLink: vi.fn(async () => undefined),
     saveUtteranceText: vi.fn(async () => undefined),
@@ -245,19 +276,22 @@ describe('useTranscriptionAiController', () => {
       orthographyId: 'orth-target',
     });
     const utterance = makeUtterance();
-
-    renderHook(() => useTranscriptionAiController({
+    const timelineUnitViewIndex = makeTimelineUnitViewIndex({
       utterances: [utterance],
       utterancesOnCurrentMedia: [utterance],
+      currentMediaId: 'media-1',
+    });
+
+    renderHook(() => useTranscriptionAiController({
       selectedUnitIds: new Set([utterance.id]),
       selectedUnit: utterance,
-      selectedTimelineOwnerUnit: utterance,
+      getUtteranceDocById: (id) => (id === utterance.id ? utterance : undefined),
       selectedLayerId: '',
       selectionSnapshot: {
         timelineUnit: null,
         selectedUnitKind: null,
         activeUnitId: utterance.id,
-        selectedUnit: utterance,
+        selectedUnit: timelineUnitViewIndex.byId.get(utterance.id) ?? null,
         selectedRowMeta: null,
         selectedLayerId: null,
         selectedText: '',
@@ -268,16 +302,16 @@ describe('useTranscriptionAiController', () => {
       layerLinks: [],
       getUtteranceTextForLayer: () => '',
       formatTime: (seconds) => `${seconds}`,
-      utteranceCount: 1,
+      timelineUnitViewIndex,
       translationLayerCount: 1,
       aiConfidenceAvg: null,
-      undoHistory: [],
+      recentTimelineEditEvents: [],
       createLayerWithActiveContext: vi.fn(async () => true),
       createTranscriptionSegment: vi.fn(async () => undefined),
       splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
-      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),
@@ -321,19 +355,22 @@ describe('useTranscriptionAiController', () => {
   it('scopes delete-all preview and snapshot to utterances on current media', () => {
     const currentMediaUtterance = makeUtteranceWithId('utt-1', 'media-1');
     const otherMediaUtterance = makeUtteranceWithId('utt-2', 'media-2');
-
-    renderHook(() => useTranscriptionAiController({
+    const timelineUnitViewIndex = makeTimelineUnitViewIndex({
       utterances: [currentMediaUtterance, otherMediaUtterance],
       utterancesOnCurrentMedia: [currentMediaUtterance],
+      currentMediaId: 'media-1',
+    });
+
+    renderHook(() => useTranscriptionAiController({
       selectedUnitIds: new Set([currentMediaUtterance.id]),
       selectedUnit: currentMediaUtterance,
-      selectedTimelineOwnerUnit: currentMediaUtterance,
+      getUtteranceDocById: (id) => ([currentMediaUtterance, otherMediaUtterance].find((item) => item.id === id)),
       selectedLayerId: '',
       selectionSnapshot: {
         timelineUnit: null,
         selectedUnitKind: null,
         activeUnitId: currentMediaUtterance.id,
-        selectedUnit: currentMediaUtterance,
+        selectedUnit: timelineUnitViewIndex.byId.get(currentMediaUtterance.id) ?? null,
         selectedRowMeta: null,
         selectedLayerId: null,
         selectedText: '',
@@ -344,16 +381,20 @@ describe('useTranscriptionAiController', () => {
       layerLinks: [],
       getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '当前页句段' : '其他页句段',
       formatTime: (seconds) => `${seconds}`,
-      utteranceCount: 2,
+      timelineUnitViewIndex: makeTimelineUnitViewIndex({
+        utterances: [currentMediaUtterance, otherMediaUtterance],
+        utterancesOnCurrentMedia: [currentMediaUtterance],
+        currentMediaId: 'media-1',
+      }),
       translationLayerCount: 1,
       aiConfidenceAvg: null,
-      undoHistory: [],
+      recentTimelineEditEvents: [],
       createLayerWithActiveContext: vi.fn(async () => true),
       createTranscriptionSegment: vi.fn(async () => undefined),
       splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
-      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),
@@ -383,8 +424,8 @@ describe('useTranscriptionAiController', () => {
 
     const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.utterances).toEqual([currentMediaUtterance]);
-    expect(toolHandlerInput?.getSegments()).toEqual([currentMediaUtterance]);
+    expect(toolHandlerInput?.utterances?.map((utterance: UtteranceDocType) => utterance.id)).toEqual([currentMediaUtterance.id]);
+    expect(toolHandlerInput?.getSegments().map((utterance: UtteranceDocType) => utterance.id)).toEqual([currentMediaUtterance.id]);
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
     const aiChatOptions = latestAiChatCall?.[0];
@@ -407,13 +448,16 @@ describe('useTranscriptionAiController', () => {
   it('still scopes AI segment resolution to current media when there is no selected segment', () => {
     const currentMediaUtterance = makeUtteranceWithId('utt-1', 'media-1');
     const otherMediaUtterance = makeUtteranceWithId('utt-2', 'media-2');
-
-    renderHook(() => useTranscriptionAiController({
+    const timelineUnitViewIndex = makeTimelineUnitViewIndex({
       utterances: [currentMediaUtterance, otherMediaUtterance],
       utterancesOnCurrentMedia: [currentMediaUtterance],
+      currentMediaId: 'media-1',
+    });
+
+    renderHook(() => useTranscriptionAiController({
       selectedUnitIds: new Set(),
       selectedUnit: null,
-      selectedTimelineOwnerUnit: null,
+      getUtteranceDocById: (id) => ([currentMediaUtterance, otherMediaUtterance].find((item) => item.id === id)),
       selectedLayerId: '',
       selectionSnapshot: {
         timelineUnit: null,
@@ -430,16 +474,16 @@ describe('useTranscriptionAiController', () => {
       layerLinks: [],
       getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '当前页句段' : '其他页句段',
       formatTime: (seconds) => `${seconds}`,
-      utteranceCount: 2,
+      timelineUnitViewIndex,
       translationLayerCount: 1,
       aiConfidenceAvg: null,
-      undoHistory: [],
+      recentTimelineEditEvents: [],
       createLayerWithActiveContext: vi.fn(async () => true),
       createTranscriptionSegment: vi.fn(async () => undefined),
       splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
-      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),
@@ -464,7 +508,7 @@ describe('useTranscriptionAiController', () => {
 
     const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.utterances).toEqual([currentMediaUtterance]);
+    expect(toolHandlerInput?.utterances?.map((utterance: UtteranceDocType) => utterance.id)).toEqual([currentMediaUtterance.id]);
     expect(toolHandlerInput?.selectedUnit).toBeUndefined();
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
@@ -494,11 +538,9 @@ describe('useTranscriptionAiController', () => {
     } as UtteranceDocType;
 
     renderHook(() => useTranscriptionAiController({
-      utterances: [utterance1, utterance2],
-      utterancesOnCurrentMedia: [],
       selectedUnitIds: new Set(),
       selectedUnit: null,
-      selectedTimelineOwnerUnit: null,
+      getUtteranceDocById: (id) => ([utterance1, utterance2].find((item) => item.id === id)),
       selectedLayerId: '',
       selectionSnapshot: {
         timelineUnit: null,
@@ -515,16 +557,20 @@ describe('useTranscriptionAiController', () => {
       layerLinks: [],
       getUtteranceTextForLayer: (utterance) => utterance.id,
       formatTime: (seconds) => `${seconds}`,
-      utteranceCount: 2,
+      timelineUnitViewIndex: makeTimelineUnitViewIndex({
+        utterances: [utterance1, utterance2],
+        utterancesOnCurrentMedia: [],
+        currentMediaId: 'media-1',
+      }),
       translationLayerCount: 0,
       aiConfidenceAvg: null,
-      undoHistory: [],
+      recentTimelineEditEvents: [],
       createLayerWithActiveContext: vi.fn(async () => true),
       createTranscriptionSegment: vi.fn(async () => undefined),
       splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
-      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),
@@ -549,7 +595,7 @@ describe('useTranscriptionAiController', () => {
 
     const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
     const toolHandlerInput = latestToolCallHandlerCall?.[0];
-    expect(toolHandlerInput?.utterances).toEqual([utterance1, utterance2]);
+    expect(toolHandlerInput?.utterances?.map((utterance: UtteranceDocType) => utterance.id)).toEqual([utterance1.id, utterance2.id]);
 
     const latestAiChatCall = mockUseAiChat.mock.calls[mockUseAiChat.mock.calls.length - 1];
     const aiChatOptions = latestAiChatCall?.[0];
@@ -586,18 +632,22 @@ describe('useTranscriptionAiController', () => {
       endTime: 4.4,
     } as UtteranceDocType;
 
-    renderHook(() => useTranscriptionAiController({
+    const timelineUnitViewIndex = makeTimelineUnitViewIndex({
       utterances: [overlapUtterance, lowConfidenceUtterance, gapTargetUtterance],
       utterancesOnCurrentMedia: [overlapUtterance, lowConfidenceUtterance, gapTargetUtterance],
+      currentMediaId: 'media-1',
+    });
+
+    renderHook(() => useTranscriptionAiController({
       selectedUnitIds: new Set(['utt-2']),
       selectedUnit: lowConfidenceUtterance,
-      selectedTimelineOwnerUnit: lowConfidenceUtterance,
+      getUtteranceDocById: (id) => ([overlapUtterance, lowConfidenceUtterance, gapTargetUtterance].find((item) => item.id === id)),
       selectedLayerId: '',
       selectionSnapshot: {
         timelineUnit: null,
         selectedUnitKind: 'utterance',
         activeUnitId: lowConfidenceUtterance.id,
-        selectedUnit: lowConfidenceUtterance,
+        selectedUnit: timelineUnitViewIndex.byId.get(lowConfidenceUtterance.id) ?? null,
         selectedRowMeta: null,
         selectedLayerId: null,
         selectedText: '低置信句段',
@@ -610,16 +660,16 @@ describe('useTranscriptionAiController', () => {
       layerLinks: [],
       getUtteranceTextForLayer: (utterance) => utterance.id,
       formatTime: (seconds) => `${seconds}`,
-      utteranceCount: 3,
+      timelineUnitViewIndex,
       translationLayerCount: 0,
       aiConfidenceAvg: 0.8,
-      undoHistory: [],
+      recentTimelineEditEvents: [],
       createLayerWithActiveContext: vi.fn(async () => true),
       createTranscriptionSegment: vi.fn(async () => undefined),
       splitTranscriptionSegment: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
       deleteUtterance: vi.fn(async () => undefined),
-      deleteSelectedUtterances: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
       deleteLayer: vi.fn(async () => undefined),
       toggleLayerLink: vi.fn(async () => undefined),
       saveUtteranceText: vi.fn(async () => undefined),

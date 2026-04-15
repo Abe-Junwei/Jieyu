@@ -2,6 +2,7 @@ import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { LayerDocType, UtteranceDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
@@ -49,8 +50,8 @@ export interface TranscriptionPageAssistantRuntimeVoiceActionProps {
 }
 
 export interface TranscriptionPageAssistantRuntimeSelection {
-  activeUtteranceUnitId: string | null;
-  selectedUtterance: UtteranceDocType | null;
+  activeUnitId: string | null;
+  selectedUnit: TimelineUnitView | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
   selectedLayerId: string | null;
   selectedUnitKind: TimelineUnitKind | null;
@@ -98,7 +99,7 @@ export interface TranscriptionPageAnalysisPanelProps {
 }
 
 export interface TranscriptionPageAnalysisEmbeddingSourceProps {
-  selectedUtterance: UtteranceDocType | null;
+  selectedUnit: UtteranceDocType | null;
   utterancesOnCurrentMedia: UtteranceDocType[];
   getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;

@@ -7,7 +7,7 @@ export function useTranscriptionImportExportInput(
   return useMemo(() => ({
     activeTextId: input.activeTextId,
     getActiveTextId: input.getActiveTextId,
-    selectedUtteranceMedia: input.selectedUtteranceMedia,
+    selectedUnitMedia: input.selectedUnitMedia,
     utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
     anchors: input.anchors,
     layers: input.layers,
@@ -22,7 +22,7 @@ export function useTranscriptionImportExportInput(
     input.getActiveTextId,
     input.layers,
     input.loadSnapshot,
-    input.selectedUtteranceMedia,
+    input.selectedUnitMedia,
     input.setSaveState,
     input.translations,
     input.utterancesOnCurrentMedia,

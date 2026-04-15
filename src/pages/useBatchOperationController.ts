@@ -1,6 +1,7 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import type { UtteranceDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { t, tf, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { resolveUnitSelectionMapping } from './selectionIdResolvers';
@@ -10,8 +11,9 @@ type BatchOperationSelectionAction = (targetIds: Set<string>) => Promise<void>;
 interface UseBatchOperationControllerInput {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
-  unitToUtteranceId: ReadonlyMap<string, string>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
+  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
   offsetSelectedTimes: (targetIds: Set<string>, deltaSec: number) => Promise<void>;
   scaleSelectedTimes: (targetIds: Set<string>, factor: number, anchorTime?: number) => Promise<void>;
@@ -31,8 +33,9 @@ interface UseBatchOperationControllerResult {
 export function useBatchOperationController({
   selectedUnitIds,
   selectedTimelineUnit,
-  unitToUtteranceId,
-  utterancesOnCurrentMedia,
+  unitViewById,
+  unitsOnCurrentMedia,
+  getUtteranceDocById,
   setSaveState,
   offsetSelectedTimes,
   scaleSelectedTimes,
@@ -44,17 +47,21 @@ export function useBatchOperationController({
     return resolveUnitSelectionMapping({
       selectedUnitIds,
       selectedTimelineUnit,
-      unitToUtteranceId,
+      unitViewById,
     });
-  }, [selectedTimelineUnit, selectedUnitIds, unitToUtteranceId]);
+  }, [selectedTimelineUnit, selectedUnitIds, unitViewById]);
   const selectedUnitIdsForSpeakerActionsSet = batchUtteranceSelectionMapping.mappedUnitIds;
   const hasBatchSelectionSource = batchUtteranceSelectionMapping.hasSelectionSource;
-  const selectedBatchUtterances = useMemo(
-    () => utterancesOnCurrentMedia
-      .filter((utt) => selectedUnitIdsForSpeakerActionsSet.has(utt.id))
-      .sort((a, b) => a.startTime - b.startTime),
-    [selectedUnitIdsForSpeakerActionsSet, utterancesOnCurrentMedia],
-  );
+  const selectedBatchUtterances = useMemo(() => {
+    const docs: UtteranceDocType[] = [];
+    for (const unit of unitsOnCurrentMedia) {
+      if (unit.kind !== 'utterance') continue;
+      if (!selectedUnitIdsForSpeakerActionsSet.has(unit.id)) continue;
+      const doc = getUtteranceDocById(unit.id);
+      if (doc) docs.push(doc);
+    }
+    return docs.sort((a, b) => a.startTime - b.startTime);
+  }, [getUtteranceDocById, selectedUnitIdsForSpeakerActionsSet, unitsOnCurrentMedia]);
   const resolveBatchUtteranceTargetIds = useCallback(() => {
     if (!hasBatchSelectionSource) return null;
     if (selectedUnitIdsForSpeakerActionsSet.size > 0) {

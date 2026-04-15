@@ -48,7 +48,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
 
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a'), makeLayer('layer-b')],
-      selectedTimelineOwnerUtteranceId: 'utt-1',
+      selectedTimelineOwnerUnitId: 'utt-1',
       utteranceRowRef,
     }));
 
@@ -71,7 +71,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
   it('handles focus-mode shortcuts and persists lane height updates', async () => {
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
-      selectedTimelineOwnerUtteranceId: undefined,
+      selectedTimelineOwnerUnitId: undefined,
       utteranceRowRef: makeUtteranceRowRef(),
     }));
 
@@ -111,7 +111,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
   it('clears document resize styles on unmount during active resize', async () => {
     const { result, unmount } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
-      selectedTimelineOwnerUtteranceId: undefined,
+      selectedTimelineOwnerUnitId: undefined,
       utteranceRowRef: makeUtteranceRowRef(),
     }));
 
@@ -141,7 +141,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
 
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
-      selectedTimelineOwnerUtteranceId: undefined,
+      selectedTimelineOwnerUnitId: undefined,
       utteranceRowRef: makeUtteranceRowRef(),
     }));
 
