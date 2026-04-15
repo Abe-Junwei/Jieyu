@@ -12,6 +12,10 @@ export type SidePaneSidebarMessages = {
   speakerReferencedInScope: (count: number) => string;
   speakerReferencedProject: (count: number) => string;
   speakerReferencedProjectPending: string;
+  /** Whether `getSpeakerReferenceStats` used current timeline media id vs whole project. */
+  speakerStatsScopeLabel: (scopedToCurrentMedia: boolean) => string;
+  /** Rows with no speakerId in the same stats scope (informational). */
+  speakerUnassignedAxisStats: (transcriptionUnitCount: number, segmentCount: number) => string;
   speakerUnusedCount: (count: number) => string;
   speakerUnusedCountPending: string;
   speakerDuplicateGroupCount: (count: number) => string;
@@ -52,7 +56,8 @@ export type SidePaneSidebarMessages = {
   speakerCurrentScopeNone: string;
   speakerProjectRefCount: (count: number) => string;
   speakerProjectRefPending: string;
-  speakerAxisStats: (utteranceCount: number, segmentCount: number) => string;
+  /** Transcription-axis (`utterances`) vs layer segment counts from `LinguisticService.getSpeakerReferenceStats`. */
+  speakerAxisStats: (transcriptionUnitCount: number, segmentCount: number) => string;
   speakerAxisStatsPending: string;
   speakerUnusedEntityHint: string;
   speakerDuplicateEntityHint: (count: number) => string;
@@ -120,8 +125,10 @@ const zhCN: SidePaneSidebarMessages = {
   speakerManagementTitle: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
   speakerEntityCount: (count) => `\u8bf4\u8bdd\u4eba\u5b9e\u4f53\uff1a${count}`,
   speakerReferencedInScope: (count) => `\u5f53\u524d\u8303\u56f4\u5df2\u5f15\u7528\uff1a${count}`,
-  speakerReferencedProject: (count) => `\u5168\u9879\u76ee\u5df2\u5f15\u7528\uff1a${count}`,
-  speakerReferencedProjectPending: '\u5168\u9879\u76ee\u5df2\u5f15\u7528\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerReferencedProject: (count) => `\u7edf\u8ba1\u8303\u56f4\u5185\u5df2\u5f15\u7528\u8bf4\u8bdd\u4eba\uff1a${count}`,
+  speakerReferencedProjectPending: '\u7edf\u8ba1\u8303\u56f4\u5185\u5df2\u5f15\u7528\u8bf4\u8bdd\u4eba\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerStatsScopeLabel: (scopedToCurrentMedia) => (scopedToCurrentMedia ? '\u8303\u56f4\uff1a\u5f53\u524d\u5a92\u4f53' : '\u8303\u56f4\uff1a\u5168\u9879\u76ee'),
+  speakerUnassignedAxisStats: (transcriptionUnitCount, segmentCount) => `\u672a\u6307\u5b9a\u8bf4\u8bdd\u4eba \u00b7 \u8f6c\u5199\u8bed\u6bb5\uff1a${transcriptionUnitCount} / \u5c42\u7247\u6bb5\uff1a${segmentCount}`,
   speakerUnusedCount: (count) => `\u672a\u5f15\u7528\u5b9e\u4f53\uff1a${count}`,
   speakerUnusedCountPending: '\u672a\u5f15\u7528\u5b9e\u4f53\uff1a\u7edf\u8ba1\u4e2d\u2026',
   speakerDuplicateGroupCount: (count) => `\u540c\u540d\u7ec4\uff1a${count}`,
@@ -160,10 +167,10 @@ const zhCN: SidePaneSidebarMessages = {
   speakerDeleteEntityButton: '\u5220\u9664\u8bf4\u8bdd\u4eba\u5b9e\u4f53',
   speakerCurrentScopeCount: (count) => `\u5f53\u524d\u8303\u56f4\u53e5\u6bb5\u6570\uff1a${count}`,
   speakerCurrentScopeNone: '\u5f53\u524d\u8303\u56f4\u672a\u5f15\u7528',
-  speakerProjectRefCount: (count) => `\u5168\u9879\u76ee\u5f15\u7528\uff1a${count}`,
-  speakerProjectRefPending: '\u5168\u9879\u76ee\u5f15\u7528\uff1a\u7edf\u8ba1\u4e2d\u2026',
-  speakerAxisStats: (utteranceCount, segmentCount) => `\u4e3b\u8f74\u53e5\u6bb5\uff1a${utteranceCount} / \u72ec\u7acb\u8bed\u6bb5\uff1a${segmentCount}`,
-  speakerAxisStatsPending: '\u4e3b\u8f74\u53e5\u6bb5 / \u72ec\u7acb\u8bed\u6bb5\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerProjectRefCount: (count) => `\u7edf\u8ba1\u8303\u56f4\u5185\u5f15\u7528\uff1a${count}`,
+  speakerProjectRefPending: '\u7edf\u8ba1\u8303\u56f4\u5185\u5f15\u7528\uff1a\u7edf\u8ba1\u4e2d\u2026',
+  speakerAxisStats: (transcriptionUnitCount, segmentCount) => `\u8f6c\u5199\u8bed\u6bb5\uff1a${transcriptionUnitCount} / \u5c42\u7247\u6bb5\uff1a${segmentCount}`,
+  speakerAxisStatsPending: '\u8f6c\u5199\u8bed\u6bb5 / \u5c42\u7247\u6bb5\uff1a\u7edf\u8ba1\u4e2d\u2026',
   speakerUnusedEntityHint: '\u8be5\u5b9e\u4f53\u5f53\u524d\u672a\u88ab\u5f15\u7528\uff0c\u53ef\u5b89\u5168\u6e05\u7406',
   speakerDuplicateEntityHint: (count) => `\u68c0\u6d4b\u5230\u540c\u540d\u5b9e\u4f53\u7ec4\uff1a${count} \u4e2a\uff0c\u5efa\u8bae\u5408\u5e76\u6e05\u7406`,
   draggableLayerRoleDesc: '\u53ef\u62d6\u62fd\u5c42',
@@ -230,8 +237,10 @@ const enUS: SidePaneSidebarMessages = {
   speakerManagementTitle: 'Speaker management',
   speakerEntityCount: (count) => `Speaker entities: ${count}`,
   speakerReferencedInScope: (count) => `Referenced in current scope: ${count}`,
-  speakerReferencedProject: (count) => `Referenced project-wide: ${count}`,
-  speakerReferencedProjectPending: 'Referenced project-wide: counting\u2026',
+  speakerReferencedProject: (count) => `Speakers referenced in stats scope: ${count}`,
+  speakerReferencedProjectPending: 'Speakers referenced in stats scope: counting\u2026',
+  speakerStatsScopeLabel: (scopedToCurrentMedia) => (scopedToCurrentMedia ? 'Scope: current media' : 'Scope: whole project'),
+  speakerUnassignedAxisStats: (transcriptionUnitCount, segmentCount) => `Unassigned · Transcription units: ${transcriptionUnitCount} / Layer segments: ${segmentCount}`,
   speakerUnusedCount: (count) => `Unused entities: ${count}`,
   speakerUnusedCountPending: 'Unused entities: counting\u2026',
   speakerDuplicateGroupCount: (count) => `Duplicate-name groups: ${count}`,
@@ -270,10 +279,10 @@ const enUS: SidePaneSidebarMessages = {
   speakerDeleteEntityButton: 'Delete speaker entity',
   speakerCurrentScopeCount: (count) => `Segments in current scope: ${count}`,
   speakerCurrentScopeNone: 'Not referenced in current scope',
-  speakerProjectRefCount: (count) => `Project references: ${count}`,
-  speakerProjectRefPending: 'Project references: counting\u2026',
-  speakerAxisStats: (utteranceCount, segmentCount) => `Main-axis segments: ${utteranceCount} / Independent segments: ${segmentCount}`,
-  speakerAxisStatsPending: 'Main-axis / independent segments: counting\u2026',
+  speakerProjectRefCount: (count) => `In-scope references: ${count}`,
+  speakerProjectRefPending: 'In-scope references: counting\u2026',
+  speakerAxisStats: (transcriptionUnitCount, segmentCount) => `Transcription units: ${transcriptionUnitCount} / Layer segments: ${segmentCount}`,
+  speakerAxisStatsPending: 'Transcription units / layer segments: counting\u2026',
   speakerUnusedEntityHint: 'This entity is currently unused and can be safely cleaned up',
   speakerDuplicateEntityHint: (count) => `Detected duplicate-name entity group: ${count}, merge is recommended`,
   draggableLayerRoleDesc: 'Draggable layer',

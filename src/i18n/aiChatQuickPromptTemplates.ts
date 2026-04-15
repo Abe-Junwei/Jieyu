@@ -15,7 +15,7 @@ const zhCN: AiChatQuickPromptTemplateDefinition[] = [
   {
     id: 'rag-review-template',
     title: 'RAG 审校模板',
-    content: '[RAG_SCENARIO:review]\n【审校模板】请对当前内容做审校，指出不一致、歧义和可改进点。\n目标：{{current_utterance}}',
+    content: '[RAG_SCENARIO:review]\n【审校模板】请对当前内容做审校，指出不一致、歧义和可改进点。\n目标：{{current_unit}}',
   },
   {
     id: 'rag-terminology-template',
@@ -33,7 +33,7 @@ const enUS: AiChatQuickPromptTemplateDefinition[] = [
   {
     id: 'rag-review-template',
     title: 'RAG Review Template',
-    content: '[RAG_SCENARIO:review]\n[Review Template] Review the current content, point out inconsistencies or ambiguities, and suggest improvements.\nTarget: {{current_utterance}}',
+    content: '[RAG_SCENARIO:review]\n[Review Template] Review the current content, point out inconsistencies or ambiguities, and suggest improvements.\nTarget: {{current_unit}}',
   },
   {
     id: 'rag-terminology-template',

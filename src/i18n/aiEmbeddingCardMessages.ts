@@ -62,7 +62,7 @@ const zhCN: AiEmbeddingCardMessages = {
   cancel: '\u53d6\u6d88',
   retry: '\u91cd\u8bd5',
   similarityResults: '\u76f8\u4f3c\u7ed3\u679c',
-  similarityHint: '\u9009\u62e9\u4e00\u53e5\u540e\u53ef\u68c0\u7d22\u76f8\u4f3c\u53e5\u3002',
+  similarityHint: '\u9009\u62e9\u4e00\u6761\u8bed\u6bb5\u540e\u53ef\u68c0\u7d22\u76f8\u4f3c\u8bed\u6bb5\u3002',
   emptyText: '（\u7a7a\u6587\u672c）',
 };
 
@@ -97,7 +97,7 @@ const enUS: AiEmbeddingCardMessages = {
   cancel: 'Cancel',
   retry: 'Retry',
   similarityResults: 'Similarity Results',
-  similarityHint: 'Select one utterance to search similar results.',
+  similarityHint: 'Select one timeline unit to search for similar results.',
   emptyText: '(empty text)',
 };
 

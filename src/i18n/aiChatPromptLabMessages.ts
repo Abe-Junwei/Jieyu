@@ -55,7 +55,7 @@ const enUS: AiChatPromptLabMessages = {
   edit: 'Edit',
   deleteShort: 'Del',
   titlePlaceholder: 'Template title',
-  contentPlaceholder: 'Template body with {{selected_text}} {{current_utterance}}...',
+  contentPlaceholder: 'Template body with {{selected_text}} {{current_unit}} (alias {{current_utterance}})...',
   update: 'Update',
   save: 'Save',
   injectToInput: 'Inject to Input',

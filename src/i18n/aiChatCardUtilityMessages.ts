@@ -25,7 +25,7 @@ export type AiChatCardUtilityMessages = {
   reversiblePatternSource: string;
   replayable: string;
   auditOnly: string;
-  utteranceRef: string;
+  timelineUnitRef: string;
   noteRef: string;
   documentRef: string;
   reference: string;
@@ -66,7 +66,7 @@ const zhCN: AiChatCardUtilityMessages = {
   reversiblePatternSource: '\\u53ef\\u64a4\\u9500|\\u53ef\\u9006|\\u64a4\\u9500\\u6062\\u590d|undo|reversible',
   replayable: '\u53ef\u91cd\u653e',
   auditOnly: '\u4ec5\u53ef\u5ba1\u8ba1',
-  utteranceRef: '\u53e5\u6bb5\u53c2\u8003',
+  timelineUnitRef: '\u8bed\u6bb5\u53c2\u8003',
   noteRef: '\u7b14\u8bb0\u53c2\u8003',
   documentRef: '\u6587\u6863\u53c2\u8003',
   reference: '\u53c2\u8003',
@@ -107,7 +107,7 @@ const enUS: AiChatCardUtilityMessages = {
   reversiblePatternSource: '\\u53ef\\u64a4\\u9500|\\u53ef\\u9006|\\u64a4\\u9500\\u6062\\u590d|undo|reversible',
   replayable: 'Replayable',
   auditOnly: 'Audit only',
-  utteranceRef: 'Utterance Ref',
+  timelineUnitRef: 'Unit ref',
   noteRef: 'Note Ref',
   documentRef: 'Document Ref',
   reference: 'Reference',

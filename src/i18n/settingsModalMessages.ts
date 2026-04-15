@@ -23,6 +23,11 @@ export type SettingsModalMessages = {
   fontScaleModeAuto: string;
   fontScaleModeManual: string;
   fontScaleReset: string;
+  /** 图标效果：Material 默认 / 动效增强 | Icon effect: Material vs motion-enhanced */
+  iconEffectTitle: string;
+  iconEffectMaterial: string;
+  iconEffectMotion: string;
+  iconEffectHint: string;
   // 快捷键 | Shortcuts
   shortcutRecording: string;
   shortcutReset: string;
@@ -143,6 +148,11 @@ const zhCN: SettingsModalMessages = {
   fontScaleModeAuto: '自动',
   fontScaleModeManual: '手动',
   fontScaleReset: '重置',
+  iconEffectTitle: '图标效果',
+  iconEffectMaterial: 'Material（默认）',
+  iconEffectMotion: '动效增强',
+  iconEffectHint:
+    '仍为 Google Material Symbols 字形。动效模式仅在悬停/点击时增加轻微缩放与实心填充（FILL）；与系统或下方「减少动态效果」一致时会自动关闭动效。若需逐图标 Lottie 动画，可后续接入 lottie-web 等库单独挂载 JSON。',
   shortcutRecording: '请按下快捷键…',
   shortcutReset: '恢复默认',
   shortcutResetAll: '全部恢复默认',
@@ -257,6 +267,11 @@ const enUS: SettingsModalMessages = {
   fontScaleModeAuto: 'Auto',
   fontScaleModeManual: 'Manual',
   fontScaleReset: 'Reset',
+  iconEffectTitle: 'Icon effect',
+  iconEffectMaterial: 'Material (default)',
+  iconEffectMotion: 'Motion enhanced',
+  iconEffectHint:
+    'Still uses Google Material Symbols. Motion mode adds light scale and filled (FILL) states on hover/active; it is disabled when system or “Reduce motion” prefers reduced motion. Per-icon Lottie can be added later via lottie-web and JSON assets.',
   shortcutRecording: 'Press a key…',
   shortcutReset: 'Reset',
   shortcutResetAll: 'Reset all',
