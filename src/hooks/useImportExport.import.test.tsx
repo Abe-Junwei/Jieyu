@@ -50,6 +50,16 @@ vi.mock('../services/LayerConstraintService', () => ({
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
+async function seedProjectLayer(layer: LayerDocType): Promise<void> {
+  const j = await getDb();
+  await j.collections.layers.insert(layer);
+}
+
+async function seedProjectLayers(layers: LayerDocType[]): Promise<void> {
+  const j = await getDb();
+  await j.collections.layers.bulkInsert(layers);
+}
+
 describe('useImportExport - import success under stop-write', () => {
   beforeEach(async () => {
     await db.open();
@@ -60,7 +70,6 @@ describe('useImportExport - import success under stop-write', () => {
       db.orthography_bridges.clear(),
       db.tier_definitions.clear(),
       db.layer_links.clear(),
-      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -86,7 +95,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.put(defaultLayer as never);
+    await seedProjectLayer(defaultLayer);
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
@@ -106,7 +115,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
@@ -120,15 +129,15 @@ describe('useImportExport - import success under stop-write', () => {
       await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }));
     });
 
-    expect(await db.utterances.count()).toBe(1);
+    expect(await db.layer_units.where('unitType').equals('utterance').count()).toBe(1);
     expect(await db.layer_units.where('unitType').equals('segment').count()).toBe(1);
-    expect(await db.layer_unit_contents.count()).toBe(1);
-    expect(await db.layer_unit_contents.toArray()).toEqual([
+    expect(await db.layer_unit_contents.count()).toBe(2);
+    expect(await db.layer_unit_contents.toArray()).toEqual(expect.arrayContaining([
       expect.objectContaining({
         layerId: defaultLayer.id,
         text: 'imported transcription',
       }),
-    ]);
+    ]));
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
@@ -149,7 +158,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.put(defaultLayer as never);
+    await seedProjectLayer(defaultLayer);
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
@@ -202,7 +211,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
@@ -217,12 +226,12 @@ describe('useImportExport - import success under stop-write', () => {
     });
 
     const contents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
-    expect(contents).toEqual([
+    expect(contents).toEqual(expect.arrayContaining([
       expect.objectContaining({
         layerId: defaultLayer.id,
         text: 'saam',
       }),
-    ]);
+    ]));
   });
 
   it('keeps only source text in a dedicated source layer when import strategy is preserve-source', async () => {
@@ -239,7 +248,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.put(defaultLayer as never);
+    await seedProjectLayer(defaultLayer);
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
@@ -292,7 +301,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
@@ -307,7 +316,12 @@ describe('useImportExport - import success under stop-write', () => {
     });
 
     const defaultContents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
-    expect(defaultContents).toEqual([]);
+    expect(defaultContents).toEqual([
+      expect.objectContaining({
+        layerId: defaultLayer.id,
+        text: '',
+      }),
+    ]);
 
     const sourceLayer = (await (await getDb()).collections.layers.find().exec())
       .find((layer) => layer.id !== defaultLayer.id && layer.textId === 'text-import' && layer.orthographyId === 'orth_source_import');
@@ -340,7 +354,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.put(defaultLayer as never);
+    await seedProjectLayer(defaultLayer);
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_import',
@@ -393,7 +407,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
@@ -408,12 +422,12 @@ describe('useImportExport - import success under stop-write', () => {
     });
 
     const defaultContents = await db.layer_unit_contents.where('layerId').equals(defaultLayer.id).toArray();
-    expect(defaultContents).toEqual([
+    expect(defaultContents).toEqual(expect.arrayContaining([
       expect.objectContaining({
         layerId: defaultLayer.id,
         text: 'saam',
       }),
-    ]);
+    ]));
 
     const sourceLayer = (await (await getDb()).collections.layers.find().exec())
       .find((layer) => layer.id !== defaultLayer.id && layer.textId === 'text-import' && layer.orthographyId === 'orth_source_import');
@@ -456,7 +470,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.bulkPut([defaultLayer as never, translationLayer as never]);
+    await seedProjectLayers([defaultLayer, translationLayer]);
     await db.orthographies.bulkPut([
       {
         id: 'orth_source_translation',
@@ -511,7 +525,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, translationLayer],
@@ -547,7 +561,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.put(defaultLayer as never);
+    await seedProjectLayer(defaultLayer);
     await db.speakers.put({
       id: 'speaker_existing_john',
       name: 'john',
@@ -574,7 +588,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
@@ -588,9 +602,9 @@ describe('useImportExport - import success under stop-write', () => {
       await result.current.handleImportFile(new File(['x'], 'demo.eaf', { type: 'application/xml' }));
     });
 
-    const importedUtterances = await db.utterances.toArray();
-    expect(importedUtterances).toHaveLength(1);
-    expect(importedUtterances[0]?.speakerId).toBeUndefined();
+    const importedUtteranceUnits = await db.layer_units.where('unitType').equals('utterance').toArray();
+    expect(importedUtteranceUnits).toHaveLength(1);
+    expect(importedUtteranceUnits[0]?.speakerId).toBeUndefined();
   });
 
   it('imports independent transcription tier segments even when no utterances are inserted', async () => {
@@ -618,7 +632,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.bulkPut([defaultLayer as never, independentLayer as never]);
+    await seedProjectLayers([defaultLayer, independentLayer]);
     await db.media_items.put({
       id: 'media-import',
       textId: 'text-import',
@@ -644,7 +658,7 @@ describe('useImportExport - import success under stop-write', () => {
   <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
 </ANNOTATION_DOCUMENT>`, detectedEncoding: 'utf-8', confidence: 'high' as const });
 
-    const selectedUtteranceMedia = {
+    const selectedUnitMedia = {
       id: 'media-import',
       textId: 'text-import',
       filename: 'demo.wav',
@@ -655,7 +669,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: selectedUtteranceMedia as never,
+      selectedUnitMedia: selectedUnitMedia as never,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, independentLayer],
@@ -702,7 +716,7 @@ describe('useImportExport - import success under stop-write', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    await db.tier_definitions.bulkPut([defaultLayer as never, independentLayer as never]);
+    await seedProjectLayers([defaultLayer, independentLayer]);
 
     mockIngestTextFile.mockResolvedValueOnce({ text: `<?xml version="1.0" encoding="UTF-8"?>
 <ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
@@ -727,7 +741,7 @@ describe('useImportExport - import success under stop-write', () => {
     const { result } = renderHook(() => useImportExport({
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
-      selectedUtteranceMedia: undefined,
+      selectedUnitMedia: undefined,
       utterancesOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, independentLayer],

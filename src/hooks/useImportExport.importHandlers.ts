@@ -45,7 +45,7 @@ const log = createLogger('useImportExport');
 type UseImportExportImportHandlersInput = {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnitMedia: MediaItemDocType | undefined;
   layers: LayerDocType[];
   defaultTranscriptionLayerId: string | undefined;
   loadSnapshot: () => Promise<void>;
@@ -58,7 +58,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
   const {
     activeTextId,
     getActiveTextId,
-    selectedUtteranceMedia,
+    selectedUnitMedia,
     layers,
     defaultTranscriptionLayerId,
     loadSnapshot,
@@ -139,7 +139,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       resolvedTextId = textId;
       if (!textId) { setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') }); return; }
       const importTextId = textId;
-      let mediaId = selectedUtteranceMedia?.id;
+      let mediaId = selectedUnitMedia?.id;
 
       if (!mediaId && eafResult && eafResult.mediaFilename && eafResult.mediaFilename !== 'unknown.wav') {
         const { mediaId: newMediaId } = await LinguisticService.importAudio({
@@ -484,7 +484,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             tokenRows.push({
               id: tokenId,
               textId,
-              utteranceId: id,
+              unitId: id,
               form: token.form,
               ...(token.gloss ? { gloss: token.gloss } : {}),
               ...(token.pos ? { pos: token.pos } : {}),
@@ -499,7 +499,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               morphRows.push({
                 id: newId('morph'),
                 textId,
-                utteranceId: id,
+                unitId: id,
                 tokenId,
                 form: morph.form,
                 ...(morph.gloss ? { gloss: morph.gloss } : {}),

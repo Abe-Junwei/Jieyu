@@ -63,7 +63,7 @@ function loadImportHandlersModule(
 export interface UseImportExportInput {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
-  selectedUtteranceMedia: MediaItemDocType | undefined;
+  selectedUnitMedia?: MediaItemDocType | undefined;
   utterancesOnCurrentMedia: UtteranceDocType[];
   anchors: AnchorDocType[];
   layers: LayerDocType[];
@@ -97,7 +97,7 @@ export function useImportExport(input: UseImportExportInput) {
   const {
     activeTextId,
     getActiveTextId,
-    selectedUtteranceMedia,
+    selectedUnitMedia,
     utterancesOnCurrentMedia,
     anchors,
     layers,
@@ -296,7 +296,7 @@ export function useImportExport(input: UseImportExportInput) {
       : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
     const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
     const xml = eafService.exportToEaf({
-      ...(selectedUtteranceMedia ? { mediaItem: selectedUtteranceMedia } : {}),
+      ...(selectedUnitMedia ? { mediaItem: selectedUnitMedia } : {}),
       utterances: exportUtterances,
       anchors,
       layers,
@@ -308,13 +308,13 @@ export function useImportExport(input: UseImportExportInput) {
       ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
       speakers,
     });
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     eafService.downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [anchors, buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadEafService, loadSegmentExportDataForLayers, orthographies, resolveRelevantExportSpeakerIds, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [anchors, buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadEafService, loadSegmentExportDataForLayers, orthographies, resolveRelevantExportSpeakerIds, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportTextGrid = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -336,13 +336,13 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     textGridService.downloadTextGrid(tg, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.textgrid') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadSegmentExportData, loadTextGridService, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadSegmentExportData, loadTextGridService, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportTrs = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -356,13 +356,13 @@ export function useImportExport(input: UseImportExportInput) {
       orthographies,
       ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
     });
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     transcriberService.downloadTrs(trs, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.trs') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadTranscriberService, orthographies, selectedUtteranceMedia, setSaveState, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadTranscriberService, orthographies, selectedUnitMedia, setSaveState, utterancesOnCurrentMedia]);
 
   const handleExportFlextext = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -382,13 +382,13 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     flexService.downloadFlextext(flex, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.flextext') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadFlexService, loadSegmentExportData, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadFlexService, loadSegmentExportData, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportToolbox = useCallback(async () => {
     if (utterancesOnCurrentMedia.length === 0) return;
@@ -408,33 +408,33 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     toolboxService.downloadToolbox(toolbox, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.toolbox') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadSegmentExportData, loadToolboxService, selectedUtteranceMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadSegmentExportData, loadToolboxService, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
 
   const handleExportJyt = useCallback(async () => {
     const jymService = await loadArchiveExportModule();
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
     await jymService.downloadJieyuArchive('jyt', baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jyt') });
     setShowExportMenu(false);
-  }, [loadArchiveExportModule, selectedUtteranceMedia, setSaveState]);
+  }, [loadArchiveExportModule, selectedUnitMedia, setSaveState]);
 
   const handleExportJym = useCallback(async () => {
     const jymService = await loadArchiveExportModule();
-    const baseName = selectedUtteranceMedia
-      ? selectedUtteranceMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = selectedUnitMedia
+      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
     await jymService.downloadJieyuArchive('jym', baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jym') });
     setShowExportMenu(false);
-  }, [loadArchiveExportModule, selectedUtteranceMedia, setSaveState]);
+  }, [loadArchiveExportModule, selectedUnitMedia, setSaveState]);
 
   const previewProjectArchiveImport = useCallback(async (file: File) => {
     const archiveHandlersModule = await loadArchiveHandlersModule(archiveHandlersModuleRef);
@@ -466,7 +466,7 @@ export function useImportExport(input: UseImportExportInput) {
     const { handleImportFile: importFile } = importHandlersModule.createImportExportImportHandlers({
       activeTextId,
       getActiveTextId,
-      selectedUtteranceMedia,
+      selectedUnitMedia,
       layers,
       defaultTranscriptionLayerId,
       loadSnapshot,
@@ -475,7 +475,7 @@ export function useImportExport(input: UseImportExportInput) {
       normalizeSpeakerLookupKey,
     });
     return importFile(file, importWriteStrategy);
-  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadSnapshot, locale, selectedUtteranceMedia, setSaveState]);
+  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadSnapshot, locale, selectedUnitMedia, setSaveState]);
 
   return {
     importFileRef,

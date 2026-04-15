@@ -295,7 +295,7 @@ function makeInput() {
   return {
     activeTextId: 'text-1',
     getActiveTextId: vi.fn(async () => 'text-1'),
-    selectedUtteranceMedia: media,
+    selectedUnitMedia: media,
     utterancesOnCurrentMedia: [utterance],
     anchors: [],
     layers: [trc, independentTrl, symbolicTrl, subdivisionTrc],

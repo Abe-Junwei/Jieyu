@@ -10,7 +10,6 @@ describe('importDatabaseFromJson', () => {
     await Promise.all([
       db.texts.clear(),
       db.media_items.clear(),
-      db.utterances.clear(),
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
@@ -40,23 +39,37 @@ describe('importDatabaseFromJson', () => {
             updatedAt: NOW,
           },
         ],
-        utterances: [
+        tier_definitions: [
+          {
+            id: 'tier_import_test',
+            textId: 'text_new',
+            key: 'bridge_trc_import',
+            name: { default: 'Transcription' },
+            tierType: 'time-aligned',
+            contentType: 'transcription',
+            languageId: 'eng',
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        layer_units: [
           {
             textId: 'text_new',
             mediaId: 'media_new',
+            layerId: 'tier_import_test',
+            unitType: 'utterance',
             startTime: 0,
             endTime: 1,
             createdAt: NOW,
             updatedAt: NOW,
           },
         ],
-        layer_units: [],
         layer_unit_contents: [],
       },
     };
 
     await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      'Invalid doc in utterances: missing non-empty id',
+      'Invalid doc in layer_units: missing non-empty id',
     );
 
     const remainingTexts = await db.texts.toArray();
@@ -140,5 +153,24 @@ describe('importDatabaseFromJson', () => {
 
     const importedTiers = await db.tier_definitions.toArray();
     expect(importedTiers.find((item) => item.id === 'layer_legacy')?.bridgeId).toBeUndefined();
+  });
+
+  it('rejects snapshots that still include a non-empty legacy utterances collection', async () => {
+    const snapshot = {
+      schemaVersion: 4,
+      exportedAt: NOW,
+      dbName: 'jieyudb',
+      collections: {
+        texts: [],
+        tier_definitions: [],
+        layer_units: [],
+        layer_unit_contents: [],
+        utterances: [{ id: 'u1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW }],
+      },
+    };
+
+    await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
+      /Legacy snapshot key "utterances"/,
+    );
   });
 });
