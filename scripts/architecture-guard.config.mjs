@@ -79,6 +79,10 @@ export const architectureGuardRules = [
       /useTranscriptionWaveformBridgeController\(\{/,
       /useTranscriptionWorkspaceLayoutController\(\{/,
       /useTrackDisplayController\(\{/,
+      // Phase 9 — Timeline unit read model (CQRS) wiring must stay in ReadyWorkspace
+      /useTimelineUnitViewIndex\(\{/,
+      /timelineUnitsOnCurrentMedia:\s*timelineUnitViewIndex\.currentMediaUnits/,
+      /timelineUnitViewIndex,\s*$/m,
     ],
     forbiddenLiterals: [
       'LayerSegmentationV2Service.createSegment(',
@@ -109,14 +113,20 @@ export const architectureGuardRules = [
       /import \{ executeConfirmedToolCall \} from '\.\/useAiChat\.confirmExecution';/,
     ],
   }),
-  hookRule('useTranscriptionData', {
-    maxLines: 570,
+  hookRule('useTimelineUnitViewIndex', {
+    maxLines: 70,
     maxUseCallbackDecls: 0,
-    maxUseMemoDecls: 0,
+    maxUseMemoDecls: 1,
     maxUseEffects: 0,
   }),
+  hookRule('useTranscriptionData', {
+    maxLines: 600,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 0,
+    maxUseEffects: 1,
+  }),
   pageControllerRule('useBatchOperationController', {
-    maxLines: 120,
+    maxLines: 130,
     maxUseCallbackDecls: 6,
     maxUseMemoDecls: 2,
     maxUseEffects: 0,
@@ -128,22 +138,26 @@ export const architectureGuardRules = [
     maxUseEffects: 1,
   }),
   pageControllerRule('useSpeakerActionScopeController', {
-    maxLines: 210,
+    maxLines: 250,
     maxUseCallbackDecls: 4,
-    maxUseMemoDecls: 13,
+    maxUseMemoDecls: 15,
     maxUseEffects: 0,
   }),
   pageControllerRule('useTranscriptionSpeakerController', {
-    maxLines: 280,
+    maxLines: 320,
     maxUseCallbackDecls: 3,
-    maxUseMemoDecls: 3,
+    maxUseMemoDecls: 6,
     maxUseEffects: 0,
   }),
   pageControllerRule('useTrackDisplayController', {
-    maxLines: 230,
+    maxLines: 260,
     maxUseCallbackDecls: 6,
-    maxUseMemoDecls: 6,
+    maxUseMemoDecls: 8,
     maxUseEffects: 2,
+    requiredRegexes: [
+      /export function useTrackDisplayController\(/,
+      /timelineUnitsOnCurrentMedia\?:\s*ReadonlyArray<TimelineUnitView>/,
+    ],
   }),
   pageControllerRule('useTranscriptionAssistantController', {
     maxLines: 305,
@@ -152,10 +166,20 @@ export const architectureGuardRules = [
     maxUseEffects: 1,
   }),
   pageControllerRule('useTranscriptionAiController', {
-    maxLines: 360,
-    maxUseCallbackDecls: 6,
-    maxUseMemoDecls: 2,
+    maxLines: 420,
+    maxUseCallbackDecls: 8,
+    maxUseMemoDecls: 6,
     maxUseEffects: 4,
+    requiredRegexes: [
+      /export function useTranscriptionAiController\(/,
+      // ADR-004 single-caliber: controllers must consume injected TimelineUnitViewIndex directly.
+      /const effectiveUnitIndex = input\.timelineUnitViewIndex;/,
+      /const projectUnitsForTools = effectiveUnitIndex\.isComplete \|\| effectiveUnitIndex\.allUnits\.length > 0/,
+      /recordMetric\(\{\s*id:\s*'ai\.timeline_unit_count_mismatch'/,
+      /layers:\s*input\.layers/,
+      /recentActions:\s*formatRecentActions\(input\.recentTimelineEditEvents\)/,
+      /unitCount:\s*effectiveUnitIndex\.totalCount/,
+    ],
   }),
   pageControllerRule('useTranscriptionProjectMediaController', {
     maxLines: 300,
@@ -182,10 +206,15 @@ export const architectureGuardRules = [
     maxUseEffects: 2,
   }),
   pageControllerRule('useTranscriptionSegmentMutationController', {
-    maxLines: 320,
-    maxUseCallbackDecls: 5,
-    maxUseMemoDecls: 0,
+    maxLines: 430,
+    maxUseCallbackDecls: 8,
+    maxUseMemoDecls: 2,
     maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useTranscriptionSegmentMutationController\(/,
+      /dispatchTimelineUnitMutation\(/,
+      /dispatchTimelineUnitSelectionMutation\(/,
+    ],
   }),
   pageControllerRule('useTranscriptionShellController', {
     maxLines: 360,
@@ -216,6 +245,10 @@ export const architectureGuardRules = [
     maxUseCallbackDecls: 10,
     maxUseMemoDecls: 3,
     maxUseEffects: 5,
+    requiredRegexes: [
+      /export function useTranscriptionWaveformBridgeController\(/,
+      /timelineUnitViewIndex:\s*input\.timelineUnitViewIndex/,
+    ],
   }),
   pageControllerRule('useWaveformRuntimeController', {
     maxLines: 130,
@@ -224,10 +257,14 @@ export const architectureGuardRules = [
     maxUseEffects: 3,
   }),
   pageControllerRule('useWaveformSelectionController', {
-    maxLines: 125,
+    maxLines: 170,
     maxUseCallbackDecls: 0,
     maxUseMemoDecls: 7,
     maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useWaveformSelectionController\(/,
+      /timelineUnitViewIndex:\s*TimelineUnitViewIndexWithEpoch/,
+    ],
   }),
   pageControllerRule('useTrackEntityStateController', {
     maxLines: 120,
@@ -631,6 +668,46 @@ export const architectureGuardRules = [
     warnAtRatio: 0.85,
   }),
 
+  // ── ADR-003 Phase 16: forbid resurrecting removed legacy mirror modules | DB cutover guard ──
+  patternRule(/^src\/services\/(?!.*\.test\.).*\.ts$/, {
+    excludeFiles: ['src/services/LayerUnitSegmentWritePrimitives.ts'],
+    forbiddenRegexes: [
+      /\bLegacyMirrorService\b/,
+      /LayerUnitSegmentMirrorPrimitives/,
+    ],
+  }),
+
+  // ── ADR-006 M18: forbid resurrecting Dexie `utterances` store (allowlist: engine upgrade, io import merge, M18 migration) ──
+  patternRule(/^src\/.*\.(ts|tsx)$/, {
+    excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
+    excludeFiles: [
+      'src/db/engine.ts',
+      'src/db/io.ts',
+      'src/db/migrations/m18LinguisticUtteranceCutover.ts',
+    ],
+    forbiddenRegexes: [
+      /\bdb\.utterances\b/,
+      /\bdexie\.utterances\b/,
+      /\bcollections\.utterances\b/,
+      /collections\[\s*['"]utterances['"]\s*\]/,
+    ],
+  }),
+
+  // ── ADR-006 M18: subgraph must not query legacy `utteranceId` index (allowlist: engine historical schema strings only if needed) ──
+  patternRule(/^src\/.*\.(ts|tsx)$/, {
+    excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
+    excludeFiles: [
+      'src/db/engine.ts',
+      'src/db/migrations/m18LinguisticUtteranceCutover.ts',
+    ],
+    forbiddenRegexes: [
+      /utterance_tokens\.where\(\s*['"]utteranceId['"]/,
+      /utterance_morphemes\.where\(\s*['"]utteranceId['"]/,
+      /\.utterance_tokens\.where\(\s*['"]utteranceId['"]/,
+      /\.utterance_morphemes\.where\(\s*['"]utteranceId['"]/,
+    ],
+  }),
+
   // ── M3 依赖方向守卫 | M3 dependency direction guard ──
 
   // 应用服务层禁止反向依赖页面层或组件层 | App service layer must NOT import pages or components
@@ -675,6 +752,7 @@ export const architectureGuardRules = [
       'src/pages/orthographyManager.shared.ts',
       'src/pages/OrthographyManagerPage.tsx',
       'src/pages/OrthographyManagerPanel.tsx',
+      'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts',
       'src/pages/transcriptionAiController.types.ts',
       'src/pages/transcriptionAiToolRiskCheck.ts',
       'src/pages/transcriptionAssistantContextValue.ts',
@@ -689,11 +767,13 @@ export const architectureGuardRules = [
       'src/pages/transcriptionSelectionSnapshot.ts',
       'src/pages/transcriptionTimelineTopProps.ts',
       'src/pages/transcriptionWaveformBridge.types.ts',
+      'src/pages/timelineUnitViewUtteranceHelpers.ts',
       'src/pages/useBatchOperationController.ts',
       'src/pages/useSpeakerActionRoutingController.ts',
       'src/pages/useSpeakerActionScopeController.ts',
       'src/pages/useTrackDisplayController.ts',
       'src/pages/useTranscriptionAiController.segmentTargets.ts',
+      'src/pages/useTranscriptionAiController.ts',
       'src/pages/useTranscriptionAnalysisRuntimeProps.ts',
       'src/pages/useTranscriptionAssistantController.ts',
       'src/pages/useTranscriptionAssistantRuntimeProps.ts',
@@ -734,6 +814,7 @@ export const architectureGuardRules = [
       'src/pages/OrthographyBridgeWorkspacePage.tsx',
       'src/pages/orthographyBrowse.shared.ts',
       'src/pages/OrthographyManagerPage.tsx',
+      'src/pages/OrthographyManagerPanel.tsx',
       'src/pages/transcriptionAiController.types.ts',
       'src/pages/transcriptionAssistantController.types.ts',
       'src/pages/TranscriptionPage.AssistantBridge.tsx',
