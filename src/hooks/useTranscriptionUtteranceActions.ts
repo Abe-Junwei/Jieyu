@@ -32,6 +32,10 @@ import {
 import { createTranscriptionUtteranceBatchActions } from './useTranscriptionUtteranceActions.batchActions';
 import { createLogger } from '../observability/logger';
 import {
+  mergeUtteranceSelfCertaintyConservative,
+  type UtteranceSelfCertainty,
+} from '../utils/utteranceSelfCertainty';
+import {
   getUtteranceDocProjectionById,
   listUtteranceDocsFromCanonicalLayerUnits,
 } from '../services/LayerSegmentGraphService';
@@ -652,12 +656,18 @@ export function useTranscriptionUtteranceActions({
     pushUndo(getUndoLabel(locale, 'mergeWithPrevious'));
     const db = await getDb();
     const now = new Date().toISOString();
+    const mergedCertainty = mergeUtteranceSelfCertaintyConservative([prev.selfCertainty, curr.selfCertainty]);
     const updated: UtteranceDocType = {
       ...prev,
       endTime: curr.endTime,
       endAnchorId: curr.endAnchorId ?? prev.endAnchorId,
       updatedAt: now,
     } as UtteranceDocType;
+    if (mergedCertainty === undefined) {
+      delete updated.selfCertainty;
+    } else {
+      updated.selfCertainty = mergedCertainty;
+    }
     await LinguisticService.saveUtterance(updated);
 
     const { newTranslations, updatedTranslations } = await reassignTranslations(prev.id, curr.id, db, now);
@@ -701,12 +711,18 @@ export function useTranscriptionUtteranceActions({
     pushUndo(getUndoLabel(locale, 'mergeWithNext'));
     const db = await getDb();
     const now = new Date().toISOString();
+    const mergedCertaintyNext = mergeUtteranceSelfCertaintyConservative([curr.selfCertainty, next.selfCertainty]);
     const updated: UtteranceDocType = {
       ...curr,
       endTime: next.endTime,
       endAnchorId: next.endAnchorId ?? curr.endAnchorId,
       updatedAt: now,
     } as UtteranceDocType;
+    if (mergedCertaintyNext === undefined) {
+      delete updated.selfCertainty;
+    } else {
+      updated.selfCertainty = mergedCertaintyNext;
+    }
     await LinguisticService.saveUtterance(updated);
 
     const { newTranslations, updatedTranslations } = await reassignTranslations(curr.id, next.id, db, now);
@@ -757,6 +773,7 @@ export function useTranscriptionUtteranceActions({
     const text = getUtteranceTextForLayer(target);
     const splitTimeFixed = Number(splitTime.toFixed(3));
     const splitAnchor = await createAnchor(db, target.mediaId ?? '', splitTimeFixed);
+    const preservedSelfCertainty = target.selfCertainty;
 
     const updatedFirst: UtteranceDocType = {
       ...target,
@@ -764,6 +781,11 @@ export function useTranscriptionUtteranceActions({
       endAnchorId: splitAnchor.id,
       updatedAt: now,
     };
+    if (preservedSelfCertainty === undefined) {
+      delete updatedFirst.selfCertainty;
+    } else {
+      updatedFirst.selfCertainty = preservedSelfCertainty;
+    }
     await LinguisticService.saveUtterance(updatedFirst);
 
     const secondStartAnchor = await createAnchor(db, target.mediaId ?? '', splitTimeFixed);
@@ -779,6 +801,11 @@ export function useTranscriptionUtteranceActions({
       createdAt: now,
       updatedAt: now,
     } as UtteranceDocType;
+    if (preservedSelfCertainty === undefined) {
+      delete secondHalf.selfCertainty;
+    } else {
+      secondHalf.selfCertainty = preservedSelfCertainty;
+    }
     await LinguisticService.saveUtterance(secondHalf);
 
     const origTranslations = translations.filter((t) => t.utteranceId === utteranceId);
@@ -832,6 +859,32 @@ export function useTranscriptionUtteranceActions({
     });
   }, [clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUtterances, utterancesRef]);
 
+  const saveUtteranceSelfCertainty = useCallback(async (
+    utteranceIds: Iterable<string>,
+    value: UtteranceSelfCertainty | undefined,
+  ) => {
+    const idSet = new Set([...utteranceIds]);
+    const targets = utterancesRef.current.filter((u) => idSet.has(u.id));
+    if (targets.length === 0) return;
+
+    pushUndo(getUndoLabel(locale, 'editSelfCertainty'));
+    const now = new Date().toISOString();
+    const updated: UtteranceDocType[] = targets.map((u) => {
+      const next: UtteranceDocType = { ...u, updatedAt: now };
+      if (value === undefined) {
+        delete next.selfCertainty;
+      } else {
+        next.selfCertainty = value;
+      }
+      return next;
+    });
+
+    await LinguisticService.saveUtterancesBatch(updated);
+    const updatedById = new Map(updated.map((item) => [item.id, item]));
+    setUtterances((prev) => prev.map((u) => updatedById.get(u.id) ?? u));
+    setSaveState({ kind: 'done', message: t(locale, 'transcription.utteranceAction.done.selfCertaintyUpdated') });
+  }, [locale, pushUndo, setSaveState, setUtterances, utterancesRef]);
+
   const {
     offsetSelectedTimes,
     scaleSelectedTimes,
@@ -877,6 +930,7 @@ export function useTranscriptionUtteranceActions({
     saveVoiceTranslation,
     deleteVoiceTranslation,
     saveUtteranceText,
+    saveUtteranceSelfCertainty,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
     createNextUtterance,

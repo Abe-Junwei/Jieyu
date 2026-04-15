@@ -19,6 +19,7 @@ import type { Locale } from '../i18n';
 import { t, tf } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { mergeUtteranceSelfCertaintyConservative } from '../utils/utteranceSelfCertainty';
 
 const log = createLogger('useTranscriptionUtteranceActions');
 
@@ -343,12 +344,18 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       }
 
       const first = bounds[0]!;
+      const preservedSelfCertainty = target.selfCertainty;
       const updatedFirst: UtteranceDocType = {
         ...target,
         startTime: Number(first.start.toFixed(3)),
         endTime: Number(first.end.toFixed(3)),
         updatedAt: now,
       } as UtteranceDocType;
+      if (preservedSelfCertainty === undefined) {
+        delete updatedFirst.selfCertainty;
+      } else {
+        updatedFirst.selfCertainty = preservedSelfCertainty;
+      }
       updates.push(updatedFirst);
       nextDraftEntries[target.id] = segments[0]!;
 
@@ -374,6 +381,11 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           createdAt: now,
           updatedAt: now,
         } as UtteranceDocType;
+        if (preservedSelfCertainty === undefined) {
+          delete nextUtterance.selfCertainty;
+        } else {
+          nextUtterance.selfCertainty = preservedSelfCertainty;
+        }
         inserts.push(nextUtterance);
         nextDraftEntries[id] = segments[i]!;
 
@@ -466,6 +478,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       const now = new Date().toISOString();
       const first = sorted[0]!;
       const last = sorted[sorted.length - 1]!;
+      const mergedCertainty = mergeUtteranceSelfCertaintyConservative(sorted.map((u) => u.selfCertainty));
 
       const updated: UtteranceDocType = {
         ...first,
@@ -473,6 +486,11 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
         endAnchorId: last.endAnchorId ?? first.endAnchorId,
         updatedAt: now,
       } as UtteranceDocType;
+      if (mergedCertainty === undefined) {
+        delete updated.selfCertainty;
+      } else {
+        updated.selfCertainty = mergedCertainty;
+      }
       await LinguisticService.saveUtterance(updated);
 
       const toRemove = sorted.slice(1);

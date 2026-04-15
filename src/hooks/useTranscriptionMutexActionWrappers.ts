@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import type { LayerDocType, UtteranceDocType } from '../db';
+import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 
 type Params = {
@@ -7,6 +8,7 @@ type Params = {
   saveVoiceTranslationRaw: (blob: Blob, targetUtterance: UtteranceDocType, targetLayer: LayerDocType) => Promise<void>;
   deleteVoiceTranslationRaw: (targetUtterance: UtteranceDocType, targetLayer: LayerDocType) => Promise<void>;
   saveUtteranceTextRaw: (utteranceId: string, value: string, layerId?: string) => Promise<void>;
+  saveUtteranceSelfCertaintyRaw: (utteranceIds: Iterable<string>, value: UtteranceSelfCertainty | undefined) => Promise<void>;
   saveUtteranceTimingRaw: (utteranceId: string, startTime: number, endTime: number) => Promise<void>;
   saveTextTranslationForUtteranceRaw: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   createNextUtteranceRaw: (base: UtteranceDocType, playerDuration: number) => Promise<void>;
@@ -30,6 +32,7 @@ export function useTranscriptionMutexActionWrappers({
   saveVoiceTranslationRaw,
   deleteVoiceTranslationRaw,
   saveUtteranceTextRaw,
+  saveUtteranceSelfCertaintyRaw,
   saveUtteranceTimingRaw,
   saveTextTranslationForUtteranceRaw,
   createNextUtteranceRaw,
@@ -61,6 +64,14 @@ export function useTranscriptionMutexActionWrappers({
   const saveUtteranceText = useCallback((utteranceId: string, value: string, layerId?: string) => (
     runWithDbMutex(() => saveUtteranceTextRaw(utteranceId, value, layerId))
   ), [runWithDbMutex, saveUtteranceTextRaw]);
+
+  const saveUtteranceSelfCertainty = useCallback((
+    utteranceIds: Iterable<string>,
+    value: UtteranceSelfCertainty | undefined,
+  ) => runWithDbMutex(() => saveUtteranceSelfCertaintyRaw(utteranceIds, value)), [
+    runWithDbMutex,
+    saveUtteranceSelfCertaintyRaw,
+  ]);
 
   const saveUtteranceTiming = useCallback((utteranceId: string, startTime: number, endTime: number) => (
     runWithDbMutex(() => saveUtteranceTimingRaw(utteranceId, startTime, endTime))
@@ -140,6 +151,7 @@ export function useTranscriptionMutexActionWrappers({
     saveVoiceTranslation,
     deleteVoiceTranslation,
     saveUtteranceText,
+    saveUtteranceSelfCertainty,
     saveUtteranceTiming,
     saveTextTranslationForUtterance,
     createNextUtterance,

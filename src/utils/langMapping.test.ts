@@ -115,6 +115,14 @@ describe('langMapping input helpers', () => {
     });
   });
 
+  it('resolves legacy ISO 639-2 aliases like tib to the canonical localized language name', () => {
+    expect(getLanguageDisplayNames('tib', 'zh-CN')).toEqual({
+      local: '藏语',
+      native: 'བོད་སྐད་',
+      english: 'Tibetan',
+    });
+  });
+
   it('does not surface generic Chinese fallback labels for Chinese varieties', () => {
     expect(getLanguageDisplayNames('cmn', 'zh-CN')).toEqual({
       local: '普通话',

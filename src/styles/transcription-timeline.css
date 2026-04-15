@@ -1,0 +1,4 @@
+/* Lazy-loaded with TranscriptionPage timeline chunks (TimelineTop / TimelineContent).
+ * 与转写页时间轴 lazy 子块同载，减轻 transcription-entry 首包 | Loaded with lazy timeline subchunks to shrink entry CSS.
+ */
+@import './pages/transcription-timeline.css';

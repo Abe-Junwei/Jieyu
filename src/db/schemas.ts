@@ -2,6 +2,7 @@
  * Zod 验证 Schema 与 validate 函数 | Zod validation schemas and validate functions
  */
 import { z } from 'zod';
+import { UTTERANCE_SELF_CERTAINTY_VALUES } from '../utils/utteranceSelfCertainty';
 import type {
   TextDocType, MediaItemDocType, UtteranceDocType, UtteranceTokenDocType,
   UtteranceMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType,
@@ -102,6 +103,7 @@ const utteranceDocSchema = z
     aiMode: z.enum(['AUTO', 'SUGGEST']).optional(),
     isVerified: z.boolean().optional(),
     annotationStatus: z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']).optional(),
+    selfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
     provenance: provenanceSchema.optional(),
     accessRights: accessRightsSchema.optional(),
     createdAt: isoDateSchema,
@@ -632,6 +634,7 @@ const layerUnitDocSchema = z
     endAnchorId: z.string().min(1).optional(),
     orderKey: z.string().min(1).optional(),
     speakerId: z.string().min(1).optional(),
+    selfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
     status: layerUnitStatusSchema.optional(),
     externalRef: z.string().min(1).optional(),
     provenance: provenanceSchema.optional(),

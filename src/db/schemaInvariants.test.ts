@@ -214,6 +214,10 @@ const layerUnitSuite: InvariantSuite<LayerUnitDocType> = {
       mutate: (doc) => ({ ...doc, startTime: 5, endTime: 4 }),
       messageIncludes: 'endTime must be >= startTime',
     },
+    {
+      name: 'invalid selfCertainty enum',
+      mutate: (doc) => ({ ...doc, unitType: 'utterance', selfCertainty: 'maybe' as never }),
+    },
   ],
 };
 

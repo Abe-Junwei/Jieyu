@@ -5,6 +5,8 @@
  * All interfaces, enum types, and utility type aliases for IndexedDB collections.
  */
 
+import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+
 /**
  * 层数量软上限（UI 警告，非硬限制）
  * Soft limits for layer counts (UI warning, not hard limits)
@@ -146,6 +148,11 @@ export interface UtteranceDocType {
    * - 'verified'   : human-reviewed and confirmed
    */
   annotationStatus?: 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
+  /**
+   * 标注者对本人转写/标注/翻译内容的自我确信度（三档：不理解 · 不确定 · 确定）。
+   * 与 `annotationStatus`（锥形深度）、`provenance.reviewStatus`（流程审核）、`ai_metadata.confidence`（模型分）均独立。
+   */
+  selfCertainty?: UtteranceSelfCertainty;
   /**
    * View-only cache derived from `utterance_tokens` / `utterance_morphemes`.
    * NOT written to DB by `saveUtterance()`. Populated by the hook's read path.
@@ -757,6 +764,8 @@ export interface LayerUnitDocType {
   endAnchorId?: string;
   orderKey?: string;
   speakerId?: string;
+  /** 句段级自我确信度（仅 utterance 单元使用）| Utterance-level self-certainty (utterance units only) */
+  selfCertainty?: UtteranceSelfCertainty;
   status?: LayerUnitStatus;
   externalRef?: string;
   provenance?: ProvenanceEnvelope;

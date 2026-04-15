@@ -995,7 +995,10 @@ function rankLanguageCatalogEntry(entry: LanguageCatalogEntry): number {
 export function getLanguageCatalogEntry(languageId: string | undefined): LanguageCatalogEntry | undefined {
   const normalized = languageId?.trim().toLowerCase();
   if (!normalized) return undefined;
-  const resolvedCode = resolveRuntimeLanguageCode(normalized) ?? normalized;
+  const resolvedCode = resolveRuntimeLanguageCode(normalized)
+    ?? (normalized.length === 2 ? ISO639_1_TO_3[normalized] : undefined)
+    ?? (normalized.length === 3 ? ISO639_2_TO_3[normalized] : undefined)
+    ?? normalized;
   return getMergedLanguageCatalogByCode()[resolvedCode];
 }
 

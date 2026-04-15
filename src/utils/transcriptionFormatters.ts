@@ -1,5 +1,11 @@
 import type { LayerDocType } from '../db';
-import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel } from './multiLangLabels';
+import type { LanguageSearchLocale } from './langMapping';
+import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
+import {
+  listUniqueNonEmptyMultiLangLabels,
+  readAnyMultiLangLabel,
+  readLocalizedMultiLangLabel,
+} from './multiLangLabels';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '\u666e\u901a\u8bdd',
@@ -93,12 +99,18 @@ export function parseBcp47(tag: string): {
  * \u4f8b: "mvm-fonipa-x-emc" → "mvm (IPA, x-emc)"
  * \u4f8b: "cmn" → "\u666e\u901a\u8bdd cmn"
  */
-export function formatBcp47Label(tag: string): string {
+export function formatBcp47Label(tag: string, locale: LanguageSearchLocale = 'zh-CN'): string {
   const parsed = parseBcp47(tag);
-  if (!parsed.primary) return '\u672a\u8bbe\u7f6e\u8bed\u8a00';
+  if (!parsed.primary) {
+    return locale === 'zh-CN' ? '\u672a\u8bbe\u7f6e\u8bed\u8a00' : 'Language not set';
+  }
 
-  const baseName = LANGUAGE_NAME_MAP[parsed.primary]
-    ?? COMMON_LANGUAGES.find((l) => l.code === parsed.primary)?.label;
+  const catalogEntry = getLanguageCatalogEntry(parsed.primary);
+  const canonicalCode = catalogEntry?.iso6393 ?? parsed.primary;
+  const baseName = catalogEntry
+    ? getLanguageDisplayName(canonicalCode, locale)
+    : (LANGUAGE_NAME_MAP[canonicalCode]
+      ?? COMMON_LANGUAGES.find((l) => l.code === canonicalCode)?.label);
 
   const extras: string[] = [];
   for (const v of parsed.variants) {
@@ -106,7 +118,7 @@ export function formatBcp47Label(tag: string): string {
   }
   if (parsed.privateUse) extras.push(parsed.privateUse);
 
-  const base = baseName ? `${baseName} ${parsed.primary}` : parsed.primary;
+  const base = baseName ? `${baseName} ${canonicalCode}` : canonicalCode;
   return extras.length > 0 ? `${base} (${extras.join(', ')})` : base;
 }
 
@@ -170,15 +182,59 @@ export function formatSidePaneLayerLabel(layer: LayerDocType): string {
   return lang ? `${type} · ${lang}` : type;
 }
 
-export function getLayerLabelParts(layer: LayerDocType): { type: string; lang: string; alias: string } {
-  const code = (layer.languageId ?? '').trim();
-  const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';
-  const langLabel = formatBcp47Label(code) || code;
+function resolveLayerAlias(layer: LayerDocType): string {
   const alias = readAnyMultiLangLabel(layer.name)
     ?? listUniqueNonEmptyMultiLangLabels(layer.name)[0]
     ?? '';
   const hasAutoPrefix = alias.startsWith('\u8f6c\u5199') || alias.startsWith('\u7ffb\u8bd1');
-  if (hasAutoPrefix || !alias) {
+  return hasAutoPrefix ? '' : alias;
+}
+
+export function getLayerHeaderLanguageLine(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): string {
+  const code = (layer.languageId ?? '').trim();
+  if (!code) return '';
+  return formatBcp47Label(code, locale) || code;
+}
+
+export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
+  const code = (layer.languageId ?? '').trim();
+  if (!code) return resolveLayerAlias(layer);
+  const parsed = parseBcp47(code);
+  const varietyParts: string[] = [];
+  if (parsed.region) {
+    varietyParts.push(parsed.region);
+  }
+  for (const variant of parsed.variants) {
+    varietyParts.push(VARIANT_LABEL_MAP[variant] ?? variant);
+  }
+  if (parsed.privateUse) {
+    varietyParts.push(parsed.privateUse);
+  }
+  if (varietyParts.length > 0) {
+    return varietyParts.join(' · ');
+  }
+  return resolveLayerAlias(layer);
+}
+
+export function getOrthographyHeaderLine(
+  orthography: {
+    name?: Record<string, string>;
+    abbreviation?: string;
+  } | null | undefined,
+  locale?: 'zh-CN' | 'en-US',
+): string {
+  if (!orthography) return '';
+  return readLocalizedMultiLangLabel(orthography.name, locale)
+    ?? orthography.abbreviation?.trim()
+    ?? '';
+}
+
+export function getLayerLabelParts(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): { type: string; lang: string; alias: string } {
+  const code = (layer.languageId ?? '').trim();
+  const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';
+  const langLabel = formatBcp47Label(code, locale) || code;
+  const alias = resolveLayerAlias(layer);
+  if (!alias) {
     return { type: typeLabel, lang: langLabel, alias: '' };
   }
   // Legacy manually named layers — show alias as third line

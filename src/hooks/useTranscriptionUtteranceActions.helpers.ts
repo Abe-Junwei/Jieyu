@@ -17,6 +17,7 @@ export const UNDO_LABEL_KEYS = {
   scaleSelectedTimes: 'transcription.utteranceAction.undo.scaleSelection',
   splitByRegex: 'transcription.utteranceAction.undo.regexSplitSelection',
   mergeSelectedUtterances: 'transcription.utteranceAction.undo.mergeSelection',
+  editSelfCertainty: 'transcription.utteranceAction.undo.editSelfCertainty',
 } as const;
 
 export type UndoLabelKey = keyof typeof UNDO_LABEL_KEYS;
