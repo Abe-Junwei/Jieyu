@@ -174,7 +174,7 @@ export function formatCitationLabel(
 ): string {
   const messages = getAiChatCardUtilityMessages(isZh);
   const fallback = citation.type === 'utterance'
-    ? messages.utteranceRef
+    ? messages.timelineUnitRef
     : citation.type === 'note'
       ? messages.noteRef
       : citation.type === 'pdf'

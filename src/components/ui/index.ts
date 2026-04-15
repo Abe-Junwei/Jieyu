@@ -35,5 +35,11 @@ export type { ActionButtonGroupAlign } from './ActionButtonGroup';
 export { PanelStateDisplay } from './PanelStateDisplay';
 export type { PanelStateVariant } from './PanelStateDisplay';
 
+// ── 图标 | Icons ──
+export { MaterialSymbol } from './MaterialSymbol';
+export type { MaterialSymbolProps } from './MaterialSymbol';
+export type { LeftRailNavIconName } from '../../utils/jieyuMaterialIcon';
+export type { LeftRailLottieMaterialName } from '../../assets/lottie/left-rail/leftRailLottieMap';
+
 // ── 工具函数 | Utilities ──
 export { joinClassNames } from './classNames';

@@ -1,5 +1,5 @@
-import { Package } from 'lucide-react';
-import { JIEYU_LUCIDE_NAV } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_NAV } from '../../utils/jieyuMaterialIcon';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
@@ -344,7 +344,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         aria-label={t(locale, 'transcription.projectHub.toggle')}
         title={t(locale, 'transcription.projectHub.toggle')}
       >
-        <Package aria-hidden className={JIEYU_LUCIDE_NAV} />
+        <MaterialSymbol name="inventory_2" aria-hidden className={JIEYU_MATERIAL_NAV} />
         <span>{t(locale, 'transcription.projectHub.shortTitle')}</span>
       </button>
       <input

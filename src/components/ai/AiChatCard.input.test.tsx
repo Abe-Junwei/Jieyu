@@ -450,9 +450,12 @@ describe('AiChatCard input submit', () => {
         value={makeContextValue({
           selectedUnit: {
             id: 'utt-quick-1',
+            kind: 'utterance',
+            mediaId: 'media-1',
+            layerId: 'layer-1',
             startTime: 1.25,
             endTime: 3.5,
-            transcription: { default: '这是一条待分析句子' },
+            text: '这是一条待分析句子',
           } as unknown as AiAssistantHubContextValue['selectedUnit'],
         })}
       >
@@ -474,9 +477,12 @@ describe('AiChatCard input submit', () => {
         value={makeContextValue({
           selectedUnit: {
             id: 'utt-quick-2',
+            kind: 'utterance',
+            mediaId: 'media-1',
+            layerId: 'layer-1',
             startTime: 2.5,
             endTime: 4.75,
-            transcription: { default: '关键术语上下文' },
+            text: '关键术语上下文',
           } as unknown as AiAssistantHubContextValue['selectedUnit'],
         })}
       >
@@ -548,7 +554,7 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    expect(within(view.container).getByRole('button', { name: /句段参考|Utterance Ref/i })).toBeTruthy();
+    expect(within(view.container).getByRole('button', { name: /语段参照|句段参考|Unit ref|Utterance Ref/i })).toBeTruthy();
     expect(within(view.container).queryByText('utt:utt_1773986765082_joj08x')).toBeNull();
   });
 

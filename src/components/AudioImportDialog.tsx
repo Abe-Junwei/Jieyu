@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { Upload, FileAudio, FileVideo } from 'lucide-react';
-import { JIEYU_LUCIDE_HERO } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_HERO } from '../utils/jieyuMaterialIcon';
 import { t, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { ModalPanel, PanelButton, PanelFeedback } from './ui';
@@ -119,7 +119,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           >
             {selectedFile ? (
               <>
-                {isVideoFile ? <FileVideo className={JIEYU_LUCIDE_HERO} /> : <FileAudio className={JIEYU_LUCIDE_HERO} />}
+                {isVideoFile ? <MaterialSymbol name="video_file" className={JIEYU_MATERIAL_HERO} /> : <MaterialSymbol name="audio_file" className={JIEYU_MATERIAL_HERO} />}
                 <strong>{selectedFile.name}</strong>
                 <span className="small-text">
                   {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
@@ -128,7 +128,7 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
               </>
             ) : (
               <>
-                <Upload className={JIEYU_LUCIDE_HERO} />
+                <MaterialSymbol name="upload" className={JIEYU_MATERIAL_HERO} />
                 <strong>{t(locale, 'transcription.importDialog.selectMedia')}</strong>
                 <span className="small-text">{t(locale, 'transcription.importDialog.supportedFormats')}</span>
               </>

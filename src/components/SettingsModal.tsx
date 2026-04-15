@@ -29,6 +29,7 @@ import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
 import { THEMES, setAppearance, type ThemeId } from '../utils/theme';
+import { type IconEffect } from '../utils/iconEffect';
 import {
   ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
   WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
@@ -143,6 +144,9 @@ export interface SettingsModalProps {
   onFontScaleChange: (scale: number) => void;
   /** 字体缩放模式切换回调 | Font scale mode change handler */
   onFontScaleModeChange: (mode: UiFontScaleMode) => void;
+  /** 图标效果 material / motion | Icon effect preference */
+  iconEffect: IconEffect;
+  onIconEffectChange: (effect: IconEffect) => void;
   /** 应用版本 | App version string */
   version?: string;
 }
@@ -388,6 +392,8 @@ export const SettingsModal = memo(function SettingsModal({
   fontScaleMode,
   onFontScaleChange,
   onFontScaleModeChange,
+  iconEffect,
+  onIconEffectChange,
   version,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
@@ -832,6 +838,11 @@ export const SettingsModal = memo(function SettingsModal({
     { value: 'manual' as const, label: msg.fontScaleModeManual },
   ], [msg]);
 
+  const iconEffectOptions = useMemo(() => [
+    { value: 'material' as const, label: msg.iconEffectMaterial },
+    { value: 'motion' as const, label: msg.iconEffectMotion },
+  ], [msg]);
+
   const toggleOptions = useMemo(() => [
     { value: 'off' as const, label: msg.toggleOff },
     { value: 'on' as const, label: msg.toggleOn },
@@ -1016,6 +1027,11 @@ export const SettingsModal = memo(function SettingsModal({
                     </button>
                   )}
                 </div>
+              </SettingsSection>
+
+              <SettingsSection title={msg.iconEffectTitle}>
+                <OptionGroup value={iconEffect} options={iconEffectOptions} onChange={onIconEffectChange} />
+                <p className="small-text settings-icon-effect-hint">{msg.iconEffectHint}</p>
               </SettingsSection>
             </div>
           )}

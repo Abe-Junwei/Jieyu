@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
-import { JIEYU_LUCIDE_PANEL_CLOSE_LG } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
 import type { UtteranceDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
@@ -195,7 +195,7 @@ export function BatchOperationPanel({
     return previewScope === 'layer-all' ? sortedAllOnMedia : sortedSelected;
   }, [previewScope, sortedAllOnMedia, sortedSelected, tab]);
 
-  const activeUtteranceTextById = useMemo(() => {
+  const activeUnitTextById = useMemo(() => {
     if (previewLayerId && previewTextByLayerId?.[previewLayerId]) {
       return previewTextByLayerId[previewLayerId]!;
     }
@@ -404,7 +404,7 @@ export function BatchOperationPanel({
       }
 
       const rows: PreviewRow[] = previewTargets.map((u) => {
-        const text = (activeUtteranceTextById[u.id] ?? '').trim();
+        const text = (activeUnitTextById[u.id] ?? '').trim();
         if (!text) {
           return {
             id: u.id,
@@ -531,7 +531,7 @@ export function BatchOperationPanel({
     regexPattern,
     scaleFactor,
     previewTargets,
-    activeUtteranceTextById,
+    activeUnitTextById,
     messages,
     sortedSelected,
     tab,
@@ -613,7 +613,7 @@ export function BatchOperationPanel({
               aria-label={messages.close}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <X className={JIEYU_LUCIDE_PANEL_CLOSE_LG} />
+              <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL_CLOSE_LG} />
             </button>
           </>
         )}
@@ -760,12 +760,12 @@ export function BatchOperationPanel({
                       <tr key={row.id}>
                         <td className="batch-operation-td">{index + 1}</td>
                         <td className="batch-operation-td">{row.id}</td>
-                        <td className="batch-operation-td-content" title={activeUtteranceTextById[row.id] ?? ''}>
-                          {((activeUtteranceTextById[row.id] ?? '').trim() || '-') === '-'
+                        <td className="batch-operation-td-content" title={activeUnitTextById[row.id] ?? ''}>
+                          {((activeUnitTextById[row.id] ?? '').trim() || '-') === '-'
                             ? '-'
                             : (
                               <span dir={activePreviewTextProps?.dir} style={activePreviewTextProps?.style}>
-                                {(activeUtteranceTextById[row.id] ?? '').trim()}
+                                {(activeUnitTextById[row.id] ?? '').trim()}
                               </span>
                             )}
                         </td>

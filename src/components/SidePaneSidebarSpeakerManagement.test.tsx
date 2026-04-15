@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
+import { EMPTY_SPEAKER_REFERENCE_STATS } from '../hooks/speakerManagement/types';
 import { SidePaneSidebarSpeakerManagement } from './SidePaneSidebarSpeakerManagement';
 
 function makeSpeakerContext(overrides: Partial<SpeakerRailContextValue> = {}): SpeakerRailContextValue {
@@ -17,13 +18,15 @@ function makeSpeakerContext(overrides: Partial<SpeakerRailContextValue> = {}): S
       { key: 'spk-2', name: 'Alice', count: 0, color: '#f97316' },
     ],
     speakerReferenceStats: {
-      'spk-1': { utteranceCount: 2, segmentCount: 1, totalCount: 3 },
-      'spk-2': { utteranceCount: 0, segmentCount: 0, totalCount: 0 },
+      'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 },
+      'spk-2': { transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 },
     },
+    speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+    speakerReferenceStatsMediaScoped: false,
     speakerReferenceStatsReady: true,
     speakerDialogState: null,
     speakerVisualByUtteranceId: {},
-    selectedUtteranceIds: new Set(['utt-1', 'utt-2']),
+    selectedUnitIds: new Set(['utt-1', 'utt-2']),
     selectedSpeakerSummary: '当前统一说话人：Alice',
     speakerSaving: false,
     speakerDraftName: '',

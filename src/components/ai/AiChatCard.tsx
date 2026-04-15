@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { ArrowUp, Check, Copy, Settings } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_INLINE_TIGHT, JIEYU_LUCIDE_PANEL } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
 import {
   diffAiToolSnapshot,
   type AiToolGoldenSnapshot,
@@ -92,7 +92,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const locale = useLocale();
   const {
     currentPage,
-    selectedUtterance,
+    selectedUnit,
     selectedRowMeta,
     selectedUnitKind,
     selectedLayerType,
@@ -119,6 +119,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     onToggleAiMessagePin,
     onConfirmPendingToolCall,
     onCancelPendingToolCall,
+    timelineReadModelEpoch,
     onTrackAiRecommendationEvent,
     observerStage,
     onJumpToCitation,
@@ -160,11 +161,10 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const hasApiKeyField = useMemo(() => activeProviderDefinition.fields.some((field) => field.key === 'apiKey'), [activeProviderDefinition.fields]);
 
   const promptVars = useMemo<Record<string, string>>(() => {
-    const selectedText = selectedUtterance?.transcription?.default
-      ?? Object.values(selectedUtterance?.transcription ?? {})[0]
+    const selectedText = selectedUnit?.text?.trim()
       ?? '';
-    const currentUtterance = selectedUtterance
-      ? `id=${selectedUtterance.id}; text=${selectedText}; time=${selectedUtterance.startTime}-${selectedUtterance.endTime}`
+    const currentUtterance = selectedUnit
+      ? `id=${selectedUnit.id}; text=${selectedText}; time=${selectedUnit.startTime}-${selectedUnit.endTime}`
       : '';
     const lexiconSummary = lexemeMatches.length === 0
       ? ''
@@ -175,12 +175,13 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
     return {
       selected_text: String(selectedText ?? ''),
+      current_unit: currentUtterance,
       current_utterance: currentUtterance,
       lexicon_summary: lexiconSummary,
       project_stage: observerStage ?? '',
       current_row: selectedRowMeta ? String(selectedRowMeta.rowNumber) : '',
     };
-  }, [lexemeMatches, observerStage, selectedRowMeta, selectedUtterance]);
+  }, [lexemeMatches, observerStage, selectedRowMeta, selectedUnit]);
 
   const adaptiveInputProfile = useMemo(
     () => mergeAdaptiveProfiles(
@@ -397,8 +398,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     aiCurrentTask: aiPanelContext?.aiCurrentTask,
     rowNumber: selectedRowMeta?.rowNumber ?? null,
     selectedText: selectedText ?? '',
-    annotationStatus: selectedUtterance?.annotationStatus ?? null,
-    confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
+    annotationStatus: selectedUnit?.annotationStatus ?? null,
+    confidence: selectedUnit?.ai_metadata?.confidence ?? null,
     lexemeCount: lexemeMatches.length,
     lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
     preferredMode: profile.preferences.preferredMode,
@@ -430,7 +431,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     selectedText,
     selectedTimeRangeLabel,
     selectedUnitKind,
-    selectedUtterance,
+    selectedUnit,
   ]);
 
   const rankedClarifyCandidates = useMemo(
@@ -451,8 +452,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     aiCurrentTask: aiPanelContext?.aiCurrentTask,
     rowNumber: selectedRowMeta?.rowNumber ?? null,
     selectedText: selectedText ?? '',
-    annotationStatus: selectedUtterance?.annotationStatus ?? null,
-    confidence: selectedUtterance?.ai_metadata?.confidence ?? null,
+    annotationStatus: selectedUnit?.annotationStatus ?? null,
+    confidence: selectedUnit?.ai_metadata?.confidence ?? null,
     lexemeCount: lexemeMatches.length,
     lastToolName: aiTaskSession?.toolName ?? sessionLastToolName ?? null,
     preferredMode: profile.preferences.preferredMode,
@@ -967,7 +968,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               title={showProviderConfig ? cardMessages.hideProviderConfig : cardMessages.openProviderConfig}
               onClick={() => setShowProviderConfig((prev) => !prev)}
             >
-              <Settings className={JIEYU_LUCIDE_INLINE} />
+              <MaterialSymbol name="settings" className={JIEYU_MATERIAL_INLINE} />
             </button>
           </div>
         </div>
@@ -1310,7 +1311,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                                       }
                                     }}
                                   >
-                                    {copiedMessageId === assistantMsg.id ? <Check className={JIEYU_LUCIDE_INLINE_TIGHT} /> : <Copy className={JIEYU_LUCIDE_INLINE_TIGHT} />}
+                                    {copiedMessageId === assistantMsg.id ? <MaterialSymbol name="check" className={JIEYU_MATERIAL_INLINE_TIGHT} /> : <MaterialSymbol name="content_copy" className={JIEYU_MATERIAL_INLINE_TIGHT} />}
                                   </button>
                                 )}
                                 {hasReasoning && (
@@ -1382,6 +1383,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
             debugUiShowAll={false}
             showAlertBar={showAlertBar}
             aiPendingToolCall={aiPendingToolCall}
+            timelineReadModelEpoch={timelineReadModelEpoch}
             onDismissErrorWarning={() => setDismissedErrorWarning(true)}
             onToggleAlertBar={() => setShowAlertBar((prev) => !prev)}
             onConfirmPendingToolCall={onConfirmPendingToolCall}
@@ -1483,7 +1485,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                   submitChatInput();
                 }}
               >
-                {aiIsStreaming ? cardMessages.stop : <ArrowUp className={JIEYU_LUCIDE_PANEL} />}
+                {aiIsStreaming ? cardMessages.stop : <MaterialSymbol name="arrow_upward" className={JIEYU_MATERIAL_PANEL} />}
               </button>
             </div>
             {(transientBlockedReason || inputBlockedReason) && (

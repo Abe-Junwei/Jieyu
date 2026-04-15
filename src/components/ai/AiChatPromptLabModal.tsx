@@ -141,7 +141,7 @@ export function AiChatPromptLabModal({
           className="panel-input ai-chat-prompt-lab-textarea"
         />
         <div className="ai-chat-prompt-lab-token-row">
-          {['selected_text', 'current_utterance', 'lexicon_summary', 'project_stage', 'current_row'].map((token) => (
+          {['selected_text', 'current_unit', 'current_utterance', 'lexicon_summary', 'project_stage', 'current_row'].map((token) => (
             <PanelButton key={token} className="ai-chat-prompt-lab-token-btn" onClick={() => onAppendPromptVariable(token)}>{`{{${token}}}`}</PanelButton>
           ))}
         </div>

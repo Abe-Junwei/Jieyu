@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
-import { ChevronLeft, Plus } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
@@ -110,7 +110,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
   const builderBreadcrumbTitle = (
     <span className="dialog-breadcrumb-title">
       <button type="button" className="dialog-breadcrumb-back" onClick={orthographyPicker.cancelCreate} aria-label={messages.title}>
-        <ChevronLeft className={JIEYU_LUCIDE_PANEL} />
+        <MaterialSymbol name="chevron_left" className={JIEYU_MATERIAL_PANEL} />
         <span>{messages.title}</span>
       </button>
       <span className="dialog-breadcrumb-separator">/</span>
@@ -248,7 +248,7 @@ export function ProjectSetupDialog({ isOpen, onClose, onSubmit }: ProjectSetupDi
                   onClick={() => orthographyPicker.handleSelectionChange(ORTHOGRAPHY_CREATE_SENTINEL)}
                   title={messages.createOrthography}
                 >
-                  <Plus className={JIEYU_LUCIDE_INLINE} />
+                  <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} />
                   <span>{messages.newOrthographyButton}</span>
                 </PanelButton>
               </div>

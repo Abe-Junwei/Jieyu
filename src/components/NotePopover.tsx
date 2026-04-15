@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_MICRO, JIEYU_LUCIDE_MICRO_XS } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
@@ -150,7 +150,7 @@ export const NotePopover = memo(function NotePopover({
           aria-label={messages.closePanel}
           title={messages.closePanel}
         >
-          <X className={JIEYU_LUCIDE_INLINE} />
+          <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE} />
         </button>
       )}
       style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
@@ -210,7 +210,7 @@ export const NotePopover = memo(function NotePopover({
                     title={messages.deleteNote}
                     aria-label={messages.deleteNote}
                   >
-                    <Trash2 className={JIEYU_LUCIDE_MICRO_XS} />
+                    <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO_XS} />
                   </button>
                 </div>
               )}
@@ -249,7 +249,7 @@ export const NotePopover = memo(function NotePopover({
             ))}
           </div>
           <PanelButton variant="primary" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus className={JIEYU_LUCIDE_MICRO} /> {messages.add}
+            <MaterialSymbol name="add" className={JIEYU_MATERIAL_MICRO} /> {messages.add}
           </PanelButton>
         </div>
       </PanelSection>

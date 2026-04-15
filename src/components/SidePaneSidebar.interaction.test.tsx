@@ -10,6 +10,7 @@ import { SidePaneSidebar } from './SidePaneSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 import { LocaleProvider } from '../i18n';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import { EMPTY_SPEAKER_REFERENCE_STATS } from '../hooks/speakerManagement/types';
 
 const { mockUseOrthographies } = vi.hoisted(() => ({
   mockUseOrthographies: vi.fn<(languageIds: string[]) => Array<Record<string, unknown>>>(() => []),
@@ -78,7 +79,7 @@ function createLayerActionStub() {
 
 function renderSidebar(input?: {
   speakerFilterOptions?: Array<{ key: string; name: string; count: number; color?: string }>;
-  speakerReferenceStats?: Record<string, { utteranceCount: number; segmentCount: number; totalCount: number }>;
+  speakerReferenceStats?: Record<string, { transcriptionUnitCount: number; segmentCount: number; totalCount: number }>;
   speakerReferenceStatsReady?: boolean;
 }) {
   const onSelectSpeakerUtterances = vi.fn();
@@ -121,11 +122,13 @@ function renderSidebar(input?: {
       { key: 'spk-1', name: 'Alice', count: 3 },
     ],
     speakerReferenceStats: input?.speakerReferenceStats ?? {
-      'spk-1': { utteranceCount: 2, segmentCount: 1, totalCount: 3 },
+      'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 },
     },
+    speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+    speakerReferenceStatsMediaScoped: false,
     speakerReferenceStatsReady: input?.speakerReferenceStatsReady ?? true,
     selectedSpeakerSummary: '当前统一说话人：Alice',
-    selectedUtteranceIds: new Set(['utt-1']),
+    selectedUnitIds: new Set(['utt-1']),
     handleSelectSpeakerUtterances: onSelectSpeakerUtterances,
     handleClearSpeakerAssignments: onClearSpeakerAssignments,
     handleExportSpeakerSegments: onExportSpeakerSegments,
@@ -147,7 +150,7 @@ function renderSidebar(input?: {
       <LocaleProvider locale="zh-CN">
         <SpeakerRailProvider
           speakerManagement={speakerManagement}
-          selectedUtteranceIds={new Set(['utt-1'])}
+          selectedUnitIds={new Set(['utt-1'])}
           handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
           handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
         >
@@ -176,7 +179,7 @@ function renderSidebar(input?: {
         <LocaleProvider locale="zh-CN">
           <SpeakerRailProvider
             speakerManagement={{ ...speakerManagement, speakerFilterOptions }}
-            selectedUtteranceIds={new Set(['utt-1'])}
+            selectedUnitIds={new Set(['utt-1'])}
             handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
             handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
           >
@@ -226,9 +229,11 @@ function renderSidebarForDeleteFlow(input: {
     speakerVisualByUtteranceId: {},
     speakerFilterOptions: [],
     speakerReferenceStats: {},
+    speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+    speakerReferenceStatsMediaScoped: false,
     speakerReferenceStatsReady: true,
     selectedSpeakerSummary: '',
-    selectedUtteranceIds: new Set<string>(),
+    selectedUnitIds: new Set<string>(),
     handleSelectSpeakerUtterances: vi.fn(),
     handleClearSpeakerAssignments: vi.fn(),
     handleExportSpeakerSegments: vi.fn(),
@@ -285,7 +290,7 @@ function renderSidebarForDeleteFlow(input: {
       <LocaleProvider locale="zh-CN">
         <SpeakerRailProvider
           speakerManagement={speakerManagement}
-          selectedUtteranceIds={new Set<string>()}
+          selectedUnitIds={new Set<string>()}
           handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
           handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
         >
@@ -333,9 +338,11 @@ function renderSidebarForCreateContextMenuFlow(input: {
     speakerVisualByUtteranceId: {},
     speakerFilterOptions: [],
     speakerReferenceStats: {},
+    speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+    speakerReferenceStatsMediaScoped: false,
     speakerReferenceStatsReady: true,
     selectedSpeakerSummary: '',
-    selectedUtteranceIds: new Set<string>(),
+    selectedUnitIds: new Set<string>(),
     handleSelectSpeakerUtterances: vi.fn(),
     handleClearSpeakerAssignments: vi.fn(),
     handleExportSpeakerSegments: vi.fn(),
@@ -371,7 +378,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
       <LocaleProvider locale="zh-CN">
         <SpeakerRailProvider
           speakerManagement={speakerManagement}
-          selectedUtteranceIds={new Set<string>()}
+          selectedUnitIds={new Set<string>()}
           handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
           handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
         >
@@ -453,7 +460,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     const sidebar = renderSidebar({
       speakerFilterOptions: [],
       speakerReferenceStats: {
-        'spk-1': { utteranceCount: 0, segmentCount: 0, totalCount: 0 },
+        'spk-1': { transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 },
       },
     });
 
@@ -471,22 +478,22 @@ describe('SidePaneSidebar speaker actions interaction', () => {
   it('shows project-wide speaker counts and cleanup action for unused entities', async () => {
     const sidebar = renderSidebar({
       speakerReferenceStats: {
-        'spk-1': { utteranceCount: 2, segmentCount: 3, totalCount: 5 },
+        'spk-1': { transcriptionUnitCount: 2, segmentCount: 3, totalCount: 5 },
       },
     });
 
     await openSpeakerManagementPanel(sidebar);
 
-    expect(screen.getByText('全项目已引用：1')).toBeTruthy();
-    expect(screen.getByText('全项目引用：5')).toBeTruthy();
-    expect(screen.getByText('主轴句段：2 / 独立语段：3')).toBeTruthy();
+    expect(screen.getByText('统计范围内已引用说话人：1')).toBeTruthy();
+    expect(screen.getByText('统计范围内引用：5')).toBeTruthy();
+    expect(screen.getByText('转写语段：2 / 层片段：3')).toBeTruthy();
   });
 
   it('calls cleanup action for unused speaker entities', async () => {
     const orphanCase = renderSidebar({
       speakerFilterOptions: [],
       speakerReferenceStats: {
-        'spk-1': { utteranceCount: 0, segmentCount: 0, totalCount: 0 },
+        'spk-1': { transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 },
       },
     });
 
@@ -521,7 +528,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerDialogState: null,
         speakerVisualByUtteranceId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
-        speakerReferenceStats: { 'spk-1': { utteranceCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+        speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
         selectedSpeakerSummary: '当前包含未标注项；已标注说话人：Alice',
         handleSelectSpeakerUtterances: vi.fn(),
@@ -545,7 +554,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
           <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
           <SpeakerRailProvider
             speakerManagement={speakerManagement}
-            selectedUtteranceIds={new Set(['utt-1', 'utt-2'])}
+            selectedUnitIds={new Set(['utt-1', 'utt-2'])}
             handleAssignSpeakerToSelectedRouted={onAssignSpeakerToSelectedRouted}
             handleClearSpeakerOnSelectedRouted={onClearSpeakerOnSelectedRouted}
           >
@@ -618,7 +627,9 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         speakerDialogState: null,
         speakerVisualByUtteranceId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
-        speakerReferenceStats: { 'spk-1': { utteranceCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
+        speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+        speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
         selectedSpeakerSummary: '当前统一说话人：Alice',
         handleSelectSpeakerUtterances: vi.fn(),
@@ -642,7 +653,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
           <button type="button" onClick={() => setLayerActionPanel('speaker-management')}>打开说话人管理</button>
           <SpeakerRailProvider
             speakerManagement={speakerManagement}
-            selectedUtteranceIds={new Set(['utt-1'])}
+            selectedUnitIds={new Set(['utt-1'])}
             handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
             handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
           >
@@ -1198,6 +1209,8 @@ describe('SidePaneSidebar speaker actions interaction', () => {
               speakerVisualByUtteranceId: {},
               speakerFilterOptions: [],
               speakerReferenceStats: {},
+              speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
+              speakerReferenceStatsMediaScoped: false,
               speakerReferenceStatsReady: true,
               selectedSpeakerSummary: '',
               handleSelectSpeakerUtterances: vi.fn(),
@@ -1215,7 +1228,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
               updateSpeakerDialogTargetKey: vi.fn(),
               confirmSpeakerDialog: vi.fn(async () => undefined),
             }}
-            selectedUtteranceIds={new Set<string>()}
+            selectedUnitIds={new Set<string>()}
             handleAssignSpeakerToSelectedRouted={vi.fn(async () => undefined)}
             handleClearSpeakerOnSelectedRouted={vi.fn(async () => undefined)}
           >

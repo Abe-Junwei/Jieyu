@@ -9,8 +9,8 @@
  */
 import { type ReactNode, type Ref, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
-import { JIEYU_LUCIDE_PANEL } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './MaterialSymbol';
+import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
 import { DialogOverlay } from './DialogOverlay';
 import { DialogShell } from './DialogShell';
 import { joinClassNames } from './classNames';
@@ -105,7 +105,7 @@ export function ModalPanel({
 
   const closeButton = hideCloseButton ? null : (
     <button type="button" className="icon-btn" onClick={onClose} aria-label={closeLabel} title={closeLabel} {...(closeDisabled !== undefined && { disabled: closeDisabled })}>
-      <X className={JIEYU_LUCIDE_PANEL} />
+      <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
     </button>
   );
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Maximize, Settings } from 'lucide-react';
-import { JIEYU_LUCIDE_WAVE, JIEYU_LUCIDE_WAVE_PLAY } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_PLAY } from '../utils/jieyuMaterialIcon';
 import { useVideoPlayer } from '../hooks/useVideoPlayer';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, useLocale } from '../i18n';
@@ -212,7 +212,7 @@ export function VideoPlayer({
               onClick={() => player.togglePlayback()}
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
             >
-              {isPlaying ? <Pause className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Play className={JIEYU_LUCIDE_WAVE_PLAY} />}
+              {isPlaying ? <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_PLAY} />}
             </button>
 
             {/* Skip back 5s */}
@@ -221,7 +221,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(-5)}
               title="Rewind 5s (←)"
             >
-              <SkipBack className={JIEYU_LUCIDE_WAVE} />
+              <MaterialSymbol name="replay_5" className={JIEYU_MATERIAL_WAVE} />
             </button>
 
             {/* Skip forward 5s */}
@@ -230,7 +230,7 @@ export function VideoPlayer({
               onClick={() => player.seekBySeconds(5)}
               title="Forward 5s (→)"
             >
-              <SkipForward className={JIEYU_LUCIDE_WAVE} />
+              <MaterialSymbol name="forward_5" className={JIEYU_MATERIAL_WAVE} />
             </button>
 
             {/* Time display */}
@@ -247,7 +247,7 @@ export function VideoPlayer({
                 onClick={() => setShowSettings((v) => !v)}
                 title="Playback speed"
               >
-                <Settings className={JIEYU_LUCIDE_WAVE} />
+                <MaterialSymbol name="settings" className={JIEYU_MATERIAL_WAVE} />
                 <span className="video-player-rate-label">{playbackRate}x</span>
               </button>
               {showSettings && (
@@ -280,7 +280,7 @@ export function VideoPlayer({
               }}
               title={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted || volume === 0 ? <VolumeX className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Volume2 className={JIEYU_LUCIDE_WAVE_PLAY} />}
+              {isMuted || volume === 0 ? <MaterialSymbol name="volume_off" className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="volume_up" className={JIEYU_MATERIAL_WAVE_PLAY} />}
             </button>
 
             {/* Fit/Fill/Original display mode */}
@@ -330,7 +330,7 @@ export function VideoPlayer({
               }}
               title="Fullscreen"
             >
-              <Maximize className={JIEYU_LUCIDE_WAVE} />
+              <MaterialSymbol name="fullscreen" className={JIEYU_MATERIAL_WAVE} />
             </button>
           </div>
         </div>

@@ -31,7 +31,7 @@ afterEach(() => {
 describe('AiEmbeddingCard', () => {
   it('renders provider controls, task summary, and similarity result shell', () => {
     const view = renderCard({
-      selectedUtterance: { id: 'utt-2' } as EmbeddingContextValue['selectedUtterance'],
+      selectedUnit: { id: 'utt-2' } as EmbeddingContextValue['selectedUnit'],
       aiEmbeddingLastResult: {
         taskId: 'task-1',
         total: 10,
@@ -83,7 +83,7 @@ describe('AiEmbeddingCard', () => {
     const onTestEmbeddingProvider = vi.fn(async () => ({ available: false, error: 'offline' }));
 
     renderCard({
-      selectedUtterance: { id: 'utt-1' } as EmbeddingContextValue['selectedUtterance'],
+      selectedUnit: { id: 'utt-1' } as EmbeddingContextValue['selectedUnit'],
       onBuildUtteranceEmbeddings,
       onBuildNotesEmbeddings,
       onBuildPdfEmbeddings,

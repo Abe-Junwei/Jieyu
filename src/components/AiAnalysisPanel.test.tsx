@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { UtteranceDocType } from '../db';
+import { utteranceToView } from '../hooks/timelineUnitView';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
 import { ACOUSTIC_PROVIDER_STORAGE_KEYS } from '../services/acoustic/acousticProviderContract';
 import {
@@ -83,12 +84,13 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
 }
 
 function makeContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanelContextValue {
+  const defaultDoc = makeUtterance();
   return {
     ...DEFAULT_AI_PANEL_CONTEXT_VALUE,
     dbName: 'jieyudb',
     unitCount: 1,
     translationLayerCount: 1,
-    selectedUnit: makeUtterance(),
+    selectedUnit: utteranceToView(defaultDoc, 'layer-default'),
     lexemeMatches: [],
     ...overrides,
   };
@@ -151,9 +153,10 @@ describe('AiAnalysisPanel embedding integration', () => {
 
   it('invokes similarity search callback from embedding card', () => {
     const onFindSimilarUtterances = vi.fn().mockResolvedValue(undefined);
-    const baseContext = makeContextValue();
+    const utteranceDoc = makeUtterance();
+    const baseContext = makeContextValue({ selectedUnit: utteranceToView(utteranceDoc, 'layer-default') });
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUnit: baseContext.selectedUnit,
+      selectedUnit: utteranceDoc,
       onFindSimilarUtterances,
     });
 
@@ -173,11 +176,12 @@ describe('AiAnalysisPanel embedding integration', () => {
 
   it('invokes jump callback and highlights active similarity match', () => {
     const onJumpToEmbeddingMatch = vi.fn();
+    const utteranceDoc = makeUtterance({ id: 'utt-2' });
     const baseContext = makeContextValue({
-      selectedUnit: makeUtterance({ id: 'utt-2' }),
+      selectedUnit: utteranceToView(utteranceDoc, 'layer-default'),
     });
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUnit: makeUtterance({ id: 'utt-2' }),
+      selectedUnit: utteranceDoc,
       aiEmbeddingMatches: [
         {
           utteranceId: 'utt-2',

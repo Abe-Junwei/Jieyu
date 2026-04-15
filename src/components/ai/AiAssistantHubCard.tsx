@@ -1,5 +1,5 @@
-import { Check, MessageSquare, Mic, MicOff, X } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE_TIGHT, JIEYU_LUCIDE_WAVE_MD } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_WAVE_MD } from '../../utils/jieyuMaterialIcon';
 import { t, useLocale } from '../../i18n';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
 import { getConfidenceColor } from '../../hooks/voiceAgentPresentation';
@@ -64,7 +64,7 @@ export function AiAssistantHubCard() {
                 onClick={() => onVoiceToggle?.()}
                 aria-label={voiceListening ? t(locale, 'ai.assistantHub.stopVoice') : t(locale, 'ai.assistantHub.startVoice')}
               >
-                {voiceListening ? <Mic className={JIEYU_LUCIDE_WAVE_MD} /> : <MicOff className={JIEYU_LUCIDE_WAVE_MD} />}
+                {voiceListening ? <MaterialSymbol name="mic" className={JIEYU_MATERIAL_WAVE_MD} /> : <MaterialSymbol name="mic_off" className={JIEYU_MATERIAL_WAVE_MD} />}
                 <span>{voiceListening ? t(locale, 'ai.assistantHub.listening') : t(locale, 'ai.assistantHub.startVoiceButton')}</span>
               </button>
 
@@ -119,7 +119,7 @@ export function AiAssistantHubCard() {
                   void onSendAiMessage(`[${t(locale, 'ai.assistantHub.voiceTag')}] ${transcript}`);
                 }}
               >
-                <MessageSquare className={JIEYU_LUCIDE_INLINE_TIGHT} />
+                <MaterialSymbol name="chat" className={JIEYU_MATERIAL_INLINE_TIGHT} />
                 {t(locale, 'ai.assistantHub.sendToChat')}
               </button>
             </div>
@@ -131,10 +131,10 @@ export function AiAssistantHubCard() {
                   <span>{t(locale, 'ai.assistantHub.fuzzyMatch')}</span>
                 )}
                 <button type="button" className="icon-btn" onClick={() => onVoiceConfirm?.()} aria-label={t(locale, 'ai.assistantHub.confirm')}>
-                  <Check className={JIEYU_LUCIDE_INLINE_TIGHT} />
+                  <MaterialSymbol name="check" className={JIEYU_MATERIAL_INLINE_TIGHT} />
                 </button>
                 <button type="button" className="icon-btn" onClick={() => onVoiceCancel?.()} aria-label={t(locale, 'ai.assistantHub.cancel')}>
-                  <X className={JIEYU_LUCIDE_INLINE_TIGHT} />
+                  <MaterialSymbol name="close" className={JIEYU_MATERIAL_INLINE_TIGHT} />
                 </button>
               </div>
             )}

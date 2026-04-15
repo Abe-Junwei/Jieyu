@@ -1,14 +1,14 @@
 import { Children, memo, useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, FastForward, Pause, Play, Repeat, Rewind, SlidersHorizontal, Trash2, Volume2, Zap } from 'lucide-react';
+import { MaterialSymbol } from './ui/MaterialSymbol';
 import { t, tf, useLocale } from '../i18n';
 import {
-  jieyuLucideClass,
-  JIEYU_LUCIDE_WAVE,
-  JIEYU_LUCIDE_WAVE_MD,
-  JIEYU_LUCIDE_WAVE_PLAY,
-  JIEYU_LUCIDE_WAVE_TRIGGER,
-  JIEYU_LUCIDE_WAVE_TRIGGER_CHEVRON,
-} from '../utils/jieyuLucideIcon';
+  jieyuMaterialClass,
+  JIEYU_MATERIAL_WAVE,
+  JIEYU_MATERIAL_WAVE_MD,
+  JIEYU_MATERIAL_WAVE_PLAY,
+  JIEYU_MATERIAL_WAVE_TRIGGER,
+  JIEYU_MATERIAL_WAVE_TRIGGER_CHEVRON,
+} from '../utils/jieyuMaterialIcon';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_DISPLAY_MODE_OPTIONS, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
@@ -110,7 +110,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           </div>
         </div>
         <button className="icon-btn" onClick={() => onSeek(-10)} title={t(locale, 'transcription.wave.toolbar.rewind10')} aria-label={t(locale, 'transcription.wave.toolbar.rewind10')}>
-          <Rewind aria-hidden className={JIEYU_LUCIDE_WAVE} />
+          <MaterialSymbol name="replay_10" aria-hidden className={JIEYU_MATERIAL_WAVE} />
         </button>
         <button
           className="play-btn"
@@ -119,10 +119,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           aria-label={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
           title={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}
         >
-          {isPlaying ? <Pause aria-hidden className={JIEYU_LUCIDE_WAVE_PLAY} /> : <Play aria-hidden className={JIEYU_LUCIDE_WAVE_PLAY} />}
+          {isPlaying ? <MaterialSymbol name="pause" aria-hidden className={JIEYU_MATERIAL_WAVE_PLAY} /> : <MaterialSymbol name="play_arrow" aria-hidden className={JIEYU_MATERIAL_WAVE_PLAY} />}
         </button>
         <button className="icon-btn" onClick={() => onSeek(10)} title={t(locale, 'transcription.wave.toolbar.forward10')} aria-label={t(locale, 'transcription.wave.toolbar.forward10')}>
-          <FastForward aria-hidden className={JIEYU_LUCIDE_WAVE} />
+          <MaterialSymbol name="forward_10" aria-hidden className={JIEYU_MATERIAL_WAVE} />
         </button>
         <select
           className="speed-select"
@@ -147,9 +147,9 @@ export const WaveformToolbar = memo(function WaveformToolbar({
             title={t(locale, 'transcription.wave.toolbar.viewOptions.triggerAria')}
             onClick={() => setViewOptionsOpen((open) => !open)}
           >
-            <SlidersHorizontal aria-hidden className={JIEYU_LUCIDE_WAVE_TRIGGER} />
+            <MaterialSymbol name="tune" aria-hidden className={JIEYU_MATERIAL_WAVE_TRIGGER} />
             <span>{t(locale, 'transcription.wave.toolbar.viewOptions.trigger')}</span>
-            <ChevronDown className={jieyuLucideClass(JIEYU_LUCIDE_WAVE_TRIGGER_CHEVRON, 'waveform-view-options-trigger-chevron')} aria-hidden />
+            <MaterialSymbol name="expand_more" className={jieyuMaterialClass(JIEYU_MATERIAL_WAVE_TRIGGER_CHEVRON, 'waveform-view-options-trigger-chevron')} aria-hidden />
           </button>
           <div
             id={viewOptionsPanelId}
@@ -231,10 +231,10 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           title={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
           aria-label={loop ? t(locale, 'transcription.wave.toolbar.globalLoopOff') : t(locale, 'transcription.wave.toolbar.globalLoopOn')}
         >
-          <Repeat aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
+          <MaterialSymbol name="repeat" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
         </button>
         <label className="player-control volume-control compact-volume transcription-wave-toolbar-volume">
-          <Volume2 aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
+          <MaterialSymbol name="volume_up" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
           <input
             type="range"
             min={0}
@@ -256,7 +256,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
                 aria-label={autoSegmentBusy ? autoSegmentRunningTitle : autoSegmentRunTitle}
               >
-                <Zap aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
+                <MaterialSymbol name="bolt" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
               </button>
             )}
             {onDeleteCurrentAudio && (
@@ -267,7 +267,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
                 title={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
                 aria-label={t(locale, 'transcription.toolbar.deleteCurrentAudio')}
               >
-                <Trash2 aria-hidden className={JIEYU_LUCIDE_WAVE_MD} />
+                <MaterialSymbol name="delete" aria-hidden className={JIEYU_MATERIAL_WAVE_MD} />
               </button>
             )}
           </>

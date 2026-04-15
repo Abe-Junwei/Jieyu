@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE, JIEYU_LUCIDE_MICRO, JIEYU_LUCIDE_PANEL } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
@@ -117,7 +117,7 @@ export const NotePanel = memo(function NotePanel({
       titleClassName="note-panel-title"
       actions={(
         <button type="button" className="note-panel-close icon-btn" onClick={onClose} aria-label={messages.closePanel}>
-          <X className={JIEYU_LUCIDE_PANEL} />
+          <MaterialSymbol name="close" className={JIEYU_MATERIAL_PANEL} />
         </button>
       )}
       dir={uiTextDirection}
@@ -181,7 +181,7 @@ export const NotePanel = memo(function NotePanel({
                     title={messages.deleteNote}
                     aria-label={messages.deleteNote}
                   >
-                    <Trash2 className={JIEYU_LUCIDE_MICRO} />
+                    <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO} />
                   </button>
                 </div>
               )}
@@ -218,7 +218,7 @@ export const NotePanel = memo(function NotePanel({
             ))}
           </select>
           <PanelButton variant="primary" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <Plus className={JIEYU_LUCIDE_INLINE} /> {messages.add}
+            <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} /> {messages.add}
           </PanelButton>
         </div>
       </PanelSection>

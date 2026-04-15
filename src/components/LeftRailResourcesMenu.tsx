@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Library } from 'lucide-react';
-import { JIEYU_LUCIDE_NAV } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_NAV } from '../utils/jieyuMaterialIcon';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { t, type Locale } from '../i18n';
 
@@ -76,7 +76,7 @@ export function LeftRailResourcesMenu({
           });
         }}
       >
-        <Library aria-hidden className={JIEYU_LUCIDE_NAV} />
+        <MaterialSymbol name="local_library" aria-hidden className={JIEYU_MATERIAL_NAV} />
         <span>{t(locale, 'app.leftRail.resourcesShort')}</span>
       </button>
       {isOpen ? (

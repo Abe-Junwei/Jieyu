@@ -2,8 +2,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useLocale } from '../../i18n';
 import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
-import { Check } from 'lucide-react';
-import { JIEYU_LUCIDE_MICRO } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_MICRO } from '../../utils/jieyuMaterialIcon';
 import { getAiEmbeddingCardMessages } from '../../i18n/aiEmbeddingCardMessages';
 
 function formatEmbeddingScore(score: number): string {
@@ -13,7 +13,7 @@ function formatEmbeddingScore(score: number): string {
 export function AiEmbeddingCard() {
   const locale = useLocale();
   const {
-    selectedUtterance,
+    selectedUnit,
     aiEmbeddingBusy,
     aiEmbeddingProgressLabel,
     aiEmbeddingLastResult,
@@ -128,7 +128,7 @@ export function AiEmbeddingCard() {
         </button>
         {embeddingAvailability === 'available' && (
           <span className="ai-embed-status ai-embed-status-available">
-            <Check className={JIEYU_LUCIDE_MICRO} /> {messages.available}
+            <MaterialSymbol name="check" className={JIEYU_MATERIAL_MICRO} /> {messages.available}
           </span>
         )}
         {embeddingAvailability === 'unavailable' && (
@@ -141,7 +141,7 @@ export function AiEmbeddingCard() {
         <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildUtteranceEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildUtteranceEmbeddings?.()}>{messages.buildCurrentMedia}</button>
         <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildNotesEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildNotesEmbeddings?.()}>{messages.embedNotes}</button>
         <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildPdfEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildPdfEmbeddings?.()}>{messages.embedPdf}</button>
-        <button type="button" className="icon-btn ai-btn-action" disabled={!onFindSimilarUtterances || !selectedUtterance || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUtterances?.()}>{messages.findSimilar}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onFindSimilarUtterances || !selectedUnit || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUtterances?.()}>{messages.findSimilar}</button>
         <button type="button" className="icon-btn ai-btn-action ai-btn-min-refresh" disabled={!onRefreshEmbeddingTasks || !!aiEmbeddingBusy} onClick={() => void onRefreshEmbeddingTasks?.()}>{messages.refresh}</button>
       </div>
 
@@ -207,7 +207,7 @@ export function AiEmbeddingCard() {
           <p className="small-text">{messages.similarityHint}</p>
         ) : (
           (aiEmbeddingMatches ?? []).slice(0, 5).map((item) => {
-            const isActive = selectedUtterance?.id === item.utteranceId;
+            const isActive = selectedUnit?.id === item.utteranceId;
             return (
               <button key={item.utteranceId} type="button" className={`transcription-match-row ai-embed-match-btn ${isActive ? 'ai-embed-match-btn-active' : ''}`} onClick={() => onJumpToEmbeddingMatch?.(item.utteranceId)}>
                 <div className="ai-card-row ai-card-row-space">

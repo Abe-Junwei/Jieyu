@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
+import { buildAiChangeSetFromPendingToolCall } from '../../ai/changeset/AiChangeSetProtocol';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
 import { t, useLocale } from '../../i18n';
 import {
@@ -11,6 +12,7 @@ import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout'
 import { PanelButton, PanelChip, PanelNote } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
 import { PanelSummary } from '../ui/PanelSummary';
+import { AiChangeSetPreview } from './AiChangeSetPreview';
 
 interface AiChatAlertsPanelProps {
   isZh: boolean;
@@ -20,6 +22,7 @@ interface AiChatAlertsPanelProps {
   debugUiShowAll: boolean;
   showAlertBar: boolean;
   aiPendingToolCall: PendingAiToolCall | null | undefined;
+  timelineReadModelEpoch?: number | undefined;
   onDismissErrorWarning: () => void;
   onToggleAlertBar: () => void;
   onConfirmPendingToolCall?: (() => Promise<void>) | undefined;
@@ -34,6 +37,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   debugUiShowAll,
   showAlertBar,
   aiPendingToolCall,
+  timelineReadModelEpoch,
   onDismissErrorWarning,
   onToggleAlertBar,
   onConfirmPendingToolCall,
@@ -42,6 +46,15 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
   const locale = useLocale();
   const uiTextDirection = resolveTextDirectionFromLocale(locale);
   const hasToolPending = !!aiPendingToolCall;
+  const pendingChangeSet = useMemo(
+    () => (aiPendingToolCall ? buildAiChangeSetFromPendingToolCall(aiPendingToolCall) : null),
+    [aiPendingToolCall],
+  );
+  const readModelStale = Boolean(
+    aiPendingToolCall?.readModelEpochCaptured !== undefined
+      && timelineReadModelEpoch !== undefined
+      && aiPendingToolCall.readModelEpochCaptured !== timelineReadModelEpoch,
+  );
   const impactPreviewLines = normalizeImpactPreviewLines(
     aiPendingToolCall?.impactPreview ?? [],
     aiPendingToolCall?.previewContract?.reversible ?? false,
@@ -106,6 +119,14 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                         return <div className="ai-chat-alerts-pending-row">{t(locale, 'ai.alerts.target')}: {pendingTarget}</div>;
                       })()}
                       {aiPendingToolCall.riskSummary && <div className="ai-chat-alerts-pending-risk">{aiPendingToolCall.riskSummary}</div>}
+                      {readModelStale && (
+                        <div className="ai-chat-alerts-pending-risk" role="status">
+                          {t(locale, 'ai.alerts.staleReadModelWarning')}
+                        </div>
+                      )}
+                      {pendingChangeSet && (
+                        <AiChangeSetPreview changeSet={pendingChangeSet} showActions={false} />
+                      )}
                       {aiPendingToolCall.previewContract && (
                         <div className="ai-chat-alerts-pending-meta">
                           <span>{t(locale, 'ai.alerts.affects')}: {aiPendingToolCall.previewContract.affectedCount} {t(locale, 'ai.alerts.items')}</span>
@@ -122,7 +143,7 @@ export const AiChatAlertsPanel = memo(function AiChatAlertsPanel({
                       </ul>
                     )}
                     <div className="ai-chat-alerts-actions">
-                      <PanelButton variant="danger" className="ai-chat-alerts-action-btn" disabled={!onConfirmPendingToolCall} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</PanelButton>
+                      <PanelButton variant="danger" className="ai-chat-alerts-action-btn" disabled={!onConfirmPendingToolCall || readModelStale} onClick={() => void onConfirmPendingToolCall?.()}>{formatPendingConfirmActionLabel(isZh, aiPendingToolCall.call.name)}</PanelButton>
                       <PanelButton variant="ghost" className="ai-chat-alerts-action-btn" disabled={!onCancelPendingToolCall} onClick={() => void onCancelPendingToolCall?.()}>{t(locale, 'ai.alerts.cancel')}</PanelButton>
                     </div>
                   </>

@@ -112,6 +112,31 @@ describe('AiChatAlertsPanel', () => {
     expect(onCancelPendingToolCall).toHaveBeenCalledTimes(1);
   });
 
+  it('disables confirm when timeline epoch diverges from captured epoch', () => {
+    const onConfirmPendingToolCall = vi.fn(async () => undefined);
+    const pendingToolCall: PendingAiToolCall = {
+      call: {
+        name: 'delete_layer',
+        arguments: { layerId: 'layer-1' },
+      },
+      assistantMessageId: 'ast-1',
+      readModelEpochCaptured: 1,
+    };
+
+    renderPanel({
+      alertCount: 1,
+      showAlertBar: true,
+      aiPendingToolCall: pendingToolCall,
+      timelineReadModelEpoch: 2,
+      onConfirmPendingToolCall,
+      onCancelPendingToolCall: vi.fn(async () => undefined),
+    });
+
+    const confirmButton = screen.getByRole('button', { name: /Delete layer|删除层|Confirm/i });
+    expect(confirmButton.getAttribute('disabled')).not.toBeNull();
+    expect(screen.getByTestId('ai-changeset-preview')).toBeTruthy();
+  });
+
   it('dismisses warning banner when warning exists', () => {
     const onDismissErrorWarning = vi.fn();
 

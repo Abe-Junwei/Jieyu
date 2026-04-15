@@ -1,6 +1,6 @@
 import { memo, type MouseEvent } from 'react';
-import { StickyNote } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE } from '../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../i18n';
 
 interface NoteIndicatorProps {
@@ -22,7 +22,7 @@ export const NoteIndicator = memo(function NoteIndicator({ count, onClick }: Not
       title={noteText}
       aria-label={noteText}
     >
-      <StickyNote className={JIEYU_LUCIDE_INLINE} />
+      <MaterialSymbol name="sticky_note_2" className={JIEYU_MATERIAL_INLINE} />
       {count > 0 && <span className="note-indicator-badge">{count}</span>}
     </button>
   );
