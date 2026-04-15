@@ -29,7 +29,8 @@ interface TimelineLaneHeaderProps {
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
   isCollapsed?: boolean;
-  onToggleCollapsed?: () => void;
+  /** Receives the header's `layer.id` so parents can pass a stable callback. */
+  onToggleCollapsed?: (layerId: string) => void;
   onLaneLabelWidthResize?: (e: React.PointerEvent<HTMLDivElement>) => void;
   speakerQuickActions?: {
     selectedCount: number;
@@ -248,7 +249,7 @@ export function TimelineLaneHeader({
     {
       label: isCollapsed ? decodeEscapedUnicode('\\u5c55\\u5f00\\u8be5\\u5c42') : decodeEscapedUnicode('\\u6298\\u53e0\\u8be5\\u5c42'),
       onClick: () => {
-        onToggleCollapsed?.();
+        onToggleCollapsed?.(layer.id);
       },
     },
     {
@@ -478,7 +479,7 @@ export function TimelineLaneHeader({
         onMouseDown={handleMouseDown}
         onClick={(e) => {
           if (isCollapsed) {
-            onToggleCollapsed?.();
+            onToggleCollapsed?.(layer.id);
             e.stopPropagation();
           }
           onFocusLayer(layer.id);

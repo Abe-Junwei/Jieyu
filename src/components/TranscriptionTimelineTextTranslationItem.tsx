@@ -1,5 +1,6 @@
 import type {
   LayerDocType,
+  LayerSegmentDocType,
   MediaItemDocType,
   UtteranceDocType,
 } from '../db';
@@ -41,7 +42,7 @@ interface TranscriptionTimelineTextTranslationItemProps {
   runSaveWithStatus: (cellKey: string, saveTask: () => Promise<void>) => Promise<void>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   onFocusLayer: (layerId: string) => void;
-  navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   handleAnnotationClick: (
     uttId: string,
     uttStartTime: number,
@@ -50,7 +51,7 @@ interface TranscriptionTimelineTextTranslationItemProps {
   ) => void;
   handleAnnotationContextMenu: ((
     uttId: string,
-    utt: Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>,
+    utt: UtteranceDocType | LayerSegmentDocType,
     layerId: string,
     e: React.MouseEvent,
   ) => void) | undefined;
@@ -87,7 +88,7 @@ export function TranscriptionTimelineTextTranslationItem({
   runSaveWithStatus,
   focusedTranslationDraftKeyRef,
   onFocusLayer,
-  navigateUtteranceFromInput,
+  navigateUnitFromInput,
   handleAnnotationClick,
   handleAnnotationContextMenu,
 }: TranscriptionTimelineTextTranslationItemProps) {
@@ -189,11 +190,11 @@ export function TranscriptionTimelineTextTranslationItem({
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
             if (e.key === 'Tab') {
-              navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+              navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
               return;
             }
             if (e.key === 'Enter') {
-              navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+              navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
               return;
             }
             if (e.key === 'Escape') {

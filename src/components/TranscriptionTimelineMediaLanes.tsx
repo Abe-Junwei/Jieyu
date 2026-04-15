@@ -31,6 +31,7 @@ import {
 } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { utteranceToView, segmentToView, type TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -95,13 +96,13 @@ function getSegmentTimelineIterationSource(
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]> | undefined,
   timelineRenderUtterances: UtteranceDocType[],
   defaultTranscriptionLayerId?: string,
-): Array<{ id: string; startTime: number; endTime: number }> {
+): ReadonlyArray<UtteranceDocType | LayerSegmentDocType> {
   const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
   if (!sourceLayer) {
     return timelineRenderUtterances;
   }
 
-  return (segmentsByLayer?.get(sourceLayer.id) ?? []) as Array<{ id: string; startTime: number; endTime: number }>;
+  return segmentsByLayer?.get(sourceLayer.id) ?? [];
 }
 
 type TranscriptionTimelineMediaLanesProps = {
@@ -110,6 +111,7 @@ type TranscriptionTimelineMediaLanesProps = {
   lassoRect: LassoRect | null;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   timelineRenderUtterances: UtteranceDocType[];
   flashLayerRowId: string;
   focusedLayerRowId: string;
@@ -117,7 +119,7 @@ type TranscriptionTimelineMediaLanesProps = {
   selectedTimelineUnit?: TimelineUnit | null;
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
-    utt: UtteranceDocType,
+    utt: UtteranceDocType | LayerSegmentDocType,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -194,6 +196,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   lassoRect,
   transcriptionLayers,
   translationLayers,
+  timelineUnitViewIndex: _timelineUnitViewIndex,
   timelineRenderUtterances,
   flashLayerRowId,
   focusedLayerRowId,
@@ -367,7 +370,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     return next;
   }, [activeUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
 
-  const toggleLayerCollapsed = (layerId: string) => {
+  const toggleLayerCollapsed = useCallback((layerId: string) => {
     setCollapsedLayerIds((prev) => {
       const next = new Set(prev);
       if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
@@ -383,7 +386,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
       window.clearTimeout(timerId);
       tempExpandTimersRef.current.delete(layerId);
     }
-  };
+  }, []);
 
   useEffect(() => () => {
     for (const timerId of tempExpandTimersRef.current.values()) {
@@ -457,7 +460,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     toggleLayerCollapsed(layerId);
     e.preventDefault();
     e.stopPropagation();
-  }, []);
+  }, [toggleLayerCollapsed]);
 
   return (
     <TimelineStyledContainer
@@ -515,20 +518,23 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
         const collapsedOverlapMarkers = isMultiTrackMode
           ? activeLayerLayout.overlapGroups.filter((group) => group.speakerCount > 1)
           : [];
-        const rawVisibleItems = usesSegmentTimeline
+        const rawVisibleSegments: LayerSegmentDocType[] = usesSegmentTimeline
           ? (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
               ? (segmentItemsByOverlapGroupByLayer.get(segmentSourceLayerId)?.get(activeOverlapGroupId) ?? [])
               : ((segmentsByLayer?.get(segmentSourceLayerId) ?? []).filter((segment) => (
                   activeSpeakerFilterKey === 'all'
                     || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
                 ))))
-          : isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
-          ? (utterancesByOverlapGroupId.get(activeOverlapGroupId) ?? [])
-          : timelineRenderUtterances;
+          : [];
+        const rawVisibleUtterances: UtteranceDocType[] = usesSegmentTimeline
+          ? []
+          : (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
+              ? (utterancesByOverlapGroupId.get(activeOverlapGroupId) ?? [])
+              : timelineRenderUtterances);
         const defaultLayerId = defaultTranscriptionLayerId ?? '';
         const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
-          ? rawVisibleItems.map((s) => segmentToView(s as LayerSegmentDocType, () => ''))
-          : rawVisibleItems.map((u) => utteranceToView(u as UtteranceDocType, defaultLayerId));
+          ? rawVisibleSegments.map((s) => segmentToView(s, () => ''))
+          : rawVisibleUtterances.map((u) => utteranceToView(u, defaultLayerId));
         const overlapCycleItemsByUtteranceId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? ((usesSegmentTimeline
               ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
@@ -593,7 +599,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             renderLaneLabel={renderLaneLabel}
             startLaneHeightResize={startLaneHeightResize}
             handleLayerAction={handleLayerAction}
-            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onToggleCollapsed={toggleLayerCollapsed}
             onActivateTemporaryExpand={activateTemporaryExpand}
             onLanePointerDown={handleLanePointerDown}
           />
@@ -645,7 +651,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
-            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
@@ -662,7 +668,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             return (
               <TranscriptionTimelineMediaTranslationRow
                 key={`tr-sub-${layer.id}-${item.id}`}
-                item={item as UtteranceDocType}
+                item={item}
                 layer={layer}
                 layerForDisplay={layerForDisplay}
                 baseLaneHeight={baseLaneHeight}

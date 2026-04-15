@@ -138,7 +138,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[translationLayer, transcriptionLayer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -179,7 +179,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         trackDisplayMode="multi-locked"
@@ -227,7 +227,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         trackDisplayMode="multi-auto"
@@ -270,7 +270,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -330,7 +330,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[parentLayer, translationLayer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -387,7 +387,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[parentLayer, childLayer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -426,7 +426,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[parentLayer, childLayer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -460,7 +460,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -493,7 +493,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         speakerVisualByUtteranceId={{
@@ -543,7 +543,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -582,7 +582,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -631,7 +631,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -679,7 +679,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,
@@ -728,7 +728,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[layer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         speakerVisualByUtteranceId={{
@@ -784,7 +784,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onReorderLayers={vi.fn(async () => undefined)}
         deletableLayers={[translationLayer, transcriptionLayer]}
         onFocusLayer={vi.fn()}
-        navigateUtteranceFromInput={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
         translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}

@@ -42,7 +42,7 @@ function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
     onCloseCtxMenu: vi.fn(),
     uttOpsMenu: null,
     onCloseUttOpsMenu: vi.fn(),
-    selectedUtteranceIds: new Set<string>(),
+    selectedUnitIds: new Set<string>(),
     runDeleteSelection: vi.fn(),
     runMergeSelection: vi.fn(),
     runSelectBefore: vi.fn(),
@@ -103,7 +103,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       unitKind: 'segment',
       splitTime: 0.5,
     };
-    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
 
     render(<TranscriptionOverlays {...props} />);
@@ -182,7 +182,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       splitTime: 0.5,
     };
     props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
-    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
 
@@ -208,7 +208,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       splitTime: 0.5,
     };
     props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
-    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
 
@@ -234,7 +234,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       splitTime: 0.5,
     };
     props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'utterance' };
-    props.selectedUtteranceIds = new Set(['seg_1', 'seg_2']);
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
 

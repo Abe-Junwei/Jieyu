@@ -14,7 +14,7 @@ describe('WaveformLeftStatusStrip', () => {
         onSnapToggle={() => {}}
         playbackRate={1}
         currentTime={12}
-        selectedUtteranceDuration={3}
+        selectedUnitDuration={3}
         amplitudeScale={1}
         onAmplitudeChange={() => {}}
         onAmplitudeReset={() => {}}

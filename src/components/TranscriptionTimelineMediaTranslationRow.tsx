@@ -1,5 +1,6 @@
 import type {
   LayerDocType,
+  LayerSegmentDocType,
   MediaItemDocType,
   UtteranceDocType,
 } from '../db';
@@ -10,8 +11,10 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { t, useLocale } from '../i18n';
 
+export type TranslationTimelineRowDoc = UtteranceDocType | LayerSegmentDocType;
+
 interface TranscriptionTimelineMediaTranslationRowProps {
-  item: UtteranceDocType;
+  item: TranslationTimelineRowDoc;
   layer: LayerDocType;
   layerForDisplay: LayerDocType;
   baseLaneHeight: number;
@@ -33,7 +36,7 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   renderAnnotationItem: (
-    utt: UtteranceDocType,
+    utt: TranslationTimelineRowDoc,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -86,9 +89,9 @@ export function TranscriptionTimelineMediaTranslationRow({
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
-      onStartRecording={() => startRecordingForUtterance?.(item, layer)}
+      onStartRecording={() => startRecordingForUtterance?.(item as UtteranceDocType, layer)}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-      {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(item, layer) } : {})}
+      {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(item as UtteranceDocType, layer) } : {})}
     />
   ) : undefined;
 

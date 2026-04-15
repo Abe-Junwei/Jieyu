@@ -21,7 +21,7 @@ export interface WaveformLeftStatusStripProps {
 
   // 选段信息 | Selection info
   /** null 表示无选中语段 | null when no utterance is selected */
-  selectedUtteranceDuration: number | null;
+  selectedUnitDuration: number | null;
 
   // 增益 | Amplitude gain
   amplitudeScale: number;
@@ -45,7 +45,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
   onSnapToggle,
   playbackRate,
   currentTime,
-  selectedUtteranceDuration,
+  selectedUnitDuration,
   amplitudeScale,
   onAmplitudeChange,
   onAmplitudeReset,
@@ -88,8 +88,8 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
       <div className="waveform-left-status-item">
         <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.selection')}</span>
         <span className="waveform-left-status-value">
-          {selectedUtteranceDuration !== null
-            ? formatTime(Math.max(0, selectedUtteranceDuration))
+          {selectedUnitDuration !== null
+            ? formatTime(Math.max(0, selectedUnitDuration))
             : '--:--'}
         </span>
       </div>

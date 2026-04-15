@@ -8,9 +8,10 @@ import type React from 'react';
 import type {
   LayerDocType,
   LayerLinkDocType,
+  LayerSegmentDocType,
+  LayerDisplaySettings,
   OrthographyDocType,
   UtteranceDocType,
-  LayerDisplaySettings,
 } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
@@ -89,7 +90,7 @@ interface TranscriptionLaneProps {
   saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
-    utt: UtteranceDocType,
+    utt: UtteranceDocType | LayerSegmentDocType,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -108,7 +109,7 @@ interface TranscriptionLaneProps {
   startLaneHeightResize: (event: React.PointerEvent<HTMLDivElement>, layerId: string, baseLaneHeight: number) => void;
   // Callbacks
   handleLayerAction: (action: 'create-transcription' | 'create-translation' | 'delete', layerId?: string) => void;
-  onToggleCollapsed: () => void;
+  onToggleCollapsed: (layerId: string) => void;
   onActivateTemporaryExpand: (layerId: string, overlapGroupId: string) => void;
   onLanePointerDown: (layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => void;
 }

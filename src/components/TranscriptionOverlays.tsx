@@ -18,7 +18,7 @@ interface TranscriptionOverlaysProps {
   uttOpsMenu: { x: number; y: number } | null;
   onCloseUttOpsMenu: () => void;
   selectedTimelineUnit?: TimelineUnit | null;
-  selectedUtteranceIds: Set<string>;
+  selectedUnitIds: Set<string>;
   runDeleteSelection: (anchorId: string, selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
   runMergeSelection: (selectedIds: Set<string>, unitKind: TimelineUnitKind, layerId: string) => void;
   runSelectBefore: (id: string) => void;
@@ -70,7 +70,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     uttOpsMenu,
     onCloseUttOpsMenu,
     selectedTimelineUnit,
-    selectedUtteranceIds,
+    selectedUnitIds,
     runDeleteSelection,
     runMergeSelection,
     runSelectBefore,
@@ -162,17 +162,17 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           onClose={onCloseCtxMenu}
           items={(() => {
             const id = ctxMenu.unitId;
-            const multiCount = selectedUtteranceIds.size;
-            const targetIds = multiCount > 1 ? Array.from(selectedUtteranceIds) : [id];
+            const multiCount = selectedUnitIds.size;
+            const targetIds = multiCount > 1 ? Array.from(selectedUnitIds) : [id];
             const targetKind = ctxMenu.unitKind;
             const isSegmentUnitContext = targetKind === 'segment';
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
-                  { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, ctxMenu.layerId); } },
+                  { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUnitIds, targetKind, ctxMenu.layerId); } },
                   ...(isSegmentUnitContext
                     ? []
-                    : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, ctxMenu.layerId); } }]),
+                    : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, ctxMenu.layerId); } }]),
                   ...(isSegmentUnitContext
                     ? []
                     : [
@@ -263,15 +263,15 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
           onClose={onCloseUttOpsMenu}
           items={(() => {
             const id = selectedTimelineUnit.unitId;
-            const multiCount = selectedUtteranceIds.size;
+            const multiCount = selectedUnitIds.size;
             const targetKind = selectedTimelineUnit.kind;
             const targetLayerId = selectedTimelineUnit.layerId;
             if (multiCount > 1) {
               return [
-                { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUtteranceIds, targetKind, targetLayerId); } },
+                { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUnitIds, targetKind, targetLayerId); } },
                 ...(targetKind === 'segment'
                   ? []
-                  : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUtteranceIds, targetKind, targetLayerId); } }]),
+                  : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, targetLayerId); } }]),
               ];
             }
             return [

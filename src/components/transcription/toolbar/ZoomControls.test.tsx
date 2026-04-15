@@ -15,9 +15,9 @@ describe('ZoomControls Component', () => {
     zoomPercent: 100,
     snapEnabled: false,
     autoScrollEnabled: true,
-    activeUtteranceUnitId: 'utterance-1',
+    activeUnitId: 'utterance-1',
 
-    utterancesOnCurrentMedia: [
+    unitsOnCurrentMedia: [
       { id: 'utterance-1', startTime: 0, endTime: 5 },
       { id: 'utterance-2', startTime: 5, endTime: 10 },
     ],

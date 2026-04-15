@@ -6,8 +6,8 @@
  */
 
 import { type FC, useCallback } from 'react';
-import { Maximize2, Focus } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE } from '../../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE } from '../../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../../i18n';
 
 export interface ZoomControlsProps {
@@ -15,8 +15,9 @@ export interface ZoomControlsProps {
   zoomPercent: number;
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
-  activeUtteranceUnitId: string | null;
-  utterancesOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
+  activeUnitId: string | null;
+  /** Timeline rows on current track (utterance or segment), for fit-selection zoom. */
+  unitsOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
   maxZoomPercent: number;
 
@@ -31,8 +32,8 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   zoomPercent,
   snapEnabled,
   autoScrollEnabled,
-  activeUtteranceUnitId,
-  utterancesOnCurrentMedia,
+  activeUnitId,
+  unitsOnCurrentMedia,
   fitPxPerSec,
   maxZoomPercent,
   onZoomToPercent,
@@ -47,11 +48,11 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   }, [onZoomToPercent]);
 
   const handleFitSelection = useCallback(() => {
-    const sel = utterancesOnCurrentMedia.find((u) => u.id === activeUtteranceUnitId);
+    const sel = unitsOnCurrentMedia.find((u) => u.id === activeUnitId);
     if (sel) {
       onZoomToUtterance(sel.startTime, sel.endTime);
     }
-  }, [activeUtteranceUnitId, utterancesOnCurrentMedia, onZoomToUtterance]);
+  }, [activeUnitId, unitsOnCurrentMedia, onZoomToUtterance]);
 
   const handleOneToOne = useCallback(() => {
     onZoomToPercent(Math.round((100 / fitPxPerSec) * 100), 'custom');
@@ -78,15 +79,15 @@ const ZoomControls: FC<ZoomControlsProps> = ({
         onClick={handleFitAll}
         title={t(locale, 'transcription.zoom.fitAll')}
       >
-        <Maximize2 className={JIEYU_LUCIDE_INLINE} />
+        <MaterialSymbol name="open_in_full" className={JIEYU_MATERIAL_INLINE} />
       </button>
       <button
         className="icon-btn"
         onClick={handleFitSelection}
         title={t(locale, 'transcription.zoom.fitSelection')}
-        disabled={!activeUtteranceUnitId}
+        disabled={!activeUnitId}
       >
-        <Focus className={JIEYU_LUCIDE_INLINE} />
+        <MaterialSymbol name="center_focus_strong" className={JIEYU_MATERIAL_INLINE} />
       </button>
       <button
         className="icon-btn"

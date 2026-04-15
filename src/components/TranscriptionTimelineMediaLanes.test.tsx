@@ -1,10 +1,30 @@
 // @vitest-environment jsdom
+import type { ComponentProps } from 'react';
 import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, UtteranceDocType } from '../db';
-import { TranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
+import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
+import { TranscriptionTimelineMediaLanes as RawTranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
 
 const NOW = new Date().toISOString();
+const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
+  allUnits: [],
+  currentMediaUnits: [],
+  byId: new Map(),
+  byLayer: new Map(),
+  getReferringUnits: () => [],
+  totalCount: 0,
+  currentMediaCount: 0,
+  epoch: 1,
+  fallbackToSegments: false,
+  isComplete: true,
+};
+
+function TranscriptionTimelineMediaLanes(
+  props: Omit<ComponentProps<typeof RawTranscriptionTimelineMediaLanes>, 'timelineUnitViewIndex'>,
+) {
+  return <RawTranscriptionTimelineMediaLanes timelineUnitViewIndex={EMPTY_TIMELINE_UNIT_VIEW_INDEX} {...props} />;
+}
 
 const editorContextValue = {
   utteranceDrafts: {} as Record<string, string>,
@@ -30,13 +50,13 @@ vi.mock('../contexts/TranscriptionEditorContext', () => ({
 }));
 
 const timelineLaneHeaderMock = vi.fn(
-  ({ layer, onToggleCollapsed }: { layer: { id: string }; onToggleCollapsed: () => void; trackModeControl?: { lockConflictCount?: number } }) => (
-    <button type="button" data-testid={`toggle-${layer.id}`} onClick={onToggleCollapsed}>toggle</button>
+  ({ layer, onToggleCollapsed }: { layer: { id: string }; onToggleCollapsed?: (layerId: string) => void; trackModeControl?: { lockConflictCount?: number } }) => (
+    <button type="button" data-testid={`toggle-${layer.id}`} onClick={() => onToggleCollapsed?.(layer.id)}>toggle</button>
   ),
 );
 
 vi.mock('./TimelineLaneHeader', () => ({
-  TimelineLaneHeader: (props: { layer: { id: string }; onToggleCollapsed: () => void; trackModeControl?: { lockConflictCount?: number } }) => timelineLaneHeaderMock(props),
+  TimelineLaneHeader: (props: { layer: { id: string }; onToggleCollapsed?: (layerId: string) => void; trackModeControl?: { lockConflictCount?: number } }) => timelineLaneHeaderMock(props),
 }));
 
 vi.mock('./LayerActionPopover', () => ({

@@ -6,8 +6,8 @@
  */
 
 import type { FC } from 'react';
-import { Play, Repeat, Square } from 'lucide-react';
-import { JIEYU_LUCIDE_INLINE_TIGHT } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_INLINE_TIGHT } from '../../utils/jieyuMaterialIcon';
 import { t, tf, useLocale } from '../../i18n';
 
 export interface RegionActionOverlayProps {
@@ -85,7 +85,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onToggleLoop(); }}
         >
-          <Repeat className={JIEYU_LUCIDE_INLINE_TIGHT} />
+          <MaterialSymbol name="repeat" className={JIEYU_MATERIAL_INLINE_TIGHT} />
         </button>
       )}
       <button
@@ -94,7 +94,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onTogglePlay(); }}
       >
-        {isPlaying ? <Square className={JIEYU_LUCIDE_INLINE_TIGHT} /> : <Play className={JIEYU_LUCIDE_INLINE_TIGHT} />}
+        {isPlaying ? <MaterialSymbol name="stop" className={JIEYU_MATERIAL_INLINE_TIGHT} /> : <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_INLINE_TIGHT} />}
       </button>
     </div>
   );

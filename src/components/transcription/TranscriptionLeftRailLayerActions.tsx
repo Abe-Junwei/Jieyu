@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, Globe } from 'lucide-react';
-import { JIEYU_LUCIDE_LEFT_RAIL_CTX } from '../../utils/jieyuLucideIcon';
+import { MaterialSymbol } from '../ui/MaterialSymbol';
+import { JIEYU_MATERIAL_LEFT_RAIL_CTX } from '../../utils/jieyuMaterialIcon';
 import type { SidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 
 /** DOM id for App shell `app-left-rail-bottom-slot` host; tests mount a matching node. */
@@ -42,7 +42,7 @@ export function TranscriptionLeftRailLayerActions({
         aria-label={messages.quickActionCreateTranscription}
         onClick={onCreateTranscription}
       >
-        <FileText aria-hidden className={JIEYU_LUCIDE_LEFT_RAIL_CTX} />
+        <MaterialSymbol name="layers" aria-hidden className={JIEYU_MATERIAL_LEFT_RAIL_CTX} />
         <span>{messages.quickActionCreateTranscription}</span>
       </button>
       <button
@@ -53,7 +53,7 @@ export function TranscriptionLeftRailLayerActions({
         disabled={disableCreateTranslationEntry}
         onClick={onCreateTranslation}
       >
-        <Globe aria-hidden className={JIEYU_LUCIDE_LEFT_RAIL_CTX} />
+        <MaterialSymbol name="translate" aria-hidden className={JIEYU_MATERIAL_LEFT_RAIL_CTX} />
         <span>{messages.quickActionCreateTranslation}</span>
       </button>
     </div>,

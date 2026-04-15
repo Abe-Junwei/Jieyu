@@ -78,7 +78,7 @@ type TranscriptionTimelineTextOnlyProps = {
   ) => void;
   handleAnnotationContextMenu?: (
     uttId: string,
-    utt: Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime' | 'speaker' | 'speakerId' | 'ai_metadata'>,
+    utt: UtteranceDocType | LayerSegmentDocType,
     layerId: string,
     e: React.MouseEvent,
   ) => void;
@@ -89,7 +89,7 @@ type TranscriptionTimelineTextOnlyProps = {
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
   onFocusLayer: (layerId: string) => void;
-  navigateUtteranceFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
@@ -155,7 +155,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   defaultLanguageId,
   defaultOrthographyId,
   onFocusLayer,
-  navigateUtteranceFromInput,
+  navigateUnitFromInput,
   layerLinks = [],
   showConnectors = true,
   onToggleConnectors,
@@ -228,13 +228,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     handleResizePreview,
   );
 
-  const toggleLayerCollapsed = (layerId: string) => {
+  const toggleLayerCollapsed = useCallback((layerId: string) => {
     setCollapsedLayerIds((prev) => {
       const next = new Set(prev);
       if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
       return next;
     });
-  };
+  }, []);
 
   const {
     utteranceDrafts,
@@ -433,7 +433,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
               },
             })}
             isCollapsed={isCollapsed}
-            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
@@ -550,11 +550,11 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing) return;
                     if (e.key === 'Tab') {
-                      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+                      navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
                       return;
                     }
                     if (e.key === 'Enter') {
-                      navigateUtteranceFromInput(e, e.shiftKey ? -1 : 1);
+                      navigateUnitFromInput(e, e.shiftKey ? -1 : 1);
                       return;
                     }
                     if (e.key === 'Escape') {
@@ -662,7 +662,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
             isCollapsed={isCollapsed}
-            onToggleCollapsed={() => toggleLayerCollapsed(layer.id)}
+            onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
@@ -723,7 +723,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 runSaveWithStatus={runSaveWithStatus}
                 focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
                 onFocusLayer={onFocusLayer}
-                navigateUtteranceFromInput={navigateUtteranceFromInput}
+                navigateUnitFromInput={navigateUnitFromInput}
                 handleAnnotationClick={handleAnnotationClick}
                 handleAnnotationContextMenu={handleAnnotationContextMenu}
               />

@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Mic, Pause, Play, Trash2 } from 'lucide-react';
-import { JIEYU_LUCIDE_WAVE, JIEYU_LUCIDE_WAVE_MD } from '../utils/jieyuLucideIcon';
+import { MaterialSymbol } from './ui/MaterialSymbol';
+import { JIEYU_MATERIAL_WAVE, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
 import type { MediaItemDocType } from '../db';
 import { t, useLocale } from '../i18n';
 
@@ -140,7 +140,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
         disabled={disabled}
         onClick={handleRecordClick}
       >
-        {isRecording ? <span className="timeline-translation-audio-stop-glyph" aria-hidden="true" /> : <Mic className={JIEYU_LUCIDE_WAVE} />}
+        {isRecording ? <span className="timeline-translation-audio-stop-glyph" aria-hidden="true" /> : <MaterialSymbol name="mic" className={JIEYU_MATERIAL_WAVE} />}
       </button>
       {hasAudio ? (
         <button
@@ -153,7 +153,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
             void handlePlaybackClick(event);
           }}
         >
-          {isPlaying ? <Pause className={JIEYU_LUCIDE_WAVE_MD} /> : <Play className={JIEYU_LUCIDE_WAVE_MD} />}
+          {isPlaying ? <MaterialSymbol name="pause" className={JIEYU_MATERIAL_WAVE_MD} /> : <MaterialSymbol name="play_arrow" className={JIEYU_MATERIAL_WAVE_MD} />}
         </button>
       ) : null}
       {hasAudio && onDeleteRecording ? (
@@ -165,7 +165,7 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
           disabled={disabled || isRecording}
           onClick={handleDeleteClick}
         >
-          <Trash2 className={JIEYU_LUCIDE_WAVE_MD} />
+          <MaterialSymbol name="delete" className={JIEYU_MATERIAL_WAVE_MD} />
         </button>
       ) : null}
       {!compact ? (
