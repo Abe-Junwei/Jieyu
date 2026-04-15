@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
-import { MaterialSymbol } from './ui/MaterialSymbol';
 import { tf, useLocale } from '../i18n';
 import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
 
@@ -166,7 +165,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           title={selfCertaintyTitle}
           aria-label={selfCertaintyTitle}
         >
-          <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+          <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
         </span>
       )}
       {selfCertainty === 'not_understood' && (
@@ -175,7 +174,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           title={selfCertaintyTitle}
           aria-label={selfCertaintyTitle}
         >
-          <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+          <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
         </span>
       )}
       {selfCertainty === 'uncertain' && (

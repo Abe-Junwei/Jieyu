@@ -30,6 +30,10 @@
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
 }
 
+.timeline-text-item-has-self-certainty {
+  overflow: visible;
+}
+
 /* 空段（未转写）显示极浅灰底色 | Empty segment: faint bg as slot indicator */
 .timeline-text-item-empty {
   background: var(--timeline-neutral-empty-bg);
@@ -302,6 +306,9 @@
   box-shadow: none;
 }
 
+.timeline-text-item-has-self-certainty .timeline-text-input {
+  padding-right: 30px;
+}
 
 .timeline-text-item-has-tools .timeline-text-input {
   padding-right: 62px;

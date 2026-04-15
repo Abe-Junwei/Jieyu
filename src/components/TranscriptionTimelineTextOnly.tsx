@@ -45,7 +45,6 @@ import {
   resolveSelfCertaintyHostUtteranceId,
   type UtteranceSelfCertainty,
 } from '../utils/utteranceSelfCertainty';
-import { MaterialSymbol } from './ui/MaterialSymbol';
 
 function buildTextTimelineSelfCertaintyTitle(
   locale: Parameters<typeof t>[0],
@@ -624,7 +623,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     title={selfCertaintyTitle}
                     aria-label={selfCertaintyTitle}
                   >
-                    <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+                    <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
                   </span>
                 ) : null}
                 {cellSelfCertainty === 'not_understood' && selfCertaintyTitle ? (
@@ -633,7 +632,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     title={selfCertaintyTitle}
                     aria-label={selfCertaintyTitle}
                   >
-                    <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+                    <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
                   </span>
                 ) : null}
                 {cellSelfCertainty === 'uncertain' && selfCertaintyTitle ? (

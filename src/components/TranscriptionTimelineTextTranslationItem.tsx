@@ -9,7 +9,6 @@ import { TimelineTranslationAudioControls } from './TimelineTranslationAudioCont
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
 import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
-import { MaterialSymbol } from './ui/MaterialSymbol';
 
 type SaveStatus = 'dirty' | 'saving' | 'error' | undefined;
 
@@ -244,7 +243,7 @@ export function TranscriptionTimelineTextTranslationItem({
           title={selfCertaintyTitle}
           aria-label={selfCertaintyTitle}
         >
-          <MaterialSymbol name="check" aria-hidden className="timeline-annotation-self-certainty-icon" />
+          <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
         </span>
       ) : null}
       {selfCertainty === 'not_understood' && selfCertaintyTitle ? (
@@ -253,7 +252,7 @@ export function TranscriptionTimelineTextTranslationItem({
           title={selfCertaintyTitle}
           aria-label={selfCertaintyTitle}
         >
-          <MaterialSymbol name="question_mark" aria-hidden className="timeline-annotation-self-certainty-icon" />
+          <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
         </span>
       ) : null}
       {selfCertainty === 'uncertain' && selfCertaintyTitle ? (
