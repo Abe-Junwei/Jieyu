@@ -6,7 +6,8 @@ export interface ObserverMetrics {
   transcribedRate: number;
   glossedRate: number;
   verifiedRate: number;
-  utteranceCount: number;
+  /** Count of `utterances` rows (not unified timeline unit index). */
+  utteranceRowCount: number;
 }
 
 export interface Recommendation {
@@ -37,7 +38,7 @@ function makeRecommendation(locale: Locale, id: string, priority: number): Recom
 }
 
 export function inferStage(metrics: ObserverMetrics): ProjectStage {
-  if (metrics.utteranceCount <= 0) return 'collecting';
+  if (metrics.utteranceRowCount <= 0) return 'collecting';
   const t = Math.max(0, Math.min(1, metrics.transcribedRate));
   const g = Math.max(0, Math.min(1, metrics.glossedRate));
   const v = Math.max(0, Math.min(1, metrics.verifiedRate));
@@ -61,10 +62,10 @@ export interface WaveformSignals {
  * 计算多信号风险分 0-100 | Compute multi-signal risk score 0-100
  * 综合 confidence、overlap、gap 和热区严重度加权
  */
-export function computeMultiSignalRiskScore(signals: WaveformSignals, utteranceCount: number): number {
-  if (utteranceCount <= 0) return 0;
-  const confRatio = Math.min(1, signals.lowConfidenceCount / utteranceCount);
-  const overlapRatio = Math.min(1, signals.overlapCount / Math.max(1, utteranceCount));
+export function computeMultiSignalRiskScore(signals: WaveformSignals, utteranceRowCount: number): number {
+  if (utteranceRowCount <= 0) return 0;
+  const confRatio = Math.min(1, signals.lowConfidenceCount / utteranceRowCount);
+  const overlapRatio = Math.min(1, signals.overlapCount / Math.max(1, utteranceRowCount));
   const gapPenalty = Math.min(1, signals.maxGapSeconds / 10);
   const hotZoneFactor = signals.topHotZoneSeverity ?? 0;
 
@@ -80,7 +81,7 @@ export function generateRecommendations(
   locale: Locale = 'zh-CN',
 ): Recommendation[] {
   const stage = inferStage(metrics);
-  const riskScore = waveformSignals ? computeMultiSignalRiskScore(waveformSignals, metrics.utteranceCount) : 0;
+  const riskScore = waveformSignals ? computeMultiSignalRiskScore(waveformSignals, metrics.utteranceRowCount) : 0;
 
   if (stage === 'collecting') {
     return [makeRecommendation(locale, 'collectingNext', 100)];
