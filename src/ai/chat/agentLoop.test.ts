@@ -32,6 +32,28 @@ describe('agentLoop helpers', () => {
     }])).toBe(false);
   });
 
+  it('stops when gap metric already has a deterministic value', () => {
+    expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, [{
+      ok: true,
+      name: 'diagnose_quality',
+      result: {
+        requestedMetric: 'untranscribed_count',
+        value: 3,
+      },
+    }], 'untranscribed_count')).toBe(false);
+  });
+
+  it('continues when returned value metric does not match requested gap metric', () => {
+    expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, [{
+      ok: true,
+      name: 'get_project_stats',
+      result: {
+        requestedMetric: 'missing_speaker_count',
+        value: 2,
+      },
+    }], 'untranscribed_count')).toBe(true);
+  });
+
   it('builds continuation prompt with loop marker and payload', () => {
     const prompt = buildAgentLoopContinuationInput(
       'what is this segment?',

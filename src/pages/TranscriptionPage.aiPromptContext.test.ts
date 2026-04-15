@@ -43,6 +43,7 @@ describe('buildTranscriptionAiPromptContext', () => {
       selectedUnitCount: 1,
       currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
       unitCount: 12,
+      currentScopeUnitCount: 6,
       translationLayerCount: 2,
       aiConfidenceAvg: 0.91,
       waveformAnalysis: {
@@ -96,6 +97,7 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('selectedUnitCount=1');
     expect(block).toContain('projectUnitCount=12 [authoritative');
     expect(block).toContain('currentTrack.unitCount=6 [current audio track only');
+    expect(block).toContain('currentScope.unitCount=6 [active layer + current media for segment operations]');
     expect(block).toContain('worldModelSnapshot=');
     expect(block).toContain('acousticSummary(');
     expect(block).toContain('selectionSec=1.20-3.40');
@@ -111,7 +113,7 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(block).toContain('formantF2Mean=1760');
     expect(block).toContain('runtime=yin-v2-spectral@16000Hz');
     expect(block).toContain('hotspots=pitch_break@2.10s|intensity_peak@2.80s');
-    expect(block).toContain('waveformAnalysis(trackLowConfidence=0, trackOverlaps=0, trackGaps=1, trackMaxGapSec=0.4');
+    expect(block).toContain('waveformAnalysis(trackLowConfidence=0, trackOverlaps=0, trackGaps=1, trackMaxGapSec=0.4, activeSignals=gap, note=trackGaps_not_unit_count)');
   });
 
   it('keeps localUnitIndex out of serialized context while exposing world model snapshot', () => {
@@ -182,6 +184,7 @@ describe('buildTranscriptionAiPromptContext', () => {
       selectedUnitCount: 1,
       currentMediaUnits: [],
       unitCount: 4,
+      currentScopeUnitCount: 2,
       translationLayerCount: 1,
       aiConfidenceAvg: 0.912,
       observerStage: null,
@@ -192,7 +195,41 @@ describe('buildTranscriptionAiPromptContext', () => {
     const block = buildPromptContextBlock(context, 4000);
     expect(block).toContain('projectUnitCount=4 [authoritative');
     expect(block).toContain('currentTrack.unitCount=0 [current audio track only');
+    expect(block).toContain('currentScope.unitCount=2 [active layer + current media for segment operations]');
     expect(block).toContain('projectStats(units=4, translationLayers=1, aiConfidenceAvg=0.912)');
+  });
+
+  it('exposes speakerCount in project stats when speaker ids exist', () => {
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: null,
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: null,
+        selectedLayerId: null,
+        selectedText: '',
+        selectedTimeRangeLabel: '',
+        timelineUnit: null,
+      },
+      selectedUnitIds: [],
+      selectedUnitCount: 0,
+      currentMediaUnits: [],
+      projectUnitsForTools: [
+        { id: 'u1', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-1' },
+        { id: 'u2', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-2' },
+        { id: 'u3', kind: 'utterance', mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'c', speakerId: 'spk-1' },
+      ],
+      unitCount: 3,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+    });
+
+    expect(context.longTerm?.projectStats?.speakerCount).toBe(2);
+    const block = buildPromptContextBlock(context, 4000);
+    expect(block).toContain('speakers=2');
   });
 
   it('keeps scope-critical ShortTerm counters when context block is trimmed', () => {

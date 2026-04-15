@@ -2,6 +2,8 @@ import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 import type { AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
 import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
+import { getDb } from '../../db';
+import { listUtteranceTextsByUtterance } from '../../services/LayerSegmentationTextService';
 import {
   AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1,
   AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2,
@@ -30,7 +32,8 @@ export type LocalContextToolName =
   | 'suggest_next_action'
   | 'list_units'
   | 'search_units'
-  | 'get_unit_detail';
+  | 'get_unit_detail'
+  | 'get_unit_linguistic_memory';
 
 export interface LocalContextToolCall {
   name: LocalContextToolName;
@@ -56,6 +59,7 @@ const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
   'list_units',
   'search_units',
   'get_unit_detail',
+  'get_unit_linguistic_memory',
 ]);
 
 /**
@@ -67,6 +71,7 @@ const LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP = {
   list_utterances: 'list_units',
   search_utterances: 'search_units',
   get_utterance_detail: 'get_unit_detail',
+  get_utterance_linguistic_memory: 'get_unit_linguistic_memory',
 } as const satisfies Record<string, LocalContextToolName>;
 
 type ResolvedLocalToolName = {
@@ -208,6 +213,70 @@ function normalizeOffset(value: unknown, fallback = 0, maxOffset = LIST_UNITS_DE
   return fallback;
 }
 
+function normalizeBoolean(value: unknown, fallback = true): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return fallback;
+}
+
+type LocalUnitScope = 'project' | 'current_track' | 'current_scope';
+
+function normalizeUnitScope(value: unknown, fallback: LocalUnitScope = 'project'): LocalUnitScope {
+  if (typeof value !== 'string') return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length === 0) return fallback;
+  if (normalized === 'project' || normalized === 'global' || normalized === 'all') return 'project';
+  if (normalized === 'current_track' || normalized === 'current-track' || normalized === 'track' || normalized === 'current_audio' || normalized === 'current-audio') return 'current_track';
+  if (normalized === 'current_scope' || normalized === 'current-scope' || normalized === 'scope' || normalized === 'current') return 'current_scope';
+  return fallback;
+}
+
+function filterRowsByScope(context: AiPromptContext, rows: NormalizedUnitRow[], scope: LocalUnitScope): NormalizedUnitRow[] {
+  if (scope === 'project') return rows;
+
+  let scoped = rows;
+  const currentMediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+  if (currentMediaId.length > 0) {
+    const onCurrentMedia = scoped.filter((row) => normalizeTextValue(row.mediaId) === currentMediaId);
+    scoped = onCurrentMedia;
+  }
+
+  if (scope === 'current_scope') {
+    const selectedLayerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
+    if (selectedLayerId.length > 0) {
+      const onSelectedLayer = scoped.filter((row) => normalizeTextValue(row.layerId) === selectedLayerId);
+      scoped = onSelectedLayer;
+    }
+  }
+
+  return scoped;
+}
+
+function resolveExpectedTotalForScope(context: AiPromptContext, scope: LocalUnitScope): number | undefined {
+  const projectTotal = context.longTerm?.projectStats?.unitCount ?? context.shortTerm?.projectUnitCount;
+  if (scope === 'project') {
+    return typeof projectTotal === 'number' && Number.isFinite(projectTotal) ? projectTotal : undefined;
+  }
+
+  if (scope === 'current_track') {
+    const currentTrackTotal = context.shortTerm?.currentMediaUnitCount;
+    return typeof currentTrackTotal === 'number' && Number.isFinite(currentTrackTotal)
+      ? currentTrackTotal
+      : undefined;
+  }
+
+  const currentScopeTotal = context.shortTerm?.currentScopeUnitCount;
+  if (typeof currentScopeTotal === 'number' && Number.isFinite(currentScopeTotal)) return currentScopeTotal;
+  const currentTrackTotal = context.shortTerm?.currentMediaUnitCount;
+  return typeof currentTrackTotal === 'number' && Number.isFinite(currentTrackTotal)
+    ? currentTrackTotal
+    : undefined;
+}
+
 interface NormalizedUnitRow {
   id: string;
   kind: 'utterance' | 'segment';
@@ -247,7 +316,72 @@ function loadNormalizedUnitRows(context: AiPromptContext): NormalizedUnitRow[] {
   return [];
 }
 
+function normalizeProjectMetric(value: unknown): 'unit_count' | 'speaker_count' | 'translation_layer_count' | 'ai_confidence_avg' | 'untranscribed_count' | 'missing_speaker_count' | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'unit_count' || normalized === 'unitcount' || normalized === 'unit' || normalized === 'units') return 'unit_count';
+  if (normalized === 'speaker_count' || normalized === 'speakercount' || normalized === 'speaker' || normalized === 'speakers') return 'speaker_count';
+  if (normalized === 'translation_layer_count' || normalized === 'translationlayercount' || normalized === 'translation_layers' || normalized === 'layers') return 'translation_layer_count';
+  if (normalized === 'ai_confidence_avg' || normalized === 'confidence' || normalized === 'avg_confidence') return 'ai_confidence_avg';
+  if (normalized === 'untranscribed_count' || normalized === 'untranscribed' || normalized === 'unfinished' || normalized === 'remaining') return 'untranscribed_count';
+  if (normalized === 'missing_speaker_count' || normalized === 'missing_speaker' || normalized === 'speaker_missing') return 'missing_speaker_count';
+  return undefined;
+}
+
+function getProjectStats(context: AiPromptContext, args: Record<string, unknown>): LocalContextToolResult {
+  const scope = normalizeUnitScope(args.scope, 'project');
+  const scopedRows = filterRowsByScope(context, loadNormalizedUnitRows(context), scope);
+  const requestedMetric = normalizeProjectMetric(args.metric);
+  const unitCount = resolveExpectedTotalForScope(context, scope) ?? scopedRows.length;
+  const speakerIds = new Set(
+    scopedRows
+      .map((row) => normalizeTextValue(row.speakerId))
+      .filter((id) => id.length > 0),
+  );
+  const derivedSpeakerCount = speakerIds.size > 0 ? speakerIds.size : undefined;
+  const speakerCount = scope === 'project'
+    ? (context.longTerm?.projectStats?.speakerCount ?? derivedSpeakerCount)
+    : derivedSpeakerCount;
+  const translationLayerCount = context.longTerm?.projectStats?.translationLayerCount;
+  const aiConfidenceAvg = context.longTerm?.projectStats?.aiConfidenceAvg ?? null;
+  const qualityDiagnosis = (requestedMetric === 'untranscribed_count' || requestedMetric === 'missing_speaker_count')
+    ? diagnoseQuality(context, { scope, metric: requestedMetric })
+    : null;
+  const value = requestedMetric === 'unit_count'
+    ? unitCount
+    : requestedMetric === 'speaker_count'
+      ? (speakerCount ?? null)
+      : requestedMetric === 'translation_layer_count'
+        ? (translationLayerCount ?? null)
+        : requestedMetric === 'ai_confidence_avg'
+          ? aiConfidenceAvg
+          : requestedMetric === 'untranscribed_count' || requestedMetric === 'missing_speaker_count'
+            ? (typeof qualityDiagnosis?.value === 'number' ? qualityDiagnosis.value : null)
+          : undefined;
+
+  return {
+    ok: true,
+    name: 'get_project_stats',
+    result: {
+      scope,
+      unitCount,
+      ...(speakerCount !== undefined ? { speakerCount } : {}),
+      ...(translationLayerCount !== undefined ? { translationLayerCount } : {}),
+      aiConfidenceAvg,
+      ...(qualityDiagnosis
+        ? {
+            breakdown: qualityDiagnosis.breakdown,
+            totalUnitsInScope: qualityDiagnosis.totalUnitsInScope,
+            completionRate: qualityDiagnosis.completionRate,
+          }
+        : {}),
+      ...(requestedMetric ? { requestedMetric, value } : {}),
+    },
+  };
+}
+
 async function searchUnits(context: AiPromptContext, args: Record<string, unknown>): Promise<LocalContextToolResult> {
+  const scope = normalizeUnitScope(args.scope, 'project');
   const query = normalizeTextValue(args.query);
   if (query.length === 0) {
     const listFallback = await listUnits(context, args);
@@ -264,9 +398,22 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
     };
   }
 
-  const rows = loadNormalizedUnitRows(context);
-  if (rows.length === 0) {
+  const allRows = loadNormalizedUnitRows(context);
+  if (allRows.length === 0) {
     return { ok: false, name: 'search_units', result: null, error: 'data_loading' };
+  }
+  const rows = filterRowsByScope(context, allRows, scope);
+  if (rows.length === 0) {
+    return {
+      ok: true,
+      name: 'search_units',
+      result: {
+        scope,
+        query,
+        count: 0,
+        matches: [],
+      },
+    };
   }
   const lowered = query.toLowerCase();
   const limit = normalizeLimit(args.limit);
@@ -280,6 +427,7 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
     ok: true,
     name: 'search_units',
     result: {
+      scope,
       query,
       count: matches.length,
       matches,
@@ -295,6 +443,7 @@ function buildListUnitsPageResult(
   context: AiPromptContext,
   rowsUnsorted: NormalizedUnitRow[],
   args: Record<string, unknown>,
+  scope: LocalUnitScope,
   opts: { resultHandle?: string; snapshotPaging?: boolean },
 ): LocalContextToolResult {
   const limit = normalizeLimit(args.limit, 8);
@@ -305,7 +454,7 @@ function buildListUnitsPageResult(
   const sort = normalizeTextValue(args.sort).toLowerCase() === 'time_desc' ? 'time_desc' : 'time_asc';
   const normalized = sortNormalizedUnitRows(rowsUnsorted, sort);
   const matches = normalized.slice(offset, offset + limit);
-  const expectedTotal = context.longTerm?.projectStats?.unitCount ?? context.shortTerm?.projectUnitCount;
+  const expectedTotal = resolveExpectedTotalForScope(context, scope);
   if (typeof expectedTotal === 'number' && Number.isFinite(expectedTotal) && normalized.length !== expectedTotal) {
     if (import.meta.env.DEV) {
       console.warn('[timeline_unit_count_mismatch]', { tool: 'list_units', total: normalized.length, expectedTotal });
@@ -315,6 +464,7 @@ function buildListUnitsPageResult(
       value: 1,
       tags: createMetricTags('localContextTools', {
         source: 'list_units',
+        scope,
         total: normalized.length,
         expectedTotal,
       }),
@@ -322,6 +472,7 @@ function buildListUnitsPageResult(
   }
 
   const result: Record<string, unknown> = {
+    scope,
     count: matches.length,
     total: normalized.length,
     offset,
@@ -343,12 +494,14 @@ function buildListUnitsPageResult(
 }
 
 async function listUnits(context: AiPromptContext, args: Record<string, unknown>): Promise<LocalContextToolResult> {
+  let scope = normalizeUnitScope(args.scope, 'project');
   const handleArg = normalizeTextValue(args.resultHandle);
   if (handleArg.length > 0) {
     const entry = getListUnitsSnapshot(handleArg);
     if (!entry) {
       return { ok: false, name: 'list_units', result: null, error: 'invalid_or_expired_handle' };
     }
+    scope = entry.scope ?? scope;
     const ctxEpoch = context.shortTerm?.timelineReadModelEpoch;
     if (
       typeof entry.epoch === 'number'
@@ -359,15 +512,19 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
     ) {
       return { ok: false, name: 'list_units', result: null, error: 'stale_list_handle' };
     }
-    return buildListUnitsPageResult(context, entry.rows as NormalizedUnitRow[], args, {
+    return buildListUnitsPageResult(context, entry.rows as NormalizedUnitRow[], args, scope, {
       resultHandle: handleArg,
       snapshotPaging: true,
     });
   }
 
-  const rows = loadNormalizedUnitRows(context);
-  if (rows.length === 0) {
+  const allRows = loadNormalizedUnitRows(context);
+  if (allRows.length === 0) {
     return { ok: false, name: 'list_units', result: null, error: 'data_loading' };
+  }
+  const rows = filterRowsByScope(context, allRows, scope);
+  if (rows.length === 0) {
+    return buildListUnitsPageResult(context, rows, args, scope, {});
   }
 
   if (rows.length > LIST_UNITS_SNAPSHOT_ROW_THRESHOLD) {
@@ -375,6 +532,7 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
     const newHandle = createListUnitsSnapshot(
       rows as ListUnitsSnapshotRow[],
       typeof epoch === 'number' && Number.isFinite(epoch) ? epoch : undefined,
+      scope,
     );
     recordMetric({
       id: 'ai.list_units_snapshot_created',
@@ -383,16 +541,17 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
         rowCount: rows.length,
       }),
     });
-    return buildListUnitsPageResult(context, rows, args, {
+    return buildListUnitsPageResult(context, rows, args, scope, {
       resultHandle: newHandle,
       snapshotPaging: true,
     });
   }
 
-  return buildListUnitsPageResult(context, rows, args, {});
+  return buildListUnitsPageResult(context, rows, args, scope, {});
 }
 
 async function getUnitDetail(args: Record<string, unknown>, context: AiPromptContext): Promise<LocalContextToolResult> {
+  const scope = normalizeUnitScope(args.scope, 'project');
   const unitId = normalizeTextValue(args.unitId);
   if (unitId.length === 0) {
     return {
@@ -405,12 +564,14 @@ async function getUnitDetail(args: Record<string, unknown>, context: AiPromptCon
 
   const localRows = normalizedUnitRowsFromContext(context);
   if (localRows) {
-    const hit = localRows.find((r) => r.id === unitId);
+    const scopedRows = filterRowsByScope(context, localRows, scope);
+    const hit = scopedRows.find((r) => r.id === unitId);
     if (hit) {
       return {
         ok: true,
         name: 'get_unit_detail',
         result: {
+          scope,
           id: hit.id,
           kind: hit.kind,
           layerId: hit.layerId,
@@ -424,8 +585,297 @@ async function getUnitDetail(args: Record<string, unknown>, context: AiPromptCon
         },
       };
     }
+    if (scope !== 'project' && localRows.some((row) => row.id === unitId)) {
+      return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found in scope: ${scope}` };
+    }
   }
   return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found: ${unitId}` };
+}
+
+type LinguisticMemoryNoteTargetType = 'utterance' | 'translation' | 'token' | 'morpheme';
+
+interface LinguisticMemoryNoteView {
+  id: string;
+  category?: string;
+  content: Record<string, string>;
+  updatedAt: string;
+}
+
+function mapLayerType(value: unknown): 'transcription' | 'translation' | 'unknown' {
+  if (value === 'transcription' || value === 'translation') return value;
+  return 'unknown';
+}
+
+function mapLinguisticMemoryNoteRows(rows: Array<Record<string, unknown>>): LinguisticMemoryNoteView[] {
+  return rows
+    .map((row) => {
+      const content = row.content;
+      if (!content || typeof content !== 'object' || Array.isArray(content)) return null;
+      return {
+        id: String(row.id ?? ''),
+        ...(typeof row.category === 'string' ? { category: row.category } : {}),
+        content: content as Record<string, string>,
+        updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : '',
+      };
+    })
+    .filter((row): row is LinguisticMemoryNoteView => row !== null)
+    .sort((a, b) => {
+      if (a.updatedAt === b.updatedAt) return a.id.localeCompare(b.id);
+      return a.updatedAt < b.updatedAt ? 1 : -1;
+    });
+}
+
+async function listNotesByTarget(
+  db: Awaited<ReturnType<typeof getDb>>,
+  targetType: LinguisticMemoryNoteTargetType,
+  targetId: string,
+): Promise<LinguisticMemoryNoteView[]> {
+  if (targetId.trim().length === 0) return [];
+  const rows = await db.dexie.user_notes.where('[targetType+targetId]').equals([targetType, targetId]).toArray();
+  return mapLinguisticMemoryNoteRows(rows as unknown as Array<Record<string, unknown>>);
+}
+
+async function getUnitLinguisticMemory(args: Record<string, unknown>, context: AiPromptContext): Promise<LocalContextToolResult> {
+  const scope = normalizeUnitScope(args.scope, 'project');
+  const unitId = normalizeTextValue(args.unitId);
+  if (unitId.length === 0) {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: 'unitId is required',
+    };
+  }
+
+  const includeNotes = normalizeBoolean(args.includeNotes, true);
+  const includeMorphemes = normalizeBoolean(args.includeMorphemes, true);
+  const localRows = normalizedUnitRowsFromContext(context);
+  const scopedRows = localRows ? filterRowsByScope(context, localRows, scope) : null;
+  if (scope !== 'project' && localRows && scopedRows && !scopedRows.some((row) => row.id === unitId)) {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: `unit not found in scope: ${scope}`,
+    };
+  }
+  const localHit = localRows?.find((row) => row.id === unitId);
+
+  let db: Awaited<ReturnType<typeof getDb>>;
+  try {
+    db = await getDb();
+  } catch {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: 'database_unavailable',
+    };
+  }
+
+  const [
+    layerUnit,
+    utteranceTexts,
+    tokenRowsRaw,
+    morphemeRowsRaw,
+  ] = await Promise.all([
+    db.dexie.layer_units.get(unitId),
+    listUtteranceTextsByUtterance(db, unitId),
+    db.dexie.utterance_tokens.where('unitId').equals(unitId).toArray(),
+    includeMorphemes
+      ? db.dexie.utterance_morphemes.where('unitId').equals(unitId).toArray()
+      : Promise.resolve([]),
+  ]);
+
+  const hasAnyData = Boolean(
+    localHit
+    || layerUnit
+    || utteranceTexts.length > 0
+    || tokenRowsRaw.length > 0
+    || morphemeRowsRaw.length > 0,
+  );
+  if (!hasAnyData) {
+    return {
+      ok: false,
+      name: 'get_unit_linguistic_memory',
+      result: null,
+      error: `unit not found: ${unitId}`,
+    };
+  }
+
+  const tokenRows = [...tokenRowsRaw].sort((a, b) => a.tokenIndex - b.tokenIndex);
+  const morphemeRows = [...morphemeRowsRaw].sort((a, b) => {
+    if (a.tokenId === b.tokenId) return a.morphemeIndex - b.morphemeIndex;
+    return a.tokenId.localeCompare(b.tokenId);
+  });
+
+  const layerIds = [...new Set(utteranceTexts.map((row) => row.layerId).filter((id) => typeof id === 'string' && id.length > 0))];
+  const layerRows = layerIds.length > 0
+    ? (await db.collections.layers.findByIndexAnyOf('id', layerIds)).map((doc) => doc.toJSON())
+    : [];
+  const layerTypeById = new Map(
+    layerRows.map((layer) => [layer.id, mapLayerType(layer.layerType)]),
+  );
+
+  const utteranceNotes = includeNotes
+    ? await listNotesByTarget(db, 'utterance', unitId)
+    : [];
+
+  const translationNoteRows = includeNotes
+    ? await Promise.all(
+      utteranceTexts.map(async (row) => ({
+        textId: row.id,
+        notes: await listNotesByTarget(db, 'translation', row.id),
+      })),
+    )
+    : [];
+  const translationNotesByTextId = new Map(
+    translationNoteRows.map((entry) => [entry.textId, entry.notes]),
+  );
+
+  const tokenNoteRows = includeNotes
+    ? await Promise.all(
+      tokenRows.map(async (row) => ({
+        tokenId: row.id,
+        notes: await listNotesByTarget(db, 'token', row.id),
+      })),
+    )
+    : [];
+  const tokenNotesById = new Map(tokenNoteRows.map((entry) => [entry.tokenId, entry.notes]));
+
+  const morphemeNoteRows = includeNotes
+    ? await Promise.all(
+      morphemeRows.map(async (row) => ({
+        morphemeId: row.id,
+        notes: await listNotesByTarget(db, 'morpheme', row.id),
+      })),
+    )
+    : [];
+  const morphemeNotesById = new Map(morphemeNoteRows.map((entry) => [entry.morphemeId, entry.notes]));
+
+  const morphemesByTokenId = new Map<string, Array<Record<string, unknown>>>();
+  if (includeMorphemes) {
+    for (const row of morphemeRows) {
+      const list = morphemesByTokenId.get(row.tokenId) ?? [];
+      list.push({
+        id: row.id,
+        morphemeIndex: row.morphemeIndex,
+        form: row.form,
+        ...(row.gloss !== undefined ? { gloss: row.gloss } : {}),
+        ...(row.pos !== undefined ? { pos: row.pos } : {}),
+        ...(row.lexemeId !== undefined ? { lexemeId: row.lexemeId } : {}),
+        ...(includeNotes ? { notes: morphemeNotesById.get(row.id) ?? [] } : {}),
+      });
+      morphemesByTokenId.set(row.tokenId, list);
+    }
+  }
+
+  const tokens = tokenRows.map((row) => ({
+    id: row.id,
+    tokenIndex: row.tokenIndex,
+    form: row.form,
+    ...(row.gloss !== undefined ? { gloss: row.gloss } : {}),
+    ...(row.pos !== undefined ? { pos: row.pos } : {}),
+    ...(row.lexemeId !== undefined ? { lexemeId: row.lexemeId } : {}),
+    ...(includeNotes ? { notes: tokenNotesById.get(row.id) ?? [] } : {}),
+    ...(includeMorphemes ? { morphemes: morphemesByTokenId.get(row.id) ?? [] } : {}),
+  }));
+
+  const layerTexts = utteranceTexts.map((row) => {
+    const layerType = layerTypeById.get(row.layerId) ?? 'unknown';
+    return {
+      id: row.id,
+      layerId: row.layerId,
+      layerType,
+      ...(row.text !== undefined ? { text: row.text } : {}),
+      modality: row.modality,
+      sourceType: row.sourceType,
+      updatedAt: row.updatedAt,
+      ...(includeNotes ? { notes: translationNotesByTextId.get(row.id) ?? [] } : {}),
+    };
+  });
+
+  const transcriptions = layerTexts.filter((row) => row.layerType === 'transcription');
+  const translations = layerTexts.filter((row) => row.layerType === 'translation');
+  const fallbackTranscription = transcriptions.find((row) => typeof row.text === 'string' && row.text.trim().length > 0)?.text;
+
+  const tokenWithPosCount = tokens.filter((row) => typeof row.pos === 'string' && row.pos.trim().length > 0).length;
+  const tokenWithGlossCount = tokens.filter((row) => row.gloss !== undefined).length;
+  const morphemeWithPosCount = includeMorphemes
+    ? morphemeRows.filter((row) => typeof row.pos === 'string' && row.pos.trim().length > 0).length
+    : 0;
+  const morphemeWithGlossCount = includeMorphemes
+    ? morphemeRows.filter((row) => row.gloss !== undefined).length
+    : 0;
+
+  return {
+    ok: true,
+    name: 'get_unit_linguistic_memory',
+    result: {
+      unit: {
+        id: unitId,
+        ...(localHit?.kind !== undefined
+          ? { kind: localHit.kind }
+          : layerUnit?.unitType !== undefined
+            ? { kind: layerUnit.unitType }
+            : {}),
+        ...(localHit?.layerId !== undefined
+          ? { layerId: localHit.layerId }
+          : layerUnit?.layerId !== undefined
+            ? { layerId: layerUnit.layerId }
+            : {}),
+        ...(localHit?.textId !== undefined
+          ? { textId: localHit.textId }
+          : layerUnit?.textId !== undefined
+            ? { textId: layerUnit.textId }
+            : {}),
+        ...(localHit?.mediaId !== undefined
+          ? { mediaId: localHit.mediaId }
+          : layerUnit?.mediaId !== undefined
+            ? { mediaId: layerUnit.mediaId }
+            : {}),
+        ...(localHit?.startTime !== undefined
+          ? { startTime: localHit.startTime }
+          : layerUnit?.startTime !== undefined
+            ? { startTime: layerUnit.startTime }
+            : {}),
+        ...(localHit?.endTime !== undefined
+          ? { endTime: localHit.endTime }
+          : layerUnit?.endTime !== undefined
+            ? { endTime: layerUnit.endTime }
+            : {}),
+        transcription: localHit?.transcription ?? fallbackTranscription ?? '',
+        ...(localHit?.speakerId !== undefined ? { speakerId: localHit.speakerId } : {}),
+        ...(localHit?.annotationStatus !== undefined ? { annotationStatus: localHit.annotationStatus } : {}),
+        ...(includeNotes ? { notes: utteranceNotes } : {}),
+      },
+      sentence: {
+        primaryTranscription: localHit?.transcription ?? fallbackTranscription ?? '',
+        transcriptions,
+        translations,
+        layerTexts,
+      },
+      tokens,
+      coverage: {
+        translationCount: translations.length,
+        tokenCount: tokens.length,
+        tokenWithPosCount,
+        tokenWithGlossCount,
+        ...(includeMorphemes
+          ? {
+              morphemeCount: morphemeRows.length,
+              morphemeWithPosCount,
+              morphemeWithGlossCount,
+            }
+          : {}),
+      },
+      options: {
+        scope,
+        includeNotes,
+        includeMorphemes,
+      },
+    },
+  };
 }
 
 function attachReadModelToToolPayload(context: AiPromptContext, result: unknown): unknown {
@@ -497,7 +947,7 @@ export async function executeLocalContextToolCall(
       break;
     }
     case 'get_project_stats':
-      out = { ok: true, name: call.name, result: context.longTerm?.projectStats ?? null };
+      out = getProjectStats(context, call.arguments);
       break;
     case 'get_waveform_analysis':
       out = { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
@@ -509,7 +959,7 @@ export async function executeLocalContextToolCall(
       out = { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
       break;
     case 'diagnose_quality':
-      out = { ok: true, name: call.name, result: diagnoseQuality(context) };
+      out = { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
       break;
     case 'batch_apply':
       out = { ok: true, name: call.name, result: batchApply(context, call.arguments) };
@@ -532,6 +982,12 @@ export async function executeLocalContextToolCall(
     case 'get_unit_detail':
       out = {
         ...(await getUnitDetail(call.arguments, context)),
+        name: call.name,
+      };
+      break;
+    case 'get_unit_linguistic_memory':
+      out = {
+        ...(await getUnitLinguisticMemory(call.arguments, context)),
         name: call.name,
       };
       break;
@@ -564,7 +1020,7 @@ export async function executeLocalContextToolCallsBatch(
 /** @see AI_LOCAL_TOOL_RESULT_CHAR_BUDGET in `useAiChat.config.ts` */
 export const LOCAL_TOOL_RESULT_CHAR_BUDGET = AI_LOCAL_TOOL_RESULT_CHAR_BUDGET;
 
-const TOOL_RESULT_TRUNCATION_WARNING = '\n[DATA TRUNCATED — do NOT fabricate missing items. Tell the user that the full list is too long and suggest using more specific queries or smaller limit/offset.]';
+const TOOL_RESULT_TRUNCATION_WARNING = '\n\nNote: some internal details were omitted because the result was too long. 如需更具体结果，请告诉我缩小查询范围。';
 
 function applyLocalToolResultCharBudget(
   payload: string,
@@ -588,55 +1044,312 @@ function applyLocalToolResultCharBudget(
   return { limitedPayload, truncated };
 }
 
-function scopeLabelByToolName(name: LocalContextToolName): string {
-  switch (name) {
-    case 'list_units':
-    case 'search_units':
-    case 'get_unit_detail':
-    case 'get_project_stats':
-    case 'find_incomplete_units':
-    case 'diagnose_quality':
-    case 'batch_apply':
-    case 'suggest_next_action':
-      return 'project';
-    case 'get_current_selection':
-      return 'selection+track';
-    case 'get_waveform_analysis':
-      return 'current-track-analysis';
-    case 'get_acoustic_summary':
-      return 'selection-acoustic';
+function isZhLocale(locale?: string): boolean {
+  return (locale ?? '').toLowerCase().startsWith('zh');
+}
+
+function asObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function asFiniteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function isSpeakerCountQuestion(userText?: string): boolean {
+  return /(speaker|speakers|说话人|发言人)/i.test(userText ?? '');
+}
+
+function humanizeScope(scope: unknown, locale?: string): string {
+  const normalized = normalizeUnitScope(scope, 'project');
+  const zh = isZhLocale(locale);
+  switch (normalized) {
+    case 'current_track':
+      return zh ? '当前音频' : 'the current audio';
+    case 'current_scope':
+      return zh ? '当前范围' : 'the current scope';
+    case 'project':
     default:
-      return 'unknown';
+      return zh ? '整个项目' : 'the whole project';
   }
 }
 
-export function formatLocalContextToolResultMessage(result: LocalContextToolResult): string {
+function summarizeCurrentSelectionResult(body: Record<string, unknown>, locale?: string, userText?: string): string {
+  const zh = isZhLocale(locale);
+  const currentTrackCount = asFiniteNumber(body.currentMediaUnitCount);
+  const currentScopeCount = asFiniteNumber(body.currentScopeUnitCount);
+  const projectCount = asFiniteNumber(body.projectUnitCount);
+
+  if (isSpeakerCountQuestion(userText)) {
+    const knownBits: string[] = [];
+    if (currentTrackCount !== undefined) {
+      knownBits.push(zh ? `当前音频里有 ${currentTrackCount} 条语段` : `the current audio has ${currentTrackCount} segments`);
+    }
+    if (projectCount !== undefined && projectCount !== currentTrackCount) {
+      knownBits.push(zh ? `整个项目共有 ${projectCount} 条语段` : `the whole project has ${projectCount} segments`);
+    }
+    const knownSummary = knownBits.length > 0
+      ? (zh ? `我先确认到这些上下文：${knownBits.join('；')}。` : `I confirmed this context first: ${knownBits.join('; ')}.`)
+      : (zh ? '我先确认了当前上下文。' : 'I checked the current context first.');
+    return zh
+      ? `${knownSummary}不过这一步还没有直接的说话人统计。你是想问当前音频，还是整个项目的说话人数？`
+      : `${knownSummary} This step does not include a direct speaker count yet. Do you mean the current audio or the whole project speaker count?`;
+  }
+
+  const details: string[] = [];
+  if (currentTrackCount !== undefined) details.push(zh ? `当前音频共有 ${currentTrackCount} 条语段` : `${currentTrackCount} segments are on the current audio`);
+  if (currentScopeCount !== undefined) details.push(zh ? `当前范围共有 ${currentScopeCount} 条语段` : `${currentScopeCount} segments are in the current scope`);
+  if (projectCount !== undefined && projectCount !== currentTrackCount) details.push(zh ? `整个项目共有 ${projectCount} 条语段` : `${projectCount} segments exist in the whole project`);
+
+  if (details.length === 0) {
+    return zh ? '我已读取当前上下文。' : 'I checked the current context.';
+  }
+  return zh
+    ? `我已读取当前上下文：${details.join('；')}。`
+    : `I checked the current context: ${details.join('; ')}.`;
+}
+
+function summarizeProjectStatsResult(body: Record<string, unknown>, locale?: string, userText?: string): string {
+  const zh = isZhLocale(locale);
+  const scopeLabel = humanizeScope(body.scope, locale);
+  const metric = normalizeProjectMetric(body.requestedMetric);
+  const unitCount = asFiniteNumber(body.unitCount);
+  const speakerCount = asFiniteNumber(body.speakerCount);
+  const translationLayerCount = asFiniteNumber(body.translationLayerCount);
+  const aiConfidenceAvg = typeof body.aiConfidenceAvg === 'number' && Number.isFinite(body.aiConfidenceAvg)
+    ? body.aiConfidenceAvg
+    : undefined;
+
+  if (metric === 'speaker_count' || isSpeakerCountQuestion(userText)) {
+    if (speakerCount !== undefined) {
+      return zh
+        ? `我查到${scopeLabel}共有 ${speakerCount} 位说话人。`
+        : `I found ${speakerCount} speakers in ${scopeLabel}.`;
+    }
+    return zh
+      ? `我已查看${scopeLabel}的统计，但目前还没有可直接确认的说话人人数。你可以告诉我是当前音频还是整个项目。`
+      : `I checked the stats for ${scopeLabel}, but there is no confirmed speaker count yet. You can tell me whether you mean the current audio or the whole project.`;
+  }
+
+  if (metric === 'unit_count' && unitCount !== undefined) {
+    return zh
+      ? `${scopeLabel}目前共有 ${unitCount} 条语段。`
+      : `${scopeLabel} currently has ${unitCount} segments.`;
+  }
+
+  if (metric === 'untranscribed_count') {
+    const value = asFiniteNumber(body.value);
+    if (value !== undefined) {
+      return zh
+        ? `${scopeLabel}还有 ${value} 条未转写语段。`
+        : `There are ${value} untranscribed segments in ${scopeLabel}.`;
+    }
+  }
+
+  if (metric === 'missing_speaker_count') {
+    const value = asFiniteNumber(body.value);
+    if (value !== undefined) {
+      return zh
+        ? `${scopeLabel}还有 ${value} 条语段缺少说话人。`
+        : `There are ${value} segments missing speakers in ${scopeLabel}.`;
+    }
+  }
+
+  const bits: string[] = [];
+  if (speakerCount !== undefined) bits.push(zh ? `${speakerCount} 位说话人` : `${speakerCount} speakers`);
+  if (unitCount !== undefined) bits.push(zh ? `${unitCount} 条语段` : `${unitCount} segments`);
+  if (translationLayerCount !== undefined) bits.push(zh ? `${translationLayerCount} 个翻译层` : `${translationLayerCount} translation layers`);
+  if (aiConfidenceAvg !== undefined) bits.push(zh ? `平均置信度 ${aiConfidenceAvg.toFixed(3)}` : `average confidence ${aiConfidenceAvg.toFixed(3)}`);
+
+  if (bits.length === 0) {
+    return zh ? `我已读取${scopeLabel}的统计信息。` : `I checked the stats for ${scopeLabel}.`;
+  }
+  return zh
+    ? `我已读取${scopeLabel}的统计：${bits.join('，')}。`
+    : `I checked the stats for ${scopeLabel}: ${bits.join(', ')}.`;
+}
+
+function summarizeListLikeResult(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  const body = asObjectRecord(result.result);
+  const scopeLabel = humanizeScope(body?.scope, locale);
+  const count = asFiniteNumber(body?.count) ?? asFiniteNumber(body?.total) ?? 0;
+  const query = typeof body?.query === 'string' ? body.query.trim() : '';
+
+  if (result.name === 'search_units' && query) {
+    return zh
+      ? `我在${scopeLabel}里找到了 ${count} 条与“${query}”相关的语段。`
+      : `I found ${count} matching segments for “${query}” in ${scopeLabel}.`;
+  }
+  return zh
+    ? `我已查看${scopeLabel}的语段，共找到 ${count} 条。`
+    : `I checked the segments in ${scopeLabel} and found ${count}.`;
+}
+
+function summarizeDetailResult(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  const body = asObjectRecord(result.result);
+  const unitId = typeof body?.id === 'string' ? body.id : '';
+  const startTime = asFiniteNumber(body?.startTime);
+  const endTime = asFiniteNumber(body?.endTime);
+  const timeLabel = startTime !== undefined && endTime !== undefined
+    ? `${startTime.toFixed(1)}s–${endTime.toFixed(1)}s`
+    : '';
+  if (result.name === 'get_unit_linguistic_memory') {
+    const coverage = asObjectRecord(body?.coverage);
+    const translationCount = asFiniteNumber(coverage?.translationCount) ?? 0;
+    const tokenCount = asFiniteNumber(coverage?.tokenCount) ?? 0;
+    return zh
+      ? `我已读取语段 ${unitId || ''}${timeLabel ? `（${timeLabel}）` : ''} 的语言学信息，包含 ${translationCount} 条译文、${tokenCount} 个词项。`
+      : `I loaded the linguistic details for segment ${unitId || ''}${timeLabel ? ` (${timeLabel})` : ''}, including ${translationCount} translations and ${tokenCount} tokens.`;
+  }
+  return zh
+    ? `我已定位到语段 ${unitId || ''}${timeLabel ? `（${timeLabel}）` : ''}。`
+    : `I located segment ${unitId || ''}${timeLabel ? ` (${timeLabel})` : ''}.`;
+}
+
+function isUntranscribedQuestion(userText?: string): boolean {
+  return /(未转写|未完成转写|空文本|还没转写|还剩|剩余|unfinished|untranscribed|remaining)/i.test(userText ?? '');
+}
+
+function isMissingSpeakerQuestion(userText?: string): boolean {
+  return /(缺少说话人|未标说话人|missing\s+speaker|speaker\s+missing)/i.test(userText ?? '');
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function findCategoryCount(body: Record<string, unknown>, category: string): number | undefined {
+  const items = Array.isArray(body.items) ? body.items : [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    if (row.category === category) {
+      return asFiniteNumber(row.count);
+    }
+  }
+  return undefined;
+}
+
+function summarizeDiagnoseQualityResult(body: Record<string, unknown>, locale?: string, userText?: string): string {
+  const zh = isZhLocale(locale);
+  const meta = asObject(body.meta);
+  const scopeLabel = humanizeScope(body.scope ?? meta?.scope, locale);
+  const metric = normalizeProjectMetric(body.requestedMetric ?? meta?.requestedMetric);
+  const breakdown = asObject(body.breakdown) ?? asObject(meta?.breakdown);
+  const valueFromPayload = asFiniteNumber(body.value) ?? asFiniteNumber(meta?.value);
+  const untranscribedCount = valueFromPayload
+    ?? asFiniteNumber(breakdown?.emptyTextCount)
+    ?? findCategoryCount(body, 'empty_text');
+  const missingSpeakerCount = valueFromPayload
+    ?? asFiniteNumber(breakdown?.missingSpeakerCount)
+    ?? findCategoryCount(body, 'missing_speaker');
+
+  if (metric === 'untranscribed_count' || (metric === undefined && isUntranscribedQuestion(userText))) {
+    if (untranscribedCount !== undefined) {
+      return zh
+        ? `${scopeLabel}还有 ${untranscribedCount} 条未转写语段。`
+        : `There are ${untranscribedCount} untranscribed segments in ${scopeLabel}.`;
+    }
+  }
+
+  if (metric === 'missing_speaker_count' || (metric === undefined && isMissingSpeakerQuestion(userText))) {
+    if (missingSpeakerCount !== undefined) {
+      return zh
+        ? `${scopeLabel}还有 ${missingSpeakerCount} 条语段缺少说话人。`
+        : `There are ${missingSpeakerCount} segments missing speakers in ${scopeLabel}.`;
+    }
+  }
+
+  const issueCount = asFiniteNumber(body.count) ?? 0;
+  if (issueCount === 0) {
+    return zh
+      ? `${scopeLabel}目前没有明显质量问题。`
+      : `There are no obvious quality issues in ${scopeLabel}.`;
+  }
+  return zh
+    ? `我已检查${scopeLabel}的质量问题，共发现 ${issueCount} 类异常。`
+    : `I checked quality issues in ${scopeLabel} and found ${issueCount} categories.`;
+}
+
+function summarizeLocalContextToolResult(
+  result: LocalContextToolResult,
+  locale?: string,
+  userText?: string,
+): string {
+  const zh = isZhLocale(locale);
+  if (!result.ok) {
+    const reason = result.error ?? 'unknown_error';
+    return zh
+      ? `我尝试读取相关上下文，但这一步没有成功：${reason}。请再说明一下你想查询当前音频、当前范围，还是整个项目。`
+      : `I tried to read the relevant context, but this step did not succeed: ${reason}. Please tell me whether you mean the current audio, the current scope, or the whole project.`;
+  }
+
+  const body = asObjectRecord(result.result);
+  switch (result.name) {
+    case 'get_current_selection':
+      return summarizeCurrentSelectionResult(body ?? {}, locale, userText);
+    case 'get_project_stats':
+      return summarizeProjectStatsResult(body ?? {}, locale, userText);
+    case 'list_units':
+    case 'search_units':
+      return summarizeListLikeResult(result, locale);
+    case 'get_unit_detail':
+    case 'get_unit_linguistic_memory':
+      return summarizeDetailResult(result, locale);
+    case 'diagnose_quality':
+      return summarizeDiagnoseQualityResult(body ?? {}, locale, userText);
+    case 'get_waveform_analysis':
+      return zh ? '我已读取当前音频的波形分析信息。' : 'I checked the waveform analysis for the current audio.';
+    case 'get_acoustic_summary':
+      return zh ? '我已读取当前选中范围的声学摘要。' : 'I checked the acoustic summary for the current selection.';
+    default:
+      return zh ? '我已完成这一步本地查询。' : 'I completed this local lookup.';
+  }
+}
+
+export function formatLocalContextToolResultMessage(
+  result: LocalContextToolResult,
+  locale: string = 'en-US',
+  userText = '',
+): string {
   const payload = result.ok
     ? JSON.stringify(result.result, null, 2)
     : JSON.stringify({ error: result.error ?? 'unknown_error', result: result.result }, null, 2);
-  const { limitedPayload, truncated } = applyLocalToolResultCharBudget(payload, {
+  const { truncated } = applyLocalToolResultCharBudget(payload, {
     scope: 'single',
     toolName: result.name,
   });
-  return [
-    `Local context tool executed: ${result.name} [scope: ${scopeLabelByToolName(result.name)}]`,
-    '```json',
-    limitedPayload,
-    '```',
-    ...(truncated ? [TOOL_RESULT_TRUNCATION_WARNING] : []),
-  ].join('\n');
+  const summary = summarizeLocalContextToolResult(result, locale, userText);
+  return truncated ? `${summary}${TOOL_RESULT_TRUNCATION_WARNING}` : summary;
 }
 
-export function formatLocalContextToolBatchResultMessage(results: LocalContextToolResult[]): string {
+export function formatLocalContextToolBatchResultMessage(
+  results: LocalContextToolResult[],
+  locale: string = 'en-US',
+  userText = '',
+): string {
   const payload = JSON.stringify(results, null, 2);
-  const { limitedPayload, truncated } = applyLocalToolResultCharBudget(payload, { scope: 'batch' });
-  return [
-    'Local context tool batch executed [scope: mixed]',
-    '```json',
-    limitedPayload,
-    '```',
-    ...(truncated ? [TOOL_RESULT_TRUNCATION_WARNING] : []),
-  ].join('\n');
+  const { truncated } = applyLocalToolResultCharBudget(payload, { scope: 'batch' });
+  const zh = isZhLocale(locale);
+  const successCount = results.filter((item) => item.ok).length;
+  const failedCount = results.length - successCount;
+  const detail = results
+    .slice(0, 2)
+    .map((item) => summarizeLocalContextToolResult(item, locale, userText).replace(/[。.]$/, ''))
+    .join(zh ? '；' : '; ');
+  let summary = zh
+    ? `我已完成 ${results.length} 项本地查询${detail ? `：${detail}。` : '。'}`
+    : `I completed ${results.length} local lookups${detail ? `: ${detail}.` : '.'}`;
+  if (failedCount > 0) {
+    summary += zh
+      ? ` 其中 ${failedCount} 项还需要进一步确认。`
+      : ` ${failedCount} of them still need clarification.`;
+  }
+  return truncated ? `${summary}${TOOL_RESULT_TRUNCATION_WARNING}` : summary;
 }
 
 function cloneLocalToolResultsForAgentLoop(results: LocalContextToolResult[]): LocalContextToolResult[] {
@@ -808,12 +1521,13 @@ export function buildLocalContextToolGuide(): string {
   return [
     'Query tools (auto-executed, use freely even for questions — preferred over guessing):',
     '- Successful tool JSON includes `_readModel`: { timelineReadModelEpoch?, unitIndexComplete, capturedAtMs, indexRowCount? } — system metadata for snapshot freshness; do not treat as transcript content.',
-    '- list_units(arguments:{"limit":8,"offset":0,"sort":"time_asc","resultHandle":"..."}): Project-scope list; returns {total,count,offset,limit,sort,matches,_readModel}. When total rows exceed 50, response includes resultHandle + snapshotPaging:true — reuse the same resultHandle with offset/limit for additional pages until the handle expires (~15m) or timeline epoch changes (then stale_list_handle; call list_units again without resultHandle).',
-    '- search_units(arguments:{"query":"...","limit":5}): Project-scope substring search; returns {query,count,matches,_readModel}; empty query => {mode:"list_fallback",...,_readModel}',
-    '- get_unit_detail(arguments:{"unitId":"..."}): Project-scope unit detail by id (+ `_readModel` on success)',
-    '- get_current_selection(arguments:{}): Current selection/track snapshot; includes projectUnitCount for total-project baseline (+ `_readModel`)',
-    '- get_project_stats(arguments:{}): Project stats (+ `_readModel`; stats fields unchanged)',
-    '- get_waveform_analysis(arguments:{}): Current track waveform analysis summary (+ `_readModel`)',
+    '- list_units(arguments:{"limit":8,"offset":0,"sort":"time_asc","scope":"current_scope|current_track|project","resultHandle":"..."}): Scoped list; returns {scope,total,count,offset,limit,sort,matches,_readModel}. When total rows exceed 50, response includes resultHandle + snapshotPaging:true — reuse the same resultHandle with offset/limit for additional pages until the handle expires (~15m) or timeline epoch changes (then stale_list_handle; call list_units again without resultHandle).',
+    '- search_units(arguments:{"query":"...","limit":5,"scope":"current_scope|current_track|project"}): Scoped substring search; returns {scope,query,count,matches,_readModel}; empty query => {mode:"list_fallback",...,_readModel}',
+    '- get_unit_detail(arguments:{"unitId":"...","scope":"current_scope|current_track|project"}): Scoped unit detail by id (+ `_readModel` on success)',
+    '- get_unit_linguistic_memory(arguments:{"unitId":"...","scope":"current_scope|current_track|project","includeNotes":true,"includeMorphemes":true}): Deep per-unit memory snapshot (sentence transcriptions/translations + token/morpheme gloss/POS + annotation notes) (+ `_readModel` on success)',
+    '- get_current_selection(arguments:{}): Current selection/track snapshot; includes currentScopeUnitCount/currentMediaUnitCount plus projectUnitCount baseline (+ `_readModel`)',
+    '- get_project_stats(arguments:{}): Authoritative project-wide counts (e.g. units; + `_readModel`; stats fields unchanged). Prefer this (or list_units) when the user asks how many segments/units exist in the project.',
+    '- get_waveform_analysis(arguments:{}): Current-track waveform quality summary; trackGaps are silence/gap regions on the analysis timeline, not project unit totals (+ `_readModel`)',
     '- get_acoustic_summary(arguments:{}): Current selection acoustic summary (+ `_readModel`)',
     '- find_incomplete_units(arguments:{"limit":12}): High-order query for units not yet verified (+ `_readModel`)',
     '- diagnose_quality(arguments:{}): Aggregated quality report for missing text/speaker/gaps (+ `_readModel`)',

@@ -2,6 +2,7 @@ import {
   buildAgentLoopContinuationToolPayload,
   type LocalContextToolResult,
 } from './localContextTools';
+import type { LocalToolMetric } from './chatDomain.types';
 
 /** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
 const AGENT_LOOP_CONTINUATION_TRUNCATION_TAIL =
@@ -17,13 +18,59 @@ export const DEFAULT_AGENT_LOOP_CONFIG: AgentLoopConfig = {
   tokenBudgetWarningThreshold: 12000,
 };
 
+function asObjectRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function resolveMetricValue(result: LocalContextToolResult): number | undefined {
+  if (!result.ok) return undefined;
+  const body = asObjectRecord(result.result);
+  if (!body) return undefined;
+  if (typeof body.value === 'number' && Number.isFinite(body.value)) return body.value;
+  const meta = asObjectRecord(body.meta);
+  if (meta && typeof meta.value === 'number' && Number.isFinite(meta.value)) return meta.value;
+  return undefined;
+}
+
+function resolveRequestedMetric(result: LocalContextToolResult): LocalToolMetric | undefined {
+  if (!result.ok) return undefined;
+  const body = asObjectRecord(result.result);
+  if (!body) return undefined;
+  const requestedMetric = typeof body.requestedMetric === 'string' ? body.requestedMetric : undefined;
+  if (requestedMetric === 'untranscribed_count' || requestedMetric === 'missing_speaker_count') {
+    return requestedMetric;
+  }
+  const meta = asObjectRecord(body.meta);
+  const metaRequested = meta && typeof meta.requestedMetric === 'string' ? meta.requestedMetric : undefined;
+  if (metaRequested === 'untranscribed_count' || metaRequested === 'missing_speaker_count') {
+    return metaRequested;
+  }
+  return undefined;
+}
+
+function isAnswerReadyForMetricQuery(
+  metric: LocalToolMetric | undefined,
+  localToolResults: LocalContextToolResult[],
+): boolean {
+  if (metric !== 'untranscribed_count' && metric !== 'missing_speaker_count') return false;
+  return localToolResults.some((item) => {
+    if (!item.ok || (item.name !== 'diagnose_quality' && item.name !== 'get_project_stats')) return false;
+    const value = resolveMetricValue(item);
+    if (value === undefined) return false;
+    return resolveRequestedMetric(item) === metric;
+  });
+}
+
 export function shouldContinueAgentLoop(
   step: number,
   config: AgentLoopConfig,
   localToolResults: LocalContextToolResult[] | undefined,
+  metric?: LocalToolMetric,
 ): boolean {
   if (!localToolResults || localToolResults.length === 0) return false;
   if (localToolResults.some((item) => !item.ok)) return false;
+  if (isAnswerReadyForMetricQuery(metric, localToolResults)) return false;
   return step < config.maxSteps;
 }
 

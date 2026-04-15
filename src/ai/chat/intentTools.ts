@@ -6,6 +6,12 @@ export interface IntentToolResult {
   items: Array<Record<string, unknown>>;
   suggestion?: string;
   meta?: Record<string, unknown>;
+  scope?: string;
+  requestedMetric?: string;
+  value?: number;
+  breakdown?: Record<string, unknown>;
+  totalUnitsInScope?: number;
+  completionRate?: number;
 }
 
 function getUnits(context: AiPromptContext): TimelineUnitView[] {
@@ -45,6 +51,51 @@ function summarizeByLayer(units: ReadonlyArray<TimelineUnitView>): Array<{ layer
     .sort((left, right) => (right.count !== left.count ? right.count - left.count : left.layerId.localeCompare(right.layerId)));
 }
 
+type QualityScope = 'project' | 'current_track' | 'current_scope';
+
+function normalizeQualityScope(value: unknown): QualityScope {
+  if (typeof value !== 'string') return 'project';
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'current_track' || normalized === 'current-track' || normalized === 'track' || normalized === 'current_audio' || normalized === 'current-audio') {
+    return 'current_track';
+  }
+  if (normalized === 'current_scope' || normalized === 'current-scope' || normalized === 'scope' || normalized === 'current') {
+    return 'current_scope';
+  }
+  return 'project';
+}
+
+function normalizeQualityMetric(value: unknown): 'untranscribed_count' | 'missing_speaker_count' | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'untranscribed_count' || normalized === 'untranscribed' || normalized === 'unfinished' || normalized === 'remaining') {
+    return 'untranscribed_count';
+  }
+  if (normalized === 'missing_speaker_count' || normalized === 'missing_speaker' || normalized === 'speaker_missing') {
+    return 'missing_speaker_count';
+  }
+  return undefined;
+}
+
+function getScopedUnits(context: AiPromptContext, scope: QualityScope): TimelineUnitView[] {
+  const units = getUnits(context);
+  if (scope === 'project') return units;
+
+  const currentMediaId = typeof context.shortTerm?.currentMediaId === 'string'
+    ? context.shortTerm.currentMediaId
+    : '';
+  const trackScoped = currentMediaId.length > 0
+    ? units.filter((unit) => unit.mediaId === currentMediaId)
+    : units;
+  if (scope === 'current_track') return trackScoped;
+
+  const selectedLayerId = typeof context.shortTerm?.selectedLayerId === 'string'
+    ? context.shortTerm.selectedLayerId
+    : '';
+  if (selectedLayerId.length === 0) return trackScoped;
+  return trackScoped.filter((unit) => unit.layerId === selectedLayerId);
+}
+
 export function findIncompleteUnits(context: AiPromptContext, args: Record<string, unknown>): IntentToolResult {
   const limit = normalizeIntentLimit(args.limit, 12, 50);
   const incompleteUnits = getUnits(context)
@@ -74,8 +125,10 @@ export function findIncompleteUnits(context: AiPromptContext, args: Record<strin
   };
 }
 
-export function diagnoseQuality(context: AiPromptContext): IntentToolResult {
-  const units = getUnits(context);
+export function diagnoseQuality(context: AiPromptContext, args: Record<string, unknown> = {}): IntentToolResult {
+  const scope = normalizeQualityScope(args.scope);
+  const requestedMetric = normalizeQualityMetric(args.metric);
+  const units = getScopedUnits(context, scope);
   const missingSpeaker = units.filter((unit) => !unit.speakerId);
   const emptyText = units.filter((unit) => (typeof unit.text === 'string' ? unit.text.trim().length : 0) === 0);
   const wa = context.longTerm?.waveformAnalysis;
@@ -86,16 +139,44 @@ export function diagnoseQuality(context: AiPromptContext): IntentToolResult {
     { category: 'waveform_overlap', count: wa?.overlapCount ?? 0 },
     { category: 'low_confidence_regions', count: wa?.lowConfidenceCount ?? 0 },
   ].filter((item) => item.count > 0);
+  const value = requestedMetric === 'untranscribed_count'
+    ? emptyText.length
+    : requestedMetric === 'missing_speaker_count'
+      ? missingSpeaker.length
+      : undefined;
+  const totalUnitsInScope = units.length;
+  const completionRate = totalUnitsInScope > 0
+    ? Math.max(0, Math.min(1, (totalUnitsInScope - emptyText.length) / totalUnitsInScope))
+    : 1;
+  const breakdown = {
+    emptyTextCount: emptyText.length,
+    missingSpeakerCount: missingSpeaker.length,
+    currentMediaGapCount: wa?.gapCount ?? 0,
+    waveformOverlapCount: wa?.overlapCount ?? 0,
+    lowConfidenceRegionCount: wa?.lowConfidenceCount ?? 0,
+  };
   return {
     count: items.length,
     items,
     suggestion: items.length > 0 ? 'Use find_incomplete_units to inspect concrete targets before editing.' : 'No obvious quality issues detected.',
     meta: {
+      scope,
+      ...(requestedMetric ? { requestedMetric } : {}),
+      ...(value !== undefined ? { value } : {}),
+      breakdown,
+      totalUnitsInScope,
+      completionRate,
       byLayer: {
         missingSpeaker: summarizeByLayer(missingSpeaker),
         emptyText: summarizeByLayer(emptyText),
       },
     },
+    ...(requestedMetric ? { requestedMetric } : {}),
+    ...(value !== undefined ? { value } : {}),
+    scope,
+    breakdown,
+    totalUnitsInScope,
+    completionRate,
   };
 }
 

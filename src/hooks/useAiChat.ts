@@ -20,7 +20,8 @@ import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
+import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
+import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
@@ -106,6 +107,13 @@ function estimateTokensFromHistory(messages: ChatMessage[]): number {
 function estimateOutputTokensFromAssistantParts(content: string, reasoning: string): number {
   return estimateTokensFromText(content) + estimateTokensFromText(reasoning);
 }
+
+function isAgentLoopResumeText(userText: string): boolean {
+  const normalized = userText.trim();
+  if (!normalized) return false;
+  return /^(继续|继续执行|接着|接着说|继续吧)$/u.test(normalized)
+    || /^(continue|resume|go on)$/i.test(normalized);
+}
 export type {
   AiChatProviderKind,
   AiChatSettings,
@@ -170,6 +178,8 @@ export function useAiChat(options?: UseAiChatOptions) {
   // 用户是否在水合完成前手动改过设置 | Whether user patched settings before hydration finished
   const userDirtyRef = useRef(false);
   const clearInFlightRef = useRef(false);
+  const clearPersistCleanupRunningRef = useRef(false);
+  const clearPersistRequestRef = useRef<{ conversationId: string | null } | null>(null);
   const [messages, setMessages] = useState<UiChatMessage[]>(() => []);
   const messagesRef = useLatest(messages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -240,6 +250,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, [settings]);
 
   const {
+    conversationId,
     isBootstrapping,
     ensureConversation,
   } = useAiChatConversationState({
@@ -297,8 +308,54 @@ export function useAiChat(options?: UseAiChatOptions) {
     setIsStreaming(false);
   }, []);
 
+  const runClearPersistenceCleanup = useCallback(() => {
+    if (clearPersistCleanupRunningRef.current) return;
+    clearPersistCleanupRunningRef.current = true;
+    void (async () => {
+      try {
+        while (true) {
+          const request = clearPersistRequestRef.current;
+          clearPersistRequestRef.current = null;
+          if (!request) break;
+
+          const db = await getDb();
+          let targetConversationId = request.conversationId;
+          if (!targetConversationId) {
+            const existingRows = (await db.collections.ai_conversations.find().exec())
+              .map((doc) => doc.toJSON())
+              .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+            targetConversationId = existingRows[0]?.id ?? null;
+          }
+          if (!targetConversationId) continue;
+
+          await db.collections.ai_messages.removeBySelector({ conversationId: targetConversationId });
+          const conversation = await db.collections.ai_conversations.findOne({ selector: { id: targetConversationId } }).exec();
+          if (conversation) {
+            const row = conversation.toJSON();
+            await db.collections.ai_conversations.insert({
+              ...row,
+              updatedAt: nowIso(),
+            });
+          }
+        }
+      } finally {
+        clearPersistCleanupRunningRef.current = false;
+        if (clearPersistRequestRef.current) {
+          runClearPersistenceCleanup();
+        }
+      }
+    })();
+  }, []);
+
   const trackRecommendationEvent = useCallback((event: AiRecommendationEvent) => {
     sessionMemoryRef.current = updateSessionMemoryWithRecommendationEvent(sessionMemoryRef.current, event);
+    persistSessionMemory(sessionMemoryRef.current);
+  }, []);
+
+  const clearPendingAgentLoopCheckpoint = useCallback(() => {
+    if (!sessionMemoryRef.current.pendingAgentLoopCheckpoint) return;
+    const { pendingAgentLoopCheckpoint: _ignoredCheckpoint, ...restMemory } = sessionMemoryRef.current;
+    sessionMemoryRef.current = restMemory;
     persistSessionMemory(sessionMemoryRef.current);
   }, []);
 
@@ -377,6 +434,13 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (pendingToolCallRef.current) {
       setLastError(formatPendingConfirmationBlockedError());
       return;
+    }
+
+    const resumeCheckpoint = isAgentLoopResumeText(trimmed)
+      ? (sessionMemoryRef.current.pendingAgentLoopCheckpoint ?? null)
+      : null;
+    if (!resumeCheckpoint && sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
+      clearPendingAgentLoopCheckpoint();
     }
 
     setLastError(null);
@@ -464,6 +528,8 @@ export function useAiChat(options?: UseAiChatOptions) {
 
     let assistantContent = '';
     let estimatedInputTokens = 0;
+    const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
+    const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
 
     try {
       activeConversationId = await ensureConversation();
@@ -569,16 +635,18 @@ export function useAiChat(options?: UseAiChatOptions) {
         : basePromptContext;
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
-      ({
-        contextBlock,
-        citations: ragCitations,
-      } = await enrichContextWithRag({
-        embeddingSearchService: embeddingSearchServiceRef.current,
-        userText: trimmed,
-        contextBlock,
-        ragContextTimeoutMs: ragContextTimeoutMsRef.current,
-        promptContext: aiContext,
-      }));
+      if (featureFlags.aiChatRagEnabled) {
+        ({
+          contextBlock,
+          citations: ragCitations,
+        } = await enrichContextWithRag({
+          embeddingSearchService: embeddingSearchServiceRef.current,
+          userText: effectiveUserText,
+          contextBlock,
+          ragContextTimeoutMs: ragContextTimeoutMsRef.current,
+          promptContext: aiContext,
+        }));
+      }
       const contextDebugEnabled = isAiContextDebugEnabled();
       const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
         enabled: contextDebugEnabled,
@@ -592,18 +660,20 @@ export function useAiChat(options?: UseAiChatOptions) {
       if (contextDebugEnabled) {
         logContextDebugSnapshot(nextDebugSnapshot);
       }
-      const clarifyFastPathCall = resolveClarifyFastPathCall({
-        taskSession: taskSessionRef.current,
-        userText: trimmed,
-        aiContext,
-      });
+      const clarifyFastPathCall = resumeCheckpoint
+        ? null
+        : resolveClarifyFastPathCall({
+            taskSession: taskSessionRef.current,
+            userText: trimmed,
+            aiContext,
+          });
 
       const systemPrompt = buildAiSystemPrompt(
         systemPersonaKeyRef.current,
         contextBlock,
         settingsRef.current.toolFeedbackStyle,
       );
-      estimatedInputTokens = estimateTokensFromText(trimmed)
+      estimatedInputTokens = estimateTokensFromText(effectiveUserText)
         + estimateTokensFromText(systemPrompt)
         + estimateTokensFromHistory(history);
       setMetrics((prev) => ({
@@ -612,12 +682,45 @@ export function useAiChat(options?: UseAiChatOptions) {
         currentTurnTokens: 0,
       }));
 
+      const buildStreamCompletionEnv = (): Omit<
+        ResolveAiChatStreamCompletionParams,
+        'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
+      > => ({
+        messages: messagesRef.current,
+        resolveFreshAiContext: () => getContextRef.current?.() ?? null,
+        providerId: provider.id,
+        model: settingsRef.current.model,
+        toolFeedbackLocale: toolFeedbackLocaleRef.current,
+        toolDecisionMode: toolDecisionModeRef.current,
+        toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+        allowDestructiveToolCalls,
+        ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
+        ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
+        ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
+        hasPersistedExecutionForRequest,
+        writeToolDecisionAuditLog,
+        writeToolIntentAuditLog,
+        sessionMemory: sessionMemoryRef.current,
+        updateSessionMemory: (nextMemory) => {
+          sessionMemoryRef.current = nextMemory;
+        },
+        persistSessionMemory,
+        setTaskSession,
+        setPendingToolCall,
+        taskSessionId: taskSessionRef.current.id,
+        markExecutedRequestId,
+        bumpMetric,
+        shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
+        genRequestId,
+        localToolCallCountRef,
+      });
+
       const {
         stream,
         generationSource,
         generationModel,
       } = createAssistantStream({
-        userText: trimmed,
+        userText: effectiveUserText,
         clarifyFastPathCall,
         history,
         orchestrator,
@@ -726,39 +829,15 @@ export function useAiChat(options?: UseAiChatOptions) {
             finalErrorMessage,
             connectionErrorMessage,
             localToolResults,
-          } = await resolveAiChatStreamCompletion({
-            assistantId,
-            assistantContent,
-            userText: trimmed,
-            aiContext,
-            resolveFreshAiContext: () => getContextRef.current?.() ?? null,
-            messages: messagesRef.current,
-            providerId: provider.id,
-            model: settingsRef.current.model,
-            toolFeedbackLocale: toolFeedbackLocaleRef.current,
-            toolDecisionMode: toolDecisionModeRef.current,
-            toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
-            allowDestructiveToolCalls,
-            ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
-            ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
-            ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-            hasPersistedExecutionForRequest,
-            writeToolDecisionAuditLog,
-            writeToolIntentAuditLog,
-            sessionMemory: sessionMemoryRef.current,
-            updateSessionMemory: (nextMemory) => {
-              sessionMemoryRef.current = nextMemory;
+          } = await finalizeAssistantStreamCompletion(
+            {
+              assistantId,
+              assistantContent,
+              userText: effectiveUserText,
+              aiContext,
             },
-            persistSessionMemory,
-            setTaskSession,
-            setPendingToolCall,
-            taskSessionId: taskSessionRef.current.id,
-            markExecutedRequestId,
-            bumpMetric,
-            shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
-            genRequestId,
-            localToolCallCountRef,
-          });
+            buildStreamCompletionEnv(),
+          );
 
           let resolvedContent = finalContent;
           let resolvedStatus = finalStatus;
@@ -766,12 +845,17 @@ export function useAiChat(options?: UseAiChatOptions) {
           let resolvedConnectionErrorMessage = connectionErrorMessage;
           let resolvedLocalToolResults = localToolResults;
           let rawAssistantContentForLoop = assistantContent;
-          let loopStep = 1;
+          let loopStep = resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1;
           let loopExecuted = false;
 
           while (
             featureFlags.aiChatAgentLoopEnabled
-            && shouldContinueAgentLoop(loopStep, DEFAULT_AGENT_LOOP_CONFIG, resolvedLocalToolResults)
+            && shouldContinueAgentLoop(
+              loopStep,
+              DEFAULT_AGENT_LOOP_CONFIG,
+              resolvedLocalToolResults,
+              sessionMemoryRef.current.localToolState?.lastFrame?.metric,
+            )
             && !controller.signal.aborted
           ) {
             loopExecuted = true;
@@ -784,7 +868,7 @@ export function useAiChat(options?: UseAiChatOptions) {
               maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
             });
 
-            const continuationUserText = buildAgentLoopContinuationInput(trimmed, resolvedLocalToolResults!, loopStep);
+            const continuationUserText = buildAgentLoopContinuationInput(agentLoopSourceUserText, resolvedLocalToolResults!, loopStep);
             const continuationHistory = trimHistoryByChars([
               ...history,
               { role: 'assistant', content: rawAssistantContentForLoop },
@@ -798,6 +882,18 @@ export function useAiChat(options?: UseAiChatOptions) {
               DEFAULT_AGENT_LOOP_CONFIG,
             );
             if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
+              sessionMemoryRef.current = {
+                ...sessionMemoryRef.current,
+                pendingAgentLoopCheckpoint: {
+                  kind: 'token_budget_warning',
+                  originalUserText: agentLoopSourceUserText,
+                  continuationInput: continuationUserText,
+                  step: loopStep,
+                  estimatedRemainingTokens,
+                  createdAt: nowIso(),
+                },
+              };
+              persistSessionMemory(sessionMemoryRef.current);
               const budgetHint = getAiChatCardMessages(localeRef.current === 'zh-CN').tokenBudgetWarning(estimatedRemainingTokens);
               resolvedContent = `${resolvedContent}${budgetHint}`;
               resolvedStatus = 'done';
@@ -858,39 +954,15 @@ export function useAiChat(options?: UseAiChatOptions) {
               break;
             }
 
-            const continuationResult = await resolveAiChatStreamCompletion({
-              assistantId,
-              assistantContent: continuationAssistantContent,
-              userText: continuationUserText,
-              aiContext: loopAiContext,
-              resolveFreshAiContext: () => getContextRef.current?.() ?? null,
-              messages: messagesRef.current,
-              providerId: provider.id,
-              model: settingsRef.current.model,
-              toolFeedbackLocale: toolFeedbackLocaleRef.current,
-              toolDecisionMode: toolDecisionModeRef.current,
-              toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
-              allowDestructiveToolCalls,
-              ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
-              ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
-              ...(onToolCallRef.current ? { onToolCall: onToolCallRef.current } : {}),
-              hasPersistedExecutionForRequest,
-              writeToolDecisionAuditLog,
-              writeToolIntentAuditLog,
-              sessionMemory: sessionMemoryRef.current,
-              updateSessionMemory: (nextMemory) => {
-                sessionMemoryRef.current = nextMemory;
+            const continuationResult = await finalizeAssistantStreamCompletion(
+              {
+                assistantId,
+                assistantContent: continuationAssistantContent,
+                userText: continuationUserText,
+                aiContext: loopAiContext,
               },
-              persistSessionMemory,
-              setTaskSession,
-              setPendingToolCall,
-              taskSessionId: taskSessionRef.current.id,
-              markExecutedRequestId,
-              bumpMetric,
-              shouldBumpRecovery: metricsRef.current.failureCount > 0 && taskSessionRef.current.status === 'executing',
-              genRequestId,
-              localToolCallCountRef,
-            });
+              buildStreamCompletionEnv(),
+            );
 
             const loopStepDurationMs = Date.now() - loopStepStartedAt;
             const loopStepTokenEstimate = continuationInputTokens + estimateTokensFromText(continuationAssistantContent);
@@ -939,6 +1011,17 @@ export function useAiChat(options?: UseAiChatOptions) {
             });
           }
 
+          const stillPendingCheckpoint = sessionMemoryRef.current.pendingAgentLoopCheckpoint;
+          if (
+            !stillPendingCheckpoint
+            || (
+              resumeCheckpoint
+              && stillPendingCheckpoint.createdAt === resumeCheckpoint.createdAt
+              && stillPendingCheckpoint.step === resumeCheckpoint.step
+            )
+          ) {
+            clearPendingAgentLoopCheckpoint();
+          }
           if (resolvedConnectionErrorMessage && shouldTrackRemoteStatus) {
             setConnectionTestStatus('error');
             setConnectionTestMessage(resolvedConnectionErrorMessage);
@@ -1044,6 +1127,10 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (clearInFlightRef.current) return;
     clearInFlightRef.current = true;
     sessionMemoryRef.current = clearConversationSummaryMemory(sessionMemoryRef.current);
+    if (sessionMemoryRef.current.pendingAgentLoopCheckpoint) {
+      const { pendingAgentLoopCheckpoint: _ignoredCheckpoint, ...restMemory } = sessionMemoryRef.current;
+      sessionMemoryRef.current = restMemory;
+    }
     persistSessionMemory(sessionMemoryRef.current);
     setMessages([]);
     setLastError(null);
@@ -1054,24 +1141,14 @@ export function useAiChat(options?: UseAiChatOptions) {
       status: 'idle',
       updatedAt: nowIso(),
     });
-    void (async () => {
-      try {
-        const db = await getDb();
-        const activeConversationId = await ensureConversation();
-        await db.collections.ai_messages.removeBySelector({ conversationId: activeConversationId });
-        const conversation = await db.collections.ai_conversations.findOne({ selector: { id: activeConversationId } }).exec();
-        if (conversation) {
-          const row = conversation.toJSON();
-          await db.collections.ai_conversations.insert({
-            ...row,
-            updatedAt: nowIso(),
-          });
-        }
-      } finally {
-        clearInFlightRef.current = false;
-      }
-    })();
-  }, [ensureConversation]);
+    clearInFlightRef.current = false;
+
+    // 异步清理持久层，避免 IndexedDB 删除阻塞 UI 清空体感 | Cleanup persistence asynchronously to avoid IndexedDB deletion blocking clear UX.
+    clearPersistRequestRef.current = {
+      conversationId: conversationId ?? null,
+    };
+    runClearPersistenceCleanup();
+  }, [conversationId, runClearPersistenceCleanup]);
 
   return {
     messages,

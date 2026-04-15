@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AiSessionMemory } from './chatDomain.types';
-import { buildLocalToolStatePatchFromCallResult, resolveLocalToolCalls } from './localToolSlotResolver';
+import {
+  buildLocalToolStatePatchFromCallResult,
+  detectLocalToolClarificationNeed,
+  resolveLocalToolCalls,
+} from './localToolSlotResolver';
 
 describe('localToolSlotResolver', () => {
   it('rewrites empty search query to list intent for list-like user utterance', () => {
@@ -11,7 +15,7 @@ describe('localToolSlotResolver', () => {
     );
     expect(result.calls[0]).toEqual({
       name: 'list_units',
-      arguments: { limit: 8 },
+      arguments: { limit: 8, scope: 'current_scope' },
     });
   });
 
@@ -23,6 +27,7 @@ describe('localToolSlotResolver', () => {
     );
     expect(result.calls[0]?.name).toBe('search_units');
     expect(result.calls[0]?.arguments.query).toBe('搜索 包含 你好 的语段');
+    expect(result.calls[0]?.arguments.scope).toBe('current_scope');
   });
 
   it('fills get_unit_detail from last result set ordinal', () => {
@@ -40,7 +45,7 @@ describe('localToolSlotResolver', () => {
     );
     expect(result.calls[0]).toEqual({
       name: 'get_unit_detail',
-      arguments: { unitId: 'utt-2' },
+      arguments: { unitId: 'utt-2', scope: 'current_scope' },
     });
   });
 
@@ -83,6 +88,7 @@ describe('localToolSlotResolver', () => {
       memory,
     );
     expect(result.calls[0]?.arguments.unitId).toBeUndefined();
+    expect(result.calls[0]?.arguments.scope).toBe('current_scope');
   });
 
   it('resolves English ordinal phrases for detail slot', () => {
@@ -99,5 +105,277 @@ describe('localToolSlotResolver', () => {
       memory,
     );
     expect(result.calls[0]?.arguments.unitId).toBe('utt-2');
+    expect(result.calls[0]?.arguments.scope).toBe('current_scope');
+  });
+
+  it('infers current_track scope when user asks about current audio', () => {
+    const result = resolveLocalToolCalls(
+      [{ name: 'search_units', arguments: { query: 'hello' } }],
+      '当前音频里搜索 hello',
+      {},
+    );
+    expect(result.calls[0]?.arguments.scope).toBe('current_track');
+  });
+
+  it('upgrades current selection lookup to project stats for speaker-count questions', () => {
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_current_selection', arguments: {} }],
+      '当前有多少说话人',
+      {},
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'get_project_stats',
+      arguments: { scope: 'current_track', metric: 'speaker_count' },
+    });
+  });
+
+  it('reroutes unfinished transcription count questions to quality diagnosis instead of total stats', () => {
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_current_selection', arguments: {} }],
+      '还有多少未转写',
+      {},
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'diagnose_quality',
+      arguments: { scope: 'current_track', metric: 'untranscribed_count' },
+    });
+  });
+
+  it('reuses previous gap metric for follow-up count question', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'stats.get',
+        lastScope: 'current_track',
+        lastFrame: {
+          domain: 'project_stats',
+          questionKind: 'count',
+          metric: 'untranscribed_count',
+          metricCategory: 'gap',
+          scope: 'current_track',
+          source: 'tool',
+          updatedAt: '2026-04-14T00:00:00.000Z',
+        },
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: {} }],
+      '那还剩多少',
+      memory,
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'diagnose_quality',
+      arguments: { scope: 'current_track', metric: 'untranscribed_count' },
+    });
+  });
+
+  it('infers project scope when user asks for global totals', () => {
+    const result = resolveLocalToolCalls(
+      [{ name: 'list_units', arguments: { limit: 5 } }],
+      '列出全项目所有语段',
+      {},
+    );
+    expect(result.calls[0]?.arguments.scope).toBe('project');
+  });
+
+  it('reuses previous stats metric for bare count follow-up', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'stats.get',
+        lastScope: 'project',
+        lastFrame: {
+          domain: 'project_stats',
+          questionKind: 'count',
+          metric: 'speaker_count',
+          scope: 'project',
+          source: 'tool',
+          updatedAt: '2026-04-14T00:00:00.000Z',
+        },
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: {} }],
+      '多少',
+      memory,
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'get_project_stats',
+      arguments: { scope: 'project', metric: 'speaker_count' },
+    });
+  });
+
+  it('switches stats scope from follow-up text while keeping the metric', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'stats.get',
+        lastScope: 'project',
+        lastFrame: {
+          domain: 'project_stats',
+          questionKind: 'count',
+          metric: 'speaker_count',
+          scope: 'project',
+          source: 'tool',
+          updatedAt: '2026-04-14T00:00:00.000Z',
+        },
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: {} }],
+      '那当前音频呢',
+      memory,
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'get_project_stats',
+      arguments: { scope: 'current_track', metric: 'speaker_count' },
+    });
+  });
+
+  it('records semantic stats frame from successful project stats result', () => {
+    const patch = buildLocalToolStatePatchFromCallResult(
+      { name: 'get_project_stats', arguments: { metric: 'speaker_count', scope: 'project' } },
+      { ok: true, result: { speakerCount: 3 } },
+    );
+    expect(patch.lastIntent).toBe('stats.get');
+    expect(patch.lastScope).toBe('project');
+    expect(patch.lastFrame).toMatchObject({
+      domain: 'project_stats',
+      questionKind: 'count',
+      metric: 'speaker_count',
+      scope: 'project',
+    });
+  });
+
+  it('upgrades detail lookup to linguistic memory when user asks for gloss/notes', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'unit.list',
+        lastResultUnitIds: ['utt-1', 'utt-2'],
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_unit_detail', arguments: {} }],
+      '看第2个语段的词素和注释',
+      memory,
+    );
+    expect(result.calls[0]).toEqual({
+      name: 'get_unit_linguistic_memory',
+      arguments: {
+        unitId: 'utt-2',
+        scope: 'current_scope',
+        includeNotes: true,
+        includeMorphemes: true,
+      },
+    });
+  });
+
+  it('detects metric clarification need for bare count question without memory metric', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: {} }],
+      '多少',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '多少', {})).toEqual({
+      needed: true,
+      reason: 'metric_ambiguous',
+      callName: 'get_project_stats',
+    });
+  });
+
+  it('does not require metric clarification when previous count metric exists', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'stats.get',
+        lastScope: 'project',
+        lastFrame: {
+          domain: 'project_stats',
+          questionKind: 'count',
+          metric: 'speaker_count',
+          scope: 'project',
+          source: 'tool',
+          updatedAt: '2026-04-14T00:00:00.000Z',
+        },
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const calls = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: {} }],
+      '多少',
+      memory,
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '多少', memory)).toEqual({ needed: false });
+  });
+
+  it('detects target clarification for detail call without resolvable unit id', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'get_unit_detail', arguments: {} }],
+      '看一下详情',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '看一下详情', {})).toEqual({
+      needed: true,
+      reason: 'target_ambiguous',
+      callName: 'get_unit_detail',
+    });
+  });
+
+  it('detects query clarification for empty search request', () => {
+    const calls = [{ name: 'search_units', arguments: { query: '' } }] as const;
+    expect(detectLocalToolClarificationNeed([...calls], '帮我搜一下', {})).toEqual({
+      needed: true,
+      reason: 'query_ambiguous',
+      callName: 'search_units',
+    });
+  });
+
+  it('detects action clarification for batch_apply without explicit action', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'batch_apply', arguments: { unitIds: ['u1'] } }],
+      '把这些处理一下',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '把这些处理一下', {})).toEqual({
+      needed: true,
+      reason: 'action_ambiguous',
+      callName: 'batch_apply',
+    });
+  });
+
+  it('detects target clarification for batch_apply without target ids', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'batch_apply', arguments: { action: 'verify' } }],
+      '批量标记完成',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '批量标记完成', {})).toEqual({
+      needed: true,
+      reason: 'target_ambiguous',
+      callName: 'batch_apply',
+    });
+  });
+
+  it('reuses previous list targets for follow-up batch_apply request', () => {
+    const memory: AiSessionMemory = {
+      localToolState: {
+        lastIntent: 'unit.list',
+        lastResultUnitIds: ['u1', 'u2'],
+        updatedAt: '2026-04-14T00:00:00.000Z',
+      },
+    };
+    const calls = resolveLocalToolCalls(
+      [{ name: 'batch_apply', arguments: {} }],
+      '把这些都删除',
+      memory,
+    ).calls;
+    expect(calls[0]).toEqual({
+      name: 'batch_apply',
+      arguments: {
+        action: 'delete',
+        unitIds: ['u1', 'u2'],
+      },
+    });
+    expect(detectLocalToolClarificationNeed(calls, '把这些都删除', memory)).toEqual({ needed: false });
   });
 });

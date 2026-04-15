@@ -6,8 +6,12 @@ import {
 } from './localContextListUnitsSnapshotStore';
 
 const mockGetDb = vi.fn();
+const mockListUtteranceTextsByUtterance = vi.fn();
 vi.mock('../../db', () => ({
   getDb: (...args: unknown[]) => mockGetDb(...args),
+}));
+vi.mock('../../services/LayerSegmentationTextService', () => ({
+  listUtteranceTextsByUtterance: (...args: unknown[]) => mockListUtteranceTextsByUtterance(...args),
 }));
 
 import {
@@ -42,6 +46,18 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
 
     expect(parsed).toEqual({
       name: 'get_unit_detail',
+      arguments: {
+        unitId: 'utt-1',
+      },
+    });
+  });
+
+  it('parses get_unit_linguistic_memory call', () => {
+    const raw = '{"tool_call":{"name":"GET_UNIT_LINGUISTIC_MEMORY","arguments":{"unitId":"utt-1"}}}';
+    const parsed = parseLocalContextToolCallFromText(raw);
+
+    expect(parsed).toEqual({
+      name: 'get_unit_linguistic_memory',
       arguments: {
         unitId: 'utt-1',
       },
@@ -111,6 +127,7 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
 describe('executeLocalContextToolCall with localUnitIndex', () => {
   beforeEach(() => {
     mockGetDb.mockReset();
+    mockListUtteranceTextsByUtterance.mockReset();
     mockGetDb.mockRejectedValue(new Error('getDb must not run when localUnitIndex supplies rows'));
   });
 
@@ -227,6 +244,417 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload).not.toHaveProperty('localUnitIndex');
     expect(payload._readModel).toMatchObject({ unitIndexComplete: true, indexRowCount: 1 });
   });
+
+  it('get_project_stats respects scoped speaker counts from localUnitIndex', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one', speakerId: 'spk-1' },
+          { id: 'b', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two', speakerId: 'spk-2' },
+          { id: 'c', kind: 'utterance' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three', speakerId: 'spk-3' },
+        ],
+        currentMediaUnitCount: 2,
+      },
+      longTerm: {
+        projectStats: {
+          unitCount: 3,
+          speakerCount: 3,
+          translationLayerCount: 1,
+          aiConfidenceAvg: 0.8,
+        },
+      },
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_project_stats', arguments: { scope: 'current_track', metric: 'speaker_count' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      scope: 'current_track',
+      unitCount: 2,
+      speakerCount: 2,
+      requestedMetric: 'speaker_count',
+      value: 2,
+    });
+  });
+
+  it('get_project_stats falls back to scoped rows instead of project total when current track counters are absent', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'b', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
+          { id: 'c', kind: 'utterance' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three' },
+        ],
+      },
+      longTerm: {
+        projectStats: {
+          unitCount: 3,
+          translationLayerCount: 1,
+          aiConfidenceAvg: 0.8,
+        },
+      },
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_project_stats', arguments: { scope: 'current_track', metric: 'unit_count' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      scope: 'current_track',
+      unitCount: 2,
+      requestedMetric: 'unit_count',
+      value: 2,
+    });
+  });
+
+  it('diagnose_quality returns scoped gap metric value for untranscribed count', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: '' },
+          { id: 'b', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'done' },
+          { id: 'c', kind: 'utterance' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: '' },
+        ],
+      },
+      longTerm: {
+        waveformAnalysis: {
+          gapCount: 0,
+          overlapCount: 0,
+          lowConfidenceCount: 0,
+          maxGapSeconds: 0,
+        },
+      },
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'diagnose_quality', arguments: { scope: 'current_track', metric: 'untranscribed_count' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      scope: 'current_track',
+      requestedMetric: 'untranscribed_count',
+      value: 1,
+      totalUnitsInScope: 2,
+      breakdown: {
+        emptyTextCount: 1,
+      },
+    });
+  });
+
+  it('list_units respects current_scope filtering by current media and selected layer', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        currentScopeUnitCount: 1,
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-2', startTime: 1, endTime: 2, text: 'two' },
+          { id: 'c', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'three' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { limit: 10, scope: 'current_scope' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { scope: string; total: number; matches: Array<{ id: string }> };
+    expect(payload.scope).toBe('current_scope');
+    expect(payload.total).toBe(1);
+    expect(payload.matches.map((row) => row.id)).toEqual(['a']);
+  });
+
+  it('list_units current_track returns empty when current media has no rows', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm-missing',
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { limit: 10, scope: 'current_track' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { scope: string; total: number; count: number; matches: Array<{ id: string }> };
+    expect(payload.scope).toBe('current_track');
+    expect(payload.total).toBe(0);
+    expect(payload.count).toBe(0);
+    expect(payload.matches).toEqual([]);
+  });
+
+  it('list_units current_scope returns empty when selected layer has no rows on current media', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-missing',
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-missing', startTime: 1, endTime: 2, text: 'two' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { limit: 10, scope: 'current_scope' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { scope: string; total: number; count: number; matches: Array<{ id: string }> };
+    expect(payload.scope).toBe('current_scope');
+    expect(payload.total).toBe(0);
+    expect(payload.count).toBe(0);
+    expect(payload.matches).toEqual([]);
+  });
+
+  it('search_units returns empty matches when scope has no rows but local index is loaded', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm-missing',
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello one' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'hello two' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { query: 'hello', limit: 10, scope: 'current_track' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { scope: string; query: string; count: number; matches: Array<{ id: string }> };
+    expect(payload.scope).toBe('current_track');
+    expect(payload.query).toBe('hello');
+    expect(payload.count).toBe(0);
+    expect(payload.matches).toEqual([]);
+  });
+
+  it('get_unit_detail returns scoped not-found when unit exists outside current scope', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [
+          { id: 'in-scope', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'out-scope', kind: 'segment' as const, mediaId: 'm2', layerId: 'layer-2', startTime: 1, endTime: 2, text: 'two' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_unit_detail', arguments: { unitId: 'out-scope', scope: 'current_scope' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('unit not found in scope: current_scope');
+  });
+});
+
+describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
+  beforeEach(() => {
+    mockGetDb.mockReset();
+    mockListUtteranceTextsByUtterance.mockReset();
+  });
+
+  it('loads sentence translations, token/morpheme annotations and notes by unitId', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        localUnitIndex: [
+          {
+            id: 'utt-1',
+            kind: 'utterance' as const,
+            layerId: 'layer-tr',
+            textId: 'text-1',
+            mediaId: 'media-1',
+            startTime: 1,
+            endTime: 3,
+            text: 'ni hao',
+            speakerId: 'spk-1',
+            annotationStatus: 'glossed',
+          },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const tokenRows = [
+      {
+        id: 'tok-1',
+        tokenIndex: 0,
+        unitId: 'utt-1',
+        textId: 'text-1',
+        form: { default: 'ni' },
+        gloss: { eng: 'you' },
+        pos: 'PRON',
+      },
+    ];
+    const morphemeRows = [
+      {
+        id: 'morph-1',
+        morphemeIndex: 0,
+        tokenId: 'tok-1',
+        unitId: 'utt-1',
+        textId: 'text-1',
+        form: { default: 'ni' },
+        gloss: { eng: '2SG' },
+        pos: 'PRON',
+      },
+    ];
+    const layers = [
+      { id: 'layer-tr', layerType: 'transcription' as const },
+      { id: 'layer-zh', layerType: 'translation' as const },
+      { id: 'layer-en', layerType: 'translation' as const },
+    ];
+    const noteRowsByTarget: Record<string, unknown[]> = {
+      'utterance:utt-1': [{ id: 'note-u', content: { zho: '整句注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:00:00.000Z' }],
+      'translation:txt-zh': [{ id: 'note-t', content: { zho: '中文译文备注' }, category: 'comment', updatedAt: '2026-04-15T00:01:00.000Z' }],
+      'token:tok-1': [{ id: 'note-tok', content: { zho: '词注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:02:00.000Z' }],
+      'morpheme:morph-1': [{ id: 'note-m', content: { zho: '词素注释' }, category: 'linguistic', updatedAt: '2026-04-15T00:03:00.000Z' }],
+    };
+
+    const mockDb = {
+      dexie: {
+        layer_units: {
+          get: vi.fn(async () => ({ id: 'utt-1', layerId: 'layer-tr', textId: 'text-1', mediaId: 'media-1', startTime: 1, endTime: 3, unitType: 'utterance' })),
+        },
+        utterance_tokens: {
+          where: vi.fn(() => ({
+            equals: vi.fn(() => ({
+              toArray: vi.fn(async () => tokenRows),
+            })),
+          })),
+        },
+        utterance_morphemes: {
+          where: vi.fn(() => ({
+            equals: vi.fn(() => ({
+              toArray: vi.fn(async () => morphemeRows),
+            })),
+          })),
+        },
+        user_notes: {
+          where: vi.fn(() => ({
+            equals: vi.fn((pair: [string, string]) => ({
+              toArray: vi.fn(async () => noteRowsByTarget[`${pair[0]}:${pair[1]}`] ?? []),
+            })),
+          })),
+        },
+      },
+      collections: {
+        layers: {
+          findByIndexAnyOf: vi.fn(async (_indexName: string, ids: string[]) => layers
+            .filter((row) => ids.includes(row.id))
+            .map((row) => ({ toJSON: () => row }))),
+        },
+      },
+    };
+
+    mockGetDb.mockResolvedValue(mockDb);
+    mockListUtteranceTextsByUtterance.mockResolvedValue([
+      {
+        id: 'txt-tr',
+        utteranceId: 'utt-1',
+        layerId: 'layer-tr',
+        modality: 'text',
+        text: 'ni hao',
+        sourceType: 'human',
+        createdAt: '2026-04-15T00:00:00.000Z',
+        updatedAt: '2026-04-15T00:00:00.000Z',
+      },
+      {
+        id: 'txt-zh',
+        utteranceId: 'utt-1',
+        layerId: 'layer-zh',
+        modality: 'text',
+        text: '你好',
+        sourceType: 'human',
+        createdAt: '2026-04-15T00:00:00.000Z',
+        updatedAt: '2026-04-15T00:01:00.000Z',
+      },
+      {
+        id: 'txt-en',
+        utteranceId: 'utt-1',
+        layerId: 'layer-en',
+        modality: 'text',
+        text: 'Hello',
+        sourceType: 'human',
+        createdAt: '2026-04-15T00:00:00.000Z',
+        updatedAt: '2026-04-15T00:02:00.000Z',
+      },
+    ]);
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_unit_linguistic_memory', arguments: { unitId: 'utt-1', includeNotes: true, includeMorphemes: true } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.name).toBe('get_unit_linguistic_memory');
+    const payload = result.result as {
+      unit: { id: string; notes: unknown[] };
+      sentence: { translations: Array<{ text?: string }> };
+      tokens: Array<{ pos?: string; morphemes?: Array<{ pos?: string }>; notes?: unknown[] }>;
+      coverage: { translationCount: number; tokenCount: number; tokenWithPosCount: number; morphemeCount: number };
+      _readModel: { unitIndexComplete: boolean };
+    };
+    expect(payload.unit.id).toBe('utt-1');
+    expect(payload.unit.notes).toHaveLength(1);
+    expect(payload.sentence.translations).toHaveLength(2);
+    expect(payload.sentence.translations.some((row) => row.text === '你好')).toBe(true);
+    expect(payload.tokens).toHaveLength(1);
+    expect(payload.tokens[0]?.pos).toBe('PRON');
+    expect(payload.tokens[0]?.notes).toHaveLength(1);
+    expect(payload.tokens[0]?.morphemes?.[0]?.pos).toBe('PRON');
+    expect(payload.coverage.translationCount).toBe(2);
+    expect(payload.coverage.tokenCount).toBe(1);
+    expect(payload.coverage.tokenWithPosCount).toBe(1);
+    expect(payload.coverage.morphemeCount).toBe(1);
+    expect(payload._readModel.unitIndexComplete).toBe(true);
+  });
 });
 
 function makeLocalUnitIndexRows(count: number) {
@@ -312,6 +740,34 @@ describe('list_units snapshot paging', () => {
     expect(p2.total).toBe(n);
   });
 
+  it('keeps captured scope when paging by resultHandle even if caller passes another scope', async () => {
+    const ref = { current: 0 };
+    const n = LIST_UNITS_SNAPSHOT_ROW_THRESHOLD + 3;
+    const context = {
+      shortTerm: {
+        timelineReadModelEpoch: 1,
+        unitIndexComplete: true,
+        localUnitIndex: makeLocalUnitIndexRows(n),
+      },
+      longTerm: {},
+    };
+    const first = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { limit: 5, offset: 0, scope: 'current_scope' } },
+      context,
+      ref,
+    );
+    expect(first.ok).toBe(true);
+    const handle = (first.result as { resultHandle: string }).resultHandle;
+    const second = await executeLocalContextToolCall(
+      { name: 'list_units', arguments: { resultHandle: handle, limit: 5, offset: 0, scope: 'project' } },
+      context,
+      ref,
+    );
+    expect(second.ok).toBe(true);
+    const p2 = second.result as { scope: string };
+    expect(p2.scope).toBe('current_scope');
+  });
+
   it('allows snapshot paging offset beyond the non-snapshot 500 cap', async () => {
     const ref = { current: 0 };
     const n = 600;
@@ -372,6 +828,36 @@ describe('list_units snapshot paging', () => {
 });
 
 describe('local context tool result char budget', () => {
+  it('formats speaker-count clarification without exposing raw json blocks', () => {
+    const msg = formatLocalContextToolResultMessage({
+      ok: true,
+      name: 'get_current_selection',
+      result: {
+        currentMediaUnitCount: 6,
+        currentScopeUnitCount: 6,
+        projectUnitCount: 6,
+        _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+      },
+    }, 'zh-CN', '当前有多少说话人？');
+    expect(msg).not.toContain('```json');
+    expect(msg).toContain('说话人');
+    expect(msg).toContain('当前音频');
+  });
+
+  it('formats unfinished transcription count from diagnose_quality as a direct answer', () => {
+    const msg = formatLocalContextToolResultMessage({
+      ok: true,
+      name: 'diagnose_quality',
+      result: {
+        count: 1,
+        items: [{ category: 'empty_text', count: 5 }],
+      },
+    }, 'zh-CN', '还有多少未转写？');
+    expect(msg).not.toContain('```json');
+    expect(msg).toContain('5');
+    expect(msg).toContain('未转写');
+  });
+
   it('does not truncate or emit metric when JSON is under budget', () => {
     const recorded: Array<{ id: string }> = [];
     const dispose = addMetricObserver((event) => recorded.push({ id: event.id }));
@@ -382,6 +868,7 @@ describe('local context tool result char budget', () => {
         result: { unitCount: 3, translationLayerCount: 1, aiConfidenceAvg: null, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } },
       });
       expect(msg).not.toContain('DATA TRUNCATED');
+      expect(msg).not.toContain('```json');
       expect(recorded.some((e) => e.id === 'ai.local_tool_result_truncated')).toBe(false);
     } finally {
       dispose();
@@ -398,16 +885,14 @@ describe('local context tool result char budget', () => {
         name: 'get_project_stats',
         result: { blob: filler, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } },
       });
-      expect(msg).toContain('DATA TRUNCATED');
+      expect(msg).toContain('internal details were omitted');
+      expect(msg).not.toContain('```json');
       const hit = recorded.find((e) => e.id === 'ai.local_tool_result_truncated');
       expect(hit).toBeDefined();
       expect(hit?.tags?.scope).toBe('single');
       expect(hit?.tags?.toolName).toBe('get_project_stats');
       expect(typeof hit?.tags?.payloadChars).toBe('number');
       expect(hit?.tags?.payloadChars as number).toBeGreaterThan(LOCAL_TOOL_RESULT_CHAR_BUDGET);
-      const jsonBlock = msg.match(/```json\n([\s\S]*?)\n```/)?.[1] ?? '';
-      expect(jsonBlock.endsWith('...')).toBe(true);
-      expect(jsonBlock.length).toBe(LOCAL_TOOL_RESULT_CHAR_BUDGET + 3);
     } finally {
       dispose();
     }
@@ -422,7 +907,8 @@ describe('local context tool result char budget', () => {
         { ok: true, name: 'get_project_stats', result: { a: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 1 } } },
         { ok: true, name: 'get_project_stats', result: { b: chunk, _readModel: { unitIndexComplete: true, capturedAtMs: 2 } } },
       ]);
-      expect(msg).toContain('DATA TRUNCATED');
+      expect(msg).toContain('internal details were omitted');
+      expect(msg).not.toContain('```json');
       const hit = recorded.find((e) => e.id === 'ai.local_tool_result_truncated');
       expect(hit?.tags?.scope).toBe('batch');
     } finally {

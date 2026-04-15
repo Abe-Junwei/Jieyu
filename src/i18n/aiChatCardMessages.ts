@@ -328,7 +328,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       webllmWarmupPhaseInitializing: '\u521d\u59cb\u5316\u6a21\u578b',
       webllmWarmupPhaseReady: '\u6a21\u578b\u5c31\u7eea',
       agentLoopProgress: (step, maxSteps) => `\u591a\u6b65\u63a8\u7406 ${step}/${maxSteps}`,
-      tokenBudgetWarning: (estimatedTokens) => `\n\n\u5269\u4f59\u6b65\u9aa4\u9884\u8ba1\u6d88\u8017 ~${estimatedTokens} tokens\uff0c\u56de\u590d\u201c\u7ee7\u7eed\u201d\u4ee5\u6267\u884c\u3002`,
+      tokenBudgetWarning: (estimatedTokens) => `\n\n如需我继续完成这项查询，请回复“继续”。预计还需约 ${estimatedTokens} tokens。`,
       recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('zh-CN', input),
     };
   }
@@ -418,7 +418,7 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     webllmWarmupPhaseInitializing: 'Initializing model runtime',
     webllmWarmupPhaseReady: 'Model ready',
     agentLoopProgress: (step, maxSteps) => `Agent loop ${step}/${maxSteps}`,
-    tokenBudgetWarning: (estimatedTokens) => `\n\nEstimated remaining cost is ~${estimatedTokens} tokens. Reply "continue" to proceed.`,
+    tokenBudgetWarning: (estimatedTokens) => `\n\nIf you want me to continue this lookup, reply "continue". Estimated remaining cost is ~${estimatedTokens} tokens.`,
     recommendedInputPlaceholder: (input) => buildRecommendedPlaceholder('en-US', input),
   };
 }

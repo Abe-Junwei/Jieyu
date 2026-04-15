@@ -10,7 +10,7 @@ import { buildLocalContextToolGuide } from './localContextTools';
 const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '\\u4f60\\u662f\\u8bed\\u97f3\\u6807\\u6ce8\\u5de5\\u4f5c\\u6d41\\u52a9\\u624b。',
   '\\u5f53\\u7528\\u6237\\u8981\\u6c42\\u6267\\u884c\\u64cd\\u4f5c（\\u5982\\u521b\\u5efa\\u53e5\\u6bb5、\\u5199\\u5165\\u8f6c\\u5199、\\u5199\\u5165\\u7ffb\\u8bd1）\\u65f6，\\u5fc5\\u987b\\u53ea\\u8fd4\\u56de JSON。',
-  '\\u5f53\\u7528\\u6237\\u53ea\\u662f\\u95ee\\u5019、\\u95f2\\u804a、\\u63d0\\u95ee、\\u89e3\\u91ca\\u6216\\u603b\\u7ed3\\u65f6\\uff0c\\u4e25\\u7981\\u8fd4\\u56de\\u64cd\\u4f5c\\u7c7b tool_call JSON\\uff08create/delete/set/merge/split/link/unlink/auto_gloss/set_token_*\\uff09\\u3002\\u4f46\\u53ef\\u4ee5\\u4e14\\u5e94\\u5f53\\u8fd4\\u56de\\u67e5\\u8be2\\u7c7b tool_call JSON\\uff08list_units/search_units/get_unit_detail/get_current_selection/get_project_stats/get_waveform_analysis/get_acoustic_summary\\uff09\\u4ee5\\u83b7\\u53d6\\u51c6\\u786e\\u6570\\u636e\\u3002',
+  '\\u5f53\\u7528\\u6237\\u53ea\\u662f\\u95ee\\u5019、\\u95f2\\u804a、\\u63d0\\u95ee、\\u89e3\\u91ca\\u6216\\u603b\\u7ed3\\u65f6\\uff0c\\u4e25\\u7981\\u8fd4\\u56de\\u64cd\\u4f5c\\u7c7b tool_call JSON\\uff08create/delete/set/merge/split/link/unlink/auto_gloss/set_token_*\\uff09\\u3002\\u4f46\\u53ef\\u4ee5\\u4e14\\u5e94\\u5f53\\u8fd4\\u56de\\u67e5\\u8be2\\u7c7b tool_call JSON\\uff08list_units/search_units/get_unit_detail/get_unit_linguistic_memory/get_current_selection/get_project_stats/get_waveform_analysis/get_acoustic_summary\\uff09\\u4ee5\\u83b7\\u53d6\\u51c6\\u786e\\u6570\\u636e\\u3002',
   'JSON \\u683c\\u5f0f：{"tool_call":{"name":"<tool_name>","arguments":{...}}}',
   '\\u53ef\\u7528 tool_name \\u53ca\\u8bed\\u4e49（\\u4e25\\u683c\\u533a\\u5206，\\u52ff\\u6df7\\u7528）：',
   '  \\u53e5\\u6bb5\\u64cd\\u4f5c（segment = \\u4e00\\u6761\\u5e26\\u65f6\\u95f4\\u533a\\u95f4\\u7684\\u8f6c\\u5199\\u5355\\u5143，\\u65e0\\u8bed\\u8a00\\u5f52\\u5c5e）：',
@@ -51,7 +51,8 @@ const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
     '\\u4f60\\u5f53\\u524d\\u626e\\u6f14\\u8bed\\u97f3\\u5b66\\u4e0e\\u8f6c\\u5199\\u52a9\\u624b。',
     '\\u4f18\\u5148\\u5173\\u6ce8\\u65f6\\u95f4\\u5bf9\\u9f50、\\u5206\\u6bb5\\u8fb9\\u754c、\\u8f6c\\u5199\\u51c6\\u786e\\u6027\\u4e0e\\u53ef\\u542c\\u8fa8\\u6027。',
     '\\u4e0a\\u4e0b\\u6587\\u4e2d waveformAnalysis \\u7684 gaps \\u4ec5\\u8868\\u793a\\u300c\\u5206\\u6790\\u7528\\u65f6\\u95f4\\u6761\\u4e4b\\u95f4\\u8d85\\u8fc7\\u9608\\u503c\\u7684\\u95f4\\u9699\\u6bb5\\u300d\\u6570\\u91cf\\uff0c\\u4e0d\\u53ef\\u7528 gaps+1 \\u6216\\u968f\\u610f\\u62df\\u9020\\u8bed\\u6bb5\\u603b\\u6570\\u6216\\u5b8c\\u6574\\u65f6\\u95f4\\u8868\\u3002',
-    'projectUnitCount = total units in the whole project (authoritative). currentTrack.unitCount = units only on the currently selected audio track; they may differ. When user asks count questions, prioritize projectUnitCount. list_units/search_units cover the whole project. selectedUnitCount = full multi-select cardinality; selectedUnitIds may be capped for prompt size. waveformAnalysis gaps count track gap segments, not unit count.',
+    'projectUnitCount = total units in the whole project (authoritative). currentTrack.unitCount = units on the currently selected audio track. currentScope.unitCount = units in the active AI operation scope (active layer + current media). For count questions about current/this waveform or segment scope, prioritize currentScope.unitCount, then currentTrack.unitCount. Only when user explicitly asks about whole-project/global totals, use projectUnitCount. list_units/search_units cover the whole project. selectedUnitCount = full multi-select cardinality; selectedUnitIds may be capped for prompt size. waveformAnalysis gaps count track gap segments, not unit count.',
+    'Answer ordering (natural-language replies): If the user asks how many segments/units/rows exist in the project — including Chinese like 几个语段/多少条/几条/一共几条 — the FIRST sentence must state projectUnitCount (or the total from get_project_stats/list_units if you used those tools). Do not open with trackGaps, gapCount, or other waveform silence metrics unless the user explicitly asks about gaps, silence between waveform bars, or waveform diagnostics.',
     'When sessionMemoryDigest is present, treat it as a lossy summary of earlier chat turns. Detailed acoustics may be omitted from [CONTEXT] under budget pressure — use get_acoustic_summary (and other local query tools) for authoritative metrics.',
   ].map(decodeEscapedUnicode).join('\n'),
   glossing: [
@@ -99,6 +100,13 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
       : null),
   },
   {
+    key: 'currentScopeUnitCount',
+    tier: 1,
+    render: (v) => (typeof v === 'number' && Number.isFinite(v)
+      ? `currentScope.unitCount=${v} [active layer + current media for segment operations]`
+      : null),
+  },
+  {
     key: 'unitIndexComplete',
     tier: 1,
     render: (v) => (v === false
@@ -143,8 +151,17 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
     key: 'projectStats',
     tier: 2,
     render: (v) => {
-      const s = v as { unitCount?: number; utteranceCount?: number; translationLayerCount?: number; aiConfidenceAvg?: number | null };
-      return `projectStats(units=${s.unitCount ?? s.utteranceCount ?? 0}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
+      const s = v as {
+        unitCount?: number;
+        speakerCount?: number;
+        utteranceCount?: number;
+        translationLayerCount?: number;
+        aiConfidenceAvg?: number | null;
+      };
+      const speakerSegment = typeof s.speakerCount === 'number' && Number.isFinite(s.speakerCount)
+        ? `, speakers=${s.speakerCount}`
+        : '';
+      return `projectStats(units=${s.unitCount ?? s.utteranceCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
   {
@@ -171,7 +188,7 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
       if (summary.selectionOverlapCount !== undefined) segments.push(`selectionOverlaps=${summary.selectionOverlapCount}`);
       if (summary.selectionGapCount !== undefined) segments.push(`selectionGaps=${summary.selectionGapCount}`);
       if (summary.activeSignals && summary.activeSignals.length > 0) segments.push(`activeSignals=${summary.activeSignals.join(' | ')}`);
-      return `waveformAnalysis(${segments.join(', ')})`;
+      return `waveformAnalysis(${segments.join(', ')}, note=trackGaps_not_unit_count)`;
     },
   },
   {

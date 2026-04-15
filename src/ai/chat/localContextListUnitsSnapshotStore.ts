@@ -25,6 +25,8 @@ export interface ListUnitsSnapshotRow {
 export interface ListUnitsSnapshotEntry {
   /** Unsorted copy of rows at capture time; caller sorts per request (limit/offset/sort). */
   rows: ListUnitsSnapshotRow[];
+  /** Captured scope for this snapshot page handle. */
+  scope?: 'project' | 'current_track' | 'current_scope';
   /** `timelineReadModelEpoch` when the snapshot was created; paged reads must match current context epoch. */
   epoch?: number;
   createdAt: number;
@@ -58,11 +60,13 @@ function pruneExpiredAndCap(): void {
 export function createListUnitsSnapshot(
   rows: ListUnitsSnapshotRow[],
   epoch?: number,
+  scope?: 'project' | 'current_track' | 'current_scope',
 ): string {
   pruneExpiredAndCap();
   const id = newSnapshotId();
   store.set(id, {
     rows: rows.map((row) => ({ ...row })),
+    ...(scope ? { scope } : {}),
     ...(typeof epoch === 'number' && Number.isFinite(epoch) ? { epoch } : {}),
     createdAt: Date.now(),
   });

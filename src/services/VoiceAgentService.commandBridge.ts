@@ -8,6 +8,8 @@
 
 import type { SttResult } from './VoiceInputService';
 import type { VoiceAgentMode, VoiceAgentServiceState } from './VoiceAgentService';
+import type { HybridIntentResult, HybridResolverInput } from './HybridIntentResolver';
+import { shouldTriggerHybridResolution } from './HybridIntentResolver';
 import { t, tf, type Locale } from '../i18n';
 import {
   routeIntent,
@@ -90,6 +92,8 @@ export interface CommandBridgeContext {
     mode: VoiceAgentMode;
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
+  /** 混合意图解析 | Hybrid intent resolver callback */
+  resolveIntentHybrid?: (input: HybridResolverInput) => Promise<HybridIntentResult | null>;
   onExecuteAction?: (actionId: ActionId, params?: { segmentIndex?: number }) => void;
   onInsertDictation?: (text: string) => void;
   onSendToAiChat?: (text: string) => void;
@@ -124,7 +128,30 @@ export async function handleFinalSttResult(
   });
   log.debug('routeIntent', { text: result.text, mode: ctx.mode, intentType: intent.type });
 
+  // ── 混合意图解析门控 | Hybrid intent resolution gate ──
+  let hybridResult: HybridIntentResult | null = null;
+  if (ctx.resolveIntentHybrid) {
+    const ruleMatched = intent.type === 'action' || intent.type === 'tool';
+    const fromFuzzy = intent.type === 'action' ? (intent.fromFuzzy ?? false) : false;
+    const ruleConfidence = intent.type === 'action' ? intent.confidence : 0;
+    if (shouldTriggerHybridResolution(ruleConfidence, ruleMatched, fromFuzzy, result.text)) {
+      try {
+        hybridResult = await ctx.resolveIntentHybrid({
+          userText: result.text,
+          mode: ctx.mode,
+        });
+        log.debug('hybridResult', { intent: hybridResult?.intent, scope: hybridResult?.scope, confidence: hybridResult?.confidence });
+      } catch (err) {
+        log.warn('hybrid bridge failed; continue with existing fallback', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+  }
+
   // ── LLM 回退 | LLM fallback for chat intents ──
+  // 目前 hybrid 结果仅作观测/辅助，不应短路既有 fallback，避免把 chat 误当最终意图。
+  // Hybrid output is advisory-only for now; keep the existing fallback path intact.
   let llmFallbackFailed = false;
   let llmResolvedAction = false;
   if (intent.type === 'chat' && ctx.mode === 'command' && ctx.resolveIntentWithLlm) {

@@ -11,6 +11,8 @@ export const featureFlags = {
   aiChatRollbackMode: false,
   /** AI 多步推理循环开关 | AI multi-step agent loop toggle */
   aiChatAgentLoopEnabled: true,
+  /** 转写 AI 是否在构造 system 上下文前做 RAG 检索 | Whether transcription AI runs embedding RAG before system context */
+  aiChatRagEnabled: true,
 } as const;
 
 export type FeatureFlags = typeof featureFlags;

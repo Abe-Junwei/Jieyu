@@ -68,6 +68,8 @@ interface BuildTranscriptionAiPromptContextParams {
   unitIndexComplete?: boolean;
   /** Project-wide timeline unit count (utterance + segment read model). */
   unitCount: number;
+  /** Current AI operation scope unit count (active layer + current media). */
+  currentScopeUnitCount?: number;
   translationLayerCount: number;
   aiConfidenceAvg: number | null;
   waveformAnalysis?: WaveformAnalysisPromptSummary;
@@ -93,6 +95,7 @@ export function buildTranscriptionAiPromptContext({
   projectUnitsForTools,
   unitIndexComplete = true,
   unitCount,
+  currentScopeUnitCount,
   translationLayerCount,
   aiConfidenceAvg,
   waveformAnalysis,
@@ -113,8 +116,18 @@ export function buildTranscriptionAiPromptContext({
       ? projectUnitsForTools
       : undefined;
 
+  const allUnits = projectUnitsForTools ?? currentMediaUnits;
+  const speakerCount = (() => {
+    const ids = new Set(
+      allUnits
+        .map((unit) => (typeof unit.speakerId === 'string' ? unit.speakerId.trim() : ''))
+        .filter((id) => id.length > 0),
+    );
+    return ids.size > 0 ? ids.size : undefined;
+  })();
+
   const worldModelSnapshot = buildWorldModelSnapshot({
-    allUnits: projectUnitsForTools ?? currentMediaUnits,
+    allUnits,
     currentMediaUnits,
     layers,
     ...(mediaItems ? { mediaItems } : {}),
@@ -145,11 +158,15 @@ export function buildTranscriptionAiPromptContext({
       ...(selectionSnapshot.selectedLayerType ? { selectedLayerType: selectionSnapshot.selectedLayerType } : {}),
       ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
       ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),
+      ...(currentMediaId !== undefined ? { currentMediaId } : {}),
       ...(selectionSnapshot.selectedText !== null ? { selectedText: selectionSnapshot.selectedText } : {}),
       ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
       projectUnitCount: unitCount,
       currentMediaUnitCount: currentMediaUnits.length,
+      ...(typeof currentScopeUnitCount === 'number' && Number.isFinite(currentScopeUnitCount)
+        ? { currentScopeUnitCount }
+        : {}),
       ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
       ...(unitIndexComplete ? {} : { unitIndexComplete: false }),
       ...(worldModelSnapshot ? { worldModelSnapshot } : {}),
@@ -159,6 +176,7 @@ export function buildTranscriptionAiPromptContext({
     longTerm: {
       projectStats: {
         unitCount,
+        ...(speakerCount !== undefined ? { speakerCount } : {}),
         translationLayerCount,
         aiConfidenceAvg,
       },

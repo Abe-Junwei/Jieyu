@@ -186,6 +186,45 @@ describe('VoiceAgentService command bridge', () => {
     expect(mockRecordPhrase).not.toHaveBeenCalled();
   });
 
+  it('keeps the existing LLM fallback path active even when hybrid resolver returns a confident advisory result', async () => {
+    mockRouteIntent.mockReturnValue({
+      type: 'chat',
+      text: 'ignored',
+      raw: '删除这个',
+    });
+    const resolveIntentHybrid = vi.fn(async () => ({
+      intent: 'delete' as const,
+      action: 'delete_segment',
+      scope: 'current_scope' as const,
+      confidence: 0.95,
+      needsClarification: false,
+      methodology: 'hybrid' as const,
+    }));
+    const resolveIntentWithLlm = vi.fn(async () => null);
+    const ctx = makeContext('zh-CN', { resolveIntentHybrid, resolveIntentWithLlm });
+
+    await handleFinalSttResult(ctx, makeResult('删除这个'));
+
+    expect(resolveIntentHybrid).toHaveBeenCalledTimes(1);
+    expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+  });
+
+  it('swallows hybrid resolver errors and continues with the normal fallback path', async () => {
+    mockRouteIntent.mockReturnValue({
+      type: 'chat',
+      text: 'ignored',
+      raw: '帮我处理这里',
+    });
+    const resolveIntentHybrid = vi.fn(async () => {
+      throw new Error('hybrid exploded');
+    });
+    const resolveIntentWithLlm = vi.fn(async () => null);
+    const ctx = makeContext('zh-CN', { resolveIntentHybrid, resolveIntentWithLlm });
+
+    await expect(handleFinalSttResult(ctx, makeResult('帮我处理这里'))).resolves.toBeTruthy();
+    expect(resolveIntentWithLlm).toHaveBeenCalledTimes(1);
+  });
+
   it('records confirmed phrase memory patterns after the scanner-safe rewrite', () => {
     detectAndRecordMemoryPattern('常见说法是 "how are you"，你好吗', 'cmn');
 

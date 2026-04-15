@@ -146,15 +146,65 @@ export interface AiSessionMemorySummaryQualityWarning {
   coveredTurnCount: number;
 }
 
+export interface AiSessionMemoryPendingAgentLoopCheckpoint {
+  kind: 'token_budget_warning';
+  originalUserText: string;
+  continuationInput: string;
+  step: number;
+  estimatedRemainingTokens?: number;
+  createdAt: string;
+}
+
 export type LocalToolIntent =
   | 'unit.list'
   | 'unit.search'
-  | 'unit.detail';
+  | 'unit.detail'
+  | 'stats.get';
+
+export type LocalUnitScope =
+  | 'project'
+  | 'current_track'
+  | 'current_scope';
+
+export type LocalToolMetric =
+  | 'unit_count'
+  | 'speaker_count'
+  | 'translation_layer_count'
+  | 'ai_confidence_avg'
+  | 'untranscribed_count'
+  | 'missing_speaker_count';
+
+export type LocalToolMetricCategory =
+  | 'total'
+  | 'gap';
+
+export type LocalToolQuestionKind =
+  | 'count'
+  | 'list'
+  | 'search'
+  | 'detail';
+
+export type LocalToolDomain =
+  | 'units'
+  | 'project_stats';
+
+export interface AiSessionMemoryLocalSemanticFrame {
+  domain?: LocalToolDomain;
+  questionKind?: LocalToolQuestionKind;
+  metric?: LocalToolMetric;
+  metricCategory?: LocalToolMetricCategory;
+  scope?: LocalUnitScope;
+  isQualityGapQuestion?: boolean;
+  source?: 'user' | 'inferred' | 'tool';
+  updatedAt: string;
+}
 
 export interface AiSessionMemoryLocalToolState {
   lastIntent?: LocalToolIntent;
   lastQuery?: string;
   lastResultUnitIds?: string[];
+  lastScope?: LocalUnitScope;
+  lastFrame?: AiSessionMemoryLocalSemanticFrame;
   updatedAt: string;
 }
 
@@ -172,6 +222,7 @@ export interface AiSessionMemory {
   adaptiveInputProfile?: AiAdaptiveInputProfile;
   recommendationTelemetry?: AiRecommendationTelemetry;
   localToolState?: AiSessionMemoryLocalToolState;
+  pendingAgentLoopCheckpoint?: AiSessionMemoryPendingAgentLoopCheckpoint;
 }
 
 export type ToolPlannerClarifyReason =
@@ -280,6 +331,7 @@ export interface AiShortTermContext {
   selectedLayerType?: 'transcription' | 'translation';
   selectedTranslationLayerId?: string;
   selectedTranscriptionLayerId?: string;
+  currentMediaId?: string;
   selectedText?: string;
   selectionTimeRange?: string;
   audioTimeSec?: number;
@@ -287,6 +339,8 @@ export interface AiShortTermContext {
   projectUnitCount?: number;
   /** Current media unit count for waveform/timeline analysis rows. */
   currentMediaUnitCount?: number;
+  /** Current AI operation scope unit count (active layer + current media). */
+  currentScopeUnitCount?: number;
   /** Timeline digest on current media (utterance or segment). */
   unitTimeline?: string;
   /** Hierarchical project/media/unit/layer snapshot for AI grounding. */
@@ -306,6 +360,7 @@ export interface AiShortTermContext {
 export interface AiLongTermContext {
   projectStats?: {
     unitCount?: number;
+    speakerCount?: number;
     /** @deprecated Prefer `unitCount`; kept for deserialized legacy snapshots. */
     utteranceCount?: number;
     translationLayerCount?: number;

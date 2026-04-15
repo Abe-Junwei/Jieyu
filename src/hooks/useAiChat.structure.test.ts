@@ -16,6 +16,7 @@ describe('useAiChat structure invariants', () => {
     expect(code.includes("from './useAiChat.assistantPersistence';")).toBe(true);
     expect(code.includes("from './useAiChat.streamFactory';")).toBe(true);
     expect(code.includes("from './useAiChat.streamCompletion';")).toBe(true);
+    expect(code.includes("from './useAiChat.streamCompletionPhase';")).toBe(true);
     expect(code.includes("from './useAiChat.rag';")).toBe(true);
     expect(code.includes("from './useAiChat.confirmExecution';")).toBe(true);
   });
@@ -26,7 +27,7 @@ describe('useAiChat structure invariants', () => {
     expect(code.includes('createAssistantStream(')).toBe(true);
     expect(code.includes('createAssistantPersistenceHelpers(')).toBe(true);
     expect(code.includes('enrichContextWithRag(')).toBe(true);
-    expect(code.includes('resolveAiChatStreamCompletion(')).toBe(true);
+    expect(code.includes('finalizeAssistantStreamCompletion(')).toBe(true);
     expect(code.includes('executeConfirmedToolCall(')).toBe(true);
   });
 

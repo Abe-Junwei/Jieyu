@@ -23,6 +23,16 @@ export const LOCAL_TOOL_INTENT_CONTRACTS: readonly IntentContract[] = [
     toolName: 'get_unit_detail',
     requiredSlots: ['unitId'],
   },
+  {
+    intent: 'unit.detail',
+    toolName: 'get_unit_linguistic_memory',
+    requiredSlots: ['unitId'],
+  },
+  {
+    intent: 'stats.get',
+    toolName: 'get_project_stats',
+    requiredSlots: [],
+  },
 ] as const;
 
 const LIST_INTENT_PATTERNS = [
@@ -60,7 +70,10 @@ export function inferIntentFromToolName(toolName: LocalContextToolCall['name']):
     case 'search_units':
       return 'unit.search';
     case 'get_unit_detail':
+    case 'get_unit_linguistic_memory':
       return 'unit.detail';
+    case 'get_project_stats':
+      return 'stats.get';
     default:
       return null;
   }

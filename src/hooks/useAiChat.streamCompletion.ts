@@ -1,4 +1,5 @@
 import {
+  normalizeJsonishAssistantReply,
   normalizeLegacyRiskNarration,
   normalizeUnsupportedToolCallJson,
   parseLegacyNarratedToolCall,
@@ -15,6 +16,7 @@ import {
 } from '../ai/chat/localContextTools';
 import {
   buildLocalToolStatePatchFromCallResult,
+  detectLocalToolClarificationNeed,
   resolveLocalToolCalls,
 } from '../ai/chat/localToolSlotResolver';
 import {
@@ -38,7 +40,7 @@ import type {
   UiChatMessage,
 } from './useAiChat.types';
 
-interface ResolveAiChatStreamCompletionParams {
+export interface ResolveAiChatStreamCompletionParams {
   assistantId: string;
   assistantContent: string;
   userText: string;
@@ -88,12 +90,53 @@ interface ResolveAiChatStreamCompletionParams {
   resolveFreshAiContext?: () => AiPromptContext | null;
 }
 
-interface ResolveAiChatStreamCompletionResult {
+export interface ResolveAiChatStreamCompletionResult {
   finalContent: string;
   finalStatus: 'done' | 'error';
   finalErrorMessage?: string;
   connectionErrorMessage?: string;
   localToolResults?: LocalContextToolResult[];
+}
+
+function buildLocalToolClarificationMessage(
+  reason: 'metric_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
+  locale: Locale,
+): string {
+  const isZh = locale === 'zh-CN';
+  switch (reason) {
+    case 'metric_ambiguous':
+      return isZh
+        ? '我可以继续查询，但“多少”还不够明确。你是想看语段数、说话人数、翻译层数、未转写数量，还是缺少说话人数量？同时请告诉我是当前范围、当前音频，还是整个项目。'
+        : 'I can continue, but “how many” is still ambiguous. Do you mean segment count, speaker count, translation layers, untranscribed count, or missing-speaker count? Also tell me whether this is for current scope, current audio, or the whole project.';
+    case 'query_ambiguous':
+      return isZh
+        ? '我可以继续搜索，请先告诉我关键词（例如某个词、短语或术语）。'
+        : 'I can continue the search, but I need a keyword first (for example a word, phrase, or term).';
+    case 'target_ambiguous':
+      return isZh
+        ? '我可以继续查看详情，但还不知道你指的是哪条语段。请告诉我是第几个语段，或直接给语段 ID。'
+        : 'I can continue with details, but I do not know which segment you mean. Please tell me the ordinal (for example “the 2nd one”) or provide the segment ID.';
+    case 'action_ambiguous':
+      return isZh
+        ? '我可以继续执行批量操作，但还不清楚你要做什么动作。请明确是删除、验证完成、分配说话人，还是其他具体操作。'
+        : 'I can continue with the batch operation, but the intended action is unclear. Please specify whether you want to delete, mark verified, assign speaker, or another concrete action.';
+    default:
+      return isZh ? '请补充更具体的信息后我再继续。' : 'Please provide a bit more detail and I will continue.';
+  }
+}
+
+function recordLocalToolClarificationMetric(
+  reason: 'metric_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
+  toolName: LocalContextToolCall['name'],
+): void {
+  recordMetric({
+    id: 'ai.local_tool_clarification_needed',
+    value: 1,
+    tags: createMetricTags('useAiChat.streamCompletion', {
+      reason,
+      toolName,
+    }),
+  });
 }
 
 function mergeLocalToolSessionState(
@@ -112,6 +155,8 @@ function mergeLocalToolSessionState(
     if (patch.lastIntent) merged.lastIntent = patch.lastIntent;
     if (patch.lastQuery) merged.lastQuery = patch.lastQuery;
     if (patch.clearLastQuery) delete merged.lastQuery;
+    if (patch.lastScope) merged.lastScope = patch.lastScope;
+    if (patch.lastFrame) merged.lastFrame = patch.lastFrame;
     if (patch.lastResultUnitIds !== undefined) {
       merged.lastResultUnitIds = patch.lastResultUnitIds;
     }
@@ -176,6 +221,14 @@ export async function resolveAiChatStreamCompletion({
       const rawCall = localToolCallsParsed[index]!;
       const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory);
       const stepCall = stepCalls[0]!;
+      const clarificationNeed = detectLocalToolClarificationNeed([stepCall], userText, rollingMemory);
+      if (clarificationNeed.needed) {
+        recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);
+        return {
+          finalContent: buildLocalToolClarificationMessage(clarificationNeed.reason, toolFeedbackLocale),
+          finalStatus: 'done',
+        };
+      }
       const toolContext = resolveFreshAiContext?.() ?? aiContext;
       const result = await executeLocalContextToolCall(
         stepCall,
@@ -194,7 +247,7 @@ export async function resolveAiChatStreamCompletion({
     const mergedMemory = rollingMemory;
     updateSessionMemory(mergedMemory);
     persistSessionMemory(mergedMemory);
-    finalContent = formatLocalContextToolBatchResultMessage(localToolResults);
+    finalContent = formatLocalContextToolBatchResultMessage(localToolResults, toolFeedbackLocale, userText);
     finalStatus = localToolResults.some((item) => !item.ok) ? 'error' : 'done';
     finalErrorMessage = finalStatus === 'error' ? 'local context tool batch failed' : undefined;
     return {
@@ -208,6 +261,14 @@ export async function resolveAiChatStreamCompletion({
   if (localToolCallsParsed.length === 1) {
     const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory);
     const resolvedCall = singleCalls[0]!;
+    const clarificationNeed = detectLocalToolClarificationNeed([resolvedCall], userText, sessionMemory);
+    if (clarificationNeed.needed) {
+      recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);
+      return {
+        finalContent: buildLocalToolClarificationMessage(clarificationNeed.reason, toolFeedbackLocale),
+        finalStatus: 'done',
+      };
+    }
     const toolContext = resolveFreshAiContext?.() ?? aiContext;
     const localToolResult = await executeLocalContextToolCall(
       resolvedCall,
@@ -227,7 +288,7 @@ export async function resolveAiChatStreamCompletion({
     );
     updateSessionMemory(mergedMemory);
     persistSessionMemory(mergedMemory);
-    finalContent = formatLocalContextToolResultMessage(localToolResult);
+    finalContent = formatLocalContextToolResultMessage(localToolResult, toolFeedbackLocale, userText);
     finalStatus = localToolResult.ok ? 'done' : 'error';
     finalErrorMessage = localToolResult.ok ? undefined : (localToolResult.error ?? 'local context tool failed');
     return {
@@ -279,8 +340,15 @@ export async function resolveAiChatStreamCompletion({
     finalStatus = toolDecisionResult.finalStatus;
     finalErrorMessage = toolDecisionResult.finalErrorMessage;
   } else {
-    finalContent = normalizeUnsupportedToolCallJson(finalContent, userText, toolFeedbackStyle)
-      ?? normalizeLegacyRiskNarration(finalContent, toolFeedbackStyle);
+    const normalizedUnsupported = normalizeUnsupportedToolCallJson(finalContent, userText, toolFeedbackStyle);
+    if (normalizedUnsupported) {
+      finalContent = normalizedUnsupported;
+    } else {
+      const normalizedLegacy = normalizeLegacyRiskNarration(finalContent, toolFeedbackStyle);
+      finalContent = normalizedLegacy !== finalContent
+        ? normalizedLegacy
+        : (normalizeJsonishAssistantReply(finalContent, userText, toolFeedbackStyle) ?? normalizedLegacy);
+    }
   }
 
   finalContent = appendHallucinationWarningIfSuspicious(finalContent, aiContext);
@@ -309,26 +377,33 @@ function appendHallucinationWarningIfSuspicious(
 
   if (!hasNumberedList && !hasTimestampCluster) return content;
 
-  const expected = context?.shortTerm?.projectUnitCount
-    ?? context?.longTerm?.projectStats?.unitCount
-    ?? context?.longTerm?.projectStats?.utteranceCount
-    ?? context?.shortTerm?.currentMediaUnitCount;
-  if (typeof expected === 'number' && expected > 0) {
-    const countClaim = content.match(/(?:\u5171\u6709|total[:\s]|a\s+total\s+of)\s*(\d+)\s*(?:\u4e2a|\u6761|\u6bb5|units?\b|utterances?\b|segments?\b)/i);
-    if (countClaim) {
-      const claimed = parseInt(countClaim[1]!, 10);
-      if (claimed !== expected) {
-        recordMetric({
-          id: 'ai.count_claim_mismatch',
-          value: 1,
-          tags: createMetricTags('useAiChat.streamCompletion', {
-            claimed,
-            expected,
-          }),
-        });
-        return `${content}${HALLUCINATION_WARNING}`;
+  const expectedCandidates = [
+    context?.shortTerm?.currentScopeUnitCount,
+    context?.shortTerm?.currentMediaUnitCount,
+    context?.shortTerm?.projectUnitCount,
+    context?.longTerm?.projectStats?.unitCount,
+    context?.longTerm?.projectStats?.utteranceCount,
+  ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0);
+  const countClaim = content.match(/(?:\u5171\u6709|total[:\s]|a\s+total\s+of)\s*(\d+)\s*(?:\u4e2a|\u6761|\u6bb5|units?\b|utterances?\b|segments?\b)/i);
+  if (countClaim) {
+    const claimed = parseInt(countClaim[1]!, 10);
+    if (expectedCandidates.length > 0) {
+      const expected = expectedCandidates[0];
+      if (expected === undefined) {
+        return content;
       }
-      return content;
+      if (expectedCandidates.includes(claimed)) {
+        return content;
+      }
+      recordMetric({
+        id: 'ai.count_claim_mismatch',
+        value: 1,
+        tags: createMetricTags('useAiChat.streamCompletion', {
+          claimed,
+          expected,
+        }),
+      });
+      return `${content}${HALLUCINATION_WARNING}`;
     }
   }
 

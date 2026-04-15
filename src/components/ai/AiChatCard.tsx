@@ -1067,7 +1067,9 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 <div className="ai-webllm-progress" role="status" aria-live="polite">
                   <p className="ai-webllm-runtime-line"><span>{cardMessages.webllmWarmupProgressLabel}:</span> {webllmWarmupPercent}%</p>
                   <div className="ai-webllm-progress-track">
-                    <span className="ai-webllm-progress-fill" style={{ width: `${webllmWarmupPercent}%` }} />
+                    <progress className="ai-webllm-progress-bar" value={webllmWarmupPercent} max={100}>
+                      {webllmWarmupPercent}%
+                    </progress>
                   </div>
                   {webllmWarmupPhaseLabel && (
                     <p className="ai-webllm-runtime-line ai-webllm-progress-detail">{webllmWarmupPhaseLabel}</p>

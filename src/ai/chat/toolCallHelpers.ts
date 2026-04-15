@@ -388,9 +388,20 @@ function extractSegmentSelectorFromUserText(userText: string): Record<string, un
   return null;
 }
 
-function getContextProjectUnitCount(context: AiPromptContext | null | undefined): number {
-  const raw = context?.longTerm?.projectStats?.unitCount ?? context?.longTerm?.projectStats?.utteranceCount;
-  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : 0;
+function getContextScopeOrProjectUnitCount(context: AiPromptContext | null | undefined): number {
+  const candidates = [
+    context?.shortTerm?.currentScopeUnitCount,
+    context?.shortTerm?.currentMediaUnitCount,
+    context?.shortTerm?.projectUnitCount,
+    context?.longTerm?.projectStats?.unitCount,
+    context?.longTerm?.projectStats?.utteranceCount,
+  ];
+  for (const value of candidates) {
+    if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+  }
+  return 0;
 }
 
 function describeDeleteSegmentSelectorTarget(args: Record<string, unknown>): string | null {
@@ -1352,7 +1363,7 @@ export function buildPreviewContract(call: AiChatToolCall, context?: AiPromptCon
   if (call.name === 'delete_transcription_segment') {
     if (hasDeleteAllSegmentsScope(args)) {
       return {
-        affectedCount: getContextProjectUnitCount(context),
+        affectedCount: getContextScopeOrProjectUnitCount(context),
         affectedIds: [],
         reversible: true,
         cascadeTypes: ['translation'],
@@ -1605,6 +1616,35 @@ export function normalizeLegacyRiskNarration(content: string, style: AiToolFeedb
   const normalizedName = legacyCall.name;
   if (!normalizedName) return content;
   return toNaturalActionClarify(normalizedName, style);
+}
+
+function looksLikeJsonishAssistantReply(content: string): boolean {
+  const trimmed = content.trim();
+  if (!trimmed) return false;
+  if (/^```(?:json)?[\s\S]*```$/i.test(trimmed)) return true;
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    return true;
+  }
+  return false;
+}
+
+export function normalizeJsonishAssistantReply(
+  content: string,
+  userText: string,
+  style: AiToolFeedbackStyle,
+): string | null {
+  if (!looksLikeJsonishAssistantReply(content)) return null;
+
+  const rawCall = parseRawToolCallEnvelope(content);
+  if (rawCall) {
+    const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
+    if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
+      return formatTargetClarify(actionLabel, 'missing-utterance-target', style);
+    }
+    return formatActionClarify(actionLabel, style);
+  }
+
+  return formatNonActionFallback(userText, style);
 }
 
 export function isAmbiguousTargetRiskSummary(summary: string): boolean {

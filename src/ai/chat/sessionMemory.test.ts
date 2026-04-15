@@ -54,6 +54,52 @@ describe('sessionMemory P2 helpers', () => {
     expect(loaded.localToolState?.lastResultUnitIds).toEqual(['utt-1', 'utt-2']);
   });
 
+  it('normalizes pending agent loop checkpoint from storage', () => {
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
+      pendingAgentLoopCheckpoint: {
+        kind: 'token_budget_warning',
+        originalUserText: '  how many speakers are there in the project  ',
+        continuationInput: '  __LOCAL_TOOL_RESULT__  ',
+        step: 1.9,
+      },
+    }));
+    const loaded = loadSessionMemory();
+    expect(loaded.pendingAgentLoopCheckpoint).toMatchObject({
+      kind: 'token_budget_warning',
+      originalUserText: 'how many speakers are there in the project',
+      continuationInput: '__LOCAL_TOOL_RESULT__',
+      step: 1,
+    });
+  });
+
+  it('normalizes persisted semantic stats frame from storage', () => {
+    window.localStorage.setItem('jieyu.aiChat.sessionMemory', JSON.stringify({
+      localToolState: {
+        lastIntent: 'stats.get',
+        lastScope: 'project',
+        lastFrame: {
+          domain: 'project_stats',
+          questionKind: 'count',
+          metric: 'speaker_count',
+          metricCategory: 'total',
+          scope: 'project',
+          isQualityGapQuestion: false,
+          source: 'tool',
+        },
+      },
+    }));
+    const loaded = loadSessionMemory();
+    expect(loaded.localToolState?.lastIntent).toBe('stats.get');
+    expect(loaded.localToolState?.lastFrame).toMatchObject({
+      domain: 'project_stats',
+      questionKind: 'count',
+      metric: 'speaker_count',
+      metricCategory: 'total',
+      scope: 'project',
+      isQualityGapQuestion: false,
+    });
+  });
+
   it('updates and clears conversation summary memory', () => {
     const withSummary = updateConversationSummaryMemory({}, 'summary text', 8, {
       similarityScore: 0.72,

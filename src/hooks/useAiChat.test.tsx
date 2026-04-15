@@ -2551,8 +2551,59 @@ describe('useAiChat abort and recovery', () => {
     });
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
-    expect(assistant?.content).toMatch(/预计继续执行还需约|Estimated remaining cost is ~/);
+    expect(assistant?.content).toMatch(/如需我继续完成这项查询|If you want me to continue this lookup/);
     expect(result.current.taskSession.status).toBe('idle');
+  });
+
+  it('should resume from the saved loop checkpoint when user replies continue', async () => {
+    const { result } = renderHook(() => useAiChat({
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          selectedUnitKind: 'segment',
+          activeSegmentUnitId: 'seg-current',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    const veryLongPrompt = `__LOCAL_CONTEXT_TOOL_FENCED__ ${'x'.repeat(12000)}`;
+    await act(async () => {
+      await result.current.send(veryLongPrompt);
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const warnedAssistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(warnedAssistant?.content).toMatch(/如需我继续完成这项查询|If you want me to continue this lookup/);
+    expect(warnedAssistant?.content).not.toContain('```json');
+    expect(warnedAssistant?.content).not.toContain('"tool_call"');
+
+    const storedBefore = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: { step?: number };
+    };
+    expect(storedBefore.pendingAgentLoopCheckpoint?.step).toBe(1);
+
+    await act(async () => {
+      await result.current.send('继续');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const resumedAssistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(resumedAssistant?.content).toContain('基于本地上下文，这是下一步回复。');
+
+    const storedAfter = JSON.parse(window.localStorage.getItem('jieyu.aiChat.sessionMemory') ?? '{}') as {
+      pendingAgentLoopCheckpoint?: unknown;
+    };
+    expect(storedAfter.pendingAgentLoopCheckpoint).toBeUndefined();
   });
 
   it('should track interaction metrics across tool execution lifecycle', async () => {
@@ -2751,6 +2802,53 @@ describe('useAiChat abort and recovery', () => {
     });
 
     expect(result.current.pendingToolCall?.previewContract?.affectedCount).toBe(0);
+  });
+
+  it('should prefer current scope count for delete-all preview when scope and project totals differ', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已删除' });
+    const onToolRiskCheck = vi.fn().mockReturnValue({ requiresConfirmation: true, riskSummary: '将删除全部句段' });
+    const preparePendingToolCall = vi.fn((call: AiChatToolCall) => ({
+      ...call,
+      arguments: {
+        segmentIds: ['seg-1', 'seg-2'],
+      },
+    }));
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      onToolRiskCheck,
+      preparePendingToolCall,
+      getContext: () => ({
+        shortTerm: {
+          page: 'transcription',
+          currentScopeUnitCount: 2,
+          currentMediaUnitCount: 2,
+          projectUnitCount: 5,
+        },
+        longTerm: {
+          projectStats: {
+            unitCount: 5,
+            translationLayerCount: 0,
+            aiConfidenceAvg: null,
+          },
+          topLexemes: [],
+          recommendations: [],
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('删除全部句段');
+    });
+
+    await waitFor(() => {
+      expect(result.current.pendingToolCall).not.toBeNull();
+    });
+
+    expect(result.current.pendingToolCall?.previewContract?.affectedCount).toBe(2);
   });
 
   it('should fail delete-all before confirmation when concrete targets cannot be materialized', async () => {

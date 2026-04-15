@@ -69,6 +69,7 @@ function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['loca
   const normalizedIntent = lastIntent === 'unit.list'
     || lastIntent === 'unit.search'
     || lastIntent === 'unit.detail'
+    || lastIntent === 'stats.get'
     ? lastIntent
     : undefined;
   const lastQuery = typeof state.lastQuery === 'string' && state.lastQuery.trim().length > 0
@@ -80,15 +81,89 @@ function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['loca
       .map((item) => item.trim())
       .slice(0, 200)
     : undefined;
-  if (!normalizedIntent && !lastQuery && (!lastResultUnitIds || lastResultUnitIds.length === 0)) {
+  const normalizedScope = state.lastScope === 'project'
+    || state.lastScope === 'current_track'
+    || state.lastScope === 'current_scope'
+    ? state.lastScope
+    : undefined;
+  const lastFrame = state.lastFrame;
+  const normalizedFrame = lastFrame && typeof lastFrame === 'object'
+    ? {
+        ...(lastFrame.domain === 'units' || lastFrame.domain === 'project_stats'
+          ? { domain: lastFrame.domain }
+          : {}),
+        ...(lastFrame.questionKind === 'count'
+          || lastFrame.questionKind === 'list'
+          || lastFrame.questionKind === 'search'
+          || lastFrame.questionKind === 'detail'
+          ? { questionKind: lastFrame.questionKind }
+          : {}),
+        ...(lastFrame.metric === 'unit_count'
+          || lastFrame.metric === 'speaker_count'
+          || lastFrame.metric === 'translation_layer_count'
+          || lastFrame.metric === 'ai_confidence_avg'
+          || lastFrame.metric === 'untranscribed_count'
+          || lastFrame.metric === 'missing_speaker_count'
+          ? { metric: lastFrame.metric }
+          : {}),
+        ...(lastFrame.metricCategory === 'total' || lastFrame.metricCategory === 'gap'
+          ? { metricCategory: lastFrame.metricCategory }
+          : {}),
+        ...(lastFrame.scope === 'project'
+          || lastFrame.scope === 'current_track'
+          || lastFrame.scope === 'current_scope'
+          ? { scope: lastFrame.scope }
+          : {}),
+        ...(typeof lastFrame.isQualityGapQuestion === 'boolean'
+          ? { isQualityGapQuestion: lastFrame.isQualityGapQuestion }
+          : {}),
+        ...(lastFrame.source === 'user' || lastFrame.source === 'inferred' || lastFrame.source === 'tool'
+          ? { source: lastFrame.source }
+          : {}),
+        updatedAt: typeof lastFrame.updatedAt === 'string' && lastFrame.updatedAt.trim().length > 0
+          ? lastFrame.updatedAt
+          : nowIso(),
+      }
+    : undefined;
+  const hasNormalizedFrame = normalizedFrame
+    && Object.keys(normalizedFrame).some((key) => key !== 'updatedAt');
+  if (!normalizedIntent && !lastQuery && !normalizedScope && (!lastResultUnitIds || lastResultUnitIds.length === 0) && !hasNormalizedFrame) {
     return undefined;
   }
   return {
     ...(normalizedIntent ? { lastIntent: normalizedIntent } : {}),
     ...(lastQuery ? { lastQuery } : {}),
     ...(lastResultUnitIds && lastResultUnitIds.length > 0 ? { lastResultUnitIds } : {}),
+    ...(normalizedScope ? { lastScope: normalizedScope } : {}),
+    ...(hasNormalizedFrame ? { lastFrame: normalizedFrame } : {}),
     updatedAt: typeof state.updatedAt === 'string' && state.updatedAt.trim().length > 0
       ? state.updatedAt
+      : nowIso(),
+  };
+}
+
+function normalizePendingAgentLoopCheckpoint(memory: AiSessionMemory): AiSessionMemory['pendingAgentLoopCheckpoint'] {
+  const checkpoint = memory.pendingAgentLoopCheckpoint;
+  if (!checkpoint || typeof checkpoint !== 'object') return undefined;
+  const kind = checkpoint.kind === 'token_budget_warning' ? checkpoint.kind : undefined;
+  const originalUserText = typeof checkpoint.originalUserText === 'string' ? checkpoint.originalUserText.trim() : '';
+  const continuationInput = typeof checkpoint.continuationInput === 'string' ? checkpoint.continuationInput.trim() : '';
+  const step = typeof checkpoint.step === 'number' && Number.isFinite(checkpoint.step)
+    ? Math.max(1, Math.floor(checkpoint.step))
+    : undefined;
+  if (!kind || !originalUserText || !continuationInput || step === undefined) {
+    return undefined;
+  }
+  return {
+    kind,
+    originalUserText,
+    continuationInput,
+    step,
+    ...(typeof checkpoint.estimatedRemainingTokens === 'number' && Number.isFinite(checkpoint.estimatedRemainingTokens)
+      ? { estimatedRemainingTokens: Math.max(0, Math.floor(checkpoint.estimatedRemainingTokens)) }
+      : {}),
+    createdAt: typeof checkpoint.createdAt === 'string' && checkpoint.createdAt.trim().length > 0
+      ? checkpoint.createdAt
       : nowIso(),
   };
 }
@@ -108,6 +183,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
   const normalizedSummaryChain = normalizeSummaryChain(memory);
   const normalizedPinnedMessageIds = normalizePinnedMessageIds(memory);
   const normalizedLocalToolState = normalizeLocalToolState(memory);
+  const normalizedPendingAgentLoopCheckpoint = normalizePendingAgentLoopCheckpoint(memory);
   const normalizedSummaryQualityWarning = memory.summaryQualityWarning
     && typeof memory.summaryQualityWarning.similarity === 'number'
     && Number.isFinite(memory.summaryQualityWarning.similarity)
@@ -138,6 +214,7 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
     ...(normalizedSummaryChain !== undefined ? { summaryChain: normalizedSummaryChain } : {}),
     ...(normalizedPinnedMessageIds !== undefined ? { pinnedMessageIds: normalizedPinnedMessageIds } : {}),
     ...(normalizedLocalToolState !== undefined ? { localToolState: normalizedLocalToolState } : {}),
+    ...(normalizedPendingAgentLoopCheckpoint !== undefined ? { pendingAgentLoopCheckpoint: normalizedPendingAgentLoopCheckpoint } : {}),
     ...(normalizedSummaryQualityWarning !== undefined ? { summaryQualityWarning: normalizedSummaryQualityWarning } : {}),
     ...(mergedPreferences.lastLanguage !== undefined ? { lastLanguage: mergedPreferences.lastLanguage } : {}),
     ...(mergedPreferences.lastToolName !== undefined ? { lastToolName: mergedPreferences.lastToolName } : {}),

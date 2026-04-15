@@ -286,6 +286,7 @@ export function useTranscriptionAiController(
       selectedUnitCount: input.selectedUnitIds.size,
       selectedUnitIds: Array.from(input.selectedUnitIds).slice(0, 12),
       unitCount: effectiveUnitIndex.totalCount,
+      currentScopeUnitCount: segmentTargetDescriptors.length,
       translationLayerCount: input.translationLayerCount,
       aiConfidenceAvg: input.aiConfidenceAvg ?? 0,
       observerStage: aiObserverStageRef.current,
