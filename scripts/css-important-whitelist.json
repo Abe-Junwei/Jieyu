@@ -59,6 +59,21 @@
       "file": "src/styles/pages/transcription-waveform.css",
       "snippet": "display: none !important;",
       "reason": "Hide WebKit scrollbar"
+    },
+    {
+      "file": "src/styles/foundation/icon-effect-motion.css",
+      "snippet": "transition: none !important;",
+      "reason": "Icon motion: disable transitions under .jieyu-reduced-motion and prefers-reduced-motion"
+    },
+    {
+      "file": "src/styles/foundation/icon-effect-motion.css",
+      "snippet": "transform: none !important;",
+      "reason": "Icon motion: disable transforms under reduced motion"
+    },
+    {
+      "file": "src/styles/foundation/icon-effect-motion.css",
+      "snippet": "--jieyu-material-fill: 0 !important;",
+      "reason": "Icon motion: reset FILL axis under reduced motion"
     }
   ]
 }

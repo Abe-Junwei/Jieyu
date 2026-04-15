@@ -407,7 +407,6 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/pages/transcription-toolbar.css',
     requiredLiterals: [
-      '.transcription-waveform {',
       '.transcription-wave-toolbar {',
       '.transcription-wave-toolbar-right {',
       '.app-left-rail-bottom-slot .transcription-wave-toolbar-right-portaled {',
@@ -415,6 +414,10 @@ export const architectureGuardRules = [
       '.transcription-ai-observer-status-bar {',
       '.transcription-ai-observer-stage-label {',
     ],
+  },
+  {
+    file: 'src/styles/transcription-waveform-shell.css',
+    requiredLiterals: ['.transcription-waveform {'],
   },
   {
     file: 'src/styles/pages/transcription-timeline.css',

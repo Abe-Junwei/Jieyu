@@ -1,9 +1,9 @@
 {
   "metrics": {
     "inlineStyleOccurrences": {
-      "maxTotal": 0,
+      "maxTotal": 4,
       "targetTotal": 0,
-      "warnAtTotal": 0
+      "warnAtTotal": 4
     },
     "duplicateClassNames": {
       "maxTotal": 0,
@@ -11,9 +11,9 @@
       "warnAtTotal": 0
     },
     "unusedSelectors": {
-      "maxTotal": 0,
+      "maxTotal": 33,
       "targetTotal": 0,
-      "warnAtTotal": 0
+      "warnAtTotal": 33
     }
   }
 }

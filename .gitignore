@@ -31,6 +31,8 @@ coverage/
 
 # Design sources (large binaries; keep local only)
 *.pen
+# Small authored Pencil boards checked into docs/design/
+!docs/design/*.pen
 
 # Local agent / temp build output
 .qwen/

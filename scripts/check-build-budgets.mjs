@@ -25,20 +25,25 @@ async function main() {
   console.log('[build-budget] Checking critical bundle budgets');
 
   for (const budget of buildBudgets) {
-    const matched = assets.find((asset) => budget.pattern.test(asset.name));
-    if (!matched) {
+    const matched = assets.filter((asset) => budget.pattern.test(asset.name));
+    if (matched.length === 0) {
       console.log(`- ${budget.label}: skipped (asset not found)`);
       continue;
     }
 
-    const line = `- ${budget.label}: ${formatKiB(matched.size)} / budget ${formatKiB(budget.maxBytes)}`;
-    if (matched.size > budget.maxBytes) {
-      console.error(`${line} [FAIL]`);
-      failures.push(`${budget.label} exceeded budget with ${matched.name}`);
+    const overs = matched.filter((asset) => asset.size > budget.maxBytes);
+    const largest = matched.reduce((a, b) => (a.size >= b.size ? a : b));
+    if (overs.length > 0) {
+      for (const asset of overs) {
+        const line = `- ${budget.label}: ${formatKiB(asset.size)} / budget ${formatKiB(budget.maxBytes)}`;
+        console.error(`${line} [FAIL] (${asset.name})`);
+        failures.push(`${budget.label} exceeded budget with ${asset.name}`);
+      }
       continue;
     }
 
-    console.log(`${line} [OK]`);
+    const suffix = matched.length > 1 ? ` (${matched.length} files, largest ${formatKiB(largest.size)})` : '';
+    console.log(`- ${budget.label}: ${formatKiB(largest.size)} / budget ${formatKiB(budget.maxBytes)} [OK]${suffix}`);
   }
 
   if (failures.length > 0) {

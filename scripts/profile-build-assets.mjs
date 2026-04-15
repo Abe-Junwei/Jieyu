@@ -34,14 +34,17 @@ async function main() {
   const cssRows = sorted.filter((row) => row.type === 'css');
   const largeJsHints = jsRows.filter((row) => row.size > profileLargeJsHintThresholdBytes);
   const budgetStatuses = buildBudgets.map((budget) => {
-    const asset = rows.find((row) => budget.pattern.test(row.name));
-    if (!asset) {
+    const matched = rows.filter((row) => budget.pattern.test(row.name));
+    if (matched.length === 0) {
       return { label: budget.label, status: 'missing', maxBytes: budget.maxBytes };
     }
+    const largest = matched.reduce((a, b) => (a.size >= b.size ? a : b));
+    const worst = matched.some((row) => row.size > budget.maxBytes) ? 'over' : 'ok';
     return {
       label: budget.label,
-      status: asset.size > budget.maxBytes ? 'over' : 'ok',
-      asset,
+      status: worst,
+      asset: largest,
+      matchedCount: matched.length,
       maxBytes: budget.maxBytes,
     };
   });
@@ -72,7 +75,8 @@ async function main() {
       continue;
     }
     const statusLabel = row.status === 'over' ? '[OVER]' : '[OK]';
-    console.log(`- ${row.label}: ${formatKiB(row.asset.size)} / budget ${formatKiB(row.maxBytes)} ${statusLabel}`);
+    const multi = row.matchedCount > 1 ? ` (${row.matchedCount} files)` : '';
+    console.log(`- ${row.label}: ${formatKiB(row.asset.size)} / budget ${formatKiB(row.maxBytes)} ${statusLabel}${multi}`);
   }
 }
 

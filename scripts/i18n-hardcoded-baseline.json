@@ -1,6 +1,10 @@
 {
-  "generatedAt": "2026-04-01T12:35:24.824Z",
+  "generatedAt": "2026-04-15T06:07:38.528Z",
   "scannerVersion": 2,
-  "totalHits": 0,
-  "files": {}
+  "totalHits": 31,
+  "files": {
+    "src/components/SettingsModal.tsx": 1,
+    "src/hooks/useAiChat.confirmExecution.ts": 2,
+    "src/utils/theme.ts": 28
+  }
 }

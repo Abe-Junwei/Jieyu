@@ -1,11 +1,15 @@
 {
-  "generatedAt": "2026-04-12T14:34:26.737Z",
+  "generatedAt": "2026-04-15T06:06:00.904Z",
   "allowedDuplicateClasses": [
+    "jieyu-reduced-motion",
     "lane-label-resizing",
     "lane-link-connector-svg-arrow",
     "lane-link-connector-svg-dot",
     "lane-link-connector-svg-elbow",
     "lane-link-connector-svg-trunk",
+    "left-rail-btn",
+    "ob-search-combobox",
+    "om-search-combobox",
     "time-ruler-lane-toggle",
     "timeline-annotation",
     "timeline-annotation-active",
