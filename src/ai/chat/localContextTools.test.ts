@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { addMetricObserver } from '../../observability/metrics';
 
 const mockGetDb = vi.fn();
 vi.mock('../../db', () => ({
@@ -25,13 +26,13 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
   });
 
   it('parses inline json with normalized tool name and arguments', () => {
-    const raw = '{"tool_call":{"name":"GET_UTTERANCE_DETAIL","arguments":{"utteranceId":"utt-1"}}}';
+    const raw = '{"tool_call":{"name":"GET_UNIT_DETAIL","arguments":{"unitId":"utt-1"}}}';
     const parsed = parseLocalContextToolCallFromText(raw);
 
     expect(parsed).toEqual({
-      name: 'get_utterance_detail',
+      name: 'get_unit_detail',
       arguments: {
-        utteranceId: 'utt-1',
+        unitId: 'utt-1',
       },
     });
   });
@@ -64,63 +65,85 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
     expect(parsed[0]).toEqual({ name: 'get_current_selection', arguments: {} });
   });
 
-  it('parses list_utterances tool call', () => {
-    const raw = '{"tool_call":{"name":"list_utterances","arguments":{"limit":8}}}';
+  it('parses list_units tool call', () => {
+    const raw = '{"tool_call":{"name":"list_units","arguments":{"limit":8}}}';
     const parsed = parseLocalContextToolCallFromText(raw);
     expect(parsed).toEqual({
-      name: 'list_utterances',
+      name: 'list_units',
       arguments: { limit: 8 },
     });
   });
+
+  it('maps legacy utterance tool aliases and emits usage metric', () => {
+    const recorded: Array<{ id: string; tags: Record<string, unknown> | undefined }> = [];
+    const dispose = addMetricObserver((event) => {
+      recorded.push({ id: event.id, tags: event.tags as Record<string, unknown> | undefined });
+    });
+    try {
+      const raw = '{"tool_call":{"name":"list_utterances","arguments":{"limit":8}}}';
+      const parsed = parseLocalContextToolCallFromText(raw);
+      expect(parsed).toEqual({
+        name: 'list_units',
+        arguments: { limit: 8 },
+      });
+      expect(recorded.some((event) => (
+        event.id === 'ai.local_tool_alias_usage'
+        && event.tags?.aliasName === 'list_utterances'
+        && event.tags?.canonicalName === 'list_units'
+      ))).toBe(true);
+    } finally {
+      dispose();
+    }
+  });
 });
 
-describe('executeLocalContextToolCall with localUtteranceIndex', () => {
+describe('executeLocalContextToolCall with localUnitIndex', () => {
   beforeEach(() => {
     mockGetDb.mockReset();
-    mockGetDb.mockRejectedValue(new Error('getDb must not run when localUtteranceIndex supplies rows'));
+    mockGetDb.mockRejectedValue(new Error('getDb must not run when localUnitIndex supplies rows'));
   });
 
-  it('list_utterances reads localUtteranceIndex without touching the database', async () => {
+  it('list_units reads localUnitIndex without touching the database', async () => {
     const ref = { current: 0 };
     const context = {
       shortTerm: {
         page: 'transcription',
-        localUtteranceIndex: [
-          { id: 'a', startTime: 0, endTime: 1, transcription: 'one' },
-          { id: 'b', startTime: 1, endTime: 2, transcription: 'two' },
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'two' },
         ],
       },
       longTerm: {},
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'list_utterances', arguments: { limit: 10, offset: 0, sort: 'time_asc' } },
+      { name: 'list_units', arguments: { limit: 10, offset: 0, sort: 'time_asc' } },
       context,
       ref,
     );
 
     expect(result.ok).toBe(true);
-    expect(result.name).toBe('list_utterances');
+    expect(result.name).toBe('list_units');
     const payload = result.result as { total: number; matches: unknown[] };
     expect(payload.total).toBe(2);
     expect(payload.matches).toHaveLength(2);
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
-  it('search_utterances uses localUtteranceIndex for non-empty query', async () => {
+  it('search_units uses localUnitIndex for non-empty query', async () => {
     const ref = { current: 0 };
     const context = {
       shortTerm: {
-        localUtteranceIndex: [
-          { id: 'a', startTime: 0, endTime: 1, transcription: 'hello world' },
-          { id: 'b', startTime: 1, endTime: 2, transcription: 'nope' },
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello world' },
+          { id: 'b', kind: 'segment' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'nope' },
         ],
       },
       longTerm: {},
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'search_utterances', arguments: { query: 'hello', limit: 5 } },
+      { name: 'search_units', arguments: { query: 'hello', limit: 5 } },
       context,
       ref,
     );
@@ -132,19 +155,19 @@ describe('executeLocalContextToolCall with localUtteranceIndex', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
-  it('get_utterance_detail resolves from localUtteranceIndex', async () => {
+  it('get_unit_detail resolves from localUnitIndex', async () => {
     const ref = { current: 0 };
     const context = {
       shortTerm: {
-        localUtteranceIndex: [
-          { id: 'x1', mediaId: 'm9', startTime: 3, endTime: 5, transcription: 'body' },
+        localUnitIndex: [
+          { id: 'x1', kind: 'segment' as const, layerId: 'layer-1', mediaId: 'm9', startTime: 3, endTime: 5, text: 'body' },
         ],
       },
       longTerm: {},
     };
 
     const result = await executeLocalContextToolCall(
-      { name: 'get_utterance_detail', arguments: { utteranceId: 'x1' } },
+      { name: 'get_unit_detail', arguments: { unitId: 'x1' } },
       context,
       ref,
     );
@@ -160,19 +183,19 @@ describe('executeLocalContextToolCall with localUtteranceIndex', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
-  it('get_current_selection does NOT leak localUtteranceIndex', async () => {
+  it('get_current_selection does NOT leak localUnitIndex', async () => {
     const ref = { current: 0 };
     const context = {
       shortTerm: {
         page: 'transcription',
-        localUtteranceIndex: [
-          { id: 'a', startTime: 0, endTime: 1, transcription: 'leak test' },
+        localUnitIndex: [
+          { id: 'a', kind: 'utterance' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'leak test' },
         ],
-        utterancesOnCurrentMediaCount: 1,
+        currentMediaUnitCount: 1,
       },
       longTerm: {
         projectStats: {
-          utteranceCount: 4,
+          unitCount: 4,
         },
       },
     };
@@ -186,8 +209,8 @@ describe('executeLocalContextToolCall with localUtteranceIndex', () => {
     expect(result.ok).toBe(true);
     const payload = result.result as Record<string, unknown>;
     expect(payload.page).toBe('transcription');
-    expect(payload.utterancesOnCurrentMediaCount).toBe(1);
-    expect(payload.projectUtteranceCount).toBe(4);
-    expect(payload).not.toHaveProperty('localUtteranceIndex');
+    expect(payload.currentMediaUnitCount).toBe(1);
+    expect(payload.projectUnitCount).toBe(4);
+    expect(payload).not.toHaveProperty('localUnitIndex');
   });
 });

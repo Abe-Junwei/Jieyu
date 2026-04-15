@@ -1,18 +1,21 @@
 import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 import type { AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
+import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
+import { createMetricTags, recordMetric } from '../../observability/metrics';
 
 export type LocalContextToolName =
   | 'get_current_selection'
   | 'get_project_stats'
   | 'get_waveform_analysis'
   | 'get_acoustic_summary'
+  | 'find_incomplete_units'
+  | 'diagnose_quality'
+  | 'batch_apply'
+  | 'suggest_next_action'
   | 'list_units'
   | 'search_units'
-  | 'get_unit_detail'
-  | 'list_utterances'
-  | 'search_utterances'
-  | 'get_utterance_detail';
+  | 'get_unit_detail';
 
 export interface LocalContextToolCall {
   name: LocalContextToolName;
@@ -31,32 +34,53 @@ const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
   'get_project_stats',
   'get_waveform_analysis',
   'get_acoustic_summary',
+  'find_incomplete_units',
+  'diagnose_quality',
+  'batch_apply',
+  'suggest_next_action',
   'list_units',
   'search_units',
   'get_unit_detail',
-  'list_utterances',
-  'search_utterances',
-  'get_utterance_detail',
 ]);
 
-function canonicalToolName(name: LocalContextToolName): LocalContextToolName {
-  switch (name) {
-    case 'list_utterances':
-      return 'list_units';
-    case 'search_utterances':
-      return 'search_units';
-    case 'get_utterance_detail':
-      return 'get_unit_detail';
-    default:
-      return name;
+/**
+ * Legacy local-tool names kept for older prompts / model outputs.
+ * Metrics: `ai.local_tool_alias_usage` records each alias hit; do not add new aliases without an ADR.
+ * Sunset: remove once audit shows zero alias usage for several releases.
+ */
+const LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP = {
+  list_utterances: 'list_units',
+  search_utterances: 'search_units',
+  get_utterance_detail: 'get_unit_detail',
+} as const satisfies Record<string, LocalContextToolName>;
+
+type ResolvedLocalToolName = {
+  name: LocalContextToolName;
+  usedAlias: boolean;
+  rawName: string;
+};
+
+function normalizeToolName(name: string): ResolvedLocalToolName | null {
+  const normalized = name.trim().toLowerCase();
+  if (LOCAL_CONTEXT_TOOL_NAMES.has(normalized as LocalContextToolName)) {
+    return { name: normalized as LocalContextToolName, usedAlias: false, rawName: normalized };
   }
+  const aliased = LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP[normalized as keyof typeof LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP];
+  if (aliased) {
+    return { name: aliased, usedAlias: true, rawName: normalized };
+  }
+  return null;
 }
 
-function normalizeToolName(name: string): LocalContextToolName | null {
-  const normalized = name.trim().toLowerCase();
-  return LOCAL_CONTEXT_TOOL_NAMES.has(normalized as LocalContextToolName)
-    ? (normalized as LocalContextToolName)
-    : null;
+function recordLocalToolAliasUsage(aliasName: string, canonicalName: LocalContextToolName): void {
+  recordMetric({
+    id: 'ai.local_tool_alias_usage',
+    value: 1,
+    tags: createMetricTags('localContextTools', {
+      aliasName,
+      canonicalName,
+    }),
+  });
 }
 
 function toToolCallCandidate(rawText: string): { name: string; arguments: Record<string, unknown> } | null {
@@ -97,11 +121,14 @@ function toToolCallCandidates(rawText: string): LocalContextToolCall[] {
           const rawName = typeof holder.name === 'string' ? holder.name : '';
           const normalized = normalizeToolName(rawName);
           if (!normalized) continue;
+          if (normalized.usedAlias) {
+            recordLocalToolAliasUsage(normalized.rawName, normalized.name);
+          }
           const rawArgs = holder.arguments;
           const args = typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
             ? rawArgs as Record<string, unknown>
             : {};
-          parsedCalls.push({ name: normalized, arguments: args });
+          parsedCalls.push({ name: normalized.name, arguments: args });
         }
       }
     } catch {
@@ -119,8 +146,11 @@ export function parseLocalContextToolCallFromText(rawText: string): LocalContext
   if (!candidate) return null;
   const normalized = normalizeToolName(candidate.name);
   if (!normalized) return null;
+  if (normalized.usedAlias) {
+    recordLocalToolAliasUsage(normalized.rawName, normalized.name);
+  }
   return {
-    name: normalized,
+    name: normalized.name,
     arguments: candidate.arguments,
   };
 }
@@ -173,7 +203,7 @@ interface NormalizedUnitRow {
 }
 
 function normalizedUnitRowsFromContext(context: AiPromptContext): NormalizedUnitRow[] | null {
-  const rows = context.shortTerm?.localUnitIndex ?? context.shortTerm?.localUtteranceIndex;
+  const rows = context.shortTerm?.localUnitIndex;
   if (!Array.isArray(rows) || rows.length === 0) return null;
   return rows.map((row) => {
     const legacy = row as TimelineUnitView & { transcription?: string };
@@ -249,6 +279,21 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
 
   const normalized = [...rows].sort((a, b) => (sort === 'time_desc' ? b.startTime - a.startTime : a.startTime - b.startTime));
   const matches = normalized.slice(offset, offset + limit);
+  const expectedTotal = context.longTerm?.projectStats?.unitCount ?? context.shortTerm?.projectUnitCount;
+  if (typeof expectedTotal === 'number' && Number.isFinite(expectedTotal) && normalized.length !== expectedTotal) {
+    if (import.meta.env.DEV) {
+      console.warn('[timeline_unit_count_mismatch]', { tool: 'list_units', total: normalized.length, expectedTotal });
+    }
+    recordMetric({
+      id: 'ai.timeline_unit_count_mismatch',
+      value: 1,
+      tags: createMetricTags('localContextTools', {
+        source: 'list_units',
+        total: normalized.length,
+        expectedTotal,
+      }),
+    });
+  }
 
   return {
     ok: true,
@@ -265,7 +310,7 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
 }
 
 async function getUnitDetail(args: Record<string, unknown>, context: AiPromptContext): Promise<LocalContextToolResult> {
-  const unitId = normalizeTextValue(args.unitId || args.utteranceId);
+  const unitId = normalizeTextValue(args.unitId);
   if (unitId.length === 0) {
     return {
       ok: false,
@@ -306,14 +351,10 @@ export async function executeLocalContextToolCall(
   callCountRef: { current: number },
   maxCalls = 20,
 ): Promise<LocalContextToolResult> {
-  const resolvedCall: LocalContextToolCall = {
-    ...call,
-    name: canonicalToolName(call.name),
-  };
   if (!context) {
     return {
       ok: false,
-      name: resolvedCall.name,
+      name: call.name,
       result: null,
       error: 'context is unavailable',
     };
@@ -322,28 +363,25 @@ export async function executeLocalContextToolCall(
   if (callCountRef.current >= maxCalls) {
     return {
       ok: false,
-      name: resolvedCall.name,
+      name: call.name,
       result: null,
       error: 'local tool call limit exceeded',
     };
   }
   callCountRef.current += 1;
 
-  switch (resolvedCall.name) {
+  switch (call.name) {
     case 'get_current_selection': {
-      const { localUnitIndex: _stripped, localUtteranceIndex: _strippedLegacy, ...visibleShortTerm } = context.shortTerm ?? {};
+      const { localUnitIndex: _stripped, ...visibleShortTerm } = context.shortTerm ?? {};
       return {
         ok: true,
-        name: resolvedCall.name,
+        name: call.name,
         result: {
           ...visibleShortTerm,
           ...(context.longTerm?.projectStats?.unitCount !== undefined
-            ? { projectUnitCount: context.longTerm.projectStats.unitCount, projectUtteranceCount: context.longTerm.projectStats.unitCount }
+            ? { projectUnitCount: context.longTerm.projectStats.unitCount }
             : context.longTerm?.projectStats?.utteranceCount !== undefined
-              ? {
-                  projectUnitCount: context.longTerm.projectStats.utteranceCount,
-                  projectUtteranceCount: context.longTerm.projectStats.utteranceCount,
-                }
+              ? { projectUnitCount: context.longTerm.projectStats.utteranceCount }
             : {}),
         },
       };
@@ -354,27 +392,35 @@ export async function executeLocalContextToolCall(
       return { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
     case 'get_acoustic_summary':
       return { ok: true, name: call.name, result: context.longTerm?.acousticSummary ?? null };
+    case 'find_incomplete_units':
+      return { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
+    case 'diagnose_quality':
+      return { ok: true, name: call.name, result: diagnoseQuality(context) };
+    case 'batch_apply':
+      return { ok: true, name: call.name, result: batchApply(context, call.arguments) };
+    case 'suggest_next_action':
+      return { ok: true, name: call.name, result: suggestNextAction(context) };
     case 'list_units':
       return {
-        ...(await listUnits(context, resolvedCall.arguments)),
+        ...(await listUnits(context, call.arguments)),
         name: call.name,
       };
     case 'search_units':
       return {
-        ...(await searchUnits(context, resolvedCall.arguments)),
+        ...(await searchUnits(context, call.arguments)),
         name: call.name,
       };
     case 'get_unit_detail':
       return {
-        ...(await getUnitDetail(resolvedCall.arguments, context)),
+        ...(await getUnitDetail(call.arguments, context)),
         name: call.name,
       };
     default:
       return {
         ok: false,
-        name: resolvedCall.name,
+        name: call.name,
         result: null,
-        error: `unsupported local context tool: ${resolvedCall.name}`,
+        error: `unsupported local context tool: ${call.name}`,
       };
   }
 }
@@ -400,10 +446,11 @@ function scopeLabelByToolName(name: LocalContextToolName): string {
     case 'list_units':
     case 'search_units':
     case 'get_unit_detail':
-    case 'list_utterances':
-    case 'search_utterances':
-    case 'get_utterance_detail':
     case 'get_project_stats':
+    case 'find_incomplete_units':
+    case 'diagnose_quality':
+    case 'batch_apply':
+    case 'suggest_next_action':
       return 'project';
     case 'get_current_selection':
       return 'selection+track';
@@ -454,7 +501,10 @@ export function buildLocalContextToolGuide(): string {
     '- get_project_stats(arguments:{}): Project stats ({unitCount,translationLayerCount,aiConfidenceAvg})',
     '- get_waveform_analysis(arguments:{}): Current track waveform analysis summary',
     '- get_acoustic_summary(arguments:{}): Current selection acoustic summary',
-    '- Compatibility aliases still accepted for one transition cycle: list_utterances/search_utterances/get_utterance_detail',
+    '- find_incomplete_units(arguments:{"limit":12}): High-order query for units not yet verified',
+    '- diagnose_quality(arguments:{}): Aggregated quality report for missing text/speaker/gaps',
+    '- batch_apply(arguments:{"action":"...","unitIds":["..."]}): Batch preview contract for the same action across many units',
+    '- suggest_next_action(arguments:{}): Ranked next-step recommendations from current project state',
     '- Tool JSON payloads may be truncated at 2000 chars; treat omitted tail as unknown and do not fabricate missing values',
   ].join('\n');
 }

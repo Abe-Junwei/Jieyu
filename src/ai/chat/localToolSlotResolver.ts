@@ -10,7 +10,6 @@ type LocalToolStatePatch = {
   lastIntent?: LocalToolIntent;
   lastQuery?: string;
   lastResultUnitIds?: string[];
-  lastResultUtteranceIds?: string[];
   /** When true, drop persisted lastQuery (e.g. after list-all). */
   clearLastQuery?: boolean;
 };
@@ -77,7 +76,7 @@ function resolveSearchCall(call: LocalContextToolCall, userText: string, memory:
 
   if (isUtteranceListIntentText(userText)) {
     return {
-      name: call.name === 'search_units' ? 'list_units' : 'list_utterances',
+      name: 'list_units',
       arguments: { limit },
     };
   }
@@ -107,37 +106,31 @@ function resolveSearchCall(call: LocalContextToolCall, userText: string, memory:
   }
 
   return {
-    name: call.name === 'search_units' ? 'list_units' : 'list_utterances',
+    name: 'list_units',
     arguments: { limit },
   };
 }
 
 function resolveDetailCall(call: LocalContextToolCall, userText: string, memory: AiSessionMemory): LocalContextToolCall {
-  const unitId = normalizeText(call.arguments.unitId ?? call.arguments.utteranceId);
+  const unitId = normalizeText(call.arguments.unitId);
   if (unitId.length > 0) {
     return {
       ...call,
-      ...(call.name === 'get_unit_detail'
-        ? { arguments: { ...call.arguments, unitId } }
-        : { arguments: { ...call.arguments, utteranceId: unitId } }),
+      arguments: { ...call.arguments, unitId },
     };
   }
-  const ids = memory.localToolState?.lastResultUnitIds ?? memory.localToolState?.lastResultUtteranceIds ?? [];
+  const ids = memory.localToolState?.lastResultUnitIds ?? [];
   if (ids.length === 1) {
     return {
       ...call,
-      ...(call.name === 'get_unit_detail'
-        ? { arguments: { ...call.arguments, unitId: ids[0] } }
-        : { arguments: { ...call.arguments, utteranceId: ids[0] } }),
+      arguments: { ...call.arguments, unitId: ids[0] },
     };
   }
   const ordinal = normalizeUtteranceOrdinal(userText);
   if (ordinal && ids[ordinal - 1]) {
     return {
       ...call,
-      ...(call.name === 'get_unit_detail'
-        ? { arguments: { ...call.arguments, unitId: ids[ordinal - 1] } }
-        : { arguments: { ...call.arguments, utteranceId: ids[ordinal - 1] } }),
+      arguments: { ...call.arguments, unitId: ids[ordinal - 1] },
     };
   }
   return call;
@@ -151,13 +144,10 @@ export function resolveLocalToolCalls(
   const resolved = calls.map((call) => {
     switch (call.name) {
       case 'search_units':
-      case 'search_utterances':
         return resolveSearchCall(call, userText, memory);
       case 'get_unit_detail':
-      case 'get_utterance_detail':
         return resolveDetailCall(call, userText, memory);
       case 'list_units':
-      case 'list_utterances':
         return {
           ...call,
           arguments: {
@@ -191,7 +181,7 @@ export function buildLocalToolStatePatchFromCallResult(
   const intent = inferIntentFromToolName(call.name) ?? undefined;
   const resultIds = asResultUtteranceIds(result.result);
   const query =
-    call.name === 'search_utterances' || call.name === 'search_units'
+    call.name === 'search_units'
       ? normalizeText(call.arguments.query)
       : '';
   const patch: LocalToolStatePatch = {};
@@ -200,12 +190,11 @@ export function buildLocalToolStatePatchFromCallResult(
   }
   if (query.length > 0) {
     patch.lastQuery = query;
-  } else if (call.name === 'list_utterances' || call.name === 'list_units') {
+  } else if (call.name === 'list_units') {
     patch.clearLastQuery = true;
   }
-  if (intent === 'utterance.list' || intent === 'utterance.search' || intent === 'unit.list' || intent === 'unit.search') {
+  if (intent === 'unit.list' || intent === 'unit.search') {
     patch.lastResultUnitIds = resultIds;
-    patch.lastResultUtteranceIds = resultIds;
   }
   return patch;
 }

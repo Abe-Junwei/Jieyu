@@ -1,5 +1,6 @@
 import { createLogger } from '../../observability/logger';
 import type { AiSessionMemory } from './chatDomain.types';
+import { trimTextToMax } from './historyTrim';
 
 const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
 const log = createLogger('aiChatSessionMemory');
@@ -65,27 +66,27 @@ function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['loca
   const state = memory.localToolState;
   if (!state || typeof state !== 'object') return undefined;
   const lastIntent = state.lastIntent;
-  const normalizedIntent = lastIntent === 'utterance.list'
-    || lastIntent === 'utterance.search'
-    || lastIntent === 'utterance.detail'
+  const normalizedIntent = lastIntent === 'unit.list'
+    || lastIntent === 'unit.search'
+    || lastIntent === 'unit.detail'
     ? lastIntent
     : undefined;
   const lastQuery = typeof state.lastQuery === 'string' && state.lastQuery.trim().length > 0
     ? state.lastQuery.trim()
     : undefined;
-  const lastResultUtteranceIds = Array.isArray(state.lastResultUtteranceIds)
-    ? state.lastResultUtteranceIds
+  const lastResultUnitIds = Array.isArray(state.lastResultUnitIds)
+    ? state.lastResultUnitIds
       .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       .map((item) => item.trim())
       .slice(0, 200)
     : undefined;
-  if (!normalizedIntent && !lastQuery && (!lastResultUtteranceIds || lastResultUtteranceIds.length === 0)) {
+  if (!normalizedIntent && !lastQuery && (!lastResultUnitIds || lastResultUnitIds.length === 0)) {
     return undefined;
   }
   return {
     ...(normalizedIntent ? { lastIntent: normalizedIntent } : {}),
     ...(lastQuery ? { lastQuery } : {}),
-    ...(lastResultUtteranceIds && lastResultUtteranceIds.length > 0 ? { lastResultUtteranceIds } : {}),
+    ...(lastResultUnitIds && lastResultUnitIds.length > 0 ? { lastResultUnitIds } : {}),
     updatedAt: typeof state.updatedAt === 'string' && state.updatedAt.trim().length > 0
       ? state.updatedAt
       : nowIso(),
@@ -235,6 +236,32 @@ export function setSessionMemoryMessagePinned(
     ...memory,
     pinnedMessageIds: Array.from(pinnedSet),
   });
+}
+
+/**
+ * Compact session-memory slice for tier-2 prompt context (Phase 14).
+ * Prefer `conversationSummary`; add prior chain tails only when they add new wording.
+ */
+export function buildSessionMemoryPromptDigest(memory: AiSessionMemory, maxChars: number): string {
+  if (maxChars <= 0) return '';
+  const rolling = memory.conversationSummary?.trim();
+  const chain = memory.summaryChain;
+  const parts: string[] = [];
+  if (rolling) {
+    parts.push(`rollingSummary=${rolling}`);
+  }
+  if (chain && chain.length > 0) {
+    const tail = chain.slice(-2);
+    const tailText = tail
+      .map((e) => e.summary.trim())
+      .filter(Boolean)
+      .join(' | ');
+    if (tailText && tailText !== rolling) {
+      parts.push(`earlierSummaries=${tailText}`);
+    }
+  }
+  if (parts.length === 0) return '';
+  return trimTextToMax(parts.join('\n'), maxChars);
 }
 
 export function clearConversationSummaryMemory(memory: AiSessionMemory): AiSessionMemory {

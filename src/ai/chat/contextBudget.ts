@@ -6,6 +6,8 @@ const RESERVED_OUTPUT_RATIO = 0.3;
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 const MIN_CONTEXT_CHARS = 1200;
 const MIN_HISTORY_CHARS = 6000;
+/** Upper bound for [CONTEXT] block sizing from usable input tokens (chars ≈ tokens × 4). */
+const MAX_CONTEXT_CHARS_FROM_USABLE_CAP = 100_000;
 
 const BUILTIN_PROVIDER_CONTEXT_LIMITS: Record<string, number> = {
   'deepseek-chat': 64_000,
@@ -39,6 +41,15 @@ export interface ContextBudgetTokens {
 export interface ContextCharBudgets extends ContextBudgetTokens {
   maxContextChars: number;
   historyCharBudget: number;
+  /**
+   * Soft floor for tier-1 [CONTEXT] fields when trimming `worldModelSnapshot`
+   * (Phase 14 — prefer keeping grounding before tier-2 expansion).
+   */
+  tier1ContextFloorChars: number;
+  /** Max chars for `sessionMemoryDigest` injected into ShortTerm (tier 2). */
+  sessionMemoryDigestMaxChars: number;
+  /** Max chars for `buildConversationSummaryFromHistory` on each summary pass. */
+  conversationSummaryMaxChars: number;
 }
 
 let limitsCache: Record<string, number> | null = null;
@@ -76,6 +87,22 @@ function resolveContextLimitTokens(
 
 function tokensToChars(tokenBudget: number): number {
   return Math.max(0, Math.floor(tokenBudget * CHARS_PER_TOKEN_ESTIMATE));
+}
+
+/** Tier-1 context floor: clamped fraction of the context block cap. */
+export function computeTier1ContextFloorChars(maxContextChars: number): number {
+  const raw = Math.floor(maxContextChars * 0.38);
+  return Math.min(3600, Math.max(480, raw));
+}
+
+export function computeSessionMemoryDigestMaxChars(maxContextChars: number): number {
+  const raw = Math.floor(maxContextChars * 0.2);
+  return Math.min(2400, Math.max(160, raw));
+}
+
+export function computeConversationSummaryMaxChars(historyCharBudget: number): number {
+  const raw = Math.floor(historyCharBudget * 0.3);
+  return Math.min(4000, Math.max(280, raw));
 }
 
 export function computeContextBudget(
@@ -134,12 +161,21 @@ export async function resolveContextCharBudgets(input: {
   const limits = await loadProviderContextLimits();
   const tokenBudget = computeContextBudget(input.providerKind, input.model, limits);
 
+  const derivedMaxContextChars = Math.max(
+    MIN_CONTEXT_CHARS,
+    Math.min(MAX_CONTEXT_CHARS_FROM_USABLE_CAP, tokensToChars(tokenBudget.usableInputTokens)),
+  );
+  const maxContextChars = input.maxContextCharsOverride ?? derivedMaxContextChars;
+  const historyCharBudget = input.historyCharBudgetOverride
+    ?? Math.max(MIN_HISTORY_CHARS, tokensToChars(tokenBudget.historyBudgetTokens));
+
   return {
     ...tokenBudget,
-    maxContextChars: input.maxContextCharsOverride
-      ?? Math.max(MIN_CONTEXT_CHARS, tokensToChars(tokenBudget.systemBudgetTokens)),
-    historyCharBudget: input.historyCharBudgetOverride
-      ?? Math.max(MIN_HISTORY_CHARS, tokensToChars(tokenBudget.historyBudgetTokens)),
+    maxContextChars,
+    historyCharBudget,
+    tier1ContextFloorChars: computeTier1ContextFloorChars(maxContextChars),
+    sessionMemoryDigestMaxChars: computeSessionMemoryDigestMaxChars(maxContextChars),
+    conversationSummaryMaxChars: computeConversationSummaryMaxChars(historyCharBudget),
   };
 }
 

@@ -149,16 +149,12 @@ export interface AiSessionMemorySummaryQualityWarning {
 export type LocalToolIntent =
   | 'unit.list'
   | 'unit.search'
-  | 'unit.detail'
-  | 'utterance.list'
-  | 'utterance.search'
-  | 'utterance.detail';
+  | 'unit.detail';
 
 export interface AiSessionMemoryLocalToolState {
   lastIntent?: LocalToolIntent;
   lastQuery?: string;
   lastResultUnitIds?: string[];
-  lastResultUtteranceIds?: string[];
   updatedAt: string;
 }
 
@@ -226,6 +222,7 @@ export type AiChatToolName =
   | 'auto_gloss_utterance'
   | 'set_token_pos'
   | 'set_token_gloss'
+  | 'propose_changes'
   | VoiceActionToolName;
 
 export interface AiChatToolCall {
@@ -242,12 +239,16 @@ export interface AiChatToolResult {
 export interface PendingAiToolCall {
   call: AiChatToolCall;
   executionCall?: AiChatToolCall;
+  /** When `call.name === 'propose_changes'`, child tools to run after the user confirms (preview-only parent). */
+  proposedChildCalls?: ReadonlyArray<AiChatToolCall>;
   assistantMessageId: string;
   riskSummary?: string;
   impactPreview?: string[];
   previewContract?: PreviewContract;
   requestId?: string;
   auditContext?: ToolAuditContext;
+  /** Timeline read-model epoch when the pending destructive tool was captured (for stale confirmation guard). */
+  readModelEpochCaptured?: number;
 }
 
 export interface PreviewContract {
@@ -265,25 +266,16 @@ export interface AiToolRiskCheckResult {
 
 export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
-export interface AiLegacyLocalUtteranceToolRow {
-  id: string;
-  textId?: string;
-  mediaId?: string;
-  startTime: number;
-  endTime: number;
-  transcription: string;
-  speakerId?: string;
-  annotationStatus?: string;
-}
-
 export interface AiShortTermContext {
   page?: string;
-  activeUtteranceUnitId?: string;
+  activeUnitId?: string;
   activeSegmentUnitId?: string;
   selectedUnitKind?: 'utterance' | 'segment';
   selectedUnitIds?: string[];
-  selectedUtteranceStartSec?: number;
-  selectedUtteranceEndSec?: number;
+  /** Full selection cardinality; `selectedUnitIds` may be capped for prompt size. */
+  selectedUnitCount?: number;
+  selectedUnitStartSec?: number;
+  selectedUnitEndSec?: number;
   selectedLayerId?: string;
   selectedLayerType?: 'transcription' | 'translation';
   selectedTranslationLayerId?: string;
@@ -297,22 +289,24 @@ export interface AiShortTermContext {
   currentMediaUnitCount?: number;
   /** Timeline digest on current media (utterance or segment). */
   unitTimeline?: string;
+  /** Hierarchical project/media/unit/layer snapshot for AI grounding. */
+  worldModelSnapshot?: string;
+  /** Monotonic epoch from `useTimelineUnitViewIndex` / timeline read model; used for destructive tool confirmation. */
+  timelineReadModelEpoch?: number;
+  /** False means segment-backed unit index may still be loading; empty unit lists are not authoritative yet. */
+  unitIndexComplete?: boolean;
   /** Full-project unit snapshot for local list/search/detail tools (not serialized into prompt text). */
   localUnitIndex?: ReadonlyArray<TimelineUnitView>;
-  /** @deprecated Use projectUnitCount */
-  projectUtteranceCount?: number;
-  /** @deprecated Use currentMediaUnitCount */
-  utterancesOnCurrentMediaCount?: number;
-  /** @deprecated Use unitTimeline */
-  utteranceTimeline?: string;
-  /** @deprecated Use localUnitIndex */
-  localUtteranceIndex?: ReadonlyArray<TimelineUnitView | AiLegacyLocalUtteranceToolRow>;
   recentEdits?: string[];
+  recentActions?: string[];
+  /** Tier-2 rolling conversation digest from session memory (not a substitute for [CONTEXT] counts). */
+  sessionMemoryDigest?: string;
 }
 
 export interface AiLongTermContext {
   projectStats?: {
     unitCount?: number;
+    /** @deprecated Prefer `unitCount`; kept for deserialized legacy snapshots. */
     utteranceCount?: number;
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;
@@ -370,6 +364,8 @@ export interface UseAiChatOptions {
   maxContextChars?: number;
   historyCharBudget?: number;
   allowDestructiveToolCalls?: boolean;
+  /** Current timeline read-model epoch; used to reject stale pending tool confirmations. */
+  getTimelineReadModelEpoch?: () => number | undefined;
   streamPersistIntervalMs?: number;
   firstChunkTimeoutMs?: number;
   autoProbeIntervalMs?: number;

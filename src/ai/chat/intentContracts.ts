@@ -57,16 +57,10 @@ export function inferIntentFromToolName(toolName: LocalContextToolCall['name']):
   switch (toolName) {
     case 'list_units':
       return 'unit.list';
-    case 'list_utterances':
-      return 'utterance.list';
     case 'search_units':
       return 'unit.search';
-    case 'search_utterances':
-      return 'utterance.search';
     case 'get_unit_detail':
       return 'unit.detail';
-    case 'get_utterance_detail':
-      return 'utterance.detail';
     default:
       return null;
   }

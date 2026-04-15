@@ -44,7 +44,7 @@ describe('Agent Loop multi-step integration', () => {
   it('stops on mixed ok/failed results within a batch', () => {
     const mixed = [
       { ok: true, name: 'get_project_stats' as const, result: { segments: 42 } },
-      { ok: false, name: 'get_utterance_detail' as const, result: null, error: 'utteranceId is required' },
+      { ok: false, name: 'get_unit_detail' as const, result: null, error: 'unitId is required' },
     ];
     expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, mixed)).toBe(false);
   });
@@ -69,12 +69,12 @@ describe('Agent Loop multi-step integration', () => {
   it('continuation prompt preserves original user request across steps', () => {
     const prompt = buildAgentLoopContinuationInput(
       '请给所有低置信度句段标注拼音',
-      [{ ok: true, name: 'search_utterances', result: { count: 5, matches: [{id: 's1'}] } }],
+      [{ ok: true, name: 'search_units', result: { count: 5, matches: [{id: 's1'}] } }],
       3,
     );
     expect(prompt).toContain('请给所有低置信度句段标注拼音');
     expect(prompt).toContain('"step":3');
-    expect(prompt).toContain('search_utterances');
+    expect(prompt).toContain('search_units');
   });
 
   it('step at exactly maxSteps does not continue', () => {
@@ -226,7 +226,7 @@ describe('Local context tool execution chain', () => {
       selectedText: '你好世界',
     },
     longTerm: {
-      projectStats: { utteranceCount: 42, translationLayerCount: 2, aiConfidenceAvg: 0.85 },
+      projectStats: { unitCount: 42, translationLayerCount: 2, aiConfidenceAvg: 0.85 },
       waveformAnalysis: { lowConfidenceCount: 3, overlapCount: 1, gapCount: 0 },
       acousticSummary: { f0Range: '80-320 Hz', intensityRange: '45-78 dB' },
     },
@@ -238,8 +238,7 @@ describe('Local context tool execution chain', () => {
     expect(result.ok).toBe(true);
     expect(result.result).toEqual({
       ...mockContext.shortTerm,
-      projectUnitCount: mockContext.longTerm!.projectStats!.utteranceCount,
-      projectUtteranceCount: mockContext.longTerm!.projectStats!.utteranceCount,
+      projectUnitCount: mockContext.longTerm!.projectStats!.unitCount,
     });
   });
 
@@ -247,7 +246,7 @@ describe('Local context tool execution chain', () => {
     const call: LocalContextToolCall = { name: 'get_project_stats', arguments: {} };
     const result = await executeLocalContextToolCall(call, mockContext, { current: 0 });
     expect(result.ok).toBe(true);
-    expect((result.result as { utteranceCount: number }).utteranceCount).toBe(42);
+    expect((result.result as { unitCount: number }).unitCount).toBe(42);
   });
 
   it('get_acoustic_summary returns acoustic data', async () => {
@@ -322,7 +321,7 @@ describe('Combined Agent Loop + local tools + summary flow', () => {
   it('simulates a 3-step search-then-detail-then-answer flow', async () => {
     const context: AiPromptContext = {
       shortTerm: { selectedUnitIds: ['seg-1'] },
-      longTerm: { projectStats: { utteranceCount: 10 } },
+      longTerm: { projectStats: { unitCount: 10 } },
     };
     const callCounter = { current: 0 };
 
