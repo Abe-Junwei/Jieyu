@@ -22,13 +22,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
-import {
-  buildAiToolGoldenSnapshot,
-  diffAiToolSnapshot,
-  type AiToolGoldenSnapshot,
-  type AiToolReplayBundle,
-  type AiToolReplayDecision,
-} from '../../src/ai/auditReplay';
+import { buildAiToolGoldenSnapshot, diffAiToolSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolReplayDecision } from '../../src/ai/auditReplay';
 
 const SNAPSHOT_DIR = join(__dirname, 'ai-decisions');
 
