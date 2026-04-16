@@ -190,8 +190,8 @@ describe('isIndependentBoundaryLayer', () => {
 // ── getLayerEditMode ──
 
 describe('getLayerEditMode', () => {
-  it('returns utterance when layer is undefined', () => {
-    expect(getLayerEditMode(undefined, 'other')).toBe('utterance');
+  it('returns unit when layer is undefined', () => {
+    expect(getLayerEditMode(undefined, 'other')).toBe('unit');
   });
 
   it('returns independent-segment for constraint=independent_boundary non-default layer', () => {
@@ -206,12 +206,12 @@ describe('getLayerEditMode', () => {
     expect(getLayerEditMode(makeLayer({ constraint: 'time_subdivision' }), 'other')).toBe('time-subdivision');
   });
 
-  it('returns utterance for constraint=symbolic_association', () => {
-    expect(getLayerEditMode(makeLayer({ constraint: 'symbolic_association' }), 'other')).toBe('utterance');
+  it('returns unit for constraint=symbolic_association', () => {
+    expect(getLayerEditMode(makeLayer({ constraint: 'symbolic_association' }), 'other')).toBe('unit');
   });
 
-  it('returns utterance for undefined constraint', () => {
-    expect(getLayerEditMode(makeLayer({}), 'other')).toBe('utterance');
+  it('returns unit for undefined constraint', () => {
+    expect(getLayerEditMode(makeLayer({}), 'other')).toBe('unit');
   });
 
   it('returns independent-segment when no defaultTranscriptionLayerId and constraint is independent_boundary', () => {

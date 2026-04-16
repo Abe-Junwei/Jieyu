@@ -18,22 +18,15 @@ import { useTranscriptionLifecycle } from './useTranscriptionLifecycle';
 import { useTranscriptionMutexActionWrappers } from './useTranscriptionMutexActionWrappers';
 import { useTranscriptionCanonicalActions } from './useTranscriptionCanonicalActions';
 import { useTranscriptionPersistence } from './useTranscriptionPersistence';
-import {
-  isSegmentTimelineUnit,
-  isUtteranceTimelineUnit,
-  type DbState,
-  type LayerCreateInput,
-  type SaveState,
-  type SnapGuide,
-} from './transcriptionTypes';
+import { isSegmentTimelineUnit, isUnitTimelineUnit, type DbState, type LayerCreateInput, type SaveState, type SnapGuide } from './transcriptionTypes';
 export type { DbState, LayerCreateInput, SaveState, SnapGuide };
 
 export function useTranscriptionData() {
   const {
     state,
     setState,
-    utterances,
-    setUtterances,
+    units,
+    setUnits,
     anchors,
     setAnchors,
     layers,
@@ -58,8 +51,8 @@ export function useTranscriptionData() {
     setSaveState,
     layerCreateMessage,
     setLayerCreateMessage,
-    utteranceDrafts,
-    setUtteranceDrafts,
+    unitDrafts,
+    setUnitDrafts,
     translationDrafts,
     setTranslationDrafts,
     snapGuide,
@@ -72,7 +65,7 @@ export function useTranscriptionData() {
     setTranscriptionTrackMode,
     autoSaveTimersRef,
     focusedTranslationDraftKeyRef,
-    utterancesRef,
+    unitsRef,
     anchorsRef,
     translationsRef,
     layersRef,
@@ -84,7 +77,7 @@ export function useTranscriptionData() {
     selectedLayerIdRef,
   } = useTranscriptionState();
 
-  const activeUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
+  const activeUnitId = isUnitTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
   const activeSegmentUnitId = isSegmentTimelineUnit(selectedTimelineUnit)
@@ -95,7 +88,7 @@ export function useTranscriptionData() {
     runWithDbMutex,
     syncToDb,
   } = useTranscriptionPersistence({
-    utterancesRef,
+    unitsRef,
     translationsRef,
       speakersRef,
   });
@@ -106,7 +99,7 @@ export function useTranscriptionData() {
     recoverySave,
     scheduleRecoverySave,
   } = useTranscriptionRecoverySnapshotScheduler({
-    utterancesRef,
+    unitsRef,
     translationsRef,
     layersRef,
   });
@@ -117,7 +110,7 @@ export function useTranscriptionData() {
     updateAnchorTime,
   } = useTranscriptionAnchorActions({
     anchorsRef,
-    utterancesRef,
+    unitsRef,
     setAnchors,
   });
 
@@ -136,7 +129,7 @@ export function useTranscriptionData() {
     undoLabel,
     undoHistory,
   } = useTranscriptionUndo({
-    utterancesRef,
+    unitsRef,
     translationsRef,
     layersRef,
     layerLinksRef,
@@ -144,7 +137,7 @@ export function useTranscriptionData() {
     dirtyRef,
     scheduleRecoverySave,
     syncToDb,
-    setUtterances,
+    setUnits,
     setTranslations,
     setLayers,
     setLayerLinks,
@@ -162,13 +155,13 @@ export function useTranscriptionData() {
     layerPendingDelete,
     selectedUnit,
     selectedUnitMedia,
-    utterancesOnCurrentMedia,
-    visibleUtterances,
+    unitsOnCurrentMedia,
+    visibleUnits,
     aiConfidenceAvg,
     translationTextByLayer,
     layerById,
     defaultTranscriptionLayerId,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     selectedRowMeta,
   } = useTranscriptionDerivedData({
     layers,
@@ -176,13 +169,13 @@ export function useTranscriptionData() {
     selectedTimelineUnit,
     selectedMediaId,
     mediaItems,
-    utterances,
+    units,
     translations,
   });
 
   useEffect(() => {
     if (state.phase !== 'ready') return;
-    const nextUnitCount = utterances.length;
+    const nextUnitCount = units.length;
     const nextTranslationLayerCount = translationLayers.length;
     const nextTranslationRecordCount = translations.length;
     setState((prev) => {
@@ -204,7 +197,7 @@ export function useTranscriptionData() {
         translationRecordCount: nextTranslationRecordCount,
       };
     });
-  }, [state.phase, utterances.length, translationLayers.length, translations.length, setState]);
+  }, [state.phase, units.length, translationLayers.length, translations.length, setState]);
 
   const {
     selectedMediaUrl,
@@ -218,7 +211,7 @@ export function useTranscriptionData() {
     selectedUnitMedia,
   });
 
-  const utterancesOnCurrentMediaRef = useLatest(utterancesOnCurrentMedia);
+  const unitsOnCurrentMediaRef = useLatest(unitsOnCurrentMedia);
 
   const {
     clearAutoSaveTimer,
@@ -229,6 +222,7 @@ export function useTranscriptionData() {
 
   const {
     loadSnapshot,
+    loadLinguisticAnnotations,
   } = useTranscriptionSnapshotLoader({
     dbNameRef,
     setAnchors,
@@ -241,8 +235,8 @@ export function useTranscriptionData() {
     setSelectedTimelineUnit,
     setState,
     setTranslations,
-    setUtteranceDrafts,
-    setUtterances,
+    setUnitDrafts,
+    setUnits,
   });
 
   const {
@@ -251,7 +245,7 @@ export function useTranscriptionData() {
     dismissRecovery,
   } = useTranscriptionRecoveryActions({
     dbNameRef,
-    utterancesRef,
+    unitsRef,
     loadSnapshot,
     runWithDbMutex,
     setSaveState,
@@ -261,21 +255,21 @@ export function useTranscriptionData() {
   const {
     saveVoiceTranslation: saveVoiceTranslationRaw,
     deleteVoiceTranslation: deleteVoiceTranslationRaw,
-    saveUtteranceText: saveUtteranceTextRaw,
-    saveUtteranceSelfCertainty: saveUtteranceSelfCertaintyRaw,
-    saveUtteranceTiming: saveUtteranceTimingRaw,
-    saveTextTranslationForUtterance: saveTextTranslationForUtteranceRaw,
-    createNextUtterance: createNextUtteranceRaw,
-    createUtteranceFromSelection: createUtteranceFromSelectionRaw,
-    deleteUtterance: deleteUtteranceRaw,
+    saveUnitText: saveUnitTextRaw,
+    saveUnitSelfCertainty: saveUnitSelfCertaintyRaw,
+    saveUnitTiming: saveUnitTimingRaw,
+    saveUnitLayerText: saveUnitLayerTextRaw,
+    createAdjacentUnit: createAdjacentUnitRaw,
+    createUnitFromSelection: createUnitFromSelectionRaw,
+    deleteUnit: deleteUnitRaw,
     mergeWithPrevious: mergeWithPreviousRaw,
     mergeWithNext: mergeWithNextRaw,
-    splitUtterance: splitUtteranceRaw,
-    deleteSelectedUtterances: deleteSelectedUtterancesRaw,
+    splitUnit: splitUnitRaw,
+    deleteSelectedUnits: deleteSelectedUnitsRaw,
     offsetSelectedTimes: offsetSelectedTimesRaw,
     scaleSelectedTimes: scaleSelectedTimesRaw,
     splitByRegex: splitByRegexRaw,
-    mergeSelectedUtterances: mergeSelectedUtterancesRaw,
+    mergeSelectedUnits: mergeSelectedUnitsRaw,
     createLayer: createLayerRaw,
     deleteLayer: deleteLayerRaw,
     deleteLayerWithoutConfirm,
@@ -293,9 +287,9 @@ export function useTranscriptionData() {
     selectedUnitMedia,
     activeUnitId,
     translations,
-    utterancesRef,
-    utterancesOnCurrentMediaRef,
-    getUtteranceTextForLayer,
+    unitsRef,
+    unitsOnCurrentMediaRef,
+    getUnitTextForLayer,
     timingGestureRef,
     timingUndoRef,
     pushUndo,
@@ -314,8 +308,8 @@ export function useTranscriptionData() {
     setSnapGuide,
     setMediaItems,
     setTranslations,
-    setUtterances,
-    setUtteranceDrafts,
+    setUnits,
+    setUnitDrafts,
     setSelectedUnitIds,
     setSelectedTimelineUnit,
     allowOverlapInTranscription: transcriptionTrackMode !== 'single',
@@ -324,21 +318,21 @@ export function useTranscriptionData() {
   const {
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
-    deleteSelectedUtterances,
+    splitUnit,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
     createLayer,
     deleteLayer,
     toggleLayerLink,
@@ -346,21 +340,21 @@ export function useTranscriptionData() {
     runWithDbMutex,
     saveVoiceTranslationRaw,
     deleteVoiceTranslationRaw,
-    saveUtteranceTextRaw,
-    saveUtteranceSelfCertaintyRaw,
-    saveUtteranceTimingRaw,
-    saveTextTranslationForUtteranceRaw,
-    createNextUtteranceRaw,
-    createUtteranceFromSelectionRaw,
-    deleteUtteranceRaw,
+    saveUnitTextRaw,
+    saveUnitSelfCertaintyRaw,
+    saveUnitTimingRaw,
+    saveUnitLayerTextRaw,
+    createAdjacentUnitRaw,
+    createUnitFromSelectionRaw,
+    deleteUnitRaw,
     mergeWithPreviousRaw,
     mergeWithNextRaw,
-    splitUtteranceRaw,
-    deleteSelectedUtterancesRaw,
+    splitUnitRaw,
+    deleteSelectedUnitsRaw,
     offsetSelectedTimesRaw,
     scaleSelectedTimesRaw,
     splitByRegexRaw,
-    mergeSelectedUtterancesRaw,
+    mergeSelectedUnitsRaw,
     createLayerRaw,
     deleteLayerRaw,
     toggleLayerLinkRaw,
@@ -370,7 +364,7 @@ export function useTranscriptionData() {
     getNeighborBounds,
     makeSnapGuide,
   } = useTranscriptionSnapGuideActions({
-    utterancesRef,
+    unitsRef,
   });
 
   // Selection guards and translation draft sync --------------------------
@@ -385,7 +379,7 @@ export function useTranscriptionData() {
 
   useTranscriptionTranslationDraftSync({
     translationLayers,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     translationTextByLayer,
     setTranslationDrafts,
     focusedTranslationDraftKeyRef,
@@ -394,10 +388,11 @@ export function useTranscriptionData() {
   // Bootstrap and cleanup ------------------------------------------------
   useTranscriptionLifecycle({
     loadSnapshot,
+    loadLinguisticAnnotations,
     setState,
     dbNameRef,
     dirtyRef,
-    utterancesRef,
+    unitsRef,
     translationsRef,
     layersRef,
     autoSaveTimersRef,
@@ -407,14 +402,14 @@ export function useTranscriptionData() {
 
   // v16-1 Phase 2: Canonical token/morpheme read APIs
   const {
-    getCanonicalTokensForUtterance,
+    getCanonicalTokensForUnit,
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,
     updateTokenGloss,
   } = useTranscriptionCanonicalActions({
     runWithDbMutex,
-    setUtterances,
+    setUnits,
   });
 
   const {
@@ -435,7 +430,7 @@ export function useTranscriptionData() {
     selectedUnitIdsRef,
     selectedLayerIdRef,
     selectedTimelineUnitRef,
-    utterancesOnCurrentMediaRef,
+    unitsOnCurrentMediaRef,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     ...(transcriptionLayers[0]?.id !== undefined ? { fallbackLayerId: transcriptionLayers[0].id } : {}),
     setSelectedLayerId,
@@ -446,7 +441,7 @@ export function useTranscriptionData() {
   const stateApi = {
     state,
     setState,
-    utterances,
+    units,
     anchors,
     layers,
     translations,
@@ -466,8 +461,8 @@ export function useTranscriptionData() {
     setSaveState,
     layerCreateMessage,
     setLayerCreateMessage,
-    utteranceDrafts,
-    setUtteranceDrafts,
+    unitDrafts,
+    setUnitDrafts,
     translationDrafts,
     setTranslationDrafts,
     focusedTranslationDraftKeyRef,
@@ -494,29 +489,30 @@ export function useTranscriptionData() {
     selectedMediaUrl,
     selectedMediaBlobSize,
     selectedMediaIsVideo,
-    utterancesOnCurrentMedia,
-    visibleUtterances,
+    unitsOnCurrentMedia,
+    visibleUnits,
     aiConfidenceAvg,
     translationTextByLayer,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     selectedRowMeta,
   };
 
   const actionApi = {
     loadSnapshot,
+    loadLinguisticAnnotations,
     addMediaItem,
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
+    splitUnit,
     selectTimelineUnit,
     selectUnit,
     selectSegment,
@@ -529,11 +525,11 @@ export function useTranscriptionData() {
     clearUnitSelection,
     toggleSegmentSelection,
     selectSegmentRange,
-    deleteSelectedUtterances,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,
@@ -565,7 +561,7 @@ export function useTranscriptionData() {
   };
 
   const canonicalApi = {
-    getCanonicalTokensForUtterance,
+    getCanonicalTokensForUnit,
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,
@@ -581,7 +577,7 @@ export function useTranscriptionData() {
     ...canonicalApi,
     pushUndo,
     segmentUndoRef,
-    setUtterances,
+    setUnits,
     setSpeakers,
     setLayers,
   };

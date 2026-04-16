@@ -69,7 +69,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: '',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '0.00 - 1.00',
       },
       defaultTranscriptionLayerId: trcDefault.id,
@@ -123,7 +123,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '0.00 - 1.00',
       },
       defaultTranscriptionLayerId: trcDefault.id,
@@ -186,7 +186,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: null,
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '12.00 - 15.00',
       },
       defaultTranscriptionLayerId: trcDefault.id,
@@ -248,7 +248,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: trcDefault.id,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '0.00 - 1.00',
       },
       defaultTranscriptionLayerId: trcDefault.id,
@@ -274,8 +274,8 @@ describe('useVoiceInteraction', () => {
 
   it('surfaces analysis writeback failure in voice status and external error', async () => {
     const setExternalError = vi.fn();
-    const setAnalysisFillCallback = vi.fn((utteranceId: string | null, callback: (content: string) => void) => {
-      expect(utteranceId).toBe('utt-1');
+    const setAnalysisFillCallback = vi.fn((unitId: string | null, callback: (content: string) => void) => {
+      expect(unitId).toBe('utt-1');
       callback('分析结果文本');
     });
 
@@ -318,7 +318,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: 'trc-default',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '12.00 - 15.00',
       },
       defaultTranscriptionLayerId: 'trc-default',
@@ -400,7 +400,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 12, endTime: 15 },
         selectedRowMeta: { rowNumber: 3, start: 12, end: 15 },
         selectedLayerId: 'trc-default',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '12.00 - 15.00',
       },
       defaultTranscriptionLayerId: 'trc-default',
@@ -479,7 +479,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: 'trc-default',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '0.00 - 1.00',
       },
       defaultTranscriptionLayerId: 'trc-default',
@@ -545,7 +545,7 @@ describe('useVoiceInteraction', () => {
         selectedUnit: { id: 'utt-1', startTime: 0, endTime: 1 },
         selectedRowMeta: null,
         selectedLayerId: 'trc-default',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedTimeRangeLabel: '0.00 - 1.00',
       },
       defaultTranscriptionLayerId: 'trc-default',

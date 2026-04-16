@@ -16,14 +16,14 @@ export interface ZoomControlsProps {
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
   activeUnitId: string | null;
-  /** Timeline rows on current track (utterance or segment), for fit-selection zoom. */
+  /** Timeline rows on current track (unit or segment), for fit-selection zoom. */
   unitsOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number }>;
   fitPxPerSec: number;
   maxZoomPercent: number;
 
   // 回调 | Callbacks
   onZoomToPercent: (percent: number, mode: 'fit-all' | 'fit-selection' | 'custom') => void;
-  onZoomToUtterance: (startTime: number, endTime: number) => void;
+  onZoomToUnit: (startTime: number, endTime: number) => void;
   onSnapEnabledChange: (enabled: boolean) => void;
   onAutoScrollEnabledChange: (enabled: boolean) => void;
 }
@@ -37,7 +37,7 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   fitPxPerSec,
   maxZoomPercent,
   onZoomToPercent,
-  onZoomToUtterance,
+  onZoomToUnit,
   onSnapEnabledChange,
   onAutoScrollEnabledChange,
 }) => {
@@ -50,9 +50,9 @@ const ZoomControls: FC<ZoomControlsProps> = ({
   const handleFitSelection = useCallback(() => {
     const sel = unitsOnCurrentMedia.find((u) => u.id === activeUnitId);
     if (sel) {
-      onZoomToUtterance(sel.startTime, sel.endTime);
+      onZoomToUnit(sel.startTime, sel.endTime);
     }
-  }, [activeUnitId, unitsOnCurrentMedia, onZoomToUtterance]);
+  }, [activeUnitId, unitsOnCurrentMedia, onZoomToUnit]);
 
   const handleOneToOne = useCallback(() => {
     onZoomToPercent(Math.round((100 / fitPxPerSec) * 100), 'custom');

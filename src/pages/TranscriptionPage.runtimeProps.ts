@@ -1,32 +1,11 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
-import type {
-  TranscriptionPageAssistantRuntimeFrameProps,
-  TranscriptionPageAssistantRuntimeProps,
-  TranscriptionPageAssistantRuntimeVoiceActionProps,
-  TranscriptionPageAssistantRuntimeVoiceContextProps,
-  TranscriptionPageAssistantRuntimeVoiceIntentProps,
-  TranscriptionPageAssistantRuntimeVoiceLifecycleProps,
-  TranscriptionPageAssistantRuntimeVoiceProps,
-  TranscriptionPageAssistantRuntimeVoiceTargetProps,
-  TranscriptionPageAssistantRuntimeVoiceWritebackProps,
-  TranscriptionPageAnalysisEmbeddingProps,
-  TranscriptionPageAnalysisEmbeddingNavigationProps,
-  TranscriptionPageAnalysisEmbeddingProviderActionProps,
-  TranscriptionPageAnalysisEmbeddingProviderConfigProps,
-  TranscriptionPageAnalysisEmbeddingProviderProps,
-  TranscriptionPageAnalysisEmbeddingSourceProps,
-  TranscriptionPageAnalysisRuntimeProps,
-  TranscriptionPageEmbeddingProviderConfig,
-  PdfPreviewOpenRequest,
-  TranscriptionPagePdfRuntimeProps,
-  TranscriptionPagePdfRuntimeRequestProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { TranscriptionPageAssistantRuntimeFrameProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageAssistantRuntimeVoiceActionProps, TranscriptionPageAssistantRuntimeVoiceContextProps, TranscriptionPageAssistantRuntimeVoiceIntentProps, TranscriptionPageAssistantRuntimeVoiceLifecycleProps, TranscriptionPageAssistantRuntimeVoiceProps, TranscriptionPageAssistantRuntimeVoiceTargetProps, TranscriptionPageAssistantRuntimeVoiceWritebackProps, TranscriptionPageAnalysisEmbeddingProps, TranscriptionPageAnalysisEmbeddingNavigationProps, TranscriptionPageAnalysisEmbeddingProviderActionProps, TranscriptionPageAnalysisEmbeddingProviderConfigProps, TranscriptionPageAnalysisEmbeddingProviderProps, TranscriptionPageAnalysisEmbeddingSourceProps, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageEmbeddingProviderConfig, PdfPreviewOpenRequest, TranscriptionPagePdfRuntimeProps, TranscriptionPagePdfRuntimeRequestProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
 type AssistantRuntimeProps = Omit<TranscriptionPageAssistantRuntimeProps, 'locale' | 'aiChatContextValue'>;
@@ -36,7 +15,7 @@ type PdfRuntimeProps = TranscriptionPagePdfRuntimeProps;
 interface CreateAssistantRuntimePropsInput {
   saveState: SaveState;
   recording: boolean;
-  recordingUtteranceId: string | null;
+  recordingUnitId: string | null;
   recordingError: string | null;
   overlapCycleToast?: { index: number; total: number; nonce: number } | null;
   lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
@@ -50,7 +29,7 @@ interface CreateAssistantRuntimePropsInput {
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
+  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selection: TranscriptionSelectionSnapshot;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
@@ -66,12 +45,12 @@ interface CreateAssistantRuntimePropsInput {
 }
 
 interface CreateAnalysisRuntimePropsInput {
-  selectedUnit: UtteranceDocType | null | undefined;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  selectedUnit: LayerUnitDocType | null | undefined;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
   onJumpToCitation: TranscriptionPageAnalysisEmbeddingNavigationProps['onJumpToCitation'];
-  onJumpToEmbeddingMatch: (utteranceId: string) => void;
+  onJumpToEmbeddingMatch: (unitId: string) => void;
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   onEmbeddingProviderConfigChange: (config: TranscriptionPageEmbeddingProviderConfig) => void;
   externalErrorMessage: string | null;
@@ -97,7 +76,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
   const frame: TranscriptionPageAssistantRuntimeFrameProps = {
     saveState: input.saveState,
     recording: input.recording,
-    recordingUtteranceId: input.recordingUtteranceId,
+    recordingUnitId: input.recordingUnitId,
     recordingError: input.recordingError,
     ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
     ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
@@ -162,8 +141,8 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
 export function createAnalysisRuntimeProps(input: CreateAnalysisRuntimePropsInput): AnalysisRuntimeProps {
   const source: TranscriptionPageAnalysisEmbeddingSourceProps = {
     selectedUnit: input.selectedUnit ?? null,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+    getUnitTextForLayer: input.getUnitTextForLayer,
     formatTime: input.formatTime,
     externalErrorMessage: input.externalErrorMessage,
   };

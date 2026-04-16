@@ -3,13 +3,11 @@ import * as Earcon from '../services/EarconService';
 import { getActionLabel } from '../services/voiceIntentUi';
 import { globalContext } from '../services/GlobalContextService';
 import { userBehaviorStore } from '../services/UserBehaviorStore';
+import { resolveVoiceIntent } from '../services/voiceIntentResolution';
 import type { ActionId, ActionIntent, VoiceIntent, VoiceSession, VoiceSessionEntry } from '../services/IntentRouter';
 import type { SttResult } from '../services/VoiceInputService';
-import {
-  loadIntentRouterRuntime,
-  loadVoiceIntentRefineRuntime,
-} from './useVoiceAgent.runtime';
-import { t, tf, type Locale } from '../i18n';
+import { loadIntentRouterRuntime, loadVoiceIntentRefineRuntime } from './useVoiceAgent.runtime';
+import { tf, type Locale } from '../i18n';
 
 type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
 
@@ -83,7 +81,7 @@ function updateDisambiguationOptions(
 
 async function resolveVoiceIntentFromResult(options: {
   result: SttResult;
-  currentMode: VoiceAgentMode;
+  currentMode: 'command' | 'dictation' | 'analysis';
   session: VoiceSession;
   aliasMap: Record<string, ActionId>;
   resolveIntentWithLlm: ((input: {
@@ -95,55 +93,33 @@ async function resolveVoiceIntentFromResult(options: {
   setError: (value: string | null) => void;
 }) {
   const intentRouter = await loadIntentRouterRuntime();
-  let intent = intentRouter.routeIntent(options.result.text, options.currentMode, {
-    sttConfidence: options.result.confidence,
-    detectedLang: options.result.lang,
-    aliasMap: options.aliasMap,
-  });
+  const { refineLlmFallbackIntent } = await loadVoiceIntentRefineRuntime();
 
-  let llmFallbackFailed = false;
-  let llmResolvedAction = false;
-  if (intent.type === 'chat' && options.currentMode === 'command' && options.resolveIntentWithLlm) {
-    try {
-      const fallbackIntent = await options.resolveIntentWithLlm({
-        text: options.result.text,
-        mode: options.currentMode,
-        session: options.session,
-      });
-      if (fallbackIntent) {
-        const { refineLlmFallbackIntent } = await loadVoiceIntentRefineRuntime();
-        intent = refineLlmFallbackIntent(fallbackIntent, options.result);
-        llmResolvedAction = intent.type === 'action';
-      } else {
-        llmFallbackFailed = true;
-        options.setError(t(options.locale, 'transcription.voice.error.commandUnrecognized'));
-      }
-    } catch (err) {
-      llmFallbackFailed = true;
-      options.setError(err instanceof Error ? err.message : t(options.locale, 'transcription.voice.error.intentResolveFailed'));
-    }
-  }
-
-  if (llmResolvedAction && intent.type === 'action') {
-    const learned = intentRouter.learnVoiceIntentAlias(options.result.text, intent.actionId);
-    if (learned.applied) {
-      return {
-        intentRouter,
-        intent,
-        llmFallbackFailed,
-        nextAliasMap: learned.aliasMap,
-      };
-    }
-  }
-  if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
-    intentRouter.bumpAliasUsage(options.result.text);
+  const { intent, llmFallbackFailed, nextAliasMap, errorMessage } = await resolveVoiceIntent(
+    {
+      routeIntent: intentRouter.routeIntent,
+      learnVoiceIntentAlias: intentRouter.learnVoiceIntentAlias,
+      bumpAliasUsage: intentRouter.bumpAliasUsage,
+      refineLlmFallbackIntent,
+    },
+    {
+      result: options.result,
+      mode: options.currentMode,
+      session: options.session,
+      aliasMap: options.aliasMap,
+      locale: options.locale,
+      ...(options.resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: options.resolveIntentWithLlm }),
+    },
+  );
+  if (errorMessage) {
+    options.setError(errorMessage);
   }
 
   return {
     intentRouter,
     intent,
     llmFallbackFailed,
-    nextAliasMap: undefined,
+    nextAliasMap,
   };
 }
 

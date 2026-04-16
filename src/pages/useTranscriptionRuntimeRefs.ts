@@ -16,7 +16,7 @@ export function useTranscriptionRuntimeRefs({
   const splitAtTimeRef = useRef<((timeSeconds: number) => boolean) | undefined>(undefined);
   const zoomToSegmentRef = useRef<((segmentId: string, zoomLevel?: number) => boolean) | undefined>(undefined);
 
-  const utteranceRowRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const unitRowRef = useRef<Record<string, HTMLDivElement | null>>({});
   const overlapCycleTelemetryRef = useRef(INITIAL_OVERLAP_CYCLE_TELEMETRY);
   const manualSelectTsRef = useRef(0);
 
@@ -41,7 +41,7 @@ export function useTranscriptionRuntimeRefs({
     seekToTimeRef,
     splitAtTimeRef,
     zoomToSegmentRef,
-    utteranceRowRef,
+    unitRowRef,
     overlapCycleTelemetryRef,
     manualSelectTsRef,
     tierContainerRef,

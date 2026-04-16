@@ -2,10 +2,7 @@ import { useMemo } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { UseTranscriptionRuntimePropsInput } from './useTranscriptionRuntimeProps';
-import type {
-  AssistantSidebarObserverRecommendationInput,
-  UseTranscriptionAssistantSidebarControllerInput,
-} from './useTranscriptionAssistantSidebarController';
+import type { AssistantSidebarObserverRecommendationInput, UseTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarController';
 
 interface UseTranscriptionAssistantSidebarControllerInputInput {
   locale: string;

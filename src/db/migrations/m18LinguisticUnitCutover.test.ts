@@ -1,21 +1,17 @@
 import type { Transaction } from 'dexie';
 import { describe, expect, it } from 'vitest';
-import {
-  assertM18SubgraphHostsResolveToUtteranceLayerUnits,
-  collectM18SubgraphReferencedUnitIds,
-  upgradeM18LinguisticUtteranceCutover,
-} from './m18LinguisticUtteranceCutover';
+import { assertM18SubgraphHostsResolveToUnitLayerUnits, collectM18SubgraphReferencedUnitIds, upgradeM18LinguisticUnitCutover } from './m18LinguisticUnitCutover';
 import m18PostCutoverGolden from './fixtures/m18-post-cutover-golden.json';
 
 /**
- * In-memory Dexie transaction stand-in for `upgradeM18LinguisticUtteranceCutover` replay tests.
+ * In-memory Dexie transaction stand-in for `upgradeM18LinguisticUnitCutover` replay tests.
  * (Real v37 upgrade runs in engine; here we assert ordering, rewrites, and idempotency.)
  */
 type M18MockTxOptions = {
-  /** Extra utterance-type `layer_units` rows present before merge (already canonical). */
+  /** Extra unit-type `layer_units` rows present before merge (already canonical). */
   preLayerUnits?: Record<string, unknown>[];
-  /** Legacy `utterances` table rows (default: one host). */
-  utterances?: Record<string, unknown>[];
+  /** Legacy `units` table rows (default: one host). */
+  units?: Record<string, unknown>[];
   /** Token rows as read pre-migration. */
   tokens?: Record<string, unknown>[];
   /** Morpheme rows as read pre-migration. */
@@ -38,7 +34,7 @@ function buildM18MockTx(options?: M18MockTxOptions) {
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
   ];
-  const utterances: Record<string, unknown>[] = options?.utterances ?? [
+  const units: Record<string, unknown>[] = options?.units ?? [
     {
       id: 'utt-m18',
       textId: 'text-m18',
@@ -54,7 +50,7 @@ function buildM18MockTx(options?: M18MockTxOptions) {
     {
       id: 'tok-m18',
       textId: 'text-m18',
-      utteranceId: 'utt-m18',
+      unitId: 'utt-m18',
       form: { default: 'w' },
       tokenIndex: 0,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -65,7 +61,7 @@ function buildM18MockTx(options?: M18MockTxOptions) {
     {
       id: 'morph-m18',
       textId: 'text-m18',
-      utteranceId: 'utt-m18',
+      unitId: 'utt-m18',
       tokenId: 'tok-m18',
       form: { default: 'm' },
       morphemeIndex: 0,
@@ -78,8 +74,8 @@ function buildM18MockTx(options?: M18MockTxOptions) {
 
   const table = (name: string) => {
     if (name === 'tier_definitions') return { toArray: async () => tiers };
-    if (name === 'utterances') return { toArray: async () => utterances };
-    if (name === 'utterance_tokens') {
+    if (name === 'units') return { toArray: async () => units };
+    if (name === 'unit_tokens') {
       return {
         toArray: async () => tokens.map((r) => ({ ...r })),
         put: async (row: Record<string, unknown>) => {
@@ -88,7 +84,7 @@ function buildM18MockTx(options?: M18MockTxOptions) {
         },
       };
     }
-    if (name === 'utterance_morphemes') {
+    if (name === 'unit_morphemes') {
       return {
         toArray: async () => morphemes.map((r) => ({ ...r })),
         put: async (row: Record<string, unknown>) => {
@@ -123,7 +119,7 @@ function buildM18MockTx(options?: M18MockTxOptions) {
   return {
     table,
     tiers,
-    utterances,
+    units,
     tokens,
     morphemes,
     layer_units,
@@ -131,42 +127,42 @@ function buildM18MockTx(options?: M18MockTxOptions) {
   };
 }
 
-describe('M18 linguistic utterance cutover replay', () => {
-  it('collectM18SubgraphReferencedUnitIds reads utteranceId or unitId', () => {
+describe('M18 linguistic unit cutover replay', () => {
+  it('collectM18SubgraphReferencedUnitIds reads unitId or unitId', () => {
     const ids = collectM18SubgraphReferencedUnitIds(
-      [{ utteranceId: 'a' }, { unitId: 'b' }],
+      [{ unitId: 'a' }, { unitId: 'b' }],
       [{ unitId: 'c' }],
     );
     expect([...ids].sort()).toEqual(['a', 'b', 'c']);
   });
 
-  it('assertM18SubgraphHostsResolve throws when host id has no utterance layer unit', () => {
-    expect(() => assertM18SubgraphHostsResolveToUtteranceLayerUnits({
+  it('assertM18SubgraphHostsResolve throws when host id has no unit layer unit', () => {
+    expect(() => assertM18SubgraphHostsResolveToUnitLayerUnits({
       subgraphReferencedUnitIds: new Set(['ghost']),
-      preExistingUtteranceLayerUnitIds: new Set(),
-      migratedUtteranceIdsFromLegacyTable: new Set(),
+      preExistingUnitLayerUnitIds: new Set(),
+      migratedUnitIdsFromLegacyTable: new Set(),
     })).toThrow(/ghost/);
   });
 
-  it('merges utterances into layer_units, rewrites token/morpheme keys; second run is stable', async () => {
+  it('merges units into layer_units, rewrites token/morpheme keys; second run is stable', async () => {
     const m = buildM18MockTx();
-    await upgradeM18LinguisticUtteranceCutover({ table: m.table } as unknown as Transaction);
+    await upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction);
 
     expect(m.layer_units).toHaveLength(1);
     expect(m.layer_units[0]).toMatchObject(m18PostCutoverGolden.layer_units[0]!);
     expect(m.layer_unit_contents).toHaveLength(1);
     expect(m.layer_unit_contents[0]).toMatchObject(m18PostCutoverGolden.layer_unit_contents[0]!);
     expect(m.tokens[0]).toMatchObject(m18PostCutoverGolden.tokens[0]!);
-    expect(m.tokens[0]).not.toHaveProperty('utteranceId');
+    expect(m.tokens[0]).not.toHaveProperty('unitId');
     expect(m.morphemes[0]).toMatchObject(m18PostCutoverGolden.morphemes[0]!);
-    expect(m.morphemes[0]).not.toHaveProperty('utteranceId');
+    expect(m.morphemes[0]).not.toHaveProperty('unitId');
 
     const unitsSnap = JSON.stringify(m.layer_units);
     const contentsSnap = JSON.stringify(m.layer_unit_contents);
     const tokensSnap = JSON.stringify(m.tokens);
     const morphSnap = JSON.stringify(m.morphemes);
 
-    await upgradeM18LinguisticUtteranceCutover({ table: m.table } as unknown as Transaction);
+    await upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction);
 
     expect(JSON.stringify(m.layer_units)).toBe(unitsSnap);
     expect(JSON.stringify(m.layer_unit_contents)).toBe(contentsSnap);
@@ -174,15 +170,15 @@ describe('M18 linguistic utterance cutover replay', () => {
     expect(JSON.stringify(m.morphemes)).toBe(morphSnap);
   });
 
-  it('upgrade throws when subgraph references a host id with no utterance layer unit and no legacy row', async () => {
+  it('upgrade throws when subgraph references a host id with no unit layer unit and no legacy row', async () => {
     const m = buildM18MockTx({
-      utterances: [],
+      units: [],
       preLayerUnits: [],
       tokens: [
         {
           id: 'tok-orphan',
           textId: 'text-m18',
-          utteranceId: 'ghost-host',
+          unitId: 'ghost-host',
           form: { default: 'x' },
           tokenIndex: 0,
           createdAt: '2026-01-01T00:00:00.000Z',
@@ -192,17 +188,17 @@ describe('M18 linguistic utterance cutover replay', () => {
       morphemes: [],
     });
     await expect(
-      upgradeM18LinguisticUtteranceCutover({ table: m.table } as unknown as Transaction),
+      upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction),
     ).rejects.toThrow(/ghost-host/);
   });
 
-  it('upgrade succeeds when utterance-type host already exists in layer_units (idempotent merge)', async () => {
+  it('upgrade succeeds when unit-type host already exists in layer_units (idempotent merge)', async () => {
     const preHost = {
       id: 'utt-m18',
       textId: 'text-m18',
       mediaId: 'media-m18',
       layerId: 'trc-m18',
-      unitType: 'utterance',
+      unitType: 'unit',
       startTime: 0,
       endTime: 1,
       createdAt: '2026-01-01T00:00:00.000Z',
@@ -211,9 +207,9 @@ describe('M18 linguistic utterance cutover replay', () => {
     const m = buildM18MockTx({
       preLayerUnits: [preHost],
     });
-    await upgradeM18LinguisticUtteranceCutover({ table: m.table } as unknown as Transaction);
-    expect(m.layer_units.filter((u) => u.unitType === 'utterance')).toHaveLength(1);
+    await upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction);
+    expect(m.layer_units.filter((u) => u.unitType === 'unit')).toHaveLength(1);
     expect(m.tokens[0]).toMatchObject({ unitId: 'utt-m18' });
-    expect(m.tokens[0]).not.toHaveProperty('utteranceId');
+    expect(m.tokens[0]).not.toHaveProperty('unitId');
   });
 });

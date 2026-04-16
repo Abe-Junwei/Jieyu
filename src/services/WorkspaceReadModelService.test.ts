@@ -1,20 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  db,
-  getDb,
-  type AiTaskDoc,
-  type LanguageAliasDocType,
-  type LanguageDisplayNameDocType,
-  type LanguageDocType,
-  type LayerDocType,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type OrthographyBridgeDocType,
-  type OrthographyDocType,
-  type SpeakerDocType,
-  type UserNoteDocType,
-} from '../db';
+import { db, getDb, type AiTaskDoc, type LanguageAliasDocType, type LanguageDisplayNameDocType, type LanguageDocType, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type OrthographyBridgeDocType, type OrthographyDocType, type SpeakerDocType, type UserNoteDocType } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
 
@@ -79,7 +65,7 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
 function makeNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
   return {
     id,
-    targetType: 'utterance',
+    targetType: 'unit',
     targetId,
     ...(category ? { category } : {}),
     content: { 'zh-CN': '待确认' },
@@ -195,8 +181,8 @@ describe('WorkspaceReadModelService', () => {
 
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
     await db.layer_units.bulkPut([
-      makeUnit({ id: 'utt-1', layerId: 'layer-seg', unitType: 'utterance', startTime: 0, endTime: 1, speakerId: 'spk-1', selfCertainty: 'certain', status: 'verified' }),
-      makeUnit({ id: 'utt-2', layerId: 'layer-seg', unitType: 'utterance', startTime: 1, endTime: 2, status: 'raw' }),
+      makeUnit({ id: 'utt-1', layerId: 'layer-seg', unitType: 'unit', startTime: 0, endTime: 1, speakerId: 'spk-1', selfCertainty: 'certain', status: 'verified' }),
+      makeUnit({ id: 'utt-2', layerId: 'layer-seg', unitType: 'unit', startTime: 1, endTime: 2, status: 'raw' }),
       makeUnit({ id: 'seg-1', layerId: 'layer-seg', unitType: 'segment', parentUnitId: 'utt-1', rootUnitId: 'utt-1', startTime: 0, endTime: 1, status: 'verified' }),
       makeUnit({ id: 'seg-2', layerId: 'layer-seg', unitType: 'segment', parentUnitId: 'utt-2', rootUnitId: 'utt-2', startTime: 1, endTime: 2, status: 'raw' }),
       makeUnit({ id: 'trl-1', layerId: 'layer-trn', unitType: 'segment', parentUnitId: 'utt-1', rootUnitId: 'utt-1', startTime: 0, endTime: 1, status: 'translated' }),

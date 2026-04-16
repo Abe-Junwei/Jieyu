@@ -11,7 +11,7 @@ type TimelineResizeTooltip = {
 } | null;
 
 type ResizeDragState = {
-  utteranceId: string;
+  unitId: string;
   /** 独立边界层的 segment 真实 DB ID，仅在有 layerId 时有值 | Real segment DB ID for independent-boundary layers */
   segmentId?: string;
   mediaId: string;
@@ -24,7 +24,7 @@ type ResizeDragState = {
   latestEnd: number;
 } | null;
 
-type TimelineResizeUtterance = {
+type TimelineResizeUnit = {
   id: string;
   mediaId?: string;
   startTime: number;
@@ -47,12 +47,12 @@ type UseTimelineResizeParams = {
   setFocusedLayerRowId: (id: string) => void;
   beginTimingGesture: (id: string) => void;
   endTimingGesture: (id: string) => void;
-  getNeighborBounds: (utteranceId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => { left: number; right: number | undefined };
+  getNeighborBounds: (unitId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => { left: number; right: number | undefined };
   makeSnapGuide: (bounds: { left: number; right: number | undefined }, start: number, end: number) => SnapGuide;
   snapEnabled: boolean;
   setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setDragPreview: React.Dispatch<React.SetStateAction<{ id: string; start: number; end: number } | null>>;
-  saveUtteranceTiming: (utteranceId: string, start: number, end: number, layerId?: string) => Promise<void>;
+  saveUnitTiming: (unitId: string, start: number, end: number, layerId?: string) => Promise<void>;
   /** 独立边界层的 segments，按 layerId 分组 | Segments for independent-boundary layers, grouped by layerId */
   segmentsByLayer?: Map<string, Array<{ id: string; startTime: number; endTime: number }>>;
 };
@@ -72,7 +72,7 @@ export function useTimelineResize({
   snapEnabled,
   setSnapGuide,
   setDragPreview,
-  saveUtteranceTiming,
+  saveUnitTiming,
   segmentsByLayer,
 }: UseTimelineResizeParams) {
   const [timelineResizeTooltip, setTimelineResizeTooltip] = useState<TimelineResizeTooltip>(null);
@@ -80,7 +80,7 @@ export function useTimelineResize({
 
   const startTimelineResizeDrag = useCallback((
     event: React.PointerEvent<HTMLElement>,
-    utterance: TimelineResizeUtterance,
+    unit: TimelineResizeUnit,
     edge: 'start' | 'end',
     layerId?: string,
   ) => {
@@ -94,37 +94,37 @@ export function useTimelineResize({
       player.stop();
     }
     const layerSegments = layerId && segmentsByLayer ? segmentsByLayer.get(layerId) : undefined;
-    const resolvedSegmentId = layerSegments?.find((segment) => segment.id === utterance.id)?.id;
+    const resolvedSegmentId = layerSegments?.find((segment) => segment.id === unit.id)?.id;
     if (resolvedSegmentId && selectSegment) {
-      selectSegment(utterance.id);
+      selectSegment(unit.id);
     } else {
-      selectUnit(utterance.id);
+      selectUnit(unit.id);
     }
     if (layerId) {
       setSelectedLayerId(layerId);
       setFocusedLayerRowId(layerId);
     }
 
-    beginTimingGesture(utterance.id);
+    beginTimingGesture(unit.id);
 
     timelineResizeDragRef.current = {
-      utteranceId: utterance.id,
-      mediaId: utterance.mediaId ?? '',
+      unitId: unit.id,
+      mediaId: unit.mediaId ?? '',
       ...(layerId !== undefined && { layerId }),
       ...(resolvedSegmentId !== undefined && { segmentId: resolvedSegmentId }),
       edge,
       startClientX: event.clientX,
-      initialStart: utterance.startTime,
-      initialEnd: utterance.endTime,
-      latestStart: utterance.startTime,
-      latestEnd: utterance.endTime,
+      initialStart: unit.startTime,
+      initialEnd: unit.endTime,
+      latestStart: unit.startTime,
+      latestEnd: unit.endTime,
     };
-    setDragPreview({ id: utterance.id, start: utterance.startTime, end: utterance.endTime });
+    setDragPreview({ id: unit.id, start: unit.startTime, end: unit.endTime });
     setTimelineResizeTooltip({
       x: event.clientX,
       y: event.clientY,
-      start: utterance.startTime,
-      end: utterance.endTime,
+      start: unit.startTime,
+      end: unit.endTime,
     });
 
     const onMove = (ev: PointerEvent) => {
@@ -133,7 +133,7 @@ export function useTimelineResize({
 
       const deltaSec = (ev.clientX - drag.startClientX) / zoomPxPerSec;
       const minSpan = 0.05;
-      const bounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, drag.initialStart, drag.layerId);
+      const bounds = getNeighborBounds(drag.segmentId ?? drag.unitId, drag.mediaId, drag.initialStart, drag.layerId);
       const rightBound = typeof bounds.right === 'number' ? bounds.right : Number.POSITIVE_INFINITY;
       let nextStart = drag.initialStart;
       let nextEnd = drag.initialEnd;
@@ -160,7 +160,7 @@ export function useTimelineResize({
 
       drag.latestStart = nextStart;
       drag.latestEnd = nextEnd;
-      setDragPreview({ id: drag.utteranceId, start: nextStart, end: nextEnd });
+      setDragPreview({ id: drag.unitId, start: nextStart, end: nextEnd });
       setTimelineResizeTooltip({
         x: ev.clientX,
         y: ev.clientY,
@@ -168,7 +168,7 @@ export function useTimelineResize({
         end: nextEnd,
       });
 
-      const liveBounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, nextStart, drag.layerId);
+      const liveBounds = getNeighborBounds(drag.segmentId ?? drag.unitId, drag.mediaId, nextStart, drag.layerId);
       setSnapGuide(makeSnapGuide(liveBounds, nextStart, nextEnd));
     };
 
@@ -196,11 +196,11 @@ export function useTimelineResize({
 
       setDragPreview(null);
       setTimelineResizeTooltip(null);
-      endTimingGesture(drag.utteranceId);
+      endTimingGesture(drag.unitId);
 
-      const bounds = getNeighborBounds(drag.segmentId ?? drag.utteranceId, drag.mediaId, finalStart, drag.layerId);
+      const bounds = getNeighborBounds(drag.segmentId ?? drag.unitId, drag.mediaId, finalStart, drag.layerId);
       setSnapGuide(makeSnapGuide(bounds, finalStart, finalEnd));
-      fireAndForget(saveUtteranceTiming(drag.segmentId ?? drag.utteranceId, finalStart, finalEnd, drag.layerId));
+      fireAndForget(saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId));
     };
 
     window.addEventListener('pointermove', onMove);
@@ -221,7 +221,7 @@ export function useTimelineResize({
     makeSnapGuide,
     snapEnabled,
     endTimingGesture,
-    saveUtteranceTiming,
+    saveUnitTiming,
     segmentsByLayer,
   ]);
 

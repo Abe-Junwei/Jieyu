@@ -7,22 +7,19 @@ import { useDialogs } from '../hooks/useDialogs';
 import { usePanelToggles } from '../hooks/usePanelToggles';
 import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
-import {
-  type TextDirection,
-  type UiFontScaleMode,
-} from '../utils/panelAdaptiveLayout';
+import { type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
 import { LinguisticService } from '../services/LinguisticService';
 import { createPdfPreviewOpenRequest } from './TranscriptionPage.runtimeProps';
 import type { PdfPreviewOpenRequest } from './TranscriptionPage.runtimeContracts';
 import { t, useLocale } from '../i18n';
 import { useTranscriptionAdaptiveSizing } from './useTranscriptionAdaptiveSizing';
 
-interface DialogUtteranceLike {
+interface DialogUnitLike {
   textId: string;
 }
 
 interface UseTranscriptionShellControllerInput {
-  utterances: DialogUtteranceLike[];
+  units: DialogUnitLike[];
   appSearchRequest?: AppShellOpenSearchDetail | null;
   onConsumeAppSearchRequest?: () => void;
   selectedLayerId?: string;
@@ -37,7 +34,7 @@ interface UseTranscriptionShellControllerInput {
     config: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
 }
@@ -202,7 +199,7 @@ export function useTranscriptionShellController(
     activeTextPrimaryOrthographyId,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
-  } = useDialogs(input.utterances);
+  } = useDialogs(input.units);
   const [searchOverlayRequest, setSearchOverlayRequest] = useState<AppShellOpenSearchDetail | null>(null);
 
   const openSearchFromRequest = useCallback((detail: AppShellOpenSearchDetail = {}) => {

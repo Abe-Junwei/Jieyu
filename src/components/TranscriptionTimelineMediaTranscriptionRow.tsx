@@ -22,8 +22,8 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
-  setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  saveUnitText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
     utt: TimelineUnitView,
     layer: LayerDocType,
@@ -56,8 +56,8 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   saveSegmentContentForLayer,
   scheduleAutoSave,
   clearAutoSaveTimer,
-  saveUtteranceText,
-  setUtteranceDrafts,
+  saveUnitText,
+  setUnitDrafts,
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranscriptionRowProps) {
   const locale = useLocale();
@@ -75,7 +75,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
         ...(unitKind === 'segment' ? { placeholder: t(locale, 'transcription.timeline.placeholder.segment') } : {}),
         onChange: (e) => {
           const value = normalizeSingleLine(e.target.value);
-          setUtteranceDrafts((prev) => ({ ...prev, [draftKey]: value }));
+          setUnitDrafts((prev) => ({ ...prev, [draftKey]: value }));
           if (unitKind === 'segment') {
             if (!saveSegmentContentForLayer) return;
             scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
@@ -85,7 +85,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
           }
           if (value !== sourceText) {
             scheduleAutoSave(`utt-${layer.id}-${utt.id}`, async () => {
-              await saveUtteranceText(utt.id, value, layer.id);
+              await saveUnitText(utt.id, value, layer.id);
             });
           }
         },
@@ -100,7 +100,7 @@ export function TranscriptionTimelineMediaTranscriptionRow({
           }
           clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
           if (value !== sourceText) {
-            fireAndForget(saveUtteranceText(utt.id, value, layer.id));
+            fireAndForget(saveUnitText(utt.id, value, layer.id));
           }
         },
       })}

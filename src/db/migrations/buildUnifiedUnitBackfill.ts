@@ -1,5 +1,5 @@
-import type { LayerSegmentContentDocType, LayerSegmentDocType, LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType, UtteranceDocType } from '../types';
-import { mapSegmentToLayerUnit, mapUtteranceToLayerUnit } from './timelineUnitMapping';
+import type { LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../types';
+import { mapSegmentToLayerUnit, mapUnitToLayerUnit } from './timelineUnitMapping';
 
 export interface UnifiedUnitBackfillPayload {
   units: LayerUnitDocType[];
@@ -8,13 +8,13 @@ export interface UnifiedUnitBackfillPayload {
 }
 
 export function buildUnifiedUnitBackfill(input: {
-  utterances: readonly UtteranceDocType[];
-  segments: readonly LayerSegmentDocType[];
-  segmentContents?: readonly LayerSegmentContentDocType[];
+  units: readonly LayerUnitDocType[];
+  segments: readonly LayerUnitDocType[];
+  segmentContents?: readonly LayerUnitContentDocType[];
   defaultTranscriptionLayerId: string;
 }): UnifiedUnitBackfillPayload {
   const contentsBySegmentId = new Map((input.segmentContents ?? []).map((content) => [content.segmentId, content] as const));
-  const utteranceRows = input.utterances.map((utterance) => mapUtteranceToLayerUnit(utterance, input.defaultTranscriptionLayerId));
+  const unitRows = input.units.map((unit) => mapUnitToLayerUnit(unit, input.defaultTranscriptionLayerId));
   const segmentRows = input.segments.map((segment) => {
     const content = contentsBySegmentId.get(segment.id);
     return mapSegmentToLayerUnit({
@@ -23,9 +23,9 @@ export function buildUnifiedUnitBackfill(input: {
     });
   });
   return {
-    units: [...utteranceRows.map((row) => row.unit), ...segmentRows.map((row) => row.unit)],
+    units: [...unitRows.map((row) => row.unit), ...segmentRows.map((row) => row.unit)],
     contents: [
-      ...utteranceRows.map((row) => row.content),
+      ...unitRows.map((row) => row.content),
       ...segmentRows.flatMap((row) => (row.content ? [row.content] : [])),
     ],
     relations: segmentRows.flatMap((row) => (row.relation ? [row.relation] : [])),

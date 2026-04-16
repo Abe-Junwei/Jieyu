@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, OrthographyDocType } from '../db';
-import {
-  buildOrthographyInteropMetadata,
-  parseOrthographyInteropMetadata,
-} from './orthographyInteropMetadata';
+import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata } from './orthographyInteropMetadata';
 
 const NOW = '2026-03-31T00:00:00.000Z';
 

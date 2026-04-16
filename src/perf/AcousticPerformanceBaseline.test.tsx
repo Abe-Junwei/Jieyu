@@ -2,13 +2,7 @@
 import { useEffect } from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  buildAcousticInspectorSlice,
-  buildAcousticPanelBatchBuildResult,
-  buildAcousticPanelDetail,
-  serializeAcousticPanelBatchDetailCsv,
-  serializeAcousticPanelBatchDetailJson,
-} from '../utils/acousticPanelDetail';
+import { buildAcousticInspectorSlice, buildAcousticPanelBatchBuildResult, buildAcousticPanelDetail, serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson } from '../utils/acousticPanelDetail';
 import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticFeatureResult } from '../utils/acousticOverlayTypes';
 import { useTranscriptionAiAcousticRuntime } from '../pages/useTranscriptionAiAcousticRuntime';
 

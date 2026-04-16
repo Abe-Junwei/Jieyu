@@ -2,11 +2,11 @@
 import { act } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { useTrackDisplayController } from './useTrackDisplayController';
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -16,7 +16,7 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDocType {
@@ -34,7 +34,7 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number, speakerId?: string): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -45,7 +45,7 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
 describe('useTrackDisplayController', () => {
@@ -53,18 +53,18 @@ describe('useTrackDisplayController', () => {
     const setTranscriptionTrackMode = vi.fn();
 
     renderHook(() => useTrackDisplayController({
-      utterancesOnCurrentMedia: [
-        makeUtterance('utt-1', 0, 2, 'spk-a'),
-        makeUtterance('utt-2', 1, 3, 'spk-b'),
+      unitsOnCurrentMedia: [
+        makeUnit('utt-1', 0, 2, 'spk-a'),
+        makeUnit('utt-2', 1, 3, 'spk-b'),
       ],
-      timelineRenderUtterances: [
-        makeUtterance('utt-1', 0, 2, 'spk-a'),
-        makeUtterance('utt-2', 1, 3, 'spk-b'),
+      timelineRenderUnits: [
+        makeUnit('utt-1', 0, 2, 'spk-a'),
+        makeUnit('utt-2', 1, 3, 'spk-b'),
       ],
       activeLayerIdForEdits: 'layer-1',
       defaultTranscriptionLayerId: 'layer-1',
       layers: [makeLayer('layer-1')],
-      segmentsByLayer: new Map<string, LayerSegmentDocType[]>(),
+      segmentsByLayer: new Map<string, LayerUnitDocType[]>(),
       segmentSpeakerAssignmentsOnCurrentMedia: [],
       transcriptionTrackMode: 'single',
       setTranscriptionTrackMode,
@@ -73,7 +73,7 @@ describe('useTrackDisplayController', () => {
       selectedSpeakerIdsForTrackLock: [],
       speakerNameById: {},
       setLockConflictToast: vi.fn(),
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     expect(setTranscriptionTrackMode).toHaveBeenCalledWith('multi-auto');
@@ -83,21 +83,21 @@ describe('useTrackDisplayController', () => {
     const setTranscriptionTrackMode = vi.fn();
 
     const views: TimelineUnitView[] = [
-      { id: 'v1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'a', speakerId: 'spk-a' },
-      { id: 'v2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 3, text: 'b', speakerId: 'spk-b' },
+      { id: 'v1', kind: 'unit', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'a', speakerId: 'spk-a' },
+      { id: 'v2', kind: 'unit', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 3, text: 'b', speakerId: 'spk-b' },
     ];
 
     renderHook(() => useTrackDisplayController({
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       timelineUnitsOnCurrentMedia: views,
-      timelineRenderUtterances: [
-        makeUtterance('v1', 0, 2, 'spk-a'),
-        makeUtterance('v2', 1, 3, 'spk-b'),
+      timelineRenderUnits: [
+        makeUnit('v1', 0, 2, 'spk-a'),
+        makeUnit('v2', 1, 3, 'spk-b'),
       ],
       activeLayerIdForEdits: 'layer-1',
       defaultTranscriptionLayerId: 'layer-1',
       layers: [makeLayer('layer-1')],
-      segmentsByLayer: new Map<string, LayerSegmentDocType[]>(),
+      segmentsByLayer: new Map<string, LayerUnitDocType[]>(),
       segmentSpeakerAssignmentsOnCurrentMedia: [],
       transcriptionTrackMode: 'single',
       setTranscriptionTrackMode,
@@ -106,7 +106,7 @@ describe('useTrackDisplayController', () => {
       selectedSpeakerIdsForTrackLock: [],
       speakerNameById: {},
       setLockConflictToast: vi.fn(),
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     expect(setTranscriptionTrackMode).toHaveBeenCalledWith('multi-auto');
@@ -114,18 +114,18 @@ describe('useTrackDisplayController', () => {
 
   it('uses timelineUnitsOnCurrentMedia for speaker sort keys', () => {
     const views: TimelineUnitView[] = [
-      { id: 'v1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-b' },
-      { id: 'v2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-a' },
+      { id: 'v1', kind: 'unit', mediaId: 'media-1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-b' },
+      { id: 'v2', kind: 'unit', mediaId: 'media-1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-a' },
     ];
 
     const { result } = renderHook(() => useTrackDisplayController({
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       timelineUnitsOnCurrentMedia: views,
-      timelineRenderUtterances: [],
+      timelineRenderUnits: [],
       activeLayerIdForEdits: 'layer-1',
       defaultTranscriptionLayerId: 'layer-1',
       layers: [makeLayer('layer-1')],
-      segmentsByLayer: new Map<string, LayerSegmentDocType[]>(),
+      segmentsByLayer: new Map<string, LayerUnitDocType[]>(),
       segmentSpeakerAssignmentsOnCurrentMedia: [],
       transcriptionTrackMode: 'multi-auto',
       setTranscriptionTrackMode: vi.fn(),
@@ -134,7 +134,7 @@ describe('useTrackDisplayController', () => {
       selectedSpeakerIdsForTrackLock: [],
       speakerNameById: {},
       setLockConflictToast: vi.fn(),
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     expect(result.current.speakerSortKeyById['spk-b']).toBe(0);
@@ -147,18 +147,18 @@ describe('useTrackDisplayController', () => {
     const setLockConflictToast = vi.fn();
 
     const { result } = renderHook(() => useTrackDisplayController({
-      utterancesOnCurrentMedia: [
-        makeUtterance('utt-1', 0, 4, 'spk-a'),
-        makeUtterance('utt-2', 1, 3, 'spk-a'),
+      unitsOnCurrentMedia: [
+        makeUnit('utt-1', 0, 4, 'spk-a'),
+        makeUnit('utt-2', 1, 3, 'spk-a'),
       ],
-      timelineRenderUtterances: [
-        makeUtterance('utt-1', 0, 4, 'spk-a'),
-        makeUtterance('utt-2', 1, 3, 'spk-a'),
+      timelineRenderUnits: [
+        makeUnit('utt-1', 0, 4, 'spk-a'),
+        makeUnit('utt-2', 1, 3, 'spk-a'),
       ],
       activeLayerIdForEdits: 'layer-1',
       defaultTranscriptionLayerId: 'layer-1',
       layers: [makeLayer('layer-1', 'independent_boundary')],
-      segmentsByLayer: new Map<string, LayerSegmentDocType[]>([
+      segmentsByLayer: new Map<string, LayerUnitDocType[]>([
         ['layer-1', [makeSegment('seg-1', 'layer-1', 0, 2, 'spk-a')]],
       ]),
       segmentSpeakerAssignmentsOnCurrentMedia: [],
@@ -169,7 +169,7 @@ describe('useTrackDisplayController', () => {
       selectedSpeakerIdsForTrackLock: ['spk-a'],
       speakerNameById: { 'spk-a': '说话人 A' },
       setLockConflictToast,
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     act(() => {

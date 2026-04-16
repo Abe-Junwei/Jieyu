@@ -3,14 +3,8 @@
  */
 
 import { useMemo } from 'react';
-import type { SpeakerDocType, UtteranceDocType } from '../../db';
-import {
-  buildSelectedSpeakerSummary,
-  buildSpeakerFilterOptions,
-  buildSpeakerVisualMap,
-  type SpeakerDisplayLabels,
-  type SpeakerSelectionSummaryLabels,
-} from './speakerUtils';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db';
+import { buildSelectedSpeakerSummary, buildSpeakerFilterOptions, buildSpeakerVisualMap, type SpeakerDisplayLabels, type SpeakerSelectionSummaryLabels } from './speakerUtils';
 
 type UseSpeakerDerivedStateLabels = {
   displayLabels?: Partial<SpeakerDisplayLabels>;
@@ -18,28 +12,28 @@ type UseSpeakerDerivedStateLabels = {
 };
 
 export function useSpeakerDerivedState(
-  utterancesOnCurrentMedia: UtteranceDocType[],
-  selectedBatchUtterances: UtteranceDocType[],
+  unitsOnCurrentMedia: LayerUnitDocType[],
+  selectedBatchUnits: LayerUnitDocType[],
   speakerOptions: SpeakerDocType[],
   labels?: UseSpeakerDerivedStateLabels,
 ) {
-  const speakerVisualByUtteranceId = useMemo(
-    () => buildSpeakerVisualMap(utterancesOnCurrentMedia, speakerOptions, labels?.displayLabels),
-    [labels?.displayLabels, speakerOptions, utterancesOnCurrentMedia],
+  const speakerVisualByUnitId = useMemo(
+    () => buildSpeakerVisualMap(unitsOnCurrentMedia, speakerOptions, labels?.displayLabels),
+    [labels?.displayLabels, speakerOptions, unitsOnCurrentMedia],
   );
 
   const speakerFilterOptions = useMemo(
-    () => buildSpeakerFilterOptions(utterancesOnCurrentMedia, speakerVisualByUtteranceId, labels?.displayLabels),
-    [labels?.displayLabels, speakerVisualByUtteranceId, utterancesOnCurrentMedia],
+    () => buildSpeakerFilterOptions(unitsOnCurrentMedia, speakerVisualByUnitId, labels?.displayLabels),
+    [labels?.displayLabels, speakerVisualByUnitId, unitsOnCurrentMedia],
   );
 
   const selectedSpeakerSummary = useMemo(
-    () => buildSelectedSpeakerSummary(selectedBatchUtterances, speakerOptions, labels?.summaryLabels),
-    [labels?.summaryLabels, selectedBatchUtterances, speakerOptions],
+    () => buildSelectedSpeakerSummary(selectedBatchUnits, speakerOptions, labels?.summaryLabels),
+    [labels?.summaryLabels, selectedBatchUnits, speakerOptions],
   );
 
   return {
-    speakerVisualByUtteranceId,
+    speakerVisualByUnitId,
     speakerFilterOptions,
     selectedSpeakerSummary,
   };

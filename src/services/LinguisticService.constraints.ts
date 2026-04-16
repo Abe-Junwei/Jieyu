@@ -1,8 +1,4 @@
-import type {
-  TierAnnotationDocType,
-  TierDefinitionDocType,
-  TierType,
-} from '../db';
+import type { TierAnnotationDocType, TierDefinitionDocType, TierType } from '../db';
 
 export type ConstraintSeverity = 'error' | 'warning' | 'info';
 
@@ -30,8 +26,8 @@ export interface ImportQualityReport {
     textId?: string;
   };
   totals: {
-    utterances: number;
-    utteranceTexts: number;
+    units: number;
+    unitTexts: number;
     transcriptionLayers: number;
     translationLayers: number;
     canonicalTokens: number;
@@ -39,10 +35,10 @@ export interface ImportQualityReport {
     userNotes: number;
   };
   coverage: {
-    transcribedUtterances: number;
-    translatedUtterances: number;
-    glossedUtterances: number;
-    verifiedUtterances: number;
+    transcribedUnits: number;
+    translatedUnits: number;
+    glossedUnits: number;
+    verifiedUnits: number;
     transcribedRate: number;
     translatedRate: number;
     glossedRate: number;

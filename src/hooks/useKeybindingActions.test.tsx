@@ -47,7 +47,7 @@ describe('useKeybindingActions segment routing', () => {
         creatingSegmentRef: { current: false },
         manualSelectTsRef: { current: 0 },
         waveformAreaRef,
-        createUtteranceFromSelection: vi.fn(async () => undefined),
+        createUnitFromSelection: vi.fn(async () => undefined),
         selectUnit: vi.fn(),
         selectAllUnits: vi.fn(),
         runDeleteSelection: vi.fn(),
@@ -82,7 +82,7 @@ describe('useKeybindingActions segment routing', () => {
     input.remove();
   });
 
-  it('routes delete/merge/split shortcuts to selected segment when utterance is empty', () => {
+  it('routes delete/merge/split shortcuts to selected segment when unit is empty', () => {
     const runDeleteSelection = vi.fn();
     const runMergePrev = vi.fn();
     const runMergeNext = vi.fn();
@@ -117,7 +117,7 @@ describe('useKeybindingActions segment routing', () => {
         creatingSegmentRef: { current: false },
         manualSelectTsRef: { current: 0 },
         waveformAreaRef,
-        createUtteranceFromSelection: vi.fn(async () => undefined),
+        createUnitFromSelection: vi.fn(async () => undefined),
         selectUnit: vi.fn(),
         selectAllUnits: vi.fn(),
         runDeleteSelection,
@@ -146,7 +146,7 @@ describe('useKeybindingActions segment routing', () => {
     expect(runSplitAtTime).toHaveBeenCalledWith('seg_42', 1.25);
   });
 
-  it('plays the selected segment range when no utterance is selected', () => {
+  it('plays the selected segment range when no unit is selected', () => {
     const playRegion = vi.fn();
 
     const { result } = renderHook(() => {
@@ -179,7 +179,7 @@ describe('useKeybindingActions segment routing', () => {
         creatingSegmentRef: { current: false },
         manualSelectTsRef: { current: 0 },
         waveformAreaRef,
-        createUtteranceFromSelection: vi.fn(async () => undefined),
+        createUnitFromSelection: vi.fn(async () => undefined),
         selectUnit: vi.fn(),
         selectAllUnits: vi.fn(),
         runDeleteSelection: vi.fn(),
@@ -205,7 +205,7 @@ describe('useKeybindingActions segment routing', () => {
   it('markSegment completes creation with keep-current behavior and avoids post-create reselection race', async () => {
     const setSegMarkStart = vi.fn();
     const selectTimelineUnit = vi.fn();
-    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const createUnitFromSelection = vi.fn(async () => undefined);
 
     const { result } = renderHook(() => {
       const waveformAreaRef = useRef<HTMLDivElement | null>(null);
@@ -236,7 +236,7 @@ describe('useKeybindingActions segment routing', () => {
         creatingSegmentRef: { current: false },
         manualSelectTsRef: { current: 0 },
         waveformAreaRef,
-        createUtteranceFromSelection,
+        createUnitFromSelection,
         selectTimelineUnit,
         selectUnit: vi.fn(),
         selectAllUnits: vi.fn(),
@@ -258,7 +258,7 @@ describe('useKeybindingActions segment routing', () => {
       await Promise.resolve();
     });
 
-    expect(createUtteranceFromSelection).toHaveBeenCalledWith(1.1, 2.4, {
+    expect(createUnitFromSelection).toHaveBeenCalledWith(1.1, 2.4, {
       selectionBehavior: 'keep-current',
     });
     expect(selectTimelineUnit).toHaveBeenCalledTimes(1);
@@ -302,7 +302,7 @@ describe('useKeybindingActions segment routing', () => {
         creatingSegmentRef: { current: false },
         manualSelectTsRef: { current: 0 },
         waveformAreaRef,
-        createUtteranceFromSelection: vi.fn(async () => undefined),
+        createUnitFromSelection: vi.fn(async () => undefined),
         selectUnit,
         selectAllUnits: vi.fn(),
         runDeleteSelection: vi.fn(),

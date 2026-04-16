@@ -2,15 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import { buildAcousticPromptSummary, type AcousticPromptSummary } from './transcriptionAcousticSummary';
-import {
-  buildAcousticPanelBatchBuildResult,
-  buildAcousticPanelDetail,
-  deriveAcousticCalibrationStatus,
-  type AcousticBatchSelectionRange,
-  type AcousticCalibrationStatus,
-  type AcousticPanelBatchDetail,
-  type AcousticPanelDetail,
-} from '../utils/acousticPanelDetail';
+import { buildAcousticPanelBatchBuildResult, buildAcousticPanelDetail, deriveAcousticCalibrationStatus, type AcousticBatchSelectionRange, type AcousticCalibrationStatus, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticAnalysisConfig, AcousticFeatureResult } from '../utils/acousticOverlayTypes';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 

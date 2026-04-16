@@ -4,7 +4,7 @@ export type OverlapCycleTelemetryState = {
   avgStep: number;
   candidateTotalSum: number;
   avgCandidateTotal: number;
-  lastUtteranceId: string | null;
+  lastUnitId: string | null;
   lastIndex: number | null;
   lastTotal: number | null;
 };
@@ -15,14 +15,14 @@ export const INITIAL_OVERLAP_CYCLE_TELEMETRY: OverlapCycleTelemetryState = {
   avgStep: 0,
   candidateTotalSum: 0,
   avgCandidateTotal: 0,
-  lastUtteranceId: null,
+  lastUnitId: null,
   lastIndex: null,
   lastTotal: null,
 };
 
 export function updateOverlapCycleTelemetry(
   prev: OverlapCycleTelemetryState,
-  payload: { utteranceId: string; index: number; total: number },
+  payload: { unitId: string; index: number; total: number },
 ): OverlapCycleTelemetryState {
   const normalizedTotal = Number.isFinite(payload.total) && payload.total > 0 ? Math.floor(payload.total) : 1;
   const normalizedIndex = Number.isFinite(payload.index)
@@ -30,7 +30,7 @@ export function updateOverlapCycleTelemetry(
     : 1;
 
   const isSameSeries =
-    prev.lastUtteranceId === payload.utteranceId
+    prev.lastUnitId === payload.unitId
     && prev.lastTotal === normalizedTotal
     && prev.lastIndex != null;
 
@@ -48,7 +48,7 @@ export function updateOverlapCycleTelemetry(
     avgStep: Number((stepSum / cycleCount).toFixed(3)),
     candidateTotalSum,
     avgCandidateTotal: Number((candidateTotalSum / cycleCount).toFixed(3)),
-    lastUtteranceId: payload.utteranceId,
+    lastUnitId: payload.unitId,
     lastIndex: normalizedIndex,
     lastTotal: normalizedTotal,
   };

@@ -10,20 +10,10 @@ import type { SttResult } from './VoiceInputService';
 import type { VoiceAgentMode, VoiceAgentServiceState } from './VoiceAgentService';
 import type { HybridIntentResult, HybridResolverInput } from './HybridIntentResolver';
 import { shouldTriggerHybridResolution } from './HybridIntentResolver';
-import { t, tf, type Locale } from '../i18n';
-import {
-  routeIntent,
-  isDestructiveAction,
-  shouldConfirmFuzzyAction,
-  getActionLabel,
-  learnVoiceIntentAlias,
-  bumpAliasUsage,
-  type ActionId,
-  type VoiceIntent,
-  type VoiceSession,
-  type VoiceSessionEntry,
-} from './IntentRouter';
+import { tf, type Locale } from '../i18n';
+import { routeIntent, isDestructiveAction, shouldConfirmFuzzyAction, getActionLabel, learnVoiceIntentAlias, bumpAliasUsage, type ActionId, type VoiceIntent, type VoiceSession, type VoiceSessionEntry } from './IntentRouter';
 import { refineLlmFallbackIntent } from './voiceIntentRefine';
+import { resolveVoiceIntent } from './voiceIntentResolution';
 import * as Earcon from './EarconService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
@@ -121,14 +111,27 @@ export async function handleFinalSttResult(
 
   ctx.setState({ interimText: '', finalText: result.text, confidence: result.confidence, agentState: 'routing' });
 
-  let intent = routeIntent(result.text, ctx.mode, {
-    sttConfidence: result.confidence,
-    detectedLang: result.lang,
-    aliasMap: ctx.intentAliasMap,
-  });
-  log.debug('routeIntent', { text: result.text, mode: ctx.mode, intentType: intent.type });
+  // ── 共享意图解析：routeIntent → LLM 回退 → 别名学习 ──
+  // Shared intent resolution: routeIntent → LLM fallback → alias learning
+  const resolutionResult = await resolveVoiceIntent(
+    { routeIntent, learnVoiceIntentAlias, bumpAliasUsage, refineLlmFallbackIntent },
+    {
+      result,
+      mode: ctx.mode,
+      session: ctx.session,
+      aliasMap: ctx.intentAliasMap,
+      locale: ctx.locale,
+      ...(ctx.resolveIntentWithLlm !== undefined && { resolveIntentWithLlm: ctx.resolveIntentWithLlm }),
+    },
+  );
+  const { intent, llmFallbackFailed, nextAliasMap, errorMessage: resolutionError } = resolutionResult;
+  log.debug('resolveVoiceIntent', { text: result.text, mode: ctx.mode, intentType: intent.type });
+  if (resolutionError) {
+    ctx.setState({ error: resolutionError });
+  }
+  let intentAliasMap = nextAliasMap ?? ctx.intentAliasMap;
 
-  // ── 混合意图解析门控 | Hybrid intent resolution gate ──
+  // ── 混合意图解析门控 | Hybrid intent resolution gate (Service-only) ──
   let hybridResult: HybridIntentResult | null = null;
   if (ctx.resolveIntentHybrid) {
     const ruleMatched = intent.type === 'action' || intent.type === 'tool';
@@ -147,43 +150,6 @@ export async function handleFinalSttResult(
         });
       }
     }
-  }
-
-  // ── LLM 回退 | LLM fallback for chat intents ──
-  // 目前 hybrid 结果仅作观测/辅助，不应短路既有 fallback，避免把 chat 误当最终意图。
-  // Hybrid output is advisory-only for now; keep the existing fallback path intact.
-  let llmFallbackFailed = false;
-  let llmResolvedAction = false;
-  if (intent.type === 'chat' && ctx.mode === 'command' && ctx.resolveIntentWithLlm) {
-    try {
-      const fallbackIntent = await ctx.resolveIntentWithLlm({
-        text: result.text,
-        mode: ctx.mode,
-        session: ctx.session,
-      });
-      if (fallbackIntent) {
-        intent = refineLlmFallbackIntent(fallbackIntent, result);
-        llmResolvedAction = intent.type === 'action';
-      } else {
-        llmFallbackFailed = true;
-        ctx.setState({ error: t(ctx.locale, 'transcription.voice.error.commandUnrecognized') });
-      }
-    } catch (err) {
-      llmFallbackFailed = true;
-      ctx.setState({ error: err instanceof Error ? err.message : t(ctx.locale, 'transcription.voice.error.intentResolveFailed') });
-    }
-  }
-
-  // ── 别名学习 | Alias learning ──
-  let intentAliasMap = ctx.intentAliasMap;
-  if (llmResolvedAction && intent.type === 'action') {
-    const learned = learnVoiceIntentAlias(result.text, intent.actionId);
-    if (learned.applied) {
-      intentAliasMap = learned.aliasMap;
-    }
-  }
-  if (!llmResolvedAction && intent.type === 'action' && intent.fromAlias) {
-    bumpAliasUsage(result.text);
   }
 
   ctx.setState({ lastIntent: intent, agentState: llmFallbackFailed ? 'idle' : 'executing' });

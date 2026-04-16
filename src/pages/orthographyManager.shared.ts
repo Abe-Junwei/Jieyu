@@ -1,12 +1,6 @@
 import type { OrthographyDocType } from '../db';
 import { t, useLocale } from '../i18n';
-import {
-  listAdditionalMultiLangLabelEntries,
-  type MultiLangLabelEntry,
-  readAnyMultiLangLabel,
-  readEnglishFallbackMultiLangLabel,
-  readPrimaryMultiLangLabel,
-} from '../utils/multiLangLabels';
+import { listAdditionalMultiLangLabelEntries, type MultiLangLabelEntry, readAnyMultiLangLabel, readEnglishFallbackMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
 
 export type NormalizationForm = 'NFC' | 'NFD' | 'NFKC' | 'NFKD';
 export type OrthographyCatalogReviewStatus = NonNullable<NonNullable<OrthographyDocType['catalogMetadata']>['reviewStatus']>;

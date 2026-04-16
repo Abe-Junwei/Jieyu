@@ -1,14 +1,11 @@
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { getUtteranceSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
+import { getUnitSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import {
-  buildSpeakerLayerLayoutWithOptions,
-  type SpeakerLayerLayoutResult,
-} from '../utils/speakerLayerLayout';
+import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 
-export const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UTTERANCE_ID = new Map<string, Array<{ id: string; startTime: number }>>();
+export const EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID = new Map<string, Array<{ id: string; startTime: number }>>();
 
 export const EMPTY_SPEAKER_LAYOUT: SpeakerLayerLayoutResult = {
   placements: new Map(),
@@ -25,11 +22,11 @@ export function normalizeSpeakerFocusKey(value: string | undefined): string {
   return trimmed.length > 0 ? trimmed : 'unknown-speaker';
 }
 
-export function resolveSpeakerFocusKeyFromUtterance(
-  utterance?: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
+export function resolveSpeakerFocusKeyFromUnit(
+  unit?: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
 ): string {
-  if (!utterance) return 'unknown-speaker';
-  return normalizeSpeakerFocusKey(getUtteranceSpeakerKey(utterance));
+  if (!unit) return 'unknown-speaker';
+  return normalizeSpeakerFocusKey(getUnitSpeakerKey(unit));
 }
 
 export function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
@@ -37,22 +34,23 @@ export function resolveSpeakerFocusKeyFromView(view: TimelineUnitView): string {
 }
 
 export function resolveSpeakerFocusKeyFromSegment(
-  segment: Pick<LayerSegmentDocType, 'speakerId' | 'utteranceId'>,
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+  segment: Pick<LayerSegmentViewDocType, 'speakerId' | 'parentUnitId' | 'unitId'>,
+  unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): string {
   if (segment.speakerId && segment.speakerId.trim().length > 0) {
     return normalizeSpeakerFocusKey(segment.speakerId);
   }
-  const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
-  return resolveSpeakerFocusKeyFromUtterance(ownerUtterance);
+  const ownerUnitId = segment.parentUnitId ?? segment.unitId;
+  const ownerUnit = ownerUnitId ? unitById.get(ownerUnitId) : undefined;
+  return resolveSpeakerFocusKeyFromUnit(ownerUnit);
 }
 
 export function toSpeakerLayoutInputFromSegments(
-  segments: LayerSegmentDocType[],
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
-): UtteranceDocType[] {
+  segments: LayerUnitDocType[],
+  unitById: ReadonlyMap<string, LayerUnitDocType>,
+): LayerUnitDocType[] {
   return segments.map((segment) => {
-    const speakerKey = resolveSpeakerFocusKeyFromSegment(segment, utteranceById);
+    const speakerKey = resolveSpeakerFocusKeyFromSegment(segment, unitById);
     return {
       id: segment.id,
       textId: segment.textId,
@@ -62,17 +60,17 @@ export function toSpeakerLayoutInputFromSegments(
       endTime: segment.endTime,
       createdAt: segment.createdAt,
       updatedAt: segment.updatedAt,
-    } as UtteranceDocType;
+    } as LayerUnitDocType;
   });
 }
 
 export function buildSegmentSpeakerIdMap(
-  segments: LayerSegmentDocType[],
-  utteranceById: ReadonlyMap<string, UtteranceDocType>,
+  segments: LayerUnitDocType[],
+  unitById: ReadonlyMap<string, LayerUnitDocType>,
 ): Map<string, string> {
   const next = new Map<string, string>();
   for (const segment of segments) {
-    next.set(segment.id, resolveSpeakerFocusKeyFromSegment(segment, utteranceById));
+    next.set(segment.id, resolveSpeakerFocusKeyFromSegment(segment, unitById));
   }
   return next;
 }
@@ -80,8 +78,8 @@ export function buildSegmentSpeakerIdMap(
 interface SegmentSpeakerLayoutMapsOptions {
   transcriptionLayers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
-  utteranceById: ReadonlyMap<string, UtteranceDocType>;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]> | undefined;
+  unitById: ReadonlyMap<string, LayerUnitDocType>;
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   defaultTranscriptionLayerId: string | undefined;
   activeSpeakerFilterKey: string | undefined;
   trackDisplayMode: TranscriptionTrackDisplayMode;
@@ -92,7 +90,7 @@ interface SegmentSpeakerLayoutMapsOptions {
 export function buildSegmentSpeakerLayoutMaps({
   transcriptionLayers,
   layerById,
-  utteranceById,
+  unitById,
   segmentsByLayer,
   defaultTranscriptionLayerId,
   activeSpeakerFilterKey = 'all',
@@ -111,18 +109,18 @@ export function buildSegmentSpeakerLayoutMaps({
     if (!sourceLayer) continue;
     const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter((segment) => (
       activeSpeakerFilterKey === 'all'
-        || resolveSpeakerFocusKeyFromSegment(segment, utteranceById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
+        || resolveSpeakerFocusKeyFromSegment(segment, unitById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
     ));
-    const segmentAsUtterances = toSpeakerLayoutInputFromSegments(segments, utteranceById);
+    const segmentAsUnits = toSpeakerLayoutInputFromSegments(segments, unitById);
     segmentSpeakerLayoutByLayer.set(
       sourceLayer.id,
-      buildSpeakerLayerLayoutWithOptions(segmentAsUtterances, {
+      buildSpeakerLayerLayoutWithOptions(segmentAsUnits, {
         trackMode: trackDisplayMode,
         ...(laneLockMap ? { laneLockMap } : {}),
         ...(speakerSortKeyById ? { speakerSortKeyById } : {}),
       }),
     );
-    segmentSpeakerIdByLayer.set(sourceLayer.id, buildSegmentSpeakerIdMap(segments, utteranceById));
+    segmentSpeakerIdByLayer.set(sourceLayer.id, buildSegmentSpeakerIdMap(segments, unitById));
   }
 
   return {

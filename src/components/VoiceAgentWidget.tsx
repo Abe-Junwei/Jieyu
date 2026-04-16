@@ -8,39 +8,18 @@
 
 import { memo, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
-import {
-  JIEYU_MATERIAL_INLINE,
-  JIEYU_MATERIAL_INLINE_TIGHT,
-  JIEYU_MATERIAL_MICRO,
-  JIEYU_MATERIAL_VOICE_MIC,
-  JIEYU_MATERIAL_WAVE_MD,
-  jieyuMaterialClass,
-} from '../utils/jieyuMaterialIcon';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_VOICE_MIC, JIEYU_MATERIAL_WAVE_MD, jieyuMaterialClass } from '../utils/jieyuMaterialIcon';
 import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
 import { getConfidenceColor } from '../hooks/voiceAgentPresentation';
 import { SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { SttEngine } from '../services/VoiceInputService';
-import {
-  getCompatibleSttEnhancements,
-  sttProviderDefinitions,
-  type ProviderReachability,
-  type SttEnhancementConfig,
-  type SttEnhancementFailureKind,
-  type SttEnhancementReachability,
-  type SttEnhancementSelectionKind,
-} from '../services/stt';
+import { getCompatibleSttEnhancements, sttProviderDefinitions, type ProviderReachability, type SttEnhancementConfig, type SttEnhancementFailureKind, type SttEnhancementReachability, type SttEnhancementSelectionKind } from '../services/stt';
 import { commercialProviderDefinitions } from '../services/stt/providerMetadata';
 import type { CommercialProviderKind } from '../services/VoiceInputService';
 import type { ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { t, tf, useLocale } from '../i18n';
-import {
-  clearVoiceAliasLearningLog,
-  getActionLabel,
-  getVoiceAliasLearningReasonLabel,
-  loadVoiceAliasLearningLog,
-  type VoiceAliasLearningLogEntry,
-} from '../services/voiceIntentUi';
+import { clearVoiceAliasLearningLog, getActionLabel, getVoiceAliasLearningReasonLabel, loadVoiceAliasLearningLog, type VoiceAliasLearningLogEntry } from '../services/voiceIntentUi';
 import { DialogShell, PanelButton, PanelChip } from './ui';
 
 // ── Types ──

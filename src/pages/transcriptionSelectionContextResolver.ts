@@ -1,4 +1,4 @@
-import type { LayerSegmentDocType, MediaItemDocType, UtteranceDocType } from '../db';
+import type { LayerUnitDocType, MediaItemDocType } from '../types/transcriptionDomain.types';
 
 export interface SelectedTimelineRowMeta {
   rowNumber: number;
@@ -12,8 +12,8 @@ export interface SelectedTimelineRowMeta {
 export function resolveSelectedTimelineMedia(
   selectedUnitMedia: MediaItemDocType | undefined,
   mediaItemById: ReadonlyMap<string, MediaItemDocType>,
-  selectedTimelineSegment: LayerSegmentDocType | null,
-  selectedTimelineOwnerUnit: UtteranceDocType | null,
+  selectedTimelineSegment: LayerUnitDocType | null,
+  selectedTimelineOwnerUnit: LayerUnitDocType | null,
 ): MediaItemDocType | undefined {
   if (selectedUnitMedia) return selectedUnitMedia;
   const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUnit?.mediaId ?? '';
@@ -21,15 +21,15 @@ export function resolveSelectedTimelineMedia(
 }
 
 export function resolveSelectedTimelineRowMeta(
-  utterancesOnCurrentMedia: ReadonlyArray<UtteranceDocType>,
-  selectedTimelineOwnerUnit: UtteranceDocType | null,
-  utterances: ReadonlyArray<UtteranceDocType>,
+  unitsOnCurrentMedia: ReadonlyArray<LayerUnitDocType>,
+  selectedTimelineOwnerUnit: LayerUnitDocType | null,
+  units: ReadonlyArray<LayerUnitDocType>,
 ): SelectedTimelineRowMeta | null {
   if (!selectedTimelineOwnerUnit) return null;
 
-  const rowIndex = utterancesOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
+  const rowIndex = unitsOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
   if (rowIndex >= 0) {
-    const row = utterancesOnCurrentMedia[rowIndex];
+    const row = unitsOnCurrentMedia[rowIndex];
     if (!row) return null;
     return {
       rowNumber: rowIndex + 1,
@@ -38,7 +38,7 @@ export function resolveSelectedTimelineRowMeta(
     };
   }
 
-  const sameMediaRows = [...utterances]
+  const sameMediaRows = [...units]
     .filter((item) => item.mediaId === selectedTimelineOwnerUnit.mediaId)
     .sort((a, b) => a.startTime - b.startTime);
   const fallbackIndex = sameMediaRows.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
@@ -52,12 +52,12 @@ export function resolveSelectedTimelineRowMeta(
 }
 
 export function collectNoteTimelineUnitIds(
-  utterances: ReadonlyArray<UtteranceDocType>,
-  segmentsByLayer: ReadonlyMap<string, ReadonlyArray<LayerSegmentDocType>>,
+  units: ReadonlyArray<LayerUnitDocType>,
+  segmentsByLayer: ReadonlyMap<string, ReadonlyArray<LayerUnitDocType>>,
 ): string[] {
   const ids = new Set<string>();
-  for (const utterance of utterances) {
-    ids.add(utterance.id);
+  for (const unit of units) {
+    ids.add(unit.id);
   }
   for (const segments of segmentsByLayer.values()) {
     for (const segment of segments) {

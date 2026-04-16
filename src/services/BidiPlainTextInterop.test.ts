@@ -1,13 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type {
-  LayerDocType,
-  LayerSegmentContentDocType,
-  LayerSegmentDocType,
-  OrthographyDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType } from '../db';
 import { exportToTextGrid, importFromTextGrid } from './TextGridService';
 import { exportToFlextext, importFromFlextext } from './FlexService';
 import { exportToToolbox, importFromToolbox } from './ToolboxService';
@@ -51,7 +44,7 @@ function makeTranscriptionLayer(): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUtterance(): UtteranceDocType {
+function makeUnit(): LayerUnitDocType {
   return {
     id: 'utt-1',
     textId: 'text-1',
@@ -61,20 +54,20 @@ function makeUtterance(): UtteranceDocType {
     transcription: { default: MIXED_RTL_TEXT },
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeUtteranceText(layerId: string, text: string): UtteranceTextDocType {
+function makeUnitText(layerId: string, text: string): LayerUnitContentDocType {
   return {
     id: `utr-${layerId}`,
-    utteranceId: 'utt-1',
+    unitId: 'utt-1',
     layerId,
     modality: 'text',
     text,
     sourceType: 'human',
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceTextDocType;
+  } as LayerUnitContentDocType;
 }
 
 function makeSegmentLayer(): LayerDocType {
@@ -93,21 +86,21 @@ function makeSegmentLayer(): LayerDocType {
   } as LayerDocType;
 }
 
-function makeSegment(): LayerSegmentDocType {
+function makeSegment(): LayerUnitDocType {
   return {
     id: 'seg-1',
     textId: 'text-1',
     mediaId: 'media-1',
     layerId: 'trl-segment',
-    utteranceId: 'utt-1',
+    unitId: 'utt-1',
     startTime: 0,
     endTime: 1,
     createdAt: NOW,
     updatedAt: NOW,
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
-function makeSegmentContent(): LayerSegmentContentDocType {
+function makeSegmentContent(): LayerUnitContentDocType {
   return {
     id: 'segc-1',
     segmentId: 'seg-1',
@@ -115,7 +108,7 @@ function makeSegmentContent(): LayerSegmentContentDocType {
     text: 'hello',
     createdAt: NOW,
     updatedAt: NOW,
-  } as LayerSegmentContentDocType;
+  } as LayerUnitContentDocType;
 }
 
 describe('plain-text bidi export interop', () => {
@@ -123,41 +116,41 @@ describe('plain-text bidi export interop', () => {
     const layer = makeTranscriptionLayer();
     const orthography = makeOrthography();
     const textGrid = exportToTextGrid({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [layer],
-      translations: [makeUtteranceText(layer.id, MIXED_RTL_TEXT)],
+      translations: [makeUnitText(layer.id, MIXED_RTL_TEXT)],
       orthographies: [orthography],
     });
 
     expect(textGrid).toContain(`${RTL_ISOLATE}${MIXED_RTL_TEXT}${POP_DIRECTIONAL_ISOLATE}`);
 
     const imported = importFromTextGrid(textGrid);
-    expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
+    expect(imported.units[0]?.transcription).toBe(MIXED_RTL_TEXT);
   });
 
   it('FLEx wraps exported RTL phrase text and strips controls on import', () => {
     const layer = makeTranscriptionLayer();
     const orthography = makeOrthography();
     const flex = exportToFlextext({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [layer],
-      translations: [makeUtteranceText(layer.id, MIXED_RTL_TEXT)],
+      translations: [makeUnitText(layer.id, MIXED_RTL_TEXT)],
       orthographies: [orthography],
     });
 
     expect(flex).toContain(`${RTL_ISOLATE}${MIXED_RTL_TEXT}${POP_DIRECTIONAL_ISOLATE}`);
 
     const imported = importFromFlextext(flex);
-    expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
+    expect(imported.units[0]?.transcription).toBe(MIXED_RTL_TEXT);
   });
 
   it('FLEx prefers English fallback labels for additional layer titles', () => {
     const transcriptionLayer = makeTranscriptionLayer();
     const segmentLayer = makeSegmentLayer();
     const flex = exportToFlextext({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [transcriptionLayer, segmentLayer],
-      translations: [makeUtteranceText(transcriptionLayer.id, MIXED_RTL_TEXT)],
+      translations: [makeUnitText(transcriptionLayer.id, MIXED_RTL_TEXT)],
       segmentsByLayer: new Map([[segmentLayer.id, [makeSegment()]]]),
       segmentContents: new Map([[segmentLayer.id, new Map([[ 'seg-1', makeSegmentContent() ]])]]),
     });
@@ -170,25 +163,25 @@ describe('plain-text bidi export interop', () => {
     const layer = makeTranscriptionLayer();
     const orthography = makeOrthography();
     const toolbox = exportToToolbox({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [layer],
-      translations: [makeUtteranceText(layer.id, MIXED_RTL_TEXT)],
+      translations: [makeUnitText(layer.id, MIXED_RTL_TEXT)],
       orthographies: [orthography],
     });
 
     expect(toolbox).toContain(`${RTL_ISOLATE}${MIXED_RTL_TEXT}${POP_DIRECTIONAL_ISOLATE}`);
 
     const imported = importFromToolbox(toolbox);
-    expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
+    expect(imported.units[0]?.transcription).toBe(MIXED_RTL_TEXT);
   });
 
   it('Toolbox prefers English fallback labels for additional layer headers', () => {
     const transcriptionLayer = makeTranscriptionLayer();
     const segmentLayer = makeSegmentLayer();
     const toolbox = exportToToolbox({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [transcriptionLayer, segmentLayer],
-      translations: [makeUtteranceText(transcriptionLayer.id, MIXED_RTL_TEXT)],
+      translations: [makeUnitText(transcriptionLayer.id, MIXED_RTL_TEXT)],
       segmentsByLayer: new Map([[segmentLayer.id, [makeSegment()]]]),
       segmentContents: new Map([[segmentLayer.id, new Map([[ 'seg-1', makeSegmentContent() ]])]]),
     });
@@ -201,7 +194,7 @@ describe('plain-text bidi export interop', () => {
     const layer = makeTranscriptionLayer();
     const orthography = makeOrthography();
     const trs = exportToTrs({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       orthographies: [orthography],
       transcriptionLayer: layer,
     });
@@ -209,6 +202,6 @@ describe('plain-text bidi export interop', () => {
     expect(trs).toContain(`${RTL_ISOLATE}${MIXED_RTL_TEXT}${POP_DIRECTIONAL_ISOLATE}`);
 
     const imported = importFromTrs(trs);
-    expect(imported.utterances[0]?.transcription).toBe(MIXED_RTL_TEXT);
+    expect(imported.units[0]?.transcription).toBe(MIXED_RTL_TEXT);
   });
 });

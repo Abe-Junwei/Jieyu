@@ -32,7 +32,7 @@ interface SelectedRowMetaLike {
   end: number;
 }
 
-interface SelectedUtteranceLike {
+interface SelectedUnitLike {
   id: string;
   startTime: number;
   endTime: number;
@@ -40,10 +40,10 @@ interface SelectedUtteranceLike {
 
 interface VoiceSelectionLike {
   activeUnitId: string | null;
-  selectedUnit: SelectedUtteranceLike | null;
+  selectedUnit: SelectedUnitLike | null;
   selectedRowMeta: SelectedRowMetaLike | null;
   selectedLayerId: string | null;
-  selectedUnitKind: 'utterance' | 'segment' | null;
+  selectedUnitKind: 'unit' | 'segment' | null;
   selectedTimeRangeLabel?: string;
 }
 
@@ -71,7 +71,7 @@ interface UseVoiceInteractionOptions {
     config?: QuickDictationConfig;
   };
   onVoiceAnalysisResult: (
-    utteranceId: string | null,
+    unitId: string | null,
     analysisText: string,
   ) => Promise<{ ok: boolean; message?: string } | void> | { ok: boolean; message?: string } | void;
   selection: VoiceSelectionLike;
@@ -183,10 +183,10 @@ export function useVoiceInteraction({
     executeAction,
     sendToAiChat: (text: string) => {
       runVoiceTask(async () => {
-        const utteranceId = selection.activeUnitId;
-        voiceAgentRef.current?.setAnalysisFillCallback?.(utteranceId, (analysisText) => {
+        const unitId = selection.activeUnitId;
+        voiceAgentRef.current?.setAnalysisFillCallback?.(unitId, (analysisText) => {
           runVoiceTask(async () => {
-            const result = await onVoiceAnalysisResult(utteranceId, analysisText);
+            const result = await onVoiceAnalysisResult(unitId, analysisText);
             if (!result) {
               voiceAgentRef.current?.setExternalError(null);
               setAnalysisWritebackFeedback({ kind: 'done', message: messages.analysisWritebackDone });
@@ -226,14 +226,14 @@ export function useVoiceInteraction({
       ? messages.currentIndependentSegment
       : selection.selectedRowMeta
         ? messages.currentSentenceWithIndex(selection.selectedRowMeta.rowNumber)
-        : (selection.selectedUnit ? messages.currentUtterance : messages.noUtteranceSelected);
+        : (selection.selectedUnit ? messages.currentUnit : messages.noUnitSelected);
 
     if (voiceAgent.mode === 'command') {
       return messages.currentPageAction;
     }
 
     if (voiceAgent.mode === 'analysis') {
-      return hasSelection ? `${rowLabel} / ${messages.analysisNoteSuffix}` : messages.noUtteranceSelected;
+      return hasSelection ? `${rowLabel} / ${messages.analysisNoteSuffix}` : messages.noUnitSelected;
     }
 
     // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard

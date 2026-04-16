@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { duplicateResolvedRecord, type CollaborationRecord, type ConflictDescriptor } from './collaborationConflictRuntime';
-import {
-  appendOperationLog,
-  createReconnectValidationLog,
-  openArbitrationTicket,
-  prioritizeConflicts,
-  toArbitrationOperationLogs,
-  validateReconnectConsistency,
-} from './collaborationRulesRuntime';
+import { appendOperationLog, createReconnectValidationLog, openArbitrationTicket, prioritizeConflicts, toArbitrationOperationLogs, validateReconnectConsistency } from './collaborationRulesRuntime';
 
 function buildRecord(overrides?: Partial<CollaborationRecord>): CollaborationRecord {
   return {

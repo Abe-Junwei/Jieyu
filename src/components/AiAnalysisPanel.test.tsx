@@ -1,20 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import type { UtteranceDocType } from '../db';
-import { utteranceToView } from '../hooks/timelineUnitView';
+import type { LayerUnitDocType } from '../db';
+import { unitToView } from '../hooks/timelineUnitView';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
 import { ACOUSTIC_PROVIDER_STORAGE_KEYS } from '../services/acoustic/acousticProviderContract';
-import {
-  AiPanelContext,
-  DEFAULT_AI_PANEL_CONTEXT_VALUE,
-  type AiPanelContextValue,
-} from '../contexts/AiPanelContext';
-import {
-  EmbeddingProvider,
-  DEFAULT_EMBEDDING_CONTEXT_VALUE,
-  type EmbeddingContextValue,
-} from '../contexts/EmbeddingContext';
+import { AiPanelContext, DEFAULT_AI_PANEL_CONTEXT_VALUE, type AiPanelContextValue } from '../contexts/AiPanelContext';
+import { EmbeddingProvider, DEFAULT_EMBEDDING_CONTEXT_VALUE, type EmbeddingContextValue } from '../contexts/EmbeddingContext';
 import { pickEmbeddingContextValue } from '../hooks/useEmbeddingContextValue';
 
 function ensureLocalStorageApi(): void {
@@ -71,7 +63,7 @@ function safeClearLocalStorage(): void {
   window.localStorage.clear();
 }
 
-function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
+function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id: 'utt-1',
     mediaId: 'media-1',
@@ -80,17 +72,17 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
     transcription: { default: 'hello world' },
     words: [],
     ...overrides,
-  } as unknown as UtteranceDocType;
+  } as unknown as LayerUnitDocType;
 }
 
 function makeContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanelContextValue {
-  const defaultDoc = makeUtterance();
+  const defaultDoc = makeUnit();
   return {
     ...DEFAULT_AI_PANEL_CONTEXT_VALUE,
     dbName: 'jieyudb',
     unitCount: 1,
     translationLayerCount: 1,
-    selectedUnit: utteranceToView(defaultDoc, 'layer-default'),
+    selectedUnit: unitToView(defaultDoc, 'layer-default'),
     lexemeMatches: [],
     ...overrides,
   };
@@ -152,12 +144,12 @@ describe('AiAnalysisPanel embedding integration', () => {
   }
 
   it('invokes similarity search callback from embedding card', () => {
-    const onFindSimilarUtterances = vi.fn().mockResolvedValue(undefined);
-    const utteranceDoc = makeUtterance();
-    const baseContext = makeContextValue({ selectedUnit: utteranceToView(utteranceDoc, 'layer-default') });
+    const onFindSimilarUnits = vi.fn().mockResolvedValue(undefined);
+    const unitDoc = makeUnit();
+    const baseContext = makeContextValue({ selectedUnit: unitToView(unitDoc, 'layer-default') });
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUnit: utteranceDoc,
-      onFindSimilarUtterances,
+      selectedUnit: unitDoc,
+      onFindSimilarUnits,
     });
 
     render(
@@ -171,20 +163,20 @@ describe('AiAnalysisPanel embedding integration', () => {
     const findSimilarBtn = screen.getByRole('button', { name: /Find Similar|检索相似句/i });
     fireEvent.click(findSimilarBtn);
 
-    expect(onFindSimilarUtterances).toHaveBeenCalledTimes(1);
+    expect(onFindSimilarUnits).toHaveBeenCalledTimes(1);
   });
 
   it('invokes jump callback and highlights active similarity match', () => {
     const onJumpToEmbeddingMatch = vi.fn();
-    const utteranceDoc = makeUtterance({ id: 'utt-2' });
+    const unitDoc = makeUnit({ id: 'utt-2' });
     const baseContext = makeContextValue({
-      selectedUnit: utteranceToView(utteranceDoc, 'layer-default'),
+      selectedUnit: unitToView(unitDoc, 'layer-default'),
     });
     const embeddingContext = makeEmbeddingContextValue({
-      selectedUnit: utteranceDoc,
+      selectedUnit: unitDoc,
       aiEmbeddingMatches: [
         {
-          utteranceId: 'utt-2',
+          unitId: 'utt-2',
           score: 0.93,
           label: 'U2',
           text: 'matched text',

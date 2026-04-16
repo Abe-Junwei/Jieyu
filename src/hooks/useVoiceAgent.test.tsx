@@ -2,12 +2,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { useVoiceAgent } from './useVoiceAgent';
-import {
-  clearVoiceAliasLearningLog,
-  loadVoiceAliasLearningLog,
-  saveVoiceIntentAliasMap,
-  type ActionId,
-} from '../services/IntentRouter';
+import { clearVoiceAliasLearningLog, loadVoiceAliasLearningLog, saveVoiceIntentAliasMap, type ActionId } from '../services/IntentRouter';
 
 // ── Mock region detection (avoids 3-second timeout in tests) ──
 vi.mock('../utils/regionDetection', () => ({

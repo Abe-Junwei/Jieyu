@@ -9,7 +9,7 @@ export type SearchReplaceOverlayMessages = {
   closeTitle: string;
   scopeTitle: string;
   scopeCurrentLayer: string;
-  scopeCurrentUtterance: string;
+  scopeCurrentUnit: string;
   scopeGlobal: string;
   layerKindTitle: string;
   layerKindAll: string;
@@ -43,7 +43,7 @@ const zhCN: SearchReplaceOverlayMessages = {
   closeTitle: '\u5173\u95ed (Esc)',
   scopeTitle: '\u641c\u7d22\u8303\u56f4',
   scopeCurrentLayer: '\u5f53\u524d\u5c42',
-  scopeCurrentUtterance: '\u5f53\u524d\u53e5\u6bb5',
+  scopeCurrentUnit: '\u5f53\u524d\u53e5\u6bb5',
   scopeGlobal: '\u5168\u5c40',
   layerKindTitle: '\u641c\u7d22\u5185\u5bb9\u7c7b\u578b',
   layerKindAll: '\u5168\u90e8\u5185\u5bb9',
@@ -77,7 +77,7 @@ const enUS: SearchReplaceOverlayMessages = {
   closeTitle: 'Close (Esc)',
   scopeTitle: 'Search scope',
   scopeCurrentLayer: 'Current layer',
-  scopeCurrentUtterance: 'Current segment',
+  scopeCurrentUnit: 'Current segment',
   scopeGlobal: 'Global',
   layerKindTitle: 'Content type',
   layerKindAll: 'All content',

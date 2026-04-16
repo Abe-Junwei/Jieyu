@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { Dispatch, SetStateAction } from 'react';
 import { createRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';
 
 function makeLayer(id: string): LayerDocType {
@@ -20,7 +20,7 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -30,19 +30,19 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     speakerId,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeTranslation(
   id: string,
   layerId: string,
-  utteranceId: string,
+  unitId: string,
   updatedAt: string,
   translationAudioMediaId?: string,
-): UtteranceTextDocType {
+): LayerUnitContentDocType {
   return {
     id,
-    utteranceId,
+    unitId,
     layerId,
     textId: 'text-1',
     modality: 'audio',
@@ -51,40 +51,40 @@ function makeTranslation(
     createdAt: updatedAt,
     updatedAt,
     ...(translationAudioMediaId ? { translationAudioMediaId } : {}),
-  } as UtteranceTextDocType;
+  } as LayerUnitContentDocType;
 }
 
 type HookInput = Parameters<typeof useTranscriptionTimelineController>[0];
 
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
-  const utterances = [
-    makeUtterance('utt-1', 0, 1, 'spk-a'),
-    makeUtterance('utt-2', 5, 6, 'spk-a'),
-    makeUtterance('utt-3', 9, 10, 'spk-b'),
+  const units = [
+    makeUnit('utt-1', 0, 1, 'spk-a'),
+    makeUnit('utt-2', 5, 6, 'spk-a'),
+    makeUnit('utt-3', 9, 10, 'spk-b'),
   ];
   const transcriptionLayers = [makeLayer('layer-main'), makeLayer('layer-alt')];
 
   return {
     activeSpeakerFilterKey: 'all',
-    utterancesOnCurrentMedia: utterances,
-    getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? '',
+    unitsOnCurrentMedia: units,
+    getUnitSpeakerKey: (unit) => unit.speakerId ?? '',
     rulerView: null,
     playerDuration: 12,
     translations: [],
-    selectedBatchUtterances: [utterances[0]!],
+    selectedBatchUnits: [units[0]!],
     transcriptionLayers,
     selectedLayerId: 'layer-alt',
-    getUtteranceTextForLayer: (utterance, layerId) => `${layerId ?? 'default'}:${utterance.id}`,
-    utteranceDrafts: {},
-    setUtteranceDrafts: vi.fn() as unknown as Dispatch<SetStateAction<Record<string, string>>>,
+    getUnitTextForLayer: (unit, layerId) => `${layerId ?? 'default'}:${unit.id}`,
+    unitDrafts: {},
+    setUnitDrafts: vi.fn() as unknown as Dispatch<SetStateAction<Record<string, string>>>,
     translationDrafts: {},
     setTranslationDrafts: vi.fn() as unknown as Dispatch<SetStateAction<Record<string, string>>>,
     translationTextByLayer: new Map(),
     focusedTranslationDraftKeyRef: createRef<string | null>() as HookInput['focusedTranslationDraftKeyRef'],
     scheduleAutoSave: vi.fn(),
     clearAutoSaveTimer: vi.fn(),
-    saveUtteranceText: vi.fn(async () => undefined),
-    saveTextTranslationForUtterance: vi.fn(async () => undefined),
+    saveUnitText: vi.fn(async () => undefined),
+    saveUnitLayerText: vi.fn(async () => undefined),
     renderLaneLabel: (layer) => layer.id,
     createLayer: vi.fn(async () => true),
     deleteLayer: vi.fn(async () => undefined),
@@ -95,14 +95,14 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 }
 
 describe('useTranscriptionTimelineController', () => {
-  it('filters utterances by speaker and visible ruler window', () => {
+  it('filters units by speaker and visible ruler window', () => {
     const { result } = renderHook(() => useTranscriptionTimelineController(createBaseInput({
       activeSpeakerFilterKey: 'spk-a',
       rulerView: { start: 4, end: 6 },
     })));
 
-    expect(result.current.filteredUtterancesOnCurrentMedia.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
-    expect(result.current.timelineRenderUtterances.map((item) => item.id)).toEqual(['utt-2']);
+    expect(result.current.filteredUnitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
+    expect(result.current.timelineRenderUnits.map((item) => item.id)).toEqual(['utt-2']);
   });
 
   it('keeps latest translation audio mapping and batch/editor context composition', () => {
@@ -119,7 +119,7 @@ describe('useTranscriptionTimelineController', () => {
     })));
 
     expect(result.current.translationAudioByLayer.get('layer-tr')?.get('utt-1')?.id).toBe('tr-2');
-    expect(result.current.selectedBatchUtteranceTextById).toEqual({ 'utt-1': 'default:utt-1' });
+    expect(result.current.selectedBatchUnitTextById).toEqual({ 'utt-1': 'default:utt-1' });
     expect(result.current.batchPreviewLayerOptions.map((item) => item.id)).toEqual(['layer-main', 'layer-alt']);
     expect(result.current.batchPreviewTextByLayerId['layer-main']?.['utt-2']).toBe('layer-main:utt-2');
     expect(result.current.defaultBatchPreviewLayerId).toBe('layer-alt');

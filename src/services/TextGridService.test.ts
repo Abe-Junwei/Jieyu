@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { exportToTextGrid, importFromTextGrid } from './TextGridService';
-import type { LayerDocType, OrthographyDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation'; key: string }): LayerDocType {
   const now = '2026-03-31T00:00:00.000Z';
@@ -22,7 +22,7 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
   } as LayerDocType;
 }
 
-function makeUtterance(): UtteranceDocType {
+function makeUnit(): LayerUnitDocType {
   const now = '2026-03-31T00:00:00.000Z';
   return {
     id: 'utt_1',
@@ -33,22 +33,22 @@ function makeUtterance(): UtteranceDocType {
     annotationStatus: 'raw',
     createdAt: now,
     updatedAt: now,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeTranslation(overrides: Partial<UtteranceTextDocType> & { id: string; layerId: string; utteranceId: string; text: string }): UtteranceTextDocType {
+function makeTranslation(overrides: Partial<LayerUnitContentDocType> & { id: string; layerId: string; unitId: string; text: string }): LayerUnitContentDocType {
   const now = '2026-03-31T00:00:00.000Z';
   return {
     ...overrides,
     id: overrides.id,
-    utteranceId: overrides.utteranceId,
+    unitId: overrides.unitId,
     layerId: overrides.layerId,
     modality: 'text',
     text: overrides.text,
     sourceType: 'human',
     createdAt: now,
     updatedAt: now,
-  } as UtteranceTextDocType;
+  } as LayerUnitContentDocType;
 }
 
 function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; languageId: string }): OrthographyDocType {
@@ -84,15 +84,15 @@ describe('TextGridService tier metadata', () => {
     });
 
     const textGrid = exportToTextGrid({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [trc, trl],
       orthographies: [
         makeOrthography({ id: 'ortho-ar', languageId: 'ara', scriptTag: 'Arab', regionTag: 'EG', variantTag: 'fonipa' }),
         makeOrthography({ id: 'ortho-eng', languageId: 'eng', scriptTag: 'Latn' }),
       ],
       translations: [
-        makeTranslation({ id: 'utr_trc', layerId: trc.id, utteranceId: 'utt_1', text: 'مرحبا' }),
-        makeTranslation({ id: 'utr_trl', layerId: trl.id, utteranceId: 'utt_1', text: 'hello' }),
+        makeTranslation({ id: 'utr_trc', layerId: trc.id, unitId: 'utt_1', text: 'مرحبا' }),
+        makeTranslation({ id: 'utr_trl', layerId: trl.id, unitId: 'utt_1', text: 'hello' }),
       ],
     });
 
@@ -129,11 +129,11 @@ describe('TextGridService tier metadata', () => {
     });
 
     const textGrid = exportToTextGrid({
-      utterances: [makeUtterance()],
+      units: [makeUnit()],
       layers: [trc, trl],
       translations: [
-        makeTranslation({ id: 'utr_trc', layerId: trc.id, utteranceId: 'utt_1', text: '你好' }),
-        makeTranslation({ id: 'utr_trl', layerId: trl.id, utteranceId: 'utt_1', text: 'hello' }),
+        makeTranslation({ id: 'utr_trc', layerId: trc.id, unitId: 'utt_1', text: '你好' }),
+        makeTranslation({ id: 'utr_trl', layerId: trl.id, unitId: 'utt_1', text: 'hello' }),
       ],
     });
 

@@ -1,13 +1,9 @@
-import type {
-  LayerSegmentDocType,
-  MediaItemDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerSegmentViewDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 
-function orderUtterancesByTimeline(utterances: UtteranceDocType[]): UtteranceDocType[] {
-  return [...utterances].sort((left, right) => {
+function orderUnitsByTimeline(units: LayerUnitDocType[]): LayerUnitDocType[] {
+  return [...units].sort((left, right) => {
     const startDiff = Number(left.startTime) - Number(right.startTime);
     if (startDiff !== 0) return startDiff;
     const endDiff = Number(left.endTime) - Number(right.endTime);
@@ -16,17 +12,17 @@ function orderUtterancesByTimeline(utterances: UtteranceDocType[]): UtteranceDoc
   });
 }
 
-export function resolveAiSegmentTargetScopeUtterances(input: {
-  utterances: UtteranceDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
+export function resolveAiSegmentTargetScopeUnits(input: {
+  units: LayerUnitDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   selectedTimelineMedia?: MediaItemDocType;
-}): UtteranceDocType[] {
-  if (input.utterancesOnCurrentMedia.length > 0) {
-    return input.utterancesOnCurrentMedia;
+}): LayerUnitDocType[] {
+  if (input.unitsOnCurrentMedia.length > 0) {
+    return input.unitsOnCurrentMedia;
   }
 
-  const orderedUtterances = orderUtterancesByTimeline(input.utterances);
-  if (orderedUtterances.length === 0) {
+  const orderedUnits = orderUnitsByTimeline(input.units);
+  if (orderedUnits.length === 0) {
     return [];
   }
 
@@ -34,39 +30,39 @@ export function resolveAiSegmentTargetScopeUtterances(input: {
     ? input.selectedTimelineMedia.id.trim()
     : '';
   if (selectedTimelineMediaId.length > 0) {
-    const onSelectedTimelineMedia = orderedUtterances.filter((utterance) => utterance.mediaId === selectedTimelineMediaId);
+    const onSelectedTimelineMedia = orderedUnits.filter((unit) => unit.mediaId === selectedTimelineMediaId);
     if (onSelectedTimelineMedia.length > 0) {
       return onSelectedTimelineMedia;
     }
   }
 
   const distinctMediaIds = Array.from(new Set(
-    orderedUtterances
-      .map((utterance) => (typeof utterance.mediaId === 'string' ? utterance.mediaId.trim() : ''))
+    orderedUnits
+      .map((unit) => (typeof unit.mediaId === 'string' ? unit.mediaId.trim() : ''))
       .filter((mediaId) => mediaId.length > 0),
   ));
 
   if (distinctMediaIds.length === 0 || distinctMediaIds.length === 1) {
-    return orderedUtterances;
+    return orderedUnits;
   }
 
   return [];
 }
 
 export function buildAiSegmentTargetDescriptors(input: {
-  utteranceTargets: UtteranceDocType[];
+  unitTargets: LayerUnitDocType[];
   selectedLayerId: string;
   activeLayerIdForEdits?: string;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentsByLayer?: ReadonlyMap<string, LayerSegmentViewDocType[]>;
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
   resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
 }): SegmentTargetDescriptor[] {
   const activeLayerId = input.activeLayerIdForEdits?.trim() ?? input.selectedLayerId.trim();
   const routing = activeLayerId && input.resolveSegmentRoutingForLayer
     ? input.resolveSegmentRoutingForLayer(activeLayerId)
     : undefined;
-  if (routing && routing.editMode !== 'utterance') {
+  if (routing && routing.editMode !== 'unit') {
     const scopedSegments = input.segmentsByLayer?.get(routing.sourceLayerId) ?? [];
     if (scopedSegments.length > 0) {
       const contentCandidates = [input.selectedLayerId.trim(), activeLayerId, routing.sourceLayerId]
@@ -76,60 +72,61 @@ export function buildAiSegmentTargetDescriptors(input: {
         const text = contentCandidates
           .map((contentMap) => contentMap?.get(segment.id)?.text?.trim() ?? '')
           .find((value) => value.length > 0) ?? '';
+        const ownerUnitId = (segment.parentUnitId ?? segment.unitId)?.trim() ?? '';
         return {
           id: segment.id,
           kind: 'segment',
           startTime: segment.startTime,
           endTime: segment.endTime,
           text,
-          ...(segment.utteranceId ? { utteranceId: segment.utteranceId } : {}),
+          ...(ownerUnitId ? { unitId: ownerUnitId } : {}),
         } satisfies SegmentTargetDescriptor;
       });
     }
   }
 
-  return input.utteranceTargets.map((utterance) => ({
-    id: utterance.id,
-    kind: 'utterance',
-    startTime: utterance.startTime,
-    endTime: utterance.endTime,
-    text: input.getUtteranceTextForLayer(utterance).trim(),
-    utteranceId: utterance.id,
+  return input.unitTargets.map((unit) => ({
+    id: unit.id,
+    kind: 'unit',
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    text: input.getUnitTextForLayer(unit).trim(),
+    unitId: unit.id,
   }));
 }
 
 export function useTranscriptionAiControllerSegmentTargets(input: {
-  utterances: UtteranceDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  units: LayerUnitDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   selectedTimelineMedia?: MediaItemDocType;
   selectedLayerId: string;
   activeLayerIdForEdits?: string;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
   resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
 }): {
-  utteranceTargets: UtteranceDocType[];
+  unitTargets: LayerUnitDocType[];
   segmentTargets: SegmentTargetDescriptor[];
 } {
-  const utteranceTargets = resolveAiSegmentTargetScopeUtterances({
-    utterances: input.utterances,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+  const unitTargets = resolveAiSegmentTargetScopeUnits({
+    units: input.units,
+    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
     ...(input.selectedTimelineMedia ? { selectedTimelineMedia: input.selectedTimelineMedia } : {}),
   });
 
   const segmentTargets = buildAiSegmentTargetDescriptors({
-    utteranceTargets,
+    unitTargets,
     selectedLayerId: input.selectedLayerId,
     ...(input.activeLayerIdForEdits ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
     ...(input.segmentsByLayer ? { segmentsByLayer: input.segmentsByLayer } : {}),
     ...(input.segmentContentByLayer ? { segmentContentByLayer: input.segmentContentByLayer } : {}),
     ...(input.resolveSegmentRoutingForLayer ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    getUnitTextForLayer: input.getUnitTextForLayer,
   });
 
   return {
-    utteranceTargets,
+    unitTargets,
     segmentTargets,
   };
 }

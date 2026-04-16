@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
 import { getBatchOperationPanelMessages } from '../i18n/batchOperationPanelMessages';
@@ -11,7 +11,7 @@ import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelSec
 type BatchTab = 'offset' | 'scale' | 'split' | 'merge';
 type PreviewScope = 'selected' | 'layer-all';
 
-type PreviewUtterance = Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime'>;
+type PreviewUnit = Pick<LayerUnitDocType, 'id' | 'startTime' | 'endTime'>;
 
 type PreviewLevel = 'ok' | 'warning' | 'error';
 
@@ -34,9 +34,9 @@ type PreviewResult = {
 
 interface BatchOperationPanelProps {
   selectedCount: number;
-  selectedUtterances: PreviewUtterance[];
-  allUtterancesOnMedia: PreviewUtterance[];
-  utteranceTextById: Record<string, string>;
+  selectedUnits: PreviewUnit[];
+  allUnitsOnMedia: PreviewUnit[];
+  unitTextById: Record<string, string>;
   previewLayerOptions?: Array<{ id: string; label: string }>;
   previewTextByLayerId?: Record<string, Record<string, string>>;
   previewTextPropsByLayerId?: Record<string, OrthographyPreviewTextProps>;
@@ -46,7 +46,7 @@ interface BatchOperationPanelProps {
   onScale: (factor: number, anchorTime?: number) => Promise<void>;
   onSplitByRegex: (pattern: string, flags?: string) => Promise<void>;
   onMerge: () => Promise<void>;
-  onJumpToUtterance?: (id: string) => void;
+  onJumpToUnit?: (id: string) => void;
 }
 
 const MIN_SPAN = 0.05;
@@ -61,13 +61,13 @@ function formatRange(start: number, end: number): string {
 }
 
 function buildOverlapConflicts(
-  allUtterancesOnMedia: PreviewUtterance[],
+  allUnitsOnMedia: PreviewUnit[],
   transformed: Map<string, { startTime: number; endTime: number }>,
   selectedIds: Set<string>,
   overlapLabel: string,
 ): Map<string, string> {
   const conflicts = new Map<string, string>();
-  const timeline = allUtterancesOnMedia
+  const timeline = allUnitsOnMedia
     .map((u) => {
       const next = transformed.get(u.id);
       if (next) {
@@ -107,9 +107,9 @@ function countLevels(rows: PreviewRow[]) {
 
 export function BatchOperationPanel({
   selectedCount,
-  selectedUtterances,
-  allUtterancesOnMedia,
-  utteranceTextById,
+  selectedUnits,
+  allUnitsOnMedia,
+  unitTextById,
   previewLayerOptions = [],
   previewTextByLayerId,
   previewTextPropsByLayerId,
@@ -119,7 +119,7 @@ export function BatchOperationPanel({
   onScale,
   onSplitByRegex,
   onMerge,
-  onJumpToUtterance,
+  onJumpToUnit,
 }: BatchOperationPanelProps) {
   const locale = useLocale();
   const messages = getBatchOperationPanelMessages(locale);
@@ -181,13 +181,13 @@ export function BatchOperationPanel({
   }, [defaultPreviewLayerId, previewLayerId, previewLayerOptions]);
 
   const sortedSelected = useMemo(
-    () => [...selectedUtterances].sort((a, b) => a.startTime - b.startTime),
-    [selectedUtterances],
+    () => [...selectedUnits].sort((a, b) => a.startTime - b.startTime),
+    [selectedUnits],
   );
 
   const sortedAllOnMedia = useMemo(
-    () => [...allUtterancesOnMedia].sort((a, b) => a.startTime - b.startTime),
-    [allUtterancesOnMedia],
+    () => [...allUnitsOnMedia].sort((a, b) => a.startTime - b.startTime),
+    [allUnitsOnMedia],
   );
 
   const previewTargets = useMemo(() => {
@@ -199,8 +199,8 @@ export function BatchOperationPanel({
     if (previewLayerId && previewTextByLayerId?.[previewLayerId]) {
       return previewTextByLayerId[previewLayerId]!;
     }
-    return utteranceTextById;
-  }, [previewLayerId, previewTextByLayerId, utteranceTextById]);
+    return unitTextById;
+  }, [previewLayerId, previewTextByLayerId, unitTextById]);
 
   const activePreviewTextProps = useMemo(() => {
     if (previewLayerId && previewTextPropsByLayerId?.[previewLayerId]) {
@@ -270,7 +270,7 @@ export function BatchOperationPanel({
       });
 
       const overlapConflicts = buildOverlapConflicts(
-        allUtterancesOnMedia,
+        allUnitsOnMedia,
         transformed,
         new Set(previewTargets.map((u) => u.id)),
         messages.overlapAdjacent,
@@ -354,7 +354,7 @@ export function BatchOperationPanel({
       });
 
       const overlapConflicts = buildOverlapConflicts(
-        allUtterancesOnMedia,
+        allUnitsOnMedia,
         transformed,
         new Set(previewTargets.map((u) => u.id)),
         messages.overlapAdjacent,
@@ -524,7 +524,7 @@ export function BatchOperationPanel({
       globalMessage: stats.blockingCount > 0 ? messages.mergeConditionNotMet : messages.globalPreviewPass,
     };
   }, [
-    allUtterancesOnMedia,
+    allUnitsOnMedia,
     anchorTime,
     deltaSec,
     regexFlags,
@@ -750,7 +750,7 @@ export function BatchOperationPanel({
                     <th className="batch-operation-th">{messages.tableNext}</th>
                     <th className="batch-operation-th">{messages.tableDetail}</th>
                     <th className="batch-operation-th">{messages.tableConflict}</th>
-                    {onJumpToUtterance && <th className="batch-operation-th">{messages.tableJump}</th>}
+                    {onJumpToUnit && <th className="batch-operation-th">{messages.tableJump}</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -775,12 +775,12 @@ export function BatchOperationPanel({
                         <td className="batch-operation-td">
                           <span className={`batch-badge batch-badge-${row.level}`}>{row.conflict}</span>
                         </td>
-                        {onJumpToUtterance && (
+                        {onJumpToUnit && (
                           <td className="batch-operation-td">
                             <button
                               className="icon-btn batch-operation-jump-btn"
                               onClick={() => {
-                                onJumpToUtterance(row.id);
+                                onJumpToUnit(row.id);
                                 onClose();
                               }}
                             >
@@ -792,7 +792,7 @@ export function BatchOperationPanel({
                     ))}
                   {preview.rows.filter((r) => !showOnlyConflicts || r.level !== 'ok').length === 0 && (
                     <tr>
-                      <td className="batch-operation-td" colSpan={onJumpToUtterance ? 8 : 7}>{messages.noRows}</td>
+                      <td className="batch-operation-td" colSpan={onJumpToUnit ? 8 : 7}>{messages.noRows}</td>
                     </tr>
                   )}
                 </tbody>

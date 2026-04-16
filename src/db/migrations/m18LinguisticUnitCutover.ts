@@ -1,16 +1,10 @@
 /**
- * M18: merge legacy utterances into layer_units + layer_unit_contents, rename token/morpheme
- * utteranceId → unitId, then drop utterances store (Dexie v37).
+ * M18: merge legacy units into layer_units + layer_unit_contents, rename token/morpheme
+ * unitId → unitId, then drop units store (Dexie v37).
  */
 import type { Transaction } from 'dexie';
-import type {
-  LayerUnitDocType,
-  TierDefinitionDocType,
-  UtteranceDocType,
-  UtteranceMorphemeDocType,
-  UtteranceTokenDocType,
-} from '../types';
-import { mapUtteranceToLayerUnit } from './timelineUnitMapping';
+import type { LayerUnitDocType, TierDefinitionDocType, UnitMorphemeDocType, UnitTokenDocType } from '../types';
+import { mapUnitToLayerUnit } from './timelineUnitMapping';
 
 function pickDefaultTranscriptionTierId(
   tiers: readonly TierDefinitionDocType[],
@@ -26,10 +20,10 @@ function pickDefaultTranscriptionTierId(
   return [...candidates].sort((a, b) => (a.sortOrder ?? MAX) - (b.sortOrder ?? MAX))[0]?.id;
 }
 
-/** Host id for a token/morpheme row before or after M18 field rename (v36: utteranceId; post: unitId). */
+/** Host id for a token/morpheme row before or after M18 field rename (v36: unitId; post: unitId). */
 function linguisticSubgraphHostIdFromRow(row: Record<string, unknown>): string | undefined {
-  if (typeof row.utteranceId === 'string' && row.utteranceId.trim().length > 0) {
-    return row.utteranceId;
+  if (typeof row.unitId === 'string' && row.unitId.trim().length > 0) {
+    return row.unitId;
   }
   if (typeof row.unitId === 'string' && row.unitId.trim().length > 0) {
     return row.unitId;
@@ -58,24 +52,24 @@ export function collectM18SubgraphReferencedUnitIds(
 }
 
 /**
- * Ensures every subgraph host id will exist as an utterance-type `layer_unit` after the utterances merge.
+ * Ensures every subgraph host id will exist as an unit-type `layer_unit` after the units merge.
  * Throws to fail the whole Dexie upgrade (no half-migrated subgraph with orphan unitIds).
  * Exported for unit tests.
  */
-export function assertM18SubgraphHostsResolveToUtteranceLayerUnits(input: {
+export function assertM18SubgraphHostsResolveToUnitLayerUnits(input: {
   subgraphReferencedUnitIds: ReadonlySet<string>;
-  preExistingUtteranceLayerUnitIds: ReadonlySet<string>;
-  migratedUtteranceIdsFromLegacyTable: ReadonlySet<string>;
+  preExistingUnitLayerUnitIds: ReadonlySet<string>;
+  migratedUnitIdsFromLegacyTable: ReadonlySet<string>;
 }): void {
   const allowed = new Set([
-    ...input.preExistingUtteranceLayerUnitIds,
-    ...input.migratedUtteranceIdsFromLegacyTable,
+    ...input.preExistingUnitLayerUnitIds,
+    ...input.migratedUnitIdsFromLegacyTable,
   ]);
   for (const id of input.subgraphReferencedUnitIds) {
     if (!allowed.has(id)) {
       throw new Error(
-        `M18 migration: utterance_tokens / utterance_morphemes reference host unit "${id}", `
-        + 'but no utterance-type layer_units row exists for it after merging legacy utterances '
+        `M18 migration: unit_tokens / unit_morphemes reference host unit "${id}", `
+        + 'but no unit-type layer_units row exists for it after merging legacy units '
         + '(missing default transcription tier for that text, or stale token/morpheme rows). '
         + 'Fix tiers or remove orphan linguistic rows, then retry the upgrade.',
       );
@@ -83,56 +77,56 @@ export function assertM18SubgraphHostsResolveToUtteranceLayerUnits(input: {
   }
 }
 
-export async function upgradeM18LinguisticUtteranceCutover(tx: Transaction): Promise<void> {
+export async function upgradeM18LinguisticUnitCutover(tx: Transaction): Promise<void> {
   const tiers = (await tx.table('tier_definitions').toArray()) as TierDefinitionDocType[];
 
-  const utterancesTable = tx.table('utterances');
-  const utterances = (await utterancesTable.toArray()) as UtteranceDocType[];
+  const unitsTable = tx.table('units');
+  const units = (await unitsTable.toArray()) as LayerUnitDocType[];
   const layerUnitsTable = tx.table('layer_units');
   const layerContentsTable = tx.table('layer_unit_contents');
 
   const layerUnitRows = (await layerUnitsTable.toArray()) as LayerUnitDocType[];
-  const preExistingUtteranceLayerUnitIds = new Set(
-    layerUnitRows.filter((unit) => unit.unitType === 'utterance').map((u) => u.id),
+  const preExistingUnitLayerUnitIds = new Set(
+    layerUnitRows.filter((unit) => unit.unitType === 'unit').map((u) => u.id),
   );
 
-  const tokensTable = tx.table('utterance_tokens');
-  const morphemesTable = tx.table('utterance_morphemes');
+  const tokensTable = tx.table('unit_tokens');
+  const morphemesTable = tx.table('unit_morphemes');
   const tokenRows = await tokensTable.toArray();
   const morphRows = await morphemesTable.toArray();
   const subgraphReferencedUnitIds = collectM18SubgraphReferencedUnitIds(tokenRows, morphRows);
 
-  const migratedUtteranceIdsFromLegacyTable = new Set<string>();
-  for (const u of utterances) {
+  const migratedUnitIdsFromLegacyTable = new Set<string>();
+  for (const u of units) {
     const layerId = pickDefaultTranscriptionTierId(tiers, u.textId);
     if (!layerId) continue;
-    const { unit, content } = mapUtteranceToLayerUnit(u, layerId);
+    const { unit, content } = mapUnitToLayerUnit(u, layerId);
     await layerUnitsTable.put(unit);
     await layerContentsTable.put(content);
-    migratedUtteranceIdsFromLegacyTable.add(u.id);
+    migratedUnitIdsFromLegacyTable.add(u.id);
   }
 
-  assertM18SubgraphHostsResolveToUtteranceLayerUnits({
+  assertM18SubgraphHostsResolveToUnitLayerUnits({
     subgraphReferencedUnitIds,
-    preExistingUtteranceLayerUnitIds,
-    migratedUtteranceIdsFromLegacyTable,
+    preExistingUnitLayerUnitIds,
+    migratedUnitIdsFromLegacyTable,
   });
 
   for (const raw of tokenRows) {
     const row = raw as Record<string, unknown>;
-    const legacyId = row.utteranceId;
+    const legacyId = row.unitId;
     if (typeof legacyId !== 'string') continue;
-    const { utteranceId: _u, ...rest } = row;
-    const next = { ...rest, unitId: legacyId } as UtteranceTokenDocType;
+    const { unitId: _u, ...rest } = row;
+    const next = { ...rest, unitId: legacyId } as UnitTokenDocType;
     await tokensTable.put(next);
   }
 
   for (const raw of morphRows) {
     const row = raw as Record<string, unknown>;
-    const legacyId = row.utteranceId;
+    const legacyId = row.unitId;
     if (typeof legacyId !== 'string') continue;
-    const { utteranceId: _u, ...rest } = row;
-    const next = { ...rest, unitId: legacyId } as UtteranceMorphemeDocType;
+    const { unitId: _u, ...rest } = row;
+    const next = { ...rest, unitId: legacyId } as UnitMorphemeDocType;
     await morphemesTable.put(next);
   }
 }

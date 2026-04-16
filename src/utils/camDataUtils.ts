@@ -1,13 +1,4 @@
-import type {
-  ActorType,
-  CreationMethod,
-  ProvenanceEnvelope,
-  ReviewStatus,
-  TierAnnotationDocType,
-  UserNoteDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { ActorType, CreationMethod, ProvenanceEnvelope, ReviewStatus, TierAnnotationDocType, UserNoteDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 
 type ProvenanceInput = Partial<ProvenanceEnvelope> & {
   actorType?: ActorType;
@@ -59,14 +50,14 @@ export function createDefaultProvenance(input?: ProvenanceInput): ProvenanceEnve
   };
 }
 
-export function normalizeUtteranceDocForStorage(doc: UtteranceDocType): UtteranceDocType {
+export function normalizeUnitDocForStorage(doc: LayerUnitDocType): LayerUnitDocType {
   return { ...doc };
 }
 
-export function normalizeUtteranceTextDocForStorage(
-  doc: UtteranceTextDocType,
+export function normalizeUnitTextDocForStorage(
+  doc: LayerUnitContentDocType,
   defaults?: ProvenanceInput,
-): UtteranceTextDocType {
+): LayerUnitContentDocType {
   const defaultProvenance = createDefaultProvenance({
     actorType: doc.sourceType === 'ai' ? 'ai' : (defaults?.actorType ?? 'human'),
     method: defaults?.method ?? (doc.sourceType === 'ai' ? 'auto-transcription' : 'manual'),

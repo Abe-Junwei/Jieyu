@@ -2,11 +2,7 @@ import { memo } from 'react';
 import type { LayerDocType, OrthographyDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { useLocale } from '../i18n';
-import {
-  getLayerHeaderLanguageLine,
-  getOrthographyHeaderLine,
-  getLayerHeaderVarietyOrAliasLine,
-} from '../utils/transcriptionFormatters';
+import { getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine } from '../utils/transcriptionFormatters';
 
 type DragState = {
   draggedId: string;

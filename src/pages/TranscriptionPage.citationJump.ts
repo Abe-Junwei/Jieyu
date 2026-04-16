@@ -1,10 +1,10 @@
 import { db as appDb, type LayerDocType, type UserNoteDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import { normalizeLocale, t, tf } from '../i18n';
-import { extractUtteranceIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
+import { extractUnitIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from '../utils/citationJumpUtils';
 import { normalizeCitationSnippetPlainText } from '../utils/citationFootnoteUtils';
 
-type CitationType = 'utterance' | 'note' | 'pdf' | 'schema';
+type CitationType = 'unit' | 'note' | 'pdf' | 'schema';
 
 interface CitationRefLike {
   snippet?: string;
@@ -26,7 +26,7 @@ interface HandleTranscriptionCitationJumpOptions {
   citationRef?: CitationRefLike;
   sidePaneRows: LayerDocType[];
   activeTimelineUnitId: string | null;
-  onJumpToEmbeddingMatch: (utteranceId: string) => void;
+  onJumpToEmbeddingMatch: (unitId: string) => void;
   onSetNotePopover: (popover: NotePopoverState) => void;
   onSetSidebarError: (message: string) => void;
   onRevealSchemaLayer: (layerId: string) => void;
@@ -38,12 +38,12 @@ interface MediaLinkResolution {
   sourceBlob?: Blob;
 }
 
-function buildNotePopover(note: UserNoteDocType, fallbackUtteranceId: string | null): NotePopoverState {
-  const utteranceId = extractUtteranceIdFromNote(note);
+function buildNotePopover(note: UserNoteDocType, fallbackUnitId: string | null): NotePopoverState {
+  const unitId = extractUnitIdFromNote(note);
   return {
     x: Math.max(40, window.innerWidth - 360),
     y: 100,
-    uttId: utteranceId ?? fallbackUtteranceId ?? '',
+    uttId: unitId ?? fallbackUnitId ?? '',
     noteTarget: {
       targetType: note.targetType,
       targetId: note.targetId,
@@ -86,7 +86,7 @@ export async function handleTranscriptionCitationJump({
 
   if (!refId) return;
 
-  if (citationType === 'utterance') {
+  if (citationType === 'unit') {
     onJumpToEmbeddingMatch(refId);
     return;
   }
@@ -100,9 +100,9 @@ export async function handleTranscriptionCitationJump({
       return;
     }
 
-    const utteranceId = extractUtteranceIdFromNote(note);
-    if (utteranceId) {
-      onJumpToEmbeddingMatch(utteranceId);
+    const unitId = extractUnitIdFromNote(note);
+    if (unitId) {
+      onJumpToEmbeddingMatch(unitId);
     }
     onSetNotePopover(buildNotePopover(note, activeTimelineUnitId));
     return;
@@ -189,9 +189,9 @@ export async function handleTranscriptionCitationJump({
     }
 
     if (note) {
-      const utteranceId = extractUtteranceIdFromNote(note);
-      if (utteranceId) {
-        onJumpToEmbeddingMatch(utteranceId);
+      const unitId = extractUnitIdFromNote(note);
+      if (unitId) {
+        onJumpToEmbeddingMatch(unitId);
       }
       onSetNotePopover(buildNotePopover(note, activeTimelineUnitId));
       return;

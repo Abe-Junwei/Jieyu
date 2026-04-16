@@ -1,15 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CollaborationRecord } from './collaborationConflictRuntime';
-import {
-  applyMultiLayerBatchEdits,
-  buildCollaboratorHints,
-  createStabilityValidationLog,
-  evaluateContinuousEditingStability,
-  planBatchProcessing,
-  type LayerEditOperation,
-  type LayerObjectState,
-} from './collaborationBetaRuntime';
+import { applyMultiLayerBatchEdits, buildCollaboratorHints, createStabilityValidationLog, evaluateContinuousEditingStability, planBatchProcessing, type LayerEditOperation, type LayerObjectState } from './collaborationBetaRuntime';
 
 function buildObjectState(overrides?: Partial<LayerObjectState>): LayerObjectState {
   return {

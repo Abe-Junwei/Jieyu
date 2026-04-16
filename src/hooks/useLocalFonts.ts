@@ -4,15 +4,7 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
-import {
-  getCachedFontCoverageVerification,
-  isLocalFontAccessSupported,
-  queryLocalFontFamilies,
-  verifyFontCoverage,
-  type FontCoverageVerification,
-  type LocalFontState,
-  type OrthographyRenderPolicy,
-} from '../utils/layerDisplayStyle';
+import { getCachedFontCoverageVerification, isLocalFontAccessSupported, queryLocalFontFamilies, verifyFontCoverage, type FontCoverageVerification, type LocalFontState, type OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 
 export function useLocalFonts() {
   const [state, setState] = useState<LocalFontState>({

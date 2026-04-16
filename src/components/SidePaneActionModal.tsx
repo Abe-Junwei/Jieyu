@@ -1,7 +1,4 @@
-import {
-  useMemo,
-  type ReactNode,
-} from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';

@@ -10,8 +10,8 @@ export interface DeleteLayerConfirmDialogProps {
   layerType: 'transcription' | 'translation';
   textCount: number;
   warningMessage?: string;
-  keepUtterances?: boolean;
-  onKeepUtterancesChange?: (checked: boolean) => void;
+  keepUnits?: boolean;
+  onKeepUnitsChange?: (checked: boolean) => void;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -22,8 +22,8 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
   layerType,
   textCount,
   warningMessage,
-  keepUtterances = false,
-  onKeepUtterancesChange,
+  keepUnits = false,
+  onKeepUnitsChange,
   onCancel,
   onConfirm,
 }: DeleteLayerConfirmDialogProps) {
@@ -79,13 +79,13 @@ export const DeleteLayerConfirmDialog = memo(function DeleteLayerConfirmDialog({
           <label className="delete-layer-confirm-keep-toggle">
             <input
               type="checkbox"
-              checked={keepUtterances}
-              onChange={(e) => onKeepUtterancesChange?.(e.target.checked)}
+              checked={keepUnits}
+              onChange={(e) => onKeepUnitsChange?.(e.target.checked)}
             />
-            <span>{t(locale, 'transcription.dialog.deleteLayerKeepUtterances')}</span>
+            <span>{t(locale, 'transcription.dialog.deleteLayerKeepUnits')}</span>
           </label>
           <PanelNote>
-            {t(locale, 'transcription.dialog.deleteLayerKeepUtterancesHint')}
+            {t(locale, 'transcription.dialog.deleteLayerKeepUnitsHint')}
           </PanelNote>
         </PanelSection>
     </ModalPanel>

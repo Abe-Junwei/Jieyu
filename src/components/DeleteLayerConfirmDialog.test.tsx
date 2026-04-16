@@ -117,8 +117,8 @@ describe('DeleteLayerConfirmDialog', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('renders keep-utterances option and emits checkbox state changes', () => {
-    const onKeepUtterancesChange = vi.fn();
+  it('renders keep-units option and emits checkbox state changes', () => {
+    const onKeepUnitsChange = vi.fn();
 
     renderDialog(
       {
@@ -126,8 +126,8 @@ describe('DeleteLayerConfirmDialog', () => {
         layerName: '层 C',
         layerType: 'transcription',
         textCount: 2,
-        keepUtterances: false,
-        onKeepUtterancesChange,
+        keepUnits: false,
+        onKeepUnitsChange,
         onCancel: vi.fn(),
         onConfirm: vi.fn(),
       },
@@ -136,6 +136,6 @@ describe('DeleteLayerConfirmDialog', () => {
     const checkbox = screen.getByRole('checkbox', { name: '保留现有语段区间' });
     fireEvent.click(checkbox);
 
-    expect(onKeepUtterancesChange).toHaveBeenCalledWith(true);
+    expect(onKeepUnitsChange).toHaveBeenCalledWith(true);
   });
 });

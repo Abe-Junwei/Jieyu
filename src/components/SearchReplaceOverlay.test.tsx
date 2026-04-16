@@ -35,11 +35,11 @@ describe('SearchReplaceOverlay', () => {
     render(
       <SearchReplaceOverlay
         items={[
-          { utteranceId: 'u1', layerId: 'trc-1', layerKind: 'transcription', text: 'hello source' },
-          { utteranceId: 'u2', layerId: 'trl-1', layerKind: 'translation', text: 'hello translation' },
+          { unitId: 'u1', layerId: 'trc-1', layerKind: 'transcription', text: 'hello source' },
+          { unitId: 'u2', layerId: 'trl-1', layerKind: 'translation', text: 'hello translation' },
         ]}
         currentLayerId="trc-1"
-        currentUtteranceId="u1"
+        currentUnitId="u1"
         initialQuery="hello"
         initialScope="global"
         initialLayerKinds={['translation']}
@@ -61,7 +61,7 @@ describe('SearchReplaceOverlay', () => {
       <SearchReplaceOverlay
         items={[
           {
-            utteranceId: 'u1',
+            unitId: 'u1',
             layerId: 'trc-ar',
             layerKind: 'transcription',
             languageId: 'ara',
@@ -87,7 +87,7 @@ describe('SearchReplaceOverlay', () => {
           },
         ]}
         currentLayerId="trc-ar"
-        currentUtteranceId="u1"
+        currentUnitId="u1"
         initialQuery="مرحبا"
         onNavigate={vi.fn()}
         onReplace={vi.fn()}

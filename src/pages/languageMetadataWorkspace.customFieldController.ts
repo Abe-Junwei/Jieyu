@@ -7,15 +7,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t, tf } from '../i18n';
-import {
-  applyCustomFieldDraftDefaults,
-  CUSTOM_FIELD_RENDERER_REGISTRY,
-} from '../services/LanguageMetadataCustomFields';
-import {
-  deleteCustomFieldDefinition,
-  listCustomFieldDefinitions,
-  upsertCustomFieldDefinition,
-} from '../services/LinguisticService.languageCatalog';
+import { applyCustomFieldDraftDefaults, CUSTOM_FIELD_RENDERER_REGISTRY } from '../services/LanguageMetadataCustomFields';
+import { deleteCustomFieldDefinition, listCustomFieldDefinitions, upsertCustomFieldDefinition } from '../services/LinguisticService.languageCatalog';
 import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../db';
 import type { LanguageMetadataDraft, LanguageMetadataDraftChangeHandler, WorkspaceLocale } from './languageMetadataWorkspace.shared';
 

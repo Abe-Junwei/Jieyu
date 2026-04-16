@@ -8,7 +8,7 @@ export function useTranscriptionImportExportInput(
     activeTextId: input.activeTextId,
     getActiveTextId: input.getActiveTextId,
     selectedUnitMedia: input.selectedUnitMedia,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
     anchors: input.anchors,
     layers: input.layers,
     translations: input.translations,
@@ -25,6 +25,6 @@ export function useTranscriptionImportExportInput(
     input.selectedUnitMedia,
     input.setSaveState,
     input.translations,
-    input.utterancesOnCurrentMedia,
+    input.unitsOnCurrentMedia,
   ]);
 }

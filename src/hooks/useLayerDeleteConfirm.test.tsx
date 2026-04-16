@@ -42,7 +42,7 @@ describe('useLayerDeleteConfirm', () => {
   );
 
   it('deletes directly without showing confirm when layer has no content', async () => {
-    const deleteLayer = vi.fn<(id: string, options?: { keepUtterances?: boolean }) => Promise<void>>().mockResolvedValue();
+    const deleteLayer = vi.fn<(id: string, options?: { keepUnits?: boolean }) => Promise<void>>().mockResolvedValue();
     const deleteLayerWithoutConfirm = vi.fn<(id: string) => Promise<void>>().mockResolvedValue();
 
     const { result } = renderHook(() => useLayerDeleteConfirm({
@@ -61,8 +61,8 @@ describe('useLayerDeleteConfirm', () => {
     expect(result.current.deleteLayerConfirm).toBeNull();
   });
 
-  it('opens confirm dialog when layer has content and confirms with keepUtterances option', async () => {
-    const deleteLayer = vi.fn<(id: string, options?: { keepUtterances?: boolean }) => Promise<void>>().mockResolvedValue();
+  it('opens confirm dialog when layer has content and confirms with keepUnits option', async () => {
+    const deleteLayer = vi.fn<(id: string, options?: { keepUnits?: boolean }) => Promise<void>>().mockResolvedValue();
     const deleteLayerWithoutConfirm = vi.fn<(id: string) => Promise<void>>().mockResolvedValue();
 
     const { result } = renderHook(() => useLayerDeleteConfirm({
@@ -81,21 +81,21 @@ describe('useLayerDeleteConfirm', () => {
     expect(result.current.deleteLayerConfirm?.textCount).toBe(3);
 
     act(() => {
-      result.current.setDeleteConfirmKeepUtterances(true);
+      result.current.setDeleteConfirmKeepUnits(true);
     });
 
     await act(async () => {
       await result.current.confirmDeleteLayer();
     });
 
-    expect(deleteLayer).toHaveBeenCalledWith('trc-1', { keepUtterances: true });
+    expect(deleteLayer).toHaveBeenCalledWith('trc-1', { keepUnits: true });
     expect(result.current.deleteLayerConfirm).toBeNull();
-    expect(result.current.deleteConfirmKeepUtterances).toBe(false);
+    expect(result.current.deleteConfirmKeepUnits).toBe(false);
   });
 
   it('keeps a newer confirmation open when an older delete resolves later', async () => {
     const firstDelete = createDeferred<void>();
-    const deleteLayer = vi.fn<(id: string, options?: { keepUtterances?: boolean }) => Promise<void>>()
+    const deleteLayer = vi.fn<(id: string, options?: { keepUnits?: boolean }) => Promise<void>>()
       .mockImplementationOnce(() => firstDelete.promise)
       .mockResolvedValue(undefined);
     const deleteLayerWithoutConfirm = vi.fn<(id: string) => Promise<void>>().mockResolvedValue();
@@ -131,11 +131,11 @@ describe('useLayerDeleteConfirm', () => {
     });
 
     expect(result.current.deleteLayerConfirm?.layerId).toBe('trc-2');
-    expect(result.current.deleteConfirmKeepUtterances).toBe(false);
+    expect(result.current.deleteConfirmKeepUnits).toBe(false);
   });
 
   it('opens confirm with warning for deleting last transcription layer while translation exists, even with zero content', async () => {
-    const deleteLayer = vi.fn<(id: string, options?: { keepUtterances?: boolean }) => Promise<void>>().mockResolvedValue();
+    const deleteLayer = vi.fn<(id: string, options?: { keepUnits?: boolean }) => Promise<void>>().mockResolvedValue();
     const deleteLayerWithoutConfirm = vi.fn<(id: string) => Promise<void>>().mockResolvedValue();
 
     const { result } = renderHook(() => useLayerDeleteConfirm({

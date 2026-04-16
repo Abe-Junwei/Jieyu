@@ -1,30 +1,8 @@
-import {
-  type JieyuDatabase,
-  type LayerSegmentContentDocType,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type SegmentLinkDocType,
-  type UtteranceDocType,
-} from '../db';
-import {
-  mapUtteranceToLayerUnit,
-  projectUtteranceDocFromLayerUnit,
-} from '../db/migrations/timelineUnitMapping';
-import {
-  bulkUpsertLayerUnitContents,
-  bulkUpsertLayerUnits,
-  collectLayerUnitGraphIdsByTextId,
-  deleteLayerUnitCascade,
-  deleteLayerUnitGraphByIds,
-  deleteLayerUnitGraphByRecordIds,
-  listLayerUnitIdsByMediaId,
-  normalizeMediaId,
-} from './LayerUnitSegmentWritePrimitives';
+import { type JieyuDatabase, type LayerUnitContentDocType, type LayerUnitContentViewDocType, type LayerUnitDocType, type UnitRelationDocType, type UnitRelationViewDocType, type UnitRelationLinkType } from '../db';
+import { mapUnitToLayerUnit, projectUnitDocFromLayerUnit } from '../db/migrations/timelineUnitMapping';
+import { bulkUpsertLayerUnitContents, bulkUpsertLayerUnits, collectLayerUnitGraphIdsByTextId, deleteLayerUnitCascade, deleteLayerUnitGraphByIds, deleteLayerUnitGraphByRecordIds, listLayerUnitIdsByMediaId, normalizeMediaId } from './LayerUnitSegmentWritePrimitives';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
-import {
-  toLegacySegmentLinkFromUnitRelation,
-} from './LayerUnitLegacyProjection';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { newId } from '../utils/transcriptionFormatters';
 
@@ -37,17 +15,40 @@ export type LayerSegmentGraphSnapshot = {
   /** Segment-type `layer_units` rows. */
   units: LayerUnitDocType[];
   contents: LayerUnitContentDocType[];
-  links: SegmentLinkDocType[];
+  links: UnitRelationViewDocType[];
 };
 
 function uniqueIds(ids: readonly string[]): string[] {
   return [...new Set(ids.filter((id) => id.trim().length > 0))];
 }
 
+function mapRelationTypeToLinkType(
+  relationType: UnitRelationDocType['relationType'] | undefined,
+): UnitRelationLinkType {
+  switch (relationType) {
+    case 'derived_from':
+      return 'time_subdivision';
+    case 'linked_reference':
+      return 'projection';
+    case 'aligned_to':
+    default:
+      return 'bridge';
+  }
+}
+
+function projectRelationReadModel(relation: UnitRelationDocType): UnitRelationViewDocType {
+  return {
+    ...relation,
+    sourceSegmentId: relation.sourceUnitId,
+    targetSegmentId: relation.targetUnitId,
+    ...(relation.relationType ? { linkType: mapRelationTypeToLinkType(relation.relationType) } : {}),
+  };
+}
+
 async function listSegmentLinksBySegmentIds(
   db: JieyuDatabase,
   segmentIds: readonly string[],
-): Promise<SegmentLinkDocType[]> {
+): Promise<UnitRelationViewDocType[]> {
   const ids = uniqueIds(segmentIds);
   if (ids.length === 0) return [];
 
@@ -56,9 +57,9 @@ async function listSegmentLinksBySegmentIds(
     db.dexie.unit_relations.where('targetUnitId').anyOf(ids).toArray(),
   ]);
 
-  const byId = new Map<string, SegmentLinkDocType>();
+  const byId = new Map<string, UnitRelationViewDocType>();
   for (const relation of [...sourceRelations, ...targetRelations]) {
-    byId.set(relation.id, toLegacySegmentLinkFromUnitRelation(relation));
+    byId.set(relation.id, projectRelationReadModel(relation));
   }
   return [...byId.values()];
 }
@@ -77,12 +78,12 @@ export async function resolveDefaultTranscriptionLayerId(
     ?.id;
 }
 
-/** Primary keys of utterance-type `layer_units` scoped to a text (e.g. last-transcription-layer delete). */
-export async function listUtteranceUnitPrimaryKeysByTextId(db: JieyuDatabase, textId: string): Promise<string[]> {
+/** Primary keys of unit-type `layer_units` scoped to a text (e.g. last-transcription-layer delete). */
+export async function listUnitUnitPrimaryKeysByTextId(db: JieyuDatabase, textId: string): Promise<string[]> {
   return (await db.dexie.layer_units
     .where('textId')
     .equals(textId)
-    .filter((u) => u.unitType === 'utterance')
+    .filter((u) => u.unitType === 'unit')
     .primaryKeys()) as string[];
 }
 
@@ -94,37 +95,37 @@ export async function bulkGetLayerUnits(
   return db.dexie.layer_units.bulkGet([...ids]);
 }
 
-export async function upsertUtteranceLayerUnit(db: JieyuDatabase, utterance: UtteranceDocType): Promise<void> {
-  const layerId = await resolveDefaultTranscriptionLayerId(db, utterance.textId);
+export async function upsertUnitLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
+  const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
   if (!layerId) return;
-  const { unit, content } = mapUtteranceToLayerUnit(utterance, layerId);
+  const { unit, content } = mapUnitToLayerUnit(unit, layerId);
   await db.dexie.layer_units.put({
     ...unit,
-    mediaId: normalizeMediaId(utterance.mediaId),
+    mediaId: normalizeMediaId(unit.mediaId),
   });
   await db.dexie.layer_unit_contents.put(content);
 }
 
-export async function bulkUpsertUtteranceLayerUnits(db: JieyuDatabase, utterances: readonly UtteranceDocType[]): Promise<void> {
-  if (utterances.length === 0) return;
+export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
+  if (units.length === 0) return;
   const layerIdByTextId = new Map<string, string>();
-  for (const utterance of utterances) {
-    if (layerIdByTextId.has(utterance.textId)) continue;
-    const layerId = await resolveDefaultTranscriptionLayerId(db, utterance.textId);
+  for (const unit of units) {
+    if (layerIdByTextId.has(unit.textId)) continue;
+    const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
     if (layerId) {
-      layerIdByTextId.set(utterance.textId, layerId);
+      layerIdByTextId.set(unit.textId, layerId);
     }
   }
 
   const units: LayerUnitDocType[] = [];
   const contents: LayerUnitContentDocType[] = [];
-  for (const utterance of utterances) {
-    const layerId = layerIdByTextId.get(utterance.textId);
+  for (const unit of units) {
+    const layerId = layerIdByTextId.get(unit.textId);
     if (!layerId) continue;
-    const { unit, content } = mapUtteranceToLayerUnit(utterance, layerId);
+    const { unit, content } = mapUnitToLayerUnit(unit, layerId);
     units.push({
       ...unit,
-      mediaId: normalizeMediaId(utterance.mediaId),
+      mediaId: normalizeMediaId(unit.mediaId),
     });
     contents.push(content);
   }
@@ -137,34 +138,35 @@ export async function bulkUpsertUtteranceLayerUnits(db: JieyuDatabase, utterance
   }
 }
 
-export async function listUtteranceDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<UtteranceDocType[]> {
-  const units = await db.dexie.layer_units.filter((u) => u.unitType === 'utterance').toArray();
+export async function listUnitDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<LayerUnitDocType[]> {
+  const units = await db.dexie.layer_units.filter((u) => u.unitType === 'unit').toArray();
   if (units.length === 0) return [];
   const unitIds = units.map((u) => u.id);
   const allContents = await db.dexie.layer_unit_contents.where('unitId').anyOf(unitIds).toArray();
   const primaryByUnit = new Map<string, LayerUnitContentDocType>();
   for (const c of allContents) {
-    if (c.contentRole !== 'primary_text') continue;
-    const prev = primaryByUnit.get(c.unitId);
-    if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(c.unitId, c);
+    const unitId = c.unitId?.trim();
+    if (!unitId || c.contentRole !== 'primary_text') continue;
+    const prev = primaryByUnit.get(unitId);
+    if (!prev || c.updatedAt >= prev.updatedAt) primaryByUnit.set(unitId, c);
   }
   const speakers = await db.dexie.speakers.toArray();
   const speakerNameById = new Map(speakers.map((s) => [s.id, s.name] as const));
   return units
     .sort((a, b) => (a.startTime !== b.startTime ? a.startTime - b.startTime : a.id.localeCompare(b.id)))
-    .map((unit) => projectUtteranceDocFromLayerUnit(
+    .map((unit) => projectUnitDocFromLayerUnit(
       unit,
       primaryByUnit.get(unit.id),
       unit.speakerId ? speakerNameById.get(unit.speakerId) : undefined,
     ));
 }
 
-export async function getUtteranceDocProjectionById(
+export async function getUnitDocProjectionById(
   db: JieyuDatabase,
   id: string,
-): Promise<UtteranceDocType | undefined> {
+): Promise<LayerUnitDocType | undefined> {
   const unit = await db.dexie.layer_units.get(id);
-  if (!unit || unit.unitType !== 'utterance') return undefined;
+  if (!unit || unit.unitType !== 'unit') return undefined;
   const primary = await db.dexie.layer_unit_contents
     .where('[unitId+contentRole]')
     .equals([id, 'primary_text'])
@@ -172,13 +174,13 @@ export async function getUtteranceDocProjectionById(
   const speakerName = unit.speakerId
     ? (await db.dexie.speakers.get(unit.speakerId))?.name
     : undefined;
-  return projectUtteranceDocFromLayerUnit(unit, primary ?? undefined, speakerName);
+  return projectUnitDocFromLayerUnit(unit, primary ?? undefined, speakerName);
 }
 
 export async function listSegmentContentsByIds(
   db: JieyuDatabase,
   contentIds: readonly string[],
-): Promise<LayerSegmentContentDocType[]> {
+): Promise<LayerUnitContentViewDocType[]> {
   void db;
   return LayerSegmentQueryService.listSegmentContentsByIds(contentIds);
 }
@@ -222,10 +224,10 @@ export async function deleteSegmentLinksBySegmentIds(
 export async function deleteLayerSegmentGraphBySegmentIds(
   db: JieyuDatabase,
   segmentIds: readonly string[],
-): Promise<{ affectedUtteranceIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
+): Promise<{ affectedUnitIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
   const ids = uniqueIds(segmentIds);
   if (ids.length === 0) {
-    return { affectedUtteranceIds: [], deletedSegmentIds: [], deletedContentIds: [] };
+    return { affectedUnitIds: [], deletedSegmentIds: [], deletedContentIds: [] };
   }
 
   const segments = await LayerSegmentQueryService.listSegmentsByIds(ids);
@@ -233,9 +235,9 @@ export async function deleteLayerSegmentGraphBySegmentIds(
     ...ids,
     ...segments.map((segment) => segment.id),
   ]);
-  const affectedUtteranceIds = uniqueIds(
+  const affectedUnitIds = uniqueIds(
     segments
-      .map((segment) => segment.utteranceId)
+      .map((segment) => segment.parentUnitId)
       .filter((id): id is string => Boolean(id)),
   );
   const contents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(deletedSegmentIds);
@@ -248,19 +250,19 @@ export async function deleteLayerSegmentGraphBySegmentIds(
   await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, deletedSegmentIds);
 
   return {
-    affectedUtteranceIds,
+    affectedUnitIds,
     deletedSegmentIds,
     deletedContentIds,
   };
 }
 
-export async function deleteLayerSegmentGraphByUtteranceIds(
+export async function deleteLayerSegmentGraphByUnitIds(
   db: JieyuDatabase,
-  utteranceIds: readonly string[],
-): Promise<{ affectedUtteranceIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
-  const ids = uniqueIds(utteranceIds);
+  unitIds: readonly string[],
+): Promise<{ affectedUnitIds: string[]; deletedSegmentIds: string[]; deletedContentIds: string[] }> {
+  const ids = uniqueIds(unitIds);
   if (ids.length === 0) {
-    return { affectedUtteranceIds: [], deletedSegmentIds: [], deletedContentIds: [] };
+    return { affectedUnitIds: [], deletedSegmentIds: [], deletedContentIds: [] };
   }
 
   const [indexedSegments, subdivisionChildIds] = await Promise.all([
@@ -280,24 +282,26 @@ export async function buildClonedSegmentGraphForSplit(
   nextSegmentId: string,
   now: string,
 ): Promise<{
-  clonedContents: LayerSegmentContentDocType[];
-  clonedLinks: SegmentLinkDocType[];
+  clonedContents: LayerUnitContentDocType[];
+  clonedLinks: UnitRelationDocType[];
 }> {
   const [existingContents, sourceRelations] = await Promise.all([
     LayerSegmentQueryService.listSegmentContentsBySegmentIds([segmentId]),
     db.dexie.unit_relations.where('sourceUnitId').equals(segmentId).toArray(),
   ]);
 
-  const clonedContents: LayerSegmentContentDocType[] = existingContents.map((content) => ({
+  const clonedContents: LayerUnitContentDocType[] = existingContents.map((content) => ({
     ...content,
     id: newId('stx'),
+    unitId: nextSegmentId,
     segmentId: nextSegmentId,
     createdAt: now,
     updatedAt: now,
   }));
-  const clonedLinks: SegmentLinkDocType[] = sourceRelations.map((relation) => ({
-    ...toLegacySegmentLinkFromUnitRelation(relation),
+  const clonedLinks: UnitRelationDocType[] = sourceRelations.map((relation) => ({
+    ...projectRelationReadModel(relation),
     id: newId('sl'),
+    sourceUnitId: nextSegmentId,
     sourceSegmentId: nextSegmentId,
     createdAt: now,
     updatedAt: now,
@@ -338,8 +342,8 @@ export async function restoreLayerSegmentGraphSnapshot(
 ): Promise<void> {
   const targetLayerIds = uniqueIds([
     ...scopeLayerIds,
-    ...snapshot.units.map((unit) => unit.layerId),
-    ...snapshot.contents.map((content) => content.layerId),
+    ...snapshot.units.map((unit) => unit.layerId).filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    ...snapshot.contents.map((content) => content.layerId).filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
   ]);
   if (targetLayerIds.length === 0) return;
 
@@ -381,17 +385,17 @@ export async function restoreLayerSegmentGraphSnapshot(
 export async function deleteLayerSegmentGraphByLayerId(
   db: JieyuDatabase,
   layerId: string,
-): Promise<{ affectedUtteranceIds: string[]; deletedSegmentIds: string[] }> {
+): Promise<{ affectedUnitIds: string[]; deletedSegmentIds: string[] }> {
   const segments = await LayerSegmentQueryService.listSegmentsByLayerId(layerId);
-  const { affectedUtteranceIds, deletedSegmentIds } = await deleteLayerSegmentGraphBySegmentIds(
+  const { affectedUnitIds, deletedSegmentIds } = await deleteLayerSegmentGraphBySegmentIds(
     db,
     segments.map((segment) => segment.id),
   );
-  return { affectedUtteranceIds, deletedSegmentIds };
+  return { affectedUnitIds, deletedSegmentIds };
 }
 
-export async function deleteUtteranceLayerUnitCascade(db: JieyuDatabase, utteranceIds: readonly string[]): Promise<void> {
-  const ids = uniqueIds(utteranceIds);
+export async function deleteUnitLayerUnitCascade(db: JieyuDatabase, unitIds: readonly string[]): Promise<void> {
+  const ids = uniqueIds(unitIds);
   if (ids.length === 0) return;
 
   const childUnitIds = (await db.dexie.layer_units.where('parentUnitId').anyOf(ids).primaryKeys()) as string[];

@@ -4,16 +4,7 @@ import { forwardGeocode, type GeocodeSuggestion } from '../components/languageGe
 import { readMapProviderConfig } from '../components/languageMapEmbed.shared';
 import { t } from '../i18n';
 import { buildAdministrativeDivisionDisplayLine, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
-import {
-  buildCountryAliasTokens,
-  getCountryOptions,
-  normalizeCountryCodesForGeocoder,
-  normalizeCountryToken,
-  parseCountriesText,
-  resolveCountryByToken,
-  resolveCountryCodes,
-  type CountryOption,
-} from './languageMetadataWorkspace.country';
+import { buildCountryAliasTokens, getCountryOptions, normalizeCountryCodesForGeocoder, normalizeCountryToken, parseCountriesText, resolveCountryByToken, resolveCountryCodes, type CountryOption } from './languageMetadataWorkspace.country';
 
 interface LanguageMetadataAdministrativeDivisionPickerProps {
   locale: WorkspaceLocale;

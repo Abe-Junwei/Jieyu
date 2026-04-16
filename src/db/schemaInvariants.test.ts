@@ -1,32 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  validateLayerDoc,
-  validateLayerUnitContentDoc,
-  validateLayerUnitDoc,
-  validateMediaItemDoc,
-  validateTextDoc,
-  validateTokenLexemeLinkDoc,
-  validateTrackEntityDoc,
-  validateTierDefinitionDoc,
-  validateUnitRelationDoc,
-  validateUserNoteDoc,
-  validateUtteranceMorphemeDoc,
-  validateUtteranceTokenDoc,
-  validateUtteranceDoc,
-  type LayerDocType,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type MediaItemDocType,
-  type TextDocType,
-  type TokenLexemeLinkDocType,
-  type TrackEntityDocType,
-  type TierDefinitionDocType,
-  type UnitRelationDocType,
-  type UserNoteDocType,
-  type UtteranceMorphemeDocType,
-  type UtteranceTokenDocType,
-  type UtteranceDocType,
-} from './index';
+import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, validateUnitDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
 
 type InvalidMutation<T> = {
   name: string;
@@ -102,8 +75,8 @@ const mediaItemSuite: InvariantSuite<MediaItemDocType> = {
   ],
 };
 
-const utteranceSuite: InvariantSuite<UtteranceDocType> = {
-  name: 'utterance invariants',
+const unitSuite: InvariantSuite<LayerUnitDocType> = {
+  name: 'unit invariants',
   createValid: () => ({
     id: 'utt_valid_1',
     textId: 'text_valid_1',
@@ -113,7 +86,7 @@ const utteranceSuite: InvariantSuite<UtteranceDocType> = {
     createdAt: NOW,
     updatedAt: NOW,
   }),
-  validate: validateUtteranceDoc,
+  validate: validateUnitDoc,
   invalid: [
     {
       name: 'endTime earlier than startTime',
@@ -127,8 +100,8 @@ const utteranceSuite: InvariantSuite<UtteranceDocType> = {
   ],
 };
 
-const utteranceTokenSuite: InvariantSuite<UtteranceTokenDocType> = {
-  name: 'utterance token invariants',
+const unitTokenSuite: InvariantSuite<UnitTokenDocType> = {
+  name: 'unit token invariants',
   createValid: () => ({
     id: 'tok_valid_1',
     textId: 'text_valid_1',
@@ -138,7 +111,7 @@ const utteranceTokenSuite: InvariantSuite<UtteranceTokenDocType> = {
     createdAt: NOW,
     updatedAt: NOW,
   }),
-  validate: validateUtteranceTokenDoc,
+  validate: validateUnitTokenDoc,
   invalid: [
     {
       name: 'negative token index',
@@ -147,8 +120,8 @@ const utteranceTokenSuite: InvariantSuite<UtteranceTokenDocType> = {
   ],
 };
 
-const utteranceMorphemeSuite: InvariantSuite<UtteranceMorphemeDocType> = {
-  name: 'utterance morpheme invariants',
+const unitMorphemeSuite: InvariantSuite<UnitMorphemeDocType> = {
+  name: 'unit morpheme invariants',
   createValid: () => ({
     id: 'morph_valid_1',
     textId: 'text_valid_1',
@@ -159,7 +132,7 @@ const utteranceMorphemeSuite: InvariantSuite<UtteranceMorphemeDocType> = {
     createdAt: NOW,
     updatedAt: NOW,
   }),
-  validate: validateUtteranceMorphemeDoc,
+  validate: validateUnitMorphemeDoc,
   invalid: [
     {
       name: 'negative morpheme index',
@@ -216,7 +189,7 @@ const layerUnitSuite: InvariantSuite<LayerUnitDocType> = {
     },
     {
       name: 'invalid selfCertainty enum',
-      mutate: (doc) => ({ ...doc, unitType: 'utterance', selfCertainty: 'maybe' as never }),
+      mutate: (doc) => ({ ...doc, unitType: 'unit', selfCertainty: 'maybe' as never }),
     },
   ],
 };
@@ -313,7 +286,7 @@ const userNoteSuite: InvariantSuite<UserNoteDocType> = {
   name: 'user note invariants',
   createValid: () => ({
     id: 'note_valid_1',
-    targetType: 'utterance',
+    targetType: 'unit',
     targetId: 'utt_valid_1',
     content: { default: 'note content' },
     createdAt: NOW,
@@ -354,9 +327,9 @@ const trackEntitySuite: InvariantSuite<TrackEntityDocType> = {
 describe('db schema invariants matrix', () => {
   runInvariantSuite(textSuite);
   runInvariantSuite(mediaItemSuite);
-  runInvariantSuite(utteranceSuite);
-  runInvariantSuite(utteranceTokenSuite);
-  runInvariantSuite(utteranceMorphemeSuite);
+  runInvariantSuite(unitSuite);
+  runInvariantSuite(unitTokenSuite);
+  runInvariantSuite(unitMorphemeSuite);
   runInvariantSuite(layerSuite);
   runInvariantSuite(layerUnitSuite);
   runInvariantSuite(layerUnitContentSuite);

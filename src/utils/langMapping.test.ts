@@ -1,20 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  formatLanguageDisplayName,
-  formatLanguageCatalogMatch,
-  getLanguageDisplayNames,
-  isDeferredLanguageCodeDraft,
-  pickAutoFillLanguageMatch,
-  resolveLanguageCodeInput,
-  resolveLanguageQuery,
-  resolveLanguageCodeInputChange,
-  sanitizeLanguageCodeInput,
-  searchLanguageCatalog,
-} from './langMapping';
-import {
-  clearLanguageCatalogRuntimeCache,
-  writeLanguageCatalogRuntimeCache,
-} from '../data/languageCatalogRuntimeCache';
+import { formatLanguageDisplayName, formatLanguageCatalogMatch, getLanguageDisplayNames, isDeferredLanguageCodeDraft, pickAutoFillLanguageMatch, resolveLanguageCodeInput, resolveLanguageQuery, resolveLanguageCodeInputChange, sanitizeLanguageCodeInput, searchLanguageCatalog } from './langMapping';
+import { clearLanguageCatalogRuntimeCache, writeLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 
 afterEach(() => {
   clearLanguageCatalogRuntimeCache();

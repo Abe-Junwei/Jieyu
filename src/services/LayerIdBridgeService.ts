@@ -1,20 +1,20 @@
-import type { LayerLinkDocType, UtteranceTextDocType } from '../db';
+import type { LayerLinkDocType, LayerUnitContentDocType } from '../db';
 
 // ─── 类型 | Types ────────────────────────────────────────────────
 
-export type UtteranceTextWithoutLayerId = Omit<UtteranceTextDocType, 'layerId'>;
+export type UnitTextWithoutLayerId = Omit<LayerUnitContentDocType, 'layerId'>;
 
 export interface LayerLinkEdge {
   transcriptionLayerKey: string;
   targetLayerId: string;
 }
 
-// ─── UtteranceText 层 ID 辅助 | UtteranceText layer helpers ─────
+// ─── UnitText 层 ID 辅助 | UnitText layer helpers ─────
 
-export function withUtteranceTextLayerId<T extends UtteranceTextWithoutLayerId>(
+export function withUnitTextLayerId<T extends UnitTextWithoutLayerId>(
   doc: T,
   layer: string | { layerId: string },
-): T & Pick<UtteranceTextDocType, 'layerId'> {
+): T & Pick<LayerUnitContentDocType, 'layerId'> {
   return {
     ...doc,
     layerId: typeof layer === 'string' ? layer : layer.layerId,

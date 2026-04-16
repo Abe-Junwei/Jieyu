@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { buildTimelineUnitViewIndex, mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 
 function seg(
@@ -8,8 +8,8 @@ function seg(
   mediaId: string,
   start: number,
   end: number,
-  utteranceId?: string,
-): LayerSegmentDocType {
+  unitId?: string,
+): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -17,20 +17,20 @@ function seg(
     layerId,
     startTime: start,
     endTime: end,
-    ...(utteranceId ? { utteranceId } : {}),
+    ...(unitId ? { unitId } : {}),
     createdAt: '',
     updatedAt: '',
   };
 }
 
 describe('buildTimelineUnitViewIndex', () => {
-  it('uses segments when project has no utterances', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+  it('uses segments when project has no units', () => {
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1), seg('s2', 'layer-a', 'm1', 1, 2)]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -44,8 +44,8 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.allUnits[0]!.kind).toBe('segment');
   });
 
-  it('builds merged project units when both utterances and segments exist', () => {
-    const u: UtteranceDocType = {
+  it('builds merged project units when both units and segments exist', () => {
+    const u: LayerUnitDocType = {
       id: 'u1',
       textId: 't1',
       mediaId: 'm1',
@@ -55,12 +55,12 @@ describe('buildTimelineUnitViewIndex', () => {
       updatedAt: '',
       transcription: { default: 'hi' },
     };
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [u],
-      utterancesOnCurrentMedia: [u],
+      units: [u],
+      unitsOnCurrentMedia: [u],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -69,7 +69,7 @@ describe('buildTimelineUnitViewIndex', () => {
     });
     expect(index.fallbackToSegments).toBe(false);
     expect(index.allUnits).toHaveLength(2);
-    expect(index.allUnits.some((unit) => unit.kind === 'utterance')).toBe(true);
+    expect(index.allUnits.some((unit) => unit.kind === 'unit')).toBe(true);
     expect(index.allUnits.some((unit) => unit.kind === 'segment')).toBe(true);
     expect(index.totalCount).toBe(2);
     expect(index.byLayer.get('layer-a')?.length).toBe(1);
@@ -77,8 +77,8 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.currentMediaUnits[0]!.text).toBe('hi');
   });
 
-  it('indexes current-media segment ids in byId when project is utterance-first but track has no utterances', () => {
-    const u: UtteranceDocType = {
+  it('indexes current-media segment ids in byId when project is unit-first but track has no units', () => {
+    const u: LayerUnitDocType = {
       id: 'u-remote',
       textId: 't0',
       mediaId: 'm2',
@@ -88,12 +88,12 @@ describe('buildTimelineUnitViewIndex', () => {
       updatedAt: '',
       transcription: { default: 'remote' },
     };
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [u],
-      utterancesOnCurrentMedia: [],
+      units: [u],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -109,8 +109,8 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.byId.get('s1')!.kind).toBe('segment');
   });
 
-  it('lets segment rows shadow utterance rows by parent utterance id', () => {
-    const u: UtteranceDocType = {
+  it('lets segment rows shadow unit rows by parent unit id', () => {
+    const u: LayerUnitDocType = {
       id: 'u1',
       textId: 't1',
       mediaId: 'm1',
@@ -118,14 +118,14 @@ describe('buildTimelineUnitViewIndex', () => {
       endTime: 1,
       createdAt: '',
       updatedAt: '',
-      transcription: { default: 'utterance text' },
+      transcription: { default: 'unit text' },
     };
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1, 'u1')]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [u],
-      utterancesOnCurrentMedia: [u],
+      units: [u],
+      unitsOnCurrentMedia: [u],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -141,7 +141,7 @@ describe('buildTimelineUnitViewIndex', () => {
   });
 
   it('resolves segment text from preferred layer', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
       ['layer-b', [seg('s1', 'layer-b', 'm1', 0, 1)]],
     ]);
@@ -150,8 +150,8 @@ describe('buildTimelineUnitViewIndex', () => {
       ['layer-b', new Map([['s1', { text: 'text-from-b' }]])],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer,
       currentMediaId: 'm1',
@@ -163,7 +163,7 @@ describe('buildTimelineUnitViewIndex', () => {
   });
 
   it('resolves segment text by fallback when preferred layer has no content', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const segmentContentByLayer = new Map([
@@ -171,8 +171,8 @@ describe('buildTimelineUnitViewIndex', () => {
       ['layer-b', new Map<string, { text?: string }>()],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer,
       currentMediaId: 'm1',
@@ -183,12 +183,12 @@ describe('buildTimelineUnitViewIndex', () => {
   });
 
   it('resolves segment text as empty when no content exists', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -199,15 +199,15 @@ describe('buildTimelineUnitViewIndex', () => {
   });
 
   it('resolves segment text trimming whitespace', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const segmentContentByLayer = new Map([
       ['layer-a', new Map([['s1', { text: '  hello  ' }]])],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer,
       currentMediaId: 'm1',
@@ -218,7 +218,7 @@ describe('buildTimelineUnitViewIndex', () => {
   });
 
   it('skips blank preferred layer text and falls back to next layer', () => {
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [seg('s1', 'layer-a', 'm1', 0, 1)]],
     ]);
     const segmentContentByLayer = new Map([
@@ -226,8 +226,8 @@ describe('buildTimelineUnitViewIndex', () => {
       ['layer-a', new Map([['s1', { text: 'real text' }]])],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer,
       currentMediaId: 'm1',
@@ -239,13 +239,13 @@ describe('buildTimelineUnitViewIndex', () => {
 
   it('deduplicates segments that appear in multiple layers', () => {
     const shared = seg('s1', 'layer-a', 'm1', 0, 1);
-    const segmentsByLayer = new Map<string, LayerSegmentDocType[]>([
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
       ['layer-a', [shared]],
       ['layer-b', [{ ...shared, layerId: 'layer-b' }]],
     ]);
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer,
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -257,8 +257,8 @@ describe('buildTimelineUnitViewIndex', () => {
 
   it('marks index incomplete when segment loading is still in progress', () => {
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -273,8 +273,8 @@ describe('buildTimelineUnitViewIndex', () => {
 
   it('keeps epoch from builder input', () => {
     const index = buildTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -287,16 +287,16 @@ describe('buildTimelineUnitViewIndex', () => {
 });
 
 describe('mergedTimelineUnitSemanticKeyCount', () => {
-  it('shadows utterance with referring segment by parent id', () => {
+  it('shadows unit with referring segment by parent id', () => {
     expect(mergedTimelineUnitSemanticKeyCount({
-      utteranceIds: ['u1'],
-      segments: [{ id: 's1', utteranceId: 'u1' }],
+      unitIds: ['u1'],
+      segments: [{ id: 's1', unitId: 'u1' }],
     })).toBe(1);
   });
 
-  it('counts independent segment plus utterance separately', () => {
+  it('counts independent segment plus unit separately', () => {
     expect(mergedTimelineUnitSemanticKeyCount({
-      utteranceIds: ['u1'],
+      unitIds: ['u1'],
       segments: [{ id: 's1' }],
     })).toBe(2);
   });

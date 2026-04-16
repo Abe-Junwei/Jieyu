@@ -14,7 +14,7 @@ type UseTranscriptionAssistantRuntimeProps = Omit<TranscriptionPageAssistantRunt
 interface UseTranscriptionAssistantRuntimePropsInput {
   saveState: SaveState;
   recording: boolean;
-  recordingUtteranceId: string | null;
+  recordingUnitId: string | null;
   recordingError: string | null;
   overlapCycleToast?: { index: number; total: number; nonce: number } | null;
   lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
@@ -28,7 +28,7 @@ interface UseTranscriptionAssistantRuntimePropsInput {
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
+  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selectionSnapshot: TranscriptionSelectionSnapshot;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
@@ -49,7 +49,7 @@ export function useTranscriptionAssistantRuntimeProps(
   return useMemo(() => createAssistantRuntimeProps({
     saveState: input.saveState,
     recording: input.recording,
-    recordingUtteranceId: input.recordingUtteranceId,
+    recordingUnitId: input.recordingUnitId,
     recordingError: input.recordingError,
     ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
     ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
@@ -88,7 +88,7 @@ export function useTranscriptionAssistantRuntimeProps(
     input.overlapCycleToast,
     input.recording,
     input.recordingError,
-    input.recordingUtteranceId,
+    input.recordingUnitId,
     input.saveState,
     input.selectionSnapshot,
     input.tfB,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 
 const mockSaveRecoverySnapshot = vi.hoisted(() => vi.fn());
@@ -14,7 +14,7 @@ vi.mock('../services/SnapshotService', async () => {
   };
 });
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUnit(id: string): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -25,7 +25,7 @@ function makeUtterance(id: string): UtteranceDocType {
     transcription: { default: id },
     createdAt: now,
     updatedAt: now,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('useTranscriptionRecoverySnapshotScheduler', () => {
@@ -37,8 +37,8 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
 
   it('should expose scheduler state refs and recoverySave API', () => {
     const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler({
-      utterancesRef: { current: [] as UtteranceDocType[] },
-      translationsRef: { current: [] as UtteranceTextDocType[] },
+      unitsRef: { current: [] as LayerUnitDocType[] },
+      translationsRef: { current: [] as LayerUnitContentDocType[] },
       layersRef: { current: [] as LayerDocType[] },
     }));
 
@@ -49,12 +49,12 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
   });
 
   it('should persist snapshot only when dirty=true and dbName exists', async () => {
-    const utterances = [makeUtterance('u1')];
-    const translations: UtteranceTextDocType[] = [];
+    const units = [makeUnit('u1')];
+    const translations: LayerUnitContentDocType[] = [];
     const layers: LayerDocType[] = [];
 
     const { result } = renderHook(() => useTranscriptionRecoverySnapshotScheduler({
-      utterancesRef: { current: utterances },
+      unitsRef: { current: units },
       translationsRef: { current: translations },
       layersRef: { current: layers },
     }));
@@ -74,7 +74,7 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
     });
 
     expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith('jieyudb', {
-      utterances,
+      units,
       translations,
       layers,
     });

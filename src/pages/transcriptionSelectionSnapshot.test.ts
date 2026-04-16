@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { buildTranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 
-function utteranceView(id: string, layerId: string): TimelineUnitView {
+function unitView(id: string, layerId: string): TimelineUnitView {
   return {
     id,
-    kind: 'utterance',
+    kind: 'unit',
     mediaId: 'media-1',
     layerId,
     startTime: 1,
@@ -16,7 +16,7 @@ function utteranceView(id: string, layerId: string): TimelineUnitView {
   };
 }
 
-function segmentView(id: string, layerId: string, parentUtteranceId?: string): TimelineUnitView {
+function segmentView(id: string, layerId: string, parentUnitId?: string): TimelineUnitView {
   return {
     id,
     kind: 'segment',
@@ -25,7 +25,7 @@ function segmentView(id: string, layerId: string, parentUtteranceId?: string): T
     startTime: 1.2,
     endTime: 1.8,
     text: '',
-    ...(parentUtteranceId ? { parentUtteranceId } : {}),
+    ...(parentUnitId ? { parentUnitId } : {}),
   };
 }
 
@@ -43,7 +43,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
   } as LayerDocType;
 }
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUnit(id: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -53,10 +53,10 @@ function makeUtterance(id: string): UtteranceDocType {
     transcription: { default: '默认转写' },
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeSegment(id: string): LayerSegmentDocType {
+function makeSegment(id: string): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -66,24 +66,24 @@ function makeSegment(id: string): LayerSegmentDocType {
     endTime: 1.8,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
 describe('buildTranscriptionSelectionSnapshot', () => {
-  it('uses the selected layer text for utterance selection', () => {
-    const utterance = makeUtterance('utt-1');
+  it('uses the selected layer text for unit selection', () => {
+    const unit = makeUnit('utt-1');
     const translationLayer = makeLayer('layer-tr', 'translation');
 
     const snapshot = buildTranscriptionSelectionSnapshot({
-      selectedTimelineUnit: { layerId: 'layer-tr', unitId: 'utt-1', kind: 'utterance' },
+      selectedTimelineUnit: { layerId: 'layer-tr', unitId: 'utt-1', kind: 'unit' },
       selectedTimelineSegment: null,
-      selectedTimelineOwnerUnit: utterance,
-      primaryUnitView: utteranceView('utt-1', 'layer-tr'),
+      selectedTimelineOwnerUnit: unit,
+      primaryUnitView: unitView('utt-1', 'layer-tr'),
       selectedTimelineRowMeta: { rowNumber: 2, start: 1, end: 3 },
       selectedLayerId: 'layer-tr',
       layers: [makeLayer('layer-main'), translationLayer],
       segmentContentByLayer: new Map(),
-      getUtteranceTextForLayer: (_target, layerId) => (layerId === 'layer-tr' ? 'translated text' : '默认转写'),
+      getUnitTextForLayer: (_target, layerId) => (layerId === 'layer-tr' ? 'translated text' : '默认转写'),
       formatTime: (seconds) => seconds.toFixed(1),
     });
 
@@ -100,7 +100,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit,
       selectedTimelineSegment: segment,
-      selectedTimelineOwnerUnit: makeUtterance('utt-1'),
+      selectedTimelineOwnerUnit: makeUnit('utt-1'),
       primaryUnitView: segmentView('seg-1', 'layer-seg', 'utt-1'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 1, end: 3 },
       selectedLayerId: 'layer-seg',
@@ -108,7 +108,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'segment text' }]])],
       ]),
-      getUtteranceTextForLayer: () => '默认转写',
+      getUnitTextForLayer: () => '默认转写',
       formatTime: (seconds) => seconds.toFixed(1),
     });
 
@@ -129,7 +129,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedLayerId: null,
       layers: [makeLayer('layer-main')],
       segmentContentByLayer: new Map(),
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       formatTime: (seconds) => seconds.toFixed(1),
     });
 
@@ -141,14 +141,14 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     expect(snapshot.selectedTimeRangeLabel).toBeUndefined();
   });
 
-  it('derives activeUnitId from owner utterance for segment selection', () => {
-    const ownerUtterance = makeUtterance('utt-owner');
+  it('derives activeUnitId from owner unit for segment selection', () => {
+    const ownerUnit = makeUnit('utt-owner');
     const segment = makeSegment('seg-1');
 
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' },
       selectedTimelineSegment: segment,
-      selectedTimelineOwnerUnit: ownerUtterance,
+      selectedTimelineOwnerUnit: ownerUnit,
       primaryUnitView: segmentView('seg-1', 'layer-seg', 'utt-owner'),
       selectedTimelineRowMeta: null,
       selectedLayerId: 'layer-seg',
@@ -156,7 +156,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'seg text' }]])],
       ]),
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       formatTime: (seconds) => seconds.toFixed(1),
     });
 
@@ -167,15 +167,15 @@ describe('buildTranscriptionSelectionSnapshot', () => {
 
   it('sets transcription layer fields when transcription layer is selected', () => {
     const snapshot = buildTranscriptionSelectionSnapshot({
-      selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'utterance' },
+      selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'unit' },
       selectedTimelineSegment: null,
-      selectedTimelineOwnerUnit: makeUtterance('utt-1'),
-      primaryUnitView: utteranceView('utt-1', 'layer-main'),
+      selectedTimelineOwnerUnit: makeUnit('utt-1'),
+      primaryUnitView: unitView('utt-1', 'layer-main'),
       selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
       selectedLayerId: 'layer-main',
       layers: [makeLayer('layer-main', 'transcription')],
       segmentContentByLayer: new Map(),
-      getUtteranceTextForLayer: () => '转写文本',
+      getUnitTextForLayer: () => '转写文本',
       formatTime: (seconds) => seconds.toFixed(1),
     });
 

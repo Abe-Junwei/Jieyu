@@ -1,5 +1,5 @@
 export interface SearchableItem {
-  utteranceId: string;
+  unitId: string;
   layerId?: string;
   layerKind?: 'transcription' | 'translation' | 'gloss';
   languageId?: string;
@@ -20,14 +20,14 @@ export type PatternAnalysis = {
 };
 
 export interface ReplacePlanItem {
-  utteranceId: string;
+  unitId: string;
   layerId: string | undefined;
   oldText: string;
   newText: string;
 }
 
 export interface SearchMatch {
-  utteranceId: string;
+  unitId: string;
   layerId: string | undefined;
   languageId?: string;
   orthographyId?: string;
@@ -100,7 +100,7 @@ export function findSearchMatches(
         pattern.lastIndex += 1;
       } else {
         matches.push({
-          utteranceId: item.utteranceId,
+          unitId: item.unitId,
           layerId: item.layerId ?? undefined,
           ...(item.languageId ? { languageId: item.languageId } : {}),
           ...(item.orthographyId ? { orthographyId: item.orthographyId } : {}),
@@ -131,7 +131,7 @@ export function replaceAllInItems(
     const newText = item.text.replace(pattern, replaceText);
     if (newText !== item.text) {
       updates.push({
-        utteranceId: item.utteranceId,
+        unitId: item.unitId,
         layerId: item.layerId ?? undefined,
         oldText: item.text,
         newText,

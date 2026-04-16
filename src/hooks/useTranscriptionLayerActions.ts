@@ -1,34 +1,15 @@
 import { useCallback } from 'react';
 import { getDb } from '../db';
-import type {
-  LayerLinkDocType,
-  MediaItemDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerLinkDocType, MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId } from '../utils/transcriptionFormatters';
 import type { LayerCreateInput, SaveState, TimelineUnit } from './transcriptionTypes';
-import {
-  canCreateLayer,
-  canDeleteLayer,
-  getLayerCreateGuard,
-  listIndependentBoundaryTranscriptionLayers,
-} from '../services/LayerConstraintService';
-import {
-  computeCanonicalLayerOrder,
-  resolveLayerDrop,
-} from '../services/LayerOrderingService';
-import {
-  createLayerLink,
-} from '../services/LayerIdBridgeService';
-import { listUtteranceTextsByUtterances } from '../services/LayerSegmentationTextService';
-import {
-  deleteLayerSegmentGraphByLayerId,
-  listUtteranceUnitPrimaryKeysByTextId,
-} from '../services/LayerSegmentGraphService';
+import { canCreateLayer, canDeleteLayer, getLayerCreateGuard, listIndependentBoundaryTranscriptionLayers } from '../services/LayerConstraintService';
+import { computeCanonicalLayerOrder, resolveLayerDrop } from '../services/LayerOrderingService';
+import { createLayerLink } from '../services/LayerIdBridgeService';
+import { listUnitTextsByUnits } from '../services/LayerSegmentationTextService';
+import { deleteLayerSegmentGraphByLayerId, listUnitUnitPrimaryKeysByTextId } from '../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { isKnownIso639_3Code } from '../utils/langMapping';
@@ -39,7 +20,7 @@ export type TranscriptionLayerActionsParams = {
   layerLinks: LayerLinkDocType[];
   layerToDeleteId: string;
   selectedLayerId: string;
-  utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
+  unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
   pushUndo: (label: string) => void;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
   setSaveState?: React.Dispatch<React.SetStateAction<SaveState>>;
@@ -52,13 +33,13 @@ export type TranscriptionLayerActionsParams = {
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
   setSelectedUnitIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
-  setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
-  setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
+  setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
+  setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
 };
 
 type DeleteLayerOptions = {
-  /** Keep associated utterances. */
-  keepUtterances?: boolean;
+  /** Keep associated units. */
+  keepUnits?: boolean;
 };
 
 type PerformLayerDeleteOptions = DeleteLayerOptions & {
@@ -75,7 +56,7 @@ export function useTranscriptionLayerActions({
   layerLinks,
   layerToDeleteId,
   selectedLayerId,
-  utterancesRef,
+  unitsRef,
   pushUndo,
   setLayerCreateMessage,
   setSaveState,
@@ -89,7 +70,7 @@ export function useTranscriptionLayerActions({
   setSelectedUnitIds,
   setSelectedTimelineUnit,
   setTranslations,
-  setUtterances,
+  setUnits,
 }: TranscriptionLayerActionsParams) {
   const locale = useLocale();
   const syncTranslationParentLinks = useCallback(async (
@@ -257,7 +238,7 @@ export function useTranscriptionLayerActions({
       const db = await getDb();
       const now = new Date().toISOString();
       const id = newId('layer');
-      const textId = input.textId?.trim() || utterancesRef.current[0]?.textId || layers[0]?.textId || '';
+      const textId = input.textId?.trim() || unitsRef.current[0]?.textId || layers[0]?.textId || '';
       if (!textId) {
         setLayerCreateMessage('\u672a\u627e\u5230\u5f53\u524d\u9879\u76ee\u4e0a\u4e0b\u6587\uff0c\u8bf7\u5148\u8fdb\u5165\u76ee\u6807\u9879\u76ee\u540e\u518d\u521b\u5efa\u5c42\u3002');
         return false;
@@ -316,7 +297,7 @@ export function useTranscriptionLayerActions({
       setLayerCreateMessage(error instanceof Error ? error.message : '\u521b\u5efa\u5c42\u5931\u8d25');
       return false;
     }
-  }, [layers, locale, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, utterancesRef]);
+  }, [layers, locale, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers, setSelectedLayerId, unitsRef]);
 
   /** Check whether the layer contains text content and needs confirmation. */
   const checkLayerHasContent = useCallback(async (layerId: string): Promise<number> => {
@@ -344,7 +325,7 @@ export function useTranscriptionLayerActions({
     }
 
     const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
-    const keepUtterances = options?.keepUtterances ?? false;
+    const keepUnits = options?.keepUnits ?? false;
 
     try {
       if (!options?.skipUndo) {
@@ -357,11 +338,11 @@ export function useTranscriptionLayerActions({
         targetLayer.layerType === 'transcription'
         && layers.filter((item) => item.layerType === 'transcription').length <= 1;
 
-      const affectedByProjectScope = (!keepUtterances && isDeletingLastTranscription)
-        ? await listUtteranceUnitPrimaryKeysByTextId(db, targetLayer.textId)
+      const affectedByProjectScope = (!keepUnits && isDeletingLastTranscription)
+        ? await listUnitUnitPrimaryKeysByTextId(db, targetLayer.textId)
         : [];
-      const { affectedUtteranceIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(db, effectiveLayerId);
-      const affectedUtteranceIds = !keepUtterances
+      const { affectedUnitIds: affectedByLayerTexts } = await deleteLayerSegmentGraphByLayerId(db, effectiveLayerId);
+      const affectedUnitIds = !keepUnits
         ? [...new Set([...affectedByLayerTexts, ...affectedByProjectScope])]
         : [];
 
@@ -413,15 +394,15 @@ export function useTranscriptionLayerActions({
       }
       await LayerTierUnifiedService.deleteLayer(targetLayer);
 
-      let removedUtteranceIds = new Set<string>();
-      if (!keepUtterances && affectedUtteranceIds.length > 0) {
-        const uniqueIds = [...new Set(affectedUtteranceIds)];
-        const remainingTexts = await listUtteranceTextsByUtterances(db, uniqueIds);
-        const stillReferencedIds = new Set(remainingTexts.map((d) => d.utteranceId));
+      let removedUnitIds = new Set<string>();
+      if (!keepUnits && affectedUnitIds.length > 0) {
+        const uniqueIds = [...new Set(affectedUnitIds)];
+        const remainingTexts = await listUnitTextsByUnits(db, uniqueIds);
+        const stillReferencedIds = new Set(remainingTexts.map((d) => d.unitId));
         const orphanIds = uniqueIds.filter((id) => !stillReferencedIds.has(id));
         if (orphanIds.length > 0) {
-          await LinguisticService.removeUtterancesBatch(orphanIds);
-          removedUtteranceIds = new Set(orphanIds);
+          await LinguisticService.removeUnitsBatch(orphanIds);
+          removedUnitIds = new Set(orphanIds);
         }
       }
 
@@ -433,14 +414,14 @@ export function useTranscriptionLayerActions({
         .filter((item) => item.id !== effectiveLayerId)
         .map((item) => reparentedLayerById.get(item.id) ?? item));
       setTranslations((prev) => prev.filter((item) => item.layerId !== effectiveLayerId));
-      if (removedUtteranceIds.size > 0) {
-        setUtterances((prev) => prev.filter((u) => !removedUtteranceIds.has(u.id)));
+      if (removedUnitIds.size > 0) {
+        setUnits((prev) => prev.filter((u) => !removedUnitIds.has(u.id)));
       }
       setLayerLinks(nextLayerLinks);
       if (!options?.silent) {
         setLayerToDeleteId('');
         setShowLayerManager(false);
-        const removedCount = removedUtteranceIds.size;
+        const removedCount = removedUnitIds.size;
         const cascadedCount = options?.cascadedTranslationCount ?? 0;
         const cascadedNote = cascadedCount > 0
           ? `\uff08\u81ea\u52a8\u7ea7\u8054\u5220\u9664 ${cascadedCount} \u4e2a\u4f9d\u8d56\u7ffb\u8bd1\u5c42\uff09`
@@ -457,7 +438,7 @@ export function useTranscriptionLayerActions({
         setLayerCreateMessage(error instanceof Error ? error.message : '\u5220\u9664\u5c42\u5931\u8d25');
       }
     }
-  }, [layerLinks, layers, locale, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUtterances]);
+  }, [layerLinks, layers, locale, pushUndo, selectedLayerId, setLayerCreateMessage, setLayerLinks, setLayerToDeleteId, setLayers, setSelectedLayerId, setShowLayerManager, setTranslations, setUnits]);
 
   /** Delete a layer without showing the browser confirm dialog. */
   const deleteLayerWithoutConfirm = useCallback(async (targetLayerId: string) => {
@@ -471,7 +452,7 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    const keepUtterances = options?.keepUtterances ?? false;
+    const keepUnits = options?.keepUnits ?? false;
     const targetLayer = layers.find((item) => item.id === effectiveLayerId);
     if (!targetLayer) {
       setLayerCreateMessage('\u672a\u627e\u5230\u8981\u5220\u9664\u7684\u5c42\u3002');
@@ -489,14 +470,14 @@ export function useTranscriptionLayerActions({
 
           for (const dependentTranslationId of dependentTranslationIds) {
             await performLayerDelete(dependentTranslationId, {
-              keepUtterances,
+              keepUnits,
               silent: true,
               skipUndo: true,
             });
           }
 
           await performLayerDelete(effectiveLayerId, {
-            keepUtterances,
+            keepUnits,
             cascadedTranslationCount: dependentTranslationIds.length,
           });
           return;
@@ -507,7 +488,7 @@ export function useTranscriptionLayerActions({
       }
     }
 
-    await performLayerDelete(effectiveLayerId, { keepUtterances });
+    await performLayerDelete(effectiveLayerId, { keepUnits });
   }, [layerToDeleteId, layers, performLayerDelete, setLayerCreateMessage]);
 
   const toggleLayerLink = useCallback(async (

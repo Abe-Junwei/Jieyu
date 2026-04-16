@@ -1,9 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import {
-  shouldTriggerHybridResolution,
-  HybridIntentResolver,
-  hybridScopeToLocalUnitScope,
-} from './HybridIntentResolver';
+import { shouldTriggerHybridResolution, HybridIntentResolver, hybridScopeToLocalUnitScope } from './HybridIntentResolver';
 import type { HybridResolverInput } from './HybridIntentResolver';
 
 // ── Mock 依赖 | Mock dependencies ─────────────────────────────────────────

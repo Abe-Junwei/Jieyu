@@ -1,10 +1,4 @@
-import {
-  computeCollaborationDigest,
-  evaluateResolutionConsistency,
-  type CollaborationRecord,
-  type ConflictDescriptor,
-  type ConflictResolutionStrategy,
-} from './collaborationConflictRuntime';
+import { computeCollaborationDigest, evaluateResolutionConsistency, type CollaborationRecord, type ConflictDescriptor, type ConflictResolutionStrategy } from './collaborationConflictRuntime';
 
 export type ConflictPriority = 'critical' | 'high' | 'medium' | 'low';
 

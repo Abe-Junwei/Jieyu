@@ -112,10 +112,10 @@ describe('CommandResolver', () => {
     '自动gloss',
     'auto gloss',
     '请帮我自动标注',
-  ])('should resolve "%s" to auto_gloss_utterance', (text) => {
+  ])('should resolve "%s" to auto_gloss_unit', (text) => {
     const result = resolveCommand(text);
     expect(result).not.toBeNull();
-    expect(result!.call.name).toBe('auto_gloss_utterance');
+    expect(result!.call.name).toBe('auto_gloss_unit');
   });
 
   // ── 清空翻译 | Clear translation ──
@@ -263,7 +263,7 @@ describe('CommandResolver', () => {
   it('should strip [语音指令] prefix and still match', () => {
     const result = resolveCommand('[语音指令] 自动标注');
     expect(result).not.toBeNull();
-    expect(result!.call.name).toBe('auto_gloss_utterance');
+    expect(result!.call.name).toBe('auto_gloss_unit');
   });
 
   // ── 不应命中的输入 | Should NOT match ──
@@ -282,10 +282,10 @@ describe('CommandResolver', () => {
 
   // ── ID 参数不由 resolver 填充 | IDs are NOT filled by resolver ──
 
-  it('should not include utteranceId or layerId in resolved call', () => {
+  it('should not include unitId or layerId in resolved call', () => {
     const result = resolveCommand('删除当前句段');
     expect(result).not.toBeNull();
-    expect(result!.call.arguments.utteranceId).toBeUndefined();
+    expect(result!.call.arguments.unitId).toBeUndefined();
     expect(result!.call.arguments.layerId).toBeUndefined();
   });
 });

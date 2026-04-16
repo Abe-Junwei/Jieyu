@@ -12,7 +12,7 @@ import '../styles/pages/transcription-waveform.css';
  */
 
 import React, { useEffect, type MutableRefObject, type RefObject } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
@@ -21,13 +21,8 @@ import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLef
 import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
-import {
-  VideoPreviewSection,
-  type VideoLayoutMode,
-} from '../components/transcription/TranscriptionTimelineSections';
-import {
-  WaveformAreaSection,
-} from '../components/transcription/TranscriptionLayoutSections';
+import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
+import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
@@ -95,8 +90,8 @@ export interface OrchestratorWaveformContentProps {
 
   // Hover tooltip
   hoverTime: { time: number; x: number; y: number } | null;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitTextForLayer: (unit: LayerUnitDocType) => string | null | undefined;
   waveformHoverPreviewProps: { dir?: 'ltr' | 'rtl'; style?: React.CSSProperties };
 
   // Left status strip
@@ -199,8 +194,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     handleWaveformAreaMouseLeave,
     handleWaveformAreaWheel,
     hoverTime,
-    utterancesOnCurrentMedia,
-    getUtteranceTextForLayer,
+    unitsOnCurrentMedia,
+    getUnitTextForLayer,
     waveformHoverPreviewProps,
     selectedMediaUrl,
     zoomPercent,
@@ -382,8 +377,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
             time={hoverTime.time}
             x={hoverTime.x}
             y={hoverTime.y}
-            utterances={utterancesOnCurrentMedia}
-            getUtteranceTextForLayer={getUtteranceTextForLayer}
+            units={unitsOnCurrentMedia}
+            getUnitTextForLayer={getUnitTextForLayer}
             formatTime={formatTime}
             {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
             {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
@@ -619,8 +614,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
               />
               {!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady && (
                 <RegionActionOverlay
-                  utteranceStartTime={selectedWaveformTimelineItem.startTime}
-                  utteranceEndTime={selectedWaveformTimelineItem.endTime}
+                  unitStartTime={selectedWaveformTimelineItem.startTime}
+                  unitEndTime={selectedWaveformTimelineItem.endTime}
                   zoomPxPerSec={zoomPxPerSec}
                   scrollLeft={waveformScrollLeft}
                   waveAreaWidth={playerInstanceGetWidth()}

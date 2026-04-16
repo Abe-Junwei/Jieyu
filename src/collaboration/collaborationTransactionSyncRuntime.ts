@@ -1,7 +1,4 @@
-import {
-  mergeReplicaBatch,
-  type ReplicaBatchMergeResult,
-} from './collaborationMultiReplicaRuntime';
+import { mergeReplicaBatch, type ReplicaBatchMergeResult } from './collaborationMultiReplicaRuntime';
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 export interface TransactionEntitySyncInput {

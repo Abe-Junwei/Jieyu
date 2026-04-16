@@ -18,16 +18,9 @@ import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { listOrthographyRecords } from '../services/LinguisticService.orthography';
-import {
-  type LanguageCatalogSearchSuggestion,
-  searchLanguageCatalogSuggestions,
-} from '../services/LanguageCatalogSearchService';
+import { type LanguageCatalogSearchSuggestion, searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
 import { formatLanguageCatalogSearchSuggestion } from '../utils/langMapping';
-import {
-  buildOrthographyBrowseSelector,
-  buildOrthographyBrowseState,
-  WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-} from './orthographyBrowse.shared';
+import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
 
 const TARGET_ORTHOGRAPHY_ID_PARAM = 'targetOrthographyId';
 

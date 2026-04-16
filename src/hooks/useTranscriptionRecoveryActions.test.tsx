@@ -2,21 +2,21 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { RecoveryData } from '../services/SnapshotService';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActions';
 
 const {
-  mockListUtteranceDocsFromCanonicalLayerUnits,
+  mockListUnitDocsFromCanonicalLayerUnits,
   mockInsertTranslationLayer,
-  mockSaveUtterance,
+  mockSaveUnit,
   mockClearRecoverySnapshot,
-  mockSyncUtteranceTextToSegmentationV2,
+  mockSyncUnitTextToSegmentationV2,
 } = vi.hoisted(() => ({
-  mockListUtteranceDocsFromCanonicalLayerUnits: vi.fn(async () => [] as UtteranceDocType[]),
+  mockListUnitDocsFromCanonicalLayerUnits: vi.fn(async () => [] as LayerUnitDocType[]),
   mockInsertTranslationLayer: vi.fn(),
-  mockSaveUtterance: vi.fn(),
+  mockSaveUnit: vi.fn(),
   mockClearRecoverySnapshot: vi.fn(),
-  mockSyncUtteranceTextToSegmentationV2: vi.fn(async () => undefined),
+  mockSyncUnitTextToSegmentationV2: vi.fn(async () => undefined),
 }));
 
 vi.mock('../db', () => ({
@@ -30,12 +30,12 @@ vi.mock('../db', () => ({
 }));
 
 vi.mock('../services/LayerSegmentGraphService', () => ({
-  listUtteranceDocsFromCanonicalLayerUnits: mockListUtteranceDocsFromCanonicalLayerUnits,
+  listUnitDocsFromCanonicalLayerUnits: mockListUnitDocsFromCanonicalLayerUnits,
 }));
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
-    saveUtterance: mockSaveUtterance,
+    saveUnit: mockSaveUnit,
   },
 }));
 
@@ -49,10 +49,10 @@ vi.mock('../services/SnapshotService', async () => {
 });
 
 vi.mock('../services/LayerSegmentationTextService', () => ({
-  syncUtteranceTextToSegmentationV2: mockSyncUtteranceTextToSegmentationV2,
+  syncUnitTextToSegmentationV2: mockSyncUnitTextToSegmentationV2,
 }));
 
-function makeUtterance(id: string, updatedAt: string): UtteranceDocType {
+function makeUnit(id: string, updatedAt: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'm1',
@@ -62,17 +62,17 @@ function makeUtterance(id: string, updatedAt: string): UtteranceDocType {
     transcription: { default: 'hello' },
     createdAt: updatedAt,
     updatedAt,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeRecoveryDataWithTranslation(utterances: UtteranceDocType[]): RecoveryData {
+function makeRecoveryDataWithTranslation(units: LayerUnitDocType[]): RecoveryData {
   return {
     schemaVersion: 1,
     timestamp: Date.now(),
-    utterances,
+    units,
     translations: [{
       id: 'utr-1',
-      utteranceId: utterances[0]?.id ?? 'utt-1',
+      unitId: units[0]?.id ?? 'utt-1',
       layerId: 'layer-1',
       modality: 'text',
       text: 'hello',
@@ -87,28 +87,28 @@ function makeRecoveryDataWithTranslation(utterances: UtteranceDocType[]): Recove
 describe('useTranscriptionRecoveryActions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValue([]);
+    mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValue([]);
     mockInsertTranslationLayer.mockResolvedValue(undefined);
-    mockSaveUtterance.mockResolvedValue(undefined);
+    mockSaveUnit.mockResolvedValue(undefined);
     mockClearRecoverySnapshot.mockResolvedValue(undefined);
-    mockSyncUtteranceTextToSegmentationV2.mockResolvedValue(undefined);
+    mockSyncUnitTextToSegmentationV2.mockResolvedValue(undefined);
   });
 
   it('applyRecovery conflict should return false and set friendly saveState error', async () => {
-    const currentUtt = makeUtterance('utt-1', '2026-03-23T20:00:00.000Z');
-    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValueOnce([
+    const currentUtt = makeUnit('utt-1', '2026-03-23T20:00:00.000Z');
+    mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValueOnce([
       { ...currentUtt, updatedAt: '2026-03-23T20:01:00.000Z' },
     ]);
 
     const dbNameRef = { current: 'jieyudb' };
-    const utterancesRef = { current: [currentUtt] };
+    const unitsRef = { current: [currentUtt] };
     const loadSnapshot = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
     const runWithDbMutex = async <T,>(task: () => Promise<T>) => task();
 
     const { result } = renderHook(() => useTranscriptionRecoveryActions({
       dbNameRef,
-      utterancesRef,
+      unitsRef,
       loadSnapshot,
       runWithDbMutex,
       setSaveState,
@@ -130,18 +130,18 @@ describe('useTranscriptionRecoveryActions', () => {
   });
 
   it('applyRecovery success should return true and clear recovery snapshot', async () => {
-    const currentUtt = makeUtterance('utt-1', '2026-03-23T20:00:00.000Z');
-    mockListUtteranceDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
+    const currentUtt = makeUnit('utt-1', '2026-03-23T20:00:00.000Z');
+    mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
 
     const dbNameRef = { current: 'jieyudb' };
-    const utterancesRef = { current: [currentUtt] };
+    const unitsRef = { current: [currentUtt] };
     const loadSnapshot = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
     const runWithDbMutex = async <T,>(task: () => Promise<T>) => task();
 
     const { result } = renderHook(() => useTranscriptionRecoveryActions({
       dbNameRef,
-      utterancesRef,
+      unitsRef,
       loadSnapshot,
       runWithDbMutex,
       setSaveState,
@@ -156,10 +156,10 @@ describe('useTranscriptionRecoveryActions', () => {
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
     expect(mockClearRecoverySnapshot).toHaveBeenCalledWith('jieyudb');
-    expect(mockSyncUtteranceTextToSegmentationV2).toHaveBeenCalledWith(
+    expect(mockSyncUnitTextToSegmentationV2).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'utt-1' }),
-      expect.objectContaining({ id: 'utr-1', utteranceId: 'utt-1' }),
+      expect.objectContaining({ id: 'utr-1', unitId: 'utt-1' }),
     );
   });
 });

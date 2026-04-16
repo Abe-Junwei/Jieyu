@@ -62,7 +62,7 @@ export function useZoom(input: UseZoomInput) {
   const zoomToPercentRef = useLatest(zoomToPercent);
 
   // ---- 双击句段：缩放并居中 ----
-  const zoomToUtterance = useCallback((startTime: number, endTime: number) => {
+  const zoomToUnit = useCallback((startTime: number, endTime: number) => {
     const ws = playerInstanceRef.current;
     if (!ws) return;
     const uttDur = endTime - startTime;
@@ -183,6 +183,6 @@ export function useZoom(input: UseZoomInput) {
   return {
     rulerView,
     zoomToPercent,
-    zoomToUtterance,
+    zoomToUnit,
   };
 }

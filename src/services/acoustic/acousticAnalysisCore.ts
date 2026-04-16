@@ -1,11 +1,4 @@
-import type {
-  AcousticAnalysisConfig,
-  AcousticAnalysisRequest,
-  AcousticAnalysisSummary,
-  AcousticFeatureResult,
-  AcousticFrame,
-  AcousticHotspot,
-} from '../../utils/acousticOverlayTypes';
+import type { AcousticAnalysisConfig, AcousticAnalysisRequest, AcousticAnalysisSummary, AcousticFeatureResult, AcousticFrame, AcousticHotspot } from '../../utils/acousticOverlayTypes';
 
 const EPSILON = 1e-8;
 const SPECTRAL_ROLLOFF_RATIO = 0.85;

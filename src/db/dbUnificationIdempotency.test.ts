@@ -4,7 +4,7 @@ import { buildUnifiedUnitBackfill } from './migrations/buildUnifiedUnitBackfill'
 describe('db unification idempotency', () => {
   it('produces the same canonical payload on repeated runs', () => {
     const input = {
-      utterances: [{
+      units: [{
         id: 'utt-1',
         textId: 'text-1',
         mediaId: 'media-1',

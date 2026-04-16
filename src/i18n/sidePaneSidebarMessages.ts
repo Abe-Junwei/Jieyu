@@ -21,7 +21,7 @@ export type SidePaneSidebarMessages = {
   speakerUnusedCount: (count: number) => string;
   speakerUnusedCountPending: string;
   speakerDuplicateGroupCount: (count: number) => string;
-  speakerSelectedUtteranceCount: (count: number) => string;
+  speakerSelectedUnitCount: (count: number) => string;
   speakerCleanupUnusedTitle: string;
   speakerCleanupUnusedButton: (count: number) => string;
   speakerBatchAssignTitle: string;
@@ -58,7 +58,7 @@ export type SidePaneSidebarMessages = {
   speakerCurrentScopeNone: string;
   speakerProjectRefCount: (count: number) => string;
   speakerProjectRefPending: string;
-  /** Transcription-axis (`utterances`) vs layer segment counts from `LinguisticService.getSpeakerReferenceStats`. */
+  /** Transcription-axis (`units`) vs layer segment counts from `LinguisticService.getSpeakerReferenceStats`. */
   speakerAxisStats: (transcriptionUnitCount: number, segmentCount: number) => string;
   speakerAxisStatsPending: string;
   speakerUnusedEntityHint: string;
@@ -93,7 +93,7 @@ export type SidePaneSidebarMessages = {
   quickActionRepairing: string;
   quickActionRepair: string;
   deleteLayerModalAria: string;
-  deleteKeepUtterances: string;
+  deleteKeepUnits: string;
   deleteButton: string;
   cancelButton: string;
   closeButton: string;
@@ -111,14 +111,27 @@ export type SidePaneSidebarMessages = {
   paneSubtitle: string;
   segmentListAria: string;
   segmentListTitle: string;
+  segmentListLoading: string;
   segmentListNoSegments: string;
   segmentListNoMatches: string;
   segmentListEmpty: string;
   segmentListFilterPlaceholder: string;
+  segmentListContentFilterLabel: string;
   segmentListSpeakerFilterLabel: string;
   segmentListNoteCategoryFilterLabel: string;
   segmentListCertaintyFilterLabel: string;
+  segmentListAnnotationStatusFilterLabel: string;
+  segmentListSourceTypeFilterLabel: string;
   segmentListFilterReset: string;
+  segmentListContentStateHasText: string;
+  segmentListContentStateEmptyText: string;
+  segmentListAnnotationStatusRaw: string;
+  segmentListAnnotationStatusTranscribed: string;
+  segmentListAnnotationStatusTranslated: string;
+  segmentListAnnotationStatusGlossed: string;
+  segmentListAnnotationStatusVerified: string;
+  segmentListSourceTypeHuman: string;
+  segmentListSourceTypeAi: string;
   segmentListCertaintyNotUnderstood: string;
   segmentListCertaintyUncertain: string;
   segmentListCertaintyCertain: string;
@@ -154,7 +167,7 @@ const zhCN: SidePaneSidebarMessages = {
   speakerUnusedCount: (count) => `\u672a\u5f15\u7528\u5b9e\u4f53\uff1a${count}`,
   speakerUnusedCountPending: '\u672a\u5f15\u7528\u5b9e\u4f53\uff1a\u7edf\u8ba1\u4e2d\u2026',
   speakerDuplicateGroupCount: (count) => `\u540c\u540d\u7ec4\uff1a${count}`,
-  speakerSelectedUtteranceCount: (count) => `\u5df2\u9009\u53e5\u6bb5\uff1a${count}`,
+  speakerSelectedUnitCount: (count) => `\u5df2\u9009\u53e5\u6bb5\uff1a${count}`,
   speakerCleanupUnusedTitle: '\u6279\u91cf\u5220\u9664\u5168\u9879\u76ee\u672a\u5f15\u7528\u7684\u8bf4\u8bdd\u4eba\u5b9e\u4f53',
   speakerCleanupUnusedButton: (count) => `\u6e05\u7406\u672a\u5f15\u7528\u5b9e\u4f53\uff08${count}\uff09`,
   speakerBatchAssignTitle: '\u6279\u91cf\u5206\u914d',
@@ -225,7 +238,7 @@ const zhCN: SidePaneSidebarMessages = {
   quickActionRepairing: '\u4fee\u590d\u4e2d\u2026',
   quickActionRepair: '\u7ea6\u675f\u4fee\u590d',
   deleteLayerModalAria: '\u5220\u9664\u5c42',
-  deleteKeepUtterances: '\u4fdd\u7559\u73b0\u6709\u8bed\u6bb5\u533a\u95f4',
+  deleteKeepUnits: '\u4fdd\u7559\u73b0\u6709\u8bed\u6bb5\u533a\u95f4',
   deleteButton: '\u5220\u9664',
   cancelButton: '\u53d6\u6d88',
   closeButton: '\u5173\u95ed',
@@ -243,14 +256,27 @@ const zhCN: SidePaneSidebarMessages = {
   paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
   segmentListAria: '\u8bed\u6bb5\u5217\u8868',
   segmentListTitle: '\u8bed\u6bb5\u5217\u8868',
+  segmentListLoading: '\u6b63\u5728\u52a0\u8f7d\u8bed\u6bb5\u2026',
   segmentListNoSegments: '\u5f53\u524d\u5c42\u6682\u65e0\u8bed\u6bb5',
   segmentListNoMatches: '\u5f53\u524d\u7b5b\u9009\u6761\u4ef6\u4e0b\u65e0\u5339\u914d\u8bed\u6bb5',
   segmentListEmpty: '\u65e0\u5185\u5bb9',
   segmentListFilterPlaceholder: '\u7b5b\u9009\u8bed\u6bb5\u2026',
+  segmentListContentFilterLabel: '\u6309\u5185\u5bb9\u72b6\u6001\u7b5b\u9009',
   segmentListSpeakerFilterLabel: '\u6309\u8bf4\u8bdd\u4eba\u7b5b\u9009',
   segmentListNoteCategoryFilterLabel: '\u6309\u5907\u6ce8\u5206\u7c7b\u7b5b\u9009',
   segmentListCertaintyFilterLabel: '\u6309\u786e\u4fe1\u5ea6\u7b5b\u9009',
+  segmentListAnnotationStatusFilterLabel: '\u6309\u6807\u6ce8\u72b6\u6001\u7b5b\u9009',
+  segmentListSourceTypeFilterLabel: '\u6309\u6765\u6e90\u7b5b\u9009',
   segmentListFilterReset: '\u6e05\u7a7a\u7b5b\u9009',
+  segmentListContentStateHasText: '\u6709\u5185\u5bb9',
+  segmentListContentStateEmptyText: '\u65e0\u5185\u5bb9',
+  segmentListAnnotationStatusRaw: '\u539f\u59cb',
+  segmentListAnnotationStatusTranscribed: '\u5df2\u8f6c\u5199',
+  segmentListAnnotationStatusTranslated: '\u5df2\u7ffb\u8bd1',
+  segmentListAnnotationStatusGlossed: '\u5df2\u8bcd\u6c47\u6807\u6ce8',
+  segmentListAnnotationStatusVerified: '\u5df2\u6821\u9a8c',
+  segmentListSourceTypeHuman: '\u4eba\u5de5',
+  segmentListSourceTypeAi: 'AI',
   segmentListCertaintyNotUnderstood: '\u4e0d\u7406\u89e3',
   segmentListCertaintyUncertain: '\u4e0d\u786e\u5b9a',
   segmentListCertaintyCertain: '\u786e\u5b9a',
@@ -286,18 +312,18 @@ const enUS: SidePaneSidebarMessages = {
   speakerUnusedCount: (count) => `Unused entities: ${count}`,
   speakerUnusedCountPending: 'Unused entities: counting\u2026',
   speakerDuplicateGroupCount: (count) => `Duplicate-name groups: ${count}`,
-  speakerSelectedUtteranceCount: (count) => `Selected utterances: ${count}`,
+  speakerSelectedUnitCount: (count) => `Selected units: ${count}`,
   speakerCleanupUnusedTitle: 'Batch delete unused speaker entities across the project',
   speakerCleanupUnusedButton: (count) => `Clean unused entities (${count})`,
   speakerBatchAssignTitle: 'Batch assign',
   speakerTargetPlaceholder: 'Select target speaker',
   speakerApplyButton: 'Apply speaker',
-  speakerClearTitle: 'Clear speaker tags on selected utterances',
+  speakerClearTitle: 'Clear speaker tags on selected units',
   speakerClearButton: 'Clear selected speakers',
   speakerDraftPlaceholder: 'New speaker name',
-  speakerCreateOnlyTitle: 'Create speaker only, do not assign utterances',
+  speakerCreateOnlyTitle: 'Create speaker only, do not assign units',
   speakerCreateOnlyButton: 'Create only',
-  speakerCreateAssignTitle: 'Create speaker and assign to selected utterances',
+  speakerCreateAssignTitle: 'Create speaker and assign to selected units',
   speakerCreateAssignButton: 'Create and assign',
   speakerFilterAria: 'Filter by speaker',
   speakerFilterAllTitle: 'Show all speakers',
@@ -307,7 +333,7 @@ const enUS: SidePaneSidebarMessages = {
   speakerGroupCollapse: 'Collapse speaker group',
   speakerFocusTitle: 'Focus this speaker only',
   speakerFocusButton: 'Focus',
-  speakerSelectAllTitle: 'Select all utterances for this speaker',
+  speakerSelectAllTitle: 'Select all units for this speaker',
   speakerSelectAllButton: 'Select',
   speakerDeleteTagTitle: 'Delete tags for this speaker',
   speakerDeleteTagButton: 'Delete tag',
@@ -357,7 +383,7 @@ const enUS: SidePaneSidebarMessages = {
   quickActionRepairing: 'Repairing\u2026',
   quickActionRepair: 'Constraint repair',
   deleteLayerModalAria: 'Delete layer',
-  deleteKeepUtterances: 'Keep existing utterance ranges',
+  deleteKeepUnits: 'Keep existing unit ranges',
   deleteButton: 'Delete',
   cancelButton: 'Cancel',
   closeButton: 'Close',
@@ -375,14 +401,27 @@ const enUS: SidePaneSidebarMessages = {
   paneSubtitle: 'Layer list, current layer details and quick actions',
   segmentListAria: 'Segment list',
   segmentListTitle: 'Segment list',
+  segmentListLoading: 'Loading segments…',
   segmentListNoSegments: 'No segments in the current layer',
   segmentListNoMatches: 'No segments match the current filters',
   segmentListEmpty: 'No content',
   segmentListFilterPlaceholder: 'Filter segments…',
+  segmentListContentFilterLabel: 'Filter by content state',
   segmentListSpeakerFilterLabel: 'Filter by speaker',
   segmentListNoteCategoryFilterLabel: 'Filter by note category',
   segmentListCertaintyFilterLabel: 'Filter by certainty',
+  segmentListAnnotationStatusFilterLabel: 'Filter by annotation status',
+  segmentListSourceTypeFilterLabel: 'Filter by source',
   segmentListFilterReset: 'Clear filters',
+  segmentListContentStateHasText: 'Has content',
+  segmentListContentStateEmptyText: 'Empty',
+  segmentListAnnotationStatusRaw: 'Raw',
+  segmentListAnnotationStatusTranscribed: 'Transcribed',
+  segmentListAnnotationStatusTranslated: 'Translated',
+  segmentListAnnotationStatusGlossed: 'Glossed',
+  segmentListAnnotationStatusVerified: 'Verified',
+  segmentListSourceTypeHuman: 'Human',
+  segmentListSourceTypeAi: 'AI',
   segmentListCertaintyNotUnderstood: 'Not understood',
   segmentListCertaintyUncertain: 'Uncertain',
   segmentListCertaintyCertain: 'Certain',

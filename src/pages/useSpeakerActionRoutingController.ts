@@ -1,54 +1,32 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type {
-  LayerDocType,
-  LayerSegmentContentDocType,
-  LayerSegmentDocType,
-  SpeakerDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SpeakerActionDialogState, SpeakerFilterOption } from '../hooks/speakerManagement/types';
-import {
-  applySpeakerAssignmentToUtterances,
-  getSpeakerDisplayNameByKey,
-  upsertSpeaker,
-} from '../hooks/speakerManagement/speakerUtils';
-import {
-  buildMixedSelectionSpeakerSummary,
-  buildSpeakerActionErrorOptions,
-  formatSpeakerAssignmentResult,
-  formatSpeakerClearResult,
-  formatSpeakerCreateAndAssignResult,
-  formatSpeakerExportContent,
-  formatSpeakerExportDone,
-  getSpeakerExportFallbackName,
-  getSpeakerUndoLabel,
-  type SpeakerFormat,
-  type SpeakerTranslate,
-} from '../hooks/speakerManagement/speakerI18n';
+import { applySpeakerAssignmentToUnits, getSpeakerDisplayNameByKey, upsertSpeaker } from '../hooks/speakerManagement/speakerUtils';
+import { buildMixedSelectionSpeakerSummary, buildSpeakerActionErrorOptions, formatSpeakerAssignmentResult, formatSpeakerClearResult, formatSpeakerCreateAndAssignResult, formatSpeakerExportContent, formatSpeakerExportDone, getSpeakerExportFallbackName, getSpeakerUndoLabel, type SpeakerFormat, type SpeakerTranslate } from '../hooks/speakerManagement/speakerI18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
-type SegmentUpdater = (segment: LayerSegmentDocType) => LayerSegmentDocType;
+type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
 interface UseSpeakerActionRoutingControllerInput {
   activeSpeakerManagementLayer: LayerDocType | null;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerSegmentContentDocType>>;
-  resolveExplicitSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
-  resolveSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
-  selectedBatchSegmentsForSpeakerActions: LayerSegmentDocType[];
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
+  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
+  resolveExplicitSpeakerKeyForSegment: (segment: LayerUnitDocType) => string;
+  resolveSpeakerKeyForSegment: (segment: LayerUnitDocType) => string;
+  selectedBatchSegmentsForSpeakerActions: LayerUnitDocType[];
   selectedUnitIdsForSpeakerActions: string[];
-  segmentByIdForSpeakerActions: ReadonlyMap<string, LayerSegmentDocType>;
+  segmentByIdForSpeakerActions: ReadonlyMap<string, LayerUnitDocType>;
   selectedUnitIdsForSpeakerActionsSet: Set<string>;
-  resolveSpeakerActionUtteranceIds: (ids: Iterable<string>) => string[];
-  selectedBatchUtterances: UtteranceDocType[];
+  resolveSpeakerActionUnitIds: (ids: Iterable<string>) => string[];
+  selectedBatchUnits: LayerUnitDocType[];
   selectedSpeakerSummary: string;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceSpeakerKey: (utterance: UtteranceDocType) => string;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
   speakerFilterOptionsForActions: SpeakerFilterOption[];
   speakerOptions: SpeakerDocType[];
   speakerByIdMap: ReadonlyMap<string, SpeakerDocType>;
@@ -63,10 +41,10 @@ interface UseSpeakerActionRoutingControllerInput {
   updateSpeakerDialogDraftNameBase: (value: string) => void;
   updateSpeakerDialogTargetKeyBase: (speakerKey: string) => void;
   confirmSpeakerDialogBase: () => Promise<void>;
-  handleSelectSpeakerUtterances: (speakerKey: string) => void;
+  handleSelectSpeakerUnits: (speakerKey: string) => void;
   handleClearSpeakerAssignments: (speakerKey: string) => void;
   handleExportSpeakerSegments: (speakerKey: string) => void;
-  handleAssignSpeakerToUtterances: (utteranceIds: Iterable<string>, speakerId?: string) => Promise<void>;
+  handleAssignSpeakerToUnits: (unitIds: Iterable<string>, speakerId?: string) => Promise<void>;
   handleAssignSpeakerToSelected: () => Promise<void>;
   handleCreateSpeakerAndAssign: () => Promise<void>;
   refreshSpeakers: () => Promise<void>;
@@ -83,7 +61,7 @@ interface UseSpeakerActionRoutingControllerInput {
   refreshSegmentUndoSnapshot: () => Promise<void>;
   updateSegmentsLocally: (segmentIds: Iterable<string>, updater: SegmentUpdater) => void;
   setSaveState: (state: SaveState) => void;
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
+  setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
   setSpeakers: Dispatch<SetStateAction<SpeakerDocType[]>>;
   openSpeakerManagementPanel: (draftName?: string) => void;
 }
@@ -124,11 +102,11 @@ export function useSpeakerActionRoutingController({
   selectedUnitIdsForSpeakerActions,
   segmentByIdForSpeakerActions,
   selectedUnitIdsForSpeakerActionsSet,
-  resolveSpeakerActionUtteranceIds,
-  selectedBatchUtterances,
+  resolveSpeakerActionUnitIds,
+  selectedBatchUnits,
   selectedSpeakerSummary,
-  utterancesOnCurrentMedia,
-  getUtteranceSpeakerKey,
+  unitsOnCurrentMedia,
+  getUnitSpeakerKey,
   speakerFilterOptionsForActions,
   speakerOptions,
   speakerByIdMap,
@@ -143,10 +121,10 @@ export function useSpeakerActionRoutingController({
   updateSpeakerDialogDraftNameBase,
   updateSpeakerDialogTargetKeyBase,
   confirmSpeakerDialogBase,
-  handleSelectSpeakerUtterances,
+  handleSelectSpeakerUnits,
   handleClearSpeakerAssignments,
   handleExportSpeakerSegments,
-  handleAssignSpeakerToUtterances,
+  handleAssignSpeakerToUnits,
   handleAssignSpeakerToSelected,
   handleCreateSpeakerAndAssign,
   refreshSpeakers,
@@ -163,7 +141,7 @@ export function useSpeakerActionRoutingController({
   refreshSegmentUndoSnapshot,
   updateSegmentsLocally,
   setSaveState,
-  setUtterances,
+  setUnits,
   setSpeakers,
   openSpeakerManagementPanel,
 }: UseSpeakerActionRoutingControllerInput): UseSpeakerActionRoutingControllerResult {
@@ -172,11 +150,11 @@ export function useSpeakerActionRoutingController({
     [selectedUnitIdsForSpeakerActionsSet],
   );
 
-  const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(
-    () => resolveSpeakerActionUtteranceIds(
+  const selectedStandaloneUnitIdsForSpeakerActions = useMemo(
+    () => resolveSpeakerActionUnitIds(
       selectedUnitIdsForSpeakerActionsList.filter((id) => !segmentByIdForSpeakerActions.has(id)),
     ),
-    [resolveSpeakerActionUtteranceIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActionsList],
+    [resolveSpeakerActionUnitIds, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActionsList],
   );
 
   const findExistingSpeakerEntityByName = (rawName: string) => {
@@ -190,21 +168,21 @@ export function useSpeakerActionRoutingController({
     [speakerByIdMap],
   );
 
-  const selectedSpeakerActionCount = selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length;
+  const selectedSpeakerActionCount = selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUnitIdsForSpeakerActions.length;
 
   const selectedSpeakerSummaryForActions = useMemo(() => {
-    if (selectedBatchSegmentsForSpeakerActions.length === 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length === 0) {
+    if (selectedBatchSegmentsForSpeakerActions.length === 0 && selectedStandaloneUnitIdsForSpeakerActions.length === 0) {
       return selectedSpeakerSummary;
     }
-    const totalSelectedCount = selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length;
+    const totalSelectedCount = selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUnitIdsForSpeakerActions.length;
     const assignedKeys = [
       ...selectedBatchSegmentsForSpeakerActions
         .map(resolveSpeakerKeyForSegment)
         .filter((key) => key !== 'unknown-speaker'),
-      ...selectedStandaloneUtteranceIdsForSpeakerActions
-        .map((utteranceId) => utterancesOnCurrentMedia.find((utterance) => utterance.id === utteranceId))
-        .filter((utterance): utterance is UtteranceDocType => Boolean(utterance))
-        .map((utterance) => getUtteranceSpeakerKey(utterance))
+      ...selectedStandaloneUnitIdsForSpeakerActions
+        .map((unitId) => unitsOnCurrentMedia.find((unit) => unit.id === unitId))
+        .filter((unit): unit is LayerUnitDocType => Boolean(unit))
+        .map((unit) => getUnitSpeakerKey(unit))
         .filter((key) => key.length > 0),
     ];
     return buildMixedSelectionSpeakerSummary({
@@ -214,7 +192,7 @@ export function useSpeakerActionRoutingController({
       t,
       tf,
     });
-  }, [getSpeakerNameForDisplay, getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, selectedStandaloneUtteranceIdsForSpeakerActions, t, tf, utterancesOnCurrentMedia]);
+  }, [getSpeakerNameForDisplay, getUnitSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedSpeakerSummary, selectedStandaloneUnitIdsForSpeakerActions, t, tf, unitsOnCurrentMedia]);
 
   const [segmentSpeakerDialogState, setSegmentSpeakerDialogState] = useState<SpeakerActionDialogState | null>(null);
   const [segmentSpeakerDialogBusy, setSegmentSpeakerDialogBusy] = useState(false);
@@ -251,18 +229,18 @@ export function useSpeakerActionRoutingController({
       return;
     }
 
-    if (selectedBatchUtterances.length === 0) {
+    if (selectedBatchUnits.length === 0) {
       setBatchSpeakerId('');
       return;
     }
-    const firstSpeakerId = selectedBatchUtterances[0]?.speakerId?.trim() ?? '';
+    const firstSpeakerId = selectedBatchUnits[0]?.speakerId?.trim() ?? '';
     if (!firstSpeakerId) {
       setBatchSpeakerId('');
       return;
     }
-    const allSame = selectedBatchUtterances.every((utterance) => (utterance.speakerId?.trim() ?? '') === firstSpeakerId);
+    const allSame = selectedBatchUnits.every((unit) => (unit.speakerId?.trim() ?? '') === firstSpeakerId);
     setBatchSpeakerId(allSame ? firstSpeakerId : '');
-  }, [selectedBatchSegmentsForSpeakerActions, selectedBatchUtterances, setBatchSpeakerId]);
+  }, [selectedBatchSegmentsForSpeakerActions, selectedBatchUnits, setBatchSpeakerId]);
 
   const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {
     const targetIds = Array.from(new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0)));
@@ -335,8 +313,8 @@ export function useSpeakerActionRoutingController({
 
   const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {
     const targetSegmentIds = selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id);
-    const targetUtteranceIds = selectedStandaloneUtteranceIdsForSpeakerActions;
-    if ((targetSegmentIds.length === 0 && targetUtteranceIds.length === 0) || speakerSavingRouted) return;
+    const targetUnitIds = selectedStandaloneUnitIdsForSpeakerActions;
+    if ((targetSegmentIds.length === 0 && targetUnitIds.length === 0) || speakerSavingRouted) return;
 
     const normalizedSpeakerId = speakerId?.trim();
     const speaker = normalizedSpeakerId ? speakerByIdMap.get(normalizedSpeakerId) : undefined;
@@ -344,12 +322,12 @@ export function useSpeakerActionRoutingController({
     try {
       pushUndo(getSpeakerUndoLabel('assign', t));
       undoPushed = true;
-      const [updatedSegments, updatedUtterances] = await Promise.all([
+      const [updatedSegments, updatedUnits] = await Promise.all([
         targetSegmentIds.length > 0
           ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, normalizedSpeakerId)
           : Promise.resolve(0),
-        targetUtteranceIds.length > 0
-          ? LinguisticService.assignSpeakerToUtterances(targetUtteranceIds, normalizedSpeakerId)
+        targetUnitIds.length > 0
+          ? LinguisticService.assignSpeakerToUnits(targetUnitIds, normalizedSpeakerId)
           : Promise.resolve(0),
       ]);
       const now = new Date().toISOString();
@@ -363,14 +341,14 @@ export function useSpeakerActionRoutingController({
           return cleared;
         });
       }
-      if (targetUtteranceIds.length > 0) {
-        setUtterances((prev) => applySpeakerAssignmentToUtterances(prev, targetUtteranceIds, speaker));
+      if (targetUnitIds.length > 0) {
+        setUnits((prev) => applySpeakerAssignmentToUnits(prev, targetUnitIds, speaker));
       }
       setBatchSpeakerId(normalizedSpeakerId ?? '');
       await reloadSegments();
       await refreshSegmentUndoSnapshot();
       await refreshSpeakerReferenceStats();
-      const totalUpdated = updatedSegments + updatedUtterances;
+      const totalUpdated = updatedSegments + updatedUnits;
       setSaveState({
         kind: 'done',
         message: formatSpeakerAssignmentResult('selection', totalUpdated, t, tf),
@@ -385,13 +363,13 @@ export function useSpeakerActionRoutingController({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setUtterances, speakerByIdMap, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
+  }, [pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setUnits, speakerByIdMap, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
 
   const createSpeakerAndAssignToMixedSelection = useCallback(async (name: string) => {
     const trimmedName = name.trim();
     const targetSegmentIds = selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id);
-    const targetUtteranceIds = selectedStandaloneUtteranceIdsForSpeakerActions;
-    if (!trimmedName || (targetSegmentIds.length === 0 && targetUtteranceIds.length === 0) || speakerSavingRouted) return;
+    const targetUnitIds = selectedStandaloneUnitIdsForSpeakerActions;
+    if (!trimmedName || (targetSegmentIds.length === 0 && targetUnitIds.length === 0) || speakerSavingRouted) return;
 
     let undoPushed = false;
     try {
@@ -399,20 +377,20 @@ export function useSpeakerActionRoutingController({
       pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
-      const [updatedSegments, updatedUtterances] = await Promise.all([
+      const [updatedSegments, updatedUnits] = await Promise.all([
         targetSegmentIds.length > 0
           ? LinguisticService.assignSpeakerToSegments(targetSegmentIds, targetSpeaker.id)
           : Promise.resolve(0),
-        targetUtteranceIds.length > 0
-          ? LinguisticService.assignSpeakerToUtterances(targetUtteranceIds, targetSpeaker.id)
+        targetUnitIds.length > 0
+          ? LinguisticService.assignSpeakerToUnits(targetUnitIds, targetSpeaker.id)
           : Promise.resolve(0),
       ]);
       const now = new Date().toISOString();
       if (targetSegmentIds.length > 0) {
         updateSegmentsLocally(targetSegmentIds, (segment) => ({ ...segment, speakerId: targetSpeaker.id, updatedAt: now }));
       }
-      if (targetUtteranceIds.length > 0) {
-        setUtterances((prev) => applySpeakerAssignmentToUtterances(prev, targetUtteranceIds, targetSpeaker));
+      if (targetUnitIds.length > 0) {
+        setUnits((prev) => applySpeakerAssignmentToUnits(prev, targetUnitIds, targetSpeaker));
       }
       if (!existing) {
         setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
@@ -423,7 +401,7 @@ export function useSpeakerActionRoutingController({
       await refreshSegmentUndoSnapshot();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerCreateAndAssignResult('selection', targetSpeaker.name, updatedSegments + updatedUtterances, Boolean(existing), t, tf),
+        message: formatSpeakerCreateAndAssignResult('selection', targetSpeaker.name, updatedSegments + updatedUnits, Boolean(existing), t, tf),
       });
     } catch (error) {
       if (undoPushed) await undo();
@@ -435,11 +413,11 @@ export function useSpeakerActionRoutingController({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, ...(meta ? { errorMeta: meta } : {}) }),
       });
     }
-  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, setUtterances, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
+  }, [findExistingSpeakerEntityByName, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, refreshSpeakers, reloadSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions, setBatchSpeakerId, setSaveState, setSpeakerDraftName, setSpeakers, setUnits, speakerSavingRouted, t, tf, undo, updateSegmentsLocally]);
 
   const handleSelectSpeakerUnitsRouted = useCallback((speakerKey: string) => {
     if (!activeSpeakerManagementLayer) {
-      handleSelectSpeakerUtterances(speakerKey);
+      handleSelectSpeakerUnits(speakerKey);
       return;
     }
 
@@ -460,7 +438,7 @@ export function useSpeakerActionRoutingController({
     }));
     setSelectedUnitIds(new Set(ids));
     setActiveSpeakerFilterKey(speakerKey);
-  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleSelectSpeakerUtterances, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey, setSelectedUnitIds]);
+  }, [activeSpeakerManagementLayer, getSegmentIdsForSpeakerKey, handleSelectSpeakerUnits, selectTimelineUnit, selectedTimelineUnit, setActiveSpeakerFilterKey, setSelectedUnitIds]);
 
   const handleClearSpeakerAssignmentsRouted = useCallback((speakerKey: string) => {
     if (!activeSpeakerManagementLayer) {
@@ -608,7 +586,7 @@ export function useSpeakerActionRoutingController({
   }, [confirmSpeakerDialogBase, getSegmentIdsForSpeakerKey, pushUndo, refreshSegmentUndoSnapshot, refreshSpeakerReferenceStats, reloadSegments, segmentSpeakerDialogState, setActiveSpeakerFilterKey, setSaveState, t, tf, undo, updateSegmentsLocally]);
 
   const handleAssignSpeakerToSelectedRouted = useCallback(async () => {
-    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
       await applySpeakerToMixedSelection(batchSpeakerId || undefined);
       return;
     }
@@ -617,10 +595,10 @@ export function useSpeakerActionRoutingController({
       return;
     }
     await handleAssignSpeakerToSelected();
-  }, [applySpeakerToMixedSelection, batchSpeakerId, handleAssignSpeakerToSelected, handleAssignSpeakerToSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions]);
+  }, [applySpeakerToMixedSelection, batchSpeakerId, handleAssignSpeakerToSelected, handleAssignSpeakerToSegments, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions]);
 
   const handleClearSpeakerOnSelectedRouted = useCallback(async () => {
-    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
       await applySpeakerToMixedSelection(undefined);
       return;
     }
@@ -628,11 +606,11 @@ export function useSpeakerActionRoutingController({
       await handleAssignSpeakerToSegments(selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id), undefined);
       return;
     }
-    await handleAssignSpeakerToUtterances(selectedUnitIdsForSpeakerActionsList, undefined);
-  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
+    await handleAssignSpeakerToUnits(selectedUnitIdsForSpeakerActionsList, undefined);
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUnits, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
 
   const handleCreateSpeakerAndAssignRouted = useCallback(async () => {
-    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
       await createSpeakerAndAssignToMixedSelection(speakerDraftName);
       return;
     }
@@ -641,10 +619,10 @@ export function useSpeakerActionRoutingController({
       return;
     }
     await createSpeakerAndAssignToSegments(speakerDraftName, selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id));
-  }, [createSpeakerAndAssignToMixedSelection, createSpeakerAndAssignToSegments, handleCreateSpeakerAndAssign, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, speakerDraftName]);
+  }, [createSpeakerAndAssignToMixedSelection, createSpeakerAndAssignToSegments, handleCreateSpeakerAndAssign, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions, speakerDraftName]);
 
   const assignSpeakerFromCurrentSelection = useCallback((speakerId?: string) => {
-    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {
+    if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
       fireAndForget(applySpeakerToMixedSelection(speakerId));
       return true;
     }
@@ -653,11 +631,11 @@ export function useSpeakerActionRoutingController({
       return true;
     }
     if (selectedUnitIdsForSpeakerActionsList.length > 0) {
-      fireAndForget(handleAssignSpeakerToUtterances(selectedUnitIdsForSpeakerActionsList, speakerId));
+      fireAndForget(handleAssignSpeakerToUnits(selectedUnitIdsForSpeakerActionsList, speakerId));
       return true;
     }
     return false;
-  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUtteranceIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
+  }, [applySpeakerToMixedSelection, handleAssignSpeakerToSegments, handleAssignSpeakerToUnits, selectedBatchSegmentsForSpeakerActions, selectedStandaloneUnitIdsForSpeakerActions, selectedUnitIdsForSpeakerActionsList]);
 
   const speakerQuickActions = useMemo(() => ({
     selectedCount: selectedSpeakerActionCount,
@@ -684,17 +662,17 @@ export function useSpeakerActionRoutingController({
       }
       return Array.from(unique);
     }
-    const utteranceMap = new Map(utterancesOnCurrentMedia.map((utterance) => [utterance.id, utterance] as const));
+    const unitMap = new Map(unitsOnCurrentMedia.map((unit) => [unit.id, unit] as const));
     const unique = new Set<string>();
-    for (const utteranceId of selectedUnitIdsForSpeakerActionsList) {
-      const utterance = utteranceMap.get(utteranceId);
-      if (!utterance) continue;
-      const speakerKey = getUtteranceSpeakerKey(utterance);
+    for (const unitId of selectedUnitIdsForSpeakerActionsList) {
+      const unit = unitMap.get(unitId);
+      if (!unit) continue;
+      const speakerKey = getUnitSpeakerKey(unit);
       if (!speakerKey) continue;
       unique.add(speakerKey);
     }
     return Array.from(unique);
-  }, [getUtteranceSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUnitIdsForSpeakerActionsList, utterancesOnCurrentMedia]);
+  }, [getUnitSpeakerKey, resolveSpeakerKeyForSegment, selectedBatchSegmentsForSpeakerActions, selectedUnitIdsForSpeakerActionsList, unitsOnCurrentMedia]);
 
   const selectedSpeakerNamesForTrackLock = useMemo(
     () => selectedSpeakerIdsForTrackLock.map((id) => getSpeakerDisplayNameByKey(id, speakerByIdMap)),

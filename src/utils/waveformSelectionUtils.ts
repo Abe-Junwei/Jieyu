@@ -13,10 +13,10 @@ export type LassoOutcome = {
 
 /**
  * Resolve drag-lasso selection result from a time window.
- * Overlap rule: utterance.endTime > tStart && utterance.startTime < tEnd
+ * Overlap rule: unit.endTime > tStart && unit.startTime < tEnd
  */
 export function computeLassoOutcome(
-  utterances: TimeSpan[],
+  units: TimeSpan[],
   tStart: number,
   tEnd: number,
   baseIds: Set<string>,
@@ -27,7 +27,7 @@ export function computeLassoOutcome(
 
   const ids = new Set(baseIds);
   const hits: string[] = [];
-  for (const utt of utterances) {
+  for (const utt of units) {
     if (utt.endTime > lo && utt.startTime < hi) {
       ids.add(utt.id);
       hits.push(utt.id);

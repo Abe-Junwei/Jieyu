@@ -41,8 +41,8 @@ export interface SpeakerProfile {
   speakingRateWpm: number | null;
   /** Preferred language BCP-47 */
   preferredLang: string | null;
-  /** Average utterance duration in seconds */
-  avgUtteranceDurationSec: number | null;
+  /** Average unit duration in seconds */
+  avgUnitDurationSec: number | null;
   /** Acoustic characteristics (SNR estimate) */
   avgSnrDb: number | null;
   lastSeenAt: number;
@@ -292,7 +292,7 @@ class ProjectMemoryStore {
         speakerId,
         speakingRateWpm: data.speakingRateWpm ?? null,
         preferredLang: data.preferredLang ?? null,
-        avgUtteranceDurationSec: data.avgUtteranceDurationSec ?? null,
+        avgUnitDurationSec: data.avgUnitDurationSec ?? null,
         avgSnrDb: data.avgSnrDb ?? null,
         lastSeenAt: Date.now(),
         sessionCount: 1,

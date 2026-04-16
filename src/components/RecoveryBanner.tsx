@@ -4,7 +4,7 @@ import type { Locale } from '../i18n';
 type Props = {
   locale: Locale;
   recoveryAvailable: boolean;
-  recoveryDiffSummary: { utterances: number; translations: number; layers: number } | null;
+  recoveryDiffSummary: { units: number; translations: number; layers: number } | null;
   onApply: () => void;
   onDismiss: () => void;
 };
@@ -28,7 +28,7 @@ export function RecoveryBanner({
           <>
             {' '}
             {tf(locale, 'transcription.recovery.summary', {
-              utterances: recoveryDiffSummary.utterances,
+              units: recoveryDiffSummary.units,
               translations: recoveryDiffSummary.translations,
               layers: recoveryDiffSummary.layers,
             })}

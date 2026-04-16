@@ -5,48 +5,8 @@
  */
 import { z } from 'zod';
 import type { Table } from 'dexie';
-import type {
-  TextDocType, MediaItemDocType, UtteranceTokenDocType,
-  UtteranceMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType,
-  AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc,
-  LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType,
-  LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType,
-  SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType,
-  LocationDocType, BibliographicSourceDocType, GrammarDocDocType,
-  AbbreviationDocType, PhonemeDocType, TagDefinitionDocType,
-  LayerDocType, LayerUnitDocType, LayerUnitContentDocType,
-  UnitRelationDocType, LayerLinkDocType,
-  TierDefinitionDocType, TierAnnotationDocType,
-  AuditLogDocType, UserNoteDocType, SegmentMetaDocType,
-  SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType,
-  SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType,
-  LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType,
-  ProvenanceEnvelope,
-  JieyuCollections,
-  ImportConflictStrategy, ImportResult,
-} from './types';
-import {
-  isoDateSchema,
-  validateTextDoc, validateMediaItemDoc,
-  validateUtteranceTokenDoc, validateUtteranceMorphemeDoc,
-  validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc,
-  validateAiTaskDoc, validateEmbeddingDoc,
-  validateAiConversationDoc, validateAiMessageDoc,
-  validateLanguageDoc, validateLanguageDisplayNameDoc,
-  validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc,
-  validateCustomFieldDefinitionDoc,
-  validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc,
-  validateLocationDoc, validateBibliographicSourceDoc,
-  validateGrammarDoc, validateAbbreviationDoc,
-  validatePhonemeDoc, validateTagDefinitionDoc,
-  validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc,
-  validateUnitRelationDoc, validateLayerLinkDoc,
-  validateTierDefinitionDoc, validateTierAnnotationDoc,
-  validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc,
-  validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc,
-  validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc,
-  validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc,
-} from './schemas';
+import type { TextDocType, MediaItemDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, ProvenanceEnvelope, JieyuCollections, ImportConflictStrategy, ImportResult } from './types';
+import { isoDateSchema, validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { db, getDb } from './engine';
 
 const SNAPSHOT_SCHEMA_VERSION = 4;
@@ -127,8 +87,8 @@ const databaseSnapshotSchema = z.object({
 const knownCollectionNames = [
   'texts',
   'media_items',
-  'utterance_tokens',
-  'utterance_morphemes',
+  'unit_tokens',
+  'unit_morphemes',
   'anchors',
   'lexemes',
   'token_lexeme_links',
@@ -175,8 +135,8 @@ type KnownCollectionName = (typeof knownCollectionNames)[number];
 const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string }, string>>> = {
   texts: db.texts,
   media_items: db.media_items,
-  utterance_tokens: db.utterance_tokens,
-  utterance_morphemes: db.utterance_morphemes,
+  unit_tokens: db.unit_tokens,
+  unit_morphemes: db.unit_morphemes,
   anchors: db.anchors,
   lexemes: db.lexemes,
   token_lexeme_links: db.token_lexeme_links,
@@ -220,8 +180,8 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
 const validatorByCollection: Record<KnownCollectionName, (value: unknown) => void> = {
   texts: (value) => validateTextDoc(value as TextDocType),
   media_items: (value) => validateMediaItemDoc(value as MediaItemDocType),
-  utterance_tokens: (value) => validateUtteranceTokenDoc(value as UtteranceTokenDocType),
-  utterance_morphemes: (value) => validateUtteranceMorphemeDoc(value as UtteranceMorphemeDocType),
+  unit_tokens: (value) => validateUnitTokenDoc(value as UnitTokenDocType),
+  unit_morphemes: (value) => validateUnitMorphemeDoc(value as UnitMorphemeDocType),
   anchors: (value) => validateAnchorDoc(value as AnchorDocType),
   lexemes: (value) => validateLexemeDoc(value as LexemeDocType),
   token_lexeme_links: (value) => validateTokenLexemeLinkDoc(value as TokenLexemeLinkDocType),
@@ -263,7 +223,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   track_entities: (value) => validateTrackEntityDoc(value as TrackEntityDocType),
 };
 
-function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope; createdAt?: string }>(
+function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | undefined; createdAt?: string | undefined }>(
   doc: T,
   fallbackCreatedAt: string,
 ): T {
@@ -282,23 +242,23 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
   if (!doc || typeof doc !== 'object') return doc;
 
   switch (collectionName) {
-    case 'utterance_tokens': {
+    case 'unit_tokens': {
       const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.utteranceId === 'string') {
+      if (typeof d.unitId === 'string') {
         throw new Error(
-          'Snapshot utterance_tokens use legacy field "utteranceId"; use unitId (host layer_units.id) in current-format exports.',
+          'Snapshot unit_tokens use legacy field "unitId"; use unitId (host layer_units.id) in current-format exports.',
         );
       }
-      return ensureImportProvenance(d as unknown as UtteranceTokenDocType, fallbackCreatedAt);
+      return ensureImportProvenance(d as unknown as UnitTokenDocType, fallbackCreatedAt);
     }
-    case 'utterance_morphemes': {
+    case 'unit_morphemes': {
       const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.utteranceId === 'string') {
+      if (typeof d.unitId === 'string') {
         throw new Error(
-          'Snapshot utterance_morphemes use legacy field "utteranceId"; use unitId (host layer_units.id) in current-format exports.',
+          'Snapshot unit_morphemes use legacy field "unitId"; use unitId (host layer_units.id) in current-format exports.',
         );
       }
-      return ensureImportProvenance(d as unknown as UtteranceMorphemeDocType, fallbackCreatedAt);
+      return ensureImportProvenance(d as unknown as UnitMorphemeDocType, fallbackCreatedAt);
     }
     case 'layer_units':
       return ensureImportProvenance(doc as LayerUnitDocType, fallbackCreatedAt);
@@ -327,7 +287,7 @@ async function pruneOrphanUserNotes(): Promise<number> {
   const notes = await db.user_notes.toArray();
   if (notes.length === 0) return 0;
 
-  const utteranceIds = new Set<string>();
+  const unitIds = new Set<string>();
   const textIds = new Set<string>();
   const lexemeIds = new Set<string>();
   const annotationIds = new Set<string>();
@@ -335,7 +295,7 @@ async function pruneOrphanUserNotes(): Promise<number> {
   const morphemeIds = new Set<string>();
 
   for (const note of notes) {
-    if (note.targetType === 'utterance') utteranceIds.add(note.targetId);
+    if (note.targetType === 'unit') unitIds.add(note.targetId);
     if (note.targetType === 'text') textIds.add(note.targetId);
     if (note.targetType === 'lexeme') lexemeIds.add(note.targetId);
     if (note.targetType === 'tier_annotation' && !note.targetId.includes('::')) annotationIds.add(note.targetId);
@@ -343,20 +303,20 @@ async function pruneOrphanUserNotes(): Promise<number> {
     if (note.targetType === 'morpheme') morphemeIds.add(note.targetId);
   }
 
-  const existingUtteranceIds = new Set(
-    (await db.layer_units.bulkGet([...utteranceIds])).flatMap((d) => (
-      d && d.unitType === 'utterance' && d.id ? [d.id] : []
+  const existingUnitIds = new Set(
+    (await db.layer_units.bulkGet([...unitIds])).flatMap((d) => (
+      d && d.unitType === 'unit' && d.id ? [d.id] : []
     )),
   );
   const existingTextIds = new Set((await db.texts.bulkGet([...textIds])).flatMap((d) => (d?.id ? [d.id] : [])));
   const existingLexemeIds = new Set((await db.lexemes.bulkGet([...lexemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
   const existingAnnotationIds = new Set((await db.tier_annotations.bulkGet([...annotationIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingTokenIds = new Set((await db.utterance_tokens.bulkGet([...tokenIds])).flatMap((d) => (d?.id ? [d.id] : [])));
-  const existingMorphemeIds = new Set((await db.utterance_morphemes.bulkGet([...morphemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingTokenIds = new Set((await db.unit_tokens.bulkGet([...tokenIds])).flatMap((d) => (d?.id ? [d.id] : [])));
+  const existingMorphemeIds = new Set((await db.unit_morphemes.bulkGet([...morphemeIds])).flatMap((d) => (d?.id ? [d.id] : [])));
 
   const orphanIds: string[] = [];
   for (const note of notes) {
-    if (note.targetType === 'utterance' && !existingUtteranceIds.has(note.targetId)) orphanIds.push(note.id);
+    if (note.targetType === 'unit' && !existingUnitIds.has(note.targetId)) orphanIds.push(note.id);
     if (note.targetType === 'text' && !existingTextIds.has(note.targetId)) orphanIds.push(note.id);
     if (note.targetType === 'lexeme' && !existingLexemeIds.has(note.targetId)) orphanIds.push(note.id);
     if (note.targetType === 'tier_annotation' && !note.targetId.includes('::') && !existingAnnotationIds.has(note.targetId)) {
@@ -392,8 +352,8 @@ export async function importDatabaseFromJson(
     );
   }
 
-  if ('utterance_texts' in snapshot.collections) {
-    throw new Error('Legacy collection "utterance_texts" is no longer supported; import a LayerUnit snapshot.');
+  if ('unit_texts' in snapshot.collections) {
+    throw new Error('Legacy collection "unit_texts" is no longer supported; import a LayerUnit snapshot.');
   }
 
   const result: ImportResult = {
@@ -408,14 +368,14 @@ export async function importDatabaseFromJson(
   if (!Array.isArray(cols['layer_units'])) cols['layer_units'] = [];
   if (!Array.isArray(cols['layer_unit_contents'])) cols['layer_unit_contents'] = [];
 
-  const legacyUtterances = cols['utterances'];
-  if (Array.isArray(legacyUtterances) && legacyUtterances.length > 0) {
+  const legacyUnits = cols['units'];
+  if (Array.isArray(legacyUnits) && legacyUnits.length > 0) {
     throw new Error(
-      'Legacy snapshot key "utterances" is not supported; import layer_units + layer_unit_contents from a current app export.',
+      'Legacy snapshot key "units" is not supported; import layer_units + layer_unit_contents from a current app export.',
     );
   }
-  if ('utterances' in cols) {
-    delete cols['utterances'];
+  if ('units' in cols) {
+    delete cols['units'];
   }
 
   const dbInstance = await getDb();

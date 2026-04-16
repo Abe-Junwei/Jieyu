@@ -4,7 +4,7 @@ import { formatRecentActions, pushTimelineEditToRing } from './useEditEventBuffe
 describe('pushTimelineEditToRing', () => {
   it('prepends events and caps capacity', () => {
     let ring = pushTimelineEditToRing([], { action: 'delete', unitId: 'a', unitKind: 'segment' }, 3);
-    ring = pushTimelineEditToRing(ring, { action: 'split', unitId: 'b', unitKind: 'utterance' }, 3);
+    ring = pushTimelineEditToRing(ring, { action: 'split', unitId: 'b', unitKind: 'unit' }, 3);
     ring = pushTimelineEditToRing(ring, { action: 'merge', unitId: 'c', unitKind: 'segment' }, 3);
     ring = pushTimelineEditToRing(ring, { action: 'create', unitId: 'd', unitKind: 'segment' }, 3);
     expect(ring).toHaveLength(3);

@@ -57,7 +57,7 @@ describe('importDatabaseFromJson', () => {
             textId: 'text_new',
             mediaId: 'media_new',
             layerId: 'tier_import_test',
-            unitType: 'utterance',
+            unitType: 'unit',
             startTime: 0,
             endTime: 1,
             createdAt: NOW,
@@ -155,7 +155,7 @@ describe('importDatabaseFromJson', () => {
     expect(importedTiers.find((item) => item.id === 'layer_legacy')?.bridgeId).toBeUndefined();
   });
 
-  it('rejects snapshots that still include a non-empty legacy utterances collection', async () => {
+  it('rejects snapshots that still include a non-empty legacy units collection', async () => {
     const snapshot = {
       schemaVersion: 4,
       exportedAt: NOW,
@@ -165,12 +165,12 @@ describe('importDatabaseFromJson', () => {
         tier_definitions: [],
         layer_units: [],
         layer_unit_contents: [],
-        utterances: [{ id: 'u1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW }],
+        units: [{ id: 'u1', textId: 't1', mediaId: 'm1', startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW }],
       },
     };
 
     await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
-      /Legacy snapshot key "utterances"/,
+      /Legacy snapshot key "units"/,
     );
   });
 });

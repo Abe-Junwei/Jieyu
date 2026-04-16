@@ -1,29 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MultiLangString, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
-import {
-  cloneOrthographyRecordToLanguage,
-  createOrthographyBridgeRecord,
-  createOrthographyRecord,
-} from '../services/LinguisticService.orthography';
+import { cloneOrthographyRecordToLanguage, createOrthographyBridgeRecord, createOrthographyRecord } from '../services/LinguisticService.orthography';
 import { getLanguageDisplayName } from '../utils/langMapping';
-import {
-  resolveOrthographyRenderPolicy,
-  type OrthographyRenderPolicy,
-} from '../utils/layerDisplayStyle';
-import {
-  buildBridgeRulesFromRuleText,
-  evaluateOrthographyBridgeSampleCases,
-  parseBridgeSampleCases,
-  previewOrthographyBridge,
-  validateOrthographyBridge,
-} from '../utils/orthographyBridges';
-import {
-  buildPrimaryAndEnglishLabels,
-  readEnglishFallbackMultiLangLabel,
-  readLocalizedMultiLangLabel,
-  readPrimaryMultiLangLabel,
-} from '../utils/multiLangLabels';
+import { resolveOrthographyRenderPolicy, type OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { buildBridgeRulesFromRuleText, evaluateOrthographyBridgeSampleCases, parseBridgeSampleCases, previewOrthographyBridge, validateOrthographyBridge } from '../utils/orthographyBridges';
+import { buildPrimaryAndEnglishLabels, readEnglishFallbackMultiLangLabel, readLocalizedMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
 import { hasSameOrthographyIdentity } from '../utils/orthographyIdentity';
 import { useOrthographies } from './useOrthographies';
 

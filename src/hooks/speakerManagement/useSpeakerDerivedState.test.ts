@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import type { SpeakerDocType, UtteranceDocType } from '../../db';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db';
 import { useSpeakerDerivedState } from './useSpeakerDerivedState';
 
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
@@ -14,7 +14,7 @@ function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   };
 }
 
-function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
+function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id: 'utt-1',
     mediaId: 'media-1',
@@ -23,44 +23,44 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
     transcription: { default: '' },
     words: [],
     ...overrides,
-  } as unknown as UtteranceDocType;
+  } as unknown as LayerUnitDocType;
 }
 
 describe('useSpeakerDerivedState', () => {
   it('derives visual map, filter options, and selected summary', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ id: 'utt-2', speaker: '访客' }),
+    const units = [
+      makeUnit({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ id: 'utt-2', speaker: '访客' }),
     ];
     const speakers = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
-    const selected = [utterances[0]!];
+    const selected = [units[0]!];
 
-    const { result } = renderHook(() => useSpeakerDerivedState(utterances, selected, speakers));
+    const { result } = renderHook(() => useSpeakerDerivedState(units, selected, speakers));
 
-    expect(result.current.speakerVisualByUtteranceId['utt-1']?.name).toBe('Alice');
-    expect(result.current.speakerVisualByUtteranceId['utt-2']).toBeUndefined();
+    expect(result.current.speakerVisualByUnitId['utt-1']?.name).toBe('Alice');
+    expect(result.current.speakerVisualByUnitId['utt-2']).toBeUndefined();
     expect(result.current.speakerFilterOptions.length).toBe(1);
     expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
   });
 
   it('updates derived summary when selection changes', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ id: 'utt-2', speaker: '访客' }),
+    const units = [
+      makeUnit({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ id: 'utt-2', speaker: '访客' }),
     ];
     const speakers = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
 
     const { result, rerender } = renderHook(
-      ({ selectedBatchUtterances }) => useSpeakerDerivedState(utterances, selectedBatchUtterances, speakers),
-      { initialProps: { selectedBatchUtterances: [utterances[0]!] as UtteranceDocType[] } },
+      ({ selectedBatchUnits }) => useSpeakerDerivedState(units, selectedBatchUnits, speakers),
+      { initialProps: { selectedBatchUnits: [units[0]!] as LayerUnitDocType[] } },
     );
 
     expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
 
-    rerender({ selectedBatchUtterances: utterances });
+    rerender({ selectedBatchUnits: units });
     expect(result.current.selectedSpeakerSummary).toBe('当前统一说话人：Alice');
 
-    rerender({ selectedBatchUtterances: [] });
+    rerender({ selectedBatchUnits: [] });
     expect(result.current.selectedSpeakerSummary).toBe('未选择句段');
   });
 });

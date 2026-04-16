@@ -34,7 +34,7 @@ function createInput() {
     activeTextId: 'text-1',
     getActiveTextId: vi.fn(async () => 'text-1'),
     selectedUnitMedia: undefined,
-    utterancesOnCurrentMedia: [],
+    unitsOnCurrentMedia: [],
     anchors: [],
     layers: [],
     translations: [],

@@ -1,10 +1,4 @@
-import type {
-  LanguageAliasToCodeRecord,
-  LanguageAliasesByCodeRecord,
-  LanguageDisplayCoreEntry,
-  LanguageNameQueryLocale,
-  LanguageQueryIndexLocaleRecord,
-} from '../languageNameTypes';
+import type { LanguageAliasToCodeRecord, LanguageAliasesByCodeRecord, LanguageDisplayCoreEntry, LanguageNameQueryLocale, LanguageQueryIndexLocaleRecord } from '../languageNameTypes';
 
 export const GENERATED_LANGUAGE_DISPLAY_NAME_CORE: Readonly<Record<string, LanguageDisplayCoreEntry>> = 
 {

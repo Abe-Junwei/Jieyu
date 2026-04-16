@@ -1,26 +1,19 @@
-import {
-  createContext,
-  useContext,
-  type Dispatch,
-  type MutableRefObject,
-  type ReactNode,
-  type SetStateAction,
-} from 'react';
-import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import { createContext, useContext, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 
 export type TranscriptionEditorContextValue = {
-  utteranceDrafts: Record<string, string>;
-  setUtteranceDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  unitDrafts: Record<string, string>;
+  setUnitDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   translationDrafts: Record<string, string>;
   setTranslationDrafts: Dispatch<SetStateAction<Record<string, string>>>;
-  translationTextByLayer: Map<string, Map<string, UtteranceTextDocType>>;
+  translationTextByLayer: Map<string, Map<string, LayerUnitContentDocType>>;
   focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
-  getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
+  getUnitTextForLayer: (utt: LayerUnitDocType, layerId?: string) => string;
   renderLaneLabel: (layer: LayerDocType) => ReactNode;
   // Layer management
   createLayer: (
@@ -33,7 +26,7 @@ export type TranscriptionEditorContextValue = {
     vernacular?: string;
     alias?: string;
   }) => Promise<boolean>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
   checkLayerHasContent: (layerId: string) => Promise<number>;
 };

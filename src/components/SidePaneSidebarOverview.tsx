@@ -1,5 +1,5 @@
 import { useMemo, type RefObject } from 'react';
-import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, SpeakerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
@@ -34,9 +34,11 @@ interface SidePaneSidebarOverviewProps {
   layerLabelById: Map<string, string>;
   resolveTargetBundleRange: (draggedId: string, dropIndex: number) => BundleRange | null;
   defaultTranscriptionLayerId?: string;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia?: UtteranceDocType[];
+  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
+  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
+  unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
+  getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
@@ -59,8 +61,10 @@ export function SidePaneSidebarOverview({
   resolveTargetBundleRange,
   defaultTranscriptionLayerId,
   segmentsByLayer,
-  utterancesOnCurrentMedia,
+  segmentContentByLayer,
+  unitsOnCurrentMedia,
   speakers,
+  getUnitTextForLayer,
   onSelectTimelineUnit,
   onFocusLayer,
   onContextMenu,
@@ -139,8 +143,10 @@ export function SidePaneSidebarOverview({
             layers={sidePaneRows}
             {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
             {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
-            {...(utterancesOnCurrentMedia !== undefined ? { utterancesOnCurrentMedia } : {})}
+            {...(segmentContentByLayer !== undefined ? { segmentContentByLayer } : {})}
+            {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
             {...(speakers !== undefined ? { speakers } : {})}
+            {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
             {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
           />
         </>

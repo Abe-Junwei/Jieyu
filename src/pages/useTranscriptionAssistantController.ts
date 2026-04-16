@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_VOICE_INTENT_RESOLVER_CONFIG } from '../ai/config/voiceIntentResolver';
 import { featureFlags } from '../ai/config/featureFlags';
-import { getDb, type UtteranceDocType } from '../db';
-import { getUtteranceDocProjectionById } from '../services/LayerSegmentGraphService';
+import { getDb, type LayerUnitDocType } from '../db';
+import { getUnitDocProjectionById } from '../services/LayerSegmentGraphService';
 import { LinguisticService } from '../services/LinguisticService';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
@@ -11,16 +11,13 @@ import type { VoiceSession } from '../services/IntentRouter';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
-import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDictationToUtterance, resolveVoiceDictationTarget } from './voiceDictationRuntime';
+import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDictationToUnit, resolveVoiceDictationTarget } from './voiceDictationRuntime';
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
-import type {
-  UseTranscriptionAssistantControllerInput,
-  UseTranscriptionAssistantControllerResult,
-} from './transcriptionAssistantController.types';
+import type { UseTranscriptionAssistantControllerInput, UseTranscriptionAssistantControllerResult } from './transcriptionAssistantController.types';
 import { t, useLocale } from '../i18n';
 export function useTranscriptionAssistantController(input: UseTranscriptionAssistantControllerInput): UseTranscriptionAssistantControllerResult {
   const locale = useLocale();
-  const { pushUndo, setUtterances, setSaveState } = input;
+  const { pushUndo, setUnits, setSaveState } = input;
   const aiPanelContextValue = useMemo<AiPanelContextValue>(() => buildTranscriptionAssistantContextValue(input), [
     input.aiConfidenceAvg,
     input.aiCurrentTask,
@@ -112,11 +109,11 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       })());
       return;
     }
-    const targetUtterance = input.selectedTimelineOwnerUnit;
-    if (!targetUtterance) {
+    const targetUnit = input.selectedTimelineOwnerUnit;
+    if (!targetUnit) {
       reportValidationError({
         message: '\u8bf7\u5148\u9009\u62e9\u8981\u586b\u5145\u7684\u53e5\u6bb5',
-        i18nKey: 'transcription.error.validation.voiceDictationUtteranceRequired',
+        i18nKey: 'transcription.error.validation.voiceDictationUnitRequired',
         setErrorState: ({ message, meta }) => input.setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
       return;
@@ -138,28 +135,28 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     const { targetLayerId, targetLayer } = resolvedTarget;
     const persistAndAdvance = async (persist: () => Promise<void>) => {
       await persist();
-      if (!input.nextUtteranceIdForVoiceDictation) return;
-      input.selectUnit(input.nextUtteranceIdForVoiceDictation);
+      if (!input.nextUnitIdForVoiceDictation) return;
+      input.selectUnit(input.nextUnitIdForVoiceDictation);
     };
     fireAndForget(persistAndAdvance(async () => {
-      await persistVoiceDictationToUtterance({
-        utteranceId: targetUtterance.id,
+      await persistVoiceDictationToUnit({
+        unitId: targetUnit.id,
         text,
         targetLayerId,
         targetLayer,
         selectedLayerId: input.selectedLayerId,
         layers: input.layers,
-        saveUtteranceText: input.saveUtteranceText,
-        saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
+        saveUnitText: input.saveUnitText,
+        saveUnitLayerText: input.saveUnitLayerText,
       });
     }));
   }, [
     input.layers,
     input.defaultTranscriptionLayerId,
-    input.nextUtteranceIdForVoiceDictation,
+    input.nextUnitIdForVoiceDictation,
     input.saveSegmentContentForLayer,
-    input.saveTextTranslationForUtterance,
-    input.saveUtteranceText,
+    input.saveUnitLayerText,
+    input.saveUnitText,
     input.selectUnit,
     input.selectedLayerId,
     input.selectedTimelineOwnerUnit,
@@ -176,32 +173,32 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       translationLayers: input.translationLayers,
       layers: input.layers,
       selectedTimelineOwnerUnit: input.selectedTimelineOwnerUnit,
-      utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-      getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+      getUnitTextForLayer: input.getUnitTextForLayer,
       selectUnit: input.selectUnit,
-      saveUtteranceText: input.saveUtteranceText,
-      saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
+      saveUnitText: input.saveUnitText,
+      saveUnitLayerText: input.saveUnitLayerText,
     });
   }, [
     input.defaultTranscriptionLayerId,
-    input.getUtteranceTextForLayer,
+    input.getUnitTextForLayer,
     input.layers,
-    input.saveTextTranslationForUtterance,
-    input.saveUtteranceText,
+    input.saveUnitLayerText,
+    input.saveUnitText,
     input.selectUnit,
     input.selectedLayerId,
     input.selectedTimelineOwnerUnit,
     input.selectedTimelineUnit,
     input.translationLayers,
-    input.utterancesOnCurrentMedia,
+    input.unitsOnCurrentMedia,
   ]);
 
-  const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {
-    if (!utteranceId) {
-      const message = t(locale, 'transcription.error.validation.voiceAnalysisUtteranceRequired');
+  const handleVoiceAnalysisResult = useCallback(async (unitId: string | null, analysisText: string) => {
+    if (!unitId) {
+      const message = t(locale, 'transcription.error.validation.voiceAnalysisUnitRequired');
       reportValidationError({
         message,
-        i18nKey: 'transcription.error.validation.voiceAnalysisUtteranceRequired',
+        i18nKey: 'transcription.error.validation.voiceAnalysisUnitRequired',
         setErrorState: ({ message: nextMessage, meta }) => setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
       });
       return { ok: false, message };
@@ -213,7 +210,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     try {
       const db = await getDb();
-      const doc = await getUtteranceDocProjectionById(db, utteranceId);
+      const doc = await getUnitDocProjectionById(db, unitId);
       if (!doc) {
         const message = t(locale, 'transcription.error.validation.voiceAnalysisTargetMissing');
         reportValidationError({
@@ -226,13 +223,13 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       pushUndo(t(locale, 'transcription.assistant.undo.fillAnalysis'));
       const now = new Date().toISOString();
       const existingNotes = doc.notes ?? {};
-      const updated: UtteranceDocType = {
+      const updated: LayerUnitDocType = {
         ...doc,
         notes: { ...existingNotes, eng: trimmed },
         updatedAt: now,
       };
-      await LinguisticService.saveUtterance(updated);
-      setUtterances((prev) => prev.map((item) => (item.id === utteranceId ? updated : item)));
+      await LinguisticService.saveUnit(updated);
+      setUnits((prev) => prev.map((item) => (item.id === unitId ? updated : item)));
       const message = t(locale, 'transcription.assistant.voiceAnalysis.saved');
       setSaveState({ kind: 'done', message });
       return { ok: true, message };
@@ -248,7 +245,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
         message: error instanceof Error ? error.message : t(locale, 'transcription.assistant.voiceAnalysis.saveFailedFallback'),
       };
     }
-  }, [locale, pushUndo, setSaveState, setUtterances]);
+  }, [locale, pushUndo, setSaveState, setUnits]);
 
   return {
     aiPanelContextValue,

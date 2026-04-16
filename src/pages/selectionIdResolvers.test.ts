@@ -1,14 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import {
-  hasSelectionSourceForUnitMapping,
-  resolveMappedUnitIds,
-  resolveMappedUnitIdsFromSelection,
-  resolveUnitSelectionMapping,
-} from './selectionIdResolvers';
+import { hasSelectionSourceForUnitMapping, resolveMappedUnitIds, resolveMappedUnitIdsFromSelection, resolveUnitSelectionMapping } from './selectionIdResolvers';
 
 function utt(id: string): TimelineUnitView {
-  return { id, kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' };
+  return { id, kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' };
 }
 
 function seg(id: string, parent: string): TimelineUnitView {
@@ -20,12 +15,12 @@ function seg(id: string, parent: string): TimelineUnitView {
     startTime: 0,
     endTime: 1,
     text: '',
-    parentUtteranceId: parent,
+    parentUnitId: parent,
   };
 }
 
 describe('selectionIdResolvers', () => {
-  it('maps mixed utterance/segment unit ids into unique utterance ids', () => {
+  it('maps mixed unit/segment unit ids into unique unit ids', () => {
     const unitViewById = new Map<string, TimelineUnitView>([
       ['utt-1', utt('utt-1')],
       ['seg-a', seg('seg-a', 'utt-1')],
@@ -53,7 +48,7 @@ describe('selectionIdResolvers', () => {
 
     const result = resolveMappedUnitIdsFromSelection({
       selectedUnitIds: new Set(['seg-a']),
-      selectedTimelineUnit: { layerId: 'layer-1', unitId: 'utt-1', kind: 'utterance' },
+      selectedTimelineUnit: { layerId: 'layer-1', unitId: 'utt-1', kind: 'unit' },
       unitViewById,
     });
 
@@ -120,7 +115,7 @@ describe('selectionIdResolvers', () => {
     expect(Array.from(result.mappedUnitIds).sort()).toEqual(['utt-1', 'utt-2']);
   });
 
-  it('reports fully unmappable selection when selected unit cannot resolve utterance', () => {
+  it('reports fully unmappable selection when selected unit cannot resolve unit', () => {
     const result = resolveUnitSelectionMapping({
       selectedUnitIds: new Set(),
       selectedTimelineUnit: { layerId: 'layer-1', unitId: 'seg-x', kind: 'segment' },

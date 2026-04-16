@@ -1,13 +1,10 @@
 import { useMemo } from 'react';
-import {
-  buildTranscriptionSelectionSnapshot,
-  type BuildTranscriptionSelectionSnapshotInput,
-} from './transcriptionSelectionSnapshot';
+import { buildTranscriptionSelectionSnapshot, type BuildTranscriptionSelectionSnapshotInput } from './transcriptionSelectionSnapshot';
 
 export function useTranscriptionSelectionSnapshot(input: BuildTranscriptionSelectionSnapshotInput) {
   return useMemo(() => buildTranscriptionSelectionSnapshot(input), [
     input.formatTime,
-    input.getUtteranceTextForLayer,
+    input.getUnitTextForLayer,
     input.layers,
     input.segmentContentByLayer,
     input.selectedLayerId,

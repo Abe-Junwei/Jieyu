@@ -3,11 +3,7 @@
 import { useMemo, useState } from 'react';
 import { cleanup, render, screen, act, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  AppSidePaneProvider,
-  useAppSidePaneRegistrationSnapshot,
-  useRegisterAppSidePane,
-} from './AppSidePaneContext';
+import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot, useRegisterAppSidePane } from './AppSidePaneContext';
 
 afterEach(() => {
   cleanup();

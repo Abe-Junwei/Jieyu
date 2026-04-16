@@ -1,28 +1,20 @@
 import { useState } from 'react';
-import type {
-  AnchorDocType,
-  LayerLinkDocType,
-  MediaItemDocType,
-  SpeakerDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { AnchorDocType, LayerLinkDocType, MediaItemDocType, SpeakerDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 
 export function useTranscriptionDocumentState() {
-  const [utterances, setUtterances] = useState<UtteranceDocType[]>([]);
+  const [units, setUnits] = useState<LayerUnitDocType[]>([]);
   const [anchors, setAnchors] = useState<AnchorDocType[]>([]);
-  const [translations, setTranslations] = useState<UtteranceTextDocType[]>([]);
+  const [translations, setTranslations] = useState<LayerUnitContentDocType[]>([]);
   const [layers, setLayers] = useState<LayerDocType[]>([]);
   const [layerLinks, setLayerLinks] = useState<LayerLinkDocType[]>([]);
   const [mediaItems, setMediaItems] = useState<MediaItemDocType[]>([]);
   const [speakers, setSpeakers] = useState<SpeakerDocType[]>([]);
-  const [utteranceDrafts, setUtteranceDrafts] = useState<Record<string, string>>({});
+  const [unitDrafts, setUnitDrafts] = useState<Record<string, string>>({});
   const [translationDrafts, setTranslationDrafts] = useState<Record<string, string>>({});
 
   return {
-    utterances,
-    setUtterances,
+    units,
+    setUnits,
     anchors,
     setAnchors,
     translations,
@@ -35,8 +27,8 @@ export function useTranscriptionDocumentState() {
     setMediaItems,
     speakers,
     setSpeakers,
-    utteranceDrafts,
-    setUtteranceDrafts,
+    unitDrafts,
+    setUnitDrafts,
     translationDrafts,
     setTranslationDrafts,
   };

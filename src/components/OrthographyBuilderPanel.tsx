@@ -3,27 +3,13 @@ import '../styles/components/orthography-builder.css';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { formatOrthographyOptionLabel, groupOrthographiesForSelect, type UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
-import {
-  getOrthographyBuilderMessages,
-  getOrthographyCatalogGroupLabel,
-  getOrthographyBridgeRulePlaceholder,
-  getOrthographyBridgeSyntaxHint,
-} from '../i18n/orthographyBuilderMessages';
+import { getOrthographyBuilderMessages, getOrthographyCatalogGroupLabel, getOrthographyBridgeRulePlaceholder, getOrthographyBridgeSyntaxHint } from '../i18n/orthographyBuilderMessages';
 import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';
 import { PanelFeedback, PanelFeedbackStack } from './ui';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { ScriptTagCombobox } from './ScriptTagCombobox';
-import {
-  describeFontVerificationStatus,
-  getCachedFontCoverageVerification,
-  verifyFontCoverage,
-  type FontCoverageVerification,
-} from '../utils/layerDisplayStyle';
-import {
-  normalizeLanguageInputAssetId,
-  resolveLanguageHostSelection,
-  syncLanguageInputWithExternalCode,
-} from '../utils/languageInputHostState';
+import { describeFontVerificationStatus, getCachedFontCoverageVerification, verifyFontCoverage, type FontCoverageVerification } from '../utils/layerDisplayStyle';
+import { normalizeLanguageInputAssetId, resolveLanguageHostSelection, syncLanguageInputWithExternalCode } from '../utils/languageInputHostState';
 
 type LanguageOption = {
   code: string;

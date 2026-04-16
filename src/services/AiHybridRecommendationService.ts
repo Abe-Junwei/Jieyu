@@ -2,19 +2,8 @@ import { createAiChatProvider, type AiChatSettings } from '../ai/providers/provi
 import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type { Locale } from '../i18n';
 import type { AiChatHybridFallbackInput } from '../i18n/aiChatHybridMessages';
-import type {
-  AiAdaptiveIntent,
-  AiAdaptiveResponseStyle,
-  AiConnectionTestStatus,
-  AiRecommendationSource,
-  AiRecommendationTelemetry,
-} from '../ai/chat/chatDomain.types';
-import {
-  AI_HYBRID_RECOMMENDATION_CONFIG,
-  createAiHybridRecommendationConfig,
-  type AiHybridRecommendationConfigPatch,
-  type AiHybridRecommendationServiceConfig,
-} from './AiHybridRecommendationConfig';
+import type { AiAdaptiveIntent, AiAdaptiveResponseStyle, AiConnectionTestStatus, AiRecommendationSource, AiRecommendationTelemetry } from '../ai/chat/chatDomain.types';
+import { AI_HYBRID_RECOMMENDATION_CONFIG, createAiHybridRecommendationConfig, type AiHybridRecommendationConfigPatch, type AiHybridRecommendationServiceConfig } from './AiHybridRecommendationConfig';
 
 export interface AiHybridRecommendation {
   id: string;

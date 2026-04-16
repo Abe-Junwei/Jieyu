@@ -1,20 +1,18 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { SaveState, DbState } from './transcriptionTypes';
-import type { UtteranceDocType, UtteranceTextDocType, LayerDocType } from '../db';
-import {
-  clearRecoverySnapshot,
-  saveRecoverySnapshot,
-} from '../services/SnapshotService';
+import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../db';
+import { clearRecoverySnapshot, saveRecoverySnapshot } from '../services/SnapshotService';
 import { fireAndForget } from '../utils/fireAndForget';
 
 type Params = {
   loadSnapshot: () => Promise<void>;
+  loadLinguisticAnnotations: () => Promise<void>;
   setState: Dispatch<SetStateAction<DbState>>;
   dbNameRef: MutableRefObject<string | undefined>;
   dirtyRef: MutableRefObject<boolean>;
-  utterancesRef: MutableRefObject<UtteranceDocType[]>;
-  translationsRef: MutableRefObject<UtteranceTextDocType[]>;
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
   layersRef: MutableRefObject<LayerDocType[]>;
   autoSaveTimersRef: MutableRefObject<Record<string, number>>;
   recoveryCancel: () => void;
@@ -23,10 +21,11 @@ type Params = {
 
 export function useTranscriptionLifecycle({
   loadSnapshot,
+  loadLinguisticAnnotations,
   setState,
   dbNameRef,
   dirtyRef,
-  utterancesRef,
+  unitsRef,
   translationsRef,
   layersRef,
   autoSaveTimersRef,
@@ -39,6 +38,8 @@ export function useTranscriptionLifecycle({
     const load = async () => {
       try {
         await loadSnapshot();
+        // token/morpheme 延迟加载，不阻塞首屏 | Deferred linguistic load, non-blocking
+        fireAndForget(loadLinguisticAnnotations());
       } catch (error) {
         if (cancelled) return;
         setState({
@@ -53,11 +54,11 @@ export function useTranscriptionLifecycle({
     // Save recovery snapshot on page unload
     const onBeforeUnload = () => {
       const name = dbNameRef.current;
-      if (name && dirtyRef.current && utterancesRef.current.length > 0) {
+      if (name && dirtyRef.current && unitsRef.current.length > 0) {
         // Use synchronous-ish approach: navigator.sendBeacon is not suitable for IDB.
         // Instead, start the async save — the browser usually allows short IDB writes.
         fireAndForget(saveRecoverySnapshot(name, {
-          utterances: utterancesRef.current,
+          units: unitsRef.current,
           translations: translationsRef.current,
           layers: layersRef.current,
         }));
@@ -77,11 +78,12 @@ export function useTranscriptionLifecycle({
     dbNameRef,
     dirtyRef,
     layersRef,
+    loadLinguisticAnnotations,
     loadSnapshot,
     recoveryCancel,
     setState,
     translationsRef,
-    utterancesRef,
+    unitsRef,
   ]);
 
   useEffect(() => {

@@ -1,9 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { TranscriptionPageAiSidebarProps } from './TranscriptionPage.AiSidebar';
-import type {
-  TranscriptionPageAnalysisRuntimeProps,
-  TranscriptionPageAssistantRuntimeProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 
 export interface UseTranscriptionSidebarSectionsViewModelInput {

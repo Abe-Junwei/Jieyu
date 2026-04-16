@@ -1,29 +1,29 @@
 import { useCallback } from 'react';
-import type { LayerDocType, UtteranceDocType } from '../db';
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
-  saveVoiceTranslationRaw: (blob: Blob, targetUtterance: UtteranceDocType, targetLayer: LayerDocType) => Promise<void>;
-  deleteVoiceTranslationRaw: (targetUtterance: UtteranceDocType, targetLayer: LayerDocType) => Promise<void>;
-  saveUtteranceTextRaw: (utteranceId: string, value: string, layerId?: string) => Promise<void>;
-  saveUtteranceSelfCertaintyRaw: (utteranceIds: Iterable<string>, value: UtteranceSelfCertainty | undefined) => Promise<void>;
-  saveUtteranceTimingRaw: (utteranceId: string, startTime: number, endTime: number) => Promise<void>;
-  saveTextTranslationForUtteranceRaw: (utteranceId: string, value: string, layerId: string) => Promise<void>;
-  createNextUtteranceRaw: (base: UtteranceDocType, playerDuration: number) => Promise<void>;
-  createUtteranceFromSelectionRaw: (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => Promise<void>;
-  deleteUtteranceRaw: (utteranceId: string) => Promise<void>;
-  mergeWithPreviousRaw: (utteranceId: string) => Promise<void>;
-  mergeWithNextRaw: (utteranceId: string) => Promise<void>;
-  splitUtteranceRaw: (utteranceId: string, splitTime: number) => Promise<void>;
-  deleteSelectedUtterancesRaw: (ids: Set<string>) => Promise<void>;
+  saveVoiceTranslationRaw: (blob: Blob, targetUnit: LayerUnitDocType, targetLayer: LayerDocType) => Promise<void>;
+  deleteVoiceTranslationRaw: (targetUnit: LayerUnitDocType, targetLayer: LayerDocType) => Promise<void>;
+  saveUnitTextRaw: (unitId: string, value: string, layerId?: string) => Promise<void>;
+  saveUnitSelfCertaintyRaw: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
+  saveUnitTimingRaw: (unitId: string, startTime: number, endTime: number) => Promise<void>;
+  saveUnitLayerTextRaw: (unitId: string, value: string, layerId: string) => Promise<void>;
+  createAdjacentUnitRaw: (base: LayerUnitDocType, playerDuration: number) => Promise<void>;
+  createUnitFromSelectionRaw: (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => Promise<void>;
+  deleteUnitRaw: (unitId: string) => Promise<void>;
+  mergeWithPreviousRaw: (unitId: string) => Promise<void>;
+  mergeWithNextRaw: (unitId: string) => Promise<void>;
+  splitUnitRaw: (unitId: string, splitTime: number) => Promise<void>;
+  deleteSelectedUnitsRaw: (ids: Set<string>) => Promise<void>;
   offsetSelectedTimesRaw: (ids: Set<string>, deltaSec: number) => Promise<void>;
   scaleSelectedTimesRaw: (ids: Set<string>, factor: number, anchorTime?: number) => Promise<void>;
   splitByRegexRaw: (ids: Set<string>, pattern: string, flags?: string) => Promise<void>;
-  mergeSelectedUtterancesRaw: (ids: Set<string>) => Promise<void>;
+  mergeSelectedUnitsRaw: (ids: Set<string>) => Promise<void>;
   createLayerRaw: (layerType: 'transcription' | 'translation', input: LayerCreateInput, modality?: 'text' | 'audio' | 'mixed') => Promise<boolean>;
-  deleteLayerRaw: (targetLayerId?: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayerRaw: (targetLayerId?: string, options?: { keepUnits?: boolean }) => Promise<void>;
   toggleLayerLinkRaw: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
 };
 
@@ -31,88 +31,88 @@ export function useTranscriptionMutexActionWrappers({
   runWithDbMutex,
   saveVoiceTranslationRaw,
   deleteVoiceTranslationRaw,
-  saveUtteranceTextRaw,
-  saveUtteranceSelfCertaintyRaw,
-  saveUtteranceTimingRaw,
-  saveTextTranslationForUtteranceRaw,
-  createNextUtteranceRaw,
-  createUtteranceFromSelectionRaw,
-  deleteUtteranceRaw,
+  saveUnitTextRaw,
+  saveUnitSelfCertaintyRaw,
+  saveUnitTimingRaw,
+  saveUnitLayerTextRaw,
+  createAdjacentUnitRaw,
+  createUnitFromSelectionRaw,
+  deleteUnitRaw,
   mergeWithPreviousRaw,
   mergeWithNextRaw,
-  splitUtteranceRaw,
-  deleteSelectedUtterancesRaw,
+  splitUnitRaw,
+  deleteSelectedUnitsRaw,
   offsetSelectedTimesRaw,
   scaleSelectedTimesRaw,
   splitByRegexRaw,
-  mergeSelectedUtterancesRaw,
+  mergeSelectedUnitsRaw,
   createLayerRaw,
   deleteLayerRaw,
   toggleLayerLinkRaw,
 }: Params) {
   const saveVoiceTranslation = useCallback((
     blob: Blob,
-    targetUtterance: UtteranceDocType,
+    targetUnit: LayerUnitDocType,
     targetLayer: LayerDocType,
-  ) => runWithDbMutex(() => saveVoiceTranslationRaw(blob, targetUtterance, targetLayer)), [runWithDbMutex, saveVoiceTranslationRaw]);
+  ) => runWithDbMutex(() => saveVoiceTranslationRaw(blob, targetUnit, targetLayer)), [runWithDbMutex, saveVoiceTranslationRaw]);
 
   const deleteVoiceTranslation = useCallback((
-    targetUtterance: UtteranceDocType,
+    targetUnit: LayerUnitDocType,
     targetLayer: LayerDocType,
-  ) => runWithDbMutex(() => deleteVoiceTranslationRaw(targetUtterance, targetLayer)), [deleteVoiceTranslationRaw, runWithDbMutex]);
+  ) => runWithDbMutex(() => deleteVoiceTranslationRaw(targetUnit, targetLayer)), [deleteVoiceTranslationRaw, runWithDbMutex]);
 
-  const saveUtteranceText = useCallback((utteranceId: string, value: string, layerId?: string) => (
-    runWithDbMutex(() => saveUtteranceTextRaw(utteranceId, value, layerId))
-  ), [runWithDbMutex, saveUtteranceTextRaw]);
+  const saveUnitText = useCallback((unitId: string, value: string, layerId?: string) => (
+    runWithDbMutex(() => saveUnitTextRaw(unitId, value, layerId))
+  ), [runWithDbMutex, saveUnitTextRaw]);
 
-  const saveUtteranceSelfCertainty = useCallback((
-    utteranceIds: Iterable<string>,
-    value: UtteranceSelfCertainty | undefined,
-  ) => runWithDbMutex(() => saveUtteranceSelfCertaintyRaw(utteranceIds, value)), [
+  const saveUnitSelfCertainty = useCallback((
+    unitIds: Iterable<string>,
+    value: UnitSelfCertainty | undefined,
+  ) => runWithDbMutex(() => saveUnitSelfCertaintyRaw(unitIds, value)), [
     runWithDbMutex,
-    saveUtteranceSelfCertaintyRaw,
+    saveUnitSelfCertaintyRaw,
   ]);
 
-  const saveUtteranceTiming = useCallback((utteranceId: string, startTime: number, endTime: number) => (
-    runWithDbMutex(() => saveUtteranceTimingRaw(utteranceId, startTime, endTime))
-  ), [runWithDbMutex, saveUtteranceTimingRaw]);
+  const saveUnitTiming = useCallback((unitId: string, startTime: number, endTime: number) => (
+    runWithDbMutex(() => saveUnitTimingRaw(unitId, startTime, endTime))
+  ), [runWithDbMutex, saveUnitTimingRaw]);
 
-  const saveTextTranslationForUtterance = useCallback((
-    utteranceId: string,
+  const saveUnitLayerText = useCallback((
+    unitId: string,
     value: string,
     layerId: string,
-  ) => runWithDbMutex(() => saveTextTranslationForUtteranceRaw(utteranceId, value, layerId)), [
+  ) => runWithDbMutex(() => saveUnitLayerTextRaw(unitId, value, layerId)), [
     runWithDbMutex,
-    saveTextTranslationForUtteranceRaw,
+    saveUnitLayerTextRaw,
   ]);
 
-  const createNextUtterance = useCallback((base: UtteranceDocType, playerDuration: number) => (
-    runWithDbMutex(() => createNextUtteranceRaw(base, playerDuration))
-  ), [createNextUtteranceRaw, runWithDbMutex]);
+  const createAdjacentUnit = useCallback((base: LayerUnitDocType, playerDuration: number) => (
+    runWithDbMutex(() => createAdjacentUnitRaw(base, playerDuration))
+  ), [createAdjacentUnitRaw, runWithDbMutex]);
 
-  const createUtteranceFromSelection = useCallback((start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => (
-    runWithDbMutex(() => createUtteranceFromSelectionRaw(start, end, options))
-  ), [createUtteranceFromSelectionRaw, runWithDbMutex]);
+  const createUnitFromSelection = useCallback((start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => (
+    runWithDbMutex(() => createUnitFromSelectionRaw(start, end, options))
+  ), [createUnitFromSelectionRaw, runWithDbMutex]);
 
-  const deleteUtterance = useCallback((utteranceId: string) => (
-    runWithDbMutex(() => deleteUtteranceRaw(utteranceId))
-  ), [deleteUtteranceRaw, runWithDbMutex]);
+  const deleteUnit = useCallback((unitId: string) => (
+    runWithDbMutex(() => deleteUnitRaw(unitId))
+  ), [deleteUnitRaw, runWithDbMutex]);
 
-  const mergeWithPrevious = useCallback((utteranceId: string) => (
-    runWithDbMutex(() => mergeWithPreviousRaw(utteranceId))
+  const mergeWithPrevious = useCallback((unitId: string) => (
+    runWithDbMutex(() => mergeWithPreviousRaw(unitId))
   ), [mergeWithPreviousRaw, runWithDbMutex]);
 
-  const mergeWithNext = useCallback((utteranceId: string) => (
-    runWithDbMutex(() => mergeWithNextRaw(utteranceId))
+  const mergeWithNext = useCallback((unitId: string) => (
+    runWithDbMutex(() => mergeWithNextRaw(unitId))
   ), [mergeWithNextRaw, runWithDbMutex]);
 
-  const splitUtterance = useCallback((utteranceId: string, splitTime: number) => (
-    runWithDbMutex(() => splitUtteranceRaw(utteranceId, splitTime))
-  ), [runWithDbMutex, splitUtteranceRaw]);
+  const splitUnit = useCallback((unitId: string, splitTime: number) => (
+    runWithDbMutex(() => splitUnitRaw(unitId, splitTime))
+  ), [runWithDbMutex, splitUnitRaw]);
 
-  const deleteSelectedUtterances = useCallback((ids: Set<string>) => (
-    runWithDbMutex(() => deleteSelectedUtterancesRaw(ids))
-  ), [deleteSelectedUtterancesRaw, runWithDbMutex]);
+  const deleteSelectedUnits = useCallback((ids: Set<string>) => (
+    runWithDbMutex(() => deleteSelectedUnitsRaw(ids))
+  ), [deleteSelectedUnitsRaw, runWithDbMutex]);
 
   const offsetSelectedTimes = useCallback((ids: Set<string>, deltaSec: number) => (
     runWithDbMutex(() => offsetSelectedTimesRaw(ids, deltaSec))
@@ -126,9 +126,9 @@ export function useTranscriptionMutexActionWrappers({
     runWithDbMutex(() => splitByRegexRaw(ids, pattern, flags))
   ), [runWithDbMutex, splitByRegexRaw]);
 
-  const mergeSelectedUtterances = useCallback((ids: Set<string>) => (
-    runWithDbMutex(() => mergeSelectedUtterancesRaw(ids))
-  ), [mergeSelectedUtterancesRaw, runWithDbMutex]);
+  const mergeSelectedUnits = useCallback((ids: Set<string>) => (
+    runWithDbMutex(() => mergeSelectedUnitsRaw(ids))
+  ), [mergeSelectedUnitsRaw, runWithDbMutex]);
 
   const createLayer = useCallback((
     layerType: 'transcription' | 'translation',
@@ -139,7 +139,7 @@ export function useTranscriptionMutexActionWrappers({
     runWithDbMutex,
   ]);
 
-  const deleteLayer = useCallback((targetLayerId?: string, options?: { keepUtterances?: boolean }) => (
+  const deleteLayer = useCallback((targetLayerId?: string, options?: { keepUnits?: boolean }) => (
     runWithDbMutex(() => deleteLayerRaw(targetLayerId, options))
   ), [deleteLayerRaw, runWithDbMutex]);
 
@@ -150,21 +150,21 @@ export function useTranscriptionMutexActionWrappers({
   return {
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
-    deleteSelectedUtterances,
+    splitUnit,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
     createLayer,
     deleteLayer,
     toggleLayerLink,

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 
 const { mockUpdateSegment } = vi.hoisted(() => ({
@@ -28,7 +28,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -37,10 +37,10 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
     endTime,
     createdAt: '2026-03-31T00:00:00.000Z',
     updatedAt: '2026-03-31T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -50,7 +50,7 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     endTime,
     createdAt: '2026-03-31T00:00:00.000Z',
     updatedAt: '2026-03-31T00:00:00.000Z',
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
 type HookInput = Parameters<typeof useTranscriptionTimelineInteractionController>[0];
@@ -85,15 +85,15 @@ function createWaveCanvasElement() {
 }
 
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
-  const utterances = [makeUtterance('utt-1', 0, 5), makeUtterance('utt-2', 5, 8)];
+  const units = [makeUnit('utt-1', 0, 5), makeUnit('utt-2', 5, 8)];
   const waveformInstance = createWaveformInstance();
   const waveCanvas = createWaveCanvasElement();
 
   return {
     layers: [makeLayer('layer-main'), makeLayer('layer-tr', 'translation')],
-    saveUtteranceText: vi.fn(async () => undefined),
-    saveTextTranslationForUtterance: vi.fn(async () => undefined),
-    utterances,
+    saveUnitText: vi.fn(async () => undefined),
+    saveUnitLayerText: vi.fn(async () => undefined),
+    units,
     selectUnit: vi.fn(),
     manualSelectTsRef: { current: 0 },
     player: {
@@ -126,17 +126,17 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     subSelectDragRef: { current: null },
     waveCanvasRef: { current: waveCanvas },
     zoomToPercent: vi.fn(),
-    zoomToUtterance: vi.fn(),
+    zoomToUnit: vi.fn(),
     resolveSegmentRoutingForLayer: (layerId?: string) => ({
       segmentSourceLayer: layerId === 'layer-sub' ? makeLayer('layer-sub') : undefined,
       sourceLayerId: layerId ?? 'layer-main',
-      editMode: layerId === 'layer-sub' ? 'time-subdivision' : 'utterance',
+      editMode: layerId === 'layer-sub' ? 'time-subdivision' : 'unit',
     }),
     segmentsByLayer: new Map([['layer-sub', [makeSegment('seg-1', 'layer-sub', 0, 2), makeSegment('seg-2', 'layer-sub', 3, 4)]]]),
-    utterancesOnCurrentMedia: utterances,
+    unitsOnCurrentMedia: units,
     getNeighborBounds: vi.fn(() => ({ left: 0.2, right: 1.8 })),
     reloadSegments: vi.fn(async () => undefined),
-    saveUtteranceTiming: vi.fn(async () => undefined),
+    saveUnitTiming: vi.fn(async () => undefined),
     setSaveState: vi.fn(),
     selectedUnitIds: new Set<string>(),
     selectedWaveformRegionId: null,
@@ -149,7 +149,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     creatingSegmentRef: { current: false },
     markingModeRef: { current: false },
     setCtxMenu: vi.fn(),
-    createUtteranceFromSelection: vi.fn(async () => undefined),
+    createUnitFromSelection: vi.fn(async () => undefined),
     ...overrides,
   };
 }
@@ -164,11 +164,11 @@ describe('useTranscriptionTimelineInteractionController', () => {
   });
 
   it('routes search replace to transcription and translation saves', () => {
-    const saveUtteranceText = vi.fn(async () => undefined);
-    const saveTextTranslationForUtterance = vi.fn(async () => undefined);
+    const saveUnitText = vi.fn(async () => undefined);
+    const saveUnitLayerText = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
-      saveUtteranceText,
-      saveTextTranslationForUtterance,
+      saveUnitText,
+      saveUnitLayerText,
     })));
 
     act(() => {
@@ -177,9 +177,9 @@ describe('useTranscriptionTimelineInteractionController', () => {
       result.current.handleSearchReplace('utt-2', undefined, 'old', 'new-default');
     });
 
-    expect(saveUtteranceText).toHaveBeenNthCalledWith(1, 'utt-1', 'new-transcription', 'layer-main');
-    expect(saveTextTranslationForUtterance).toHaveBeenCalledWith('utt-1', 'new-translation', 'layer-tr');
-    expect(saveUtteranceText).toHaveBeenNthCalledWith(2, 'utt-2', 'new-default');
+    expect(saveUnitText).toHaveBeenNthCalledWith(1, 'utt-1', 'new-transcription', 'layer-main');
+    expect(saveUnitLayerText).toHaveBeenCalledWith('utt-1', 'new-translation', 'layer-tr');
+    expect(saveUnitText).toHaveBeenNthCalledWith(2, 'utt-2', 'new-default');
   });
 
   it('routes split and zoom requests through waveform items', () => {
@@ -267,8 +267,8 @@ describe('useTranscriptionTimelineInteractionController', () => {
     const seekTo = vi.fn();
     const setSubSelectionRange = vi.fn();
     const selectSegmentRange = vi.fn();
-    const zoomToUtterance = vi.fn();
-    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const zoomToUnit = vi.fn();
+    const createUnitFromSelection = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
       player: {
         isPlaying: true,
@@ -279,8 +279,8 @@ describe('useTranscriptionTimelineInteractionController', () => {
       setSubSelectionRange,
       selectedTimelineUnit: { layerId: 'layer-main', unitId: 'seg-2', kind: 'segment' },
       selectSegmentRange,
-      zoomToUtterance,
-      createUtteranceFromSelection,
+      zoomToUnit,
+      createUnitFromSelection,
     })));
 
     act(() => {
@@ -293,53 +293,53 @@ describe('useTranscriptionTimelineInteractionController', () => {
     expect(setSubSelectionRange).toHaveBeenCalledWith(null);
     expect(seekTo).toHaveBeenCalledWith(1.4);
     expect(selectSegmentRange).toHaveBeenCalledWith('seg-2', 'seg-1', expect.any(Array));
-    expect(zoomToUtterance).toHaveBeenCalledWith(1, 2);
+    expect(zoomToUnit).toHaveBeenCalledWith(1, 2);
 
     await act(async () => {
       await Promise.resolve();
     });
-    expect(createUtteranceFromSelection).toHaveBeenCalledWith(2.5, 3.5);
+    expect(createUnitFromSelection).toHaveBeenCalledWith(2.5, 3.5);
   });
 
   it('creates segment on double-click when preference is set to create-segment', async () => {
     localStorage.setItem('jieyu:waveform-double-click-action', 'create-segment');
 
-    const zoomToUtterance = vi.fn();
-    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const zoomToUnit = vi.fn();
+    const createUnitFromSelection = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
       useSegmentWaveformRegions: false,
-      zoomToUtterance,
-      createUtteranceFromSelection,
+      zoomToUnit,
+      createUnitFromSelection,
     })));
 
     act(() => {
       result.current.handleWaveformRegionDoubleClick('seg-1', 1, 2);
     });
 
-    expect(zoomToUtterance).not.toHaveBeenCalled();
+    expect(zoomToUnit).not.toHaveBeenCalled();
     await act(async () => {
       await Promise.resolve();
     });
-    expect(createUtteranceFromSelection).toHaveBeenCalledWith(1, 2);
+    expect(createUnitFromSelection).toHaveBeenCalledWith(1, 2);
   });
 
   it('keeps double-click zoom in segment waveform mode even when preference is create-segment', () => {
     localStorage.setItem('jieyu:waveform-double-click-action', 'create-segment');
 
-    const zoomToUtterance = vi.fn();
-    const createUtteranceFromSelection = vi.fn(async () => undefined);
+    const zoomToUnit = vi.fn();
+    const createUnitFromSelection = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
       useSegmentWaveformRegions: true,
-      zoomToUtterance,
-      createUtteranceFromSelection,
+      zoomToUnit,
+      createUnitFromSelection,
     })));
 
     act(() => {
       result.current.handleWaveformRegionDoubleClick('seg-1', 1, 2);
     });
 
-    expect(zoomToUtterance).toHaveBeenCalledWith(1, 2);
-    expect(createUtteranceFromSelection).not.toHaveBeenCalled();
+    expect(zoomToUnit).toHaveBeenCalledWith(1, 2);
+    expect(createUnitFromSelection).not.toHaveBeenCalled();
   });
 
   it('captures Alt pointerdown into sub-selection drag state', () => {
@@ -393,7 +393,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-main', unitId: 'seg-1', kind: 'segment' });
   });
 
-  it('blocks waveform time-subdivision resize when dragged beyond parent utterance bounds', () => {
+  it('blocks waveform time-subdivision resize when dragged beyond parent unit bounds', () => {
     mockUpdateSegment.mockClear();
     const setSaveState = vi.fn();
     const setSnapGuide = vi.fn();
@@ -412,7 +412,7 @@ describe('useTranscriptionTimelineInteractionController', () => {
     expect(setSnapGuide).toHaveBeenCalledWith({ visible: false });
   });
 
-  it('clamps time-subdivision saves to parent utterance bounds', async () => {
+  it('clamps time-subdivision saves to parent unit bounds', async () => {
     mockUpdateSegment.mockClear();
     const reloadSegments = vi.fn(async () => undefined);
     const setSaveState = vi.fn();

@@ -1,11 +1,7 @@
 import type { LayerDocType } from '../db';
 import type { LanguageSearchLocale } from './langMapping';
 import { getLanguageCatalogEntry, getLanguageDisplayName } from './langMapping';
-import {
-  listUniqueNonEmptyMultiLangLabels,
-  readAnyMultiLangLabel,
-  readLocalizedMultiLangLabel,
-} from './multiLangLabels';
+import { listUniqueNonEmptyMultiLangLabels, readAnyMultiLangLabel, readLocalizedMultiLangLabel } from './multiLangLabels';
 
 export const LANGUAGE_NAME_MAP: Record<string, string> = {
   cmn: '\u666e\u901a\u8bdd',

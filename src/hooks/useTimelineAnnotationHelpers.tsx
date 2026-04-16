@@ -1,24 +1,13 @@
-import { Fragment, startTransition, useCallback, useMemo, type MouseEvent, type ReactNode } from 'react';
+import { Fragment, startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType } from '../db';
 import { t, useLocale } from '../i18n';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import type { TimelineUnitView } from './timelineUnitView';
-import {
-  formatTime,
-  getLayerHeaderLanguageLine,
-  getOrthographyHeaderLine,
-  getLayerHeaderVarietyOrAliasLine,
-} from '../utils/transcriptionFormatters';
+import { formatTime, getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine } from '../utils/transcriptionFormatters';
 import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
-import {
-  resolveTranscriptionSelectionAnchor,
-  resolveTranscriptionUnitTarget,
-} from '../pages/transcriptionUnitTargetResolver';
-import {
-  resolveTimelineRowSelfCertainty,
-  type UtteranceSelfCertainty,
-} from '../utils/utteranceSelfCertainty';
+import { resolveTranscriptionSelectionAnchor, resolveTranscriptionUnitTarget } from '../pages/transcriptionUnitTargetResolver';
+import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 /** Rows bound into timeline annotation chrome. */
 type TimelineAnnotationBoundDoc = TimelineUnitView;
@@ -71,21 +60,22 @@ type UseTimelineAnnotationHelpersParams = {
   dragPreview: TimelineDragPreview;
   selectedUnitIds: Set<string>;
   focusedLayerRowId: string;
-  zoomToUtterance: (start: number, end: number) => void;
+  zoomToUnit: (start: number, end: number) => void;
   startTimelineResizeDrag: (
     event: React.PointerEvent<HTMLElement>,
     row: TimelineAnnotationBoundDoc,
     edge: 'start' | 'end',
     layerId: string,
   ) => void;
-  handleNoteClick: (utteranceId: string, layerId: string | undefined, event: React.MouseEvent) => void;
+  handleNoteClick: (unitId: string, layerId: string | undefined, event: React.MouseEvent) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;
-  speakerVisualByUtteranceId?: Record<string, SpeakerVisual>;
-  onOverlapCycleToast?: (index: number, total: number, utteranceId: string) => void;
+  speakerVisualByUnitId?: Record<string, SpeakerVisual>;
+  onOverlapCycleToast?: (index: number, total: number, unitId: string) => void;
   independentLayerIds?: Set<string>;
   orthographies?: OrthographyDocType[];
-  /** 当前媒体 utterance 列表：segment 行角标从宿主 utterance 读取 selfCertainty */
-  utterancesForSelfCertainty?: ReadonlyArray<UtteranceDocType>;
+  /** 备注标签同风格的按单元解析器：预先算好 layer + unit -> selfCertainty，再交给渲染层直接读取 */
+  /** Note-badge style per-unit resolver: precompute layer + unit -> selfCertainty and let the renderer read it directly. */
+  resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
 };
 
 export function useTimelineAnnotationHelpers({
@@ -107,25 +97,17 @@ export function useTimelineAnnotationHelpers({
   dragPreview,
   selectedUnitIds,
   focusedLayerRowId,
-  zoomToUtterance,
+  zoomToUnit,
   startTimelineResizeDrag,
   handleNoteClick,
   resolveNoteIndicatorTarget,
-  speakerVisualByUtteranceId = {},
+  speakerVisualByUnitId = {},
   onOverlapCycleToast,
   independentLayerIds = new Set<string>(),
   orthographies = [],
-  utterancesForSelfCertainty,
+  resolveSelfCertaintyForUnit,
 }: UseTimelineAnnotationHelpersParams) {
   const locale = useLocale();
-
-  const selfCertaintyByUtteranceId = useMemo(() => {
-    const m = new Map<string, UtteranceSelfCertainty>();
-    for (const u of utterancesForSelfCertainty ?? []) {
-      if (u.selfCertainty) m.set(u.id, u.selfCertainty);
-    }
-    return m;
-  }, [utterancesForSelfCertainty]);
 
   const handleAnnotationClick = useCallback((
     uttId: string,
@@ -141,7 +123,7 @@ export function useTimelineAnnotationHelpers({
       const targetUnit = resolveTranscriptionUnitTarget({
         layerId,
         unitId: uttId,
-        preferredKind: 'utterance',
+        preferredKind: 'unit',
         independentLayerIds,
       });
       if (targetUnit.kind === 'segment') {
@@ -155,17 +137,17 @@ export function useTimelineAnnotationHelpers({
         onFocusLayerRow(layerId);
         return;
       }
-      const selectedUtteranceUnitId = resolveTranscriptionSelectionAnchor({
-        expectedKind: 'utterance',
+      const selectedUnitUnitId = resolveTranscriptionSelectionAnchor({
+        expectedKind: 'unit',
         fallbackUnitId: '',
         selectedTimelineUnit,
       });
-      if (e.shiftKey && selectedUtteranceUnitId) {
-        selectUnitRange(selectedUtteranceUnitId, uttId);
+      if (e.shiftKey && selectedUnitUnitId) {
+        selectUnitRange(selectedUnitUnitId, uttId);
       } else if (e.metaKey || e.ctrlKey) {
         toggleUnitSelection(uttId);
       } else if (
-        selectedUtteranceUnitId === uttId
+        selectedUnitUnitId === uttId
         && overlapCycleItems
         && overlapCycleItems.length > 1
       ) {
@@ -218,7 +200,7 @@ export function useTimelineAnnotationHelpers({
     const targetUnit = resolveTranscriptionUnitTarget({
       layerId,
       unitId: uttId,
-      preferredKind: 'utterance',
+      preferredKind: 'unit',
       independentLayerIds,
     });
     const shouldPreserveMultiSelection = selectedUnitIds.has(uttId) && selectedUnitIds.size > 1;
@@ -310,30 +292,20 @@ export function useTimelineAnnotationHelpers({
     } = extra;
     const dpStart = dragPreview?.id === utt.id ? dragPreview.start : utt.startTime;
     const dpEnd = dragPreview?.id === utt.id ? dragPreview.end : utt.endTime;
-    const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
+    const speakerVisual = showSpeaker ? speakerVisualByUnitId[utt.id] : undefined;
     const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
     const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const explicitParentUtteranceId = utt.parentUtteranceId;
-    const isSegmentRow = utt.kind === 'segment';
-    const { selfCertainty: uttSelfCertainty } = resolveTimelineRowSelfCertainty({
-      unitId: utt.id,
-      startTime: utt.startTime,
-      endTime: utt.endTime,
-      isSegmentRow,
-      ...(explicitParentUtteranceId ? { parentUtteranceId: explicitParentUtteranceId } : {}),
-      ...((utt.mediaId?.trim() ?? '').length > 0 ? { mediaId: utt.mediaId } : {}),
-      utterances: utterancesForSelfCertainty ?? [],
-      selfCertaintyByUtteranceId,
-    });
+    const certaintyLookupLayerId = (utt.layerId?.trim() ?? '') || layer.id;
+    const uttSelfCertainty = resolveSelfCertaintyForUnit?.(utt.id, certaintyLookupLayerId);
     const tierLabel = uttSelfCertainty === 'certain'
-      ? t(locale, 'transcription.utterance.selfCertainty.certain')
+      ? t(locale, 'transcription.unit.selfCertainty.certain')
       : uttSelfCertainty === 'uncertain'
-        ? t(locale, 'transcription.utterance.selfCertainty.uncertain')
+        ? t(locale, 'transcription.unit.selfCertainty.uncertain')
         : uttSelfCertainty === 'not_understood'
-          ? t(locale, 'transcription.utterance.selfCertainty.not_understood')
+          ? t(locale, 'transcription.unit.selfCertainty.notUnderstood')
           : '';
     const selfCertaintyTitle = uttSelfCertainty && tierLabel
-      ? `${tierLabel}\n${t(locale, 'transcription.utterance.selfCertainty.dimensionHint')}`
+      ? `${tierLabel}\n${t(locale, 'transcription.unit.selfCertainty.dimensionHint')}`
       : undefined;
     return (
       <TimelineAnnotationItem
@@ -361,7 +333,7 @@ export function useTimelineAnnotationHelpers({
         {...(hasTrailingTools ? { hasTrailingTools } : {})}
         onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e, overlapCycleItems)}
         onContextMenu={(e) => handleAnnotationContextMenu(utt.id, utt, layer.id, e)}
-        onDoubleClick={() => zoomToUtterance(utt.startTime, utt.endTime)}
+        onDoubleClick={() => zoomToUnit(utt.startTime, utt.endTime)}
         onResizeStartPointerDown={(e) => startTimelineResizeDrag(e, utt, 'start', layer.id)}
         onResizeEndPointerDown={(e) => startTimelineResizeDrag(e, utt, 'end', layer.id)}
         onKeyDown={handleAnnotationKeyDown}
@@ -381,16 +353,15 @@ export function useTimelineAnnotationHelpers({
     independentLayerIds,
     handleAnnotationClick,
     handleAnnotationContextMenu,
-    zoomToUtterance,
+    zoomToUnit,
     startTimelineResizeDrag,
     handleAnnotationKeyDown,
     handleNoteClick,
     orthographies,
     locale,
     resolveNoteIndicatorTarget,
-    speakerVisualByUtteranceId,
-    selfCertaintyByUtteranceId,
-    utterancesForSelfCertainty,
+    speakerVisualByUnitId,
+    resolveSelfCertaintyForUnit,
   ]);
 
   const renderLaneLabel = useCallback((layer: LayerDocType) => {

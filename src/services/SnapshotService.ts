@@ -1,9 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type {
-  UtteranceDocType,
-  UtteranceTextDocType,
-  LayerDocType,
-} from '../db';
+import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '../db';
 
 // ---- Types ----
 
@@ -12,7 +8,7 @@ interface RecoveryRow {
   dbName: string;
   schemaVersion: number;
   timestamp: number;
-  utterances: string;     // JSON-stringified array
+  units: string;     // JSON-stringified array
   translations: string;   // JSON-stringified array
   layers: string;         // JSON-stringified array
 }
@@ -20,8 +16,8 @@ interface RecoveryRow {
 export interface RecoveryData {
   schemaVersion: number;
   timestamp: number;
-  utterances: UtteranceDocType[];
-  translations: UtteranceTextDocType[];
+  units: LayerUnitDocType[];
+  translations: LayerUnitContentDocType[];
   layers: LayerDocType[];
 }
 
@@ -48,8 +44,8 @@ function getRecoveryDb(): RecoveryDexie {
 export async function saveRecoverySnapshot(
   dbName: string,
   data: {
-    utterances: UtteranceDocType[];
-    translations: UtteranceTextDocType[];
+    units: LayerUnitDocType[];
+    translations: LayerUnitContentDocType[];
     layers: LayerDocType[];
   },
 ): Promise<void> {
@@ -58,7 +54,7 @@ export async function saveRecoverySnapshot(
     dbName,
     schemaVersion: RECOVERY_SCHEMA_VERSION,
     timestamp: Date.now(),
-    utterances: JSON.stringify(data.utterances),
+    units: JSON.stringify(data.units),
     translations: JSON.stringify(data.translations),
     layers: JSON.stringify(data.layers),
   });
@@ -73,8 +69,8 @@ export async function getRecoverySnapshot(dbName: string): Promise<RecoveryData 
     return {
       schemaVersion: row.schemaVersion,
       timestamp: row.timestamp,
-      utterances: JSON.parse(row.utterances) as UtteranceDocType[],
-      translations: JSON.parse(row.translations) as UtteranceTextDocType[],
+      units: JSON.parse(row.units) as LayerUnitDocType[],
+      translations: JSON.parse(row.translations) as LayerUnitContentDocType[],
       layers: JSON.parse(row.layers) as LayerDocType[],
     };
   } catch (err) {

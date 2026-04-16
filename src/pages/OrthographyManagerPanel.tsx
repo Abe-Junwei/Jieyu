@@ -20,12 +20,7 @@ import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalo
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
 import { formatLanguageCatalogSearchSuggestion } from '../utils/langMapping';
-import {
-  resolveCatalogPriorityLabel,
-  resolveCatalogReviewStatusLabel,
-  resolveCatalogSourceLabel,
-  type OrthographyDraft,
-} from './orthographyManager.shared';
+import { resolveCatalogPriorityLabel, resolveCatalogReviewStatusLabel, resolveCatalogSourceLabel, type OrthographyDraft } from './orthographyManager.shared';
 
 type OrthographyManagerPanelProps = {
   onClose?: () => void;

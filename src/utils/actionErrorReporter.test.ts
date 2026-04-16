@@ -1,9 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { reportActionError } from './actionErrorReporter';
-import {
-  getStructuredErrorAggregation,
-  resetStructuredErrorAggregation,
-} from '../observability/errorAggregation';
+import { getStructuredErrorAggregation, resetStructuredErrorAggregation } from '../observability/errorAggregation';
 
 describe('actionErrorReporter', () => {
   beforeEach(() => {

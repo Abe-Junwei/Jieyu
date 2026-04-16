@@ -1,73 +1,17 @@
-import {
-  getDb,
-  exportDatabaseAsJson,
-  importDatabaseFromJson,
-  type ImportConflictStrategy,
-  type ImportResult,
-  type UtteranceDocType,
-  type UtteranceTokenDocType,
-  type UtteranceMorphemeDocType,
-  type TokenLexemeLinkDocType,
-  type TokenLexemeLinkTargetType,
-  type LexemeDocType,
-  type LayerDocType,
-  type UtteranceTextDocType,
-  type TextDocType,
-  type MediaItemDocType,
-  type OrthographyDocType,
-  type OrthographyBridgeDocType,
-  type SpeakerDocType,
-  type LayerUnitDocType,
-} from '../db';
+import { getDb, exportDatabaseAsJson, importDatabaseFromJson, type ImportConflictStrategy, type ImportResult, type LayerUnitDocType, type UnitTokenDocType, type UnitMorphemeDocType, type TokenLexemeLinkDocType, type TokenLexemeLinkTargetType, type LexemeDocType, type LayerDocType, type LayerUnitContentDocType, type TextDocType, type MediaItemDocType, type OrthographyDocType, type OrthographyBridgeDocType, type SpeakerDocType } from '../db';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../../src/utils/transcriptionFormatters';
-import {
-  normalizeUtteranceDocForStorage,
-} from '../../src/utils/camDataUtils';
-import {
-  enforceTimeSubdivisionParentBounds,
-  listUtteranceTextsFromSegmentation,
-  listUtteranceTextsByUtterance,
-  removeUtteranceCascadeFromSegmentationV2,
-  syncUtteranceTextToSegmentationV2,
-} from './LayerSegmentationTextService';
+import { normalizeUnitDocForStorage } from '../../src/utils/camDataUtils';
+import { enforceTimeSubdivisionParentBounds, listUnitTextsFromSegmentation, listUnitTextsByUnit, removeUnitCascadeFromSegmentationV2, syncUnitTextToSegmentationV2 } from './LayerSegmentationTextService';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import type { SpeakerReferenceStatsBundle } from '../hooks/speakerManagement/types';
-import {
-  hasEmbeddedDefaultTextChanged,
-  invalidateUtteranceEmbeddings,
-  isDefaultTranscriptionLayerForUtteranceText,
-} from '../ai/embeddings/EmbeddingInvalidationService';
-import {
-  bulkUpsertUtteranceLayerUnits,
-  deleteResidualLayerUnitGraphByMediaId,
-  deleteResidualLayerUnitGraphByTextId,
-  deleteUtteranceLayerUnitCascade,
-  getUtteranceDocProjectionById,
-  listUtteranceDocsFromCanonicalLayerUnits,
-  upsertUtteranceLayerUnit,
-} from './LayerSegmentGraphService';
+import { hasEmbeddedDefaultTextChanged, invalidateUnitEmbeddings, isDefaultTranscriptionLayerForUnitText } from '../ai/embeddings/EmbeddingInvalidationService';
+import { bulkUpsertUnitLayerUnits, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, deleteUnitLayerUnitCascade, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
-import {
-  type ImportQualityReport,
-} from './LinguisticService.constraints';
-import type {
-  ApplyOrthographyBridgeInput,
-  CloneOrthographyToLanguageInput,
-  CreateOrthographyInput,
-  CreateOrthographyBridgeInput,
-  GetActiveOrthographyBridgeInput,
-  ListOrthographyRecordsSelector,
-  ListOrthographyBridgesSelector,
-  PreviewOrthographyBridgeInput,
-  UpdateOrthographyInput,
-  UpdateOrthographyBridgeInput,
-} from './LinguisticService.orthography';
-import type {
-  LanguageCatalogEntry,
-  UpsertLanguageCatalogEntryInput,
-} from './LinguisticService.languageCatalog';
+import { type ImportQualityReport } from './LinguisticService.constraints';
+import type { ApplyOrthographyBridgeInput, CloneOrthographyToLanguageInput, CreateOrthographyInput, CreateOrthographyBridgeInput, GetActiveOrthographyBridgeInput, ListOrthographyRecordsSelector, ListOrthographyBridgesSelector, PreviewOrthographyBridgeInput, UpdateOrthographyInput, UpdateOrthographyBridgeInput } from './LinguisticService.orthography';
+import type { LanguageCatalogEntry, UpsertLanguageCatalogEntryInput } from './LinguisticService.languageCatalog';
 import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
 import { SegmentMetaService } from './SegmentMetaService';
 export type { Iso639_3Seed } from './languageCatalogSeedLookup';
@@ -92,10 +36,7 @@ export type {
   UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
 
-import {
-  resolveLanguageQuery as resolveLanguageQueryImpl,
-  searchLanguageCatalog,
-} from '../utils/langMapping';
+import { resolveLanguageQuery as resolveLanguageQueryImpl, searchLanguageCatalog } from '../utils/langMapping';
 import { previewOrthographyBridge as previewOrthographyBridgeText } from '../utils/orthographyBridges';
 export type {
   LanguageCatalogMatch,
@@ -116,19 +57,19 @@ function loadLanguageCatalogService() {
 }
 
 export class LinguisticService {
-  private static async removeNotesForUtteranceIds(
+  private static async removeNotesForUnitIds(
     db: Awaited<ReturnType<typeof getDb>>,
-    utteranceIds: readonly string[],
+    unitIds: readonly string[],
   ): Promise<void> {
-    const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
+    const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
 
     const [tokens, morphemes] = await Promise.all([
-      db.dexie.utterance_tokens.where('unitId').anyOf(ids).toArray(),
-      db.dexie.utterance_morphemes.where('unitId').anyOf(ids).toArray(),
+      db.dexie.unit_tokens.where('unitId').anyOf(ids).toArray(),
+      db.dexie.unit_morphemes.where('unitId').anyOf(ids).toArray(),
     ]);
 
-    const deleteByTarget = async (targetType: 'utterance' | 'token' | 'morpheme', targetIds: readonly string[]) => {
+    const deleteByTarget = async (targetType: 'unit' | 'token' | 'morpheme', targetIds: readonly string[]) => {
       if (targetIds.length === 0) return;
       await db.dexie.user_notes
         .where('[targetType+targetId]')
@@ -136,7 +77,7 @@ export class LinguisticService {
         .delete();
     };
 
-    await deleteByTarget('utterance', ids);
+    await deleteByTarget('unit', ids);
     await deleteByTarget('token', tokens.map((token) => token.id));
     await deleteByTarget('morpheme', morphemes.map((morpheme) => morpheme.id));
   }
@@ -144,36 +85,36 @@ export class LinguisticService {
   static async generateImportQualityReport(textId?: string): Promise<ImportQualityReport> {
     const db = await getDb();
 
-    const [utterancesAll, utteranceTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] = await Promise.all([
-      listUtteranceDocsFromCanonicalLayerUnits(db),
-      listUtteranceTextsFromSegmentation(db),
+    const [unitsAll, unitTextsAll, layersAll, tokensAll, morphemesAll, userNotesAll, anchorsAll] = await Promise.all([
+      listUnitDocsFromCanonicalLayerUnits(db),
+      listUnitTextsFromSegmentation(db),
       db.collections.layers.find().exec().then((docs) => docs.map((doc) => doc.toJSON())),
-      db.dexie.utterance_tokens.toArray(),
-      db.dexie.utterance_morphemes.toArray(),
+      db.dexie.unit_tokens.toArray(),
+      db.dexie.unit_morphemes.toArray(),
       db.dexie.user_notes.toArray(),
       db.dexie.anchors.toArray(),
     ]);
 
-    const inScopeUtterances = textId
-      ? utterancesAll.filter((u) => u.textId === textId)
-      : utterancesAll;
-    const inScopeUtteranceIds = new Set(inScopeUtterances.map((u) => u.id));
+    const inScopeUnits = textId
+      ? unitsAll.filter((u) => u.textId === textId)
+      : unitsAll;
+    const inScopeUnitIds = new Set(inScopeUnits.map((u) => u.id));
 
-    const inScopeUtteranceTexts = utteranceTextsAll.filter((row) => inScopeUtteranceIds.has(row.utteranceId));
-    const inScopeTokens = tokensAll.filter((row) => inScopeUtteranceIds.has(row.unitId));
-    const inScopeMorphemes = morphemesAll.filter((row) => inScopeUtteranceIds.has(row.unitId));
+    const inScopeUnitTexts = unitTextsAll.filter((row) => Boolean(row.unitId && inScopeUnitIds.has(row.unitId)));
+    const inScopeTokens = tokensAll.filter((row) => inScopeUnitIds.has(row.unitId));
+    const inScopeMorphemes = morphemesAll.filter((row) => inScopeUnitIds.has(row.unitId));
 
     const inScopeTokenIds = new Set(inScopeTokens.map((t) => t.id));
     const inScopeMorphemeIds = new Set(inScopeMorphemes.map((m) => m.id));
-    const inScopeTranslationIds = new Set(inScopeUtteranceTexts.map((t) => t.id));
+    const inScopeTranslationIds = new Set(inScopeUnitTexts.map((t) => t.id));
 
     const inScopeNotes = userNotesAll.filter((note) => {
       if (!textId) return true;
-      if (note.targetType === 'utterance') return inScopeUtteranceIds.has(note.targetId);
+      if (note.targetType === 'unit') return inScopeUnitIds.has(note.targetId);
       if (note.targetType === 'translation') return inScopeTranslationIds.has(note.targetId);
       if (note.targetType === 'token') {
         return inScopeTokenIds.has(note.targetId)
-          || (typeof note.parentTargetId === 'string' && inScopeUtteranceIds.has(note.parentTargetId));
+          || (typeof note.parentTargetId === 'string' && inScopeUnitIds.has(note.parentTargetId));
       }
       if (note.targetType === 'morpheme') {
         return inScopeMorphemeIds.has(note.targetId)
@@ -189,22 +130,24 @@ export class LinguisticService {
     const glossedUttIds = new Set<string>();
     const verifiedUttIds = new Set<string>();
 
-    for (const utt of inScopeUtterances) {
+    for (const utt of inScopeUnits) {
       const legacyTr = utt.transcription?.default;
       if (typeof legacyTr === 'string' && legacyTr.trim().length > 0) {
         transcribedUttIds.add(utt.id);
       }
-      if (utt.annotationStatus === 'verified') {
+      if (utt.status === 'verified') {
         verifiedUttIds.add(utt.id);
       }
     }
 
-    for (const row of inScopeUtteranceTexts) {
+    for (const row of inScopeUnitTexts) {
+      const unitId = row.unitId?.trim();
+      const layerId = row.layerId?.trim();
       const text = row.text?.trim() ?? '';
-      if (!text) continue;
-      const layerType = layerTypeById.get(row.layerId);
-      if (layerType === 'transcription') transcribedUttIds.add(row.utteranceId);
-      if (layerType === 'translation') translatedUttIds.add(row.utteranceId);
+      if (!unitId || !layerId || !text) continue;
+      const layerType = layerTypeById.get(layerId);
+      if (layerType === 'transcription') transcribedUttIds.add(unitId);
+      if (layerType === 'translation') translatedUttIds.add(unitId);
     }
 
     for (const token of inScopeTokens) {
@@ -226,21 +169,21 @@ export class LinguisticService {
       }
     }
 
-    const utteranceById = new Set(inScopeUtterances.map((u) => u.id));
+    const unitById = new Set(inScopeUnits.map((u) => u.id));
     const tokenById = new Set(inScopeTokens.map((u) => u.id));
     const morphemeById = new Set(inScopeMorphemes.map((u) => u.id));
-    const translationById = new Set(inScopeUtteranceTexts.map((u) => u.id));
+    const translationById = new Set(inScopeUnitTexts.map((u) => u.id));
 
     let orphanNotes = 0;
     for (const note of inScopeNotes) {
-      if (note.targetType === 'utterance' && !utteranceById.has(note.targetId)) orphanNotes++;
+      if (note.targetType === 'unit' && !unitById.has(note.targetId)) orphanNotes++;
       if (note.targetType === 'token' && !tokenById.has(note.targetId)) orphanNotes++;
       if (note.targetType === 'morpheme' && !morphemeById.has(note.targetId)) orphanNotes++;
       if (note.targetType === 'translation' && !translationById.has(note.targetId)) orphanNotes++;
     }
 
     const referencedAnchors = new Set<string>();
-    for (const utt of inScopeUtterances) {
+    for (const utt of inScopeUnits) {
       if (utt.startAnchorId) referencedAnchors.add(utt.startAnchorId);
       if (utt.endAnchorId) referencedAnchors.add(utt.endAnchorId);
     }
@@ -249,19 +192,19 @@ export class LinguisticService {
       if (!referencedAnchors.has(anchor.id)) orphanAnchors++;
     }
 
-    const totalUtterances = inScopeUtterances.length;
-    const ratio = (part: number): number => (totalUtterances === 0 ? 0 : part / totalUtterances);
+    const totalUnits = inScopeUnits.length;
+    const ratio = (part: number): number => (totalUnits === 0 ? 0 : part / totalUnits);
 
     const transcriptionLayers = layersAll.filter((l) => l.layerType === 'transcription');
     const translationLayers = layersAll.filter((l) => l.layerType === 'translation');
-    const inScopeTextIds = new Set(inScopeUtterances.map((u) => u.textId));
+    const inScopeTextIds = new Set(inScopeUnits.map((u) => u.textId));
 
     return {
       generatedAt: new Date().toISOString(),
       scope: textId ? { textId } : {},
       totals: {
-        utterances: totalUtterances,
-        utteranceTexts: inScopeUtteranceTexts.length,
+        units: totalUnits,
+        unitTexts: inScopeUnitTexts.length,
         transcriptionLayers: transcriptionLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
         translationLayers: translationLayers.filter((l) => inScopeTextIds.has(l.textId)).length,
         canonicalTokens: inScopeTokens.length,
@@ -269,10 +212,10 @@ export class LinguisticService {
         userNotes: inScopeNotes.length,
       },
       coverage: {
-        transcribedUtterances: transcribedUttIds.size,
-        translatedUtterances: translatedUttIds.size,
-        glossedUtterances: glossedUttIds.size,
-        verifiedUtterances: verifiedUttIds.size,
+        transcribedUnits: transcribedUttIds.size,
+        translatedUnits: translatedUttIds.size,
+        glossedUnits: glossedUttIds.size,
+        verifiedUnits: verifiedUttIds.size,
         transcribedRate: ratio(transcribedUttIds.size),
         translatedRate: ratio(translatedUttIds.size),
         glossedRate: ratio(glossedUttIds.size),
@@ -285,14 +228,14 @@ export class LinguisticService {
     };
   }
 
-  static async getAllUtterances(): Promise<UtteranceDocType[]> {
+  static async getAllUnits(): Promise<LayerUnitDocType[]> {
     const db = await getDb();
-    return listUtteranceDocsFromCanonicalLayerUnits(db);
+    return listUnitDocsFromCanonicalLayerUnits(db);
   }
 
-  static async getUtteranceAtTime(time: number): Promise<UtteranceDocType | undefined> {
+  static async getUnitAtTime(time: number): Promise<LayerUnitDocType | undefined> {
     const db = await getDb();
-    const docs = await listUtteranceDocsFromCanonicalLayerUnits(db);
+    const docs = await listUnitDocsFromCanonicalLayerUnits(db);
     return docs.find((u) => u.startTime <= time && u.endTime >= time);
   }
 
@@ -310,17 +253,17 @@ export class LinguisticService {
 
   static async getSpeakerReferenceStats(options?: { mediaId?: string | null }): Promise<SpeakerReferenceStatsBundle> {
     const db = await getDb();
-    const [utteranceRowsRaw, allSegments] = await Promise.all([
-      listUtteranceDocsFromCanonicalLayerUnits(db),
+    const [unitRowsRaw, allSegments] = await Promise.all([
+      listUnitDocsFromCanonicalLayerUnits(db),
       LayerSegmentQueryService.listAllSegments(),
     ]);
 
     const mediaKey = typeof options?.mediaId === 'string' ? options.mediaId.trim() : '';
-    const utteranceRows = mediaKey.length > 0
-      ? utteranceRowsRaw.filter((row) => (row.mediaId ?? '').trim() === mediaKey)
-      : utteranceRowsRaw;
+    const unitRows = mediaKey.length > 0
+      ? unitRowsRaw.filter((row) => (row.mediaId ?? '').trim() === mediaKey)
+      : unitRowsRaw;
     const segments = mediaKey.length > 0
-      ? allSegments.filter((row) => row.mediaId.trim() === mediaKey)
+      ? allSegments.filter((row) => (row.mediaId?.trim() ?? '') === mediaKey)
       : allSegments;
 
     const stats = new Map<string, { transcriptionUnitCount: number; segmentCount: number; totalCount: number }>();
@@ -336,7 +279,7 @@ export class LinguisticService {
       return next;
     };
 
-    for (const doc of utteranceRows) {
+    for (const doc of unitRows) {
       const speakerId = doc.speakerId?.trim();
       if (!speakerId) {
         unassigned.transcriptionUnitCount += 1;
@@ -439,19 +382,19 @@ export class LinguisticService {
 
     const target = targetDoc.toJSON();
     const now = new Date().toISOString();
-    const utteranceRows = (await listUtteranceDocsFromCanonicalLayerUnits(db))
+    const unitRows = (await listUnitDocsFromCanonicalLayerUnits(db))
       .filter((row) => row.speakerId?.trim() === sourceId);
     const segments = (await LayerSegmentQueryService.listAllSegments())
       .filter((segment) => segment.speakerId?.trim() === sourceId);
 
-    if (utteranceRows.length > 0) {
-      const normalized = utteranceRows.map((row) => normalizeUtteranceDocForStorage({
+    if (unitRows.length > 0) {
+      const normalized = unitRows.map((row) => normalizeUnitDocForStorage({
         ...row,
         speakerId: target.id,
         speaker: target.name,
         updatedAt: now,
       }));
-      await bulkUpsertUtteranceLayerUnits(db, normalized);
+      await bulkUpsertUnitLayerUnits(db, normalized);
     }
 
     if (segments.length > 0) {
@@ -464,7 +407,7 @@ export class LinguisticService {
     }
 
     await db.collections.speakers.remove(sourceId);
-    return utteranceRows.length + segments.length;
+    return unitRows.length + segments.length;
   }
 
   static async deleteSpeaker(
@@ -482,11 +425,11 @@ export class LinguisticService {
     const speakerDoc = await db.collections.speakers.findOne({ selector: { id } }).exec();
     if (!speakerDoc) throw new Error(`\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${id}`);
 
-    const utterances = (await listUtteranceDocsFromCanonicalLayerUnits(db))
+    const units = (await listUnitDocsFromCanonicalLayerUnits(db))
       .filter((row) => row.speakerId?.trim() === id);
     const segments = (await LayerSegmentQueryService.listAllSegments())
       .filter((segment) => segment.speakerId?.trim() === id);
-    const affectedCount = utterances.length + segments.length;
+    const affectedCount = units.length + segments.length;
 
     if (affectedCount > 0 && strategy === 'reject') {
       throw new Error(`\u8bf4\u8bdd\u4eba\u4ecd\u88ab ${affectedCount} \u6761\u53e5\u6bb5\u5f15\u7528`);
@@ -502,14 +445,14 @@ export class LinguisticService {
       if (!targetDoc) throw new Error(`\u76ee\u6807\u8bf4\u8bdd\u4eba\u4e0d\u5b58\u5728: ${targetId}`);
       const target = targetDoc.toJSON();
 
-      const normalized = utterances.map((row) => normalizeUtteranceDocForStorage({
+      const normalized = units.map((row) => normalizeUnitDocForStorage({
         ...row,
         speakerId: target.id,
         speaker: target.name,
         updatedAt: now,
       }));
       if (normalized.length > 0) {
-        await bulkUpsertUtteranceLayerUnits(db, normalized);
+        await bulkUpsertUnitLayerUnits(db, normalized);
       }
 
       if (segments.length > 0) {
@@ -523,15 +466,15 @@ export class LinguisticService {
     }
 
     if (affectedCount > 0 && strategy === 'clear') {
-      const normalized = utterances.map((row) => {
+      const normalized = units.map((row) => {
         const { speaker: _oldSpeaker, speakerId: _oldSpeakerId, ...rest } = row;
-        return normalizeUtteranceDocForStorage({
+        return normalizeUnitDocForStorage({
           ...rest,
           updatedAt: now,
         });
       });
       if (normalized.length > 0) {
-        await bulkUpsertUtteranceLayerUnits(db, normalized);
+        await bulkUpsertUnitLayerUnits(db, normalized);
       }
 
       if (segments.length > 0) {
@@ -547,7 +490,7 @@ export class LinguisticService {
     }
 
     void SegmentMetaService.syncForUnitIds([
-      ...utterances.map((row) => row.id),
+      ...units.map((row) => row.id),
       ...segments.map((row) => row.id),
     ]).catch(() => {
       // SegmentMeta 为统一读模型，说话人同步失败不应阻塞删除流程 | SegmentMeta is a shared read model; speaker-sync failures must not block deletion.
@@ -556,12 +499,12 @@ export class LinguisticService {
     return affectedCount;
   }
 
-  static async assignSpeakerToUtterances(
-    utteranceIds: Iterable<string>,
+  static async assignSpeakerToUnits(
+    unitIds: Iterable<string>,
     speakerId?: string,
   ): Promise<number> {
     const db = await getDb();
-    const ids = [...new Set(Array.from(utteranceIds).map((id) => id.trim()).filter((id) => id.length > 0))];
+    const ids = [...new Set(Array.from(unitIds).map((id) => id.trim()).filter((id) => id.length > 0))];
     if (ids.length === 0) return 0;
 
     const selectedSpeakerId = speakerId?.trim();
@@ -574,21 +517,21 @@ export class LinguisticService {
       speaker = speakerDoc.toJSON();
     }
 
-    const rows = (await Promise.all(ids.map((id) => getUtteranceDocProjectionById(db, id))))
-      .filter((row): row is UtteranceDocType => Boolean(row));
+    const rows = (await Promise.all(ids.map((id) => getUnitDocProjectionById(db, id))))
+      .filter((row): row is LayerUnitDocType => Boolean(row));
     if (rows.length === 0) return 0;
 
     const now = new Date().toISOString();
     const updates = rows.map((row) => {
       const { speaker: _oldSpeaker, speakerId: _oldSpeakerId, ...rest } = row;
-      return normalizeUtteranceDocForStorage({
+      return normalizeUnitDocForStorage({
         ...rest,
         ...(speaker ? { speaker: speaker.name, speakerId: speaker.id } : {}),
         updatedAt: now,
       });
     });
 
-    await bulkUpsertUtteranceLayerUnits(db, updates);
+    await bulkUpsertUnitLayerUnits(db, updates);
     void SegmentMetaService.syncForUnitIds(updates.map((row) => row.id)).catch(() => {
       // SegmentMeta 为统一读模型，说话人同步失败不应阻塞主流程 | SegmentMeta is a shared read model; speaker-sync failures must not block the primary flow.
     });
@@ -633,19 +576,19 @@ export class LinguisticService {
     return updates.length;
   }
 
-  static async saveUtterance(data: UtteranceDocType): Promise<string> {
+  static async saveUnit(data: LayerUnitDocType): Promise<string> {
     const db = await getDb();
-    const normalized = normalizeUtteranceDocForStorage(data);
-    const existing = await getUtteranceDocProjectionById(db, normalized.id);
+    const normalized = normalizeUnitDocForStorage(data);
+    const existing = await getUnitDocProjectionById(db, normalized.id);
     await enforceTimeSubdivisionParentBounds(
       db,
       normalized.id,
       normalized.startTime,
       normalized.endTime,
     );
-    await upsertUtteranceLayerUnit(db, normalized);
+    await upsertUnitLayerUnit(db, normalized);
     if (hasEmbeddedDefaultTextChanged(existing, normalized)) {
-      await invalidateUtteranceEmbeddings(db, [normalized.id]);
+      await invalidateUnitEmbeddings(db, [normalized.id]);
     }
     void SegmentMetaService.syncForUnitIds([normalized.id]).catch(() => {
       // SegmentMeta 为统一读模型，刷新失败不应阻塞保存 | SegmentMeta is a shared read model; refresh failures must not block saves.
@@ -653,17 +596,17 @@ export class LinguisticService {
     return normalized.id;
   }
 
-  static async getUtterancesByTextId(textId: string): Promise<UtteranceDocType[]> {
+  static async getUnitsByTextId(textId: string): Promise<LayerUnitDocType[]> {
     const db = await getDb();
-    const all = await listUtteranceDocsFromCanonicalLayerUnits(db);
+    const all = await listUnitDocsFromCanonicalLayerUnits(db);
     return all.filter((u) => u.textId === textId);
   }
 
-  static async saveUtterancesBatch(items: UtteranceDocType[]): Promise<void> {
+  static async saveUnitsBatch(items: LayerUnitDocType[]): Promise<void> {
     const db = await getDb();
-    const normalized = items.map(normalizeUtteranceDocForStorage);
-    const existingRows = await Promise.all(normalized.map((item) => getUtteranceDocProjectionById(db, item.id)));
-    const changedUtteranceIds = normalized
+    const normalized = items.map(normalizeUnitDocForStorage);
+    const existingRows = await Promise.all(normalized.map((item) => getUnitDocProjectionById(db, item.id)));
+    const changedUnitIds = normalized
       .filter((item, index) => hasEmbeddedDefaultTextChanged(existingRows[index], item))
       .map((item) => item.id);
     for (const row of normalized) {
@@ -674,41 +617,41 @@ export class LinguisticService {
         row.endTime,
       );
     }
-    await bulkUpsertUtteranceLayerUnits(db, normalized);
-    if (changedUtteranceIds.length > 0) {
-      await invalidateUtteranceEmbeddings(db, changedUtteranceIds);
+    await bulkUpsertUnitLayerUnits(db, normalized);
+    if (changedUnitIds.length > 0) {
+      await invalidateUnitEmbeddings(db, changedUnitIds);
     }
     void SegmentMetaService.syncForUnitIds(normalized.map((item) => item.id)).catch(() => {
       // SegmentMeta 为统一读模型，刷新失败不应阻塞批量保存 | SegmentMeta is a shared read model; refresh failures must not block batch saves.
     });
   }
 
-  static async getTokensByUtteranceId(utteranceId: string): Promise<UtteranceTokenDocType[]> {
+  static async getTokensByUnitId(unitId: string): Promise<UnitTokenDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.utterance_tokens.findByIndex('unitId', utteranceId);
+    const docs = await db.collections.unit_tokens.findByIndex('unitId', unitId);
     return docs.map((doc) => doc.toJSON()).sort((a, b) => a.tokenIndex - b.tokenIndex);
   }
 
-  static async getMorphemesByTokenId(tokenId: string): Promise<UtteranceMorphemeDocType[]> {
+  static async getMorphemesByTokenId(tokenId: string): Promise<UnitMorphemeDocType[]> {
     const db = await getDb();
-    const docs = await db.collections.utterance_morphemes.findByIndex('tokenId', tokenId);
+    const docs = await db.collections.unit_morphemes.findByIndex('tokenId', tokenId);
     return docs.map((doc) => doc.toJSON()).sort((a, b) => a.morphemeIndex - b.morphemeIndex);
   }
 
-  static async saveToken(data: UtteranceTokenDocType): Promise<string> {
+  static async saveToken(data: UnitTokenDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.utterance_tokens.insert(data);
+    const doc = await db.collections.unit_tokens.insert(data);
     return doc.primary;
   }
 
-  static async saveTokensBatch(items: UtteranceTokenDocType[]): Promise<void> {
+  static async saveTokensBatch(items: UnitTokenDocType[]): Promise<void> {
     const db = await getDb();
-    await db.collections.utterance_tokens.bulkInsert(items);
+    await db.collections.unit_tokens.bulkInsert(items);
   }
 
   static async updateTokenPos(tokenId: string, pos: string | null): Promise<void> {
     const db = await getDb();
-    const existing = await db.collections.utterance_tokens
+    const existing = await db.collections.unit_tokens
       .findOne({ selector: { id: tokenId } }).exec();
     if (!existing) {
       throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
@@ -719,7 +662,7 @@ export class LinguisticService {
     const nextPos = trimmed.length > 0 ? trimmed : undefined;
     const { pos: _oldPos, ...rest } = row;
 
-    await db.collections.utterance_tokens.insert({
+    await db.collections.unit_tokens.insert({
       ...rest,
       ...(nextPos ? { pos: nextPos } : {}),
       updatedAt: new Date().toISOString(),
@@ -728,7 +671,7 @@ export class LinguisticService {
 
   static async updateTokenGloss(tokenId: string, gloss: string | null, lang = 'eng'): Promise<void> {
     const db = await getDb();
-    const existing = await db.collections.utterance_tokens
+    const existing = await db.collections.unit_tokens
       .findOne({ selector: { id: tokenId } }).exec();
     if (!existing) {
       throw new Error(`\u672a\u627e\u5230 token: ${tokenId}`);
@@ -748,7 +691,7 @@ export class LinguisticService {
     }
 
     const { gloss: _oldGloss, ...rest } = row;
-    await db.collections.utterance_tokens.insert({
+    await db.collections.unit_tokens.insert({
       ...rest,
       ...(nextGloss ? { gloss: nextGloss } : {}),
       updatedAt: new Date().toISOString(),
@@ -756,7 +699,7 @@ export class LinguisticService {
   }
 
   static async batchUpdateTokenPosByForm(
-    utteranceId: string,
+    unitId: string,
     form: string,
     pos: string | null,
     orthographyKey = 'default',
@@ -765,7 +708,7 @@ export class LinguisticService {
     const normalizedForm = form.trim();
     if (!normalizedForm) return 0;
 
-    const tokens = await db.collections.utterance_tokens.findByIndex('unitId', utteranceId);
+    const tokens = await db.collections.unit_tokens.findByIndex('unitId', unitId);
     const rows = tokens.map((doc) => doc.toJSON());
     const normalizedPos = (pos ?? '').trim();
     const now = new Date().toISOString();
@@ -778,7 +721,7 @@ export class LinguisticService {
 
     if (matches.length === 0) return 0;
 
-    await db.collections.utterance_tokens.bulkInsert(matches.map((row) => {
+    await db.collections.unit_tokens.bulkInsert(matches.map((row) => {
       const { pos: _oldPos, ...rest } = row;
       return {
         ...rest,
@@ -790,21 +733,21 @@ export class LinguisticService {
     return matches.length;
   }
 
-  static async saveMorpheme(data: UtteranceMorphemeDocType): Promise<string> {
+  static async saveMorpheme(data: UnitMorphemeDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.utterance_morphemes.insert(data);
+    const doc = await db.collections.unit_morphemes.insert(data);
     return doc.primary;
   }
 
-  static async saveMorphemesBatch(items: UtteranceMorphemeDocType[]): Promise<void> {
+  static async saveMorphemesBatch(items: UnitMorphemeDocType[]): Promise<void> {
     const db = await getDb();
-    await db.collections.utterance_morphemes.bulkInsert(items);
+    await db.collections.unit_morphemes.bulkInsert(items);
   }
 
   static async removeToken(tokenId: string): Promise<void> {
     const db = await getDb();
-    await db.collections.utterance_morphemes.removeBySelector({ tokenId });
-    await db.collections.utterance_tokens.remove(tokenId);
+    await db.collections.unit_morphemes.removeBySelector({ tokenId });
+    await db.collections.unit_tokens.remove(tokenId);
     await db.collections.token_lexeme_links.removeBySelector({ targetType: 'token', targetId: tokenId });
   }
 
@@ -902,20 +845,24 @@ export class LinguisticService {
     return doc.primary;
   }
 
-  static async getUtteranceTexts(utteranceId: string): Promise<UtteranceTextDocType[]> {
+  static async getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {
     const db = await getDb();
-    return listUtteranceTextsByUtterance(db, utteranceId);
+    return listUnitTextsByUnit(db, unitId);
   }
 
-  static async saveUtteranceText(data: UtteranceTextDocType): Promise<string> {
+  static async saveUnitText(data: LayerUnitContentDocType): Promise<string> {
     const db = await getDb();
     // \u5199\u5165 V2 segment \u8868 | Write to V2 segment tables
-    const utterance = await getUtteranceDocProjectionById(db, data.utteranceId);
-    if (utterance) {
-      await syncUtteranceTextToSegmentationV2(db, utterance, data);
-    }
-    if (await isDefaultTranscriptionLayerForUtteranceText(db, data.utteranceId, data.layerId)) {
-      await invalidateUtteranceEmbeddings(db, [data.utteranceId]);
+    const unitId = data.unitId?.trim();
+    const layerId = data.layerId?.trim();
+    if (unitId) {
+      const unit = await getUnitDocProjectionById(db, unitId);
+      if (unit) {
+        await syncUnitTextToSegmentationV2(db, unit, data);
+      }
+      if (layerId && await isDefaultTranscriptionLayerForUnitText(db, unitId, layerId)) {
+        await invalidateUnitEmbeddings(db, [unitId]);
+      }
     }
     return data.id;
   }
@@ -1189,8 +1136,8 @@ export class LinguisticService {
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.utterance_tokens,
-        db.dexie.utterance_morphemes,
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
         db.dexie.token_lexeme_links,
         db.dexie.user_notes,
         db.dexie.tier_annotations,
@@ -1210,17 +1157,17 @@ export class LinguisticService {
         db.dexie.texts,
       ],
       async () => {
-        const allUtts = await db.dexie.layer_units.where('textId').equals(textId).filter((u) => u.unitType === 'utterance').toArray();
+        const allUtts = await db.dexie.layer_units.where('textId').equals(textId).filter((u) => u.unitType === 'unit').toArray();
         const uttIds = allUtts.map((u) => u.id);
 
-        await this.removeNotesForUtteranceIds(db, uttIds);
-        await invalidateUtteranceEmbeddings(db, uttIds);
+        await this.removeNotesForUnitIds(db, uttIds);
+        await invalidateUnitEmbeddings(db, uttIds);
 
         for (const uttId of uttIds) {
-          const tokens = await db.dexie.utterance_tokens.where('unitId').equals(uttId).toArray();
+          const tokens = await db.dexie.unit_tokens.where('unitId').equals(uttId).toArray();
           const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.utterance_morphemes.where('unitId').equals(uttId).toArray()).map((m) => m.id);
-          await removeUtteranceCascadeFromSegmentationV2(db, uttId);
+          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()).map((m) => m.id);
+          await removeUnitCascadeFromSegmentationV2(db, uttId);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1228,8 +1175,8 @@ export class LinguisticService {
             ];
             await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
           }
-          await db.dexie.utterance_tokens.where('unitId').equals(uttId).delete();
-          await db.dexie.utterance_morphemes.where('unitId').equals(uttId).delete();
+          await db.dexie.unit_tokens.where('unitId').equals(uttId).delete();
+          await db.dexie.unit_morphemes.where('unitId').equals(uttId).delete();
         }
 
         await deleteResidualLayerUnitGraphByTextId(db, textId);
@@ -1280,7 +1227,7 @@ export class LinguisticService {
     );
   }
 
-  /** Delete a media item and its associated utterances + translations + anchors (cascade). */
+  /** Delete a media item and its associated units + translations + anchors (cascade). */
   static async deleteAudio(mediaId: string): Promise<void> {
     const db = await getDb();
 
@@ -1291,8 +1238,8 @@ export class LinguisticService {
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.utterance_tokens,
-        db.dexie.utterance_morphemes,
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
         db.dexie.token_lexeme_links,
         db.dexie.user_notes,
         db.dexie.anchors,
@@ -1303,17 +1250,17 @@ export class LinguisticService {
         db.dexie.translation_status_snapshots,
       ],
       async () => {
-        const utts = await db.dexie.layer_units.where('mediaId').equals(mediaId).filter((u) => u.unitType === 'utterance').toArray();
+        const utts = await db.dexie.layer_units.where('mediaId').equals(mediaId).filter((u) => u.unitType === 'unit').toArray();
         const uttIds = utts.map((u) => u.id);
 
-        await this.removeNotesForUtteranceIds(db, uttIds);
-        await invalidateUtteranceEmbeddings(db, uttIds);
+        await this.removeNotesForUnitIds(db, uttIds);
+        await invalidateUnitEmbeddings(db, uttIds);
 
         for (const u of utts) {
-          const tokens = await db.dexie.utterance_tokens.where('unitId').equals(u.id).toArray();
+          const tokens = await db.dexie.unit_tokens.where('unitId').equals(u.id).toArray();
           const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.utterance_morphemes.where('unitId').equals(u.id).toArray()).map((m) => m.id);
-          await removeUtteranceCascadeFromSegmentationV2(db, u.id);
+          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(u.id).toArray()).map((m) => m.id);
+          await removeUnitCascadeFromSegmentationV2(db, u.id);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1321,8 +1268,8 @@ export class LinguisticService {
             ];
             await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
           }
-          await db.dexie.utterance_tokens.where('unitId').equals(u.id).delete();
-          await db.dexie.utterance_morphemes.where('unitId').equals(u.id).delete();
+          await db.dexie.unit_tokens.where('unitId').equals(u.id).delete();
+          await db.dexie.unit_morphemes.where('unitId').equals(u.id).delete();
         }
 
         await deleteResidualLayerUnitGraphByMediaId(db, mediaId);
@@ -1338,8 +1285,8 @@ export class LinguisticService {
     );
   }
 
-  /** Delete a single utterance and cascade-delete its translations + lexicon links + anchors. */
-  static async removeUtterance(utteranceId: string): Promise<void> {
+  /** Delete a single unit and cascade-delete its translations + lexicon links + anchors. */
+  static async removeUnit(unitId: string): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction(
       'rw',
@@ -1348,22 +1295,22 @@ export class LinguisticService {
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.utterance_tokens,
-        db.dexie.utterance_morphemes,
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
         db.dexie.token_lexeme_links,
         db.dexie.user_notes,
         db.dexie.anchors,
       ],
       async () => {
-        await this.removeNotesForUtteranceIds(db, [utteranceId]);
-        await invalidateUtteranceEmbeddings(db, [utteranceId]);
+        await this.removeNotesForUnitIds(db, [unitId]);
+        await invalidateUnitEmbeddings(db, [unitId]);
 
-        const utt = await db.dexie.layer_units.get(utteranceId);
-        const tokens = await db.dexie.utterance_tokens.where('unitId').equals(utteranceId).toArray();
+        const utt = await db.dexie.layer_units.get(unitId);
+        const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
         const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (await db.dexie.utterance_morphemes.where('unitId').equals(utteranceId).toArray()).map((m) => m.id);
+        const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
 
-        await removeUtteranceCascadeFromSegmentationV2(db, utteranceId);
+        await removeUnitCascadeFromSegmentationV2(db, unitId);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
             ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1371,28 +1318,28 @@ export class LinguisticService {
           ];
           await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
         }
-        await db.dexie.utterance_tokens.where('unitId').equals(utteranceId).delete();
-        await db.dexie.utterance_morphemes.where('unitId').equals(utteranceId).delete();
-        await deleteUtteranceLayerUnitCascade(db, [utteranceId]);
+        await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
+        await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
+        await deleteUnitLayerUnitCascade(db, [unitId]);
 
         // Cleanup owned anchors
-        if (utt?.unitType === 'utterance') {
+        if (utt?.unitType === 'unit') {
           if (utt.startAnchorId) await db.dexie.anchors.delete(utt.startAnchorId);
           if (utt.endAnchorId) await db.dexie.anchors.delete(utt.endAnchorId);
         }
       },
     );
-    void SegmentMetaService.syncForUnitIds([utteranceId]).catch(() => {
+    void SegmentMetaService.syncForUnitIds([unitId]).catch(() => {
       // SegmentMeta 为统一读模型，删除后的刷新失败不应阻塞主流程 | SegmentMeta is a shared read model; delete-sync failures must not block the primary flow.
     });
   }
 
   /**
-   * Delete multiple utterances in one transaction with the same cascade semantics
-    * as removeUtterance (V2 segments, token_lexeme_links, anchors).
+   * Delete multiple units in one transaction with the same cascade semantics
+    * as removeUnit (V2 segments, token_lexeme_links, anchors).
    */
-  static async removeUtterancesBatch(utteranceIds: readonly string[]): Promise<void> {
-    const ids = [...new Set(utteranceIds.filter((id) => id.trim().length > 0))];
+  static async removeUnitsBatch(unitIds: readonly string[]): Promise<void> {
+    const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
 
     const db = await getDb();
@@ -1403,26 +1350,26 @@ export class LinguisticService {
         db.dexie.layer_unit_contents,
         db.dexie.layer_units,
         db.dexie.unit_relations,
-        db.dexie.utterance_tokens,
-        db.dexie.utterance_morphemes,
+        db.dexie.unit_tokens,
+        db.dexie.unit_morphemes,
         db.dexie.token_lexeme_links,
         db.dexie.user_notes,
         db.dexie.anchors,
       ],
       async () => {
         const bulkRows = await db.dexie.layer_units.bulkGet(ids);
-        const utts = bulkRows.filter((row): row is LayerUnitDocType & { unitType: 'utterance' } => (
-          row != null && row.unitType === 'utterance'
+        const utts = bulkRows.filter((row): row is LayerUnitDocType & { unitType: 'unit' } => (
+          row != null && row.unitType === 'unit'
         ));
 
-        await this.removeNotesForUtteranceIds(db, ids);
-        await invalidateUtteranceEmbeddings(db, ids);
+        await this.removeNotesForUnitIds(db, ids);
+        await invalidateUnitEmbeddings(db, ids);
 
-        for (const utteranceId of ids) {
-          const tokens = await db.dexie.utterance_tokens.where('unitId').equals(utteranceId).toArray();
+        for (const unitId of ids) {
+          const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
           const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.utterance_morphemes.where('unitId').equals(utteranceId).toArray()).map((m) => m.id);
-          await removeUtteranceCascadeFromSegmentationV2(db, utteranceId);
+          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
+          await removeUnitCascadeFromSegmentationV2(db, unitId);
           if (tokenIds.length > 0 || morphemeIds.length > 0) {
             const targets: Array<[string, string]> = [
               ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -1430,11 +1377,11 @@ export class LinguisticService {
             ];
             await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
           }
-          await db.dexie.utterance_tokens.where('unitId').equals(utteranceId).delete();
-          await db.dexie.utterance_morphemes.where('unitId').equals(utteranceId).delete();
+          await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
+          await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
         }
 
-        await deleteUtteranceLayerUnitCascade(db, ids);
+        await deleteUnitLayerUnitCascade(db, ids);
 
         const anchorIds = new Set<string>();
         for (const utt of utts) {

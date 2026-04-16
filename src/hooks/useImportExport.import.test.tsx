@@ -99,7 +99,7 @@ describe('useImportExport - import success under stop-write', () => {
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
-      utterances: [
+      units: [
         {
           startTime: 0,
           endTime: 1,
@@ -116,7 +116,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
       translations: [],
@@ -129,7 +129,7 @@ describe('useImportExport - import success under stop-write', () => {
       await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }));
     });
 
-    expect(await db.layer_units.where('unitType').equals('utterance').count()).toBe(1);
+    expect(await db.layer_units.where('unitType').equals('unit').count()).toBe(1);
     expect(await db.layer_units.where('unitType').equals('segment').count()).toBe(1);
     expect(await db.layer_unit_contents.count()).toBe(2);
     expect(await db.layer_unit_contents.toArray()).toEqual(expect.arrayContaining([
@@ -194,7 +194,7 @@ describe('useImportExport - import success under stop-write', () => {
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
-      utterances: [
+      units: [
         {
           startTime: 0,
           endTime: 1,
@@ -212,7 +212,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
       translations: [],
@@ -284,7 +284,7 @@ describe('useImportExport - import success under stop-write', () => {
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
-      utterances: [
+      units: [
         {
           startTime: 0,
           endTime: 1,
@@ -302,7 +302,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
       translations: [],
@@ -390,7 +390,7 @@ describe('useImportExport - import success under stop-write', () => {
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
-      utterances: [
+      units: [
         {
           startTime: 0,
           endTime: 1,
@@ -408,7 +408,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
       translations: [],
@@ -506,11 +506,11 @@ describe('useImportExport - import success under stop-write', () => {
 
     mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
     mockImportFromTextGrid.mockReturnValueOnce({
-      utterances: [
+      units: [
         {
           startTime: 0,
           endTime: 1,
-          transcription: 'source utterance',
+          transcription: 'source unit',
         },
       ],
       additionalTiers: new Map([
@@ -526,7 +526,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, translationLayer],
       translations: [],
@@ -548,7 +548,7 @@ describe('useImportExport - import success under stop-write', () => {
     ]);
   });
 
-  it('does not assign utterance speaker from tier participant automatically', async () => {
+  it('does not assign unit speaker from tier participant automatically', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-speaker-import',
       textId: 'text-import',
@@ -589,7 +589,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer],
       translations: [],
@@ -602,12 +602,12 @@ describe('useImportExport - import success under stop-write', () => {
       await result.current.handleImportFile(new File(['x'], 'demo.eaf', { type: 'application/xml' }));
     });
 
-    const importedUtteranceUnits = await db.layer_units.where('unitType').equals('utterance').toArray();
-    expect(importedUtteranceUnits).toHaveLength(1);
-    expect(importedUtteranceUnits[0]?.speakerId).toBeUndefined();
+    const importedUnitUnits = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(importedUnitUnits).toHaveLength(1);
+    expect(importedUnitUnits[0]?.speakerId).toBeUndefined();
   });
 
-  it('imports independent transcription tier segments even when no utterances are inserted', async () => {
+  it('imports independent transcription tier segments even when no units are inserted', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-empty-import',
       textId: 'text-import',
@@ -670,7 +670,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: selectedUnitMedia as never,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, independentLayer],
       translations: [],
@@ -742,7 +742,7 @@ describe('useImportExport - import success under stop-write', () => {
       activeTextId: 'text-import',
       getActiveTextId: vi.fn(async () => 'text-import'),
       selectedUnitMedia: undefined,
-      utterancesOnCurrentMedia: [],
+      unitsOnCurrentMedia: [],
       anchors: [],
       layers: [defaultLayer, independentLayer],
       translations: [],

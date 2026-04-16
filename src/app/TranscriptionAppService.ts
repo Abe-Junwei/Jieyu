@@ -102,7 +102,7 @@ export interface TranscriptionMergeResult {
   id: string;
 }
 
-export interface ITranscriptionLegacyForwardingAppService {
+export interface ITranscriptionAppServiceGateway {
   resolveAutoSegmentCandidates(request: ResolveAutoSegmentCandidatesRequest): Promise<Array<{ start: number; end: number }>>;
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
@@ -146,7 +146,7 @@ const defaultDeps: TranscriptionAppServiceDeps = {
 
 export function createTranscriptionAppService(
   overrides: Partial<TranscriptionAppServiceDeps> = {},
-): ITranscriptionLegacyForwardingAppService {
+): ITranscriptionAppServiceGateway {
   const deps: TranscriptionAppServiceDeps = {
     ...defaultDeps,
     ...overrides,
@@ -209,9 +209,9 @@ export function createTranscriptionAppService(
   };
 }
 
-let transcriptionAppServiceSingleton: ITranscriptionLegacyForwardingAppService | null = null;
+let transcriptionAppServiceSingleton: ITranscriptionAppServiceGateway | null = null;
 
-export function getTranscriptionAppService(): ITranscriptionLegacyForwardingAppService {
+export function getTranscriptionAppService(): ITranscriptionAppServiceGateway {
   if (transcriptionAppServiceSingleton) return transcriptionAppServiceSingleton;
   transcriptionAppServiceSingleton = createTranscriptionAppService();
   return transcriptionAppServiceSingleton;

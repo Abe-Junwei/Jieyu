@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, exportDatabaseAsJson, importDatabaseFromJson } from './index';
-import type { UtteranceDocType } from './types';
-import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
+import type { LayerUnitDocType } from './types';
+import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 
 const NOW = '2026-04-12T00:00:00.000Z';
 
@@ -70,7 +70,7 @@ describe('import/export round-trip idempotency', () => {
       createdAt: NOW,
     });
 
-    const uttRoundtrip: UtteranceDocType = {
+    const uttRoundtrip: LayerUnitDocType = {
       id: 'utt_roundtrip',
       textId: 'text_roundtrip',
       mediaId: 'media_roundtrip',
@@ -79,7 +79,7 @@ describe('import/export round-trip idempotency', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const { unit: uttUnit, content: uttContent } = mapUtteranceToLayerUnit(uttRoundtrip, 'trc_roundtrip');
+    const { unit: uttUnit, content: uttContent } = mapUnitToLayerUnit(uttRoundtrip, 'trc_roundtrip');
     await db.layer_units.put(uttUnit);
     await db.layer_unit_contents.put(uttContent);
 

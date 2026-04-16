@@ -3,12 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { addLogObserver, setLogLevel, type LogEntry } from '../observability/logger';
-import {
-  SidePaneLayerProvider,
-  type SidePaneLayerContextValue,
-  resetSidePaneLayerContextDiagnosticsForTests,
-  useSidePaneLayerContextOrFallback,
-} from './SidePaneContext';
+import { SidePaneLayerProvider, type SidePaneLayerContextValue, resetSidePaneLayerContextDiagnosticsForTests, useSidePaneLayerContextOrFallback } from './SidePaneContext';
 import type { LayerDocType } from '../db';
 
 let capturedContext: SidePaneLayerContextValue | null = null;

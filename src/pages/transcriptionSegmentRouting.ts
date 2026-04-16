@@ -1,6 +1,6 @@
 import type { LayerDocType } from '../db';
 
-export type SegmentEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
+export type SegmentEditMode = 'unit' | 'independent-segment' | 'time-subdivision';
 
 export interface SegmentRoutingResult {
   layer: LayerDocType | undefined;

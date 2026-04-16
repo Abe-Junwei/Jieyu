@@ -6,29 +6,11 @@
  * Extracted from LanguageMetadataWorkspaceDetailColumn to meet architecture-guard ceilings.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  readMapProviderConfig,
-  writeMapProviderConfig,
-  MAP_PROVIDERS,
-  getMapStyles,
-  getDefaultStyleId,
-  type MapProviderKind,
-  type MapProviderConfig,
-} from '../components/languageMapEmbed.shared';
-import {
-  forwardGeocode,
-  readGeocoderCapabilities,
-  reverseGeocode,
-  type GeocodeSuggestion,
-} from '../components/languageGeocoder';
+import { readMapProviderConfig, writeMapProviderConfig, MAP_PROVIDERS, getMapStyles, getDefaultStyleId, type MapProviderKind, type MapProviderConfig } from '../components/languageMapEmbed.shared';
+import { forwardGeocode, readGeocoderCapabilities, reverseGeocode, type GeocodeSuggestion } from '../components/languageGeocoder';
 import { readMapProxyBaseUrl } from '../components/mapProxyConfig';
 import type { WorkspaceLocale, LanguageMetadataDraft, LanguageMetadataDraftChangeHandler } from './languageMetadataWorkspace.shared';
-import {
-  getCountryOptions,
-  normalizeCountryCodesForGeocoder,
-  parseCountriesText,
-  resolveCountryCodes,
-} from './languageMetadataWorkspace.country';
+import { getCountryOptions, normalizeCountryCodesForGeocoder, parseCountriesText, resolveCountryCodes } from './languageMetadataWorkspace.country';
 
 // ─── 返回类型 | Return type ───
 export type MapControllerState = ReturnType<typeof useLanguageMetadataMapController>;

@@ -6,11 +6,7 @@
  * - Do not delete the last transcription layer when translations still depend on it.
  * - Soft-limit overflow emits warnings without blocking.
  */
-import {
-  LAYER_SOFT_LIMITS,
-  type LayerDocType,
-  type LayerLinkDocType,
-} from '../db';
+import { LAYER_SOFT_LIMITS, type LayerDocType, type LayerLinkDocType } from '../db';
 import type { Locale } from '../i18n';
 import { getLayerConstraintServiceMessages } from '../i18n/layerConstraintServiceMessages';
 

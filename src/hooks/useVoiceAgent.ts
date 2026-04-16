@@ -3,19 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { VoiceInputService as VoiceInputServiceType, SttEngine, CommercialProviderKind } from '../services/VoiceInputService';
 import type { WakeWordDetector as WakeWordDetectorType } from '../services/WakeWordDetector';
-import type {
-  ActionId,
-  ActionIntent,
-  VoiceIntent,
-  VoiceSession,
-} from '../services/IntentRouter';
+import type { ActionId, ActionIntent, VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
-import type {
-  CommercialProviderCreateConfig,
-  SttEnhancementConfig,
-  SttEnhancementReachability,
-  SttEnhancementSelectionKind,
-} from '../services/stt';
+import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementReachability, SttEnhancementSelectionKind } from '../services/stt';
 import { useLatest } from './useLatest';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useVoiceAgentDictationPipeline } from './useVoiceAgentDictationPipeline';
@@ -24,16 +14,7 @@ import { useVoiceAgentResultHandler } from './useVoiceAgentResultHandler';
 import { useVoiceAgentStartController } from './useVoiceAgentStartController';
 import { useVoiceAgentTransportControls } from './useVoiceAgentTransportControls';
 import { useVoiceAgentWakeWord } from './useVoiceAgentWakeWord';
-import {
-  createVoiceSessionState,
-  loadIntentRouterRuntime,
-  loadSttRuntime,
-  loadSttStrategyRuntime,
-  loadVoiceInputRuntime,
-  loadVoiceIntentRefineRuntime,
-  loadVoiceSessionStoreRuntime,
-  loadWakeWordRuntime,
-} from './useVoiceAgent.runtime';
+import { createVoiceSessionState, loadIntentRouterRuntime, loadSttRuntime, loadSttStrategyRuntime, loadVoiceInputRuntime, loadVoiceIntentRefineRuntime, loadVoiceSessionStoreRuntime, loadWakeWordRuntime } from './useVoiceAgent.runtime';
 import { cleanupVoiceInputSubscriptions } from './useVoiceAgent.serviceBindings';
 import { useVoiceAgentModeController } from './useVoiceAgentModeController';
 import { useLocale } from '../i18n';
@@ -86,7 +67,7 @@ export interface UseVoiceAgentOptions {
   sendToAiChat?: (text: string) => void;
   /** Insert dictated text into the active field */
   insertDictation?: (text: string) => void;
-  /** Continuous dictation pipeline callbacks for utterance-by-utterance fill */
+  /** Continuous dictation pipeline callbacks for unit-by-unit fill */
   dictationPipeline?: {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
@@ -178,7 +159,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const recordingDurationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pendingAiResponseCountRef = useRef(0);
   const aliasMapRef = useRef<Record<string, ActionId>>({});
-  const analysisTargetUtteranceIdRef = useRef<string | null>(null);
+  const analysisTargetUnitIdRef = useRef<string | null>(null);
   const analysisFillCallbackRef = useRef<((text: string) => void) | null>(null);
   const svcUnsubscribesRef = useRef<Array<() => void>>([]);
 
@@ -431,7 +412,7 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     if (cb && finalContent !== undefined) {
       cb(finalContent);
       analysisFillCallbackRef.current = null;
-      analysisTargetUtteranceIdRef.current = null;
+      analysisTargetUnitIdRef.current = null;
     }
   }, [clearAiThinking]);
 
@@ -444,10 +425,10 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   }, [loadSttRuntime, whisperServerModel, whisperServerUrl]);
 
   const setAnalysisFillCallback = useCallback((
-    utteranceId: string | null,
+    unitId: string | null,
     callback: ((content: string) => void) | null,
   ) => {
-    analysisTargetUtteranceIdRef.current = utteranceId;
+    analysisTargetUnitIdRef.current = unitId;
     analysisFillCallbackRef.current = callback;
   }, []);
 

@@ -2,10 +2,7 @@
  * Speaker action i18n helpers | 说话人动作本地化辅助
  */
 
-import type {
-  SpeakerDisplayLabels,
-  SpeakerSelectionSummaryLabels,
-} from './speakerUtils';
+import type { SpeakerDisplayLabels, SpeakerSelectionSummaryLabels } from './speakerUtils';
 
 export type SpeakerTranslate = (key: string) => string;
 export type SpeakerFormat = (key: string, params?: Record<string, string | number>) => string;
@@ -28,16 +25,16 @@ export type SpeakerUndoKey =
   | 'merge'
   | 'deleteAndMigrate'
   | 'deleteEntity';
-export type SpeakerUnitScope = 'utterances' | 'segments' | 'selection';
+export type SpeakerUnitScope = 'units' | 'segments' | 'selection';
 
 const SPEAKER_UNIT_KEYS: Record<SpeakerUnitScope, string> = {
-  utterances: 'transcription.speakerAction.unit.utterances',
+  units: 'transcription.speakerAction.unit.units',
   segments: 'transcription.speakerAction.unit.segments',
   selection: 'transcription.speakerAction.unit.selection',
 };
 
 const SPEAKER_EXPORT_COUNT_LABEL_KEYS: Record<Exclude<SpeakerUnitScope, 'selection'>, string> = {
-  utterances: 'transcription.speakerAction.export.countLabelUtterances',
+  units: 'transcription.speakerAction.export.countLabelUnits',
   segments: 'transcription.speakerAction.export.countLabelSegments',
 };
 
@@ -95,15 +92,15 @@ export function buildSpeakerDisplayLabels(t: SpeakerTranslate): SpeakerDisplayLa
   };
 }
 
-export function buildUtteranceSpeakerSummaryLabels(
+export function buildUnitSpeakerSummaryLabels(
   t: SpeakerTranslate,
   tf: SpeakerFormat,
 ): SpeakerSelectionSummaryLabels {
   const displayLabels = buildSpeakerDisplayLabels(t);
   return {
     ...displayLabels,
-    noSelectionUtterances: t('transcription.speaker.summary.noSelectionUtterances'),
-    noneAssignedUtterances: t('transcription.speaker.summary.noneAssignedUtterances'),
+    noSelectionUnits: t('transcription.speaker.summary.noSelectionUnits'),
+    noneAssignedUnits: t('transcription.speaker.summary.noneAssignedUnits'),
     singleSpeakerSummary: (speakerName) => tf('transcription.speaker.summary.single', { name: speakerName }),
     multipleSpeakersSummary: (count) => tf('transcription.speaker.summary.multiple', { count }),
   };

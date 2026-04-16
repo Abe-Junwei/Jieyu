@@ -1,34 +1,34 @@
 import { useCallback } from 'react';
-import type { UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { useDeleteConfirmFlow } from './useDeleteConfirmFlow';
 import { resolveDeletePlan } from '../utils/deleteSelectionUtils';
 import { fireAndForget } from '../utils/fireAndForget';
 
-interface UseUtteranceOpsInput {
-  utterances: UtteranceDocType[];
-  translationTextByLayer: Map<string, Map<string, UtteranceTextDocType>>;
-  deleteUtterance: (id: string) => Promise<void>;
-  deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
-  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
+interface UseUnitOpsInput {
+  units: LayerUnitDocType[];
+  translationTextByLayer: Map<string, Map<string, LayerUnitContentDocType>>;
+  deleteUnit: (id: string) => Promise<void>;
+  deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
+  mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
   mergeWithPrevious: (id: string) => Promise<void>;
   mergeWithNext: (id: string) => Promise<void>;
   onMergeTargetMissing?: () => void;
-  splitUtterance: (id: string, splitTime: number) => Promise<void>;
+  splitUnit: (id: string, splitTime: number) => Promise<void>;
   selectAllBefore: (id: string) => void;
   selectAllAfter: (id: string) => void;
 }
 
-export function useUtteranceOps(input: UseUtteranceOpsInput) {
+export function useUnitOps(input: UseUnitOpsInput) {
   const {
     translationTextByLayer,
-    deleteUtterance, deleteSelectedUtterances,
-    mergeSelectedUtterances, mergeWithPrevious, mergeWithNext,
+    deleteUnit, deleteSelectedUnits,
+    mergeSelectedUnits, mergeWithPrevious, mergeWithNext,
     onMergeTargetMissing,
-    splitUtterance, selectAllBefore, selectAllAfter,
+    splitUnit, selectAllBefore, selectAllAfter,
   } = input;
 
-  /** Check if an utterance has any text content (transcription or translations). */
-  const utteranceHasText = useCallback((uttId: string): boolean => {
+  /** Check if an unit has any text content (transcription or translations). */
+  const unitHasText = useCallback((uttId: string): boolean => {
     for (const [, layerMap] of translationTextByLayer) {
       const t = layerMap.get(uttId);
       if (t?.text?.trim()) return true;
@@ -37,23 +37,23 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
   }, [translationTextByLayer]);
 
   const {
-    requestDeleteUtterances,
+    requestDeleteUnits,
     deleteConfirmState,
     muteDeleteConfirmInSession,
     setMuteDeleteConfirmInSession,
     closeDeleteConfirmDialog,
     confirmDeleteFromDialog,
-  } = useDeleteConfirmFlow(utteranceHasText);
+  } = useDeleteConfirmFlow(unitHasText);
 
   const runDeleteSelection = useCallback((primaryId: string, ids: Set<string>) => {
     const plan = resolveDeletePlan(primaryId, ids);
     if (plan.kind === 'none') return;
     if (plan.kind === 'multi') {
-      requestDeleteUtterances(plan.ids, () => { fireAndForget(deleteSelectedUtterances(plan.ids)); });
+      requestDeleteUnits(plan.ids, () => { fireAndForget(deleteSelectedUnits(plan.ids)); });
       return;
     }
-    requestDeleteUtterances(plan.id, () => { fireAndForget(deleteUtterance(plan.id)); });
-  }, [requestDeleteUtterances, deleteSelectedUtterances, deleteUtterance]);
+    requestDeleteUnits(plan.id, () => { fireAndForget(deleteUnit(plan.id)); });
+  }, [requestDeleteUnits, deleteSelectedUnits, deleteUnit]);
 
   const runDeleteOne = useCallback((id: string) => {
     runDeleteSelection(id, new Set([id]));
@@ -61,8 +61,8 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
 
   const runMergeSelection = useCallback((ids: Set<string>) => {
     if (ids.size <= 1) return;
-    fireAndForget(mergeSelectedUtterances(ids));
-  }, [mergeSelectedUtterances]);
+    fireAndForget(mergeSelectedUnits(ids));
+  }, [mergeSelectedUnits]);
 
   const runMergePrev = useCallback((id: string) => {
     if (!id) {
@@ -82,8 +82,8 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
 
   const runSplitAtTime = useCallback((id: string, splitTime: number) => {
     if (!id) return;
-    fireAndForget(splitUtterance(id, splitTime));
-  }, [splitUtterance]);
+    fireAndForget(splitUnit(id, splitTime));
+  }, [splitUnit]);
 
   const runSelectBefore = useCallback((id: string) => {
     if (!id) return;
@@ -96,7 +96,7 @@ export function useUtteranceOps(input: UseUtteranceOpsInput) {
   }, [selectAllAfter]);
 
   return {
-    utteranceHasText,
+    unitHasText,
     runDeleteSelection,
     runDeleteOne,
     runMergeSelection,

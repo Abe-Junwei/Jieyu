@@ -1,11 +1,6 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
-import type {
-  TranscriptionPageTimelineContentProps,
-  TranscriptionPageTimelineEmptyStateProps,
-  TranscriptionPageTimelineMediaLanesProps,
-  TranscriptionPageTimelineTextOnlyProps,
-} from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineContentProps, TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
 
 interface UseTranscriptionTimelineContentViewModelInput {
   selectedMediaUrl: string | null;

@@ -45,7 +45,7 @@ export function TranscriptionPageTimelineEmptyState({
     );
   }
   if (hasSelectedMedia) {
-    return <>{t(locale, 'transcription.timeline.empty.noUtteranceWithWave')}</>;
+    return <>{t(locale, 'transcription.timeline.empty.noUnitWithWave')}</>;
   }
   return <>{t(locale, 'transcription.timeline.empty.startWork')}</>;
 }

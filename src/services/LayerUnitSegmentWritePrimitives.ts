@@ -1,77 +1,98 @@
-import type {
-  JieyuDatabase,
-  LayerSegmentContentDocType,
-  LayerSegmentDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-  SegmentLinkDocType,
-  UnitRelationDocType,
-} from '../db';
+import type { JieyuDatabase, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UnitRelationDocType, UnitRelationViewDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
+
+function mapLegacyLinkTypeToRelationType(linkType: UnitRelationViewDocType['linkType']): UnitRelationDocType['relationType'] {
+  if (linkType === 'projection') return 'derived_from';
+  if (linkType === 'equivalent' || linkType === 'bridge' || linkType === 'time_subdivision') return 'aligned_to';
+  return undefined;
+}
 
 export function normalizeMediaId(mediaId: string | undefined): string {
   const trimmed = mediaId?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : UNKNOWN_MEDIA_ID;
 }
 
-function mapSegmentLinkTypeToUnitRelationType(linkType: SegmentLinkDocType['linkType']): UnitRelationDocType['relationType'] {
-  return linkType === 'time_subdivision' ? 'derived_from' : 'aligned_to';
-}
+function normalizeLayerUnitForStorage(unit: LayerUnitDocType): LayerUnitDocType {
+  const {
+    unitId: _legacyUnitId,
+    ordinal: _legacyOrdinal,
+    annotationStatus: _legacyAnnotationStatus,
+    ...rest
+  } = unit as LayerUnitDocType & {
+    unitId?: string;
+    ordinal?: number;
+    annotationStatus?: string;
+  };
+  const normalizedMediaId = normalizeMediaId(rest.mediaId);
+  const parentUnitId = rest.parentUnitId?.trim() || undefined;
+  const orderKey = rest.orderKey?.trim().length
+    ? rest.orderKey.trim()
+    : undefined;
 
-export function toLayerUnitFromSegment(segment: LayerSegmentDocType): LayerUnitDocType {
   return {
-    id: segment.id,
-    textId: segment.textId,
-    mediaId: normalizeMediaId(segment.mediaId),
-    layerId: segment.layerId,
-    unitType: 'segment',
-    startTime: segment.startTime,
-    endTime: segment.endTime,
-    ...(segment.startAnchorId ? { startAnchorId: segment.startAnchorId } : {}),
-    ...(segment.endAnchorId ? { endAnchorId: segment.endAnchorId } : {}),
-    ...(segment.ordinal !== undefined ? { orderKey: String(segment.ordinal) } : {}),
-    ...(segment.speakerId ? { speakerId: segment.speakerId } : {}),
-    ...(segment.externalRef ? { externalRef: segment.externalRef } : {}),
-    ...(segment.utteranceId ? { parentUnitId: segment.utteranceId, rootUnitId: segment.utteranceId } : {}),
-    ...(segment.provenance ? { provenance: segment.provenance } : {}),
-    createdAt: segment.createdAt,
-    updatedAt: segment.updatedAt,
+    ...rest,
+    mediaId: normalizedMediaId,
+    unitType: unit.unitType ?? (parentUnitId ? 'segment' : 'unit'),
+    ...(parentUnitId ? { parentUnitId, rootUnitId: unit.rootUnitId ?? parentUnitId } : {}),
+    ...(orderKey ? { orderKey } : {}),
   };
 }
 
-export function toLayerUnitContentFromSegmentContent(content: LayerSegmentContentDocType): LayerUnitContentDocType {
+function normalizeLayerUnitContentForStorage(content: LayerUnitContentDocType | LayerUnitContentViewDocType): LayerUnitContentDocType {
+  const {
+    segmentId: _legacySegmentId,
+    unitId: _legacyUnitId,
+    translationAudioMediaId: _legacyTranslationAudioMediaId,
+    ...rest
+  } = content as LayerUnitContentViewDocType;
+  const legacySegmentId = typeof _legacySegmentId === 'string' ? _legacySegmentId.trim() : '';
+  const legacyMediaRefId = typeof _legacyTranslationAudioMediaId === 'string' ? _legacyTranslationAudioMediaId.trim() : '';
+  const unitId = rest.unitId?.trim() || legacySegmentId || rest.id;
+  const mediaRefId = rest.mediaRefId?.trim() || legacyMediaRefId || undefined;
   return {
-    id: content.id,
-    textId: content.textId,
-    unitId: content.segmentId,
-    layerId: content.layerId,
-    contentRole: 'primary_text',
-    modality: content.modality,
-    ...(content.text !== undefined ? { text: content.text } : {}),
-    ...(content.translationAudioMediaId ? { mediaRefId: content.translationAudioMediaId } : {}),
-    sourceType: content.sourceType,
-    ...(content.ai_metadata ? { ai_metadata: content.ai_metadata } : {}),
-    ...(content.provenance ? { provenance: content.provenance } : {}),
-    ...(content.accessRights ? { accessRights: content.accessRights } : {}),
-    createdAt: content.createdAt,
-    updatedAt: content.updatedAt,
+    ...rest,
+    unitId,
+    contentRole: rest.contentRole ?? 'primary_text',
+    modality: rest.modality ?? 'text',
+    sourceType: rest.sourceType ?? 'human',
+    ...(mediaRefId ? { mediaRefId } : {}),
   };
 }
 
-export async function bulkUpsertSegmentLayerUnits(db: JieyuDatabase, segments: readonly LayerSegmentDocType[]): Promise<void> {
+function normalizeUnitRelationForStorage(relation: UnitRelationDocType | UnitRelationViewDocType): UnitRelationDocType {
+  const {
+    sourceSegmentId: _legacySourceSegmentId,
+    targetSegmentId: _legacyTargetSegmentId,
+    linkType: _legacyLinkType,
+    ...rest
+  } = relation as UnitRelationViewDocType;
+  const legacySourceUnitId = typeof _legacySourceSegmentId === 'string' ? _legacySourceSegmentId.trim() : '';
+  const legacyTargetUnitId = typeof _legacyTargetSegmentId === 'string' ? _legacyTargetSegmentId.trim() : '';
+  const sourceUnitId = rest.sourceUnitId?.trim() || legacySourceUnitId || rest.id;
+  const targetUnitId = rest.targetUnitId?.trim() || legacyTargetUnitId || rest.id;
+  const relationType = rest.relationType ?? mapLegacyLinkTypeToRelationType(_legacyLinkType) ?? 'aligned_to';
+  return {
+    ...rest,
+    sourceUnitId,
+    targetUnitId,
+    relationType,
+  };
+}
+
+export async function bulkUpsertSegmentLayerUnits(db: JieyuDatabase, segments: readonly LayerUnitDocType[]): Promise<void> {
   if (segments.length === 0) return;
-  await db.dexie.layer_units.bulkPut(segments.map(toLayerUnitFromSegment));
+  await db.dexie.layer_units.bulkPut(segments.map(normalizeLayerUnitForStorage));
 }
 
 export async function putLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
-  await db.dexie.layer_units.put(unit);
+  await db.dexie.layer_units.put(normalizeLayerUnitForStorage(unit));
 }
 
 export async function updateLayerUnit(db: JieyuDatabase, unitId: string, changes: Partial<LayerUnitDocType>): Promise<void> {
   await db.dexie.layer_units.where(':id').equals(unitId).modify((row) => {
-    Object.assign(row, changes);
+    Object.assign(row, normalizeLayerUnitForStorage({ ...row, ...changes }));
   });
 }
 
@@ -96,16 +117,16 @@ export async function listLayerUnitsByLayerMedia(
 
 export async function bulkUpsertLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
   if (units.length === 0) return;
-  await db.dexie.layer_units.bulkPut([...units]);
+  await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
 }
 
-export async function bulkUpsertSegmentLayerUnitContents(db: JieyuDatabase, contents: readonly LayerSegmentContentDocType[]): Promise<void> {
+export async function bulkUpsertSegmentLayerUnitContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
   if (contents.length === 0) return;
-  await db.dexie.layer_unit_contents.bulkPut(contents.map(toLayerUnitContentFromSegmentContent));
+  await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
 }
 
 export async function putLayerUnitContent(db: JieyuDatabase, content: LayerUnitContentDocType): Promise<void> {
-  await db.dexie.layer_unit_contents.put(content);
+  await db.dexie.layer_unit_contents.put(normalizeLayerUnitContentForStorage(content));
 }
 
 export async function listLayerUnitContentsByUnitId(
@@ -120,11 +141,11 @@ export async function bulkUpsertLayerUnitContents(
   contents: readonly LayerUnitContentDocType[],
 ): Promise<void> {
   if (contents.length === 0) return;
-  await db.dexie.layer_unit_contents.bulkPut([...contents]);
+  await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
 }
 
 export async function putUnitRelation(db: JieyuDatabase, relation: UnitRelationDocType): Promise<void> {
-  await db.dexie.unit_relations.put(relation);
+  await db.dexie.unit_relations.put(normalizeUnitRelationForStorage(relation));
 }
 
 export async function bulkUpsertUnitRelations(
@@ -132,20 +153,11 @@ export async function bulkUpsertUnitRelations(
   relations: readonly UnitRelationDocType[],
 ): Promise<void> {
   if (relations.length === 0) return;
-  await db.dexie.unit_relations.bulkPut([...relations]);
+  await db.dexie.unit_relations.bulkPut(relations.map(normalizeUnitRelationForStorage));
 }
 
-export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: SegmentLinkDocType): Promise<void> {
-  await db.dexie.unit_relations.put({
-    id: link.id,
-    textId: link.textId,
-    sourceUnitId: link.sourceSegmentId,
-    targetUnitId: link.targetSegmentId,
-    relationType: mapSegmentLinkTypeToUnitRelationType(link.linkType),
-    ...(link.provenance ? { provenance: link.provenance } : {}),
-    createdAt: link.createdAt,
-    updatedAt: link.updatedAt,
-  });
+export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
+  await db.dexie.unit_relations.put(normalizeUnitRelationForStorage(link));
 }
 
 export async function bulkDeleteLayerUnitContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {

@@ -1,14 +1,5 @@
 import { startTransition, useCallback, useMemo, useRef, useState, type MutableRefObject } from 'react';
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-  SegmentLinkDocType,
-  SpeakerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType, SpeakerDocType } from '../db';
 import { CommandHistory, type ReversibleCommand } from '../services/CommandService';
 import type { SaveState } from './transcriptionTypes';
 import type { TimingUndoState } from '../utils/selectionUtils';
@@ -20,33 +11,33 @@ const log = createLogger('useTranscriptionUndo');
 
 type UndoEntry = {
   label: string;
-  utterances: UtteranceDocType[];
-  translations: UtteranceTextDocType[];
+  units: LayerUnitDocType[];
+  translations: LayerUnitContentDocType[];
   layers?: LayerDocType[];
   /** Independent-layer segment graph: canonical `layer_units` (segment-type) rows. */
   layerSegmentUnits?: LayerUnitDocType[];
   layerSegmentUnitContents?: LayerUnitContentDocType[];
-  segmentLinks?: SegmentLinkDocType[];
+  segmentLinks?: UnitRelationDocType[];
   layerLinks?: LayerLinkDocType[];
   speakers?: SpeakerDocType[];
 };
 
 type Params = {
-  utterancesRef: MutableRefObject<UtteranceDocType[]>;
-  translationsRef: MutableRefObject<UtteranceTextDocType[]>;
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
   layersRef: MutableRefObject<LayerDocType[]>;
   layerLinksRef: MutableRefObject<LayerLinkDocType[]>;
   speakersRef: MutableRefObject<SpeakerDocType[]>;
   dirtyRef: MutableRefObject<boolean>;
   scheduleRecoverySave: () => void;
   syncToDb: (
-    targetUtterances: UtteranceDocType[],
-    targetTranslations: UtteranceTextDocType[],
+    targetUnits: LayerUnitDocType[],
+    targetTranslations: LayerUnitContentDocType[],
     targetSpeakers: SpeakerDocType[],
     options?: { conflictGuard?: boolean },
   ) => Promise<void>;
-  setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
-  setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
+  setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
+  setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   setLayerLinks: React.Dispatch<React.SetStateAction<LayerLinkDocType[]>>;
   setSpeakers: React.Dispatch<React.SetStateAction<SpeakerDocType[]>>;
@@ -59,12 +50,12 @@ function getHistoryActionLabel(locale: Locale, action: 'undo' | 'redo'): string 
 
 /** 独立边界层 segment 快照/恢复回调 | Segment snapshot/restore callbacks for independent boundary layers */
 export type SegmentUndoCallbacks = {
-  snapshotLayerSegments: () => { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: SegmentLinkDocType[] };
-  restoreLayerSegments: (units: LayerUnitDocType[], contents: LayerUnitContentDocType[], links: SegmentLinkDocType[]) => Promise<void>;
+  snapshotLayerSegments: () => { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: UnitRelationDocType[] };
+  restoreLayerSegments: (units: LayerUnitDocType[], contents: LayerUnitContentDocType[], links: UnitRelationDocType[]) => Promise<void>;
 };
 
 export function useTranscriptionUndo({
-  utterancesRef,
+  unitsRef,
   translationsRef,
   layersRef,
   layerLinksRef,
@@ -72,7 +63,7 @@ export function useTranscriptionUndo({
   dirtyRef,
   scheduleRecoverySave,
   syncToDb,
-  setUtterances,
+  setUnits,
   setTranslations,
   setLayers,
   setLayerLinks,
@@ -86,15 +77,15 @@ export function useTranscriptionUndo({
   const commandHistoryRef = useRef(new CommandHistory(MAX_UNDO));
   const [_undoRedoVersion, setUndoRedoVersion] = useState(0);
   const timingUndoRef = useRef<TimingUndoState | null>(null);
-  const timingGestureRef = useRef<{ active: boolean; utteranceId: string | null }>({ active: false, utteranceId: null });
+  const timingGestureRef = useRef<{ active: boolean; unitId: string | null }>({ active: false, unitId: null });
   // 外部注入：Orchestrator 加载 segment 数据后填充 | External injection: Orchestrator populates after segment hooks are ready
   const segmentUndoRef = useRef<SegmentUndoCallbacks | null>(null);
 
   // 以引用方式抓取快照，避免高频操作时 O(n) 数组拷贝 | Capture snapshot by reference to avoid O(n) array copies on hot paths
   // 依赖前提：状态更新采用不可变写法（返回新数组）| Assumes immutable state updates (new array on write)
-  const snapshotCurrentState = useCallback((label: string, segSnapshot?: { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: SegmentLinkDocType[] }): UndoEntry => ({
+  const snapshotCurrentState = useCallback((label: string, segSnapshot?: { units: LayerUnitDocType[]; contents: LayerUnitContentDocType[]; links: UnitRelationDocType[] }): UndoEntry => ({
     label,
-    utterances: utterancesRef.current,
+    units: unitsRef.current,
     translations: translationsRef.current,
     layers: layersRef.current,
     layerLinks: layerLinksRef.current,
@@ -104,7 +95,7 @@ export function useTranscriptionUndo({
       layerSegmentUnitContents: segSnapshot.contents,
       segmentLinks: segSnapshot.links,
     } : {}),
-  }), [layerLinksRef, layersRef, speakersRef, translationsRef, utterancesRef]);
+  }), [layerLinksRef, layersRef, speakersRef, translationsRef, unitsRef]);
 
   const pushUndo = useCallback((label: string) => {
     dirtyRef.current = true;
@@ -117,18 +108,18 @@ export function useTranscriptionUndo({
     scheduleRecoverySave();
   }, [dirtyRef, scheduleRecoverySave, segmentUndoRef, snapshotCurrentState]);
 
-  const beginTimingGesture = useCallback((utteranceId: string) => {
+  const beginTimingGesture = useCallback((unitId: string) => {
     const current = timingGestureRef.current;
-    if (current.active && current.utteranceId === utteranceId) return;
-    timingGestureRef.current = { active: true, utteranceId };
-    pushUndo(t(locale, 'transcription.utteranceAction.undo.updateTiming'));
+    if (current.active && current.unitId === unitId) return;
+    timingGestureRef.current = { active: true, unitId };
+    pushUndo(t(locale, 'transcription.unitAction.undo.updateTiming'));
   }, [locale, pushUndo]);
 
-  const endTimingGesture = useCallback((utteranceId?: string) => {
+  const endTimingGesture = useCallback((unitId?: string) => {
     const current = timingGestureRef.current;
     if (!current.active) return;
-    if (utteranceId && current.utteranceId && utteranceId !== current.utteranceId) return;
-    timingGestureRef.current = { active: false, utteranceId: null };
+    if (unitId && current.unitId && unitId !== current.unitId) return;
+    timingGestureRef.current = { active: false, unitId: null };
   }, []);
 
   const executeCommand = useCallback(async (cmd: ReversibleCommand) => {
@@ -163,7 +154,7 @@ export function useTranscriptionUndo({
     const redoEntry = snapshotCurrentState(entry.label, segSnapshot);
     redoStackRef.current.push(redoEntry);
     try {
-      await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
+      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], { conflictGuard: true });
       if (entry.layerSegmentUnits && segmentUndoRef.current) {
         await segmentUndoRef.current.restoreLayerSegments(
           entry.layerSegmentUnits,
@@ -171,7 +162,7 @@ export function useTranscriptionUndo({
           entry.segmentLinks ?? [],
         );
       }
-      setUtterances(entry.utterances);
+      setUnits(entry.units);
       setTranslations(entry.translations);
       if (entry.layers) setLayers(entry.layers);
       if (entry.layerLinks) setLayerLinks(entry.layerLinks);
@@ -196,7 +187,7 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, snapshotCurrentState, syncToDb]);
+  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUnits, snapshotCurrentState, syncToDb]);
 
   const undoToHistoryIndex = useCallback(async (historyIndex: number) => {
     const previousUndoStack = [...undoStackRef.current];
@@ -222,7 +213,7 @@ export function useTranscriptionUndo({
         const above = stack[j + 1]!;
         redoAdds.push({
           label: entry.label,
-          utterances: [...above.utterances],
+          units: [...above.units],
           translations: [...above.translations],
           layers: [...(above.layers ?? layersRef.current)],
           layerLinks: [...(above.layerLinks ?? layerLinksRef.current)],
@@ -240,7 +231,7 @@ export function useTranscriptionUndo({
     undoStackRef.current = stack.slice(0, targetStackIndex);
 
     try {
-      await syncToDb(targetEntry.utterances, targetEntry.translations, targetEntry.speakers ?? [], { conflictGuard: true });
+      await syncToDb(targetEntry.units, targetEntry.translations, targetEntry.speakers ?? [], { conflictGuard: true });
       if (targetEntry.layerSegmentUnits && segmentUndoRef.current) {
         await segmentUndoRef.current.restoreLayerSegments(
           targetEntry.layerSegmentUnits,
@@ -248,7 +239,7 @@ export function useTranscriptionUndo({
           targetEntry.segmentLinks ?? [],
         );
       }
-      setUtterances(targetEntry.utterances);
+      setUnits(targetEntry.units);
       setTranslations(targetEntry.translations);
       if (targetEntry.layers) setLayers(targetEntry.layers);
       if (targetEntry.layerLinks) setLayerLinks(targetEntry.layerLinks);
@@ -279,7 +270,7 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, speakersRef, snapshotCurrentState, syncToDb]);
+  }, [layerLinksRef, layersRef, locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUnits, speakersRef, snapshotCurrentState, syncToDb]);
 
   const redo = useCallback(async () => {
     const entry = redoStackRef.current.pop();
@@ -288,7 +279,7 @@ export function useTranscriptionUndo({
     const undoEntry = snapshotCurrentState(entry.label, segSnapshot);
     undoStackRef.current.push(undoEntry);
     try {
-      await syncToDb(entry.utterances, entry.translations, entry.speakers ?? [], { conflictGuard: true });
+      await syncToDb(entry.units, entry.translations, entry.speakers ?? [], { conflictGuard: true });
       if (entry.layerSegmentUnits && segmentUndoRef.current) {
         await segmentUndoRef.current.restoreLayerSegments(
           entry.layerSegmentUnits,
@@ -296,7 +287,7 @@ export function useTranscriptionUndo({
           entry.segmentLinks ?? [],
         );
       }
-      setUtterances(entry.utterances);
+      setUnits(entry.units);
       setTranslations(entry.translations);
       if (entry.layers) setLayers(entry.layers);
       if (entry.layerLinks) setLayerLinks(entry.layerLinks);
@@ -321,7 +312,7 @@ export function useTranscriptionUndo({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     }
-  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUtterances, snapshotCurrentState, syncToDb]);
+  }, [locale, segmentUndoRef, setLayerLinks, setLayers, setSaveState, setSpeakers, setTranslations, setUnits, snapshotCurrentState, syncToDb]);
 
   const canUndo = useMemo(() => undoStackRef.current.length > 0, [_undoRedoVersion]);
   const canRedo = useMemo(() => redoStackRef.current.length > 0, [_undoRedoVersion]);

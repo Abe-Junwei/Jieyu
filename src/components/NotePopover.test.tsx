@@ -76,7 +76,7 @@ describe('NotePopover', () => {
     const note = {
       id: 'note-1',
       content: { default: '已有备注' },
-      targetType: 'utterance',
+      targetType: 'unit',
       targetId: 'utt-1',
       createdAt: '2026-04-04T00:00:00.000Z',
       updatedAt: '2026-04-04T00:00:00.000Z',

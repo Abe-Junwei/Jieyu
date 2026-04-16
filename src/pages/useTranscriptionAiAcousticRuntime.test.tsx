@@ -460,7 +460,7 @@ describe('useTranscriptionAiAcousticRuntime', () => {
     expect(result.current.acousticCalibrationStatus).toBe('calibrated');
   });
 
-  it('builds batch details for selected utterance ranges on current media', async () => {
+  it('builds batch details for selected unit ranges on current media', async () => {
     mockAnalyzeMedia.mockReset();
     mockResolveProviderState.mockReset();
     mockResolveProviderState.mockReturnValue(makeProviderState());

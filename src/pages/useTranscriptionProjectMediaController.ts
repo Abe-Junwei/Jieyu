@@ -1,27 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { MediaItemDocType } from '../db';
-import {
-  legacyCreateProject,
-  legacyDeleteAudio,
-  legacyDeleteProject,
-  legacyImportAudio,
-  legacyResolveAutoSegmentCandidates,
-} from '../app/index';
+import { getTranscriptionAppService } from '../app/index';
 import { useMediaImport } from '../hooks/useMediaImport';
 import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
-import type {
-  UseTranscriptionProjectMediaControllerInput,
-  UseTranscriptionProjectMediaControllerResult,
-} from '../types/useTranscriptionProjectMediaController.types';
+import type { UseTranscriptionProjectMediaControllerInput, UseTranscriptionProjectMediaControllerResult } from '../types/useTranscriptionProjectMediaController.types';
 const log = createLogger('useTranscriptionProjectMediaController');
 
 export function useTranscriptionProjectMediaController(
   input: UseTranscriptionProjectMediaControllerInput,
 ): UseTranscriptionProjectMediaControllerResult {
+  const transcriptionAppService = getTranscriptionAppService();
   const {
     activeTextId,
     getActiveTextId,
@@ -31,8 +23,8 @@ export function useTranscriptionProjectMediaController(
     setSaveState,
     selectedMediaUrl,
     selectedTimelineMedia,
-    utterancesOnCurrentMedia,
-    createUtteranceFromSelectionRouted,
+    unitsOnCurrentMedia,
+    createUnitFromSelectionRouted,
     loadSnapshot,
     selectTimelineUnit,
     locale,
@@ -40,7 +32,7 @@ export function useTranscriptionProjectMediaController(
     transcriptionLayers,
     translationLayers,
     translationTextByLayer,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
   } = input;
 
   const [audioDeleteConfirm, setAudioDeleteConfirm] = useState<{ filename: string } | null>(null);
@@ -68,16 +60,16 @@ export function useTranscriptionProjectMediaController(
     setAutoSegmentBusy(true);
     fireAndForget((async () => {
       try {
-        const segments = await legacyResolveAutoSegmentCandidates({
+        const segments = await transcriptionAppService.resolveAutoSegmentCandidates({
           ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
           mediaUrl,
           ...(selectedMediaBlobSize !== undefined ? { mediaBlobSize: selectedMediaBlobSize } : {}),
         });
-        const newSegs = segments.filter((seg) => !utterancesOnCurrentMedia.some(
-          (utterance) => utterance.startTime < seg.end - 0.05 && utterance.endTime > seg.start + 0.05,
+        const newSegs = segments.filter((seg) => !unitsOnCurrentMedia.some(
+          (unit) => unit.startTime < seg.end - 0.05 && unit.endTime > seg.start + 0.05,
         ));
         for (const seg of newSegs) {
-          await createUtteranceFromSelectionRouted(seg.start, seg.end);
+          await createUnitFromSelectionRouted(seg.start, seg.end);
         }
         setSaveState({
           kind: 'done',
@@ -90,7 +82,7 @@ export function useTranscriptionProjectMediaController(
         setAutoSegmentBusy(false);
       }
     })());
-  }, [autoSegmentBusy, createUtteranceFromSelectionRouted, locale, selectedMediaBlobSize, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, utterancesOnCurrentMedia]);
+  }, [autoSegmentBusy, createUnitFromSelectionRouted, locale, selectedMediaBlobSize, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, transcriptionAppService, unitsOnCurrentMedia]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
     if (!selectedTimelineMedia) return;
@@ -103,7 +95,7 @@ export function useTranscriptionProjectMediaController(
     setAudioDeleteConfirm(null);
     fireAndForget((async () => {
       try {
-        await legacyDeleteAudio(media.id);
+        await transcriptionAppService.deleteAudio(media.id);
         await loadSnapshot();
         selectTimelineUnit(null);
         setSaveState({ kind: 'done', message: t(locale, 'transcription.action.audioDeleted') });
@@ -123,7 +115,7 @@ export function useTranscriptionProjectMediaController(
         });
       }
     })());
-  }, [loadSnapshot, locale, selectTimelineUnit, selectedTimelineMedia, setSaveState, tfB]);
+  }, [loadSnapshot, locale, selectTimelineUnit, selectedTimelineMedia, setSaveState, tfB, transcriptionAppService]);
 
   const handleDeleteCurrentProject = useCallback(() => {
     if (!input.activeTextId) return;
@@ -136,7 +128,7 @@ export function useTranscriptionProjectMediaController(
     setProjectDeleteConfirm(false);
     fireAndForget((async () => {
       try {
-        await legacyDeleteProject(currentActiveTextId);
+        await transcriptionAppService.deleteProject(currentActiveTextId);
         setActiveTextId(null);
         selectTimelineUnit(null);
         await loadSnapshot();
@@ -157,21 +149,21 @@ export function useTranscriptionProjectMediaController(
         });
       }
     })());
-  }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB]);
+  }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB, transcriptionAppService]);
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
-    const result = await legacyCreateProject(projectInput);
+    const result = await transcriptionAppService.createProject(projectInput);
     setActiveTextId(result.textId);
     setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }) });
     setShowAudioImport(true);
     await loadSnapshot();
-  }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB]);
+  }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService]);
 
   const handleAudioImport = useCallback(async (file: File, duration: number) => {
     let textId = activeTextId ?? (await getActiveTextId());
     if (!textId) {
       const baseName = file.name.replace(/\.[^.]+$/, '');
-      const result = await legacyCreateProject({
+      const result = await transcriptionAppService.createProject({
         primaryTitle: baseName,
         englishFallbackTitle: baseName,
         primaryLanguageId: 'und',
@@ -180,7 +172,7 @@ export function useTranscriptionProjectMediaController(
       setActiveTextId(textId);
     }
     const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
-    const { mediaId } = await legacyImportAudio({
+    const { mediaId } = await transcriptionAppService.importAudio({
       textId,
       audioBlob: blob,
       filename: file.name,
@@ -196,22 +188,22 @@ export function useTranscriptionProjectMediaController(
       createdAt: new Date().toISOString(),
     } as MediaItemDocType);
     setSaveState({ kind: 'done', message: tfB('transcription.action.audioImported', { filename: file.name }) });
-  }, [activeTextId, addMediaItem, getActiveTextId, setActiveTextId, setSaveState, tfB]);
+  }, [activeTextId, addMediaItem, getActiveTextId, setActiveTextId, setSaveState, tfB, transcriptionAppService]);
 
   const searchableItems = useMemo<SearchableItem[]>(() => {
     const items: SearchableItem[] = [];
 
     if (transcriptionLayers.length === 0) {
-      for (const utterance of utterancesOnCurrentMedia) {
-        items.push({ utteranceId: utterance.id, layerKind: 'transcription', text: getUtteranceTextForLayer(utterance) });
+      for (const unit of unitsOnCurrentMedia) {
+        items.push({ unitId: unit.id, layerKind: 'transcription', text: getUnitTextForLayer(unit) });
       }
     } else {
       for (const layer of transcriptionLayers) {
-        for (const utterance of utterancesOnCurrentMedia) {
-          const text = getUtteranceTextForLayer(utterance, layer.id);
+        for (const unit of unitsOnCurrentMedia) {
+          const text = getUnitTextForLayer(unit, layer.id);
           if (text) {
             items.push({
-              utteranceId: utterance.id,
+              unitId: unit.id,
               layerId: layer.id,
               layerKind: 'transcription',
               ...(layer.languageId ? { languageId: layer.languageId } : {}),
@@ -226,11 +218,11 @@ export function useTranscriptionProjectMediaController(
     for (const layer of translationLayers) {
       const layerMap = translationTextByLayer.get(layer.id);
       if (!layerMap) continue;
-      for (const utterance of utterancesOnCurrentMedia) {
-        const translation = layerMap.get(utterance.id);
+      for (const unit of unitsOnCurrentMedia) {
+        const translation = layerMap.get(unit.id);
         if (translation?.text) {
           items.push({
-            utteranceId: utterance.id,
+            unitId: unit.id,
             layerId: layer.id,
             layerKind: 'translation',
             ...(layer.languageId ? { languageId: layer.languageId } : {}),
@@ -241,7 +233,7 @@ export function useTranscriptionProjectMediaController(
       }
     }
     return items;
-  }, [getUtteranceTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, utterancesOnCurrentMedia]);
+  }, [getUnitTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, unitsOnCurrentMedia]);
 
   return {
     mediaFileInputRef,

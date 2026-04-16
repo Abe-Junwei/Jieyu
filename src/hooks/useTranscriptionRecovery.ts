@@ -1,18 +1,18 @@
 import { useRef } from 'react';
 import type { MutableRefObject } from 'react';
-import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { saveRecoverySnapshot } from '../services/SnapshotService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useDebouncedCallback } from './useDebouncedCallback';
 
 type Params = {
-  utterancesRef: MutableRefObject<UtteranceDocType[]>;
-  translationsRef: MutableRefObject<UtteranceTextDocType[]>;
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
   layersRef: MutableRefObject<LayerDocType[]>;
 };
 
 export function useTranscriptionRecoverySnapshotScheduler({
-  utterancesRef,
+  unitsRef,
   translationsRef,
   layersRef,
 }: Params) {
@@ -24,7 +24,7 @@ export function useTranscriptionRecoverySnapshotScheduler({
     const name = dbNameRef.current;
     if (!name) return;
     fireAndForget(saveRecoverySnapshot(name, {
-      utterances: utterancesRef.current,
+      units: unitsRef.current,
       translations: translationsRef.current,
       layers: layersRef.current,
     }));

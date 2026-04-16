@@ -80,7 +80,7 @@ export function createTranscriptionToolbarProps(
     undoLabel: input.undoLabel,
     canDeleteAudio: input.hasSelectedTimelineMedia,
     canDeleteProject: input.hasActiveTextId,
-    canToggleNotes: Boolean((input.selectedTimelineUnit?.kind === 'utterance' && input.selectedTimelineUnit.unitId) || input.notePopoverOpen),
+    canToggleNotes: Boolean((input.selectedTimelineUnit?.kind === 'unit' && input.selectedTimelineUnit.unitId) || input.notePopoverOpen),
     canOpenUttOpsMenu: Boolean(input.selectedTimelineUnit?.unitId),
     notePopoverOpen: input.notePopoverOpen,
     showExportMenu: input.showExportMenu,

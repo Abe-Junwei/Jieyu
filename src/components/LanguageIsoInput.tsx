@@ -1,31 +1,13 @@
 import { useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
-import {
-  formatLanguageCatalogMatch,
-  getLanguageCatalogEntry,
-  type LanguageCatalogMatch,
-  type LanguageCatalogMatchSource,
-  type LanguageSearchLocale,
-} from '../utils/langMapping';
+import { formatLanguageCatalogMatch, getLanguageCatalogEntry, type LanguageCatalogMatch, type LanguageCatalogMatchSource, type LanguageSearchLocale } from '../utils/langMapping';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
 import type { LanguageIsoInputValue } from '../utils/languageInputTypes';
-import {
-  createLanguageInputModel,
-  MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
-  reduceLanguageInput,
-  selectCommittedLanguageInputValue,
-  selectLanguageInputAssistState,
-  selectPresentedLanguageInputValue,
-  serializeLanguageInputValue,
-} from '../utils/languageInputReducer';
+import { createLanguageInputModel, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS, reduceLanguageInput, selectCommittedLanguageInputValue, selectLanguageInputAssistState, selectPresentedLanguageInputValue, serializeLanguageInputValue } from '../utils/languageInputReducer';
 import { getLanguageInputMessages } from '../i18n/languageInputMessages';
 import type { Locale } from '../i18n/index';
 import { PanelFeedback } from './ui';
-import {
-  type LanguageCatalogSearchScope,
-  searchLanguageCatalogSuggestions,
-  type LanguageCatalogSearchSuggestion,
-} from '../services/LanguageCatalogSearchService';
+import { type LanguageCatalogSearchScope, searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 
 export type { LanguageIsoInputValue } from '../utils/languageInputTypes';
 

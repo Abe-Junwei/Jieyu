@@ -5,13 +5,13 @@ export type DbState =
   | {
       phase: 'ready';
       dbName: string;
-      /** Mirrors utterance row count — kept in sync after edits via useTranscriptionData */
+      /** Mirrors unit row count — kept in sync after edits via useTranscriptionData */
       unitCount: number;
-      /** Unified timeline semantic unit count (utterance + de-duplicated segment semantic ids). */
+      /** Unified timeline semantic unit count (unit + de-duplicated segment semantic ids). */
       unifiedUnitCount?: number;
       /** Mirrors translation layers only (`layerType === 'translation'`), synced with live `layers` */
       translationLayerCount: number;
-      /** Mirrors `translations.length` (segmentation utterance texts) */
+      /** Mirrors `translations.length` (segmentation unit texts) */
       translationRecordCount: number;
     }
   | { phase: 'error'; message: string };
@@ -22,7 +22,7 @@ export type SaveState =
   | { kind: 'done'; message: string }
   | { kind: 'error'; message: string; errorMeta?: StructuredErrorMeta };
 
-export type TimelineUnitKind = 'utterance' | 'segment';
+export type TimelineUnitKind = 'unit' | 'segment';
 
 /** 时间轴统一选择单元 | Unified timeline selection unit */
 export type TimelineUnit = {
@@ -71,8 +71,8 @@ export function isTimelineUnitKind(
   return unit?.kind === kind;
 }
 
-export function isUtteranceTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
-  return isTimelineUnitKind(unit, 'utterance');
+export function isUnitTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
+  return isTimelineUnitKind(unit, 'unit');
 }
 
 export function isSegmentTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {

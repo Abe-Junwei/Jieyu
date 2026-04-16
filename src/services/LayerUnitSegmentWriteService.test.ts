@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type LayerSegmentContentDocType, type LayerSegmentDocType, type SegmentLinkDocType } from '../db';
+import { db, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
@@ -22,7 +22,7 @@ describe('LayerUnitSegmentWriteService', () => {
   it('writes segment graph into LayerUnit canonical tables', async () => {
     const database = await getDb();
 
-    const segment: LayerSegmentDocType = {
+    const segment: LayerUnitDocType = {
       id: 'seg_flag_1',
       textId: 'text_flag',
       mediaId: 'media_flag',
@@ -32,7 +32,7 @@ describe('LayerUnitSegmentWriteService', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const content: LayerSegmentContentDocType = {
+    const content: LayerUnitContentDocType = {
       id: 'cnt_flag_1',
       textId: 'text_flag',
       segmentId: 'seg_flag_1',
@@ -43,7 +43,7 @@ describe('LayerUnitSegmentWriteService', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const link: SegmentLinkDocType = {
+    const link: UnitRelationDocType = {
       id: 'lnk_flag_1',
       textId: 'text_flag',
       sourceSegmentId: 'seg_flag_1',
@@ -70,8 +70,13 @@ describe('LayerUnitSegmentWriteService', () => {
     expect(unit?.endTime).toBe(0.9);
     expect(unitContent?.unitId).toBe(segment.id);
     expect(unitContent?.text).toBe('hello');
+    expect(unitContent?.segmentId).toBeUndefined();
+    expect(unitContent?.unitId).toBeUndefined();
     expect(relation?.sourceUnitId).toBe(segment.id);
     expect(relation?.targetUnitId).toBe('utt_flag_1');
     expect(relation?.relationType).toBe('derived_from');
+    expect(relation?.sourceSegmentId).toBeUndefined();
+    expect(relation?.targetSegmentId).toBeUndefined();
+    expect(relation?.linkType).toBeUndefined();
   });
 });

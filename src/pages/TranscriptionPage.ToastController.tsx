@@ -51,7 +51,7 @@ interface ToastControllerProps {
   };
   saveState: SaveState;
   recording: boolean;
-  recordingUtteranceId: string | null;
+  recordingUnitId: string | null;
   recordingError: string | null;
   overlapCycleToast?: { index: number; total: number; nonce: number } | null;
   lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
@@ -64,7 +64,7 @@ export function ToastController({
   voiceAgent,
   saveState,
   recording,
-  recordingUtteranceId,
+  recordingUnitId,
   recordingError,
   overlapCycleToast,
   lockConflictToast,
@@ -103,13 +103,13 @@ export function ToastController({
     if (recording) {
       showToast(
         tf('transcription.toast.recording', {
-          id: recordingUtteranceId ?? tf('transcription.toast.recordingUnknownRow'),
+          id: recordingUnitId ?? tf('transcription.toast.recordingUnknownRow'),
         }),
         'recording',
         0,
       );
     }
-  }, [recording, recordingUtteranceId, shouldSyncCore, showToast, tf]);
+  }, [recording, recordingUnitId, shouldSyncCore, showToast, tf]);
 
   useEffect(() => {
     if (!shouldSyncCore) return;

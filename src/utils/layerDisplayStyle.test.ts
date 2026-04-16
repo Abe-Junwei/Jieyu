@@ -1,17 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OrthographyDocType } from '../db';
-import {
-  buildOrthographyPreviewTextProps,
-  clearFontCoverageVerificationCache,
-  getCachedFontCoverageVerification,
-  isIpaModeForLanguage,
-  layerDisplaySettingsToStyle,
-  resolveDirectionForLanguage,
-  resolveOrthographyRenderPolicy,
-  resolveScriptForLanguage,
-  verifyFontCoverage,
-} from './layerDisplayStyle';
+import { buildOrthographyPreviewTextProps, clearFontCoverageVerificationCache, getCachedFontCoverageVerification, isIpaModeForLanguage, layerDisplaySettingsToStyle, resolveDirectionForLanguage, resolveOrthographyRenderPolicy, resolveScriptForLanguage, verifyFontCoverage } from './layerDisplayStyle';
 
 const NOW = '2026-03-31T00:00:00.000Z';
 

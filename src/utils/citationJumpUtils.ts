@@ -1,7 +1,7 @@
 import type { UserNoteDocType } from '../db';
 
-export function extractUtteranceIdFromNote(note: Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>): string | null {
-  if (note.targetType === 'utterance') {
+export function extractUnitIdFromNote(note: Pick<UserNoteDocType, 'targetType' | 'targetId' | 'parentTargetId'>): string | null {
+  if (note.targetType === 'unit') {
     return note.targetId;
   }
   if (note.targetType === 'tier_annotation') {

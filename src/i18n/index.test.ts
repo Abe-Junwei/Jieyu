@@ -1,16 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import {
-  DICT_KEYS,
-  LOCALE_PREFERENCE_STORAGE_KEY,
-  clearStoredLocalePreference,
-  detectLocale,
-  dictionaries,
-  getStoredLocalePreference,
-  setStoredLocalePreference,
-  t,
-  tf,
-} from './index';
+import { DICT_KEYS, LOCALE_PREFERENCE_STORAGE_KEY, clearStoredLocalePreference, detectLocale, dictionaries, getStoredLocalePreference, setStoredLocalePreference, t, tf } from './index';
 
 describe('i18n key governance', () => {
   it('keeps keys in lower-case dot notation', () => {

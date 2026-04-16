@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, OrthographyDocType, LayerUnitContentDocType } from '../db';
 import { exportToEaf, importFromEaf } from './EafService';
 
 const NOW = '2026-03-26T00:00:00.000Z';
 
 describe('EafService export', () => {
   it('exports one alignable annotation per segment for multi-segment independent boundary layers', () => {
-    const utterances: UtteranceDocType[] = [
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_1',
         textId: 'text_1',
@@ -52,10 +52,10 @@ describe('EafService export', () => {
       },
     ];
 
-    const translations: UtteranceTextDocType[] = [
+    const translations: LayerUnitContentDocType[] = [
       {
         id: 'utr_trc_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trc',
         modality: 'text',
         text: 'hello world',
@@ -65,7 +65,7 @@ describe('EafService export', () => {
       },
       {
         id: 'utr_seg_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trl_ind',
         modality: 'text',
         text: 'hello',
@@ -75,7 +75,7 @@ describe('EafService export', () => {
       },
       {
         id: 'utr_seg_2',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trl_ind',
         modality: 'text',
         text: 'world',
@@ -85,14 +85,14 @@ describe('EafService export', () => {
       },
     ];
 
-    const layerSegments = new Map<string, LayerSegmentDocType[]>([
+    const layerSegments = new Map<string, LayerUnitDocType[]>([
       ['layer_trl_ind', [
         {
           id: 'seg_1',
           textId: 'text_1',
           mediaId: 'media_1',
           layerId: 'layer_trl_ind',
-          utteranceId: 'utt_1',
+          unitId: 'utt_1',
           startTime: 1.0,
           endTime: 1.5,
           createdAt: NOW,
@@ -103,7 +103,7 @@ describe('EafService export', () => {
           textId: 'text_1',
           mediaId: 'media_1',
           layerId: 'layer_trl_ind',
-          utteranceId: 'utt_1',
+          unitId: 'utt_1',
           startTime: 1.5,
           endTime: 2.0,
           createdAt: NOW,
@@ -113,7 +113,7 @@ describe('EafService export', () => {
     ]);
 
     const xml = exportToEaf({
-      utterances,
+      units,
       layers,
       translations,
       layerSegments,
@@ -132,7 +132,7 @@ describe('EafService export', () => {
   });
 
   it('round-trips provider-neutral orthography metadata through EAF header properties', () => {
-    const utterances: UtteranceDocType[] = [
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_1',
         textId: 'text_1',
@@ -197,10 +197,10 @@ describe('EafService export', () => {
       } as OrthographyDocType,
     ];
 
-    const translations: UtteranceTextDocType[] = [
+    const translations: LayerUnitContentDocType[] = [
       {
         id: 'utr_trc_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trc',
         modality: 'text',
         text: 'marhaban',
@@ -210,7 +210,7 @@ describe('EafService export', () => {
       },
       {
         id: 'utr_trl_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trl',
         modality: 'text',
         text: 'hello',
@@ -221,7 +221,7 @@ describe('EafService export', () => {
     ];
 
     const xml = exportToEaf({
-      utterances,
+      units,
       layers,
       orthographies,
       translations,
@@ -246,7 +246,7 @@ describe('EafService export', () => {
   });
 
   it('prefers English fallback labels for exported tier ids', () => {
-    const utterances: UtteranceDocType[] = [
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_1',
         textId: 'text_1',
@@ -290,10 +290,10 @@ describe('EafService export', () => {
       },
     ];
 
-    const translations: UtteranceTextDocType[] = [
+    const translations: LayerUnitContentDocType[] = [
       {
         id: 'utr_trc_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trc',
         modality: 'text',
         text: 'ni hao',
@@ -303,7 +303,7 @@ describe('EafService export', () => {
       },
       {
         id: 'utr_trl_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         layerId: 'layer_trl',
         modality: 'text',
         text: 'hello',
@@ -314,7 +314,7 @@ describe('EafService export', () => {
     ];
 
     const xml = exportToEaf({
-      utterances,
+      units,
       layers,
       translations,
     });

@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyCustomFieldDraftDefaults,
-  buildPersistedCustomFieldValues,
-  validateCustomFieldDefinitionInput,
-  validateCustomFieldDraftValue,
-} from './LanguageMetadataCustomFields';
+import { applyCustomFieldDraftDefaults, buildPersistedCustomFieldValues, validateCustomFieldDefinitionInput, validateCustomFieldDraftValue } from './LanguageMetadataCustomFields';
 
 describe('LanguageMetadataCustomFields', () => {
   it('normalizes definition governance fields', () => {

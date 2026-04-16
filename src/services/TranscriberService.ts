@@ -21,12 +21,12 @@
  *   </Trans>
  *
  * Mapping to Jieyu:
- *   Turn / Sync-delimited segment  →  utterance (startTime / endTime / transcription)
+ *   Turn / Sync-delimited segment  →  unit (startTime / endTime / transcription)
  *   Speaker[@id]                    →  speaker id (linked via speakerId)
  *   Speaker[@name]                  →  speaker name
  */
 
-import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, LayerUnitDocType } from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 
@@ -40,7 +40,7 @@ export interface TrsSpeaker {
 }
 
 export interface TrsExportInput {
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   speakers?: TrsSpeaker[];
   orthographies?: OrthographyDocType[];
   transcriptionLayer?: LayerDocType;
@@ -51,8 +51,8 @@ export interface TrsExportInput {
 export interface TrsImportResult {
   /** Speaker records extracted from <Speakers> */
   speakers: TrsSpeaker[];
-  /** Utterance segments extracted from <Turn>/<Sync> structure */
-  utterances: Array<{
+  /** Unit segments extracted from <Turn>/<Sync> structure */
+  units: Array<{
     startTime: number;
     endTime: number;
     transcription: string;
@@ -82,13 +82,13 @@ function formatTime(seconds: number): string {
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToTrs(input: TrsExportInput): string {
-  const { utterances, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export' } = input;
-  const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const { units, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export' } = input;
+  const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const transcriptionRenderPolicy = transcriptionLayer?.languageId
     ? resolveOrthographyRenderPolicy(transcriptionLayer.languageId, orthographies, transcriptionLayer.orthographyId)
     : undefined;
 
-  // Collect distinct speaker IDs referenced by utterances
+  // Collect distinct speaker IDs referenced by units
   const speakerIds = new Set(sorted.map((u) => u.speakerId).filter(Boolean) as string[]);
 
   // Build speaker elements — use provided metadata if available, otherwise generate stubs
@@ -106,11 +106,11 @@ export function exportToTrs(input: TrsExportInput): string {
     )
     .join('\n');
 
-  // Group consecutive utterances that share the same speaker into <Turn> elements.
+  // Group consecutive units that share the same speaker into <Turn> elements.
   // Multiple Sync-delimited segments within a Turn share the speaker attribution.
   interface TurnGroup {
     speakerId?: string;
-    utterances: UtteranceDocType[];
+    units: LayerUnitDocType[];
     startTime: number;
     endTime: number;
   }
@@ -119,12 +119,12 @@ export function exportToTrs(input: TrsExportInput): string {
   for (const utt of sorted) {
     const last = turns[turns.length - 1];
     if (last && last.speakerId === utt.speakerId) {
-      last.utterances.push(utt);
+      last.units.push(utt);
       last.endTime = utt.endTime;
     } else {
       turns.push({
         ...(utt.speakerId !== undefined && { speakerId: utt.speakerId }),
-        utterances: [utt],
+        units: [utt],
         startTime: utt.startTime,
         endTime: utt.endTime,
       });
@@ -139,7 +139,7 @@ export function exportToTrs(input: TrsExportInput): string {
       const spkAttr = turn.speakerId
         ? ` speaker="${escapeXml(turn.speakerId)}"`
         : '';
-      const segments = turn.utterances
+      const segments = turn.units
         .map((u) => {
           const text = wrapPlainTextWithBidiIsolation(u.transcription?.default ?? '', transcriptionRenderPolicy);
           return `          <Sync time="${formatTime(u.startTime)}"/>\n          ${escapeXml(text)}`;
@@ -192,7 +192,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
     });
   });
 
-  const utterances: TrsImportResult['utterances'] = [];
+  const units: TrsImportResult['units'] = [];
 
   // Each <Turn> contains one or more <Sync> nodes with interleaved text nodes.
   // We reconstruct segments as the text between consecutive <Sync> elements.
@@ -220,7 +220,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
       const text = stripPlainTextBidiIsolation(collectText(childNodes).trim());
       if (text) {
         const startTime = parseFloat(turn.getAttribute('startTime') ?? '0');
-        utterances.push({ startTime, endTime: turnEnd, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
+        units.push({ startTime, endTime: turnEnd, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
       }
       return;
     }
@@ -246,14 +246,14 @@ export function importFromTrs(xmlString: string): TrsImportResult {
       // Skip zero-duration or empty segments
       if (endTime <= startTime || !text) continue;
 
-      utterances.push({ startTime, endTime, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
+      units.push({ startTime, endTime, transcription: text, ...(speakerId !== undefined && { speakerId }), ...(topic !== undefined && { topic }) });
     }
   });
 
   // Sort by startTime for consistency
-  utterances.sort((a, b) => a.startTime - b.startTime);
+  units.sort((a, b) => a.startTime - b.startTime);
 
-  return { speakers, utterances };
+  return { speakers, units };
 }
 
 /** Extract concatenated text content from an array of DOM nodes */

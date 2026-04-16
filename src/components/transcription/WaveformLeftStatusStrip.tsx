@@ -20,7 +20,7 @@ export interface WaveformLeftStatusStripProps {
   currentTime: number;
 
   // 选段信息 | Selection info
-  /** null 表示无选中语段 | null when no utterance is selected */
+  /** null 表示无选中语段 | null when no unit is selected */
   selectedUnitDuration: number | null;
 
   // 增益 | Amplitude gain

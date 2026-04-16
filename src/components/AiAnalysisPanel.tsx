@@ -8,54 +8,11 @@ import { PanelChip } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';
 import type { AcousticDiagnosticKey } from '../pages/TranscriptionPage.aiPromptContext';
-import {
-  buildAcousticBatchExportFileStem,
-  buildAcousticExportFileStem,
-  buildAcousticInspectorSlice,
-  type AcousticPanelTrend,
-} from '../utils/acousticPanelDetail';
-import {
-  DEFAULT_ACOUSTIC_ANALYSIS_CONFIG,
-  type AcousticAnalysisConfig,
-  type AcousticHotspotKind,
-} from '../utils/acousticOverlayTypes';
-import {
-  ACOUSTIC_ANALYSIS_PRESETS,
-  type AcousticAnalysisPresetKey,
-} from '../utils/acousticAnalysisPresets';
-import {
-  ACOUSTIC_NUMERIC_BOUNDS,
-  PROVIDER_PREFERENCE_AUTO,
-  areAcousticConfigOverridesEqual,
-  buildNormalizedPath,
-  downloadTextPayload,
-  findNearestFrameByTime,
-  formatCoefficients,
-  formatDb,
-  formatDelta,
-  formatHz,
-  formatRatio,
-  formatScalar,
-  formatZeroCrossing,
-  measureAcousticExportPayloadStats,
-  pruneAcousticConfigOverride,
-  resolveAcousticExportFilename,
-  resolveAcousticExportMimeType,
-  resolvePresetKeyFromOverride,
-  serializeAcousticExportSync,
-  serializeAcousticExportWithWorker,
-  shouldRejectAcousticExportPayload,
-  type AcousticConfigOverride,
-  type AcousticExportFormat,
-} from './ai/aiAnalysisPanelAcousticUtils';
-import {
-  acousticProviderDefinitions,
-  persistAcousticProviderRuntimeConfig,
-  probeExternalAcousticProviderHealth,
-  resolveAcousticProviderRuntimeConfig,
-  type AcousticProviderRuntimeConfig,
-  type ExternalAcousticProviderHealthCheckResult,
-} from '../services/acoustic/acousticProviderContract';
+import { buildAcousticBatchExportFileStem, buildAcousticExportFileStem, buildAcousticInspectorSlice, type AcousticPanelTrend } from '../utils/acousticPanelDetail';
+import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type AcousticHotspotKind } from '../utils/acousticOverlayTypes';
+import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../utils/acousticAnalysisPresets';
+import { ACOUSTIC_NUMERIC_BOUNDS, PROVIDER_PREFERENCE_AUTO, areAcousticConfigOverridesEqual, buildNormalizedPath, downloadTextPayload, findNearestFrameByTime, formatCoefficients, formatDb, formatDelta, formatHz, formatRatio, formatScalar, formatZeroCrossing, measureAcousticExportPayloadStats, pruneAcousticConfigOverride, resolveAcousticExportFilename, resolveAcousticExportMimeType, resolvePresetKeyFromOverride, serializeAcousticExportSync, serializeAcousticExportWithWorker, shouldRejectAcousticExportPayload, type AcousticConfigOverride, type AcousticExportFormat } from './ai/aiAnalysisPanelAcousticUtils';
+import { acousticProviderDefinitions, persistAcousticProviderRuntimeConfig, probeExternalAcousticProviderHealth, resolveAcousticProviderRuntimeConfig, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderHealthCheckResult } from '../services/acoustic/acousticProviderContract';
 
 export type AiPanelMode = 'auto' | 'all';
 
@@ -615,7 +572,7 @@ export const AiAnalysisPanel = memo(function AiAnalysisPanel({
           meta={(
             <div className="panel-meta">
               <PanelChip>{tf(locale, 'ai.stats.database', { dbName })}</PanelChip>
-              <PanelChip>{tf(locale, 'ai.stats.utterance', { unitCount })}</PanelChip>
+              <PanelChip>{tf(locale, 'ai.stats.unit', { unitCount })}</PanelChip>
               <PanelChip>{tf(locale, 'ai.stats.translationLayer', { translationLayerCount })}</PanelChip>
               {activeTab === 'acoustic' && acousticSummary ? (
                 <>

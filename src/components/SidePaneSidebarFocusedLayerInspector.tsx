@@ -1,13 +1,7 @@
 import type { LayerDocType, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
-import {
-  formatSidePaneLayerLabel,
-  getLayerHeaderLanguageLine,
-  getOrthographyHeaderLine,
-  getLayerHeaderVarietyOrAliasLine,
-  getLayerLabelParts,
-} from '../utils/transcriptionFormatters';
+import { formatSidePaneLayerLabel, getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 

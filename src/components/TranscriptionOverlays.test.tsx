@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import { TranscriptionOverlays } from './TranscriptionOverlays';
 
 const NOW = new Date().toISOString();
@@ -24,7 +24,7 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUnit(id: string): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -33,7 +33,7 @@ function makeUtterance(id: string): UtteranceDocType {
     endTime: 1,
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
@@ -64,14 +64,14 @@ function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
     addNote: vi.fn(async () => undefined),
     updateNote: vi.fn(async () => undefined),
     deleteNote: vi.fn(async () => undefined),
-    utterances: [makeUtterance('utt_1')],
-    getUtteranceTextForLayer: vi.fn(() => 'u1'),
+    units: [makeUnit('utt_1')],
+    getUnitTextForLayer: vi.fn(() => 'u1'),
     transcriptionLayers: [makeLayer('layer_default')],
     translationLayers: [] as LayerDocType[],
     speakerOptions: [],
     speakerFilterOptions: [],
     onAssignSpeakerFromMenu: vi.fn(),
-    onSetUtteranceSelfCertaintyFromMenu: vi.fn(),
+    onSetUnitSelfCertaintyFromMenu: vi.fn(),
     onOpenSpeakerManagementPanelFromMenu: vi.fn(),
   };
 }
@@ -81,7 +81,7 @@ afterEach(() => {
 });
 
 describe('TranscriptionOverlays independent selection routing', () => {
-  it('shows self-certainty submenu when ctx unitKind is segment but unitId is an utterance host', async () => {
+  it('shows self-certainty submenu when ctx unitKind is segment but unitId is an unit host', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
       x: 120,
@@ -97,7 +97,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(await screen.findByRole('menuitem', { name: /确信程度/ })).toBeTruthy();
   });
 
-  it('shows self-certainty when unitId is segment id if resolver maps to an utterance id', async () => {
+  it('shows self-certainty when unitId is segment id if resolver maps to an unit id', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
       x: 120,
@@ -107,26 +107,26 @@ describe('TranscriptionOverlays independent selection routing', () => {
       unitKind: 'segment',
       splitTime: 0.5,
     };
-    props.resolveSelfCertaintyUtteranceIds = (ids) => ids
+    props.resolveSelfCertaintyUnitIds = (ids) => ids
       .map((raw) => (raw === 'seg_ref_1' ? 'utt_1' : raw))
-      .filter((uid) => props.utterances.some((u) => u.id === uid));
+      .filter((uid) => props.units.some((u) => u.id === uid));
 
     render(<TranscriptionOverlays {...props} />);
 
     expect(await screen.findByRole('menuitem', { name: /确信程度/ })).toBeTruthy();
   });
 
-  it('shows self-certainty when handler is set even if unitId is not an utterance id, and falls back to raw target ids', async () => {
+  it('shows self-certainty when handler is set even if unitId is not an unit id, and falls back to raw target ids', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
       x: 120,
       y: 120,
       unitId: 'seg_shadow_only',
       layerId: 'layer_default',
-      unitKind: 'utterance',
+      unitKind: 'unit',
       splitTime: 0.5,
     };
-    delete props.resolveSelfCertaintyUtteranceIds;
+    delete props.resolveSelfCertaintyUnitIds;
 
     render(<TranscriptionOverlays {...props} />);
 
@@ -136,7 +136,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     const certainOptions = await screen.findAllByRole('menuitem', { name: /^确定$/ });
     fireEvent.click(certainOptions[certainOptions.length - 1]!);
 
-    expect(props.onSetUtteranceSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_shadow_only'], 'utterance', 'certain', 'layer_default');
+    expect(props.onSetUnitSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_shadow_only'], 'unit', 'certain', 'layer_default');
   });
 
   it('opens utt ops menu with selectedTimelineUnit and deletes the segment target', async () => {
@@ -292,7 +292,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
       unitKind: 'segment',
       splitTime: 0.5,
     };
-    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'utterance' };
+    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'unit' };
     props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
@@ -332,10 +332,10 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(props.onOpenSpeakerManagementPanelFromMenu).toHaveBeenCalledTimes(1);
   });
 
-  it('renders note popover utterance preview with orthography-aware direction and style', () => {
+  it('renders note popover unit preview with orthography-aware direction and style', () => {
     const props = makeBaseProps();
     props.notePopover = { x: 120, y: 80, uttId: 'utt_1', layerId: 'layer_ar' };
-    props.getUtteranceTextForLayer = vi.fn(() => 'مرحبا (123)');
+    props.getUnitTextForLayer = vi.fn(() => 'مرحبا (123)');
     props.transcriptionLayers = [{
       ...makeLayer('layer_ar'),
       languageId: 'ara',

@@ -2,10 +2,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Dispatch, SetStateAction } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
-import { utteranceToView } from '../hooks/timelineUnitView';
+import { unitToView } from '../hooks/timelineUnitView';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 
 const {
@@ -39,7 +39,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
   } as LayerDocType;
 }
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUnit(id: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -48,13 +48,13 @@ function makeUtterance(id: string): UtteranceDocType {
     endTime: 1,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 type HookInput = Parameters<typeof useTranscriptionAssistantController>[0];
 
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
-  const utterance = makeUtterance('utt-1');
+  const unit = makeUnit('utt-1');
   const translationLayer = makeLayer('layer-tr', 'translation');
   const transcriptionLayer = makeLayer('layer-main');
 
@@ -68,8 +68,8 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     unitsLength: 1,
     translationLayersLength: 1,
     aiConfidenceAvg: 0.9,
-    selectedPrimaryUnitView: utteranceToView(utterance, transcriptionLayer.id),
-    selectedTimelineOwnerUnit: utterance,
+    selectedPrimaryUnitView: unitToView(unit, transcriptionLayer.id),
+    selectedTimelineOwnerUnit: unit,
     selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 1 },
     selectedAiWarning: false,
     lexemeMatches: [{ id: 'lex-1', lemma: { eng: 'hello' } }],
@@ -93,12 +93,12 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     defaultTranscriptionLayerId: transcriptionLayer.id,
     translationLayers: [translationLayer],
     layers: [transcriptionLayer, translationLayer],
-    utterancesOnCurrentMedia: [utterance],
-    getUtteranceTextForLayer: vi.fn(() => ''),
-    saveUtteranceText: vi.fn(async () => undefined),
-    saveTextTranslationForUtterance: vi.fn(async () => undefined),
+    unitsOnCurrentMedia: [unit],
+    getUnitTextForLayer: vi.fn(() => ''),
+    saveUnitText: vi.fn(async () => undefined),
+    saveUnitLayerText: vi.fn(async () => undefined),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
-    nextUtteranceIdForVoiceDictation: 'utt-2',
+    nextUnitIdForVoiceDictation: 'utt-2',
     selectUnit: vi.fn(),
     aiChatEnabled: true,
     aiChatSettings: {
@@ -108,7 +108,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
       model: '',
     } as unknown as HookInput['aiChatSettings'],
     pushUndo: vi.fn(),
-    setUtterances: vi.fn() as unknown as Dispatch<SetStateAction<UtteranceDocType[]>>,
+    setUnits: vi.fn() as unknown as Dispatch<SetStateAction<LayerUnitDocType[]>>,
     ...overrides,
   };
 }
@@ -116,7 +116,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
 describe('useTranscriptionAssistantController', () => {
   it('transforms dictation text before writing to the default transcription layer when no layer is explicitly selected', async () => {
     mockBridgeTextForLayerTarget.mockResolvedValueOnce('xf:translated text');
-    const saveUtteranceText = vi.fn(async () => undefined);
+    const saveUnitText = vi.fn(async () => undefined);
     const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       selectedLayerId: null,
@@ -124,7 +124,7 @@ describe('useTranscriptionAssistantController', () => {
         { ...makeLayer('layer-main'), orthographyId: 'orth-source' } as LayerDocType,
         { ...makeLayer('layer-tr', 'translation'), orthographyId: 'orth-target' } as LayerDocType,
       ],
-      saveUtteranceText,
+      saveUnitText: saveUnitText,
       selectUnit,
     })));
 
@@ -143,7 +143,7 @@ describe('useTranscriptionAssistantController', () => {
         selectedLayerId: null,
         fallbackSourceOrthographyId: 'orth-source',
       });
-      expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'xf:translated text', 'layer-main');
+      expect(saveUnitText).toHaveBeenCalledWith('utt-1', 'xf:translated text', 'layer-main');
       expect(selectUnit).toHaveBeenCalledWith('utt-2');
     });
   });
@@ -293,7 +293,7 @@ describe('useTranscriptionAssistantController', () => {
 
   it('writes dictation to segment content with fallback orthography transform for segment-backed selection', async () => {
     const saveSegmentContentForLayer = vi.fn(async () => undefined);
-    const saveUtteranceText = vi.fn(async () => undefined);
+    const saveUnitText = vi.fn(async () => undefined);
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' };
     mockBridgeTextForLayerTarget.mockResolvedValueOnce('xf:segment text');
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
@@ -304,7 +304,7 @@ describe('useTranscriptionAssistantController', () => {
         { ...makeLayer('layer-seg', 'translation'), orthographyId: 'orth-target' } as LayerDocType,
       ],
       saveSegmentContentForLayer,
-      saveUtteranceText,
+      saveUnitText: saveUnitText,
     })));
 
     act(() => {
@@ -324,15 +324,15 @@ describe('useTranscriptionAssistantController', () => {
       });
       expect(saveSegmentContentForLayer).toHaveBeenCalledWith('seg-1', 'layer-seg', 'xf:segment text');
     });
-    expect(saveUtteranceText).not.toHaveBeenCalled();
+    expect(saveUnitText).not.toHaveBeenCalled();
   });
 
   it('persists dictation to the default transcription layer and auto-advances', async () => {
-    const saveUtteranceText = vi.fn(async () => undefined);
+    const saveUnitText = vi.fn(async () => undefined);
     const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
       selectedLayerId: null,
-      saveUtteranceText,
+      saveUnitText: saveUnitText,
       selectUnit,
     })));
 
@@ -341,21 +341,21 @@ describe('useTranscriptionAssistantController', () => {
     });
 
     await waitFor(() => {
-      expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'translated text', 'layer-main');
+      expect(saveUnitText).toHaveBeenCalledWith('utt-1', 'translated text', 'layer-main');
       expect(selectUnit).toHaveBeenCalledWith('utt-2');
     });
   });
 
-  it('builds a continuous dictation pipeline for utterance-based voice dictation', async () => {
-    const utterance1 = makeUtterance('utt-1');
-    const utterance2 = makeUtterance('utt-2');
-    const getUtteranceTextForLayer = vi.fn((utterance: UtteranceDocType) => (utterance.id === 'utt-1' ? '' : '已有内容'));
-    const saveUtteranceText = vi.fn(async () => undefined);
+  it('builds a continuous dictation pipeline for unit-based voice dictation', async () => {
+    const unit1 = makeUnit('utt-1');
+    const unit2 = makeUnit('utt-2');
+    const getUnitTextForLayer = vi.fn((unit: LayerUnitDocType) => (unit.id === 'utt-1' ? '' : '已有内容'));
+    const saveUnitText = vi.fn(async () => undefined);
     const selectUnit = vi.fn();
     const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
-      utterancesOnCurrentMedia: [utterance1, utterance2],
-      getUtteranceTextForLayer,
-      saveUtteranceText,
+      unitsOnCurrentMedia: [unit1, unit2],
+      getUnitTextForLayer,
+      saveUnitText: saveUnitText,
       selectUnit,
     })));
 
@@ -368,7 +368,7 @@ describe('useTranscriptionAssistantController', () => {
     ]);
 
     await result.current.voiceDictationPipeline?.callbacks.fillSegment('utt-1', 'transcription', 'voice text');
-    expect(saveUtteranceText).toHaveBeenCalledWith('utt-1', 'voice text', 'layer-main');
+    expect(saveUnitText).toHaveBeenCalledWith('utt-1', 'voice text', 'layer-main');
 
     result.current.voiceDictationPipeline?.callbacks.navigateTo('utt-2');
     expect(selectUnit).toHaveBeenCalledWith('utt-2');

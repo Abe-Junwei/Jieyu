@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { getDb, type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
+import { getDb, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { resolveTranscriptionTargetLayerId } from './transcriptionUnitTargetResolver';
 import type { SegmentTimelineRoutingResult } from './transcriptionSegmentRouting';
-import {
-  type LayerSegmentGraphSnapshot,
-  restoreLayerSegmentGraphSnapshot,
-  snapshotLayerSegmentGraphByLayerIds,
-} from '../services/LayerSegmentGraphService';
+import { type LayerSegmentGraphSnapshot, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from '../services/LayerSegmentGraphService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
 
@@ -30,8 +26,8 @@ interface UseTranscriptionSegmentBridgeControllerInput {
   firstTranscriptionLayerId?: string;
   layerById: ReadonlyMap<string, LayerDocType>;
   independentLayerIds: ReadonlySet<string>;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  segmentContentByLayer: ReadonlyMap<string, Map<string, LayerSegmentContentDocType>>;
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
+  segmentContentByLayer: ReadonlyMap<string, Map<string, LayerUnitContentDocType>>;
   reloadSegments: () => Promise<void>;
   reloadSegmentContents: () => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
@@ -157,10 +153,10 @@ export function useTranscriptionSegmentBridgeController(
 
     const segment = (input.segmentsByLayer.get(sourceLayer.id) ?? []).find((item) => item.id === segmentId);
     if (!segment) return;
-    const next: LayerSegmentContentDocType = {
+    const next: LayerUnitContentDocType = {
       id: existing?.id ?? `segc_${layerId}_${segmentId}`,
       textId: segment.textId,
-      segmentId,
+      unitId: segmentId,
       layerId,
       modality: 'text',
       text: trimmed,

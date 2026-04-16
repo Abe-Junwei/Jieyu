@@ -1,8 +1,4 @@
-import {
-  getDb,
-  type JieyuDatabase,
-  type UnitRelationDocType,
-} from '../db';
+import { getDb, type JieyuDatabase, type UnitRelationDocType } from '../db';
 
 export class LayerUnitRelationQueryService {
   static async listRelationsBySourceUnitIds(
@@ -37,7 +33,11 @@ export class LayerUnitRelationQueryService {
     database?: JieyuDatabase,
   ): Promise<string[]> {
     const relations = await this.listRelationsByTargetUnitIds(targetUnitIds, options, database);
-    return [...new Set(relations.map((row) => row.sourceUnitId))];
+    return [...new Set(
+      relations
+        .map((row) => row.sourceUnitId)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    )];
   }
 
   static async listTimeSubdivisionChildUnitIds(
@@ -64,6 +64,10 @@ export class LayerUnitRelationQueryService {
     database?: JieyuDatabase,
   ): Promise<string[]> {
     const relations = await this.listRelationsBySourceUnitIds(childUnitIds, options, database);
-    return [...new Set(relations.map((row) => row.targetUnitId))];
+    return [...new Set(
+      relations
+        .map((row) => row.targetUnitId)
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+    )];
   }
 }

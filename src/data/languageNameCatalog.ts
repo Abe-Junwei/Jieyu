@@ -4,17 +4,8 @@
  * Baseline generated data is now lowered into the runtime cache layer as a
  * fallback seed, so callers no longer merge generated modules directly here.
  */
-import {
-  normalizeLanguageCatalogRuntimeLookupKey,
-  readLanguageCatalogRuntimeCache,
-} from './languageCatalogRuntimeCache';
-import {
-  LANGUAGE_NAME_QUERY_LOCALES,
-  type LanguageDisplayCoreEntry,
-  type LanguageNameQueryLocale,
-  type LanguageQueryLabelEntry,
-  type LanguageQueryLabelKind,
-} from './languageNameTypes';
+import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache } from './languageCatalogRuntimeCache';
+import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale, type LanguageQueryLabelEntry, type LanguageQueryLabelKind } from './languageNameTypes';
 
 function normalizeLanguageCode(languageId: string | undefined): string {
   return languageId?.trim().toLowerCase() ?? '';

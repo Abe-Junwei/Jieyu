@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createLanguageInputModel,
-  MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS,
-  reduceLanguageInput,
-  selectCommittedLanguageInputValue,
-  selectDisplayedLanguageInputValue,
-} from './languageInputReducer';
-import {
-  pickAutoFillLanguageMatchFromSuggestions,
-  searchLanguageCatalog,
-} from './langMapping';
+import { createLanguageInputModel, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS, reduceLanguageInput, selectCommittedLanguageInputValue, selectDisplayedLanguageInputValue } from './languageInputReducer';
+import { pickAutoFillLanguageMatchFromSuggestions, searchLanguageCatalog } from './langMapping';
 
 const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
   if (languageId?.trim().toLowerCase() === 'eng') {

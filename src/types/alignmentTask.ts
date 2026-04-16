@@ -14,7 +14,7 @@ export interface AlignmentTaskRequest {
   textId?: string;
   language?: string;
   transcriptText: string;
-  utteranceIds?: string[];
+  unitIds?: string[];
 }
 
 export interface AlignmentTaskResult {

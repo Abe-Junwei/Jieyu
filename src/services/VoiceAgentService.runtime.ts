@@ -4,11 +4,7 @@
  */
 
 import type { CommercialProviderKind, SttEngine } from './VoiceInputService';
-import type {
-  CommercialProviderCreateConfig,
-  SttEnhancementConfig,
-  SttEnhancementSelectionKind,
-} from './stt';
+import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from './stt';
 import type { Region } from '../utils/regionDetection';
 
 export interface BuildVoiceAgentStartConfigParams {

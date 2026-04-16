@@ -17,7 +17,8 @@ export function verifyUnifiedUnitBackfill(payload: UnifiedUnitBackfillPayload): 
   const contentIds = new Set<string>();
 
   for (const content of payload.contents) {
-    if (!unitIds.has(content.unitId)) {
+    const unitId = content.unitId?.trim();
+    if (!unitId || !unitIds.has(unitId)) {
       errors.push(`missing unit for content ${content.id}`);
     }
     if (contentIds.has(content.id)) {
@@ -25,7 +26,7 @@ export function verifyUnifiedUnitBackfill(payload: UnifiedUnitBackfillPayload): 
     }
     contentIds.add(content.id);
 
-    const owner = unitById.get(content.unitId);
+    const owner = unitId ? unitById.get(unitId) : undefined;
     if (owner) {
       if (content.textId !== owner.textId) {
         errors.push(`content ${content.id} textId ${content.textId} mismatches unit ${owner.id} textId ${owner.textId}`);
@@ -37,16 +38,18 @@ export function verifyUnifiedUnitBackfill(payload: UnifiedUnitBackfillPayload): 
   }
 
   for (const relation of payload.relations) {
+    const sourceUnitId = relation.sourceUnitId?.trim();
+    const targetUnitId = relation.targetUnitId?.trim();
     if (relationIds.has(relation.id)) {
       errors.push(`duplicate relation id ${relation.id}`);
     }
     relationIds.add(relation.id);
-    if (!unitIds.has(relation.sourceUnitId)) errors.push(`missing source unit ${relation.sourceUnitId}`);
-    if (!unitIds.has(relation.targetUnitId)) errors.push(`missing target unit ${relation.targetUnitId}`);
-    if (relation.sourceUnitId === relation.targetUnitId) {
-      errors.push(`relation ${relation.id} has identical source and target ${relation.sourceUnitId}`);
+    if (!sourceUnitId || !unitIds.has(sourceUnitId)) errors.push(`missing source unit ${String(sourceUnitId)}`);
+    if (!targetUnitId || !unitIds.has(targetUnitId)) errors.push(`missing target unit ${String(targetUnitId)}`);
+    if (sourceUnitId && targetUnitId && sourceUnitId === targetUnitId) {
+      errors.push(`relation ${relation.id} has identical source and target ${sourceUnitId}`);
     }
-    if (!UNIT_RELATION_TYPES.has(relation.relationType)) {
+    if (!relation.relationType || !UNIT_RELATION_TYPES.has(relation.relationType)) {
       errors.push(`relation ${relation.id} has invalid relationType ${String(relation.relationType)}`);
     }
   }

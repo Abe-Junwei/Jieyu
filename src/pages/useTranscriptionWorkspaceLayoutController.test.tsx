@@ -20,7 +20,7 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUtteranceRowRef(scrollIntoView?: () => void): MutableRefObject<Record<string, HTMLDivElement | null>> {
+function makeUnitRowRef(scrollIntoView?: () => void): MutableRefObject<Record<string, HTMLDivElement | null>> {
   return {
     current: {
       'utt-1': scrollIntoView ? ({ scrollIntoView } as unknown as HTMLDivElement) : null,
@@ -44,12 +44,12 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     localStorage.setItem('jieyu:workspace-default-zoom-mode', 'custom');
 
     const scrollSpy = vi.fn();
-    const utteranceRowRef = makeUtteranceRowRef(scrollSpy);
+    const unitRowRef = makeUnitRowRef(scrollSpy);
 
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a'), makeLayer('layer-b')],
       selectedTimelineOwnerUnitId: 'utt-1',
-      utteranceRowRef,
+      unitRowRef,
     }));
 
     expect(result.current.laneLabelWidth).toBe(180);
@@ -72,7 +72,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
       selectedTimelineOwnerUnitId: undefined,
-      utteranceRowRef: makeUtteranceRowRef(),
+      unitRowRef: makeUnitRowRef(),
     }));
 
     act(() => {
@@ -112,7 +112,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     const { result, unmount } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
       selectedTimelineOwnerUnitId: undefined,
-      utteranceRowRef: makeUtteranceRowRef(),
+      unitRowRef: makeUnitRowRef(),
     }));
 
     act(() => {
@@ -142,7 +142,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
       selectedTimelineOwnerUnitId: undefined,
-      utteranceRowRef: makeUtteranceRowRef(),
+      unitRowRef: makeUnitRowRef(),
     }));
 
     expect(result.current.videoPreviewHeight).toBe(220);

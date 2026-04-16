@@ -158,7 +158,7 @@ export function SidePaneSidebarSpeakerManagement({
             <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerReferencedProject(projectReferencedSpeakerCount) : messages.speakerReferencedProjectPending}</PanelChip>
             <PanelChip>{speakerCtx.speakerReferenceStatsReady ? messages.speakerUnusedCount(unusedSpeakerCount) : messages.speakerUnusedCountPending}</PanelChip>
             <PanelChip>{messages.speakerDuplicateGroupCount(duplicateSpeakerGroupCount)}</PanelChip>
-            <PanelChip>{messages.speakerSelectedUtteranceCount(speakerCtx.selectedUnitIds.size)}</PanelChip>
+            <PanelChip>{messages.speakerSelectedUnitCount(speakerCtx.selectedUnitIds.size)}</PanelChip>
           </div>
         )}
       >
@@ -311,7 +311,7 @@ export function SidePaneSidebarSpeakerManagement({
                     <button
                       type="button"
                       className="transcription-side-pane-speaker-mini-btn"
-                      onClick={() => { speakerCtx.handleSelectSpeakerUtterances(option.key); onClose(); }}
+                      onClick={() => { speakerCtx.handleSelectSpeakerUnits(option.key); onClose(); }}
                       title={messages.speakerSelectAllTitle}
                       disabled={!hasAssignmentsInScope}
                     >

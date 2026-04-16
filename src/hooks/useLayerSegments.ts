@@ -7,28 +7,28 @@
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type LayerDocType, type LayerSegmentDocType } from '../db';
+import { type LayerDocType, type LayerUnitDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useLatest } from './useLatest';
 
 /** 层编辑模式 | Layer edit mode
- * utterance: 继承主层 utterance 边界 | Inherits main-layer utterance boundaries
+ * unit: 继承主层 unit 边界 | Inherits main-layer unit boundaries
  * independent-segment: 独立边界（通过 merged segment 视图自由切分）| Independent boundaries (free segmentation via merged segment view)
- * time-subdivision: 时间细分（在父层 utterance 范围内切分）| Time subdivision (segment within parent utterance)
+ * time-subdivision: 时间细分（在父层 unit 范围内切分）| Time subdivision (segment within parent unit)
  */
-export type LayerEditMode = 'utterance' | 'independent-segment' | 'time-subdivision';
+export type LayerEditMode = 'unit' | 'independent-segment' | 'time-subdivision';
 
 /** 判断层的编辑模式 | Determine the edit mode for a layer */
 export function getLayerEditMode(
   layer: LayerDocType | undefined,
   _defaultTranscriptionLayerId?: string,
 ): LayerEditMode {
-  if (!layer) return 'utterance';
+  if (!layer) return 'unit';
   if (layer.constraint === 'time_subdivision') return 'time-subdivision';
   // De-centered model: independent_boundary always uses segment-first editing,
   // including the previous "default transcription layer".
   if (layer.constraint === 'independent_boundary') return 'independent-segment';
-  return 'utterance';
+  return 'unit';
 }
 
 /** 判断层是否使用独立边界 | Check if a layer uses independent boundaries
@@ -84,23 +84,23 @@ export function layerUsesSegmentTimeline(
 /**
  * 为多个独立边界层批量加载 segments | Batch-load segments for multiple independent-boundary layers
  *
- * 返回 Map<layerId, LayerSegmentDocType[]>，每个数组按 startTime 升序排列。
- * Returns Map<layerId, LayerSegmentDocType[]>, each array sorted by startTime ascending.
+ * 返回 Map<layerId, LayerUnitDocType[]>，每个数组按 startTime 升序排列。
+ * Returns Map<layerId, LayerUnitDocType[]>, each array sorted by startTime ascending.
  */
 export function useLayerSegments(
   layers: LayerDocType[],
   mediaId: string | undefined,
   defaultTranscriptionLayerId: string | undefined,
 ): {
-  segmentsByLayer: Map<string, LayerSegmentDocType[]>;
+  segmentsByLayer: Map<string, LayerUnitDocType[]>;
   segmentsLoadComplete: boolean;
   reloadSegments: () => Promise<void>;
   updateSegmentsLocally: (
     segmentIds: Iterable<string>,
-    updater: (segment: LayerSegmentDocType) => LayerSegmentDocType,
+    updater: (segment: LayerUnitDocType) => LayerUnitDocType,
   ) => void;
 } {
-  const [segmentsByLayer, setSegmentsByLayer] = useState<Map<string, LayerSegmentDocType[]>>(
+  const [segmentsByLayer, setSegmentsByLayer] = useState<Map<string, LayerUnitDocType[]>>(
     () => new Map(),
   );
   const [segmentsLoadComplete, setSegmentsLoadComplete] = useState(false);
@@ -131,7 +131,7 @@ export function useLayerSegments(
       return;
     }
 
-    const result = new Map<string, LayerSegmentDocType[]>();
+    const result = new Map<string, LayerUnitDocType[]>();
 
     for (const layer of independentLayers) {
       const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
@@ -147,7 +147,7 @@ export function useLayerSegments(
     void loadSegments();
   }, [loadSegments, layers, defaultTranscriptionLayerId]);
 
-  const updateSegmentsLocally = useCallback((segmentIds: Iterable<string>, updater: (segment: LayerSegmentDocType) => LayerSegmentDocType) => {
+  const updateSegmentsLocally = useCallback((segmentIds: Iterable<string>, updater: (segment: LayerUnitDocType) => LayerUnitDocType) => {
     const targetIds = new Set(Array.from(segmentIds).map((id) => id.trim()).filter((id) => id.length > 0));
     if (targetIds.size === 0) return;
 

@@ -2,13 +2,7 @@ import type { LanguageCatalogHistoryDocType } from '../db';
 import { t } from '../i18n';
 import type { LanguageCatalogDisplayNameEntry, LanguageCatalogEntry, LanguageCatalogVisibility } from '../services/LinguisticService';
 import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';
-import {
-  buildCustomFieldDraftValues,
-  formatCustomFieldOptionsEditorValue,
-  parseCustomFieldDraftMultiselectValue,
-  parseCustomFieldOptionsEditorValue,
-  serializeCustomFieldDraftValue,
-} from '../services/LanguageMetadataCustomFields';
+import { buildCustomFieldDraftValues, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from '../services/LanguageMetadataCustomFields';
 
 export const LANGUAGE_ID_PARAM = 'languageId';
 export const NEW_LANGUAGE_ID = '__new__';

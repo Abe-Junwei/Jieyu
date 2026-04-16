@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  AI_HYBRID_RECOMMENDATION_CONFIG,
-  createAiHybridRecommendationConfig,
-} from './AiHybridRecommendationConfig';
+import { AI_HYBRID_RECOMMENDATION_CONFIG, createAiHybridRecommendationConfig } from './AiHybridRecommendationConfig';
 
 describe('AiHybridRecommendationConfig', () => {
   it('exposes centralized default thresholds', () => {

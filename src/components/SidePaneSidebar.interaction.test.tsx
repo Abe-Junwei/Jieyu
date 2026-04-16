@@ -65,8 +65,8 @@ function createLayerActionStub() {
     setQuickTranslationConstraint: vi.fn(),
     quickDeleteLayerId: '',
     setQuickDeleteLayerId: vi.fn(),
-    quickDeleteKeepUtterances: false,
-    setQuickDeleteKeepUtterances: vi.fn(),
+    quickDeleteKeepUnits: false,
+    setQuickDeleteKeepUnits: vi.fn(),
     handleCreateTranscriptionFromPanel: vi.fn(async () => undefined),
     handleCreateTranslationFromPanel: vi.fn(async () => undefined),
     handleDeleteLayerFromPanel: vi.fn(async () => undefined),
@@ -82,7 +82,7 @@ function renderSidebar(input?: {
   speakerReferenceStats?: Record<string, { transcriptionUnitCount: number; segmentCount: number; totalCount: number }>;
   speakerReferenceStatsReady?: boolean;
 }) {
-  const onSelectSpeakerUtterances = vi.fn();
+  const onSelectSpeakerUnits = vi.fn();
   const onClearSpeakerAssignments = vi.fn();
   const onExportSpeakerSegments = vi.fn();
   const onRenameSpeaker = vi.fn();
@@ -117,7 +117,7 @@ function renderSidebar(input?: {
     activeSpeakerFilterKey: 'all',
     setActiveSpeakerFilterKey,
     speakerDialogState: null,
-    speakerVisualByUtteranceId: {},
+    speakerVisualByUnitId: {},
     speakerFilterOptions: input?.speakerFilterOptions ?? [
       { key: 'spk-1', name: 'Alice', count: 3 },
     ],
@@ -129,7 +129,7 @@ function renderSidebar(input?: {
     speakerReferenceStatsReady: input?.speakerReferenceStatsReady ?? true,
     selectedSpeakerSummary: '当前统一说话人：Alice',
     selectedUnitIds: new Set(['utt-1']),
-    handleSelectSpeakerUtterances: onSelectSpeakerUtterances,
+    handleSelectSpeakerUnits: onSelectSpeakerUnits,
     handleClearSpeakerAssignments: onClearSpeakerAssignments,
     handleExportSpeakerSegments: onExportSpeakerSegments,
     handleRenameSpeaker: onRenameSpeaker,
@@ -213,7 +213,7 @@ function renderSidebar(input?: {
 function renderSidebarForDeleteFlow(input: {
   deletableLayers: LayerDocType[];
   checkLayerHasContent: (layerId: string) => Promise<number>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
 }) {
   const speakerManagement = {
@@ -226,7 +226,7 @@ function renderSidebarForDeleteFlow(input: {
     activeSpeakerFilterKey: 'all',
     setActiveSpeakerFilterKey: vi.fn(),
     speakerDialogState: null,
-    speakerVisualByUtteranceId: {},
+    speakerVisualByUnitId: {},
     speakerFilterOptions: [],
     speakerReferenceStats: {},
     speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
@@ -234,7 +234,7 @@ function renderSidebarForDeleteFlow(input: {
     speakerReferenceStatsReady: true,
     selectedSpeakerSummary: '',
     selectedUnitIds: new Set<string>(),
-    handleSelectSpeakerUtterances: vi.fn(),
+    handleSelectSpeakerUnits: vi.fn(),
     handleClearSpeakerAssignments: vi.fn(),
     handleExportSpeakerSegments: vi.fn(),
     handleRenameSpeaker: vi.fn(),
@@ -275,8 +275,8 @@ function renderSidebarForDeleteFlow(input: {
     setQuickTranslationConstraint: vi.fn(),
     quickDeleteLayerId: input.deletableLayers[0]?.id ?? '',
     setQuickDeleteLayerId: vi.fn(),
-    quickDeleteKeepUtterances: false,
-    setQuickDeleteKeepUtterances: vi.fn(),
+    quickDeleteKeepUnits: false,
+    setQuickDeleteKeepUnits: vi.fn(),
     handleCreateTranscriptionFromPanel: vi.fn(async () => undefined),
     handleCreateTranslationFromPanel: vi.fn(async () => undefined),
     createLayer: vi.fn(async () => false),
@@ -335,7 +335,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
     activeSpeakerFilterKey: 'all',
     setActiveSpeakerFilterKey: vi.fn(),
     speakerDialogState: null,
-    speakerVisualByUtteranceId: {},
+    speakerVisualByUnitId: {},
     speakerFilterOptions: [],
     speakerReferenceStats: {},
     speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
@@ -343,7 +343,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
     speakerReferenceStatsReady: true,
     selectedSpeakerSummary: '',
     selectedUnitIds: new Set<string>(),
-    handleSelectSpeakerUtterances: vi.fn(),
+    handleSelectSpeakerUnits: vi.fn(),
     handleClearSpeakerAssignments: vi.fn(),
     handleExportSpeakerSegments: vi.fn(),
     handleRenameSpeaker: vi.fn(),
@@ -365,8 +365,8 @@ function renderSidebarForCreateContextMenuFlow(input: {
     layerActionRootRef: { current: null },
     quickDeleteLayerId: input.layerRows[0]?.id ?? '',
     setQuickDeleteLayerId: vi.fn(),
-    quickDeleteKeepUtterances: false,
-    setQuickDeleteKeepUtterances: vi.fn(),
+    quickDeleteKeepUnits: false,
+    setQuickDeleteKeepUnits: vi.fn(),
     createLayer: input.createLayer ?? vi.fn(async () => false),
     deleteLayer: vi.fn(async () => undefined),
     deleteLayerWithoutConfirm: vi.fn(async () => undefined),
@@ -526,14 +526,14 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         activeSpeakerFilterKey: 'all',
         setActiveSpeakerFilterKey: vi.fn(),
         speakerDialogState: null,
-        speakerVisualByUtteranceId: {},
+        speakerVisualByUnitId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
         speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
         speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
         speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
         selectedSpeakerSummary: '当前包含未标注项；已标注说话人：Alice',
-        handleSelectSpeakerUtterances: vi.fn(),
+        handleSelectSpeakerUnits: vi.fn(),
         handleClearSpeakerAssignments: vi.fn(),
         handleExportSpeakerSegments: vi.fn(),
         handleRenameSpeaker: vi.fn(),
@@ -625,14 +625,14 @@ describe('SidePaneSidebar speaker actions interaction', () => {
         activeSpeakerFilterKey: 'all',
         setActiveSpeakerFilterKey: vi.fn(),
         speakerDialogState: null,
-        speakerVisualByUtteranceId: {},
+        speakerVisualByUnitId: {},
         speakerFilterOptions: [{ key: 'spk-1', name: 'Alice', count: 3 }],
         speakerReferenceStats: { 'spk-1': { transcriptionUnitCount: 2, segmentCount: 1, totalCount: 3 } },
         speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
         speakerReferenceStatsMediaScoped: false,
         speakerReferenceStatsReady: true,
         selectedSpeakerSummary: '当前统一说话人：Alice',
-        handleSelectSpeakerUtterances: vi.fn(),
+        handleSelectSpeakerUnits: vi.fn(),
         handleClearSpeakerAssignments: vi.fn(),
         handleExportSpeakerSegments: vi.fn(),
         handleRenameSpeaker: vi.fn(),
@@ -737,7 +737,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
 
-    expect(deleteLayer).toHaveBeenCalledWith('layer_trc_1', { keepUtterances: false });
+    expect(deleteLayer).toHaveBeenCalledWith('layer_trc_1', { keepUnits: false });
   });
 
   it('opens unified LayerActionPopover from side pane create strip for both create actions', async () => {

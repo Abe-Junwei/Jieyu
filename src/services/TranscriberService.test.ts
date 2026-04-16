@@ -4,12 +4,12 @@
  * Unit tests for .trs import/export
  */
 import { describe, it, expect } from 'vitest';
-import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, LayerUnitDocType } from '../db';
 import { exportToTrs, importFromTrs } from './TranscriberService';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function makeUtt(overrides: Partial<UtteranceDocType> & { startTime: number; endTime: number }): UtteranceDocType {
+function makeUtt(overrides: Partial<LayerUnitDocType> & { startTime: number; endTime: number }): LayerUnitDocType {
   const { startTime, endTime, ...rest } = overrides;
   return {
     id: `u_${startTime}`,
@@ -21,7 +21,7 @@ function makeUtt(overrides: Partial<UtteranceDocType> & { startTime: number; end
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...rest,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeTranscriptionLayer(overrides?: Partial<LayerDocType>): LayerDocType {
@@ -60,8 +60,8 @@ function makeOrthography(overrides?: Partial<OrthographyDocType>): OrthographyDo
 // ── Export ────────────────────────────────────────────────────────────────────
 
 describe('exportToTrs', () => {
-  it('空 utterances 输出有效 XML | empty utterances yields valid XML', () => {
-    const xml = exportToTrs({ utterances: [] });
+  it('空 units 输出有效 XML | empty units yields valid XML', () => {
+    const xml = exportToTrs({ units: [] });
     expect(xml).toContain('<?xml version="1.0"');
     expect(xml).toContain('<Trans');
     expect(xml).toContain('</Trans>');
@@ -69,7 +69,7 @@ describe('exportToTrs', () => {
 
   it('包含说话人与多段文本 | includes speakers and segments', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 2, transcription: { default: 'hello' }, speakerId: 'spk1' }),
         makeUtt({ startTime: 2, endTime: 5, transcription: { default: 'world' }, speakerId: 'spk1' }),
       ],
@@ -83,7 +83,7 @@ describe('exportToTrs', () => {
 
   it('不同说话人拆分为不同 Turn | different speakers → separate Turns', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 2, transcription: { default: 'A says' }, speakerId: 'spk1' }),
         makeUtt({ startTime: 2, endTime: 4, transcription: { default: 'B says' }, speakerId: 'spk2' }),
       ],
@@ -99,7 +99,7 @@ describe('exportToTrs', () => {
 
   it('转义 XML 特殊字符 | escapes XML special chars', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 1, transcription: { default: '<b>"quoted" & \'apos\'' } }),
       ],
     });
@@ -109,9 +109,9 @@ describe('exportToTrs', () => {
     expect(xml).toContain('&apos;');
   });
 
-  it('无 speakerId 的 utterance 生成无 speaker 属性的 Turn | no speakerId → Turn without speaker attr', () => {
+  it('无 speakerId 的 unit 生成无 speaker 属性的 Turn | no speakerId → Turn without speaker attr', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 1, transcription: { default: 'text' } }),
       ],
     });
@@ -121,13 +121,13 @@ describe('exportToTrs', () => {
   });
 
   it('设置自定义 programTitle | custom programTitle', () => {
-    const xml = exportToTrs({ utterances: [], programTitle: 'My Project' });
+    const xml = exportToTrs({ units: [], programTitle: 'My Project' });
     expect(xml).toContain('program="My Project"');
   });
 
   it('按正字法策略包裹 bidi 隔离符并可正确回读 | wraps bidi isolates per orthography policy and strips them on import', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 1.5, transcription: { default: 'مرحبا' } }),
       ],
       orthographies: [makeOrthography()],
@@ -137,12 +137,12 @@ describe('exportToTrs', () => {
     expect(xml).toContain(`\u2067مرحبا\u2069`);
 
     const imported = importFromTrs(xml);
-    expect(imported.utterances[0]!.transcription).toBe('مرحبا');
+    expect(imported.units[0]!.transcription).toBe('مرحبا');
   });
 
   it('导出并导入 Speaker xml:lang | exports and imports speaker xml:lang', () => {
     const xml = exportToTrs({
-      utterances: [
+      units: [
         makeUtt({ startTime: 0, endTime: 1, transcription: { default: 'hello' }, speakerId: 'spk1' }),
       ],
       speakers: [{ id: 'spk1', name: 'Alice', lang: 'ar' }],
@@ -158,7 +158,7 @@ describe('exportToTrs', () => {
 // ── Import ───────────────────────────────────────────────────────────────────
 
 describe('importFromTrs', () => {
-  it('解析说话人和语段 | parses speakers and utterances', () => {
+  it('解析说话人和语段 | parses speakers and units', () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Trans SYSTEM "trans-14.dtd">
 <Trans program="test" version="1">
@@ -180,14 +180,14 @@ describe('importFromTrs', () => {
     expect(result.speakers).toHaveLength(1);
     expect(result.speakers[0]!.id).toBe('spk1');
     expect(result.speakers[0]!.name).toBe('Alice');
-    expect(result.utterances).toHaveLength(2);
-    expect(result.utterances[0]).toMatchObject({
+    expect(result.units).toHaveLength(2);
+    expect(result.units[0]).toMatchObject({
       startTime: 0,
       endTime: 2.5,
       transcription: 'hello world',
       speakerId: 'spk1',
     });
-    expect(result.utterances[1]).toMatchObject({
+    expect(result.units[1]).toMatchObject({
       startTime: 2.5,
       endTime: 5,
       transcription: 'second segment',
@@ -208,8 +208,8 @@ describe('importFromTrs', () => {
   </Episode>
 </Trans>`;
     const result = importFromTrs(xml);
-    expect(result.utterances).toHaveLength(1);
-    expect(result.utterances[0]!.transcription).toBe('entire turn text');
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]!.transcription).toBe('entire turn text');
   });
 
   it('跳过空文本和零时长段 | skips empty and zero-duration segments', () => {
@@ -229,8 +229,8 @@ describe('importFromTrs', () => {
 </Trans>`;
     const result = importFromTrs(xml);
     // 第一个和第二个 Sync 之间时间相同/文本空 → 跳过
-    expect(result.utterances).toHaveLength(1);
-    expect(result.utterances[0]!.transcription).toBe('valid text');
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]!.transcription).toBe('valid text');
   });
 
   it('解析 XML 失败时抛异常 | throws on invalid XML', () => {
@@ -251,7 +251,7 @@ describe('importFromTrs', () => {
   </Episode>
 </Trans>`;
     const result = importFromTrs(xml);
-    expect(result.utterances[0]!.topic).toBe('intro');
+    expect(result.units[0]!.topic).toBe('intro');
   });
 
   it('往返一致性 | round-trip consistency', () => {
@@ -261,14 +261,14 @@ describe('importFromTrs', () => {
       makeUtt({ startTime: 4.5, endTime: 7, transcription: { default: 'New speaker' }, speakerId: 'spk2' }),
     ];
     const xml = exportToTrs({
-      utterances: original,
+      units: original,
       speakers: [{ id: 'spk1', name: 'Alice' }, { id: 'spk2', name: 'Bob' }],
     });
     const imported = importFromTrs(xml);
-    expect(imported.utterances).toHaveLength(3);
-    expect(imported.utterances[0]!.transcription).toBe('Line one');
-    expect(imported.utterances[0]!.speakerId).toBe('spk1');
-    expect(imported.utterances[2]!.speakerId).toBe('spk2');
+    expect(imported.units).toHaveLength(3);
+    expect(imported.units[0]!.transcription).toBe('Line one');
+    expect(imported.units[0]!.speakerId).toBe('spk1');
+    expect(imported.units[2]!.speakerId).toBe('spk2');
     expect(imported.speakers).toHaveLength(2);
   });
 });

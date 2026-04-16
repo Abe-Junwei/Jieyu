@@ -1,9 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type {
-  LayerDocType,
-  MediaItemDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
@@ -23,22 +19,11 @@ import { newId, humanizeTierName } from '../utils/transcriptionFormatters';
 import { createLogger } from '../observability/logger';
 import { toErrorMessage } from '../utils/saveStateError';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
-import {
-  DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
-  shouldWriteOriginalSourceText,
-  shouldWriteBridgedTargetText,
-  type AnnotationImportBridgeStrategy,
-} from './useImportExport.annotationImport';
-import {
-  buildImportLanguageNameMap,
-  createImportLanguageResolvers,
-  createImportSpeakerResolver,
-  withEafKeyMeta,
-  writeImportLayerNameAudit,
-} from './useImportExport.importHelpers';
+import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, shouldWriteOriginalSourceText, shouldWriteBridgedTargetText, type AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
+import { buildImportLanguageNameMap, createImportLanguageResolvers, createImportSpeakerResolver, withEafKeyMeta, writeImportLayerNameAudit } from './useImportExport.importHelpers';
 
 const log = createLogger('useImportExport');
 
@@ -114,11 +99,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         return;
       }
 
-      const parsedUtterances = eafResult?.utterances
-        ?? tgResult?.utterances
-        ?? trsResult?.utterances
-        ?? flexResult?.utterances
-        ?? toolboxResult?.utterances
+      const parsedUnits = eafResult?.units
+        ?? tgResult?.units
+        ?? trsResult?.units
+        ?? flexResult?.units
+        ?? toolboxResult?.units
         ?? [];
 
       const additionalTiers: Map<string, Array<{ startTime: number; endTime: number; text: string }>> =
@@ -129,7 +114,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       if (flexResult && flexResult.phraseGlosses.size > 0) {
         const phraseGlossValues = Array.from(flexResult.phraseGlosses.values());
-        const glossSegments = flexResult.utterances
+        const glossSegments = flexResult.units
           .map((u, i) => ({ startTime: u.startTime, endTime: u.endTime, text: phraseGlossValues[i] ?? '' }))
           .filter((s) => s.text.trim() !== '');
         if (glossSegments.length > 0) additionalTiers.set('FLEx Gloss', glossSegments);
@@ -355,7 +340,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       const tierNameToLayerId = new Map<string, string>();
 
-      if (parsedUtterances.some((u) => u.transcription.trim())) {
+      if (parsedUnits.some((u) => u.transcription.trim())) {
         const existingTrc = layers.filter((l) => l.layerType === 'transcription');
         {
           const dedupCandidates = new Set<string>();
@@ -433,8 +418,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }
       }
 
-      const insertedUtterances: Array<{ id: string; startTime: number; endTime: number; utterance: import('../db').UtteranceDocType }> = [];
-      for (const u of parsedUtterances) {
+      const insertedUnits: Array<{ id: string; startTime: number; endTime: number; unit: import('../db').LayerUnitDocType }> = [];
+      for (const u of parsedUnits) {
         const id = newId('utt');
         const startTime = Number(u.startTime.toFixed(3));
         const endTime = Number(u.endTime.toFixed(3));
@@ -449,7 +434,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         const resolvedSpeakerId = typeof maybeSpeakerId === 'string' && maybeSpeakerId.length > 0
           ? speakerIdMap.get(normalizedSpeakerKey) ?? maybeSpeakerId.trim()
           : undefined;
-        const newUtterance: import('../db').UtteranceDocType = {
+        const newUnit: import('../db').LayerUnitDocType = {
           id,
           textId,
           ...(mediaId ? { mediaId } : {}),
@@ -460,11 +445,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           createdAt: now,
           updatedAt: now,
         };
-        await LinguisticService.saveUtterance(newUtterance);
+        await LinguisticService.saveUnit(newUnit);
 
         if (Array.isArray(maybeTokens) && maybeTokens.length > 0) {
-          const tokenRows: import('../db').UtteranceTokenDocType[] = [];
-          const morphRows: import('../db').UtteranceMorphemeDocType[] = [];
+          const tokenRows: import('../db').UnitTokenDocType[] = [];
+          const morphRows: import('../db').UnitMorphemeDocType[] = [];
 
           maybeTokens.forEach((rawToken, tokenIndex) => {
             if (!rawToken || typeof rawToken !== 'object') return;
@@ -518,7 +503,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             await LinguisticService.saveMorphemesBatch(morphRows);
           }
         }
-        insertedUtterances.push({ id, startTime, endTime, utterance: newUtterance });
+        insertedUnits.push({ id, startTime, endTime, unit: newUnit });
 
         if (u.transcription.trim() && effectiveTranscriptionLayerId) {
           const transcriptionWrites = await planImportedWrites({
@@ -536,9 +521,9 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             ...(importedTrcName ? { tierName: importedTrcName } : {}),
           });
           for (const write of transcriptionWrites) {
-            const doc: UtteranceTextDocType = {
+            const doc: LayerUnitContentDocType = {
               id: newId('utr'),
-              utteranceId: id,
+              unitId: id,
               layerId: write.layerId,
               modality: 'text' as const,
               text: write.text,
@@ -547,7 +532,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               createdAt: now,
               updatedAt: now,
             };
-            await syncUtteranceTextToSegmentationV2(db, newUtterance, doc);
+            await syncUnitTextToSegmentationV2(db, newUnit, doc);
           }
         }
       }
@@ -559,7 +544,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         ...(mediaId ? { mediaId } : {}),
         layers,
         additionalTiers,
-        insertedUtterances,
+        insertedUnits,
         importedTierMetadata,
         tierNameToLayerId,
         ...(effectiveTranscriptionLayerId ? { effectiveTranscriptionLayerId } : {}),
@@ -603,11 +588,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       await loadSnapshot();
       const importDoneMessage = tierCount > 0
         ? tf(locale, 'transcription.importExport.importDone.segmentsWithLayers', {
-          count: parsedUtterances.length,
+          count: parsedUnits.length,
           layers: tierCount,
         })
         : tf(locale, 'transcription.importExport.importDone.segments', {
-          count: parsedUtterances.length,
+          count: parsedUnits.length,
         });
       setSaveState({
         kind: 'done',

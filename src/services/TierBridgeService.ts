@@ -14,11 +14,7 @@
  *   TranslationLayer(layerType='translation')
  *     ⟷ TierDefinition(tierType='time-aligned', contentType='translation')
  */
-import {
-  getDb,
-  type LayerDocType,
-  type TierDefinitionDocType,
-} from '../db';
+import { getDb, type LayerDocType, type TierDefinitionDocType } from '../db';
 
 export interface ConsistencyIssue {
   kind: 'missing-tier' | 'missing-layer' | 'mismatch';

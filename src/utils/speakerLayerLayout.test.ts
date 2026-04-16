@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { buildSpeakerLayerLayout, buildSpeakerLayerLayoutWithOptions, buildStableSpeakerLaneMap } from './speakerLayerLayout';
 
 const NOW = '2026-03-24T00:00:00.000Z';
 
-function makeUtterance(id: string, start: number, end: number, speakerId?: string): UtteranceDocType {
+function makeUnit(id: string, start: number, end: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -17,11 +17,11 @@ function makeUtterance(id: string, start: number, end: number, speakerId?: strin
 }
 
 describe('buildSpeakerLayerLayout', () => {
-  it('keeps non-overlapping utterances on a single subtrack', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 1, 'spk-a'),
-      makeUtterance('u2', 1, 2, 'spk-b'),
-      makeUtterance('u3', 2, 3, 'spk-a'),
+  it('keeps non-overlapping units on a single subtrack', () => {
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 1, 'spk-a'),
+      makeUnit('u2', 1, 2, 'spk-b'),
+      makeUnit('u3', 2, 3, 'spk-a'),
     ];
 
     const result = buildSpeakerLayerLayout(input);
@@ -31,11 +31,11 @@ describe('buildSpeakerLayerLayout', () => {
     expect(result.placements.get('u3')?.subTrackIndex).toBe(0);
   });
 
-  it('splits overlapping utterances into multiple subtracks', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 4, 'spk-a'),
-      makeUtterance('u2', 1, 3, 'spk-b'),
-      makeUtterance('u3', 2, 5, 'spk-c'),
+  it('splits overlapping units into multiple subtracks', () => {
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 4, 'spk-a'),
+      makeUnit('u2', 1, 3, 'spk-b'),
+      makeUnit('u3', 2, 5, 'spk-c'),
     ];
 
     const result = buildSpeakerLayerLayout(input);
@@ -46,10 +46,10 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('uses transitive overlap group ids for partial overlaps', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 3, 'spk-a'),
-      makeUtterance('u2', 2, 5, 'spk-b'),
-      makeUtterance('u3', 4, 7, 'spk-c'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 3, 'spk-a'),
+      makeUnit('u2', 2, 5, 'spk-b'),
+      makeUnit('u3', 4, 7, 'spk-c'),
     ];
 
     const result = buildSpeakerLayerLayout(input);
@@ -63,10 +63,10 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('reports max concurrent speaker count for overlap hint', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 5, 'spk-a'),
-      makeUtterance('u2', 1, 4, 'spk-b'),
-      makeUtterance('u3', 2, 3, 'spk-c'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 5, 'spk-a'),
+      makeUnit('u2', 1, 4, 'spk-b'),
+      makeUnit('u3', 2, 3, 'spk-c'),
     ];
 
     const result = buildSpeakerLayerLayout(input);
@@ -74,10 +74,10 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('prefers locked lane for selected speaker when lane is available', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 3, 'spk-a'),
-      makeUtterance('u2', 0.5, 2.5, 'spk-b'),
-      makeUtterance('u3', 3, 4, 'spk-b'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 3, 'spk-a'),
+      makeUnit('u2', 0.5, 2.5, 'spk-b'),
+      makeUnit('u3', 3, 4, 'spk-b'),
     ];
 
     const result = buildSpeakerLayerLayoutWithOptions(input, {
@@ -90,9 +90,9 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('reports lock conflicts when locked lane is occupied', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 4, 'spk-a'),
-      makeUtterance('u2', 1, 3, 'spk-b'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 4, 'spk-a'),
+      makeUnit('u2', 1, 3, 'spk-b'),
     ];
 
     const result = buildSpeakerLayerLayoutWithOptions(input, {
@@ -105,9 +105,9 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('uses speaker sort key to keep deterministic lane assignment priority', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 4, 'spk-a'),
-      makeUtterance('u2', 0, 4, 'spk-b'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 4, 'spk-a'),
+      makeUnit('u2', 0, 4, 'spk-b'),
     ];
 
     const result = buildSpeakerLayerLayoutWithOptions(input, {
@@ -125,10 +125,10 @@ describe('buildSpeakerLayerLayout', () => {
   });
 
   it('keeps one speaker on one fixed lane and marks self-overlap as conflict', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 4, 'spk-a'),
-      makeUtterance('u2', 1, 3, 'spk-a'),
-      makeUtterance('u3', 1, 3, 'spk-b'),
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 4, 'spk-a'),
+      makeUnit('u2', 1, 3, 'spk-a'),
+      makeUnit('u3', 1, 3, 'spk-b'),
     ];
 
     const result = buildSpeakerLayerLayoutWithOptions(input, {
@@ -143,11 +143,11 @@ describe('buildSpeakerLayerLayout', () => {
     expect(result.lockConflictSpeakerIds).toContain('spk-a');
   });
 
-  it('places unassigned utterances in a separate overflow pool in fixed speaker mode', () => {
-    const input: UtteranceDocType[] = [
-      makeUtterance('u1', 0, 4, 'spk-a'),
-      makeUtterance('u2', 1, 3),
-      makeUtterance('u3', 1.5, 2.5),
+  it('places unassigned units in a separate overflow pool in fixed speaker mode', () => {
+    const input: LayerUnitDocType[] = [
+      makeUnit('u1', 0, 4, 'spk-a'),
+      makeUnit('u2', 1, 3),
+      makeUnit('u3', 1.5, 2.5),
     ];
 
     const result = buildSpeakerLayerLayoutWithOptions(input, {

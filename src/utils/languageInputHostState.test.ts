@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildLanguageInputSeed,
-  getDisplayedLanguageInputLabel,
-  normalizeLanguageInputAssetId,
-  normalizeLanguageInputCode,
-  resolveLanguageHostSelection,
-  syncLanguageInputWithExternalCode,
-} from './languageInputHostState';
+import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputAssetId, normalizeLanguageInputCode, resolveLanguageHostSelection, syncLanguageInputWithExternalCode } from './languageInputHostState';
 
 const resolveInjectedLanguageDisplayName = (languageId: string | undefined) => {
   if (languageId?.trim().toLowerCase() === 'eng') {

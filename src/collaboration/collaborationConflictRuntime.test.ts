@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  computeCollaborationDigest,
-  detectCollaborationConflicts,
-  duplicateResolvedRecord,
-  evaluateResolutionConsistency,
-  resolveCollaborationConflicts,
-  type CollaborationRecord,
-} from './collaborationConflictRuntime';
+import { computeCollaborationDigest, detectCollaborationConflicts, duplicateResolvedRecord, evaluateResolutionConsistency, resolveCollaborationConflicts, type CollaborationRecord } from './collaborationConflictRuntime';
 
 function buildRecord(overrides?: Partial<CollaborationRecord>): CollaborationRecord {
   return {

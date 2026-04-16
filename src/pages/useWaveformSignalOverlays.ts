@@ -1,14 +1,10 @@
 import { useMemo } from 'react';
 import type { VadSegmentLike } from '../utils/waveformAnalysisOverlays';
 import { buildWaveformAnalysisOverlaySummary } from '../utils/waveformAnalysisOverlays';
-import type {
-  WaveformLowConfidenceOverlay,
-  WaveformNoteIndicator,
-  WaveformOverlapOverlay,
-} from './transcriptionWaveformBridge.types';
+import type { WaveformLowConfidenceOverlay, WaveformNoteIndicator, WaveformOverlapOverlay } from './transcriptionWaveformBridge.types';
 
 interface UseWaveformSignalOverlaysInput {
-  utterancesOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number; ai_metadata?: { confidence?: number } }>;
+  unitsOnCurrentMedia: Array<{ id: string; startTime: number; endTime: number; ai_metadata?: { confidence?: number } }>;
   vadSegments?: VadSegmentLike[];
   waveformTimelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   activeLayerIdForEdits: string;
@@ -24,9 +20,9 @@ interface UseWaveformSignalOverlaysResult {
 }
 
 export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput): UseWaveformSignalOverlaysResult {
-  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(input.utterancesOnCurrentMedia, {
+  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(input.unitsOnCurrentMedia, {
     ...(input.vadSegments ? { vadSegments: input.vadSegments } : {}),
-  }), [input.utterancesOnCurrentMedia, input.vadSegments]);
+  }), [input.unitsOnCurrentMedia, input.vadSegments]);
 
   const waveformNoteIndicators = useMemo(() => {
     const result: WaveformNoteIndicator[] = [];

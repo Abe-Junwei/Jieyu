@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { db, type LayerDocType, type LayerSegmentDocType, type SpeakerDocType, type UtteranceDocType } from '../db';
+import { db, type LayerDocType, type LayerUnitDocType, type SpeakerDocType } from '../db';
 import { SegmentMetaService } from '../services/SegmentMetaService';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
@@ -32,7 +32,7 @@ function makeLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'n
   };
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -45,7 +45,7 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
   };
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -103,7 +103,7 @@ describe('SidePaneSidebarSegmentList', () => {
         layers={[rootLayer, dependentLayer]}
         defaultTranscriptionLayerId="root"
         segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]]])}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         onSelectTimelineUnit={onSelectTimelineUnit}
       />,
     );
@@ -114,15 +114,14 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'root', unitId: 'seg-1', kind: 'segment' });
   });
 
-  it('falls back to utterance-kind rows for non-segment-backed layers', async () => {
-    const onSelectTimelineUnit = vi.fn();
+  it('falls back to unit-kind rows for non-segment-backed layers', async () => {
     const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
-    const utterances = [makeUtterance('utt-1', 0, 1), makeUtterance('utt-2', 1, 2)];
+    const units = [makeUnit('utt-1', 0, 1), makeUnit('utt-2', 1, 2)];
 
     await SegmentMetaService.upsertDocs([
       {
         segmentId: 'utt-1',
-        unitKind: 'utterance',
+        unitKind: 'unit',
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'plain',
@@ -132,7 +131,7 @@ describe('SidePaneSidebarSegmentList', () => {
       },
       {
         segmentId: 'utt-2',
-        unitKind: 'utterance',
+        unitKind: 'unit',
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'plain',
@@ -142,35 +141,204 @@ describe('SidePaneSidebarSegmentList', () => {
       },
     ]);
 
-    render(
+    const view = render(
       <SidePaneSidebarSegmentList
         focusedLayerRowId="plain"
         messages={messages}
         layers={[plainLayer]}
         defaultTranscriptionLayerId="plain"
         segmentsByLayer={new Map()}
-        utterancesOnCurrentMedia={utterances}
+        unitsOnCurrentMedia={units}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('第一句')).toBeTruthy();
+    expect(scoped.getByText('第二句')).toBeTruthy();
+  });
+
+  it('renders source segments even before segment_meta has hydrated', async () => {
+    const onSelectTimelineUnit = vi.fn();
+    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="root"
+        messages={messages}
+        layers={[rootLayer]}
+        defaultTranscriptionLayerId="root"
+        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1.5), makeSegment('seg-2', 'root', 1.5, 3)]]])}
+        unitsOnCurrentMedia={[]}
         onSelectTimelineUnit={onSelectTimelineUnit}
       />,
     );
 
-    expect(await screen.findByText('第一句')).toBeTruthy();
-    fireEvent.click(await screen.findByText('第二句'));
-    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'plain', unitId: 'utt-2', kind: 'utterance' });
+    const scoped = within(view.container);
+    const emptyRows = await scoped.findAllByText('无内容');
+    expect(emptyRows.length).toBeGreaterThanOrEqual(2);
+    const rowButtons = await scoped.findAllByRole('button');
+    fireEvent.click(rowButtons[0] as HTMLElement);
+    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'root', unitId: 'seg-1', kind: 'segment' });
+  });
+
+  it('keeps segment_meta text visible for segment-backed rows when fallback rows have no inline text', async () => {
+    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'translation',
+        startTime: 0,
+        endTime: 1,
+        text: '翻译内容',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="translation"
+        messages={messages}
+        layers={[rootLayer, translationLayer]}
+        defaultTranscriptionLayerId="root"
+        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1)]]])}
+        unitsOnCurrentMedia={[makeUnit('utt-1', 0, 1)]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('翻译内容')).toBeTruthy();
+    expect(scoped.queryByText('无内容')).toBeNull();
+  });
+
+  it('uses the live per-layer text resolver for segment-backed rows', async () => {
+    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="translation"
+        messages={messages}
+        layers={[rootLayer, translationLayer]}
+        defaultTranscriptionLayerId="root"
+        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1)]]])}
+        unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), transcription: { default: '' } }]}
+        getUnitTextForLayer={(unit, layerId) => (
+          unit.id === 'utt-1' && layerId === 'translation' ? '啊啊啊' : ''
+        )}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('啊啊啊')).toBeTruthy();
+    expect(scoped.queryByText('无内容')).toBeNull();
+  });
+
+  it('uses live segment content for segment-backed rows when the timeline text lives in segmentContentByLayer', async () => {
+    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+    const translationLayer = makeLayer({ id: 'translation', name: { 'en-US': 'Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'translation',
+        startTime: 0,
+        endTime: 1,
+        text: '',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="translation"
+        messages={messages}
+        layers={[rootLayer, translationLayer]}
+        defaultTranscriptionLayerId="root"
+        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1)]]])}
+        segmentContentByLayer={new Map([[
+          'translation',
+          new Map([['seg-1', {
+            id: 'content-1',
+            textId: 'text-1',
+            layerId: 'translation',
+            segmentId: 'seg-1',
+            text: '哆呵',
+            createdAt: '2026-04-16T00:00:00.000Z',
+            updatedAt: '2026-04-16T00:00:00.000Z',
+          }]]),
+        ]])}
+        unitsOnCurrentMedia={[]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('哆呵')).toBeTruthy();
+    expect(scoped.queryByText('无内容')).toBeNull();
+  });
+
+  it('shows the latest edited unit text immediately while segment_meta catches up', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '旧内容',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), transcription: { default: '旧内容' } }]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('旧内容')).toBeTruthy();
+
+    view.rerender(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), transcription: { default: '新内容' } }]}
+      />,
+    );
+
+    expect(await scoped.findByText('新内容')).toBeTruthy();
+    expect(scoped.queryByText('旧内容')).toBeNull();
   });
 
   it('builds filter facets from effective metadata and narrows the visible segment list', async () => {
     const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
-    const utterances = [
-      { ...makeUtterance('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const },
-      { ...makeUtterance('utt-2', 1, 2), speakerId: 'speaker-b', selfCertainty: 'uncertain' as const },
+    const units = [
+      { ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const },
+      { ...makeUnit('utt-2', 1, 2), speakerId: 'speaker-b', selfCertainty: 'uncertain' as const },
     ];
     const speakers = [makeSpeaker('speaker-a', 'Alice'), makeSpeaker('speaker-b', 'Bob')];
 
     await SegmentMetaService.upsertDocs([
       {
         segmentId: 'utt-1',
-        unitKind: 'utterance',
+        unitKind: 'unit',
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'plain',
@@ -184,7 +352,7 @@ describe('SidePaneSidebarSegmentList', () => {
       },
       {
         segmentId: 'utt-2',
-        unitKind: 'utterance',
+        unitKind: 'unit',
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'plain',
@@ -205,7 +373,7 @@ describe('SidePaneSidebarSegmentList', () => {
         layers={[plainLayer]}
         defaultTranscriptionLayerId="plain"
         segmentsByLayer={new Map()}
-        utterancesOnCurrentMedia={utterances}
+        unitsOnCurrentMedia={units}
         speakers={speakers}
       />,
     );
@@ -213,14 +381,123 @@ describe('SidePaneSidebarSegmentList', () => {
     const scoped = within(view.container);
 
     expect(await scoped.findByText('Alice')).toBeTruthy();
-    expect(scoped.getByText('待办')).toBeTruthy();
-    expect(scoped.getByText('确定')).toBeTruthy();
+    expect(await scoped.findByText('待办')).toBeTruthy();
+    expect(await scoped.findByText('确定')).toBeTruthy();
 
-    fireEvent.change(scoped.getByLabelText('按说话人筛选'), { target: { value: 'speaker-a' } });
-    fireEvent.change(scoped.getByLabelText('按备注分类筛选'), { target: { value: 'todo' } });
-    fireEvent.change(scoped.getByLabelText('按确信度筛选'), { target: { value: 'certain' } });
+    fireEvent.change(await scoped.findByLabelText('按说话人筛选'), { target: { value: 'speaker-a' } });
+    fireEvent.change(await scoped.findByLabelText('按备注分类筛选'), { target: { value: 'todo' } });
+    fireEvent.change(await scoped.findByLabelText('按确信度筛选'), { target: { value: 'certain' } });
 
     expect(scoped.getByText('第一句')).toBeTruthy();
     expect(scoped.queryByText('第二句')).toBeNull();
+  });
+
+  it('surfaces extended metadata facets from segment_meta and filters by them', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const units = [makeUnit('utt-1', 0, 1), makeUnit('utt-2', 1, 2)];
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '第一句',
+        annotationStatus: 'verified',
+        sourceType: 'human',
+      },
+      {
+        segmentId: 'utt-2',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 1,
+        endTime: 2,
+        text: '',
+        annotationStatus: 'raw',
+        sourceType: 'ai',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        unitsOnCurrentMedia={units}
+      />,
+    );
+
+    const scoped = within(view.container);
+
+    expect(await scoped.findByLabelText('按内容状态筛选')).toBeTruthy();
+    expect(await scoped.findByLabelText('按标注状态筛选')).toBeTruthy();
+    expect(await scoped.findByLabelText('按来源筛选')).toBeTruthy();
+
+    fireEvent.change(await scoped.findByLabelText('按内容状态筛选'), { target: { value: 'has_text' } });
+    fireEvent.change(await scoped.findByLabelText('按标注状态筛选'), { target: { value: 'verified' } });
+    fireEvent.change(await scoped.findByLabelText('按来源筛选'), { target: { value: 'human' } });
+
+    expect(scoped.getByText('第一句')).toBeTruthy();
+    expect(scoped.queryByText('无内容')).toBeNull();
+  });
+
+  it('shows loading when media scope is pending and renders facet filters after context hydration', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const units = [{ ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', selfCertainty: 'certain' as const }];
+    const speakers = [makeSpeaker('speaker-a', 'Alice')];
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '第一句',
+        effectiveSpeakerId: 'speaker-a',
+        effectiveSpeakerName: 'Alice',
+        noteCategoryKeys: ['todo'],
+        effectiveSelfCertainty: 'certain',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        speakers={speakers}
+      />,
+    );
+    const scoped = within(view.container);
+
+    expect(await scoped.findByText('正在加载语段…')).toBeTruthy();
+
+    view.rerender(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        unitsOnCurrentMedia={units}
+        speakers={speakers}
+      />,
+    );
+
+    expect(await scoped.findByText('第一句')).toBeTruthy();
+    expect(await scoped.findByLabelText('按说话人筛选')).toBeTruthy();
+    expect(await scoped.findByLabelText('按备注分类筛选')).toBeTruthy();
+    expect(await scoped.findByLabelText('按确信度筛选')).toBeTruthy();
+    expect(scoped.queryByText('正在加载语段…')).toBeNull();
   });
 });

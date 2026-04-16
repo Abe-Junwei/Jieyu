@@ -1,14 +1,6 @@
-import type {
-  ComponentPropsWithoutRef,
-  CSSProperties,
-  MutableRefObject,
-  PointerEventHandler,
-  ReactNode,
-  Ref,
-  RefObject,
-} from 'react';
+import type { ComponentPropsWithoutRef, CSSProperties, MutableRefObject, PointerEventHandler, ReactNode, Ref, RefObject } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { UtteranceDocType } from '../../db';
+import type { LayerUnitDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
 import { WaveformOverviewBar } from '../WaveformOverviewBar';
@@ -191,7 +183,7 @@ export function VideoPreviewSection({
 
 type TimelineHeaderSectionProps = {
   duration: number;
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
   onSeek: (time: number) => void;
   isReady: boolean;
@@ -206,7 +198,7 @@ type TimelineHeaderSectionProps = {
 
 export function TimelineHeaderSection({
   duration,
-  utterances,
+  units,
   rulerView,
   onSeek,
   isReady,
@@ -218,7 +210,7 @@ export function TimelineHeaderSection({
   waveCanvasRef,
   tierContainerRef,
 }: TimelineHeaderSectionProps) {
-  const hasTimelineContext = isReady || duration > 0 || Boolean(rulerView) || utterances.length > 0;
+  const hasTimelineContext = isReady || duration > 0 || Boolean(rulerView) || units.length > 0;
   const canRenderOverviewBar = isReady && duration > 0;
   const canRenderTimeRuler = isReady && duration > 0 && Boolean(rulerView);
   const shouldReserveOverviewSlot = hasTimelineContext;
@@ -229,7 +221,7 @@ export function TimelineHeaderSection({
       {canRenderOverviewBar ? (
         <WaveformOverviewBar
           duration={duration}
-          utterances={utterances}
+          units={units}
           rulerView={rulerView}
           onSeek={onSeek}
           isReady={isReady}
@@ -249,7 +241,7 @@ export function TimelineHeaderSection({
           instanceRef={instanceRef}
           waveCanvasRef={waveCanvasRef}
           tierContainerRef={tierContainerRef}
-          utterances={utterances}
+          units={units}
         />
       ) : shouldReserveTimeRulerSlot ? (
         <div className="time-ruler time-ruler-placeholder" aria-hidden="true" />

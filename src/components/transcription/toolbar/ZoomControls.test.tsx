@@ -15,16 +15,16 @@ describe('ZoomControls Component', () => {
     zoomPercent: 100,
     snapEnabled: false,
     autoScrollEnabled: true,
-    activeUnitId: 'utterance-1',
+    activeUnitId: 'unit-1',
 
     unitsOnCurrentMedia: [
-      { id: 'utterance-1', startTime: 0, endTime: 5 },
-      { id: 'utterance-2', startTime: 5, endTime: 10 },
+      { id: 'unit-1', startTime: 0, endTime: 5 },
+      { id: 'unit-2', startTime: 5, endTime: 10 },
     ],
     fitPxPerSec: 100,
     maxZoomPercent: 1600,
     onZoomToPercent: vi.fn(),
-    onZoomToUtterance: vi.fn(),
+    onZoomToUnit: vi.fn(),
     onSnapEnabledChange: vi.fn(),
     onAutoScrollEnabledChange: vi.fn(),
     ...overrides,
@@ -41,7 +41,7 @@ describe('ZoomControls Component', () => {
 
   it('accepts and displays props without errors', () => {
     const onZoomToPercent = vi.fn();
-    const onZoomToUtterance = vi.fn();
+    const onZoomToUnit = vi.fn();
     const onSnapEnabledChange = vi.fn();
     const onAutoScrollEnabledChange = vi.fn();
 
@@ -50,7 +50,7 @@ describe('ZoomControls Component', () => {
       snapEnabled: true,
       autoScrollEnabled: false,
       onZoomToPercent,
-      onZoomToUtterance,
+      onZoomToUnit,
       onSnapEnabledChange,
       onAutoScrollEnabledChange,
     });

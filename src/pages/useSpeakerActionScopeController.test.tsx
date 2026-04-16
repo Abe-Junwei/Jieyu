@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, SpeakerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { utteranceToView } from '../hooks/timelineUnitView';
+import { unitToView } from '../hooks/timelineUnitView';
 import { useSpeakerActionScopeController } from './useSpeakerActionScopeController';
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -16,7 +16,7 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDocType {
@@ -35,9 +35,9 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
 }
 
 function makeSegment(id: string, layerId: string, startTime: number, endTime: number, options?: {
-  utteranceId?: string;
+  unitId?: string;
   speakerId?: string;
-}): LayerSegmentDocType {
+}): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -47,21 +47,21 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     endTime,
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
-    ...(options?.utteranceId ? { utteranceId: options.utteranceId } : {}),
+    ...(options?.unitId ? { unitId: options.unitId } : {}),
     ...(options?.speakerId ? { speakerId: options.speakerId } : {}),
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
-function segmentToUnitView(segment: LayerSegmentDocType): TimelineUnitView {
+function segmentToUnitView(segment: LayerUnitDocType): TimelineUnitView {
   return {
     id: segment.id,
     kind: 'segment',
-    mediaId: segment.mediaId,
-    layerId: segment.layerId,
+    mediaId: segment.mediaId ?? '',
+    layerId: segment.layerId ?? '',
     startTime: segment.startTime,
     endTime: segment.endTime,
     text: '',
-    ...(segment.utteranceId ? { parentUtteranceId: segment.utteranceId } : {}),
+    ...(segment.unitId ? { parentUnitId: segment.unitId } : {}),
   };
 }
 
@@ -76,12 +76,12 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
 
 describe('useSpeakerActionScopeController', () => {
   it('uses explicit segment speaker labels for independent speaker management layers', () => {
-    const utterances = [makeUtterance('utt-1', 0, 2, 'spk-owner')];
+    const units = [makeUnit('utt-1', 0, 2, 'spk-owner')];
     const segments = [
-      makeSegment('seg-explicit', 'layer-seg', 0, 1, { utteranceId: 'utt-1', speakerId: 'spk-explicit' }),
-      makeSegment('seg-inherited', 'layer-seg', 1, 2, { utteranceId: 'utt-1' }),
+      makeSegment('seg-explicit', 'layer-seg', 0, 1, { unitId: 'utt-1', speakerId: 'spk-explicit' }),
+      makeSegment('seg-inherited', 'layer-seg', 1, 2, { unitId: 'utt-1' }),
     ];
-    const unitsOnCurrentMedia = utterances.map((u) => utteranceToView(u, 'layer-seg'));
+    const unitsOnCurrentMedia = units.map((u) => unitToView(u, 'layer-seg'));
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ...segments.map((s) => [s.id, segmentToUnitView(s)] as const),
@@ -90,7 +90,7 @@ describe('useSpeakerActionScopeController', () => {
     const { result } = renderHook(() => useSpeakerActionScopeController({
       unitsOnCurrentMedia,
       unitViewById,
-      getUtteranceDocById: (id: string) => utterances.find((u) => u.id === id),
+      getUnitDocById: (id: string) => units.find((u) => u.id === id),
       segmentsByLayer: new Map([['layer-seg', segments]]),
       speakers: [makeSpeaker('spk-explicit', '显式说话人'), makeSpeaker('spk-owner', '继承说话人')],
       layers: [makeLayer('layer-seg', 'independent_boundary')],
@@ -98,7 +98,7 @@ describe('useSpeakerActionScopeController', () => {
       selectedLayerId: 'layer-seg',
       selectedUnitIds: new Set(['seg-explicit', 'seg-inherited']),
       selectedTimelineUnit: null,
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     expect(result.current.activeSpeakerManagementLayer?.id).toBe('layer-seg');
@@ -111,10 +111,10 @@ describe('useSpeakerActionScopeController', () => {
     expect(Array.from(result.current.selectedSpeakerUnitIdsForActionsSet).sort()).toEqual(['seg-explicit', 'seg-inherited']);
   });
 
-  it('maps selected timeline segments back to owner utterance ids', () => {
-    const utt = makeUtterance('utt-1', 0, 2, 'spk-1');
-    const seg = makeSegment('seg-1', 'layer-seg', 0, 2, { utteranceId: 'utt-1', speakerId: 'spk-1' });
-    const unitsOnCurrentMedia = [utteranceToView(utt, 'layer-seg')];
+  it('maps selected timeline segments back to owner unit ids', () => {
+    const utt = makeUnit('utt-1', 0, 2, 'spk-1');
+    const seg = makeSegment('seg-1', 'layer-seg', 0, 2, { unitId: 'utt-1', speakerId: 'spk-1' });
+    const unitsOnCurrentMedia = [unitToView(utt, 'layer-seg')];
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       [seg.id, segmentToUnitView(seg)],
@@ -122,7 +122,7 @@ describe('useSpeakerActionScopeController', () => {
     const { result } = renderHook(() => useSpeakerActionScopeController({
       unitsOnCurrentMedia,
       unitViewById,
-      getUtteranceDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+      getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
       segmentsByLayer: new Map([['layer-seg', [seg]]]),
       speakers: [makeSpeaker('spk-1', 'Alice')],
       layers: [makeLayer('layer-seg', 'independent_boundary')],
@@ -130,11 +130,11 @@ describe('useSpeakerActionScopeController', () => {
       selectedLayerId: 'layer-seg',
       selectedUnitIds: new Set(),
       selectedTimelineUnit: { unitId: 'seg-1' },
-      getUtteranceSpeakerKey: (utterance) => utterance.speakerId ?? 'unknown-speaker',
+      getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 
     expect(result.current.selectedUnitIdsForSpeakerActions).toEqual(['seg-1']);
-    expect(result.current.resolveSpeakerActionUtteranceIds(['seg-1'])).toEqual(['utt-1']);
+    expect(result.current.resolveSpeakerActionUnitIds(['seg-1'])).toEqual(['utt-1']);
     expect(result.current.selectedBatchSegmentsForSpeakerActions.map((item) => item.id)).toEqual(['seg-1']);
   });
 });

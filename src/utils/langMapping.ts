@@ -9,18 +9,8 @@
 
 import languageTags from 'language-tags';
 import { listIso639_3Seeds } from '../data/iso6393Seed';
-import {
-  getLanguageAliasCodeFromCatalog,
-  getLanguageAliasesForCodeFromCatalog,
-  getLanguageEnglishDisplayNameFromCatalog,
-  getLanguageLocalDisplayNameFromCatalog,
-  getLanguageNativeDisplayNameFromCatalog,
-  getLanguageQueryEntriesFromCatalog,
-} from '../data/languageNameCatalog';
-import {
-  normalizeLanguageCatalogRuntimeLookupKey,
-  readLanguageCatalogRuntimeCache,
-} from '../data/languageCatalogRuntimeCache';
+import { getLanguageAliasCodeFromCatalog, getLanguageAliasesForCodeFromCatalog, getLanguageEnglishDisplayNameFromCatalog, getLanguageLocalDisplayNameFromCatalog, getLanguageNativeDisplayNameFromCatalog, getLanguageQueryEntriesFromCatalog } from '../data/languageNameCatalog';
+import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 
 /**

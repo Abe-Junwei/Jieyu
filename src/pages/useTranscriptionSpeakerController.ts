@@ -1,11 +1,5 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import type {
-  LayerDocType,
-  LayerSegmentContentDocType,
-  LayerSegmentDocType,
-  SpeakerDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import { useSpeakerActions } from '../hooks/useSpeakerActions';
 import type { LayerActionPanelKind } from '../hooks/useLayerActionPanel';
 import type { SpeakerFilterOption } from '../hooks/speakerManagement/types';
@@ -15,24 +9,24 @@ import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import { isDictKey, t as translate, tf as formatMessage, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';
-type SegmentUpdater = (segment: LayerSegmentDocType) => LayerSegmentDocType;
+type SegmentUpdater = (segment: LayerUnitDocType) => LayerUnitDocType;
 
 interface UseTranscriptionSpeakerControllerInput {
-  utterances: UtteranceDocType[];
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
+  units: LayerUnitDocType[];
+  setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
   speakers: SpeakerDocType[];
   setSpeakers: Dispatch<SetStateAction<SpeakerDocType[]>>;
   /** Current-media unified rows (same source as timeline / waveform digest). */
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
-  /** Resolve DB row for utterance ids (aligned with unified timeline view). */
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
+  /** Resolve DB row for unit ids (aligned with unified timeline view). */
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   activeTimelineUnitId: string;
   selectedUnitIds: Set<string>;
   selectedBatchUnits: TimelineUnitView[];
   selectedUnitIdsForSpeakerActionsSet: Set<string>;
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineMediaId: string | null;
-  selectedUnit: UtteranceDocType | null;
+  selectedUnit: LayerUnitDocType | null;
   statePhase: string;
   setUnitSelection: (primaryId: string, ids: string[]) => void;
   data: {
@@ -40,17 +34,17 @@ interface UseTranscriptionSpeakerControllerInput {
     undo: () => Promise<void>;
   };
   setSaveState: (state: SaveState) => void;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
+  getUnitTextForLayer: (unit: LayerUnitDocType) => string | null | undefined;
   formatTime: (seconds: number) => string;
-  getUtteranceSpeakerKey: (utterance: UtteranceDocType) => string;
+  getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
   activeSpeakerManagementLayer: LayerDocType | null;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerSegmentContentDocType>>;
-  resolveExplicitSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
-  resolveSpeakerKeyForSegment: (segment: LayerSegmentDocType) => string;
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
+  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
+  resolveExplicitSpeakerKeyForSegment: (segment: LayerUnitDocType) => string;
+  resolveSpeakerKeyForSegment: (segment: LayerUnitDocType) => string;
   selectedUnitIdsForSpeakerActions: string[];
-  segmentByIdForSpeakerActions: ReadonlyMap<string, LayerSegmentDocType>;
-  resolveSpeakerActionUtteranceIds: (ids: Iterable<string>) => string[];
+  segmentByIdForSpeakerActions: ReadonlyMap<string, LayerUnitDocType>;
+  resolveSpeakerActionUnitIds: (ids: Iterable<string>) => string[];
   speakerFilterOptionsForActions: SpeakerFilterOption[];
   segmentSpeakerAssignmentsOnCurrentMedia: Array<{ speakerKey: string }>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
@@ -65,16 +59,16 @@ interface UseTranscriptionSpeakerControllerInput {
 }
 
 export function useTranscriptionSpeakerController(input: UseTranscriptionSpeakerControllerInput) {
-  const { resolveSpeakerActionUtteranceIds, layerAction } = input;
-  const utterancesOnCurrentMedia = useMemo(() => {
-    const docs: UtteranceDocType[] = [];
+  const { resolveSpeakerActionUnitIds, layerAction } = input;
+  const unitsOnCurrentMedia = useMemo(() => {
+    const docs: LayerUnitDocType[] = [];
     for (const unit of input.unitsOnCurrentMedia) {
-      if (unit.kind !== 'utterance') continue;
-      const doc = input.getUtteranceDocById(unit.id);
+      if (unit.kind !== 'unit') continue;
+      const doc = input.getUnitDocById(unit.id);
       if (doc) docs.push(doc);
     }
     return docs;
-  }, [input.getUtteranceDocById, input.unitsOnCurrentMedia]);
+  }, [input.getUnitDocById, input.unitsOnCurrentMedia]);
   const locale = useLocale();
   const t = useCallback((key: string) => (isDictKey(key) ? translate(locale, key) : key), [locale]);
   const tf = useCallback(
@@ -85,18 +79,18 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     ),
     [locale],
   );
-  const selectedBatchUtterances = useMemo(
+  const selectedBatchUnits = useMemo(
     () => input.selectedBatchUnits
-      .filter((unit) => unit.kind === 'utterance')
-      .map((unit) => input.getUtteranceDocById(unit.id))
-      .filter((utterance): utterance is UtteranceDocType => Boolean(utterance)),
-    [input.getUtteranceDocById, input.selectedBatchUnits],
+      .filter((unit) => unit.kind === 'unit')
+      .map((unit) => input.getUnitDocById(unit.id))
+      .filter((unit): unit is LayerUnitDocType => Boolean(unit)),
+    [input.getUnitDocById, input.selectedBatchUnits],
   );
   const selectedBatchSegmentsForSpeakerActions = useMemo(
     () => input.selectedBatchUnits
       .filter((unit) => unit.kind === 'segment')
       .map((unit) => input.segmentByIdForSpeakerActions.get(unit.id))
-      .filter((segment): segment is LayerSegmentDocType => Boolean(segment)),
+      .filter((segment): segment is LayerUnitDocType => Boolean(segment)),
     [input.segmentByIdForSpeakerActions, input.selectedBatchUnits],
   );
   const {
@@ -114,14 +108,14 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady,
     selectedSpeakerSummary,
-    handleSelectSpeakerUtterances,
+    handleSelectSpeakerUnits,
     handleClearSpeakerAssignments,
     handleExportSpeakerSegments,
     handleRenameSpeaker,
     handleMergeSpeaker,
     handleDeleteSpeaker,
     handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToUtterances,
+    handleAssignSpeakerToUnits,
     handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign,
     handleCreateSpeakerOnly,
@@ -132,19 +126,19 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     refreshSpeakers,
     refreshSpeakerReferenceStats,
   } = useSpeakerActions({
-    utterances: input.utterances,
-    setUtterances: input.setUtterances,
+    units: input.units,
+    setUnits: input.setUnits,
     speakers: input.speakers,
     setSpeakers: input.setSpeakers,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     activeUnitId: input.activeTimelineUnitId,
     selectedUnitIds: input.selectedUnitIds,
-    selectedBatchUtterances,
+    selectedBatchUnits,
     isReady: input.statePhase === 'ready',
     setUnitSelection: input.setUnitSelection,
     data: input.data,
     setSaveState: input.setSaveState,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    getUnitTextForLayer: input.getUnitTextForLayer,
     formatTime: input.formatTime,
     t,
     tf,
@@ -201,11 +195,11 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     selectedUnitIdsForSpeakerActions: input.selectedUnitIdsForSpeakerActions,
     segmentByIdForSpeakerActions: input.segmentByIdForSpeakerActions,
     selectedUnitIdsForSpeakerActionsSet: input.selectedUnitIdsForSpeakerActionsSet,
-    resolveSpeakerActionUtteranceIds: input.resolveSpeakerActionUtteranceIds,
-    selectedBatchUtterances,
+    resolveSpeakerActionUnitIds: input.resolveSpeakerActionUnitIds,
+    selectedBatchUnits,
     selectedSpeakerSummary,
-    utterancesOnCurrentMedia,
-    getUtteranceSpeakerKey: input.getUtteranceSpeakerKey,
+    unitsOnCurrentMedia,
+    getUnitSpeakerKey: input.getUnitSpeakerKey,
     speakerFilterOptionsForActions: input.speakerFilterOptionsForActions,
     speakerOptions,
     speakerByIdMap,
@@ -220,10 +214,10 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     updateSpeakerDialogDraftNameBase,
     updateSpeakerDialogTargetKeyBase,
     confirmSpeakerDialogBase,
-    handleSelectSpeakerUtterances,
+    handleSelectSpeakerUnits,
     handleClearSpeakerAssignments,
     handleExportSpeakerSegments,
-    handleAssignSpeakerToUtterances,
+    handleAssignSpeakerToUnits,
     handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign,
     refreshSpeakers,
@@ -240,7 +234,7 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     refreshSegmentUndoSnapshot: input.refreshSegmentUndoSnapshot,
     updateSegmentsLocally: input.updateSegmentsLocally,
     setSaveState: input.setSaveState,
-    setUtterances: input.setUtterances,
+    setUnits: input.setUnits,
     setSpeakers: input.setSpeakers,
     openSpeakerManagementPanel: handleOpenSpeakerManagementPanel,
   });
@@ -264,8 +258,8 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));
       return;
     }
-    fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(ids), speakerId));
-  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUtterances, input.recordTimelineEdit, resolveSpeakerActionUtteranceIds]);
+    fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId));
+  }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUnits, input.recordTimelineEdit, resolveSpeakerActionUnitIds]);
 
   return {
     speakerOptions,
@@ -297,7 +291,7 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     updateSpeakerDialogTargetKeyRouted,
     confirmSpeakerDialogRouted,
     handleAssignSpeakerToSegments,
-    handleAssignSpeakerToUtterances,
+    handleAssignSpeakerToUnits,
     handleClearSpeakerOnSelectedRouted,
     speakerQuickActions,
     selectedSpeakerIdsForTrackLock,

@@ -1,24 +1,5 @@
-import {
-  getDb,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type UnitRelationDocType,
-} from '../db';
-import {
-  bulkUpsertLayerUnitContents,
-  bulkUpsertLayerUnits,
-  bulkUpsertUnitRelations,
-  buildClonedLayerUnitGraphForSplit,
-  deleteLayerUnitCascade,
-  getLayerUnitById,
-  listLayerUnitContentsByUnitId,
-  listLayerUnitsByIds,
-  listLayerUnitsByLayerMedia,
-  putLayerUnit,
-  putLayerUnitContent,
-  putUnitRelation,
-  updateLayerUnit,
-} from './LayerUnitSegmentWritePrimitives';
+import { getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import { bulkUpsertLayerUnitContents, bulkUpsertLayerUnits, bulkUpsertUnitRelations, buildClonedLayerUnitGraphForSplit, deleteLayerUnitCascade, getLayerUnitById, listLayerUnitContentsByUnitId, listLayerUnitsByIds, listLayerUnitsByLayerMedia, putLayerUnit, putLayerUnitContent, putUnitRelation, updateLayerUnit } from './LayerUnitSegmentWritePrimitives';
 import { newId } from '../utils/transcriptionFormatters';
 
 /**
@@ -169,11 +150,13 @@ export class LayerUnitService {
       getLayerUnitById(db, removeId),
     ]);
     if (!keep || !remove) throw new Error('Layer unit(s) not found for merge');
-    if (keep.layerId !== remove.layerId || keep.mediaId !== remove.mediaId) {
+    const keepLayerId = keep.layerId?.trim();
+    const keepMediaId = keep.mediaId?.trim();
+    if (!keepLayerId || !keepMediaId || keepLayerId !== remove.layerId || keepMediaId !== remove.mediaId) {
       throw new Error('Layer units must be in the same layer and media to merge');
     }
 
-    const siblings = await listLayerUnitsByLayerMedia(db, keep.layerId, keep.mediaId);
+    const siblings = await listLayerUnitsByLayerMedia(db, keepLayerId, keepMediaId);
     siblings.sort((a, b) => a.startTime - b.startTime);
     const keepIndex = siblings.findIndex((item) => item.id === keepId);
     const removeIndex = siblings.findIndex((item) => item.id === removeId);

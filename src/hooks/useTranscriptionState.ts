@@ -3,7 +3,7 @@ import { useTranscriptionDbState } from './useTranscriptionDbState';
 import { useTranscriptionDocumentState } from './useTranscriptionDocumentState';
 import { useTranscriptionSelectionState } from './useTranscriptionSelectionState';
 import { useTranscriptionUIState } from './useTranscriptionUIState';
-import { isUtteranceTimelineUnit } from './transcriptionTypes';
+import { isUnitTimelineUnit } from './transcriptionTypes';
 
 export function useTranscriptionState() {
   const dbState = useTranscriptionDbState();
@@ -11,7 +11,7 @@ export function useTranscriptionState() {
   const selectionState = useTranscriptionSelectionState();
   const uiState = useTranscriptionUIState();
 
-  const utterancesRef = useLatest(docState.utterances);
+  const unitsRef = useLatest(docState.units);
   const anchorsRef = useLatest(docState.anchors);
   const translationsRef = useLatest(docState.translations);
   const layersRef = useLatest(docState.layers);
@@ -20,7 +20,7 @@ export function useTranscriptionState() {
   const selectedTimelineUnitRef = useLatest(selectionState.selectedTimelineUnit);
   const selectedLayerIdRef = useLatest(selectionState.selectedLayerId);
   const selectedUnitIdRef = useLatest(
-    isUtteranceTimelineUnit(selectionState.selectedTimelineUnit)
+    isUnitTimelineUnit(selectionState.selectedTimelineUnit)
       ? selectionState.selectedTimelineUnit.unitId
       : '',
   );
@@ -31,7 +31,7 @@ export function useTranscriptionState() {
     ...docState,
     ...selectionState,
     ...uiState,
-    utterancesRef,
+    unitsRef,
     anchorsRef,
     translationsRef,
     layersRef,

@@ -1,23 +1,13 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import {
-  buildV28BackfillPlanForText,
-  buildSegmentationV2BackfillRows,
-  db,
-  exportDatabaseAsJson,
-  getDb,
-  importDatabaseFromJson,
-  type TierDefinitionDocType,
-  type UtteranceDocType,
-  type UtteranceTextDocType,
-} from './index';
-import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
+import { buildV28BackfillPlanForText, buildSegmentationV2BackfillRows, db, exportDatabaseAsJson, getDb, importDatabaseFromJson, type TierDefinitionDocType, type LayerUnitDocType, type LayerUnitContentDocType } from './index';
+import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 
 const NOW = '2026-03-25T00:00:00.000Z';
 
 describe('buildSegmentationV2BackfillRows', () => {
-  it('builds base transcription segments and bridge links for utterance texts', () => {
-    const utterances: UtteranceDocType[] = [
+  it('builds base transcription segments and bridge links for unit texts', () => {
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_1',
         textId: 'text_1',
@@ -57,22 +47,22 @@ describe('buildSegmentationV2BackfillRows', () => {
     ];
 
     // v22 迁移时数据含 tierId 而非 layerId | v22 migration data has tierId, not layerId
-    const utteranceTexts: UtteranceTextDocType[] = [
+    const unitTexts: LayerUnitContentDocType[] = [
       {
         id: 'utr_1',
-        utteranceId: 'utt_1',
+        unitId: 'utt_1',
         tierId: 'layer_trl_en',
         modality: 'text',
         text: 'hello',
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      } as unknown as UtteranceTextDocType,
+      } as unknown as LayerUnitContentDocType,
     ];
 
     const rows = buildSegmentationV2BackfillRows({
-      utterances,
-      utteranceTexts,
+      units,
+      unitTexts,
       tiers,
       nowIso: NOW,
     });
@@ -86,12 +76,13 @@ describe('buildSegmentationV2BackfillRows', () => {
 
     expect(rows.links).toHaveLength(1);
     expect(rows.links[0]?.id).toBe('seglv22_layer_trl_en_utt_1');
-    expect(rows.links[0]?.sourceSegmentId).toBe('segv22_tier_trx_default_utt_1');
-    expect(rows.links[0]?.targetSegmentId).toBe('segv22_layer_trl_en_utt_1');
+    expect(rows.links[0]?.sourceUnitId).toBe('segv22_tier_trx_default_utt_1');
+    expect(rows.links[0]?.targetUnitId).toBe('segv22_layer_trl_en_utt_1');
+    expect(rows.links[0]?.relationType).toBe('aligned_to');
   });
 
-  it('keeps migration deterministic and skips rows referencing missing utterances', () => {
-    const utterances: UtteranceDocType[] = [
+  it('keeps migration deterministic and skips rows referencing missing units', () => {
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_2',
         textId: 'text_2',
@@ -120,32 +111,32 @@ describe('buildSegmentationV2BackfillRows', () => {
     ];
 
     // v22 迁移时数据含 tierId 而非 layerId | v22 migration data has tierId, not layerId
-    const utteranceTexts: UtteranceTextDocType[] = [
+    const unitTexts: LayerUnitContentDocType[] = [
       {
         id: 'utr_missing',
-        utteranceId: 'utt_missing',
+        unitId: 'utt_missing',
         tierId: 'layer_x',
         modality: 'text',
         text: 'ignored',
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      } as unknown as UtteranceTextDocType,
+      } as unknown as LayerUnitContentDocType,
       {
         id: 'utr_2',
-        utteranceId: 'utt_2',
+        unitId: 'utt_2',
         tierId: 'tier_trx_2',
         modality: 'text',
         text: 'same-layer',
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      } as unknown as UtteranceTextDocType,
+      } as unknown as LayerUnitContentDocType,
     ];
 
     const rows = buildSegmentationV2BackfillRows({
-      utterances,
-      utteranceTexts,
+      units,
+      unitTexts,
       tiers,
       nowIso: NOW,
     });
@@ -174,7 +165,7 @@ describe('buildSegmentationV2BackfillRows', () => {
       db.unit_relations.clear(),
     ]);
 
-    const utterances: UtteranceDocType[] = [
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_rt_1',
         textId: 'text_rt_1',
@@ -229,8 +220,8 @@ describe('buildSegmentationV2BackfillRows', () => {
     ]);
     await db.tier_definitions.bulkPut(tiers);
 
-    const uttUnits = utterances.map((u) => mapUtteranceToLayerUnit(u, 'tier_rt_trx').unit);
-    const uttContents = utterances.map((u) => mapUtteranceToLayerUnit(u, 'tier_rt_trx').content);
+    const uttUnits = units.map((u) => mapUnitToLayerUnit(u, 'tier_rt_trx').unit);
+    const uttContents = units.map((u) => mapUnitToLayerUnit(u, 'tier_rt_trx').content);
     await db.layer_units.bulkPut(uttUnits);
     await db.layer_unit_contents.bulkPut(uttContents);
 
@@ -360,7 +351,7 @@ describe('buildSegmentationV2BackfillRows', () => {
 
 describe('buildV28BackfillPlanForText', () => {
   it('creates canonical segv2 rows when content does not exist', () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_v28_1',
       textId: 'text_v28',
       mediaId: 'media_v28',
@@ -369,9 +360,9 @@ describe('buildV28BackfillPlanForText', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const text: UtteranceTextDocType = {
+    const text: LayerUnitContentDocType = {
       id: 'trl_v28_1',
-      utteranceId: 'utt_v28_1',
+      unitId: 'utt_v28_1',
       layerId: 'layer_en',
       modality: 'text',
       text: 'hello',
@@ -382,7 +373,7 @@ describe('buildV28BackfillPlanForText', () => {
 
     const plan = buildV28BackfillPlanForText({
       text,
-      utterance,
+      unit,
       nowIso: NOW,
       segmentExists: () => false,
     });
@@ -394,7 +385,7 @@ describe('buildV28BackfillPlanForText', () => {
   });
 
   it('repairs content whose segment is missing by re-pointing to canonical segv2 segment', () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_v28_2',
       textId: 'text_v28',
       mediaId: 'media_v28',
@@ -403,9 +394,9 @@ describe('buildV28BackfillPlanForText', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const text: UtteranceTextDocType = {
+    const text: LayerUnitContentDocType = {
       id: 'trl_v28_2',
-      utteranceId: 'utt_v28_2',
+      unitId: 'utt_v28_2',
       layerId: 'layer_zh',
       modality: 'text',
       text: '你好',
@@ -416,7 +407,7 @@ describe('buildV28BackfillPlanForText', () => {
 
     const plan = buildV28BackfillPlanForText({
       text,
-      utterance,
+      unit,
       nowIso: NOW,
       existingContent: {
         id: 'trl_v28_2',
@@ -438,7 +429,7 @@ describe('buildV28BackfillPlanForText', () => {
   });
 
   it('skips when existing content already points to an existing segment', () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_v28_3',
       textId: 'text_v28',
       mediaId: 'media_v28',
@@ -447,9 +438,9 @@ describe('buildV28BackfillPlanForText', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const text: UtteranceTextDocType = {
+    const text: LayerUnitContentDocType = {
       id: 'trl_v28_3',
-      utteranceId: 'utt_v28_3',
+      unitId: 'utt_v28_3',
       layerId: 'layer_fr',
       modality: 'text',
       text: 'bonjour',
@@ -460,7 +451,7 @@ describe('buildV28BackfillPlanForText', () => {
 
     const plan = buildV28BackfillPlanForText({
       text,
-      utterance,
+      unit,
       nowIso: NOW,
       existingContent: {
         id: 'trl_v28_3',

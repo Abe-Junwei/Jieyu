@@ -1,15 +1,11 @@
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
-import type {
-  TierDefinitionDocType,
-  UtteranceDocType,
-  UtteranceTokenDocType,
-} from '../types';
-import { M18DexieV36Seed, M18DexieV36To37, m18DexieIsolationName } from './m18LinguisticUtteranceDexieHarness';
+import type { TierDefinitionDocType, LayerUnitDocType, UnitTokenDocType } from '../types';
+import { M18DexieV36Seed, M18DexieV36To37, m18DexieIsolationName } from './m18LinguisticUnitDexieHarness';
 
-describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
-  it('v36→v37 merges legacy utterance and rewrites token rows on real IndexedDB', async () => {
+describe('M18 linguistic unit cutover (Dexie / IndexedDB)', () => {
+  it('v36→v37 merges legacy unit and rewrites token rows on real IndexedDB', async () => {
     const name = m18DexieIsolationName('dexie');
     const iso = '2026-04-15T12:00:00.000Z';
 
@@ -31,7 +27,7 @@ describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
         createdAt: iso,
         updatedAt: iso,
       };
-      const utterance: UtteranceDocType = {
+      const unit: LayerUnitDocType = {
         id: 'utt-dexie',
         textId: 'text-dexie',
         mediaId: 'media-dexie',
@@ -44,7 +40,7 @@ describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
       const legacyToken = {
         id: 'tok-dexie',
         textId: 'text-dexie',
-        utteranceId: 'utt-dexie',
+        unitId: 'utt-dexie',
         form: { default: 'w' },
         tokenIndex: 0,
         createdAt: iso,
@@ -52,25 +48,25 @@ describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
       };
 
       await seed.tier_definitions.add(tier);
-      await seed.utterances.add(utterance);
-      await seed.utterance_tokens.add(legacyToken as unknown as UtteranceTokenDocType);
+      await seed.units.add(unit);
+      await seed.unit_tokens.add(legacyToken as unknown as UnitTokenDocType);
       await seed.close();
 
       const db = new M18DexieV36To37(name);
       await db.open();
 
       const units = await db.layer_units.toArray();
-      expect(units.filter((u) => u.unitType === 'utterance')).toHaveLength(1);
-      expect(units[0]).toMatchObject({ id: 'utt-dexie', unitType: 'utterance', textId: 'text-dexie' });
+      expect(units.filter((u) => u.unitType === 'unit')).toHaveLength(1);
+      expect(units[0]).toMatchObject({ id: 'utt-dexie', unitType: 'unit', textId: 'text-dexie' });
 
       const contents = await db.layer_unit_contents.toArray();
       expect(contents).toHaveLength(1);
       expect(contents[0]).toMatchObject({ unitId: 'utt-dexie', contentRole: 'primary_text' });
 
-      const tok = await db.utterance_tokens.get('tok-dexie');
+      const tok = await db.unit_tokens.get('tok-dexie');
       expect(tok).toBeDefined();
       expect(tok).toMatchObject({ unitId: 'utt-dexie', id: 'tok-dexie' });
-      expect(tok as unknown as Record<string, unknown>).not.toHaveProperty('utteranceId');
+      expect(tok as unknown as Record<string, unknown>).not.toHaveProperty('unitId');
 
       await db.close();
     } finally {
@@ -78,7 +74,7 @@ describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
     }
   });
 
-  it('v36→v37 rejects open when tokens reference a missing host (no legacy utterance, no pre-seeded unit)', async () => {
+  it('v36→v37 rejects open when tokens reference a missing host (no legacy unit, no pre-seeded unit)', async () => {
     const name = m18DexieIsolationName('dexie-orphan');
     const iso = '2026-04-15T12:00:00.000Z';
 
@@ -101,15 +97,15 @@ describe('M18 linguistic utterance cutover (Dexie / IndexedDB)', () => {
         updatedAt: iso,
       };
       await seed.tier_definitions.add(tier);
-      await seed.utterance_tokens.add({
+      await seed.unit_tokens.add({
         id: 'tok-orphan',
         textId: 'text-dexie-2',
-        utteranceId: 'ghost-host',
+        unitId: 'ghost-host',
         form: { default: 'x' },
         tokenIndex: 0,
         createdAt: iso,
         updatedAt: iso,
-      } as unknown as UtteranceTokenDocType);
+      } as unknown as UnitTokenDocType);
       await seed.close();
 
       const db = new M18DexieV36To37(name);

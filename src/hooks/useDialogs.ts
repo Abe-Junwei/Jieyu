@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LinguisticService } from '../services/LinguisticService';
-import type { TextDocType, UtteranceDocType } from '../db';
+import type { TextDocType, LayerUnitDocType } from '../db';
 
-type DialogUtterance = Pick<UtteranceDocType, 'textId'>;
+type DialogUnit = Pick<LayerUnitDocType, 'textId'>;
 
 function resolvePrimaryLanguageId(text: TextDocType): string | null {
   const metadataLang = (text.metadata as { primaryLanguageId?: unknown } | undefined)?.primaryLanguageId;
@@ -23,7 +23,7 @@ function resolvePrimaryOrthographyId(text: TextDocType): string | null {
   return null;
 }
 
-export function useDialogs(utterances: DialogUtterance[]) {
+export function useDialogs(units: DialogUnit[]) {
   const [showProjectSetup, setShowProjectSetup] = useState(false);
   const [showAudioImport, setShowAudioImport] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -61,9 +61,9 @@ export function useDialogs(utterances: DialogUtterance[]) {
 
   useEffect(() => {
     if (activeTextId) return;
-    const firstTextId = utterances[0]?.textId;
+    const firstTextId = units[0]?.textId;
     if (firstTextId) setActiveTextId(firstTextId);
-  }, [utterances, activeTextId]);
+  }, [units, activeTextId]);
 
   useEffect(() => {
     if (!activeTextId) {

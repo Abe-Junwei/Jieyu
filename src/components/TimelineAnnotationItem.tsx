@@ -1,16 +1,7 @@
-import {
-  memo,
-  type CSSProperties,
-  type ChangeEvent,
-  type FocusEvent,
-  type KeyboardEvent,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-} from 'react';
+import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
 import { tf, useLocale } from '../i18n';
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -30,7 +21,7 @@ export interface TimelineAnnotationItemProps {
   /** AI confidence 0.0–1.0；低于阈值时渲染警示色 | AI confidence; triggers warning style below threshold */
   confidence?: number;
   /** 标注者自我确信度角标 | Annotator self-certainty badge */
-  selfCertainty?: UtteranceSelfCertainty;
+  selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
   content?: ReactNode;
   tools?: ReactNode;

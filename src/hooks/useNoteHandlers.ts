@@ -19,12 +19,12 @@ export interface NotePopoverState {
 export interface UseNoteHandlersInput {
   activeUnitId: string | null | undefined;
   focusedLayerRowId: string;
-  utterances: Array<{ id: string }>;
+  units: Array<{ id: string }>;
   timelineUnitIds: string[];
   transcriptionLayers: Array<{ id: string }>;
   translationLayers: Array<{ id: string }>;
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void>;
-  batchUpdateTokenPosByForm: (utteranceId: string, form: string, pos: string | null) => Promise<number>;
+  batchUpdateTokenPosByForm: (unitId: string, form: string, pos: string | null) => Promise<number>;
   selectUnit: (id: string) => void;
   setSaveState: (s: SaveState) => void;
 }
@@ -35,7 +35,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   const {
     activeUnitId,
     focusedLayerRowId,
-    utterances,
+    units,
     timelineUnitIds,
     transcriptionLayers,
     translationLayers,
@@ -59,7 +59,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       const scope = notePopover.scope ?? 'timeline';
       return notePopover.layerId
         ? { targetType: 'tier_annotation', targetId: resolveTierAnnotationTargetId(notePopover.uttId, notePopover.layerId, scope) }
-        : { targetType: 'utterance', targetId: notePopover.uttId };
+        : { targetType: 'unit', targetId: notePopover.uttId };
     },
     [notePopover, resolveTierAnnotationTargetId],
   );
@@ -84,8 +84,8 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
 
   const noteCounts = useNoteCounts('tier_annotation', noteCountKeys, noteVersion);
 
-  const uttNoteCountKeys = useMemo(() => utterances.map((u) => u.id), [utterances]);
-  const uttNoteCounts = useNoteCounts('utterance', uttNoteCountKeys, noteVersion);
+  const uttNoteCountKeys = useMemo(() => units.map((u) => u.id), [units]);
+  const uttNoteCounts = useNoteCounts('unit', uttNoteCountKeys, noteVersion);
 
   const toggleNotes = useCallback(() => {
     if (notePopover) {
@@ -114,17 +114,17 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       return null;
     }
 
-    const utteranceScopedCount = uttNoteCounts.get(unitId) ?? 0;
-    if (utteranceScopedCount > 0) {
-      return { count: utteranceScopedCount };
+    const unitScopedCount = uttNoteCounts.get(unitId) ?? 0;
+    if (unitScopedCount > 0) {
+      return { count: unitScopedCount };
     }
 
     return null;
   }, [noteCounts, resolveTierAnnotationTargetId, uttNoteCounts]);
 
-  const toCanonicalTokenId = useCallback((utteranceId: string, wordId: string): string => {
+  const toCanonicalTokenId = useCallback((unitId: string, wordId: string): string => {
     if (wordId.includes('::')) return wordId;
-    return `${utteranceId}::${wordId}`;
+    return `${unitId}::${wordId}`;
   }, []);
 
   const toCanonicalMorphemeId = useCallback((tokenId: string, morphemeId: string): string => {
@@ -133,35 +133,35 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   }, []);
 
   const handleOpenWordNote = useCallback((
-    utteranceId: string,
+    unitId: string,
     wordId: string,
     event: React.MouseEvent<HTMLButtonElement>,
   ) => {
-    const tokenId = toCanonicalTokenId(utteranceId, wordId);
+    const tokenId = toCanonicalTokenId(unitId, wordId);
     setNotePopover({
       x: event.clientX,
       y: event.clientY,
-      uttId: utteranceId,
+      uttId: unitId,
       noteTarget: {
         targetType: 'token',
         targetId: tokenId,
-        parentTargetId: utteranceId,
+        parentTargetId: unitId,
       },
     });
   }, [toCanonicalTokenId]);
 
   const handleOpenMorphemeNote = useCallback((
-    utteranceId: string,
+    unitId: string,
     wordId: string,
     morphemeId: string,
     event: React.MouseEvent<HTMLButtonElement>,
   ) => {
-    const tokenId = toCanonicalTokenId(utteranceId, wordId);
+    const tokenId = toCanonicalTokenId(unitId, wordId);
     const canonicalMorphemeId = toCanonicalMorphemeId(tokenId, morphemeId);
     setNotePopover({
       x: event.clientX,
       y: event.clientY,
-      uttId: utteranceId,
+      uttId: unitId,
       noteTarget: {
         targetType: 'morpheme',
         targetId: canonicalMorphemeId,
@@ -186,12 +186,12 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
   }, [messages, setSaveState, updateTokenPos]);
 
   const handleBatchUpdateTokenPosByForm = useCallback(async (
-    utteranceId: string,
+    unitId: string,
     form: string,
     pos: string | null,
   ) => {
     try {
-      const updated = await batchUpdateTokenPosByForm(utteranceId, form, pos);
+      const updated = await batchUpdateTokenPosByForm(unitId, form, pos);
       if (updated <= 0) {
         reportValidationError({
           message: messages.posFormNotFound(form),
@@ -216,7 +216,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
 
   const handleExecuteRecommendation = useCallback(async (item: ActionableRecommendation) => {
     if (item.actionType === 'batch_pos') {
-      if (!item.targetUtteranceId || !item.targetForm || !item.targetPos) {
+      if (!item.targetUnitId || !item.targetForm || !item.targetPos) {
         reportValidationError({
           message: messages.posBatchCandidateMissing,
           i18nKey: 'transcription.error.validation.posBatchCandidateMissing',
@@ -225,15 +225,15 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
         return;
       }
 
-      const updated = await handleBatchUpdateTokenPosByForm(item.targetUtteranceId, item.targetForm, item.targetPos);
+      const updated = await handleBatchUpdateTokenPosByForm(item.targetUnitId, item.targetForm, item.targetPos);
       if (updated > 0) {
-        selectUnit(item.targetUtteranceId);
+        selectUnit(item.targetUnitId);
         setSaveState({ kind: 'done', message: messages.recommendationBatchApplied(updated, item.targetForm, item.targetPos) });
       }
       return;
     }
 
-    if (!item.targetUtteranceId) {
+    if (!item.targetUnitId) {
       reportValidationError({
         message: messages.recommendationTargetMissing,
         i18nKey: 'transcription.error.validation.recommendationTargetMissing',
@@ -242,7 +242,7 @@ export function useNoteHandlers(input: UseNoteHandlersInput) {
       return;
     }
 
-    selectUnit(item.targetUtteranceId);
+    selectUnit(item.targetUnitId);
     if (item.actionType === 'risk_review') {
       const confidenceText = typeof item.targetConfidence === 'number'
         ? messages.confidenceSuffix(item.targetConfidence)

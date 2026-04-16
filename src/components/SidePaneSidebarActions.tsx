@@ -24,7 +24,7 @@ interface SidePaneSidebarActionsProps {
   sidePaneRowsLength: number;
   layerActionPanel: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null;
   quickDeleteLayerId: string;
-  quickDeleteKeepUtterances: boolean;
+  quickDeleteKeepUnits: boolean;
   deletableLayers: LayerDocType[];
   layerCreateMessage: string;
   constraintRepairMessage: string;
@@ -40,7 +40,7 @@ interface SidePaneSidebarActionsProps {
   onRunRepair: () => Promise<void>;
   setLayerActionPanel: (value: 'speaker-management' | 'create-transcription' | 'create-translation' | 'delete' | null) => void;
   setQuickDeleteLayerId: (value: string) => void;
-  setQuickDeleteKeepUtterances: (value: boolean) => void;
+  setQuickDeleteKeepUnits: (value: boolean) => void;
   requestDeleteLayer: (layerId: string) => Promise<void>;
   setConstraintRepairDetailsCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -53,7 +53,7 @@ export function SidePaneSidebarActions({
   sidePaneRowsLength,
   layerActionPanel,
   quickDeleteLayerId,
-  quickDeleteKeepUtterances,
+  quickDeleteKeepUnits,
   deletableLayers,
   layerCreateMessage,
   constraintRepairMessage,
@@ -64,7 +64,7 @@ export function SidePaneSidebarActions({
   onRunRepair,
   setLayerActionPanel,
   setQuickDeleteLayerId,
-  setQuickDeleteKeepUtterances,
+  setQuickDeleteKeepUnits,
   requestDeleteLayer,
   setConstraintRepairDetailsCollapsed,
 }: SidePaneSidebarActionsProps) {
@@ -112,10 +112,10 @@ export function SidePaneSidebarActions({
           <label className="transcription-side-pane-inline-checkbox">
             <input
               type="checkbox"
-              checked={quickDeleteKeepUtterances}
-              onChange={(event) => setQuickDeleteKeepUtterances(event.target.checked)}
+              checked={quickDeleteKeepUnits}
+              onChange={(event) => setQuickDeleteKeepUnits(event.target.checked)}
             />
-            {messages.deleteKeepUtterances}
+            {messages.deleteKeepUnits}
           </label>
           <ActionButtonGroup className="layer-action-dialog-actions">
             <button

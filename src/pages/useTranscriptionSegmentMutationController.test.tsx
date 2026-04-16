@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
-import { segmentToView, utteranceToView } from '../hooks/timelineUnitView';
+import { segmentToView, unitToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionSegmentMutationController } from './useTranscriptionSegmentMutationController';
 
@@ -43,7 +43,7 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -53,10 +53,10 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     endTime,
     createdAt: '2026-04-01T00:00:00.000Z',
     updatedAt: '2026-04-01T00:00:00.000Z',
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -65,19 +65,19 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
     endTime,
     createdAt: '2026-04-01T00:00:00.000Z',
     updatedAt: '2026-04-01T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 type HookInput = Parameters<typeof useTranscriptionSegmentMutationController>[0];
 
 function createUnitsOnCurrentMedia(
-  segments: LayerSegmentDocType[],
-  utterances: UtteranceDocType[],
-  utteranceLayerId = 'layer-seg',
+  segments: LayerUnitDocType[],
+  units: LayerUnitDocType[],
+  unitLayerId = 'layer-seg',
 ) {
   return [
     ...segments.map((segment) => segmentToView(segment, () => '')),
-    ...utterances.map((utterance) => utteranceToView(utterance, utteranceLayerId)),
+    ...units.map((unit) => unitToView(unit, unitLayerId)),
   ];
 }
 
@@ -87,7 +87,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     makeSegment('seg-2', 'layer-seg', 1, 2),
     makeSegment('seg-3', 'layer-seg', 2, 4),
   ];
-  const defaultUtterances = [makeUtterance('utt-1', 1.5, 2.5)];
+  const defaultUnits = [makeUnit('utt-1', 1.5, 2.5)];
   return {
     activeLayerIdForEdits: 'layer-seg',
     resolveSegmentRoutingForLayer: () => ({
@@ -100,18 +100,18 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     reloadSegments: vi.fn(async () => undefined),
     refreshSegmentUndoSnapshot: vi.fn(async () => undefined),
     selectTimelineUnit: vi.fn(),
-    unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUtterances),
-    getUtteranceDocById: (id: string) => defaultUtterances.find((u) => u.id === id),
-    findUtteranceDocContainingRange: (start: number, end: number) => defaultUtterances.find(
+    unitsOnCurrentMedia: createUnitsOnCurrentMedia(defaultSegments, defaultUnits),
+    getUnitDocById: (id: string) => defaultUnits.find((u) => u.id === id),
+    findUnitDocContainingRange: (start: number, end: number) => defaultUnits.find(
       (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
     ),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
-    splitUtterance: vi.fn(async () => undefined),
-    mergeSelectedUtterances: vi.fn(async () => undefined),
+    splitUnit: vi.fn(async () => undefined),
+    mergeSelectedUnits: vi.fn(async () => undefined),
     mergeWithPrevious: vi.fn(async () => undefined),
     mergeWithNext: vi.fn(async () => undefined),
-    deleteUtterance: vi.fn(async () => undefined),
-    deleteSelectedUtterances: vi.fn(async () => undefined),
+    deleteUnit: vi.fn(async () => undefined),
+    deleteSelectedUnits: vi.fn(async () => undefined),
     ...overrides,
   };
 }
@@ -204,10 +204,10 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-foreign', unitId: 'seg-right', kind: 'segment' });
   });
 
-  it('blocks time-subdivision merge when merged range exceeds parent utterance', async () => {
+  it('blocks time-subdivision merge when merged range exceeds parent unit', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
-    const utt = makeUtterance('utt-1', 1.5, 3.0);
+    const utt = makeUnit('utt-1', 1.5, 3.0);
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
       activeLayerIdForEdits: 'layer-sub',
       resolveSegmentRoutingForLayer: () => ({
@@ -221,8 +221,8 @@ describe('useTranscriptionSegmentMutationController', () => {
         [utt],
         'layer-sub',
       ),
-      getUtteranceDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
-      findUtteranceDocContainingRange: (start: number, end: number) => (
+      getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+      findUnitDocContainingRange: (start: number, end: number) => (
         utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
       ),
       setSaveState,
@@ -238,7 +238,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
   });
 
-  it('blocks time-subdivision merge when parent utterance cannot be resolved from raw resolver', async () => {
+  it('blocks time-subdivision merge when parent unit cannot be resolved from raw resolver', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
@@ -254,8 +254,8 @@ describe('useTranscriptionSegmentMutationController', () => {
         [],
         'layer-sub',
       ),
-      getUtteranceDocById: () => undefined,
-      findUtteranceDocContainingRange: () => undefined,
+      getUnitDocById: () => undefined,
+      findUnitDocContainingRange: () => undefined,
       setSaveState,
       pushUndo,
     })));
@@ -269,20 +269,20 @@ describe('useTranscriptionSegmentMutationController', () => {
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '合并后会超出父句段范围，无法完成。' });
   });
 
-  it('allows independent-segment merge even when linked utterance would not fully contain merged range', async () => {
+  it('allows independent-segment merge even when linked unit would not fully contain merged range', async () => {
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const pushUndo = vi.fn();
     const reloadSegments = vi.fn(async () => undefined);
     const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
     const selectTimelineUnit = vi.fn();
-    const utt = makeUtterance('utt-1', 1.5, 3.0);
+    const utt = makeUnit('utt-1', 1.5, 3.0);
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
       unitsOnCurrentMedia: createUnitsOnCurrentMedia(
         [makeSegment('seg-1', 'layer-seg', 1, 2), makeSegment('seg-2', 'layer-seg', 2, 3)],
         [utt],
       ),
-      getUtteranceDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
-      findUtteranceDocContainingRange: (start: number, end: number) => (
+      getUnitDocById: (id: string) => (id === 'utt-1' ? utt : undefined),
+      findUnitDocContainingRange: (start: number, end: number) => (
         utt.startTime <= start + 0.01 && utt.endTime >= end - 0.01 ? utt : undefined
       ),
       setSaveState,
@@ -357,7 +357,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     })));
 
     await act(async () => {
-      await result.current.deleteSelectedUtterancesRouted(new Set(['seg-1', 'seg-2']));
+      await result.current.deleteSelectedUnitsRouted(new Set(['seg-1', 'seg-2']));
     });
 
     expect(pushUndo).toHaveBeenCalledWith('批量删除句段');
@@ -375,26 +375,26 @@ describe('useTranscriptionSegmentMutationController', () => {
     }));
   });
 
-  it('falls back to utterance mutations when current layer does not use segment timeline', async () => {
-    const splitUtterance = vi.fn(async () => undefined);
-    const mergeSelectedUtterances = vi.fn(async () => undefined);
+  it('falls back to unit mutations when current layer does not use segment timeline', async () => {
+    const splitUnit = vi.fn(async () => undefined);
+    const mergeSelectedUnits = vi.fn(async () => undefined);
     const mergeWithPrevious = vi.fn(async () => undefined);
     const mergeWithNext = vi.fn(async () => undefined);
-    const deleteUtterance = vi.fn(async () => undefined);
-    const deleteSelectedUtterances = vi.fn(async () => undefined);
+    const deleteUnit = vi.fn(async () => undefined);
+    const deleteSelectedUnits = vi.fn(async () => undefined);
     const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
       resolveSegmentRoutingForLayer: () => ({
         layer: makeLayer('layer-main'),
         segmentSourceLayer: undefined,
         sourceLayerId: '',
-        editMode: 'utterance',
+        editMode: 'unit',
       }),
-      splitUtterance,
-      mergeSelectedUtterances,
+      splitUnit: splitUnit,
+      mergeSelectedUnits: mergeSelectedUnits,
       mergeWithPrevious,
       mergeWithNext,
-      deleteUtterance,
-      deleteSelectedUtterances,
+      deleteUnit: deleteUnit,
+      deleteSelectedUnits: deleteSelectedUnits,
     })));
 
     await act(async () => {
@@ -402,15 +402,15 @@ describe('useTranscriptionSegmentMutationController', () => {
       await result.current.mergeSelectedSegmentsRouted(new Set(['utt-1', 'utt-2']));
       await result.current.mergeWithPreviousRouted('utt-1');
       await result.current.mergeWithNextRouted('utt-1');
-      await result.current.deleteUtteranceRouted('utt-1');
-      await result.current.deleteSelectedUtterancesRouted(new Set(['utt-1', 'utt-2']));
+      await result.current.deleteUnitRouted('utt-1');
+      await result.current.deleteSelectedUnitsRouted(new Set(['utt-1', 'utt-2']));
     });
 
-    expect(splitUtterance).toHaveBeenCalledWith('utt-1', 1.2);
-    expect(mergeSelectedUtterances).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
+    expect(splitUnit).toHaveBeenCalledWith('utt-1', 1.2);
+    expect(mergeSelectedUnits).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
     expect(mergeWithPrevious).toHaveBeenCalledWith('utt-1');
     expect(mergeWithNext).toHaveBeenCalledWith('utt-1');
-    expect(deleteUtterance).toHaveBeenCalledWith('utt-1');
-    expect(deleteSelectedUtterances).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
+    expect(deleteUnit).toHaveBeenCalledWith('utt-1');
+    expect(deleteSelectedUnits).toHaveBeenCalledWith(new Set(['utt-1', 'utt-2']));
   });
 });

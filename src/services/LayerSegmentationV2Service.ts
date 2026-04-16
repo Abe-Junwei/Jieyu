@@ -1,23 +1,16 @@
-import {
-  getDb,
-  type LayerSegmentContentDocType,
-  type LayerSegmentDocType,
-  type SegmentLinkDocType,
-} from '../db';
+import { getDb, type LayerSegmentViewDocType, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
 import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationTextService';
-import {
-  bulkGetLayerUnits,
-  buildClonedSegmentGraphForSplit,
-  deleteLayerSegmentGraphBySegmentIds,
-} from './LayerSegmentGraphService';
+import { bulkGetLayerUnits, buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphBySegmentIds } from './LayerSegmentGraphService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { enforceTimeSubdivisionParentBounds } from './LayerSegmentationTextService';
 import { newId } from '../utils/transcriptionFormatters';
 
-async function assertGenericSegmentCreateAllowed(db: Awaited<ReturnType<typeof getDb>>, segment: LayerSegmentDocType): Promise<void> {
-  const layerDoc = await db.collections.layers.findOne({ selector: { id: segment.layerId } }).exec();
+async function assertGenericSegmentCreateAllowed(db: Awaited<ReturnType<typeof getDb>>, segment: LayerUnitDocType): Promise<void> {
+  const layerId = segment.layerId?.trim();
+  if (!layerId) return;
+  const layerDoc = await db.collections.layers.findOne({ selector: { id: layerId } }).exec();
   const layer = layerDoc?.toJSON();
   if (!layer) return;
   if (layer.constraint === 'time_subdivision') {
@@ -36,7 +29,7 @@ async function enforceParentBoundsForSegments(db: Awaited<ReturnType<typeof getD
   if (parentIds.length === 0) return;
   const parents = await bulkGetLayerUnits(db, parentIds);
   for (const parent of parents) {
-    if (!parent || parent.unitType !== 'utterance') continue;
+    if (!parent || parent.unitType !== 'unit') continue;
     await enforceTimeSubdivisionParentBounds(db, parent.id, parent.startTime, parent.endTime);
   }
 }
@@ -45,7 +38,7 @@ async function enforceParentBoundsForSegments(db: Awaited<ReturnType<typeof getD
  * 分层切分 v2 服务：独立边界 + 内容 + 跨层链接 | Segmentation v2 service: independent boundaries + content + cross-layer links
  */
 export class LayerSegmentationV2Service {
-  static async createSegment(segment: LayerSegmentDocType): Promise<void> {
+  static async createSegment(segment: LayerUnitDocType): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
     await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
@@ -57,8 +50,8 @@ export class LayerSegmentationV2Service {
    * 原子写入 segment 与 content，避免导入场景出现孤儿 segment | Atomically create segment and content to avoid orphan segments during import
    */
   static async createSegmentWithContentAtomic(
-    segment: LayerSegmentDocType,
-    content: LayerSegmentContentDocType,
+    segment: LayerUnitDocType,
+    content: LayerUnitContentDocType,
   ): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
@@ -70,22 +63,23 @@ export class LayerSegmentationV2Service {
 
   /**
    * 带父约束创建 segment（time_subdivision 专用）| Create segment with parent constraint (for time_subdivision)
-   * 自动裁剪至父 utterance 范围 + 写入 segment_link | Auto-clips to parent utterance range + writes segment_link
+   * 自动裁剪至父 unit 范围 + 写入 segment_link | Auto-clips to parent unit range + writes segment_link
    */
   static async createSegmentWithParentConstraint(
-    segment: LayerSegmentDocType,
-    parentUtteranceId: string,
+    segment: LayerUnitDocType,
+    parentUnitId: string,
     parentStart: number,
     parentEnd: number,
-  ): Promise<LayerSegmentDocType> {
-    const clipped: LayerSegmentDocType = {
+  ): Promise<LayerSegmentViewDocType> {
+    const clipped: LayerSegmentViewDocType = {
       ...segment,
-      utteranceId: parentUtteranceId,
+      parentUnitId: parentUnitId,
+      unitId: parentUnitId,
       startTime: Number(Math.max(segment.startTime, parentStart).toFixed(3)),
       endTime: Number(Math.min(segment.endTime, parentEnd).toFixed(3)),
     };
     if (clipped.endTime - clipped.startTime < 0.05) {
-      throw new Error('Segment too short after clipping to parent utterance range');
+      throw new Error('Segment too short after clipping to parent unit range');
     }
     const db = await getDb();
     const now = new Date().toISOString();
@@ -94,24 +88,24 @@ export class LayerSegmentationV2Service {
       const link = {
         id: newId('sl'),
         textId: clipped.textId,
-        sourceSegmentId: clipped.id,
-        targetSegmentId: parentUtteranceId,
-        linkType: 'time_subdivision',
+        sourceUnitId: clipped.id,
+        targetUnitId: parentUnitId,
+        relationType: 'derived_from',
         createdAt: now,
         updatedAt: now,
-      } as SegmentLinkDocType;
+      } as UnitRelationDocType;
       await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
     });
     return clipped;
   }
 
-  static async updateSegment(id: string, changes: Partial<LayerSegmentDocType>): Promise<void> {
+  static async updateSegment(id: string, changes: Partial<LayerUnitDocType>): Promise<void> {
     const db = await getDb();
     const existing = (await LayerSegmentQueryService.listSegmentsByIds([id]))[0];
 
     await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
       if (existing) {
-        const nextRow: LayerSegmentDocType = {
+        const nextRow: LayerUnitDocType = {
           ...existing,
           ...changes,
           id: existing.id,
@@ -124,11 +118,11 @@ export class LayerSegmentationV2Service {
     });
   }
 
-  static async listSegmentsByLayerMedia(layerId: string, mediaId: string): Promise<LayerSegmentDocType[]> {
+  static async listSegmentsByLayerMedia(layerId: string, mediaId: string): Promise<LayerUnitDocType[]> {
     return LayerSegmentQueryService.listSegmentsByLayerMedia(layerId, mediaId);
   }
 
-  static async upsertSegmentContent(content: LayerSegmentContentDocType): Promise<void> {
+  static async upsertSegmentContent(content: LayerUnitContentDocType): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction('rw', db.dexie.layer_unit_contents, async () => {
       await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
@@ -142,11 +136,11 @@ export class LayerSegmentationV2Service {
     });
   }
 
-  static async listSegmentContents(segmentId: string): Promise<LayerSegmentContentDocType[]> {
+  static async listSegmentContents(segmentId: string): Promise<LayerUnitContentDocType[]> {
     return LayerSegmentQueryService.listSegmentContentsBySegmentIds([segmentId]);
   }
 
-  static async createSegmentLink(link: SegmentLinkDocType): Promise<void> {
+  static async createSegmentLink(link: UnitRelationDocType): Promise<void> {
     const db = await getDb();
     await db.dexie.transaction('rw', db.dexie.unit_relations, async () => {
       await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
@@ -198,7 +192,7 @@ export class LayerSegmentationV2Service {
   /**
    * 拆分 segment：在 splitTime 处将一条 segment 拆分为两条 | Split a segment at splitTime into two segments
    */
-  static async splitSegment(segmentId: string, splitTime: number): Promise<{ first: LayerSegmentDocType; second: LayerSegmentDocType }> {
+  static async splitSegment(segmentId: string, splitTime: number): Promise<{ first: LayerUnitDocType; second: LayerUnitDocType }> {
     const db = await getDb();
     const existing = (await LayerSegmentQueryService.listSegmentsByIds([segmentId]))[0];
     if (!existing) throw new Error(`Segment ${segmentId} not found`);
@@ -210,12 +204,12 @@ export class LayerSegmentationV2Service {
     }
 
     const now = new Date().toISOString();
-    const first: LayerSegmentDocType = {
+    const first: LayerUnitDocType = {
       ...existing,
       endTime: splitFixed,
       updatedAt: now,
     };
-    const second: LayerSegmentDocType = {
+    const second: LayerUnitDocType = {
       ...existing,
       id: newId('seg'),
       textId: existing.textId,
@@ -263,18 +257,20 @@ export class LayerSegmentationV2Service {
   /**
    * 合并相邻 segment：保留 keepId 的起止较早一端，删除 removeId | Merge two adjacent segments: keep one, remove the other
    */
-  static async mergeAdjacentSegments(keepId: string, removeId: string): Promise<LayerSegmentDocType> {
+  static async mergeAdjacentSegments(keepId: string, removeId: string): Promise<LayerUnitDocType> {
     const db = await getDb();
     const segments = await LayerSegmentQueryService.listSegmentsByIds([keepId, removeId]);
     const segmentById = new Map(segments.map((segment) => [segment.id, segment] as const));
     const keep = segmentById.get(keepId);
     const remove = segmentById.get(removeId);
     if (!keep || !remove) throw new Error('Segment(s) not found for merge');
-    if (keep.layerId !== remove.layerId || keep.mediaId !== remove.mediaId) {
+    const keepLayerId = keep.layerId?.trim();
+    const keepMediaId = keep.mediaId?.trim();
+    if (!keepLayerId || !keepMediaId || keepLayerId !== remove.layerId || keepMediaId !== remove.mediaId) {
       throw new Error('Segments must be in the same layer and media to merge');
     }
 
-    const siblings = await LayerSegmentQueryService.listSegmentsByLayerMedia(keep.layerId, keep.mediaId);
+    const siblings = await LayerSegmentQueryService.listSegmentsByLayerMedia(keepLayerId, keepMediaId);
     siblings.sort((a, b) => a.startTime - b.startTime);
     const keepIndex = siblings.findIndex((item) => item.id === keepId);
     const removeIndex = siblings.findIndex((item) => item.id === removeId);
@@ -291,7 +287,7 @@ export class LayerSegmentationV2Service {
     const now = new Date().toISOString();
     const mergedStart = Math.min(keep.startTime, remove.startTime);
     const mergedEnd = Math.max(keep.endTime, remove.endTime);
-    const mergedKeep: LayerSegmentDocType = {
+    const mergedKeep: LayerUnitDocType = {
       ...keep,
       startTime: mergedStart,
       endTime: mergedEnd,

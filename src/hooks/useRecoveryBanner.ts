@@ -3,23 +3,23 @@ import { fireAndForget } from '../utils/fireAndForget';
 
 type UseRecoveryBannerParams = {
   phase: string;
-  utterancesLength: number;
+  unitsLength: number;
   translationsLength: number;
   layersLength: number;
   checkRecovery: () => Promise<{
-    utterances: unknown[];
+    units: unknown[];
     translations: unknown[];
     layers: unknown[];
   } | null>;
 };
 
 export function useRecoveryBanner<TSnapshot extends {
-  utterances: unknown[];
+  units: unknown[];
   translations: unknown[];
   layers: unknown[];
 } | null>({
   phase,
-  utterancesLength,
+  unitsLength,
   translationsLength,
   layersLength,
   checkRecovery,
@@ -31,22 +31,22 @@ export function useRecoveryBanner<TSnapshot extends {
   dismissRecovery?: () => Promise<void>;
 }) {
   const [recoveryAvailable, setRecoveryAvailable] = useState(false);
-  const [recoveryDiffSummary, setRecoveryDiffSummary] = useState<{ utterances: number; translations: number; layers: number } | null>(null);
+  const [recoveryDiffSummary, setRecoveryDiffSummary] = useState<{ units: number; translations: number; layers: number } | null>(null);
   const recoveryDataRef = useRef<TSnapshot>(null as TSnapshot);
   const dismissedRef = useRef(false);
   const currentLengthsRef = useRef({
-    utterances: utterancesLength,
+    units: unitsLength,
     translations: translationsLength,
     layers: layersLength,
   });
 
   useEffect(() => {
     currentLengthsRef.current = {
-      utterances: utterancesLength,
+      units: unitsLength,
       translations: translationsLength,
       layers: layersLength,
     };
-  }, [layersLength, translationsLength, utterancesLength]);
+  }, [layersLength, translationsLength, unitsLength]);
 
   useEffect(() => {
     if (phase === 'ready') return;
@@ -61,7 +61,7 @@ export function useRecoveryBanner<TSnapshot extends {
       const currentLengths = currentLengthsRef.current;
       recoveryDataRef.current = snap;
       setRecoveryDiffSummary({
-        utterances: Math.max(0, snap.utterances.length - currentLengths.utterances),
+        units: Math.max(0, snap.units.length - currentLengths.units),
         translations: Math.max(0, snap.translations.length - currentLengths.translations),
         layers: Math.max(0, snap.layers.length - currentLengths.layers),
       });

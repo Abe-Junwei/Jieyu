@@ -1,18 +1,6 @@
-import {
-  formatLanguageDisplayName,
-  getLanguageCatalogEntry,
-  resolveLanguageCodeInput,
-  resolveLanguageCodeInputChange,
-  type LanguageCatalogMatch,
-  type LanguageSearchLocale,
-} from './langMapping';
+import { formatLanguageDisplayName, getLanguageCatalogEntry, resolveLanguageCodeInput, resolveLanguageCodeInputChange, type LanguageCatalogMatch, type LanguageSearchLocale } from './langMapping';
 import { resolveLanguageDisplayNameWithFallback, type ResolveLanguageDisplayName } from './languageDisplayNameResolver';
-import type {
-  LanguageInputDisplayMode,
-  LanguageInputAssistState,
-  LanguageInputAssistMessages,
-  LanguageIsoInputValue,
-} from './languageInputTypes';
+import type { LanguageInputDisplayMode, LanguageInputAssistState, LanguageInputAssistMessages, LanguageIsoInputValue } from './languageInputTypes';
 
 export type LanguageInputStatus =
   | 'idle'

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { LayerDocType, LayerSegmentDocType, SpeakerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -20,9 +20,7 @@ import { useLocale } from '../i18n';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
-import {
-  buildLayerBundles,
-} from '../services/LayerOrderingService';
+import { buildLayerBundles } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
@@ -41,9 +39,11 @@ interface SidePaneSidebarProps {
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
   defaultTranscriptionLayerId?: string;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia?: UtteranceDocType[];
+  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
+  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
+  unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
+  getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
 }
@@ -63,8 +63,10 @@ export function SidePaneSidebar({
   defaultOrthographyId,
   defaultTranscriptionLayerId,
   segmentsByLayer,
-  utterancesOnCurrentMedia,
+  segmentContentByLayer,
+  unitsOnCurrentMedia,
   speakers,
+  getUnitTextForLayer,
   onSelectTimelineUnit,
   onReorderLayers,
 }: SidePaneSidebarProps) {
@@ -79,7 +81,7 @@ export function SidePaneSidebar({
   const {
     layerActionPanel, setLayerActionPanel, layerActionRootRef,
     quickDeleteLayerId, setQuickDeleteLayerId,
-    quickDeleteKeepUtterances, setQuickDeleteKeepUtterances,
+    quickDeleteKeepUnits, setQuickDeleteKeepUnits,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,
@@ -107,8 +109,8 @@ export function SidePaneSidebar({
 
   const {
     deleteLayerConfirm,
-    deleteConfirmKeepUtterances,
-    setDeleteConfirmKeepUtterances,
+    deleteConfirmKeepUnits,
+    setDeleteConfirmKeepUnits,
     requestDeleteLayer,
     cancelDeleteLayerConfirm,
     confirmDeleteLayer,
@@ -239,8 +241,10 @@ export function SidePaneSidebar({
       resolveTargetBundleRange={resolveTargetBundleRange}
       {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
       {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
-      {...(utterancesOnCurrentMedia !== undefined ? { utterancesOnCurrentMedia } : {})}
+      {...(segmentContentByLayer !== undefined ? { segmentContentByLayer } : {})}
+      {...(unitsOnCurrentMedia !== undefined ? { unitsOnCurrentMedia } : {})}
       {...(speakers !== undefined ? { speakers } : {})}
+      {...(getUnitTextForLayer !== undefined ? { getUnitTextForLayer } : {})}
       {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
       onFocusLayer={onFocusLayer}
       onContextMenu={handleLayerContextMenu}
@@ -260,6 +264,13 @@ export function SidePaneSidebar({
     bundleBoundaryIndexes,
     layerLabelById,
     resolveTargetBundleRange,
+    defaultTranscriptionLayerId,
+    segmentsByLayer,
+    segmentContentByLayer,
+    unitsOnCurrentMedia,
+    speakers,
+    getUnitTextForLayer,
+    onSelectTimelineUnit,
     onFocusLayer,
     handleLayerContextMenu,
     handleDragStart,
@@ -275,7 +286,7 @@ export function SidePaneSidebar({
       sidePaneRowsLength={sidePaneRows.length}
       layerActionPanel={layerActionPanel}
       quickDeleteLayerId={quickDeleteLayerId}
-      quickDeleteKeepUtterances={quickDeleteKeepUtterances}
+      quickDeleteKeepUnits={quickDeleteKeepUnits}
       deletableLayers={deletableLayers}
       layerCreateMessage={layerCreateMessage}
       constraintRepairMessage={constraintRepairMessage}
@@ -286,7 +297,7 @@ export function SidePaneSidebar({
       onRunRepair={handleRepairLayerConstraints}
       setLayerActionPanel={setLayerActionPanel}
       setQuickDeleteLayerId={setQuickDeleteLayerId}
-      setQuickDeleteKeepUtterances={setQuickDeleteKeepUtterances}
+      setQuickDeleteKeepUnits={setQuickDeleteKeepUnits}
       requestDeleteLayer={requestDeleteLayer}
       setConstraintRepairDetailsCollapsed={setConstraintRepairDetailsCollapsed}
     />
@@ -298,7 +309,7 @@ export function SidePaneSidebar({
     sidePaneRows.length,
     layerActionPanel,
     quickDeleteLayerId,
-    quickDeleteKeepUtterances,
+    quickDeleteKeepUnits,
     deletableLayers,
     layerCreateMessage,
     constraintRepairMessage,
@@ -309,7 +320,7 @@ export function SidePaneSidebar({
     handleRepairLayerConstraints,
     setLayerActionPanel,
     setQuickDeleteLayerId,
-    setQuickDeleteKeepUtterances,
+    setQuickDeleteKeepUnits,
     requestDeleteLayer,
     setConstraintRepairDetailsCollapsed,
   ]);
@@ -400,8 +411,8 @@ export function SidePaneSidebar({
         {...(deleteLayerConfirm?.warningMessage !== undefined
           ? { warningMessage: deleteLayerConfirm.warningMessage }
           : {})}
-        keepUtterances={deleteConfirmKeepUtterances}
-        onKeepUtterancesChange={setDeleteConfirmKeepUtterances}
+        keepUnits={deleteConfirmKeepUnits}
+        onKeepUnitsChange={setDeleteConfirmKeepUnits}
         onCancel={cancelDeleteLayerConfirm}
         onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
       />

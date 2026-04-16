@@ -5,15 +5,15 @@
 
 import 'fake-indexeddb/auto';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { db, type UtteranceDocType } from '../db';
+import { db, type LayerUnitDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 
 async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.texts.clear(),
     db.media_items.clear(),
-    db.utterance_tokens.clear(),
-    db.utterance_morphemes.clear(),
+    db.unit_tokens.clear(),
+    db.unit_morphemes.clear(),
     db.lexemes.clear(),
     db.token_lexeme_links.clear(),
     db.ai_tasks.clear(),
@@ -39,15 +39,15 @@ async function clearDatabase(): Promise<void> {
 }
 
 describe('Translation Write Flow - Integration Tests', () => {
-  let testUtterance: UtteranceDocType;
+  let testUnit: LayerUnitDocType;
   const testLayerId = 'tier_gloss_test';
 
   beforeEach(async () => {
     await db.open();
     await clearDatabase();
 
-    // Create test utterance
-    testUtterance = {
+    // Create test unit
+    testUnit = {
       id: 'test-utt-001',
       mediaId: 'test-media-001',
       textId: 'test-text-001',
@@ -56,9 +56,9 @@ describe('Translation Write Flow - Integration Tests', () => {
       transcription: { default: 'test transcription' },
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    } as UtteranceDocType;
+    } as LayerUnitDocType;
 
-    await LinguisticService.saveUtterance(testUtterance);
+    await LinguisticService.saveUnit(testUnit);
   });
 
   afterEach(async () => {
@@ -66,20 +66,20 @@ describe('Translation Write Flow - Integration Tests', () => {
   });
 
   it('should write translation text to correct tier', async () => {
-    const utteranceId = testUtterance.id;
-    const mediaId = testUtterance.mediaId;
+    const unitId = testUnit.id;
+    const mediaId = testUnit.mediaId;
     const layerId = testLayerId;
     const translationText = 'test gloss translation';
     const now = new Date().toISOString();
 
     // Verify no existing translation
     let docs = (await db.layer_units.toArray())
-      .filter((row) => row.parentUnitId === utteranceId && row.layerId === layerId);
+      .filter((row) => row.parentUnitId === unitId && row.layerId === layerId);
     expect(docs).toHaveLength(0);
 
     // Write translation
-    const textId = `text-${utteranceId}-${layerId}`;
-    const docId = `seg-${utteranceId}-${layerId}`;
+    const textId = `text-${unitId}-${layerId}`;
+    const docId = `seg-${unitId}-${layerId}`;
     await db.layer_unit_contents.add({
       id: textId,
       textId,
@@ -98,17 +98,17 @@ describe('Translation Write Flow - Integration Tests', () => {
       mediaId: mediaId!,
       layerId: layerId,
       unitType: 'segment',
-      parentUnitId: utteranceId,
-      rootUnitId: utteranceId,
-      startTime: testUtterance.startTime,
-      endTime: testUtterance.endTime,
+      parentUnitId: unitId,
+      rootUnitId: unitId,
+      startTime: testUnit.startTime,
+      endTime: testUnit.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify it was written to correct tier
     docs = (await db.layer_units.toArray())
-      .filter((row) => row.parentUnitId === utteranceId && row.layerId === layerId);
+      .filter((row) => row.parentUnitId === unitId && row.layerId === layerId);
 
     expect(docs).toHaveLength(1);
     const doc = docs[0]!;
@@ -117,20 +117,20 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Critical: verify tier matches the layer ID we provided
     expect(doc.layerId).toBe(layerId);
-    expect(doc.parentUnitId).toBe(utteranceId);
+    expect(doc.parentUnitId).toBe(unitId);
     expect(content!.text).toBe(translationText);
   });
 
-  it('should handle multiple translations in different layers for same utterance', async () => {
-    const utteranceId = testUtterance.id;
-    const mediaId = testUtterance.mediaId;
+  it('should handle multiple translations in different layers for same unit', async () => {
+    const unitId = testUnit.id;
+    const mediaId = testUnit.mediaId;
     const now = new Date().toISOString();
     const glossLayerId = 'tier_gloss';
     const morphLayerId = 'tier_morph';
 
     // Write gloss translation
-    const glossTextId = `text-${utteranceId}-gloss`;
-    const glossId = `seg-${utteranceId}-gloss`;
+    const glossTextId = `text-${unitId}-gloss`;
+    const glossId = `seg-${unitId}-gloss`;
     await db.layer_unit_contents.add({
       id: glossTextId,
       textId: glossTextId,
@@ -149,17 +149,17 @@ describe('Translation Write Flow - Integration Tests', () => {
       mediaId: mediaId!,
       layerId: glossLayerId,
       unitType: 'segment',
-      parentUnitId: utteranceId,
-      rootUnitId: utteranceId,
-      startTime: testUtterance.startTime,
-      endTime: testUtterance.endTime,
+      parentUnitId: unitId,
+      rootUnitId: unitId,
+      startTime: testUnit.startTime,
+      endTime: testUnit.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Write morph translation
-    const morphTextId = `text-${utteranceId}-morph`;
-    const morphId = `seg-${utteranceId}-morph`;
+    const morphTextId = `text-${unitId}-morph`;
+    const morphId = `seg-${unitId}-morph`;
     await db.layer_unit_contents.add({
       id: morphTextId,
       textId: morphTextId,
@@ -178,17 +178,17 @@ describe('Translation Write Flow - Integration Tests', () => {
       mediaId: mediaId!,
       layerId: morphLayerId,
       unitType: 'segment',
-      parentUnitId: utteranceId,
-      rootUnitId: utteranceId,
-      startTime: testUtterance.startTime,
-      endTime: testUtterance.endTime,
+      parentUnitId: unitId,
+      rootUnitId: unitId,
+      startTime: testUnit.startTime,
+      endTime: testUnit.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify both exist and are in correct tiers
     const allDocs = (await db.layer_units.toArray())
-      .filter((row) => row.parentUnitId === utteranceId);
+      .filter((row) => row.parentUnitId === unitId);
 
     expect(allDocs).toHaveLength(2);
 
@@ -208,13 +208,13 @@ describe('Translation Write Flow - Integration Tests', () => {
   });
 
   it('should update existing translation without data loss', async () => {
-    const utteranceId = testUtterance.id;
-    const mediaId = testUtterance.mediaId;
+    const unitId = testUnit.id;
+    const mediaId = testUnit.mediaId;
     const layerId = testLayerId;
     const now = new Date().toISOString();
     
-    const textId = `text-${utteranceId}-${layerId}`;
-    const docId = `seg-${utteranceId}-${layerId}`;
+    const textId = `text-${unitId}-${layerId}`;
+    const docId = `seg-${unitId}-${layerId}`;
     await db.layer_unit_contents.add({
       id: textId,
       textId,
@@ -235,10 +235,10 @@ describe('Translation Write Flow - Integration Tests', () => {
       mediaId: mediaId!,
       layerId: layerId,
       unitType: 'segment',
-      parentUnitId: utteranceId,
-      rootUnitId: utteranceId,
-      startTime: testUtterance.startTime,
-      endTime: testUtterance.endTime,
+      parentUnitId: unitId,
+      rootUnitId: unitId,
+      startTime: testUnit.startTime,
+      endTime: testUnit.endTime,
       createdAt: now,
       updatedAt: now,
     });
@@ -255,17 +255,17 @@ describe('Translation Write Flow - Integration Tests', () => {
     const updatedContent = await db.layer_unit_contents.get(textId);
     expect(updatedContent?.text).toBe('updated text');
     expect(updated?.layerId).toBe(layerId);
-    expect(updated?.parentUnitId).toBe(utteranceId);
+    expect(updated?.parentUnitId).toBe(unitId);
     expect(updatedContent?.updatedAt).toBe(newNow);
   });
 
   it('should clear translation text when deleting', async () => {
-    const utteranceId = testUtterance.id;
-    const mediaId = testUtterance.mediaId;
+    const unitId = testUnit.id;
+    const mediaId = testUnit.mediaId;
     const layerId = testLayerId;
     const now = new Date().toISOString();
-    const textId = `text-${utteranceId}-${layerId}`;
-    const docId = `seg-${utteranceId}-${layerId}`;
+    const textId = `text-${unitId}-${layerId}`;
+    const docId = `seg-${unitId}-${layerId}`;
     await db.layer_unit_contents.add({
       id: textId,
       textId,
@@ -284,17 +284,17 @@ describe('Translation Write Flow - Integration Tests', () => {
       mediaId: mediaId!,
       layerId: layerId,
       unitType: 'segment',
-      parentUnitId: utteranceId,
-      rootUnitId: utteranceId,
-      startTime: testUtterance.startTime,
-      endTime: testUtterance.endTime,
+      parentUnitId: unitId,
+      rootUnitId: unitId,
+      startTime: testUnit.startTime,
+      endTime: testUnit.endTime,
       createdAt: now,
       updatedAt: now,
     });
 
     // Verify it exists
     let docs = (await db.layer_units.toArray())
-      .filter((row) => row.parentUnitId === utteranceId && row.layerId === layerId);
+      .filter((row) => row.parentUnitId === unitId && row.layerId === layerId);
     expect(docs).toHaveLength(1);
 
     // Delete it
@@ -303,7 +303,7 @@ describe('Translation Write Flow - Integration Tests', () => {
 
     // Verify it's gone
     docs = (await db.layer_units.toArray())
-      .filter((row) => row.parentUnitId === utteranceId && row.layerId === layerId);
+      .filter((row) => row.parentUnitId === unitId && row.layerId === layerId);
     expect(docs).toHaveLength(0);
   });
 });

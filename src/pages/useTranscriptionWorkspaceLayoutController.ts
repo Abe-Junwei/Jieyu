@@ -1,23 +1,9 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type PointerEvent as ReactPointerEvent,
-  type SetStateAction,
-} from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type PointerEvent as ReactPointerEvent, type SetStateAction } from 'react';
 import type { VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import type { LayerDocType } from '../db';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 import { createLogger } from '../observability/logger';
-import {
-  readStoredVideoLayoutModePreference,
-  readStoredVideoPreviewHeightPreference,
-  readStoredVideoRightPanelWidthPreference,
-  subscribeWorkspaceLayoutPreferenceChanged,
-} from '../utils/workspaceLayoutPreferenceSync';
+import { readStoredVideoLayoutModePreference, readStoredVideoPreviewHeightPreference, readStoredVideoRightPanelWidthPreference, subscribeWorkspaceLayoutPreferenceChanged } from '../utils/workspaceLayoutPreferenceSync';
 
 const log = createLogger('TranscriptionWorkspaceLayout');
 
@@ -28,7 +14,7 @@ const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
 type UseTranscriptionWorkspaceLayoutControllerInput = {
   layers: LayerDocType[];
   selectedTimelineOwnerUnitId: string | undefined;
-  utteranceRowRef: MutableRefObject<Record<string, HTMLDivElement | null>>;
+  unitRowRef: MutableRefObject<Record<string, HTMLDivElement | null>>;
 };
 
 type UseTranscriptionWorkspaceLayoutControllerResult = {
@@ -213,9 +199,9 @@ export function useTranscriptionWorkspaceLayoutController(
   useEffect(() => {
     if (!autoScrollEnabled) return;
     if (!input.selectedTimelineOwnerUnitId) return;
-    const row = input.utteranceRowRef.current[input.selectedTimelineOwnerUnitId];
+    const row = input.unitRowRef.current[input.selectedTimelineOwnerUnitId];
     row?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [autoScrollEnabled, input.selectedTimelineOwnerUnitId, input.utteranceRowRef]);
+  }, [autoScrollEnabled, input.selectedTimelineOwnerUnitId, input.unitRowRef]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

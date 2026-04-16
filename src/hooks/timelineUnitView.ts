@@ -1,11 +1,11 @@
-import type { AiMetadata, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { AiMetadata, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
 import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
 import type { TimelineUnitKind } from './transcriptionTypes';
 
 /**
  * Unified timeline unit for read paths (AI, waveform digest, tools).
  * Timeline mutations route through `dispatchTimelineUnitMutation` (see `src/pages/timelineUnitMutationDispatch.ts`)
- * so `kind` + layer edit mode pick utterance-doc vs segment-layer writes deterministically.
+ * so `kind` + layer edit mode pick unit-doc vs segment-layer writes deterministically.
  */
 export interface TimelineUnitView {
   id: string;
@@ -15,24 +15,24 @@ export interface TimelineUnitView {
   layerId: string;
   startTime: number;
   endTime: number;
-  /** Primary line text for tools / digest (utterance default orthography or segment layer text). */
+  /** Primary line text for tools / digest (unit default orthography or segment layer text). */
   text: string;
-  /** Carried from utterance docs for waveform confidence / overlays. */
+  /** Carried from unit docs for waveform confidence / overlays. */
   ai_metadata?: AiMetadata;
   speakerId?: string;
-  parentUtteranceId?: string;
+  parentUnitId?: string;
   annotationStatus?: string;
   textId?: string;
 }
 
 export interface BuildTimelineUnitViewIndexInput {
-  utterances: ReadonlyArray<UtteranceDocType>;
-  utterancesOnCurrentMedia: ReadonlyArray<UtteranceDocType>;
-  segmentsByLayer: ReadonlyMap<string, ReadonlyArray<LayerSegmentDocType>> | undefined;
+  units: ReadonlyArray<LayerUnitDocType>;
+  unitsOnCurrentMedia: ReadonlyArray<LayerUnitDocType>;
+  segmentsByLayer: ReadonlyMap<string, ReadonlyArray<LayerSegmentViewDocType>> | undefined;
   segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>> | undefined;
   currentMediaId: string | undefined;
   activeLayerIdForEdits: string | undefined;
-  /** Used as `layerId` for utterance-shaped rows when no per-row layer exists. */
+  /** Used as `layerId` for unit-shaped rows when no per-row layer exists. */
   defaultTranscriptionLayerId: string | undefined;
   /**
    * When false, segments may still be loading — tools should not treat empty index as authoritative.
@@ -49,7 +49,7 @@ export interface TimelineUnitViewIndex {
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
   /** Exact-id lookup (`unit.id`) over `allUnits`. */
   byId: ReadonlyMap<string, TimelineUnitView>;
-  /** Resolve either exact unit id or semantic id (e.g. parent utterance id shadowed by segment). */
+  /** Resolve either exact unit id or semantic id (e.g. parent unit id shadowed by segment). */
   resolveBySemanticId: (semanticOrExactId: string) => TimelineUnitView | undefined;
   /** Units grouped by layer id; each bucket follows `allUnits` time order. */
   byLayer: ReadonlyMap<string, ReadonlyArray<TimelineUnitView>>;
@@ -59,7 +59,7 @@ export interface TimelineUnitViewIndex {
   currentMediaCount: number;
   epoch: number;
   /**
-   * True when the project has no utterance rows but segment rows exist (segment-first / transcription-on-segment projects).
+   * True when the project has no unit rows but segment rows exist (segment-first / transcription-on-segment projects).
    * Diagnostic only; `allUnits` is still the single read-model list.
    */
   fallbackToSegments: boolean;
@@ -83,10 +83,10 @@ function resolveSegmentText(
   return '';
 }
 
-export function utteranceToView(u: UtteranceDocType, defaultLayerId: string): TimelineUnitView {
+export function unitToView(u: LayerUnitDocType, defaultLayerId: string): TimelineUnitView {
   return {
     id: u.id,
-    kind: 'utterance',
+    kind: 'unit',
     layerRole: 'independent',
     mediaId: u.mediaId ?? '',
     layerId: defaultLayerId,
@@ -95,26 +95,26 @@ export function utteranceToView(u: UtteranceDocType, defaultLayerId: string): Ti
     text: pickDefaultTranscriptionText(u.transcription),
     ...(u.ai_metadata ? { ai_metadata: u.ai_metadata } : {}),
     ...(u.speakerId ? { speakerId: u.speakerId } : {}),
-    ...(u.annotationStatus ? { annotationStatus: u.annotationStatus } : {}),
+    ...(u.status ? { annotationStatus: u.status } : {}),
     ...(u.textId ? { textId: u.textId } : {}),
   };
 }
 
 /**
  * Project-wide unit cardinality using the same semantic merge keys as `buildTimelineUnitViewIndex`
- * (utterance id vs segment id / parent utterance shadowing).
+ * (unit id vs segment id / parent unit shadowing).
  */
 export function mergedTimelineUnitSemanticKeyCount(input: {
-  utteranceIds: readonly string[];
-  segments: ReadonlyArray<{ id: string; utteranceId?: string }>;
+  unitIds: readonly string[];
+  segments: ReadonlyArray<{ id: string; unitId?: string | undefined }>;
 }): number {
   const mergedBySemanticKey = new Map<string, true>();
-  for (const rawId of input.utteranceIds) {
+  for (const rawId of input.unitIds) {
     const id = rawId.trim();
     if (id) mergedBySemanticKey.set(id, true);
   }
   for (const seg of input.segments) {
-    const parent = seg.utteranceId?.trim();
+    const parent = seg.unitId?.trim();
     const key = parent && parent.length > 0 ? parent : seg.id;
     mergedBySemanticKey.set(key, true);
   }
@@ -122,25 +122,26 @@ export function mergedTimelineUnitSemanticKeyCount(input: {
 }
 
 export function segmentToView(
-  row: LayerSegmentDocType,
+  row: LayerSegmentViewDocType,
   resolveText: (id: string) => string,
 ): TimelineUnitView {
+  const ownerUnitId = (row.parentUnitId ?? row.unitId)?.trim() ?? '';
   return {
     id: row.id,
     kind: 'segment',
-    layerRole: row.utteranceId ? 'referring' : 'independent',
-    mediaId: row.mediaId,
-    layerId: row.layerId,
+    layerRole: ownerUnitId ? 'referring' : 'independent',
+    mediaId: row.mediaId ?? '',
+    layerId: row.layerId ?? '',
     startTime: row.startTime,
     endTime: row.endTime,
     text: resolveText(row.id),
     ...(row.speakerId ? { speakerId: row.speakerId } : {}),
-    ...(row.utteranceId ? { parentUtteranceId: row.utteranceId } : {}),
+    ...(ownerUnitId ? { parentUnitId: ownerUnitId } : {}),
   };
 }
 
 /**
- * Builds a single read-model index for utterance-first or segment-first projects.
+ * Builds a single read-model index for unit-first or segment-first projects.
  * Matches prior `useTranscriptionAiController` effective* row selection.
  */
 export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInput): TimelineUnitViewIndex {
@@ -157,16 +158,16 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
   const uniqueSegmentRows = Array.from(new Map(segmentRows.map((row) => [row.id, row])).values());
 
   const segmentViews = uniqueSegmentRows.map((row) => segmentToView(row, resolveText));
-  const utteranceProjectViews = input.utterances.map((u) => utteranceToView(u, defaultLayerId));
+  const unitProjectViews = input.units.map((u) => unitToView(u, defaultLayerId));
 
-  const fallbackToSegments = input.utterances.length === 0 && segmentViews.length > 0;
+  const fallbackToSegments = input.units.length === 0 && segmentViews.length > 0;
   const mergedBySemanticKey = new Map<string, TimelineUnitView>();
-  for (const utteranceView of utteranceProjectViews) {
-    mergedBySemanticKey.set(utteranceView.id, utteranceView);
+  for (const unitView of unitProjectViews) {
+    mergedBySemanticKey.set(unitView.id, unitView);
   }
   for (const segmentView of segmentViews) {
-    const semanticKey = segmentView.parentUtteranceId?.trim() || segmentView.id;
-    // Segment rows shadow utterance rows for the same semantic unit.
+    const semanticKey = segmentView.parentUnitId?.trim() || segmentView.id;
+    // Segment rows shadow unit rows for the same semantic unit.
     mergedBySemanticKey.set(semanticKey, segmentView);
   }
 
@@ -184,10 +185,10 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     const layerBucket = byLayerMutable.get(unit.layerId);
     if (layerBucket) layerBucket.push(unit);
     else byLayerMutable.set(unit.layerId, [unit]);
-    if (unit.parentUtteranceId) {
-      const referringBucket = referringByParentId.get(unit.parentUtteranceId);
+    if (unit.parentUnitId) {
+      const referringBucket = referringByParentId.get(unit.parentUnitId);
       if (referringBucket) referringBucket.push(unit);
-      else referringByParentId.set(unit.parentUtteranceId, [unit]);
+      else referringByParentId.set(unit.parentUnitId, [unit]);
     }
   }
   const byLayer = new Map<string, ReadonlyArray<TimelineUnitView>>();

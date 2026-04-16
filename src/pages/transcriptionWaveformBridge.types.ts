@@ -1,10 +1,4 @@
-import type {
-  Dispatch,
-  MouseEvent as ReactMouseEvent,
-  MutableRefObject,
-  SetStateAction,
-  UIEvent as ReactUIEvent,
-} from 'react';
+import type { Dispatch, MouseEvent as ReactMouseEvent, MutableRefObject, SetStateAction, UIEvent as ReactUIEvent } from 'react';
 import type { SubSelectDrag } from '../hooks/useLasso';
 import type { useWaveSurfer } from '../hooks/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
@@ -94,7 +88,7 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   zoomMode: 'fit-all' | 'fit-selection' | 'custom';
   setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
   clearUnitSelection: () => void;
-  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
+  createUnitFromSelection: (start: number, end: number) => Promise<void>;
   setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
@@ -147,7 +141,7 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   maxZoomPercent: number;
   rulerView: { start: number; end: number } | null;
   zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
-  zoomToUtterance: (startTime: number, endTime: number) => void;
+  zoomToUnit: (startTime: number, endTime: number) => void;
   hoverTime: { time: number; x: number; y: number } | null;
   handleWaveformAreaFocus: () => void;
   handleWaveformAreaBlur: () => void;

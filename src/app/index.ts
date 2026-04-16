@@ -14,5 +14,4 @@
 export * from './TranscriptionAppService';
 export * from './AiAppService';
 export * from './LanguageAssetsAppService';
-export * from './transcriptionLegacyForwarding';
 export * from './contracts';

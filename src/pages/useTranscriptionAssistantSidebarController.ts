@@ -2,15 +2,8 @@ import { useMemo } from 'react';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import { useAiChatContextValue, type AiChatContextSource } from '../hooks/useAiChatContextValue';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
-import type {
-  TranscriptionPageAnalysisPanelProps,
-  TranscriptionPageAnalysisRuntimeProps,
-  TranscriptionPageAssistantRuntimeProps,
-} from './TranscriptionPage.runtimeContracts';
-import {
-  useTranscriptionRuntimeProps,
-  type UseTranscriptionRuntimePropsInput,
-} from './useTranscriptionRuntimeProps';
+import type { TranscriptionPageAnalysisPanelProps, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
+import { useTranscriptionRuntimeProps, type UseTranscriptionRuntimePropsInput } from './useTranscriptionRuntimeProps';
 
 type AssistantSidebarObserverRecommendation = AiChatContextValue['observerRecommendations'][number];
 export type AssistantSidebarObserverRecommendationInput = {
@@ -20,7 +13,7 @@ export type AssistantSidebarObserverRecommendationInput = {
   detail: string;
   actionLabel?: string;
   actionType?: AssistantSidebarObserverRecommendation['actionType'] | undefined;
-  targetUtteranceId?: string | undefined;
+  targetUnitId?: string | undefined;
   targetForm?: string | undefined;
   targetPos?: string | undefined;
   targetConfidence?: number | undefined;
@@ -31,7 +24,7 @@ function normalizeAssistantSidebarObserverRecommendation(
 ): AssistantSidebarObserverRecommendation {
   const {
     actionType,
-    targetUtteranceId,
+    targetUnitId,
     targetForm,
     targetPos,
     targetConfidence,
@@ -41,7 +34,7 @@ function normalizeAssistantSidebarObserverRecommendation(
   return {
     ...rest,
     ...(actionType !== undefined ? { actionType } : {}),
-    ...(targetUtteranceId !== undefined ? { targetUtteranceId } : {}),
+    ...(targetUnitId !== undefined ? { targetUnitId } : {}),
     ...(targetForm !== undefined ? { targetForm } : {}),
     ...(targetPos !== undefined ? { targetPos } : {}),
     ...(targetConfidence !== undefined ? { targetConfidence } : {}),

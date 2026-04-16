@@ -1,23 +1,16 @@
 import Dexie, { type Table, type Transaction } from 'dexie';
-import type {
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-  TierDefinitionDocType,
-  UtteranceDocType,
-  UtteranceMorphemeDocType,
-  UtteranceTokenDocType,
-} from '../types';
-import { upgradeM18LinguisticUtteranceCutover } from './m18LinguisticUtteranceCutover';
+import type { LayerUnitContentDocType, LayerUnitDocType, TierDefinitionDocType, UnitMorphemeDocType, UnitTokenDocType } from '../types';
+import { upgradeM18LinguisticUnitCutover } from './m18LinguisticUnitCutover';
 
 /**
  * Must match `JieyuDexie` v36/v37 `stores({ ... })` for these tables — update when engine changes.
  */
 export const M18_PRE37_STORES = {
   tier_definitions: 'id, textId, key, parentTierId, tierType, contentType',
-  utterances:
+  units:
     'id, textId, mediaId, [textId+mediaId], [mediaId+startTime], [textId+startTime], startTime, updatedAt, speakerId',
-  utterance_tokens: 'id, textId, utteranceId, [utteranceId+tokenIndex], lexemeId',
-  utterance_morphemes: 'id, textId, utteranceId, tokenId, [tokenId+morphemeIndex], lexemeId',
+  unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
+  unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
   layer_units:
     'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
   layer_unit_contents:
@@ -25,9 +18,9 @@ export const M18_PRE37_STORES = {
 } as const;
 
 export const M18_V37_TOKEN_MORPH_STORES = {
-  utterances: null,
-  utterance_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
-  utterance_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
+  units: null,
+  unit_tokens: 'id, textId, unitId, [unitId+tokenIndex], lexemeId',
+  unit_morphemes: 'id, textId, unitId, tokenId, [tokenId+morphemeIndex], lexemeId',
 } as const;
 
 export function m18DexieIsolationName(prefix: string): string {
@@ -40,9 +33,9 @@ export function m18DexieIsolationName(prefix: string): string {
 /** Open at v36 only, seed fixtures, then close — used before attaching v37. */
 export class M18DexieV36Seed extends Dexie {
   tier_definitions!: Table<TierDefinitionDocType, string>;
-  utterances!: Table<UtteranceDocType, string>;
-  utterance_tokens!: Table<UtteranceTokenDocType, string>;
-  utterance_morphemes!: Table<UtteranceMorphemeDocType, string>;
+  units!: Table<LayerUnitDocType, string>;
+  unit_tokens!: Table<UnitTokenDocType, string>;
+  unit_morphemes!: Table<UnitMorphemeDocType, string>;
   layer_units!: Table<LayerUnitDocType, string>;
   layer_unit_contents!: Table<LayerUnitContentDocType, string>;
 
@@ -55,8 +48,8 @@ export class M18DexieV36Seed extends Dexie {
 /** Same v36 schema + v37 upgrade hook as production `JieyuDexie`. */
 export class M18DexieV36To37 extends Dexie {
   tier_definitions!: Table<TierDefinitionDocType, string>;
-  utterance_tokens!: Table<UtteranceTokenDocType, string>;
-  utterance_morphemes!: Table<UtteranceMorphemeDocType, string>;
+  unit_tokens!: Table<UnitTokenDocType, string>;
+  unit_morphemes!: Table<UnitMorphemeDocType, string>;
   layer_units!: Table<LayerUnitDocType, string>;
   layer_unit_contents!: Table<LayerUnitContentDocType, string>;
 
@@ -64,7 +57,7 @@ export class M18DexieV36To37 extends Dexie {
     super(name);
     this.version(36).stores({ ...M18_PRE37_STORES });
     this.version(37).stores({ ...M18_V37_TOKEN_MORPH_STORES }).upgrade(async (tx: Transaction) => {
-      await upgradeM18LinguisticUtteranceCutover(tx);
+      await upgradeM18LinguisticUnitCutover(tx);
     });
   }
 }

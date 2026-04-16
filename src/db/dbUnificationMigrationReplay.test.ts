@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { buildUnifiedUnitBackfill } from './migrations/buildUnifiedUnitBackfill';
 import { verifyUnifiedUnitBackfill } from './migrations/verifyUnifiedUnitBackfill';
-import { mapUtteranceToLayerUnit } from './migrations/timelineUnitMapping';
+import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 
 describe('db unification migration replay', () => {
-  it('builds deterministic canonical units from legacy utterance and segment fixtures', () => {
+  it('builds deterministic canonical units from legacy unit and segment fixtures', () => {
     const payload = buildUnifiedUnitBackfill({
-      utterances: [{
+      units: [{
         id: 'utt-1',
         textId: 'text-1',
         mediaId: 'media-1',
@@ -21,7 +21,7 @@ describe('db unification migration replay', () => {
         textId: 'text-2',
         mediaId: 'media-1',
         layerId: 'layer-translation',
-        utteranceId: 'utt-1',
+        unitId: 'utt-1',
         startTime: 0,
         endTime: 1,
         createdAt: '2026-01-01T00:00:00.000Z',
@@ -47,7 +47,7 @@ describe('db unification migration replay', () => {
   });
 
   it('verifyUnifiedUnitBackfill flags duplicate unit ids and duplicate relation ids', () => {
-    const { unit, content } = mapUtteranceToLayerUnit({
+    const { unit, content } = mapUnitToLayerUnit({
       id: 'dup',
       textId: 't-dup',
       mediaId: 'm1',
@@ -88,7 +88,7 @@ describe('db unification migration replay', () => {
   });
 
   it('verifyUnifiedUnitBackfill flags content textId/layerId drift from owning unit', () => {
-    const { unit, content } = mapUtteranceToLayerUnit({
+    const { unit, content } = mapUnitToLayerUnit({
       id: 'u1',
       textId: 'text-1',
       mediaId: 'm1',
@@ -105,7 +105,7 @@ describe('db unification migration replay', () => {
   });
 
   it('verifyUnifiedUnitBackfill flags self-loop relations and invalid relationType', () => {
-    const { unit, content } = mapUtteranceToLayerUnit({
+    const { unit, content } = mapUnitToLayerUnit({
       id: 'u1',
       textId: 'text-1',
       mediaId: 'm1',

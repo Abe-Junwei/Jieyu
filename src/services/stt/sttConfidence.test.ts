@@ -4,11 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import {
-  logprobToConfidence,
-  computeWhisperConfidence,
-  tryParseVerboseResponse,
-} from './sttConfidence';
+import { logprobToConfidence, computeWhisperConfidence, tryParseVerboseResponse } from './sttConfidence';
 import type { WhisperVerboseResponse } from './sttConfidence';
 
 // ── logprobToConfidence ─────────────────────────────────────────────────────

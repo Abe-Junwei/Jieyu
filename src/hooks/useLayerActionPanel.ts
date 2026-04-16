@@ -16,7 +16,7 @@ export interface UseLayerActionPanelInput {
     },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
   deletableLayers: Array<{ id: string; layerType?: 'transcription' | 'translation' }>;
@@ -51,7 +51,7 @@ export function useLayerActionPanel({
 
   // ── Quick-delete form ──
   const [quickDeleteLayerId, setQuickDeleteLayerId] = useState('');
-  const [quickDeleteKeepUtterances, setQuickDeleteKeepUtterances] = useState(false);
+  const [quickDeleteKeepUnits, setQuickDeleteKeepUnits] = useState(false);
 
   // ── Handlers ──
 
@@ -95,10 +95,10 @@ export function useLayerActionPanel({
 
   const handleDeleteLayerFromPanel = useCallback(async () => {
     if (!quickDeleteLayerId) return;
-    await deleteLayer(quickDeleteLayerId, { keepUtterances: quickDeleteKeepUtterances });
+    await deleteLayer(quickDeleteLayerId, { keepUnits: quickDeleteKeepUnits });
     setLayerActionPanel(null);
-    setQuickDeleteKeepUtterances(false);
-  }, [deleteLayer, quickDeleteKeepUtterances, quickDeleteLayerId]);
+    setQuickDeleteKeepUnits(false);
+  }, [deleteLayer, quickDeleteKeepUnits, quickDeleteLayerId]);
 
   // ── Effects ──
 
@@ -167,8 +167,8 @@ export function useLayerActionPanel({
     // Delete form
     quickDeleteLayerId,
     setQuickDeleteLayerId,
-    quickDeleteKeepUtterances,
-    setQuickDeleteKeepUtterances,
+    quickDeleteKeepUnits,
+    setQuickDeleteKeepUnits,
     // Handlers
     handleCreateTranscriptionFromPanel,
     handleCreateTranslationFromPanel,

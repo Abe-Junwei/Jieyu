@@ -1,12 +1,7 @@
-import type {
-  JieyuDatabase,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { JieyuDatabase, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import type { EafImportResult } from '../services/EafService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { newId, humanizeTierName } from '../utils/transcriptionFormatters';
 import { withEafKeyMeta, writeImportLayerNameAudit } from './useImportExport.importHelpers';
@@ -18,11 +13,11 @@ type AdditionalTierAnnotation = {
   annotationId?: string;
 };
 
-type InsertedUtterance = {
+type InsertedUnit = {
   id: string;
   startTime: number;
   endTime: number;
-  utterance: UtteranceDocType;
+  unit: LayerUnitDocType;
 };
 
 export async function importAdditionalTiers(input: {
@@ -32,7 +27,7 @@ export async function importAdditionalTiers(input: {
   mediaId?: string;
   layers: LayerDocType[];
   additionalTiers: Map<string, AdditionalTierAnnotation[]>;
-  insertedUtterances: InsertedUtterance[];
+  insertedUnits: InsertedUnit[];
   importedTierMetadata: Map<string, { languageId?: string; orthographyId?: string; bridgeId?: string }>;
   tierNameToLayerId: Map<string, string>;
   effectiveTranscriptionLayerId?: string;
@@ -103,9 +98,9 @@ export async function importAdditionalTiers(input: {
       existingIndepTrcLayersByName.get(tierName.toLocaleLowerCase('en'))
       ?? existingIndepTrcLayersByName.get(humanizedTierForLookup);
     if (indepLayerId) {
-      const firstUtt = input.insertedUtterances[0];
-      const importMediaId = input.mediaId ?? firstUtt?.utterance.mediaId;
-      const importTextId = firstUtt?.utterance.textId ?? input.textId;
+      const firstUtt = input.insertedUnits[0];
+      const importMediaId = input.mediaId ?? firstUtt?.unit.mediaId;
+      const importTextId = firstUtt?.unit.textId ?? input.textId;
       if (!importMediaId) {
         skippedIndependentTierSegmentCount += annotations.filter((annotation) => annotation.text.trim()).length;
         console.warn('[Import] Skipped independent transcription tier import: missing media, cannot restore segments', {
@@ -253,8 +248,8 @@ export async function importAdditionalTiers(input: {
     for (const annotation of annotations) {
       const annStart = Number(annotation.startTime.toFixed(3));
       const annEnd = Number(annotation.endTime.toFixed(3));
-      const match = input.insertedUtterances.find(
-        (utterance) => Math.abs(utterance.startTime - annStart) < 0.05 && Math.abs(utterance.endTime - annEnd) < 0.05,
+      const match = input.insertedUnits.find(
+        (unit) => Math.abs(unit.startTime - annStart) < 0.05 && Math.abs(unit.endTime - annEnd) < 0.05,
       );
       if (match && annotation.text.trim()) {
         const writes = await input.planImportedWrites({
@@ -271,9 +266,9 @@ export async function importAdditionalTiers(input: {
           tierName,
         });
         for (const write of writes) {
-          const doc: UtteranceTextDocType = {
+          const doc: LayerUnitContentDocType = {
             id: newId('utr'),
-            utteranceId: match.id,
+            unitId: match.id,
             layerId: write.layerId,
             modality: 'text' as const,
             text: write.text,
@@ -282,7 +277,7 @@ export async function importAdditionalTiers(input: {
             createdAt: input.now,
             updatedAt: input.now,
           };
-          await syncUtteranceTextToSegmentationV2(input.db, match.utterance, doc);
+          await syncUnitTextToSegmentationV2(input.db, match.unit, doc);
         }
       }
     }

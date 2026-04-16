@@ -6,7 +6,7 @@ import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
 describe('transcription data caliber consistency', () => {
   it('keeps unit counts aligned across read model, prompt context, and local tools', async () => {
     const unitIndex = buildTimelineUnitViewIndex({
-      utterances: [
+      units: [
         {
           id: 'utt-1',
           textId: 'text-1',
@@ -19,7 +19,7 @@ describe('transcription data caliber consistency', () => {
           updatedAt: '2026-01-01T00:00:00.000Z',
         },
       ],
-      utterancesOnCurrentMedia: [
+      unitsOnCurrentMedia: [
         {
           id: 'utt-1',
           textId: 'text-1',

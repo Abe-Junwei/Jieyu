@@ -1,13 +1,9 @@
 import { useLocale } from '../i18n';
-import {
-  createTranscriptionSegmentCreationActions,
-  type UseTranscriptionSegmentCreationControllerInput,
-  type UseTranscriptionSegmentCreationControllerResult,
-} from './transcriptionSegmentCreationActions';
+import { createTranscriptionSegmentCreationActions, type UseTranscriptionSegmentCreationControllerInput, type UseTranscriptionSegmentCreationControllerResult } from './transcriptionSegmentCreationActions';
 
 export type {
   CreateUnitOptions,
-  CreateUtteranceOptions,
+  CreateUnitOptions,
   UseTranscriptionSegmentCreationControllerInput,
   UseTranscriptionSegmentCreationControllerResult,
 } from './transcriptionSegmentCreationActions';

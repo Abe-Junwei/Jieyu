@@ -6,10 +6,7 @@ import { ContextMenu, type ContextMenuItem } from '../ContextMenu';
 import { useToast } from '../../contexts/ToastContext';
 import type { ImportConflictStrategy } from '../../db';
 import { t, tf, useLocale } from '../../i18n';
-import {
-  DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY,
-  type AnnotationImportBridgeStrategy,
-} from '../../hooks/useImportExport.annotationImport';
+import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, type AnnotationImportBridgeStrategy } from '../../hooks/useImportExport.annotationImport';
 import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';

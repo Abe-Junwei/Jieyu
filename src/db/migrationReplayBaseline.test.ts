@@ -1,13 +1,6 @@
 import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import {
-  buildSegmentationV2BackfillRows,
-  buildV28BackfillPlanForText,
-  type LayerSegmentContentDocType,
-  type TierDefinitionDocType,
-  type UtteranceDocType,
-  type UtteranceTextDocType,
-} from './index';
+import { buildSegmentationV2BackfillRows, buildV28BackfillPlanForText, type LayerUnitContentDocType, type TierDefinitionDocType, type LayerUnitDocType } from './index';
 
 const NOW = '2026-04-12T00:00:00.000Z';
 
@@ -17,7 +10,7 @@ function normalizeRows<T extends { id: string }>(rows: T[]): T[] {
 
 describe('migration replay baseline', () => {
   it('replays v22 segmentation backfill fixture deterministically', () => {
-    const utterances: UtteranceDocType[] = [
+    const units: LayerUnitDocType[] = [
       {
         id: 'utt_m1_1',
         textId: 'text_m1',
@@ -62,32 +55,32 @@ describe('migration replay baseline', () => {
       },
     ];
 
-    const utteranceTexts: UtteranceTextDocType[] = [
+    const unitTexts: LayerUnitContentDocType[] = [
       {
         id: 'utx_m1_1',
-        utteranceId: 'utt_m1_1',
+        unitId: 'utt_m1_1',
         tierId: 'tier_trl_en',
         modality: 'text',
         text: 'hello',
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      } as unknown as UtteranceTextDocType,
+      } as unknown as LayerUnitContentDocType,
       {
         id: 'utx_m1_2',
-        utteranceId: 'utt_m1_2',
+        unitId: 'utt_m1_2',
         tierId: 'tier_trx_default',
         modality: 'text',
         text: 'world',
         sourceType: 'human',
         createdAt: NOW,
         updatedAt: NOW,
-      } as unknown as UtteranceTextDocType,
+      } as unknown as LayerUnitContentDocType,
     ];
 
     const rows = buildSegmentationV2BackfillRows({
-      utterances,
-      utteranceTexts,
+      units,
+      unitTexts,
       tiers,
       nowIso: NOW,
     });
@@ -105,21 +98,21 @@ describe('migration replay baseline', () => {
 
     expect(normalizeRows(rows.links).map((item) => ({
       id: item.id,
-      sourceSegmentId: item.sourceSegmentId,
-      targetSegmentId: item.targetSegmentId,
-      linkType: item.linkType,
+      sourceUnitId: item.sourceUnitId,
+      targetUnitId: item.targetUnitId,
+      relationType: item.relationType,
     }))).toEqual([
       {
         id: 'seglv22_tier_trl_en_utt_m1_1',
-        sourceSegmentId: 'segv22_tier_trx_default_utt_m1_1',
-        targetSegmentId: 'segv22_tier_trl_en_utt_m1_1',
-        linkType: 'bridge',
+        sourceUnitId: 'segv22_tier_trx_default_utt_m1_1',
+        targetUnitId: 'segv22_tier_trl_en_utt_m1_1',
+        relationType: 'aligned_to',
       },
     ]);
   });
 
   it('replays v28 repair baseline for dangling segment references', () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_v28_fix',
       textId: 'text_m1',
       mediaId: 'media_m1',
@@ -129,9 +122,9 @@ describe('migration replay baseline', () => {
       updatedAt: NOW,
     };
 
-    const text: UtteranceTextDocType = {
+    const text: LayerUnitContentDocType = {
       id: 'utx_v28_fix',
-      utteranceId: 'utt_v28_fix',
+      unitId: 'utt_v28_fix',
       layerId: 'tier_trl_en',
       modality: 'text',
       text: 'repair me',
@@ -140,7 +133,7 @@ describe('migration replay baseline', () => {
       updatedAt: NOW,
     };
 
-    const existingContent: LayerSegmentContentDocType = {
+    const existingContent: LayerUnitContentDocType = {
       id: 'utx_v28_fix',
       textId: 'text_m1',
       segmentId: 'seg_missing_old',
@@ -154,7 +147,7 @@ describe('migration replay baseline', () => {
 
     const repairedPlan = buildV28BackfillPlanForText({
       text,
-      utterance,
+      unit,
       nowIso: NOW,
       existingContent,
       segmentExists: (segmentId) => segmentId === 'segv2_tier_trl_en_utt_v28_fix',
@@ -167,7 +160,7 @@ describe('migration replay baseline', () => {
 
     const skippedPlan = buildV28BackfillPlanForText({
       text,
-      utterance,
+      unit,
       nowIso: NOW,
       existingContent: {
         ...existingContent,

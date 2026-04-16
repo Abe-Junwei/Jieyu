@@ -1,5 +1,5 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
-import type { OrthographyDocType, UtteranceDocType } from '../db';
+import type { OrthographyDocType, LayerUnitDocType } from '../db';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type WaveSurfer from 'wavesurfer.js';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
@@ -14,7 +14,7 @@ interface CreateTranscriptionTimelineTopPropsInput {
     isPlaying: boolean;
     stop: () => void;
   };
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
@@ -29,7 +29,7 @@ interface CreateTranscriptionTimelineTopPropsInput {
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
   selectUnit: (id: string) => void;
-  handleSearchReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;
 }
@@ -40,7 +40,7 @@ export function createTranscriptionTimelineTopProps(
   return {
     headerProps: {
       duration: input.player.duration,
-      utterances: input.utterancesOnCurrentMedia,
+      units: input.unitsOnCurrentMedia,
       rulerView: input.rulerView,
       onSeek: input.player.seekTo,
       isReady: input.player.isReady,
@@ -57,7 +57,7 @@ export function createTranscriptionTimelineTopProps(
       items: input.searchableItems,
       orthographies: input.orthographies,
       currentLayerId: input.activeLayerIdForEdits || undefined,
-      currentUtteranceId: input.activeTimelineUnitId || undefined,
+      currentUnitId: input.activeTimelineUnitId || undefined,
       ...(input.searchOverlayRequest?.query !== undefined && { initialQuery: input.searchOverlayRequest.query }),
       ...(input.searchOverlayRequest?.scope !== undefined && { initialScope: input.searchOverlayRequest.scope }),
       ...(input.searchOverlayRequest?.layerKinds !== undefined && { initialLayerKinds: input.searchOverlayRequest.layerKinds }),

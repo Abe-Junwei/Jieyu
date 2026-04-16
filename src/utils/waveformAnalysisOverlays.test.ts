@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildWaveformAnalysisOverlaySummary, buildWaveformAnalysisPromptSummary, buildRiskHotZones } from './waveformAnalysisOverlays';
 
 describe('waveformAnalysisOverlays', () => {
-  it('derives low-confidence, overlap, and gap bands from utterances', () => {
+  it('derives low-confidence, overlap, and gap bands from units', () => {
     const summary = buildWaveformAnalysisOverlaySummary([
       { id: 'u2', startTime: 1.2, endTime: 2.4, ai_metadata: { confidence: 0.61 } },
       { id: 'u1', startTime: 0, endTime: 1.5, ai_metadata: { confidence: 0.93 } },
@@ -82,7 +82,7 @@ describe('waveformAnalysisOverlays', () => {
     });
 
     it('limits to maxZones', () => {
-      const utterances = Array.from({ length: 20 }, (_, i) => ({
+      const units = Array.from({ length: 20 }, (_, i) => ({
         id: `u${i}`,
         startTime: i * 10,
         endTime: i * 10 + 2,
@@ -90,14 +90,14 @@ describe('waveformAnalysisOverlays', () => {
       }));
       // 插入每个簇的第二信号使其可聚类
       for (let i = 0; i < 20; i++) {
-        utterances.push({
+        units.push({
           id: `v${i}`,
           startTime: i * 10 + 0.5,
           endTime: i * 10 + 1.5,
           ai_metadata: { confidence: 0.4 },
         });
       }
-      const overlay = buildWaveformAnalysisOverlaySummary(utterances);
+      const overlay = buildWaveformAnalysisOverlaySummary(units);
       const zones = buildRiskHotZones(overlay, { maxZones: 3 });
       expect(zones.length).toBeLessThanOrEqual(3);
     });

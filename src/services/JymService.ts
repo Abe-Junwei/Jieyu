@@ -1,11 +1,5 @@
 import { strToU8, unzipSync, zipSync } from 'fflate';
-import {
-  exportDatabaseAsJson,
-  getDb,
-  importDatabaseFromJson,
-  type ImportConflictStrategy,
-  type ImportResult,
-} from '../db';
+import { exportDatabaseAsJson, getDb, importDatabaseFromJson, type ImportConflictStrategy, type ImportResult } from '../db';
 
 const ARCHIVE_FORMAT_VERSION = 1;
 const MIMETYPE_JYM = 'application/x-jieyu-media';

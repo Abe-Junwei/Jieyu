@@ -1,17 +1,17 @@
 /**
  * 鸟瞰导航条 | Waveform overview / minimap navigation bar
  *
- * Shows all utterances proportionally across a thin canvas strip.
+ * Shows all units proportionally across a thin canvas strip.
  * A red viewport box tracks the visible window.
  * Click or drag to seek.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { t, useLocale } from '../i18n';
 
 interface WaveformOverviewBarProps {
   duration: number;
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   /** Currently visible ruler window, or null while the waveform is not ready */
   rulerView: { start: number; end: number } | null;
   onSeek: (time: number) => void;
@@ -20,7 +20,7 @@ interface WaveformOverviewBarProps {
 
 export function WaveformOverviewBar({
   duration,
-  utterances,
+  units,
   rulerView,
   onSeek,
   isReady,
@@ -57,10 +57,10 @@ export function WaveformOverviewBar({
     ctx.fillStyle = readThemeColor('--surface-elevated', '--surface-panel');
     ctx.fillRect(0, 0, W, H);
 
-    // 语段色块 | Utterance segments
+    // 语段色块 | Unit segments
     ctx.fillStyle = readThemeColor('--state-info-solid', '--header-accent');
     ctx.globalAlpha = 0.55;
-    for (const utt of utterances) {
+    for (const utt of units) {
       const start = Math.max(0, Math.min(duration, utt.startTime));
       const end = Math.max(start, Math.min(duration, utt.endTime));
       const x = Math.floor((start / duration) * W);
@@ -81,7 +81,7 @@ export function WaveformOverviewBar({
       ctx.lineWidth = 1.5;
       ctx.strokeRect(vx + 0.75, 0.75, vw - 1.5, H - 1.5);
     }
-  }, [duration, readThemeColor, utterances, rulerView]);
+  }, [duration, readThemeColor, units, rulerView]);
 
   /** 绑定 ResizeObserver，使 canvas 跟随容器宽度 | Bind ResizeObserver to follow container width */
   useEffect(() => {

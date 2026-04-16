@@ -1,8 +1,4 @@
-import type {
-  LayerDocType,
-  MediaItemDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -17,19 +13,19 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   layerForDisplay: LayerDocType;
   baseLaneHeight: number;
   usesOwnSegments: boolean;
-  utteranceById: Map<string, UtteranceDocType>;
+  unitById: Map<string, LayerUnitDocType>;
   text: string;
   draft: string;
   draftKey: string;
   audioMedia: MediaItemDocType | undefined;
   recording: boolean;
-  recordingUtteranceId: string | null | undefined;
+  recordingUnitId: string | null | undefined;
   recordingLayerId: string | null | undefined;
-  startRecordingForUtterance: ((utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
-  deleteVoiceTranslation: ((utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
-  saveTextTranslationForUtterance: (utteranceId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
   setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -57,19 +53,19 @@ export function TranscriptionTimelineMediaTranslationRow({
   layerForDisplay,
   baseLaneHeight,
   usesOwnSegments,
-  utteranceById,
+  unitById,
   text,
   draft,
   draftKey,
   audioMedia,
   recording,
-  recordingUtteranceId,
+  recordingUnitId,
   recordingLayerId,
-  startRecordingForUtterance,
+  startRecordingForUnit,
   stopRecording,
   deleteVoiceTranslation,
   saveSegmentContentForLayer,
-  saveTextTranslationForUtterance,
+  saveUnitLayerText,
   scheduleAutoSave,
   clearAutoSaveTimer,
   setTranslationDrafts,
@@ -81,11 +77,11 @@ export function TranscriptionTimelineMediaTranslationRow({
     && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
   const isAudioOnlyLayer = layer.modality === 'audio';
   const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
-  const isCurrentRecording = recording && recordingUtteranceId === item.id && recordingLayerId === layer.id;
+  const isCurrentRecording = recording && recordingUnitId === item.id && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
-  const sourceUtterance = item.kind === 'segment'
-    ? (item.parentUtteranceId ? utteranceById.get(item.parentUtteranceId) : undefined)
-    : utteranceById.get(item.id);
+  const sourceUnit = item.kind === 'segment'
+    ? (item.parentUnitId ? unitById.get(item.parentUnitId) : undefined)
+    : unitById.get(item.id);
   const audioControls = layerSupportsAudio ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
@@ -93,12 +89,12 @@ export function TranscriptionTimelineMediaTranslationRow({
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
       onStartRecording={() => {
-        if (!sourceUtterance) return;
-        void startRecordingForUtterance?.(sourceUtterance, layer);
+        if (!sourceUnit) return;
+        void startRecordingForUnit?.(sourceUnit, layer);
       }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-      {...(audioMedia && deleteVoiceTranslation && sourceUtterance
-        ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUtterance, layer) }
+      {...(audioMedia && deleteVoiceTranslation && sourceUnit
+        ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
         : {})}
     />
   ) : undefined;
@@ -137,7 +133,7 @@ export function TranscriptionTimelineMediaTranslationRow({
           }
           if (value.trim() && value !== text) {
             scheduleAutoSave(`tr-${layer.id}-${item.id}`, async () => {
-              await saveTextTranslationForUtterance(item.id, value, layer.id);
+              await saveUnitLayerText(item.id, value, layer.id);
             });
           } else {
             clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
@@ -155,7 +151,7 @@ export function TranscriptionTimelineMediaTranslationRow({
           }
           clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
           if (value !== text) {
-            fireAndForget(saveTextTranslationForUtterance(item.id, value, layer.id));
+            fireAndForget(saveUnitLayerText(item.id, value, layer.id));
           }
         },
       })}

@@ -3,12 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { addLogObserver, setLogLevel, type LogEntry } from '../observability/logger';
-import {
-  SpeakerRailProvider,
-  type SpeakerRailContextValue,
-  resetSpeakerRailContextDiagnosticsForTests,
-  useSpeakerRailContext,
-} from './SpeakerRailContext';
+import { SpeakerRailProvider, type SpeakerRailContextValue, resetSpeakerRailContextDiagnosticsForTests, useSpeakerRailContext } from './SpeakerRailContext';
 import { EMPTY_SPEAKER_REFERENCE_STATS } from '../hooks/speakerManagement/types';
 
 let capturedContext: SpeakerRailContextValue | null = null;
@@ -70,7 +65,7 @@ describe('SpeakerRailContext', () => {
       activeSpeakerFilterKey: 'all',
       setActiveSpeakerFilterKey: () => undefined,
       speakerDialogState: null,
-      speakerVisualByUtteranceId: {},
+      speakerVisualByUnitId: {},
       speakerFilterOptions: [],
       speakerReferenceStats: {},
       speakerReferenceUnassignedStats: EMPTY_SPEAKER_REFERENCE_STATS,
@@ -78,7 +73,7 @@ describe('SpeakerRailContext', () => {
       speakerReferenceStatsReady: true,
       selectedSpeakerSummary: 'Alice',
       selectedUnitIds: new Set<string>(),
-      handleSelectSpeakerUtterances: () => undefined,
+      handleSelectSpeakerUnits: () => undefined,
       handleClearSpeakerAssignments: () => undefined,
       handleExportSpeakerSegments: () => undefined,
       handleRenameSpeaker: () => undefined,

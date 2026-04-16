@@ -6,14 +6,14 @@ import { useRecoveryBanner } from './useRecoveryBanner';
 describe('useRecoveryBanner', () => {
   it('does not re-open banner after dismiss when lengths change', async () => {
     const checkRecovery = vi.fn(async () => ({
-      utterances: [{ id: 'u1' }, { id: 'u2' }],
+      units: [{ id: 'u1' }, { id: 'u2' }],
       translations: [{ id: 't1' }],
       layers: [{ id: 'l1' }],
     }));
 
     const { result, rerender } = renderHook((props: {
       phase: string;
-      utterancesLength: number;
+      unitsLength: number;
       translationsLength: number;
       layersLength: number;
     }) => useRecoveryBanner({
@@ -22,7 +22,7 @@ describe('useRecoveryBanner', () => {
     }), {
       initialProps: {
         phase: 'ready',
-        utterancesLength: 1,
+        unitsLength: 1,
         translationsLength: 0,
         layersLength: 0,
       },
@@ -40,7 +40,7 @@ describe('useRecoveryBanner', () => {
 
     rerender({
       phase: 'ready',
-      utterancesLength: 2,
+      unitsLength: 2,
       translationsLength: 1,
       layersLength: 1,
     });
@@ -55,7 +55,7 @@ describe('useRecoveryBanner', () => {
 
   it('hides banner after successful apply and forwards dismiss callback', async () => {
     const snapshot = {
-      utterances: [{ id: 'u1' }],
+      units: [{ id: 'u1' }],
       translations: [],
       layers: [],
     };
@@ -65,7 +65,7 @@ describe('useRecoveryBanner', () => {
 
     const { result } = renderHook(() => useRecoveryBanner({
       phase: 'ready',
-      utterancesLength: 0,
+      unitsLength: 0,
       translationsLength: 0,
       layersLength: 0,
       checkRecovery,

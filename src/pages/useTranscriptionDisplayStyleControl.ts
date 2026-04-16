@@ -4,12 +4,7 @@ import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useLocalFonts } from '../hooks/useLocalFonts';
 import { useOrthographies } from '../hooks/useOrthographies';
-import {
-  BASE_FONT_SIZE,
-  buildOrthographyPreviewTextProps,
-  computeLaneHeightFromRenderPolicy,
-  resolveOrthographyRenderPolicy,
-} from '../utils/layerDisplayStyle';
+import { BASE_FONT_SIZE, buildOrthographyPreviewTextProps, computeLaneHeightFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
 
 const SYSTEM_DEFAULT_FONT_KEY = '\u7cfb\u7edf\u9ed8\u8ba4';

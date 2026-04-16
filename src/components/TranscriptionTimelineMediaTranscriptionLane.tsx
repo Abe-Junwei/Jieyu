@@ -5,13 +5,7 @@
 
 import { memo } from 'react';
 import type React from 'react';
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerDisplaySettings,
-  OrthographyDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerDisplaySettings, OrthographyDocType, LayerUnitDocType } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
@@ -74,20 +68,20 @@ interface TranscriptionLaneProps {
   collapsedOverlapMarkers: Array<{ id: string; speakerCount: number; centerTime: number }>;
   // Data
   visibleUnits: TimelineUnitView[];
-  overlapCycleItemsByUtteranceId: Map<string, Array<{ id: string; startTime: number }>>;
+  overlapCycleItemsByUnitId: Map<string, Array<{ id: string; startTime: number }>>;
   segmentSourceLayerId: string;
   segmentSpeakerIdByLayer: Map<string, Map<string, string>>;
   segmentContentByLayer?: Map<string, Map<string, { text?: string }>>;
-  utteranceById: Map<string, UtteranceDocType>;
+  unitById: Map<string, LayerUnitDocType>;
   activeOverlapGroupId?: string;
   // Editor bindings
-  utteranceDrafts: Record<string, string>;
-  getUtteranceTextForLayer: (utt: UtteranceDocType, layerId: string) => string;
+  unitDrafts: Record<string, string>;
+  getUnitTextForLayer: (utt: LayerUnitDocType, layerId: string) => string;
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
   scheduleAutoSave: (key: string, saveFn: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
-  setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  saveUnitText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
     utt: TimelineUnitView,
     layer: LayerDocType,
@@ -155,18 +149,18 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   activeLayerLayout,
   collapsedOverlapMarkers,
   visibleUnits,
-  overlapCycleItemsByUtteranceId,
+  overlapCycleItemsByUnitId,
   segmentSourceLayerId,
   segmentSpeakerIdByLayer,
   segmentContentByLayer,
-  utteranceById,
-  utteranceDrafts,
-  getUtteranceTextForLayer,
+  unitById,
+  unitDrafts,
+  getUnitTextForLayer,
   saveSegmentContentForLayer,
   scheduleAutoSave,
   clearAutoSaveTimer,
-  saveUtteranceText,
-  setUtteranceDrafts,
+  saveUnitText,
+  setUnitDrafts,
   renderAnnotationItem,
   renderLaneLabel,
   startLaneHeightResize,
@@ -240,14 +234,14 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         </TimelineStyledButton>
       ))}
       {!effectiveCollapsed && visibleUnits.map((unit) => {
-        const realUtt = utteranceById.get(unit.id);
+        const realUtt = unitById.get(unit.id);
         const sourceText = unit.kind === 'segment'
           ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
-          : (realUtt ? getUtteranceTextForLayer(realUtt, layer.id) : unit.text);
+          : (realUtt ? getUnitTextForLayer(realUtt, layer.id) : unit.text);
         const draftKey = `trc-${layer.id}-${unit.id}`;
-        const draft = utteranceDrafts[draftKey] ?? sourceText;
+        const draft = unitDrafts[draftKey] ?? sourceText;
         const placement = activeLayerLayout.placements.get(unit.id);
-        const overlapCycleItems = overlapCycleItemsByUtteranceId.get(unit.id);
+        const overlapCycleItems = overlapCycleItemsByUnitId.get(unit.id);
         const overlapCycleStatus = overlapCycleItems && overlapCycleItems.length > 1
           ? {
               index: Math.max(1, overlapCycleItems.findIndex((item) => item.id === unit.id) + 1),
@@ -274,8 +268,8 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             saveSegmentContentForLayer={saveSegmentContentForLayer}
             scheduleAutoSave={scheduleAutoSave}
             clearAutoSaveTimer={clearAutoSaveTimer}
-            saveUtteranceText={saveUtteranceText}
-            setUtteranceDrafts={setUtteranceDrafts}
+            saveUnitText={saveUnitText}
+            setUnitDrafts={setUnitDrafts}
             renderAnnotationItem={renderAnnotationItem}
           />
         );

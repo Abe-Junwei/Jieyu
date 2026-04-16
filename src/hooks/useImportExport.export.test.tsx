@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { useImportExport } from './useImportExport';
 
 const mockExportToEaf = vi.hoisted(() => vi.fn(() => '<ANNOTATION_DOCUMENT/>'));
@@ -210,7 +210,7 @@ function makeInput() {
     createdAt: '2026-03-26T00:00:00.000Z',
   } as MediaItemDocType;
 
-  const utterance = {
+  const unit = {
     id: 'utt-1',
     textId: 'text-1',
     mediaId: 'media-1',
@@ -218,7 +218,7 @@ function makeInput() {
     endTime: 1,
     createdAt: '2026-03-26T00:00:00.000Z',
     updatedAt: '2026-03-26T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 
   const trc = {
     id: 'trc-1',
@@ -279,24 +279,24 @@ function makeInput() {
     updatedAt: '2026-03-26T00:00:00.000Z',
   } as LayerDocType;
 
-  const translations: UtteranceTextDocType[] = [
+  const translations: LayerUnitContentDocType[] = [
     {
       id: 'utr-1',
-      utteranceId: 'utt-1',
+      unitId: 'utt-1',
       layerId: 'trl-ind',
       modality: 'text',
       text: 'hello',
       sourceType: 'human',
       createdAt: '2026-03-26T00:00:00.000Z',
       updatedAt: '2026-03-26T00:00:00.000Z',
-    } as UtteranceTextDocType,
+    } as LayerUnitContentDocType,
   ];
 
   return {
     activeTextId: 'text-1',
     getActiveTextId: vi.fn(async () => 'text-1'),
     selectedUnitMedia: media,
-    utterancesOnCurrentMedia: [utterance],
+    unitsOnCurrentMedia: [unit],
     anchors: [],
     layers: [trc, independentTrl, symbolicTrl, subdivisionTrc],
     translations,
@@ -457,10 +457,10 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
       ? { ...layer, bridgeId: 'xf-explicit' }
       : layer));
     input.translations = input.translations.filter((item) => item.layerId !== 'trc-1');
-    input.utterancesOnCurrentMedia = [{
-      ...input.utterancesOnCurrentMedia[0]!,
+    input.unitsOnCurrentMedia = [{
+      ...input.unitsOnCurrentMedia[0]!,
       transcription: { default: 'legacy raw' },
-    } as UtteranceDocType];
+    } as LayerUnitDocType];
     const { result } = renderHook(() => useImportExport(input));
 
     await act(async () => {
@@ -468,7 +468,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     });
 
     const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
-      utterances?: Array<{ transcription?: { default?: string } }>;
+      units?: Array<{ transcription?: { default?: string } }>;
     };
     expect(mockApplyOrthographyBridgeIfNeeded).toHaveBeenCalledWith({
       text: 'legacy raw',
@@ -476,7 +476,7 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
       targetOrthographyId: 'orth-layer',
       bridgeId: 'xf-explicit',
     });
-    expect(arg?.utterances?.[0]?.transcription?.default).toBe('xf:legacy raw');
+    expect(arg?.units?.[0]?.transcription?.default).toBe('xf:legacy raw');
   });
 
   it('FLEx: 导出包含 independent_boundary 翻译层的 segment 数据 | includes independent_boundary translation layer segments', async () => {

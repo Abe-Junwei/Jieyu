@@ -12,8 +12,8 @@ import { t, tf, useLocale } from '../../i18n';
 
 export interface RegionActionOverlayProps {
   // 语段几何坐标（秒） | Region geometry (seconds)
-  utteranceStartTime: number;
-  utteranceEndTime: number;
+  unitStartTime: number;
+  unitEndTime: number;
 
   // 缩放与滚动 | Zoom and scroll
   zoomPxPerSec: number;
@@ -32,8 +32,8 @@ export interface RegionActionOverlayProps {
 }
 
 export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
-  utteranceStartTime,
-  utteranceEndTime,
+  unitStartTime,
+  unitEndTime,
   zoomPxPerSec,
   scrollLeft,
   waveAreaWidth,
@@ -44,8 +44,8 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   onToggleLoop,
   onTogglePlay,
 }) => {
-  const leftPx = utteranceStartTime * zoomPxPerSec - scrollLeft;
-  const widthPx = (utteranceEndTime - utteranceStartTime) * zoomPxPerSec;
+  const leftPx = unitStartTime * zoomPxPerSec - scrollLeft;
+  const widthPx = (unitEndTime - unitStartTime) * zoomPxPerSec;
 
   // 区域滚出视野时不渲染 | Don't render when region is out of view
   if (leftPx + widthPx < 0 || leftPx > waveAreaWidth) return null;

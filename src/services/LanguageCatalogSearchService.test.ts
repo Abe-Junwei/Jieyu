@@ -1,12 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  lookupLanguageCatalogEntriesByIds,
-  lookupLanguageCatalogEntryById,
-  resetLanguageCatalogSearchServiceForTests,
-  searchLanguageCatalogSuggestions,
-} from './LanguageCatalogSearchService';
+import { lookupLanguageCatalogEntriesByIds, lookupLanguageCatalogEntryById, resetLanguageCatalogSearchServiceForTests, searchLanguageCatalogSuggestions } from './LanguageCatalogSearchService';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
 

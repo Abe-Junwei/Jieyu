@@ -1,19 +1,9 @@
-import {
-  type JieyuDatabase,
-  type LayerSegmentDocType,
-  type LayerSegmentContentDocType,
-  type UtteranceDocType,
-  type UtteranceTextDocType,
-} from '../db';
-import {
-  deleteLayerSegmentGraphBySegmentIds,
-  deleteLayerSegmentGraphByUtteranceIds,
-  findOrphanSegmentIds,
-  listSegmentContentsByIds,
-} from './LayerSegmentGraphService';
+import { type JieyuDatabase, type LayerUnitDocType, type LayerUnitContentDocType, type LayerUnitContentViewDocType, type LayerSegmentViewDocType } from '../db';
+import { deleteLayerSegmentGraphBySegmentIds, deleteLayerSegmentGraphByUnitIds, findOrphanSegmentIds, listSegmentContentsByIds } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
+import { SegmentMetaService } from './SegmentMetaService';
 
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
 
@@ -21,8 +11,9 @@ function uniqueIds(ids: Iterable<string>): string[] {
   return [...new Set(Array.from(ids).filter((id) => id.trim().length > 0))];
 }
 
-function buildSegmentId(layerId: string, utteranceId: string): string {
-  return `segv2_${layerId}_${utteranceId}`;
+function buildSegmentId(layerId: string | undefined, unitId: string): string {
+  const normalizedLayerId = layerId?.trim() || '__unknown_layer__';
+  return `segv2_${normalizedLayerId}_${unitId}`;
 }
 
 function buildSegmentContentId(translationId: string): string {
@@ -43,18 +34,20 @@ function parseTranslationIdFromContentId(contentId: string): string {
   return contentId;
 }
 
-function toLegacyLikeUtteranceText(
-  segment: LayerSegmentDocType,
-  content: LayerSegmentContentDocType,
-  utteranceId: string,
-): UtteranceTextDocType {
+function toLegacyLikeUnitText(
+  segment: LayerSegmentViewDocType,
+  content: LayerUnitContentDocType,
+  unitId: string,
+): LayerUnitContentViewDocType {
   return {
     id: parseTranslationIdFromContentId(content.id),
-    utteranceId,
-    layerId: content.layerId,
-    modality: content.modality,
+    unitId,
+    unitId: content.unitId ?? unitId,
+    layerId: content.layerId ?? segment.layerId,
+    contentRole: content.contentRole ?? 'primary_text',
+    modality: content.modality ?? 'text',
     ...(content.text !== undefined ? { text: content.text } : {}),
-    ...(content.translationAudioMediaId ? { translationAudioMediaId: content.translationAudioMediaId } : {}),
+    ...(content.mediaRefId ? { mediaRefId: content.mediaRefId, translationAudioMediaId: content.mediaRefId } : {}),
     sourceType: content.sourceType,
     ...(content.ai_metadata ? { ai_metadata: content.ai_metadata } : {}),
     ...(content.provenance ? { provenance: content.provenance } : {}),
@@ -65,7 +58,7 @@ function toLegacyLikeUtteranceText(
   };
 }
 
-function sortByUpdatedAtDesc(rows: UtteranceTextDocType[]): UtteranceTextDocType[] {
+function sortByUpdatedAtDesc(rows: LayerUnitContentDocType[]): LayerUnitContentDocType[] {
   return [...rows].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
@@ -78,35 +71,37 @@ function chunkArray<T>(items: readonly T[], chunkSize: number): T[][] {
   return chunks;
 }
 
-export function getSegmentationV2Ids(layerId: string, utteranceId: string, translationId: string): {
+export function getSegmentationV2Ids(layerId: string | undefined, unitId: string, translationId: string): {
   segmentId: string;
   segmentContentId: string;
 } {
   return {
-    segmentId: buildSegmentId(layerId, utteranceId),
+    segmentId: buildSegmentId(layerId, unitId),
     segmentContentId: buildSegmentContentId(translationId),
   };
 }
 
-export async function syncUtteranceTextToSegmentationV2(
+export async function syncUnitTextToSegmentationV2(
   db: JieyuDatabase,
-  utterance: UtteranceDocType,
-  translation: UtteranceTextDocType,
+  unit: LayerUnitDocType,
+  translation: LayerUnitContentDocType,
 ): Promise<void> {
   const now = new Date().toISOString();
-  const ids = getSegmentationV2Ids(translation.layerId, utterance.id, translation.id);
+  const layerId = translation.layerId?.trim() || '';
+  const ids = getSegmentationV2Ids(layerId, unit.id, translation.id);
 
-  const segmentDoc: LayerSegmentDocType = {
+  const segmentDoc: LayerUnitDocType = {
     id: ids.segmentId,
-    textId: utterance.textId,
-    mediaId: utterance.mediaId && utterance.mediaId.trim().length > 0 ? utterance.mediaId : UNKNOWN_MEDIA_ID,
-    layerId: translation.layerId,
-    utteranceId: utterance.id,
-    ...(utterance.speakerId ? { speakerId: utterance.speakerId } : {}),
-    startTime: utterance.startTime,
-    endTime: utterance.endTime,
-    ...(utterance.startAnchorId ? { startAnchorId: utterance.startAnchorId } : {}),
-    ...(utterance.endAnchorId ? { endAnchorId: utterance.endAnchorId } : {}),
+    textId: unit.textId,
+    mediaId: unit.mediaId && unit.mediaId.trim().length > 0 ? unit.mediaId : UNKNOWN_MEDIA_ID,
+    layerId,
+    unitType: 'segment',
+    parentUnitId: unit.id,
+    ...(unit.speakerId ? { speakerId: unit.speakerId } : {}),
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    ...(unit.startAnchorId ? { startAnchorId: unit.startAnchorId } : {}),
+    ...(unit.endAnchorId ? { endAnchorId: unit.endAnchorId } : {}),
     provenance: {
       actorType: 'system',
       method: 'projection',
@@ -117,15 +112,16 @@ export async function syncUtteranceTextToSegmentationV2(
     updatedAt: now,
   };
 
-  const contentDoc: LayerSegmentContentDocType = {
+  const contentDoc: LayerUnitContentDocType = {
     id: ids.segmentContentId,
-    textId: utterance.textId,
-    segmentId: ids.segmentId,
-    layerId: translation.layerId,
-    modality: translation.modality,
+    textId: unit.textId,
+    unitId: ids.segmentId,
+    layerId,
+    contentRole: 'primary_text',
+    modality: translation.modality ?? 'text',
     ...(translation.text !== undefined ? { text: translation.text } : {}),
-    ...(translation.translationAudioMediaId ? { translationAudioMediaId: translation.translationAudioMediaId } : {}),
-    sourceType: translation.sourceType,
+    ...(translation.mediaRefId ? { mediaRefId: translation.mediaRefId } : {}),
+    sourceType: translation.sourceType ?? 'human',
     ...(translation.ai_metadata ? { ai_metadata: translation.ai_metadata } : {}),
     ...(translation.provenance ? { provenance: translation.provenance } : {}),
     ...(translation.accessRights ? { accessRights: translation.accessRights } : {}),
@@ -144,20 +140,36 @@ export async function syncUtteranceTextToSegmentationV2(
     await LayerUnitSegmentWriteService.upsertSegments(db, [segmentDoc]);
     await LayerUnitSegmentWriteService.upsertSegmentContents(db, [contentDoc]);
   });
+
+  try {
+    await SegmentMetaService.syncForUnitIds([unit.id, ids.segmentId]);
+  } catch {
+    // 语段读模型刷新失败不应阻塞文本保存 | Segment read-model refresh must not block text saves.
+  }
 }
 
-export async function removeUtteranceTextFromSegmentationV2(
+export async function removeUnitTextFromSegmentationV2(
   db: JieyuDatabase,
-  translation: Pick<UtteranceTextDocType, 'id'>,
+  translation: Pick<LayerUnitContentDocType, 'id'>,
 ): Promise<void> {
   const candidateContentIds = getSegmentContentCandidateIds(translation.id);
   const affectedContents = await listSegmentContentsByIds(db, candidateContentIds);
-  const affectedSegmentIds = Array.from(new Set(
-    affectedContents.map((item) => item.segmentId),
-  ));
+  const affectedSegmentIds = uniqueIds(
+    affectedContents
+      .map((item) => item.segmentId)
+      .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+  );
 
   await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, candidateContentIds);
   await cleanupOrphanSegments(db, affectedSegmentIds);
+
+  if (affectedSegmentIds.length > 0) {
+    try {
+      await SegmentMetaService.syncForUnitIds(affectedSegmentIds);
+    } catch {
+      // 语段读模型刷新失败不应阻塞文本删除 | Segment read-model refresh must not block text removal.
+    }
+  }
 }
 
 export async function cleanupOrphanSegments(
@@ -176,33 +188,34 @@ export async function cleanupOrphanSegments(
   return orphanSegmentIds;
 }
 
-async function listV2UtteranceTextsByUtterance(
+async function listV2UnitTextsByUnit(
   db: JieyuDatabase,
-  utteranceId: string,
-): Promise<UtteranceTextDocType[]> {
+  unitId: string,
+): Promise<LayerUnitContentViewDocType[]> {
   void db;
-  const segments = await LayerSegmentQueryService.listSegmentsByParentUnitIds([utteranceId]);
+  const segments = await LayerSegmentQueryService.listSegmentsByParentUnitIds([unitId]);
   if (segments.length === 0) return [];
 
   const targetSegmentIds = segments.map((segment) => segment.id);
   const segmentById = new Map(segments.map((segment) => [segment.id, segment]));
   const contents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(targetSegmentIds);
 
-  const rows: UtteranceTextDocType[] = [];
+  const rows: LayerUnitContentViewDocType[] = [];
   for (const content of contents) {
-    const segment = segmentById.get(content.segmentId);
+    const segmentId = content.segmentId ?? content.unitId ?? '';
+    const segment = segmentById.get(segmentId);
     if (!segment) continue;
-    const ownerUtteranceId = segment.utteranceId;
-    if (ownerUtteranceId !== utteranceId) continue;
-    rows.push(toLegacyLikeUtteranceText(segment, content, utteranceId));
+    const ownerUnitId = segment.unitId;
+    if (ownerUnitId !== unitId) continue;
+    rows.push(toLegacyLikeUnitText(segment, content, unitId));
   }
 
   return rows;
 }
 
-export async function removeUtteranceCascadeFromSegmentationV2(
+export async function removeUnitCascadeFromSegmentationV2(
   db: JieyuDatabase,
-  utteranceId: string,
+  unitId: string,
 ): Promise<void> {
   // 事务保护：级联删除 content → segment → links 必须原子执行 | Transaction: cascade delete must be atomic
   await db.dexie.transaction('rw', [
@@ -210,26 +223,26 @@ export async function removeUtteranceCascadeFromSegmentationV2(
     db.dexie.layer_units,
     db.dexie.unit_relations,
   ], async () => {
-    await deleteLayerSegmentGraphByUtteranceIds(db, [utteranceId]);
+    await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
   });
 }
 
 /**
- * 按父 utterance 时间范围约束 time_subdivision 子 segment。
+ * 按父 unit 时间范围约束 time_subdivision 子 segment。
  * 对越界子段执行裁剪；裁剪后过短（< minSpan）则删除。
  *
- * Clamp time_subdivision child segments to parent utterance range.
+ * Clamp time_subdivision child segments to parent unit range.
  * Out-of-range segments are clipped; if too short after clip (< minSpan), they are deleted.
  */
 export async function enforceTimeSubdivisionParentBounds(
   db: JieyuDatabase,
-  parentUtteranceId: string,
+  parentUnitId: string,
   parentStartTime: number,
   parentEndTime: number,
   minSpan = 0.05,
 ): Promise<{ clippedCount: number; deletedCount: number }> {
   const childSegmentIds = uniqueIds(await LayerUnitRelationQueryService.listResidualAwareTimeSubdivisionChildUnitIds(
-    [parentUtteranceId],
+    [parentUnitId],
     db,
   ));
   if (childSegmentIds.length === 0) {
@@ -279,9 +292,9 @@ export async function enforceTimeSubdivisionParentBounds(
   return { clippedCount, deletedCount };
 }
 
-export async function listUtteranceTextsFromSegmentation(db: JieyuDatabase): Promise<UtteranceTextDocType[]> {
+export async function listUnitTextsFromSegmentation(db: JieyuDatabase): Promise<LayerUnitContentViewDocType[]> {
   void db;
-  const segments = (await LayerSegmentQueryService.listAllSegments()).filter((segment) => Boolean(segment.utteranceId));
+  const segments = (await LayerSegmentQueryService.listAllSegments()).filter((segment) => Boolean(segment.unitId));
   if (segments.length === 0) {
     return [];
   }
@@ -289,7 +302,7 @@ export async function listUtteranceTextsFromSegmentation(db: JieyuDatabase): Pro
   const segmentById = new Map(segments.map((row) => [row.id, row]));
   const segmentIds = [...segmentById.keys()];
 
-  const contentRows: LayerSegmentContentDocType[] = [];
+  const contentRows: LayerUnitContentDocType[] = [];
   for (const idChunk of chunkArray(segmentIds, 500)) {
     if (idChunk.length === 0) continue;
     const rows = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(idChunk);
@@ -298,31 +311,31 @@ export async function listUtteranceTextsFromSegmentation(db: JieyuDatabase): Pro
 
   if (contentRows.length === 0) return [];
 
-  const v2Rows: UtteranceTextDocType[] = [];
+  const v2Rows: LayerUnitContentDocType[] = [];
   for (const content of contentRows) {
-    const segment = segmentById.get(content.segmentId);
+    const segment = segmentById.get(content.segmentId ?? content.unitId ?? '');
     if (!segment) continue;
-    const utteranceId = segment.utteranceId;
-    if (!utteranceId) continue;
-    v2Rows.push(toLegacyLikeUtteranceText(segment, content, utteranceId));
+    const unitId = segment.unitId;
+    if (!unitId) continue;
+    v2Rows.push(toLegacyLikeUnitText(segment, content, unitId));
   }
 
   return sortByUpdatedAtDesc(v2Rows);
 }
 
-export async function listUtteranceTextsByUtterance(
+export async function listUnitTextsByUnit(
   db: JieyuDatabase,
-  utteranceId: string,
-): Promise<UtteranceTextDocType[]> {
-  const v2Rows = await listV2UtteranceTextsByUtterance(db, utteranceId);
+  unitId: string,
+): Promise<LayerUnitContentViewDocType[]> {
+  const v2Rows = await listV2UnitTextsByUnit(db, unitId);
   return sortByUpdatedAtDesc(v2Rows);
 }
 
-export async function listUtteranceTextsByUtterances(
+export async function listUnitTextsByUnits(
   db: JieyuDatabase,
-  utteranceIds: Iterable<string>,
-): Promise<UtteranceTextDocType[]> {
-  const ids = [...new Set(Array.from(utteranceIds).filter((id) => id.trim().length > 0))];
+  unitIds: Iterable<string>,
+): Promise<LayerUnitContentViewDocType[]> {
+  const ids = [...new Set(Array.from(unitIds).filter((id) => id.trim().length > 0))];
   if (ids.length === 0) return [];
 
   void db;
@@ -334,12 +347,13 @@ export async function listUtteranceTextsByUtterances(
   const contents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds);
 
   const idSet = new Set(ids);
-  const v2Rows: UtteranceTextDocType[] = [];
+  const v2Rows: LayerUnitContentDocType[] = [];
   for (const content of contents) {
-    const segment = segmentById.get(content.segmentId);
+    const segmentId = content.segmentId ?? content.unitId ?? '';
+    const segment = segmentById.get(segmentId);
     if (!segment) continue;
-    if (!segment.utteranceId || !idSet.has(segment.utteranceId)) continue;
-    v2Rows.push(toLegacyLikeUtteranceText(segment, content, segment.utteranceId));
+    if (!segment.unitId || !idSet.has(segment.unitId)) continue;
+    v2Rows.push(toLegacyLikeUnitText(segment, content, segment.unitId));
   }
 
   return sortByUpdatedAtDesc(v2Rows);

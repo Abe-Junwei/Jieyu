@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  createExtensionHost,
-  EXTENSION_MANIFEST_SCHEMA_VERSION,
-  ExtensionCapabilityDeniedError,
-  negotiateManifestCompatibility,
-  validateExtensionManifest,
-  type ExtensionManifestV1,
-} from './extensionRuntime';
+import { createExtensionHost, EXTENSION_MANIFEST_SCHEMA_VERSION, ExtensionCapabilityDeniedError, negotiateManifestCompatibility, validateExtensionManifest, type ExtensionManifestV1 } from './extensionRuntime';
 
 function buildManifest(overrides?: Partial<ExtensionManifestV1>): ExtensionManifestV1 {
   return {

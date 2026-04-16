@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildOrthographyBrowseSelector,
-  buildOrthographyBrowseState,
-} from './orthographyBrowse.shared';
+import { buildOrthographyBrowseSelector, buildOrthographyBrowseState } from './orthographyBrowse.shared';
 
 describe('orthographyBrowse shared helpers', () => {
   it('stays idle when there is no project scope, no search text, and no selected orthography', () => {

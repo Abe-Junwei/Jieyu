@@ -1,13 +1,13 @@
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { BatchOperationPanel } from '../components/BatchOperationPanel';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 
 type TranscriptionPageBatchOpsProps = {
   showBatchOperationPanel: boolean;
   selectedUnitIds: Set<string>;
-  selectedBatchUtterances: Pick<UtteranceDocType, 'id' | 'startTime' | 'endTime'>[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedBatchUtteranceTextById: Record<string, string>;
+  selectedBatchUnits: Pick<LayerUnitDocType, 'id' | 'startTime' | 'endTime'>[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  selectedBatchUnitTextById: Record<string, string>;
   batchPreviewLayerOptions: Array<{ id: string; label: string }>;
   batchPreviewTextByLayerId: Record<string, Record<string, string>> | null;
   batchPreviewTextPropsByLayerId?: Record<string, OrthographyPreviewTextProps>;
@@ -17,15 +17,15 @@ type TranscriptionPageBatchOpsProps = {
   onBatchScale: (factor: number, anchorTime?: number) => Promise<void>;
   onBatchSplitByRegex: (pattern: string, flags?: string) => Promise<void>;
   onBatchMerge: () => Promise<void>;
-  onBatchJumpToUtterance: (id: string) => void;
+  onBatchJumpToUnit: (id: string) => void;
 };
 
 export function TranscriptionPageBatchOps({
   showBatchOperationPanel,
   selectedUnitIds,
-  selectedBatchUtterances,
-  utterancesOnCurrentMedia,
-  selectedBatchUtteranceTextById,
+  selectedBatchUnits,
+  unitsOnCurrentMedia,
+  selectedBatchUnitTextById,
   batchPreviewLayerOptions,
   batchPreviewTextByLayerId,
   batchPreviewTextPropsByLayerId,
@@ -35,15 +35,15 @@ export function TranscriptionPageBatchOps({
   onBatchScale,
   onBatchSplitByRegex,
   onBatchMerge,
-  onBatchJumpToUtterance,
+  onBatchJumpToUnit,
 }: TranscriptionPageBatchOpsProps) {
   if (!showBatchOperationPanel) return null;
   return (
     <BatchOperationPanel
       selectedCount={selectedUnitIds.size}
-      selectedUtterances={selectedBatchUtterances}
-      allUtterancesOnMedia={utterancesOnCurrentMedia}
-      utteranceTextById={selectedBatchUtteranceTextById}
+      selectedUnits={selectedBatchUnits}
+      allUnitsOnMedia={unitsOnCurrentMedia}
+      unitTextById={selectedBatchUnitTextById}
       previewLayerOptions={batchPreviewLayerOptions}
       {...(batchPreviewTextByLayerId ? { previewTextByLayerId: batchPreviewTextByLayerId } : {})}
       {...(batchPreviewTextPropsByLayerId ? { previewTextPropsByLayerId: batchPreviewTextPropsByLayerId } : {})}
@@ -53,7 +53,7 @@ export function TranscriptionPageBatchOps({
       onScale={onBatchScale}
       onSplitByRegex={onBatchSplitByRegex}
       onMerge={onBatchMerge}
-      onJumpToUtterance={onBatchJumpToUtterance}
+      onJumpToUnit={onBatchJumpToUnit}
     />
   );
 }

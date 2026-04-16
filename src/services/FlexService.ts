@@ -8,16 +8,7 @@
  * - morpheme-level form + gloss (morph/item[type=txt|gls])
  */
 
-import type {
-  UtteranceDocType,
-  LayerDocType,
-  UtteranceTextDocType,
-  UtteranceTokenDocType,
-  UtteranceMorphemeDocType,
-  LayerSegmentDocType,
-  LayerSegmentContentDocType,
-  OrthographyDocType,
-} from '../db';
+import type { LayerDocType, LayerSegmentViewDocType, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, OrthographyDocType } from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
@@ -25,21 +16,21 @@ import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 // ── Types ───────────────────────────────────────────────────
 
 export interface FlexExportInput {
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   layers: LayerDocType[];
-  translations: UtteranceTextDocType[];
+  translations: LayerUnitContentViewDocType[];
   orthographies?: OrthographyDocType[];
-  tokens?: UtteranceTokenDocType[];
-  morphemes?: UtteranceMorphemeDocType[];
+  tokens?: UnitTokenDocType[];
+  morphemes?: UnitMorphemeDocType[];
   languageTag?: string;
   /** 独立层 segment 数据 | Independent layer segment data */
-  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  segmentsByLayer?: Map<string, LayerSegmentViewDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
-  segmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
+  segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
 }
 
 export interface FlexImportResult {
-  utterances: Array<{
+  units: Array<{
     startTime: number;
     endTime: number;
     transcription: string;
@@ -78,8 +69,8 @@ function getText(el: Element | null): string {
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToFlextext(input: FlexExportInput): string {
-  const { utterances, layers, translations, orthographies, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
-  const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const { units, layers, translations, orthographies, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
+  const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
     ?? layers.find((l) => l.layerType === 'transcription');
   const firstTranslationLayer = layers.find((l) => l.layerType === 'translation');
@@ -89,17 +80,17 @@ export function exportToFlextext(input: FlexExportInput): string {
     return wrapPlainTextWithBidiIsolation(text, renderPolicy);
   };
 
-  const tokensByUtteranceId = new Map<string, UtteranceTokenDocType[]>();
+  const tokensByUnitId = new Map<string, UnitTokenDocType[]>();
   for (const token of tokens) {
-    const list = tokensByUtteranceId.get(token.unitId) ?? [];
+    const list = tokensByUnitId.get(token.unitId) ?? [];
     list.push(token);
-    tokensByUtteranceId.set(token.unitId, list);
+    tokensByUnitId.set(token.unitId, list);
   }
-  for (const list of tokensByUtteranceId.values()) {
+  for (const list of tokensByUnitId.values()) {
     list.sort((a, b) => a.tokenIndex - b.tokenIndex);
   }
 
-  const morphemesByTokenId = new Map<string, UtteranceMorphemeDocType[]>();
+  const morphemesByTokenId = new Map<string, UnitMorphemeDocType[]>();
   for (const morph of morphemes) {
     const list = morphemesByTokenId.get(morph.tokenId) ?? [];
     list.push(morph);
@@ -111,11 +102,12 @@ export function exportToFlextext(input: FlexExportInput): string {
 
   const defaultTranscriptionLayerId = defaultTranscriptionLayer?.id;
 
-  const transcriptionByUtteranceId = new Map<string, string>();
+  const transcriptionByUnitId = new Map<string, string>();
   if (defaultTranscriptionLayerId) {
     for (const t of translations) {
-      if (t.layerId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
-        transcriptionByUtteranceId.set(t.utteranceId, t.text);
+      const unitId = t.unitId?.trim();
+      if (unitId && t.layerId === defaultTranscriptionLayerId && t.modality === 'text' && typeof t.text === 'string') {
+        transcriptionByUnitId.set(unitId, t.text);
       }
     }
   }
@@ -126,15 +118,15 @@ export function exportToFlextext(input: FlexExportInput): string {
   const phraseXml = sorted
     .map((u, i) => {
       const phraseId = `p${i + 1}`;
-      const txt = wrapLayerText(transcriptionByUtteranceId.get(u.id) ?? u.transcription?.default ?? '', defaultTranscriptionLayer);
+      const txt = wrapLayerText(transcriptionByUnitId.get(u.id) ?? u.transcription?.default ?? '', defaultTranscriptionLayer);
       const gls = firstTranslationLayerId
-        ? translations.find((t) => t.utteranceId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
+        ? translations.find((t) => t.unitId === u.id && t.layerId === firstTranslationLayerId && t.modality === 'text')?.text ?? ''
         : '';
       const wrappedGls = wrapLayerText(gls, firstTranslationLayer);
 
-      const utteranceTokens = tokensByUtteranceId.get(u.id) ?? [];
-      const wordsXml = utteranceTokens.length > 0
-        ? `\n              <words>\n${utteranceTokens.map((w, wi) => {
+      const unitTokens = tokensByUnitId.get(u.id) ?? [];
+      const wordsXml = unitTokens.length > 0
+        ? `\n              <words>\n${unitTokens.map((w, wi) => {
             const wordId = `${phraseId}_w${wi + 1}`;
             const wordTxt = w.form.default ?? Object.values(w.form)[0] ?? '';
             const morphs = morphemesByTokenId.get(w.id) ?? [];
@@ -201,7 +193,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
     throw new Error(`flextext XML parse failed: ${parseError.textContent}`);
   }
 
-  const utterances: FlexImportResult['utterances'] = [];
+  const units: FlexImportResult['units'] = [];
   const phraseGlosses = new Map<string, string>();
   let sourceLanguage: string | undefined;
   let glossLanguage: string | undefined;
@@ -288,7 +280,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
       }))
       : undefined;
 
-    utterances.push({
+    units.push({
       startTime: Number.isFinite(startTime) ? startTime : 0,
       endTime: Number.isFinite(endTime) ? endTime : (Number.isFinite(startTime) ? startTime : 0),
       transcription,
@@ -297,7 +289,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   });
 
   return {
-    utterances,
+    units,
     phraseGlosses,
     ...(sourceLanguage !== undefined && { sourceLanguage }),
     ...(glossLanguage !== undefined && { glossLanguage }),

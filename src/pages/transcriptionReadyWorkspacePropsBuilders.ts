@@ -33,9 +33,9 @@ type SharedLaneFields = Pick<
   | 'translationAudioByLayer'
   | 'mediaItems'
   | 'recording'
-  | 'recordingUtteranceId'
+  | 'recordingUnitId'
   | 'recordingLayerId'
-  | 'startRecordingForUtterance'
+  | 'startRecordingForUnit'
   | 'stopRecording'
   | 'deleteVoiceTranslation'
   | 'displayStyleControl'
@@ -71,7 +71,7 @@ export type BuiltSharedLaneProps = Omit<
   | 'playerDuration'
   | 'zoomPxPerSec'
   | 'lassoRect'
-  | 'timelineRenderUtterances'
+  | 'timelineRenderUnits'
   | 'defaultTranscriptionLayerId'
   | 'renderAnnotationItem'
   | 'speakerSortKeyById'
@@ -122,9 +122,9 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     translationAudioByLayer: input.translationAudioByLayer,
     mediaItems: input.mediaItems,
     recording: input.recording,
-    recordingUtteranceId: input.recordingUtteranceId,
+    recordingUnitId: input.recordingUnitId,
     recordingLayerId: input.recordingLayerId,
-    startRecordingForUtterance: input.startRecordingForUtterance,
+    startRecordingForUnit: input.startRecordingForUnit,
     stopRecording: input.stopRecording,
     deleteVoiceTranslation: input.deleteVoiceTranslation,
     displayStyleControl: input.displayStyleControl,
@@ -147,14 +147,14 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   activeSpeakerFilterKey: ReadyWorkspaceSidePaneSpeakerManagement['activeSpeakerFilterKey'];
   setActiveSpeakerFilterKey: ReadyWorkspaceSidePaneSpeakerManagement['setActiveSpeakerFilterKey'];
   speakerDialogState: ReadyWorkspaceSidePaneSpeakerManagement['speakerDialogState'];
-  speakerVisualByUtteranceId: ReadyWorkspaceSidePaneSpeakerManagement['speakerVisualByUtteranceId'];
+  speakerVisualByUnitId: ReadyWorkspaceSidePaneSpeakerManagement['speakerVisualByUnitId'];
   speakerFilterOptions: ReadyWorkspaceSidePaneSpeakerManagement['speakerFilterOptions'];
   speakerReferenceStats: ReadyWorkspaceSidePaneSpeakerManagement['speakerReferenceStats'];
   speakerReferenceUnassignedStats: ReadyWorkspaceSidePaneSpeakerManagement['speakerReferenceUnassignedStats'];
   speakerReferenceStatsMediaScoped: ReadyWorkspaceSidePaneSpeakerManagement['speakerReferenceStatsMediaScoped'];
   speakerReferenceStatsReady: ReadyWorkspaceSidePaneSpeakerManagement['speakerReferenceStatsReady'];
   selectedSpeakerSummary: ReadyWorkspaceSidePaneSpeakerManagement['selectedSpeakerSummary'];
-  handleSelectSpeakerUtterances: ReadyWorkspaceSidePaneSpeakerManagement['handleSelectSpeakerUtterances'];
+  handleSelectSpeakerUnits: ReadyWorkspaceSidePaneSpeakerManagement['handleSelectSpeakerUnits'];
   handleClearSpeakerAssignments: ReadyWorkspaceSidePaneSpeakerManagement['handleClearSpeakerAssignments'];
   handleExportSpeakerSegments: ReadyWorkspaceSidePaneSpeakerManagement['handleExportSpeakerSegments'];
   handleRenameSpeaker: ReadyWorkspaceSidePaneSpeakerManagement['handleRenameSpeaker'];
@@ -180,8 +180,10 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   layerAction: ReadyWorkspaceSidePaneSidebarProps['layerAction'];
   defaultTranscriptionLayerId?: ReadyWorkspaceSidePaneSidebarProps['defaultTranscriptionLayerId'];
   segmentsByLayer: ReadyWorkspaceSidePaneSidebarProps['segmentsByLayer'];
-  utterancesOnCurrentMedia: ReadyWorkspaceSidePaneSidebarProps['utterancesOnCurrentMedia'];
+  segmentContentByLayer: ReadyWorkspaceSidePaneSidebarProps['segmentContentByLayer'];
+  unitsOnCurrentMedia: ReadyWorkspaceSidePaneSidebarProps['unitsOnCurrentMedia'];
   speakers: ReadyWorkspaceSidePaneSidebarProps['speakers'];
+  getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
 };
@@ -200,14 +202,14 @@ export function buildReadyWorkspaceSidePaneProps(
       activeSpeakerFilterKey: input.activeSpeakerFilterKey,
       setActiveSpeakerFilterKey: input.setActiveSpeakerFilterKey,
       speakerDialogState: input.speakerDialogState,
-      speakerVisualByUtteranceId: input.speakerVisualByUtteranceId,
+      speakerVisualByUnitId: input.speakerVisualByUnitId,
       speakerFilterOptions: input.speakerFilterOptions,
       speakerReferenceStats: input.speakerReferenceStats,
       speakerReferenceUnassignedStats: input.speakerReferenceUnassignedStats,
       speakerReferenceStatsMediaScoped: input.speakerReferenceStatsMediaScoped,
       speakerReferenceStatsReady: input.speakerReferenceStatsReady,
       selectedSpeakerSummary: input.selectedSpeakerSummary,
-      handleSelectSpeakerUtterances: input.handleSelectSpeakerUtterances,
+      handleSelectSpeakerUnits: input.handleSelectSpeakerUnits,
       handleClearSpeakerAssignments: input.handleClearSpeakerAssignments,
       handleExportSpeakerSegments: input.handleExportSpeakerSegments,
       handleRenameSpeaker: input.handleRenameSpeaker,
@@ -238,8 +240,10 @@ export function buildReadyWorkspaceSidePaneProps(
       layerAction: input.layerAction,
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       segmentsByLayer: input.segmentsByLayer,
-      utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+      segmentContentByLayer: input.segmentContentByLayer,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       speakers: input.speakers,
+      ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
       onReorderLayers: input.onReorderLayers,
     }) as ReadyWorkspaceSidePaneSidebarProps,
@@ -308,15 +312,15 @@ export function buildReadyWorkspaceOverlaysProps(
     addNote: input.addNote,
     updateNote: input.updateNote,
     deleteNote: input.deleteNote,
-    utterances: input.utterances,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    units: input.units,
+    getUnitTextForLayer: input.getUnitTextForLayer,
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    ...(input.resolveSelfCertaintyUtteranceIds ? { resolveSelfCertaintyUtteranceIds: input.resolveSelfCertaintyUtteranceIds } : {}),
+    ...(input.resolveSelfCertaintyUnitIds ? { resolveSelfCertaintyUnitIds: input.resolveSelfCertaintyUnitIds } : {}),
     ...(input.speakerOptions ? { speakerOptions: input.speakerOptions } : {}),
     ...(input.speakerFilterOptions ? { speakerFilterOptions: input.speakerFilterOptions } : {}),
     ...(input.onAssignSpeakerFromMenu ? { onAssignSpeakerFromMenu: input.onAssignSpeakerFromMenu } : {}),
-    ...(input.onSetUtteranceSelfCertaintyFromMenu ? { onSetUtteranceSelfCertaintyFromMenu: input.onSetUtteranceSelfCertaintyFromMenu } : {}),
+    ...(input.onSetUnitSelfCertaintyFromMenu ? { onSetUnitSelfCertaintyFromMenu: input.onSetUnitSelfCertaintyFromMenu } : {}),
     ...(input.onOpenLayerMetadataPanelFromMenu ? { onOpenLayerMetadataPanelFromMenu: input.onOpenLayerMetadataPanelFromMenu } : {}),
     ...(input.onOpenSpeakerManagementPanelFromMenu ? { onOpenSpeakerManagementPanelFromMenu: input.onOpenSpeakerManagementPanelFromMenu } : {}),
     ...(input.displayStyleControl ? { displayStyleControl: input.displayStyleControl } : {}),
@@ -384,7 +388,7 @@ export function buildReadyWorkspaceLayerPopoverProps(
 }
 
 export type BuildReadyWorkspaceStagePropsInput = {
-  assistantFrame: Pick<ReadyWorkspaceStageProps['toastProps'], 'saveState' | 'recording' | 'recordingUtteranceId' | 'recordingError' | 'tf'> &
+  assistantFrame: Pick<ReadyWorkspaceStageProps['toastProps'], 'saveState' | 'recording' | 'recordingUnitId' | 'recordingError' | 'tf'> &
     Partial<Pick<ReadyWorkspaceStageProps['toastProps'], 'overlapCycleToast' | 'lockConflictToast'>>;
   shouldRenderRecoveryBanner: boolean;
   recoveryAvailable: ReadyWorkspaceStageProps['recoveryBannerProps']['recoveryAvailable'];
@@ -443,7 +447,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   fitPxPerSec: number;
   maxZoomPercent: number;
   onZoomToPercent: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onZoomToPercent'];
-  onZoomToUtterance: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onZoomToUtterance'];
+  onZoomToUnit: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onZoomToUnit'];
   onSnapEnabledChange: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onSnapEnabledChange'];
   onAutoScrollEnabledChange: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onAutoScrollEnabledChange'];
   canUndo: ReadyWorkspaceWorkspaceAreaProps['historyControlsProps']['canUndo'];
@@ -472,9 +476,9 @@ export type BuildReadyWorkspaceStagePropsInput = {
   shouldRenderBatchOps: boolean;
   showBatchOperationPanel: ReadyWorkspaceStageProps['batchOpsSection']['props']['showBatchOperationPanel'];
   selectedUnitIds: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedUnitIds'];
-  selectedBatchUtterances: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUtterances'];
-  utterancesOnCurrentMedia: ReadyWorkspaceStageProps['batchOpsSection']['props']['utterancesOnCurrentMedia'];
-  selectedBatchUtteranceTextById: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUtteranceTextById'];
+  selectedBatchUnits: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUnits'];
+  unitsOnCurrentMedia: ReadyWorkspaceStageProps['batchOpsSection']['props']['unitsOnCurrentMedia'];
+  selectedBatchUnitTextById: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUnitTextById'];
   batchPreviewLayerOptions: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewLayerOptions'];
   batchPreviewTextByLayerId: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewTextByLayerId'];
   batchPreviewTextPropsByLayerId: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewTextPropsByLayerId'];
@@ -484,7 +488,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   onBatchScale: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchScale'];
   onBatchSplitByRegex: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchSplitByRegex'];
   onBatchMerge: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchMerge'];
-  onBatchJumpToUtterance: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchJumpToUtterance'];
+  onBatchJumpToUnit: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchJumpToUnit'];
 };
 
 /** 第二轮瘦身：把 ReadyWorkspace 的 layout/stage props 拼装集中到 builder。 */
@@ -502,7 +506,7 @@ export function buildReadyWorkspaceStageProps(
       },
       saveState: input.assistantFrame.saveState,
       recording: input.assistantFrame.recording,
-      recordingUtteranceId: input.assistantFrame.recordingUtteranceId,
+      recordingUnitId: input.assistantFrame.recordingUnitId,
       recordingError: input.assistantFrame.recordingError,
       ...(input.assistantFrame.overlapCycleToast !== undefined ? { overlapCycleToast: input.assistantFrame.overlapCycleToast } : {}),
       ...(input.assistantFrame.lockConflictToast !== undefined ? { lockConflictToast: input.assistantFrame.lockConflictToast } : {}),
@@ -579,7 +583,7 @@ export function buildReadyWorkspaceStageProps(
         fitPxPerSec: input.fitPxPerSec,
         maxZoomPercent: input.maxZoomPercent,
         onZoomToPercent: input.onZoomToPercent,
-        onZoomToUtterance: input.onZoomToUtterance,
+        onZoomToUnit: input.onZoomToUnit,
         onSnapEnabledChange: input.onSnapEnabledChange,
         onAutoScrollEnabledChange: input.onAutoScrollEnabledChange,
       },
@@ -595,7 +599,7 @@ export function buildReadyWorkspaceStageProps(
           input.recordTimelineEdit({
             action: 'undo',
             unitId: (tu?.unitId ?? input.activeTimelineUnitId) || 'history',
-            unitKind: tu?.kind ?? 'utterance',
+            unitKind: tu?.kind ?? 'unit',
             detail: `historyIndex=${idx}`,
           });
           await input.undoToHistoryIndex(idx);
@@ -605,7 +609,7 @@ export function buildReadyWorkspaceStageProps(
           input.recordTimelineEdit({
             action: 'redo',
             unitId: (tu?.unitId ?? input.activeTimelineUnitId) || 'history',
-            unitKind: tu?.kind ?? 'utterance',
+            unitKind: tu?.kind ?? 'unit',
           });
           await input.redo();
         })()),
@@ -633,9 +637,9 @@ export function buildReadyWorkspaceStageProps(
       props: {
         showBatchOperationPanel: input.showBatchOperationPanel,
         selectedUnitIds: input.selectedUnitIds,
-        selectedBatchUtterances: input.selectedBatchUtterances,
-        utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-        selectedBatchUtteranceTextById: input.selectedBatchUtteranceTextById,
+        selectedBatchUnits: input.selectedBatchUnits,
+        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+        selectedBatchUnitTextById: input.selectedBatchUnitTextById,
         batchPreviewLayerOptions: input.batchPreviewLayerOptions,
         batchPreviewTextByLayerId: input.batchPreviewTextByLayerId,
         batchPreviewTextPropsByLayerId: input.batchPreviewTextPropsByLayerId ?? {},
@@ -645,7 +649,7 @@ export function buildReadyWorkspaceStageProps(
         onBatchScale: input.onBatchScale,
         onBatchSplitByRegex: input.onBatchSplitByRegex,
         onBatchMerge: input.onBatchMerge,
-        onBatchJumpToUtterance: input.onBatchJumpToUtterance,
+        onBatchJumpToUnit: input.onBatchJumpToUnit,
       },
     },
   };

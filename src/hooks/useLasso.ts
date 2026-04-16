@@ -118,14 +118,14 @@ interface UseLassoInput {
   playerInstanceRef: React.RefObject<WaveSurfer | null>;
   playerIsReady: boolean;
   selectedMediaUrl: string | undefined;
-  /** Items to select against — utterances for default layer, segments for independent layers */
+  /** Items to select against — units for default layer, segments for independent layers */
   timelineItems: Array<{ id: string; startTime: number; endTime: number }>;
   selectedUnitIds: Set<string>;
   selectedUnitId: string;
   zoomPxPerSec: number;
   skipSeekForIdRef: React.MutableRefObject<string | null>;
   clearUnitSelection: () => void;
-  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
+  createUnitFromSelection: (start: number, end: number) => Promise<void>;
   setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   playerSeekTo: (time: number) => void;
   // Lifted state (shared with useWaveSurfer)
@@ -143,7 +143,7 @@ export function useLasso(input: UseLassoInput) {
     selectedUnitIds, selectedUnitId,
     zoomPxPerSec,
     skipSeekForIdRef,
-    clearUnitSelection, createUtteranceFromSelection, setUnitSelection,
+    clearUnitSelection, createUnitFromSelection, setUnitSelection,
     playerSeekTo,
     subSelectionRange: _subSelectionRange, setSubSelectionRange, subSelectDragRef,
   } = input;
@@ -240,7 +240,7 @@ export function useLasso(input: UseLassoInput) {
     });
   }, [selectedUnitIdsRef, selectedUnitIdRef, setUnitSelection]);
 
-  // Clear sub-selection when the selected utterance changes
+  // Clear sub-selection when the selected unit changes
   useEffect(() => {
     setSubSelectionRange(null);
   }, [selectedUnitId]);
@@ -277,7 +277,7 @@ export function useLasso(input: UseLassoInput) {
       const eps = totalWidth > 0 && dur > 0
         ? Math.min(0.03, Math.max(0.005, 3 / totalWidth * dur))
         : 0.01;
-      // 用当前活跃层条目判断（独立层用 segment，默认层用 utterance）| Use active-layer items (segments for independent layers, utterances for default)
+      // 用当前活跃层条目判断（独立层用 segment，默认层用 unit）| Use active-layer items (segments for independent layers, units for default)
       return hasTimelineHitAtTime(
         timelineHitIndexRef.current,
         timelineItemsRef.current,
@@ -300,7 +300,7 @@ export function useLasso(input: UseLassoInput) {
       });
       if (onControl) return;
 
-      // Robust hit-test: if pointer time is inside any existing utterance, don't
+      // Robust hit-test: if pointer time is inside any existing unit, don't
       // start empty-area lasso; let region click/selection logic handle it.
       const hitExisting = hitTestExistingAtClientX(e.clientX);
       if (hitExisting) return;
@@ -505,7 +505,7 @@ export function useLasso(input: UseLassoInput) {
         const s = Math.min(info.rangeStart, info.rangeEnd);
         const end = Math.max(info.rangeStart, info.rangeEnd);
         if (info.hitCount === 0 && end - s >= 0.05) {
-          fireAndForget(createUtteranceFromSelection(s, end));
+          fireAndForget(createUnitFromSelection(s, end));
         }
       }
     };
@@ -525,7 +525,7 @@ export function useLasso(input: UseLassoInput) {
         subSelectPreviewRef.current = null;
       }
     };
-  }, [selectedMediaUrl, playerIsReady, clearUnitSelection, createUtteranceFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef]);
+  }, [selectedMediaUrl, playerIsReady, clearUnitSelection, createUnitFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef]);
 
   // RAF & timer cleanup
   useEffect(() => () => {
@@ -665,10 +665,10 @@ export function useLasso(input: UseLassoInput) {
       const s = Math.min(info.rangeStart, info.rangeEnd);
       const end = Math.max(info.rangeStart, info.rangeEnd);
       if (info.hitCount === 0 && end - s >= 0.05) {
-        fireAndForget(createUtteranceFromSelection(s, end));
+        fireAndForget(createUnitFromSelection(s, end));
       }
     }
-  }, [clearUnitSelection, createUtteranceFromSelection, flushTimelineLassoMove]);
+  }, [clearUnitSelection, createUnitFromSelection, flushTimelineLassoMove]);
 
   useEffect(() => () => {
     if (timelineLassoMoveRafRef.current !== null) {

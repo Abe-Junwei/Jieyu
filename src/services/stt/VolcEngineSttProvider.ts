@@ -101,20 +101,20 @@ export class VolcEngineSttProvider implements CommercialSttProvider {
       text?: string;
       result?: string;
       confidence?: number;
-      utterances?: Array<{ text?: string; confidence?: number; start_time?: number; end_time?: number }>;
+      units?: Array<{ text?: string; confidence?: number; start_time?: number; end_time?: number }>;
     };
 
     const text = json.text ?? json.result ?? '';
 
-    // 火山引擎可能在 utterances 数组中返回逐句置信度，按时长加权平均。
-    // VolcEngine may return per-utterance confidence in the utterances array.
+    // 火山引擎可能在 units 数组中返回逐句置信度，按时长加权平均。
+    // VolcEngine may return per-unit confidence in the units array.
     let confidence = 1.0;
     if (typeof json.confidence === 'number') {
       confidence = Math.max(0, Math.min(1, json.confidence));
-    } else if (Array.isArray(json.utterances) && json.utterances.length > 0) {
+    } else if (Array.isArray(json.units) && json.units.length > 0) {
       let totalDuration = 0;
       let weightedSum = 0;
-      for (const u of json.utterances) {
+      for (const u of json.units) {
         if (typeof u.confidence !== 'number') continue;
         const dur = (u.end_time ?? 0) - (u.start_time ?? 0);
         const d = dur > 0 ? dur : 1;

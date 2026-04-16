@@ -2,18 +2,9 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
-import type {
-  AnchorDocType,
-  LayerLinkDocType,
-  LayerDocType,
-  LayerUnitDocType,
-  MediaItemDocType,
-  SpeakerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { AnchorDocType, LayerLinkDocType, LayerDocType, LayerUnitDocType, MediaItemDocType, SpeakerDocType, LayerUnitContentDocType } from '../db';
 import { db } from '../db';
-import { putTestUtteranceAsLayerUnit } from '../db/putTestUtteranceAsLayerUnit';
+import { putTestUnitAsLayerUnit } from '../db/putTestUnitAsLayerUnit';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import type { DbState, TimelineUnit } from './transcriptionTypes';
 import { useTranscriptionSnapshotLoader } from './useTranscriptionSnapshotLoader';
@@ -25,8 +16,8 @@ async function clearDatabase(): Promise<void> {
     db.media_items.clear(),
     db.speakers.clear(),
     db.layer_links.clear(),
-    db.utterance_tokens.clear(),
-    db.utterance_morphemes.clear(),
+    db.unit_tokens.clear(),
+    db.unit_morphemes.clear(),
     db.layer_units.clear(),
     db.layer_unit_contents.clear(),
     db.unit_relations.clear(),
@@ -74,7 +65,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       updatedAt: now,
     } as LayerDocType);
 
-    await putTestUtteranceAsLayerUnit(db, {
+    await putTestUnitAsLayerUnit(db, {
       id: 'utt-1',
       textId: 'text-1',
       mediaId: 'media-1',
@@ -83,7 +74,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       transcription: { default: 'hello' },
       createdAt: now,
       updatedAt: now,
-    } as UtteranceDocType, 'trc-1');
+    } as LayerUnitDocType, 'trc-1');
 
     const dbNameRef = { current: undefined as string | undefined };
 
@@ -97,9 +88,9 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setSpeakers = vi.fn<(next: React.SetStateAction<SpeakerDocType[]>) => void>();
     const setSelectedUnitIds = vi.fn<(next: React.SetStateAction<Set<string>>) => void>();
     const setState = vi.fn<(next: React.SetStateAction<DbState>) => void>();
-    const setTranslations = vi.fn<(next: React.SetStateAction<UtteranceTextDocType[]>) => void>();
-    const setUtteranceDrafts = vi.fn<(next: React.SetStateAction<Record<string, string>>) => void>();
-    const setUtterances = vi.fn<(next: React.SetStateAction<UtteranceDocType[]>) => void>();
+    const setTranslations = vi.fn<(next: React.SetStateAction<LayerUnitContentDocType[]>) => void>();
+    const setUnitDrafts = vi.fn<(next: React.SetStateAction<Record<string, string>>) => void>();
+    const setUnits = vi.fn<(next: React.SetStateAction<LayerUnitDocType[]>) => void>();
 
     const setSelectedLayerId = vi.fn((next: React.SetStateAction<string>) => {
       selectedLayerId = typeof next === 'function' ? next(selectedLayerId) : next;
@@ -122,8 +113,8 @@ describe('useTranscriptionSnapshotLoader', () => {
       setSelectedTimelineUnit,
       setState,
       setTranslations,
-      setUtteranceDrafts,
-      setUtterances,
+      setUnitDrafts,
+      setUnits,
     }));
 
     await act(async () => {
@@ -132,12 +123,12 @@ describe('useTranscriptionSnapshotLoader', () => {
 
     const selectedTimelineUnit = selectedTimelineUnitCalls[selectedTimelineUnitCalls.length - 1];
     expect(selectedLayerId).toBeTruthy();
-    expect(selectedTimelineUnit?.kind).toBe('utterance');
+    expect(selectedTimelineUnit?.kind).toBe('unit');
     expect(selectedTimelineUnit?.layerId).toBeTruthy();
     expect(selectedTimelineUnit?.layerId).toBe(selectedLayerId);
   });
 
-  it('sets ready unifiedUnitCount using merged utterance + segment semantics while unitCount remains utterance rows', async () => {
+  it('sets ready unifiedUnitCount using merged unit + segment semantics while unitCount remains unit rows', async () => {
     const now = new Date().toISOString();
 
     await LayerTierUnifiedService.createLayer({
@@ -167,7 +158,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       updatedAt: now,
     } as LayerDocType);
 
-    await putTestUtteranceAsLayerUnit(db, {
+    await putTestUnitAsLayerUnit(db, {
       id: 'utt-1',
       textId: 'text-1',
       mediaId: 'media-1',
@@ -176,7 +167,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       transcription: { default: 'hello' },
       createdAt: now,
       updatedAt: now,
-    } as UtteranceDocType, 'trc-1');
+    } as LayerUnitDocType, 'trc-1');
 
     await db.layer_units.put({
       id: 'seg-shadow',
@@ -211,9 +202,9 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setSpeakers = vi.fn<(next: React.SetStateAction<SpeakerDocType[]>) => void>();
     const setSelectedUnitIds = vi.fn<(next: React.SetStateAction<Set<string>>) => void>();
     const setState = vi.fn<(next: React.SetStateAction<DbState>) => void>();
-    const setTranslations = vi.fn<(next: React.SetStateAction<UtteranceTextDocType[]>) => void>();
-    const setUtteranceDrafts = vi.fn<(next: React.SetStateAction<Record<string, string>>) => void>();
-    const setUtterances = vi.fn<(next: React.SetStateAction<UtteranceDocType[]>) => void>();
+    const setTranslations = vi.fn<(next: React.SetStateAction<LayerUnitContentDocType[]>) => void>();
+    const setUnitDrafts = vi.fn<(next: React.SetStateAction<Record<string, string>>) => void>();
+    const setUnits = vi.fn<(next: React.SetStateAction<LayerUnitDocType[]>) => void>();
     const setSelectedLayerId = vi.fn<(next: React.SetStateAction<string>) => void>();
     const setSelectedTimelineUnit = vi.fn<(next: React.SetStateAction<TimelineUnit | null>) => void>();
 
@@ -229,8 +220,8 @@ describe('useTranscriptionSnapshotLoader', () => {
       setSelectedTimelineUnit,
       setState,
       setTranslations,
-      setUtteranceDrafts,
-      setUtterances,
+      setUnitDrafts,
+      setUnits,
     }));
 
     await act(async () => {

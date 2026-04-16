@@ -170,8 +170,8 @@ class GlobalContextService {
     if (!this._embeddingSearchService) return [];
 
     try {
-      const result = await this._embeddingSearchService.searchSimilarUtterances(query, { topK });
-      // searchSimilarUtterances returns { query, matches[] } where matches contain sourceId (segment ID) and sourceType
+      const result = await this._embeddingSearchService.searchSimilarUnits(query, { topK });
+      // searchSimilarUnits returns { query, matches[] } where matches contain sourceId (segment ID) and sourceType
       // We need to look up the actual text from corpus segments
       const corpus = this._corpusContext;
       if (!corpus) return [];
@@ -185,7 +185,7 @@ class GlobalContextService {
             text: segment?.text ?? '',
             translation: segment?.translation ?? null,
             score: m.score,
-            source: (m.sourceType === 'utterance' ? 'transcription' : m.sourceType) as CorpusSearchResult['source'],
+            source: (m.sourceType === 'unit' ? 'transcription' : m.sourceType) as CorpusSearchResult['source'],
           };
         });
     } catch (err) {

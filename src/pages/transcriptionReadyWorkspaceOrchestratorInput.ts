@@ -1,12 +1,9 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { LayerDocType, MediaItemDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
-import type {
-  TranscriptionPageTimelineMediaLanesProps,
-  TranscriptionPageTimelineTextOnlyProps,
-} from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
 import type { TranscriptionPageAssistantRuntimeProps, TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
@@ -26,16 +23,17 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   sharedLaneProps: BuiltSharedLaneProps;
   zoomPxPerSec: TranscriptionPageTimelineMediaLanesProps['zoomPxPerSec'];
   lassoRect: TranscriptionPageTimelineMediaLanesProps['lassoRect'];
-  timelineRenderUtterances: TranscriptionPageTimelineMediaLanesProps['timelineRenderUtterances'];
+  timelineRenderUnits: TranscriptionPageTimelineMediaLanesProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TranscriptionPageTimelineMediaLanesProps['defaultTranscriptionLayerId'];
   renderAnnotationItem: TranscriptionPageTimelineMediaLanesProps['renderAnnotationItem'];
   speakerSortKeyById: TranscriptionPageTimelineMediaLanesProps['speakerSortKeyById'];
-  filteredUtterancesOnCurrentMedia: TranscriptionPageTimelineTextOnlyProps['utterancesOnCurrentMedia'];
+  filteredUnitsOnCurrentMedia: TranscriptionPageTimelineTextOnlyProps['unitsOnCurrentMedia'];
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
-  speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUtteranceId'];
+  speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
+  resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -74,7 +72,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   handleExportJyt: UseTranscriptionSectionViewModelsInput['handleExportJyt'];
   handleExportJym: UseTranscriptionSectionViewModelsInput['handleExportJym'];
   handleImportFile: UseTranscriptionSectionViewModelsInput['handleImportFile'];
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: UseTranscriptionSectionViewModelsInput['rulerView'];
   isTimelineLaneHeaderCollapsed: UseTranscriptionSectionViewModelsInput['isTimelineLaneHeaderCollapsed'];
   toggleTimelineLaneHeader: UseTranscriptionSectionViewModelsInput['toggleTimelineLaneHeader'];
@@ -135,16 +133,17 @@ export function buildOrchestratorViewModelsInput(
     sharedLaneProps,
     zoomPxPerSec,
     lassoRect,
-    timelineRenderUtterances,
+    timelineRenderUnits,
     defaultTranscriptionLayerId,
     renderAnnotationItem,
     speakerSortKeyById,
-    filteredUtterancesOnCurrentMedia,
+    filteredUnitsOnCurrentMedia,
     tierContainerRef,
     handleAnnotationClick,
     handleAnnotationContextMenu,
     navigateUnitFromInput,
     speakerVisualByTimelineUnitId,
+    resolveSelfCertaintyForUnit,
     selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
@@ -183,7 +182,7 @@ export function buildOrchestratorViewModelsInput(
     handleExportJyt,
     handleExportJym,
     handleImportFile,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     rulerView,
     isTimelineLaneHeaderCollapsed,
     toggleTimelineLaneHeader,
@@ -243,20 +242,21 @@ export function buildOrchestratorViewModelsInput(
       ...sharedLaneProps,
       zoomPxPerSec,
       lassoRect,
-      timelineRenderUtterances,
+      timelineRenderUnits,
       defaultTranscriptionLayerId,
       renderAnnotationItem,
       speakerSortKeyById,
     }) as UseOrchestratorViewModelsInput['mediaLanesPropsInput'],
     textOnlyPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
-      utterancesOnCurrentMedia: filteredUtterancesOnCurrentMedia,
+      unitsOnCurrentMedia: filteredUnitsOnCurrentMedia,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
       navigateUnitFromInput,
-      speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+      speakerVisualByUnitId: speakerVisualByTimelineUnitId,
+      resolveSelfCertaintyForUnit,
     }) as UseOrchestratorViewModelsInput['textOnlyPropsInput'],
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
     player,
@@ -298,7 +298,7 @@ export function buildOrchestratorViewModelsInput(
     handleExportJyt,
     handleExportJym,
     handleImportFile,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     rulerView: rulerView ?? null,
     zoomPxPerSec,
     isTimelineLaneHeaderCollapsed,

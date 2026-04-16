@@ -2,13 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { Dispatch, SetStateAction } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type {
-  LayerDocType,
-  LayerSegmentContentDocType,
-  LayerSegmentDocType,
-  SpeakerDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SpeakerActionDialogState, SpeakerFilterOption } from '../hooks/speakerManagement/types';
 import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
@@ -30,7 +24,7 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number, speakerId?: string): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -41,10 +35,10 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -54,7 +48,7 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeSpeaker(id: string, name: string): SpeakerDocType {
@@ -72,7 +66,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
   const speaker = makeSpeaker('spk-a', 'Alice');
   const layer = makeLayer('layer-seg', 'independent_boundary');
   const segment = makeSegment('seg-1', 'layer-seg', 0, 1, 'spk-a');
-  const utterance = makeUtterance('utt-1', 0, 1, 'spk-a');
+  const unit = makeUnit('utt-1', 0, 1, 'spk-a');
   const speakerFilterOptionsForActions: SpeakerFilterOption[] = [{ key: 'spk-a', name: 'Alice', count: 1 }];
   const t = overrides.t ?? ((key: string) => (isDictKey(key) ? translate('zh-CN', key) : key));
   const tf = overrides.tf ?? (
@@ -86,7 +80,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
   return {
     activeSpeakerManagementLayer: layer,
     segmentsByLayer: new Map([['layer-seg', [segment]]]),
-    segmentContentByLayer: new Map<string, ReadonlyMap<string, LayerSegmentContentDocType>>([
+    segmentContentByLayer: new Map<string, ReadonlyMap<string, LayerUnitContentDocType>>([
       ['layer-seg', new Map()],
     ]),
     resolveExplicitSpeakerKeyForSegment: (item) => item.speakerId?.trim() ?? '',
@@ -95,11 +89,11 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     selectedUnitIdsForSpeakerActions: ['seg-1'],
     segmentByIdForSpeakerActions: new Map([['seg-1', segment]]),
     selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
-    resolveSpeakerActionUtteranceIds: (ids) => Array.from(ids).map((id) => (id === 'seg-1' ? 'utt-1' : id)),
-    selectedBatchUtterances: [utterance],
+    resolveSpeakerActionUnitIds: (ids) => Array.from(ids).map((id) => (id === 'seg-1' ? 'utt-1' : id)),
+    selectedBatchUnits: [unit],
     selectedSpeakerSummary: '当前统一说话人：Alice',
-    utterancesOnCurrentMedia: [utterance],
-    getUtteranceSpeakerKey: (item) => item.speakerId ?? '',
+    unitsOnCurrentMedia: [unit],
+    getUnitSpeakerKey: (item) => item.speakerId ?? '',
     speakerFilterOptionsForActions,
     speakerOptions: [speaker],
     speakerByIdMap: new Map([['spk-a', speaker]]),
@@ -114,10 +108,10 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     updateSpeakerDialogDraftNameBase: vi.fn(),
     updateSpeakerDialogTargetKeyBase: vi.fn(),
     confirmSpeakerDialogBase: vi.fn(async () => undefined),
-    handleSelectSpeakerUtterances: vi.fn(),
+    handleSelectSpeakerUnits: vi.fn(),
     handleClearSpeakerAssignments: vi.fn(),
     handleExportSpeakerSegments: vi.fn(),
-    handleAssignSpeakerToUtterances: vi.fn(async () => undefined),
+    handleAssignSpeakerToUnits: vi.fn(async () => undefined),
     handleAssignSpeakerToSelected: vi.fn(async () => undefined),
     handleCreateSpeakerAndAssign: vi.fn(async () => undefined),
     refreshSpeakers: vi.fn(async () => undefined),
@@ -134,7 +128,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     refreshSegmentUndoSnapshot: vi.fn(async () => undefined),
     updateSegmentsLocally: vi.fn(),
     setSaveState: vi.fn() as unknown as (state: SaveState) => void,
-    setUtterances: vi.fn() as unknown as Dispatch<SetStateAction<UtteranceDocType[]>>,
+    setUnits: vi.fn() as unknown as Dispatch<SetStateAction<LayerUnitDocType[]>>,
     setSpeakers: vi.fn() as unknown as Dispatch<SetStateAction<SpeakerDocType[]>>,
     openSpeakerManagementPanel: vi.fn(),
     ...overrides,
@@ -198,7 +192,7 @@ describe('useSpeakerActionRoutingController', () => {
 
   it('rolls back mixed speaker assignment when segment update fails', async () => {
     const assignSpeakerToSegments = vi.spyOn(LinguisticService, 'assignSpeakerToSegments').mockRejectedValue(new Error('segment write failed'));
-    const assignSpeakerToUtterances = vi.spyOn(LinguisticService, 'assignSpeakerToUtterances').mockResolvedValue(1);
+    const assignSpeakerToUnits = vi.spyOn(LinguisticService, 'assignSpeakerToUnits').mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() => useSpeakerActionRoutingController(createBaseInput({
@@ -216,7 +210,7 @@ describe('useSpeakerActionRoutingController', () => {
     });
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-a');
-    expect(assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], 'spk-a');
+    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-a');
     expect(undo).toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
@@ -225,7 +219,7 @@ describe('useSpeakerActionRoutingController', () => {
     }));
 
     assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUtterances.mockRestore();
+    assignSpeakerToUnits.mockRestore();
   });
 
   it('keeps clear-speaker dialog open and rolls back when clear action fails', async () => {
@@ -262,9 +256,9 @@ describe('useSpeakerActionRoutingController', () => {
     assignSpeakerToSegments.mockRestore();
   });
 
-  it('clears mixed selection speakers across segments and utterances', async () => {
+  it('clears mixed selection speakers across segments and units', async () => {
     const assignSpeakerToSegments = vi.spyOn(LinguisticService, 'assignSpeakerToSegments').mockResolvedValue(1);
-    const assignSpeakerToUtterances = vi.spyOn(LinguisticService, 'assignSpeakerToUtterances').mockResolvedValue(1);
+    const assignSpeakerToUnits = vi.spyOn(LinguisticService, 'assignSpeakerToUnits').mockResolvedValue(1);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const { result } = renderHook(() => useSpeakerActionRoutingController(createBaseInput({
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
@@ -279,20 +273,20 @@ describe('useSpeakerActionRoutingController', () => {
     });
 
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
-    expect(assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], undefined);
+    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], undefined);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
       message: '已应用说话人到 2 项选中内容',
     }));
 
     assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUtterances.mockRestore();
+    assignSpeakerToUnits.mockRestore();
   });
 
-  it('creates a speaker and assigns mixed selection across segments and utterances', async () => {
+  it('creates a speaker and assigns mixed selection across segments and units', async () => {
     const createSpeaker = vi.spyOn(LinguisticService, 'createSpeaker').mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
     const assignSpeakerToSegments = vi.spyOn(LinguisticService, 'assignSpeakerToSegments').mockResolvedValue(1);
-    const assignSpeakerToUtterances = vi.spyOn(LinguisticService, 'assignSpeakerToUtterances').mockResolvedValue(1);
+    const assignSpeakerToUnits = vi.spyOn(LinguisticService, 'assignSpeakerToUnits').mockResolvedValue(1);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const setBatchSpeakerId = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
     const setSpeakerDraftName = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
@@ -319,7 +313,7 @@ describe('useSpeakerActionRoutingController', () => {
 
     expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob' });
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
-    expect(assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], 'spk-new');
+    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
     expect(setSpeakerDraftName).toHaveBeenCalledWith('');
     expect(setBatchSpeakerId).toHaveBeenCalledWith('spk-new');
     expect(setSpeakers).toHaveBeenCalledWith(expect.any(Function));
@@ -331,13 +325,13 @@ describe('useSpeakerActionRoutingController', () => {
 
     createSpeaker.mockRestore();
     assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUtterances.mockRestore();
+    assignSpeakerToUnits.mockRestore();
   });
 
   it('rolls back mixed create-speaker assignment when segment write fails', async () => {
     const createSpeaker = vi.spyOn(LinguisticService, 'createSpeaker').mockResolvedValue(makeSpeaker('spk-new', 'Bob'));
     const assignSpeakerToSegments = vi.spyOn(LinguisticService, 'assignSpeakerToSegments').mockRejectedValue(new Error('segment create-assign failed'));
-    const assignSpeakerToUtterances = vi.spyOn(LinguisticService, 'assignSpeakerToUtterances').mockResolvedValue(1);
+    const assignSpeakerToUnits = vi.spyOn(LinguisticService, 'assignSpeakerToUnits').mockResolvedValue(1);
     const undo = vi.fn(async () => undefined);
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
     const setBatchSpeakerId = vi.fn() as unknown as Dispatch<SetStateAction<string>>;
@@ -364,7 +358,7 @@ describe('useSpeakerActionRoutingController', () => {
 
     expect(createSpeaker).toHaveBeenCalledWith({ name: 'Bob' });
     expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], 'spk-new');
-    expect(assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], 'spk-new');
+    expect(assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'spk-new');
     expect(undo).toHaveBeenCalled();
     expect(setBatchSpeakerId).not.toHaveBeenCalledWith('spk-new');
     expect(setSpeakerDraftName).not.toHaveBeenCalledWith('');
@@ -377,6 +371,6 @@ describe('useSpeakerActionRoutingController', () => {
 
     createSpeaker.mockRestore();
     assignSpeakerToSegments.mockRestore();
-    assignSpeakerToUtterances.mockRestore();
+    assignSpeakerToUnits.mockRestore();
   });
 });

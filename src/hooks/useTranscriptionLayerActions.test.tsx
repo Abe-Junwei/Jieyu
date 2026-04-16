@@ -14,12 +14,12 @@ const {
   mockUpdateLayer,
   mockUpdateLayerSortOrder,
   mockDeleteLayerSegmentGraphByLayerId,
-  mockRemoveUtterancesBatch,
+  mockRemoveUnitsBatch,
   mockLayerSegmentsWhereLayerIdToArray,
   mockRemoveBySelectorLayerLinks,
   mockLayerLinksToArray,
-  mockUtterancesWhereTextIdPrimaryKeys,
-  mockListUtteranceTextsByUtterances,
+  mockUnitsWhereTextIdPrimaryKeys,
+  mockListUnitTextsByUnits,
 } = vi.hoisted(() => ({
   mockCountSegmentContentsByLayerId: vi.fn(async () => 0),
   mockGetDb: vi.fn(),
@@ -30,15 +30,15 @@ const {
   mockUpdateLayer: vi.fn(async () => undefined),
   mockUpdateLayerSortOrder: vi.fn(async () => undefined),
   mockDeleteLayerSegmentGraphByLayerId: vi.fn(async () => ({
-    affectedUtteranceIds: [],
+    affectedUnitIds: [],
     deletedSegmentIds: [],
   })),
-  mockRemoveUtterancesBatch: vi.fn(async () => undefined),
+  mockRemoveUnitsBatch: vi.fn(async () => undefined),
   mockLayerSegmentsWhereLayerIdToArray: vi.fn(async () => []),
   mockRemoveBySelectorLayerLinks: vi.fn(async () => undefined),
   mockLayerLinksToArray: vi.fn(async () => []),
-  mockUtterancesWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
-  mockListUtteranceTextsByUtterances: vi.fn(async () => []),
+  mockUnitsWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
+  mockListUnitTextsByUnits: vi.fn(async () => []),
 }));
 
 vi.mock('../db', async () => {
@@ -60,12 +60,12 @@ vi.mock('../services/LayerTierUnifiedService', () => ({
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
-    removeUtterancesBatch: mockRemoveUtterancesBatch,
+    removeUnitsBatch: mockRemoveUnitsBatch,
   },
 }));
 
 vi.mock('../services/LayerSegmentationTextService', () => ({
-  listUtteranceTextsByUtterances: mockListUtteranceTextsByUtterances,
+  listUnitTextsByUnits: mockListUnitTextsByUnits,
 }));
 
 vi.mock('../services/LayerSegmentQueryService', () => ({
@@ -76,7 +76,7 @@ vi.mock('../services/LayerSegmentQueryService', () => ({
 
 vi.mock('../services/LayerSegmentGraphService', () => ({
   deleteLayerSegmentGraphByLayerId: mockDeleteLayerSegmentGraphByLayerId,
-  listUtteranceUnitPrimaryKeysByTextId: (_db: unknown, _textId: string) => mockUtterancesWhereTextIdPrimaryKeys(),
+  listUnitUnitPrimaryKeysByTextId: (_db: unknown, _textId: string) => mockUnitsWhereTextIdPrimaryKeys(),
 }));
 
 describe('useTranscriptionLayerActions v2 cleanup', () => {
@@ -127,7 +127,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [] },
+      unitsRef: { current: [] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -139,16 +139,16 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.deleteLayer('layer_trl_1', { keepUtterances: true });
+      await result.current.deleteLayer('layer_trl_1', { keepUnits: true });
     });
 
     expect(mockDeleteLayerSegmentGraphByLayerId).toHaveBeenCalledWith(expect.anything(), 'layer_trl_1');
     expect(mockDeleteLayer).toHaveBeenCalledTimes(1);
-    expect(mockRemoveUtterancesBatch).not.toHaveBeenCalled();
+    expect(mockRemoveUnitsBatch).not.toHaveBeenCalled();
   });
 
   it('delegates layer content counting to the canonical query helper', async () => {
@@ -159,7 +159,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [] },
+      unitsRef: { current: [] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -171,7 +171,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await expect(result.current.checkLayerHasContent('layer_count_1')).resolves.toBe(4);
@@ -199,7 +199,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: trcLayer.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -211,7 +211,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -248,7 +248,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: trcLayer.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -260,7 +260,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     const constraintInputs = [
@@ -305,7 +305,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: trcLayer.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -317,7 +317,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -369,7 +369,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: parentA.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -381,7 +381,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -413,7 +413,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -425,7 +425,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -476,7 +476,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: rootB.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -488,7 +488,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -553,7 +553,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: rootA.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers,
@@ -565,7 +565,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -649,7 +649,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [structuralLink as never, retainedLink as never],
       layerToDeleteId: '',
       selectedLayerId: translation.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setSaveState,
@@ -662,7 +662,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -762,7 +762,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: translationA.id,
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers,
@@ -774,7 +774,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -846,7 +846,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [] },
+      unitsRef: { current: [] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -858,11 +858,11 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.deleteLayer('layer_trc_1', { keepUtterances: true });
+      await result.current.deleteLayer('layer_trc_1', { keepUnits: true });
     });
 
     expect(mockDeleteLayer).toHaveBeenCalledTimes(2);
@@ -871,7 +871,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(setLayerCreateMessage).toHaveBeenCalledWith(expect.stringContaining('自动级联删除 1 个依赖翻译层'));
   });
 
-  it('removes project utterance boundaries when deleting the last transcription layer with keepUtterances=false', async () => {
+  it('removes project unit boundaries when deleting the last transcription layer with keepUnits=false', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
       id: 'layer_trc_last',
@@ -889,15 +889,15 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
 
     mockLayerLinksToArray.mockResolvedValue([]);
     mockLayerSegmentsWhereLayerIdToArray.mockResolvedValue([]);
-    mockUtterancesWhereTextIdPrimaryKeys.mockResolvedValue(['utt_100', 'utt_101']);
-    mockListUtteranceTextsByUtterances.mockResolvedValue([]);
+    mockUnitsWhereTextIdPrimaryKeys.mockResolvedValue(['utt_100', 'utt_101']);
+    mockListUnitTextsByUnits.mockResolvedValue([]);
 
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [trcLayer as never],
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [] },
+      unitsRef: { current: [] },
       pushUndo: vi.fn(),
       setLayerCreateMessage: vi.fn(),
       setLayers: vi.fn(),
@@ -909,15 +909,15 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.deleteLayer('layer_trc_last', { keepUtterances: false });
+      await result.current.deleteLayer('layer_trc_last', { keepUnits: false });
     });
 
-    expect(mockUtterancesWhereTextIdPrimaryKeys).toHaveBeenCalledTimes(1);
-    expect(mockRemoveUtterancesBatch).toHaveBeenCalledWith(['utt_100', 'utt_101']);
+    expect(mockUnitsWhereTextIdPrimaryKeys).toHaveBeenCalledTimes(1);
+    expect(mockRemoveUnitsBatch).toHaveBeenCalledWith(['utt_100', 'utt_101']);
   });
 
   it('blocks creating translation when same-language transcription exists', async () => {
@@ -942,7 +942,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -954,7 +954,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -987,7 +987,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -999,7 +999,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {
@@ -1032,7 +1032,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       layerLinks: [],
       layerToDeleteId: '',
       selectedLayerId: '',
-      utterancesRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
       pushUndo: vi.fn(),
       setLayerCreateMessage,
       setLayers: vi.fn(),
@@ -1044,7 +1044,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       setMediaItems: vi.fn(),
       setSelectedUnitIds: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
+      setUnits: vi.fn(),
     }));
 
     await act(async () => {

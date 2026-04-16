@@ -2,17 +2,17 @@
  * 独立边界层 segment 内容加载 hook | Hook for loading segment contents of independent-boundary layers
  */
 import { useCallback, useEffect, useState } from 'react';
-import { type LayerDocType, type LayerSegmentContentDocType, type LayerSegmentDocType } from '../db';
+import { type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useLatest } from './useLatest';
 import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';
 
-type SegmentContentByLayer = Map<string, Map<string, LayerSegmentContentDocType>>;
+type SegmentContentByLayer = Map<string, Map<string, LayerUnitContentDocType>>;
 
 export function useLayerSegmentContents(
   layers: LayerDocType[],
   mediaId: string | undefined,
-  segmentsByLayer: Map<string, LayerSegmentDocType[]>,
+  segmentsByLayer: Map<string, LayerUnitDocType[]>,
   defaultTranscriptionLayerId?: string,
 ): {
   segmentContentByLayer: SegmentContentByLayer;
@@ -51,12 +51,14 @@ export function useLayerSegmentContents(
       const rows = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(segmentIds, {
         layerId: layer.id,
       });
-      const mapBySegment = new Map<string, LayerSegmentContentDocType>();
+      const mapBySegment = new Map<string, LayerUnitContentDocType>();
 
       for (const row of rows) {
-        const existing = mapBySegment.get(row.segmentId);
+        const segmentId = row.segmentId ?? row.unitId;
+        if (!segmentId) continue;
+        const existing = mapBySegment.get(segmentId);
         if (!existing || row.updatedAt >= existing.updatedAt) {
-          mapBySegment.set(row.segmentId, row);
+          mapBySegment.set(segmentId, row);
         }
       }
 

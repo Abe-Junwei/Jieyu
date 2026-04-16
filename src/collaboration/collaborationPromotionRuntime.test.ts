@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildRollbackWatchlist,
-  collectPhaseGateStatuses,
-  determinePromotionStage,
-  evaluatePromotionReadiness,
-  type CollaborationPhaseGateStatus,
-} from './collaborationPromotionRuntime';
+import { buildRollbackWatchlist, collectPhaseGateStatuses, determinePromotionStage, evaluatePromotionReadiness, type CollaborationPhaseGateStatus } from './collaborationPromotionRuntime';
 
 function buildStatus(overrides?: Partial<CollaborationPhaseGateStatus>): CollaborationPhaseGateStatus {
   return {

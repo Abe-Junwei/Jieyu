@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { buildSpeakerLayerLayoutWithOptions } from '../utils/speakerLayerLayout';
 
 function createSeededRandom(seed: number): () => number {
@@ -12,10 +12,10 @@ function createSeededRandom(seed: number): () => number {
   };
 }
 
-function buildSyntheticUtterances(count: number, speakerCount: number): UtteranceDocType[] {
+function buildSyntheticUnits(count: number, speakerCount: number): LayerUnitDocType[] {
   const rand = createSeededRandom(20260324 + count + speakerCount);
   const now = new Date().toISOString();
-  const rows: UtteranceDocType[] = [];
+  const rows: LayerUnitDocType[] = [];
   for (let i = 0; i < count; i += 1) {
     const start = Math.max(0, i * 0.18 + (rand() - 0.5) * 0.28);
     const duration = 0.12 + rand() * 1.65;
@@ -29,12 +29,12 @@ function buildSyntheticUtterances(count: number, speakerCount: number): Utteranc
       endTime: Number(end.toFixed(3)),
       createdAt: now,
       updatedAt: now,
-    } as UtteranceDocType);
+    } as LayerUnitDocType);
   }
   return rows;
 }
 
-function benchmarkLayoutMs(utterances: UtteranceDocType[]): number {
+function benchmarkLayoutMs(units: LayerUnitDocType[]): number {
   const speakerSortKeyById: Record<string, number> = {};
   const laneLockMap: Record<string, number> = {};
   for (let i = 1; i <= 24; i += 1) {
@@ -43,17 +43,17 @@ function benchmarkLayoutMs(utterances: UtteranceDocType[]): number {
   }
 
   const start = performance.now();
-  buildSpeakerLayerLayoutWithOptions(utterances, {
+  buildSpeakerLayerLayoutWithOptions(units, {
     speakerSortKeyById,
     laneLockMap,
   });
   return performance.now() - start;
 }
 
-function benchmarkLayoutMedianMs(utterances: UtteranceDocType[], runs = 3): { medianMs: number; samples: number[] } {
-  benchmarkLayoutMs(utterances);
+function benchmarkLayoutMedianMs(units: LayerUnitDocType[], runs = 3): { medianMs: number; samples: number[] } {
+  benchmarkLayoutMs(units);
 
-  const samples = Array.from({ length: runs }, () => benchmarkLayoutMs(utterances));
+  const samples = Array.from({ length: runs }, () => benchmarkLayoutMs(units));
   const sorted = [...samples].sort((left, right) => left - right);
   const medianMs = sorted[Math.floor(sorted.length / 2)] ?? samples[0] ?? 0;
 
@@ -61,9 +61,9 @@ function benchmarkLayoutMedianMs(utterances: UtteranceDocType[], runs = 3): { me
 }
 
 describe('Track layout performance baseline', () => {
-  it('keeps 2k utterance layout under baseline budget', () => {
-    const utterances = buildSyntheticUtterances(2000, 24);
-    const { medianMs, samples } = benchmarkLayoutMedianMs(utterances);
+  it('keeps 2k unit layout under baseline budget', () => {
+    const units = buildSyntheticUnits(2000, 24);
+    const { medianMs, samples } = benchmarkLayoutMedianMs(units);
 
     expect(medianMs).toBeLessThan(120);
     // eslint-disable-next-line no-console
@@ -73,9 +73,9 @@ describe('Track layout performance baseline', () => {
     });
   });
 
-  it('keeps 5k utterance layout under baseline budget', () => {
-    const utterances = buildSyntheticUtterances(5000, 32);
-    const { medianMs, samples } = benchmarkLayoutMedianMs(utterances);
+  it('keeps 5k unit layout under baseline budget', () => {
+    const units = buildSyntheticUnits(5000, 32);
+    const { medianMs, samples } = benchmarkLayoutMedianMs(units);
 
     expect(medianMs).toBeLessThan(260);
     // eslint-disable-next-line no-console

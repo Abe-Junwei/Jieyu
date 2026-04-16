@@ -1,14 +1,5 @@
 import { useMemo, useSyncExternalStore } from 'react';
-import {
-  UI_FONT_SCALE_LIMITS,
-  readPersistedUiFontScalePreference,
-  readUiFontScalePreferenceSnapshot,
-  readPersistedUiFontScale,
-  resolveTextDirectionFromLocale,
-  subscribeUiFontScalePreference,
-  type TextDirection,
-  type UiFontScaleMode,
-} from '../utils/panelAdaptiveLayout';
+import { UI_FONT_SCALE_LIMITS, readPersistedUiFontScalePreference, readUiFontScalePreferenceSnapshot, readPersistedUiFontScale, resolveTextDirectionFromLocale, subscribeUiFontScalePreference, type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
 
 export function useUiFontScaleRuntime(locale: string): {
   uiTextDirection: TextDirection;

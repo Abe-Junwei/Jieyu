@@ -2,12 +2,7 @@ import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import type { CustomFieldDefinitionDocType, CustomFieldValueType } from '../db';
 import { t, tf } from '../i18n';
-import {
-  CUSTOM_FIELD_RENDERER_REGISTRY,
-  formatCustomFieldOptionsEditorValue,
-  parseCustomFieldOptionsEditorValue,
-  readLocalizedFieldText,
-} from '../services/LanguageMetadataCustomFields';
+import { CUSTOM_FIELD_RENDERER_REGISTRY, formatCustomFieldOptionsEditorValue, parseCustomFieldOptionsEditorValue, readLocalizedFieldText } from '../services/LanguageMetadataCustomFields';
 import type { WorkspaceLocale } from './languageMetadataWorkspace.shared';
 
 const CUSTOM_FIELD_TYPES: CustomFieldValueType[] = ['text', 'number', 'boolean', 'select', 'multiselect', 'url'];

@@ -1,38 +1,33 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerSegmentDocType, MediaItemDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import {
-  collectNoteTimelineUnitIds,
-  resolveSelectedTimelineMedia,
-  resolveSelectedTimelineRowMeta,
-  type SelectedTimelineRowMeta,
-} from './transcriptionSelectionContextResolver';
-import { resolveNextUtteranceIdForDictation } from './voiceDictationFlow';
-import { resolveSegmentOwnerUtterance } from './transcriptionSelectionOwnerResolver';
+import { collectNoteTimelineUnitIds, resolveSelectedTimelineMedia, resolveSelectedTimelineRowMeta, type SelectedTimelineRowMeta } from './transcriptionSelectionContextResolver';
+import { resolveNextUnitIdForDictation } from './voiceDictationFlow';
+import { resolveSegmentOwnerUnit } from './transcriptionSelectionOwnerResolver';
 
 interface UseTranscriptionSelectionContextControllerInput {
   layers: LayerDocType[];
   defaultTranscriptionLayerId?: string;
   mediaItems: MediaItemDocType[];
-  utterances: UtteranceDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  selectedUnit: UtteranceDocType | null;
+  units: LayerUnitDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  selectedUnit: LayerUnitDocType | null;
   selectedUnitMedia?: MediaItemDocType;
   selectedTimelineUnit: TimelineUnit | null;
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
 }
 
 interface UseTranscriptionSelectionContextControllerResult {
   layerById: Map<string, LayerDocType>;
   mediaItemById: Map<string, MediaItemDocType>;
-  selectedTimelineSegment: LayerSegmentDocType | null;
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
+  selectedTimelineSegment: LayerUnitDocType | null;
+  selectedTimelineOwnerUnit: LayerUnitDocType | null;
   selectedTimelineMedia: MediaItemDocType | undefined;
-  selectedTimelineUnitForTime: Pick<UtteranceDocType, 'startTime' | 'endTime'> | Pick<LayerSegmentDocType, 'startTime' | 'endTime'> | null;
+  selectedTimelineUnitForTime: Pick<LayerUnitDocType, 'startTime' | 'endTime'> | Pick<LayerUnitDocType, 'startTime' | 'endTime'> | null;
   selectedTimelineRowMeta: SelectedTimelineRowMeta | null;
-  nextUtteranceIdForVoiceDictation: string | null;
+  nextUnitIdForVoiceDictation: string | null;
   independentLayerIds: Set<string>;
   noteTimelineUnitIds: string[];
   segmentTimelineLayerIds: Set<string>;
@@ -61,8 +56,8 @@ export function useTranscriptionSelectionContextController(
     if (input.selectedUnit) return input.selectedUnit;
     if (!selectedTimelineSegment) return null;
 
-    return resolveSegmentOwnerUtterance(selectedTimelineSegment, input.utterances) ?? null;
-  }, [input.selectedUnit, input.utterances, selectedTimelineSegment]);
+    return resolveSegmentOwnerUnit(selectedTimelineSegment, input.units) ?? null;
+  }, [input.selectedUnit, input.units, selectedTimelineSegment]);
 
   const selectedTimelineMedia = useMemo(() => resolveSelectedTimelineMedia(
     input.selectedUnitMedia,
@@ -74,23 +69,23 @@ export function useTranscriptionSelectionContextController(
   const selectedTimelineUnitForTime = selectedTimelineSegment ?? selectedTimelineOwnerUnit ?? null;
 
   const selectedTimelineRowMeta = useMemo<SelectedTimelineRowMeta | null>(() => resolveSelectedTimelineRowMeta(
-    input.utterancesOnCurrentMedia,
+    input.unitsOnCurrentMedia,
     selectedTimelineOwnerUnit,
-    input.utterances,
-  ), [input.utterances, input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit]);
+    input.units,
+  ), [input.units, input.unitsOnCurrentMedia, selectedTimelineOwnerUnit]);
 
-  const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({
-    utteranceIdsOnCurrentMedia: input.utterancesOnCurrentMedia.map((item) => item.id),
+  const nextUnitIdForVoiceDictation = useMemo(() => resolveNextUnitIdForDictation({
+    unitIdsOnCurrentMedia: input.unitsOnCurrentMedia.map((item) => item.id),
     activeUnitId: selectedTimelineOwnerUnit?.id ?? null,
-  }), [input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit?.id]);
+  }), [input.unitsOnCurrentMedia, selectedTimelineOwnerUnit?.id]);
 
   const independentLayerIds = useMemo(() => new Set(
     input.layers.filter((layer) => layerUsesOwnSegments(layer, input.defaultTranscriptionLayerId)).map((layer) => layer.id),
   ), [input.defaultTranscriptionLayerId, input.layers]);
 
   const noteTimelineUnitIds = useMemo(
-    () => collectNoteTimelineUnitIds(input.utterances, input.segmentsByLayer),
-    [input.segmentsByLayer, input.utterances],
+    () => collectNoteTimelineUnitIds(input.units, input.segmentsByLayer),
+    [input.segmentsByLayer, input.units],
   );
 
   const segmentTimelineLayerIds = useMemo(() => new Set(
@@ -107,7 +102,7 @@ export function useTranscriptionSelectionContextController(
     selectedTimelineMedia,
     selectedTimelineUnitForTime,
     selectedTimelineRowMeta,
-    nextUtteranceIdForVoiceDictation,
+    nextUnitIdForVoiceDictation,
     independentLayerIds,
     noteTimelineUnitIds,
     segmentTimelineLayerIds,

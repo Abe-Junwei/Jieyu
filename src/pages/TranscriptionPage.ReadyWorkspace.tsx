@@ -14,24 +14,20 @@ import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/use
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
-import { useUtteranceOps } from '../hooks/useUtteranceOps';
+import { useUnitOps } from '../hooks/useUnitOps';
 import { useJKLShuttle } from '../hooks/useJKLShuttle';
 import { useImportExport } from '../hooks/useImportExport';
 import { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
 import { useTranscriptionUIState } from './TranscriptionPage.UIState';
-import {
-  type AppShellOpenSearchDetail,
-} from '../utils/appShellEvents';
+import { type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useLayerSegments } from '../hooks/useLayerSegments';
 import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
 import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
-import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
-import {
-  isUtteranceTimelineUnit,
-} from '../hooks/transcriptionTypes';
+import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
+import { isUnitTimelineUnit } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
@@ -61,7 +57,7 @@ import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBi
 import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';
 import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';
 import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';
-import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
+import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 import { useTranscriptionDisplayStyleControl } from './useTranscriptionDisplayStyleControl';
 import { useTranscriptionAnnotationController } from './useTranscriptionAnnotationController';
 import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';
@@ -75,14 +71,7 @@ import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
 import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
-import {
-  buildReadyWorkspaceLayoutStyle,
-  buildReadyWorkspaceLayerPopoverProps,
-  buildReadyWorkspaceOverlaysProps,
-  buildReadyWorkspaceSidePaneProps,
-  buildReadyWorkspaceStageProps,
-  buildReadyWorkspaceWaveformContentProps,
-} from './transcriptionReadyWorkspacePropsBuilders';
+import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
@@ -113,8 +102,8 @@ function preserveReadyWorkspaceStructureMarkers() {
       {/* <TranscriptionPageDialogs {...dialogsProps} /> */}
       {/* OrchestratorWaveformContent selectedHotspotTimeSec={selectedHotspotTimeSec} */}
       {/* onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu} */}
-      {/* onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu} */}
-      {/* resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds} */}
+      {/* onSetUnitSelfCertaintyFromMenu={handleSetUnitSelfCertaintyFromMenu} */}
+      {/* resolveSelfCertaintyUnitIds={resolveSelfCertaintyUnitIds} */}
       {/* onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()} */}
       {/* onApply={applyRecoveryBanner} */}
       {/* onDismiss={dismissRecoveryBanner} */}
@@ -135,7 +124,7 @@ function TranscriptionPageReadyWorkspace({
   const {
     state,
     setState,
-    utterances,
+    units,
     speakers,
     anchors,
     layers,
@@ -151,12 +140,12 @@ function TranscriptionPageReadyWorkspace({
     setSelectedLayerId,
     saveState,
     setSaveState,
-    setUtterances,
+    setUnits,
     setSpeakers,
     layerCreateMessage,
     setLayerCreateMessage,
-    utteranceDrafts,
-    setUtteranceDrafts,
+    unitDrafts,
+    setUnitDrafts,
     translationDrafts,
     setTranslationDrafts,
     focusedTranslationDraftKeyRef,
@@ -173,24 +162,24 @@ function TranscriptionPageReadyWorkspace({
     selectedMediaUrl,
     selectedMediaBlobSize,
     selectedMediaIsVideo,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     aiConfidenceAvg,
     translationTextByLayer,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     loadSnapshot,
     addMediaItem,
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance: _createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit: _createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
+    splitUnit,
     selectTimelineUnit,
     selectUnit,
     selectSegment,
@@ -205,11 +194,11 @@ function TranscriptionPageReadyWorkspace({
     setSelectedUnitIds: _setSelectedUnitIds,
     transcriptionTrackMode,
     setTranscriptionTrackMode,
-    deleteSelectedUtterances,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,
@@ -238,7 +227,7 @@ function TranscriptionPageReadyWorkspace({
     updateTokenGloss,
     segmentUndoRef,
   } = data;
-  const activeTimelineUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
+  const activeTimelineUnitId = isUnitTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 
@@ -302,7 +291,7 @@ function TranscriptionPageReadyWorkspace({
     layerAction,
     handleFocusLayerRow,
   } = useTranscriptionShellController({
-    utterances,
+    units,
     ...(appSearchRequest !== undefined ? { appSearchRequest } : {}),
     ...(onConsumeAppSearchRequest ? { onConsumeAppSearchRequest } : {}),
     selectedLayerId,
@@ -326,7 +315,7 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineMedia,
     selectedTimelineUnitForTime,
     selectedTimelineRowMeta,
-    nextUtteranceIdForVoiceDictation,
+    nextUnitIdForVoiceDictation,
     independentLayerIds,
     noteTimelineUnitIds,
     segmentTimelineLayerIds,
@@ -334,8 +323,8 @@ function TranscriptionPageReadyWorkspace({
     layers,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     mediaItems: _mediaItems,
-    utterances,
-    utterancesOnCurrentMedia,
+    units,
+    unitsOnCurrentMedia,
     selectedUnit: selectedUnit ?? null,
     ...(selectedUnitMedia ? { selectedUnitMedia } : {}),
     selectedTimelineUnit,
@@ -371,7 +360,7 @@ function TranscriptionPageReadyWorkspace({
     dismissRecoveryBanner,
   } = useRecoveryBanner({
     phase: data.state.phase,
-    utterancesLength: utterances.length,
+    unitsLength: units.length,
     translationsLength: translations.length,
     layersLength: layers.length,
     checkRecovery,
@@ -385,7 +374,7 @@ function TranscriptionPageReadyWorkspace({
     seekToTimeRef,
     splitAtTimeRef,
     zoomToSegmentRef,
-    utteranceRowRef,
+    unitRowRef,
     overlapCycleTelemetryRef,
     manualSelectTsRef,
     tierContainerRef,
@@ -442,7 +431,7 @@ function TranscriptionPageReadyWorkspace({
   } = useTranscriptionWorkspaceLayoutController({
     layers,
     selectedTimelineOwnerUnitId: selectedTimelineOwnerUnit?.id,
-    utteranceRowRef,
+    unitRowRef,
   });
 
   const {
@@ -466,10 +455,10 @@ function TranscriptionPageReadyWorkspace({
 
   const {
     recording,
-    recordingUtteranceId,
+    recordingUnitId,
     recordingLayerId: _recordingLayerId,
     recordingError,
-    startRecordingForUtterance: _startRecordingForUtterance,
+    startRecordingForUnit: _startRecordingForUnit,
     stopRecording: _stopRecording,
   } = useRecording({
     saveVoiceTranslation,
@@ -507,7 +496,7 @@ function TranscriptionPageReadyWorkspace({
   } = useNoteHandlers({
     activeUnitId: activeTimelineUnitId,
     focusedLayerRowId,
-    utterances,
+    units,
     timelineUnitIds: noteTimelineUnitIds,
     transcriptionLayers,
     translationLayers,
@@ -518,8 +507,8 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const timelineUnitViewIndex = useTimelineUnitViewIndex({
-    utterances,
-    utterancesOnCurrentMedia,
+    units,
+    unitsOnCurrentMedia,
     segmentsByLayer,
     segmentContentByLayer,
     currentMediaId: selectedTimelineMedia?.id,
@@ -546,23 +535,23 @@ function TranscriptionPageReadyWorkspace({
     setRecentTimelineEditEvents((prev) => pushTimelineEditToRing(prev, event));
   }, []);
 
-  const getUtteranceDocById = useCallback(
-    (id: string) => utterancesOnCurrentMedia.find((u) => u.id === id),
-    [utterancesOnCurrentMedia],
+  const getUnitDocById = useCallback(
+    (id: string) => unitsOnCurrentMedia.find((u) => u.id === id),
+    [unitsOnCurrentMedia],
   );
 
-  const findUtteranceDocContainingRange = useCallback(
-    (start: number, end: number) => utterancesOnCurrentMedia.find(
+  const findUnitDocContainingRange = useCallback(
+    (start: number, end: number) => unitsOnCurrentMedia.find(
       (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
     ),
-    [utterancesOnCurrentMedia],
+    [unitsOnCurrentMedia],
   );
 
-  const findOverlappingUtteranceDoc = useCallback(
-    (start: number, end: number) => utterancesOnCurrentMedia.find(
+  const findOverlappingUnitDoc = useCallback(
+    (start: number, end: number) => unitsOnCurrentMedia.find(
       (u) => u.startTime <= end - 0.01 && u.endTime >= start + 0.01,
     ),
-    [utterancesOnCurrentMedia],
+    [unitsOnCurrentMedia],
   );
 
   const {
@@ -570,8 +559,8 @@ function TranscriptionPageReadyWorkspace({
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     mergeSelectedSegmentsRouted,
-    deleteUtteranceRouted,
-    deleteSelectedUtterancesRouted,
+    deleteUnitRouted: deleteUnitRouted,
+    deleteSelectedUnitsRouted: deleteSelectedUnitsRouted,
   } = useTranscriptionSegmentMutationController({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
@@ -580,39 +569,39 @@ function TranscriptionPageReadyWorkspace({
     refreshSegmentUndoSnapshot,
     selectTimelineUnit,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUtteranceDocById,
-    findUtteranceDocContainingRange,
+    getUnitDocById,
+    findUnitDocContainingRange,
     setSaveState,
-    splitUtterance,
-    mergeSelectedUtterances,
+    splitUnit: splitUnit,
+    mergeSelectedUnits: mergeSelectedUnits,
     mergeWithPrevious,
     mergeWithNext,
-    deleteUtterance,
-    deleteSelectedUtterances,
+    deleteUnit: deleteUnit,
+    deleteSelectedUnits: deleteSelectedUnits,
     recordTimelineEdit,
   });
 
-  const { createNextSegmentRouted, createUtteranceFromSelectionRouted } = useTranscriptionSegmentCreationController({
+  const { createNextSegmentRouted, createUnitFromSelectionRouted } = useTranscriptionSegmentCreationController({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUtteranceDocById,
-    findUtteranceDocContainingRange,
-    findOverlappingUtteranceDoc,
+    getUnitDocById,
+    findUnitDocContainingRange,
+    findOverlappingUnitDoc,
     pushUndo,
     reloadSegments,
     refreshSegmentUndoSnapshot,
     reloadSegmentContents,
     selectTimelineUnit,
     setSaveState,
-    createNextUtterance: _createNextUtterance,
-    createUtteranceFromSelection,
+    createAdjacentUnit: _createAdjacentUnit,
+    createUnitFromSelection,
     recordTimelineEdit,
   });
 
   const {
-    utteranceHasText: _utteranceHasText,
+    unitHasText: _unitHasText,
     runDeleteSelection,
     runDeleteOne,
     runMergeSelection,
@@ -626,12 +615,12 @@ function TranscriptionPageReadyWorkspace({
     setMuteDeleteConfirmInSession,
     closeDeleteConfirmDialog,
     confirmDeleteFromDialog,
-  } = useUtteranceOps({
-    utterances,
+  } = useUnitOps({
+    units,
     translationTextByLayer,
-    deleteUtterance: deleteUtteranceRouted,
-    deleteSelectedUtterances: deleteSelectedUtterancesRouted,
-    mergeSelectedUtterances,
+    deleteUnit: deleteUnitRouted,
+    deleteSelectedUnits: deleteSelectedUnitsRouted,
+    mergeSelectedUnits,
     mergeWithPrevious: mergeWithPreviousRouted,
     mergeWithNext: mergeWithNextRouted,
     onMergeTargetMissing: () => {
@@ -641,7 +630,7 @@ function TranscriptionPageReadyWorkspace({
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
       });
     },
-    splitUtterance: splitRouted,
+    splitUnit: splitRouted,
     selectAllBefore,
     selectAllAfter,
   });
@@ -654,8 +643,8 @@ function TranscriptionPageReadyWorkspace({
     runOverlayMergeNext,
     runOverlaySplitAtTime,
   } = useTranscriptionOverlayActionRoutingController({
-    deleteSelectedUtterancesRouted,
-    deleteUtteranceRouted,
+    deleteSelectedUnitsRouted,
+    deleteUnitRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     splitRouted,
@@ -702,7 +691,7 @@ function TranscriptionPageReadyWorkspace({
     maxZoomPercent,
     rulerView,
     zoomToPercent,
-    zoomToUtterance,
+    zoomToUnit,
     hoverTime,
     handleWaveformAreaFocus,
     handleWaveformAreaBlur,
@@ -749,7 +738,7 @@ function TranscriptionPageReadyWorkspace({
     zoomMode,
     setZoomMode,
     clearUnitSelection,
-    createUtteranceFromSelection: createUtteranceFromSelectionRouted,
+    createUnitFromSelection: createUnitFromSelectionRouted,
     setUnitSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
@@ -768,13 +757,13 @@ function TranscriptionPageReadyWorkspace({
     selectedLayerId,
     layers,
     segmentContentByLayer,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     formatTime,
   });
 
-  const selectedUtteranceForAiPanelLogic = useMemo(
-    () => utteranceDocForSpeakerTargetFromUnitView(selectionSnapshot.selectedUnit, getUtteranceDocById),
-    [getUtteranceDocById, selectionSnapshot.selectedUnit],
+  const selectedUnitForAiPanelLogic = useMemo(
+    () => unitDocForSpeakerTargetFromUnitView(selectionSnapshot.selectedUnit, getUnitDocById),
+    [getUnitDocById, selectionSnapshot.selectedUnit],
   );
 
   const setAiPanelContext = useAiPanelContextUpdater();
@@ -802,8 +791,8 @@ function TranscriptionPageReadyWorkspace({
     handleJumpToTranslationGap,
   } = useAiPanelLogic({
     locale,
-    utterances,
-    selectedUnit: selectedUtteranceForAiPanelLogic ?? undefined,
+    units,
+    selectedUnit: selectedUnitForAiPanelLogic ?? undefined,
     selectedUnitText: selectionSnapshot.selectedText,
     translationLayers,
     translationDrafts,
@@ -869,9 +858,9 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformTimeUpdate,
   } = useTranscriptionTimelineInteractionController({
     layers,
-    saveUtteranceText: (utteranceId, text, layerId) => saveUtteranceText(utteranceId, text, layerId),
-    saveTextTranslationForUtterance,
-    utterances,
+    saveUnitText: (unitId, text, layerId) => saveUnitText(unitId, text, layerId),
+    saveUnitLayerText,
+    units,
     selectUnit,
     manualSelectTsRef,
     player,
@@ -900,13 +889,13 @@ function TranscriptionPageReadyWorkspace({
     subSelectDragRef,
     waveCanvasRef,
     zoomToPercent,
-    zoomToUtterance,
+    zoomToUnit,
     resolveSegmentRoutingForLayer,
     segmentsByLayer,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     getNeighborBounds,
     reloadSegments,
-    saveUtteranceTiming,
+    saveUnitTiming: saveUnitTiming,
     setSaveState,
     selectedUnitIds,
     selectedWaveformRegionId,
@@ -919,7 +908,7 @@ function TranscriptionPageReadyWorkspace({
     creatingSegmentRef,
     markingModeRef,
     setCtxMenu,
-    createUtteranceFromSelection: createUtteranceFromSelectionRouted,
+    createUnitFromSelection: createUnitFromSelectionRouted,
   });
 
   const { timelineResizeTooltip, startTimelineResizeDrag } = useTimelineResize({
@@ -937,7 +926,7 @@ function TranscriptionPageReadyWorkspace({
     snapEnabled,
     setSnapGuide,
     setDragPreview,
-    saveUtteranceTiming: saveTimingRouted,
+    saveUnitTiming: saveTimingRouted,
     segmentsByLayer,
   });
 
@@ -949,7 +938,7 @@ function TranscriptionPageReadyWorkspace({
     handleVoiceAnalysisResult,
   } = useTranscriptionAssistantController({
     state,
-    unitsLength: utterances.length,
+    unitsLength: units.length,
     translationLayersLength: translationLayers.length,
     aiConfidenceAvg,
     selectedPrimaryUnitView: selectionSnapshot.selectedUnit,
@@ -997,17 +986,17 @@ function TranscriptionPageReadyWorkspace({
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
     layers,
-    utterancesOnCurrentMedia,
-    getUtteranceTextForLayer,
-    saveUtteranceText,
-    saveTextTranslationForUtterance,
+    unitsOnCurrentMedia,
+    getUnitTextForLayer,
+    saveUnitText: saveUnitText,
+    saveUnitLayerText: saveUnitLayerText,
     setSaveState,
-    ...(nextUtteranceIdForVoiceDictation ? { nextUtteranceIdForVoiceDictation } : {}),
+    ...(nextUnitIdForVoiceDictation ? { nextUnitIdForVoiceDictation } : {}),
     selectUnit,
     aiChatEnabled: deferredAiRuntime.aiChat.enabled,
     aiChatSettings: deferredAiRuntime.aiChat.settings,
     pushUndo,
-    setUtterances,
+    setUnits,
   });
 
   const {
@@ -1035,7 +1024,7 @@ function TranscriptionPageReadyWorkspace({
     creatingSegmentRef,
     manualSelectTsRef,
     waveformAreaRef,
-    createUtteranceFromSelection: createUtteranceFromSelectionRouted,
+    createUnitFromSelection: createUnitFromSelectionRouted,
     selectTimelineUnit,
     selectUnit,
     selectAllUnits,
@@ -1116,7 +1105,7 @@ function TranscriptionPageReadyWorkspace({
     runtimePropsInput: {
       saveState,
       recording,
-      recordingUtteranceId,
+      recordingUnitId,
       recordingError,
       overlapCycleToast,
       lockConflictToast,
@@ -1136,9 +1125,9 @@ function TranscriptionPageReadyWorkspace({
       formatSidePaneLayerLabel,
       formatTime,
       toggleVoiceRef,
-      utterancesOnCurrentMedia,
-      getUtteranceDocById,
-      getUtteranceTextForLayer,
+      unitsOnCurrentMedia,
+      getUnitDocById,
+      getUnitTextForLayer,
       handleJumpToCitation,
       handleJumpToEmbeddingMatch,
       embeddingProviderConfig,
@@ -1178,7 +1167,7 @@ function TranscriptionPageReadyWorkspace({
     activeTextId,
     getActiveTextId,
     selectedUnitMedia: selectedTimelineMedia,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     anchors,
     layers,
     translations,
@@ -1213,8 +1202,8 @@ function TranscriptionPageReadyWorkspace({
     setSaveState,
     selectedMediaUrl: selectedMediaUrl ?? null,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
-    utterancesOnCurrentMedia,
-    createUtteranceFromSelectionRouted,
+    unitsOnCurrentMedia,
+    createUnitFromSelectionRouted,
     loadSnapshot,
     selectTimelineUnit,
     locale,
@@ -1222,7 +1211,7 @@ function TranscriptionPageReadyWorkspace({
     transcriptionLayers,
     translationLayers,
     translationTextByLayer,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
   });
 
   const {
@@ -1255,13 +1244,13 @@ function TranscriptionPageReadyWorkspace({
     speakerFilterOptionsForActions,
     selectedUnitIdsForSpeakerActions,
     selectedBatchUnits,
-    resolveSpeakerActionUtteranceIds,
+    resolveSpeakerActionUnitIds,
     selectedSpeakerUnitIdsForActionsSet,
   } = useSpeakerActionScopeController({
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     unitViewById: timelineUnitViewIndex.byId,
     resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
-    getUtteranceDocById,
+    getUnitDocById,
     segmentsByLayer,
     speakers,
     layers,
@@ -1269,12 +1258,12 @@ function TranscriptionPageReadyWorkspace({
     ...(selectedLayerId !== undefined ? { selectedLayerId } : {}),
     selectedUnitIds,
     selectedTimelineUnit,
-    getUtteranceSpeakerKey,
+    getUnitSpeakerKey,
   });
 
   const {
     selectedUnitIdsForSpeakerActionsSet,
-    selectedBatchUtterances,
+    selectedBatchUnits,
     handleBatchOffset,
     handleBatchScale,
     handleBatchSplitByRegex,
@@ -1285,12 +1274,12 @@ function TranscriptionPageReadyWorkspace({
     unitViewById: timelineUnitViewIndex.byId,
     resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUtteranceDocById,
+    getUnitDocById,
     setSaveState,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
   });
 
   const {
@@ -1330,12 +1319,12 @@ function TranscriptionPageReadyWorkspace({
     handleOpenSpeakerManagementPanel,
     handleAssignSpeakerFromMenu,
   } = useTranscriptionSpeakerController({
-    utterances,
-    setUtterances,
+    units,
+    setUnits,
     speakers,
     setSpeakers,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    getUtteranceDocById,
+    getUnitDocById,
     activeTimelineUnitId,
     selectedUnitIds,
     selectedBatchUnits,
@@ -1347,9 +1336,9 @@ function TranscriptionPageReadyWorkspace({
     setUnitSelection,
     data,
     setSaveState,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     formatTime,
-    getUtteranceSpeakerKey,
+    getUnitSpeakerKey,
     activeSpeakerManagementLayer,
     segmentsByLayer,
     segmentContentByLayer,
@@ -1357,7 +1346,7 @@ function TranscriptionPageReadyWorkspace({
     resolveSpeakerKeyForSegment,
     selectedUnitIdsForSpeakerActions,
     segmentByIdForSpeakerActions,
-    resolveSpeakerActionUtteranceIds,
+    resolveSpeakerActionUnitIds,
     speakerFilterOptionsForActions,
     segmentSpeakerAssignmentsOnCurrentMedia,
     selectTimelineUnit,
@@ -1370,13 +1359,14 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const {
-    resolveSelfCertaintyUtteranceIds,
-    handleSetUtteranceSelfCertaintyFromMenu,
+    resolveSelfCertaintyUnitIds,
+    resolveSelfCertaintyForUnit,
+    handleSetUnitSelfCertaintyFromMenu,
   } = useTranscriptionSelfCertaintyController({
     segmentsByLayer,
     currentMediaUnits: timelineUnitViewIndex.currentMediaUnits,
-    utterances,
-    saveUtteranceSelfCertainty,
+    units,
+    saveUnitSelfCertainty: saveUnitSelfCertainty,
   });
 
   const {
@@ -1420,50 +1410,48 @@ function TranscriptionPageReadyWorkspace({
     dragPreview,
     selectedUnitIds,
     focusedLayerRowId,
-    zoomToUtterance,
+    zoomToUnit,
     startTimelineResizeDrag,
     handleNoteClick,
     resolveNoteIndicatorTarget,
-    speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+    speakerVisualByUnitId: speakerVisualByTimelineUnitId,
     independentLayerIds: segmentTimelineLayerIds,
     orthographies: displayStyleControl.orthographies,
-    // 自我确信度宿主句段可能来自历史数据或跨媒体映射，不能只限 currentMedia 子集。
-    // Self-certainty host lookup must use the full utterance set, not only the current-media subset.
-    utterancesForSelfCertainty: utterances,
+    resolveSelfCertaintyForUnit,
     setOverlapCycleToast,
     overlapCycleTelemetryRef,
   });
 
   const {
-    filteredUtterancesOnCurrentMedia,
-    timelineRenderUtterances,
+    filteredUnitsOnCurrentMedia,
+    timelineRenderUnits,
     translationAudioByLayer,
-    selectedBatchUtteranceTextById,
+    selectedBatchUnitTextById,
     batchPreviewLayerOptions,
     batchPreviewTextByLayerId,
     defaultBatchPreviewLayerId,
     editorContextValue,
   } = useTranscriptionTimelineController({
     activeSpeakerFilterKey,
-    utterancesOnCurrentMedia,
-    getUtteranceSpeakerKey,
+    unitsOnCurrentMedia,
+    getUnitSpeakerKey,
     rulerView: rulerView ?? null,
     playerDuration: player.duration,
     translations,
-    selectedBatchUtterances,
+    selectedBatchUnits,
     transcriptionLayers,
     selectedLayerId: selectedLayerId ?? null,
-    getUtteranceTextForLayer,
-    utteranceDrafts,
-    setUtteranceDrafts,
+    getUnitTextForLayer,
+    unitDrafts,
+    setUnitDrafts,
     translationDrafts,
     setTranslationDrafts,
     translationTextByLayer,
     focusedTranslationDraftKeyRef,
     scheduleAutoSave,
     clearAutoSaveTimer,
-    saveUtteranceText,
-    saveTextTranslationForUtterance,
+    saveUnitText,
+    saveUnitLayerText,
     renderLaneLabel,
     createLayer: createLayerWithActiveContext,
     updateLayerMetadata,
@@ -1482,9 +1470,9 @@ function TranscriptionPageReadyWorkspace({
     handleUnlockSelectedSpeakers,
     handleResetTrackAutoLayout,
   } = useTrackDisplayController({
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     timelineUnitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    timelineRenderUtterances,
+    timelineRenderUnits,
     activeLayerIdForEdits,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     layers,
@@ -1497,7 +1485,7 @@ function TranscriptionPageReadyWorkspace({
     selectedSpeakerIdsForTrackLock,
     speakerNameById,
     setLockConflictToast,
-    getUtteranceSpeakerKey,
+    getUnitSpeakerKey,
   });
 
   useTrackEntityPersistenceController({
@@ -1551,9 +1539,9 @@ function TranscriptionPageReadyWorkspace({
       translationAudioByLayer,
       mediaItems: _mediaItems,
       recording,
-      recordingUtteranceId,
+      recordingUnitId,
       recordingLayerId: _recordingLayerId,
-      startRecordingForUtterance: _startRecordingForUtterance,
+      startRecordingForUnit: _startRecordingForUnit,
       stopRecording: _stopRecording,
       deleteVoiceTranslation,
       displayStyleControl,
@@ -1567,16 +1555,17 @@ function TranscriptionPageReadyWorkspace({
       layerAction,
       zoomPxPerSec,
       lassoRect,
-      timelineRenderUtterances,
+      timelineRenderUnits,
       defaultTranscriptionLayerId,
       renderAnnotationItem,
       speakerSortKeyById,
-      filteredUtterancesOnCurrentMedia,
+      filteredUnitsOnCurrentMedia,
       tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
       navigateUnitFromInput,
       speakerVisualByTimelineUnitId,
+      resolveSelfCertaintyForUnit,
       selectedTimelineMedia,
       waveformDisplayMode,
       setWaveformDisplayMode,
@@ -1615,7 +1604,7 @@ function TranscriptionPageReadyWorkspace({
       handleExportJyt,
       handleExportJym,
       handleImportFile,
-      utterancesOnCurrentMedia,
+      unitsOnCurrentMedia,
       rulerView,
       isTimelineLaneHeaderCollapsed,
       toggleTimelineLaneHeader,
@@ -1690,7 +1679,7 @@ function TranscriptionPageReadyWorkspace({
   const assistantBridgeControllerInput = buildReadyWorkspaceAssistantBridgeInput({
     selectedUnitIds,
     selectedUnit: selectedUnit ?? null,
-    getUtteranceDocById,
+    getUnitDocById,
     selectedTimelineSegment: selectedTimelineSegment ?? null,
     ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
     ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
@@ -1704,7 +1693,7 @@ function TranscriptionPageReadyWorkspace({
     transcriptionLayers,
     translationLayers,
     layerLinks,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     formatTime,
     timelineUnitViewIndex,
     segmentsLoadComplete,
@@ -1715,14 +1704,14 @@ function TranscriptionPageReadyWorkspace({
     splitTranscriptionSegment: splitRouted,
     mergeWithPrevious: mergeWithPreviousRouted,
     mergeWithNext: mergeWithNextRouted,
-    mergeSelectedUnits: mergeSelectedUtterances,
+    mergeSelectedUnits: mergeSelectedUnits,
     mergeSelectedSegments: mergeSelectedSegmentsRouted,
-    deleteUtterance: deleteUtteranceRouted,
-    deleteSelectedUnits: deleteSelectedUtterancesRouted,
+    deleteUnit: deleteUnitRouted,
+    deleteSelectedUnits: deleteSelectedUnitsRouted,
     deleteLayer,
     toggleLayerLink,
-    saveUtteranceText,
-    saveTextTranslationForUtterance,
+    saveUnitText: saveUnitText,
+    saveUnitLayerText: saveUnitLayerText,
     saveSegmentContentForLayer,
     updateTokenPos,
     batchUpdateTokenPosByForm,
@@ -1762,14 +1751,14 @@ function TranscriptionPageReadyWorkspace({
     activeSpeakerFilterKey,
     setActiveSpeakerFilterKey,
     speakerDialogState: speakerDialogStateRouted,
-    speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+    speakerVisualByUnitId: speakerVisualByTimelineUnitId,
     speakerFilterOptions: speakerFilterOptionsForActions,
     speakerReferenceStats,
     speakerReferenceUnassignedStats,
     speakerReferenceStatsMediaScoped,
     speakerReferenceStatsReady,
     selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-    handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
+    handleSelectSpeakerUnits: handleSelectSpeakerUnitsRouted,
     handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
     handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
     handleRenameSpeaker,
@@ -1795,8 +1784,10 @@ function TranscriptionPageReadyWorkspace({
     layerAction,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     segmentsByLayer,
-    utterancesOnCurrentMedia,
+    segmentContentByLayer,
+    unitsOnCurrentMedia,
     speakers,
+    getUnitTextForLayer,
     onSelectTimelineUnit: selectTimelineUnit,
     onReorderLayers: reorderLayers,
   });
@@ -1815,8 +1806,8 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformAreaMouseLeave,
     handleWaveformAreaWheel,
     hoverTime,
-    utterancesOnCurrentMedia,
-    getUtteranceTextForLayer,
+    unitsOnCurrentMedia,
+    getUnitTextForLayer,
     waveformHoverPreviewProps,
     selectedMediaUrl,
     zoomPercent,
@@ -1918,15 +1909,15 @@ function TranscriptionPageReadyWorkspace({
     addNote,
     updateNote,
     deleteNote,
-    utterances,
-    resolveSelfCertaintyUtteranceIds,
-    getUtteranceTextForLayer,
+    units,
+    resolveSelfCertaintyUnitIds: resolveSelfCertaintyUnitIds,
+    getUnitTextForLayer,
     transcriptionLayers,
     translationLayers,
     speakerOptions,
     speakerFilterOptions: speakerFilterOptionsForActions,
     onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu,
-    onSetUtteranceSelfCertaintyFromMenu: handleSetUtteranceSelfCertaintyFromMenu,
+    onSetUnitSelfCertaintyFromMenu: handleSetUnitSelfCertaintyFromMenu,
     onOpenLayerMetadataPanelFromMenu: handleOpenLayerMetadataFromOverlayMenu,
     onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel,
     displayStyleControl,
@@ -2017,7 +2008,7 @@ function TranscriptionPageReadyWorkspace({
     fitPxPerSec,
     maxZoomPercent,
     onZoomToPercent: (percent, mode) => zoomToPercent(percent, undefined, mode),
-    onZoomToUtterance: zoomToUtterance,
+    onZoomToUnit: zoomToUnit,
     onSnapEnabledChange: setSnapEnabled,
     onAutoScrollEnabledChange: setAutoScrollEnabled,
     canUndo,
@@ -2046,9 +2037,9 @@ function TranscriptionPageReadyWorkspace({
     shouldRenderBatchOps,
     showBatchOperationPanel,
     selectedUnitIds,
-    selectedBatchUtterances,
-    utterancesOnCurrentMedia,
-    selectedBatchUtteranceTextById,
+    selectedBatchUnits,
+    unitsOnCurrentMedia,
+    selectedBatchUnitTextById,
     batchPreviewLayerOptions,
     batchPreviewTextByLayerId,
     batchPreviewTextPropsByLayerId,
@@ -2058,7 +2049,7 @@ function TranscriptionPageReadyWorkspace({
     onBatchScale: handleBatchScale,
     onBatchSplitByRegex: handleBatchSplitByRegex,
     onBatchMerge: handleBatchMerge,
-    onBatchJumpToUtterance: selectUnit,
+    onBatchJumpToUnit: selectUnit,
   });
 
   return (

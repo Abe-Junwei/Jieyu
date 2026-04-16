@@ -16,19 +16,8 @@ import type { WakeWordDetector as WakeWordDetectorType } from './WakeWordDetecto
 import { AmbientObserver } from './AmbientObserver';
 import { SpeechQualityAnalyzer } from './SpeechQualityAnalyzer';
 import { saveVoiceSession, loadRecentVoiceSessions } from './VoiceSessionStore';
-import {
-  SpeechAnnotationPipeline,
-  type AnnotationLayer,
-  type QuickDictationConfig,
-  type DictationPipelineCallbacks,
-} from './SpeechAnnotationPipeline';
-import {
-  createVoiceSession,
-  loadVoiceIntentAliasMap,
-  type ActionId,
-  type VoiceIntent,
-  type VoiceSession,
-} from './IntentRouter';
+import { SpeechAnnotationPipeline, type AnnotationLayer, type QuickDictationConfig, type DictationPipelineCallbacks } from './SpeechAnnotationPipeline';
+import { createVoiceSession, loadVoiceIntentAliasMap, type ActionId, type VoiceIntent, type VoiceSession } from './IntentRouter';
 import { toBcp47 } from '../utils/langMapping';
 import type { CommercialProviderCreateConfig } from './stt';
 import { resolveVoiceAgentRuntimeConfig } from './config/voiceAgentRuntimeConfig';
@@ -37,11 +26,7 @@ import * as Earcon from './EarconService';
 import { unlockAudio } from './EarconService';
 import { globalContext } from './GlobalContextService';
 import { userBehaviorStore } from './UserBehaviorStore';
-import {
-  buildVoiceAgentGroundingContext,
-  type GroundingContextData,
-  type VoiceAgentGroundingUiContext,
-} from './VoiceAgentGroundingContext';
+import { buildVoiceAgentGroundingContext, type GroundingContextData, type VoiceAgentGroundingUiContext } from './VoiceAgentGroundingContext';
 import { createLogger } from '../observability/logger';
 import { BrowserEventEmitter } from './VoiceAgentService.eventEmitter';
 import { handleFinalSttResult } from './VoiceAgentService.commandBridge';
@@ -600,7 +585,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       ...config,
       autoAdvance: config?.autoAdvance ?? true,
       silenceConfirmDelayMs: config?.silenceConfirmDelayMs ?? 600,
-      maxUtteranceDurationSec: config?.maxUtteranceDurationSec ?? 60,
+      maxUnitDurationSec: config?.maxUnitDurationSec ?? 60,
       skipAlreadyAnnotated: config?.skipAlreadyAnnotated ?? true,
     });
 

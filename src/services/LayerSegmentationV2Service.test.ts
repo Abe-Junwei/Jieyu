@@ -1,20 +1,12 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  db,
-  getDb,
-  type LayerDocType,
-  type LayerSegmentContentDocType,
-  type LayerSegmentDocType,
-  type SegmentLinkDocType,
-  type UtteranceDocType,
-} from '../db';
-import { putTestUtteranceAsLayerUnit } from '../db/putTestUtteranceAsLayerUnit';
+import { db, getDb, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import { putTestUnitAsLayerUnit } from '../db/putTestUnitAsLayerUnit';
 import { LayerSegmentationV2Service } from './LayerSegmentationV2Service';
 
 const NOW = '2026-03-24T00:00:00.000Z';
 
-function makeSegment(overrides: Partial<LayerSegmentDocType> & { id: string }): LayerSegmentDocType {
+function makeSegment(overrides: Partial<LayerUnitDocType> & { id: string }): LayerUnitDocType {
   return {
     textId: 'text_1',
     mediaId: 'media_1',
@@ -27,7 +19,7 @@ function makeSegment(overrides: Partial<LayerSegmentDocType> & { id: string }): 
   };
 }
 
-function makeContent(overrides: Partial<LayerSegmentContentDocType> & { id: string; segmentId: string }): LayerSegmentContentDocType {
+function makeContent(overrides: Partial<LayerUnitContentDocType> & { id: string; segmentId: string }): LayerUnitContentDocType {
   return {
     textId: 'text_1',
     layerId: 'layer_trc_cmn',
@@ -40,7 +32,7 @@ function makeContent(overrides: Partial<LayerSegmentContentDocType> & { id: stri
   };
 }
 
-function makeLink(overrides: Partial<SegmentLinkDocType> & { id: string; sourceSegmentId: string; targetSegmentId: string }): SegmentLinkDocType {
+function makeLink(overrides: Partial<UnitRelationDocType> & { id: string; sourceSegmentId: string; targetSegmentId: string }): UnitRelationDocType {
   return {
     textId: 'text_1',
     linkType: 'equivalent',
@@ -119,7 +111,7 @@ describe('LayerSegmentationV2Service', () => {
       updatedAt: '2026-03-27T00:01:00.000Z',
     });
 
-    const segments = await LayerSegmentationV2Service.listSegmentsByLayerMedia(segment.layerId, segment.mediaId);
+    const segments = await LayerSegmentationV2Service.listSegmentsByLayerMedia(segment.layerId ?? '', segment.mediaId ?? '');
     const contents = await LayerSegmentationV2Service.listSegmentContents(segment.id);
 
     expect(await db.layer_units.get(segment.id)).toEqual(expect.objectContaining({
@@ -403,8 +395,8 @@ describe('LayerSegmentationV2Service', () => {
     ).rejects.toThrow(/not found/);
   });
 
-  it('re-clamps split time_subdivision children to parent utterance bounds', async () => {
-    await putTestUtteranceAsLayerUnit(db, {
+  it('re-clamps split time_subdivision children to parent unit bounds', async () => {
+    await putTestUnitAsLayerUnit(db, {
       id: 'utt_parent_split_clamp',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -412,7 +404,7 @@ describe('LayerSegmentationV2Service', () => {
       endTime: 3,
       createdAt: NOW,
       updatedAt: NOW,
-    } as UtteranceDocType, 'layer_trc_cmn');
+    } as LayerUnitDocType, 'layer_trc_cmn');
     await db.layer_units.put({
       id: 'seg_split_clamp',
       textId: 'text_1',
@@ -618,8 +610,8 @@ describe('LayerSegmentationV2Service', () => {
     ).rejects.toThrow(/adjacent/);
   });
 
-  it('re-clamps merged time_subdivision children to parent utterance bounds', async () => {
-    await putTestUtteranceAsLayerUnit(db, {
+  it('re-clamps merged time_subdivision children to parent unit bounds', async () => {
+    await putTestUnitAsLayerUnit(db, {
       id: 'utt_parent_merge_clamp',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -627,7 +619,7 @@ describe('LayerSegmentationV2Service', () => {
       endTime: 3,
       createdAt: NOW,
       updatedAt: NOW,
-    } as UtteranceDocType, 'layer_trc_cmn');
+    } as LayerUnitDocType, 'layer_trc_cmn');
     await db.layer_units.bulkPut([
       {
         id: 'seg_merge_clamp_1',
@@ -681,15 +673,15 @@ describe('LayerSegmentationV2Service', () => {
 
   // ── createSegmentWithParentConstraint 测试 | Tests ──
 
-  it('creates segment clipped to parent utterance range with segment_link', async () => {
+  it('creates segment clipped to parent unit range with segment_link', async () => {
     const seg = makeSegment({ id: 'seg_pc_1', startTime: 0.5, endTime: 3.5 });
     const result = await LayerSegmentationV2Service.createSegmentWithParentConstraint(
       seg, 'utt_parent_1', 1.0, 3.0,
     );
-    // 裁剪到父 utterance 范围 | Clipped to parent utterance range
+    // 裁剪到父 unit 范围 | Clipped to parent unit range
     expect(result.startTime).toBe(1.0);
     expect(result.endTime).toBe(3.0);
-    expect(result.utteranceId).toBe('utt_parent_1');
+    expect(result.unitId).toBe('utt_parent_1');
 
     // 已写入 DB | Written to DB
     const stored = await db.layer_units.get('seg_pc_1');

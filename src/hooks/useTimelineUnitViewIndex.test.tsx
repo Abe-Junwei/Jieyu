@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitViewIndex } from './timelineUnitView';
 import { useTimelineUnitViewIndex } from './useTimelineUnitViewIndex';
 
-function makeUtterance(id: string, mediaId: string): UtteranceDocType {
+function makeUnit(id: string, mediaId: string): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -35,8 +35,8 @@ describe('useTimelineUnitViewIndex', () => {
     };
 
     const { result } = renderHook(() => useTimelineUnitViewIndex({
-      utterances: [],
-      utterancesOnCurrentMedia: [],
+      units: [],
+      unitsOnCurrentMedia: [],
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: undefined,
@@ -49,11 +49,11 @@ describe('useTimelineUnitViewIndex', () => {
     expect(result.current).toBe(existingIndex);
   });
 
-  it('builds an index from utterances when no existingIndex is given', () => {
-    const u = makeUtterance('u1', 'm1');
+  it('builds an index from units when no existingIndex is given', () => {
+    const u = makeUnit('u1', 'm1');
     const { result } = renderHook(() => useTimelineUnitViewIndex({
-      utterances: [u],
-      utterancesOnCurrentMedia: [u],
+      units: [u],
+      unitsOnCurrentMedia: [u],
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -62,21 +62,21 @@ describe('useTimelineUnitViewIndex', () => {
     }));
 
     expect(result.current.allUnits).toHaveLength(1);
-    expect(result.current.allUnits[0]!.kind).toBe('utterance');
+    expect(result.current.allUnits[0]!.kind).toBe('unit');
     expect(result.current.totalCount).toBe(1);
     expect(result.current.epoch).toBeGreaterThan(0);
     expect(result.current.isComplete).toBe(true);
   });
 
   it('returns stable reference when inputs do not change', () => {
-    const u = makeUtterance('u1', 'm1');
-    const utterances = [u];
+    const u = makeUnit('u1', 'm1');
+    const units = [u];
     const segmentsByLayer = new Map();
     const segmentContentByLayer = new Map();
 
     const { result, rerender } = renderHook(() => useTimelineUnitViewIndex({
-      utterances,
-      utterancesOnCurrentMedia: utterances,
+      units,
+      unitsOnCurrentMedia: units,
       segmentsByLayer,
       segmentContentByLayer,
       currentMediaId: 'm1',
@@ -90,14 +90,14 @@ describe('useTimelineUnitViewIndex', () => {
     expect(result.current.epoch).toBe(first.epoch);
   });
 
-  it('rebuilds when utterances array changes', () => {
-    const u1 = makeUtterance('u1', 'm1');
-    const u2 = makeUtterance('u2', 'm1');
-    let utterances: UtteranceDocType[] = [u1];
+  it('rebuilds when units array changes', () => {
+    const u1 = makeUnit('u1', 'm1');
+    const u2 = makeUnit('u2', 'm1');
+    let units: LayerUnitDocType[] = [u1];
 
     const { result, rerender } = renderHook(() => useTimelineUnitViewIndex({
-      utterances,
-      utterancesOnCurrentMedia: utterances,
+      units,
+      unitsOnCurrentMedia: units,
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'm1',
@@ -108,7 +108,7 @@ describe('useTimelineUnitViewIndex', () => {
     const first = result.current;
     expect(first.allUnits).toHaveLength(1);
 
-    utterances = [u1, u2];
+    units = [u1, u2];
     rerender();
     expect(result.current).not.toBe(first);
     expect(result.current.allUnits).toHaveLength(2);

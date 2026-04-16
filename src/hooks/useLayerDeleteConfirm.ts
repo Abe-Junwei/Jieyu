@@ -15,7 +15,7 @@ export type LayerDeleteConfirmState = {
 type UseLayerDeleteConfirmInput = {
   deletableLayers?: LayerDocType[];
   checkLayerHasContent?: (layerId: string) => Promise<number>;
-  deleteLayer?: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer?: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
 };
 
@@ -38,7 +38,7 @@ export function useLayerDeleteConfirm({
   const deleteLayer = deleteLayerProp ?? ctx.deleteLayer;
   const deleteLayerWithoutConfirm = deleteLayerWithoutConfirmProp ?? ctx.deleteLayerWithoutConfirm;
   const [deleteLayerConfirm, setDeleteLayerConfirm] = useState<LayerDeleteConfirmState>(null);
-  const [deleteConfirmKeepUtterances, setDeleteConfirmKeepUtterances] = useState(false);
+  const [deleteConfirmKeepUnits, setDeleteConfirmKeepUnits] = useState(false);
   const deleteLayerFlowVersionRef = useRef(0);
 
   const requestDeleteLayer = useCallback(async (layerId: string) => {
@@ -65,7 +65,7 @@ export function useLayerDeleteConfirm({
       return;
     }
 
-    setDeleteConfirmKeepUtterances(false);
+    setDeleteConfirmKeepUnits(false);
     setDeleteLayerConfirm({
       layerId,
       layerName: formatSidePaneLayerLabel(layer),
@@ -78,7 +78,7 @@ export function useLayerDeleteConfirm({
   const cancelDeleteLayerConfirm = useCallback(() => {
     deleteLayerFlowVersionRef.current += 1;
     setDeleteLayerConfirm(null);
-    setDeleteConfirmKeepUtterances(false);
+    setDeleteConfirmKeepUnits(false);
   }, []);
 
   const confirmDeleteLayer = useCallback(async () => {
@@ -86,20 +86,20 @@ export function useLayerDeleteConfirm({
 
     const confirmVersion = deleteLayerFlowVersionRef.current;
     const { layerId } = deleteLayerConfirm;
-    const keepUtterances = deleteConfirmKeepUtterances;
+    const keepUnits = deleteConfirmKeepUnits;
 
-    await deleteLayer(layerId, { keepUtterances });
+    await deleteLayer(layerId, { keepUnits });
     if (deleteLayerFlowVersionRef.current !== confirmVersion) return;
 
     deleteLayerFlowVersionRef.current += 1;
     setDeleteLayerConfirm(null);
-    setDeleteConfirmKeepUtterances(false);
-  }, [deleteConfirmKeepUtterances, deleteLayer, deleteLayerConfirm]);
+    setDeleteConfirmKeepUnits(false);
+  }, [deleteConfirmKeepUnits, deleteLayer, deleteLayerConfirm]);
 
   return {
     deleteLayerConfirm,
-    deleteConfirmKeepUtterances,
-    setDeleteConfirmKeepUtterances,
+    deleteConfirmKeepUnits,
+    setDeleteConfirmKeepUnits,
     requestDeleteLayer,
     cancelDeleteLayerConfirm,
     confirmDeleteLayer,

@@ -1,74 +1,66 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { getDb } from '../db';
-import type {
-  AnchorDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { AnchorDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import type { SaveState } from './transcriptionTypes';
-import {
-  formatRollbackFailureMessage,
-  getUndoLabel,
-  resolveUtteranceActionErrorDetail,
-} from './useTranscriptionUtteranceActions.helpers';
+import { formatRollbackFailureMessage, getUndoLabel, resolveUnitActionErrorDetail } from './useTranscriptionUnitActions.helpers';
 import type { Locale } from '../i18n';
 import { t, tf } from '../i18n';
 import { createLogger } from '../observability/logger';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
-import { mergeUtteranceSelfCertaintyConservative } from '../utils/utteranceSelfCertainty';
+import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { mergeUnitSelfCertaintyConservative } from '../utils/unitSelfCertainty';
 
-const log = createLogger('useTranscriptionUtteranceActions');
+const log = createLogger('useTranscriptionUnitActions');
 
 type BatchActionsInput = {
   allowOverlapInTranscription: boolean;
   locale: Locale;
-  translations: UtteranceTextDocType[];
-  utterancesOnCurrentMediaRef: MutableRefObject<UtteranceDocType[]>;
+  translations: LayerUnitContentDocType[];
+  unitsOnCurrentMediaRef: MutableRefObject<LayerUnitDocType[]>;
   pushUndo: (label: string) => void;
   rollbackUndo?: () => Promise<void>;
   createAnchor: (db: Awaited<ReturnType<typeof getDb>>, mediaId: string, time: number) => Promise<AnchorDocType>;
   updateAnchorTime: (db: Awaited<ReturnType<typeof getDb>>, anchorId: string, newTime: number) => Promise<void>;
-  pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUtteranceIds: Set<string>) => Promise<void>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUnitIds: Set<string>) => Promise<void>;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   reassignTranslations: (
     survivorId: string,
     removedId: string,
     db: Awaited<ReturnType<typeof getDb>>,
     now: string,
-  ) => Promise<{ newTranslations: UtteranceTextDocType[]; updatedTranslations: UtteranceTextDocType[] }>;
+  ) => Promise<{ newTranslations: LayerUnitContentDocType[]; updatedTranslations: LayerUnitContentDocType[] }>;
   selectUnitPrimary: (id: string) => void;
   setSaveState: (s: SaveState) => void;
-  setTranslations: Dispatch<SetStateAction<UtteranceTextDocType[]>>;
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
-  setUtteranceDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  setTranslations: Dispatch<SetStateAction<LayerUnitContentDocType[]>>;
+  setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
+  setUnitDrafts: Dispatch<SetStateAction<Record<string, string>>>;
 };
 
-export function createTranscriptionUtteranceBatchActions(input: BatchActionsInput) {
+export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
   const {
     allowOverlapInTranscription,
     locale,
     translations,
-    utterancesOnCurrentMediaRef,
+    unitsOnCurrentMediaRef,
     pushUndo,
     rollbackUndo,
     createAnchor,
     updateAnchorTime,
     pruneOrphanAnchors,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     reassignTranslations,
     selectUnitPrimary,
     setSaveState,
     setTranslations,
-    setUtterances,
-    setUtteranceDrafts,
+    setUnits,
+    setUnitDrafts,
   } = input;
 
   const offsetSelectedTimes = async (ids: Set<string>, deltaSec: number) => {
-    const targets = utterancesOnCurrentMediaRef.current
+    const targets = unitsOnCurrentMediaRef.current
       .filter((u) => ids.has(u.id))
       .sort((a, b) => a.startTime - b.startTime);
     if (targets.length === 0) return;
@@ -92,7 +84,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     }
 
     if (!allowOverlapInTranscription) {
-      const timeline = utterancesOnCurrentMediaRef.current
+      const timeline = unitsOnCurrentMediaRef.current
         .map((u) => {
           const next = transformed.get(u.id);
           return next ? { ...u, ...next } : u;
@@ -121,9 +113,9 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           startTime: next.startTime,
           endTime: next.endTime,
           updatedAt: now,
-        } as UtteranceDocType;
+        } as LayerUnitDocType;
       });
-      await LinguisticService.saveUtterancesBatch(updatedRows);
+      await LinguisticService.saveUnitsBatch(updatedRows);
 
       await Promise.all(updatedRows.map(async (u) => {
         if (u.startAnchorId) await updateAnchorTime(db, u.startAnchorId, u.startTime);
@@ -131,10 +123,10 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       }));
 
       const byId = new Map(updatedRows.map((row) => [row.id, row]));
-      setUtterances((prev) => prev.map((u) => byId.get(u.id) ?? u));
+      setUnits((prev) => prev.map((u) => byId.get(u.id) ?? u));
       setSaveState({
         kind: 'done',
-        message: tf(locale, 'transcription.utteranceAction.done.offsetSelection', {
+        message: tf(locale, 'transcription.unitAction.done.offsetSelection', {
           count: updatedRows.length,
           delta: `${deltaSec >= 0 ? '+' : ''}${deltaSec.toFixed(3)}s`,
         }),
@@ -149,7 +141,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           });
         }
       }
-      const message = resolveUtteranceActionErrorDetail(locale, error);
+      const message = resolveUnitActionErrorDetail(locale, error);
       log.error('offsetSelectedTimes failed', {
         targetCount: targets.length,
         deltaSec,
@@ -166,7 +158,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
   };
 
   const scaleSelectedTimes = async (ids: Set<string>, factor: number, anchorTime?: number) => {
-    const targets = utterancesOnCurrentMediaRef.current
+    const targets = unitsOnCurrentMediaRef.current
       .filter((u) => ids.has(u.id))
       .sort((a, b) => a.startTime - b.startTime);
     if (targets.length === 0) return;
@@ -200,7 +192,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     }
 
     if (!allowOverlapInTranscription) {
-      const timeline = utterancesOnCurrentMediaRef.current
+      const timeline = unitsOnCurrentMediaRef.current
         .map((u) => {
           const next = transformed.get(u.id);
           return next ? { ...u, ...next } : u;
@@ -229,9 +221,9 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           startTime: next.startTime,
           endTime: next.endTime,
           updatedAt: now,
-        } as UtteranceDocType;
+        } as LayerUnitDocType;
       });
-      await LinguisticService.saveUtterancesBatch(updatedRows);
+      await LinguisticService.saveUnitsBatch(updatedRows);
 
       await Promise.all(updatedRows.map(async (u) => {
         if (u.startAnchorId) await updateAnchorTime(db, u.startAnchorId, u.startTime);
@@ -239,10 +231,10 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       }));
 
       const byId = new Map(updatedRows.map((row) => [row.id, row]));
-      setUtterances((prev) => prev.map((u) => byId.get(u.id) ?? u));
+      setUnits((prev) => prev.map((u) => byId.get(u.id) ?? u));
       setSaveState({
         kind: 'done',
-        message: tf(locale, 'transcription.utteranceAction.done.scaleSelection', {
+        message: tf(locale, 'transcription.unitAction.done.scaleSelection', {
           count: updatedRows.length,
           factor: `x${factor.toFixed(3)}`,
         }),
@@ -257,7 +249,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           });
         }
       }
-      const message = resolveUtteranceActionErrorDetail(locale, error);
+      const message = resolveUnitActionErrorDetail(locale, error);
       log.error('scaleSelectedTimes failed', {
         targetCount: targets.length,
         factor,
@@ -290,7 +282,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     try {
       splitter = new RegExp(rawPattern, normalizedFlags);
     } catch (err) {
-      console.error('[Jieyu] useTranscriptionUtteranceActions: regex compilation failed', { rawPattern, flags, err });
+      console.error('[Jieyu] useTranscriptionUnitActions: regex compilation failed', { rawPattern, flags, err });
       reportValidationError({
         message: t(locale, 'transcription.error.validation.regexPatternInvalid'),
         i18nKey: 'transcription.error.validation.regexPatternInvalid',
@@ -299,7 +291,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       return;
     }
 
-    const targets = utterancesOnCurrentMediaRef.current
+    const targets = unitsOnCurrentMediaRef.current
       .filter((u) => ids.has(u.id))
       .sort((a, b) => a.startTime - b.startTime);
     if (targets.length === 0) return;
@@ -307,15 +299,15 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     const minSpan = 0.05;
     const db = await getDb();
     const now = new Date().toISOString();
-    const updates: UtteranceDocType[] = [];
-    const inserts: UtteranceDocType[] = [];
-    const copiedTranslations: UtteranceTextDocType[] = [];
+    const updates: LayerUnitDocType[] = [];
+    const inserts: LayerUnitDocType[] = [];
+    const copiedTranslations: LayerUnitContentDocType[] = [];
     const nextDraftEntries: Record<string, string> = {};
 
     for (const target of targets) {
       if (!target.mediaId) continue;
 
-      const fullText = (getUtteranceTextForLayer(target) || '').trim();
+      const fullText = (getUnitTextForLayer(target) || '').trim();
       if (!fullText) continue;
       const segments = fullText
         .split(splitter)
@@ -345,12 +337,12 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
 
       const first = bounds[0]!;
       const preservedSelfCertainty = target.selfCertainty;
-      const updatedFirst: UtteranceDocType = {
+      const updatedFirst: LayerUnitDocType = {
         ...target,
         startTime: Number(first.start.toFixed(3)),
         endTime: Number(first.end.toFixed(3)),
         updatedAt: now,
-      } as UtteranceDocType;
+      } as LayerUnitDocType;
       if (preservedSelfCertainty === undefined) {
         delete updatedFirst.selfCertainty;
       } else {
@@ -370,7 +362,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           endAnchorId = splitAnchor.id;
           prevEndAnchorId = splitAnchor.id;
         }
-        const nextUtterance: UtteranceDocType = {
+        const nextUnit: LayerUnitDocType = {
           ...target,
           id,
           startTime: Number(bound.start.toFixed(3)),
@@ -380,25 +372,25 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           annotationStatus: 'raw',
           createdAt: now,
           updatedAt: now,
-        } as UtteranceDocType;
+        } as LayerUnitDocType;
         if (preservedSelfCertainty === undefined) {
-          delete nextUtterance.selfCertainty;
+          delete nextUnit.selfCertainty;
         } else {
-          nextUtterance.selfCertainty = preservedSelfCertainty;
+          nextUnit.selfCertainty = preservedSelfCertainty;
         }
-        inserts.push(nextUtterance);
+        inserts.push(nextUnit);
         nextDraftEntries[id] = segments[i]!;
 
-        const origTranslations = translations.filter((t) => t.utteranceId === target.id);
+        const origTranslations = translations.filter((t) => t.unitId === target.id);
         for (const ot of origTranslations) {
-          const copy: UtteranceTextDocType = {
+          const copy: LayerUnitContentDocType = {
             ...ot,
             id: newId('utr'),
-            utteranceId: id,
+            unitId: id,
             createdAt: now,
             updatedAt: now,
-          } as UtteranceTextDocType;
-          await syncUtteranceTextToSegmentationV2(db, nextUtterance, copy);
+          } as LayerUnitContentDocType;
+          await syncUnitTextToSegmentationV2(db, nextUnit, copy);
           copiedTranslations.push(copy);
         }
       }
@@ -415,20 +407,20 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
 
     pushUndo(getUndoLabel(locale, 'splitByRegex'));
     try {
-      await LinguisticService.saveUtterancesBatch([...updates, ...inserts]);
+      await LinguisticService.saveUnitsBatch([...updates, ...inserts]);
       const updateMap = new Map(updates.map((u) => [u.id, u]));
-      setUtterances((prev) => [
+      setUnits((prev) => [
         ...prev.map((u) => updateMap.get(u.id) ?? u),
         ...inserts,
       ]);
       setTranslations((prev) => [...prev, ...copiedTranslations]);
-      setUtteranceDrafts((prev) => ({ ...prev, ...nextDraftEntries }));
+      setUnitDrafts((prev) => ({ ...prev, ...nextDraftEntries }));
       if (inserts.length > 0) {
         selectUnitPrimary(inserts[0]!.id);
       }
       setSaveState({
         kind: 'done',
-        message: tf(locale, 'transcription.utteranceAction.done.regexSplitSelection', {
+        message: tf(locale, 'transcription.unitAction.done.regexSplitSelection', {
           count: updates.length + inserts.length,
         }),
       });
@@ -442,7 +434,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
           });
         }
       }
-      const message = resolveUtteranceActionErrorDetail(locale, error);
+      const message = resolveUnitActionErrorDetail(locale, error);
       log.error('splitByRegex failed', {
         targetCount: targets.length,
         pattern: rawPattern,
@@ -459,8 +451,8 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     }
   };
 
-  const mergeSelectedUtterances = async (ids: Set<string>) => {
-    const sorted = utterancesOnCurrentMediaRef.current
+  const mergeSelectedUnits = async (ids: Set<string>) => {
+    const sorted = unitsOnCurrentMediaRef.current
       .filter((u) => ids.has(u.id))
       .sort((a, b) => a.startTime - b.startTime);
     if (sorted.length < 2) {
@@ -472,30 +464,30 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       return;
     }
 
-    pushUndo(getUndoLabel(locale, 'mergeSelectedUtterances'));
+    pushUndo(getUndoLabel(locale, 'mergeSelectedUnits'));
     try {
       const db = await getDb();
       const now = new Date().toISOString();
       const first = sorted[0]!;
       const last = sorted[sorted.length - 1]!;
-      const mergedCertainty = mergeUtteranceSelfCertaintyConservative(sorted.map((u) => u.selfCertainty));
+      const mergedCertainty = mergeUnitSelfCertaintyConservative(sorted.map((u) => u.selfCertainty));
 
-      const updated: UtteranceDocType = {
+      const updated: LayerUnitDocType = {
         ...first,
         endTime: last.endTime,
         endAnchorId: last.endAnchorId ?? first.endAnchorId,
         updatedAt: now,
-      } as UtteranceDocType;
+      } as LayerUnitDocType;
       if (mergedCertainty === undefined) {
         delete updated.selfCertainty;
       } else {
         updated.selfCertainty = mergedCertainty;
       }
-      await LinguisticService.saveUtterance(updated);
+      await LinguisticService.saveUnit(updated);
 
       const toRemove = sorted.slice(1);
-      let allNewTranslations: UtteranceTextDocType[] = [];
-      let allUpdatedTranslations: UtteranceTextDocType[] = [];
+      let allNewTranslations: LayerUnitContentDocType[] = [];
+      let allUpdatedTranslations: LayerUnitContentDocType[] = [];
       for (const u of toRemove) {
         const { newTranslations, updatedTranslations } = await reassignTranslations(first.id, u.id, db, now);
         allNewTranslations = [...allNewTranslations, ...newTranslations];
@@ -504,11 +496,11 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
 
       const removeIds = new Set(toRemove.map((u) => u.id));
       const updatedIds = new Set(allUpdatedTranslations.map((t) => t.id));
-      setUtterances((prev) =>
+      setUnits((prev) =>
         prev.filter((u) => !removeIds.has(u.id)).map((u) => (u.id === first.id ? updated : u)),
       );
       setTranslations((prev) => [
-        ...prev.filter((t) => !removeIds.has(t.utteranceId) && !updatedIds.has(t.id)),
+        ...prev.filter((t) => !(t.unitId && removeIds.has(t.unitId)) && !updatedIds.has(t.id)),
         ...allUpdatedTranslations,
         ...allNewTranslations,
       ]);
@@ -517,7 +509,7 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
       await pruneOrphanAnchors(db, removeIds);
       setSaveState({
         kind: 'done',
-        message: tf(locale, 'transcription.utteranceAction.done.mergeSelection', {
+        message: tf(locale, 'transcription.unitAction.done.mergeSelection', {
           count: sorted.length,
           start: formatTime(updated.startTime),
           end: formatTime(updated.endTime),
@@ -528,22 +520,22 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
         try {
           await rollbackUndo();
         } catch (rollbackError) {
-          log.warn('Rollback after mergeSelectedUtterances failure also failed', {
+          log.warn('Rollback after mergeSelectedUnits failure also failed', {
             error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError),
           });
         }
       }
-      const message = resolveUtteranceActionErrorDetail(locale, error);
-      log.error('mergeSelectedUtterances failed', {
+      const message = resolveUnitActionErrorDetail(locale, error);
+      log.error('mergeSelectedUnits failed', {
         targetCount: sorted.length,
         error: message,
       });
       reportActionError({
-        actionLabel: getUndoLabel(locale, 'mergeSelectedUtterances'),
+        actionLabel: getUndoLabel(locale, 'mergeSelectedUnits'),
         error,
         i18nKey: 'transcription.error.action.mergeSelectionFailed',
         setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-        fallbackMessage: formatRollbackFailureMessage(locale, 'mergeSelectedUtterances', error),
+        fallbackMessage: formatRollbackFailureMessage(locale, 'mergeSelectedUnits', error),
       });
     }
   };
@@ -552,6 +544,6 @@ export function createTranscriptionUtteranceBatchActions(input: BatchActionsInpu
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
   };
 }

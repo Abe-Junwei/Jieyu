@@ -4,7 +4,7 @@ export type SelectionState = {
 };
 
 export type TimingUndoState = {
-  utteranceId: string;
+  unitId: string;
   atMs: number;
 };
 
@@ -24,16 +24,16 @@ export function normalizeSelection(primaryId: string, ids: Iterable<string>): Se
 
 export function shouldPushTimingUndo(
   previous: TimingUndoState | null,
-  utteranceId: string,
+  unitId: string,
   nowMs: number,
   windowMs = 500,
 ): { shouldPush: boolean; next: TimingUndoState } {
   const shouldPush = !previous
-    || previous.utteranceId !== utteranceId
+    || previous.unitId !== unitId
     || nowMs - previous.atMs > windowMs;
 
   return {
     shouldPush,
-    next: { utteranceId, atMs: nowMs },
+    next: { unitId, atMs: nowMs },
   };
 }

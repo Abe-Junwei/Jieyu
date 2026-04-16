@@ -267,14 +267,14 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformBridgeHookCode.includes('} = useWaveformSelectionController({')).toBe(true);
     expect(waveformBridgeHookCode.includes('const player = useWaveSurfer({')).toBe(true);
     expect(waveformBridgeHookCode.includes('} = useLasso({')).toBe(true);
-    expect(waveformBridgeHookCode.includes('const { rulerView, zoomToPercent, zoomToUtterance } = useZoom({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('const { rulerView, zoomToPercent, zoomToUnit } = useZoom({')).toBe(true);
     expect(hookCode.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(hookCode.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;')).toBe(true);
     expect(hookCode.includes('const waveformRegions = useMemo(() =>')).toBe(true);
 
-    // 选择态应按 independent/utterance 双路径路由
-    // Selection state must route by independent/utterance mode.
+    // 选择态应按 independent/unit 双路径路由
+    // Selection state must route by independent/unit mode.
     expect(hookCode.includes('const selectedWaveformRegionId = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const kindMatchesWaveform = useSegmentWaveformRegions')).toBe(true);
     expect(hookCode.includes('return waveformTimelineItems.some((item) => item.id === selectedTimelineUnit.unitId)')).toBe(true);
@@ -284,7 +284,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const selectedWaveformTimelineItem = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('return waveformTimelineItems.find((item) => item.id === selectedWaveformRegionId) ?? null;')).toBe(true);
 
-    // 拖拽更新结束应在独立层更新 segment 而非 utterance
+    // 拖拽更新结束应在独立层更新 segment 而非 unit
     // Region update end must update segment on independent layers.
     expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
     expect(code.includes('useTranscriptionActionRefBindings({')).toBe(true);
@@ -317,7 +317,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes("localStorage.setItem('jieyu:lane-heights', JSON.stringify(timelineLaneHeights));")).toBe(true);
   });
 
-  it('inherits speaker metadata on newly created independent segments from overlapping utterance', () => {
+  it('inherits speaker metadata on newly created independent segments from overlapping unit', () => {
     const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
     const code = fs.readFileSync(actionPath, 'utf8');
 
@@ -325,11 +325,11 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes('newSeg.speakerId = overlappingUtt.speakerId;')).toBe(true);
   });
 
-  it('binds time-subdivision segments back to their parent utterance', () => {
+  it('binds time-subdivision segments back to their parent unit', () => {
     const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
     const code = fs.readFileSync(actionPath, 'utf8');
 
-    expect(code.includes('newSeg.utteranceId = parentUtt.id;')).toBe(true);
+    expect(code.includes('newSeg.unitId = parentUtt.id;')).toBe(true);
     expect(code.includes('createSegmentWithParentConstraint(')).toBe(true);
   });
 
@@ -337,8 +337,8 @@ describe('TranscriptionPage structure invariants', () => {
     const actionPath = path.resolve(process.cwd(), 'src/pages/transcriptionSegmentCreationActions.ts');
     const code = fs.readFileSync(actionPath, 'utf8');
 
-    const timeSubdivisionPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.utteranceAction.done.createFromSelection',\n          parentUtterance: parentUtt,");
-    const independentPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.utteranceAction.done.createFromSelection',\n        });");
+    const timeSubdivisionPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.unitAction.done.createFromSelection',\n          parentUnit: parentUtt,");
+    const independentPersistIndex = code.indexOf("await createSegmentInRoutedLayer(newSeg, routing, {\n          doneMessageKey: 'transcription.unitAction.done.createFromSelection',\n        });");
     const parentGuardIndex = code.indexOf("if (!parentUtt) {");
 
     expect(timeSubdivisionPersistIndex).toBeGreaterThan(parentGuardIndex);
@@ -362,16 +362,16 @@ describe('TranscriptionPage structure invariants', () => {
     const actionCode = fs.readFileSync(actionPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';")).toBe(true);
-    expect(orchestratorCode.includes('{ createNextSegmentRouted, createUtteranceFromSelectionRouted } = useTranscriptionSegmentCreationController({')).toBe(true);
-    expect(orchestratorCode.includes('const createUtteranceFromSelectionRouted = useCallback(async (start: number, end: number) => {')).toBe(false);
+    expect(orchestratorCode.includes('{ createNextSegmentRouted, createUnitFromSelectionRouted } = useTranscriptionSegmentCreationController({')).toBe(true);
+    expect(orchestratorCode.includes('const createUnitFromSelectionRouted = useCallback(async (start: number, end: number) => {')).toBe(false);
 
     expect(hookCode.includes('export function useTranscriptionSegmentCreationController(')).toBe(true);
     expect(hookCode.includes("} from './transcriptionSegmentCreationActions';")).toBe(true);
     expect(hookCode.includes('return createTranscriptionSegmentCreationActions(input, locale);')).toBe(true);
     expect(actionCode.includes('const createNextSegmentRouted = async (targetId: string) => {')).toBe(true);
-    expect(actionCode.includes('const createUtteranceFromSelectionRouted = async (start: number, end: number) => {')).toBe(true);
-    expect(actionCode.includes('await input.createNextUtterance(targetUtterance, mediaDuration);')).toBe(true);
-    expect(actionCode.includes('await input.createUtteranceFromSelection(start, end, {')).toBe(true);
+    expect(actionCode.includes('const createUnitFromSelectionRouted = async (start: number, end: number) => {')).toBe(true);
+    expect(actionCode.includes('await input.createAdjacentUnit(targetUnit, mediaDuration);')).toBe(true);
+    expect(actionCode.includes('await input.createUnitFromSelection(start, end, {')).toBe(true);
   });
 
   it('keeps segment mutation routing extracted into dedicated hook', () => {
@@ -385,15 +385,15 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const splitRouted = useCallback(async (id: string, splitTime: number) => {')).toBe(false);
     expect(orchestratorCode.includes('const mergeWithPreviousRouted = useCallback(async (id: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const mergeWithNextRouted = useCallback(async (id: string) => {')).toBe(false);
-    expect(orchestratorCode.includes('const deleteUtteranceRouted = useCallback(async (id: string) => {')).toBe(false);
-    expect(orchestratorCode.includes('const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>) => {')).toBe(false);
+    expect(orchestratorCode.includes('const deleteUnitRouted = useCallback(async (id: string) => {')).toBe(false);
+    expect(orchestratorCode.includes('const deleteSelectedUnitsRouted = useCallback(async (ids: Set<string>) => {')).toBe(false);
 
     expect(hookCode.includes('export function useTranscriptionSegmentMutationController(')).toBe(true);
     expect(hookCode.includes('const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {')).toBe(true);
     expect(hookCode.includes('const mergeWithPreviousRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
     expect(hookCode.includes('const mergeWithNextRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
-    expect(hookCode.includes('const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {')).toBe(true);
+    expect(hookCode.includes('const deleteUnitRouted = useCallback(async (id: string, layerIdOverride?: string) => {')).toBe(true);
+    expect(hookCode.includes('const deleteSelectedUnitsRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {')).toBe(true);
   });
 
   it('keeps direct segment graph mutation service calls out of Orchestrator', () => {
@@ -430,7 +430,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const runOverlaySplitAtTime = (')).toBe(false);
 
     expect(hookCode.includes("if (unitKind === 'segment') {")).toBe(true);
-    expect(hookCode.includes('fireAndForget(deleteSelectedUtterancesRouted(ids, layerId));')).toBe(true);
+    expect(hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId));')).toBe(true);
     expect(hookCode.includes('runMergeSelection(ids);')).toBe(true);
     expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId));')).toBe(true);
   });
@@ -464,39 +464,39 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
     expect(orchestratorCode.includes('onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}')).toBe(true);
-    expect(orchestratorCode.includes('onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu}')).toBe(true);
-    expect(orchestratorCode.includes('resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds}')).toBe(true);
+    expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu={handleSetUnitSelfCertaintyFromMenu}')).toBe(true);
+    expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds={resolveSelfCertaintyUnitIds}')).toBe(true);
     expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}')).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
     expect(scopeHookCode.includes('selectedBatchSegmentsForSpeakerActions')).toBe(true);
-    expect(scopeHookCode.includes('const resolveSpeakerActionUtteranceIds = useCallback((ids: Iterable<string>) => {')).toBe(true);
+    expect(scopeHookCode.includes('const resolveSpeakerActionUnitIds = useCallback((ids: Iterable<string>) => {')).toBe(true);
 
     expect(speakerControllerCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(true);
     expect(speakerControllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
     expect(speakerControllerCode.includes("if (kind === 'segment') {")).toBe(true);
     expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));')).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUtterances(resolveSpeakerActionUtteranceIds(ids), speakerId));')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId));')).toBe(true);
 
     expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
     expect(routingHookCode.includes('const createSpeakerAndAssignToSegments = useCallback(async (name: string, segmentIds: Iterable<string>) => {')).toBe(true);
   });
 
-  it('keeps mixed segment and utterance speaker routing intact', () => {
+  it('keeps mixed segment and unit speaker routing intact', () => {
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const routingHookPath = path.resolve(process.cwd(), 'src/pages/useSpeakerActionRoutingController.ts');
     const routingHookCode = fs.readFileSync(routingHookPath, 'utf8');
 
-    expect(orchestratorCode.includes('const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(')).toBe(false);
+    expect(orchestratorCode.includes('const selectedStandaloneUnitIdsForSpeakerActions = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(false);
 
-    expect(routingHookCode.includes('const selectedStandaloneUtteranceIdsForSpeakerActions = useMemo(')).toBe(true);
-    expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUtteranceIdsForSpeakerActions.length')).toBe(true);
+    expect(routingHookCode.includes('const selectedStandaloneUnitIdsForSpeakerActions = useMemo(')).toBe(true);
+    expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUnitIdsForSpeakerActions.length')).toBe(true);
     expect(routingHookCode.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(true);
-    expect(routingHookCode.includes('if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUtteranceIdsForSpeakerActions.length > 0) {')).toBe(true);
+    expect(routingHookCode.includes('if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {')).toBe(true);
     expect(routingHookCode.includes('await applySpeakerToMixedSelection(batchSpeakerId || undefined);')).toBe(true);
   });
 
@@ -600,7 +600,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes("import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';")).toBe(true);
     expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => createTranscriptionToolbarProps({')).toBe(true);
-    expect(hookCode.includes('const lowConfidenceCount = useMemo(() => utterancesOnCurrentMedia.filter(')).toBe(true);
+    expect(hookCode.includes('const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(')).toBe(true);
     expect(hookCode.includes("import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';")).toBe(true);
     expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({')).toBe(true);
     expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
@@ -666,7 +666,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes("import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';")).toBe(true);
     expect(orchestratorCode.includes('} = useTranscriptionAssistantController({')).toBe(true);
     expect(orchestratorCode.includes('const handleVoiceDictation = useCallback((text: string) => {')).toBe(false);
-    expect(orchestratorCode.includes('const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {')).toBe(false);
+    expect(orchestratorCode.includes('const handleVoiceAnalysisResult = useCallback(async (unitId: string | null, analysisText: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const aiPanelContextValue = useMemo(() => ({')).toBe(false);
 
     expect(hookCode.includes("import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';")).toBe(true);
@@ -675,7 +675,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const handleResolveVoiceIntentWithLlm = useCallback(async ({')).toBe(true);
     expect(hookCode.includes('const handleVoiceDictation = useCallback((text: string) => {')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
-    expect(hookCode.includes('const handleVoiceAnalysisResult = useCallback(async (utteranceId: string | null, analysisText: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleVoiceAnalysisResult = useCallback(async (unitId: string | null, analysisText: string) => {')).toBe(true);
     expect(hookCode.includes('input.setAiPanelContext(aiPanelContextValue);')).toBe(true);
   });
 
@@ -704,15 +704,15 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';")).toBe(true);
     expect(orchestratorCode.includes('} = useTranscriptionTimelineController({')).toBe(true);
-    expect(orchestratorCode.includes('const filteredUtterancesOnCurrentMedia = useMemo(() => {')).toBe(false);
-    expect(orchestratorCode.includes('const timelineRenderUtterances = useMemo(() => {')).toBe(false);
+    expect(orchestratorCode.includes('const filteredUnitsOnCurrentMedia = useMemo(() => {')).toBe(false);
+    expect(orchestratorCode.includes('const timelineRenderUnits = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const editorContextValue = useMemo(() => ({')).toBe(false);
 
-    expect(hookCode.includes('const filteredUtterancesOnCurrentMedia = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const timelineRenderUtterances = useMemo(() => {')).toBe(true);
+    expect(hookCode.includes('const filteredUnitsOnCurrentMedia = useMemo(() => {')).toBe(true);
+    expect(hookCode.includes('const timelineRenderUnits = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const selectedBatchUtteranceTextById = useMemo(() => {')).toBe(true);
+    expect(hookCode.includes('const selectedBatchUnitTextById = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const batchPreviewTextByLayerId = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const editorContextValue = useMemo<TranscriptionEditorContextValue>(() => ({')).toBe(true);
   });
@@ -725,13 +725,13 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
     expect(orchestratorCode.includes('} = useTranscriptionTimelineInteractionController({')).toBe(true);
-    expect(orchestratorCode.includes('const handleJumpToEmbeddingMatch = useCallback((utteranceId: string) => {')).toBe(false);
+    expect(orchestratorCode.includes('const handleJumpToEmbeddingMatch = useCallback((unitId: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const handleJumpToCitation = useCallback(async (')).toBe(false);
     expect(orchestratorCode.includes('const handleSearchReplace = useCallback(')).toBe(false);
     expect(orchestratorCode.includes('const getNeighborBoundsRouted = useCallback((itemId: string, mediaId: string | undefined, probeStart: number, layerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const saveTimingRouted = useCallback(async (id: string, start: number, end: number, layerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('setSubSelectionRange(null);')).toBe(false);
-    expect(orchestratorCode.includes('fireAndForget(createUtteranceFromSelectionRouted(start, end));')).toBe(false);
+    expect(orchestratorCode.includes('fireAndForget(createUnitFromSelectionRouted(start, end));')).toBe(false);
     expect(orchestratorCode.includes('subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionContextMenuRef.current = handleWaveformRegionContextMenu;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionAltPointerDownRef.current = handleWaveformRegionAltPointerDown;')).toBe(false);
@@ -745,8 +745,8 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('handleWaveformRegionUpdateEndRef.current = handleWaveformRegionUpdateEnd;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformTimeUpdateRef.current = handleWaveformTimeUpdate;')).toBe(false);
 
-    expect(hookCode.includes('const handleSearchReplace = useCallback((utteranceId: string, layerId: string | undefined, _oldText: string, newText: string) => {')).toBe(true);
-    expect(hookCode.includes('const handleJumpToEmbeddingMatch = useCallback((utteranceId: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleSearchReplace = useCallback((unitId: string, layerId: string | undefined, _oldText: string, newText: string) => {')).toBe(true);
+    expect(hookCode.includes('const handleJumpToEmbeddingMatch = useCallback((unitId: string) => {')).toBe(true);
     expect(hookCode.includes('const handleJumpToCitation = useCallback(async (')).toBe(true);
     expect(hookCode.includes('const handleSplitAtTimeRequest = useCallback((timeSeconds: number) => {')).toBe(true);
     expect(hookCode.includes('const handleZoomToSegmentRequest = useCallback((segmentId: string, zoomLevel?: number) => {')).toBe(true);
@@ -770,11 +770,11 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useBatchOperationController } from './useBatchOperationController';")).toBe(true);
     expect(orchestratorCode.includes('} = useBatchOperationController({')).toBe(true);
-    expect(orchestratorCode.includes('const resolveBatchUtteranceTargetIds = useCallback(() => {')).toBe(false);
+    expect(orchestratorCode.includes('const resolveBatchUnitTargetIds = useCallback(() => {')).toBe(false);
     expect(orchestratorCode.includes('const handleBatchOffset = useCallback(async (deltaSec: number) => {')).toBe(false);
 
-    expect(hookCode.includes('const batchUtteranceSelectionMapping = useMemo(() => {')).toBe(true);
-    expect(hookCode.includes('const resolveBatchUtteranceTargetIds = useCallback(() => {')).toBe(true);
+    expect(hookCode.includes('const batchUnitSelectionMapping = useMemo(() => {')).toBe(true);
+    expect(hookCode.includes('const resolveBatchUnitTargetIds = useCallback(() => {')).toBe(true);
     expect(hookCode.includes("message: t(locale, 'transcription.batchOperation.mappingUnavailable'),")).toBe(true);
     expect(hookCode.includes("message: tf(locale, 'transcription.batchOperation.mappingIgnored', {")).toBe(true);
     expect(hookCode.includes('const runMappedBatchAction = useCallback(async (')).toBe(true);
@@ -790,7 +790,7 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useTrackDisplayController } from './useTrackDisplayController';")).toBe(true);
     expect(orchestratorCode.includes('} = useTrackDisplayController({')).toBe(true);
-    expect(orchestratorCode.includes('const hasOverlappingUtterancesOnCurrentMedia = useMemo(')).toBe(false);
+    expect(orchestratorCode.includes('const hasOverlappingUnitsOnCurrentMedia = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleResetTrackAutoLayout = useCallback(() => {')).toBe(false);
 
     expect(hookCode.includes('function hasOverlaps(items: OverlapLike[]): boolean {')).toBe(true);
@@ -823,11 +823,11 @@ describe('TranscriptionPage structure invariants', () => {
     const selectionHookCode = fs.readFileSync(selectionHookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionSelectionContextController } from './useTranscriptionSelectionContextController';")).toBe(true);
-    expect(orchestratorCode.includes('nextUtteranceIdForVoiceDictation,')).toBe(true);
-    expect(selectionHookCode.includes("import { resolveNextUtteranceIdForDictation } from './voiceDictationFlow';")).toBe(true);
-    expect(selectionHookCode.includes('const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({')).toBe(true);
+    expect(orchestratorCode.includes('nextUnitIdForVoiceDictation,')).toBe(true);
+    expect(selectionHookCode.includes("import { resolveNextUnitIdForDictation } from './voiceDictationFlow';")).toBe(true);
+    expect(selectionHookCode.includes('const nextUnitIdForVoiceDictation = useMemo(() => resolveNextUnitIdForDictation({')).toBe(true);
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
-    expect(hookCode.includes('if (!input.nextUtteranceIdForVoiceDictation) return;')).toBe(true);
-    expect(hookCode.includes('input.selectUnit(input.nextUtteranceIdForVoiceDictation);')).toBe(true);
+    expect(hookCode.includes('if (!input.nextUnitIdForVoiceDictation) return;')).toBe(true);
+    expect(hookCode.includes('input.selectUnit(input.nextUnitIdForVoiceDictation);')).toBe(true);
   });
 });

@@ -1,16 +1,13 @@
 import { useCallback, useRef } from 'react';
 import type { MutableRefObject } from 'react';
 import { getDb } from '../db';
-import type { SpeakerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { SpeakerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { createAsyncMutex } from '../utils/asyncMutex';
 import { createLogger } from '../observability/logger';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
-import { listUtteranceDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
-import {
-  removeUtteranceTextFromSegmentationV2,
-  syncUtteranceTextToSegmentationV2,
-} from '../services/LayerSegmentationTextService';
+import { listUnitDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
+import { removeUnitTextFromSegmentationV2, syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useTranscriptionPersistence');
 
@@ -26,23 +23,23 @@ type SyncToDbOptions = {
 };
 
 type Params = {
-  utterancesRef: MutableRefObject<UtteranceDocType[]>;
-  translationsRef: MutableRefObject<UtteranceTextDocType[]>;
+  unitsRef: MutableRefObject<LayerUnitDocType[]>;
+  translationsRef: MutableRefObject<LayerUnitContentDocType[]>;
   speakersRef: MutableRefObject<SpeakerDocType[]>;
 };
 
 export function useTranscriptionPersistence({
-  utterancesRef,
+  unitsRef,
   translationsRef,
   speakersRef,
 }: Params) {
   // Async mutex: serializes syncToDb / undo / redo to prevent interleaving
   const dbMutexRef = useRef(createAsyncMutex());
 
-  /** Sync a snapshot of utterances + translations + speakers back to IndexedDB. */
+  /** Sync a snapshot of units + translations + speakers back to IndexedDB. */
   const syncToDb = useCallback(async (
-    targetUtterances: UtteranceDocType[],
-    targetTranslations: UtteranceTextDocType[],
+    targetUnits: LayerUnitDocType[],
+    targetTranslations: LayerUnitContentDocType[],
     targetSpeakers: SpeakerDocType[],
     options?: SyncToDbOptions,
   ) => {
@@ -78,9 +75,9 @@ export function useTranscriptionPersistence({
         };
 
         try {
-          await assertNoConflict('utterances', utterancesRef.current, async () => {
-            const ids = utterancesRef.current.map((row) => row.id);
-            const projections = await listUtteranceDocsFromCanonicalLayerUnits(db);
+          await assertNoConflict('units', unitsRef.current, async () => {
+            const ids = unitsRef.current.map((row) => row.id);
+            const projections = await listUnitDocsFromCanonicalLayerUnits(db);
             const byId = new Map(projections.map((u) => [u.id, u] as const));
             return ids.flatMap((id) => {
               const doc = byId.get(id);
@@ -93,7 +90,7 @@ export function useTranscriptionPersistence({
             const contentById = new Map(contents.map((content) => [content.id, content] as const));
             return ids.flatMap((id) => {
               const content = contentById.get(id);
-              return content ? [{ toJSON: () => content as unknown as UtteranceTextDocType }] : [];
+              return content ? [{ toJSON: () => content as unknown as LayerUnitContentDocType }] : [];
             });
           });
           await assertNoConflict('speakers', speakersRef.current, async () => (
@@ -107,29 +104,31 @@ export function useTranscriptionPersistence({
         }
       }
 
-      const currentUttIds = new Set(utterancesRef.current.map((u) => u.id));
-      const targetUttIds = new Set(targetUtterances.map((u) => u.id));
-      // Remove deleted utterances
+      const currentUttIds = new Set(unitsRef.current.map((u) => u.id));
+      const targetUttIds = new Set(targetUnits.map((u) => u.id));
+      // Remove deleted units
       for (const id of currentUttIds) {
-        if (!targetUttIds.has(id)) await LinguisticService.removeUtterance(id);
+        if (!targetUttIds.has(id)) await LinguisticService.removeUnit(id);
       }
-      // Upsert target utterances
-      for (const u of targetUtterances) await LinguisticService.saveUtterance(u);
+      // Upsert target units
+      for (const u of targetUnits) await LinguisticService.saveUnit(u);
 
       const currentTrIds = new Set(translationsRef.current.map((t) => t.id));
       const targetTrIds = new Set(targetTranslations.map((t) => t.id));
       // Remove deleted translations
       for (const id of currentTrIds) {
         if (!targetTrIds.has(id)) {
-          await removeUtteranceTextFromSegmentationV2(db, { id });
+          await removeUnitTextFromSegmentationV2(db, { id });
         }
       }
       // Upsert target translations
-      const targetUtteranceById = new Map(targetUtterances.map((item) => [item.id, item]));
+      const targetUnitById = new Map(targetUnits.map((item) => [item.id, item]));
       for (const t of targetTranslations) {
-        const owner = targetUtteranceById.get(t.utteranceId);
+        const unitId = t.unitId?.trim();
+        if (!unitId) continue;
+        const owner = targetUnitById.get(unitId);
         if (owner) {
-          await syncUtteranceTextToSegmentationV2(db, owner, t);
+          await syncUnitTextToSegmentationV2(db, owner, t);
         }
       }
 
@@ -143,7 +142,7 @@ export function useTranscriptionPersistence({
       // | Use upsert to avoid duplicate primary key errors during undo/redo
       for (const speaker of targetSpeakers) await db.collections.speakers.insert(speaker);
     });
-  }, [speakersRef, translationsRef, utterancesRef]);
+  }, [speakersRef, translationsRef, unitsRef]);
 
   const runWithDbMutex = useCallback(async <T>(task: () => Promise<T>): Promise<T> => {
     return dbMutexRef.current.run(task);

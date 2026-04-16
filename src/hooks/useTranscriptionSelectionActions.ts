@@ -1,13 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { normalizeSelection } from '../utils/selectionUtils';
-import type { UtteranceDocType } from '../db';
-import {
-  createTimelineUnit,
-  isSegmentTimelineUnit,
-  resolveTimelineLayerIdFallback,
-  type TimelineUnit,
-  type TimelineUnitKind,
-} from './transcriptionTypes';
+import type { LayerUnitDocType } from '../db';
+import { createTimelineUnit, isSegmentTimelineUnit, resolveTimelineLayerIdFallback, type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 
 // 空 Set 常量：避免每次 clear 都创建新引用触发 React 渲染 | Constant empty Set: avoid creating new reference on every clear
 const EMPTY_SET: ReadonlySet<string> = new Set<string>();
@@ -25,7 +19,7 @@ type Params = {
   selectedUnitIdsRef: React.MutableRefObject<Set<string>>;
   selectedLayerIdRef: React.MutableRefObject<string>;
   selectedTimelineUnitRef: React.MutableRefObject<TimelineUnit | null>;
-  utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
+  unitsOnCurrentMediaRef: React.MutableRefObject<LayerUnitDocType[]>;
   defaultTranscriptionLayerId?: string;
   fallbackLayerId?: string;
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
@@ -38,7 +32,7 @@ export function useTranscriptionSelectionActions({
   selectedUnitIdsRef,
   selectedLayerIdRef,
   selectedTimelineUnitRef,
-  utterancesOnCurrentMediaRef,
+  unitsOnCurrentMediaRef,
   defaultTranscriptionLayerId,
   fallbackLayerId,
   setSelectedLayerId,
@@ -121,7 +115,7 @@ export function useTranscriptionSelectionActions({
       ids,
       rawLayerId: selectedLayerIdRef.current,
       source: 'setUnitSelection',
-      kind: 'utterance',
+      kind: 'unit',
       keepSelectionSet: true,
     });
   }, [applyUnitSelection, selectedLayerIdRef]);
@@ -181,7 +175,7 @@ export function useTranscriptionSelectionActions({
   }, [selectedUnitIdsRef, selectedUnitIdRef, setUnitSelection]);
 
   const selectUnitRange = useCallback((anchorId: string, targetId: string) => {
-    const sorted = utterancesOnCurrentMediaRef.current;
+    const sorted = unitsOnCurrentMediaRef.current;
     const anchorIdx = sorted.findIndex((u) => u.id === anchorId);
     const targetIdx = sorted.findIndex((u) => u.id === targetId);
     if (anchorIdx < 0 || targetIdx < 0) return;
@@ -189,30 +183,30 @@ export function useTranscriptionSelectionActions({
     const hi = Math.max(anchorIdx, targetIdx);
     const ids = new Set(sorted.slice(lo, hi + 1).map((u) => u.id));
     setUnitSelection(targetId, ids);
-  }, [setUnitSelection, utterancesOnCurrentMediaRef]);
+  }, [setUnitSelection, unitsOnCurrentMediaRef]);
 
   const selectAllBefore = useCallback((id: string) => {
-    const sorted = utterancesOnCurrentMediaRef.current;
+    const sorted = unitsOnCurrentMediaRef.current;
     const idx = sorted.findIndex((u) => u.id === id);
     if (idx < 0) return;
     const ids = new Set(sorted.slice(0, idx + 1).map((u) => u.id));
     setUnitSelection(id, ids);
-  }, [setUnitSelection, utterancesOnCurrentMediaRef]);
+  }, [setUnitSelection, unitsOnCurrentMediaRef]);
 
   const selectAllAfter = useCallback((id: string) => {
-    const sorted = utterancesOnCurrentMediaRef.current;
+    const sorted = unitsOnCurrentMediaRef.current;
     const idx = sorted.findIndex((u) => u.id === id);
     if (idx < 0) return;
     const ids = new Set(sorted.slice(idx).map((u) => u.id));
     setUnitSelection(id, ids);
-  }, [setUnitSelection, utterancesOnCurrentMediaRef]);
+  }, [setUnitSelection, unitsOnCurrentMediaRef]);
 
   const selectAllUnits = useCallback(() => {
-    const sorted = utterancesOnCurrentMediaRef.current;
+    const sorted = unitsOnCurrentMediaRef.current;
     if (sorted.length === 0) return;
     const ids = new Set(sorted.map((u) => u.id));
     setUnitSelection(selectedUnitIdRef.current, ids);
-  }, [selectedUnitIdRef, setUnitSelection, utterancesOnCurrentMediaRef]);
+  }, [selectedUnitIdRef, setUnitSelection, unitsOnCurrentMediaRef]);
 
   const clearUnitSelection = useCallback(() => {
     clearSelectionState();

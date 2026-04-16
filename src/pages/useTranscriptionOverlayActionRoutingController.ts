@@ -3,8 +3,8 @@ import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 
 interface UseTranscriptionOverlayActionRoutingControllerInput {
-  deleteSelectedUtterancesRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
-  deleteUtteranceRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  deleteSelectedUnitsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
+  deleteUnitRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   splitRouted: (id: string, splitTime: number, layerIdOverride?: string) => Promise<void>;
@@ -29,8 +29,8 @@ export function useTranscriptionOverlayActionRoutingController(
   input: UseTranscriptionOverlayActionRoutingControllerInput,
 ): UseTranscriptionOverlayActionRoutingControllerResult {
   const {
-    deleteSelectedUtterancesRouted,
-    deleteUtteranceRouted,
+    deleteSelectedUnitsRouted,
+    deleteUnitRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     splitRouted,
@@ -44,11 +44,11 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayDeleteSelection = useCallback((primaryId: string, ids: Set<string>, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(deleteSelectedUtterancesRouted(ids, layerId));
+      fireAndForget(deleteSelectedUnitsRouted(ids, layerId));
       return;
     }
     runDeleteSelection(primaryId, ids);
-  }, [deleteSelectedUtterancesRouted, runDeleteSelection]);
+  }, [deleteSelectedUnitsRouted, runDeleteSelection]);
 
   const runOverlayMergeSelection = useCallback((ids: Set<string>, unitKind: TimelineUnitKind, _layerId: string) => {
     if (unitKind === 'segment') {
@@ -59,11 +59,11 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayDeleteOne = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(deleteUtteranceRouted(id, layerId));
+      fireAndForget(deleteUnitRouted(id, layerId));
       return;
     }
     runDeleteOne(id);
-  }, [deleteUtteranceRouted, runDeleteOne]);
+  }, [deleteUnitRouted, runDeleteOne]);
 
   const runOverlayMergePrev = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {

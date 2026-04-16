@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
@@ -21,7 +21,7 @@ function makeLayer(id: string, constraint?: LayerDocType['constraint']): LayerDo
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -30,10 +30,10 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
     endTime,
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -43,28 +43,28 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     endTime,
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
-function segmentToTimelineView(s: LayerSegmentDocType): TimelineUnitView {
+function segmentToTimelineView(s: LayerUnitDocType): TimelineUnitView {
   return {
     id: s.id,
     kind: 'segment',
-    layerRole: s.utteranceId ? 'referring' : 'independent',
-    mediaId: s.mediaId,
-    layerId: s.layerId,
+    layerRole: s.unitId ? 'referring' : 'independent',
+    mediaId: s.mediaId ?? '',
+    layerId: s.layerId ?? '',
     startTime: s.startTime,
     endTime: s.endTime,
     text: '',
     ...(s.speakerId ? { speakerId: s.speakerId } : {}),
-    ...(s.utteranceId ? { parentUtteranceId: s.utteranceId } : {}),
+    ...(s.unitId ? { parentUnitId: s.unitId } : {}),
   };
 }
 
-function utteranceToTimelineView(u: UtteranceDocType, layerId: string): TimelineUnitView {
+function unitToTimelineView(u: LayerUnitDocType, layerId: string): TimelineUnitView {
   return {
     id: u.id,
-    kind: 'utterance',
+    kind: 'unit',
     layerRole: 'independent',
     mediaId: u.mediaId ?? '',
     layerId,
@@ -162,7 +162,7 @@ describe('useWaveformSelectionController', () => {
       startTime: 1, endTime: 2, text: 'from-index-2',
     };
     const uttView: TimelineUnitView = {
-      id: 'utt-idx-1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      id: 'utt-idx-1', kind: 'unit', mediaId: 'media-1', layerId: 'layer-main',
       startTime: 0, endTime: 2, text: 'utt-text',
     };
     const idx: TimelineUnitViewIndex = {
@@ -199,13 +199,13 @@ describe('useWaveformSelectionController', () => {
     expect(result.current.selectedWaveformRegionId).toBe('seg-idx-1');
   });
 
-  it('uses index currentMediaUnits for utterance mode when index is provided', () => {
+  it('uses index currentMediaUnits for unit mode when index is provided', () => {
     const uttView1: TimelineUnitView = {
-      id: 'utt-1', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      id: 'utt-1', kind: 'unit', mediaId: 'media-1', layerId: 'layer-main',
       startTime: 0, endTime: 1, text: 'hello',
     };
     const uttView2: TimelineUnitView = {
-      id: 'utt-2', kind: 'utterance', mediaId: 'media-1', layerId: 'layer-main',
+      id: 'utt-2', kind: 'unit', mediaId: 'media-1', layerId: 'layer-main',
       startTime: 1, endTime: 2, text: 'world',
     };
     const idx: TimelineUnitViewIndex = {
@@ -221,7 +221,7 @@ describe('useWaveformSelectionController', () => {
       fallbackToSegments: false,
       isComplete: true,
     };
-    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'utt-2', kind: 'utterance' };
+    const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'utt-2', kind: 'unit' };
     const { result } = renderHook(() => useWaveformSelectionController({
       activeLayerIdForEdits: 'layer-main',
       layers: [makeLayer('layer-main')],
@@ -242,10 +242,10 @@ describe('useWaveformSelectionController', () => {
     expect(result.current.selectedWaveformTimelineItem?.id).toBe('utt-2');
   });
 
-  it('keeps utterance waveform mode when timeline selection kind does not match', () => {
+  it('keeps unit waveform mode when timeline selection kind does not match', () => {
     const selectedTimelineUnit: TimelineUnit = { layerId: 'layer-main', unitId: 'seg-1', kind: 'segment' };
-    const utterances = [makeUtterance('utt-1', 0, 1), makeUtterance('utt-2', 1, 2)];
-    const views = utterances.map((u) => utteranceToTimelineView(u, 'layer-main'));
+    const units = [makeUnit('utt-1', 0, 1), makeUnit('utt-2', 1, 2)];
+    const views = units.map((u) => unitToTimelineView(u, 'layer-main'));
     const { result } = renderHook(() => useWaveformSelectionController({
       activeLayerIdForEdits: 'layer-main',
       layers: [makeLayer('layer-main')],

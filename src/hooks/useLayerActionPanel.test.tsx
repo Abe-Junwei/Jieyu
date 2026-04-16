@@ -209,7 +209,7 @@ describe('handleDeleteLayerFromPanel', () => {
     });
 
     expect(deleteLayer).toHaveBeenCalledOnce();
-    expect(deleteLayer).toHaveBeenCalledWith('layer-a', { keepUtterances: false });
+    expect(deleteLayer).toHaveBeenCalledWith('layer-a', { keepUnits: false });
     expect(result.current.layerActionPanel).toBeNull();
   });
 });

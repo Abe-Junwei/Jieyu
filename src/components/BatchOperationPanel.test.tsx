@@ -25,7 +25,7 @@ function renderZh(ui: Parameters<typeof render>[0]) {
   return render(<LocaleProvider locale="zh-CN">{ui}</LocaleProvider>);
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number) {
+function makeUnit(id: string, startTime: number, endTime: number) {
   return { id, startTime, endTime };
 }
 
@@ -38,9 +38,9 @@ describe('BatchOperationPanel preview table', () => {
     const view = renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1), makeUtterance('u2', 1.1, 2)]}
-        utteranceTextById={{ u1: 'hello world' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)]}
+        unitTextById={{ u1: 'hello world' }}
         onClose={vi.fn()}
         onOffset={vi.fn().mockResolvedValue(undefined)}
         onScale={vi.fn().mockResolvedValue(undefined)}
@@ -70,9 +70,9 @@ describe('BatchOperationPanel preview table', () => {
     renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1), makeUtterance('u2', 1.1, 2)]}
-        utteranceTextById={{ u1: 'hello world' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)]}
+        unitTextById={{ u1: 'hello world' }}
         onClose={vi.fn()}
         onOffset={vi.fn().mockResolvedValue(undefined)}
         onScale={vi.fn().mockResolvedValue(undefined)}
@@ -92,9 +92,9 @@ describe('BatchOperationPanel preview table', () => {
     renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1)]}
-        utteranceTextById={{ u1: 'a,b,c' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1)]}
+        unitTextById={{ u1: 'a,b,c' }}
         onClose={vi.fn()}
         onOffset={vi.fn().mockResolvedValue(undefined)}
         onScale={vi.fn().mockResolvedValue(undefined)}
@@ -114,9 +114,9 @@ describe('BatchOperationPanel preview table', () => {
     renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1), makeUtterance('u2', 1.1, 2)]}
-        utteranceTextById={{ u1: 'hello world' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)]}
+        unitTextById={{ u1: 'hello world' }}
         onClose={vi.fn()}
         onOffset={vi.fn().mockResolvedValue(undefined)}
         onScale={vi.fn().mockResolvedValue(undefined)}
@@ -137,13 +137,13 @@ describe('BatchOperationPanel preview table', () => {
     expect(screen.getByText('u1')).toBeTruthy();
   });
 
-  it('supports layer-wide quick preview for all utterances', () => {
+  it('supports layer-wide quick preview for all units', () => {
     renderZh(
       <BatchOperationPanel
         selectedCount={0}
-        selectedUtterances={[]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1), makeUtterance('u2', 1.1, 2)]}
-        utteranceTextById={{}}
+        selectedUnits={[]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)]}
+        unitTextById={{}}
         previewLayerOptions={[{ id: 'layer_1', label: '转写层 1' }]}
         previewTextByLayerId={{
           layer_1: {
@@ -168,21 +168,21 @@ describe('BatchOperationPanel preview table', () => {
     expect(screen.getByText('已切换为层级全量预览（2 条）。执行仍只作用于当前选中句段。')).toBeTruthy();
   });
 
-  it('shows utterance content and supports jump for each row', () => {
+  it('shows unit content and supports jump for each row', () => {
     const onJump = vi.fn();
     const onClose = vi.fn();
     renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1)]}
-        utteranceTextById={{ u1: '当前句段内容示例' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1)]}
+        unitTextById={{ u1: '当前句段内容示例' }}
         onClose={onClose}
         onOffset={vi.fn().mockResolvedValue(undefined)}
         onScale={vi.fn().mockResolvedValue(undefined)}
         onSplitByRegex={vi.fn().mockResolvedValue(undefined)}
         onMerge={vi.fn().mockResolvedValue(undefined)}
-        onJumpToUtterance={onJump}
+        onJumpToUnit={onJump}
       />,
     );
 
@@ -198,9 +198,9 @@ describe('BatchOperationPanel preview table', () => {
     renderZh(
       <BatchOperationPanel
         selectedCount={1}
-        selectedUtterances={[makeUtterance('u1', 0, 1)]}
-        allUtterancesOnMedia={[makeUtterance('u1', 0, 1)]}
-        utteranceTextById={{ u1: 'مرحبا (123)' }}
+        selectedUnits={[makeUnit('u1', 0, 1)]}
+        allUnitsOnMedia={[makeUnit('u1', 0, 1)]}
+        unitTextById={{ u1: 'مرحبا (123)' }}
         previewLayerOptions={[{ id: 'layer_ar', label: '阿拉伯转写' }]}
         previewTextByLayerId={{
           layer_ar: {

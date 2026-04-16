@@ -6,10 +6,7 @@
  * Bridge helpers: tier ↔ layer 双向转换工具
  */
 import type { Table } from 'dexie';
-import type {
-  JieyuDoc, Selector, CollectionAdapter,
-  LayerDocType, TierDefinitionDocType, TierType, LayerConstraint,
-} from './types';
+import type { JieyuDoc, Selector, CollectionAdapter, LayerDocType, TierDefinitionDocType, TierType, LayerConstraint } from './types';
 
 export function wrapDoc<T extends { id: string }>(value: T): JieyuDoc<T> {
   return {

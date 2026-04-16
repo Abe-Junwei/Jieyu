@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildBridgeRulesFromRuleText,
-  evaluateOrthographyBridgeSampleCases,
-  parseBridgeMappings,
-  parseBridgeSampleCases,
-  previewOrthographyBridge,
-  validateOrthographyBridge,
-} from './orthographyBridges';
+import { buildBridgeRulesFromRuleText, evaluateOrthographyBridgeSampleCases, parseBridgeMappings, parseBridgeSampleCases, previewOrthographyBridge, validateOrthographyBridge } from './orthographyBridges';
 
 describe('orthographyBridges', () => {
   it('parses mapping rules from free-form text', () => {

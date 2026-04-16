@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from './timelineUnitView';
 import type { TimelineUnit } from './transcriptionTypes';
 import { DEFAULT_KEYBINDINGS, getEffectiveKeymap, matchKeyEvent } from '../services/KeybindingService';
@@ -27,7 +27,7 @@ interface UseKeybindingActionsInput {
   };
   subSelectionRange: { start: number; end: number } | null;
   setSubSelectionRange: React.Dispatch<React.SetStateAction<{ start: number; end: number } | null>>;
-  selectedUnit: UtteranceDocType | undefined;
+  selectedUnit: LayerUnitDocType | undefined;
   selectedPlayableRange?: { startTime: number; endTime: number } | null;
   selectedTimelineUnit?: TimelineUnit | null;
   selectedUnitIds: Set<string>;
@@ -36,7 +36,7 @@ interface UseKeybindingActionsInput {
   setSegMarkStart: React.Dispatch<React.SetStateAction<number | null>>;
   segmentLoopPlayback: boolean;
   setSegmentLoopPlayback: React.Dispatch<React.SetStateAction<boolean>>;
-  /** Current-media timeline units (utterance + segment), same order as waveform / timeline. */
+  /** Current-media timeline units (unit + segment), same order as waveform / timeline. */
   timelineUnitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   // Refs for avoiding re-render churn
   markingModeRef: React.MutableRefObject<boolean>;
@@ -44,8 +44,8 @@ interface UseKeybindingActionsInput {
   creatingSegmentRef: React.MutableRefObject<boolean>;
   manualSelectTsRef: React.MutableRefObject<number>;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
-  // Utterance operations
-  createUtteranceFromSelection: (
+  // Unit operations
+  createUnitFromSelection: (
     start: number,
     end: number,
     options?: { selectionBehavior?: 'select-created' | 'keep-current' },
@@ -78,7 +78,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     timelineUnitsOnCurrentMedia,
     markingModeRef, skipSeekForIdRef, creatingSegmentRef, manualSelectTsRef,
     waveformAreaRef,
-    createUtteranceFromSelection,
+    createUnitFromSelection,
     selectTimelineUnit,
     selectUnit, selectAllUnits,
     runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime,
@@ -116,7 +116,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   // The individual callbacks are stable via useCallback; we mutate .current in useEffect.
   const waveformActionsRef = useRef<Record<string, (e: KeyboardEvent | React.KeyboardEvent) => void>>({});
   const activeSelectionId = selectedTimelineUnit?.unitId ?? '';
-  /** Primary timeline unit id for prev/next/review navigation (utterance or segment). */
+  /** Primary timeline unit id for prev/next/review navigation (unit or segment). */
   const navFocusUnitId = selectedTimelineUnit?.unitId?.trim() ? selectedTimelineUnit.unitId : '';
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
             if (markingModeRef.current) {
               selectTimelineUnit?.(null);
             }
-            fireAndForget(createUtteranceFromSelection(s, end, {
+            fireAndForget(createUnitFromSelection(s, end, {
               selectionBehavior: 'keep-current',
             }).finally(() => { creatingSegmentRef.current = false; }));
           }
@@ -226,7 +226,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
       reviewNext: () => {
-        // 跳到当前句段之后第一个低置信度句段（< 0.75）| Jump to next low-confidence utterance after current
+        // 跳到当前句段之后第一个低置信度句段（< 0.75）| Jump to next low-confidence unit after current
         const curIdx = navFocusUnitId
           ? timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId)
           : -1;
@@ -242,7 +242,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
       reviewPrev: () => {
-        // 跳到当前句段之前最近一个低置信度句段（< 0.75）| Jump to prev low-confidence utterance before current
+        // 跳到当前句段之前最近一个低置信度句段（< 0.75）| Jump to prev low-confidence unit before current
         const curIdx = navFocusUnitId
           ? timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId)
           : timelineUnitsOnCurrentMedia.length;
@@ -259,7 +259,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
         }
       },
     };
-  }, [activeSelectionId, navFocusUnitId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUnitIds, timelineUnitsOnCurrentMedia, createUtteranceFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUnits, selectUnit, selectTimelineUnit, manualSelectTsRef]);
+  }, [activeSelectionId, navFocusUnitId, handlePlayPauseAction, player, player.isReady, player.isPlaying, selectedMediaUrl, segMarkStart, subSelectionRange, selectedUnitIds, timelineUnitsOnCurrentMedia, createUnitFromSelection, runDeleteSelection, runMergePrev, runMergeNext, runSplitAtTime, runSelectBefore, runSelectAfter, selectAllUnits, selectUnit, selectTimelineUnit, manualSelectTsRef]);
 
   // Global keybinding handler (undo, redo, search)
   useEffect(() => {
@@ -286,7 +286,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [undo, redo, keymap, setShowSearch, toggleNotes, toggleVoice]);
 
-  // Navigate to prev/next utterance from an inline input
+  // Navigate to prev/next unit from an inline input
   const navigateUnitFromInput = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>, direction: 1 | -1) => {
       e.preventDefault();
@@ -319,7 +319,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     }
   }, [keymap]);
 
-  // Auto-focus waveform when multiple utterances selected
+  // Auto-focus waveform when multiple units selected
   useEffect(() => {
     if (selectedUnitIds.size > 1) {
       waveformAreaRef.current?.focus();

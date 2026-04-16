@@ -1,20 +1,4 @@
-import {
-  getDb,
-  type AiTaskSnapshotDocType,
-  type LanguageAssetOverviewDocType,
-  type LayerDocType,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type ScopeStatsSnapshotDocType,
-  type ScopeStatsSnapshotScopeType,
-  type SegmentMetaDocType,
-  type SegmentQualityIssueKey,
-  type SegmentQualitySeverity,
-  type SegmentQualitySnapshotDocType,
-  type SpeakerProfileSnapshotDocType,
-  type TranslationSnapshotStatus,
-  type TranslationStatusSnapshotDocType,
-} from '../db';
+import { getDb, type AiTaskSnapshotDocType, type LanguageAssetOverviewDocType, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type ScopeStatsSnapshotDocType, type ScopeStatsSnapshotScopeType, type SegmentMetaDocType, type SegmentQualityIssueKey, type SegmentQualitySeverity, type SegmentQualitySnapshotDocType, type SpeakerProfileSnapshotDocType, type TranslationSnapshotStatus, type TranslationStatusSnapshotDocType } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 
 const LOW_AI_CONFIDENCE_THRESHOLD = 0.6;
@@ -107,7 +91,7 @@ function buildSegmentQualityDocs(rows: readonly SegmentMetaDocType[]): SegmentQu
       textId: row.textId,
       mediaId: row.mediaId,
       layerId: row.layerId,
-      ...(row.hostUtteranceId ? { hostUtteranceId: row.hostUtteranceId } : {}),
+      ...(row.hostUnitId ? { hostUnitId: row.hostUnitId } : {}),
       ...(row.effectiveSpeakerId ? { speakerId: row.effectiveSpeakerId } : {}),
       ...(row.effectiveSpeakerName ? { speakerName: row.effectiveSpeakerName } : {}),
       emptyText: !row.hasText,
@@ -148,7 +132,7 @@ function buildScopeStatsDocs(
       ...(extra.speakerId ? { speakerId: extra.speakerId } : {}),
       unitCount: scopedRows.length,
       segmentCount: scopedRows.filter((row) => row.unitKind === 'segment').length,
-      utteranceCount: scopedRows.filter((row) => row.unitKind === 'utterance').length,
+      unitCount: scopedRows.filter((row) => row.unitKind === 'unit').length,
       speakerCount: speakerIds.length,
       translationLayerCount,
       noteFlaggedCount: scopedRows.filter((row) => (row.noteCategoryKeys?.length ?? 0) > 0).length,
@@ -223,7 +207,7 @@ function buildSpeakerProfileDocs(rows: readonly SegmentMetaDocType[], textId: st
       ...(speakerName ? { speakerName } : {}),
       unitCount: scopedRows.length,
       segmentCount: scopedRows.filter((row) => row.unitKind === 'segment').length,
-      utteranceCount: scopedRows.filter((row) => row.unitKind === 'utterance').length,
+      unitCount: scopedRows.filter((row) => row.unitKind === 'unit').length,
       totalDurationSec: roundTo(scopedRows.reduce((sum, row) => sum + Math.max(0, row.endTime - row.startTime), 0), 3),
       noteFlaggedCount: scopedRows.filter((row) => (row.noteCategoryKeys?.length ?? 0) > 0).length,
       emptyTextCount: scopedRows.filter((row) => !row.hasText).length,
@@ -245,13 +229,15 @@ function buildTranslationStatusDocs(
 
   const contentsByUnitId = new Map<string, LayerUnitContentDocType[]>();
   for (const row of contentRows) {
-    const bucket = contentsByUnitId.get(row.unitId);
+    const unitId = row.unitId?.trim();
+    if (!unitId) continue;
+    const bucket = contentsByUnitId.get(unitId);
     if (bucket) bucket.push(row);
-    else contentsByUnitId.set(row.unitId, [row]);
+    else contentsByUnitId.set(unitId, [row]);
   }
 
   return unitRows
-    .filter((row) => translationLayerIds.has(row.layerId))
+    .filter((row) => Boolean(row.layerId && translationLayerIds.has(row.layerId)))
     .map((row) => {
       const candidateContents = contentsByUnitId.get(row.id) ?? [];
       const content = candidateContents.find((item) => item.contentRole === 'translation')
@@ -268,11 +254,11 @@ function buildTranslationStatusDocs(
         status = 'translated';
       }
       return {
-        id: `${row.layerId}::${row.id}`,
+        id: `${row.layerId ?? ''}::${row.id}`,
         unitId: row.id,
         textId: row.textId,
-        mediaId: row.mediaId,
-        layerId: row.layerId,
+        mediaId: row.mediaId ?? '',
+        layerId: row.layerId ?? '',
         ...(row.parentUnitId ? { parentUnitId: row.parentUnitId } : {}),
         status,
         hasText,
@@ -308,7 +294,9 @@ export class WorkspaceReadModelService {
       .filter((row) => row.textId === normalizedTextId);
 
     const scopes = [...new Map(
-      unitRows.map((row) => [`${row.layerId}::${row.mediaId}`, { layerId: row.layerId, mediaId: row.mediaId }] as const),
+      unitRows
+        .filter((row) => row.layerId && row.mediaId)
+        .map((row) => [`${row.layerId}::${row.mediaId}`, { layerId: row.layerId!, mediaId: row.mediaId! }] as const),
     ).values()];
     if (scopes.length > 0) {
       await SegmentMetaService.rebuildScopes(scopes);

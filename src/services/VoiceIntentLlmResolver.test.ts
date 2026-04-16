@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  parseVoiceIntentFromLlmResponse,
-  parseVoiceIntentFromLlmResponseDetailed,
-} from './VoiceIntentLlmResolver';
+import { parseVoiceIntentFromLlmResponse, parseVoiceIntentFromLlmResponseDetailed } from './VoiceIntentLlmResolver';
 
 describe('VoiceIntentLlmResolver', () => {
   it('parses action intent JSON', () => {

@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-  type UIEvent as ReactUIEvent,
-} from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type UIEvent as ReactUIEvent } from 'react';
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useLatest } from '../hooks/useLatest';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
@@ -15,10 +7,7 @@ import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
 import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
-import type {
-  UseTranscriptionWaveformBridgeControllerInput,
-  UseTranscriptionWaveformBridgeControllerResult,
-} from './transcriptionWaveformBridge.types';
+import type { UseTranscriptionWaveformBridgeControllerInput, UseTranscriptionWaveformBridgeControllerResult } from './transcriptionWaveformBridge.types';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
 
@@ -259,7 +248,7 @@ export function useTranscriptionWaveformBridgeController(
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
   } = useWaveformSignalOverlays({
-    utterancesOnCurrentMedia: timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits),
+    unitsOnCurrentMedia: timelineUnitsToWaveformAnalysisRows(input.timelineUnitViewIndex.currentMediaUnits),
     ...(vadSegments ? { vadSegments } : {}),
     waveformTimelineItems,
     activeLayerIdForEdits: input.activeLayerIdForEdits,
@@ -311,7 +300,7 @@ export function useTranscriptionWaveformBridgeController(
     zoomPxPerSec,
     skipSeekForIdRef,
     clearUnitSelection: input.clearUnitSelection,
-    createUtteranceFromSelection: input.createUtteranceFromSelection,
+    createUnitFromSelection: input.createUnitFromSelection,
     setUnitSelection: input.setUnitSelection,
     playerSeekTo: player.seekTo,
     subSelectionRange,
@@ -319,7 +308,7 @@ export function useTranscriptionWaveformBridgeController(
     subSelectDragRef,
   });
 
-  const { rulerView, zoomToPercent, zoomToUtterance } = useZoom({
+  const { rulerView, zoomToPercent, zoomToUnit } = useZoom({
     waveCanvasRef,
     tierContainerRef: input.tierContainerRef,
     playerInstanceRef: player.instanceRef,
@@ -428,11 +417,11 @@ export function useTranscriptionWaveformBridgeController(
     }
     if (isPlayingRef.current) return;
     if (input.zoomMode === 'fit-selection') {
-      zoomToUtterance(selectedRange.startTime, selectedRange.endTime);
+      zoomToUnit(selectedRange.startTime, selectedRange.endTime);
       return;
     }
     player.seekTo(selectedRange.startTime);
-  }, [input.selectedTimelineUnitForTime, input.zoomMode, player.isReady, player.seekTo, zoomToUtterance]);
+  }, [input.selectedTimelineUnitForTime, input.zoomMode, player.isReady, player.seekTo, zoomToUnit]);
 
   const resolveSelectedPlaybackRange = () => {
     if (!selectedWaveformTimelineItem) return null;
@@ -514,7 +503,7 @@ export function useTranscriptionWaveformBridgeController(
     maxZoomPercent,
     rulerView,
     zoomToPercent,
-    zoomToUtterance,
+    zoomToUnit,
     hoverTime,
     handleWaveformAreaFocus,
     handleWaveformAreaBlur,

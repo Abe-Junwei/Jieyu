@@ -6,12 +6,7 @@ import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useLocale } from '../i18n';
 import { getProjectSetupDialogMessages } from '../i18n/projectSetupDialogMessages';
-import {
-  formatOrthographyOptionLabel,
-  groupOrthographiesForSelect,
-  ORTHOGRAPHY_CREATE_SENTINEL,
-  useOrthographyPicker,
-} from '../hooks/useOrthographyPicker';
+import { formatOrthographyOptionLabel, groupOrthographiesForSelect, ORTHOGRAPHY_CREATE_SENTINEL, useOrthographyPicker } from '../hooks/useOrthographyPicker';
 import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 import { FormField, ModalPanel, PanelButton, PanelFeedback } from './ui';

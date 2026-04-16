@@ -1,9 +1,9 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
 
-export type ContextMenuUnitKind = 'segment' | 'utterance';
+export type ContextMenuUnitKind = 'segment' | 'unit';
 
 export interface WaveformTimelineItemLike {
   id: string;
@@ -54,10 +54,10 @@ export interface SubSelectDragLike {
 
 export interface UseTranscriptionTimelineInteractionControllerInput {
   layers: LayerDocType[];
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
-  utterances: UtteranceDocType[];
-  selectUnit: (utteranceId: string) => void;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
+  units: LayerUnitDocType[];
+  selectUnit: (unitId: string) => void;
   manualSelectTsRef: MutableRefObject<number>;
   player: PlayerLike;
   locale: string;
@@ -75,23 +75,23 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   selectedTimelineUnit: TimelineUnit | null;
   toggleSegmentSelection: (segmentId: string) => void;
   selectSegmentRange: (anchorId: string, targetId: string, items: WaveformTimelineItemLike[]) => void;
-  toggleUnitSelection: (utteranceId: string) => void;
+  toggleUnitSelection: (unitId: string) => void;
   selectUnitRange: (anchorId: string, targetId: string) => void;
   setSubSelectionRange: (range: { start: number; end: number } | null) => void;
   subSelectDragRef: MutableRefObject<SubSelectDragLike | null>;
   waveCanvasRef: MutableRefObject<HTMLElement | null>;
   zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
-  zoomToUtterance: (startTime: number, endTime: number) => void;
+  zoomToUnit: (startTime: number, endTime: number) => void;
   resolveSegmentRoutingForLayer: (layerId?: string) => {
     segmentSourceLayer: LayerDocType | undefined;
     sourceLayerId: string;
-    editMode: 'utterance' | 'independent-segment' | 'time-subdivision';
+    editMode: 'unit' | 'independent-segment' | 'time-subdivision';
   };
-  segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
+  unitsOnCurrentMedia: LayerUnitDocType[];
   getNeighborBounds: (itemId: string, mediaId: string | undefined, probeStart: number) => { left: number; right: number | undefined };
   reloadSegments: () => Promise<void>;
-  saveUtteranceTiming: (id: string, start: number, end: number) => Promise<void>;
+  saveUnitTiming: (id: string, start: number, end: number) => Promise<void>;
   setSaveState: (state: { kind: 'done' | 'error'; message: string }) => void;
   selectedUnitIds: Set<string>;
   selectedWaveformRegionId: string | null;
@@ -104,14 +104,14 @@ export interface UseTranscriptionTimelineInteractionControllerInput {
   creatingSegmentRef: MutableRefObject<boolean>;
   markingModeRef: MutableRefObject<boolean>;
   setCtxMenu: (state: ContextMenuStateLike | null) => void;
-  createUtteranceFromSelection: (start: number, end: number) => Promise<void>;
+  createUnitFromSelection: (start: number, end: number) => Promise<void>;
 }
 
 export interface UseTranscriptionTimelineInteractionControllerResult {
-  handleSearchReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
-  handleJumpToEmbeddingMatch: (utteranceId: string) => void;
+  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleJumpToEmbeddingMatch: (unitId: string) => void;
   handleJumpToCitation: (
-    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
     citationRef?: { snippet?: string },
   ) => Promise<void>;

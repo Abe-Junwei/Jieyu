@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
-import {
-  evaluateReplicaQuorum,
-  mergeReplicaBatch,
-  planReplicaSyncChunks,
-} from './collaborationMultiReplicaRuntime';
+import { evaluateReplicaQuorum, mergeReplicaBatch, planReplicaSyncChunks } from './collaborationMultiReplicaRuntime';
 
 function buildReplica(overrides?: Partial<CrossDeviceReplica>): CrossDeviceReplica {
   return {

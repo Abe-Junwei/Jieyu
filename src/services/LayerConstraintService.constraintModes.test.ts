@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType } from '../db';
-import {
-  getLayerCreateGuard,
-  repairExistingLayerConstraints,
-  validateExistingLayerConstraints,
-} from './LayerConstraintService';
+import { getLayerCreateGuard, repairExistingLayerConstraints, validateExistingLayerConstraints } from './LayerConstraintService';
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
   const now = '2026-03-25T00:00:00.000Z';

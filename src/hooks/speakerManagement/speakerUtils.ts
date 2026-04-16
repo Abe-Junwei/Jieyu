@@ -2,7 +2,7 @@
  * Speaker utilities | \u8bf4\u8bdd\u4eba\u5de5\u5177\u51fd\u6570
  */
 
-import type { SpeakerDocType, UtteranceDocType } from '../../db';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db';
 import type { SpeakerFilterOption, SpeakerVisual } from './types';
 
 const SPEAKER_TRACK_COLORS = [
@@ -27,8 +27,8 @@ export interface SpeakerDisplayLabels {
 }
 
 export interface SpeakerSelectionSummaryLabels extends SpeakerDisplayLabels {
-  noSelectionUtterances: string;
-  noneAssignedUtterances: string;
+  noSelectionUnits: string;
+  noneAssignedUnits: string;
   singleSpeakerSummary: (speakerName: string) => string;
   multipleSpeakersSummary: (count: number) => string;
 }
@@ -40,8 +40,8 @@ const DEFAULT_SPEAKER_DISPLAY_LABELS: SpeakerDisplayLabels = {
 
 const DEFAULT_SPEAKER_SELECTION_SUMMARY_LABELS: SpeakerSelectionSummaryLabels = {
   ...DEFAULT_SPEAKER_DISPLAY_LABELS,
-  noSelectionUtterances: '\u672a\u9009\u62e9\u53e5\u6bb5',
-  noneAssignedUtterances: '\u5f53\u524d\u53e5\u6bb5\u5747\u672a\u6807\u6ce8\u8bf4\u8bdd\u4eba',
+  noSelectionUnits: '\u672a\u9009\u62e9\u53e5\u6bb5',
+  noneAssignedUnits: '\u5f53\u524d\u53e5\u6bb5\u5747\u672a\u6807\u6ce8\u8bf4\u8bdd\u4eba',
   singleSpeakerSummary: (speakerName) => `\u5f53\u524d\u7edf\u4e00\u8bf4\u8bdd\u4eba：${speakerName}`,
   multipleSpeakersSummary: (count) => `\u5f53\u524d\u6d89\u53ca ${count} \u4f4d\u8bf4\u8bdd\u4eba`,
 };
@@ -76,10 +76,10 @@ export function normalizeSpeakerName(name: string | undefined): string {
   return name?.trim() ?? '';
 }
 
-export function getUtteranceSpeakerKey(
-  utterance: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
+export function getUnitSpeakerKey(
+  unit: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
 ): string {
-  const speakerId = utterance.speakerId?.trim();
+  const speakerId = unit.speakerId?.trim();
   if (speakerId) return speakerId;
   return '';
 }
@@ -111,18 +111,18 @@ export function getSpeakerDisplayNameByKey(
 }
 
 export function getSpeakerDisplayName(
-  utterance: Pick<UtteranceDocType, 'speakerId' | 'speaker'>,
+  unit: Pick<LayerUnitDocType, 'speakerId' | 'speaker'>,
   speakerById: ReadonlyMap<string, SpeakerDocType>,
   labels?: Partial<SpeakerDisplayLabels>,
 ): string {
   const resolvedLabels = resolveSpeakerDisplayLabels(labels);
-  const speakerId = utterance.speakerId?.trim();
+  const speakerId = unit.speakerId?.trim();
   if (speakerId) {
     const mappedName = speakerById.get(speakerId)?.name;
-    const legacyName = normalizeSpeakerName(utterance.speaker);
+    const legacyName = normalizeSpeakerName(unit.speaker);
     return mappedName || legacyName || speakerId;
   }
-  return normalizeSpeakerName(utterance.speaker) || resolvedLabels.unnamedSpeaker;
+  return normalizeSpeakerName(unit.speaker) || resolvedLabels.unnamedSpeaker;
 }
 
 export function buildSpeakerVisualMapFromKeys(
@@ -174,14 +174,14 @@ export function buildSpeakerFilterOptionsFromKeys(
 }
 
 export function buildSpeakerVisualMap(
-  utterances: UtteranceDocType[],
+  units: LayerUnitDocType[],
   speakerOptions: SpeakerDocType[],
   labels?: Partial<SpeakerDisplayLabels>,
 ): Record<string, SpeakerVisual> {
   return buildSpeakerVisualMapFromKeys(
-    utterances.map((utterance) => ({
-      unitId: utterance.id,
-      speakerKey: getUtteranceSpeakerKey(utterance),
+    units.map((unit) => ({
+      unitId: unit.id,
+      speakerKey: getUnitSpeakerKey(unit),
     })),
     speakerOptions,
     labels,
@@ -189,64 +189,64 @@ export function buildSpeakerVisualMap(
 }
 
 export function buildSpeakerFilterOptions(
-  utterances: UtteranceDocType[],
-  speakerVisualByUtteranceId: Record<string, SpeakerVisual>,
+  units: LayerUnitDocType[],
+  speakerVisualByUnitId: Record<string, SpeakerVisual>,
   labels?: Partial<SpeakerDisplayLabels>,
 ): SpeakerFilterOption[] {
   return buildSpeakerFilterOptionsFromKeys(
-    utterances.map((utterance) => ({
-      unitId: utterance.id,
-      speakerKey: getUtteranceSpeakerKey(utterance),
+    units.map((unit) => ({
+      unitId: unit.id,
+      speakerKey: getUnitSpeakerKey(unit),
     })),
-    speakerVisualByUtteranceId,
+    speakerVisualByUnitId,
     labels,
   );
 }
 
 export function buildSelectedSpeakerSummary(
-  selectedBatchUtterances: UtteranceDocType[],
+  selectedBatchUnits: LayerUnitDocType[],
   speakerOptions: SpeakerDocType[],
   labels?: Partial<SpeakerSelectionSummaryLabels>,
 ): string {
   const resolvedLabels = resolveSpeakerSelectionSummaryLabels(labels);
-  if (selectedBatchUtterances.length === 0) {
-    return resolvedLabels.noSelectionUtterances;
+  if (selectedBatchUnits.length === 0) {
+    return resolvedLabels.noSelectionUnits;
   }
   const speakerById = new Map(speakerOptions.map((speaker) => [speaker.id, speaker] as const));
-  const assigned = selectedBatchUtterances.filter((utterance) => getUtteranceSpeakerKey(utterance));
-  if (assigned.length === 0) return resolvedLabels.noneAssignedUtterances;
-  const keys = new Set(assigned.map((utterance) => getUtteranceSpeakerKey(utterance)));
+  const assigned = selectedBatchUnits.filter((unit) => getUnitSpeakerKey(unit));
+  if (assigned.length === 0) return resolvedLabels.noneAssignedUnits;
+  const keys = new Set(assigned.map((unit) => getUnitSpeakerKey(unit)));
   if (keys.size === 1) {
     const first = assigned[0];
-    if (!first) return resolvedLabels.noneAssignedUtterances;
+    if (!first) return resolvedLabels.noneAssignedUnits;
     return resolvedLabels.singleSpeakerSummary(getSpeakerDisplayName(first, speakerById, resolvedLabels));
   }
   return resolvedLabels.multipleSpeakersSummary(keys.size);
 }
 
-export function applySpeakerAssignmentToUtterances(
-  utterances: UtteranceDocType[],
-  utteranceIds: Iterable<string>,
+export function applySpeakerAssignmentToUnits(
+  units: LayerUnitDocType[],
+  unitIds: Iterable<string>,
   speaker?: Pick<SpeakerDocType, 'id' | 'name'>,
-): UtteranceDocType[] {
-  const targetIds = new Set(Array.from(utteranceIds));
-  return utterances.map((utterance) => {
-    if (!targetIds.has(utterance.id)) return utterance;
-    const { speaker: _legacySpeaker, speakerId: _legacySpeakerId, ...rest } = utterance;
+): LayerUnitDocType[] {
+  const targetIds = new Set(Array.from(unitIds));
+  return units.map((unit) => {
+    if (!targetIds.has(unit.id)) return unit;
+    const { speaker: _legacySpeaker, speakerId: _legacySpeakerId, ...rest } = unit;
     return speaker
       ? { ...rest, speakerId: speaker.id, speaker: speaker.name }
       : rest;
   });
 }
 
-export function renameSpeakerInUtterances(
-  utterances: UtteranceDocType[],
+export function renameSpeakerInUnits(
+  units: LayerUnitDocType[],
   speakerId: string,
   nextName: string,
-): UtteranceDocType[] {
-  return utterances.map((utterance) => (
-    utterance.speakerId === speakerId
-      ? { ...utterance, speaker: nextName }
-      : utterance
+): LayerUnitDocType[] {
+  return units.map((unit) => (
+    unit.speakerId === speakerId
+      ? { ...unit, speaker: nextName }
+      : unit
   ));
 }

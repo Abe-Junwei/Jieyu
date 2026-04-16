@@ -13,12 +13,7 @@
  * @see 解语-语音智能体架构设计方案 §4.4
  */
 
-import {
-  appendVoiceAliasLearningLog,
-  clearVoiceAliasLearningLog,
-  getActionLabel,
-  loadVoiceAliasLearningLog,
-} from './voiceIntentUi';
+import { appendVoiceAliasLearningLog, clearVoiceAliasLearningLog, getActionLabel, loadVoiceAliasLearningLog } from './voiceIntentUi';
 
 // ── Action IDs ──
 
@@ -293,7 +288,7 @@ const INTENT_RULES: IntentRule[] = [
     pattern: /^(?:自动|auto)\s*(?:标注|gloss|注释)/,
     extract: (m) => ({
       type: 'tool',
-      toolName: 'auto_gloss_utterance',
+      toolName: 'auto_gloss_unit',
       params: {},
       raw: m[0],
     }),

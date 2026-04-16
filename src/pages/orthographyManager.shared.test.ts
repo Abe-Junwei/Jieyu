@@ -3,15 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { OrthographyDocType } from '../db';
-import {
-  areDraftsEqual,
-  buildOrthographyDraft,
-  buildSearchText,
-  parseConversionRulesJson,
-  parseDraftList,
-  parseOptionalNumber,
-  readOrthographyName,
-} from './orthographyManager.shared';
+import { areDraftsEqual, buildOrthographyDraft, buildSearchText, parseConversionRulesJson, parseDraftList, parseOptionalNumber, readOrthographyName } from './orthographyManager.shared';
 
 // ── readOrthographyName ──────────────────────────────────────────────────────
 

@@ -6,18 +6,8 @@
 
 import { Suspense, lazy } from 'react';
 import type { CSSProperties, ContextType, RefObject } from 'react';
-import {
-  TimelineRailSection,
-  TimelineScrollSection,
-} from '../components/transcription/TranscriptionTimelineSections';
-import {
-  BottomToolbarSection,
-  ObserverStatusSection,
-  TimelineMainSection,
-  ToolbarLeftSection,
-  ToolbarRightSection,
-  ZoomControlsSection,
-} from '../components/transcription/TranscriptionLayoutSections';
+import { TimelineRailSection, TimelineScrollSection } from '../components/transcription/TranscriptionTimelineSections';
+import { BottomToolbarSection, ObserverStatusSection, TimelineMainSection, ToolbarLeftSection, ToolbarRightSection, ZoomControlsSection } from '../components/transcription/TranscriptionLayoutSections';
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -27,19 +17,7 @@ import { t, tf, type Locale } from '../i18n';
 import { LayerActionPopover } from '../components/LayerActionPopover';
 import { ToastController } from './TranscriptionPage.ToastController';
 import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
-import {
-  RecoveryBanner,
-  TranscriptionOverlays,
-  TranscriptionPageAiSidebar,
-  TranscriptionPageAssistantBridge,
-  TranscriptionPageBatchOps,
-  TranscriptionPageDialogs,
-  TranscriptionPagePdfRuntime,
-  TranscriptionPageSidePane,
-  TranscriptionPageTimelineContent,
-  TranscriptionPageTimelineTop,
-  TranscriptionPageToolbar,
-} from './TranscriptionPage.ReadyWorkspace.runtime';
+import { RecoveryBanner, TranscriptionOverlays, TranscriptionPageAiSidebar, TranscriptionPageAssistantBridge, TranscriptionPageBatchOps, TranscriptionPageDialogs, TranscriptionPagePdfRuntime, TranscriptionPageSidePane, TranscriptionPageTimelineContent, TranscriptionPageTimelineTop, TranscriptionPageToolbar } from './TranscriptionPage.ReadyWorkspace.runtime';
 
 const OrchestratorWaveformContent = lazy(async () => {
   const mod = await import('./OrchestratorWaveformContent');

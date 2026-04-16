@@ -2,24 +2,8 @@
  * Zod 验证 Schema 与 validate 函数 | Zod validation schemas and validate functions
  */
 import { z } from 'zod';
-import { UTTERANCE_SELF_CERTAINTY_VALUES } from '../utils/utteranceSelfCertainty';
-import type {
-  TextDocType, MediaItemDocType, UtteranceDocType, UtteranceTokenDocType,
-  UtteranceMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType,
-  AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc,
-  LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType,
-  LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType,
-  SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType,
-  LocationDocType, BibliographicSourceDocType, GrammarDocDocType,
-  AbbreviationDocType, PhonemeDocType, TagDefinitionDocType,
-  LayerDocType, LayerUnitDocType, LayerUnitContentDocType,
-  UnitRelationDocType, LayerLinkDocType,
-  TierDefinitionDocType, TierAnnotationDocType,
-  AuditLogDocType, UserNoteDocType, SegmentMetaDocType,
-  SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType,
-  SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType,
-  LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType,
-} from './types';
+import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
 
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -87,7 +71,7 @@ const mediaItemDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const utteranceDocSchema = z
+const unitDocSchema = z
   .object({
     id: z.string().min(1),
     textId: z.string().min(1),
@@ -106,7 +90,7 @@ const utteranceDocSchema = z
     aiMode: z.enum(['AUTO', 'SUGGEST']).optional(),
     isVerified: z.boolean().optional(),
     annotationStatus: z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']).optional(),
-    selfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
+    selfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
     provenance: provenanceSchema.optional(),
     accessRights: accessRightsSchema.optional(),
     createdAt: isoDateSchema,
@@ -124,7 +108,7 @@ const anchorDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const utteranceTokenDocSchema = z.object({
+const unitTokenDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
   unitId: z.string().min(1),
@@ -138,7 +122,7 @@ const utteranceTokenDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const utteranceMorphemeDocSchema = z.object({
+const unitMorphemeDocSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
   unitId: z.string().min(1),
@@ -213,7 +197,7 @@ const aiTaskDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-const embeddingSourceTypeSchema = z.enum(['utterance', 'token', 'morpheme', 'lexeme', 'note', 'pdf', 'schema']);
+const embeddingSourceTypeSchema = z.enum(['unit', 'token', 'morpheme', 'lexeme', 'note', 'pdf', 'schema']);
 
 const embeddingDocSchema = z.object({
   id: z.string().min(1),
@@ -244,7 +228,7 @@ const aiMessageRoleSchema = z.enum(['system', 'user', 'assistant', 'tool']);
 const aiMessageStatusSchema = z.enum(['streaming', 'done', 'error', 'aborted']);
 
 const aiMessageCitationSchema = z.object({
-  type: z.enum(['utterance', 'note', 'pdf', 'schema']),
+  type: z.enum(['unit', 'note', 'pdf', 'schema']),
   refId: z.string().min(1),
   label: z.string().optional(),
   snippet: z.string().optional(),
@@ -580,7 +564,7 @@ const tagDefinitionDocSchema = z.object({
   name: multiLangStringSchema,
   description: multiLangStringSchema.optional(),
   color: z.string().optional(),
-  scope: z.enum(['utterance', 'lexeme', 'annotation', 'global']).optional(),
+  scope: z.enum(['unit', 'lexeme', 'annotation', 'global']).optional(),
   createdAt: isoDateSchema,
 });
 
@@ -617,9 +601,9 @@ const translationLayerDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
-// 移除未使用的 utteranceTextDocSchema
+// 移除未使用的 unitTextDocSchema
 
-const layerUnitTypeSchema = z.enum(['utterance', 'segment']);
+const layerUnitTypeSchema = z.enum(['unit', 'segment']);
 const layerUnitStatusSchema = z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']);
 const layerContentRoleSchema = z.enum(['primary_text', 'translation', 'gloss', 'note', 'audio_ref']);
 const unitRelationTypeSchema = z.enum(['aligned_to', 'derived_from', 'linked_reference']);
@@ -639,7 +623,7 @@ const layerUnitDocSchema = z
     endAnchorId: z.string().min(1).optional(),
     orderKey: z.string().min(1).optional(),
     speakerId: z.string().min(1).optional(),
-    selfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
+    selfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
     status: layerUnitStatusSchema.optional(),
     externalRef: z.string().min(1).optional(),
     provenance: provenanceSchema.optional(),
@@ -764,7 +748,7 @@ const layerLinkDocSchema = z.object({
 });
 
 const noteTargetTypeSchema = z.enum([
-  'utterance', 'translation', 'lexeme',
+  'unit', 'translation', 'lexeme',
   'sense', 'tier_annotation', 'text',
   'token', 'morpheme', 'annotation',
 ]);
@@ -790,7 +774,7 @@ const segmentMetaDocSchema = z.object({
   textId: z.string().min(1),
   mediaId: z.string().min(1),
   layerId: z.string().min(1),
-  hostUtteranceId: z.string().min(1).optional(),
+  hostUnitId: z.string().min(1).optional(),
   startTime: z.number().finite(),
   endTime: z.number().finite(),
   text: z.string(),
@@ -799,7 +783,7 @@ const segmentMetaDocSchema = z.object({
   effectiveSpeakerId: z.string().min(1).optional(),
   effectiveSpeakerName: z.string().min(1).optional(),
   noteCategoryKeys: z.array(noteCategorySchema).optional(),
-  effectiveSelfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
+  effectiveSelfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
   annotationStatus: layerUnitStatusSchema.optional(),
   aiConfidence: z.number().min(0).max(1).optional(),
   sourceType: z.enum(['human', 'ai']).optional(),
@@ -821,7 +805,7 @@ const segmentQualitySnapshotDocSchema = z.object({
   textId: z.string().min(1),
   mediaId: z.string().min(1),
   layerId: z.string().min(1),
-  hostUtteranceId: z.string().min(1).optional(),
+  hostUnitId: z.string().min(1).optional(),
   speakerId: z.string().min(1).optional(),
   speakerName: z.string().min(1).optional(),
   emptyText: z.boolean(),
@@ -845,7 +829,7 @@ const scopeStatsSnapshotDocSchema = z.object({
   speakerId: z.string().min(1).optional(),
   unitCount: z.number().int().min(0),
   segmentCount: z.number().int().min(0),
-  utteranceCount: z.number().int().min(0),
+  unitCount: z.number().int().min(0),
   speakerCount: z.number().int().min(0),
   translationLayerCount: z.number().int().min(0),
   noteFlaggedCount: z.number().int().min(0),
@@ -863,7 +847,7 @@ const speakerProfileSnapshotDocSchema = z.object({
   speakerName: z.string().min(1).optional(),
   unitCount: z.number().int().min(0),
   segmentCount: z.number().int().min(0),
-  utteranceCount: z.number().int().min(0),
+  unitCount: z.number().int().min(0),
   totalDurationSec: z.number().min(0),
   noteFlaggedCount: z.number().int().min(0),
   emptyTextCount: z.number().int().min(0),
@@ -920,8 +904,8 @@ export function validateTextDoc(doc: TextDocType): void {
   textDocSchema.parse(doc);
 }
 
-export function validateUtteranceDoc(doc: UtteranceDocType): void {
-  utteranceDocSchema.parse(doc);
+export function validateUnitDoc(doc: LayerUnitDocType): void {
+  unitDocSchema.parse(doc);
 }
 
 export function validateMediaItemDoc(doc: MediaItemDocType): void {
@@ -936,12 +920,12 @@ export function validateAnchorDoc(doc: AnchorDocType): void {
   anchorDocSchema.parse(doc);
 }
 
-export function validateUtteranceTokenDoc(doc: UtteranceTokenDocType): void {
-  utteranceTokenDocSchema.parse(doc);
+export function validateUnitTokenDoc(doc: UnitTokenDocType): void {
+  unitTokenDocSchema.parse(doc);
 }
 
-export function validateUtteranceMorphemeDoc(doc: UtteranceMorphemeDocType): void {
-  utteranceMorphemeDocSchema.parse(doc);
+export function validateUnitMorphemeDoc(doc: UnitMorphemeDocType): void {
+  unitMorphemeDocSchema.parse(doc);
 }
 
 export function validateTokenLexemeLinkDoc(doc: TokenLexemeLinkDocType): void {

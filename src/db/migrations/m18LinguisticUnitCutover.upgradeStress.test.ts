@@ -1,21 +1,17 @@
 /**
  * Large v36→v37 IndexedDB upgrade exercise (fake-indexeddb).
- * Skipped unless `M18_UPGRADE_STRESS_UTTERANCES` is a positive integer.
+ * Skipped unless `M18_UPGRADE_STRESS_UNITS` is a positive integer.
  *
  * Run: `npm run stress:m18-v37-upgrade`
- * Tune: `cross-env M18_UPGRADE_STRESS_UTTERANCES=8000 vitest run src/db/migrations/m18LinguisticUtteranceCutover.upgradeStress.test.ts`
+ * Tune: `cross-env M18_UPGRADE_STRESS_UNITS=8000 vitest run src/db/migrations/m18LinguisticUnitCutover.upgradeStress.test.ts`
  */
 import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
-import type { TierDefinitionDocType, UtteranceDocType, UtteranceTokenDocType } from '../types';
-import {
-  M18DexieV36Seed,
-  M18DexieV36To37,
-  m18DexieIsolationName,
-} from './m18LinguisticUtteranceDexieHarness';
+import type { TierDefinitionDocType, LayerUnitDocType, UnitTokenDocType } from '../types';
+import { M18DexieV36Seed, M18DexieV36To37, m18DexieIsolationName } from './m18LinguisticUnitDexieHarness';
 
-const STRESS_N = Number(process.env.M18_UPGRADE_STRESS_UTTERANCES ?? '0');
+const STRESS_N = Number(process.env.M18_UPGRADE_STRESS_UNITS ?? '0');
 const stressDescribe = STRESS_N > 0 ? describe : describe.skip;
 
 const CHUNK = 400;
@@ -24,7 +20,7 @@ const TEXT_ID = 'text-m18-stress';
 const TIER_ID = 'tier-m18-stress-trc';
 
 stressDescribe('M18 v36→v37 upgrade stress (IndexedDB)', () => {
-  it('merges many legacy utterances and rewrites token foreign keys', async () => {
+  it('merges many legacy units and rewrites token foreign keys', async () => {
     const N = STRESS_N;
     const name = m18DexieIsolationName('stress');
 
@@ -50,9 +46,9 @@ stressDescribe('M18 v36→v37 upgrade stress (IndexedDB)', () => {
 
       for (let start = 0; start < N; start += CHUNK) {
         const end = Math.min(N, start + CHUNK);
-        const utterances: UtteranceDocType[] = [];
+        const units: LayerUnitDocType[] = [];
         for (let i = start; i < end; i += 1) {
-          utterances.push({
+          units.push({
             id: `utt-stress-${i}`,
             textId: TEXT_ID,
             mediaId: 'media-stress',
@@ -63,26 +59,26 @@ stressDescribe('M18 v36→v37 upgrade stress (IndexedDB)', () => {
             updatedAt: ISO,
           });
         }
-        await seed.utterances.bulkPut(utterances);
+        await seed.units.bulkPut(units);
       }
 
       for (let start = 0; start < N; start += CHUNK) {
         const end = Math.min(N, start + CHUNK);
-        const tokens: UtteranceTokenDocType[] = [];
+        const tokens: UnitTokenDocType[] = [];
         for (let i = start; i < end; i += 1) {
           for (const k of [0, 1] as const) {
             tokens.push({
               id: `tok-stress-${i}-${k}`,
               textId: TEXT_ID,
-              utteranceId: `utt-stress-${i}`,
+              unitId: `utt-stress-${i}`,
               form: { default: 'w' },
               tokenIndex: k,
               createdAt: ISO,
               updatedAt: ISO,
-            } as unknown as UtteranceTokenDocType);
+            } as unknown as UnitTokenDocType);
           }
         }
-        await seed.utterance_tokens.bulkPut(tokens);
+        await seed.unit_tokens.bulkPut(tokens);
       }
 
       await seed.close();
@@ -92,20 +88,20 @@ stressDescribe('M18 v36→v37 upgrade stress (IndexedDB)', () => {
       await db.open();
       const t1 = typeof performance !== 'undefined' ? performance.now() : Date.now();
       process.stdout.write(
-        `[m18-upgrade-stress] utterances=${N} tokens=${2 * N} upgradeMs=${(t1 - t0).toFixed(0)}\n`,
+        `[m18-upgrade-stress] units=${N} tokens=${2 * N} upgradeMs=${(t1 - t0).toFixed(0)}\n`,
       );
 
-      const utteranceUnits = await db.layer_units.where('unitType').equals('utterance').count();
-      expect(utteranceUnits).toBe(N);
+      const unitUnits = await db.layer_units.where('unitType').equals('unit').count();
+      expect(unitUnits).toBe(N);
 
-      const tokenCount = await db.utterance_tokens.count();
+      const tokenCount = await db.unit_tokens.count();
       expect(tokenCount).toBe(2 * N);
 
-      const sample = await db.utterance_tokens.get('tok-stress-0-0');
+      const sample = await db.unit_tokens.get('tok-stress-0-0');
       expect(sample).toMatchObject({ unitId: 'utt-stress-0', id: 'tok-stress-0-0' });
-      expect(sample as unknown as Record<string, unknown>).not.toHaveProperty('utteranceId');
+      expect(sample as unknown as Record<string, unknown>).not.toHaveProperty('unitId');
 
-      const last = await db.utterance_tokens.get(`tok-stress-${N - 1}-1`);
+      const last = await db.unit_tokens.get(`tok-stress-${N - 1}-1`);
       expect(last).toMatchObject({ unitId: `utt-stress-${N - 1}` });
 
       await db.close();

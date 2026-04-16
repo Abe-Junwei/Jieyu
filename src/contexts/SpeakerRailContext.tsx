@@ -12,13 +12,7 @@ import { createContext, useContext, useMemo } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { SpeakerDocType } from '../db';
 import { createLogger } from '../observability/logger';
-import {
-  EMPTY_SPEAKER_REFERENCE_STATS,
-  type SpeakerActionDialogState,
-  type SpeakerFilterOption,
-  type SpeakerReferenceStats,
-  type SpeakerVisual,
-} from '../hooks/speakerManagement/types';
+import { EMPTY_SPEAKER_REFERENCE_STATS, type SpeakerActionDialogState, type SpeakerFilterOption, type SpeakerReferenceStats, type SpeakerVisual } from '../hooks/speakerManagement/types';
 import type { UseSpeakerActionsReturn } from '../hooks/useSpeakerActions';
 
 // ── Context Value Type ────────────────────────────────────────────────────────
@@ -34,7 +28,7 @@ export interface SpeakerRailContextValue {
   speakerReferenceStatsMediaScoped: boolean;
   speakerReferenceStatsReady: boolean;
   speakerDialogState: SpeakerActionDialogState | null;
-  speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
+  speakerVisualByUnitId: Record<string, SpeakerVisual>;
   selectedUnitIds: Set<string>;
   selectedSpeakerSummary: string;
   speakerSaving: boolean;
@@ -46,7 +40,7 @@ export interface SpeakerRailContextValue {
   activeSpeakerFilterKey: string;
   setActiveSpeakerFilterKey: Dispatch<SetStateAction<string>>;
   // Actions
-  handleSelectSpeakerUtterances: (speakerKey: string) => void;
+  handleSelectSpeakerUnits: (speakerKey: string) => void;
   handleClearSpeakerAssignments: (speakerKey: string) => void;
   handleExportSpeakerSegments: (speakerKey: string) => void;
   handleRenameSpeaker: (speakerKey: string) => void;
@@ -116,7 +110,7 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   speakerReferenceStatsMediaScoped: false,
   speakerReferenceStatsReady: false,
   speakerDialogState: null,
-  speakerVisualByUtteranceId: {},
+  speakerVisualByUnitId: {},
   selectedUnitIds: new Set<string>(),
   selectedSpeakerSummary: '',
   speakerSaving: false,
@@ -126,7 +120,7 @@ const fallbackSpeakerRailContext: SpeakerRailContextValue = {
   setBatchSpeakerId: createMissingProviderSetter<string>('setBatchSpeakerId'),
   activeSpeakerFilterKey: 'all',
   setActiveSpeakerFilterKey: createMissingProviderSetter<string>('setActiveSpeakerFilterKey'),
-  handleSelectSpeakerUtterances: createMissingProviderAction('handleSelectSpeakerUtterances'),
+  handleSelectSpeakerUnits: createMissingProviderAction('handleSelectSpeakerUnits'),
   handleClearSpeakerAssignments: createMissingProviderAction('handleClearSpeakerAssignments'),
   handleExportSpeakerSegments: createMissingProviderAction('handleExportSpeakerSegments'),
   handleRenameSpeaker: createMissingProviderAction('handleRenameSpeaker'),
@@ -167,14 +161,14 @@ type SpeakerRailProviderProps = {
     | 'activeSpeakerFilterKey'
     | 'setActiveSpeakerFilterKey'
     | 'speakerDialogState'
-    | 'speakerVisualByUtteranceId'
+    | 'speakerVisualByUnitId'
     | 'speakerFilterOptions'
     | 'speakerReferenceStats'
     | 'speakerReferenceUnassignedStats'
     | 'speakerReferenceStatsMediaScoped'
     | 'speakerReferenceStatsReady'
     | 'selectedSpeakerSummary'
-    | 'handleSelectSpeakerUtterances'
+    | 'handleSelectSpeakerUnits'
     | 'handleClearSpeakerAssignments'
     | 'handleExportSpeakerSegments'
     | 'handleRenameSpeaker'
@@ -207,7 +201,7 @@ export function SpeakerRailProvider({ children, speakerManagement, handleAssignS
     activeSpeakerFilterKey: speakerManagement.activeSpeakerFilterKey,
     setActiveSpeakerFilterKey: speakerManagement.setActiveSpeakerFilterKey,
     speakerDialogState: speakerManagement.speakerDialogState,
-    speakerVisualByUtteranceId: speakerManagement.speakerVisualByUtteranceId,
+    speakerVisualByUnitId: speakerManagement.speakerVisualByUnitId,
     speakerFilterOptions: speakerManagement.speakerFilterOptions,
     speakerReferenceStats: speakerManagement.speakerReferenceStats,
     speakerReferenceUnassignedStats: speakerManagement.speakerReferenceUnassignedStats,
@@ -215,7 +209,7 @@ export function SpeakerRailProvider({ children, speakerManagement, handleAssignS
     speakerReferenceStatsReady: speakerManagement.speakerReferenceStatsReady,
     selectedSpeakerSummary: speakerManagement.selectedSpeakerSummary,
     selectedUnitIds,
-    handleSelectSpeakerUtterances: speakerManagement.handleSelectSpeakerUtterances,
+    handleSelectSpeakerUnits: speakerManagement.handleSelectSpeakerUnits,
     handleClearSpeakerAssignments: speakerManagement.handleClearSpeakerAssignments,
     handleExportSpeakerSegments: speakerManagement.handleExportSpeakerSegments,
     handleRenameSpeaker: speakerManagement.handleRenameSpeaker,

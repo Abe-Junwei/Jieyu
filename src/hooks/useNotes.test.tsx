@@ -26,8 +26,8 @@ function UseNotesHarness({ target }: { target: NoteTarget | null }) {
 async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.user_notes.clear(),
-    db.utterance_tokens.clear(),
-    db.utterance_morphemes.clear(),
+    db.unit_tokens.clear(),
+    db.unit_morphemes.clear(),
     db.segment_meta.clear(),
     db.layer_units.clear(),
     db.layer_unit_contents.clear(),
@@ -46,7 +46,7 @@ describe('useNotes canonical target resolution', () => {
   });
 
   it('writes token note to canonical token id when target uses index', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'utt_legacy::w2',
       textId: 'text_1',
       unitId: 'utt_legacy',
@@ -78,7 +78,7 @@ describe('useNotes canonical target resolution', () => {
   });
 
   it('reads canonical token notes when UI target is index-based', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'utt_read::w1',
       textId: 'text_1',
       unitId: 'utt_read',
@@ -113,7 +113,7 @@ describe('useNotes canonical target resolution', () => {
     });
   });
 
-  it('refreshes unified segment metadata after adding an utterance note', async () => {
+  it('refreshes unified segment metadata after adding an unit note', async () => {
     const now = new Date().toISOString();
     await db.layer_units.bulkPut([
       {
@@ -121,7 +121,7 @@ describe('useNotes canonical target resolution', () => {
         textId: 'text_1',
         mediaId: 'media_1',
         layerId: 'layer_seg',
-        unitType: 'utterance',
+        unitType: 'unit',
         startTime: 0,
         endTime: 2,
         createdAt: now,
@@ -156,7 +156,7 @@ describe('useNotes canonical target resolution', () => {
     await SegmentMetaService.rebuildForLayerMedia('layer_seg', 'media_1');
 
     const target: NoteTarget = {
-      targetType: 'utterance',
+      targetType: 'unit',
       targetId: 'utt_meta',
     };
 

@@ -81,7 +81,7 @@
   --timeline-item-divider-color: var(--timeline-neutral-divider-hover);
 }
 
-.timeline-annotation > span:not(.timeline-annotation-speaker-badge) {
+.timeline-annotation > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;

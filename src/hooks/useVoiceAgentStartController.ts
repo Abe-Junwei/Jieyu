@@ -5,11 +5,7 @@ import { createLogger } from '../observability/logger';
 import { detectRegion } from '../utils/regionDetection';
 import { toBcp47 } from '../utils/langMapping';
 import type { SttEngine, VoiceInputService as VoiceInputServiceType } from '../services/VoiceInputService';
-import type {
-  CommercialProviderCreateConfig,
-  SttEnhancementConfig,
-  SttEnhancementSelectionKind,
-} from '../services/stt';
+import type { CommercialProviderCreateConfig, SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
 import { bindVoiceInputService } from './useVoiceAgent.serviceBindings';

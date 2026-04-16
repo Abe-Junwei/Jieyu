@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings, OrthographyDocType, UserNoteDocType, UtteranceDocType } from '../db';
+import type { NoteCategory, MultiLangString, LayerDocType, LayerDisplaySettings, OrthographyDocType, UserNoteDocType, LayerUnitDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { SpeakerFilterOption } from '../hooks/useSpeakerActions';
 import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { t, useOptionalLocale } from '../i18n';
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { getTranscriptionOverlaysMessages } from '../i18n/transcriptionOverlaysMessages';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
@@ -41,20 +41,20 @@ export interface TranscriptionOverlaysProps {
   addNote: (content: MultiLangString, category?: NoteCategory) => Promise<void>;
   updateNote: (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
-  utterances: UtteranceDocType[];
-  /** 将右键 target id（含指代型 segment id）解析为可持久化 selfCertainty 的 utterance id */
-  resolveSelfCertaintyUtteranceIds?: (unitIds: readonly string[], layerId?: string) => string[];
-  getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
+  units: LayerUnitDocType[];
+  /** 将右键 target id（含指代型 segment id）解析为可持久化 selfCertainty 的 unit id */
+  resolveSelfCertaintyUnitIds?: (unitIds: readonly string[], layerId?: string) => string[];
+  getUnitTextForLayer: (utt: LayerUnitDocType, layerId?: string) => string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   speakerOptions?: Array<{ id: string; name: string }>;
   speakerFilterOptions?: SpeakerFilterOption[];
   onAssignSpeakerFromMenu?: (unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => void;
-  /** 句段自我确信度（仅 utterance）| Utterance self-certainty (utterance units only) */
-  onSetUtteranceSelfCertaintyFromMenu?: (
+  /** 句段自我确信度（仅 unit）| Unit self-certainty (unit units only) */
+  onSetUnitSelfCertaintyFromMenu?: (
     unitIds: Iterable<string>,
     kind: TimelineUnitKind,
-    value: UtteranceSelfCertainty | undefined,
+    value: UnitSelfCertainty | undefined,
     layerId?: string,
   ) => void;
   onOpenLayerMetadataPanelFromMenu?: (layerId: string) => void;
@@ -103,15 +103,15 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     addNote,
     updateNote,
     deleteNote,
-    utterances,
-    resolveSelfCertaintyUtteranceIds,
-    getUtteranceTextForLayer,
+    units,
+    resolveSelfCertaintyUnitIds: resolveSelfCertaintyUnitIds,
+    getUnitTextForLayer,
     transcriptionLayers,
     translationLayers,
     speakerOptions = [],
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
-    onSetUtteranceSelfCertaintyFromMenu,
+    onSetUnitSelfCertaintyFromMenu: onSetUnitSelfCertaintyFromMenu,
     onOpenLayerMetadataPanelFromMenu = () => {},
     onOpenSpeakerManagementPanelFromMenu = () => {},
     displayStyleControl,
@@ -129,11 +129,11 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
   const buildNotePopoverTargetLabel = (): ReactNode => {
     if (!notePopover) return messages.segment;
 
-    const utt = utterances.find((u) => u.id === notePopover.uttId);
+    const utt = units.find((u) => u.id === notePopover.uttId);
     const previewLayer = notePopover.layerId
       ? allTextLayers.find((layer) => layer.id === notePopover.layerId)
       : defaultPreviewLayer;
-    const uttText = (utt ? getUtteranceTextForLayer(utt, previewLayer?.id) : '').slice(0, 20);
+    const uttText = (utt ? getUnitTextForLayer(utt, previewLayer?.id) : '').slice(0, 20);
     const fallbackLabel = messages.segment;
 
     const prefix = (() => {
@@ -180,10 +180,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const targetIds = multiCount > 1 ? Array.from(selectedUnitIds) : [id];
             const targetKind = ctxMenu.unitKind;
             const isSegmentUnitContext = targetKind === 'segment';
-            // 与「添加备注」一致：只要提供 handler 即显示；segment id / 宿主 utterance id 在点击或 ReadyWorkspace 内统一解析
-            const selfCertaintyTargetUtteranceIds = (resolveSelfCertaintyUtteranceIds?.(targetIds)
-              ?? targetIds.filter((uid) => utterances.some((u) => u.id === uid)));
-            const setSelfCertaintyFromMenu = onSetUtteranceSelfCertaintyFromMenu;
+            // 与「添加备注」一致：只要提供 handler 即显示；segment id / 宿主 unit id 在点击或 ReadyWorkspace 内统一解析
+            const selfCertaintyTargetUnitIds = (resolveSelfCertaintyUnitIds?.(targetIds, ctxMenu.layerId)
+              ?? targetIds.filter((uid) => units.some((u) => u.id === uid)));
+            const setSelfCertaintyFromMenu = onSetUnitSelfCertaintyFromMenu;
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1
               ? [
@@ -217,27 +217,27 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                 ];
 
             if (setSelfCertaintyFromMenu) {
-              const scIds = selfCertaintyTargetUtteranceIds.length > 0
-                ? selfCertaintyTargetUtteranceIds
+              const scIds = selfCertaintyTargetUnitIds.length > 0
+                ? selfCertaintyTargetUnitIds
                 : targetIds;
               items.push({
                 label: t(locale, 'transcription.ctxMenu.selfCertainty'),
                 separatorBefore: true,
                 children: [
                   {
-                    label: t(locale, 'transcription.utterance.selfCertainty.certain'),
+                    label: t(locale, 'transcription.unit.selfCertainty.certain'),
                     onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'certain', ctxMenu.layerId); },
                   },
                   {
-                    label: t(locale, 'transcription.utterance.selfCertainty.uncertain'),
+                    label: t(locale, 'transcription.unit.selfCertainty.uncertain'),
                     onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'uncertain', ctxMenu.layerId); },
                   },
                   {
-                    label: t(locale, 'transcription.utterance.selfCertainty.not_understood'),
+                    label: t(locale, 'transcription.unit.selfCertainty.notUnderstood'),
                     onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'not_understood', ctxMenu.layerId); },
                   },
                   {
-                    label: t(locale, 'transcription.utterance.selfCertainty.clear'),
+                    label: t(locale, 'transcription.unit.selfCertainty.clear'),
                     onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, undefined, ctxMenu.layerId); },
                   },
                 ],

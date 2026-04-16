@@ -6,9 +6,9 @@ export type DeleteConfirmStats = {
 
 export function buildDeleteConfirmStats(
   ids: string[],
-  utteranceHasText: (id: string) => boolean,
+  unitHasText: (id: string) => boolean,
 ): DeleteConfirmStats {
-  const textCount = ids.filter((id) => utteranceHasText(id)).length;
+  const textCount = ids.filter((id) => unitHasText(id)).length;
   const emptyCount = ids.length - textCount;
   return {
     totalCount: ids.length,

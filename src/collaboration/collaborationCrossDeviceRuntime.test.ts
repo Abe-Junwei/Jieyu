@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  assessClockDrift,
-  compareVectorClock,
-  createCrossDeviceRollbackPlan,
-  duplicateCrossDeviceReplica,
-  mergeCrossDeviceReplicas,
-  validateCrossDeviceConsistency,
-  type CrossDeviceReplica,
-} from './collaborationCrossDeviceRuntime';
+import { assessClockDrift, compareVectorClock, createCrossDeviceRollbackPlan, duplicateCrossDeviceReplica, mergeCrossDeviceReplicas, validateCrossDeviceConsistency, type CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 function buildReplica(overrides?: Partial<CrossDeviceReplica>): CrossDeviceReplica {
   return {

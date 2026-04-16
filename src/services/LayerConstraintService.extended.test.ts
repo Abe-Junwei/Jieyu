@@ -8,15 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerLinkDocType } from '../db';
-import {
-  canCreateLayer,
-  canDeleteLayer,
-  getLinkedLayers,
-  getMostRecentLayerOfType,
-  listIndependentBoundaryTranscriptionLayers,
-  repairExistingLayerConstraints,
-  validateExistingLayerConstraints,
-} from './LayerConstraintService';
+import { canCreateLayer, canDeleteLayer, getLinkedLayers, getMostRecentLayerOfType, listIndependentBoundaryTranscriptionLayers, repairExistingLayerConstraints, validateExistingLayerConstraints } from './LayerConstraintService';
 
 // ── helper ───────────────────────────────────────────────────────────────────
 

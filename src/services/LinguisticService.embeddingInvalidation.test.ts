@@ -20,7 +20,7 @@ describe('LinguisticService embedding invalidation', () => {
     await clearTables();
   });
 
-  it('invalidates utterance embeddings when embedded default transcription changes', async () => {
+  it('invalidates unit embeddings when embedded default transcription changes', async () => {
     const now = new Date().toISOString();
 
     const trcLayer: LayerDocType = {
@@ -37,7 +37,7 @@ describe('LinguisticService embedding invalidation', () => {
     };
     await (await getDb()).collections.layers.insert(trcLayer);
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_embed_1',
       textId: 'text_embed',
       startTime: 0,
@@ -49,8 +49,8 @@ describe('LinguisticService embedding invalidation', () => {
     });
 
     await db.embeddings.put({
-      id: 'utterance::utt_embed_1::model::v1',
-      sourceType: 'utterance',
+      id: 'unit::utt_embed_1::model::v1',
+      sourceType: 'unit',
       sourceId: 'utt_embed_1',
       model: 'model',
       modelVersion: 'v1',
@@ -59,7 +59,7 @@ describe('LinguisticService embedding invalidation', () => {
       createdAt: now,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_embed_1',
       textId: 'text_embed',
       startTime: 0,
@@ -73,10 +73,10 @@ describe('LinguisticService embedding invalidation', () => {
     expect(await db.embeddings.where('sourceId').equals('utt_embed_1').count()).toBe(0);
   });
 
-  it('removes utterance embeddings when utterances are batch-deleted', async () => {
+  it('removes unit embeddings when units are batch-deleted', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUtterancesBatch([
+    await LinguisticService.saveUnitsBatch([
       {
         id: 'utt_batch_1',
         textId: 'text_batch',
@@ -101,8 +101,8 @@ describe('LinguisticService embedding invalidation', () => {
 
     await db.embeddings.bulkPut([
       {
-        id: 'utterance::utt_batch_1::model::v1',
-        sourceType: 'utterance',
+        id: 'unit::utt_batch_1::model::v1',
+        sourceType: 'unit',
         sourceId: 'utt_batch_1',
         model: 'model',
         modelVersion: 'v1',
@@ -111,8 +111,8 @@ describe('LinguisticService embedding invalidation', () => {
         createdAt: now,
       },
       {
-        id: 'utterance::utt_batch_2::model::v1',
-        sourceType: 'utterance',
+        id: 'unit::utt_batch_2::model::v1',
+        sourceType: 'unit',
         sourceId: 'utt_batch_2',
         model: 'model',
         modelVersion: 'v1',
@@ -122,8 +122,8 @@ describe('LinguisticService embedding invalidation', () => {
       },
     ]);
 
-    await LinguisticService.removeUtterancesBatch(['utt_batch_1', 'utt_batch_2']);
+    await LinguisticService.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
 
-    expect(await db.embeddings.where('sourceType').equals('utterance').count()).toBe(0);
+    expect(await db.embeddings.where('sourceType').equals('unit').count()).toBe(0);
   });
 });

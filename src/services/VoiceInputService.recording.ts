@@ -7,10 +7,7 @@
 
 import type { SttResult, SttEngine, CommercialSttProvider } from './VoiceInputService';
 import type { SttEnhancementConfig, SttEnhancementProvider } from './stt/enhancementRegistry';
-import {
-  buildWhisperTranscriptionEndpoints,
-  createTranscriptionTimeoutController,
-} from './VoiceInputService.probes';
+import { buildWhisperTranscriptionEndpoints, createTranscriptionTimeoutController } from './VoiceInputService.probes';
 import type { WhisperXVadService } from './vad/WhisperXVadService';
 import { tryParseVerboseResponse, computeWhisperConfidence } from './stt/sttConfidence';
 import { createLogger } from '../observability/logger';

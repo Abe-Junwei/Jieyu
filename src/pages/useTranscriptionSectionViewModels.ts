@@ -1,16 +1,11 @@
 import { useMemo } from 'react';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
-import {
-  useTranscriptionSidebarSectionsViewModel,
-} from './useTranscriptionSidebarSectionsViewModel';
+import { useTranscriptionSidebarSectionsViewModel } from './useTranscriptionSidebarSectionsViewModel';
 import { createTranscriptionExportCallbacks } from './transcriptionExportCallbacks';
 import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';
 import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';
-import type {
-  UseTranscriptionSectionViewModelsInput,
-  UseTranscriptionSectionViewModelsResult,
-} from './transcriptionSectionViewModelTypes';
+import type { UseTranscriptionSectionViewModelsInput, UseTranscriptionSectionViewModelsResult } from './transcriptionSectionViewModelTypes';
 
 interface UseTranscriptionSectionViewModelsResolvedResult extends UseTranscriptionSectionViewModelsResult {
   aiSidebarProps: ReturnType<typeof useTranscriptionSidebarSectionsViewModel>['aiSidebarProps'];
@@ -64,7 +59,7 @@ export function useTranscriptionSectionViewModels(
     handleExportJyt,
     handleExportJym,
     handleImportFile,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     rulerView,
     zoomPxPerSec,
     isTimelineLaneHeaderCollapsed,
@@ -86,9 +81,9 @@ export function useTranscriptionSectionViewModels(
     sidebarSectionsInput,
   } = input;
 
-  const lowConfidenceCount = useMemo(() => utterancesOnCurrentMedia.filter(
-    (utterance) => typeof utterance.ai_metadata?.confidence === 'number' && utterance.ai_metadata.confidence < 0.75,
-  ).length, [utterancesOnCurrentMedia]);
+  const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(
+    (unit) => typeof unit.ai_metadata?.confidence === 'number' && unit.ai_metadata.confidence < 0.75,
+  ).length, [unitsOnCurrentMedia]);
 
   const exportCallbacks = useMemo(() => createTranscriptionExportCallbacks({
     setShowExportMenu,
@@ -154,7 +149,7 @@ export function useTranscriptionSectionViewModels(
 
   const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({
     player,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     rulerView,
     zoomPxPerSec,
     isTimelineLaneHeaderCollapsed,
@@ -189,7 +184,7 @@ export function useTranscriptionSectionViewModels(
     showSearch,
     tierContainerRef,
     toggleTimelineLaneHeader,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     waveCanvasRef,
     zoomPxPerSec,
   ]);

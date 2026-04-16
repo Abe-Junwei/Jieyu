@@ -14,13 +14,13 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
   };
 }
 
-function makeUtteranceUnit(id: string, layerId: string): LayerUnitDocType {
+function makeUnitUnit(id: string, layerId: string): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
     mediaId: 'media-1',
     layerId,
-    unitType: 'utterance',
+    unitType: 'unit',
     startTime: 0,
     endTime: 2,
     speakerId: 'spk-1',
@@ -66,9 +66,21 @@ function makeContent(id: string, unitId: string, layerId: string, text: string):
 function makeNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
   return {
     id,
-    targetType: 'utterance',
+    targetType: 'unit',
     targetId,
     content: { 'zh-CN': '待确认' },
+    ...(category ? { category } : {}),
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+}
+
+function makeTierAnnotationNote(id: string, targetId: string, category: UserNoteDocType['category']): UserNoteDocType {
+  return {
+    id,
+    targetType: 'tier_annotation',
+    targetId,
+    content: { 'zh-CN': '层级备注' },
     ...(category ? { category } : {}),
     createdAt: NOW,
     updatedAt: NOW,
@@ -90,7 +102,7 @@ describe('SegmentMetaService', () => {
   it('rebuilds unified segment meta rows from canonical layer-unit sources', async () => {
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
     await db.layer_units.bulkPut([
-      makeUtteranceUnit('utt-1', 'layer-utt'),
+      makeUnitUnit('utt-1', 'layer-utt'),
       makeSegmentUnit('seg-1', 'layer-seg', 'utt-1', 0, 1),
     ]);
     await db.layer_unit_contents.put(makeContent('content-1', 'seg-1', 'layer-seg', 'hello world'));
@@ -102,7 +114,7 @@ describe('SegmentMetaService', () => {
     expect(rows[0]).toMatchObject({
       segmentId: 'seg-1',
       layerId: 'layer-seg',
-      hostUtteranceId: 'utt-1',
+      hostUnitId: 'utt-1',
       effectiveSpeakerId: 'spk-1',
       effectiveSpeakerName: 'Alice',
       effectiveSelfCertainty: 'certain',
@@ -146,10 +158,10 @@ describe('SegmentMetaService', () => {
     expect(layerBRows[0]?.text).toBe('layer B text');
   });
 
-  it('rebuilds unified rows for utterance-backed layers as well as segment-backed layers', async () => {
+  it('rebuilds unified rows for unit-backed layers as well as segment-backed layers', async () => {
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
-    await db.layer_units.put(makeUtteranceUnit('utt-standalone', 'layer-plain'));
-    await db.layer_unit_contents.put(makeContent('content-plain', 'utt-standalone', 'layer-plain', 'plain utterance'));
+    await db.layer_units.put(makeUnitUnit('utt-standalone', 'layer-plain'));
+    await db.layer_unit_contents.put(makeContent('content-plain', 'utt-standalone', 'layer-plain', 'plain unit'));
     await db.user_notes.put(makeNote('note-plain', 'utt-standalone', 'question'));
 
     const rows = await SegmentMetaService.rebuildForLayerMedia('layer-plain', 'media-1');
@@ -157,18 +169,18 @@ describe('SegmentMetaService', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       segmentId: 'utt-standalone',
-      unitKind: 'utterance',
+      unitKind: 'unit',
       layerId: 'layer-plain',
-      hostUtteranceId: 'utt-standalone',
+      hostUnitId: 'utt-standalone',
       noteCategoryKeys: ['question'],
-      text: 'plain utterance',
+      text: 'plain unit',
     });
   });
 
   it('refreshes affected layer-media scopes after metadata mutations', async () => {
     await db.speakers.bulkPut([makeSpeaker('spk-1', 'Alice'), makeSpeaker('spk-2', 'Beatrice')]);
     await db.layer_units.bulkPut([
-      makeUtteranceUnit('utt-1', 'layer-utt'),
+      makeUnitUnit('utt-1', 'layer-utt'),
       makeSegmentUnit('seg-1', 'layer-seg', 'utt-1', 0, 1),
     ]);
     await db.layer_unit_contents.put(makeContent('content-1', 'seg-1', 'layer-seg', 'hello world'));
@@ -196,10 +208,10 @@ describe('SegmentMetaService', () => {
     });
   });
 
-  it('refreshes dependent layer scopes when host utterance metadata changes', async () => {
+  it('refreshes dependent layer scopes when host unit metadata changes', async () => {
     await db.speakers.bulkPut([makeSpeaker('spk-1', 'Alice'), makeSpeaker('spk-2', 'Beatrice')]);
     await db.layer_units.bulkPut([
-      makeUtteranceUnit('utt-host', 'layer-utt'),
+      makeUnitUnit('utt-host', 'layer-utt'),
       makeSegmentUnit('seg-host', 'layer-seg', 'utt-host', 0, 1),
       makeSegmentUnit('seg-trn', 'layer-trn', 'utt-host', 0, 1),
     ]);
@@ -228,9 +240,27 @@ describe('SegmentMetaService', () => {
     });
   });
 
+  it('captures tier-annotation notes into noteCategoryKeys for the scoped segment row', async () => {
+    await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
+    await db.layer_units.bulkPut([
+      makeUnitUnit('utt-tier', 'layer-utt'),
+      makeSegmentUnit('seg-tier', 'layer-seg', 'utt-tier', 0, 1),
+    ]);
+    await db.layer_unit_contents.put(makeContent('content-tier', 'seg-tier', 'layer-seg', 'hello tier note'));
+    await db.user_notes.put(makeTierAnnotationNote('note-tier', 'seg-tier::layer-seg', 'fieldwork'));
+
+    const rows = await SegmentMetaService.rebuildForLayerMedia('layer-seg', 'media-1');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      segmentId: 'seg-tier',
+      noteCategoryKeys: ['fieldwork'],
+    });
+  });
+
   it('drops stale segment rows when sync runs after a unit was deleted', async () => {
     await db.layer_units.bulkPut([
-      makeUtteranceUnit('utt-delete', 'layer-seg'),
+      makeUnitUnit('utt-delete', 'layer-seg'),
       makeSegmentUnit('seg-delete', 'layer-seg', 'utt-delete', 0, 1),
     ]);
     await db.layer_unit_contents.put(makeContent('content-delete', 'seg-delete', 'layer-seg', 'to remove'));
@@ -254,7 +284,7 @@ describe('SegmentMetaService', () => {
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'layer-seg',
-        hostUtteranceId: 'utt-1',
+        hostUnitId: 'utt-1',
         startTime: 0,
         endTime: 1,
         text: 'hello morphology',
@@ -276,7 +306,7 @@ describe('SegmentMetaService', () => {
         textId: 'text-1',
         mediaId: 'media-1',
         layerId: 'layer-seg',
-        hostUtteranceId: 'utt-2',
+        hostUnitId: 'utt-2',
         startTime: 1,
         endTime: 2,
         text: 'other line',

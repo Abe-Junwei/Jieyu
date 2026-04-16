@@ -10,32 +10,14 @@ import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
 import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
-import {
-  listOrthographyRecords,
-  updateOrthographyRecord,
-} from '../services/LinguisticService.orthography';
+import { listOrthographyRecords, updateOrthographyRecord } from '../services/LinguisticService.orthography';
 import { OrthographyManagerPanel } from './OrthographyManagerPanel';
-import {
-  buildOrthographyBrowseSelector,
-  buildOrthographyBrowseState,
-  WORKSPACE_LANGUAGE_SEARCH_LIMIT,
-} from './orthographyBrowse.shared';
-import {
-  areDraftsEqual,
-  buildOrthographyDraft,
-  parseConversionRulesJson,
-  parseDraftList,
-  parseOptionalNumber,
-  type OrthographyDraft,
-  type NormalizationForm,
-} from './orthographyManager.shared';
+import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
+import { areDraftsEqual, buildOrthographyDraft, parseConversionRulesJson, parseDraftList, parseOptionalNumber, type OrthographyDraft, type NormalizationForm } from './orthographyManager.shared';
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
-import {
-  type LanguageCatalogSearchSuggestion,
-  searchLanguageCatalogSuggestions,
-} from '../services/LanguageCatalogSearchService';
+import { type LanguageCatalogSearchSuggestion, searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
 

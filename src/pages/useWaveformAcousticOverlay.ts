@@ -2,17 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type MouseEvent as ReactMous
 import { AcousticAnalysisService } from '../services/acoustic/AcousticAnalysisService';
 import type { AcousticFeatureResult, AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
-import type {
-  AcousticOverlayVisibleSummary,
-  SpectrogramHoverReadout,
-  WaveformHoverReadout,
-} from './transcriptionWaveformBridge.types';
-import {
-  buildAcousticPath,
-  buildSpectrogramHoverReadout,
-  clampAcousticValue,
-  resolveNearestAcousticFrame,
-} from './waveformAcousticOverlay.utils';
+import type { AcousticOverlayVisibleSummary, SpectrogramHoverReadout, WaveformHoverReadout } from './transcriptionWaveformBridge.types';
+import { buildAcousticPath, buildSpectrogramHoverReadout, clampAcousticValue, resolveNearestAcousticFrame } from './waveformAcousticOverlay.utils';
 
 interface UseWaveformAcousticOverlayInput {
   selectedMediaUrl: string | undefined;

@@ -1,19 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticFeatureResult } from './acousticOverlayTypes';
-import {
-  ACOUSTIC_CALIBRATION_VERSION,
-  buildAcousticPanelBatchBuildResult,
-  buildAcousticPanelBatchDetails,
-  buildAcousticInspectorSlice,
-  buildAcousticPanelDetail,
-  deriveAcousticCalibrationStatus,
-  serializeAcousticPanelBatchDetailCsv,
-  serializeAcousticPanelBatchDetailJson,
-  serializeAcousticPanelBatchDetailJsonResearch,
-  serializeAcousticPanelDetailCsv,
-  serializeAcousticPanelDetailJson,
-  serializeAcousticPanelDetailJsonResearch,
-} from './acousticPanelDetail';
+import { ACOUSTIC_CALIBRATION_VERSION, buildAcousticPanelBatchBuildResult, buildAcousticPanelBatchDetails, buildAcousticInspectorSlice, buildAcousticPanelDetail, deriveAcousticCalibrationStatus, serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson, serializeAcousticPanelBatchDetailJsonResearch, serializeAcousticPanelDetailCsv, serializeAcousticPanelDetailJson, serializeAcousticPanelDetailJsonResearch } from './acousticPanelDetail';
 
 function makeAnalysis(): AcousticFeatureResult {
   return {

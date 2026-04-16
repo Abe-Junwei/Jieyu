@@ -11,13 +11,7 @@
  */
 
 import { globalContext } from './GlobalContextService';
-import {
-  loadBehaviorProfile,
-  saveBehaviorProfile,
-  recordActionToDB,
-  pruneOldRecords,
-  type UserBehaviorProfileDoc,
-} from './userBehaviorDB';
+import { loadBehaviorProfile, saveBehaviorProfile, recordActionToDB, pruneOldRecords, type UserBehaviorProfileDoc } from './userBehaviorDB';
 import type { ActionId } from './IntentRouter';
 
 class UserBehaviorStore {

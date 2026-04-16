@@ -23,22 +23,22 @@ export function useNotes(target: NoteTarget | null) {
 
   const resolveCanonicalTarget = useCallback(async (input: NoteTarget): Promise<NoteTarget> => {
     if (input.targetType === 'token') {
-      const existingToken = await dexieDb.utterance_tokens.get(input.targetId);
+      const existingToken = await dexieDb.unit_tokens.get(input.targetId);
       if (existingToken) {
         return { targetType: 'token', targetId: existingToken.id };
       }
 
       if (typeof input.targetIndex === 'number') {
-        const utteranceCandidates = [input.parentTargetId, input.targetId]
+        const unitCandidates = [input.parentTargetId, input.targetId]
           .filter((value): value is string => typeof value === 'string' && value.length > 0);
 
-        for (const utteranceId of utteranceCandidates) {
-          const tokenByIndex = await dexieDb.utterance_tokens
+        for (const unitId of unitCandidates) {
+          const tokenByIndex = await dexieDb.unit_tokens
             .where('[unitId+tokenIndex]')
-            .equals([utteranceId, input.targetIndex])
+            .equals([unitId, input.targetIndex])
             .first();
           if (tokenByIndex) {
-            return { targetType: 'token', targetId: tokenByIndex.id, parentTargetId: utteranceId };
+            return { targetType: 'token', targetId: tokenByIndex.id, parentTargetId: unitId };
           }
         }
       }
@@ -47,7 +47,7 @@ export function useNotes(target: NoteTarget | null) {
     }
 
     if (input.targetType === 'morpheme') {
-      const existingMorpheme = await dexieDb.utterance_morphemes.get(input.targetId);
+      const existingMorpheme = await dexieDb.unit_morphemes.get(input.targetId);
       if (existingMorpheme) {
         return { targetType: 'morpheme', targetId: existingMorpheme.id, parentTargetId: existingMorpheme.tokenId };
       }
@@ -57,7 +57,7 @@ export function useNotes(target: NoteTarget | null) {
           .filter((value): value is string => typeof value === 'string' && value.length > 0);
 
         for (const tokenId of tokenCandidates) {
-          const morphByIndex = await dexieDb.utterance_morphemes
+          const morphByIndex = await dexieDb.unit_morphemes
             .where('[tokenId+morphemeIndex]')
             .equals([tokenId, input.targetIndex])
             .first();

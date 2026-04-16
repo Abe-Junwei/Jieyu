@@ -1,4 +1,4 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 
@@ -16,20 +16,20 @@ interface TransformVoiceDictationTextInput {
   layers: LayerDocType[];
 }
 
-interface PersistVoiceDictationToUtteranceInput extends TransformVoiceDictationTextInput {
-  utteranceId: string;
+interface PersistVoiceDictationToUnitInput extends TransformVoiceDictationTextInput {
+  unitId: string;
   targetLayer: LayerDocType;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
 }
 
 interface CreateVoiceDictationPipelineInput extends ResolveVoiceDictationTargetInput {
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  selectUnit: (utteranceId: string) => void;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  selectedTimelineOwnerUnit: LayerUnitDocType | null;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
+  selectUnit: (unitId: string) => void;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
 }
 
 export function resolveVoiceDictationTarget(input: ResolveVoiceDictationTargetInput) {
@@ -59,13 +59,13 @@ export async function bridgeVoiceDictationText(input: TransformVoiceDictationTex
   });
 }
 
-export async function persistVoiceDictationToUtterance(input: PersistVoiceDictationToUtteranceInput) {
+export async function persistVoiceDictationToUnit(input: PersistVoiceDictationToUnitInput) {
   const transformedText = await bridgeVoiceDictationText(input);
   if (input.targetLayer.layerType === 'transcription') {
-    await input.saveUtteranceText(input.utteranceId, transformedText, input.targetLayerId);
+    await input.saveUnitText(input.unitId, transformedText, input.targetLayerId);
     return transformedText;
   }
-  await input.saveTextTranslationForUtterance(input.utteranceId, transformedText, input.targetLayerId);
+  await input.saveUnitLayerText(input.unitId, transformedText, input.targetLayerId);
   return transformedText;
 }
 
@@ -74,19 +74,19 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
   config?: QuickDictationConfig;
 } | undefined {
   const resolvedTarget = resolveVoiceDictationTarget(input);
-  if (!resolvedTarget || input.utterancesOnCurrentMedia.length === 0) return undefined;
+  if (!resolvedTarget || input.unitsOnCurrentMedia.length === 0) return undefined;
   const { targetLayerId, targetLayer } = resolvedTarget;
   const targetPipelineLayer = targetLayer.layerType === 'translation' ? 'translation' : 'transcription';
 
   return {
     callbacks: {
-      getSegments: () => input.utterancesOnCurrentMedia.map((utterance, index) => {
-        const currentText = input.getUtteranceTextForLayer(utterance, targetLayerId).trim();
+      getSegments: () => input.unitsOnCurrentMedia.map((unit, index) => {
+        const currentText = input.getUnitTextForLayer(unit, targetLayerId).trim();
         return {
-          segmentId: utterance.id,
+          segmentId: unit.id,
           index,
-          startTime: utterance.startTime,
-          endTime: utterance.endTime,
+          startTime: unit.startTime,
+          endTime: unit.endTime,
           existingText: targetPipelineLayer === 'transcription' ? (currentText || null) : null,
           existingTranslation: targetPipelineLayer === 'translation' ? (currentText || null) : null,
           existingGloss: null,
@@ -101,17 +101,17 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
       }),
       fillSegment: async (segmentId, _layer, text) => {
         if (targetPipelineLayer === 'transcription') {
-          await input.saveUtteranceText(segmentId, text, targetLayerId);
+          await input.saveUnitText(segmentId, text, targetLayerId);
           return;
         }
-        await input.saveTextTranslationForUtterance(segmentId, text, targetLayerId);
+        await input.saveUnitLayerText(segmentId, text, targetLayerId);
       },
       restoreSegment: async (segmentId, _layer, previousText) => {
         if (targetPipelineLayer === 'transcription') {
-          await input.saveUtteranceText(segmentId, previousText ?? '', targetLayerId);
+          await input.saveUnitText(segmentId, previousText ?? '', targetLayerId);
           return;
         }
-        await input.saveTextTranslationForUtterance(segmentId, previousText ?? '', targetLayerId);
+        await input.saveUnitLayerText(segmentId, previousText ?? '', targetLayerId);
       },
       navigateTo: (segmentId) => input.selectUnit(segmentId),
       navigateToNextUnannotated: () => null,

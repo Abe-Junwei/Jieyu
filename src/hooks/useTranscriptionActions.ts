@@ -1,16 +1,9 @@
 import { getDb } from '../db';
-import type {
-  AnchorDocType,
-  LayerLinkDocType,
-  MediaItemDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { AnchorDocType, LayerLinkDocType, MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import type { TimingUndoState } from '../utils/selectionUtils';
 import type { SaveState, SnapGuide, TimelineUnit } from './transcriptionTypes';
 import { useTranscriptionLayerActions } from './useTranscriptionLayerActions';
-import { useTranscriptionUtteranceActions } from './useTranscriptionUtteranceActions';
+import { useTranscriptionUnitActions } from './useTranscriptionUnitActions';
 
 type Params = {
   defaultTranscriptionLayerId: string | undefined;
@@ -21,17 +14,17 @@ type Params = {
   selectedLayerId: string;
   selectedUnitMedia: MediaItemDocType | undefined;
   activeUnitId: string;
-  translations: UtteranceTextDocType[];
-  utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
-  utterancesOnCurrentMediaRef: React.MutableRefObject<UtteranceDocType[]>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  timingGestureRef: React.MutableRefObject<{ active: boolean; utteranceId: string | null }>;
+  translations: LayerUnitContentDocType[];
+  unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
+  unitsOnCurrentMediaRef: React.MutableRefObject<LayerUnitDocType[]>;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
+  timingGestureRef: React.MutableRefObject<{ active: boolean; unitId: string | null }>;
   timingUndoRef: React.MutableRefObject<TimingUndoState | null>;
   pushUndo: (label: string) => void;
   rollbackUndo?: () => Promise<void>;
   createAnchor: (db: Awaited<ReturnType<typeof getDb>>, mediaId: string, time: number) => Promise<AnchorDocType>;
   updateAnchorTime: (db: Awaited<ReturnType<typeof getDb>>, anchorId: string, newTime: number) => Promise<void>;
-  pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUtteranceIds: Set<string>) => Promise<void>;
+  pruneOrphanAnchors: (db: Awaited<ReturnType<typeof getDb>>, removedUnitIds: Set<string>) => Promise<void>;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
   setLayerCreateMessage: React.Dispatch<React.SetStateAction<string>>;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
@@ -42,9 +35,9 @@ type Params = {
   setSelectedMediaId: React.Dispatch<React.SetStateAction<string>>;
   setSnapGuide: React.Dispatch<React.SetStateAction<SnapGuide>>;
   setMediaItems: React.Dispatch<React.SetStateAction<MediaItemDocType[]>>;
-  setTranslations: React.Dispatch<React.SetStateAction<UtteranceTextDocType[]>>;
-  setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
-  setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
+  setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
+  setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUnitIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
@@ -60,9 +53,9 @@ export function useTranscriptionActions({
   selectedUnitMedia,
   activeUnitId,
   translations,
-  utterancesRef,
-  utterancesOnCurrentMediaRef,
-  getUtteranceTextForLayer,
+  unitsRef,
+  unitsOnCurrentMediaRef,
+  getUnitTextForLayer,
   timingGestureRef,
   timingUndoRef,
   pushUndo,
@@ -81,8 +74,8 @@ export function useTranscriptionActions({
   setSnapGuide,
   setMediaItems,
   setTranslations,
-  setUtterances,
-  setUtteranceDrafts,
+  setUnits,
+  setUnitDrafts,
   setSelectedUnitIds,
   setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
@@ -90,30 +83,30 @@ export function useTranscriptionActions({
   const {
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
-    deleteSelectedUtterances,
+    splitUnit,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
-  } = useTranscriptionUtteranceActions({
+    mergeSelectedUnits,
+  } = useTranscriptionUnitActions({
     defaultTranscriptionLayerId,
     layerById,
     selectedUnitMedia,
     activeUnitId,
     translations,
-    utterancesRef,
-    utterancesOnCurrentMediaRef,
-    getUtteranceTextForLayer,
+    unitsRef,
+    unitsOnCurrentMediaRef,
+    getUnitTextForLayer,
     timingGestureRef,
     timingUndoRef,
     pushUndo,
@@ -125,8 +118,8 @@ export function useTranscriptionActions({
     setSnapGuide,
     setMediaItems,
     setTranslations,
-    setUtterances,
-    setUtteranceDrafts,
+    setUnits,
+    setUnitDrafts,
     setSelectedUnitIds,
     ...(setSelectedTimelineUnit ? { setSelectedTimelineUnit } : {}),
     allowOverlapInTranscription,
@@ -145,7 +138,7 @@ export function useTranscriptionActions({
     layerLinks,
     layerToDeleteId,
     selectedLayerId,
-    utterancesRef,
+    unitsRef,
     pushUndo,
     setLayerCreateMessage,
     setSaveState,
@@ -160,27 +153,27 @@ export function useTranscriptionActions({
 
     ...(setSelectedTimelineUnit ? { setSelectedTimelineUnit } : {}),
     setTranslations,
-    setUtterances,
+    setUnits,
   });
 
   return {
     saveVoiceTranslation,
     deleteVoiceTranslation,
-    saveUtteranceText,
-    saveUtteranceSelfCertainty,
-    saveUtteranceTiming,
-    saveTextTranslationForUtterance,
-    createNextUtterance,
-    createUtteranceFromSelection,
-    deleteUtterance,
+    saveUnitText,
+    saveUnitSelfCertainty,
+    saveUnitTiming,
+    saveUnitLayerText,
+    createAdjacentUnit,
+    createUnitFromSelection,
+    deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
-    splitUtterance,
-    deleteSelectedUtterances,
+    splitUnit,
+    deleteSelectedUnits,
     offsetSelectedTimes,
     scaleSelectedTimes,
     splitByRegex,
-    mergeSelectedUtterances,
+    mergeSelectedUnits,
     createLayer,
     deleteLayer,
     deleteLayerWithoutConfirm,

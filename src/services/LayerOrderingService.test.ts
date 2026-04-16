@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType } from '../db';
-import {
-  buildLayerBundles,
-  computeCanonicalLayerOrder,
-  flattenLayerBundles,
-  repairLayerOrder,
-  resolveLayerDragGroup,
-  resolveLayerDrop,
-  validateLayerOrder,
-} from './LayerOrderingService';
+import { buildLayerBundles, computeCanonicalLayerOrder, flattenLayerBundles, repairLayerOrder, resolveLayerDragGroup, resolveLayerDrop, validateLayerOrder } from './LayerOrderingService';
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
   const now = '2026-03-28T00:00:00.000Z';

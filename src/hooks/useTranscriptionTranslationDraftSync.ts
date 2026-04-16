@@ -1,22 +1,18 @@
 import { useEffect } from 'react';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type {
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 
 type Params = {
   translationLayers: LayerDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  translationTextByLayer: Map<string, Map<string, UtteranceTextDocType>>;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  translationTextByLayer: Map<string, Map<string, LayerUnitContentDocType>>;
   setTranslationDrafts: Dispatch<SetStateAction<Record<string, string>>>;
   focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
 };
 
 export function useTranscriptionTranslationDraftSync({
   translationLayers,
-  utterancesOnCurrentMedia,
+  unitsOnCurrentMedia,
   translationTextByLayer,
   setTranslationDrafts,
   focusedTranslationDraftKeyRef,
@@ -24,7 +20,7 @@ export function useTranscriptionTranslationDraftSync({
   useEffect(() => {
     const next: Record<string, string> = {};
     translationLayers.forEach((layer) => {
-      utterancesOnCurrentMedia.forEach((item) => {
+      unitsOnCurrentMedia.forEach((item) => {
         next[`${layer.id}-${item.id}`] = translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '';
       });
     });
@@ -42,5 +38,5 @@ export function useTranscriptionTranslationDraftSync({
       }
       return next;
     });
-  }, [focusedTranslationDraftKeyRef, setTranslationDrafts, translationLayers, translationTextByLayer, utterancesOnCurrentMedia]);
+  }, [focusedTranslationDraftKeyRef, setTranslationDrafts, translationLayers, translationTextByLayer, unitsOnCurrentMedia]);
 }

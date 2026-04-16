@@ -1,13 +1,5 @@
 import { type CollaborationRecord, type ConflictDescriptor, type FieldValue } from './collaborationConflictRuntime';
-import {
-  appendOperationLog,
-  createReconnectValidationLog,
-  openArbitrationTicket,
-  toArbitrationOperationLogs,
-  validateReconnectConsistency,
-  type ArbitrationTicket,
-  type CollaborationOperationLog,
-} from './collaborationRulesRuntime';
+import { appendOperationLog, createReconnectValidationLog, openArbitrationTicket, toArbitrationOperationLogs, validateReconnectConsistency, type ArbitrationTicket, type CollaborationOperationLog } from './collaborationRulesRuntime';
 
 export interface LayerObjectState {
   layerId: string;

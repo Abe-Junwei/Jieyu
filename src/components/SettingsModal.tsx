@@ -6,79 +6,23 @@
  */
 import { useState, useCallback, useMemo, useEffect, useRef, memo, type CSSProperties, type ReactNode } from 'react';
 import { ModalPanel } from './ui';
-import {
-  DEFAULT_KEYBINDINGS,
-  formatKeyComboForDisplay,
-  loadUserOverrides,
-  saveUserOverride,
-  removeUserOverride,
-  resetUserOverrides,
-  type KeyCombo,
-} from '../services/KeybindingService';
-import {
-  aiChatProviderDefinitions,
-  normalizeAiChatSettings,
-  type AiChatSettings,
-  type AiChatProviderKind,
-} from '../ai/providers/providerCatalog';
-import {
-  loadAiChatSettingsFromStorage,
-  persistAiChatSettings,
-} from '../ai/config/aiChatSettingsStorage';
+import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay, loadUserOverrides, saveUserOverride, removeUserOverride, resetUserOverrides, type KeyCombo } from '../services/KeybindingService';
+import { aiChatProviderDefinitions, normalizeAiChatSettings, type AiChatSettings, type AiChatProviderKind } from '../ai/providers/providerCatalog';
+import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
 import { THEMES, setAppearance, type ThemeId } from '../utils/theme';
 import { type IconEffect } from '../utils/iconEffect';
-import {
-  ACOUSTIC_OVERLAY_MODE_STORAGE_KEY,
-  WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY,
-  WAVEFORM_DISPLAY_MODE_STORAGE_KEY,
-  WAVEFORM_HEIGHT_STORAGE_KEY,
-  WAVEFORM_VISUAL_STYLE_STORAGE_KEY,
-  emitWaveformRuntimePreferenceChanged,
-  readStoredAcousticOverlayModePreference,
-  readStoredWaveformAmplitudeScalePreference,
-  readStoredWaveformDisplayModePreference,
-  readStoredWaveformHeightPreference,
-  readStoredWaveformVisualStylePreference,
-} from '../utils/waveformRuntimePreferenceSync';
-import {
-  NEW_SEGMENT_SELECTION_BEHAVIOR_KEY,
-  WAVEFORM_DOUBLE_CLICK_ACTION_KEY,
-  readStoredNewSegmentSelectionBehavior,
-  readStoredWaveformDoubleClickAction,
-  type NewSegmentSelectionBehavior,
-  type WaveformDoubleClickAction,
-} from '../utils/transcriptionInteractionPreferences';
+import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_DISPLAY_MODE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, emitWaveformRuntimePreferenceChanged, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference } from '../utils/waveformRuntimePreferenceSync';
+import { NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, WAVEFORM_DOUBLE_CLICK_ACTION_KEY, readStoredNewSegmentSelectionBehavior, readStoredWaveformDoubleClickAction, type NewSegmentSelectionBehavior, type WaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import {
-  type UiFontScaleMode,
-  computeAdaptivePanelWidth,
-  resolveTextDirectionFromLocale,
-} from '../utils/panelAdaptiveLayout';
+import { type UiFontScaleMode, computeAdaptivePanelWidth, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
 import { useViewportWidth } from '../hooks/useViewportWidth';
-import {
-  WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY,
-  WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY,
-  WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY,
-  emitWorkspaceLayoutPreferenceChanged,
-  readStoredVideoLayoutModePreference,
-  readStoredVideoPreviewHeightPreference,
-  readStoredVideoRightPanelWidthPreference,
-} from '../utils/workspaceLayoutPreferenceSync';
-import {
-  persistAcousticProviderRuntimeConfig,
-  resolveAcousticProviderRuntimeConfig,
-  type AcousticProviderRoutingStrategy,
-  type AcousticProviderRuntimeConfig,
-} from '../services/acoustic/acousticProviderContract';
-import {
-  loadEmbeddingProviderConfig,
-  saveEmbeddingProviderConfig,
-  type EmbeddingProviderConfig,
-} from '../pages/TranscriptionPage.helpers';
+import { WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, emitWorkspaceLayoutPreferenceChanged, readStoredVideoLayoutModePreference, readStoredVideoPreviewHeightPreference, readStoredVideoRightPanelWidthPreference } from '../utils/workspaceLayoutPreferenceSync';
+import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeConfig, type AcousticProviderRoutingStrategy, type AcousticProviderRuntimeConfig } from '../services/acoustic/acousticProviderContract';
+import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 
 type ThemeMode = 'light' | 'dark' | 'system';

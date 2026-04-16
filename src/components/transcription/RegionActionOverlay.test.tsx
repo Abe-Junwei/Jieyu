@@ -34,8 +34,8 @@ vi.mock('../../i18n', () => ({
 
 describe('RegionActionOverlay', () => {
   const defaultProps = {
-    utteranceStartTime: 10,
-    utteranceEndTime: 20,
+    unitStartTime: 10,
+    unitEndTime: 20,
     zoomPxPerSec: 50,
     scrollLeft: 0,
     waveAreaWidth: 800,
@@ -55,8 +55,8 @@ describe('RegionActionOverlay', () => {
   it('renders anchored overlay structure with clamped left offset and visible controls', () => {
     const props = {
       ...defaultProps,
-      utteranceStartTime: 1,
-      utteranceEndTime: 12,
+      unitStartTime: 1,
+      unitEndTime: 12,
       zoomPxPerSec: 20,
       scrollLeft: 40,
     };
@@ -78,8 +78,8 @@ describe('RegionActionOverlay', () => {
   it('does not render when region is completely left of visible area', () => {
     const props = {
       ...defaultProps,
-      utteranceStartTime: -100,
-      utteranceEndTime: -50,
+      unitStartTime: -100,
+      unitEndTime: -50,
       scrollLeft: 0,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -89,8 +89,8 @@ describe('RegionActionOverlay', () => {
   it('does not render when region is completely right of visible area', () => {
     const props = {
       ...defaultProps,
-      utteranceStartTime: 1000,
-      utteranceEndTime: 2000,
+      unitStartTime: 1000,
+      unitEndTime: 2000,
       scrollLeft: 0,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -127,8 +127,8 @@ describe('RegionActionOverlay', () => {
   it('hides loop button when region width < 72px', () => {
     const props = {
       ...defaultProps,
-      utteranceStartTime: 10,
-      utteranceEndTime: 15, // 5s * 10 = 50px width, < 72
+      unitStartTime: 10,
+      unitEndTime: 15, // 5s * 10 = 50px width, < 72
       zoomPxPerSec: 10,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
@@ -203,8 +203,8 @@ describe('RegionActionOverlay', () => {
     const props = {
       ...defaultProps,
       scrollLeft: 200,
-      utteranceStartTime: 10, // 10s * 50 = 500px, - 200 = 300px (visible)
-      utteranceEndTime: 20, // 20s * 50 = 1000px, - 200 = 800px (visible)
+      unitStartTime: 10, // 10s * 50 = 500px, - 200 = 300px (visible)
+      unitEndTime: 20, // 20s * 50 = 1000px, - 200 = 800px (visible)
       zoomPxPerSec: 50,
     };
     const { container } = render(<RegionActionOverlay {...props} />);

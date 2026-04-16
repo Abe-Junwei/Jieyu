@@ -5,7 +5,7 @@
  * All interfaces, enum types, and utility type aliases for IndexedDB collections.
  */
 
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 /**
  * 层数量软上限（UI 警告，非硬限制）
@@ -100,10 +100,10 @@ export interface Morpheme {
 }
 
 /**
- * A single word token within an utterance.
+ * A single word token within an unit.
  * Contains optional morpheme decomposition for interlinear glossing.
  */
-export interface UtteranceWord {
+export interface UnitWord {
   id?: string;
   /** Surface form of this word, keyed by orthography */
   form: Transcription;
@@ -119,56 +119,12 @@ export interface UtteranceWord {
   provenance?: ProvenanceEnvelope;
 }
 
-export interface UtteranceDocType {
-  id: string;
-  textId: string;
-  mediaId?: string;
-  /** @deprecated Legacy embedded cache, prefer segmentation-based text content. */
-  transcription?: Transcription;
-  speaker?: string;
-  /** FK reference to speakers table (preferred over freetext `speaker` field) */
-  speakerId?: string;
-  language?: string;
-  startTime: number;
-  endTime: number;
-  /** 历史迁移或外部数据可能出现的显式顺序字段 | Optional ordering from legacy migrations */
-  ordinal?: number;
-  startAnchorId?: string;
-  endAnchorId?: string;
-  notes?: MultiLangString;
-  tags?: Record<string, boolean>;
-  ai_metadata?: AiMetadata;
-  aiMode?: 'AUTO' | 'SUGGEST';
-  /**
-   * Annotation depth status for coverage tracking (F16 稀疏转写).
-   * - 'raw'        : audio only, no transcription
-   * - 'transcribed': has transcription text
-   * - 'translated' : has at least one translation
-   * - 'glossed'    : has interlinear word/morpheme glosses
-   * - 'verified'   : human-reviewed and confirmed
-   */
-  annotationStatus?: 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
-  /**
-   * 标注者对本人转写/标注/翻译内容的自我确信度（三档：不理解 · 不确定 · 确定）。
-   * 与 `annotationStatus`（锥形深度）、`provenance.reviewStatus`（流程审核）、`ai_metadata.confidence`（模型分）均独立。
-   */
-  selfCertainty?: UtteranceSelfCertainty;
-  /**
-   * View-only cache derived from `utterance_tokens` / `utterance_morphemes`.
-   * NOT written to DB by `saveUtterance()`. Populated by the hook's read path.
-   */
-  words?: UtteranceWord[];
-  provenance?: ProvenanceEnvelope;
-  accessRights?: 'open' | 'restricted' | 'confidential';
-  createdAt: string;
-  updatedAt: string;
-}
 
-/** Canonical token entity (v17+), independent of utterance.words cache. */
-export interface UtteranceTokenDocType {
+/** Canonical token entity (v17+), independent of unit.words cache. */
+export interface UnitTokenDocType {
   id: string;
   textId: string;
-  /** Layer unit id (utterance-type host); M18+ canonical foreign key. */
+  /** Layer unit id (unit-type host); M18+ canonical foreign key. */
   unitId: string;
   form: Transcription;
   gloss?: MultiLangString;
@@ -180,11 +136,11 @@ export interface UtteranceTokenDocType {
   updatedAt: string;
 }
 
-/** Canonical morpheme entity (v16), tied to utterance token entities. */
-export interface UtteranceMorphemeDocType {
+/** Canonical morpheme entity (v16), tied to unit token entities. */
+export interface UnitMorphemeDocType {
   id: string;
   textId: string;
-  /** Layer unit id (utterance-type host); M18+ canonical foreign key. */
+  /** Layer unit id (unit-type host); M18+ canonical foreign key. */
   unitId: string;
   tokenId: string;
   form: Transcription;
@@ -242,7 +198,7 @@ export type TokenLexemeLinkRole = 'exact' | 'stem' | 'gloss_candidate' | 'manual
 export interface TokenLexemeLinkDocType {
   id: string;
   targetType: TokenLexemeLinkTargetType;
-  targetId: string; // utterance_tokens.id or utterance_morphemes.id
+  targetId: string; // unit_tokens.id or unit_morphemes.id
   lexemeId: string;
   role?: TokenLexemeLinkRole;
   confidence?: number;
@@ -266,7 +222,7 @@ export interface AiTaskDoc {
   updatedAt: string;
 }
 
-export type EmbeddingSourceType = 'utterance' | 'token' | 'morpheme' | 'lexeme' | 'note' | 'pdf' | 'schema';
+export type EmbeddingSourceType = 'unit' | 'token' | 'morpheme' | 'lexeme' | 'note' | 'pdf' | 'schema';
 
 export interface EmbeddingDoc {
   id: string;
@@ -297,14 +253,14 @@ export type AiMessageRole = 'system' | 'user' | 'assistant' | 'tool';
 export type AiMessageStatus = 'streaming' | 'done' | 'error' | 'aborted';
 
 export interface AiMessageCitation {
-  type: 'utterance' | 'note' | 'pdf' | 'schema';
+  type: 'unit' | 'note' | 'pdf' | 'schema';
   refId: string;
   label?: string;
   snippet?: string;
   /** Timeline read-model epoch when RAG ran (same instant as prompt `timelineReadModelEpoch`). */
   readModelEpochAtRetrieval?: number;
   /**
-   * For `utterance` only: whether `refId` was present in `localUnitIndex` at retrieval time.
+   * For `unit` only: whether `refId` was present in `localUnitIndex` at retrieval time.
    * Omitted when the index was incomplete or unavailable (unknown), not a confirmed hit/miss.
    */
   readModelIndexHit?: boolean;
@@ -638,7 +594,7 @@ export interface TagDefinitionDocType {
   name: MultiLangString;
   description?: MultiLangString;
   color?: string;
-  scope?: 'utterance' | 'lexeme' | 'annotation' | 'global';
+  scope?: 'unit' | 'lexeme' | 'annotation' | 'global';
   createdAt: string;
 }
 
@@ -689,114 +645,98 @@ export interface LayerDocType {
   updatedAt: string;
 }
 
-// Restoring UtteranceTextDocType temporarily as it's still heavily used in the migration logic and React Hooks (as a view model)
-export interface UtteranceTextDocType {
-  id: string;
-  utteranceId: string;
-  layerId: string;
-  modality: 'text' | 'audio' | 'mixed';
-  text?: string;
-  translationAudioMediaId?: string;
-  recordedBySpeakerId?: string;
-  sourceType: 'human' | 'ai';
-  ai_metadata?: AiMetadata;
-  provenance?: ProvenanceEnvelope;
-  accessRights?: 'open' | 'restricted' | 'confidential';
-  externalRef?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type SegmentLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
-
-export interface LayerSegmentDocType {
-  id: string;
-  textId: string;
-  mediaId: string;
-  layerId: string;
-  /** 所属 utterance（v25 显式字段，替代 ID 后缀解析） | Owner utterance (v25 explicit field, replaces ID suffix parsing) */
-  utteranceId?: string;
-  /** 独立 segment 的显式说话人键 | Explicit speaker key for standalone segments */
-  speakerId?: string;
-  startTime: number;
-  endTime: number;
-  startAnchorId?: string;
-  endAnchorId?: string;
-  ordinal?: number;
-  /** 外部引用（如 EAF 的 ALIGNABLE_ANNOTATION_ID） | External reference (e.g. EAF ALIGNABLE_ANNOTATION_ID) */
-  externalRef?: string;
-  provenance?: ProvenanceEnvelope;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface LayerSegmentContentDocType {
-  id: string;
-  textId: string;
-  segmentId: string;
-  layerId: string;
-  modality: 'text' | 'audio' | 'mixed';
-  text?: string;
-  translationAudioMediaId?: string;
-  sourceType: 'human' | 'ai';
-  ai_metadata?: AiMetadata;
-  provenance?: ProvenanceEnvelope;
-  accessRights?: 'open' | 'restricted' | 'confidential';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export type LayerUnitType = 'utterance' | 'segment';
+export type LayerUnitType = 'unit' | 'segment';
 export type LayerUnitStatus = 'raw' | 'transcribed' | 'translated' | 'glossed' | 'verified';
 export type LayerContentRole = 'primary_text' | 'translation' | 'gloss' | 'note' | 'audio_ref';
 export type UnitRelationType = 'aligned_to' | 'derived_from' | 'linked_reference';
+export type UnitRelationLinkType = 'equivalent' | 'projection' | 'bridge' | 'time_subdivision';
 
 /**
  * 统一层时间单元（终态基座）| Unified layer timeline unit (final-model foundation)
+ *
+ * 这里保留少量 UI 读模型补充字段；持久化仍统一落盘到 canonical 字段
+ * （parentUnitId / orderKey / status 等）。
+ * A small set of UI-facing read-model fields remains here while persistence stays
+ * fully canonical.
  */
 export interface LayerUnitDocType {
   id: string;
   textId: string;
-  mediaId: string;
-  layerId: string;
-  unitType: LayerUnitType;
-  parentUnitId?: string;
-  rootUnitId?: string;
+  mediaId?: string | undefined;
+  layerId?: string | undefined;
+  unitType?: LayerUnitType | undefined;
+  parentUnitId?: string | undefined;
+  rootUnitId?: string | undefined;
   startTime: number;
   endTime: number;
-  startAnchorId?: string;
-  endAnchorId?: string;
-  orderKey?: string;
-  speakerId?: string;
-  /** 句段级自我确信度（仅 utterance 单元使用）| Utterance-level self-certainty (utterance units only) */
-  selfCertainty?: UtteranceSelfCertainty;
-  status?: LayerUnitStatus;
-  externalRef?: string;
-  provenance?: ProvenanceEnvelope;
+  startAnchorId?: string | undefined;
+  endAnchorId?: string | undefined;
+  orderKey?: string | undefined;
+  speakerId?: string | undefined;
+  /** 句段级自我确信度（仅 unit 单元使用）| Unit-level self-certainty (unit units only) */
+  selfCertainty?: UnitSelfCertainty | undefined;
+  status?: LayerUnitStatus | undefined;
+  externalRef?: string | undefined;
+  provenance?: ProvenanceEnvelope | undefined;
   createdAt: string;
   updatedAt: string;
+
+  /** UI 读模型补充字段 | UI read-model supplement fields */
+  transcription?: Transcription | undefined;
+  speaker?: string | undefined;
+  language?: string | undefined;
+  notes?: MultiLangString | undefined;
+  tags?: Record<string, boolean> | undefined;
+  ai_metadata?: AiMetadata | undefined;
+  aiMode?: 'AUTO' | 'SUGGEST' | undefined;
+  words?: UnitWord[] | undefined;
+  accessRights?: 'open' | 'restricted' | 'confidential' | undefined;
+
+  /** 迁移兼容字段（读模型）| Migration compatibility fields (read model) */
+  unitId?: string | undefined;
+  ordinal?: number | undefined;
+  annotationStatus?: LayerUnitStatus | undefined;
 }
+
+export type LayerSegmentViewDocType = LayerUnitDocType & {
+  unitId?: string | undefined;
+  ordinal?: number | undefined;
+  annotationStatus?: LayerUnitStatus | undefined;
+};
 
 /**
  * 统一层时间单元内容载荷 | Unified layer timeline unit content payload
  */
 export interface LayerUnitContentDocType {
   id: string;
-  textId: string;
-  unitId: string;
-  layerId: string;
-  contentRole: LayerContentRole;
-  modality: 'text' | 'audio' | 'mixed';
+  textId?: string | undefined;
+  unitId?: string | undefined;
+  layerId?: string | undefined;
+  contentRole?: LayerContentRole | undefined;
+  modality?: 'text' | 'audio' | 'mixed' | undefined;
   text?: string;
-  mediaRefId?: string;
-  sourceType: 'human' | 'ai';
-  ai_metadata?: AiMetadata;
-  provenance?: ProvenanceEnvelope;
-  accessRights?: 'open' | 'restricted' | 'confidential';
-  isVerified?: boolean;
+  mediaRefId?: string | undefined;
+  sourceType?: 'human' | 'ai' | undefined;
+  ai_metadata?: AiMetadata | undefined;
+  provenance?: ProvenanceEnvelope | undefined;
+  accessRights?: 'open' | 'restricted' | 'confidential' | undefined;
+  isVerified?: boolean | undefined;
   createdAt: string;
   updatedAt: string;
+
+  /** 可选内容补充字段 | Optional content supplement fields */
+  unitId?: string | undefined;
+  segmentId?: string | undefined;
+  translationAudioMediaId?: string | undefined;
+  recordedBySpeakerId?: string | undefined;
+  externalRef?: string | undefined;
 }
+
+export type LayerUnitContentViewDocType = LayerUnitContentDocType & {
+  unitId?: string | undefined;
+  segmentId?: string | undefined;
+  translationAudioMediaId?: string | undefined;
+};
 
 /**
  * 统一层单元关系表 | Unified layer unit relation table
@@ -804,29 +744,28 @@ export interface LayerUnitContentDocType {
 export interface UnitRelationDocType {
   id: string;
   textId: string;
-  sourceUnitId: string;
-  targetUnitId: string;
-  relationType: UnitRelationType;
-  provenance?: ProvenanceEnvelope;
+  sourceUnitId?: string | undefined;
+  targetUnitId?: string | undefined;
+  relationType?: UnitRelationType | undefined;
+  provenance?: ProvenanceEnvelope | undefined;
   createdAt: string;
   updatedAt: string;
+
+  /** 可选关系元数据 | Optional relation metadata */
+  sourceSegmentId?: string | undefined;
+  targetSegmentId?: string | undefined;
+  linkType?: UnitRelationLinkType | undefined;
+  sourceLayerId?: string | undefined;
+  targetLayerId?: string | undefined;
+  unitId?: string | undefined;
+  confidence?: number | undefined;
 }
 
-export interface SegmentLinkDocType {
-  id: string;
-  textId: string;
-  sourceSegmentId: string;
-  targetSegmentId: string;
-  sourceLayerId?: string;
-  targetLayerId?: string;
-  /** 历史 utterance 桥接键（迁移期） | Legacy utterance bridge key (migration period) */
-  utteranceId?: string;
-  linkType: SegmentLinkType;
-  confidence?: number;
-  provenance?: ProvenanceEnvelope;
-  createdAt: string;
-  updatedAt: string;
-}
+export type UnitRelationViewDocType = UnitRelationDocType & {
+  sourceSegmentId?: string | undefined;
+  targetSegmentId?: string | undefined;
+  linkType?: UnitRelationLinkType | undefined;
+};
 
 export interface LayerLinkDocType {
   id: string;
@@ -919,7 +858,7 @@ export interface AuditLogDocType {
 }
 
 export type NoteTargetType =
-  | 'utterance'
+  | 'unit'
   | 'translation'
   | 'lexeme'
   | 'sense'
@@ -956,7 +895,7 @@ export interface SegmentMetaDocType {
   textId: string;
   mediaId: string;
   layerId: string;
-  hostUtteranceId?: string;
+  hostUnitId?: string;
   startTime: number;
   endTime: number;
   text: string;
@@ -965,7 +904,7 @@ export interface SegmentMetaDocType {
   effectiveSpeakerId?: string;
   effectiveSpeakerName?: string;
   noteCategoryKeys?: NoteCategory[];
-  effectiveSelfCertainty?: UtteranceSelfCertainty;
+  effectiveSelfCertainty?: UnitSelfCertainty;
   annotationStatus?: LayerUnitStatus;
   aiConfidence?: number;
   sourceType?: 'human' | 'ai';
@@ -982,7 +921,7 @@ export interface SegmentQualitySnapshotDocType {
   textId: string;
   mediaId: string;
   layerId: string;
-  hostUtteranceId?: string;
+  hostUnitId?: string;
   speakerId?: string;
   speakerName?: string;
   emptyText: boolean;
@@ -1008,7 +947,7 @@ export interface ScopeStatsSnapshotDocType {
   speakerId?: string;
   unitCount: number;
   segmentCount: number;
-  utteranceCount: number;
+  unitCount: number;
   speakerCount: number;
   translationLayerCount: number;
   noteFlaggedCount: number;
@@ -1026,7 +965,7 @@ export interface SpeakerProfileSnapshotDocType {
   speakerName?: string;
   unitCount: number;
   segmentCount: number;
-  utteranceCount: number;
+  unitCount: number;
   totalDurationSec: number;
   noteFlaggedCount: number;
   emptyTextCount: number;
@@ -1112,8 +1051,8 @@ export type CollectionAdapter<T extends { id: string }> = {
 export type JieyuCollections = {
   texts: CollectionAdapter<TextDocType>;
   media_items: CollectionAdapter<MediaItemDocType>;
-  utterance_tokens: CollectionAdapter<UtteranceTokenDocType>;
-  utterance_morphemes: CollectionAdapter<UtteranceMorphemeDocType>;
+  unit_tokens: CollectionAdapter<UnitTokenDocType>;
+  unit_morphemes: CollectionAdapter<UnitMorphemeDocType>;
   anchors: CollectionAdapter<AnchorDocType>;
   lexemes: CollectionAdapter<LexemeDocType>;
   token_lexeme_links: CollectionAdapter<TokenLexemeLinkDocType>;
@@ -1170,12 +1109,12 @@ export type ImportResult = {
 };
 
 export type SegmentationV2BackfillRows = {
-  segments: LayerSegmentDocType[];
-  contents: LayerSegmentContentDocType[];
-  links: SegmentLinkDocType[];
+  segments: LayerUnitDocType[];
+  contents: LayerUnitContentDocType[];
+  links: UnitRelationDocType[];
 };
 
 export type V28BackfillPlan = {
-  segment: LayerSegmentDocType;
-  content: LayerSegmentContentDocType;
+  segment: LayerUnitDocType;
+  content: LayerUnitContentDocType;
 };

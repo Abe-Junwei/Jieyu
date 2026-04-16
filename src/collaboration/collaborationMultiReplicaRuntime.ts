@@ -1,9 +1,4 @@
-import {
-  createCrossDeviceRollbackPlan,
-  mergeCrossDeviceReplicas,
-  type CrossDeviceMergeResult,
-  type CrossDeviceReplica,
-} from './collaborationCrossDeviceRuntime';
+import { createCrossDeviceRollbackPlan, mergeCrossDeviceReplicas, type CrossDeviceMergeResult, type CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
 export interface ReplicaSyncChunkPlan {
   chunkSize: number;

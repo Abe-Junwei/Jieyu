@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import type { MediaItemDocType, UtteranceDocType } from '../db';
+import type { MediaItemDocType, LayerUnitDocType } from '../db';
 import { useTranscriptionDerivedData } from './useTranscriptionDerivedData';
 import type { TimelineUnit } from './transcriptionTypes';
 
@@ -17,7 +17,7 @@ function makeMedia(id: string): MediaItemDocType {
   } as MediaItemDocType;
 }
 
-function makeUtterance(id: string, mediaId: string, startTime: number): UtteranceDocType {
+function makeUnit(id: string, mediaId: string, startTime: number): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -27,13 +27,13 @@ function makeUtterance(id: string, mediaId: string, startTime: number): Utteranc
     createdAt: '2026-04-02T00:00:00.000Z',
     updatedAt: '2026-04-02T00:00:00.000Z',
     transcription: {},
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('useTranscriptionDerivedData', () => {
   it('uses selectedMediaId as the current-media scope when there is no selected timeline unit', () => {
-    const utteranceOnCurrentMedia = makeUtterance('utt-current', 'media-1', 0);
-    const utteranceOnOtherMedia = makeUtterance('utt-other', 'media-2', 10);
+    const unitOnCurrentMedia = makeUnit('utt-current', 'media-1', 0);
+    const unitOnOtherMedia = makeUnit('utt-other', 'media-2', 10);
 
     const { result } = renderHook(() => useTranscriptionDerivedData({
       layers: [],
@@ -41,21 +41,21 @@ describe('useTranscriptionDerivedData', () => {
       selectedTimelineUnit: null,
       selectedMediaId: 'media-1',
       mediaItems: [makeMedia('media-1'), makeMedia('media-2')],
-      utterances: [utteranceOnCurrentMedia, utteranceOnOtherMedia],
+      units: [unitOnCurrentMedia, unitOnOtherMedia],
       translations: [],
     }));
 
     expect(result.current.selectedUnit).toBeUndefined();
     expect(result.current.selectedUnitMedia?.id).toBe('media-1');
-    expect(result.current.utterancesOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
+    expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
     expect(result.current.selectedRowMeta).toBeNull();
   });
 
-  it('keeps current-media utterance scope anchored to selectedMediaId when selected utterance is on another media', () => {
-    const utteranceOnCurrentMedia = makeUtterance('utt-current', 'media-1', 0);
-    const utteranceOnOtherMedia = makeUtterance('utt-other', 'media-2', 10);
+  it('keeps current-media unit scope anchored to selectedMediaId when selected unit is on another media', () => {
+    const unitOnCurrentMedia = makeUnit('utt-current', 'media-1', 0);
+    const unitOnOtherMedia = makeUnit('utt-other', 'media-2', 10);
     const selectedTimelineUnit: TimelineUnit = {
-      kind: 'utterance',
+      kind: 'unit',
       layerId: 'layer-1',
       unitId: 'utt-other',
     };
@@ -66,13 +66,13 @@ describe('useTranscriptionDerivedData', () => {
       selectedTimelineUnit,
       selectedMediaId: 'media-1',
       mediaItems: [makeMedia('media-1'), makeMedia('media-2')],
-      utterances: [utteranceOnCurrentMedia, utteranceOnOtherMedia],
+      units: [unitOnCurrentMedia, unitOnOtherMedia],
       translations: [],
     }));
 
     expect(result.current.selectedUnit?.id).toBe('utt-other');
     expect(result.current.selectedUnitMedia?.id).toBe('media-1');
-    expect(result.current.utterancesOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
+    expect(result.current.unitsOnCurrentMedia.map((item) => item.id)).toEqual(['utt-current']);
     expect(result.current.selectedRowMeta).toBeNull();
   });
 });

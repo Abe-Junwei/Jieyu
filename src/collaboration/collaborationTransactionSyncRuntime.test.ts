@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
-import {
-  evaluateTransactionAtomicity,
-  executeTransactionalReplicaSync,
-  planTransactionSyncChunks,
-} from './collaborationTransactionSyncRuntime';
+import { evaluateTransactionAtomicity, executeTransactionalReplicaSync, planTransactionSyncChunks } from './collaborationTransactionSyncRuntime';
 
 function buildReplica(overrides?: Partial<CrossDeviceReplica>): CrossDeviceReplica {
   return {

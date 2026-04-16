@@ -1,12 +1,4 @@
-import {
-  createTimelineUnit,
-  isSegmentTimelineUnit,
-  isUtteranceTimelineUnit,
-  resolveTimelineLayerIdFallback,
-  type TimelineLayerFallbackInput,
-  type TimelineUnit,
-  type TimelineUnitKind,
-} from '../hooks/transcriptionTypes';
+import { createTimelineUnit, isSegmentTimelineUnit, isUnitTimelineUnit, resolveTimelineLayerIdFallback, type TimelineLayerFallbackInput, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
 
 interface ResolveTranscriptionUnitKindInput {
   layerId: string;
@@ -49,7 +41,7 @@ export function resolveTranscriptionSelectionAnchor(input: ResolveTranscriptionS
       ? input.selectedTimelineUnit.unitId
       : input.fallbackUnitId;
   }
-  return isUtteranceTimelineUnit(input.selectedTimelineUnit)
+  return isUnitTimelineUnit(input.selectedTimelineUnit)
     ? input.selectedTimelineUnit.unitId
     : input.fallbackUnitId;
 }

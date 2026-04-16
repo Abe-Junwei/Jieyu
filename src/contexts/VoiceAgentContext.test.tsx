@@ -2,11 +2,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import {
-  VoiceAgentProvider,
-  useVoiceAgentContext,
-  DEFAULT_VOICE_AGENT_CONTEXT_VALUE,
-} from './VoiceAgentContext';
+import { VoiceAgentProvider, useVoiceAgentContext, DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from './VoiceAgentContext';
 import type { VoiceAgentContextValue } from './VoiceAgentContext';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 

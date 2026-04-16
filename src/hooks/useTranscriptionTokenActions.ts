@@ -1,24 +1,24 @@
 import { useCallback } from 'react';
 import { LinguisticService } from '../services/LinguisticService';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
-  setUtterances: React.Dispatch<React.SetStateAction<UtteranceDocType[]>>;
+  setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
 };
 
 export function useTranscriptionTokenActions({
   runWithDbMutex,
-  setUtterances,
+  setUnits,
 }: Params) {
   const updateTokenPos = useCallback(async (tokenId: string, pos: string | null) => {
     await runWithDbMutex(() => LinguisticService.updateTokenPos(tokenId, pos));
     const nextPos = (pos ?? '').trim();
-    setUtterances((prev) => prev.map((utterance) => {
-      if (!Array.isArray(utterance.words) || utterance.words.length === 0) return utterance;
+    setUnits((prev) => prev.map((unit) => {
+      if (!Array.isArray(unit.words) || unit.words.length === 0) return unit;
 
       let changed = false;
-      const nextWords = utterance.words.map((word) => {
+      const nextWords = unit.words.map((word) => {
         if (word.id !== tokenId) return word;
         changed = true;
         if (nextPos.length === 0) {
@@ -31,31 +31,31 @@ export function useTranscriptionTokenActions({
         };
       });
 
-      if (!changed) return utterance;
+      if (!changed) return unit;
       return {
-        ...utterance,
+        ...unit,
         words: nextWords,
       };
     }));
-  }, [runWithDbMutex, setUtterances]);
+  }, [runWithDbMutex, setUnits]);
 
   const batchUpdateTokenPosByForm = useCallback(async (
-    utteranceId: string,
+    unitId: string,
     form: string,
     pos: string | null,
     orthographyKey = 'default',
   ) => {
-    const updated = await runWithDbMutex(() => LinguisticService.batchUpdateTokenPosByForm(utteranceId, form, pos, orthographyKey));
+    const updated = await runWithDbMutex(() => LinguisticService.batchUpdateTokenPosByForm(unitId, form, pos, orthographyKey));
     if (updated <= 0) return 0;
 
     const normalizedForm = form.trim();
     const nextPos = (pos ?? '').trim();
-    setUtterances((prev) => prev.map((utterance) => {
-      if (utterance.id !== utteranceId || !Array.isArray(utterance.words) || utterance.words.length === 0) {
-        return utterance;
+    setUnits((prev) => prev.map((unit) => {
+      if (unit.id !== unitId || !Array.isArray(unit.words) || unit.words.length === 0) {
+        return unit;
       }
 
-      const nextWords = utterance.words.map((word) => {
+      const nextWords = unit.words.map((word) => {
         const match = word.form[orthographyKey] === normalizedForm
           || Object.values(word.form).some((v) => v === normalizedForm);
         if (!match) return word;
@@ -71,22 +71,22 @@ export function useTranscriptionTokenActions({
       });
 
       return {
-        ...utterance,
+        ...unit,
         words: nextWords,
       };
     }));
 
     return updated;
-  }, [runWithDbMutex, setUtterances]);
+  }, [runWithDbMutex, setUnits]);
 
   const updateTokenGloss = useCallback(async (tokenId: string, gloss: string | null, lang = 'eng') => {
     await runWithDbMutex(() => LinguisticService.updateTokenGloss(tokenId, gloss, lang));
     const trimmed = (gloss ?? '').trim();
-    setUtterances((prev) => prev.map((utterance) => {
-      if (!Array.isArray(utterance.words) || utterance.words.length === 0) return utterance;
+    setUnits((prev) => prev.map((unit) => {
+      if (!Array.isArray(unit.words) || unit.words.length === 0) return unit;
 
       let changed = false;
-      const nextWords = utterance.words.map((word) => {
+      const nextWords = unit.words.map((word) => {
         if (word.id !== tokenId) return word;
         changed = true;
         if (trimmed.length === 0) {
@@ -100,10 +100,10 @@ export function useTranscriptionTokenActions({
         return { ...word, gloss: { ...(word.gloss ?? {}), [lang]: trimmed } };
       });
 
-      if (!changed) return utterance;
-      return { ...utterance, words: nextWords };
+      if (!changed) return unit;
+      return { ...unit, words: nextWords };
     }));
-  }, [runWithDbMutex, setUtterances]);
+  }, [runWithDbMutex, setUnits]);
 
   return {
     updateTokenPos,

@@ -3,12 +3,7 @@ import 'fake-indexeddb/auto';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceSession } from './IntentRouter';
-import {
-  clearAllVoiceSessions,
-  deleteVoiceSession,
-  loadRecentVoiceSessions,
-  saveVoiceSession,
-} from './VoiceSessionStore';
+import { clearAllVoiceSessions, deleteVoiceSession, loadRecentVoiceSessions, saveVoiceSession } from './VoiceSessionStore';
 
 function makeSession(id: string, startedAt: number): VoiceSession {
   return {
@@ -18,12 +13,12 @@ function makeSession(id: string, startedAt: number): VoiceSession {
     entries: [
       {
         timestamp: startedAt,
-        sttText: `utterance-${id}`,
+        sttText: `unit-${id}`,
         confidence: 0.9,
         intent: {
           type: 'chat',
-          raw: `utterance-${id}`,
-          text: `utterance-${id}`,
+          raw: `unit-${id}`,
+          text: `unit-${id}`,
         },
       },
     ],

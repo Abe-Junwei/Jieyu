@@ -1,15 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  computeAdaptivePanelWidth,
-  computeAutoUiFontScale,
-  normalizeUiFontScale,
-  persistUiFontScalePreference,
-  readPersistedUiFontScalePreference,
-  resolveEffectiveUiFontScale,
-  resolveTextDirectionFromLocale,
-  UI_FONT_SCALE_LIMITS,
-} from './panelAdaptiveLayout';
+import { computeAdaptivePanelWidth, computeAutoUiFontScale, normalizeUiFontScale, persistUiFontScalePreference, readPersistedUiFontScalePreference, resolveEffectiveUiFontScale, resolveTextDirectionFromLocale, UI_FONT_SCALE_LIMITS } from './panelAdaptiveLayout';
 
 afterEach(() => {
   window.localStorage.clear();

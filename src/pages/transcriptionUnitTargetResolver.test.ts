@@ -1,16 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import {
-  resolveTranscriptionTargetLayerId,
-  resolveTranscriptionSelectionAnchor,
-  resolveTranscriptionUnitKind,
-  resolveTranscriptionUnitTarget,
-} from './transcriptionUnitTargetResolver';
+import { resolveTranscriptionTargetLayerId, resolveTranscriptionSelectionAnchor, resolveTranscriptionUnitKind, resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 
 describe('transcriptionUnitTargetResolver', () => {
   it('forces independent layers to segment kind', () => {
     expect(resolveTranscriptionUnitKind({
       layerId: 'layer-seg',
-      preferredKind: 'utterance',
+      preferredKind: 'unit',
       independentLayerIds: new Set(['layer-seg']),
     })).toBe('segment');
   });
@@ -18,9 +13,9 @@ describe('transcriptionUnitTargetResolver', () => {
   it('keeps preferred kind for non-independent layers', () => {
     expect(resolveTranscriptionUnitKind({
       layerId: 'layer-main',
-      preferredKind: 'utterance',
+      preferredKind: 'unit',
       independentLayerIds: new Set(['layer-seg']),
-    })).toBe('utterance');
+    })).toBe('unit');
   });
 
   it('resolves edit layer fallback in selected -> focused -> unit -> default -> first order', () => {
@@ -53,12 +48,12 @@ describe('transcriptionUnitTargetResolver', () => {
     expect(resolveTranscriptionUnitTarget({
       layerId: 'layer-seg',
       unitId: 'seg-1',
-      preferredKind: 'utterance',
+      preferredKind: 'unit',
       independentLayerIds: new Set(['layer-seg']),
     })).toEqual({ layerId: 'layer-seg', unitId: 'seg-1', kind: 'segment' });
   });
 
-  it('resolves segment and utterance anchors by expected kind', () => {
+  it('resolves segment and unit anchors by expected kind', () => {
     expect(resolveTranscriptionSelectionAnchor({
       expectedKind: 'segment',
       fallbackUnitId: 'seg-fallback',
@@ -66,7 +61,7 @@ describe('transcriptionUnitTargetResolver', () => {
     })).toBe('seg-selected');
 
     expect(resolveTranscriptionSelectionAnchor({
-      expectedKind: 'utterance',
+      expectedKind: 'unit',
       fallbackUnitId: 'utt-fallback',
       selectedTimelineUnit: { layerId: 'layer-main', unitId: 'seg-selected', kind: 'segment' },
     })).toBe('utt-fallback');

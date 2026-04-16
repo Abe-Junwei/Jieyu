@@ -2,10 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, act } from '@testing-library/react';
 import { DevErrorAggregationPanel } from './DevErrorAggregationPanel';
-import {
-  recordStructuredError,
-  resetStructuredErrorAggregation,
-} from '../observability/errorAggregation';
+import { recordStructuredError, resetStructuredErrorAggregation } from '../observability/errorAggregation';
 
 describe('DevErrorAggregationPanel', () => {
   afterEach(() => {

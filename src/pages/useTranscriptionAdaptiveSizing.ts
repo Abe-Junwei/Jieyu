@@ -1,18 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Locale } from '../i18n';
-import {
-  UI_FONT_SCALE_LIMITS,
-  computeAutoUiFontScale,
-  computeAdaptivePanelWidth,
-  normalizeUiFontScale,
-  persistUiFontScalePreference,
-  readPersistedUiFontScalePreference,
-  resolveEffectiveUiFontScale,
-  resolveTextDirectionFromLocale,
-  subscribeUiFontScalePreference,
-  type TextDirection,
-  type UiFontScaleMode,
-} from '../utils/panelAdaptiveLayout';
+import { UI_FONT_SCALE_LIMITS, computeAutoUiFontScale, computeAdaptivePanelWidth, normalizeUiFontScale, persistUiFontScalePreference, readPersistedUiFontScalePreference, resolveEffectiveUiFontScale, resolveTextDirectionFromLocale, subscribeUiFontScalePreference, type TextDirection, type UiFontScaleMode } from '../utils/panelAdaptiveLayout';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 
 type AdaptiveDensity = 'standard' | 'compact' | 'wide';

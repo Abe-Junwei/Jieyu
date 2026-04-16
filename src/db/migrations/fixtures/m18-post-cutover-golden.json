@@ -1,12 +1,12 @@
 {
-  "_comment": "Golden subset after upgradeM18LinguisticUtteranceCutover on default m18LinguisticUtteranceCutover.test mock (Phase 0 fixture).",
+  "_comment": "Golden subset after upgradeM18LinguisticUnitCutover on default m18LinguisticUnitCutover.test mock (Phase 0 fixture).",
   "layer_units": [
     {
       "id": "utt-m18",
       "textId": "text-m18",
       "mediaId": "media-m18",
       "layerId": "trc-m18",
-      "unitType": "utterance",
+      "unitType": "unit",
       "startTime": 0,
       "endTime": 1
     }

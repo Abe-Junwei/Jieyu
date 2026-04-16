@@ -1,15 +1,5 @@
-import {
-  getDb,
-  type MultiLangString,
-  type OrthographyDocType,
-  type OrthographyBridgeDocType,
-} from '../db';
-import {
-  getBuiltInOrthographyById,
-  listBuiltInOrthographies,
-  listBuiltInOrthographiesByIds,
-  listAllBuiltInOrthographies,
-} from '../data/builtInOrthographies';
+import { getDb, type MultiLangString, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
+import { getBuiltInOrthographyById, listBuiltInOrthographies, listBuiltInOrthographiesByIds, listAllBuiltInOrthographies } from '../data/builtInOrthographies';
 import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { buildOrthographyIdentityKey, normalizeOrthographyIdentity } from '../utils/orthographyIdentity';

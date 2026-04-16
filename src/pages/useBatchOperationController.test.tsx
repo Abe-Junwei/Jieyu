@@ -2,23 +2,23 @@
 import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { utteranceToView } from '../hooks/timelineUnitView';
+import { unitToView } from '../hooks/timelineUnitView';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useBatchOperationController } from './useBatchOperationController';
 
-function unitsWithResolver(utterances: UtteranceDocType[], layerId = 'layer-default') {
-  const unitsOnCurrentMedia = utterances.map((u) => utteranceToView(u, layerId));
+function unitsWithResolver(units: LayerUnitDocType[], layerId = 'layer-default') {
+  const unitsOnCurrentMedia = units.map((u) => unitToView(u, layerId));
   return {
     unitsOnCurrentMedia,
-    getUtteranceDocById: (id: string) => utterances.find((u) => u.id === id),
+    getUnitDocById: (id: string) => units.find((u) => u.id === id),
   };
 }
 
 function segmentView(
   segmentId: string,
-  parentUtteranceId: string,
+  parentUnitId: string,
   layerId: string,
   mediaId: string,
 ): TimelineUnitView {
@@ -30,11 +30,11 @@ function segmentView(
     startTime: 0,
     endTime: 1,
     text: '',
-    parentUtteranceId,
+    parentUnitId,
   };
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -44,7 +44,7 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     createdAt: '2026-03-29T00:00:00.000Z',
     updatedAt: '2026-03-29T00:00:00.000Z',
     ...(speakerId ? { speakerId } : {}),
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('useBatchOperationController', () => {
@@ -56,10 +56,10 @@ describe('useBatchOperationController', () => {
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
   });
 
-  it('maps selection to utterances and sorts selected batch utterances', () => {
-    const utt1 = makeUtterance('utt-1', 1, 2);
-    const utt2 = makeUtterance('utt-2', 3, 4);
-    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([utt2, utt1]);
+  it('maps selection to units and sorts selected batch units', () => {
+    const utt1 = makeUnit('utt-1', 1, 2);
+    const utt2 = makeUnit('utt-2', 3, 4);
+    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver([utt2, utt1]);
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-b', segmentView('seg-b', 'utt-1', 'layer-default', 'media-1')],
@@ -70,23 +70,23 @@ describe('useBatchOperationController', () => {
       selectedTimelineUnit: null,
       unitViewById,
       unitsOnCurrentMedia,
-      getUtteranceDocById,
+      getUnitDocById,
       setSaveState: vi.fn(),
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes: vi.fn(async () => undefined),
       splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
     expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet).sort()).toEqual(['utt-1', 'utt-2']);
-    expect(result.current.selectedBatchUtterances.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
+    expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
   });
 
-  it('surfaces partial mapping feedback and executes batch action on valid utterances', async () => {
+  it('surfaces partial mapping feedback and executes batch action on valid units', async () => {
     const setSaveState = vi.fn();
     const offsetSelectedTimes = vi.fn(async () => undefined);
 
-    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([makeUtterance('utt-1', 1, 2)]);
+    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver([makeUnit('utt-1', 1, 2)]);
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
@@ -96,12 +96,12 @@ describe('useBatchOperationController', () => {
       selectedTimelineUnit: null,
       unitViewById,
       unitsOnCurrentMedia,
-      getUtteranceDocById,
+      getUnitDocById,
       setSaveState,
       offsetSelectedTimes,
       scaleSelectedTimes: vi.fn(async () => undefined),
       splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
     await act(async () => {
@@ -121,7 +121,7 @@ describe('useBatchOperationController', () => {
       throw new Error('disk full');
     });
 
-    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([makeUtterance('utt-1', 1, 2)]);
+    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver([makeUnit('utt-1', 1, 2)]);
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
       ['seg-a', segmentView('seg-a', 'utt-1', 'layer-default', 'media-1')],
@@ -131,12 +131,12 @@ describe('useBatchOperationController', () => {
       selectedTimelineUnit: null,
       unitViewById,
       unitsOnCurrentMedia,
-      getUtteranceDocById,
+      getUnitDocById,
       setSaveState,
       offsetSelectedTimes,
       scaleSelectedTimes: vi.fn(async () => undefined),
       splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
     await act(async () => {
@@ -158,21 +158,21 @@ describe('useBatchOperationController', () => {
     }));
   });
 
-  it('surfaces explicit error when selection exists but maps to no editable utterances', async () => {
+  it('surfaces explicit error when selection exists but maps to no editable units', async () => {
     const setSaveState = vi.fn();
-    const mergeSelectedUtterances = vi.fn(async () => undefined);
+    const mergeSelectedUnits = vi.fn(async () => undefined);
 
     const { result } = renderHook(() => useBatchOperationController({
       selectedUnitIds: new Set(['seg-missing']),
       selectedTimelineUnit: null,
       unitViewById: new Map<string, TimelineUnitView>(),
       unitsOnCurrentMedia: [],
-      getUtteranceDocById: () => undefined,
+      getUnitDocById: () => undefined,
       setSaveState,
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes: vi.fn(async () => undefined),
       splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUtterances,
+      mergeSelectedUnits,
     }));
 
     await act(async () => {
@@ -183,15 +183,15 @@ describe('useBatchOperationController', () => {
       kind: 'error',
       message: '当前选中的语段无法映射到可编辑句段，请先选择可编辑句段后再试。',
     });
-    expect(mergeSelectedUtterances).not.toHaveBeenCalled();
+    expect(mergeSelectedUnits).not.toHaveBeenCalled();
   });
 
-  it('maps single selected timeline unit through segment-to-utterance fallback for batch actions', async () => {
+  it('maps single selected timeline unit through segment-to-unit fallback for batch actions', async () => {
     const scaleSelectedTimes = vi.fn(async () => undefined);
 
-    const { unitsOnCurrentMedia, getUtteranceDocById } = unitsWithResolver([
-      makeUtterance('utt-1', 1, 2),
-      makeUtterance('utt-2', 3, 4),
+    const { unitsOnCurrentMedia, getUnitDocById } = unitsWithResolver([
+      makeUnit('utt-1', 1, 2),
+      makeUnit('utt-2', 3, 4),
     ], 'layer-seg');
     const unitViewById = new Map<string, TimelineUnitView>([
       ...unitsOnCurrentMedia.map((u) => [u.id, u] as const),
@@ -202,16 +202,16 @@ describe('useBatchOperationController', () => {
       selectedTimelineUnit: { layerId: 'layer-seg', unitId: 'seg-a', kind: 'segment' },
       unitViewById,
       unitsOnCurrentMedia,
-      getUtteranceDocById,
+      getUnitDocById,
       setSaveState: vi.fn(),
       offsetSelectedTimes: vi.fn(async () => undefined),
       scaleSelectedTimes,
       splitByRegex: vi.fn(async () => undefined),
-      mergeSelectedUtterances: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
     expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet)).toEqual(['utt-2']);
-    expect(result.current.selectedBatchUtterances.map((item) => item.id)).toEqual(['utt-2']);
+    expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-2']);
 
     await act(async () => {
       await result.current.handleBatchScale(1.25, 3);

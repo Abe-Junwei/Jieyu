@@ -1,18 +1,14 @@
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import {
-  isSegmentTimelineUnit,
-  type TimelineUnit,
-  type TimelineUnitKind,
-} from '../hooks/transcriptionTypes';
+import { isSegmentTimelineUnit, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
 
-function activeUtteranceIdFromPrimaryView(
+function activeUnitIdFromPrimaryView(
   primary: TimelineUnitView | null,
-  ownerFallback: UtteranceDocType | null,
+  ownerFallback: LayerUnitDocType | null,
 ): string | null {
   if (!primary) return ownerFallback?.id ?? null;
-  if (primary.kind === 'utterance') return primary.id;
-  const parent = primary.parentUtteranceId?.trim();
+  if (primary.kind === 'unit') return primary.id;
+  const parent = primary.parentUnitId?.trim();
   return parent ? parent : (ownerFallback?.id ?? null);
 }
 
@@ -28,15 +24,15 @@ interface SegmentContentLike {
 
 export interface BuildTranscriptionSelectionSnapshotInput {
   selectedTimelineUnit: TimelineUnit | null;
-  selectedTimelineSegment: LayerSegmentDocType | null;
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
+  selectedTimelineSegment: LayerUnitDocType | null;
+  selectedTimelineOwnerUnit: LayerUnitDocType | null;
   /** Primary row in the unified read model (timeline unit view); null when unknown. */
   primaryUnitView: TimelineUnitView | null;
   selectedTimelineRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   layers: LayerDocType[];
   segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, SegmentContentLike>>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
 }
 
@@ -76,7 +72,7 @@ export function buildTranscriptionSelectionSnapshot(
   const selectedText = selectedSegmentUnit
     ? (input.segmentContentByLayer.get(selectedSegmentUnit.layerId)?.get(selectedSegmentUnit.unitId)?.text ?? '')
     : input.selectedTimelineOwnerUnit
-      ? input.getUtteranceTextForLayer(input.selectedTimelineOwnerUnit, input.selectedLayerId ?? undefined)
+      ? input.getUnitTextForLayer(input.selectedTimelineOwnerUnit, input.selectedLayerId ?? undefined)
       : '';
 
   const selectedTimeSource = selectedSegmentUnit
@@ -89,7 +85,7 @@ export function buildTranscriptionSelectionSnapshot(
   return {
     timelineUnit: input.selectedTimelineUnit,
     selectedUnitKind: input.selectedTimelineUnit?.kind ?? null,
-    activeUnitId: activeUtteranceIdFromPrimaryView(input.primaryUnitView, input.selectedTimelineOwnerUnit),
+    activeUnitId: activeUnitIdFromPrimaryView(input.primaryUnitView, input.selectedTimelineOwnerUnit),
     selectedUnit: input.primaryUnitView,
     selectedRowMeta: input.selectedTimelineRowMeta,
     selectedLayerId: input.selectedLayerId,

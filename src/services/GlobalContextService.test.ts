@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // 用 vi.hoisted 避免 TDZ | Use vi.hoisted to avoid TDZ
-const { mockSearchSimilarUtterances } = vi.hoisted(() => ({
-  mockSearchSimilarUtterances: vi.fn(),
+const { mockSearchSimilarUnits } = vi.hoisted(() => ({
+  mockSearchSimilarUnits: vi.fn(),
 }));
 
 vi.mock('../ai/embeddings/EmbeddingSearchService', () => ({
@@ -60,7 +60,7 @@ function makeCorpusContext(): import('./GlobalContextService').CorpusContext {
 }
 
 function makeFakeEmbeddingService() {
-  return { searchSimilarUtterances: mockSearchSimilarUtterances } as never;
+  return { searchSimilarUnits: mockSearchSimilarUnits } as never;
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -115,10 +115,10 @@ describe('GlobalContextService', () => {
     it('正常返回匹配结果 | returns matched results', async () => {
       const { globalContext } = await freshModule();
       globalContext.setCorpusContext(makeCorpusContext());
-      mockSearchSimilarUtterances.mockResolvedValueOnce({
+      mockSearchSimilarUnits.mockResolvedValueOnce({
         query: 'hello',
         matches: [
-          { sourceId: 's1', sourceType: 'utterance', score: 0.9 },
+          { sourceId: 's1', sourceType: 'unit', score: 0.9 },
           { sourceId: 's2', sourceType: 'document', score: 0.5 },
         ],
       });
@@ -132,7 +132,7 @@ describe('GlobalContextService', () => {
 
     it('无 corpusContext 时返回空 | returns [] when no corpus', async () => {
       const { globalContext } = await freshModule();
-      mockSearchSimilarUtterances.mockResolvedValueOnce({ query: 'q', matches: [{ sourceId: 'x', sourceType: 'utterance', score: 0.5 }] });
+      mockSearchSimilarUnits.mockResolvedValueOnce({ query: 'q', matches: [{ sourceId: 'x', sourceType: 'unit', score: 0.5 }] });
       globalContext.setEmbeddingSearchService(makeFakeEmbeddingService());
       const results = await globalContext.searchCorpus('q');
       expect(results).toEqual([]);
@@ -142,7 +142,7 @@ describe('GlobalContextService', () => {
     it('搜索失败时优雅降级为空数组 | gracefully returns [] on error', async () => {
       const { globalContext } = await freshModule();
       globalContext.setCorpusContext(makeCorpusContext());
-      mockSearchSimilarUtterances.mockRejectedValueOnce(new Error('boom'));
+      mockSearchSimilarUnits.mockRejectedValueOnce(new Error('boom'));
       globalContext.setEmbeddingSearchService(makeFakeEmbeddingService());
       const results = await globalContext.searchCorpus('hello');
       expect(results).toEqual([]);

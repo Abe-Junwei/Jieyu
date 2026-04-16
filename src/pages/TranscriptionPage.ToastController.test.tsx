@@ -26,7 +26,7 @@ const baseProps = {
   },
   saveState: { kind: 'idle' } as SaveState,
   recording: false,
-  recordingUtteranceId: null,
+  recordingUnitId: null,
   recordingError: null,
   tf: (key: string, opts?: Record<string, unknown>) => {
     if (key === 'transcription.toast.overlapCandidates') {

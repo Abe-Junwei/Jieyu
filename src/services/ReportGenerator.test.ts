@@ -1,17 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type {
-  ActionRecordDoc,
-  DifficultSegmentDoc,
-  TaskPhaseRecordDoc,
-  UserBehaviorProfileDoc,
-} from './userBehaviorDB';
+import type { ActionRecordDoc, DifficultSegmentDoc, TaskPhaseRecordDoc, UserBehaviorProfileDoc } from './userBehaviorDB';
 import { ReportGenerator, type DailySummary } from './ReportGenerator';
-import {
-  getActionRecordsInRange,
-  getDifficultSegmentsInRange,
-  getTaskPhaseRecordsInRange,
-  loadBehaviorProfile,
-} from './userBehaviorDB';
+import { getActionRecordsInRange, getDifficultSegmentsInRange, getTaskPhaseRecordsInRange, loadBehaviorProfile } from './userBehaviorDB';
 
 vi.mock('./userBehaviorDB', () => ({
   getActionRecordsInRange: vi.fn(),

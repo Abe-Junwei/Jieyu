@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
-import { type LayerDocType } from '../db';
-import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
+import { getLayerMetadataAppService } from '../app/LayerMetadataAppService';
+import type { LayerDocType } from '../types/transcriptionDomain.types';
 
 type UpdateLayerMetadataInput = {
   dialect?: string;
@@ -17,6 +17,7 @@ type UseTranscriptionLayerMetadataControllerInput = {
 };
 
 export function useTranscriptionLayerMetadataController(input: UseTranscriptionLayerMetadataControllerInput) {
+  const layerMetadataAppService = getLayerMetadataAppService();
   const overlayMetadataLayer = useMemo(
     () => (input.overlayMetadataLayerId
       ? input.layers.find((layer) => layer.id === input.overlayMetadataLayerId) ?? null
@@ -61,7 +62,7 @@ export function useTranscriptionLayerMetadataController(input: UseTranscriptionL
     }
 
     try {
-      await LayerTierUnifiedService.updateLayer(updatedLayer);
+      await layerMetadataAppService.updateLayer(updatedLayer);
       input.setLayers((prev) => prev.map((layer) => (layer.id === updatedLayer.id ? updatedLayer : layer)));
       input.setLayerCreateMessage('');
       return true;
@@ -69,7 +70,7 @@ export function useTranscriptionLayerMetadataController(input: UseTranscriptionL
       input.setLayerCreateMessage(error instanceof Error ? error.message : '更新层元信息失败');
       return false;
     }
-  }, [input.layers, input.setLayerCreateMessage, input.setLayers]);
+  }, [input.layers, input.setLayerCreateMessage, input.setLayers, layerMetadataAppService]);
 
   return {
     overlayMetadataLayer,

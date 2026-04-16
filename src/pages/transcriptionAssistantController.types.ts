@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
@@ -27,8 +27,8 @@ export interface UseTranscriptionAssistantControllerInput {
   translationLayersLength: number;
   aiConfidenceAvg: number | null;
   selectedPrimaryUnitView: TimelineUnitView | null;
-  /** Backing utterance row for voice dictation / persistence (derived from timeline selection). */
-  selectedTimelineOwnerUnit: UtteranceDocType | null;
+  /** Backing unit row for voice dictation / persistence (derived from timeline selection). */
+  selectedTimelineOwnerUnit: LayerUnitDocType | null;
   selectedTimelineRowMeta: SelectedRowMetaLike | null;
   selectedAiWarning: boolean;
   lexemeMatches: AiPanelContextValue['lexemeMatches'];
@@ -72,17 +72,17 @@ export interface UseTranscriptionAssistantControllerInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   setSaveState: (state: SaveState) => void;
-  nextUtteranceIdForVoiceDictation?: string;
-  selectUnit: (utteranceId: string) => void;
+  nextUnitIdForVoiceDictation?: string;
+  selectUnit: (unitId: string) => void;
   aiChatEnabled: boolean;
   aiChatSettings: AiChatSettings;
   pushUndo: (label: string) => void;
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
+  setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
 }
 
 export interface UseTranscriptionAssistantControllerResult {
@@ -97,5 +97,5 @@ export interface UseTranscriptionAssistantControllerResult {
     callbacks: DictationPipelineCallbacks;
     config?: QuickDictationConfig;
   };
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
+  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => Promise<{ ok: boolean; message: string }>;
 }

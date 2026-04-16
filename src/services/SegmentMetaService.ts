@@ -1,12 +1,5 @@
-import {
-  getDb,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type LayerUnitStatus,
-  type NoteCategory,
-  type SegmentMetaDocType,
-} from '../db';
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import { getDb, type LayerUnitContentDocType, type LayerUnitDocType, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../db';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 const NOTE_CATEGORY_ORDER: NoteCategory[] = ['todo', 'question', 'comment', 'correction', 'linguistic', 'fieldwork'];
 
@@ -17,19 +10,19 @@ export interface SegmentMetaSeed {
   textId: string;
   mediaId: string;
   layerId: string;
-  hostUtteranceId?: string;
+  hostUnitId?: string | undefined;
   startTime: number;
   endTime: number;
   text?: string;
   effectiveSpeakerId?: string;
   effectiveSpeakerName?: string;
   noteCategoryKeys?: readonly NoteCategory[];
-  effectiveSelfCertainty?: UtteranceSelfCertainty;
-  annotationStatus?: LayerUnitStatus;
-  aiConfidence?: number;
-  sourceType?: 'human' | 'ai';
-  createdAt?: string;
-  updatedAt?: string;
+  effectiveSelfCertainty?: UnitSelfCertainty | undefined;
+  annotationStatus?: LayerUnitStatus | undefined;
+  aiConfidence?: number | undefined;
+  sourceType?: 'human' | 'ai' | undefined;
+  createdAt?: string | undefined;
+  updatedAt?: string | undefined;
 }
 
 export interface SegmentMetaSearchOptions {
@@ -38,7 +31,7 @@ export interface SegmentMetaSearchOptions {
   mediaId?: string;
   speakerId?: string;
   noteCategory?: NoteCategory;
-  selfCertainty?: UtteranceSelfCertainty;
+  selfCertainty?: UnitSelfCertainty;
   annotationStatus?: LayerUnitStatus;
   query?: string;
   hasText?: boolean;
@@ -69,6 +62,15 @@ function sortNoteCategories(categories: readonly NoteCategory[] | undefined): No
   return sorted.length > 0 ? sorted : undefined;
 }
 
+function expandNoteTargetIds(note: { targetType: string; targetId: string }): string[] {
+  const normalizedTargetId = note.targetId.trim();
+  if (!normalizedTargetId) return [];
+  if (note.targetType !== 'tier_annotation') return [normalizedTargetId];
+
+  const baseUnitId = normalizedTargetId.split('::')[0]?.trim();
+  return [...new Set([normalizedTargetId, ...(baseUnitId ? [baseUnitId] : [])])];
+}
+
 function resolveLatestIso(...values: Array<string | undefined>): string {
   const normalized = values.filter((value): value is string => Boolean(value)).sort();
   return normalized[normalized.length - 1] ?? new Date().toISOString();
@@ -89,7 +91,7 @@ function toDoc(seed: SegmentMetaSeed): SegmentMetaDocType {
     textId: seed.textId,
     mediaId: seed.mediaId,
     layerId: seed.layerId,
-    ...(seed.hostUtteranceId ? { hostUtteranceId: seed.hostUtteranceId } : {}),
+    ...(seed.hostUnitId ? { hostUnitId: seed.hostUnitId } : {}),
     startTime: seed.startTime,
     endTime: seed.endTime,
     text,
@@ -155,6 +157,26 @@ export class SegmentMetaService {
     return sortRows(rows);
   }
 
+  /** 按 mediaId 查询所有层的语段元数据 | List segment meta across all layers for a given media */
+  static async listByMediaId(mediaId: string): Promise<SegmentMetaDocType[]> {
+    const normalizedMediaId = mediaId.trim();
+    if (!normalizedMediaId) return [];
+
+    const db = await getDb();
+    const rows = await db.dexie.segment_meta
+      .where('mediaId')
+      .equals(normalizedMediaId)
+      .toArray();
+    return sortRows(rows);
+  }
+
+  /** 查询全部语段元数据（项目级） | List all segment meta rows (project scope) */
+  static async listAll(): Promise<SegmentMetaDocType[]> {
+    const db = await getDb();
+    const rows = await db.dexie.segment_meta.toArray();
+    return sortRows(rows);
+  }
+
   static async rebuildScopes(scopes: readonly SegmentMetaScope[]): Promise<void> {
     const deduped = new Map<string, SegmentMetaScope>();
     for (const scope of scopes) {
@@ -177,7 +199,7 @@ export class SegmentMetaService {
     const [units, staleRowsById, staleRowsByHostId] = await Promise.all([
       db.dexie.layer_units.bulkGet(ids).then((rows) => rows.filter((row): row is LayerUnitDocType => Boolean(row))),
       db.dexie.segment_meta.where('segmentId').anyOf(ids).toArray(),
-      db.dexie.segment_meta.where('hostUtteranceId').anyOf(ids).toArray(),
+      db.dexie.segment_meta.where('hostUnitId').anyOf(ids).toArray(),
     ]);
     const staleRows = [...new Map(
       [...staleRowsById, ...staleRowsByHostId].map((row) => [row.id, row] as const),
@@ -185,7 +207,7 @@ export class SegmentMetaService {
     if (units.length === 0 && staleRows.length === 0) return;
 
     const relatedHostIds = [...new Set(units.flatMap((row) => {
-      if (row.unitType === 'utterance') return [row.id];
+      if (row.unitType === 'unit') return [row.id];
       const hostIds: string[] = [];
       if (row.parentUnitId?.trim()) hostIds.push(row.parentUnitId.trim());
       if (row.rootUnitId?.trim()) hostIds.push(row.rootUnitId.trim());
@@ -213,7 +235,7 @@ export class SegmentMetaService {
       ...relatedHosts.map((row) => ({ layerId: row.layerId, mediaId: row.mediaId })),
       ...referencingUnits.map((row) => ({ layerId: row.layerId, mediaId: row.mediaId })),
       ...staleRows.map((row) => ({ layerId: row.layerId, mediaId: row.mediaId })),
-    ]);
+    ].filter((scope): scope is SegmentMetaScope => Boolean(scope.layerId && scope.mediaId)));
   }
 
   static async searchSegmentMeta(options: SegmentMetaSearchOptions): Promise<SegmentMetaDocType[]> {
@@ -269,9 +291,9 @@ export class SegmentMetaService {
       db.dexie.speakers.toArray(),
     ]);
 
-    const metaRows = unitRows.filter((row) => row.unitType === 'segment' || row.unitType === 'utterance');
+    const metaRows = unitRows.filter((row) => row.unitType === 'segment' || row.unitType === 'unit');
     const hostIds = [...new Set(metaRows.flatMap((row) => {
-      if (row.unitType === 'utterance') return [row.id];
+      if (row.unitType === 'unit') return [row.id];
       const ids: string[] = [];
       if (row.parentUnitId?.trim()) ids.push(row.parentUnitId.trim());
       if (row.rootUnitId?.trim()) ids.push(row.rootUnitId.trim());
@@ -282,19 +304,23 @@ export class SegmentMetaService {
 
     const contentsByUnitId = new Map<string, LayerUnitContentDocType[]>();
     for (const row of contentRows) {
-      const bucket = contentsByUnitId.get(row.unitId);
+      const unitId = row.unitId?.trim();
+      if (!unitId) continue;
+      const bucket = contentsByUnitId.get(unitId);
       if (bucket) bucket.push(row);
-      else contentsByUnitId.set(row.unitId, [row]);
+      else contentsByUnitId.set(unitId, [row]);
     }
 
     const noteCategoriesByTargetId = new Map<string, NoteCategory[]>();
     for (const note of noteRows) {
       if (!note.category) continue;
-      const bucket = noteCategoriesByTargetId.get(note.targetId);
-      if (bucket) {
-        if (!bucket.includes(note.category)) bucket.push(note.category);
-      } else {
-        noteCategoriesByTargetId.set(note.targetId, [note.category]);
+      for (const targetId of expandNoteTargetIds(note)) {
+        const bucket = noteCategoriesByTargetId.get(targetId);
+        if (bucket) {
+          if (!bucket.includes(note.category)) bucket.push(note.category);
+        } else {
+          noteCategoriesByTargetId.set(targetId, [note.category]);
+        }
       }
     }
 
@@ -302,7 +328,7 @@ export class SegmentMetaService {
     const docs = SegmentMetaService.buildDocs(metaRows.map((unit) => {
       const parentHostId = unit.parentUnitId?.trim();
       const rootHostId = unit.rootUnitId?.trim();
-      const host = unit.unitType === 'utterance'
+      const host = unit.unitType === 'unit'
         ? unit
         : (parentHostId ? hostById.get(parentHostId) : undefined)
           ?? (rootHostId ? hostById.get(rootHostId) : undefined);
@@ -319,16 +345,16 @@ export class SegmentMetaService {
         segmentId: unit.id,
         unitKind: unit.unitType,
         textId: unit.textId,
-        mediaId: unit.mediaId,
-        layerId: unit.layerId,
-        ...(host ? { hostUtteranceId: host.id } : {}),
+        mediaId: unit.mediaId ?? '',
+        layerId: unit.layerId ?? '',
+        ...(host ? { hostUnitId: host.id } : {}),
         startTime: unit.startTime,
         endTime: unit.endTime,
         text: content?.text ?? '',
         ...(effectiveSpeakerId ? { effectiveSpeakerId } : {}),
         ...(speaker?.name ? { effectiveSpeakerName: speaker.name } : {}),
         ...(noteCategoryKeys ? { noteCategoryKeys } : {}),
-        ...(host?.selfCertainty ? { effectiveSelfCertainty: host.selfCertainty } : {}),
+        ...((host?.selfCertainty ?? unit.selfCertainty) ? { effectiveSelfCertainty: (host?.selfCertainty ?? unit.selfCertainty) } : {}),
         ...((host?.status ?? unit.status) ? { annotationStatus: (host?.status ?? unit.status) } : {}),
         ...(typeof content?.ai_metadata?.confidence === 'number' ? { aiConfidence: content.ai_metadata.confidence } : {}),
         ...(content?.sourceType ? { sourceType: content.sourceType } : {}),

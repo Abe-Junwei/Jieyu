@@ -1,18 +1,14 @@
 import { useCallback } from 'react';
 import { getDb } from '../db';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
-import {
-  clearRecoverySnapshot,
-  getRecoverySnapshot,
-  type RecoveryData,
-} from '../services/SnapshotService';
+import { clearRecoverySnapshot, getRecoverySnapshot, type RecoveryData } from '../services/SnapshotService';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SaveState } from './transcriptionTypes';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
-import { syncUtteranceTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
-import { listUtteranceDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
+import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
+import { listUnitDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
 
 const log = createLogger('useTranscriptionRecoveryActions');
 
@@ -25,7 +21,7 @@ class RecoveryApplyConflictError extends Error {
 
 type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
-  utterancesRef: React.MutableRefObject<UtteranceDocType[]>;
+  unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
   loadSnapshot: () => Promise<void>;
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   setSaveState: (s: SaveState) => void;
@@ -33,7 +29,7 @@ type Params = {
 
 export function useTranscriptionRecoveryActions({
   dbNameRef,
-  utterancesRef,
+  unitsRef,
   loadSnapshot,
   runWithDbMutex,
   setSaveState,
@@ -42,9 +38,9 @@ export function useTranscriptionRecoveryActions({
     const name = dbNameRef.current;
     if (!name) return null;
     const snap = await getRecoverySnapshot(name);
-    if (!snap || snap.utterances.length === 0) return null;
+    if (!snap || snap.units.length === 0) return null;
 
-    const latestUpdatedAt = utterancesRef.current.reduce((max, u) => {
+    const latestUpdatedAt = unitsRef.current.reduce((max, u) => {
       const t = new Date(u.updatedAt).getTime();
       return t > max ? t : max;
     }, 0);
@@ -53,44 +49,44 @@ export function useTranscriptionRecoveryActions({
 
     fireAndForget(clearRecoverySnapshot(name));
     return null;
-  }, [dbNameRef, utterancesRef]);
+  }, [dbNameRef, unitsRef]);
 
   const applyRecovery = useCallback(async (data: RecoveryData): Promise<boolean> => {
     try {
       await runWithDbMutex(async () => {
         const db = await getDb();
-        if (utterancesRef.current.length > 0) {
+        if (unitsRef.current.length > 0) {
           const expectedById = new Map(
-            utterancesRef.current.map((u) => [u.id, u.updatedAt] as const),
+            unitsRef.current.map((u) => [u.id, u.updatedAt] as const),
           );
-          const ids = utterancesRef.current.map((u) => u.id);
-          const persistedUtterances = await listUtteranceDocsFromCanonicalLayerUnits(db);
+          const ids = unitsRef.current.map((u) => u.id);
+          const persistedUnits = await listUnitDocsFromCanonicalLayerUnits(db);
           const persistedById = new Map(
-            persistedUtterances
+            persistedUnits
               .filter((u) => ids.includes(u.id))
               .map((doc) => [doc.id, doc.updatedAt] as const),
           );
 
           for (const [id, expectedUpdatedAt] of expectedById) {
             if (!persistedById.has(id)) {
-              throw new RecoveryApplyConflictError(`missing persisted utterance ${id}`);
+              throw new RecoveryApplyConflictError(`missing persisted unit ${id}`);
             }
             const persistedUpdatedAt = persistedById.get(id);
             if (persistedUpdatedAt !== expectedUpdatedAt) {
               throw new RecoveryApplyConflictError(
-                `utterance ${id} changed externally (${expectedUpdatedAt} -> ${persistedUpdatedAt})`,
+                `unit ${id} changed externally (${expectedUpdatedAt} -> ${persistedUpdatedAt})`,
               );
             }
           }
         }
 
-        const recoveryTextId = data.utterances[0]?.textId ?? utterancesRef.current[0]?.textId;
+        const recoveryTextId = data.units[0]?.textId ?? unitsRef.current[0]?.textId;
 
-        for (const u of data.utterances) await LinguisticService.saveUtterance(u);
+        for (const u of data.units) await LinguisticService.saveUnit(u);
         for (const t of data.translations) {
-          const owner = data.utterances.find((item) => item.id === t.utteranceId);
+          const owner = data.units.find((item) => item.id === t.unitId);
           if (owner) {
-            await syncUtteranceTextToSegmentationV2(db, owner, t);
+            await syncUnitTextToSegmentationV2(db, owner, t);
           }
         }
         for (const l of data.layers) {
@@ -123,7 +119,7 @@ export function useTranscriptionRecoveryActions({
       });
       return false;
     }
-  }, [dbNameRef, loadSnapshot, runWithDbMutex, setSaveState, utterancesRef]);
+  }, [dbNameRef, loadSnapshot, runWithDbMutex, setSaveState, unitsRef]);
 
   const dismissRecovery = useCallback(async () => {
     const name = dbNameRef.current;

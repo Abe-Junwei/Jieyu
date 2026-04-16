@@ -1,29 +1,14 @@
-import {
-  getDb,
-  type AuditLogDocType,
-  type AuditSource,
-  type AnchorDocType,
-  type TierAnnotationDocType,
-} from '../db';
+import { getDb, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
-import {
-  assertReviewProtection,
-  assertStableId,
-  normalizeTierAnnotationDocForStorage,
-} from '../utils/camDataUtils';
-import {
-  type ConstraintSeverity,
-  type ConstraintViolation,
-  type TierSaveResult,
-  validateTierConstraints,
-} from './LinguisticService.constraints';
+import { assertReviewProtection, assertStableId, normalizeTierAnnotationDocForStorage } from '../utils/camDataUtils';
+import { type ConstraintSeverity, type ConstraintViolation, type TierSaveResult, validateTierConstraints } from './LinguisticService.constraints';
 
 type TierDefinitionRecord = import('../db').TierDefinitionDocType;
 
 const TRACKED_FIELDS: Record<string, readonly string[]> = {
   tier_annotations: ['value', 'startTime', 'endTime', 'startAnchorId', 'endAnchorId', 'isVerified', 'parentAnnotationId'],
   tier_definitions: ['parentTierId', 'tierType', 'contentType', 'name'],
-  utterances: ['transcription', 'startTime', 'endTime'],
+  units: ['transcription', 'startTime', 'endTime'],
 };
 
 let auditIdCounter = 0;

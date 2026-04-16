@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import type { SpeakerDocType, UtteranceDocType } from '../db';
+import type { SpeakerDocType, LayerUnitDocType } from '../db';
 import { isDictKey, t as translate, tf as formatMessage } from '../i18n';
 import { useSpeakerActions, type UseSpeakerActionsOptions } from './useSpeakerActions';
 import { EMPTY_SPEAKER_REFERENCE_STATS } from './speakerManagement/types';
@@ -14,7 +14,7 @@ vi.mock('../services/LinguisticService', () => ({
     renameSpeaker: vi.fn(),
     mergeSpeakers: vi.fn(),
     deleteSpeaker: vi.fn(),
-    assignSpeakerToUtterances: vi.fn(),
+    assignSpeakerToUnits: vi.fn(),
     getSpeakerReferenceStats: vi.fn(async () => ({ perSpeaker: {}, unassigned: { transcriptionUnitCount: 0, segmentCount: 0, totalCount: 0 } })),
   },
 }));
@@ -25,7 +25,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
+function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   const base: Record<string, unknown> = {
     id: 'utt-1',
     textId: 'text-1',
@@ -36,7 +36,7 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
     updatedAt: '2026-03-23T00:00:00.000Z',
     annotationStatus: 'raw',
   };
-  return { ...base, ...overrides } as UtteranceDocType;
+  return { ...base, ...overrides } as LayerUnitDocType;
 }
 
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
@@ -50,14 +50,14 @@ function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
 }
 
 type HookHarnessResult = ReturnType<typeof useSpeakerActions> & {
-  utterancesState: UtteranceDocType[];
+  unitsState: LayerUnitDocType[];
   speakersState: SpeakerDocType[];
 };
 
 function makeOptions(
   overrides: Partial<UseSpeakerActionsOptions> = {},
 ): UseSpeakerActionsOptions {
-  const utterances = overrides.utterances ?? [makeUtterance()];
+  const units = overrides.units ?? [makeUnit()];
   const t = overrides.t ?? ((key: string) => (isDictKey(key) ? translate('zh-CN', key) : key));
   const tf = overrides.tf ?? (
     (key: string, params?: Record<string, string | number>) => (
@@ -67,14 +67,14 @@ function makeOptions(
     )
   );
   return {
-    utterances,
-    setUtterances: overrides.setUtterances ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setUtterances']),
+    units,
+    setUnits: overrides.setUnits ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setUnits']),
     speakers: overrides.speakers ?? [makeSpeaker()],
     setSpeakers: overrides.setSpeakers ?? (vi.fn() as unknown as UseSpeakerActionsOptions['setSpeakers']),
-    utterancesOnCurrentMedia: overrides.utterancesOnCurrentMedia ?? utterances,
-    activeUnitId: overrides.activeUnitId ?? utterances[0]?.id ?? null,
+    unitsOnCurrentMedia: overrides.unitsOnCurrentMedia ?? units,
+    activeUnitId: overrides.activeUnitId ?? units[0]?.id ?? null,
     selectedUnitIds: overrides.selectedUnitIds ?? new Set<string>(),
-    selectedBatchUtterances: overrides.selectedBatchUtterances ?? [],
+    selectedBatchUnits: overrides.selectedBatchUnits ?? [],
     isReady: overrides.isReady ?? false,
     setUnitSelection: overrides.setUnitSelection ?? vi.fn(),
     data: overrides.data ?? {
@@ -82,7 +82,7 @@ function makeOptions(
       undo: vi.fn(async () => {}),
     },
     setSaveState: overrides.setSaveState ?? vi.fn(),
-    getUtteranceTextForLayer: overrides.getUtteranceTextForLayer ?? (() => '示例文本'),
+    getUnitTextForLayer: overrides.getUnitTextForLayer ?? (() => '示例文本'),
     formatTime: overrides.formatTime ?? ((seconds: number) => `${seconds.toFixed(1)}s`),
     t,
     tf,
@@ -92,19 +92,19 @@ function makeOptions(
 function renderSpeakerActions(options: Partial<UseSpeakerActionsOptions> = {}) {
   const resolved = makeOptions(options);
   return renderHook((): HookHarnessResult => {
-    const [utterancesState, setUtterances] = useState(resolved.utterances);
+    const [unitsState, setUnits] = useState(resolved.units);
     const [speakersState, setSpeakers] = useState(resolved.speakers);
     const hook = useSpeakerActions({
       ...resolved,
-      utterances: utterancesState,
-      setUtterances,
+      units: unitsState,
+      setUnits,
       speakers: speakersState,
       setSpeakers,
-      utterancesOnCurrentMedia: options.utterancesOnCurrentMedia ?? utterancesState,
+      unitsOnCurrentMedia: options.unitsOnCurrentMedia ?? unitsState,
     });
     return {
       ...hook,
-      utterancesState,
+      unitsState,
       speakersState,
     };
   });
@@ -126,7 +126,7 @@ describe('useSpeakerActions dialog flows', () => {
     vi.mocked(LinguisticService.renameSpeaker).mockResolvedValue(renamedSpeaker);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-1', speakerId: 'speaker-1', speaker: '旧名字' })],
+      units: [makeUnit({ id: 'utt-1', speakerId: 'speaker-1', speaker: '旧名字' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: '旧名字' })],
       setSaveState,
       data: {
@@ -152,7 +152,7 @@ describe('useSpeakerActions dialog flows', () => {
     expect(pushUndo).toHaveBeenCalledWith('重命名说话人');
     expect(LinguisticService.renameSpeaker).toHaveBeenCalledWith('speaker-1', '新名字');
     expect(result.current.speakersState[0]?.name).toBe('新名字');
-    expect(result.current.utterancesState[0]?.speaker).toBe('新名字');
+    expect(result.current.unitsState[0]?.speaker).toBe('新名字');
     expect(result.current.speakerDialogState).toBeNull();
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
@@ -174,14 +174,14 @@ describe('useSpeakerActions dialog flows', () => {
     }));
   });
 
-  it('merges a speaker through dialog flow and migrates utterances locally', async () => {
+  it('merges a speaker through dialog flow and migrates units locally', async () => {
     const setSaveState = vi.fn();
     vi.mocked(LinguisticService.mergeSpeakers).mockResolvedValue(1);
 
     const { result } = renderSpeakerActions({
-      utterances: [
-        makeUtterance({ id: 'utt-1', speakerId: 'speaker-1', speaker: '来源说话人' }),
-        makeUtterance({ id: 'utt-2', speakerId: 'speaker-2', speaker: '目标说话人', startTime: 2, endTime: 3 }),
+      units: [
+        makeUnit({ id: 'utt-1', speakerId: 'speaker-1', speaker: '来源说话人' }),
+        makeUnit({ id: 'utt-2', speakerId: 'speaker-2', speaker: '目标说话人', startTime: 2, endTime: 3 }),
       ],
       speakers: [
         makeSpeaker({ id: 'speaker-1', name: '来源说话人' }),
@@ -210,18 +210,18 @@ describe('useSpeakerActions dialog flows', () => {
 
     expect(LinguisticService.mergeSpeakers).toHaveBeenCalledWith('speaker-1', 'speaker-2');
     expect(result.current.speakersState.map((speaker) => speaker.id)).toEqual(['speaker-2']);
-    expect(result.current.utterancesState[0]?.speakerId).toBe('speaker-2');
-    expect(result.current.utterancesState[0]?.speaker).toBe('目标说话人');
+    expect(result.current.unitsState[0]?.speakerId).toBe('speaker-2');
+    expect(result.current.unitsState[0]?.speaker).toBe('目标说话人');
     expect(result.current.activeSpeakerFilterKey).toBe('speaker-2');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('clears speaker assignments through dialog flow and drops local speaker fields', async () => {
     const setSaveState = vi.fn();
-    vi.mocked(LinguisticService.assignSpeakerToUtterances).mockResolvedValue(1);
+    vi.mocked(LinguisticService.assignSpeakerToUnits).mockResolvedValue(1);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-1', speakerId: 'speaker-1', speaker: '说话人甲' })],
+      units: [makeUnit({ id: 'utt-1', speakerId: 'speaker-1', speaker: '说话人甲' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: '说话人甲' })],
       setSaveState,
       data: {
@@ -241,9 +241,9 @@ describe('useSpeakerActions dialog flows', () => {
       await result.current.confirmSpeakerDialog();
     });
 
-    expect(LinguisticService.assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], undefined);
-    expect(result.current.utterancesState[0]?.speakerId).toBeUndefined();
-    expect(result.current.utterancesState[0]?.speaker).toBeUndefined();
+    expect(LinguisticService.assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], undefined);
+    expect(result.current.unitsState[0]?.speakerId).toBeUndefined();
+    expect(result.current.unitsState[0]?.speaker).toBeUndefined();
     expect(result.current.activeSpeakerFilterKey).toBe('all');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
@@ -254,7 +254,7 @@ describe('useSpeakerActions dialog flows', () => {
     vi.mocked(LinguisticService.deleteSpeaker).mockResolvedValue(1);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-1', speakerId: 'speaker-1', speaker: '说话人甲' })],
+      units: [makeUnit({ id: 'utt-1', speakerId: 'speaker-1', speaker: '说话人甲' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: '说话人甲' })],
       setSaveState,
       data: {
@@ -277,7 +277,7 @@ describe('useSpeakerActions dialog flows', () => {
     expect(pushUndo).toHaveBeenCalledWith('删除说话人实体');
     expect(LinguisticService.deleteSpeaker).toHaveBeenCalledWith('speaker-1', { strategy: 'clear' });
     expect(result.current.speakersState).toHaveLength(0);
-    expect(result.current.utterancesState[0]?.speakerId).toBeUndefined();
+    expect(result.current.unitsState[0]?.speakerId).toBeUndefined();
     expect(result.current.activeSpeakerFilterKey).toBe('all');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
@@ -287,9 +287,9 @@ describe('useSpeakerActions dialog flows', () => {
     vi.mocked(LinguisticService.deleteSpeaker).mockResolvedValue(1);
 
     const { result } = renderSpeakerActions({
-      utterances: [
-        makeUtterance({ id: 'utt-1', speakerId: 'speaker-1', speaker: '来源说话人' }),
-        makeUtterance({ id: 'utt-2', speakerId: 'speaker-2', speaker: '目标说话人', startTime: 2, endTime: 3 }),
+      units: [
+        makeUnit({ id: 'utt-1', speakerId: 'speaker-1', speaker: '来源说话人' }),
+        makeUnit({ id: 'utt-2', speakerId: 'speaker-2', speaker: '目标说话人', startTime: 2, endTime: 3 }),
       ],
       speakers: [
         makeSpeaker({ id: 'speaker-1', name: '来源说话人' }),
@@ -321,8 +321,8 @@ describe('useSpeakerActions dialog flows', () => {
       targetSpeakerId: 'speaker-2',
     });
     expect(result.current.speakersState.map((speaker) => speaker.id)).toEqual(['speaker-2']);
-    expect(result.current.utterancesState[0]?.speakerId).toBe('speaker-2');
-    expect(result.current.utterancesState[0]?.speaker).toBe('目标说话人');
+    expect(result.current.unitsState[0]?.speakerId).toBe('speaker-2');
+    expect(result.current.unitsState[0]?.speaker).toBe('目标说话人');
     expect(result.current.activeSpeakerFilterKey).toBe('speaker-2');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
@@ -374,10 +374,10 @@ describe('useSpeakerActions dialog flows', () => {
 
   it('reuses existing speaker entity when create-and-assign hits a duplicate name', async () => {
     const setSaveState = vi.fn();
-    vi.mocked(LinguisticService.assignSpeakerToUtterances).mockResolvedValue(1);
+    vi.mocked(LinguisticService.assignSpeakerToUnits).mockResolvedValue(1);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-1' })],
+      units: [makeUnit({ id: 'utt-1' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: 'Alice' })],
       selectedUnitIds: new Set(['utt-1']),
       setSaveState,
@@ -396,7 +396,7 @@ describe('useSpeakerActions dialog flows', () => {
     });
 
     expect(LinguisticService.createSpeaker).not.toHaveBeenCalled();
-    expect(LinguisticService.assignSpeakerToUtterances).toHaveBeenCalledWith(['utt-1'], 'speaker-1');
+    expect(LinguisticService.assignSpeakerToUnits).toHaveBeenCalledWith(['utt-1'], 'speaker-1');
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
       message: '已复用现有说话人"Alice"，并应用到 1 条句段',
@@ -451,10 +451,10 @@ describe('useSpeakerActions dialog flows', () => {
   it('maps conflict-like assign error to conflict-aware message', async () => {
     const setSaveState = vi.fn();
     const conflictError = new Error('row changed externally');
-    vi.mocked(LinguisticService.assignSpeakerToUtterances).mockRejectedValue(conflictError);
+    vi.mocked(LinguisticService.assignSpeakerToUnits).mockRejectedValue(conflictError);
 
     const { result } = renderSpeakerActions({
-      utterances: [makeUtterance({ id: 'utt-1' })],
+      units: [makeUnit({ id: 'utt-1' })],
       speakers: [makeSpeaker({ id: 'speaker-1', name: '说话人甲' })],
       selectedUnitIds: new Set(['utt-1']),
       setSaveState,

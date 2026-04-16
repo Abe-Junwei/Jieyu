@@ -9,37 +9,14 @@ import { EmbeddedPanelShell } from '../components/ui/EmbeddedPanelShell';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, tf, useLocale } from '../i18n';
 import { buildPersistedCustomFieldValues } from '../services/LanguageMetadataCustomFields';
-import {
-  deleteLanguageCatalogEntry,
-  listCustomFieldDefinitions,
-  listLanguageCatalogEntries,
-  listLanguageCatalogHistory,
-  upsertLanguageCatalogEntry,
-  type LanguageCatalogEntry,
-} from '../services/LinguisticService.languageCatalog';
+import { deleteLanguageCatalogEntry, listCustomFieldDefinitions, listLanguageCatalogEntries, listLanguageCatalogHistory, upsertLanguageCatalogEntry, type LanguageCatalogEntry } from '../services/LinguisticService.languageCatalog';
 import { searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 import { lookupIso639_3Seed } from '../services/languageCatalogSeedLookup';
 import { useInvalidateLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { LanguageMetadataWorkspaceDetailColumn } from './LanguageMetadataWorkspaceDetailColumn';
 import { WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';
-import {
-  LANGUAGE_ID_PARAM,
-  NEW_LANGUAGE_ID,
-  buildClassificationPathValue,
-  buildDraft,
-  createDisplayNameDraftRow,
-  normalizeDisplayNameRows,
-  parseAdministrativeDivisionText,
-  parseAliasText,
-  parseLineSeparatedText,
-  readDisplayNameMatrixFallback,
-  readEntryKindLabel,
-  type HistoryItem,
-  type LanguageDisplayNameDraftRow,
-  type LanguageMetadataDraft,
-  type WorkspaceLocale,
-} from './languageMetadataWorkspace.shared';
+import { LANGUAGE_ID_PARAM, NEW_LANGUAGE_ID, buildClassificationPathValue, buildDraft, createDisplayNameDraftRow, normalizeDisplayNameRows, parseAdministrativeDivisionText, parseAliasText, parseLineSeparatedText, readDisplayNameMatrixFallback, readEntryKindLabel, type HistoryItem, type LanguageDisplayNameDraftRow, type LanguageMetadataDraft, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
 
 export function LanguageMetadataWorkspacePage({
   registerSidePane = true,

@@ -1,10 +1,4 @@
-import {
-  LANGUAGE_NAME_QUERY_LOCALES,
-  type LanguageDisplayCoreEntry,
-  type LanguageNameQueryLocale,
-  type LanguageQueryIndexLocaleRecord,
-  type LanguageQueryLabelEntry,
-} from '../data/languageNameTypes';
+import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale, type LanguageQueryIndexLocaleRecord, type LanguageQueryLabelEntry } from '../data/languageNameTypes';
 import { loadIso6393CountryBaselines, resetIso6393CountryBaselinesCacheForTests } from '../data/iso6393CountryBaselinesLoader';
 import { getIso639_3SeedMap } from '../data/iso6393Seed';
 import { formatIso3166Alpha2ListEndonyms, formatIso3166Alpha2ListUi } from '../utils/iso3166CountryLabels';

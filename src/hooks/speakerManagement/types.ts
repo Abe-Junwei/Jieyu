@@ -15,7 +15,7 @@ export interface SpeakerFilterOption {
 }
 
 export interface SpeakerReferenceStats {
-  /** Rows in `utterances` (default transcription axis). */
+  /** Rows in `units` (default transcription axis). */
   transcriptionUnitCount: number;
   /** Rows in independent / layer segments. */
   segmentCount: number;
@@ -35,7 +35,7 @@ export interface SpeakerReferenceStatsBundle {
 }
 
 export interface SpeakerScope {
-  speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
+  speakerVisualByUnitId: Record<string, SpeakerVisual>;
   speakerFilterOptions: SpeakerFilterOption[];
   selectedSpeakerSummary: string;
 }

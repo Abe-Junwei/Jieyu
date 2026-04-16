@@ -31,7 +31,7 @@ export interface QuickDictationConfig {
   /** 静默后等待确认时间（ms，默认 600） */
   silenceConfirmDelayMs?: number;
   /** 最大无输入时长（秒），超时自动停止（默认 60） */
-  maxUtteranceDurationSec?: number;
+  maxUnitDurationSec?: number;
   /** 是否在完成后自动停止监听（默认 false） */
   autoStopOnComplete?: boolean;
   /** 目标标注层（默认 transcription） */
@@ -106,7 +106,7 @@ export class SpeechAnnotationPipeline {
     this._config = {
       autoAdvance: config.autoAdvance ?? true,
       silenceConfirmDelayMs: config.silenceConfirmDelayMs ?? 600,
-      maxUtteranceDurationSec: config.maxUtteranceDurationSec ?? 60,
+      maxUnitDurationSec: config.maxUnitDurationSec ?? 60,
       autoStopOnComplete: config.autoStopOnComplete ?? false,
       targetLayer: config.targetLayer ?? 'transcription',
       skipAlreadyAnnotated: config.skipAlreadyAnnotated ?? true,
@@ -402,7 +402,7 @@ export class SpeechAnnotationPipeline {
         // Auto-confirm on max duration
         void this.confirmNow();
       }
-    }, this._config.maxUtteranceDurationSec * 1000);
+    }, this._config.maxUnitDurationSec * 1000);
   }
 
   private _clearTimers(): void {

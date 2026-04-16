@@ -1,6 +1,6 @@
 import type { Dispatch, MutableRefObject, RefObject, SetStateAction } from 'react';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
-import type { OrthographyDocType, UtteranceDocType } from '../db';
+import type { OrthographyDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
@@ -69,7 +69,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   handleExportJyt: () => Promise<void>;
   handleExportJym: () => Promise<void>;
   handleImportFile: (file: File) => Promise<void>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   rulerView: { start: number; end: number } | null;
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
@@ -84,7 +84,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   searchOverlayRequest: AppShellOpenSearchDetail | null;
   manualSelectTsRef: MutableRefObject<number>;
   selectUnit: (id: string) => void;
-  handleSearchReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  handleSearchReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   setShowSearch: (value: boolean) => void;
   setSearchOverlayRequest: Dispatch<SetStateAction<AppShellOpenSearchDetail | null>>;
   timelineContentProps: TranscriptionPageTimelineContentProps;

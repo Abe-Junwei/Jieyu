@@ -2,18 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import type { LayerDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { getLayerEffectiveConstraint } from './SidePaneSidebar.shared';
-import {
-  type ExistingLayerConstraintIssue,
-  type ExistingLayerConstraintRepair,
-  repairExistingLayerConstraints,
-  validateExistingLayerConstraints,
-} from '../services/LayerConstraintService';
-import {
-  type LayerOrderIssue,
-  type LayerOrderRepair,
-  repairLayerOrder,
-  validateLayerOrder,
-} from '../services/LayerOrderingService';
+import { type ExistingLayerConstraintIssue, type ExistingLayerConstraintRepair, repairExistingLayerConstraints, validateExistingLayerConstraints } from '../services/LayerConstraintService';
+import { type LayerOrderIssue, type LayerOrderRepair, repairLayerOrder, validateLayerOrder } from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
 export interface SidePaneSidebarConstraintRepairDetails {

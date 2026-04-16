@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createEvent, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerSegmentContentDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '../db';
 import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 
@@ -20,18 +20,18 @@ vi.mock('@tanstack/react-virtual', () => ({
 }));
 
 const editorContextValue = {
-  utteranceDrafts: {} as Record<string, string>,
-  setUtteranceDrafts: vi.fn(),
+  unitDrafts: {} as Record<string, string>,
+  setUnitDrafts: vi.fn(),
   translationDrafts: {} as Record<string, string>,
   setTranslationDrafts: vi.fn(),
   translationTextByLayer: new Map(),
   focusedTranslationDraftKeyRef: { current: null as string | null },
   renderLaneLabel: vi.fn(() => 'lane'),
-  getUtteranceTextForLayer: vi.fn(() => 'u1'),
+  getUnitTextForLayer: vi.fn(() => 'u1'),
   scheduleAutoSave: vi.fn(),
   clearAutoSaveTimer: vi.fn(),
-  saveUtteranceText: vi.fn(async () => undefined),
-  saveTextTranslationForUtterance: vi.fn(async () => undefined),
+  saveUnitText: vi.fn(async () => undefined),
+  saveUnitLayerText: vi.fn(async () => undefined),
   createLayer: vi.fn(async () => undefined),
   deleteLayer: vi.fn(async () => undefined),
   deleteLayerWithoutConfirm: vi.fn(async () => undefined),
@@ -66,8 +66,8 @@ vi.mock('./DeleteLayerConfirmDialog', () => ({
 vi.mock('../hooks/useLayerDeleteConfirm', () => ({
   useLayerDeleteConfirm: () => ({
     deleteLayerConfirm: null,
-    deleteConfirmKeepUtterances: false,
-    setDeleteConfirmKeepUtterances: vi.fn(),
+    deleteConfirmKeepUnits: false,
+    setDeleteConfirmKeepUnits: vi.fn(),
     requestDeleteLayer: vi.fn(async () => undefined),
     cancelDeleteLayerConfirm: vi.fn(),
     confirmDeleteLayer: vi.fn(async () => undefined),
@@ -98,7 +98,7 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, speakerId?: string, speaker?: string): UtteranceDocType {
+function makeUnit(id: string, speakerId?: string, speaker?: string): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -109,7 +109,7 @@ function makeUtterance(id: string, speakerId?: string, speaker?: string): Uttera
     endTime: 1,
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
@@ -127,7 +127,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', 's1')]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1')]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -168,7 +168,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1'), makeUnit('u2', 's2')]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -193,12 +193,12 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(firstProps?.trackModeControl?.lockConflictCount).toBe(2);
   });
 
-  it('forwards overlap cycle items when clicking text-only utterances in multi-track mode', () => {
+  it('forwards overlap cycle items when clicking text-only units in multi-track mode', () => {
     const layer = makeLayer('trc-overlap');
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const handleAnnotationClick = vi.fn();
-    const overlapCycleItemsByUtteranceId = new Map<string, Array<{ id: string; startTime: number }>>([
+    const overlapCycleItemsByUnitId = new Map<string, Array<{ id: string; startTime: number }>>([
       ['u1', [{ id: 'u1', startTime: 0 }, { id: 'u2', startTime: 1 }]],
       ['u2', [{ id: 'u2', startTime: 1 }, { id: 'u1', startTime: 0 }]],
     ]);
@@ -207,7 +207,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       subTrackCount: 2,
       maxConcurrentSpeakerCount: 2,
       overlapGroups: [],
-      overlapCycleItemsByGroupId: new Map([['__all__', overlapCycleItemsByUtteranceId]]),
+      overlapCycleItemsByGroupId: new Map([['__all__', overlapCycleItemsByUnitId]]),
       lockConflictCount: 0,
       lockConflictSpeakerIds: [],
     };
@@ -216,8 +216,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
-        selectedTimelineUnit={{ layerId: layer.id, unitId: 'u1', kind: 'utterance' }}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1'), makeUnit('u2', 's2')]}
+        selectedTimelineUnit={{ layerId: layer.id, unitId: 'u1', kind: 'unit' }}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -258,7 +258,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', 's1')]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1')]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -288,7 +288,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
   });
 
-  it('keeps segment unit shape for context menu when segment id collides with utterance id', () => {
+  it('keeps segment unit shape for context menu when segment id collides with unit id', () => {
     const layer = {
       ...makeLayer('trc-seg-only'),
       constraint: 'independent_boundary',
@@ -301,9 +301,9 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[
-          makeUtterance('seg-1', 'spk-a'),
-          makeUtterance('utt-host', 'spk-b'),
+        unitsOnCurrentMedia={[
+          makeUnit('seg-1', 'spk-a'),
+          makeUnit('utt-host', 'spk-b'),
         ]}
         segmentsByLayer={new Map([
           [layer.id, [{
@@ -311,7 +311,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
             textId: 't1',
             mediaId: 'm1',
             layerId: layer.id,
-            utteranceId: 'utt-host',
+            unitId: 'utt-host',
             startTime: 4,
             endTime: 6,
             createdAt: NOW,
@@ -340,7 +340,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
 
     expect(handleAnnotationContextMenu).toHaveBeenCalledWith(
       'seg-1',
-      expect.objectContaining({ id: 'seg-1', kind: 'segment', parentUtteranceId: 'utt-host' }),
+      expect.objectContaining({ id: 'seg-1', kind: 'segment', parentUnitId: 'utt-host' }),
       layer.id,
       expect.any(Object),
     );
@@ -362,8 +362,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
 
     editorContextValue.translationTextByLayer = new Map([
       [translationLayer.id, new Map([
-        ['seg-1', { id: 'txt-1', utteranceId: 'seg-1', layerId: translationLayer.id, text: 'bonjour', modality: 'text', createdAt: NOW, updatedAt: NOW }],
-        ['seg-2', { id: 'txt-2', utteranceId: 'seg-2', layerId: translationLayer.id, text: 'salut', modality: 'text', createdAt: NOW, updatedAt: NOW }],
+        ['seg-1', { id: 'txt-1', unitId: 'seg-1', layerId: translationLayer.id, text: 'bonjour', modality: 'text', createdAt: NOW, updatedAt: NOW }],
+        ['seg-2', { id: 'txt-2', unitId: 'seg-2', layerId: translationLayer.id, text: 'salut', modality: 'text', createdAt: NOW, updatedAt: NOW }],
       ])],
     ]);
 
@@ -371,7 +371,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[]}
         translationLayers={[translationLayer]}
-        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
             { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
@@ -417,14 +417,14 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
 
-    const initialSegments = new Map<string, LayerSegmentDocType[]>([
+    const initialSegments = new Map<string, LayerUnitDocType[]>([
       [parentLayer.id, [
         { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
       ]],
     ]);
-    const initialContents = new Map<string, Map<string, LayerSegmentContentDocType>>([
+    const initialContents = new Map<string, Map<string, LayerUnitContentDocType>>([
       [childLayer.id, new Map([
-        ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW } as LayerSegmentContentDocType],
+        ['seg-1', { id: 'segc-1', textId: 't1', segmentId: 'seg-1', layerId: childLayer.id, modality: 'text', text: 'child one', sourceType: 'human', createdAt: NOW, updatedAt: NOW } as LayerUnitContentDocType],
       ])],
     ]);
 
@@ -432,7 +432,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={initialSegments}
         segmentContentByLayer={initialContents}
         selectedTimelineUnit={null}
@@ -461,7 +461,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u-main')]}
+        unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
             { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
@@ -507,7 +507,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1')]}
+        unitsOnCurrentMedia={[makeUnit('u1')]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -531,7 +531,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(pointerDown.defaultPrevented).toBe(false);
   });
 
-  it('renders multiple utterance editors without speaker-focus hidden styling', () => {
+  it('renders multiple unit editors without speaker-focus hidden styling', () => {
     const layer = makeLayer('trc-1');
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
@@ -540,7 +540,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[makeUtterance('u1', 's1'), makeUtterance('u2', 's2')]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1'), makeUnit('u2', 's2')]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -554,7 +554,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        speakerVisualByUtteranceId={{
+        speakerVisualByUnitId={{
           u1: { name: 'S1', color: '#ff0000' },
           u2: { name: 'S2', color: '#00ff00' },
         }}
@@ -578,7 +578,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         { id: 'seg_text_1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
       ]],
     ]);
-    const segmentContentByLayer = new Map<string, Map<string, LayerSegmentContentDocType>>([
+    const segmentContentByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
       [layer.id, new Map([
         ['seg_text_1', { id: 'sc-1', textId: 't1', segmentId: 'seg_text_1', layerId: layer.id, modality: 'text', text: 'segment hello', sourceType: 'human', createdAt: NOW, updatedAt: NOW }],
       ])],
@@ -588,7 +588,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         segmentsByLayer={segmentsByLayer}
         segmentContentByLayer={segmentContentByLayer}
         selectedTimelineUnit={null}
@@ -628,7 +628,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         segmentsByLayer={segmentsByLayer}
         selectedTimelineUnit={null}
         flashLayerRowId=""
@@ -676,7 +676,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         segmentsByLayer={segmentsByLayer}
         selectedTimelineUnit={null}
 
@@ -698,7 +698,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(document.querySelectorAll('.timeline-text-item-active').length).toBe(0);
   });
 
-  it('uses independent segment speakerId when no owner utterance exists', () => {
+  it('uses independent segment speakerId when no owner unit exists', () => {
     const layer = {
       ...makeLayer('trc-independent-speaker'),
       constraint: 'independent_boundary',
@@ -725,7 +725,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         segmentsByLayer={segmentsByLayer}
         selectedTimelineUnit={null}
         flashLayerRowId=""
@@ -774,7 +774,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        utterancesOnCurrentMedia={[]}
+        unitsOnCurrentMedia={[]}
         segmentsByLayer={segmentsByLayer}
         selectedTimelineUnit={null}
         flashLayerRowId=""
@@ -789,7 +789,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         navigateUnitFromInput={vi.fn()}
         laneHeights={{ [layer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
-        speakerVisualByUtteranceId={{
+        speakerVisualByUnitId={{
           seg_badge_1: { name: 'Alice', color: '#ff0000' },
         }}
       />,
@@ -807,16 +807,16 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       modality: 'mixed',
       acceptsAudio: true,
     } as LayerDocType;
-    const utterance = makeUtterance('u1', 's1');
+    const unit = makeUnit('u1', 's1');
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
-    const startRecordingForUtterance = vi.fn(async () => undefined);
+    const startRecordingForUnit = vi.fn(async () => undefined);
 
     editorContextValue.translationTextByLayer = new Map([
       [translationLayer.id, new Map([
-        [utterance.id, {
+        [unit.id, {
           id: 'utr-mixed',
-          utteranceId: utterance.id,
+          unitId: unit.id,
           layerId: translationLayer.id,
           modality: 'mixed',
           text: 'bonjour',
@@ -831,7 +831,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       <TranscriptionTimelineTextOnly
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
-        utterancesOnCurrentMedia={[utterance]}
+        unitsOnCurrentMedia={[unit]}
         selectedTimelineUnit={null}
         flashLayerRowId=""
         focusedLayerRowId=""
@@ -847,7 +847,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         onLaneHeightChange={vi.fn()}
         translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
         mediaItems={[]}
-        startRecordingForUtterance={startRecordingForUtterance}
+        startRecordingForUnit={startRecordingForUnit}
         stopRecording={vi.fn()}
       />,
     );
@@ -856,8 +856,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
 
-    expect(startRecordingForUtterance).toHaveBeenCalledWith(
-      expect.objectContaining({ id: utterance.id }),
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: unit.id }),
       expect.objectContaining({ id: translationLayer.id }),
     );
   });

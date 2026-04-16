@@ -1,27 +1,14 @@
 import React, { useId, useState, useCallback, useEffect, useMemo, memo } from 'react';
 import ReactDOM from 'react-dom';
 import { MaterialSymbol } from './ui/MaterialSymbol';
-import {
-  JIEYU_MATERIAL_INLINE,
-  JIEYU_MATERIAL_PANEL,
-  JIEYU_MATERIAL_PANEL_CLOSE_LG,
-  JIEYU_MATERIAL_WAVE_MD,
-} from '../utils/jieyuMaterialIcon';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL, JIEYU_MATERIAL_PANEL_CLOSE_LG, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import type { LayerConstraint, LayerDocType } from '../db';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
-import {
-  getLayerCreateGuard,
-  listIndependentBoundaryTranscriptionLayers,
-} from '../services/LayerConstraintService';
+import { getLayerCreateGuard, listIndependentBoundaryTranscriptionLayers } from '../services/LayerConstraintService';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { OrthographyBuilderPanel } from './OrthographyBuilderPanel';
-import {
-  formatOrthographyOptionLabel,
-  groupOrthographiesForSelect,
-  ORTHOGRAPHY_CREATE_SENTINEL,
-  useOrthographyPicker,
-} from '../hooks/useOrthographyPicker';
+import { formatOrthographyOptionLabel, groupOrthographiesForSelect, ORTHOGRAPHY_CREATE_SENTINEL, useOrthographyPicker } from '../hooks/useOrthographyPicker';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { useLocale } from '../i18n';
 import { getOrthographyCatalogGroupLabel, getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
@@ -31,24 +18,8 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
-import {
-  DialogOverlay,
-  DialogShell,
-  FormField,
-  PanelButton,
-  PanelChip,
-  PanelFeedback,
-  PanelFeedbackStack,
-  PanelNote,
-  PanelSection,
-  PanelSummary,
-} from './ui';
-import {
-  buildLanguageInputSeed,
-  getDisplayedLanguageInputLabel,
-  normalizeLanguageInputAssetId,
-  normalizeLanguageInputCode,
-} from '../utils/languageInputHostState';
+import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelFeedback, PanelFeedbackStack, PanelNote, PanelSection, PanelSummary } from './ui';
+import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputAssetId, normalizeLanguageInputCode } from '../utils/languageInputHostState';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { escapeRegExp } from '../utils/escapeRegExp';
 

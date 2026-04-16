@@ -1,23 +1,23 @@
 import { useCallback } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { useTranscriptionTokenActions } from './useTranscriptionTokenActions';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
-  setUtterances: Dispatch<SetStateAction<UtteranceDocType[]>>;
+  setUnits: Dispatch<SetStateAction<LayerUnitDocType[]>>;
 };
 
 export function useTranscriptionCanonicalActions({
   runWithDbMutex,
-  setUtterances,
+  setUnits,
 }: Params) {
-  const getCanonicalTokensForUtterance = useCallback(async (utteranceId: string) => {
+  const getCanonicalTokensForUnit = useCallback(async (unitId: string) => {
     try {
-      return await LinguisticService.getTokensByUtteranceId(utteranceId);
+      return await LinguisticService.getTokensByUnitId(unitId);
     } catch (err) {
-      console.error(`Error fetching tokens for utterance ${utteranceId}:`, err);
+      console.error(`Error fetching tokens for unit ${unitId}:`, err);
       return [];
     }
   }, []);
@@ -37,11 +37,11 @@ export function useTranscriptionCanonicalActions({
     updateTokenGloss,
   } = useTranscriptionTokenActions({
     runWithDbMutex,
-    setUtterances,
+    setUnits,
   });
 
   return {
-    getCanonicalTokensForUtterance,
+    getCanonicalTokensForUnit,
     getCanonicalMorphemesForToken,
     updateTokenPos,
     batchUpdateTokenPosByForm,

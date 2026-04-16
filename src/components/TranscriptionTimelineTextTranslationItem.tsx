@@ -1,19 +1,15 @@
-import type {
-  LayerDocType,
-  LayerSegmentDocType,
-  MediaItemDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
-import type { UtteranceSelfCertainty } from '../utils/utteranceSelfCertainty';
+import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 type SaveStatus = 'dirty' | 'saving' | 'error' | undefined;
 
 interface TranscriptionTimelineTextTranslationItemProps {
-  utt: UtteranceDocType;
+  utt: TimelineUnitView;
   layer: LayerDocType;
   text: string;
   draft: string;
@@ -24,17 +20,18 @@ interface TranscriptionTimelineTextTranslationItemProps {
   isDimmed: boolean;
   saveStatus: SaveStatus;
   usesOwnSegments: boolean;
+  unitById: Map<string, LayerUnitDocType>;
   layoutStyle: React.CSSProperties;
   dir: string | undefined;
   audioMedia: MediaItemDocType | undefined;
   recording: boolean;
-  recordingUtteranceId: string | null | undefined;
+  recordingUnitId: string | null | undefined;
   recordingLayerId: string | null | undefined;
-  startRecordingForUtterance: ((utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
-  deleteVoiceTranslation: ((utterance: UtteranceDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
-  saveTextTranslationForUtterance: (utteranceId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
   setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -52,12 +49,12 @@ interface TranscriptionTimelineTextTranslationItemProps {
   ) => void;
   handleAnnotationContextMenu: ((
     uttId: string,
-    utt: UtteranceDocType | LayerSegmentDocType,
+    utt: TimelineUnitView,
     layerId: string,
     e: React.MouseEvent,
   ) => void) | undefined;
-  /** 来自宿主 utterance 的确信角标（segment 翻译行经父组件解析） */
-  selfCertainty?: UtteranceSelfCertainty;
+  /** 来自宿主 unit 的确信角标（segment 翻译行经父组件解析） */
+  selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
 }
 
@@ -73,17 +70,18 @@ export function TranscriptionTimelineTextTranslationItem({
   isDimmed,
   saveStatus,
   usesOwnSegments,
+  unitById,
   layoutStyle,
   dir,
   audioMedia,
   recording,
-  recordingUtteranceId,
+  recordingUnitId,
   recordingLayerId,
-  startRecordingForUtterance,
+  startRecordingForUnit,
   stopRecording,
   deleteVoiceTranslation,
   saveSegmentContentForLayer,
-  saveTextTranslationForUtterance,
+  saveUnitLayerText,
   scheduleAutoSave,
   clearAutoSaveTimer,
   setTranslationDrafts,
@@ -103,17 +101,25 @@ export function TranscriptionTimelineTextTranslationItem({
     && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
   const isAudioOnlyLayer = layer.modality === 'audio';
   const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
-  const isCurrentRecording = recording && recordingUtteranceId === utt.id && recordingLayerId === layer.id;
+  const isCurrentRecording = recording && recordingUnitId === utt.id && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
+  const sourceUnit = utt.kind === 'segment'
+    ? (utt.parentUnitId ? unitById.get(utt.parentUnitId) : undefined)
+    : unitById.get(utt.id);
   const audioControls = layerSupportsAudio ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
-      onStartRecording={() => startRecordingForUtterance?.(utt, layer)}
+      onStartRecording={() => {
+        if (!sourceUnit) return;
+        void startRecordingForUnit?.(sourceUnit, layer);
+      }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-      {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(utt, layer) } : {})}
+      {...(audioMedia && deleteVoiceTranslation && sourceUnit
+        ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
+        : {})}
     />
   ) : undefined;
 
@@ -123,7 +129,7 @@ export function TranscriptionTimelineTextTranslationItem({
       return;
     }
     void runSaveWithStatus(cellKey, async () => {
-      await saveTextTranslationForUtterance(utt.id, draft, layer.id);
+      await saveUnitLayerText(utt.id, draft, layer.id);
     });
   };
 
@@ -185,7 +191,7 @@ export function TranscriptionTimelineTextTranslationItem({
               setCellSaveStatus(cellKey, 'dirty');
               scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
                 await runSaveWithStatus(cellKey, async () => {
-                  await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                  await saveUnitLayerText(utt.id, value, layer.id);
                 });
               });
             } else {
@@ -229,7 +235,7 @@ export function TranscriptionTimelineTextTranslationItem({
             clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
             if (value !== text) {
               void runSaveWithStatus(cellKey, async () => {
-                await saveTextTranslationForUtterance(utt.id, value, layer.id);
+                await saveUnitLayerText(utt.id, value, layer.id);
               });
             } else {
               setCellSaveStatus(cellKey);

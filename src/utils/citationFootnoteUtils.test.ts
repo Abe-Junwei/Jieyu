@@ -3,28 +3,19 @@
  * Unit tests for citation footnote utilities
  */
 import { describe, it, expect } from 'vitest';
-import {
-  buildCopyableAssistantPlainText,
-  buildNumberedRagLines,
-  extractCitationIndices,
-  buildSourceListFooter,
-  normalizeCitationSnippetPlainText,
-  splitCitationMarkers,
-  RAG_CITATION_INSTRUCTION,
-  type NumberedRagSource,
-} from './citationFootnoteUtils';
+import { buildCopyableAssistantPlainText, buildNumberedRagLines, extractCitationIndices, buildSourceListFooter, normalizeCitationSnippetPlainText, splitCitationMarkers, RAG_CITATION_INSTRUCTION, type NumberedRagSource } from './citationFootnoteUtils';
 
 // ── buildNumberedRagLines ──
 
 describe('buildNumberedRagLines', () => {
   it('numbers sources starting from 1', () => {
     const sources: NumberedRagSource[] = [
-      { tag: '句段参考', contextTag: 'UTTERANCE_CONTEXT', snippet: 'The dog ran.' },
+      { tag: '句段参考', contextTag: 'UNIT_CONTEXT', snippet: 'The dog ran.' },
       { tag: '笔记参考', contextTag: 'NOTE_CONTEXT', snippet: 'Leipzig glossing rules.' },
     ];
     const lines = buildNumberedRagLines(sources);
     expect(lines).toEqual([
-      '[1] (UTTERANCE_CONTEXT) The dog ran.',
+      '[1] (UNIT_CONTEXT) The dog ran.',
       '[2] (NOTE_CONTEXT) Leipzig glossing rules.',
     ]);
   });
@@ -63,7 +54,7 @@ describe('buildSourceListFooter', () => {
 
   it('builds Chinese header for zh locale', () => {
     const result = buildSourceListFooter(
-      [{ type: 'utterance', refId: 'u1', label: '句段参考', snippet: 'The dog ran' }],
+      [{ type: 'unit', refId: 'u1', label: '句段参考', snippet: 'The dog ran' }],
       'zh-CN',
     );
     expect(result).toContain('来源');
@@ -82,7 +73,7 @@ describe('buildSourceListFooter', () => {
   it('truncates long snippets with ellipsis', () => {
     const longSnippet = 'a'.repeat(200);
     const result = buildSourceListFooter(
-      [{ type: 'utterance', refId: 'u1', snippet: longSnippet }],
+      [{ type: 'unit', refId: 'u1', snippet: longSnippet }],
       'en',
     );
     expect(result).toContain('…');
@@ -93,7 +84,7 @@ describe('buildSourceListFooter', () => {
   it('numbers multiple citations sequentially', () => {
     const result = buildSourceListFooter(
       [
-        { type: 'utterance', refId: 'u1', label: '句段', snippet: 's1' },
+        { type: 'unit', refId: 'u1', label: '句段', snippet: 's1' },
         { type: 'note', refId: 'n1', label: '笔记', snippet: 's2' },
         { type: 'pdf', refId: 'p1', label: '文档', snippet: 's3' },
       ],
@@ -104,15 +95,15 @@ describe('buildSourceListFooter', () => {
     expect(result).toContain('[3] 文档');
   });
 
-  it('marks utterance line when readModelIndexHit is false', () => {
+  it('marks unit line when readModelIndexHit is false', () => {
     const zh = buildSourceListFooter(
-      [{ type: 'utterance', refId: 'gone', label: '句段参考', snippet: 'old', readModelIndexHit: false }],
+      [{ type: 'unit', refId: 'gone', label: '句段参考', snippet: 'old', readModelIndexHit: false }],
       'zh-CN',
     );
     expect(zh).toContain('[1] 句段参考 [当前时间线索引未命中]:');
 
     const en = buildSourceListFooter(
-      [{ type: 'utterance', refId: 'gone', label: 'Unit ref', snippet: 'old', readModelIndexHit: false }],
+      [{ type: 'unit', refId: 'gone', label: 'Unit ref', snippet: 'old', readModelIndexHit: false }],
       'en-US',
     );
     expect(en).toContain('[1] Unit ref [not in current timeline index]:');
@@ -120,7 +111,7 @@ describe('buildSourceListFooter', () => {
 
   it('strips bidi isolation controls and normalizes whitespace in snippets', () => {
     const result = buildSourceListFooter(
-      [{ type: 'utterance', refId: 'u1', label: '句段参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],
+      [{ type: 'unit', refId: 'u1', label: '句段参考', snippet: '\u2067مرحبا\u2069\n  بالعالم' }],
       'zh-CN',
     );
 

@@ -1,10 +1,10 @@
-type TimeBoundUtteranceLike = {
+type TimeBoundUnitLike = {
   id: string;
   startTime: number;
   endTime: number;
   ai_metadata?: {
     confidence?: number;
-  };
+  } | undefined;
 };
 
 export interface WaveformLowConfidenceBand {
@@ -92,7 +92,7 @@ function minOfNumbers(values: number[]): number {
   return r;
 }
 
-function toSortedUtterances(input: TimeBoundUtteranceLike[]): TimeBoundUtteranceLike[] {
+function toSortedUnits(input: TimeBoundUnitLike[]): TimeBoundUnitLike[] {
   return input
     .filter((item) => Number.isFinite(item.startTime) && Number.isFinite(item.endTime) && item.endTime > item.startTime)
     .sort((left, right) => {
@@ -111,7 +111,7 @@ export interface VadSegmentLike {
 }
 
 export function buildWaveformAnalysisOverlaySummary(
-  utterances: TimeBoundUtteranceLike[],
+  units: TimeBoundUnitLike[],
   options?: {
     lowConfidenceThreshold?: number;
     gapThresholdSeconds?: number;
@@ -121,15 +121,15 @@ export function buildWaveformAnalysisOverlaySummary(
 ): WaveformAnalysisOverlaySummary {
   const lowConfidenceThreshold = options?.lowConfidenceThreshold ?? 0.75;
   const gapThresholdSeconds = options?.gapThresholdSeconds ?? 0.8;
-  const sorted = toSortedUtterances(utterances);
+  const sorted = toSortedUnits(units);
 
   const lowConfidenceBands: WaveformLowConfidenceBand[] = sorted
-    .filter((utterance) => typeof utterance.ai_metadata?.confidence === 'number' && utterance.ai_metadata.confidence < lowConfidenceThreshold)
-    .map((utterance) => ({
-      id: utterance.id,
-      startTime: utterance.startTime,
-      endTime: utterance.endTime,
-      confidence: utterance.ai_metadata!.confidence as number,
+    .filter((unit) => typeof unit.ai_metadata?.confidence === 'number' && unit.ai_metadata.confidence < lowConfidenceThreshold)
+    .map((unit) => ({
+      id: unit.id,
+      startTime: unit.startTime,
+      endTime: unit.endTime,
+      confidence: unit.ai_metadata!.confidence as number,
     }));
 
   const vadSegs = options?.vadSegments;
@@ -158,14 +158,14 @@ export function buildWaveformAnalysisOverlaySummary(
     }
   }
 
-  const boundaries = Array.from(new Set(sorted.flatMap((utterance) => [utterance.startTime, utterance.endTime]))).sort((a, b) => a - b);
+  const boundaries = Array.from(new Set(sorted.flatMap((unit) => [unit.startTime, unit.endTime]))).sort((a, b) => a - b);
   const overlapBands: WaveformOverlapBand[] = [];
 
   for (let index = 1; index < boundaries.length; index += 1) {
     const startTime = boundaries[index - 1]!;
     const endTime = boundaries[index]!;
     if (endTime <= startTime) continue;
-    const concurrentCount = sorted.filter((utterance) => utterance.startTime < endTime && utterance.endTime > startTime).length;
+    const concurrentCount = sorted.filter((unit) => unit.startTime < endTime && unit.endTime > startTime).length;
     if (concurrentCount < 2) continue;
 
     const previous = overlapBands[overlapBands.length - 1];
@@ -298,7 +298,7 @@ function buildTemporalDistribution(
 }
 
 export function buildWaveformAnalysisPromptSummary(
-  utterances: TimeBoundUtteranceLike[],
+  units: TimeBoundUnitLike[],
   options?: {
     lowConfidenceThreshold?: number;
     gapThresholdSeconds?: number;
@@ -311,7 +311,7 @@ export function buildWaveformAnalysisPromptSummary(
     vadSegments?: VadSegmentLike[];
   },
 ): WaveformAnalysisPromptSummary {
-  const summary = buildWaveformAnalysisOverlaySummary(utterances, {
+  const summary = buildWaveformAnalysisOverlaySummary(units, {
     ...(options?.lowConfidenceThreshold !== undefined ? { lowConfidenceThreshold: options.lowConfidenceThreshold } : {}),
     ...(options?.gapThresholdSeconds !== undefined ? { gapThresholdSeconds: options.gapThresholdSeconds } : {}),
     ...(options?.vadSegments !== undefined ? { vadSegments: options.vadSegments } : {}),
@@ -371,8 +371,8 @@ export function buildWaveformAnalysisPromptSummary(
 
   // 时间四分位分布 | Temporal quartile distribution
   const durationSec = options?.audioDurationSec
-    ?? (utterances.length > 0
-      ? maxOfNumbers(utterances.map((u) => u.endTime).filter(Number.isFinite))
+    ?? (units.length > 0
+      ? maxOfNumbers(units.map((u) => u.endTime).filter(Number.isFinite))
       : 0);
   const temporalDistribution = buildTemporalDistribution(summary, durationSec);
 

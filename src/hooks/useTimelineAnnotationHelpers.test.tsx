@@ -1,31 +1,42 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, renderHook, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { TimelineUnitView } from './timelineUnitView';
 import { useTimelineAnnotationHelpers } from './useTimelineAnnotationHelpers';
 
-function makeSegmentDoc(
+function makeSegmentUnit(
   id: string,
   layerId: string,
   startTime: number,
   endTime: number,
-  utteranceId?: string,
-): LayerSegmentDocType {
-  const now = new Date().toISOString();
+  parentUnitId?: string,
+): TimelineUnitView {
   return {
     id,
-    textId: 'text-1',
+    kind: 'segment',
     mediaId: 'media-1',
     layerId,
     startTime,
     endTime,
-    createdAt: now,
-    updatedAt: now,
-    ...(utteranceId ? { utteranceId } : {}),
+    text: '',
+    ...(parentUnitId ? { parentUnitId } : {}),
   };
 }
 
-function makeUtteranceDoc(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnitUnit(id: string, layerId: string, startTime: number, endTime: number): TimelineUnitView {
+  return {
+    id,
+    kind: 'unit',
+    mediaId: 'media-1',
+    layerId,
+    startTime,
+    endTime,
+    text: '',
+  };
+}
+
+function makeUnitDoc(id: string, startTime: number, endTime: number): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -91,7 +102,7 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(['seg-1', 'seg-2']),
       focusedLayerRowId: 'layer-seg',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
@@ -99,7 +110,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      makeSegmentDoc('seg-2', 'layer-seg', 1, 2),
+      makeSegmentUnit('seg-2', 'layer-seg', 1, 2),
       makeLayer('layer-seg'),
       'segment-2',
       {
@@ -151,7 +162,7 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(['seg-1']),
       focusedLayerRowId: 'layer-dependent',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
@@ -159,7 +170,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      makeSegmentDoc('seg-1', 'layer-dependent', 1, 2),
+      makeSegmentUnit('seg-1', 'layer-dependent', 1, 2),
       makeLayer('layer-dependent'),
       'segment-dependent',
       {
@@ -187,7 +198,7 @@ describe('useTimelineAnnotationHelpers', () => {
         stop: vi.fn(),
         seekTo: vi.fn(),
       },
-      selectedTimelineUnit: { layerId: 'layer-input', unitId: 'utt-1', kind: 'utterance' },
+      selectedTimelineUnit: { layerId: 'layer-input', unitId: 'utt-1', kind: 'unit' },
       selectUnitRange: vi.fn(),
       toggleUnitSelection: vi.fn(),
       selectTimelineUnit: vi.fn(),
@@ -203,7 +214,7 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(['utt-1']),
       focusedLayerRowId: 'layer-input',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
@@ -211,7 +222,7 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
 
     render(result.current.renderAnnotationItem(
-      makeUtteranceDoc('utt-1', 1, 2),
+      makeUnitUnit('utt-1', 'layer-input', 1, 2),
       makeLayer('layer-input'),
       'draft text',
       {
@@ -225,19 +236,19 @@ describe('useTimelineAnnotationHelpers', () => {
     expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
       unitId: 'utt-1',
       layerId: 'layer-input',
-      unitKind: 'utterance',
+      unitKind: 'unit',
       splitTime: 1.001,
       x: 0,
       y: 0,
     }));
   });
 
-  it('renders self-certainty badge on segment row from host utterance', () => {
-    const host: UtteranceDocType = {
-      ...makeUtteranceDoc('utt-host', 1, 2),
+  it('renders self-certainty badge on segment row from host unit', () => {
+    const host: LayerUnitDocType = {
+      ...makeUnitDoc('utt-host', 1, 2),
       selfCertainty: 'certain',
     };
-    const seg = makeSegmentDoc('seg-bound', 'layer-seg', 1, 2, 'utt-host');
+    const seg = makeSegmentUnit('seg-bound', 'layer-seg', 1, 2, 'utt-host');
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
       manualSelectTsRef: { current: 0 },
@@ -262,12 +273,12 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-seg',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
       independentLayerIds: new Set(['layer-seg']),
-      utterancesForSelfCertainty: [host],
+      resolveSelfCertaintyForUnit: () => host.selfCertainty,
     }));
 
     const { container } = render(result.current.renderAnnotationItem(
@@ -283,12 +294,12 @@ describe('useTimelineAnnotationHelpers', () => {
     expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
   });
 
-  it('renders self-certainty badge for independent segment rows when the segment id itself is the host utterance id', () => {
-    const host: UtteranceDocType = {
-      ...makeUtteranceDoc('seg-self-host', 1, 2),
+  it('renders self-certainty badge for independent segment rows when the segment id itself is the host unit id', () => {
+    const host: LayerUnitDocType = {
+      ...makeUnitDoc('seg-self-host', 1, 2),
       selfCertainty: 'uncertain',
     };
-    const seg = makeSegmentDoc('seg-self-host', 'layer-seg', 1, 2);
+    const seg = makeSegmentUnit('seg-self-host', 'layer-seg', 1, 2);
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
       manualSelectTsRef: { current: 0 },
@@ -313,12 +324,12 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-seg',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
       independentLayerIds: new Set(['layer-seg']),
-      utterancesForSelfCertainty: [host],
+      resolveSelfCertaintyForUnit: () => host.selfCertainty,
     }));
 
     const { container } = render(result.current.renderAnnotationItem(
@@ -333,12 +344,12 @@ describe('useTimelineAnnotationHelpers', () => {
 
     expect(container.querySelector('.timeline-annotation-self-certainty--uncertain')).toBeTruthy();
   });
-  it('renders self-certainty badge for a contained segment even without explicit parentUtteranceId', () => {
-    const host: UtteranceDocType = {
-      ...makeUtteranceDoc('utt-contained', 1, 2),
+  it('renders self-certainty badge for a contained segment even without explicit parentUnitId', () => {
+    const host: LayerUnitDocType = {
+      ...makeUnitDoc('utt-contained', 1, 2),
       selfCertainty: 'uncertain',
     };
-    const seg = makeSegmentDoc('seg-loose', 'layer-seg', 1.2, 1.8);
+    const seg = makeSegmentUnit('seg-loose', 'layer-seg', 1.2, 1.8);
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
       manualSelectTsRef: { current: 0 },
@@ -363,12 +374,12 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-seg',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
       independentLayerIds: new Set(['layer-seg']),
-      utterancesForSelfCertainty: [host],
+      resolveSelfCertaintyForUnit: () => host.selfCertainty,
     }));
 
     const { container } = render(result.current.renderAnnotationItem(
@@ -384,20 +395,20 @@ describe('useTimelineAnnotationHelpers', () => {
     expect(container.querySelector('.timeline-annotation-self-certainty--uncertain')).toBeTruthy();
   });
 
-  it('renders self-certainty badge for timeline unit view segments via parentUtteranceId', () => {
-    const host: UtteranceDocType = {
-      ...makeUtteranceDoc('utt-timeline-parent', 1, 2),
+  it('renders self-certainty badge for timeline unit view segments via parentUnitId', () => {
+    const host: LayerUnitDocType = {
+      ...makeUnitDoc('utt-timeline-parent', 1, 2),
       selfCertainty: 'certain',
     };
-    const timelineViewLike = {
+    const timelineViewLike: TimelineUnitView = {
       id: 'seg-view-1',
-      kind: 'segment' as const,
+      kind: 'segment',
       mediaId: 'media-1',
       layerId: 'layer-seg',
       startTime: 8,
       endTime: 9,
       text: '',
-      parentUtteranceId: 'utt-timeline-parent',
+      parentUnitId: 'utt-timeline-parent',
     };
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
@@ -423,17 +434,64 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-seg',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
       independentLayerIds: new Set(['layer-seg']),
-      utterancesForSelfCertainty: [host],
+      resolveSelfCertaintyForUnit: () => host.selfCertainty,
     }));
 
     const { container } = render(result.current.renderAnnotationItem(
-      timelineViewLike as unknown as LayerSegmentDocType,
+      timelineViewLike,
       makeLayer('layer-seg'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+  });
+
+  it('renders self-certainty from the source unit layer even when the display lane differs', () => {
+    const seg = makeSegmentUnit('seg-source', 'layer-source', 3, 4, 'utt-host');
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-display',
+      zoomToUnit: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-source']),
+      resolveSelfCertaintyForUnit: (_unitId, layerId) => (layerId === 'layer-source' ? 'certain' : undefined),
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      seg,
+      makeLayer('layer-display'),
       'segment text',
       {
         onChange: vi.fn(),
@@ -475,7 +533,7 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-label',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),
@@ -524,7 +582,7 @@ describe('useTimelineAnnotationHelpers', () => {
       dragPreview: null,
       selectedUnitIds: new Set(),
       focusedLayerRowId: 'layer-tibetan',
-      zoomToUtterance: vi.fn(),
+      zoomToUnit: vi.fn(),
       startTimelineResizeDrag: vi.fn(),
       handleNoteClick: vi.fn(),
       resolveNoteIndicatorTarget: vi.fn(() => null),

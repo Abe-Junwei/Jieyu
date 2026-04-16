@@ -1,19 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import {
-  getLanguageAliasCodeFromCatalog,
-  getLanguageAliasesForCodeFromCatalog,
-  getLanguageDisplayCoreEntry,
-  getLanguageEnglishDisplayNameFromCatalog,
-  getLanguageLocalDisplayNameFromCatalog,
-  getLanguageNativeDisplayNameFromCatalog,
-  getLanguageQueryEntriesFromCatalog,
-  getLanguageQueryNamesFromCatalog,
-} from './languageNameCatalog';
-import {
-  clearLanguageCatalogRuntimeCache,
-  writeLanguageCatalogRuntimeCache,
-} from './languageCatalogRuntimeCache';
+import { getLanguageAliasCodeFromCatalog, getLanguageAliasesForCodeFromCatalog, getLanguageDisplayCoreEntry, getLanguageEnglishDisplayNameFromCatalog, getLanguageLocalDisplayNameFromCatalog, getLanguageNativeDisplayNameFromCatalog, getLanguageQueryEntriesFromCatalog, getLanguageQueryNamesFromCatalog } from './languageNameCatalog';
+import { clearLanguageCatalogRuntimeCache, writeLanguageCatalogRuntimeCache } from './languageCatalogRuntimeCache';
 
 afterEach(() => {
   clearLanguageCatalogRuntimeCache();

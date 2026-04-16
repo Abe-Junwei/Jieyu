@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 import { t, useLocale } from '../i18n';
 
 interface TimeRulerProps {
@@ -14,8 +14,8 @@ interface TimeRulerProps {
   instanceRef: React.RefObject<WaveSurfer | null>;
   waveCanvasRef: React.RefObject<HTMLDivElement | null>;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
-  /** 全部语段（用于密度热力条）| All utterances for density heatmap */
-  utterances?: UtteranceDocType[];
+  /** 全部语段（用于密度热力条）| All units for density heatmap */
+  units?: LayerUnitDocType[];
 }
 
 const NICE_STEPS = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
@@ -38,7 +38,7 @@ export function TimeRuler({
   instanceRef,
   waveCanvasRef,
   tierContainerRef,
-  utterances,
+  units,
 }: TimeRulerProps) {
   const locale = useLocale();
   const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({ dragging: false, startX: 0, startScroll: 0 });
@@ -69,11 +69,11 @@ export function TimeRuler({
 
   /** 计算可见窗口内的语段密度色块 | Compute density segments for the heatmap strip */
   const densitySegments = useMemo(() => {
-    if (!utterances || utterances.length === 0 || duration <= 0) return [];
+    if (!units || units.length === 0 || duration <= 0) return [];
     const BINS = 200;
     const binSize = duration / BINS;
     const counts = new Array<number>(BINS).fill(0);
-    for (const utt of utterances) {
+    for (const utt of units) {
       const binStart = Math.floor(utt.startTime / binSize);
       const binEnd = Math.min(BINS - 1, Math.floor(utt.endTime / binSize));
       for (let b = binStart; b <= binEnd; b++) counts[b]!++;
@@ -94,7 +94,7 @@ export function TimeRuler({
     }
     if (cur) segments.push(cur);
     return segments.filter((s) => s.level > 0);
-  }, [utterances, duration]);
+  }, [units, duration]);
 
   if (windowSec <= 0) return null;
 

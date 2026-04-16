@@ -274,7 +274,7 @@ const COMMAND_RULES: CommandRule[] = [
   // "自动标注" / "自动gloss" / "auto gloss"
   {
     pattern: /^(?:请?(?:帮我)?)?(?:自动|auto)\s*(?:标注|gloss|注释|glossing)/i,
-    build: () => ({ name: 'auto_gloss_utterance', arguments: {} }),
+    build: () => ({ name: 'auto_gloss_unit', arguments: {} }),
     priority: 85,
   },
 

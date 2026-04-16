@@ -70,7 +70,7 @@ export interface UseOrchestratorViewModelsInput {
   handleExportJyt: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJyt'];
   handleExportJym: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleExportJym'];
   handleImportFile: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['handleImportFile'];
-  utterancesOnCurrentMedia: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['utterancesOnCurrentMedia'];
+  unitsOnCurrentMedia: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['unitsOnCurrentMedia'];
   rulerView: Parameters<typeof useTranscriptionSectionViewModelsInput>[0]['rulerView'];
   zoomPxPerSec: number;
   isTimelineLaneHeaderCollapsed: boolean;
@@ -161,7 +161,7 @@ export function useOrchestratorViewModels(
     handleExportJyt: input.handleExportJyt,
     handleExportJym: input.handleExportJym,
     handleImportFile: input.handleImportFile,
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
+    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
     rulerView: input.rulerView,
     zoomPxPerSec: input.zoomPxPerSec,
     isTimelineLaneHeaderCollapsed: input.isTimelineLaneHeaderCollapsed,

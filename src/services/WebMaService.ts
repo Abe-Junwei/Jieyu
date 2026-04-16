@@ -19,7 +19,7 @@
  * @see https://webservice.bas.uni-muenchen.ac.kr (API documentation)
  */
 
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 
 export type WebMaService = 'maus' | 'mausg2' | 'maus1';
 export type WebMaLanguage =
@@ -385,31 +385,31 @@ export class WebMaServiceClient {
   }
 
   /**
-   * Match WebMAUS word intervals to existing utterances.
+   * Match WebMAUS word intervals to existing units.
    *
    * WebMAUS returns word-level timestamps for the entire transcript.
-   * This function aligns those words to the utterance boundaries already
+   * This function aligns those words to the unit boundaries already
    * defined in the project.
    *
    * @param words WebMAUS word intervals (already parsed).
-   * @param utterances Existing utterances from the project.
-   * @returns Map of utterance ID → aligned word intervals.
+   * @param units Existing units from the project.
+   * @returns Map of unit ID → aligned word intervals.
    */
-  matchWordsToUtterances(
+  matchWordsToUnits(
     words: Array<{ text: string; startTime: number; endTime: number }>,
-    utterances: UtteranceDocType[],
+    units: LayerUnitDocType[],
   ): Map<string, Array<{ text: string; startTime: number; endTime: number }>> {
     const result = new Map<string, Array<{ text: string; startTime: number; endTime: number }>>();
 
-    // Sort utterances by start time
-    const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+    // Sort units by start time
+    const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
 
-    for (const utterance of sorted) {
+    for (const unit of sorted) {
       const uttWords = words.filter(
-        (w) => w.startTime >= utterance.startTime && w.endTime <= utterance.endTime,
+        (w) => w.startTime >= unit.startTime && w.endTime <= unit.endTime,
       );
       if (uttWords.length > 0) {
-        result.set(utterance.id, uttWords);
+        result.set(unit.id, uttWords);
       }
     }
 

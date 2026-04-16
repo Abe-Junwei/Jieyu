@@ -1,21 +1,13 @@
 import { useCallback, useMemo, useRef } from 'react';
-import {
-  legacyDeleteSegment,
-  legacyDeleteSegments,
-  legacyMergeAdjacentSegments,
-  legacySplitSegment,
-} from '../app/index';
-import type { UtteranceDocType } from '../db';
+import { getTranscriptionAppService } from '../app/index';
+import type { LayerUnitDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import { t, useLocale } from '../i18n';
 import { reportActionError } from '../utils/actionErrorReporter';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
-import {
-  dispatchTimelineUnitMutation,
-  dispatchTimelineUnitSelectionMutation,
-} from './timelineUnitMutationDispatch';
+import { dispatchTimelineUnitMutation, dispatchTimelineUnitSelectionMutation } from './timelineUnitMutationDispatch';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
@@ -28,15 +20,15 @@ interface UseTranscriptionSegmentMutationControllerInput {
   refreshSegmentUndoSnapshot: () => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
-  findUtteranceDocContainingRange: (start: number, end: number) => UtteranceDocType | undefined;
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
+  findUnitDocContainingRange: (start: number, end: number) => LayerUnitDocType | undefined;
   setSaveState: (state: SaveState) => void;
-  splitUtterance: (id: string, splitTime: number) => Promise<void>;
-  mergeSelectedUtterances: (ids: Set<string>) => Promise<void>;
+  splitUnit: (id: string, splitTime: number) => Promise<void>;
+  mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
   mergeWithPrevious: (id: string) => Promise<void>;
   mergeWithNext: (id: string) => Promise<void>;
-  deleteUtterance: (id: string) => Promise<void>;
-  deleteSelectedUtterances: (ids: Set<string>) => Promise<void>;
+  deleteUnit: (id: string) => Promise<void>;
+  deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
   recordTimelineEdit?: (event: PushTimelineEditInput) => void;
 }
 
@@ -45,8 +37,8 @@ interface UseTranscriptionSegmentMutationControllerResult {
   mergeWithPreviousRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeWithNextRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
-  deleteUtteranceRouted: (id: string, layerIdOverride?: string) => Promise<void>;
-  deleteSelectedUtterancesRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
+  deleteUnitRouted: (id: string, layerIdOverride?: string) => Promise<void>;
+  deleteSelectedUnitsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
 }
 
 function setSegmentMutationActionError(
@@ -74,11 +66,12 @@ function recordSegmentMutationLatency(action: string, status: 'success' | 'error
 export function useTranscriptionSegmentMutationController(
   input: UseTranscriptionSegmentMutationControllerInput,
 ): UseTranscriptionSegmentMutationControllerResult {
+  const transcriptionAppService = getTranscriptionAppService();
   const locale = useLocale();
   const {
     activeLayerIdForEdits, resolveSegmentRoutingForLayer, pushUndo, reloadSegments, refreshSegmentUndoSnapshot,
-    selectTimelineUnit, unitsOnCurrentMedia, getUtteranceDocById, findUtteranceDocContainingRange, setSaveState, splitUtterance,
-    mergeSelectedUtterances, mergeWithPrevious, mergeWithNext, deleteUtterance, deleteSelectedUtterances,
+    selectTimelineUnit, unitsOnCurrentMedia, getUnitDocById, findUnitDocContainingRange, setSaveState, splitUnit,
+    mergeSelectedUnits, mergeWithPrevious, mergeWithNext, deleteUnit, deleteSelectedUnits,
     recordTimelineEdit,
   } = input;
   const segmentMutationReloadGenRef = useRef(0);
@@ -94,21 +87,21 @@ export function useTranscriptionSegmentMutationController(
   const createSegmentTarget = (unitId: string, layerIdOverride?: string) => resolveTranscriptionUnitTarget({ layerId: layerIdOverride ?? activeLayerIdForEdits, unitId, preferredKind: 'segment' });
   const mergeSelectedSegmentsRouted = useTranscriptionSegmentBatchMerge({
     activeLayerIdForEdits, resolveSegmentRoutingForLayer, pushUndo, reloadSegments, refreshSegmentUndoSnapshot,
-    selectTimelineUnit, createSegmentTarget, unitsOnCurrentMedia, getUtteranceDocById, findUtteranceDocContainingRange,
-    setSaveState, mergeSelectedUtterances, segmentMutationReloadGenRef,
+    selectTimelineUnit, createSegmentTarget, unitsOnCurrentMedia, getUnitDocById, findUnitDocContainingRange,
+    setSaveState, mergeSelectedUnits: mergeSelectedUnits, segmentMutationReloadGenRef,
     ...(recordTimelineEdit ? { recordTimelineEdit } : {}),
   });
-  const resolveParentUtteranceForSegment = useCallback((segment: {
-    parentUtteranceId?: string;
+  const resolveParentUnitForSegment = useCallback((segment: {
+    parentUnitId?: string;
     startTime: number;
     endTime: number;
   }) => {
-    if (segment.parentUtteranceId) {
-      const byId = getUtteranceDocById(segment.parentUtteranceId);
+    if (segment.parentUnitId) {
+      const byId = getUnitDocById(segment.parentUnitId);
       if (byId) return byId;
     }
-    return findUtteranceDocContainingRange(segment.startTime, segment.endTime);
-  }, [findUtteranceDocContainingRange, getUtteranceDocById]);
+    return findUnitDocContainingRange(segment.startTime, segment.endTime);
+  }, [findUnitDocContainingRange, getUnitDocById]);
   const splitRouted = useCallback(async (id: string, splitTime: number, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
     const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
@@ -116,10 +109,10 @@ export function useTranscriptionSegmentMutationController(
     await dispatchTimelineUnitMutation({
       unit: unitById.get(id),
       routing,
-      onUtteranceDoc: async () => {
+      onUnitDoc: async () => {
         try {
-          await splitUtterance(id, splitTime);
-          recordTimelineEdit?.({ action: 'split', unitId: id, unitKind: 'utterance' });
+          await splitUnit(id, splitTime);
+          recordTimelineEdit?.({ action: 'split', unitId: id, unitKind: 'unit' });
           recordSegmentMutationLatency('split', 'success', startedAtMs);
         } catch (error) {
           recordSegmentMutationLatency('split', 'error', startedAtMs);
@@ -127,11 +120,11 @@ export function useTranscriptionSegmentMutationController(
         }
       },
       onSegmentLayer: async () => {
-        pushUndo(t(locale, 'transcription.utteranceAction.undo.split'));
+        pushUndo(t(locale, 'transcription.unitAction.undo.split'));
         try {
           segmentMutationReloadGenRef.current += 1;
           const postReloadToken = segmentMutationReloadGenRef.current;
-          const splitResult = await legacySplitSegment(id, splitTime);
+          const splitResult = await transcriptionAppService.splitSegment(id, splitTime);
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('split', 'success', startedAtMs);
@@ -147,12 +140,12 @@ export function useTranscriptionSegmentMutationController(
           });
           recordSegmentMutationLatency('split', 'success', startedAtMs);
         } catch (error) {
-          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.split'), 'transcription.error.action.segmentSplitFailed', error);
+          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.split'), 'transcription.error.action.segmentSplitFailed', error);
           recordSegmentMutationLatency('split', 'error', startedAtMs);
         }
       },
     });
-  }, [activeLayerIdForEdits, createSegmentTarget, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, splitUtterance, unitById]);
+  }, [activeLayerIdForEdits, createSegmentTarget, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, splitUnit, transcriptionAppService, unitById]);
 
   const mergeWithPreviousRouted = useCallback(async (id: string, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
@@ -161,10 +154,10 @@ export function useTranscriptionSegmentMutationController(
     await dispatchTimelineUnitMutation({
       unit: unitById.get(id),
       routing,
-      onUtteranceDoc: async () => {
+      onUnitDoc: async () => {
         try {
           await mergeWithPrevious(id);
-          recordTimelineEdit?.({ action: 'merge', unitId: id, unitKind: 'utterance', detail: 'with_previous' });
+          recordTimelineEdit?.({ action: 'merge', unitId: id, unitKind: 'unit', detail: 'with_previous' });
           recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
         } catch (error) {
           recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
@@ -179,8 +172,8 @@ export function useTranscriptionSegmentMutationController(
         const prevSeg = segments[index - 1]!;
         const curSeg = segments[index]!;
         if (routing.editMode === 'time-subdivision') {
-          const parentUtt = resolveParentUtteranceForSegment(curSeg);
-          const prevParentUtt = resolveParentUtteranceForSegment(prevSeg);
+          const parentUtt = resolveParentUnitForSegment(curSeg);
+          const prevParentUtt = resolveParentUnitForSegment(prevSeg);
           if (!parentUtt || !prevParentUtt || parentUtt.id !== prevParentUtt.id) {
             setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange') });
             recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
@@ -192,11 +185,11 @@ export function useTranscriptionSegmentMutationController(
             return;
           }
         }
-        pushUndo(t(locale, 'transcription.utteranceAction.undo.mergePrevious'));
+        pushUndo(t(locale, 'transcription.unitAction.undo.mergePrevious'));
         try {
           segmentMutationReloadGenRef.current += 1;
           const postReloadToken = segmentMutationReloadGenRef.current;
-          await legacyMergeAdjacentSegments(prevSeg.id, id);
+          await transcriptionAppService.mergeAdjacentSegments(prevSeg.id, id);
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
@@ -207,12 +200,12 @@ export function useTranscriptionSegmentMutationController(
           recordTimelineEdit?.({ action: 'merge', unitId: prevSeg.id, unitKind: 'segment', detail: `consumed=${curSeg.id}` });
           recordSegmentMutationLatency('merge_previous', 'success', startedAtMs);
         } catch (error) {
-          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.mergePrevious'), 'transcription.error.action.segmentMergeFailed', error);
+          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.mergePrevious'), 'transcription.error.action.segmentMergeFailed', error);
           recordSegmentMutationLatency('merge_previous', 'error', startedAtMs);
         }
       },
     });
-  }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithPrevious, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveParentUtteranceForSegment, resolveSegmentRoutingForLayer, resolveSegmentUnitsForLayer, selectTimelineUnit, setSaveState, unitById]);
+  }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithPrevious, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveParentUnitForSegment, resolveSegmentRoutingForLayer, resolveSegmentUnitsForLayer, selectTimelineUnit, setSaveState, transcriptionAppService, unitById]);
 
   const mergeWithNextRouted = useCallback(async (id: string, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
@@ -221,10 +214,10 @@ export function useTranscriptionSegmentMutationController(
     await dispatchTimelineUnitMutation({
       unit: unitById.get(id),
       routing,
-      onUtteranceDoc: async () => {
+      onUnitDoc: async () => {
         try {
           await mergeWithNext(id);
-          recordTimelineEdit?.({ action: 'merge', unitId: id, unitKind: 'utterance', detail: 'with_next' });
+          recordTimelineEdit?.({ action: 'merge', unitId: id, unitKind: 'unit', detail: 'with_next' });
           recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
         } catch (error) {
           recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
@@ -239,8 +232,8 @@ export function useTranscriptionSegmentMutationController(
         const curSeg = segments[index]!;
         const nextSeg = segments[index + 1]!;
         if (routing.editMode === 'time-subdivision') {
-          const parentUtt = resolveParentUtteranceForSegment(curSeg);
-          const nextParentUtt = resolveParentUtteranceForSegment(nextSeg);
+          const parentUtt = resolveParentUnitForSegment(curSeg);
+          const nextParentUtt = resolveParentUnitForSegment(nextSeg);
           if (!parentUtt || !nextParentUtt || parentUtt.id !== nextParentUtt.id) {
             setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.segmentMergeOutOfParentRange') });
             recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
@@ -252,11 +245,11 @@ export function useTranscriptionSegmentMutationController(
             return;
           }
         }
-        pushUndo(t(locale, 'transcription.utteranceAction.undo.mergeNext'));
+        pushUndo(t(locale, 'transcription.unitAction.undo.mergeNext'));
         try {
           segmentMutationReloadGenRef.current += 1;
           const postReloadToken = segmentMutationReloadGenRef.current;
-          await legacyMergeAdjacentSegments(id, nextSeg.id);
+          await transcriptionAppService.mergeAdjacentSegments(id, nextSeg.id);
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
@@ -267,22 +260,22 @@ export function useTranscriptionSegmentMutationController(
           recordTimelineEdit?.({ action: 'merge', unitId: id, unitKind: 'segment', detail: `consumed=${nextSeg.id}` });
           recordSegmentMutationLatency('merge_next', 'success', startedAtMs);
         } catch (error) {
-          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.mergeNext'), 'transcription.error.action.segmentMergeFailed', error);
+          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.mergeNext'), 'transcription.error.action.segmentMergeFailed', error);
           recordSegmentMutationLatency('merge_next', 'error', startedAtMs);
         }
       },
     });
-  }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithNext, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveParentUtteranceForSegment, resolveSegmentRoutingForLayer, resolveSegmentUnitsForLayer, selectTimelineUnit, setSaveState, unitById]);
-  const deleteUtteranceRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+  }, [activeLayerIdForEdits, createSegmentTarget, locale, mergeWithNext, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveParentUnitForSegment, resolveSegmentRoutingForLayer, resolveSegmentUnitsForLayer, selectTimelineUnit, setSaveState, transcriptionAppService, unitById]);
+  const deleteUnitRouted = useCallback(async (id: string, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
     const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     await dispatchTimelineUnitMutation({
       unit: unitById.get(id),
       routing,
-      onUtteranceDoc: async () => {
+      onUnitDoc: async () => {
         try {
-          await deleteUtterance(id);
-          recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'utterance' });
+          await deleteUnit(id);
+          recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'unit' });
           recordSegmentMutationLatency('delete', 'success', startedAtMs);
         } catch (error) {
           recordSegmentMutationLatency('delete', 'error', startedAtMs);
@@ -290,11 +283,11 @@ export function useTranscriptionSegmentMutationController(
         }
       },
       onSegmentLayer: async () => {
-        pushUndo(t(locale, 'transcription.utteranceAction.undo.delete'));
+        pushUndo(t(locale, 'transcription.unitAction.undo.delete'));
         try {
           segmentMutationReloadGenRef.current += 1;
           const postReloadToken = segmentMutationReloadGenRef.current;
-          await legacyDeleteSegment(id);
+          await transcriptionAppService.deleteSegment(id);
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('delete', 'success', startedAtMs);
@@ -305,29 +298,29 @@ export function useTranscriptionSegmentMutationController(
           recordTimelineEdit?.({ action: 'delete', unitId: id, unitKind: 'segment' });
           recordSegmentMutationLatency('delete', 'success', startedAtMs);
         } catch (error) {
-          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.delete'), 'transcription.error.action.segmentDeleteFailed', error);
+          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.delete'), 'transcription.error.action.segmentDeleteFailed', error);
           recordSegmentMutationLatency('delete', 'error', startedAtMs);
         }
       },
     });
-  }, [activeLayerIdForEdits, deleteUtterance, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, unitById]);
+  }, [activeLayerIdForEdits, deleteUnit, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, transcriptionAppService, unitById]);
 
-  const deleteSelectedUtterancesRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
+  const deleteSelectedUnitsRouted = useCallback(async (ids: Set<string>, layerIdOverride?: string) => {
     const startedAtMs = performance.now();
     const routing = resolveSegmentRoutingForLayer(layerIdOverride ?? activeLayerIdForEdits);
     await dispatchTimelineUnitSelectionMutation({
       ids,
       unitById,
       routing,
-      onUtteranceDoc: async () => {
+      onUnitDoc: async () => {
         try {
-          await deleteSelectedUtterances(ids);
+          await deleteSelectedUnits(ids);
           const head = [...ids][0];
           if (head) {
             recordTimelineEdit?.({
               action: 'delete',
               unitId: head,
-              unitKind: 'utterance',
+              unitKind: 'unit',
               ...(ids.size > 1 ? { detail: `batch=${ids.size}` } : {}),
             });
           }
@@ -340,10 +333,10 @@ export function useTranscriptionSegmentMutationController(
       onSegmentLayer: async () => {
         if (ids.size === 0) return;
         try {
-          pushUndo(t(locale, 'transcription.utteranceAction.undo.deleteSelection'));
+          pushUndo(t(locale, 'transcription.unitAction.undo.deleteSelection'));
           segmentMutationReloadGenRef.current += 1;
           const postReloadToken = segmentMutationReloadGenRef.current;
-          await legacyDeleteSegments([...ids]);
+          await transcriptionAppService.deleteSegments([...ids]);
           await reloadSegments();
           if (segmentMutationReloadGenRef.current !== postReloadToken) {
             recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
@@ -363,19 +356,19 @@ export function useTranscriptionSegmentMutationController(
           recordSegmentMutationLatency('delete_selection', 'success', startedAtMs);
         } catch (error) {
           await reloadSegments();
-          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.utteranceAction.undo.deleteSelection'), 'transcription.error.action.segmentBatchDeleteFailed', error);
+          setSegmentMutationActionError(setSaveState, t(locale, 'transcription.unitAction.undo.deleteSelection'), 'transcription.error.action.segmentBatchDeleteFailed', error);
           recordSegmentMutationLatency('delete_selection', 'error', startedAtMs);
         }
       },
     });
-  }, [activeLayerIdForEdits, deleteSelectedUtterances, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, unitById]);
+  }, [activeLayerIdForEdits, deleteSelectedUnits, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, transcriptionAppService, unitById]);
 
   return {
     splitRouted,
     mergeWithPreviousRouted,
     mergeWithNextRouted,
     mergeSelectedSegmentsRouted,
-    deleteUtteranceRouted,
-    deleteSelectedUtterancesRouted,
+    deleteUnitRouted: deleteUnitRouted,
+    deleteSelectedUnitsRouted: deleteSelectedUnitsRouted,
   };
 }

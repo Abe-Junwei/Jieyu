@@ -5,14 +5,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  getActionLabel,
-  getVoiceAliasLearningReasonLabel,
-  loadVoiceAliasLearningLog,
-  clearVoiceAliasLearningLog,
-  appendVoiceAliasLearningLog,
-  type VoiceAliasLearningLogEntry,
-} from './voiceIntentUi';
+import { getActionLabel, getVoiceAliasLearningReasonLabel, loadVoiceAliasLearningLog, clearVoiceAliasLearningLog, appendVoiceAliasLearningLog, type VoiceAliasLearningLogEntry } from './voiceIntentUi';
 
 const STORAGE_KEY = 'jieyu.voice.intent.aliasLearningLog';
 

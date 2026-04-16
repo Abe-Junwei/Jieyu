@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { UtteranceDocType, AnchorDocType, LayerDocType, UtteranceTextDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, LayerSegmentDocType, LayerSegmentContentDocType, SpeakerDocType, OrthographyDocType } from '../db';
+import type { LayerUnitDocType, AnchorDocType, LayerDocType, LayerUnitContentDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, SpeakerDocType, OrthographyDocType } from '../db';
 import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
@@ -14,16 +14,16 @@ import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
 export interface EafExportInput {
   mediaItem?: MediaItemDocType;
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   anchors?: AnchorDocType[];
   layers: LayerDocType[];
   orthographies?: OrthographyDocType[];
-  translations: UtteranceTextDocType[];
+  translations: LayerUnitContentDocType[];
   userNotes?: UserNoteDocType[];
   /** 独立边界层的 segment 数据（按 layerId 分组）| Segment data for independent-boundary layers, keyed by layerId */
-  layerSegments?: Map<string, LayerSegmentDocType[]>;
+  layerSegments?: Map<string, LayerUnitDocType[]>;
   /** 独立边界层的 segment 内容（按 layerId 分组，内层按 segmentId）| Segment content for independent-boundary layers */
-  layerSegmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
+  layerSegmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
   /** 默认转写层 ID（用于区分非默认独立转写层）| Default transcription layer ID */
   defaultTranscriptionLayerId?: string;
   /** Speaker entities for PARTICIPANT attribute export | 用于导出 PARTICIPANT 属性的说话人实体 */
@@ -32,8 +32,8 @@ export interface EafExportInput {
 
 export interface EafImportResult {
   mediaFilename: string;
-  /** Utterances extracted from the default transcription tier */
-  utterances: Array<{
+  /** Units extracted from the default transcription tier */
+  units: Array<{
     startTime: number;
     endTime: number;
     transcription: string;
@@ -100,9 +100,9 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, utterances, anchors, layers, orthographies, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
-  const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
-  const utteranceById = new Map(utterances.map((utterance) => [utterance.id, utterance] as const));
+  const { mediaItem, units, anchors, layers, orthographies, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
+  const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
+  const unitById = new Map(units.map((unit) => [unit.id, unit] as const));
 
   // Build speaker lookup map for PARTICIPANT export
   const speakerById = new Map<string, SpeakerDocType>();
@@ -123,11 +123,11 @@ export function exportToEaf(input: EafExportInput): string {
     return trimmed;
   };
 
-  // Helper: get the dominant speaker ID from a list of utterance IDs (for tier PARTICIPANT)
+  // Helper: get the dominant speaker ID from a list of unit IDs (for tier PARTICIPANT)
   const getDominantSpeaker = (uttIds: string[]): string | undefined => {
     const counts = new Map<string, number>();
     for (const id of uttIds) {
-      const utt = utteranceById.get(id);
+      const utt = unitById.get(id);
       if (utt?.speakerId) counts.set(utt.speakerId, (counts.get(utt.speakerId) ?? 0) + 1);
     }
     if (counts.size === 0) return undefined;
@@ -139,15 +139,15 @@ export function exportToEaf(input: EafExportInput): string {
     return dominant;
   };
 
-  const resolveSegmentSpeakerId = (segment: LayerSegmentDocType): string | undefined => {
+  const resolveSegmentSpeakerId = (segment: LayerUnitDocType): string | undefined => {
     const explicitSpeakerId = segment.speakerId?.trim();
     if (explicitSpeakerId) return explicitSpeakerId;
-    const ownerUtterance = segment.utteranceId ? utteranceById.get(segment.utteranceId) : undefined;
-    const ownerSpeakerId = ownerUtterance?.speakerId?.trim();
+    const ownerUnit = segment.unitId ? unitById.get(segment.unitId) : undefined;
+    const ownerSpeakerId = ownerUnit?.speakerId?.trim();
     return ownerSpeakerId && ownerSpeakerId.length > 0 ? ownerSpeakerId : undefined;
   };
 
-  const getDominantSpeakerFromSegments = (segments: LayerSegmentDocType[]): string | undefined => {
+  const getDominantSpeakerFromSegments = (segments: LayerUnitDocType[]): string | undefined => {
     const counts = new Map<string, number>();
     for (const segment of segments) {
       const speakerId = resolveSegmentSpeakerId(segment);
@@ -194,14 +194,14 @@ export function exportToEaf(input: EafExportInput): string {
         ? getOrCreateTsForAnchor(utt.endAnchorId, utt.endTime)
         : `ts${tsCounter++}`;
 
-      // Add fallback time slots for utterances without anchors
+      // Add fallback time slots for units without anchors
       if (!utt.startAnchorId) timeSlots.push({ id: tsStart, ms: Math.round(utt.startTime * 1000) });
       if (!utt.endAnchorId) timeSlots.push({ id: tsEnd, ms: Math.round(utt.endTime * 1000) });
 
       uttSlotMap.set(utt.id, { tsStart, tsEnd });
     }
   } else {
-    // Legacy mode: each utterance gets its own pair of time slots
+    // Legacy mode: each unit gets its own pair of time slots
     for (const utt of sorted) {
       const tsStart = `ts${tsCounter++}`;
       const tsEnd = `ts${tsCounter++}`;
@@ -246,7 +246,7 @@ export function exportToEaf(input: EafExportInput): string {
   const transcriptionAnnotations = sorted.map((utt) => {
     const slots = uttSlotMap.get(utt.id)!;
     const tr = defaultTrcId
-      ? translations.find((t) => t.utteranceId === utt.id && t.layerId === defaultTrcId && t.modality === 'text')
+      ? translations.find((t) => t.unitId === utt.id && t.layerId === defaultTrcId && t.modality === 'text')
       : undefined;
     const text = tr?.text ?? utt.transcription?.default ?? '';
     const annotationId = tr?.externalRef ?? `a${annCounter++}`;
@@ -267,11 +267,13 @@ export function exportToEaf(input: EafExportInput): string {
 
   for (const layer of additionalLayers) {
     const layerTranslations = translations.filter((t) => t.layerId === layer.id && t.modality === 'text');
-    const layerTranslationsByUtterance = new Map<string, UtteranceTextDocType[]>();
+    const layerTranslationsByUnit = new Map<string, LayerUnitContentDocType[]>();
     for (const row of layerTranslations) {
-      const bucket = layerTranslationsByUtterance.get(row.utteranceId);
+      const unitId = row.unitId?.trim();
+      if (!unitId) continue;
+      const bucket = layerTranslationsByUnit.get(unitId);
       if (bucket) bucket.push(row);
-      else layerTranslationsByUtterance.set(row.utteranceId, [row]);
+      else layerTranslationsByUnit.set(unitId, [row]);
     }
     const layerMeta = parseEafMetaFromLayerKey(layer.key);
     const tierName = layerMeta.tierId ?? readEnglishFallbackMultiLangLabel(layer.name) ?? layer.key;
@@ -293,23 +295,23 @@ export function exportToEaf(input: EafExportInput): string {
       const useAlignableAnnotation = constraint === 'independent_boundary' || constraint === 'time_subdivision';
       // Build segment lookup for segment-specific boundaries | 构建 segment 查找（用于独立边界导出）
       const layerSegs = useAlignableAnnotation ? layerSegments?.get(layer.id) : undefined;
-      const segByUttId = new Map<string, LayerSegmentDocType[]>();
+      const segByUttId = new Map<string, LayerUnitDocType[]>();
       if (layerSegs) {
         for (const seg of layerSegs) {
-          if (!seg.utteranceId) continue;
-          const arr = segByUttId.get(seg.utteranceId);
+          if (!seg.unitId) continue;
+          const arr = segByUttId.get(seg.unitId);
           if (arr) arr.push(seg);
-          else segByUttId.set(seg.utteranceId, [seg]);
+          else segByUttId.set(seg.unitId, [seg]);
         }
       }
       const annotations = sorted
         .map((utt) => {
           if (useAlignableAnnotation) {
-            // Use segment boundaries when available. Multi-segment utterances are exported as one annotation per segment.
+            // Use segment boundaries when available. Multi-segment units are exported as one annotation per segment.
             // 优先使用 segment 边界；多 segment 句子按 segment 逐条导出。
             const segArr = [...(segByUttId.get(utt.id) ?? [])]
               .sort((a, b) => (a.startTime - b.startTime) || ((a.ordinal ?? 0) - (b.ordinal ?? 0)));
-            const candidates = layerTranslationsByUtterance.get(utt.id) ?? [];
+            const candidates = layerTranslationsByUnit.get(utt.id) ?? [];
 
             if (segArr.length > 0) {
               const segmentAnnotations = segArr
@@ -343,7 +345,7 @@ export function exportToEaf(input: EafExportInput): string {
         </ANNOTATION>`;
           } else {
             // Symbolic association: use REF_ANNOTATION
-            const tr = layerTranslationsByUtterance.get(utt.id)?.[0];
+            const tr = layerTranslationsByUnit.get(utt.id)?.[0];
             if (!tr?.text) return null;
             const annotationId = tr.externalRef ?? `a${annCounter++}`;
             const parentAnnId = uttAnnotationIdMap.get(utt.id);
@@ -373,7 +375,11 @@ export function exportToEaf(input: EafExportInput): string {
         const timeAlignableAttr = ` LINGUISTIC_TYPE_REF="${linguisticTypeRef}"`;
         const participantId = layerSegs && layerSegs.length > 0
           ? getDominantSpeakerFromSegments(layerSegs)
-          : getDominantSpeaker(layerTranslations.map((t) => t.utteranceId));
+          : getDominantSpeaker(
+              layerTranslations
+                .map((t) => t.unitId)
+                .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+            );
         const participantName = resolveSpeakerDisplayName(participantId);
         const participantAttr = participantName
           ? ` PARTICIPANT="${escapeXml(participantName)}"`
@@ -434,7 +440,7 @@ ${segAnnotations.join('\n')}
         // 普通非默认转写层：用当前 layerTranslations（来自 V2 聚合）导出 | Regular non-default transcription: export from V2-derived layerTranslations
         const annotations = sorted
           .map((utt) => {
-            const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
+            const tr = layerTranslations.find((t) => t.unitId === utt.id);
             if (!tr?.text) return null;
             const slots = uttSlotMap.get(utt.id)!;
             const annotationId = tr?.externalRef ?? `a${annCounter++}`;
@@ -447,11 +453,11 @@ ${segAnnotations.join('\n')}
           .filter(Boolean);
 
         if (annotations.length > 0) {
-          const annotationUtteranceIds = sorted.flatMap((utt) => {
-            const tr = layerTranslations.find((t) => t.utteranceId === utt.id);
+          const annotationUnitIds = sorted.flatMap((utt) => {
+            const tr = layerTranslations.find((t) => t.unitId === utt.id);
             return tr?.text ? [utt.id] : [];
           });
-          const participantId = getDominantSpeaker(annotationUtteranceIds);
+          const participantId = getDominantSpeaker(annotationUnitIds);
           const participantName = resolveSpeakerDisplayName(participantId);
           const participantAttr = participantName
             ? ` PARTICIPANT="${escapeXml(participantName)}"`
@@ -536,17 +542,17 @@ ${footerLines.join('\n')}
 }
 
 function buildNoteTierXml(
-  sorted: UtteranceDocType[],
+  sorted: LayerUnitDocType[],
   uttSlotMap: Map<string, { tsStart: string; tsEnd: string }>,
   notes: UserNoteDocType[],
   annCounterStart: number,
 ): string {
   if (notes.length === 0) return '';
 
-  // Group notes by utterance
+  // Group notes by unit
   const notesByUtt = new Map<string, UserNoteDocType[]>();
   for (const note of notes) {
-    if (note.targetType !== 'utterance') continue;
+    if (note.targetType !== 'unit') continue;
     const arr = notesByUtt.get(note.targetId);
     if (arr) arr.push(note);
     else notesByUtt.set(note.targetId, [note]);
@@ -693,7 +699,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
 
   // ── 层解析 | Parse tiers ──
   const tiers = doc.querySelectorAll('TIER');
-  let utterances: EafImportResult['utterances'] = [];
+  let units: EafImportResult['units'] = [];
   const translationTiers = new Map<string, EafImportResult['translationTiers'] extends Map<string, infer V> ? V : never>();
   let defaultLocale: string | undefined;
   const tierLocales = new Map<string, string>();
@@ -745,7 +751,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
         foundPrimaryTranscription = true;
         if (locale) defaultLocale = locale;
         transcriptionTierName = tierId;
-        utterances = annotations.map((a) => ({
+        units = annotations.map((a) => ({
           startTime: a.startTime,
           endTime: a.endTime,
           transcription: a.text,
@@ -776,7 +782,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
 
   return {
     mediaFilename,
-    utterances,
+    units,
     translationTiers,
     ...(defaultLocale ? { defaultLocale } : {}),
     tierLocales,

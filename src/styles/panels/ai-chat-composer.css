@@ -5,6 +5,47 @@
   flex-shrink: 0;
 }
 
+.ai-chat-follow-up-panel,
+.ai-chat-task-trace {
+  display: grid;
+  gap: 5px;
+  padding-inline: 8px;
+}
+
+.ai-chat-follow-up-title,
+.ai-chat-task-trace-title {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.ai-chat-task-trace-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-chat-task-trace-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 0 calc(9px * var(--ui-font-scale, 1));
+  min-height: calc(24px * var(--ui-font-scale, 1));
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.ai-chat-task-trace-tool,
+.ai-chat-task-trace-step,
+.ai-chat-task-trace-status,
+.ai-chat-task-trace-duration {
+  white-space: nowrap;
+}
+
 .ai-chat-composer-shortcuts {
   display: flex;
   gap: 7px;

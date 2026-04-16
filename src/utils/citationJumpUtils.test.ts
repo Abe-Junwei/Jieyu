@@ -1,28 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import {
-  extractUtteranceIdFromNote,
-  getPdfPageFromHash,
-  isDirectPdfCitationRef,
-  splitPdfCitationRef,
-} from './citationJumpUtils';
+import { extractUnitIdFromNote, getPdfPageFromHash, isDirectPdfCitationRef, splitPdfCitationRef } from './citationJumpUtils';
 
 describe('citationJumpUtils', () => {
-  it('extracts utterance id from utterance note target', () => {
-    expect(extractUtteranceIdFromNote({
-      targetType: 'utterance',
+  it('extracts unit id from unit note target', () => {
+    expect(extractUnitIdFromNote({
+      targetType: 'unit',
       targetId: 'utt_1',
     })).toBe('utt_1');
   });
 
-  it('extracts utterance id from tier annotation target', () => {
-    expect(extractUtteranceIdFromNote({
+  it('extracts unit id from tier annotation target', () => {
+    expect(extractUnitIdFromNote({
       targetType: 'tier_annotation',
       targetId: 'utt_2::anno_1',
     })).toBe('utt_2');
   });
 
-  it('extracts utterance id from token target with parent fallback', () => {
-    expect(extractUtteranceIdFromNote({
+  it('extracts unit id from token target with parent fallback', () => {
+    expect(extractUnitIdFromNote({
       targetType: 'token',
       targetId: 'utt_3::w1',
       parentTargetId: 'utt_3',

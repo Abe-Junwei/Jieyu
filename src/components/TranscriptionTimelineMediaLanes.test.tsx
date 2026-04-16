@@ -2,7 +2,7 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineMediaLanes as RawTranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
 
@@ -28,18 +28,18 @@ function TranscriptionTimelineMediaLanes(
 }
 
 const editorContextValue = {
-  utteranceDrafts: {} as Record<string, string>,
-  setUtteranceDrafts: vi.fn(),
+  unitDrafts: {} as Record<string, string>,
+  setUnitDrafts: vi.fn(),
   translationDrafts: {} as Record<string, string>,
   setTranslationDrafts: vi.fn(),
   translationTextByLayer: new Map(),
   focusedTranslationDraftKeyRef: { current: null as string | null },
   renderLaneLabel: vi.fn(() => 'lane'),
-  getUtteranceTextForLayer: vi.fn(() => ''),
+  getUnitTextForLayer: vi.fn(() => ''),
   scheduleAutoSave: vi.fn(),
   clearAutoSaveTimer: vi.fn(),
-  saveUtteranceText: vi.fn(async () => undefined),
-  saveTextTranslationForUtterance: vi.fn(async () => undefined),
+  saveUnitText: vi.fn(async () => undefined),
+  saveUnitLayerText: vi.fn(async () => undefined),
   createLayer: vi.fn(async () => undefined),
   deleteLayer: vi.fn(async () => undefined),
   deleteLayerWithoutConfirm: vi.fn(async () => undefined),
@@ -71,8 +71,8 @@ vi.mock('./DeleteLayerConfirmDialog', () => ({
 vi.mock('../hooks/useLayerDeleteConfirm', () => ({
   useLayerDeleteConfirm: () => ({
     deleteLayerConfirm: null,
-    deleteConfirmKeepUtterances: false,
-    setDeleteConfirmKeepUtterances: vi.fn(),
+    deleteConfirmKeepUnits: false,
+    setDeleteConfirmKeepUnits: vi.fn(),
     requestDeleteLayer: vi.fn(async () => undefined),
     cancelDeleteLayerConfirm: vi.fn(),
     confirmDeleteLayer: vi.fn(async () => undefined),
@@ -103,7 +103,7 @@ function makeLayer(id: string, layerType: 'transcription' | 'translation' = 'tra
   } as LayerDocType;
 }
 
-function makeUtterance(id: string, startTime: number, endTime: number, speakerId?: string, speaker?: string): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number, speakerId?: string, speaker?: string): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -114,7 +114,7 @@ function makeUtterance(id: string, startTime: number, endTime: number, speakerId
     endTime,
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
@@ -142,7 +142,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
-        timelineRenderUtterances={[makeUtterance('u1', 0, 1, 's1')]}
+        timelineRenderUnits={[makeUnit('u1', 0, 1, 's1')]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={transcriptionLayer.id}
@@ -162,7 +162,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ]);
   });
 
-  it('keeps segment unit shape when segment id collides with utterance id', () => {
+  it('keeps segment unit shape when segment id collides with unit id', () => {
     const layer = {
       ...makeLayer('trc-seg'),
       constraint: 'independent_boundary',
@@ -176,16 +176,16 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={[
-          makeUtterance('seg-1', 0, 2),
-          makeUtterance('utt-host', 4, 6),
+        timelineRenderUnits={[
+          makeUnit('seg-1', 0, 2),
+          makeUnit('utt-host', 4, 6),
         ]}
         segmentsByLayer={new Map([
           [layer.id, [{
             id: 'seg-1',
             layerId: layer.id,
             mediaId: 'm1',
-            utteranceId: 'utt-host',
+            unitId: 'utt-host',
             startTime: 4,
             endTime: 6,
             textId: 't1',
@@ -209,17 +209,17 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const firstRenderedUnit = renderAnnotationItem.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
     expect(firstRenderedUnit).toBeTruthy();
     expect(firstRenderedUnit?.kind).toBe('segment');
-    expect(firstRenderedUnit?.parentUtteranceId).toBe('utt-host');
+    expect(firstRenderedUnit?.parentUnitId).toBe('utt-host');
   });
 
   it('expands only the clicked overlap window and auto-collapses after timeout', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 5, 's1'),
-      makeUtterance('u2', 1, 4, 's2'),
-      makeUtterance('u3', 7, 8, 's3'),
-      makeUtterance('u4', 10, 13, 's1'),
-      makeUtterance('u5', 11, 12, 's2'),
+    const units = [
+      makeUnit('u1', 0, 5, 's1'),
+      makeUnit('u2', 1, 4, 's2'),
+      makeUnit('u3', 7, 8, 's3'),
+      makeUnit('u4', 10, 13, 's1'),
+      makeUnit('u5', 11, 12, 's2'),
     ];
 
     const { container } = render(
@@ -229,7 +229,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -272,12 +272,12 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
   it('switches to the latest clicked overlap window and resets timeout', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 5, 's1'),
-      makeUtterance('u2', 1, 4, 's2'),
-      makeUtterance('u3', 7, 8, 's3'),
-      makeUtterance('u4', 10, 13, 's1'),
-      makeUtterance('u5', 11, 12, 's2'),
+    const units = [
+      makeUnit('u1', 0, 5, 's1'),
+      makeUnit('u2', 1, 4, 's2'),
+      makeUnit('u3', 7, 8, 's3'),
+      makeUnit('u4', 10, 13, 's1'),
+      makeUnit('u5', 11, 12, 's2'),
     ];
 
     const { container } = render(
@@ -287,7 +287,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -342,7 +342,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
   it('does not prevent pointer default on editable annotation in expanded lane', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [makeUtterance('u1', 0, 5, 's1')];
+    const units = [makeUnit('u1', 0, 5, 's1')];
 
     render(
       <TranscriptionTimelineMediaLanes
@@ -351,7 +351,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -374,10 +374,10 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
   it('keeps translation lane independent from speaker overlap layout', () => {
     const trLayer = makeLayer('tr-1', 'translation');
-    const utterances = [
-      makeUtterance('u1', 0, 5, 's1'),
-      makeUtterance('u2', 1, 4, 's2'),
-      makeUtterance('u3', 2, 3, 's3'),
+    const units = [
+      makeUnit('u1', 0, 5, 's1'),
+      makeUnit('u2', 1, 4, 's2'),
+      makeUnit('u3', 2, 3, 's3'),
     ];
 
     const { container } = render(
@@ -387,7 +387,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[]}
         translationLayers={[trLayer]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={undefined}
@@ -429,7 +429,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[]}
         translationLayers={[translationLayer]}
-        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={parentLayer.id}
@@ -474,7 +474,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
-        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={parentLayer.id}
@@ -505,7 +505,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[parentLayer, childLayer]}
         translationLayers={[]}
-        timelineRenderUtterances={[makeUtterance('u-main', 0, 2, 's1')]}
+        timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={parentLayer.id}
@@ -532,11 +532,11 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(within(childLane as HTMLElement).queryByTestId('ann-u-main')).toBeNull();
   });
 
-  it('renders overlapping utterances without speaker-focus dim or hide classes', () => {
+  it('renders overlapping units without speaker-focus dim or hide classes', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 2, 's1'),
-      makeUtterance('u2', 2, 4, 's2'),
+    const units = [
+      makeUnit('u1', 0, 2, 's1'),
+      makeUnit('u2', 2, 4, 's2'),
     ];
 
     const { container } = render(
@@ -546,7 +546,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -566,7 +566,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(container.querySelectorAll('.timeline-annotation-subtrack-focus-hidden').length).toBe(0);
   });
 
-  it('uses independent segment speakerId when no owner utterance exists', () => {
+  it('uses independent segment speakerId when no owner unit exists', () => {
     const layer = {
       ...makeLayer('trc-independent-speaker'),
       constraint: 'independent_boundary',
@@ -594,7 +594,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={[]}
+        timelineRenderUnits={[]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -614,10 +614,10 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
   it('passes overlap cycle status to annotation renderer for overlapping items', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 3, 's1'),
-      makeUtterance('u2', 1, 4, 's2'),
-      makeUtterance('u3', 5, 6, 's3'),
+    const units = [
+      makeUnit('u1', 0, 3, 's1'),
+      makeUnit('u2', 1, 4, 's2'),
+      makeUnit('u3', 5, 6, 's3'),
     ];
 
     render(
@@ -627,7 +627,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -651,9 +651,9 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
   it('surfaces lock conflict count in lane header track mode control', () => {
     const layer = makeLayer('trc-1');
-    const utterances = [
-      makeUtterance('u1', 0, 4, 's1'),
-      makeUtterance('u2', 1, 3, 's2'),
+    const units = [
+      makeUnit('u1', 0, 4, 's1'),
+      makeUnit('u2', 1, 3, 's2'),
     ];
 
     const { rerender } = render(
@@ -663,7 +663,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -690,7 +690,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={utterances}
+        timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -730,7 +730,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[layer]}
         translationLayers={[]}
-        timelineRenderUtterances={[]}
+        timelineRenderUnits={[]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={layer.id}
@@ -757,8 +757,8 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       modality: 'audio',
       acceptsAudio: true,
     } as LayerDocType;
-    const utterance = makeUtterance('u1', 0, 1, 's1');
-    const startRecordingForUtterance = vi.fn(async () => undefined);
+    const unit = makeUnit('u1', 0, 1, 's1');
+    const startRecordingForUnit = vi.fn(async () => undefined);
 
     render(
       <TranscriptionTimelineMediaLanes
@@ -767,7 +767,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         lassoRect={null}
         transcriptionLayers={[transcriptionLayer]}
         translationLayers={[translationLayer]}
-        timelineRenderUtterances={[utterance]}
+        timelineRenderUnits={[unit]}
         flashLayerRowId=""
         focusedLayerRowId=""
         defaultTranscriptionLayerId={transcriptionLayer.id}
@@ -783,15 +783,15 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         onLaneHeightChange={vi.fn()}
         translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
         mediaItems={[]}
-        startRecordingForUtterance={startRecordingForUtterance}
+        startRecordingForUnit={startRecordingForUnit}
         stopRecording={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
 
-    expect(startRecordingForUtterance).toHaveBeenCalledWith(
-      expect.objectContaining({ id: utterance.id }),
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: unit.id }),
       expect.objectContaining({ id: translationLayer.id }),
     );
     expect(screen.getByText(/未录音|Not recorded/)).toBeTruthy();

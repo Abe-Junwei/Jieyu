@@ -6,8 +6,8 @@ export type VoiceInteractionMessages = {
   sendToAiFailed: string;
   currentIndependentSegment: string;
   currentSentenceWithIndex: (rowNumber: number) => string;
-  currentUtterance: string;
-  noUtteranceSelected: string;
+  currentUnit: string;
+  noUnitSelected: string;
   currentPageAction: string;
   analysisNoteSuffix: string;
   noLayerSelected: string;
@@ -34,8 +34,8 @@ const zhCN: VoiceInteractionMessages = {
   sendToAiFailed: '\u53d1\u9001\u5230 AI \u5931\u8d25\u3002',
   currentIndependentSegment: '\u5f53\u524d\u72ec\u7acb\u6bb5',
   currentSentenceWithIndex: (rowNumber) => `\u7b2c ${rowNumber} \u53e5`,
-  currentUtterance: '\u5f53\u524d\u53e5\u6bb5',
-  noUtteranceSelected: '\u672a\u9009\u62e9\u53e5\u6bb5',
+  currentUnit: '\u5f53\u524d\u53e5\u6bb5',
+  noUnitSelected: '\u672a\u9009\u62e9\u53e5\u6bb5',
   currentPageAction: '\u5f53\u524d\u9875\u9762\u64cd\u4f5c',
   analysisNoteSuffix: 'AI \u5206\u6790\u5907\u6ce8',
   noLayerSelected: '\u672a\u9009\u62e9\u5c42',
@@ -62,8 +62,8 @@ const enUS: VoiceInteractionMessages = {
   sendToAiFailed: 'Failed to send to AI.',
   currentIndependentSegment: 'Current independent segment',
   currentSentenceWithIndex: (rowNumber) => `Sentence ${rowNumber}`,
-  currentUtterance: 'Current segment',
-  noUtteranceSelected: 'No segment selected',
+  currentUnit: 'Current segment',
+  noUnitSelected: 'No segment selected',
   currentPageAction: 'Current page action',
   analysisNoteSuffix: 'AI analysis note',
   noLayerSelected: 'No layer selected',

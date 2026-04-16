@@ -1,19 +1,13 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import type { LayerDocType, UtteranceDocType } from '../db';
-import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
+import type { LayerDocType, LayerUnitDocType } from '../db';
+import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
-import type {
-  PdfPreviewOpenRequest,
-  TranscriptionPageAnalysisRuntimeProps,
-  TranscriptionPageAssistantRuntimeProps,
-  TranscriptionPageEmbeddingProviderConfig,
-  TranscriptionPagePdfRuntimeProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { PdfPreviewOpenRequest, TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageEmbeddingProviderConfig, TranscriptionPagePdfRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import { useTranscriptionAssistantRuntimeProps } from './useTranscriptionAssistantRuntimeProps';
 import { useTranscriptionAnalysisRuntimeProps } from './useTranscriptionAnalysisRuntimeProps';
@@ -34,7 +28,7 @@ interface LockConflictToastLike {
 interface UseTranscriptionRuntimePropsInput {
   saveState: SaveState;
   recording: boolean;
-  recordingUtteranceId: string | null;
+  recordingUnitId: string | null;
   recordingError: string | null;
   overlapCycleToast?: OverlapCycleToastLike | null;
   lockConflictToast?: LockConflictToastLike | null;
@@ -48,7 +42,7 @@ interface UseTranscriptionRuntimePropsInput {
     session: VoiceSession;
   }) => Promise<VoiceIntent | null>;
   handleVoiceDictation: (text: string) => void;
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
+  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
   selectionSnapshot: TranscriptionSelectionSnapshot;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
@@ -61,15 +55,15 @@ interface UseTranscriptionRuntimePropsInput {
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   toggleVoiceRef: MutableRefObject<(() => void) | undefined>;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   handleJumpToCitation: (
-    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void>;
-  handleJumpToEmbeddingMatch: (utteranceId: string) => void;
+  handleJumpToEmbeddingMatch: (unitId: string) => void;
   embeddingProviderConfig: TranscriptionPageEmbeddingProviderConfig;
   setEmbeddingProviderConfig: Dispatch<SetStateAction<TranscriptionPageEmbeddingProviderConfig>>;
   aiSidebarError: string | null;
@@ -93,7 +87,7 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   const assistantRuntimeProps = useTranscriptionAssistantRuntimeProps({
     saveState: input.saveState,
     recording: input.recording,
-    recordingUtteranceId: input.recordingUtteranceId,
+    recordingUnitId: input.recordingUnitId,
     recordingError: input.recordingError,
     ...(input.overlapCycleToast !== undefined ? { overlapCycleToast: input.overlapCycleToast } : {}),
     ...(input.lockConflictToast !== undefined ? { lockConflictToast: input.lockConflictToast } : {}),
@@ -116,12 +110,12 @@ export function useTranscriptionRuntimeProps(input: UseTranscriptionRuntimeProps
   });
 
   const analysisRuntimeProps = useTranscriptionAnalysisRuntimeProps({
-    selectedUnit: utteranceDocForSpeakerTargetFromUnitView(
+    selectedUnit: unitDocForSpeakerTargetFromUnitView(
       input.selectionSnapshot.selectedUnit,
-      input.getUtteranceDocById,
+      input.getUnitDocById,
     ),
-    utterancesOnCurrentMedia: input.utterancesOnCurrentMedia,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+    getUnitTextForLayer: input.getUnitTextForLayer,
     formatTime: input.formatTime,
     handleJumpToCitation: input.handleJumpToCitation,
     handleJumpToEmbeddingMatch: input.handleJumpToEmbeddingMatch,

@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  getTrackEntityState,
-  loadTrackEntityStateMap,
-  saveTrackEntityStateMap,
-  upsertTrackEntityState,
-  type TrackEntityStateMap,
-} from './TrackEntityStore';
+import { getTrackEntityState, loadTrackEntityStateMap, saveTrackEntityStateMap, upsertTrackEntityState, type TrackEntityStateMap } from './TrackEntityStore';
 
 describe('TrackEntityStore', () => {
   it('upserts and retrieves media scoped track entity state', () => {

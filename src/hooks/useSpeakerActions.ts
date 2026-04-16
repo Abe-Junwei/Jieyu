@@ -9,68 +9,36 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import type { UtteranceDocType, SpeakerDocType } from '../db';
+import type { LayerUnitDocType, SpeakerDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
 import { LinguisticService } from '../services/LinguisticService';
 import { fireAndForget } from '../utils/fireAndForget';
-import {
-  EMPTY_SPEAKER_REFERENCE_STATS,
-  type SpeakerActionDialogState,
-  type SpeakerFilterOption,
-  type SpeakerReferenceStats,
-  type SpeakerScope,
-  type SpeakerVisual,
-} from './speakerManagement/types';
-import {
-  applySpeakerAssignmentToUtterances,
-  getUtteranceSpeakerKey,
-  renameSpeakerInUtterances,
-  sortSpeakersByName,
-  upsertSpeaker,
-} from './speakerManagement/speakerUtils';
-import {
-  buildSpeakerActionErrorOptions,
-  buildSpeakerDisplayLabels,
-  buildUtteranceSpeakerSummaryLabels,
-  formatSpeakerAssignmentResult,
-  formatSpeakerCleanupResult,
-  formatSpeakerClearResult,
-  formatSpeakerCreateAndAssignResult,
-  formatSpeakerCreateOnlyResult,
-  formatSpeakerDeleteAndClearResult,
-  formatSpeakerDeleteAndMigrateResult,
-  formatSpeakerExportContent,
-  formatSpeakerExportDone,
-  formatSpeakerMergeResult,
-  formatSpeakerRenameResult,
-  getSpeakerExportFallbackName,
-  getSpeakerUndoLabel,
-  type SpeakerFormat,
-  type SpeakerTranslate,
-} from './speakerManagement/speakerI18n';
+import { EMPTY_SPEAKER_REFERENCE_STATS, type SpeakerActionDialogState, type SpeakerFilterOption, type SpeakerReferenceStats, type SpeakerScope, type SpeakerVisual } from './speakerManagement/types';
+import { applySpeakerAssignmentToUnits, getUnitSpeakerKey, renameSpeakerInUnits, sortSpeakersByName, upsertSpeaker } from './speakerManagement/speakerUtils';
+import { buildSpeakerActionErrorOptions, buildSpeakerDisplayLabels, buildUnitSpeakerSummaryLabels, formatSpeakerAssignmentResult, formatSpeakerCleanupResult, formatSpeakerClearResult, formatSpeakerCreateAndAssignResult, formatSpeakerCreateOnlyResult, formatSpeakerDeleteAndClearResult, formatSpeakerDeleteAndMigrateResult, formatSpeakerExportContent, formatSpeakerExportDone, formatSpeakerMergeResult, formatSpeakerRenameResult, getSpeakerExportFallbackName, getSpeakerUndoLabel, type SpeakerFormat, type SpeakerTranslate } from './speakerManagement/speakerI18n';
 import { useSpeakerDerivedState } from './speakerManagement/useSpeakerDerivedState';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { reportValidationError } from '../utils/validationErrorReporter';
 
-export { getUtteranceSpeakerKey };
+export { getUnitSpeakerKey };
 export type { SpeakerFilterOption } from './speakerManagement/types';
 
 type SpeakerStateSetter = Dispatch<SetStateAction<SpeakerDocType[]>>;
-type UtteranceStateSetter = Dispatch<SetStateAction<UtteranceDocType[]>>;
+type UnitStateSetter = Dispatch<SetStateAction<LayerUnitDocType[]>>;
 
 function normalizeSpeakerLookupName(value: string): string {
   return value.trim().toLocaleLowerCase('zh-Hans-CN');
 }
 
 export interface UseSpeakerActionsOptions {
-  utterances: UtteranceDocType[];
-  setUtterances: UtteranceStateSetter;
+  units: LayerUnitDocType[];
+  setUnits: UnitStateSetter;
   speakers: SpeakerDocType[];
   setSpeakers: SpeakerStateSetter;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   activeUnitId: string | null;
   selectedUnitIds: Set<string>;
-  selectedBatchUtterances: UtteranceDocType[];
+  selectedBatchUnits: LayerUnitDocType[];
   isReady: boolean;
   setUnitSelection: (primaryId: string, ids: string[]) => void;
   data: {
@@ -78,7 +46,7 @@ export interface UseSpeakerActionsOptions {
     undo: () => Promise<void>;
   };
   setSaveState: (state: SaveState) => void;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType) => string | null | undefined;
+  getUnitTextForLayer: (unit: LayerUnitDocType) => string | null | undefined;
   formatTime: (seconds: number) => string;
   t: SpeakerTranslate;
   tf: SpeakerFormat;
@@ -99,7 +67,7 @@ export interface UseSpeakerActionsReturn {
   activeSpeakerFilterKey: string;
   setActiveSpeakerFilterKey: React.Dispatch<React.SetStateAction<string>>;
   speakerDialogState: SpeakerActionDialogState | null;
-  speakerVisualByUtteranceId: Record<string, SpeakerVisual>;
+  speakerVisualByUnitId: Record<string, SpeakerVisual>;
   speakerFilterOptions: SpeakerFilterOption[];
   speakerReferenceStats: Record<string, SpeakerReferenceStats>;
   speakerReferenceUnassignedStats: SpeakerReferenceStats;
@@ -109,15 +77,15 @@ export interface UseSpeakerActionsReturn {
   selectedSpeakerSummary: string;
   refreshSpeakers: () => Promise<void>;
   refreshSpeakerReferenceStats: () => Promise<void>;
-  handleSelectSpeakerUtterances: (speakerKey: string) => void;
+  handleSelectSpeakerUnits: (speakerKey: string) => void;
   handleClearSpeakerAssignments: (speakerKey: string) => void;
   handleExportSpeakerSegments: (speakerKey: string) => void;
   handleRenameSpeaker: (speakerKey: string) => void;
   handleMergeSpeaker: (sourceSpeakerKey: string) => void;
   handleDeleteSpeaker: (sourceSpeakerKey: string) => void;
   handleDeleteUnusedSpeakers: () => Promise<void>;
-  handleAssignSpeakerToUtterances: (utteranceIds: Iterable<string>, speakerId?: string) => Promise<void>;
-  handleCreateSpeakerAndAssignToUtterances: (name: string, utteranceIds: Iterable<string>) => Promise<void>;
+  handleAssignSpeakerToUnits: (unitIds: Iterable<string>, speakerId?: string) => Promise<void>;
+  handleCreateSpeakerAndAssignToUnits: (name: string, unitIds: Iterable<string>) => Promise<void>;
   handleAssignSpeakerToSelected: () => Promise<void>;
   handleCreateSpeakerAndAssign: () => Promise<void>;
   handleCreateSpeakerOnly: () => Promise<void>;
@@ -128,19 +96,19 @@ export interface UseSpeakerActionsReturn {
 }
 
 export function useSpeakerActions({
-  utterances,
-  setUtterances,
+  units,
+  setUnits,
   speakers,
   setSpeakers,
-  utterancesOnCurrentMedia,
+  unitsOnCurrentMedia,
   activeUnitId,
   selectedUnitIds,
-  selectedBatchUtterances,
+  selectedBatchUnits,
   isReady,
   setUnitSelection,
   data,
   setSaveState,
-  getUtteranceTextForLayer,
+  getUnitTextForLayer,
   formatTime,
   t,
   tf,
@@ -164,8 +132,8 @@ export function useSpeakerActions({
 
   const speakerOptions = speakers;
   const speakerDisplayLabels = useMemo(() => buildSpeakerDisplayLabels(t), [t]);
-  const utteranceSpeakerSummaryLabels = useMemo(
-    () => buildUtteranceSpeakerSummaryLabels(t, tf),
+  const unitSpeakerSummaryLabels = useMemo(
+    () => buildUnitSpeakerSummaryLabels(t, tf),
     [t, tf],
   );
   const speakerById = useMemo(
@@ -174,20 +142,20 @@ export function useSpeakerActions({
   );
 
   const {
-    speakerVisualByUtteranceId: derivedSpeakerVisualByUtteranceId,
+    speakerVisualByUnitId: derivedSpeakerVisualByUnitId,
     speakerFilterOptions: derivedSpeakerFilterOptions,
     selectedSpeakerSummary: derivedSelectedSpeakerSummary,
   } = useSpeakerDerivedState(
-    utterancesOnCurrentMedia,
-    selectedBatchUtterances,
+    unitsOnCurrentMedia,
+    selectedBatchUnits,
     speakerOptions,
     {
       displayLabels: speakerDisplayLabels,
-      summaryLabels: utteranceSpeakerSummaryLabels,
+      summaryLabels: unitSpeakerSummaryLabels,
     },
   );
 
-  const speakerVisualByUtteranceId = speakerScopeOverride?.speakerVisualByUtteranceId ?? derivedSpeakerVisualByUtteranceId;
+  const speakerVisualByUnitId = speakerScopeOverride?.speakerVisualByUnitId ?? derivedSpeakerVisualByUnitId;
   const speakerFilterOptions = speakerScopeOverride?.speakerFilterOptions ?? speakerFilterOptionsOverride ?? derivedSpeakerFilterOptions;
   const selectedSpeakerSummary = speakerScopeOverride?.selectedSpeakerSummary ?? derivedSelectedSpeakerSummary;
   const unusedSpeakerIds = useMemo(() => speakerOptions
@@ -215,15 +183,15 @@ export function useSpeakerActions({
     return speakerOptions.find((speaker) => normalizeSpeakerLookupName(speaker.name) === normalizedName);
   }, [speakerOptions]);
 
-  const getUtteranceIdsForSpeakerKey = useCallback((speakerKey: string) => (
-    utterancesOnCurrentMedia
-      .filter((utterance) => getUtteranceSpeakerKey(utterance) === speakerKey)
-      .map((utterance) => utterance.id)
-  ), [utterancesOnCurrentMedia]);
+  const getUnitIdsForSpeakerKey = useCallback((speakerKey: string) => (
+    unitsOnCurrentMedia
+      .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
+      .map((unit) => unit.id)
+  ), [unitsOnCurrentMedia]);
 
-  const applySpeakerLocally = useCallback((utteranceIds: Iterable<string>, speaker?: Pick<SpeakerDocType, 'id' | 'name'>) => {
-    setUtterances((prev) => applySpeakerAssignmentToUtterances(prev, utteranceIds, speaker));
-  }, [setUtterances]);
+  const applySpeakerLocally = useCallback((unitIds: Iterable<string>, speaker?: Pick<SpeakerDocType, 'id' | 'name'>) => {
+    setUnits((prev) => applySpeakerAssignmentToUnits(prev, unitIds, speaker));
+  }, [setUnits]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -239,21 +207,21 @@ export function useSpeakerActions({
 
   useEffect(() => {
     if (!syncBatchSpeakerId) return;
-    if (selectedBatchUtterances.length === 0) {
+    if (selectedBatchUnits.length === 0) {
       setBatchSpeakerId('');
       return;
     }
-    const firstSpeakerId = selectedBatchUtterances[0]?.speakerId;
+    const firstSpeakerId = selectedBatchUnits[0]?.speakerId;
     if (!firstSpeakerId) {
       setBatchSpeakerId('');
       return;
     }
-    const allSame = selectedBatchUtterances.every((utterance) => utterance.speakerId === firstSpeakerId);
+    const allSame = selectedBatchUnits.every((unit) => unit.speakerId === firstSpeakerId);
     setBatchSpeakerId(allSame ? firstSpeakerId : '');
-  }, [selectedBatchUtterances, syncBatchSpeakerId]);
+  }, [selectedBatchUnits, syncBatchSpeakerId]);
 
-  const handleSelectSpeakerUtterances = useCallback((speakerKey: string) => {
-    const ids = getUtteranceIdsForSpeakerKey(speakerKey);
+  const handleSelectSpeakerUnits = useCallback((speakerKey: string) => {
+    const ids = getUnitIdsForSpeakerKey(speakerKey);
     if (ids.length === 0) {
       setUnitSelection('', []);
       return;
@@ -261,11 +229,11 @@ export function useSpeakerActions({
     const primary = ids.includes(activeUnitId ?? '') ? (activeUnitId ?? ids[0]!) : ids[0]!;
     setUnitSelection(primary, ids);
     setActiveSpeakerFilterKey(speakerKey);
-  }, [activeUnitId, getUtteranceIdsForSpeakerKey, setUnitSelection]);
+  }, [activeUnitId, getUnitIdsForSpeakerKey, setUnitSelection]);
 
   const handleClearSpeakerAssignments = useCallback((speakerKey: string) => {
     const target = speakerFilterOptions.find((option) => option.key === speakerKey);
-    const ids = getUtteranceIdsForSpeakerKey(speakerKey);
+    const ids = getUnitIdsForSpeakerKey(speakerKey);
     if (ids.length === 0) {
       reportValidationError({
         message: t('transcription.error.validation.clearSpeakerNoTarget'),
@@ -280,17 +248,17 @@ export function useSpeakerActions({
       speakerName: target?.name ?? speakerDisplayLabels.unnamedSpeaker,
       affectedCount: ids.length,
     });
-  }, [getUtteranceIdsForSpeakerKey, setSaveState, speakerDisplayLabels.unnamedSpeaker, speakerFilterOptions, t]);
+  }, [getUnitIdsForSpeakerKey, setSaveState, speakerDisplayLabels.unnamedSpeaker, speakerFilterOptions, t]);
 
   const handleExportSpeakerSegments = useCallback((speakerKey: string) => {
     const target = speakerFilterOptions.find((item) => item.key === speakerKey);
     const speakerName = target?.name ?? getSpeakerExportFallbackName(t);
-    const rows = utterancesOnCurrentMedia
-      .filter((utterance) => getUtteranceSpeakerKey(utterance) === speakerKey)
+    const rows = unitsOnCurrentMedia
+      .filter((unit) => getUnitSpeakerKey(unit) === speakerKey)
       .sort((left, right) => left.startTime - right.startTime)
-      .map((utterance, index) => {
-        const text = getUtteranceTextForLayer(utterance) || '';
-        return `${index + 1}. [${formatTime(utterance.startTime)} - ${formatTime(utterance.endTime)}] ${text}`;
+      .map((unit, index) => {
+        const text = getUnitTextForLayer(unit) || '';
+        return `${index + 1}. [${formatTime(unit.startTime)} - ${formatTime(unit.endTime)}] ${text}`;
       });
 
     if (rows.length === 0) {
@@ -311,7 +279,7 @@ export function useSpeakerActions({
       return;
     }
 
-    const content = formatSpeakerExportContent('utterances', speakerName, rows, t, tf);
+    const content = formatSpeakerExportContent('units', speakerName, rows, t, tf);
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
@@ -321,8 +289,8 @@ export function useSpeakerActions({
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-    setSaveState({ kind: 'done', message: formatSpeakerExportDone('utterances', rows.length, t, tf) });
-  }, [formatTime, getUtteranceTextForLayer, setSaveState, speakerFilterOptions, t, tf, utterancesOnCurrentMedia]);
+    setSaveState({ kind: 'done', message: formatSpeakerExportDone('units', rows.length, t, tf) });
+  }, [formatTime, getUnitTextForLayer, setSaveState, speakerFilterOptions, t, tf, unitsOnCurrentMedia]);
 
   const handleRenameSpeaker = useCallback((speakerKey: string) => {
       const normalizedKey = speakerKey.trim();
@@ -411,7 +379,7 @@ export function useSpeakerActions({
         ? Array.from(selectedUnitIds) 
         : (activeUnitId ? [activeUnitId] : []);
       
-      const updated = await LinguisticService.assignSpeakerToUtterances(
+      const updated = await LinguisticService.assignSpeakerToUnits(
         targetIds,
         batchSpeakerId || undefined,
       );
@@ -420,7 +388,7 @@ export function useSpeakerActions({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerAssignmentResult('utterances', updated, t, tf),
+        message: formatSpeakerAssignmentResult('units', updated, t, tf),
       });
     } catch (error) {
       reportActionError({
@@ -435,15 +403,15 @@ export function useSpeakerActions({
     }
   }, [activeUnitId, applySpeakerLocally, batchSpeakerId, data, refreshSpeakerReferenceStats, selectedUnitIds, setBatchSpeakerId, setSaveState, speakerById, speakerSaving, t, tf]);
 
-  const handleAssignSpeakerToUtterances = useCallback(async (utteranceIds: Iterable<string>, speakerId?: string) => {
-    const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
+  const handleAssignSpeakerToUnits = useCallback(async (unitIds: Iterable<string>, speakerId?: string) => {
+    const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
     if (targetIds.length === 0 || speakerSaving) return;
 
     setSpeakerSaving(true);
     try {
       data.pushUndo(getSpeakerUndoLabel('assign', t));
       const speaker = speakerId ? speakerById.get(speakerId) : undefined;
-      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, speakerId);
+      const updated = await LinguisticService.assignSpeakerToUnits(targetIds, speakerId);
       applySpeakerLocally(targetIds, speaker);
       if (speakerId) {
         setBatchSpeakerId(speakerId);
@@ -451,7 +419,7 @@ export function useSpeakerActions({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerAssignmentResult('utterances', updated, t, tf),
+        message: formatSpeakerAssignmentResult('units', updated, t, tf),
       });
     } catch (error) {
       reportActionError({
@@ -482,7 +450,7 @@ export function useSpeakerActions({
         : (activeUnitId ? [activeUnitId] : []);
 
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name });
-      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, targetSpeaker.id);
+      const updated = await LinguisticService.assignSpeakerToUnits(targetIds, targetSpeaker.id);
       if (!existing) {
         setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
       }
@@ -492,7 +460,7 @@ export function useSpeakerActions({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerCreateAndAssignResult('utterances', targetSpeaker.name, updated, Boolean(existing), t, tf),
+        message: formatSpeakerCreateAndAssignResult('units', targetSpeaker.name, updated, Boolean(existing), t, tf),
       });
     } catch (error) {
       if (undoPushed) await data.undo();
@@ -508,8 +476,8 @@ export function useSpeakerActions({
     }
   }, [activeUnitId, applySpeakerLocally, data, findExistingSpeakerByName, refreshSpeakerReferenceStats, selectedUnitIds, setSaveState, setSpeakers, speakerDraftName, speakerSaving, t, tf]);
 
-  const handleCreateSpeakerAndAssignToUtterances = useCallback(async (name: string, utteranceIds: Iterable<string>) => {
-    const targetIds = Array.from(new Set(utteranceIds)).filter((id) => id.trim().length > 0);
+  const handleCreateSpeakerAndAssignToUnits = useCallback(async (name: string, unitIds: Iterable<string>) => {
+    const targetIds = Array.from(new Set(unitIds)).filter((id) => id.trim().length > 0);
     const trimmedName = name.trim();
     if (!trimmedName || targetIds.length === 0 || speakerSaving) return;
 
@@ -520,7 +488,7 @@ export function useSpeakerActions({
       data.pushUndo(getSpeakerUndoLabel(existing ? 'reuseAndAssign' : 'createAndAssign', t));
       undoPushed = true;
       const targetSpeaker = existing ?? await LinguisticService.createSpeaker({ name: trimmedName });
-      const updated = await LinguisticService.assignSpeakerToUtterances(targetIds, targetSpeaker.id);
+      const updated = await LinguisticService.assignSpeakerToUnits(targetIds, targetSpeaker.id);
       if (!existing) {
         setSpeakers((prev) => upsertSpeaker(prev, targetSpeaker));
       }
@@ -529,7 +497,7 @@ export function useSpeakerActions({
       await refreshSpeakerReferenceStats();
       setSaveState({
         kind: 'done',
-        message: formatSpeakerCreateAndAssignResult('utterances', targetSpeaker.name, updated, Boolean(existing), t, tf),
+        message: formatSpeakerCreateAndAssignResult('units', targetSpeaker.name, updated, Boolean(existing), t, tf),
       });
     } catch (error) {
       if (undoPushed) await data.undo();
@@ -633,8 +601,8 @@ export function useSpeakerActions({
     let undoPushed = false;
     try {
       if (speakerDialogState.mode === 'clear') {
-        const utteranceIds = getUtteranceIdsForSpeakerKey(speakerDialogState.speakerKey);
-        if (utteranceIds.length === 0) {
+        const unitIds = getUnitIdsForSpeakerKey(speakerDialogState.speakerKey);
+        if (unitIds.length === 0) {
           reportValidationError({
             message: t('transcription.error.validation.clearSpeakerNoTarget'),
             i18nKey: 'transcription.error.validation.clearSpeakerNoTarget',
@@ -645,11 +613,11 @@ export function useSpeakerActions({
         }
         data.pushUndo(getSpeakerUndoLabel('clearTag', t));
         undoPushed = true;
-        const cleared = await LinguisticService.assignSpeakerToUtterances(utteranceIds, undefined);
-        applySpeakerLocally(utteranceIds, undefined);
+        const cleared = await LinguisticService.assignSpeakerToUnits(unitIds, undefined);
+        applySpeakerLocally(unitIds, undefined);
         await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey('all');
-        setSaveState({ kind: 'done', message: formatSpeakerClearResult('utterances', cleared, t, tf) });
+        setSaveState({ kind: 'done', message: formatSpeakerClearResult('units', cleared, t, tf) });
       }
 
       if (speakerDialogState.mode === 'rename') {
@@ -666,7 +634,7 @@ export function useSpeakerActions({
         undoPushed = true;
         const updated = await LinguisticService.renameSpeaker(speakerDialogState.speakerKey, nextName);
         setSpeakers((prev) => upsertSpeaker(prev, updated));
-        setUtterances((prev) => renameSpeakerInUtterances(prev, updated.id, updated.name));
+        setUnits((prev) => renameSpeakerInUnits(prev, updated.id, updated.name));
         setSaveState({ kind: 'done', message: formatSpeakerRenameResult(updated.name, tf) });
       }
 
@@ -687,10 +655,10 @@ export function useSpeakerActions({
           speakerDialogState.targetSpeakerKey,
         );
         setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-        setUtterances((prev) => prev.map((utterance) => (
-          utterance.speakerId === speakerDialogState.sourceSpeakerKey
-            ? { ...utterance, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
-            : utterance
+        setUnits((prev) => prev.map((unit) => (
+          unit.speakerId === speakerDialogState.sourceSpeakerKey
+            ? { ...unit, speakerId: targetSpeaker.id, speaker: targetSpeaker.name }
+            : unit
         )));
         await refreshSpeakerReferenceStats();
         setActiveSpeakerFilterKey(targetSpeaker.id);
@@ -717,10 +685,10 @@ export function useSpeakerActions({
             targetSpeakerId: replacementSpeaker.id,
           });
           setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-          setUtterances((prev) => prev.map((utterance) => (
-            utterance.speakerId === speakerDialogState.sourceSpeakerKey
-              ? { ...utterance, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
-              : utterance
+          setUnits((prev) => prev.map((unit) => (
+            unit.speakerId === speakerDialogState.sourceSpeakerKey
+              ? { ...unit, speakerId: replacementSpeaker.id, speaker: replacementSpeaker.name }
+              : unit
           )));
           await refreshSpeakerReferenceStats();
           setActiveSpeakerFilterKey(replacementSpeaker.id);
@@ -732,9 +700,9 @@ export function useSpeakerActions({
             strategy: 'clear',
           });
           setSpeakers((prev) => sortSpeakersByName(prev.filter((speaker) => speaker.id !== speakerDialogState.sourceSpeakerKey)));
-          setUtterances((prev) => prev.map((utterance) => {
-            if (utterance.speakerId !== speakerDialogState.sourceSpeakerKey) return utterance;
-            const { speaker: _speaker, speakerId: _speakerId, ...rest } = utterance;
+          setUnits((prev) => prev.map((unit) => {
+            if (unit.speakerId !== speakerDialogState.sourceSpeakerKey) return unit;
+            const { speaker: _speaker, speakerId: _speakerId, ...rest } = unit;
             return rest;
           }));
           await refreshSpeakerReferenceStats();
@@ -758,7 +726,7 @@ export function useSpeakerActions({
     } finally {
       setSpeakerSaving(false);
     }
-  }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUtteranceIdsForSpeakerKey, refreshSpeakerReferenceStats, setSaveState, setSpeakers, setUtterances, speakerById, speakerDialogState, speakerSaving, t, tf]);
+  }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUnitIdsForSpeakerKey, refreshSpeakerReferenceStats, setSaveState, setSpeakers, setUnits, speakerById, speakerDialogState, speakerSaving, t, tf]);
 
   return {
     speakerOptions,
@@ -770,7 +738,7 @@ export function useSpeakerActions({
     activeSpeakerFilterKey,
     setActiveSpeakerFilterKey,
     speakerDialogState,
-    speakerVisualByUtteranceId,
+    speakerVisualByUnitId,
     speakerFilterOptions,
     speakerReferenceStats,
     speakerReferenceUnassignedStats,
@@ -779,15 +747,15 @@ export function useSpeakerActions({
     selectedSpeakerSummary,
     refreshSpeakers,
     refreshSpeakerReferenceStats,
-    handleSelectSpeakerUtterances,
+    handleSelectSpeakerUnits,
     handleClearSpeakerAssignments,
     handleExportSpeakerSegments,
     handleRenameSpeaker,
     handleMergeSpeaker,
     handleDeleteSpeaker,
     handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToUtterances,
-    handleCreateSpeakerAndAssignToUtterances,
+    handleAssignSpeakerToUnits,
+    handleCreateSpeakerAndAssignToUnits,
     handleAssignSpeakerToSelected,
     handleCreateSpeakerAndAssign,
     handleCreateSpeakerOnly,

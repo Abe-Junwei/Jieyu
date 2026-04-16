@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerSegmentDocType, MediaItemDocType, UtteranceDocType } from '../db';
-import {
-  collectNoteTimelineUnitIds,
-  resolveSelectedTimelineMedia,
-  resolveSelectedTimelineRowMeta,
-} from './transcriptionSelectionContextResolver';
+import type { LayerUnitDocType, MediaItemDocType } from '../db';
+import { collectNoteTimelineUnitIds, resolveSelectedTimelineMedia, resolveSelectedTimelineRowMeta } from './transcriptionSelectionContextResolver';
 
-function makeUtterance(id: string, mediaId: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, mediaId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -15,10 +11,10 @@ function makeUtterance(id: string, mediaId: string, startTime: number, endTime: 
     endTime,
     createdAt: '2026-04-16T00:00:00.000Z',
     updatedAt: '2026-04-16T00:00:00.000Z',
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, mediaId: string, startTime: number, endTime: number): LayerSegmentDocType {
+function makeSegment(id: string, mediaId: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -28,38 +24,38 @@ function makeSegment(id: string, mediaId: string, startTime: number, endTime: nu
     endTime,
     createdAt: '2026-04-16T00:00:00.000Z',
     updatedAt: '2026-04-16T00:00:00.000Z',
-  } as LayerSegmentDocType;
+  } as LayerUnitDocType;
 }
 
 describe('transcriptionSelectionContextResolver', () => {
   it('resolves row meta from current-media rows first and falls back to same-media sorting', () => {
-    const utterances = [
-      makeUtterance('utt-2', 'media-1', 10, 12),
-      makeUtterance('utt-1', 'media-1', 2, 4),
-      makeUtterance('utt-x', 'media-2', 1, 2),
+    const units = [
+      makeUnit('utt-2', 'media-1', 10, 12),
+      makeUnit('utt-1', 'media-1', 2, 4),
+      makeUnit('utt-x', 'media-2', 1, 2),
     ];
 
-    const currentMediaRows = [utterances[0]!, utterances[1]!];
-    const selectedFromCurrentMedia = utterances[1]!;
-    const selectedFromFallbackRows = utterances[0]!;
+    const currentMediaRows = [units[0]!, units[1]!];
+    const selectedFromCurrentMedia = units[1]!;
+    const selectedFromFallbackRows = units[0]!;
 
-    expect(resolveSelectedTimelineRowMeta(currentMediaRows, selectedFromCurrentMedia, utterances)).toEqual({
+    expect(resolveSelectedTimelineRowMeta(currentMediaRows, selectedFromCurrentMedia, units)).toEqual({
       rowNumber: 2,
       start: 2,
       end: 4,
     });
 
-    expect(resolveSelectedTimelineRowMeta([], selectedFromFallbackRows, utterances)).toEqual({
+    expect(resolveSelectedTimelineRowMeta([], selectedFromFallbackRows, units)).toEqual({
       rowNumber: 2,
       start: 10,
       end: 12,
     });
   });
 
-  it('collects unique note timeline ids from utterances and segments', () => {
+  it('collects unique note timeline ids from units and segments', () => {
     const ids = collectNoteTimelineUnitIds(
-      [makeUtterance('utt-1', 'media-1', 0, 1), makeUtterance('utt-1', 'media-1', 0, 1)],
-      new Map<string, LayerSegmentDocType[]>([
+      [makeUnit('utt-1', 'media-1', 0, 1), makeUnit('utt-1', 'media-1', 0, 1)],
+      new Map<string, LayerUnitDocType[]>([
         ['layer-1', [makeSegment('seg-1', 'media-1', 0, 1), makeSegment('seg-1', 'media-1', 0, 1)]],
       ]),
     );
@@ -74,6 +70,6 @@ describe('transcriptionSelectionContextResolver', () => {
     ]);
 
     expect(resolveSelectedTimelineMedia(undefined, mediaItemById, makeSegment('seg-1', 'media-1', 0, 1), null)?.id).toBe('media-1');
-    expect(resolveSelectedTimelineMedia(undefined, mediaItemById, null, makeUtterance('utt-2', 'media-2', 3, 4))?.id).toBe('media-2');
+    expect(resolveSelectedTimelineMedia(undefined, mediaItemById, null, makeUnit('utt-2', 'media-2', 3, 4))?.id).toBe('media-2');
   });
 });

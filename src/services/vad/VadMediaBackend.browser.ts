@@ -13,12 +13,7 @@ import { createLogger } from '../../observability/logger';
 import { VAD_AUTO_WARM_MAX_BYTES } from './VadMediaCacheService';
 import { WhisperXVadService } from './WhisperXVadService';
 import { registerVadMediaBackend } from './VadMediaBackend';
-import type {
-  VadMediaBackend,
-  VadMediaBackendResult,
-  VadMediaBackendRunOptions,
-  VadMediaRef,
-} from './VadMediaBackend';
+import type { VadMediaBackend, VadMediaBackendResult, VadMediaBackendRunOptions, VadMediaRef } from './VadMediaBackend';
 
 const log = createLogger('VadMediaBackend.browser');
 

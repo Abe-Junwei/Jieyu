@@ -2,14 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { OrthographyDocType } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getSearchReplaceOverlayMessages } from '../i18n/searchReplaceOverlayMessages';
-import {
-  analyzeSearchPattern,
-  buildReplacePlan,
-  findSearchMatches,
-  type SearchMatch,
-  type SearchableItem,
-  type SearchReplaceOptions,
-} from '../utils/searchReplaceUtils';
+import { analyzeSearchPattern, buildReplacePlan, findSearchMatches, type SearchMatch, type SearchableItem, type SearchReplaceOptions } from '../utils/searchReplaceUtils';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { DialogOverlay, DialogShell } from './ui';
@@ -19,22 +12,22 @@ interface SearchReplaceOverlayProps {
   items: SearchableItem[];
   orthographies?: OrthographyDocType[];
   currentLayerId?: string | undefined;
-  currentUtteranceId?: string | undefined;
+  currentUnitId?: string | undefined;
   initialQuery?: string;
   initialScope?: AppShellSearchScope;
   initialLayerKinds?: Array<'transcription' | 'translation' | 'gloss'>;
-  onNavigate: (utteranceId: string) => void;
-  onReplace: (utteranceId: string, layerId: string | undefined, oldText: string, newText: string) => void;
+  onNavigate: (unitId: string) => void;
+  onReplace: (unitId: string, layerId: string | undefined, oldText: string, newText: string) => void;
   onClose: () => void;
 }
 
-type SearchScope = 'current-layer' | 'current-utterance' | 'global';
+type SearchScope = 'current-layer' | 'current-unit' | 'global';
 
 export function SearchReplaceOverlay({
   items,
   orthographies,
   currentLayerId,
-  currentUtteranceId,
+  currentUnitId,
   initialQuery,
   initialScope,
   initialLayerKinds,
@@ -88,14 +81,14 @@ export function SearchReplaceOverlay({
   }, [query]);
 
   const scopedItems = useMemo(() => {
-    if (scope === 'current-utterance' && currentUtteranceId) {
-      return items.filter((item) => item.utteranceId === currentUtteranceId);
+    if (scope === 'current-unit' && currentUnitId) {
+      return items.filter((item) => item.unitId === currentUnitId);
     }
     if (scope === 'current-layer' && currentLayerId) {
       return items.filter((item) => item.layerId === currentLayerId);
     }
     return items;
-  }, [scope, currentUtteranceId, currentLayerId, items]);
+  }, [scope, currentUnitId, currentLayerId, items]);
 
   const filteredItems = useMemo(() => {
     if (layerKinds.length === 0) return scopedItems;
@@ -132,8 +125,8 @@ export function SearchReplaceOverlay({
 
   // Navigate to current match
   useEffect(() => {
-    if (currentMatch) onNavigate(currentMatch.utteranceId);
-  }, [currentMatch?.utteranceId, onNavigate]);
+    if (currentMatch) onNavigate(currentMatch.unitId);
+  }, [currentMatch?.unitId, onNavigate]);
 
   const goNext = useCallback(() => setCurrentIndex((i) => i + 1), []);
   const goPrev = useCallback(() => setCurrentIndex((i) => i - 1), []);
@@ -142,13 +135,13 @@ export function SearchReplaceOverlay({
     if (!currentMatch) return;
     const before = currentMatch.text.slice(0, currentMatch.matchStart);
     const after = currentMatch.text.slice(currentMatch.matchEnd);
-    onReplace(currentMatch.utteranceId, currentMatch.layerId, currentMatch.text, before + replaceText + after);
+    onReplace(currentMatch.unitId, currentMatch.layerId, currentMatch.text, before + replaceText + after);
   }, [currentMatch, replaceText, onReplace]);
 
   const handleReplaceAll = useCallback(() => {
     if (!debouncedQuery) return;
     for (const update of replacePlan) {
-      onReplace(update.utteranceId, update.layerId, update.oldText, update.newText);
+      onReplace(update.unitId, update.layerId, update.oldText, update.newText);
     }
     setShowReplacePreview(false);
   }, [debouncedQuery, replacePlan, onReplace]);
@@ -211,7 +204,7 @@ export function SearchReplaceOverlay({
           aria-label={messages.scopeTitle}
         >
           <option value="current-layer">{messages.scopeCurrentLayer}</option>
-          <option value="current-utterance">{messages.scopeCurrentUtterance}</option>
+          <option value="current-unit">{messages.scopeCurrentUnit}</option>
           <option value="global">{messages.scopeGlobal}</option>
         </select>
         <select
@@ -319,7 +312,7 @@ export function SearchReplaceOverlay({
             {messages.replacePlanTitle(replacePlan.length)}
           </div>
           {replacePlan.slice(0, 3).map((item, idx) => (
-            <div key={`${item.utteranceId}-${item.layerId ?? 'default'}-${idx}`} className="search-replace-plan-item">
+            <div key={`${item.unitId}-${item.layerId ?? 'default'}-${idx}`} className="search-replace-plan-item">
               <div>{messages.originalText}: {item.oldText.slice(0, 36)}{item.oldText.length > 36 ? messages.clippedEllipsis : ''}</div>
               <div>{messages.replacedText}: {item.newText.slice(0, 36)}{item.newText.length > 36 ? messages.clippedEllipsis : ''}</div>
             </div>

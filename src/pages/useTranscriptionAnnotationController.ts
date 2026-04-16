@@ -18,10 +18,10 @@ export function useTranscriptionAnnotationController({
 }: UseTranscriptionAnnotationControllerInput) {
   return useTimelineAnnotationHelpers({
     ...annotationHelpersInput,
-    onOverlapCycleToast: (index, total, utteranceId) => {
+    onOverlapCycleToast: (index, total, unitId) => {
       setOverlapCycleToast({ index, total, nonce: Date.now() });
       const nextTelemetry = updateOverlapCycleTelemetry(overlapCycleTelemetryRef.current, {
-        utteranceId,
+        unitId,
         index,
         total,
       });

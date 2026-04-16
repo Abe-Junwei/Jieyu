@@ -16,13 +16,7 @@ import { VadMonitorRuntime } from './VoiceInputService.vad';
 import { RecordingExecutor } from './VoiceInputService.recording';
 import { WhisperXVadService } from './vad/WhisperXVadService';
 import { recommendVadStrategy } from './SttStrategyRouter';
-import type {
-  SttEnhancementConfig,
-  SttEnhancementKind,
-  SttEnhancementProvider,
-  SttEnhancementSpeakerTurn,
-  SttEnhancementWordTiming,
-} from './stt/enhancementRegistry';
+import type { SttEnhancementConfig, SttEnhancementKind, SttEnhancementProvider, SttEnhancementSpeakerTurn, SttEnhancementWordTiming } from './stt/enhancementRegistry';
 export {
   testOllamaWhisperAvailability,
   testWhisperServerAvailability,

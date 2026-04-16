@@ -1,7 +1,7 @@
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
@@ -13,7 +13,7 @@ import type { DictationPipelineCallbacks, QuickDictationConfig } from '../servic
 export interface TranscriptionPageAssistantRuntimeFrameProps {
   saveState: SaveState;
   recording: boolean;
-  recordingUtteranceId: string | null;
+  recordingUnitId: string | null;
   recordingError: string | null;
   overlapCycleToast?: { index: number; total: number; nonce: number } | null;
   lockConflictToast?: { count: number; speakers: string[]; nonce: number } | null;
@@ -36,7 +36,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceIntentProps {
 
 export interface TranscriptionPageAssistantRuntimeVoiceWritebackProps {
   handleVoiceDictation: (text: string) => void;
-  handleVoiceAnalysisResult: (utteranceId: string | null, analysisText: string) => void;
+  handleVoiceAnalysisResult: (unitId: string | null, analysisText: string) => void;
 }
 
 export interface TranscriptionPageAssistantRuntimeVoiceLifecycleProps {
@@ -99,17 +99,17 @@ export interface TranscriptionPageAnalysisPanelProps {
 }
 
 export interface TranscriptionPageAnalysisEmbeddingSourceProps {
-  selectedUnit: UtteranceDocType | null;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  selectedUnit: LayerUnitDocType | null;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
   externalErrorMessage: string | null;
 }
 
 export interface TranscriptionPageAnalysisEmbeddingNavigationProps {
-  onJumpToEmbeddingMatch: (utteranceId: string) => void;
+  onJumpToEmbeddingMatch: (unitId: string) => void;
   onJumpToCitation: (
-    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void;

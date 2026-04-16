@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildAdministrativeDivisionDisplayLine,
-  formatCustomFieldOptionsEditorValue,
-  parseCustomFieldDraftMultiselectValue,
-  parseAdministrativeDivisionText,
-  parseCustomFieldOptionsEditorValue,
-  serializeCustomFieldDraftValue,
-} from './languageMetadataWorkspace.shared';
+import { buildAdministrativeDivisionDisplayLine, formatCustomFieldOptionsEditorValue, parseCustomFieldDraftMultiselectValue, parseAdministrativeDivisionText, parseCustomFieldOptionsEditorValue, serializeCustomFieldDraftValue } from './languageMetadataWorkspace.shared';
 
 describe('languageMetadataWorkspace custom field helpers', () => {
   it('round-trips multiselect values that contain commas', () => {

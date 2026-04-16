@@ -5,23 +5,14 @@
  * Add new providers here to make them available in the UI selector.
  */
 
-import type {
-  CommercialSttProvider,
-  CommercialProviderKind,
-  SttEngine,
-} from '../VoiceInputService';
+import type { CommercialSttProvider, CommercialProviderKind, SttEngine } from '../VoiceInputService';
 import { LocalWhisperSttProvider } from './LocalWhisperSttProvider';
 import { GeminiSttProvider } from './GeminiSttProvider';
 import { OpenAISttProvider } from './OpenAISttProvider';
 import { GroqSttProvider } from './GroqSttProvider';
 import { MiniMaxSttProvider } from './MiniMaxSttProvider';
 import { VolcEngineSttProvider } from './VolcEngineSttProvider';
-import {
-  commercialProviderDefinitions as commercialProviderMetadataDefinitions,
-  getSttProviderMetadataByKind,
-  type CommercialProviderMetadata,
-  type SttProviderKind,
-} from './providerMetadata';
+import { commercialProviderDefinitions as commercialProviderMetadataDefinitions, getSttProviderMetadataByKind, type CommercialProviderMetadata, type SttProviderKind } from './providerMetadata';
 import { testSttEnhancementProvider } from './enhancementRegistry';
 
 export interface CommercialProviderDefinition extends CommercialProviderMetadata {

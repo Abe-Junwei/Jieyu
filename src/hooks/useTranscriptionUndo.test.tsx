@@ -2,13 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type React from 'react';
-import type {
-  LayerLinkDocType,
-  SpeakerDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { LayerLinkDocType, SpeakerDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useTranscriptionUndo } from './useTranscriptionUndo';
 
@@ -40,7 +34,7 @@ function createStateRefHarness<T>(initial: T): StateRefHarness<T> {
   };
 }
 
-function makeUtterance(id: string, speakerId?: string, speaker?: string): UtteranceDocType {
+function makeUnit(id: string, speakerId?: string, speaker?: string): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -53,7 +47,7 @@ function makeUtterance(id: string, speakerId?: string, speaker?: string): Uttera
     ...(speaker !== undefined && { speaker }),
     createdAt: now,
     updatedAt: now,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeSpeaker(id: string, name: string): SpeakerDocType {
@@ -68,12 +62,12 @@ function makeSpeaker(id: string, name: string): SpeakerDocType {
 }
 
 function setupHarness(input: {
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   speakers: SpeakerDocType[];
   syncToDbImpl?: (...args: unknown[]) => Promise<void>;
 }) {
-  const utterances = createStateRefHarness<UtteranceDocType[]>(input.utterances);
-  const translations = createStateRefHarness<UtteranceTextDocType[]>([]);
+  const units = createStateRefHarness<LayerUnitDocType[]>(input.units);
+  const translations = createStateRefHarness<LayerUnitContentDocType[]>([]);
   const layers = createStateRefHarness<LayerDocType[]>([]);
   const layerLinks = createStateRefHarness<LayerLinkDocType[]>([]);
   const speakers = createStateRefHarness<SpeakerDocType[]>(input.speakers);
@@ -83,7 +77,7 @@ function setupHarness(input: {
   const scheduleRecoverySave = vi.fn();
 
   const hook = renderHook(() => useTranscriptionUndo({
-    utterancesRef: utterances.ref,
+    unitsRef: units.ref,
     translationsRef: translations.ref,
     layersRef: layers.ref,
     layerLinksRef: layerLinks.ref,
@@ -91,7 +85,7 @@ function setupHarness(input: {
     dirtyRef,
     scheduleRecoverySave,
     syncToDb,
-    setUtterances: utterances.setState,
+    setUnits: units.setState,
     setTranslations: translations.setState,
     setLayers: layers.setState,
     setLayerLinks: layerLinks.setState,
@@ -103,7 +97,7 @@ function setupHarness(input: {
     hook,
     syncToDb,
     setSaveState,
-    utterances,
+    units,
     speakers,
   };
 }
@@ -117,12 +111,12 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
   });
 
-  it('rename speaker: undo/redo should restore both speaker collection and utterance speaker fields', async () => {
+  it('rename speaker: undo/redo should restore both speaker collection and unit speaker fields', async () => {
     const initialSpeaker = makeSpeaker('spk-1', 'Alice');
     const renamedSpeaker = makeSpeaker('spk-1', 'Alice Renamed');
 
     const harness = setupHarness({
-      utterances: [makeUtterance('utt-1', 'spk-1', 'Alice')],
+      units: [makeUnit('utt-1', 'spk-1', 'Alice')],
       speakers: [initialSpeaker],
     });
 
@@ -131,14 +125,14 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     harness.speakers.setDirect([renamedSpeaker]);
-    harness.utterances.setDirect([makeUtterance('utt-1', 'spk-1', 'Alice Renamed')]);
+    harness.units.setDirect([makeUnit('utt-1', 'spk-1', 'Alice Renamed')]);
 
     await act(async () => {
       await harness.hook.result.current.undo();
     });
 
     expect(harness.speakers.get()[0]?.name).toBe('Alice');
-    expect(harness.utterances.get()[0]?.speaker).toBe('Alice');
+    expect(harness.units.get()[0]?.speaker).toBe('Alice');
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice' })]),
@@ -153,7 +147,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     expect(harness.speakers.get()[0]?.name).toBe('Alice Renamed');
-    expect(harness.utterances.get()[0]?.speaker).toBe('Alice Renamed');
+    expect(harness.units.get()[0]?.speaker).toBe('Alice Renamed');
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speaker: 'Alice Renamed' })]),
@@ -169,9 +163,9 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     const s2 = makeSpeaker('spk-2', 'Bob');
 
     const harness = setupHarness({
-      utterances: [
-        makeUtterance('utt-1', 'spk-1', 'Alice'),
-        makeUtterance('utt-2', 'spk-2', 'Bob'),
+      units: [
+        makeUnit('utt-1', 'spk-1', 'Alice'),
+        makeUnit('utt-2', 'spk-2', 'Bob'),
       ],
       speakers: [s1, s2],
     });
@@ -181,9 +175,9 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     harness.speakers.setDirect([s1]);
-    harness.utterances.setDirect([
-      makeUtterance('utt-1', 'spk-1', 'Alice'),
-      makeUtterance('utt-2', 'spk-1', 'Alice'),
+    harness.units.setDirect([
+      makeUnit('utt-1', 'spk-1', 'Alice'),
+      makeUnit('utt-2', 'spk-1', 'Alice'),
     ]);
 
     await act(async () => {
@@ -191,7 +185,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     expect(harness.speakers.get()).toHaveLength(2);
-    expect(harness.utterances.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-2');
+    expect(harness.units.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-2');
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-2' })]),
@@ -205,7 +199,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     expect(harness.speakers.get()).toHaveLength(1);
-    expect(harness.utterances.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-1');
+    expect(harness.units.get().find((u) => u.id === 'utt-2')?.speakerId).toBe('spk-1');
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-2', speakerId: 'spk-1' })]),
@@ -219,7 +213,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     const createdSpeaker = makeSpeaker('spk-new', 'New Speaker');
 
     const harness = setupHarness({
-      utterances: [makeUtterance('utt-1')],
+      units: [makeUnit('utt-1')],
       speakers: [],
     });
 
@@ -228,14 +222,14 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
     });
 
     harness.speakers.setDirect([createdSpeaker]);
-    harness.utterances.setDirect([makeUtterance('utt-1', 'spk-new', 'New Speaker')]);
+    harness.units.setDirect([makeUnit('utt-1', 'spk-new', 'New Speaker')]);
 
     await act(async () => {
       await harness.hook.result.current.undo();
     });
 
     expect(harness.speakers.get()).toHaveLength(0);
-    expect(harness.utterances.get()[0]?.speakerId).toBeUndefined();
+    expect(harness.units.get()[0]?.speakerId).toBeUndefined();
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       1,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1' })]),
@@ -250,7 +244,7 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
 
     expect(harness.speakers.get()).toHaveLength(1);
     expect(harness.speakers.get()[0]?.id).toBe('spk-new');
-    expect(harness.utterances.get()[0]?.speakerId).toBe('spk-new');
+    expect(harness.units.get()[0]?.speakerId).toBe('spk-new');
     expect(harness.syncToDb).toHaveBeenNthCalledWith(
       2,
       expect.arrayContaining([expect.objectContaining({ id: 'utt-1', speakerId: 'spk-new' })]),
@@ -261,11 +255,11 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
   });
 
   it('undo conflict: should keep ui state and show user-friendly conflict message', async () => {
-    const conflict = new Error('utterances conflict: row utt-1 changed externally');
+    const conflict = new Error('units conflict: row utt-1 changed externally');
     conflict.name = 'TranscriptionPersistenceConflictError';
 
     const harness = setupHarness({
-      utterances: [makeUtterance('utt-1', 'spk-1', 'Alice')],
+      units: [makeUnit('utt-1', 'spk-1', 'Alice')],
       speakers: [makeSpeaker('spk-1', 'Alice')],
       syncToDbImpl: async () => {
         throw conflict;
@@ -276,13 +270,13 @@ describe('useTranscriptionUndo - speaker snapshot coverage', () => {
       harness.hook.result.current.pushUndo('测试冲突撤销');
     });
 
-    harness.utterances.setDirect([makeUtterance('utt-1', 'spk-1', 'Alice Edited')]);
+    harness.units.setDirect([makeUnit('utt-1', 'spk-1', 'Alice Edited')]);
 
     await act(async () => {
       await harness.hook.result.current.undo();
     });
 
-    expect(harness.utterances.get()[0]?.speaker).toBe('Alice Edited');
+    expect(harness.units.get()[0]?.speaker).toBe('Alice Edited');
     expect(harness.setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'error',
       message: '撤销失败：检测到数据已被其他操作更新，请刷新后重试',

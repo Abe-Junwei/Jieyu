@@ -1,12 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  db,
-  type LayerContentRole,
-  type LayerUnitContentDocType,
-  type LayerUnitDocType,
-  type UnitRelationDocType,
-} from '../db';
+import { db, type LayerContentRole, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
 import { LayerUnitService } from './LayerUnitService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
@@ -24,7 +18,7 @@ function makeUnit(overrides: Partial<LayerUnitDocType> & { id: string }): LayerU
     textId: 'text_1',
     mediaId: 'media_1',
     layerId: 'layer_primary',
-    unitType: 'utterance',
+    unitType: 'unit',
     startTime: 1,
     endTime: 2,
     status: 'raw',
@@ -75,11 +69,13 @@ async function buildTimelineUnitsForTest(layerId: string, mediaId: string): Prom
     : await db.layer_unit_contents.where('unitId').anyOf(units.map((unit) => unit.id)).toArray();
   const contentsByUnit = new Map<string, LayerUnitContentDocType[]>();
   for (const content of contents) {
-    const bucket = contentsByUnit.get(content.unitId);
+    const unitId = content.unitId ?? content.segmentId ?? content.unitId;
+    if (!unitId) continue;
+    const bucket = contentsByUnit.get(unitId);
     if (bucket) {
       bucket.push(content);
     } else {
-      contentsByUnit.set(content.unitId, [content]);
+      contentsByUnit.set(unitId, [content]);
     }
   }
 
@@ -198,7 +194,7 @@ describe('LayerUnitService', () => {
       makeContent({ id: 'luc_view_primary', unitId: unit.id, contentRole: 'primary_text', text: '主文本' }),
     ]);
 
-    const timeline = await buildTimelineUnitsForTest(unit.layerId, unit.mediaId);
+    const timeline = await buildTimelineUnitsForTest(unit.layerId ?? '', unit.mediaId ?? '');
 
     expect(timeline).toHaveLength(1);
     expect(timeline[0]?.unit.id).toBe(unit.id);

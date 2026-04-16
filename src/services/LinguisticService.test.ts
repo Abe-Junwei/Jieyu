@@ -11,8 +11,8 @@ async function clearDatabase(): Promise<void> {
   await Promise.all([
     db.texts.clear(),
     db.media_items.clear(),
-    db.utterance_tokens.clear(),
-    db.utterance_morphemes.clear(),
+    db.unit_tokens.clear(),
+    db.unit_morphemes.clear(),
     db.anchors.clear(),
     db.lexemes.clear(),
     db.token_lexeme_links.clear(),
@@ -43,7 +43,7 @@ async function clearDatabase(): Promise<void> {
   ]);
 }
 
-/** Default transcription layer per textId — required for `upsertUtteranceLayerUnit` (M18+). */
+/** Default transcription layer per textId — required for `upsertUnitLayerUnit` (M18+). */
 async function seedDefaultTranscriptionLayerForText(textId: string, layerId: string, nowIso: string): Promise<void> {
   await db.texts.put({
     id: textId,
@@ -850,10 +850,10 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.orthography_bridges.get('orthxfm_manage_old_active')).toBeUndefined();
   });
 
-  it('can save utterance and query by media time', async () => {
+  it('can save unit and query by media time', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_1',
       textId: 'text_1',
       startTime: 2.5,
@@ -862,14 +862,14 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const hit = await LinguisticService.getUtteranceAtTime(3.2);
-    const miss = await LinguisticService.getUtteranceAtTime(9.9);
+    const hit = await LinguisticService.getUnitAtTime(3.2);
+    const miss = await LinguisticService.getUnitAtTime(9.9);
 
     expect(hit?.id).toBe('utt_1');
     expect(miss).toBeUndefined();
   });
 
-  it('syncs default transcription utterance into layer_units', async () => {
+  it('syncs default transcription unit into layer_units', async () => {
     await LinguisticService.saveTranslationLayer({
       id: 'layer_default_sync',
       textId: 'text_sync',
@@ -883,7 +883,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_sync_1',
       textId: 'text_sync',
       mediaId: 'media_sync',
@@ -898,14 +898,14 @@ describe('LinguisticService smoke tests', () => {
     const unit = await db.layer_units.get('utt_sync_1');
     expect(unit).toBeTruthy();
     expect(unit?.layerId).toBe('layer_default_sync');
-    expect(unit?.unitType).toBe('utterance');
+    expect(unit?.unitType).toBe('unit');
     expect(unit?.speakerId).toBe('speaker_sync');
   });
 
-  it('enforces time_subdivision child bounds when parent utterance is resized', async () => {
+  it('enforces time_subdivision child bounds when parent unit is resized', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_parent_resize_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -937,7 +937,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_parent_resize_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -953,7 +953,7 @@ describe('LinguisticService smoke tests', () => {
     expect(child?.endTime).toBe(2.0);
   });
 
-  it('can persist translation layer and utterance text linkage', async () => {
+  it('can persist translation layer and unit text linkage', async () => {
     const now = new Date().toISOString();
 
     await LinguisticService.saveTranslationLayer({
@@ -968,7 +968,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_2',
       textId: 'text_1',
       startTime: 0,
@@ -978,9 +978,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_1',
-      utteranceId: 'utt_2',
+      unitId: 'utt_2',
       layerId: 'layer_1',
       modality: 'text',
       text: 'hello',
@@ -990,7 +990,7 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const layers = await LinguisticService.getTranslationLayers('translation', 'text_1');
-    const records = await LinguisticService.getUtteranceTexts('utt_2');
+    const records = await LinguisticService.getUnitTexts('utt_2');
 
     expect(layers).toHaveLength(1);
     expect(layers[0]!.id).toBe('layer_1');
@@ -998,7 +998,7 @@ describe('LinguisticService smoke tests', () => {
     expect(records[0]!.text).toBe('hello');
   });
 
-  it('can persist utterance text through canonical LayerUnit write path', async () => {
+  it('can persist unit text through canonical LayerUnit write path', async () => {
     const now = new Date().toISOString();
 
     await LinguisticService.saveTranslationLayer({
@@ -1013,7 +1013,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_stop_write',
       textId: 'text_stop_write',
       startTime: 0,
@@ -1023,9 +1023,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_stop_write',
-      utteranceId: 'utt_stop_write',
+      unitId: 'utt_stop_write',
       layerId: 'layer_stop_write',
       modality: 'text',
       text: 'layerunit only text',
@@ -1034,7 +1034,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    const records = await LinguisticService.getUtteranceTexts('utt_stop_write');
+    const records = await LinguisticService.getUnitTexts('utt_stop_write');
 
     expect(await db.layer_units.get('segv2_layer_stop_write_utt_stop_write')).toBeTruthy();
     expect(await db.layer_unit_contents.get('utr_stop_write')).toEqual(expect.objectContaining({
@@ -1048,7 +1048,7 @@ describe('LinguisticService smoke tests', () => {
   it('can read canonical tokens/morphemes via service APIs', async () => {
     const now = new Date().toISOString();
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_read_1',
       textId: 'text_read',
       startTime: 0,
@@ -1108,7 +1108,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    const tokens = await LinguisticService.getTokensByUtteranceId('utt_read_1');
+    const tokens = await LinguisticService.getTokensByUnitId('utt_read_1');
     expect(tokens).toHaveLength(2);
     expect(tokens[0]!.id).toBe('tok_1');
     expect(tokens[0]!.form.default).toBe('word1');
@@ -1128,10 +1128,10 @@ describe('LinguisticService smoke tests', () => {
     expect(morph2[1]!.morphemeIndex).toBe(1);
   });
 
-    it('supports creating speaker and assigning speaker to utterances', async () => {
+    it('supports creating speaker and assigning speaker to units', async () => {
       const now = new Date().toISOString();
 
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_spk_assign_1',
         textId: 'text_spk_assign',
         startTime: 0,
@@ -1142,21 +1142,21 @@ describe('LinguisticService smoke tests', () => {
       });
 
       const speaker = await LinguisticService.createSpeaker({ name: '说话人甲' });
-      const updatedCount = await LinguisticService.assignSpeakerToUtterances(['utt_spk_assign_1'], speaker.id);
-      const utterances = await LinguisticService.getAllUtterances();
+      const updatedCount = await LinguisticService.assignSpeakerToUnits(['utt_spk_assign_1'], speaker.id);
+      const units = await LinguisticService.getAllUnits();
       const speakers = await LinguisticService.getSpeakers();
 
       expect(updatedCount).toBe(1);
-      expect(utterances).toHaveLength(1);
-      expect(utterances[0]!.speakerId).toBe(speaker.id);
-      expect(utterances[0]!.speaker).toBe('说话人甲');
+      expect(units).toHaveLength(1);
+      expect(units[0]!.speakerId).toBe(speaker.id);
+      expect(units[0]!.speaker).toBe('说话人甲');
       expect(speakers.map((s) => s.id)).toContain(speaker.id);
     });
 
-    it('renames speaker and propagates the new name to linked utterances', async () => {
+    it('renames speaker and propagates the new name to linked units', async () => {
       const now = new Date().toISOString();
 
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_spk_rename_1',
         textId: 'text_spk_rename',
         startTime: 0,
@@ -1167,19 +1167,19 @@ describe('LinguisticService smoke tests', () => {
       });
 
       const speaker = await LinguisticService.createSpeaker({ name: '旧名' });
-      await LinguisticService.assignSpeakerToUtterances(['utt_spk_rename_1'], speaker.id);
+      await LinguisticService.assignSpeakerToUnits(['utt_spk_rename_1'], speaker.id);
       const renamed = await LinguisticService.renameSpeaker(speaker.id, '新名');
-      const utterances = await LinguisticService.getAllUtterances();
+      const units = await LinguisticService.getAllUnits();
 
       expect(renamed.name).toBe('新名');
-      expect(utterances[0]!.speakerId).toBe(speaker.id);
-      expect(utterances[0]!.speaker).toBe('新名');
+      expect(units[0]!.speakerId).toBe(speaker.id);
+      expect(units[0]!.speaker).toBe('新名');
     });
 
-    it('merges speaker and migrates utterances to target speaker', async () => {
+    it('merges speaker and migrates units to target speaker', async () => {
       const now = new Date().toISOString();
 
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_spk_merge_1',
         textId: 'text_spk_merge',
         startTime: 0,
@@ -1188,7 +1188,7 @@ describe('LinguisticService smoke tests', () => {
         createdAt: now,
         updatedAt: now,
       });
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_spk_merge_2',
         textId: 'text_spk_merge',
         startTime: 2,
@@ -1200,17 +1200,17 @@ describe('LinguisticService smoke tests', () => {
 
       const source = await LinguisticService.createSpeaker({ name: '来源说话人' });
       const target = await LinguisticService.createSpeaker({ name: '目标说话人' });
-      await LinguisticService.assignSpeakerToUtterances(['utt_spk_merge_1', 'utt_spk_merge_2'], source.id);
+      await LinguisticService.assignSpeakerToUnits(['utt_spk_merge_1', 'utt_spk_merge_2'], source.id);
 
       const moved = await LinguisticService.mergeSpeakers(source.id, target.id);
       const speakers = await LinguisticService.getSpeakers();
-      const utterances = await LinguisticService.getAllUtterances();
+      const units = await LinguisticService.getAllUnits();
 
       expect(moved).toBe(2);
       expect(speakers.map((s) => s.id)).not.toContain(source.id);
       expect(speakers.map((s) => s.id)).toContain(target.id);
-      expect(utterances.every((u) => u.speakerId === target.id)).toBe(true);
-      expect(utterances.every((u) => u.speaker === '目标说话人')).toBe(true);
+      expect(units.every((u) => u.speakerId === target.id)).toBe(true);
+      expect(units.every((u) => u.speaker === '目标说话人')).toBe(true);
     });
 
     it('merges speaker and migrates independent segments to target speaker', async () => {
@@ -1242,7 +1242,7 @@ describe('LinguisticService smoke tests', () => {
     it('clears speaker assignment when assigning undefined speaker id', async () => {
       const now = new Date().toISOString();
 
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_spk_clear_1',
         textId: 'text_spk_clear',
         startTime: 0,
@@ -1253,13 +1253,13 @@ describe('LinguisticService smoke tests', () => {
       });
 
       const speaker = await LinguisticService.createSpeaker({ name: '待清空说话人' });
-      await LinguisticService.assignSpeakerToUtterances(['utt_spk_clear_1'], speaker.id);
-      const cleared = await LinguisticService.assignSpeakerToUtterances(['utt_spk_clear_1'], undefined);
-      const utterances = await LinguisticService.getAllUtterances();
+      await LinguisticService.assignSpeakerToUnits(['utt_spk_clear_1'], speaker.id);
+      const cleared = await LinguisticService.assignSpeakerToUnits(['utt_spk_clear_1'], undefined);
+      const units = await LinguisticService.getAllUnits();
 
       expect(cleared).toBe(1);
-      expect(utterances[0]!.speakerId).toBeUndefined();
-      expect(utterances[0]!.speaker).toBeUndefined();
+      expect(units[0]!.speakerId).toBeUndefined();
+      expect(units[0]!.speaker).toBeUndefined();
     });
 
     it('supports assigning speaker directly to independent segments', async () => {
@@ -1376,9 +1376,9 @@ describe('LinguisticService smoke tests', () => {
       await expect(LinguisticService.deleteSpeaker(speaker.id)).rejects.toThrow('说话人仍被 1 条句段引用');
     });
 
-    it('reports combined utterance and segment speaker reference stats', async () => {
+    it('reports combined unit and segment speaker reference stats', async () => {
       const now = new Date().toISOString();
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_stats_1',
         textId: 'text_stats',
         mediaId: 'media_stats',
@@ -1402,7 +1402,7 @@ describe('LinguisticService smoke tests', () => {
       });
 
       const speaker = await LinguisticService.createSpeaker({ name: '统计说话人' });
-      await LinguisticService.assignSpeakerToUtterances(['utt_stats_1'], speaker.id);
+      await LinguisticService.assignSpeakerToUnits(['utt_stats_1'], speaker.id);
       await LinguisticService.assignSpeakerToSegments(['seg_stats_1'], speaker.id);
 
       const bundle = await LinguisticService.getSpeakerReferenceStats();
@@ -1413,7 +1413,7 @@ describe('LinguisticService smoke tests', () => {
 
     it('counts unassigned rows in speaker reference stats bundle', async () => {
       const now = new Date().toISOString();
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_unassigned_stats',
         textId: 'text_stats_u',
         mediaId: 'media_stats_u',
@@ -1430,7 +1430,7 @@ describe('LinguisticService smoke tests', () => {
 
     it('filters speaker reference stats by mediaId', async () => {
       const now = new Date().toISOString();
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_m_a',
         textId: 'text_m',
         mediaId: 'media_a',
@@ -1440,7 +1440,7 @@ describe('LinguisticService smoke tests', () => {
         createdAt: now,
         updatedAt: now,
       });
-      await LinguisticService.saveUtterance({
+      await LinguisticService.saveUnit({
         id: 'utt_m_b',
         textId: 'text_m',
         mediaId: 'media_b',
@@ -1514,7 +1514,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_quality_1',
       textId: 'text_quality',
       startTime: 0,
@@ -1535,9 +1535,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_quality_trc',
-      utteranceId: 'utt_quality_1',
+      unitId: 'utt_quality_1',
       layerId: 'layer_trc_quality',
       modality: 'text',
       text: 'transcribed',
@@ -1546,9 +1546,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_quality_trl',
-      utteranceId: 'utt_quality_1',
+      unitId: 'utt_quality_1',
       layerId: 'layer_trl_quality',
       modality: 'text',
       text: 'translated',
@@ -1571,11 +1571,11 @@ describe('LinguisticService smoke tests', () => {
 
     const report = await LinguisticService.generateImportQualityReport('text_quality');
 
-    expect(report.totals.utterances).toBe(1);
-    expect(report.coverage.transcribedUtterances).toBe(1);
-    expect(report.coverage.translatedUtterances).toBe(1);
-    expect(report.coverage.glossedUtterances).toBe(1);
-    expect(report.coverage.verifiedUtterances).toBe(1);
+    expect(report.totals.units).toBe(1);
+    expect(report.coverage.transcribedUnits).toBe(1);
+    expect(report.coverage.translatedUnits).toBe(1);
+    expect(report.coverage.glossedUnits).toBe(1);
+    expect(report.coverage.verifiedUnits).toBe(1);
     expect(report.integrity.orphanNotes).toBe(1);
     expect(report.integrity.orphanAnchors).toBe(1);
   });
@@ -1590,7 +1590,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: now,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_3',
       textId: 'text_2',
       startTime: 1,
@@ -1602,13 +1602,13 @@ describe('LinguisticService smoke tests', () => {
 
     const backup = await LinguisticService.exportToJSON();
 
-    await db.layer_units.filter((u) => u.unitType === 'utterance').delete();
-    expect(await db.layer_units.filter((u) => u.unitType === 'utterance').count()).toBe(0);
+    await db.layer_units.filter((u) => u.unitType === 'unit').delete();
+    expect(await db.layer_units.filter((u) => u.unitType === 'unit').count()).toBe(0);
 
     const report = await LinguisticService.importFromJSON(backup, 'upsert');
 
     expect(report.collections.layer_units?.written).toBeGreaterThan(0);
-    expect(await db.layer_units.filter((u) => u.unitType === 'utterance').count()).toBe(1);
+    expect(await db.layer_units.filter((u) => u.unitType === 'unit').count()).toBe(1);
   });
 
   it('rejects AI tier annotation writes with confirmed reviewStatus', async () => {
@@ -1643,7 +1643,7 @@ describe('LinguisticService smoke tests', () => {
     ).rejects.toThrow(/confirmed.*AI/);
   });
 
-  it('removes multiple utterances in one transaction with cascade cleanup', async () => {
+  it('removes multiple units in one transaction with cascade cleanup', async () => {
     await db.anchors.bulkPut([
       { id: 'anc_s1', mediaId: 'media_batch', time: 0, createdAt: NOW },
       { id: 'anc_e1', mediaId: 'media_batch', time: 1, createdAt: NOW },
@@ -1651,7 +1651,7 @@ describe('LinguisticService smoke tests', () => {
       { id: 'anc_e2', mediaId: 'media_batch', time: 2, createdAt: NOW },
     ]);
 
-    await LinguisticService.saveUtterancesBatch([
+    await LinguisticService.saveUnitsBatch([
       {
         id: 'utt_batch_1',
         textId: 'text_batch',
@@ -1740,9 +1740,9 @@ describe('LinguisticService smoke tests', () => {
     });
 
     await Promise.all([
-      LinguisticService.saveUtteranceText({
+      LinguisticService.saveUnitText({
         id: 'utr_batch_1',
-        utteranceId: 'utt_batch_1',
+        unitId: 'utt_batch_1',
         layerId: 'layer_batch',
         modality: 'text',
         text: 'x',
@@ -1750,9 +1750,9 @@ describe('LinguisticService smoke tests', () => {
         createdAt: NOW,
         updatedAt: NOW,
       }),
-      LinguisticService.saveUtteranceText({
+      LinguisticService.saveUnitText({
         id: 'utr_batch_2',
-        utteranceId: 'utt_batch_2',
+        unitId: 'utt_batch_2',
         layerId: 'layer_batch',
         modality: 'text',
         text: 'y',
@@ -1765,7 +1765,7 @@ describe('LinguisticService smoke tests', () => {
     await db.user_notes.bulkPut([
       {
         id: 'note_u_batch_1',
-        targetType: 'utterance',
+        targetType: 'unit',
         targetId: 'utt_batch_1',
         content: { eng: 'u1' },
         createdAt: NOW,
@@ -1791,11 +1791,11 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.removeUtterancesBatch(['utt_batch_1', 'utt_batch_2']);
+    await LinguisticService.removeUnitsBatch(['utt_batch_1', 'utt_batch_2']);
 
     expect(await db.layer_units.where('id').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.utterance_tokens.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
-    expect(await db.utterance_morphemes.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.unit_tokens.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
+    expect(await db.unit_morphemes.where('unitId').anyOf(['utt_batch_1', 'utt_batch_2']).count()).toBe(0);
     expect(await db.token_lexeme_links.where('id').anyOf(['link_batch_1', 'link_batch_2']).count()).toBe(0);
     expect(await db.user_notes.where('id').anyOf(['note_u_batch_1', 'note_t_batch_1', 'note_m_batch_2']).count()).toBe(0);
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
@@ -1819,7 +1819,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await LinguisticService.saveUtterancesBatch([
+    await LinguisticService.saveUnitsBatch([
       {
         id: 'utt_del_single',
         textId: 'text_del',
@@ -1921,7 +1921,7 @@ describe('LinguisticService smoke tests', () => {
       },
     ]);
 
-    await expect(LinguisticService.removeUtterance('utt_del_single')).resolves.toBeUndefined();
+    await expect(LinguisticService.removeUnit('utt_del_single')).resolves.toBeUndefined();
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_single_tok', 'link_del_single_mor']).count()).toBe(0);
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
 
@@ -1931,8 +1931,8 @@ describe('LinguisticService smoke tests', () => {
 
   // ── Regression guard: segmentation text queries ──────
 
-  it('regression: saveUtteranceText round-trips via layer-field index', async () => {
-    await LinguisticService.saveUtterance({
+  it('regression: saveUnitText round-trips via layer-field index', async () => {
+    await LinguisticService.saveUnit({
       id: 'utt_layer_rt',
       textId: 'text_layer_rt',
       startTime: 0,
@@ -1942,9 +1942,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_layer_rt_1',
-      utteranceId: 'utt_layer_rt',
+      unitId: 'utt_layer_rt',
       layerId: 'layer_trc_rt',
       modality: 'text',
       text: 'hello',
@@ -1953,9 +1953,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_layer_rt_2',
-      utteranceId: 'utt_layer_rt',
+      unitId: 'utt_layer_rt',
       layerId: 'layer_trl_rt',
       modality: 'text',
       text: 'world',
@@ -1964,8 +1964,8 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    // Query by utteranceId should return both (via V2 read path)
-    const texts = await LinguisticService.getUtteranceTexts('utt_layer_rt');
+    // Query by unitId should return both (via V2 read path)
+    const texts = await LinguisticService.getUnitTexts('utt_layer_rt');
     expect(texts).toHaveLength(2);
 
     // Canonical layer_unit_contents should have both entries
@@ -1977,13 +1977,13 @@ describe('LinguisticService smoke tests', () => {
     expect(helloRows.length).toBeGreaterThanOrEqual(1);
     expect(helloRows[0]!.text).toBe('hello');
 
-    // Cascade delete via removeUtterance should clean up V2 entries
-    await LinguisticService.removeUtterance('utt_layer_rt');
-    const remaining = await LinguisticService.getUtteranceTexts('utt_layer_rt');
+    // Cascade delete via removeUnit should clean up V2 entries
+    await LinguisticService.removeUnit('utt_layer_rt');
+    const remaining = await LinguisticService.getUnitTexts('utt_layer_rt');
     expect(remaining).toHaveLength(0);
   });
 
-  it('regression: deleteProject cascades segmentation text content via utteranceId query', async () => {
+  it('regression: deleteProject cascades segmentation text content via unitId query', async () => {
     await db.texts.put({
       id: 'text_cascade_ut',
       title: { eng: 'Cascade Test' },
@@ -1991,7 +1991,7 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtterance({
+    await LinguisticService.saveUnit({
       id: 'utt_cascade_ut_1',
       textId: 'text_cascade_ut',
       startTime: 0,
@@ -2001,9 +2001,9 @@ describe('LinguisticService smoke tests', () => {
       updatedAt: NOW,
     });
 
-    await LinguisticService.saveUtteranceText({
+    await LinguisticService.saveUnitText({
       id: 'utr_cascade_ut_1',
-      utteranceId: 'utt_cascade_ut_1',
+      unitId: 'utt_cascade_ut_1',
       layerId: 'layer_cascade',
       modality: 'text',
       text: 'cascade me',
@@ -2559,7 +2559,7 @@ describe('validateTierConstraints', () => {
 
   // Happy path: valid 3-level ELAN-style hierarchy
   it('accepts valid 3-level time→subdivision→association hierarchy', () => {
-    const root = makeTier({ id: 't1', textId: 'x', key: 'utterance', tierType: 'time-aligned' });
+    const root = makeTier({ id: 't1', textId: 'x', key: 'unit', tierType: 'time-aligned' });
     const morph = makeTier({ id: 't2', textId: 'x', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 't1' });
     const gloss = makeTier({ id: 't3', textId: 'x', key: 'gloss', tierType: 'symbolic-association', parentTierId: 't2', contentType: 'gloss' });
 
@@ -2586,11 +2586,11 @@ describe('Tier CRUD & batch save', () => {
   });
 
   it('can save and retrieve tier definitions', async () => {
-    const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'utterance', tierType: 'time-aligned' });
+    const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'unit', tierType: 'time-aligned' });
     await LinguisticService.saveTierDefinition(tier);
     const result = await LinguisticService.getTierDefinitions('text_1');
     expect(result).toHaveLength(1);
-    expect(result[0]!.key).toBe('utterance');
+    expect(result[0]!.key).toBe('unit');
   });
 
   it('saveTierAnnotationsBatch rejects invalid annotations', async () => {

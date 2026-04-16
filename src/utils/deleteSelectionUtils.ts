@@ -6,7 +6,7 @@ export type DeletePlan =
   | { kind: 'multi'; ids: Set<string> };
 
 /**
- * Resolve which utterances should be deleted from a potentially inconsistent
+ * Resolve which units should be deleted from a potentially inconsistent
  * selection state (primary id + selected set).
  */
 export function resolveDeletePlan(primaryId: string, ids: Iterable<string>): DeletePlan {

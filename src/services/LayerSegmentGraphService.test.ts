@@ -1,19 +1,11 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type SegmentLinkDocType } from '../db';
-import {
-  buildClonedSegmentGraphForSplit,
-  deleteLayerSegmentGraphByUtteranceIds,
-  deleteResidualLayerUnitGraphByMediaId,
-  deleteResidualLayerUnitGraphByTextId,
-  findOrphanSegmentIds,
-  restoreLayerSegmentGraphSnapshot,
-  snapshotLayerSegmentGraphByLayerIds,
-} from './LayerSegmentGraphService';
+import { db, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import { buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphByUnitIds, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, findOrphanSegmentIds, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from './LayerSegmentGraphService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
-function makeLink(overrides: Partial<SegmentLinkDocType> & { id: string; sourceSegmentId: string; targetSegmentId: string }): SegmentLinkDocType {
+function makeLink(overrides: Partial<UnitRelationDocType> & { id: string; sourceSegmentId: string; targetSegmentId: string }): UnitRelationDocType {
   return {
     textId: 'text_1',
     linkType: 'time_subdivision',
@@ -76,7 +68,7 @@ describe('LayerSegmentGraphService', () => {
     expect(snapshot.units.map((unit) => unit.id)).toEqual(['seg_unit_snapshot_1']);
     expect(snapshot.contents.map((content) => content.id)).toEqual(['cnt_unit_snapshot_1']);
     expect(snapshot.links).toEqual([
-      expect.objectContaining<Partial<SegmentLinkDocType>>({
+      expect.objectContaining<Partial<UnitRelationDocType>>({
         id: 'rel_unit_snapshot_1',
         sourceSegmentId: 'seg_unit_snapshot_1',
         targetSegmentId: 'utt_parent_1',
@@ -189,7 +181,7 @@ describe('LayerSegmentGraphService', () => {
     expect(await db.unit_relations.get('lnk_restore_1')).toBeTruthy();
   });
 
-  it('deletes direct and time-subdivision segments for utterance cascade', async () => {
+  it('deletes direct and time-subdivision segments for unit cascade', async () => {
     const database = await getDb();
     await db.layer_units.bulkPut([
       {
@@ -253,7 +245,7 @@ describe('LayerSegmentGraphService', () => {
       updatedAt: NOW,
     });
 
-    const result = await deleteLayerSegmentGraphByUtteranceIds(database, ['utt_parent_1']);
+    const result = await deleteLayerSegmentGraphByUnitIds(database, ['utt_parent_1']);
 
     expect(result.deletedSegmentIds.sort()).toEqual(['seg_child_sub_1', 'seg_parent_direct_1']);
     expect(await db.layer_units.get('seg_parent_direct_1')).toBeUndefined();

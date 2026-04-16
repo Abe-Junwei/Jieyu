@@ -5,7 +5,7 @@
  * which is the most common variant.
  */
 
-import type { UtteranceDocType, LayerDocType, UtteranceTextDocType, UserNoteDocType, LayerSegmentDocType, LayerSegmentContentDocType, OrthographyDocType } from '../db';
+import type { LayerDocType, LayerSegmentViewDocType, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UserNoteDocType, OrthographyDocType } from '../db';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
@@ -14,20 +14,20 @@ import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 // ── Types ───────────────────────────────────────────────────
 
 export interface TextGridExportInput {
-  utterances: UtteranceDocType[];
+  units: LayerUnitDocType[];
   layers: LayerDocType[];
-  translations: UtteranceTextDocType[];
+  translations: LayerUnitContentViewDocType[];
   orthographies?: OrthographyDocType[];
   userNotes?: UserNoteDocType[];
   /** 独立层 segment 数据（用于独立转写层区间导出）| Independent layer segment data (for independent transcription tier export) */
-  segmentsByLayer?: Map<string, LayerSegmentDocType[]>;
+  segmentsByLayer?: Map<string, LayerSegmentViewDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
-  segmentContents?: Map<string, Map<string, LayerSegmentContentDocType>>;
+  segmentContents?: Map<string, Map<string, LayerUnitContentDocType>>;
 }
 
 export interface TextGridImportResult {
-  /** Utterances from the first IntervalTier */
-  utterances: Array<{
+  /** Units from the first IntervalTier */
+  units: Array<{
     startTime: number;
     endTime: number;
     transcription: string;
@@ -72,8 +72,8 @@ function escapeTextGridString(s: string): string {
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { utterances, layers, translations, orthographies, userNotes, segmentsByLayer, segmentContents } = input;
-  const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+  const { units, layers, translations, orthographies, userNotes, segmentsByLayer, segmentContents } = input;
+  const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
   const globalXmin = sorted[0]!.startTime;
@@ -101,7 +101,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   const transcriptionIntervals = buildIntervalsWithGaps(
     sorted.map((u) => {
       const tr = defaultTrcId
-        ? translations.find((t) => t.utteranceId === u.id && t.layerId === defaultTrcId && t.modality === 'text')
+        ? translations.find((t) => t.unitId === u.id && t.layerId === defaultTrcId && t.modality === 'text')
         : undefined;
       return {
         xmin: u.startTime,
@@ -142,13 +142,13 @@ export function exportToTextGrid(input: TextGridExportInput): string {
       continue;
     }
 
-    // 翻译层或无 segment 的层：使用 utterance 对齐翻译 | Translation layer: use utterance-aligned translations
+    // 翻译层或无 segment 的层：使用 unit 对齐翻译 | Translation layer: use unit-aligned translations
     const layerTranslations = translations.filter(
       (t) => t.layerId === layer.id && t.modality === 'text',
     );
     const intervals = buildIntervalsWithGaps(
       sorted.map((u) => {
-        const tr = layerTranslations.find((t) => t.utteranceId === u.id);
+        const tr = layerTranslations.find((t) => t.unitId === u.id);
         return { xmin: u.startTime, xmax: u.endTime, text: wrapLayerText(tr?.text ?? '', layer) };
       }),
       globalXmin,
@@ -161,7 +161,7 @@ export function exportToTextGrid(input: TextGridExportInput): string {
   if (userNotes && userNotes.length > 0) {
     const notesByUtt = new Map<string, UserNoteDocType[]>();
     for (const note of userNotes) {
-      if (note.targetType !== 'utterance') continue;
+      if (note.targetType !== 'unit') continue;
       const arr = notesByUtt.get(note.targetId);
       if (arr) arr.push(note);
       else notesByUtt.set(note.targetId, [note]);
@@ -332,8 +332,8 @@ export function importFromTextGrid(text: string): TextGridImportResult {
     }
   }
 
-  // Map tier 0 → utterances, rest → additional
-  let utterances: TextGridImportResult['utterances'] = [];
+  // Map tier 0 → units, rest → additional
+  let units: TextGridImportResult['units'] = [];
   const additionalTiers = new Map<string, Array<{ startTime: number; endTime: number; text: string }>>();
 
   parsedTiers.forEach((tier, i) => {
@@ -347,7 +347,7 @@ export function importFromTextGrid(text: string): TextGridImportResult {
       }));
 
     if (i === 0) {
-      utterances = nonEmpty.map((e) => ({
+      units = nonEmpty.map((e) => ({
         startTime: e.startTime,
         endTime: e.endTime,
         transcription: e.text,
@@ -366,7 +366,7 @@ export function importFromTextGrid(text: string): TextGridImportResult {
 
   const transcriptionTierName = parsedTiers[0]?.name;
   return {
-    utterances,
+    units,
     additionalTiers,
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
     tierMetadata,

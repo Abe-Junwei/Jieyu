@@ -19,7 +19,7 @@ import type { LayerDocType } from '../db';
 export interface SidePaneLayerContextValue {
   deletableLayers: LayerDocType[];
   checkLayerHasContent: (layerId: string) => Promise<number>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
 }
 
@@ -69,7 +69,7 @@ interface SidePaneLayerProviderProps {
   children: React.ReactNode;
   deletableLayers: LayerDocType[];
   checkLayerHasContent: (layerId: string) => Promise<number>;
-  deleteLayer: (layerId: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (layerId: string, options?: { keepUnits?: boolean }) => Promise<void>;
   deleteLayerWithoutConfirm: (layerId: string) => Promise<void>;
 }
 

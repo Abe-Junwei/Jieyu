@@ -1,14 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
-import type {
-  AnchorDocType,
-  LayerSegmentDocType,
-  MediaItemDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
+import type { AnchorDocType, LayerUnitDocType, MediaItemDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { t, useLocale } from '../i18n';
 import { useOrthographies } from './useOrthographies';
@@ -23,12 +16,12 @@ function normalizeSpeakerLookupKey(value: string | undefined) {
 }
 
 function resolveRelevantExportSpeakerIds(
-  currentUtterances: UtteranceDocType[],
-  layerSegments?: Map<string, LayerSegmentDocType[]>,
+  currentUnits: LayerUnitDocType[],
+  layerSegments?: Map<string, LayerUnitDocType[]>,
 ) {
   const ids = new Set<string>();
-  for (const utterance of currentUtterances) {
-    const speakerId = utterance.speakerId?.trim();
+  for (const unit of currentUnits) {
+    const speakerId = unit.speakerId?.trim();
     if (speakerId) ids.add(speakerId);
   }
   if (layerSegments) {
@@ -64,10 +57,10 @@ export interface UseImportExportInput {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
   selectedUnitMedia?: MediaItemDocType | undefined;
-  utterancesOnCurrentMedia: UtteranceDocType[];
+  unitsOnCurrentMedia: LayerUnitDocType[];
   anchors: AnchorDocType[];
   layers: LayerDocType[];
-  translations: UtteranceTextDocType[];
+  translations: LayerUnitContentDocType[];
   defaultTranscriptionLayerId: string | undefined;
   loadSnapshot: () => Promise<void>;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
@@ -98,7 +91,7 @@ export function useImportExport(input: UseImportExportInput) {
     activeTextId,
     getActiveTextId,
     selectedUnitMedia,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     anchors,
     layers,
     translations,
@@ -147,12 +140,12 @@ export function useImportExport(input: UseImportExportInput) {
     { closeOnEscape: true },
   );
 
-  const fetchUtteranceNotes = useCallback(async (uttIds: string[]) => {
+  const fetchUnitNotes = useCallback(async (uttIds: string[]) => {
     if (uttIds.length === 0) return [];
     const db = await getDb();
     return db.dexie.user_notes
       .where('[targetType+targetId]')
-      .anyOf(uttIds.map((id) => ['utterance', id]))
+      .anyOf(uttIds.map((id) => ['unit', id]))
       .toArray();
   }, []);
 
@@ -164,8 +157,8 @@ export function useImportExport(input: UseImportExportInput) {
 
     const { layerSegmentQueryService } = await loadExportSupportModules();
 
-    const segMap = new Map<string, import('../db').LayerSegmentDocType[]>();
-    const contentMap = new Map<string, Map<string, import('../db').LayerSegmentContentDocType>>();
+    const segMap = new Map<string, import('../db').LayerUnitDocType[]>();
+    const contentMap = new Map<string, Map<string, import('../db').LayerUnitContentDocType>>();
 
     for (const layer of targetLayers) {
       const orderedSegments = await layerSegmentQueryService.LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
@@ -178,9 +171,11 @@ export function useImportExport(input: UseImportExportInput) {
         modality: 'text',
       });
 
-      const mergedContentMap = new Map<string, import('../db').LayerSegmentContentDocType>();
+      const mergedContentMap = new Map<string, import('../db').LayerUnitContentDocType>();
       for (const content of mergedContents) {
-        mergedContentMap.set(content.segmentId, content);
+        const segmentId = content.segmentId ?? content.unitId;
+        if (!segmentId) continue;
+        mergedContentMap.set(segmentId, content);
       }
 
       if (mergedContentMap.size > 0) {
@@ -189,9 +184,9 @@ export function useImportExport(input: UseImportExportInput) {
     }
 
     return {
-      ...(segMap.size > 0 ? { segmentsByLayer: segMap as Map<string, import('../db').LayerSegmentDocType[]> } : {}),
+      ...(segMap.size > 0 ? { segmentsByLayer: segMap as Map<string, import('../db').LayerUnitDocType[]> } : {}),
       ...(contentMap.size > 0
-        ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerSegmentContentDocType>> }
+        ? { segmentContents: contentMap as Map<string, Map<string, import('../db').LayerUnitContentDocType>> }
         : {}),
     };
   }, [loadExportSupportModules]);
@@ -218,31 +213,31 @@ export function useImportExport(input: UseImportExportInput) {
       : undefined;
   }, [activeTextId, getActiveTextId]);
 
-  const buildOrthographyAwareExportUtterances = useCallback(async (
-    currentUtterances: UtteranceDocType[],
+  const buildOrthographyAwareExportUnits = useCallback(async (
+    currentUnits: LayerUnitDocType[],
     defaultLayer: LayerDocType | undefined,
   ) => {
     const targetOrthographyId = defaultLayer?.orthographyId?.trim();
-    if (!defaultLayer?.id || !targetOrthographyId) return currentUtterances;
+    if (!defaultLayer?.id || !targetOrthographyId) return currentUnits;
 
     const sourceOrthographyId = await loadProjectPrimaryOrthographyId();
     if (!sourceOrthographyId || sourceOrthographyId === targetOrthographyId) {
-      return currentUtterances;
+      return currentUnits;
     }
 
-    const defaultLayerTextUtteranceIds = new Set(
+    const defaultLayerTextUnitIds = new Set(
       translations
         .filter((item) => item.layerId === defaultLayer.id && item.modality === 'text' && typeof item.text === 'string' && item.text.trim().length > 0)
-        .map((item) => item.utteranceId),
+        .map((item) => item.unitId),
     );
 
     let didChange = false;
     const transformedTextCache = new Map<string, string>();
     const { orthographyRuntime } = await loadExportSupportModules();
-    const nextUtterances = await Promise.all(currentUtterances.map(async (utterance) => {
-      if (defaultLayerTextUtteranceIds.has(utterance.id)) return utterance;
-      const legacyText = utterance.transcription?.default ?? '';
-      if (!legacyText.trim()) return utterance;
+    const nextUnits = await Promise.all(currentUnits.map(async (unit) => {
+      if (defaultLayerTextUnitIds.has(unit.id)) return unit;
+      const legacyText = unit.transcription?.default ?? '';
+      if (!legacyText.trim()) return unit;
 
       let transformedText = transformedTextCache.get(legacyText);
       if (transformedText === undefined) {
@@ -255,24 +250,24 @@ export function useImportExport(input: UseImportExportInput) {
         transformedTextCache.set(legacyText, transformedText);
       }
 
-      if (transformedText === legacyText) return utterance;
+      if (transformedText === legacyText) return unit;
       didChange = true;
       return {
-        ...utterance,
+        ...unit,
         transcription: {
-          ...(utterance.transcription ?? {}),
+          ...(unit.transcription ?? {}),
           default: transformedText,
         },
-      } as UtteranceDocType;
+      } as LayerUnitDocType;
     }));
 
-    return didChange ? nextUtterances : currentUtterances;
+    return didChange ? nextUnits : currentUnits;
   }, [loadExportSupportModules, loadProjectPrimaryOrthographyId, translations]);
 
   const handleExportEaf = useCallback(async () => {
-    if (utterancesOnCurrentMedia.length === 0) return;
+    if (unitsOnCurrentMedia.length === 0) return;
     const eafService = await loadEafService();
-    const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
+    const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
@@ -283,21 +278,21 @@ export function useImportExport(input: UseImportExportInput) {
         (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
         || (l.layerType === 'transcription' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
     );
-    const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, utterancesOnCurrentMedia[0]?.mediaId) as {
-      segmentsByLayer?: Map<string, import('../db').LayerSegmentDocType[]>;
-      segmentContents?: Map<string, Map<string, import('../db').LayerSegmentContentDocType>>;
+    const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, unitsOnCurrentMedia[0]?.mediaId) as {
+      segmentsByLayer?: Map<string, import('../db').LayerUnitDocType[]>;
+      segmentContents?: Map<string, Map<string, import('../db').LayerUnitContentDocType>>;
     };
     const layerSegments = exportData.segmentsByLayer;
     const layerSegmentContents = exportData.segmentContents;
     const db = await getDb();
-    const relevantSpeakerIds = resolveRelevantExportSpeakerIds(utterancesOnCurrentMedia, layerSegments);
+    const relevantSpeakerIds = resolveRelevantExportSpeakerIds(unitsOnCurrentMedia, layerSegments);
     const speakers = relevantSpeakerIds.size === 0
       ? []
       : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
-    const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
+    const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const xml = eafService.exportToEaf({
       ...(selectedUnitMedia ? { mediaItem: selectedUnitMedia } : {}),
-      utterances: exportUtterances,
+      units: exportUnits,
       anchors,
       layers,
       orthographies,
@@ -314,21 +309,21 @@ export function useImportExport(input: UseImportExportInput) {
     eafService.downloadEaf(xml, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
     setShowExportMenu(false);
-  }, [anchors, buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadEafService, loadSegmentExportDataForLayers, orthographies, resolveRelevantExportSpeakerIds, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [anchors, buildOrthographyAwareExportUnits, defaultTranscriptionLayerId, fetchUnitNotes, layers, loadEafService, loadSegmentExportDataForLayers, orthographies, resolveRelevantExportSpeakerIds, selectedUnitMedia, setSaveState, translations, unitsOnCurrentMedia]);
 
   const handleExportTextGrid = useCallback(async () => {
-    if (utterancesOnCurrentMedia.length === 0) return;
+    if (unitsOnCurrentMedia.length === 0) return;
     const textGridService = await loadTextGridService();
-    const userNotes = await fetchUtteranceNotes(utterancesOnCurrentMedia.map((u) => u.id));
-    const exportData = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
+    const exportData = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData?.segmentsByLayer;
     const segmentContents = exportData?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
-    const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
+    const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const tg = textGridService.exportToTextGrid({
-      utterances: exportUtterances,
+      units: exportUnits,
       layers,
       orthographies,
       translations,
@@ -342,17 +337,17 @@ export function useImportExport(input: UseImportExportInput) {
     textGridService.downloadTextGrid(tg, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.textgrid') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, fetchUtteranceNotes, layers, loadSegmentExportData, loadTextGridService, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUnits, defaultTranscriptionLayerId, fetchUnitNotes, layers, loadSegmentExportData, loadTextGridService, selectedUnitMedia, setSaveState, translations, unitsOnCurrentMedia]);
 
   const handleExportTrs = useCallback(async () => {
-    if (utterancesOnCurrentMedia.length === 0) return;
+    if (unitsOnCurrentMedia.length === 0) return;
     const transcriberService = await loadTranscriberService();
     const transcriptionLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
-    const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, transcriptionLayer);
+    const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, transcriptionLayer);
     const trs = transcriberService.exportToTrs({
-      utterances: exportUtterances,
+      units: exportUnits,
       orthographies,
       ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
     });
@@ -362,20 +357,20 @@ export function useImportExport(input: UseImportExportInput) {
     transcriberService.downloadTrs(trs, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.trs') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadTranscriberService, orthographies, selectedUnitMedia, setSaveState, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUnits, defaultTranscriptionLayerId, layers, loadTranscriberService, orthographies, selectedUnitMedia, setSaveState, unitsOnCurrentMedia]);
 
   const handleExportFlextext = useCallback(async () => {
-    if (utterancesOnCurrentMedia.length === 0) return;
+    if (unitsOnCurrentMedia.length === 0) return;
     const flexService = await loadFlexService();
-    const exportData2 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const exportData2 = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData2?.segmentsByLayer;
     const segmentContents = exportData2?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
-    const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
+    const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const flex = flexService.exportToFlextext({
-      utterances: exportUtterances,
+      units: exportUnits,
       layers,
       orthographies,
       translations,
@@ -388,20 +383,20 @@ export function useImportExport(input: UseImportExportInput) {
     flexService.downloadFlextext(flex, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.flextext') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadFlexService, loadSegmentExportData, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUnits, defaultTranscriptionLayerId, layers, loadFlexService, loadSegmentExportData, selectedUnitMedia, setSaveState, translations, unitsOnCurrentMedia]);
 
   const handleExportToolbox = useCallback(async () => {
-    if (utterancesOnCurrentMedia.length === 0) return;
+    if (unitsOnCurrentMedia.length === 0) return;
     const toolboxService = await loadToolboxService();
-    const exportData3 = (await loadSegmentExportData(utterancesOnCurrentMedia[0]?.mediaId)) as any;
+    const exportData3 = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
     const segmentsByLayer = exportData3?.segmentsByLayer;
     const segmentContents = exportData3?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
       ?? layers.find((layer) => layer.layerType === 'transcription' && layer.isDefault)
       ?? layers.find((layer) => layer.layerType === 'transcription');
-    const exportUtterances = await buildOrthographyAwareExportUtterances(utterancesOnCurrentMedia, defaultTrcLayer);
+    const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const toolbox = toolboxService.exportToToolbox({
-      utterances: exportUtterances,
+      units: exportUnits,
       layers,
       orthographies,
       translations,
@@ -414,7 +409,7 @@ export function useImportExport(input: UseImportExportInput) {
     toolboxService.downloadToolbox(toolbox, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.toolbox') });
     setShowExportMenu(false);
-  }, [buildOrthographyAwareExportUtterances, defaultTranscriptionLayerId, layers, loadSegmentExportData, loadToolboxService, selectedUnitMedia, setSaveState, translations, utterancesOnCurrentMedia]);
+  }, [buildOrthographyAwareExportUnits, defaultTranscriptionLayerId, layers, loadSegmentExportData, loadToolboxService, selectedUnitMedia, setSaveState, translations, unitsOnCurrentMedia]);
 
   const handleExportJyt = useCallback(async () => {
     const jymService = await loadArchiveExportModule();

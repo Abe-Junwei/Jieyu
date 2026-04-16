@@ -19,12 +19,12 @@ vi.mock('./useNotes', () => ({
 }));
 
 describe('useNoteHandlers error reporting', () => {
-  it('resolves note indicator targets for segment-layer notes and utterance notes', () => {
+  it('resolves note indicator targets for segment-layer notes and unit notes', () => {
     mockUseNoteCounts.mockImplementation((targetType: string) => {
       if (targetType === 'tier_annotation') {
         return new Map([['seg-1::layer-1', 2]]);
       }
-      if (targetType === 'utterance') {
+      if (targetType === 'unit') {
         return new Map([['utt-1', 1]]);
       }
       return new Map();
@@ -33,7 +33,7 @@ describe('useNoteHandlers error reporting', () => {
     const { result } = renderHook(() => useNoteHandlers({
       activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
-      utterances: [{ id: 'utt-1' }],
+      units: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1', 'seg-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
@@ -55,7 +55,7 @@ describe('useNoteHandlers error reporting', () => {
           ['seg-1::layer-1::@waveform', 1],
         ]);
       }
-      if (targetType === 'utterance') {
+      if (targetType === 'unit') {
         return new Map([['seg-1', 5]]);
       }
       return new Map();
@@ -64,7 +64,7 @@ describe('useNoteHandlers error reporting', () => {
     const { result } = renderHook(() => useNoteHandlers({
       activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
-      utterances: [{ id: 'utt-1' }],
+      units: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1', 'seg-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
@@ -89,7 +89,7 @@ describe('useNoteHandlers error reporting', () => {
     const { result } = renderHook(() => useNoteHandlers({
       activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
-      utterances: [{ id: 'utt-1' }],
+      units: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
@@ -120,7 +120,7 @@ describe('useNoteHandlers error reporting', () => {
     const { result } = renderHook(() => useNoteHandlers({
       activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
-      utterances: [{ id: 'utt-1' }],
+      units: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
@@ -150,7 +150,7 @@ describe('useNoteHandlers error reporting', () => {
     const { result } = renderHook(() => useNoteHandlers({
       activeUnitId: 'utt-1',
       focusedLayerRowId: 'layer-1',
-      utterances: [{ id: 'utt-1' }],
+      units: [{ id: 'utt-1' }],
       timelineUnitIds: ['utt-1'],
       transcriptionLayers: [{ id: 'layer-1' }],
       translationLayers: [],
@@ -163,7 +163,7 @@ describe('useNoteHandlers error reporting', () => {
     await act(async () => {
       await result.current.handleExecuteRecommendation({
         actionType: 'batch_pos',
-        targetUtteranceId: 'utt-1',
+        targetUnitId: 'utt-1',
         targetForm: 'walk',
         targetPos: 'VERB',
       } as Parameters<typeof result.current.handleExecuteRecommendation>[0]);

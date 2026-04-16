@@ -15,13 +15,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('layer-default');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -32,14 +32,14 @@ describe('useTranscriptionSelectionActions', () => {
       result.current.selectTimelineUnit({
         layerId: 'layer-explicit',
         unitId: 'utt-1',
-        kind: 'utterance',
+        kind: 'unit',
       });
     });
 
     expect(setSelectedTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
       layerId: 'layer-explicit',
       unitId: 'utt-1',
-      kind: 'utterance',
+      kind: 'unit',
     }));
     expect(setSelectedLayerId).toHaveBeenCalledWith('layer-explicit');
     expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['utt-1']));
@@ -55,13 +55,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>(['utt-1']));
       const selectedLayerIdRef = useRef('layer-default');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -94,14 +94,14 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdRef = useRef('');
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('');
-      const selectedTimelineUnitRef = useRef({ layerId: 'layer-fallback', unitId: 'utt-prev', kind: 'utterance' as const });
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const selectedTimelineUnitRef = useRef({ layerId: 'layer-fallback', unitId: 'utt-prev', kind: 'unit' as const });
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -116,7 +116,7 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-fallback',
       unitId: 'utt-2',
-      kind: 'utterance',
+      kind: 'unit',
     });
     expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['utt-2']));
   });
@@ -131,13 +131,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         defaultTranscriptionLayerId: 'layer-default',
         setSelectedLayerId,
         setSelectedUnitIds,
@@ -153,7 +153,7 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-default',
       unitId: 'utt-2',
-      kind: 'utterance',
+      kind: 'unit',
     });
     expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['utt-2']));
   });
@@ -168,13 +168,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         fallbackLayerId: 'layer-first',
         setSelectedLayerId,
         setSelectedUnitIds,
@@ -190,7 +190,7 @@ describe('useTranscriptionSelectionActions', () => {
     expect(setSelectedTimelineUnit).toHaveBeenCalledWith({
       layerId: 'layer-first',
       unitId: 'utt-2',
-      kind: 'utterance',
+      kind: 'unit',
     });
     expect(setSelectedUnitIds).toHaveBeenCalledWith(new Set(['utt-2']));
   });
@@ -206,13 +206,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('   ');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -240,13 +240,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>());
       const selectedLayerIdRef = useRef('layer-a');
       const selectedTimelineUnitRef = useRef({ layerId: 'layer-a', unitId: 'seg-1', kind: 'segment' as const });
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -274,13 +274,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>(['seg-1', 'seg-2']));
       const selectedLayerIdRef = useRef('layer-a');
       const selectedTimelineUnitRef = useRef({ layerId: 'layer-a', unitId: 'seg-2', kind: 'segment' as const });
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -308,13 +308,13 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdsRef = useRef(new Set<string>(['utt-1', 'utt-2']));
       const selectedLayerIdRef = useRef('layer-a');
       const selectedTimelineUnitRef = useRef(null);
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,
@@ -341,14 +341,14 @@ describe('useTranscriptionSelectionActions', () => {
       const selectedUnitIdRef = useRef('utt-1');
       const selectedUnitIdsRef = useRef(new Set<string>(['utt-1', 'utt-2']));
       const selectedLayerIdRef = useRef('layer-a');
-      const selectedTimelineUnitRef = useRef({ layerId: 'layer-a', unitId: 'utt-1', kind: 'utterance' as const });
-      const utterancesOnCurrentMediaRef = useRef([]);
+      const selectedTimelineUnitRef = useRef({ layerId: 'layer-a', unitId: 'utt-1', kind: 'unit' as const });
+      const unitsOnCurrentMediaRef = useRef([]);
       return useTranscriptionSelectionActions({
         selectedUnitIdRef,
         selectedUnitIdsRef,
         selectedLayerIdRef,
         selectedTimelineUnitRef,
-        utterancesOnCurrentMediaRef,
+        unitsOnCurrentMediaRef,
         setSelectedLayerId,
         setSelectedUnitIds,
         setSelectedTimelineUnit,

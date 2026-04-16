@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildTimelineUnitViewIndex } from '../hooks/timelineUnitView';
 
-function buildUtterances(count: number) {
+function buildUnits(count: number) {
   return Array.from({ length: count }, (_, index) => ({
     id: `utt-${index}`,
     textId: `text-${index}`,
@@ -20,11 +20,11 @@ describe('TimelineUnitViewIndex performance baseline', () => {
     [5_000, 250],
     [10_000, 500],
   ])('builds %i units under %ims on local baseline', (count, maxMs) => {
-    const utterances = buildUtterances(count);
+    const units = buildUnits(count);
     const startedAt = performance.now();
     const index = buildTimelineUnitViewIndex({
-      utterances,
-      utterancesOnCurrentMedia: utterances.filter((item) => item.mediaId === 'media-a'),
+      units,
+      unitsOnCurrentMedia: units.filter((item) => item.mediaId === 'media-a'),
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'media-a',
@@ -40,8 +40,8 @@ describe('TimelineUnitViewIndex performance baseline', () => {
     // Warm repeat: catch obvious allocation/retention regressions on a second build.
     const warmStart = performance.now();
     const index2 = buildTimelineUnitViewIndex({
-      utterances,
-      utterancesOnCurrentMedia: utterances.filter((item) => item.mediaId === 'media-a'),
+      units,
+      unitsOnCurrentMedia: units.filter((item) => item.mediaId === 'media-a'),
       segmentsByLayer: new Map(),
       segmentContentByLayer: new Map(),
       currentMediaId: 'media-a',

@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createTranscriptionAppService,
-  type TranscriptionAppServiceDeps,
-} from './TranscriptionAppService';
+import { createTranscriptionAppService, type TranscriptionAppServiceDeps } from './TranscriptionAppService';
 
 function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): TranscriptionAppServiceDeps {
   const deps: TranscriptionAppServiceDeps = {

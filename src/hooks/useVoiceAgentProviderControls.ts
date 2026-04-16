@@ -1,12 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
-import type {
-  CommercialProviderCreateConfig,
-  ProviderReachability,
-  SttEnhancementConfig,
-  SttEnhancementReachability,
-  SttEnhancementSelectionKind,
-} from '../services/stt';
+import type { CommercialProviderCreateConfig, ProviderReachability, SttEnhancementConfig, SttEnhancementReachability, SttEnhancementSelectionKind } from '../services/stt';
 import type { VoicePreset } from '../utils/voicePresets';
 
 interface UseVoiceAgentProviderControlsInput {

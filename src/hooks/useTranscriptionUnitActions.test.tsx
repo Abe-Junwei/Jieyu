@@ -2,9 +2,9 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { AnchorDocType, LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { AnchorDocType, LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { db } from '../db';
-import { putTestUtteranceAsLayerUnit } from '../db/putTestUtteranceAsLayerUnit';
+import { putTestUnitAsLayerUnit } from '../db/putTestUnitAsLayerUnit';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
@@ -24,9 +24,9 @@ vi.mock('../observability/logger', () => ({
   })),
 }));
 
-import { useTranscriptionUtteranceActions } from './useTranscriptionUtteranceActions';
+import { useTranscriptionUnitActions } from './useTranscriptionUnitActions';
 
-function makeUtterance(id: string, startTime: number, endTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   const now = new Date().toISOString();
   return {
     id,
@@ -37,7 +37,7 @@ function makeUtterance(id: string, startTime: number, endTime: number): Utteranc
     transcription: { default: id },
     createdAt: now,
     updatedAt: now,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
@@ -59,7 +59,7 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
   } as LayerDocType;
 }
 
-describe('useTranscriptionUtteranceActions - batch operations', () => {
+describe('useTranscriptionUnitActions - batch operations', () => {
   beforeEach(async () => {
     window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
     await db.open();
@@ -83,25 +83,25 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
   it('offsetSelectedTimes should block overlap and not push undo', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn();
-    let utterancesState = [
-      makeUtterance('u1', 0, 1),
-      makeUtterance('u2', 1.1, 2),
+    let unitsState = [
+      makeUnit('u1', 0, 1),
+      makeUnit('u2', 1.1, 2),
     ];
 
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       createAnchor: vi.fn(),
@@ -111,8 +111,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -127,35 +127,35 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       message: expect.stringContaining('重叠'),
       errorMeta: expect.objectContaining({ category: 'validation', action: '前置校验' }),
     }));
-    expect(utterancesState[0]?.startTime).toBe(0);
-    expect(utterancesState[0]?.endTime).toBe(1);
+    expect(unitsState[0]?.startTime).toBe(0);
+    expect(unitsState[0]?.endTime).toBe(1);
   });
 
   it('scaleSelectedTimes should push undo once and update selected ranges', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn();
-    const saveBatchSpy = vi.spyOn(LinguisticService, 'saveUtterancesBatch').mockResolvedValue();
+    const saveBatchSpy = vi.spyOn(LinguisticService, 'saveUnitsBatch').mockResolvedValue();
 
-    let utterancesState = [
-      makeUtterance('u1', 1, 2),
-      makeUtterance('u2', 2.2, 3.2),
-      makeUtterance('u3', 6, 7),
+    let unitsState = [
+      makeUnit('u1', 1, 2),
+      makeUnit('u2', 2.2, 3.2),
+      makeUnit('u3', 6, 7),
     ];
 
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       createAnchor: vi.fn(),
@@ -165,8 +165,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -178,28 +178,28 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(pushUndo).toHaveBeenCalledTimes(1);
     expect(pushUndo).toHaveBeenCalledWith('批量时间缩放');
     expect(saveBatchSpy).toHaveBeenCalledTimes(1);
-    expect(utterancesState.find((u) => u.id === 'u1')?.startTime).toBe(1);
-    expect(utterancesState.find((u) => u.id === 'u1')?.endTime).toBe(3);
-    expect(utterancesState.find((u) => u.id === 'u2')?.startTime).toBe(3.4);
-    expect(utterancesState.find((u) => u.id === 'u2')?.endTime).toBe(5.4);
+    expect(unitsState.find((u) => u.id === 'u1')?.startTime).toBe(1);
+    expect(unitsState.find((u) => u.id === 'u1')?.endTime).toBe(3);
+    expect(unitsState.find((u) => u.id === 'u2')?.startTime).toBe(3.4);
+    expect(unitsState.find((u) => u.id === 'u2')?.endTime).toBe(5.4);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('splitByRegex should return validation error for invalid pattern without pushUndo', async () => {
     const pushUndo = vi.fn();
     const setSaveState = vi.fn();
-    const utterancesState = [makeUtterance('u1', 0, 3)];
+    const unitsState = [makeUnit('u1', 0, 3)];
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: () => 'a,b,c',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: () => 'a,b,c',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       createAnchor: vi.fn(),
@@ -209,8 +209,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -226,11 +226,11 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     }));
   });
 
-  it('saveTextTranslationForUtterance should strip legacy speaker linkage fields', async () => {
+  it('saveUnitLayerText should strip legacy speaker linkage fields', async () => {
     const now = new Date().toISOString();
-    // Seed utterance (needed for V2 sync) | 种子 utterance（V2 sync 需要）
-    const utterance = makeUtterance('utt-1', 0, 1);
-    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-host');
+    // Seed unit (needed for V2 sync) | 种子 unit（V2 sync 需要）
+    const unit = makeUnit('utt-1', 0, 1);
+    await putTestUnitAsLayerUnit(db, unit, 'trc-host');
 
     // Seed LayerUnit canonical entries directly.
     await db.layer_units.put({
@@ -263,7 +263,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const setSaveState = vi.fn();
     const setTranslations = vi.fn();
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map([
         ['tr-layer-1', {
@@ -281,10 +281,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: [] },
-      utterancesOnCurrentMediaRef: { current: [] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       createAnchor: vi.fn(),
@@ -294,17 +294,17 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations,
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.saveTextTranslationForUtterance('utt-1', 'updated', 'tr-layer-1');
+      await result.current.saveUnitLayerText('utt-1', 'updated', 'tr-layer-1');
     });
 
-    // Phase 1+2: 检查 V2 layer_segment_contents 而非 utterance_texts | Check V2 instead of V1
+    // Phase 1+2: 检查 V2 layer_segment_contents 而非 unit_texts | Check V2 instead of V1
     const v2Content = await db.layer_unit_contents.get('utr-legacy') as Record<string, unknown> | undefined;
 
     expect(v2Content?.text).toBe('updated');
@@ -312,14 +312,14 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(pushUndo).toHaveBeenCalledWith('编辑翻译文本');
   });
 
-  it('saveUtteranceText should invalidate utterance embeddings for the default transcription layer', async () => {
+  it('saveUnitText should invalidate unit embeddings for the default transcription layer', async () => {
     const now = new Date().toISOString();
-    const utterance = makeUtterance('utt-default', 0, 1);
+    const unit = makeUnit('utt-default', 0, 1);
 
-    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
+    await putTestUnitAsLayerUnit(db, unit, 'trc-default');
     await db.embeddings.put({
-      id: 'utterance::utt-default::model::v1',
-      sourceType: 'utterance',
+      id: 'unit::utt-default::model::v1',
+      sourceType: 'unit',
       sourceId: 'utt-default',
       model: 'model',
       modelVersion: 'v1',
@@ -328,7 +328,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       createdAt: now,
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map([
         ['trc-default', {
@@ -347,10 +347,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: [utterance] },
-      utterancesOnCurrentMediaRef: { current: [utterance] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(),
@@ -360,27 +360,27 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.saveUtteranceText('utt-default', '新的默认转写', 'trc-default');
+      await result.current.saveUnitText('utt-default', '新的默认转写', 'trc-default');
     });
 
     expect(await db.embeddings.where('sourceId').equals('utt-default').count()).toBe(0);
   });
 
-  it('saveUtteranceText should keep utterance embeddings for non-default translation layers', async () => {
+  it('saveUnitText should keep unit embeddings for non-default translation layers', async () => {
     const now = new Date().toISOString();
-    const utterance = makeUtterance('utt-translation', 0, 1);
+    const unit = makeUnit('utt-translation', 0, 1);
 
-    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
+    await putTestUnitAsLayerUnit(db, unit, 'trc-default');
     await db.embeddings.put({
-      id: 'utterance::utt-translation::model::v1',
-      sourceType: 'utterance',
+      id: 'unit::utt-translation::model::v1',
+      sourceType: 'unit',
       sourceId: 'utt-translation',
       model: 'model',
       modelVersion: 'v1',
@@ -389,7 +389,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       createdAt: now,
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map([
         ['trc-default', {
@@ -419,10 +419,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: [utterance] },
-      utterancesOnCurrentMediaRef: { current: [utterance] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(),
@@ -432,21 +432,21 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.saveUtteranceText('utt-translation', 'translation text', 'trl-en');
+      await result.current.saveUnitText('utt-translation', 'translation text', 'trl-en');
     });
 
     expect(await db.embeddings.where('sourceId').equals('utt-translation').count()).toBe(1);
   });
 
   it('deleteVoiceTranslation should remove saved audio translation and media item', async () => {
-    const utterance = makeUtterance('utt-audio-delete', 0, 1);
+    const unit = makeUnit('utt-audio-delete', 0, 1);
     const translationLayer = makeLayer({
       id: 'trl-audio-delete',
       layerType: 'translation',
@@ -454,11 +454,11 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       acceptsAudio: true,
     });
 
-    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-seed');
+    await putTestUnitAsLayerUnit(db, unit, 'trc-seed');
 
-    let translationsState: UtteranceTextDocType[] = [];
+    let translationsState: LayerUnitContentDocType[] = [];
     let mediaItemsState: MediaItemDocType[] = [];
-    const setTranslations = vi.fn((updater: UtteranceTextDocType[] | ((prev: UtteranceTextDocType[]) => UtteranceTextDocType[])) => {
+    const setTranslations = vi.fn((updater: LayerUnitContentDocType[] | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])) => {
       translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
     });
     const setMediaItems = vi.fn((updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
@@ -466,15 +466,15 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     });
     const setSaveState = vi.fn();
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map([[translationLayer.id, translationLayer]]),
       selectedUnitMedia: undefined,
       translations: [],
-      utterancesRef: { current: [utterance] },
-      utterancesOnCurrentMediaRef: { current: [utterance] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(),
@@ -484,14 +484,14 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems,
       setTranslations,
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.saveVoiceTranslation(new Blob(['audio'], { type: 'audio/webm' }), utterance, translationLayer);
+      await result.current.saveVoiceTranslation(new Blob(['audio'], { type: 'audio/webm' }), unit, translationLayer);
     });
 
     expect(translationsState).toHaveLength(1);
@@ -502,7 +502,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     }));
 
     await act(async () => {
-      await result.current.deleteVoiceTranslation(utterance, translationLayer);
+      await result.current.deleteVoiceTranslation(unit, translationLayer);
     });
 
     expect(translationsState).toHaveLength(0);
@@ -512,13 +512,13 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done', message: '录音翻译已删除' }));
   });
 
-  it('saveUtteranceText should write translation text through canonical LayerUnit path', async () => {
+  it('saveUnitText should write translation text through canonical LayerUnit path', async () => {
     const now = new Date().toISOString();
-    const utterance = makeUtterance('utt-stop-write', 0, 1);
+    const unit = makeUnit('utt-stop-write', 0, 1);
 
-    await putTestUtteranceAsLayerUnit(db, utterance, 'trc-default');
+    await putTestUnitAsLayerUnit(db, unit, 'trc-default');
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map([
         ['trc-default', {
@@ -548,10 +548,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       selectedUnitMedia: undefined,
 
       translations: [],
-      utterancesRef: { current: [utterance] },
-      utterancesOnCurrentMediaRef: { current: [utterance] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(),
@@ -561,21 +561,21 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.saveUtteranceText('utt-stop-write', 'translation via layerunit only', 'trl-en');
+      await result.current.saveUnitText('utt-stop-write', 'translation via layerunit only', 'trl-en');
     });
 
     expect(await db.layer_units.toArray()).toEqual(expect.arrayContaining([
       expect.objectContaining({
         id: 'utt-stop-write',
         layerId: 'trc-default',
-        unitType: 'utterance',
+        unitType: 'unit',
       }),
       expect.objectContaining({
         id: 'segv2_trl-en_utt-stop-write',
@@ -596,27 +596,27 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     const pushUndo = vi.fn();
     const rollbackUndo = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService, 'saveUtterancesBatch').mockRejectedValue(new Error('db write failed'));
+    vi.spyOn(LinguisticService, 'saveUnitsBatch').mockRejectedValue(new Error('db write failed'));
 
-    let utterancesState = [
-      makeUtterance('u1', 0, 1),
-      makeUtterance('u2', 1.2, 2),
+    let unitsState = [
+      makeUnit('u1', 0, 1),
+      makeUnit('u2', 1.2, 2),
     ];
 
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       rollbackUndo,
@@ -627,8 +627,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -644,8 +644,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       message: expect.stringContaining('已回滚'),
     }));
     // Local state should not be changed when persistence fails.
-    expect(utterancesState[0]?.startTime).toBe(0);
-    expect(utterancesState[0]?.endTime).toBe(1);
+    expect(unitsState[0]?.startTime).toBe(0);
+    expect(unitsState[0]?.endTime).toBe(1);
   });
 
   it('offsetSelectedTimes should log both operation error and rollback warning when rollback also fails', async () => {
@@ -654,27 +654,27 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService, 'saveUtterancesBatch').mockRejectedValue(new Error('db write failed'));
+    vi.spyOn(LinguisticService, 'saveUnitsBatch').mockRejectedValue(new Error('db write failed'));
 
-    let utterancesState = [
-      makeUtterance('u1', 0, 1),
-      makeUtterance('u2', 1.2, 2),
+    let unitsState = [
+      makeUnit('u1', 0, 1),
+      makeUnit('u2', 1.2, 2),
     ];
 
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       rollbackUndo,
@@ -685,8 +685,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -715,27 +715,27 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService, 'saveUtterancesBatch').mockRejectedValue(new Error('db write failed'));
+    vi.spyOn(LinguisticService, 'saveUnitsBatch').mockRejectedValue(new Error('db write failed'));
 
-    let utterancesState = [
-      makeUtterance('u1', 1, 2),
-      makeUtterance('u2', 2.2, 3.2),
+    let unitsState = [
+      makeUnit('u1', 1, 2),
+      makeUnit('u2', 2.2, 3.2),
     ];
 
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       rollbackUndo,
@@ -746,8 +746,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -776,23 +776,23 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService, 'saveUtterancesBatch').mockRejectedValue(new Error('db write failed'));
+    vi.spyOn(LinguisticService, 'saveUnitsBatch').mockRejectedValue(new Error('db write failed'));
 
-    let utterancesState = [makeUtterance('u1', 0, 3)];
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    let unitsState = [makeUnit('u1', 0, 3)];
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: () => 'a,b,c',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: () => 'a,b,c',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       rollbackUndo,
@@ -808,8 +808,8 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -832,32 +832,32 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     }));
   });
 
-  it('mergeSelectedUtterances should log both operation error and rollback warning when rollback also fails', async () => {
+  it('mergeSelectedUnits should log both operation error and rollback warning when rollback also fails', async () => {
     const pushUndo = vi.fn();
     const rollbackUndo = vi.fn(async () => {
       throw new Error('rollback failed');
     });
     const setSaveState = vi.fn();
-    vi.spyOn(LinguisticService, 'saveUtterance').mockRejectedValue(new Error('db write failed'));
+    vi.spyOn(LinguisticService, 'saveUnit').mockRejectedValue(new Error('db write failed'));
 
-    let utterancesState = [
-      makeUtterance('u1', 0, 1),
-      makeUtterance('u2', 1.2, 2),
+    let unitsState = [
+      makeUnit('u1', 0, 1),
+      makeUnit('u2', 1.2, 2),
     ];
-    const setUtterances = vi.fn((updater: ((prev: UtteranceDocType[]) => UtteranceDocType[]) | UtteranceDocType[]) => {
-      utterancesState = typeof updater === 'function' ? updater(utterancesState) : updater;
+    const setUnits = vi.fn((updater: ((prev: LayerUnitDocType[]) => LayerUnitDocType[]) | LayerUnitDocType[]) => {
+      unitsState = typeof updater === 'function' ? updater(unitsState) : updater;
     });
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: undefined,
       layerById: new Map(),
       selectedUnitMedia: undefined,
       
       translations: [],
-      utterancesRef: { current: utterancesState },
-      utterancesOnCurrentMediaRef: { current: utterancesState },
-      getUtteranceTextForLayer: (utterance) => utterance.id,
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: unitsState },
+      unitsOnCurrentMediaRef: { current: unitsState },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo,
       rollbackUndo,
@@ -868,22 +868,22 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.mergeSelectedUtterances(new Set(['u1', 'u2']));
+      await result.current.mergeSelectedUnits(new Set(['u1', 'u2']));
     });
 
     expect(mockLogWarn).toHaveBeenCalledWith(
-      'Rollback after mergeSelectedUtterances failure also failed',
+      'Rollback after mergeSelectedUnits failure also failed',
       expect.objectContaining({ error: 'rollback failed' }),
     );
     expect(mockLogError).toHaveBeenCalledWith(
-      'mergeSelectedUtterances failed',
+      'mergeSelectedUnits failed',
       expect.objectContaining({ error: 'db write failed' }),
     );
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
@@ -892,17 +892,17 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     }));
   });
 
-  it('createUtteranceFromSelection should select created unit with non-empty layerId', async () => {
+  it('createUnitFromSelection should select created unit with non-empty layerId', async () => {
     const now = new Date().toISOString();
-    const selectedTimelineUnits: Array<{ layerId: string; unitId: string; kind: 'utterance' | 'segment' } | null> = [];
-    const setSelectedTimelineUnit = vi.fn((next: { layerId: string; unitId: string; kind: 'utterance' | 'segment' } | null) => {
+    const selectedTimelineUnits: Array<{ layerId: string; unitId: string; kind: 'unit' | 'segment' } | null> = [];
+    const setSelectedTimelineUnit = vi.fn((next: { layerId: string; unitId: string; kind: 'unit' | 'segment' } | null) => {
       selectedTimelineUnits.push(next);
     });
 
     const setSelectedUnitIds = vi.fn();
-    const setUtterances = vi.fn();
+    const setUnits = vi.fn();
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map(),
       selectedUnitMedia: {
@@ -915,10 +915,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         updatedAt: now,
       } as never,
       translations: [],
-      utterancesRef: { current: [] },
-      utterancesOnCurrentMediaRef: { current: [] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(async (_db, mediaId, time) => ({
@@ -933,30 +933,30 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances,
-      setUtteranceDrafts: vi.fn(),
+      setUnits,
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds,
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
     }));
 
     await act(async () => {
-      await result.current.createUtteranceFromSelection(1.0, 2.0);
+      await result.current.createUnitFromSelection(1.0, 2.0);
     });
 
-    const nonNullSelections = selectedTimelineUnits.filter((item): item is { layerId: string; unitId: string; kind: 'utterance' | 'segment' } => item !== null);
+    const nonNullSelections = selectedTimelineUnits.filter((item): item is { layerId: string; unitId: string; kind: 'unit' | 'segment' } => item !== null);
     expect(nonNullSelections.length).toBeGreaterThan(0);
     const latest = nonNullSelections[nonNullSelections.length - 1];
-    expect(latest?.kind).toBe('utterance');
+    expect(latest?.kind).toBe('unit');
     expect(latest?.layerId).toBe('trc-default');
     expect(latest?.unitId).toBeTruthy();
   });
 
-  it('createUtteranceFromSelection keeps current selection when selectionBehavior is keep-current', async () => {
+  it('createUnitFromSelection keeps current selection when selectionBehavior is keep-current', async () => {
     const now = new Date().toISOString();
     const setSelectedTimelineUnit = vi.fn();
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: 'trc-default',
       layerById: new Map(),
       selectedUnitMedia: {
@@ -969,10 +969,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         updatedAt: now,
       } as never,
       translations: [],
-      utterancesRef: { current: [] },
-      utterancesOnCurrentMediaRef: { current: [] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(async (_db, mediaId, time) => ({
@@ -987,21 +987,67 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
     }));
 
     await act(async () => {
-      await result.current.createUtteranceFromSelection(1.0, 2.0, { selectionBehavior: 'keep-current' });
+      await result.current.createUnitFromSelection(1.0, 2.0, { selectionBehavior: 'keep-current' });
     });
 
-    expect(setSelectedTimelineUnit).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'utterance' }));
+    expect(setSelectedTimelineUnit).not.toHaveBeenCalledWith(expect.objectContaining({ kind: 'unit' }));
   });
 
-  it('projects a new utterance to both dependent transcription layer and its parent root', async () => {
+  it('saves self-certainty onto a segment unit when the project has no unit rows', async () => {
+    const now = new Date().toISOString();
+    await db.layer_units.put({
+      id: 'seg-only-1',
+      textId: 't1',
+      mediaId: 'm1',
+      layerId: 'layer-seg',
+      unitType: 'segment',
+      startTime: 5,
+      endTime: 7,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitDocType);
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map(),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveUnitSelfCertainty(['seg-only-1'], 'uncertain');
+    });
+
+    const updated = await db.layer_units.get('seg-only-1');
+    expect(updated?.selfCertainty).toBe('uncertain');
+  });
+
+  it('projects a new unit to both dependent transcription layer and its parent root', async () => {
     const now = new Date().toISOString();
     const rootLayer = makeLayer({
       id: 'trc-root',
@@ -1020,7 +1066,7 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
     await LayerTierUnifiedService.createLayer(rootLayer);
     await LayerTierUnifiedService.createLayer(dependentLayer);
 
-    const { result } = renderHook(() => useTranscriptionUtteranceActions({
+    const { result } = renderHook(() => useTranscriptionUnitActions({
       defaultTranscriptionLayerId: rootLayer.id,
       layerById: new Map([
         [rootLayer.id, rootLayer],
@@ -1036,10 +1082,10 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
         updatedAt: now,
       } as never,
       translations: [],
-      utterancesRef: { current: [] },
-      utterancesOnCurrentMediaRef: { current: [] },
-      getUtteranceTextForLayer: () => '',
-      timingGestureRef: { current: { active: false, utteranceId: null } },
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
       timingUndoRef: { current: null },
       pushUndo: vi.fn(),
       createAnchor: vi.fn(async (_db, mediaId, time) => ({
@@ -1054,26 +1100,26 @@ describe('useTranscriptionUtteranceActions - batch operations', () => {
       setSnapGuide: vi.fn(),
       setMediaItems: vi.fn(),
       setTranslations: vi.fn(),
-      setUtterances: vi.fn(),
-      setUtteranceDrafts: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
 
     await act(async () => {
-      await result.current.createUtteranceFromSelection(1, 2, { focusedLayerId: dependentLayer.id });
+      await result.current.createUnitFromSelection(1, 2, { focusedLayerId: dependentLayer.id });
     });
 
-    const createdUtteranceUnits = await db.layer_units.where('unitType').equals('utterance').toArray();
-    expect(createdUtteranceUnits).toHaveLength(1);
-    const createdUtterance = createdUtteranceUnits[0]!;
+    const createdUnitUnits = await db.layer_units.where('unitType').equals('unit').toArray();
+    expect(createdUnitUnits).toHaveLength(1);
+    const createdUnit = createdUnitUnits[0]!;
 
     const rootSegments = await LayerSegmentQueryService.listSegmentsByLayerId(rootLayer.id);
     const dependentSegments = await LayerSegmentQueryService.listSegmentsByLayerId(dependentLayer.id);
 
     expect(rootSegments).toHaveLength(1);
     expect(dependentSegments).toHaveLength(1);
-    expect(rootSegments[0]?.utteranceId).toBe(createdUtterance.id);
-    expect(dependentSegments[0]?.utteranceId).toBe(createdUtterance.id);
+    expect(rootSegments[0]?.unitId).toBe(createdUnit.id);
+    expect(dependentSegments[0]?.unitId).toBe(createdUnit.id);
   });
 });

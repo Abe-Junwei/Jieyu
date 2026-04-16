@@ -1,23 +1,18 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  buildDeleteConfirmStats,
-  nextSuppressFlag,
-  shouldPromptDelete,
-  type DeleteConfirmStats,
-} from '../utils/deleteConfirmFlow';
+import { buildDeleteConfirmStats, nextSuppressFlag, shouldPromptDelete, type DeleteConfirmStats } from '../utils/deleteConfirmFlow';
 
 type DeleteTargets = Set<string> | string;
 
-export function useDeleteConfirmFlow(utteranceHasText: (id: string) => boolean) {
+export function useDeleteConfirmFlow(unitHasText: (id: string) => boolean) {
   const suppressDeleteConfirmRef = useRef(false);
   const pendingDeleteActionRef = useRef<(() => void) | null>(null);
   const [deleteConfirmState, setDeleteConfirmState] = useState<DeleteConfirmStats | null>(null);
   const [muteDeleteConfirmInSession, setMuteDeleteConfirmInSession] = useState(false);
 
-  const requestDeleteUtterances = useCallback((ids: DeleteTargets, onConfirm: () => void) => {
+  const requestDeleteUnits = useCallback((ids: DeleteTargets, onConfirm: () => void) => {
     const idSet = typeof ids === 'string' ? new Set([ids]) : ids;
     const idsArray = [...idSet];
-    const stats = buildDeleteConfirmStats(idsArray, utteranceHasText);
+    const stats = buildDeleteConfirmStats(idsArray, unitHasText);
 
     if (!shouldPromptDelete(stats, suppressDeleteConfirmRef.current)) {
       onConfirm();
@@ -27,7 +22,7 @@ export function useDeleteConfirmFlow(utteranceHasText: (id: string) => boolean) 
     pendingDeleteActionRef.current = onConfirm;
     setMuteDeleteConfirmInSession(false);
     setDeleteConfirmState(stats);
-  }, [utteranceHasText]);
+  }, [unitHasText]);
 
   const closeDeleteConfirmDialog = useCallback(() => {
     pendingDeleteActionRef.current = null;
@@ -48,7 +43,7 @@ export function useDeleteConfirmFlow(utteranceHasText: (id: string) => boolean) 
   }, [closeDeleteConfirmDialog, muteDeleteConfirmInSession]);
 
   return {
-    requestDeleteUtterances,
+    requestDeleteUnits,
     deleteConfirmState,
     muteDeleteConfirmInSession,
     setMuteDeleteConfirmInSession,

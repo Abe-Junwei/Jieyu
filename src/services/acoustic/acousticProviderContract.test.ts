@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  ACOUSTIC_PROVIDER_STORAGE_KEYS,
-  persistAcousticProviderRuntimeConfig,
-  probeExternalAcousticProviderHealth,
-  resolveAcousticProviderRuntimeConfig,
-} from './acousticProviderContract';
+import { ACOUSTIC_PROVIDER_STORAGE_KEYS, persistAcousticProviderRuntimeConfig, probeExternalAcousticProviderHealth, resolveAcousticProviderRuntimeConfig } from './acousticProviderContract';
 
 describe('acousticProviderContract', () => {
   beforeEach(() => {

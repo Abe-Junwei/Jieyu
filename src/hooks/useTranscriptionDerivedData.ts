@@ -1,11 +1,6 @@
 import { useCallback, useMemo } from 'react';
-import type {
-  MediaItemDocType,
-  LayerDocType,
-  UtteranceDocType,
-  UtteranceTextDocType,
-} from '../db';
-import { isUtteranceTimelineUnit, type TimelineUnit } from './transcriptionTypes';
+import type { MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import { isUnitTimelineUnit, type TimelineUnit } from './transcriptionTypes';
 
 function sortLayersByOrder(items: LayerDocType[]) {
   return [...items].sort((a, b) => {
@@ -16,8 +11,8 @@ function sortLayersByOrder(items: LayerDocType[]) {
   });
 }
 
-function buildTranslationTextByLayer(translations: UtteranceTextDocType[]) {
-  const outer = new Map<string, Map<string, UtteranceTextDocType>>();
+function buildTranslationTextByLayer(translations: LayerUnitContentDocType[]) {
+  const outer = new Map<string, Map<string, LayerUnitContentDocType>>();
 
   translations
     .filter(
@@ -27,13 +22,15 @@ function buildTranslationTextByLayer(translations: UtteranceTextDocType[]) {
     )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .forEach((item) => {
-      const layerId = item.layerId;
+      const layerId = item.layerId?.trim();
+      const unitId = item.unitId?.trim();
+      if (!layerId || !unitId) return;
       if (!outer.has(layerId)) {
         outer.set(layerId, new Map());
       }
       const inner = outer.get(layerId)!;
-      if (!inner.has(item.utteranceId)) {
-        inner.set(item.utteranceId, item);
+      if (!inner.has(unitId)) {
+        inner.set(unitId, item);
       }
     });
 
@@ -41,11 +38,11 @@ function buildTranslationTextByLayer(translations: UtteranceTextDocType[]) {
 }
 
 function computeAiConfidenceAvg(
-  utterances: UtteranceDocType[],
-  translations: UtteranceTextDocType[],
+  units: LayerUnitDocType[],
+  translations: LayerUnitContentDocType[],
 ) {
   const values: number[] = [];
-  utterances.forEach((item) => {
+  units.forEach((item) => {
     if (typeof item.ai_metadata?.confidence === 'number') {
       values.push(item.ai_metadata.confidence);
     }
@@ -66,8 +63,8 @@ type Params = {
   selectedTimelineUnit?: TimelineUnit | null;
   selectedMediaId: string;
   mediaItems: MediaItemDocType[];
-  utterances: UtteranceDocType[];
-  translations: UtteranceTextDocType[];
+  units: LayerUnitDocType[];
+  translations: LayerUnitContentDocType[];
 };
 
 export function useTranscriptionDerivedData({
@@ -76,7 +73,7 @@ export function useTranscriptionDerivedData({
   selectedTimelineUnit,
   selectedMediaId,
   mediaItems,
-  utterances,
+  units,
   translations,
 }: Params) {
   const {
@@ -110,45 +107,45 @@ export function useTranscriptionDerivedData({
 
   const deletableLayers = layers;
 
-  const effectiveSelectedUnitId = isUtteranceTimelineUnit(selectedTimelineUnit)
+  const effectiveSelectedUnitId = isUnitTimelineUnit(selectedTimelineUnit)
     ? selectedTimelineUnit.unitId
     : '';
 
   const selectedUnit = useMemo(
-    () => utterances.find((item) => item.id === effectiveSelectedUnitId),
-    [effectiveSelectedUnitId, utterances],
+    () => units.find((item) => item.id === effectiveSelectedUnitId),
+    [effectiveSelectedUnitId, units],
   );
 
   const {
     selectedUnitMedia,
-    utterancesOnCurrentMedia,
+    unitsOnCurrentMedia,
     selectedRowMeta,
   } = useMemo(() => {
     const selectedUnitMedia = selectedMediaId
       ? mediaItems.find((item) => item.id === selectedMediaId)
       : undefined;
-    const utterancesSorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
-    const utterancesOnCurrentMedia = selectedUnitMedia?.id
-      ? utterancesSorted.filter((item) => item.mediaId === selectedUnitMedia.id)
+    const unitsSorted = [...units].sort((a, b) => a.startTime - b.startTime);
+    const unitsOnCurrentMedia = selectedUnitMedia?.id
+      ? unitsSorted.filter((item) => item.mediaId === selectedUnitMedia.id)
       : (() => {
         const loadedMediaIds = new Set(mediaItems.map((m) => m.id));
-        return utterancesSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
+        return unitsSorted.filter((item) => !item.mediaId || !loadedMediaIds.has(item.mediaId));
       })();
 
     if (!effectiveSelectedUnitId) {
       return {
         selectedUnitMedia,
-        utterancesOnCurrentMedia,
+        unitsOnCurrentMedia,
         selectedRowMeta: null,
       };
     }
 
-    const index = utterancesOnCurrentMedia.findIndex((item) => item.id === effectiveSelectedUnitId);
-    const row = index >= 0 ? utterancesOnCurrentMedia[index] : undefined;
+    const index = unitsOnCurrentMedia.findIndex((item) => item.id === effectiveSelectedUnitId);
+    const row = index >= 0 ? unitsOnCurrentMedia[index] : undefined;
 
     return {
       selectedUnitMedia,
-      utterancesOnCurrentMedia,
+      unitsOnCurrentMedia,
       selectedRowMeta: row
         ? {
           rowNumber: index + 1,
@@ -157,13 +154,13 @@ export function useTranscriptionDerivedData({
         }
         : null,
     };
-  }, [effectiveSelectedUnitId, mediaItems, selectedMediaId, utterances]);
+  }, [effectiveSelectedUnitId, mediaItems, selectedMediaId, units]);
 
-  const visibleUtterances = utterancesOnCurrentMedia;
+  const visibleUnits = unitsOnCurrentMedia;
 
   const aiConfidenceAvg = useMemo(
-    () => computeAiConfidenceAvg(utterances, translations),
-    [translations, utterances],
+    () => computeAiConfidenceAvg(units, translations),
+    [translations, units],
   );
 
   const translationTextByLayer = useMemo(
@@ -171,14 +168,14 @@ export function useTranscriptionDerivedData({
     [translations],
   );
 
-  const getUtteranceTextForLayer = useCallback((utterance: UtteranceDocType, layerId?: string) => {
+  const getUnitTextForLayer = useCallback((unit: LayerUnitDocType, layerId?: string) => {
     const resolvedLayerId = layerId ?? defaultTranscriptionLayerId;
     if (resolvedLayerId) {
-      const fromLayer = translationTextByLayer.get(resolvedLayerId)?.get(utterance.id)?.text;
+      const fromLayer = translationTextByLayer.get(resolvedLayerId)?.get(unit.id)?.text;
       if (fromLayer !== undefined) return fromLayer;
     }
     // Fallback: read from the embedded cache for the default transcription layer
-    return utterance.transcription?.default ?? '';
+    return unit.transcription?.default ?? '';
   }, [defaultTranscriptionLayerId, translationTextByLayer]);
 
   return {
@@ -190,13 +187,13 @@ export function useTranscriptionDerivedData({
     layerPendingDelete,
     selectedUnit,
     selectedUnitMedia,
-    utterancesOnCurrentMedia,
-    visibleUtterances,
+    unitsOnCurrentMedia,
+    visibleUnits,
     aiConfidenceAvg,
     translationTextByLayer,
     layerById,
     defaultTranscriptionLayerId,
-    getUtteranceTextForLayer,
+    getUnitTextForLayer,
     selectedRowMeta,
   };
 }

@@ -1,19 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SpeakerDocType, UtteranceDocType } from '../../db';
-import {
-  applySpeakerAssignmentToUtterances,
-  buildSelectedSpeakerSummary,
-  buildSpeakerFilterOptions,
-  buildSpeakerFilterOptionsFromKeys,
-  buildSpeakerVisualMap,
-  buildSpeakerVisualMapFromKeys,
-  getSpeakerDisplayNameByKey,
-  getUtteranceSpeakerKey,
-  normalizeSpeakerName,
-  renameSpeakerInUtterances,
-  sortSpeakersByName,
-  upsertSpeaker,
-} from './speakerUtils';
+import type { SpeakerDocType, LayerUnitDocType } from '../../db';
+import { applySpeakerAssignmentToUnits, buildSelectedSpeakerSummary, buildSpeakerFilterOptions, buildSpeakerFilterOptionsFromKeys, buildSpeakerVisualMap, buildSpeakerVisualMapFromKeys, getSpeakerDisplayNameByKey, getUnitSpeakerKey, normalizeSpeakerName, renameSpeakerInUnits, sortSpeakersByName, upsertSpeaker } from './speakerUtils';
 
 function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   return {
@@ -25,7 +12,7 @@ function makeSpeaker(overrides: Partial<SpeakerDocType> = {}): SpeakerDocType {
   };
 }
 
-function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
+function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id: 'utt-1',
     mediaId: 'media-1',
@@ -34,7 +21,7 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
     transcription: { default: '' },
     words: [],
     ...overrides,
-  } as unknown as UtteranceDocType;
+  } as unknown as LayerUnitDocType;
 }
 
 describe('speakerUtils', () => {
@@ -43,10 +30,10 @@ describe('speakerUtils', () => {
     expect(normalizeSpeakerName(undefined)).toBe('');
   });
 
-  it('builds utterance speaker key from speakerId first and falls back to speaker name', () => {
-    expect(getUtteranceSpeakerKey({ speakerId: 'spk-1', speaker: 'Alice' } as UtteranceDocType)).toBe('spk-1');
-    expect(getUtteranceSpeakerKey({ speakerId: '', speaker: ' 访客 ' } as UtteranceDocType)).toBe('');
-    expect(getUtteranceSpeakerKey({ speakerId: '', speaker: '  ' } as UtteranceDocType)).toBe('');
+  it('builds unit speaker key from speakerId first and falls back to speaker name', () => {
+    expect(getUnitSpeakerKey({ speakerId: 'spk-1', speaker: 'Alice' } as LayerUnitDocType)).toBe('spk-1');
+    expect(getUnitSpeakerKey({ speakerId: '', speaker: ' 访客 ' } as LayerUnitDocType)).toBe('');
+    expect(getUnitSpeakerKey({ speakerId: '', speaker: '  ' } as LayerUnitDocType)).toBe('');
   });
 
   it('sorts speakers by localized name and upsert keeps list sorted', () => {
@@ -64,18 +51,18 @@ describe('speakerUtils', () => {
 
   it('builds speaker visual map and filter options with counts', () => {
     const speakers = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
-    const utterances = [
-      makeUtterance({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ id: 'utt-2', speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ id: 'utt-3', speaker: '访客' }),
+    const units = [
+      makeUnit({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ id: 'utt-2', speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ id: 'utt-3', speaker: '访客' }),
     ];
 
-    const visualMap = buildSpeakerVisualMap(utterances, speakers);
+    const visualMap = buildSpeakerVisualMap(units, speakers);
     expect(visualMap['utt-1']?.name).toBe('Alice');
     expect(visualMap['utt-3']).toBeUndefined();
     expect(visualMap['utt-1']?.color).toBeTruthy();
 
-    const filterOptions = buildSpeakerFilterOptions(utterances, visualMap);
+    const filterOptions = buildSpeakerFilterOptions(units, visualMap);
     expect(filterOptions[0]?.key).toBe('spk-1');
     expect(filterOptions[0]?.count).toBe(2);
     expect(filterOptions).toHaveLength(1);
@@ -109,38 +96,38 @@ describe('speakerUtils', () => {
     const speakerOptions = [makeSpeaker({ id: 'spk-1', name: 'Alice' })];
 
     expect(buildSelectedSpeakerSummary([], speakerOptions)).toBe('未选择句段');
-    expect(buildSelectedSpeakerSummary([makeUtterance({ speakerId: '', speaker: '' })], speakerOptions)).toBe('当前句段均未标注说话人');
+    expect(buildSelectedSpeakerSummary([makeUnit({ speakerId: '', speaker: '' })], speakerOptions)).toBe('当前句段均未标注说话人');
     expect(buildSelectedSpeakerSummary([
-      makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
     ], speakerOptions)).toBe('当前统一说话人：Alice');
     expect(buildSelectedSpeakerSummary([
-      makeUtterance({ speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ speakerId: 'spk-2', speaker: '访客' }),
+      makeUnit({ speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ speakerId: 'spk-2', speaker: '访客' }),
     ], speakerOptions)).toBe('当前涉及 2 位说话人');
   });
 
   it('applies speaker assignment and supports clearing assignment', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', speakerId: 'old', speaker: 'Old' }),
-      makeUtterance({ id: 'utt-2', speakerId: 'old', speaker: 'Old' }),
+    const units = [
+      makeUnit({ id: 'utt-1', speakerId: 'old', speaker: 'Old' }),
+      makeUnit({ id: 'utt-2', speakerId: 'old', speaker: 'Old' }),
     ];
-    const assigned = applySpeakerAssignmentToUtterances(utterances, ['utt-2'], { id: 'spk-1', name: 'Alice' });
+    const assigned = applySpeakerAssignmentToUnits(units, ['utt-2'], { id: 'spk-1', name: 'Alice' });
     expect(assigned[0]?.speakerId).toBe('old');
     expect(assigned[1]?.speakerId).toBe('spk-1');
     expect(assigned[1]?.speaker).toBe('Alice');
 
-    const cleared = applySpeakerAssignmentToUtterances(assigned, ['utt-2']);
+    const cleared = applySpeakerAssignmentToUnits(assigned, ['utt-2']);
     expect('speakerId' in (cleared[1] as unknown as Record<string, unknown>)).toBe(false);
     expect('speaker' in (cleared[1] as unknown as Record<string, unknown>)).toBe(false);
   });
 
-  it('renames assigned speaker display name in utterances', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
-      makeUtterance({ id: 'utt-2', speakerId: 'spk-2', speaker: 'Bob' }),
+  it('renames assigned speaker display name in units', () => {
+    const units = [
+      makeUnit({ id: 'utt-1', speakerId: 'spk-1', speaker: 'Alice' }),
+      makeUnit({ id: 'utt-2', speakerId: 'spk-2', speaker: 'Bob' }),
     ];
-    const renamed = renameSpeakerInUtterances(utterances, 'spk-1', 'Alicia');
+    const renamed = renameSpeakerInUnits(units, 'spk-1', 'Alicia');
     expect(renamed[0]?.speaker).toBe('Alicia');
     expect(renamed[1]?.speaker).toBe('Bob');
   });

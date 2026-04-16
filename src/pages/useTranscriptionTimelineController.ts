@@ -1,5 +1,5 @@
 import { useMemo, type Dispatch, type MutableRefObject, type ReactNode, type SetStateAction } from 'react';
-import type { LayerDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType, LayerUnitContentViewDocType } from '../db';
 import type { TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
@@ -9,31 +9,29 @@ interface RulerViewLike {
   end: number;
 }
 
-interface SearchableTranslationLike extends UtteranceTextDocType {
-  translationAudioMediaId?: string;
-}
+interface SearchableTranslationLike extends LayerUnitContentViewDocType {}
 
 interface UseTranscriptionTimelineControllerInput {
   activeSpeakerFilterKey: string;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  getUtteranceSpeakerKey: (utterance: UtteranceDocType) => string;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
   rulerView: RulerViewLike | null;
   playerDuration: number;
   translations: SearchableTranslationLike[];
-  selectedBatchUtterances: UtteranceDocType[];
+  selectedBatchUnits: LayerUnitDocType[];
   transcriptionLayers: LayerDocType[];
   selectedLayerId: string | null;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
-  utteranceDrafts: TranscriptionEditorContextValue['utteranceDrafts'];
-  setUtteranceDrafts: Dispatch<SetStateAction<TranscriptionEditorContextValue['utteranceDrafts']>>;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
+  unitDrafts: TranscriptionEditorContextValue['unitDrafts'];
+  setUnitDrafts: Dispatch<SetStateAction<TranscriptionEditorContextValue['unitDrafts']>>;
   translationDrafts: TranscriptionEditorContextValue['translationDrafts'];
   setTranslationDrafts: Dispatch<SetStateAction<TranscriptionEditorContextValue['translationDrafts']>>;
   translationTextByLayer: TranscriptionEditorContextValue['translationTextByLayer'];
   focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
   scheduleAutoSave: TranscriptionEditorContextValue['scheduleAutoSave'];
   clearAutoSaveTimer: TranscriptionEditorContextValue['clearAutoSaveTimer'];
-  saveUtteranceText: TranscriptionEditorContextValue['saveUtteranceText'];
-  saveTextTranslationForUtterance: TranscriptionEditorContextValue['saveTextTranslationForUtterance'];
+  saveUnitText: TranscriptionEditorContextValue['saveUnitText'];
+  saveUnitLayerText: TranscriptionEditorContextValue['saveUnitLayerText'];
   renderLaneLabel: (layer: LayerDocType) => ReactNode;
   createLayer: (
     layerType: 'transcription' | 'translation',
@@ -47,10 +45,10 @@ interface UseTranscriptionTimelineControllerInput {
 }
 
 interface UseTranscriptionTimelineControllerResult {
-  filteredUtterancesOnCurrentMedia: UtteranceDocType[];
-  timelineRenderUtterances: UtteranceDocType[];
-  translationAudioByLayer: Map<string, Map<string, UtteranceTextDocType>>;
-  selectedBatchUtteranceTextById: Record<string, string>;
+  filteredUnitsOnCurrentMedia: LayerUnitDocType[];
+  timelineRenderUnits: LayerUnitDocType[];
+  translationAudioByLayer: Map<string, Map<string, LayerUnitContentDocType>>;
+  selectedBatchUnitTextById: Record<string, string>;
   batchPreviewLayerOptions: Array<{ id: string; label: string }>;
   batchPreviewTextByLayerId: Record<string, Record<string, string>>;
   defaultBatchPreviewLayerId: string | undefined;
@@ -60,52 +58,55 @@ interface UseTranscriptionTimelineControllerResult {
 export function useTranscriptionTimelineController(
   input: UseTranscriptionTimelineControllerInput,
 ): UseTranscriptionTimelineControllerResult {
-  const filteredUtterancesOnCurrentMedia = useMemo(() => {
-    if (input.activeSpeakerFilterKey === 'all') return input.utterancesOnCurrentMedia;
-    return input.utterancesOnCurrentMedia.filter(
-      (utterance) => input.getUtteranceSpeakerKey(utterance) === input.activeSpeakerFilterKey,
+  const filteredUnitsOnCurrentMedia = useMemo(() => {
+    if (input.activeSpeakerFilterKey === 'all') return input.unitsOnCurrentMedia;
+    return input.unitsOnCurrentMedia.filter(
+      (unit) => input.getUnitSpeakerKey(unit) === input.activeSpeakerFilterKey,
     );
-  }, [input.activeSpeakerFilterKey, input.getUtteranceSpeakerKey, input.utterancesOnCurrentMedia]);
+  }, [input.activeSpeakerFilterKey, input.getUnitSpeakerKey, input.unitsOnCurrentMedia]);
 
-  const timelineRenderUtterances = useMemo(() => {
+  const timelineRenderUnits = useMemo(() => {
     if (!input.rulerView || input.playerDuration <= 0) {
-      return filteredUtterancesOnCurrentMedia;
+      return filteredUnitsOnCurrentMedia;
     }
     const viewSpan = Math.max(0, input.rulerView.end - input.rulerView.start);
     const buffer = Math.max(1, viewSpan * 0.45);
     const left = Math.max(0, input.rulerView.start - buffer);
     const right = Math.min(input.playerDuration, input.rulerView.end + buffer);
-    return filteredUtterancesOnCurrentMedia.filter(
-      (utterance) => utterance.endTime >= left && utterance.startTime <= right,
+    return filteredUnitsOnCurrentMedia.filter(
+      (unit) => unit.endTime >= left && unit.startTime <= right,
     );
-  }, [filteredUtterancesOnCurrentMedia, input.playerDuration, input.rulerView]);
+  }, [filteredUnitsOnCurrentMedia, input.playerDuration, input.rulerView]);
 
   const translationAudioByLayer = useMemo(() => {
-    const outer = new Map<string, Map<string, UtteranceTextDocType>>();
+    const outer = new Map<string, Map<string, LayerUnitContentDocType>>();
 
     input.translations
       .filter((item) => typeof item.translationAudioMediaId === 'string' && item.translationAudioMediaId.trim().length > 0)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .forEach((item) => {
-        if (!outer.has(item.layerId)) {
-          outer.set(item.layerId, new Map());
+        const layerId = item.layerId?.trim();
+        const unitId = item.unitId?.trim();
+        if (!layerId || !unitId) return;
+        if (!outer.has(layerId)) {
+          outer.set(layerId, new Map());
         }
-        const inner = outer.get(item.layerId)!;
-        if (!inner.has(item.utteranceId)) {
-          inner.set(item.utteranceId, item);
+        const inner = outer.get(layerId)!;
+        if (!inner.has(unitId)) {
+          inner.set(unitId, item);
         }
       });
 
     return outer;
   }, [input.translations]);
 
-  const selectedBatchUtteranceTextById = useMemo(() => {
+  const selectedBatchUnitTextById = useMemo(() => {
     const next: Record<string, string> = {};
-    for (const utterance of input.selectedBatchUtterances) {
-      next[utterance.id] = input.getUtteranceTextForLayer(utterance) || '';
+    for (const unit of input.selectedBatchUnits) {
+      next[unit.id] = input.getUnitTextForLayer(unit) || '';
     }
     return next;
-  }, [input.getUtteranceTextForLayer, input.selectedBatchUtterances]);
+  }, [input.getUnitTextForLayer, input.selectedBatchUnits]);
 
   const batchPreviewLayerOptions = useMemo(
     () => input.transcriptionLayers.map((layer) => ({
@@ -119,13 +120,13 @@ export function useTranscriptionTimelineController(
     const next: Record<string, Record<string, string>> = {};
     for (const layer of input.transcriptionLayers) {
       const layerMap: Record<string, string> = {};
-      for (const utterance of input.utterancesOnCurrentMedia) {
-        layerMap[utterance.id] = input.getUtteranceTextForLayer(utterance, layer.id) || '';
+      for (const unit of input.unitsOnCurrentMedia) {
+        layerMap[unit.id] = input.getUnitTextForLayer(unit, layer.id) || '';
       }
       next[layer.id] = layerMap;
     }
     return next;
-  }, [input.getUtteranceTextForLayer, input.transcriptionLayers, input.utterancesOnCurrentMedia]);
+  }, [input.getUnitTextForLayer, input.transcriptionLayers, input.unitsOnCurrentMedia]);
 
   const defaultBatchPreviewLayerId = useMemo(() => {
     if (input.transcriptionLayers.some((layer) => layer.id === input.selectedLayerId)) {
@@ -135,17 +136,17 @@ export function useTranscriptionTimelineController(
   }, [input.selectedLayerId, input.transcriptionLayers]);
 
   const editorContextValue = useMemo<TranscriptionEditorContextValue>(() => ({
-    utteranceDrafts: input.utteranceDrafts,
-    setUtteranceDrafts: input.setUtteranceDrafts,
+    unitDrafts: input.unitDrafts,
+    setUnitDrafts: input.setUnitDrafts,
     translationDrafts: input.translationDrafts,
     setTranslationDrafts: input.setTranslationDrafts,
     translationTextByLayer: input.translationTextByLayer,
     focusedTranslationDraftKeyRef: input.focusedTranslationDraftKeyRef,
     scheduleAutoSave: input.scheduleAutoSave,
     clearAutoSaveTimer: input.clearAutoSaveTimer,
-    saveUtteranceText: input.saveUtteranceText,
-    saveTextTranslationForUtterance: input.saveTextTranslationForUtterance,
-    getUtteranceTextForLayer: input.getUtteranceTextForLayer,
+    saveUnitText: input.saveUnitText,
+    saveUnitLayerText: input.saveUnitLayerText,
+    getUnitTextForLayer: input.getUnitTextForLayer,
     renderLaneLabel: input.renderLaneLabel,
     createLayer: input.createLayer,
     ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
@@ -159,24 +160,24 @@ export function useTranscriptionTimelineController(
     input.deleteLayer,
     input.deleteLayerWithoutConfirm,
     input.focusedTranslationDraftKeyRef,
-    input.getUtteranceTextForLayer,
+    input.getUnitTextForLayer,
     input.renderLaneLabel,
     input.updateLayerMetadata,
-    input.saveTextTranslationForUtterance,
-    input.saveUtteranceText,
+    input.saveUnitLayerText,
+    input.saveUnitText,
     input.scheduleAutoSave,
     input.setTranslationDrafts,
-    input.setUtteranceDrafts,
+    input.setUnitDrafts,
     input.translationDrafts,
     input.translationTextByLayer,
-    input.utteranceDrafts,
+    input.unitDrafts,
   ]);
 
   return {
-    filteredUtterancesOnCurrentMedia,
-    timelineRenderUtterances,
+    filteredUnitsOnCurrentMedia,
+    timelineRenderUnits,
     translationAudioByLayer,
-    selectedBatchUtteranceTextById,
+    selectedBatchUnitTextById,
     batchPreviewLayerOptions,
     batchPreviewTextByLayerId,
     defaultBatchPreviewLayerId,

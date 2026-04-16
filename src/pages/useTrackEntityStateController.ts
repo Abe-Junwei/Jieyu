@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import {
-  getTrackEntityState,
-  loadTrackEntityStateMap,
-  loadTrackEntityStateMapFromDb,
-} from '../services/TrackEntityStore';
+import { getTrackEntityState, loadTrackEntityStateMap, loadTrackEntityStateMapFromDb } from '../services/TrackEntityStore';
 
 type TrackEntityStateMap = ReturnType<typeof loadTrackEntityStateMap>;
 

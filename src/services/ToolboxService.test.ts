@@ -4,11 +4,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import { importFromToolbox, exportToToolbox } from './ToolboxService';
-import type { UtteranceDocType, LayerDocType, UtteranceTextDocType } from '../db';
+import type { LayerUnitDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-function makeUtt(id: string, start: number, end: number, text: string, speakerId?: string): UtteranceDocType {
+function makeUtt(id: string, start: number, end: number, text: string, speakerId?: string): LayerUnitDocType {
   return {
     id,
     mediaId: 'm1',
@@ -20,7 +20,7 @@ function makeUtt(id: string, start: number, end: number, text: string, speakerId
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     ...(speakerId !== undefined && { speakerId }),
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeLayer(id: string, layerType: 'transcription' | 'translation', isDefault = false): LayerDocType {
@@ -53,13 +53,13 @@ describe('importFromToolbox', () => {
 \\tx second line
 `;
     const result = importFromToolbox(content);
-    expect(result.utterances).toHaveLength(2);
-    expect(result.utterances[0]).toMatchObject({
+    expect(result.units).toHaveLength(2);
+    expect(result.units[0]).toMatchObject({
       startTime: 0,
       endTime: 2.5,
       transcription: 'hello world',
     });
-    expect(result.utterances[1]).toMatchObject({
+    expect(result.units[1]).toMatchObject({
       startTime: 2.5,
       endTime: 5,
       transcription: 'second line',
@@ -76,8 +76,8 @@ describe('importFromToolbox', () => {
 \\ps PRO V-TAM
 `;
     const result = importFromToolbox(content);
-    expect(result.utterances[0]!.tokens).toBeDefined();
-    const tokens = result.utterances[0]!.tokens!;
+    expect(result.units[0]!.tokens).toBeDefined();
+    const tokens = result.units[0]!.tokens!;
     expect(tokens).toHaveLength(2);
     // 第一个 token 没有形态分析（单形素）
     expect(tokens[0]!.form.default).toBe('I');
@@ -111,15 +111,15 @@ describe('importFromToolbox', () => {
 \\tx valid text
 `;
     const result = importFromToolbox(content);
-    expect(result.utterances).toHaveLength(1);
-    expect(result.utterances[0]!.transcription).toBe('valid text');
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]!.transcription).toBe('valid text');
   });
 
   it('处理 Windows 换行 (\\r\\n) | handles CRLF', () => {
     const content = '\\ref r1\r\n\\ts 0.000\r\n\\te 1.000\r\n\\tx crlf text\r\n';
     const result = importFromToolbox(content);
-    expect(result.utterances).toHaveLength(1);
-    expect(result.utterances[0]!.transcription).toBe('crlf text');
+    expect(result.units).toHaveLength(1);
+    expect(result.units[0]!.transcription).toBe('crlf text');
   });
 
   it('无时间标记时使用回退值 | uses fallback times when missing', () => {
@@ -127,10 +127,10 @@ describe('importFromToolbox', () => {
 \\tx no time markers
 `;
     const result = importFromToolbox(content);
-    expect(result.utterances).toHaveLength(1);
+    expect(result.units).toHaveLength(1);
     // startTime 回退为 index(0)，endTime 回退为 startTime+1
-    expect(result.utterances[0]!.startTime).toBe(0);
-    expect(result.utterances[0]!.endTime).toBe(1);
+    expect(result.units[0]!.startTime).toBe(0);
+    expect(result.units[0]!.endTime).toBe(1);
   });
 
   it('多行值拼接 | continuation lines are concatenated', () => {
@@ -141,12 +141,12 @@ describe('importFromToolbox', () => {
   second part
 `;
     const result = importFromToolbox(content);
-    expect(result.utterances[0]!.transcription).toBe('first part second part');
+    expect(result.units[0]!.transcription).toBe('first part second part');
   });
 
   it('空输入返回空结果 | empty input returns empty', () => {
     const result = importFromToolbox('');
-    expect(result.utterances).toHaveLength(0);
+    expect(result.units).toHaveLength(0);
     expect(result.additionalTiers.size).toBe(0);
   });
 });
@@ -156,7 +156,7 @@ describe('importFromToolbox', () => {
 describe('exportToToolbox', () => {
   it('输出基本标记流 | outputs basic marker stream', () => {
     const output = exportToToolbox({
-      utterances: [makeUtt('u1', 0, 2.5, 'hello world')],
+      units: [makeUtt('u1', 0, 2.5, 'hello world')],
       layers: [makeLayer('l1', 'transcription', true)],
       translations: [],
     });
@@ -168,16 +168,16 @@ describe('exportToToolbox', () => {
 
   it('包含翻译层 \\ft | includes free translation from translation layer', () => {
     const trlLayer = makeLayer('trl1', 'translation');
-    const translation: UtteranceTextDocType = {
+    const translation: LayerUnitContentDocType = {
       id: 'txt1',
-      utteranceId: 'u1',
+      unitId: 'u1',
       layerId: 'trl1',
       modality: 'text',
       text: 'translated text',
-    } as UtteranceTextDocType;
+    } as LayerUnitContentDocType;
 
     const output = exportToToolbox({
-      utterances: [makeUtt('u1', 0, 2, 'source')],
+      units: [makeUtt('u1', 0, 2, 'source')],
       layers: [makeLayer('l1', 'transcription', true), trlLayer],
       translations: [translation],
     });
@@ -186,7 +186,7 @@ describe('exportToToolbox', () => {
 
   it('按 startTime 排序 | sorts by startTime', () => {
     const output = exportToToolbox({
-      utterances: [
+      units: [
         makeUtt('u2', 3, 5, 'second'),
         makeUtt('u1', 0, 2, 'first'),
       ],
@@ -199,7 +199,7 @@ describe('exportToToolbox', () => {
 
   it('包含 token/morpheme 标记 | includes \\mb \\ge \\ps markers', () => {
     const output = exportToToolbox({
-      utterances: [makeUtt('u1', 0, 1, 'I go')],
+      units: [makeUtt('u1', 0, 1, 'I go')],
       layers: [makeLayer('l1', 'transcription', true)],
       translations: [],
       tokens: [
@@ -243,15 +243,15 @@ describe('exportToToolbox', () => {
 \\tx second segment
 `;
     const imported = importFromToolbox(original);
-    const utts = imported.utterances.map((u, i) => makeUtt(`r${i + 1}`, u.startTime, u.endTime, u.transcription));
+    const utts = imported.units.map((u, i) => makeUtt(`r${i + 1}`, u.startTime, u.endTime, u.transcription));
     const exported = exportToToolbox({
-      utterances: utts,
+      units: utts,
       layers: [makeLayer('l1', 'transcription', true)],
       translations: [],
     });
     const reimported = importFromToolbox(exported);
-    expect(reimported.utterances).toHaveLength(2);
-    expect(reimported.utterances[0]!.transcription).toBe('hello world');
-    expect(reimported.utterances[1]!.transcription).toBe('second segment');
+    expect(reimported.units).toHaveLength(2);
+    expect(reimported.units[0]!.transcription).toBe('hello world');
+    expect(reimported.units[1]!.transcription).toBe('second segment');
   });
 });

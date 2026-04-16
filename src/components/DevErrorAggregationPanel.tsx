@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import {
-  getStructuredErrorAggregation,
-  type ErrorAggregationEntry,
-} from '../observability/errorAggregation';
+import { getStructuredErrorAggregation, type ErrorAggregationEntry } from '../observability/errorAggregation';
 import { useLocale } from '../i18n';
 import { getDevErrorAggregationPanelMessages, type DevErrorAggregationPanelMessages } from '../i18n/devErrorAggregationPanelMessages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';

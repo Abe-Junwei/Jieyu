@@ -1,4 +1,4 @@
-import type { LayerDocType, MediaItemDocType, UtteranceDocType, UtteranceTextDocType } from '../db';
+import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
@@ -12,16 +12,16 @@ export interface UseTranscriptionProjectMediaControllerInput {
   setSaveState: (state: SaveState) => void;
   selectedMediaUrl: string | null;
   selectedTimelineMedia: MediaItemDocType | null;
-  utterancesOnCurrentMedia: UtteranceDocType[];
-  createUtteranceFromSelectionRouted: (start: number, end: number) => Promise<void>;
+  unitsOnCurrentMedia: LayerUnitDocType[];
+  createUnitFromSelectionRouted: (start: number, end: number) => Promise<void>;
   loadSnapshot: () => Promise<void>;
   selectTimelineUnit: (unit: TimelineUnit | null) => void;
   locale: Locale;
   tfB: (key: string, opts?: Record<string, unknown>) => string;
   transcriptionLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
   translationLayers: Array<Pick<LayerDocType, 'id' | 'languageId' | 'orthographyId'>>;
-  translationTextByLayer: ReadonlyMap<string, Map<string, UtteranceTextDocType>>;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  translationTextByLayer: ReadonlyMap<string, Map<string, LayerUnitContentDocType>>;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
 }
 
 export interface UseTranscriptionProjectMediaControllerResult {

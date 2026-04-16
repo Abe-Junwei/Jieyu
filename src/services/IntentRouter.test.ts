@@ -1,23 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
 import { toBcp47, toIso639_3, knownIso639_3Codes, resolveLanguageQuery } from '../utils/langMapping';
-import {
-  routeIntent,
-  collectAlternativeIntents,
-  LOW_CONFIDENCE_THRESHOLD,
-  isDestructiveAction,
-  shouldConfirmFuzzyAction,
-  getActionLabel,
-  createVoiceSession,
-  exportReplaySequence,
-  learnVoiceIntentAliasFromMap,
-  learnVoiceIntentAlias,
-  bumpAliasUsage,
-  pruneStaleVoiceAliases,
-  loadVoiceAliasMetaMap,
-  saveVoiceIntentAliasMap,
-  clearVoiceAliasLearningLog,
-} from './IntentRouter';
+import { routeIntent, collectAlternativeIntents, LOW_CONFIDENCE_THRESHOLD, isDestructiveAction, shouldConfirmFuzzyAction, getActionLabel, createVoiceSession, exportReplaySequence, learnVoiceIntentAliasFromMap, learnVoiceIntentAlias, bumpAliasUsage, pruneStaleVoiceAliases, loadVoiceAliasMetaMap, saveVoiceIntentAliasMap, clearVoiceAliasLearningLog } from './IntentRouter';
 
 // ── langMapping tests ──
 
@@ -129,7 +113,7 @@ describe('IntentRouter', () => {
       const result = routeIntent('自动标注');
       expect(result.type).toBe('tool');
       if (result.type === 'tool') {
-        expect(result.toolName).toBe('auto_gloss_utterance');
+        expect(result.toolName).toBe('auto_gloss_unit');
       }
     });
 
@@ -175,7 +159,7 @@ describe('IntentRouter', () => {
       }
     });
 
-    it('does not trigger low-risk fuzzy actions on ambiguous single-character utterances', () => {
+    it('does not trigger low-risk fuzzy actions on ambiguous single-character units', () => {
       expect(routeIntent('开')).toEqual({ type: 'chat', text: '开', raw: '开' });
       expect(routeIntent('上')).toEqual({ type: 'chat', text: '上', raw: '上' });
       expect(routeIntent('下')).toEqual({ type: 'chat', text: '下', raw: '下' });
@@ -295,7 +279,7 @@ describe('IntentRouter', () => {
           timestamp: 1100,
           sttText: '自动标注',
           confidence: 0.88,
-          intent: { type: 'tool', toolName: 'auto_gloss_utterance', params: {}, raw: '自动标注' },
+          intent: { type: 'tool', toolName: 'auto_gloss_unit', params: {}, raw: '自动标注' },
         },
         {
           timestamp: 1200,

@@ -4,17 +4,9 @@ import 'fake-indexeddb/auto';
 import { renderHook } from '@testing-library/react';
 import type { MutableRefObject } from 'react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  db,
-  type SpeakerDocType,
-  type UtteranceDocType,
-  type UtteranceTextDocType,
-} from '../db';
-import { mapUtteranceToLayerUnit } from '../db/migrations/timelineUnitMapping';
-import {
-  TranscriptionPersistenceConflictError,
-  useTranscriptionPersistence,
-} from './useTranscriptionPersistence';
+import { db, type SpeakerDocType, type LayerUnitDocType, type LayerUnitContentDocType } from '../db';
+import { mapUnitToLayerUnit } from '../db/migrations/timelineUnitMapping';
+import { TranscriptionPersistenceConflictError, useTranscriptionPersistence } from './useTranscriptionPersistence';
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
@@ -34,7 +26,7 @@ describe('useTranscriptionPersistence', () => {
   });
 
   it('accepts conflict guard when translation exists only in layer_unit_contents', async () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_sync_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -43,9 +35,9 @@ describe('useTranscriptionPersistence', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const translation: UtteranceTextDocType = {
+    const translation: LayerUnitContentDocType = {
       id: 'utr_sync_1',
-      utteranceId: 'utt_sync_1',
+      unitId: 'utt_sync_1',
       layerId: 'layer_sync',
       modality: 'text',
       text: 'layer-unit-only',
@@ -55,7 +47,7 @@ describe('useTranscriptionPersistence', () => {
     };
 
     const hostLayerId = 'layer_trc';
-    const { unit: hostUnit, content: hostContent } = mapUtteranceToLayerUnit(utterance, hostLayerId);
+    const { unit: hostUnit, content: hostContent } = mapUnitToLayerUnit(unit, hostLayerId);
     await db.layer_units.put(hostUnit);
     await db.layer_unit_contents.put(hostContent);
     await db.layer_units.put({
@@ -84,12 +76,12 @@ describe('useTranscriptionPersistence', () => {
       updatedAt: NOW,
     });
 
-    const utterancesRef = toRef<UtteranceDocType[]>([utterance]);
-    const translationsRef = toRef<UtteranceTextDocType[]>([translation]);
+    const unitsRef = toRef<LayerUnitDocType[]>([unit]);
+    const translationsRef = toRef<LayerUnitContentDocType[]>([translation]);
     const speakersRef = toRef<SpeakerDocType[]>([]);
-    const { result } = renderHook(() => useTranscriptionPersistence({ utterancesRef, translationsRef, speakersRef }));
+    const { result } = renderHook(() => useTranscriptionPersistence({ unitsRef, translationsRef, speakersRef }));
 
-    await result.current.syncToDb([utterance], [translation], [], { conflictGuard: true });
+    await result.current.syncToDb([unit], [translation], [], { conflictGuard: true });
 
     expect(await db.layer_unit_contents.get('utr_sync_1')).toEqual(expect.objectContaining({
       unitId: 'segv2_layer_sync_utt_sync_1',
@@ -98,7 +90,7 @@ describe('useTranscriptionPersistence', () => {
   });
 
   it('raises conflict when layer_unit_contents updatedAt differs from base snapshot', async () => {
-    const utterance: UtteranceDocType = {
+    const unit: LayerUnitDocType = {
       id: 'utt_sync_conflict_1',
       textId: 'text_1',
       mediaId: 'media_1',
@@ -107,9 +99,9 @@ describe('useTranscriptionPersistence', () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    const translation: UtteranceTextDocType = {
+    const translation: LayerUnitContentDocType = {
       id: 'utr_sync_conflict_1',
-      utteranceId: 'utt_sync_conflict_1',
+      unitId: 'utt_sync_conflict_1',
       layerId: 'layer_sync',
       modality: 'text',
       text: 'stale-base',
@@ -119,7 +111,7 @@ describe('useTranscriptionPersistence', () => {
     };
 
     const hostLayerId = 'layer_trc';
-    const { unit: hostUnit, content: hostContent } = mapUtteranceToLayerUnit(utterance, hostLayerId);
+    const { unit: hostUnit, content: hostContent } = mapUnitToLayerUnit(unit, hostLayerId);
     await db.layer_units.put(hostUnit);
     await db.layer_unit_contents.put(hostContent);
     await db.layer_units.put({
@@ -148,13 +140,13 @@ describe('useTranscriptionPersistence', () => {
       updatedAt: '2026-03-27T00:01:00.000Z',
     });
 
-    const utterancesRef = toRef<UtteranceDocType[]>([utterance]);
-    const translationsRef = toRef<UtteranceTextDocType[]>([translation]);
+    const unitsRef = toRef<LayerUnitDocType[]>([unit]);
+    const translationsRef = toRef<LayerUnitContentDocType[]>([translation]);
     const speakersRef = toRef<SpeakerDocType[]>([]);
-    const { result } = renderHook(() => useTranscriptionPersistence({ utterancesRef, translationsRef, speakersRef }));
+    const { result } = renderHook(() => useTranscriptionPersistence({ unitsRef, translationsRef, speakersRef }));
 
     await expect(
-      result.current.syncToDb([utterance], [translation], [], { conflictGuard: true }),
+      result.current.syncToDb([unit], [translation], [], { conflictGuard: true }),
     ).rejects.toThrow(TranscriptionPersistenceConflictError);
   });
 });
