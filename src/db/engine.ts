@@ -18,7 +18,10 @@ import type {
   LayerDocType, LayerUnitDocType, LayerUnitContentDocType,
   UnitRelationDocType, LayerLinkDocType,
   TierDefinitionDocType, TierAnnotationDocType,
-  AuditLogDocType, UserNoteDocType, TrackEntityDocType,
+  AuditLogDocType, UserNoteDocType, SegmentMetaDocType,
+  SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType,
+  SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType,
+  LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType,
   UtteranceTextDocType, LayerSegmentDocType, LayerSegmentContentDocType,
   SegmentLinkDocType,
   SegmentationV2BackfillRows, V28BackfillPlan,
@@ -40,7 +43,10 @@ import {
   validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc,
   validateUnitRelationDoc, validateLayerLinkDoc,
   validateTierDefinitionDoc, validateTierAnnotationDoc,
-  validateAuditLogDoc, validateUserNoteDoc, validateTrackEntityDoc,
+  validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc,
+  validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc,
+  validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc,
+  validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc,
 } from './schemas';
 import {
   DexieCollectionAdapter, TierBackedLayerCollectionAdapter,
@@ -291,6 +297,13 @@ export class JieyuDexie extends Dexie {
   tier_annotations!: Table<TierAnnotationDocType, string>;
   audit_logs!: Table<AuditLogDocType, string>;
   user_notes!: Table<UserNoteDocType, string>;
+  segment_meta!: Table<SegmentMetaDocType, string>;
+  segment_quality_snapshots!: Table<SegmentQualitySnapshotDocType, string>;
+  scope_stats_snapshots!: Table<ScopeStatsSnapshotDocType, string>;
+  speaker_profile_snapshots!: Table<SpeakerProfileSnapshotDocType, string>;
+  translation_status_snapshots!: Table<TranslationStatusSnapshotDocType, string>;
+  language_asset_overviews!: Table<LanguageAssetOverviewDocType, string>;
+  ai_task_snapshots!: Table<AiTaskSnapshotDocType, string>;
   track_entities!: Table<TrackEntityDocType, string>;
 
   constructor(name: string) {
@@ -1129,6 +1142,21 @@ export class JieyuDexie extends Dexie {
     }).upgrade(async (tx: Transaction) => {
       await upgradeM18LinguisticUtteranceCutover(tx);
     });
+
+    // v38: unified SegmentMeta read model for sidebar filters and future AI metadata prefiltering.
+    this.version(38).stores({
+      segment_meta: 'id, segmentId, unitKind, textId, mediaId, layerId, hostUtteranceId, effectiveSpeakerId, effectiveSelfCertainty, annotationStatus, *noteCategoryKeys, [layerId+mediaId], [textId+layerId], [layerId+updatedAt], updatedAt',
+    });
+
+    // v39: project-wide read-model snapshots for quality, scope stats, speakers, translation, language assets, and AI task dashboards.
+    this.version(39).stores({
+      segment_quality_snapshots: 'id, segmentId, textId, mediaId, layerId, severity, [layerId+mediaId], [textId+layerId], [layerId+severity], updatedAt',
+      scope_stats_snapshots: 'id, scopeType, scopeKey, textId, mediaId, layerId, speakerId, [scopeType+scopeKey], [textId+scopeType], updatedAt',
+      speaker_profile_snapshots: 'id, textId, speakerId, [textId+speakerId], updatedAt',
+      translation_status_snapshots: 'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
+      language_asset_overviews: 'id, languageId, displayName, aliasCount, orthographyCount, bridgeCount, updatedAt',
+      ai_task_snapshots: 'id, taskId, taskType, status, targetId, updatedAt',
+    });
   }
 }
 
@@ -1218,6 +1246,13 @@ async function _createDb(): Promise<JieyuDatabase> {
     tier_annotations: new DexieCollectionAdapter(dexie.tier_annotations, validateTierAnnotationDoc),
     audit_logs: new DexieCollectionAdapter(dexie.audit_logs, validateAuditLogDoc),
     user_notes: new DexieCollectionAdapter(dexie.user_notes, validateUserNoteDoc),
+    segment_meta: new DexieCollectionAdapter(dexie.segment_meta, validateSegmentMetaDoc),
+    segment_quality_snapshots: new DexieCollectionAdapter(dexie.segment_quality_snapshots, validateSegmentQualitySnapshotDoc),
+    scope_stats_snapshots: new DexieCollectionAdapter(dexie.scope_stats_snapshots, validateScopeStatsSnapshotDoc),
+    speaker_profile_snapshots: new DexieCollectionAdapter(dexie.speaker_profile_snapshots, validateSpeakerProfileSnapshotDoc),
+    translation_status_snapshots: new DexieCollectionAdapter(dexie.translation_status_snapshots, validateTranslationStatusSnapshotDoc),
+    language_asset_overviews: new DexieCollectionAdapter(dexie.language_asset_overviews, validateLanguageAssetOverviewDoc),
+    ai_task_snapshots: new DexieCollectionAdapter(dexie.ai_task_snapshots, validateAiTaskSnapshotDoc),
     track_entities: new DexieCollectionAdapter(dexie.track_entities, validateTrackEntityDoc),
   };
 

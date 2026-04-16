@@ -137,7 +137,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     expect(selectedTimelineUnit?.layerId).toBe(selectedLayerId);
   });
 
-  it('sets ready unitCount using merged utterance + segment semantics (shadowing)', async () => {
+  it('sets ready unifiedUnitCount using merged utterance + segment semantics while unitCount remains utterance rows', async () => {
     const now = new Date().toISOString();
 
     await LayerTierUnifiedService.createLayer({
@@ -191,6 +191,18 @@ describe('useTranscriptionSnapshotLoader', () => {
       updatedAt: now,
     } as LayerUnitDocType);
 
+    await db.layer_units.put({
+      id: 'seg-extra',
+      textId: 'text-1',
+      mediaId: 'media-1',
+      layerId: 'trl-1',
+      unitType: 'segment',
+      startTime: 1,
+      endTime: 2,
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitDocType);
+
     const dbNameRef = { current: undefined as string | undefined };
     const setAnchors = vi.fn<(next: React.SetStateAction<AnchorDocType[]>) => void>();
     const setLayerLinks = vi.fn<(next: React.SetStateAction<LayerLinkDocType[]>) => void>();
@@ -230,5 +242,6 @@ describe('useTranscriptionSnapshotLoader', () => {
       .find((arg): arg is Extract<DbState, { phase: 'ready' }> =>
         typeof arg === 'object' && arg !== null && 'phase' in arg && (arg as DbState).phase === 'ready');
     expect(readyPayload?.unitCount).toBe(1);
+    expect(readyPayload?.unifiedUnitCount).toBe(2);
   });
 });

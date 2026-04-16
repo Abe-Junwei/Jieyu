@@ -15,8 +15,9 @@ export function utteranceDocForSpeakerTargetFromUnitView(
 export function resolveSpeakerTargetUtteranceIdFromUnitId(
   unitId: string,
   unitViewById: ReadonlyMap<string, TimelineUnitView>,
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined,
 ): string | undefined {
-  const view = unitViewById.get(unitId);
+  const view = resolveUnitViewById?.(unitId) ?? unitViewById.get(unitId);
   if (!view) return undefined;
   if (view.kind === 'utterance') return view.id;
   return view.parentUtteranceId?.trim() || undefined;

@@ -284,6 +284,19 @@ describe('localToolSlotResolver', () => {
     });
   });
 
+  it('detects scope clarification when metric is clear but scope is not', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: { metric: 'speaker_count' } }],
+      '有多少说话人',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '有多少说话人', {})).toEqual({
+      needed: true,
+      reason: 'scope_ambiguous',
+      callName: 'get_project_stats',
+    });
+  });
+
   it('does not require metric clarification when previous count metric exists', () => {
     const memory: AiSessionMemory = {
       localToolState: {

@@ -6,6 +6,8 @@ export type SidePaneSidebarMessages = {
   constraintSymbolicAssociation: string;
   contextCreateTranscription: string;
   contextCreateTranslation: string;
+  contextEditTranscriptionMetadata: string;
+  contextEditTranslationMetadata: string;
   contextDeleteCurrentLayer: string;
   speakerManagementTitle: string;
   speakerEntityCount: (count: number) => string;
@@ -110,8 +112,22 @@ export type SidePaneSidebarMessages = {
   segmentListAria: string;
   segmentListTitle: string;
   segmentListNoSegments: string;
+  segmentListNoMatches: string;
   segmentListEmpty: string;
   segmentListFilterPlaceholder: string;
+  segmentListSpeakerFilterLabel: string;
+  segmentListNoteCategoryFilterLabel: string;
+  segmentListCertaintyFilterLabel: string;
+  segmentListFilterReset: string;
+  segmentListCertaintyNotUnderstood: string;
+  segmentListCertaintyUncertain: string;
+  segmentListCertaintyCertain: string;
+  segmentListNoteCategoryComment: string;
+  segmentListNoteCategoryQuestion: string;
+  segmentListNoteCategoryTodo: string;
+  segmentListNoteCategoryLinguistic: string;
+  segmentListNoteCategoryFieldwork: string;
+  segmentListNoteCategoryCorrection: string;
   segmentListTimeRange: (start: string, end: string) => string;
   repairNoNeed: string;
   repairFailedPrefix: string;
@@ -125,6 +141,8 @@ const zhCN: SidePaneSidebarMessages = {
   constraintSymbolicAssociation: '\u7b26\u53f7\u5173\u8054',
   contextCreateTranscription: '\u65b0\u5efa\u8f6c\u5199\u5c42',
   contextCreateTranslation: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
+  contextEditTranscriptionMetadata: '编辑转写层元信息',
+  contextEditTranslationMetadata: '编辑翻译层元信息',
   contextDeleteCurrentLayer: '\u5220\u9664\u5f53\u524d\u5c42',
   speakerManagementTitle: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
   speakerEntityCount: (count) => `\u8bf4\u8bdd\u4eba\u5b9e\u4f53\uff1a${count}`,
@@ -149,7 +167,7 @@ const zhCN: SidePaneSidebarMessages = {
   speakerCreateOnlyButton: '\u4ec5\u65b0\u5efa',
   speakerCreateAssignTitle: '\u65b0\u5efa\u8bf4\u8bdd\u4eba\u5e76\u5206\u914d\u5230\u5df2\u9009\u53e5\u6bb5',
   speakerCreateAssignButton: '\u65b0\u5efa\u5e76\u5206\u914d',
-  speakerFilterAria: '\u8bf4\u8bdd\u4eba\u7b5b\u9009',
+  speakerFilterAria: '\u6309\u8bf4\u8bdd\u4eba\u7b5b\u9009',
   speakerFilterAllTitle: '\u663e\u793a\u5168\u90e8\u8bf4\u8bdd\u4eba',
   speakerFilterAllLabel: '\u5168\u90e8',
   speakerGroupAria: '\u8bf4\u8bdd\u4eba\u7ec4',
@@ -226,8 +244,22 @@ const zhCN: SidePaneSidebarMessages = {
   segmentListAria: '\u8bed\u6bb5\u5217\u8868',
   segmentListTitle: '\u8bed\u6bb5\u5217\u8868',
   segmentListNoSegments: '\u5f53\u524d\u5c42\u6682\u65e0\u8bed\u6bb5',
+  segmentListNoMatches: '\u5f53\u524d\u7b5b\u9009\u6761\u4ef6\u4e0b\u65e0\u5339\u914d\u8bed\u6bb5',
   segmentListEmpty: '\u65e0\u5185\u5bb9',
   segmentListFilterPlaceholder: '\u7b5b\u9009\u8bed\u6bb5\u2026',
+  segmentListSpeakerFilterLabel: '\u6309\u8bf4\u8bdd\u4eba\u7b5b\u9009',
+  segmentListNoteCategoryFilterLabel: '\u6309\u5907\u6ce8\u5206\u7c7b\u7b5b\u9009',
+  segmentListCertaintyFilterLabel: '\u6309\u786e\u4fe1\u5ea6\u7b5b\u9009',
+  segmentListFilterReset: '\u6e05\u7a7a\u7b5b\u9009',
+  segmentListCertaintyNotUnderstood: '\u4e0d\u7406\u89e3',
+  segmentListCertaintyUncertain: '\u4e0d\u786e\u5b9a',
+  segmentListCertaintyCertain: '\u786e\u5b9a',
+  segmentListNoteCategoryComment: '\u8bc4\u8bba',
+  segmentListNoteCategoryQuestion: '\u95ee\u9898',
+  segmentListNoteCategoryTodo: '\u5f85\u529e',
+  segmentListNoteCategoryLinguistic: '\u8bed\u8a00\u5b66',
+  segmentListNoteCategoryFieldwork: '\u7530\u91ce',
+  segmentListNoteCategoryCorrection: '\u4fee\u8ba2',
   segmentListTimeRange: (start, end) => `${start} \u2013 ${end}`,
   repairNoNeed: '\u5c42\u7ea6\u675f\u68c0\u67e5\u901a\u8fc7\uff0c\u65e0\u9700\u4fee\u590d\u3002',
   repairFailedPrefix: '\u7ea6\u675f\u4fee\u590d\u5931\u8d25\uff1a',
@@ -241,6 +273,8 @@ const enUS: SidePaneSidebarMessages = {
   constraintSymbolicAssociation: 'Symbolic association',
   contextCreateTranscription: 'Create transcription layer',
   contextCreateTranslation: 'Create translation layer',
+  contextEditTranscriptionMetadata: 'Edit transcription metadata',
+  contextEditTranslationMetadata: 'Edit translation metadata',
   contextDeleteCurrentLayer: 'Delete current layer',
   speakerManagementTitle: 'Speaker management',
   speakerEntityCount: (count) => `Speaker entities: ${count}`,
@@ -265,7 +299,7 @@ const enUS: SidePaneSidebarMessages = {
   speakerCreateOnlyButton: 'Create only',
   speakerCreateAssignTitle: 'Create speaker and assign to selected utterances',
   speakerCreateAssignButton: 'Create and assign',
-  speakerFilterAria: 'Speaker filter',
+  speakerFilterAria: 'Filter by speaker',
   speakerFilterAllTitle: 'Show all speakers',
   speakerFilterAllLabel: 'All',
   speakerGroupAria: 'Speaker groups',
@@ -342,8 +376,22 @@ const enUS: SidePaneSidebarMessages = {
   segmentListAria: 'Segment list',
   segmentListTitle: 'Segment list',
   segmentListNoSegments: 'No segments in the current layer',
+  segmentListNoMatches: 'No segments match the current filters',
   segmentListEmpty: 'No content',
   segmentListFilterPlaceholder: 'Filter segments…',
+  segmentListSpeakerFilterLabel: 'Filter by speaker',
+  segmentListNoteCategoryFilterLabel: 'Filter by note category',
+  segmentListCertaintyFilterLabel: 'Filter by certainty',
+  segmentListFilterReset: 'Clear filters',
+  segmentListCertaintyNotUnderstood: 'Not understood',
+  segmentListCertaintyUncertain: 'Uncertain',
+  segmentListCertaintyCertain: 'Certain',
+  segmentListNoteCategoryComment: 'Comment',
+  segmentListNoteCategoryQuestion: 'Question',
+  segmentListNoteCategoryTodo: 'Todo',
+  segmentListNoteCategoryLinguistic: 'Linguistic',
+  segmentListNoteCategoryFieldwork: 'Fieldwork',
+  segmentListNoteCategoryCorrection: 'Correction',
   segmentListTimeRange: (start, end) => `${start} – ${end}`,
   repairNoNeed: 'Layer constraints are valid, no repair needed.',
   repairFailedPrefix: 'Constraint repair failed: ',

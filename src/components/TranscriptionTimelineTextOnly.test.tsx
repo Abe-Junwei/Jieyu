@@ -288,6 +288,64 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
   });
 
+  it('keeps segment unit shape for context menu when segment id collides with utterance id', () => {
+    const layer = {
+      ...makeLayer('trc-seg-only'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const handleAnnotationContextMenu = vi.fn();
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        utterancesOnCurrentMedia={[
+          makeUtterance('seg-1', 'spk-a'),
+          makeUtterance('utt-host', 'spk-b'),
+        ]}
+        segmentsByLayer={new Map([
+          [layer.id, [{
+            id: 'seg-1',
+            textId: 't1',
+            mediaId: 'm1',
+            layerId: layer.id,
+            utteranceId: 'utt-host',
+            startTime: 4,
+            endTime: 6,
+            createdAt: NOW,
+            updatedAt: NOW,
+          }]],
+        ])}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        handleAnnotationContextMenu={handleAnnotationContextMenu}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getAllByRole('textbox')[0];
+    fireEvent.contextMenu(input as HTMLElement);
+
+    expect(handleAnnotationContextMenu).toHaveBeenCalledWith(
+      'seg-1',
+      expect.objectContaining({ id: 'seg-1', kind: 'segment', parentUtteranceId: 'utt-host' }),
+      layer.id,
+      expect.any(Object),
+    );
+  });
+
   it('renders dependent translation rows from the parent transcription segments', () => {
     const parentLayer = {
       ...makeLayer('trc-parent'),

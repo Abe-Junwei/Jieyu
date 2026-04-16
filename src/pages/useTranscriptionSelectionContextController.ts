@@ -3,13 +3,14 @@ import type { LayerDocType, LayerSegmentDocType, MediaItemDocType, UtteranceDocT
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import {
+  collectNoteTimelineUnitIds,
+  resolveSelectedTimelineMedia,
+  resolveSelectedTimelineRowMeta,
+  type SelectedTimelineRowMeta,
+} from './transcriptionSelectionContextResolver';
 import { resolveNextUtteranceIdForDictation } from './voiceDictationFlow';
-
-interface SelectedTimelineRowMeta {
-  rowNumber: number;
-  start: number;
-  end: number;
-}
+import { resolveSegmentOwnerUtterance } from './transcriptionSelectionOwnerResolver';
 
 interface UseTranscriptionSelectionContextControllerInput {
   layers: LayerDocType[];
@@ -60,54 +61,23 @@ export function useTranscriptionSelectionContextController(
     if (input.selectedUnit) return input.selectedUnit;
     if (!selectedTimelineSegment) return null;
 
-    const explicitOwnerId = selectedTimelineSegment.utteranceId?.trim();
-    if (explicitOwnerId) {
-      return input.utterances.find((item) => item.id === explicitOwnerId) ?? null;
-    }
-
-    return input.utterances.find((item) => {
-      if (selectedTimelineSegment.mediaId && item.mediaId !== selectedTimelineSegment.mediaId) {
-        return false;
-      }
-      return item.startTime <= selectedTimelineSegment.endTime - 0.01
-        && item.endTime >= selectedTimelineSegment.startTime + 0.01;
-    }) ?? null;
+    return resolveSegmentOwnerUtterance(selectedTimelineSegment, input.utterances) ?? null;
   }, [input.selectedUnit, input.utterances, selectedTimelineSegment]);
 
-  const selectedTimelineMedia = useMemo(() => {
-    if (input.selectedUnitMedia) return input.selectedUnitMedia;
-    const mediaId = selectedTimelineSegment?.mediaId ?? selectedTimelineOwnerUnit?.mediaId ?? '';
-    return mediaId ? mediaItemById.get(mediaId) : undefined;
-  }, [input.selectedUnitMedia, mediaItemById, selectedTimelineOwnerUnit?.mediaId, selectedTimelineSegment?.mediaId]);
+  const selectedTimelineMedia = useMemo(() => resolveSelectedTimelineMedia(
+    input.selectedUnitMedia,
+    mediaItemById,
+    selectedTimelineSegment,
+    selectedTimelineOwnerUnit,
+  ), [input.selectedUnitMedia, mediaItemById, selectedTimelineOwnerUnit, selectedTimelineSegment]);
 
   const selectedTimelineUnitForTime = selectedTimelineSegment ?? selectedTimelineOwnerUnit ?? null;
 
-  const selectedTimelineRowMeta = useMemo<SelectedTimelineRowMeta | null>(() => {
-    if (!selectedTimelineOwnerUnit) return null;
-
-    const rowIndex = input.utterancesOnCurrentMedia.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
-    if (rowIndex >= 0) {
-      const row = input.utterancesOnCurrentMedia[rowIndex];
-      if (!row) return null;
-      return {
-        rowNumber: rowIndex + 1,
-        start: row.startTime,
-        end: row.endTime,
-      };
-    }
-
-    const sameMediaRows = [...input.utterances]
-      .filter((item) => item.mediaId === selectedTimelineOwnerUnit.mediaId)
-      .sort((a, b) => a.startTime - b.startTime);
-    const fallbackIndex = sameMediaRows.findIndex((item) => item.id === selectedTimelineOwnerUnit.id);
-    const fallbackRow = fallbackIndex >= 0 ? sameMediaRows[fallbackIndex] : undefined;
-    if (!fallbackRow) return null;
-    return {
-      rowNumber: fallbackIndex + 1,
-      start: fallbackRow.startTime,
-      end: fallbackRow.endTime,
-    };
-  }, [input.utterances, input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit]);
+  const selectedTimelineRowMeta = useMemo<SelectedTimelineRowMeta | null>(() => resolveSelectedTimelineRowMeta(
+    input.utterancesOnCurrentMedia,
+    selectedTimelineOwnerUnit,
+    input.utterances,
+  ), [input.utterances, input.utterancesOnCurrentMedia, selectedTimelineOwnerUnit]);
 
   const nextUtteranceIdForVoiceDictation = useMemo(() => resolveNextUtteranceIdForDictation({
     utteranceIdsOnCurrentMedia: input.utterancesOnCurrentMedia.map((item) => item.id),
@@ -118,18 +88,10 @@ export function useTranscriptionSelectionContextController(
     input.layers.filter((layer) => layerUsesOwnSegments(layer, input.defaultTranscriptionLayerId)).map((layer) => layer.id),
   ), [input.defaultTranscriptionLayerId, input.layers]);
 
-  const noteTimelineUnitIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const utterance of input.utterances) {
-      ids.add(utterance.id);
-    }
-    for (const segments of input.segmentsByLayer.values()) {
-      for (const segment of segments) {
-        ids.add(segment.id);
-      }
-    }
-    return [...ids];
-  }, [input.segmentsByLayer, input.utterances]);
+  const noteTimelineUnitIds = useMemo(
+    () => collectNoteTimelineUnitIds(input.utterances, input.segmentsByLayer),
+    [input.segmentsByLayer, input.utterances],
+  );
 
   const segmentTimelineLayerIds = useMemo(() => new Set(
     input.layers

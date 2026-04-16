@@ -18,10 +18,12 @@ function createEmptySpeakerLayerLayout(): SpeakerLayerLayoutResult {
 }
 
 function createEmptyTimelineUnitViewIndex(): TimelineUnitViewIndex {
+  const byId = new Map();
   return {
     allUnits: [],
     currentMediaUnits: [],
-    byId: new Map(),
+    byId,
+    resolveBySemanticId: (id: string) => byId.get(id),
     byLayer: new Map(),
     getReferringUnits: () => [],
     totalCount: 0,

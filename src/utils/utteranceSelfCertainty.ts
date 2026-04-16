@@ -45,18 +45,42 @@ export function resolveSelfCertaintyHostUtteranceId(
     ? [sameMediaUtterances, mediaAgnosticUtterances, utterances]
     : [utterances];
 
+  const segmentCenter = (options.startTime + options.endTime) / 2;
   for (const candidates of candidateGroups) {
-    const containing = candidates.find(
-      (utt) => utt.startTime <= options.startTime! + 0.01 && utt.endTime >= options.endTime! - 0.01,
-    );
-    if (containing) return containing.id;
+    let bestContaining: { id: string; span: number; centerDistance: number } | null = null;
+    for (const utt of candidates) {
+      const contains = utt.startTime <= options.startTime + 0.01 && utt.endTime >= options.endTime - 0.01;
+      if (!contains) continue;
+      const span = utt.endTime - utt.startTime;
+      const centerDistance = Math.abs(((utt.startTime + utt.endTime) / 2) - segmentCenter);
+      if (
+        !bestContaining
+        || span < bestContaining.span
+        || (span === bestContaining.span && centerDistance < bestContaining.centerDistance)
+      ) {
+        bestContaining = { id: utt.id, span, centerDistance };
+      }
+    }
+    if (bestContaining) return bestContaining.id;
   }
 
   for (const candidates of candidateGroups) {
-    const overlapping = candidates.find(
-      (utt) => utt.startTime <= options.endTime! - 0.01 && utt.endTime >= options.startTime! + 0.01,
-    );
-    if (overlapping) return overlapping.id;
+    let bestOverlap: { id: string; overlap: number; centerDistance: number } | null = null;
+    for (const utt of candidates) {
+      if (utt.startTime > options.endTime - 0.01 || utt.endTime < options.startTime + 0.01) continue;
+      const overlapStart = Math.max(options.startTime, utt.startTime);
+      const overlapEnd = Math.min(options.endTime, utt.endTime);
+      const overlap = Math.max(0, overlapEnd - overlapStart);
+      const centerDistance = Math.abs(((utt.startTime + utt.endTime) / 2) - segmentCenter);
+      if (
+        !bestOverlap
+        || overlap > bestOverlap.overlap
+        || (overlap === bestOverlap.overlap && centerDistance < bestOverlap.centerDistance)
+      ) {
+        bestOverlap = { id: utt.id, overlap, centerDistance };
+      }
+    }
+    if (bestOverlap) return bestOverlap.id;
   }
   return undefined;
 }
@@ -88,6 +112,62 @@ export function resolveSelfCertaintyHostUtteranceIds(
     if (resolved) out.add(resolved);
   }
   return [...out];
+}
+
+type ResolveTimelineRowSelfCertaintyInput = {
+  unitId: string;
+  startTime: number;
+  endTime: number;
+  isSegmentRow: boolean;
+  parentUtteranceId?: string | undefined;
+  mediaId?: string | undefined;
+  directSelfCertainty?: UtteranceSelfCertainty | undefined;
+  utterances: ReadonlyArray<{ id: string; startTime: number; endTime: number; mediaId?: string | undefined }>;
+  selfCertaintyByUtteranceId: ReadonlyMap<string, UtteranceSelfCertainty>;
+};
+
+type ResolveTimelineRowSelfCertaintyResult = {
+  selfCertainty: UtteranceSelfCertainty | undefined;
+  hostUtteranceId: string | undefined;
+};
+
+export function resolveTimelineRowSelfCertainty(
+  input: ResolveTimelineRowSelfCertaintyInput,
+): ResolveTimelineRowSelfCertaintyResult {
+  if (!input.isSegmentRow) {
+    const direct = input.directSelfCertainty;
+    if (direct) {
+      return {
+        selfCertainty: direct,
+        hostUtteranceId: input.unitId.trim() || undefined,
+      };
+    }
+    const byId = input.selfCertaintyByUtteranceId.get(input.unitId);
+    return {
+      selfCertainty: byId,
+      hostUtteranceId: byId ? input.unitId.trim() || undefined : undefined,
+    };
+  }
+
+  const hostUtteranceId = resolveSelfCertaintyHostUtteranceId(input.unitId, input.utterances, {
+    ...(input.parentUtteranceId ? { parentUtteranceId: input.parentUtteranceId } : {}),
+    ...((input.mediaId?.trim() ?? '').length > 0 ? { mediaId: input.mediaId } : {}),
+    startTime: input.startTime,
+    endTime: input.endTime,
+  });
+
+  if (input.directSelfCertainty) {
+    const hostFromParent = input.parentUtteranceId?.trim();
+    return {
+      selfCertainty: hostUtteranceId ? input.selfCertaintyByUtteranceId.get(hostUtteranceId) ?? input.directSelfCertainty : input.directSelfCertainty,
+      hostUtteranceId: hostUtteranceId ?? (hostFromParent || undefined),
+    };
+  }
+
+  return {
+    selfCertainty: hostUtteranceId ? input.selfCertaintyByUtteranceId.get(hostUtteranceId) : undefined,
+    hostUtteranceId,
+  };
 }
 
 export function mergeUtteranceSelfCertaintyConservative(

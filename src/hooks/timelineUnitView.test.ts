@@ -135,7 +135,8 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.allUnits).toHaveLength(1);
     expect(index.allUnits[0]!.id).toBe('s1');
     expect(index.allUnits[0]!.kind).toBe('segment');
-    expect(index.byId.get('u1')?.id).toBe('s1');
+    expect(index.byId.get('u1')).toBeUndefined();
+    expect(index.resolveBySemanticId('u1')?.id).toBe('s1');
     expect(index.getReferringUnits('u1').map((unit) => unit.id)).toEqual(['s1']);
   });
 

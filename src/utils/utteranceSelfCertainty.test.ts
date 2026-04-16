@@ -3,6 +3,7 @@ import {
   mergeUtteranceSelfCertaintyConservative,
   resolveSelfCertaintyHostUtteranceId,
   resolveSelfCertaintyHostUtteranceIds,
+  resolveTimelineRowSelfCertainty,
 } from './utteranceSelfCertainty';
 
 describe('mergeUtteranceSelfCertaintyConservative', () => {
@@ -62,5 +63,56 @@ describe('mergeUtteranceSelfCertaintyConservative', () => {
       { mediaId: 'media-a', startTime: 1.2, endTime: 1.8 },
     );
     expect(resolved).toBe('utt-same-media');
+  });
+
+  it('resolves segment row certainty by parent host id', () => {
+    const result = resolveTimelineRowSelfCertainty({
+      unitId: 'seg-1',
+      startTime: 1.1,
+      endTime: 1.9,
+      isSegmentRow: true,
+      parentUtteranceId: 'utt-parent',
+      utterances: [{ id: 'utt-parent', startTime: 1, endTime: 2 }],
+      selfCertaintyByUtteranceId: new Map([['utt-parent', 'not_understood']]),
+    });
+    expect(result).toEqual({ selfCertainty: 'not_understood', hostUtteranceId: 'utt-parent' });
+  });
+
+  it('picks the best overlap host instead of first overlap candidate', () => {
+    const resolved = resolveSelfCertaintyHostUtteranceId(
+      'seg-overlap',
+      [
+        { id: 'utt-small-overlap', startTime: 0.8, endTime: 1.12 },
+        { id: 'utt-large-overlap', startTime: 1.05, endTime: 1.9 },
+      ],
+      { startTime: 1.1, endTime: 1.7 },
+    );
+    expect(resolved).toBe('utt-large-overlap');
+  });
+
+  it('falls back to direct certainty for segment rows when host certainty is missing', () => {
+    const result = resolveTimelineRowSelfCertainty({
+      unitId: 'seg-direct',
+      startTime: 2,
+      endTime: 2.5,
+      isSegmentRow: true,
+      directSelfCertainty: 'uncertain',
+      utterances: [],
+      selfCertaintyByUtteranceId: new Map(),
+    });
+    expect(result).toEqual({ selfCertainty: 'uncertain', hostUtteranceId: undefined });
+  });
+
+  it('prioritizes direct utterance certainty over map value on non-segment rows', () => {
+    const result = resolveTimelineRowSelfCertainty({
+      unitId: 'utt-1',
+      startTime: 1,
+      endTime: 2,
+      isSegmentRow: false,
+      directSelfCertainty: 'certain',
+      utterances: [{ id: 'utt-1', startTime: 1, endTime: 2 }],
+      selfCertaintyByUtteranceId: new Map([['utt-1', 'uncertain']]),
+    });
+    expect(result).toEqual({ selfCertainty: 'certain', hostUtteranceId: 'utt-1' });
   });
 });

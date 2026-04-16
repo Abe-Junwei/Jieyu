@@ -13,7 +13,7 @@ import { NotePopover } from './NotePopover';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
 import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy, type LocalFontEntry } from '../utils/layerDisplayStyle';
 
-interface TranscriptionOverlaysProps {
+export interface TranscriptionOverlaysProps {
   ctxMenu: { x: number; y: number; unitId: string; layerId: string; unitKind: TimelineUnitKind; splitTime: number; source?: 'timeline' | 'waveform' } | null;
   onCloseCtxMenu: () => void;
   uttOpsMenu: { x: number; y: number } | null;
@@ -43,7 +43,7 @@ interface TranscriptionOverlaysProps {
   deleteNote: (id: string) => Promise<void>;
   utterances: UtteranceDocType[];
   /** 将右键 target id（含指代型 segment id）解析为可持久化 selfCertainty 的 utterance id */
-  resolveSelfCertaintyUtteranceIds?: (unitIds: readonly string[]) => string[];
+  resolveSelfCertaintyUtteranceIds?: (unitIds: readonly string[], layerId?: string) => string[];
   getUtteranceTextForLayer: (utt: UtteranceDocType, layerId?: string) => string;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
@@ -55,7 +55,9 @@ interface TranscriptionOverlaysProps {
     unitIds: Iterable<string>,
     kind: TimelineUnitKind,
     value: UtteranceSelfCertainty | undefined,
+    layerId?: string,
   ) => void;
+  onOpenLayerMetadataPanelFromMenu?: (layerId: string) => void;
   onOpenSpeakerManagementPanelFromMenu?: () => void;
   /** 层显示样式控制 | Layer display style control for context menu */
   displayStyleControl?: {
@@ -110,6 +112,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
     speakerFilterOptions = [],
     onAssignSpeakerFromMenu = () => {},
     onSetUtteranceSelfCertaintyFromMenu,
+    onOpenLayerMetadataPanelFromMenu = () => {},
     onOpenSpeakerManagementPanelFromMenu = () => {},
     displayStyleControl,
   } = props;
@@ -223,19 +226,19 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
                 children: [
                   {
                     label: t(locale, 'transcription.utterance.selfCertainty.certain'),
-                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'certain'); },
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'certain', ctxMenu.layerId); },
                   },
                   {
                     label: t(locale, 'transcription.utterance.selfCertainty.uncertain'),
-                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'uncertain'); },
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'uncertain', ctxMenu.layerId); },
                   },
                   {
                     label: t(locale, 'transcription.utterance.selfCertainty.not_understood'),
-                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'not_understood'); },
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, 'not_understood', ctxMenu.layerId); },
                   },
                   {
                     label: t(locale, 'transcription.utterance.selfCertainty.clear'),
-                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, undefined); },
+                    onClick: () => { setSelfCertaintyFromMenu(scIds, targetKind, undefined, ctxMenu.layerId); },
                   },
                 ],
               });
@@ -270,6 +273,19 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
               items.push({
                 label: messages.speakerManagement,
                 children: speakerManageItems,
+              });
+            }
+
+            const contextLayer = allTextLayers.find((layer) => layer.id === ctxMenu.layerId);
+            if (contextLayer) {
+              items.push({
+                label: contextLayer.layerType === 'translation'
+                  ? messages.editTranslationLayerMetadata
+                  : messages.editTranscriptionLayerMetadata,
+                separatorBefore: true,
+                onClick: () => {
+                  onOpenLayerMetadataPanelFromMenu(contextLayer.id);
+                },
               });
             }
 

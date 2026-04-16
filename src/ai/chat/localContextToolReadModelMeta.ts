@@ -8,6 +8,7 @@ export function buildLocalToolReadModelMeta(context: AiPromptContext): AiLocalTo
     ...(typeof epoch === 'number' && Number.isFinite(epoch) ? { timelineReadModelEpoch: epoch } : {}),
     unitIndexComplete: context.shortTerm?.unitIndexComplete !== false,
     capturedAtMs: Date.now(),
+    source: 'timeline_index',
     ...(indexRowCount !== undefined ? { indexRowCount } : {}),
   };
 }

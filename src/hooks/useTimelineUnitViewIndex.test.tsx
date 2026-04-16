@@ -24,6 +24,7 @@ describe('useTimelineUnitViewIndex', () => {
       allUnits: [],
       currentMediaUnits: [],
       byId: new Map(),
+      resolveBySemanticId: () => undefined,
       byLayer: new Map(),
       getReferringUnits: () => [],
       totalCount: 0,

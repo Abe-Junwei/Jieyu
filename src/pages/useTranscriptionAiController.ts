@@ -9,7 +9,6 @@ import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import { createDeferredEmbeddingSearchService } from '../ai/embeddings/DeferredEmbeddingSearchService';
 import { listRecentAiToolDecisionLogs } from '../ai/auditReplay';
 import { buildTranscriptionAiPromptContext } from './TranscriptionPage.aiPromptContext';
-import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
 import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -21,6 +20,11 @@ import { vadCache } from '../services/vad/VadCacheService';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { UtteranceDocType } from '../db';
+import {
+  buildOwnerUtteranceCandidates,
+  resolveOwnerUtteranceForAi,
+  resolveSelectedAiSegmentTargetId,
+} from './transcriptionAiSelectionResolver';
 import type {
   UseTranscriptionAiControllerInput,
   UseTranscriptionAiControllerResult,
@@ -69,15 +73,22 @@ export function useTranscriptionAiController(
     () => createDeferredEmbeddingSearchService(() => embeddingProviderConfig),
     [embeddingProviderConfig],
   );
-  const resolvedOwnerUtteranceForAi = useMemo(
-    () => utteranceDocForSpeakerTargetFromUnitView(input.selectionSnapshot.selectedUnit, input.getUtteranceDocById),
-    [input.getUtteranceDocById, input.selectionSnapshot.selectedUnit],
-  );
+  const effectiveUnitIndex = input.timelineUnitViewIndex;
+  const ownerUtteranceCandidatesForAi = useMemo(() => buildOwnerUtteranceCandidates(
+    effectiveUnitIndex.allUnits,
+    input.getUtteranceDocById,
+    toSyntheticUtterance,
+  ), [effectiveUnitIndex.allUnits, input.getUtteranceDocById, toSyntheticUtterance]);
+  const resolvedOwnerUtteranceForAi = useMemo(() => resolveOwnerUtteranceForAi({
+    selectedUnit: input.selectionSnapshot.selectedUnit,
+    getUtteranceDocById: input.getUtteranceDocById,
+    selectedTimelineSegment: input.selectedTimelineSegment,
+    ownerCandidates: ownerUtteranceCandidatesForAi,
+  }), [input.getUtteranceDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUtteranceCandidatesForAi]);
   const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; requestId?: string; timestamp: string }>>([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
-  const effectiveUnitIndex = input.timelineUnitViewIndex;
   const allUnitsAsUtterances = useMemo(
     () => effectiveUnitIndex.allUnits.map((unit) => toSyntheticUtterance(unit)),
     [effectiveUnitIndex.allUnits, toSyntheticUtterance],
@@ -90,7 +101,7 @@ export function useTranscriptionAiController(
     const selectedUnits = new Map<string, (typeof effectiveUnitIndex.currentMediaUnits)[number]>();
     const selectedMediaId = input.selectedTimelineMedia?.id;
     for (const selectedId of input.selectedUnitIds) {
-      const directHit = effectiveUnitIndex.byId.get(selectedId);
+      const directHit = effectiveUnitIndex.resolveBySemanticId(selectedId);
       if (directHit && (!selectedMediaId || directHit.mediaId === selectedMediaId)) {
         selectedUnits.set(directHit.id, directHit);
       }
@@ -158,9 +169,12 @@ export function useTranscriptionAiController(
     ...(input.resolveSegmentRoutingForLayer !== undefined ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
     getUtteranceTextForLayer,
   });
-  const selectedSegmentTargetId = input.selectionSnapshot.selectedUnitKind === 'segment'
-    ? (input.selectedTimelineSegment?.id ?? input.selectionSnapshot.timelineUnit?.unitId ?? undefined)
-    : resolvedOwnerUtteranceForAi?.id ?? undefined;
+  const selectedSegmentTargetId = resolveSelectedAiSegmentTargetId({
+    selectedUnitKind: input.selectionSnapshot.selectedUnitKind,
+    selectedTimelineSegmentId: input.selectedTimelineSegment?.id,
+    snapshotTimelineUnitId: input.selectionSnapshot.timelineUnit?.unitId,
+    resolvedOwnerUtteranceId: resolvedOwnerUtteranceForAi?.id,
+  });
 
   const materializeAiToolCall = useCallback((call: Parameters<typeof materializePendingToolCallTargets>[0]) => materializePendingToolCallTargets(call, {
     utterances: segmentTargetScopeUtterances,

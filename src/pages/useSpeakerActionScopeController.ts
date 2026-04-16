@@ -21,6 +21,7 @@ interface UseSpeakerActionScopeControllerInput {
   /** Unified current-media rows (same ordering as timeline digest). */
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
   getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
   segmentsByLayer: ReadonlyMap<string, LayerSegmentDocType[]>;
   speakers: SpeakerDocType[];
@@ -51,6 +52,7 @@ interface UseSpeakerActionScopeControllerResult {
 export function useSpeakerActionScopeController({
   unitsOnCurrentMedia,
   unitViewById,
+  resolveUnitViewById,
   getUtteranceDocById,
   segmentsByLayer,
   speakers,
@@ -213,8 +215,8 @@ export function useSpeakerActionScopeController({
   }, [fallbackUtteranceLayerId, segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions, utteranceDocByIdOnCurrentMedia]);
 
   const resolveSpeakerActionUtteranceIds = useCallback((ids: Iterable<string>) => {
-    return resolveMappedUnitIds(ids, unitViewById);
-  }, [unitViewById]);
+    return resolveMappedUnitIds(ids, unitViewById, resolveUnitViewById);
+  }, [resolveUnitViewById, unitViewById]);
 
   const selectedSpeakerUnitIdsForActionsSet = useMemo(
     () => new Set(selectedUnitIdsForSpeakerActions),

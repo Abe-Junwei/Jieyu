@@ -14,7 +14,12 @@ import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
 import { ModalPanel, PanelButton, PanelSection, PanelSummary } from './ui';
 
-type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
+type LayerActionType =
+  | 'create-transcription'
+  | 'create-translation'
+  | 'edit-transcription-metadata'
+  | 'edit-translation-metadata'
+  | 'delete';
 
 interface TimelineLaneHeaderProps {
   layer: LayerDocType;
@@ -264,6 +269,14 @@ export function TimelineLaneHeader({
   ];
 
   const layerOperationMenuItems: ContextMenuItem[] = [
+    {
+      label: layer.layerType === 'translation'
+        ? decodeEscapedUnicode('\u7f16\u8f91\u7ffb\u8bd1\u5c42\u5143\u4fe1\u606f')
+        : decodeEscapedUnicode('\u7f16\u8f91\u8f6c\u5199\u5c42\u5143\u4fe1\u606f'),
+      onClick: () => {
+        onLayerAction(layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata', layer.id);
+      },
+    },
     {
       label: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
       onClick: () => {

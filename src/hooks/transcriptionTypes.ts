@@ -5,8 +5,10 @@ export type DbState =
   | {
       phase: 'ready';
       dbName: string;
-      /** Mirrors unified timeline unit count — kept in sync after edits via useTranscriptionData */
+      /** Mirrors utterance row count — kept in sync after edits via useTranscriptionData */
       unitCount: number;
+      /** Unified timeline semantic unit count (utterance + de-duplicated segment semantic ids). */
+      unifiedUnitCount?: number;
       /** Mirrors translation layers only (`layerType === 'translation'`), synced with live `layers` */
       translationLayerCount: number;
       /** Mirrors `translations.length` (segmentation utterance texts) */
@@ -81,6 +83,8 @@ import type { LayerConstraint } from '../db';
 
 export type LayerCreateInput = {
   languageId: string;
+  dialect?: string | undefined;
+  vernacular?: string | undefined;
   orthographyId?: string | undefined;
   alias?: string | undefined;
   textId?: string | undefined;

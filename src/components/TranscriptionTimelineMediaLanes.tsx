@@ -119,7 +119,7 @@ type TranscriptionTimelineMediaLanesProps = {
   selectedTimelineUnit?: TimelineUnit | null;
   defaultTranscriptionLayerId: string | undefined;
   renderAnnotationItem: (
-    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
+    utt: TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -188,7 +188,12 @@ type TranscriptionTimelineMediaLanesProps = {
   };
 };
 
-type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
+type LayerActionType =
+  | 'create-transcription'
+  | 'create-translation'
+  | 'edit-transcription-metadata'
+  | 'edit-translation-metadata'
+  | 'delete';
 
 export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimelineMediaLanes({
   playerDuration,
@@ -426,6 +431,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     saveUtteranceText,
     saveTextTranslationForUtterance,
     createLayer,
+    updateLayerMetadata,
     deleteLayer,
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
@@ -629,6 +635,9 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           timelineRenderUtterances,
           defaultTranscriptionLayerId,
         );
+        const iterationUnits: TimelineUnitView[] = usesOwnSegments
+          ? iterationSource.map((item) => segmentToView(item as LayerSegmentDocType, () => ''))
+          : iterationSource.map((item) => utteranceToView(item as UtteranceDocType, layer.id));
         return (
         <TimelineStyledContainer
           key={`tl-${layer.id}`}
@@ -655,7 +664,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
-          {!isCollapsed && iterationSource.map((item) => {
+          {!isCollapsed && iterationUnits.map((item) => {
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
@@ -673,6 +682,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
                 layerForDisplay={layerForDisplay}
                 baseLaneHeight={baseLaneHeight}
                 usesOwnSegments={usesOwnSegments}
+                utteranceById={utteranceById}
                 text={text}
                 draft={draft}
                 draftKey={draftKey}
@@ -710,6 +720,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}
+          {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
           checkLayerHasContent={checkLayerHasContent}

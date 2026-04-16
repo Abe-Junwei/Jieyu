@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { db as dexieDb } from '../db';
 import type { UserNoteDocType, NoteTargetType, NoteCategory, MultiLangString } from '../db';
 import { createLogger } from '../observability/logger';
+import { SegmentMetaService } from '../services/SegmentMetaService';
 import { newId } from '../utils/transcriptionFormatters';
 import { normalizeUserNoteDocForStorage } from '../utils/camDataUtils';
 
@@ -126,6 +127,12 @@ export function useNotes(target: NoteTarget | null) {
         updatedAt: now,
       };
       await dexieDb.user_notes.put(normalizeUserNoteDocForStorage(doc));
+      void SegmentMetaService.syncForUnitIds([
+        resolvedTarget.targetId,
+        ...(resolvedTarget.parentTargetId ? [resolvedTarget.parentTargetId] : []),
+      ]).catch(() => {
+        // SegmentMeta 为统一读模型，笔记同步失败不应阻塞主流程 | SegmentMeta is a shared read model; note-sync failures must not block the primary flow.
+      });
       await fetchNotes();
       setVersion(v => v + 1);
     },
@@ -135,6 +142,15 @@ export function useNotes(target: NoteTarget | null) {
   const updateNote = useCallback(
     async (id: string, updates: { content?: MultiLangString; category?: NoteCategory }) => {
       await dexieDb.user_notes.update(id, { ...updates, updatedAt: new Date().toISOString() });
+      if (target) {
+        const resolvedTarget = await resolveCanonicalTarget(target);
+        void SegmentMetaService.syncForUnitIds([
+          resolvedTarget.targetId,
+          ...(resolvedTarget.parentTargetId ? [resolvedTarget.parentTargetId] : []),
+        ]).catch(() => {
+          // SegmentMeta 为统一读模型，笔记同步失败不应阻塞主流程 | SegmentMeta is a shared read model; note-sync failures must not block the primary flow.
+        });
+      }
       await fetchNotes();
       setVersion(v => v + 1);
     },
@@ -144,6 +160,15 @@ export function useNotes(target: NoteTarget | null) {
   const deleteNote = useCallback(
     async (id: string) => {
       await dexieDb.user_notes.delete(id);
+      if (target) {
+        const resolvedTarget = await resolveCanonicalTarget(target);
+        void SegmentMetaService.syncForUnitIds([
+          resolvedTarget.targetId,
+          ...(resolvedTarget.parentTargetId ? [resolvedTarget.parentTargetId] : []),
+        ]).catch(() => {
+          // SegmentMeta 为统一读模型，笔记同步失败不应阻塞主流程 | SegmentMeta is a shared read model; note-sync failures must not block the primary flow.
+        });
+      }
       await fetchNotes();
       setVersion(v => v + 1);
     },

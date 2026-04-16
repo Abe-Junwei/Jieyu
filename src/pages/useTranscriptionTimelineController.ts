@@ -40,6 +40,7 @@ interface UseTranscriptionTimelineControllerInput {
     input: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
+  updateLayerMetadata?: TranscriptionEditorContextValue['updateLayerMetadata'];
   deleteLayer: TranscriptionEditorContextValue['deleteLayer'];
   deleteLayerWithoutConfirm: TranscriptionEditorContextValue['deleteLayerWithoutConfirm'];
   checkLayerHasContent: TranscriptionEditorContextValue['checkLayerHasContent'];
@@ -147,6 +148,7 @@ export function useTranscriptionTimelineController(
     getUtteranceTextForLayer: input.getUtteranceTextForLayer,
     renderLaneLabel: input.renderLaneLabel,
     createLayer: input.createLayer,
+    ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
     deleteLayer: input.deleteLayer,
     deleteLayerWithoutConfirm: input.deleteLayerWithoutConfirm,
     checkLayerHasContent: input.checkLayerHasContent,
@@ -159,6 +161,7 @@ export function useTranscriptionTimelineController(
     input.focusedTranslationDraftKeyRef,
     input.getUtteranceTextForLayer,
     input.renderLaneLabel,
+    input.updateLayerMetadata,
     input.saveTextTranslationForUtterance,
     input.saveUtteranceText,
     input.scheduleAutoSave,

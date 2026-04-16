@@ -411,6 +411,8 @@ export interface AiLocalToolReadModelMeta {
   capturedAtMs: number;
   /** `localUnitIndex` row count when present (may differ from `projectStats.unitCount`). */
   indexRowCount?: number;
+  /** Tool payload来源，便于解释查询是否命中了统一读模型。 */
+  source?: 'timeline_index' | 'segment_meta' | 'scope_stats_snapshot' | 'segment_quality_snapshot' | 'hybrid';
 }
 
 export interface AiContextDebugSnapshot {

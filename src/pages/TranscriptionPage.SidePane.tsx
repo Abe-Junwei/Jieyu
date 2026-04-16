@@ -2,10 +2,10 @@ import type { ComponentProps } from 'react';
 import { SidePaneSidebar } from '../components/SidePaneSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
 
-type SidePaneSidebarProps = ComponentProps<typeof SidePaneSidebar>;
-type SpeakerManagement = ComponentProps<typeof SpeakerRailProvider>['speakerManagement'];
+export type SidePaneSidebarProps = ComponentProps<typeof SidePaneSidebar>;
+export type SpeakerManagement = ComponentProps<typeof SpeakerRailProvider>['speakerManagement'];
 
-interface TranscriptionPageSidePaneProps {
+export interface TranscriptionPageSidePaneProps {
   speakerManagement: SpeakerManagement;
   selectedUnitIds: Set<string>;
   handleAssignSpeakerToSelectedRouted: () => Promise<void>;

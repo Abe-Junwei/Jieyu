@@ -136,7 +136,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     const certainOptions = await screen.findAllByRole('menuitem', { name: /^确定$/ });
     fireEvent.click(certainOptions[certainOptions.length - 1]!);
 
-    expect(props.onSetUtteranceSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_shadow_only'], 'utterance', 'certain');
+    expect(props.onSetUtteranceSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_shadow_only'], 'utterance', 'certain', 'layer_default');
   });
 
   it('opens utt ops menu with selectedTimelineUnit and deletes the segment target', async () => {

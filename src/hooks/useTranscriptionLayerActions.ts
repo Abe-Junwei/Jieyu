@@ -194,6 +194,8 @@ export function useTranscriptionLayerActions({
     modality?: 'text' | 'audio' | 'mixed',
   ): Promise<boolean> => {
     const languageId = input.languageId.trim();
+    const dialect = (input.dialect ?? '').trim();
+    const vernacular = (input.vernacular ?? '').trim();
     const orthographyId = input.orthographyId?.trim();
     const alias = (input.alias ?? '').trim();
     const requestedParentLayerId = input.parentLayerId?.trim();
@@ -269,6 +271,8 @@ export function useTranscriptionLayerActions({
         },
         layerType,
         languageId,
+        ...(dialect ? { dialect } : {}),
+        ...(vernacular ? { vernacular } : {}),
         ...(orthographyId ? { orthographyId } : {}),
         modality: effectiveModality,
         acceptsAudio: effectiveModality !== 'text',

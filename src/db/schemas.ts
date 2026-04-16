@@ -15,7 +15,10 @@ import type {
   LayerDocType, LayerUnitDocType, LayerUnitContentDocType,
   UnitRelationDocType, LayerLinkDocType,
   TierDefinitionDocType, TierAnnotationDocType,
-  AuditLogDocType, UserNoteDocType, TrackEntityDocType,
+  AuditLogDocType, UserNoteDocType, SegmentMetaDocType,
+  SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType,
+  SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType,
+  LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType,
 } from './types';
 
 
@@ -598,6 +601,8 @@ const translationLayerDocSchema = z.object({
   name: multiLangStringSchema,
   layerType: z.enum(['transcription', 'translation']),
   languageId: z.string().min(1),
+  dialect: z.string().min(1).optional(),
+  vernacular: z.string().min(1).optional(),
   orthographyId: z.string().min(1).optional(),
   bridgeId: z.string().min(1).optional(),
   modality: z.enum(['text', 'audio', 'mixed']),
@@ -778,6 +783,136 @@ const userNoteDocSchema = z.object({
   updatedAt: isoDateSchema,
 });
 
+const segmentMetaDocSchema = z.object({
+  id: z.string().min(1),
+  segmentId: z.string().min(1),
+  unitKind: layerUnitTypeSchema.optional(),
+  textId: z.string().min(1),
+  mediaId: z.string().min(1),
+  layerId: z.string().min(1),
+  hostUtteranceId: z.string().min(1).optional(),
+  startTime: z.number().finite(),
+  endTime: z.number().finite(),
+  text: z.string(),
+  normalizedText: z.string(),
+  hasText: z.boolean(),
+  effectiveSpeakerId: z.string().min(1).optional(),
+  effectiveSpeakerName: z.string().min(1).optional(),
+  noteCategoryKeys: z.array(noteCategorySchema).optional(),
+  effectiveSelfCertainty: z.enum(UTTERANCE_SELF_CERTAINTY_VALUES).optional(),
+  annotationStatus: layerUnitStatusSchema.optional(),
+  aiConfidence: z.number().min(0).max(1).optional(),
+  sourceType: z.enum(['human', 'ai']).optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+}).refine((doc) => doc.endTime >= doc.startTime, {
+  message: 'endTime must be >= startTime',
+  path: ['endTime'],
+});
+
+const segmentQualityIssueKeySchema = z.enum(['empty_text', 'missing_speaker', 'low_ai_confidence', 'todo_note']);
+const segmentQualitySeveritySchema = z.enum(['ok', 'warning', 'critical']);
+const scopeStatsSnapshotScopeTypeSchema = z.enum(['project', 'text', 'media', 'layer', 'speaker']);
+const translationStatusSnapshotStatusSchema = z.enum(['missing', 'draft', 'translated', 'verified']);
+
+const segmentQualitySnapshotDocSchema = z.object({
+  id: z.string().min(1),
+  segmentId: z.string().min(1),
+  textId: z.string().min(1),
+  mediaId: z.string().min(1),
+  layerId: z.string().min(1),
+  hostUtteranceId: z.string().min(1).optional(),
+  speakerId: z.string().min(1).optional(),
+  speakerName: z.string().min(1).optional(),
+  emptyText: z.boolean(),
+  missingSpeaker: z.boolean(),
+  lowAiConfidence: z.boolean(),
+  hasTodoNote: z.boolean(),
+  issueKeys: z.array(segmentQualityIssueKeySchema),
+  issueCount: z.number().int().min(0),
+  severity: segmentQualitySeveritySchema,
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const scopeStatsSnapshotDocSchema = z.object({
+  id: z.string().min(1),
+  scopeType: scopeStatsSnapshotScopeTypeSchema,
+  scopeKey: z.string().min(1),
+  textId: z.string().min(1).optional(),
+  mediaId: z.string().min(1).optional(),
+  layerId: z.string().min(1).optional(),
+  speakerId: z.string().min(1).optional(),
+  unitCount: z.number().int().min(0),
+  segmentCount: z.number().int().min(0),
+  utteranceCount: z.number().int().min(0),
+  speakerCount: z.number().int().min(0),
+  translationLayerCount: z.number().int().min(0),
+  noteFlaggedCount: z.number().int().min(0),
+  untranscribedCount: z.number().int().min(0),
+  missingSpeakerCount: z.number().int().min(0),
+  avgAiConfidence: z.number().min(0).max(1).nullable().optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const speakerProfileSnapshotDocSchema = z.object({
+  id: z.string().min(1),
+  textId: z.string().min(1),
+  speakerId: z.string().min(1),
+  speakerName: z.string().min(1).optional(),
+  unitCount: z.number().int().min(0),
+  segmentCount: z.number().int().min(0),
+  utteranceCount: z.number().int().min(0),
+  totalDurationSec: z.number().min(0),
+  noteFlaggedCount: z.number().int().min(0),
+  emptyTextCount: z.number().int().min(0),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const translationStatusSnapshotDocSchema = z.object({
+  id: z.string().min(1),
+  unitId: z.string().min(1),
+  textId: z.string().min(1),
+  mediaId: z.string().min(1),
+  layerId: z.string().min(1),
+  parentUnitId: z.string().min(1).optional(),
+  status: translationStatusSnapshotStatusSchema,
+  hasText: z.boolean(),
+  textLength: z.number().int().min(0),
+  sourceType: z.enum(['human', 'ai']).optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const languageAssetOverviewDocSchema = z.object({
+  id: z.string().min(1),
+  languageId: z.string().min(1),
+  displayName: z.string(),
+  aliasCount: z.number().int().min(0),
+  orthographyCount: z.number().int().min(0),
+  bridgeCount: z.number().int().min(0),
+  hasCustomFields: z.boolean(),
+  completenessScore: z.number().min(0).max(1),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
+
+const aiTaskSnapshotDocSchema = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
+  taskType: aiTaskTypeSchema,
+  status: aiTaskStatusSchema,
+  targetId: z.string().min(1),
+  targetType: z.string().optional(),
+  modelId: z.string().optional(),
+  hasError: z.boolean(),
+  isTerminal: z.boolean(),
+  durationMs: z.number().min(0),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+});
 
 // ── 验证函数 | Validate functions ──────────────────────────────────────────
 
@@ -919,6 +1054,34 @@ export function validateAuditLogDoc(doc: AuditLogDocType): void {
 
 export function validateUserNoteDoc(doc: UserNoteDocType): void {
   userNoteDocSchema.parse(doc);
+}
+
+export function validateSegmentMetaDoc(doc: SegmentMetaDocType): void {
+  segmentMetaDocSchema.parse(doc);
+}
+
+export function validateSegmentQualitySnapshotDoc(doc: SegmentQualitySnapshotDocType): void {
+  segmentQualitySnapshotDocSchema.parse(doc);
+}
+
+export function validateScopeStatsSnapshotDoc(doc: ScopeStatsSnapshotDocType): void {
+  scopeStatsSnapshotDocSchema.parse(doc);
+}
+
+export function validateSpeakerProfileSnapshotDoc(doc: SpeakerProfileSnapshotDocType): void {
+  speakerProfileSnapshotDocSchema.parse(doc);
+}
+
+export function validateTranslationStatusSnapshotDoc(doc: TranslationStatusSnapshotDocType): void {
+  translationStatusSnapshotDocSchema.parse(doc);
+}
+
+export function validateLanguageAssetOverviewDoc(doc: LanguageAssetOverviewDocType): void {
+  languageAssetOverviewDocSchema.parse(doc);
+}
+
+export function validateAiTaskSnapshotDoc(doc: AiTaskSnapshotDocType): void {
+  aiTaskSnapshotDocSchema.parse(doc);
 }
 
 // ─── Track entity doc (per-media track display state) ─────────────────────────

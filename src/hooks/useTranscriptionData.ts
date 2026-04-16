@@ -187,8 +187,10 @@ export function useTranscriptionData() {
     const nextTranslationRecordCount = translations.length;
     setState((prev) => {
       if (prev.phase !== 'ready') return prev;
+      const nextUnifiedUnitCount = prev.unifiedUnitCount ?? nextUnitCount;
       if (
         prev.unitCount === nextUnitCount
+        && prev.unifiedUnitCount === nextUnifiedUnitCount
         && prev.translationLayerCount === nextTranslationLayerCount
         && prev.translationRecordCount === nextTranslationRecordCount
       ) {
@@ -197,6 +199,7 @@ export function useTranscriptionData() {
       return {
         ...prev,
         unitCount: nextUnitCount,
+        unifiedUnitCount: nextUnifiedUnitCount,
         translationLayerCount: nextTranslationLayerCount,
         translationRecordCount: nextTranslationRecordCount,
       };
@@ -442,6 +445,7 @@ export function useTranscriptionData() {
 
   const stateApi = {
     state,
+    setState,
     utterances,
     anchors,
     layers,

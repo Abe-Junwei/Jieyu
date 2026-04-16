@@ -29,12 +29,13 @@ function resolveSelectionSourceUnitIds(input: SelectionMappingInput): string[] {
 export function resolveMappedUnitIds(
   unitIds: Iterable<string>,
   unitViewById: ReadonlyMap<string, TimelineUnitView>,
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined,
 ): string[] {
   const unique = new Set<string>();
   for (const rawId of unitIds) {
     const id = rawId.trim();
     if (!id) continue;
-    const resolved = resolveSpeakerTargetUtteranceIdFromUnitId(id, unitViewById);
+    const resolved = resolveSpeakerTargetUtteranceIdFromUnitId(id, unitViewById, resolveUnitViewById);
     if (!resolved) continue;
     unique.add(resolved);
   }
@@ -45,6 +46,7 @@ export function resolveMappedUnitIdsFromSelection(input: {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
 }): Set<string> {
   return resolveUnitSelectionMapping(input).mappedUnitIds;
 }
@@ -57,6 +59,7 @@ export function resolveUnitSelectionMapping(input: {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
 }): UnitSelectionMappingResult {
   const sourceUnitIds = resolveSelectionSourceUnitIds(input);
   const hasSelectionSource = sourceUnitIds.length > 0;
@@ -72,7 +75,7 @@ export function resolveUnitSelectionMapping(input: {
   let mappedSourceCount = 0;
   const mappedUnitIds = new Set<string>();
   for (const unitId of sourceUnitIds) {
-    const mappedUnitId = resolveSpeakerTargetUtteranceIdFromUnitId(unitId, input.unitViewById);
+    const mappedUnitId = resolveSpeakerTargetUtteranceIdFromUnitId(unitId, input.unitViewById, input.resolveUnitViewById);
     if (!mappedUnitId) continue;
     mappedSourceCount += 1;
     mappedUnitIds.add(mappedUnitId);

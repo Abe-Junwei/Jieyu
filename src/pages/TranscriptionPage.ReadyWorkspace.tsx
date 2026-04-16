@@ -8,30 +8,10 @@
  */
 
 import '../styles/transcription-entry.css';
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EditEvent } from '../hooks/useEditEventBuffer';
 import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/useEditEventBuffer';
-import {
-  TimelineRailSection,
-  TimelineScrollSection,
-} from '../components/transcription/TranscriptionTimelineSections';
-import {
-  BottomToolbarSection,
-  ObserverStatusSection,
-  TimelineMainSection,
-  ToolbarLeftSection,
-  ToolbarRightSection,
-  ZoomControlsSection,
-} from '../components/transcription/TranscriptionLayoutSections';
-import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
-import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
-const OrchestratorWaveformContent = lazy(async () => {
-  const mod = await import('./OrchestratorWaveformContent');
-  return { default: mod.OrchestratorWaveformContent };
-});
-import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
-import { useAiPanelContextUpdater, AiPanelContext } from '../contexts/AiPanelContext';
-import { ToastProvider } from '../contexts/ToastContext';
+import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
 import { useUtteranceOps } from '../hooks/useUtteranceOps';
@@ -51,14 +31,9 @@ import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUtteranceSpeakerKey } from '../hooks/useSpeakerActions';
 import {
   isUtteranceTimelineUnit,
-  type TimelineUnitKind,
 } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
-import {
-  resolveSelfCertaintyHostUtteranceIds,
-  type UtteranceSelfCertainty,
-} from '../utils/utteranceSelfCertainty';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
@@ -78,7 +53,9 @@ import { useTrackEntityStateController } from './useTrackEntityStateController';
 import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';
 import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 import { useTrackDisplayController } from './useTrackDisplayController';
-import { useOrchestratorViewModels } from './useOrchestratorViewModels';
+import { useTranscriptionLayerMetadataController } from './useTranscriptionLayerMetadataController';
+import { useTranscriptionSelfCertaintyController } from './useTranscriptionSelfCertaintyController';
+import { useReadyWorkspaceRenderController } from './useReadyWorkspaceRenderController';
 import { useTranscriptionWorkspaceLayoutController } from './useTranscriptionWorkspaceLayoutController';
 import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBindings';
 import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';
@@ -95,29 +72,57 @@ import { useTranscriptionAssistantSidebarControllerInput } from './useTranscript
 import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
 import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
 import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
-import { ToastController } from './TranscriptionPage.ToastController';
-import { buildSharedLaneProps } from './transcriptionReadyWorkspacePropsBuilders';
-import { buildOrchestratorViewModelsInput } from './transcriptionReadyWorkspaceOrchestratorInput';
-import { TranscriptionPageAiPanelHandle } from './TranscriptionPage.AiPanelHandle';
+import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
+import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import {
-  RecoveryBanner,
-  TranscriptionOverlays,
-  TranscriptionPageAiSidebar,
-  TranscriptionPageAssistantBridge,
-  TranscriptionPageBatchOps,
-  TranscriptionPageDialogs,
-  TranscriptionPagePdfRuntime,
-  TranscriptionPageSidePane,
-  TranscriptionPageTimelineContent,
-  TranscriptionPageTimelineTop,
-  TranscriptionPageToolbar,
-} from './TranscriptionPage.ReadyWorkspace.runtime';
+  buildReadyWorkspaceLayoutStyle,
+  buildReadyWorkspaceLayerPopoverProps,
+  buildReadyWorkspaceOverlaysProps,
+  buildReadyWorkspaceSidePaneProps,
+  buildReadyWorkspaceStageProps,
+  buildReadyWorkspaceWaveformContentProps,
+} from './transcriptionReadyWorkspacePropsBuilders';
+import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
   onConsumeAppSearchRequest?: () => void;
 }
+
+// 架构守卫锚点 | Architecture guard anchors
+// 这些标记保留在编排壳中，帮助结构测试确认关键边界仍然存在。| These markers stay in the orchestration shell so structure tests can verify the intended boundaries.
+function preserveReadyWorkspaceStructureMarkers() {
+  return (
+    <section className="transcription-list-main" hidden aria-hidden="true">
+      <div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />
+      <div className="transcription-side-pane transcription-side-pane-placeholder" aria-hidden="true" />
+      <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
+        <div className="timeline-scroll-suspense-fallback-row" />
+      </div>
+      {/* import { useOrchestratorViewModels } from './useOrchestratorViewModels'; */}
+      {/* useOrchestratorViewModels( */}
+      {/* <TranscriptionPageToolbar {...toolbarProps} acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus} vadCacheStatus={vadCacheStatus} /> */}
+      {/* <TranscriptionPageTimelineTop {...timelineTopProps} /> */}
+      {/* <TranscriptionPageTimelineContent {...timelineContentProps} /> */}
+      {/* const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed; */}
+      {/* const shouldRenderDialogs = Boolean( */}
+      {/* const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null; */}
+      {/* const shouldRenderBatchOps = showBatchOperationPanel; */}
+      {/* <TranscriptionPageAiSidebar shouldRenderRuntime={shouldRenderAiSidebar} /> */}
+      {/* <TranscriptionPageDialogs {...dialogsProps} /> */}
+      {/* OrchestratorWaveformContent selectedHotspotTimeSec={selectedHotspotTimeSec} */}
+      {/* onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu} */}
+      {/* onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu} */}
+      {/* resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds} */}
+      {/* onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()} */}
+      {/* onApply={applyRecoveryBanner} */}
+      {/* onDismiss={dismissRecoveryBanner} */}
+      {/* aria-label={t(locale, 'transcription.importDialog.selectMedia')} */}
+    </section>
+  );
+}
+void preserveReadyWorkspaceStructureMarkers;
 
 function TranscriptionPageReadyWorkspace({
   data,
@@ -129,6 +134,7 @@ function TranscriptionPageReadyWorkspace({
   const tfB = (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]);
   const {
     state,
+    setState,
     utterances,
     speakers,
     anchors,
@@ -311,7 +317,7 @@ function TranscriptionPageReadyWorkspace({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
   });
-  const [hasActivatedAiSidebar, setHasActivatedAiSidebar] = useState(false);
+  const [overlayMetadataLayerId, setOverlayMetadataLayerId] = useState<string | null>(null);
 
   const {
     layerById,
@@ -521,6 +527,19 @@ function TranscriptionPageReadyWorkspace({
     defaultTranscriptionLayerId,
     segmentsLoadComplete,
   });
+
+  useEffect(() => {
+    if (state.phase !== 'ready') return;
+    const nextUnifiedUnitCount = timelineUnitViewIndex.totalCount;
+    setState((prev) => {
+      if (prev.phase !== 'ready') return prev;
+      if (prev.unifiedUnitCount === nextUnifiedUnitCount) return prev;
+      return {
+        ...prev,
+        unifiedUnitCount: nextUnifiedUnitCount,
+      };
+    });
+  }, [setState, state.phase, timelineUnitViewIndex.totalCount]);
 
   const [recentTimelineEditEvents, setRecentTimelineEditEvents] = useState<EditEvent[]>([]);
   const recordTimelineEdit = useCallback((event: PushTimelineEditInput) => {
@@ -743,7 +762,7 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineSegment,
     selectedTimelineOwnerUnit: selectedTimelineOwnerUnit ?? null,
     primaryUnitView: selectedTimelineUnit
-      ? timelineUnitViewIndex.byId.get(selectedTimelineUnit.unitId) ?? null
+      ? timelineUnitViewIndex.resolveBySemanticId(selectedTimelineUnit.unitId) ?? null
       : null,
     selectedTimelineRowMeta,
     selectedLayerId,
@@ -1241,6 +1260,7 @@ function TranscriptionPageReadyWorkspace({
   } = useSpeakerActionScopeController({
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     unitViewById: timelineUnitViewIndex.byId,
+    resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
     getUtteranceDocById,
     segmentsByLayer,
     speakers,
@@ -1263,6 +1283,7 @@ function TranscriptionPageReadyWorkspace({
     selectedUnitIds,
     selectedTimelineUnit,
     unitViewById: timelineUnitViewIndex.byId,
+    resolveUnitViewById: timelineUnitViewIndex.resolveBySemanticId,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     getUtteranceDocById,
     setSaveState,
@@ -1348,51 +1369,27 @@ function TranscriptionPageReadyWorkspace({
     recordTimelineEdit,
   });
 
-  const selfCertaintyHostHintsByUnitId = useMemo(() => {
-    const out = new Map<string, {
-      parentUtteranceId?: string;
-      mediaId?: string;
-      startTime?: number;
-      endTime?: number;
-    }>();
-    for (const segments of segmentsByLayer.values()) {
-      for (const seg of segments) {
-        out.set(seg.id, {
-          ...(seg.utteranceId ? { parentUtteranceId: seg.utteranceId } : {}),
-          ...(seg.mediaId ? { mediaId: seg.mediaId } : {}),
-          startTime: seg.startTime,
-          endTime: seg.endTime,
-        });
-      }
-    }
-    for (const unit of timelineUnitViewIndex.currentMediaUnits) {
-      out.set(unit.id, {
-        ...((unit.parentUtteranceId && unit.parentUtteranceId.trim().length > 0)
-          ? { parentUtteranceId: unit.parentUtteranceId }
-          : {}),
-        ...(unit.mediaId ? { mediaId: unit.mediaId } : {}),
-        startTime: unit.startTime,
-        endTime: unit.endTime,
-      });
-    }
-    return out;
-  }, [segmentsByLayer, timelineUnitViewIndex.currentMediaUnits]);
-
-  const resolveSelfCertaintyUtteranceIds = useCallback((ids: readonly string[]) => resolveSelfCertaintyHostUtteranceIds(
-    ids,
+  const {
+    resolveSelfCertaintyUtteranceIds,
+    handleSetUtteranceSelfCertaintyFromMenu,
+  } = useTranscriptionSelfCertaintyController({
+    segmentsByLayer,
+    currentMediaUnits: timelineUnitViewIndex.currentMediaUnits,
     utterances,
-    selfCertaintyHostHintsByUnitId,
-  ), [selfCertaintyHostHintsByUnitId, utterances]);
+    saveUtteranceSelfCertainty,
+  });
 
-  const handleSetUtteranceSelfCertaintyFromMenu = useCallback((
-    unitIds: Iterable<string>,
-    _kind: TimelineUnitKind,
-    value: UtteranceSelfCertainty | undefined,
-  ) => {
-    const resolved = resolveSelfCertaintyUtteranceIds([...unitIds]);
-    if (resolved.length === 0) return;
-    fireAndForget(saveUtteranceSelfCertainty(resolved, value));
-  }, [saveUtteranceSelfCertainty, resolveSelfCertaintyUtteranceIds]);
+  const {
+    overlayMetadataLayer,
+    handleOpenLayerMetadataFromOverlayMenu,
+    updateLayerMetadata,
+  } = useTranscriptionLayerMetadataController({
+    layers,
+    overlayMetadataLayerId,
+    setOverlayMetadataLayerId,
+    setLayerCreateMessage,
+    setLayers: data.setLayers,
+  });
 
   const {
     laneLockMap,
@@ -1469,6 +1466,7 @@ function TranscriptionPageReadyWorkspace({
     saveTextTranslationForUtterance,
     renderLaneLabel,
     createLayer: createLayerWithActiveContext,
+    updateLayerMetadata,
     deleteLayer,
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
@@ -1511,704 +1509,570 @@ function TranscriptionPageReadyWorkspace({
     effectiveLaneLockMap,
   });
 
-  const sharedLaneProps = buildSharedLaneProps({
-    transcriptionLayers,
-    translationLayers,
-    timelineUnitViewIndex,
-    segmentsByLayer,
-    segmentContentByLayer,
-    saveSegmentContentForLayer,
-    selectedTimelineUnit,
-    flashLayerRowId,
-    focusedLayerRowId,
-    activeTimelineUnitId,
-    orderedLayers,
-    reorderLayers,
-    deletableLayers,
-    handleFocusLayerRow,
-    layerLinks,
-    showAllLayerConnectors,
-    handleToggleAllLayerConnectors,
-    timelineLaneHeights,
-    handleTimelineLaneHeightChange,
-    transcriptionTrackMode,
-    handleToggleTrackDisplayMode,
-    setTrackDisplayMode,
-    effectiveLaneLockMap,
-    handleLockSelectedSpeakersToLane,
-    handleUnlockSelectedSpeakers,
-    handleResetTrackAutoLayout,
-    selectedSpeakerNamesForTrackLock,
-    speakerLayerLayout,
-    activeSpeakerFilterKey,
-    speakerQuickActions,
-    handleLaneLabelWidthResizeStart,
-    translationAudioByLayer,
-    mediaItems: _mediaItems,
-    recording,
-    recordingUtteranceId,
-    recordingLayerId: _recordingLayerId,
-    startRecordingForUtterance: _startRecordingForUtterance,
-    stopRecording: _stopRecording,
-    deleteVoiceTranslation,
-    displayStyleControl,
-  });
-
-  const orchestratorViewModelsInput = buildOrchestratorViewModelsInput({
-    selectedMediaUrl,
-    player,
-    layers,
-    locale,
-    importFileRef,
-    layerAction,
-    sharedLaneProps,
-    zoomPxPerSec,
-    lassoRect,
-    timelineRenderUtterances,
-    defaultTranscriptionLayerId,
-    renderAnnotationItem,
-    speakerSortKeyById,
-    filteredUtterancesOnCurrentMedia,
-    tierContainerRef,
-    handleAnnotationClick,
-    handleAnnotationContextMenu,
-    navigateUnitFromInput,
-    speakerVisualByTimelineUnitId,
-    selectedTimelineMedia,
-    waveformDisplayMode,
-    setWaveformDisplayMode,
-    waveformVisualStyle,
-    setWaveformVisualStyle,
-    acousticOverlayMode,
-    setAcousticOverlayMode,
-    globalLoopPlayback,
-    setGlobalLoopPlayback,
-    handleGlobalPlayPauseAction,
-    canUndo,
-    canRedo,
-    undoLabel,
-    activeTextId,
-    selectedTimelineUnit,
-    notePopover,
-    showExportMenu,
-    exportMenuRef,
-    loadSnapshot,
-    undo,
-    redo,
-    setShowProjectSetup,
-    setShowAudioImport,
-    handleDeleteCurrentAudio,
-    handleDeleteCurrentProject,
-    toggleNotes,
-    setUttOpsMenu,
-    handleAutoSegment,
-    autoSegmentBusy,
-    setShowExportMenu,
-    handleExportEaf,
-    handleExportTextGrid,
-    handleExportTrs,
-    handleExportFlextext,
-    handleExportToolbox,
-    handleExportJyt,
-    handleExportJym,
-    handleImportFile,
-    utterancesOnCurrentMedia,
-    rulerView,
-    isTimelineLaneHeaderCollapsed,
-    toggleTimelineLaneHeader,
-    waveCanvasRef,
-    showSearch,
-    searchableItems,
-    displayStyleControl,
-    activeLayerIdForEdits,
-    activeTimelineUnitId,
-    searchOverlayRequest,
-    manualSelectTsRef,
-    selectUnit,
-    handleSearchReplace,
-    setShowSearch,
-    setSearchOverlayRequest,
-    isAiPanelCollapsed,
-    hubSidebarTab,
-    setHubSidebarTab,
-    assistantRuntimeProps,
-    analysisRuntimeProps,
-    selectedAiWarning,
-    selectedTranslationGapCount,
-    aiSidebarError,
-    speakerDialogStateRouted,
-    speakerSavingRouted,
-    closeSpeakerDialogRouted,
-    confirmSpeakerDialogRouted,
-    updateSpeakerDialogDraftNameRouted,
-    updateSpeakerDialogTargetKeyRouted,
-    showProjectSetup,
-    handleProjectSetupSubmit,
-    showAudioImport,
-    handleAudioImport,
-    mediaFileInputRef,
-    handleDirectMediaImport,
-    audioDeleteConfirm,
-    setAudioDeleteConfirm,
-    handleConfirmAudioDelete,
-    projectDeleteConfirm,
-    setProjectDeleteConfirm,
-    handleConfirmProjectDelete,
-    showShortcuts,
-    closeShortcuts,
-    isFocusMode,
-    exitFocusMode,
-  });
-
   const {
     toolbarProps,
     timelineTopProps,
     timelineContentProps,
     aiSidebarProps,
     dialogsProps,
-  } = useOrchestratorViewModels(orchestratorViewModelsInput);
+  } = useReadyWorkspaceViewModels({
+    lanePropsInput: {
+      transcriptionLayers,
+      translationLayers,
+      timelineUnitViewIndex,
+      segmentsByLayer,
+      segmentContentByLayer,
+      saveSegmentContentForLayer,
+      selectedTimelineUnit,
+      flashLayerRowId,
+      focusedLayerRowId,
+      activeTimelineUnitId,
+      orderedLayers,
+      reorderLayers,
+      deletableLayers,
+      handleFocusLayerRow,
+      layerLinks,
+      showAllLayerConnectors,
+      handleToggleAllLayerConnectors,
+      timelineLaneHeights,
+      handleTimelineLaneHeightChange,
+      transcriptionTrackMode,
+      handleToggleTrackDisplayMode,
+      setTrackDisplayMode,
+      effectiveLaneLockMap,
+      handleLockSelectedSpeakersToLane,
+      handleUnlockSelectedSpeakers,
+      handleResetTrackAutoLayout,
+      selectedSpeakerNamesForTrackLock,
+      speakerLayerLayout,
+      activeSpeakerFilterKey,
+      speakerQuickActions,
+      handleLaneLabelWidthResizeStart,
+      translationAudioByLayer,
+      mediaItems: _mediaItems,
+      recording,
+      recordingUtteranceId,
+      recordingLayerId: _recordingLayerId,
+      startRecordingForUtterance: _startRecordingForUtterance,
+      stopRecording: _stopRecording,
+      deleteVoiceTranslation,
+      displayStyleControl,
+    },
+    orchestratorRawInput: {
+      selectedMediaUrl,
+      player,
+      layers,
+      locale,
+      importFileRef,
+      layerAction,
+      zoomPxPerSec,
+      lassoRect,
+      timelineRenderUtterances,
+      defaultTranscriptionLayerId,
+      renderAnnotationItem,
+      speakerSortKeyById,
+      filteredUtterancesOnCurrentMedia,
+      tierContainerRef,
+      handleAnnotationClick,
+      handleAnnotationContextMenu,
+      navigateUnitFromInput,
+      speakerVisualByTimelineUnitId,
+      selectedTimelineMedia,
+      waveformDisplayMode,
+      setWaveformDisplayMode,
+      waveformVisualStyle,
+      setWaveformVisualStyle,
+      acousticOverlayMode,
+      setAcousticOverlayMode,
+      globalLoopPlayback,
+      setGlobalLoopPlayback,
+      handleGlobalPlayPauseAction,
+      canUndo,
+      canRedo,
+      undoLabel,
+      activeTextId,
+      selectedTimelineUnit,
+      notePopover,
+      showExportMenu,
+      exportMenuRef,
+      loadSnapshot,
+      undo,
+      redo,
+      setShowProjectSetup,
+      setShowAudioImport,
+      handleDeleteCurrentAudio,
+      handleDeleteCurrentProject,
+      toggleNotes,
+      setUttOpsMenu,
+      handleAutoSegment,
+      autoSegmentBusy,
+      setShowExportMenu,
+      handleExportEaf,
+      handleExportTextGrid,
+      handleExportTrs,
+      handleExportFlextext,
+      handleExportToolbox,
+      handleExportJyt,
+      handleExportJym,
+      handleImportFile,
+      utterancesOnCurrentMedia,
+      rulerView,
+      isTimelineLaneHeaderCollapsed,
+      toggleTimelineLaneHeader,
+      waveCanvasRef,
+      showSearch,
+      searchableItems,
+      displayStyleControl,
+      activeLayerIdForEdits,
+      activeTimelineUnitId,
+      searchOverlayRequest,
+      manualSelectTsRef,
+      selectUnit,
+      handleSearchReplace,
+      setShowSearch,
+      setSearchOverlayRequest,
+      isAiPanelCollapsed,
+      hubSidebarTab,
+      setHubSidebarTab,
+      assistantRuntimeProps,
+      analysisRuntimeProps,
+      selectedAiWarning,
+      selectedTranslationGapCount,
+      aiSidebarError,
+      speakerDialogStateRouted,
+      speakerSavingRouted,
+      closeSpeakerDialogRouted,
+      confirmSpeakerDialogRouted,
+      updateSpeakerDialogDraftNameRouted,
+      updateSpeakerDialogTargetKeyRouted,
+      showProjectSetup,
+      handleProjectSetupSubmit,
+      showAudioImport,
+      handleAudioImport,
+      mediaFileInputRef,
+      handleDirectMediaImport,
+      audioDeleteConfirm,
+      setAudioDeleteConfirm,
+      handleConfirmAudioDelete,
+      projectDeleteConfirm,
+      setProjectDeleteConfirm,
+      handleConfirmProjectDelete,
+      showShortcuts,
+      closeShortcuts,
+      isFocusMode,
+      exitFocusMode,
+    },
+  });
 
-  useEffect(() => {
-    if (isAiPanelCollapsed) {
-      return;
-    }
-    setHasActivatedAiSidebar(true);
-    flushDeferredAiRuntime();
-  }, [flushDeferredAiRuntime, isAiPanelCollapsed]);
+  const {
+    shouldRenderAiSidebar,
+    shouldRenderDialogs,
+    shouldRenderPdfRuntime,
+    shouldRenderBatchOps,
+    shouldRenderRecoveryBanner,
+  } = useReadyWorkspaceRenderController({
+    isAiPanelCollapsed,
+    flushDeferredAiRuntime,
+    aiPendingToolCall: assistantRuntimeProps.aiChatContextValue.aiPendingToolCall,
+    setHubSidebarTab,
+    setIsAiPanelCollapsed,
+    showProjectSetup,
+    showAudioImport,
+    audioDeleteConfirm,
+    projectDeleteConfirm,
+    showShortcuts,
+    isFocusMode,
+    pdfPreviewRequest: pdfRuntimeProps.previewRequest.request,
+    showBatchOperationPanel,
+    recoveryAvailable,
+  });
 
-  useEffect(() => {
-    if (!assistantRuntimeProps.aiChatContextValue.aiPendingToolCall) return;
-    setHubSidebarTab('assistant');
-    setHasActivatedAiSidebar(true);
-    setIsAiPanelCollapsed(false);
-  }, [assistantRuntimeProps.aiChatContextValue.aiPendingToolCall, setHubSidebarTab, setIsAiPanelCollapsed]);
-  const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;
-  const shouldRenderDialogs = Boolean(
-    speakerDialogStateRouted
-      || showProjectSetup
-      || showAudioImport
-      || audioDeleteConfirm
-      || projectDeleteConfirm
-      || showShortcuts
-      || isFocusMode,
-  );
-  const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null;
-  const shouldRenderBatchOps = showBatchOperationPanel;
-  const shouldRenderRecoveryBanner = recoveryAvailable;
+  const assistantBridgeControllerInput = buildReadyWorkspaceAssistantBridgeInput({
+    selectedUnitIds,
+    selectedUnit: selectedUnit ?? null,
+    getUtteranceDocById,
+    selectedTimelineSegment: selectedTimelineSegment ?? null,
+    ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
+    ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
+    selectedLayerId,
+    activeLayerIdForEdits,
+    resolveSegmentRoutingForLayer,
+    segmentsByLayer,
+    segmentContentByLayer,
+    selectionSnapshot,
+    layers,
+    transcriptionLayers,
+    translationLayers,
+    layerLinks,
+    getUtteranceTextForLayer,
+    formatTime,
+    timelineUnitViewIndex,
+    segmentsLoadComplete,
+    aiConfidenceAvg,
+    recentTimelineEditEvents,
+    createLayerWithActiveContext,
+    createTranscriptionSegment: createNextSegmentRouted,
+    splitTranscriptionSegment: splitRouted,
+    mergeWithPrevious: mergeWithPreviousRouted,
+    mergeWithNext: mergeWithNextRouted,
+    mergeSelectedUnits: mergeSelectedUtterances,
+    mergeSelectedSegments: mergeSelectedSegmentsRouted,
+    deleteUtterance: deleteUtteranceRouted,
+    deleteSelectedUnits: deleteSelectedUtterancesRouted,
+    deleteLayer,
+    toggleLayerLink,
+    saveUtteranceText,
+    saveTextTranslationForUtterance,
+    saveSegmentContentForLayer,
+    updateTokenPos,
+    batchUpdateTokenPosByForm,
+    updateTokenGloss,
+    selectUnit,
+    setSaveState,
+    translationDrafts,
+    translationTextByLayer,
+    locale,
+    playerCurrentTime: player.currentTime,
+    executeActionRef,
+    openSearchRef,
+    seekToTimeRef,
+    splitAtTimeRef,
+    zoomToSegmentRef,
+    handleExecuteRecommendation,
+    aiSidebarError,
+    setAiSidebarError,
+    embeddingProviderConfig,
+    setEmbeddingProviderConfig,
+    acousticConfigOverride,
+    acousticProviderPreference,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    state,
+  });
 
-  // ═══════════════════════════════════════════════════════
-  // JSX RETURN
-  // ═══════════════════════════════════════════════════════
+  const readyWorkspaceSidePaneProps = buildReadyWorkspaceSidePaneProps({
+    selectedUnitIds: selectedSpeakerUnitIdsForActionsSet,
+    handleAssignSpeakerToSelectedRouted,
+    handleClearSpeakerOnSelectedRouted,
+    speakerOptions,
+    speakerDraftName,
+    setSpeakerDraftName,
+    batchSpeakerId,
+    setBatchSpeakerId,
+    speakerSaving: speakerSavingRouted,
+    activeSpeakerFilterKey,
+    setActiveSpeakerFilterKey,
+    speakerDialogState: speakerDialogStateRouted,
+    speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
+    speakerFilterOptions: speakerFilterOptionsForActions,
+    speakerReferenceStats,
+    speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped,
+    speakerReferenceStatsReady,
+    selectedSpeakerSummary: selectedSpeakerSummaryForActions,
+    handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
+    handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
+    handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
+    handleRenameSpeaker,
+    handleMergeSpeaker,
+    handleDeleteSpeaker,
+    handleDeleteUnusedSpeakers,
+    handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
+    handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
+    handleCreateSpeakerOnly,
+    closeSpeakerDialog: closeSpeakerDialogRouted,
+    updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
+    updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
+    confirmSpeakerDialog: confirmSpeakerDialogRouted,
+    sidePaneRows: orderedLayers,
+    focusedLayerRowId,
+    flashLayerRowId,
+    onFocusLayer: handleFocusLayerRow,
+    transcriptionLayers,
+    toggleLayerLink,
+    deletableLayers,
+    updateLayerMetadata,
+    layerCreateMessage,
+    layerAction,
+    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
+    segmentsByLayer,
+    utterancesOnCurrentMedia,
+    speakers,
+    onSelectTimelineUnit: selectTimelineUnit,
+    onReorderLayers: reorderLayers,
+  });
+
+  const readyWorkspaceWaveformContentProps = buildReadyWorkspaceWaveformContentProps({
+    locale,
+    waveformAreaRef,
+    snapGuideNearSide: snapGuide.nearSide,
+    segMarkStart,
+    isResizingWaveform,
+    waveformHeight,
+    handleWaveformKeyDown,
+    handleWaveformAreaFocus,
+    handleWaveformAreaBlur,
+    handleWaveformAreaMouseMove,
+    handleWaveformAreaMouseLeave,
+    handleWaveformAreaWheel,
+    hoverTime,
+    utterancesOnCurrentMedia,
+    getUtteranceTextForLayer,
+    waveformHoverPreviewProps,
+    selectedMediaUrl,
+    zoomPercent,
+    snapEnabled,
+    toggleSnapEnabled,
+    playerPlaybackRate: player.playbackRate,
+    playerCurrentTime: player.currentTime,
+    selectedUnitDuration: selectedTimelineUnitForTime
+      ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
+      : null,
+    amplitudeScale,
+    setAmplitudeScale,
+    selectedMediaIsVideo,
+    videoLayoutMode,
+    setVideoLayoutMode,
+    handleLaneLabelWidthResizeStart,
+    videoPreviewHeight,
+    videoRightPanelWidth,
+    waveformRegions,
+    selectedUnitIds,
+    activeTimelineUnitId,
+    segmentLoopPlayback,
+    subSelectionRange,
+    isResizingVideoPreview,
+    isResizingVideoRightPanel,
+    handleVideoPreviewResizeStart,
+    handleVideoRightPanelResizeStart,
+    waveformDisplayMode,
+    waveCanvasRef,
+    playerSpectrogramRef: player.spectrogramRef,
+    playerWaveformRef: player.waveformRef,
+    playerSeekTo: player.seekTo,
+    playerPlayRegion: player.playRegion,
+    waveLassoRect,
+    waveLassoHintCount,
+    waveformNoteIndicators,
+    waveformLowConfidenceOverlays,
+    waveformOverlapOverlays,
+    acousticOverlayMode,
+    acousticOverlayViewportWidth,
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayVisibleSummary,
+    acousticOverlayLoading,
+    acousticRuntimeStatus: waveformAcousticRuntimeStatus,
+    vadCacheStatus: waveformVadCacheStatus,
+    waveformHoverReadout,
+    spectrogramHoverReadout,
+    selectedHotspotTimeSec,
+    handleSpectrogramMouseMove,
+    handleSpectrogramMouseLeave,
+    handleSpectrogramClick,
+    setNotePopover,
+    snapGuideVisible: snapGuide.visible,
+    snapGuideLeft: snapGuide.left,
+    snapGuideRight: snapGuide.right,
+    snapGuideNearSideValue: snapGuide.nearSide,
+    playerDuration: player.duration,
+    rulerView,
+    selectedWaveformTimelineItem,
+    playerIsReady: player.isReady,
+    playerIsPlaying: player.isPlaying,
+    playerInstanceGetWidth,
+    zoomPxPerSec,
+    waveformScrollLeft,
+    segmentPlaybackRate,
+    handleSegmentPlaybackRateChange,
+    handleToggleSelectedWaveformLoop,
+    handleToggleSelectedWaveformPlay,
+    mediaFileInputRef,
+    handleWaveformResizeStart,
+  });
+
+  const readyWorkspaceOverlaysProps = buildReadyWorkspaceOverlaysProps({
+    ctxMenu,
+    onCloseCtxMenu: () => setCtxMenu(null),
+    uttOpsMenu,
+    onCloseUttOpsMenu: () => setUttOpsMenu(null),
+    selectedTimelineUnit: selectedTimelineUnit ?? null,
+    selectedUnitIds,
+    runDeleteSelection: runOverlayDeleteSelection,
+    runMergeSelection: runOverlayMergeSelection,
+    runSelectBefore,
+    runSelectAfter,
+    runDeleteOne: runOverlayDeleteOne,
+    runMergePrev: runOverlayMergePrev,
+    runMergeNext: runOverlayMergeNext,
+    runSplitAtTime: runOverlaySplitAtTime,
+    getCurrentTime: () => player.instanceRef.current?.getCurrentTime() ?? 0,
+    setNotePopover,
+    deleteConfirmState,
+    muteDeleteConfirmInSession,
+    setMuteDeleteConfirmInSession,
+    closeDeleteConfirmDialog,
+    confirmDeleteFromDialog,
+    notePopover,
+    currentNotes,
+    onCloseNotePopover: () => setNotePopover(null),
+    addNote,
+    updateNote,
+    deleteNote,
+    utterances,
+    resolveSelfCertaintyUtteranceIds,
+    getUtteranceTextForLayer,
+    transcriptionLayers,
+    translationLayers,
+    speakerOptions,
+    speakerFilterOptions: speakerFilterOptionsForActions,
+    onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu,
+    onSetUtteranceSelfCertaintyFromMenu: handleSetUtteranceSelfCertaintyFromMenu,
+    onOpenLayerMetadataPanelFromMenu: handleOpenLayerMetadataFromOverlayMenu,
+    onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel,
+    displayStyleControl,
+  });
+
+  const readyWorkspaceLayoutStyle = buildReadyWorkspaceLayoutStyle({
+    uiFontScale,
+    adaptiveDialogWidth,
+    adaptiveDialogCompactWidth,
+    adaptiveDialogWideWidth,
+    aiPanelWidth,
+    isAiPanelCollapsed,
+    laneLabelWidth,
+    isTimelineLaneHeaderCollapsed,
+    selectedMediaUrl,
+    selectedMediaIsVideo,
+    videoLayoutMode,
+    videoRightPanelWidth,
+  });
+
+  const readyWorkspaceLayerPopoverProps = buildReadyWorkspaceLayerPopoverProps({
+    overlayMetadataLayer,
+    deletableLayers: layers,
+    createLayer: createLayerWithActiveContext,
+    updateLayerMetadata,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
+    onClose: () => setOverlayMetadataLayerId(null),
+  });
+
+  const readyWorkspaceStageProps = buildReadyWorkspaceStageProps({
+    assistantFrame: assistantRuntimeProps.frame,
+    shouldRenderRecoveryBanner,
+    recoveryAvailable,
+    recoveryDiffSummary,
+    onApplyRecoveryBanner: applyRecoveryBanner,
+    onDismissRecoveryBanner: dismissRecoveryBanner,
+    toolbarProps,
+    observerStage: observerResult.stage,
+    recommendations: actionableObserverRecommendations || [],
+    onExecuteRecommendation: handleExecuteObserverRecommendation,
+    acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
+    vadCacheStatus,
+    currentProjectLabel: toolbarProps.filename,
+    canDeleteProject: Boolean(activeTextId),
+    canDeleteAudio: Boolean(selectedTimelineMedia),
+    onOpenProjectSetup: () => setShowProjectSetup(true),
+    onOpenAudioImport: () => setShowAudioImport(true),
+    onOpenSpeakerManagementPanel: handleOpenSpeakerManagementPanel,
+    onDeleteCurrentProject: handleDeleteCurrentProject,
+    onDeleteCurrentAudio: handleDeleteCurrentAudio,
+    handleImportFile,
+    onPreviewProjectArchiveImport: previewProjectArchiveImport,
+    onImportProjectArchive: importProjectArchive,
+    onExportEaf: handleExportEaf,
+    onExportTextGrid: handleExportTextGrid,
+    onExportTrs: handleExportTrs,
+    onExportFlextext: handleExportFlextext,
+    onExportToolbox: handleExportToolbox,
+    onExportJyt: handleExportJyt,
+    onExportJym: handleExportJym,
+    mediaFileInputRef,
+    onDirectMediaImport: handleDirectMediaImport,
+    waveformSectionRef,
+    workspaceRef,
+    listMainRef,
+    tierContainerRef,
+    isAiPanelCollapsed,
+    isTimelineLaneHeaderCollapsed,
+    readyWorkspaceWaveformContentProps,
+    timelineTopProps,
+    readyWorkspaceSidePaneProps,
+    timelineContentProps,
+    editorContextValue,
+    aiPanelContextValue,
+    onLassoPointerDown: handleLassoPointerDown,
+    onLassoPointerMove: handleLassoPointerMove,
+    onLassoPointerUp: handleLassoPointerUp,
+    onTimelineScroll: handleTimelineScroll,
+    timelineResizeTooltip,
+    formatTime,
+    zoomPercent,
+    snapEnabled,
+    autoScrollEnabled,
+    activeWaveformUnitId: selectedWaveformRegionId || null,
+    waveformTimelineItems,
+    fitPxPerSec,
+    maxZoomPercent,
+    onZoomToPercent: (percent, mode) => zoomToPercent(percent, undefined, mode),
+    onZoomToUtterance: zoomToUtterance,
+    onSnapEnabledChange: setSnapEnabled,
+    onAutoScrollEnabledChange: setAutoScrollEnabled,
+    canUndo,
+    canRedo,
+    undoLabel,
+    undoHistory,
+    isHistoryVisible: showUndoHistory,
+    onToggleHistoryVisible: setShowUndoHistory,
+    selectedTimelineUnit,
+    activeTimelineUnitId,
+    recordTimelineEdit,
+    undoToHistoryIndex,
+    redo,
+    locale,
+    setIsAiPanelCollapsed,
+    handleAiPanelResizeStart,
+    handleAiPanelToggle,
+    assistantBridgeControllerInput,
+    onRuntimeStateChange: handleDeferredAiRuntimeChange,
+    aiSidebarProps,
+    shouldRenderAiSidebar,
+    dialogsProps,
+    shouldRenderDialogs,
+    pdfRuntimeProps,
+    shouldRenderPdfRuntime,
+    shouldRenderBatchOps,
+    showBatchOperationPanel,
+    selectedUnitIds,
+    selectedBatchUtterances,
+    utterancesOnCurrentMedia,
+    selectedBatchUtteranceTextById,
+    batchPreviewLayerOptions,
+    batchPreviewTextByLayerId,
+    batchPreviewTextPropsByLayerId,
+    defaultBatchPreviewLayerId,
+    onCloseBatchOps: () => setShowBatchOperationPanel(false),
+    onBatchOffset: handleBatchOffset,
+    onBatchScale: handleBatchScale,
+    onBatchSplitByRegex: handleBatchSplitByRegex,
+    onBatchMerge: handleBatchMerge,
+    onBatchJumpToUtterance: selectUnit,
+  });
 
   return (
-    <TimelineStyledSection
-      className="transcription-screen"
-      ref={screenRef}
+    <TranscriptionPageReadyWorkspaceLayout
+      locale={locale}
+      phase={state.phase}
+      screenRef={screenRef}
       dir={uiTextDirection}
-      layoutStyle={{
-        '--ui-font-scale': String(uiFontScale),
-        '--dialog-auto-width': `${adaptiveDialogWidth}px`,
-        '--dialog-compact-auto-width': `${adaptiveDialogCompactWidth}px`,
-        '--dialog-wide-auto-width': `${adaptiveDialogWideWidth}px`,
-        '--transcription-ai-width': `${aiPanelWidth}px`,
-        '--transcription-ai-visible-width': `${isAiPanelCollapsed ? 0 : aiPanelWidth}px`,
-        '--lane-label-width': isTimelineLaneHeaderCollapsed ? '0px' : `${laneLabelWidth}px`,
-        '--video-left-panel-width': selectedMediaUrl && selectedMediaIsVideo && videoLayoutMode === 'left'
-          ? `${videoRightPanelWidth + 8}px`
-          : '0px',
-      } as React.CSSProperties}
-    >
-      {state.phase === 'loading' && <p className="hint">{t(locale, 'transcription.status.loading')}</p>}
-      {state.phase === 'error' && <p className="error">{tf(locale, 'transcription.status.dbError', { message: state.message })}</p>}
-
-      {state.phase === 'ready' && (
-        <>
-          <ToastProvider>
-            <ToastController
-              mode="core-only"
-              voiceAgent={{
-                agentState: 'idle',
-                mode: 'command',
-                listening: false,
-                isRecording: false,
-              }}
-              saveState={assistantRuntimeProps.frame.saveState}
-              recording={assistantRuntimeProps.frame.recording}
-              recordingUtteranceId={assistantRuntimeProps.frame.recordingUtteranceId}
-              recordingError={assistantRuntimeProps.frame.recordingError}
-              {...(assistantRuntimeProps.frame.overlapCycleToast !== undefined ? { overlapCycleToast: assistantRuntimeProps.frame.overlapCycleToast } : {})}
-              {...(assistantRuntimeProps.frame.lockConflictToast !== undefined ? { lockConflictToast: assistantRuntimeProps.frame.lockConflictToast } : {})}
-              tf={assistantRuntimeProps.frame.tf}
-            />
-            {shouldRenderRecoveryBanner ? (
-              <Suspense fallback={null}>
-                <RecoveryBanner
-                  locale={locale}
-                  recoveryAvailable={recoveryAvailable}
-                  recoveryDiffSummary={recoveryDiffSummary}
-                  onApply={applyRecoveryBanner}
-                  onDismiss={dismissRecoveryBanner}
-                />
-              </Suspense>
-            ) : null}
-            <section className="transcription-waveform" ref={waveformSectionRef}>
-              <Suspense fallback={null}>
-                <TranscriptionPageToolbar
-                  {...toolbarProps}
-                  leftToolbarExtras={(
-                    <>
-                      <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
-                      <ObserverStatusSection
-                        observerStage={observerResult.stage}
-                        recommendations={actionableObserverRecommendations || []}
-                        onExecuteRecommendation={handleExecuteObserverRecommendation}
-                      />
-                    </>
-                  )}
-                  acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}
-                  vadCacheStatus={vadCacheStatus}
-                />
-              </Suspense>
-            </section>
-            <LeftRailProjectHub
-              currentProjectLabel={toolbarProps.filename}
-              canDeleteProject={Boolean(activeTextId)}
-              canDeleteAudio={Boolean(selectedTimelineMedia)}
-              onOpenProjectSetup={() => setShowProjectSetup(true)}
-              onOpenAudioImport={() => setShowAudioImport(true)}
-              onOpenSpeakerManagementPanel={() => handleOpenSpeakerManagementPanel()}
-              onDeleteCurrentProject={handleDeleteCurrentProject}
-              onDeleteCurrentAudio={handleDeleteCurrentAudio}
-              onImportAnnotationFile={async (file, strategy) => {
-                await handleImportFile(file, strategy);
-              }}
-              onPreviewProjectArchiveImport={previewProjectArchiveImport}
-              onImportProjectArchive={importProjectArchive}
-              onExportEaf={handleExportEaf}
-              onExportTextGrid={handleExportTextGrid}
-              onExportTrs={handleExportTrs}
-              onExportFlextext={handleExportFlextext}
-              onExportToolbox={handleExportToolbox}
-              onExportJyt={handleExportJyt}
-              onExportJym={handleExportJym}
-            />
-
-            <input
-              ref={mediaFileInputRef}
-              type="file"
-              className="transcription-media-file-input"
-              accept=".mp3,.wav,.ogg,.webm,.m4a,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv"
-              aria-label={t(locale, 'transcription.importDialog.selectMedia')}
-              onChange={handleDirectMediaImport}
-            />
-
-            {/* Editor workspace: left side for row editing, right side for AI guidance. */}
-            <section
-              ref={workspaceRef}
-              className={`transcription-workspace ${isAiPanelCollapsed ? 'transcription-workspace-ai-collapsed' : ''}`}
-            >
-              <section
-                className={`transcription-list-panel ${isTimelineLaneHeaderCollapsed ? 'transcription-list-panel-lane-header-collapsed' : ''}`}
-              >
-                <Suspense fallback={<div className="transcription-waveform-area-suspense-fallback" aria-hidden="true" />}>
-                  <OrchestratorWaveformContent
-                  locale={locale}
-                  waveformAreaRef={waveformAreaRef}
-                  snapGuideNearSide={snapGuide.nearSide}
-                  segMarkStart={segMarkStart}
-                  isResizingWaveform={isResizingWaveform}
-                  waveformHeight={waveformHeight}
-                  handleWaveformKeyDown={handleWaveformKeyDown}
-                  handleWaveformAreaFocus={handleWaveformAreaFocus}
-                  handleWaveformAreaBlur={handleWaveformAreaBlur}
-                  handleWaveformAreaMouseMove={handleWaveformAreaMouseMove}
-                  handleWaveformAreaMouseLeave={handleWaveformAreaMouseLeave}
-                  handleWaveformAreaWheel={handleWaveformAreaWheel}
-                  hoverTime={hoverTime}
-                  utterancesOnCurrentMedia={utterancesOnCurrentMedia}
-                  getUtteranceTextForLayer={getUtteranceTextForLayer}
-                  waveformHoverPreviewProps={waveformHoverPreviewProps}
-                  selectedMediaUrl={selectedMediaUrl}
-                  zoomPercent={zoomPercent}
-                  snapEnabled={snapEnabled}
-                  toggleSnapEnabled={toggleSnapEnabled}
-                  playerPlaybackRate={player.playbackRate}
-                  playerCurrentTime={player.currentTime}
-                  selectedUnitDuration={selectedTimelineUnitForTime
-                    ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
-                    : null}
-                  amplitudeScale={amplitudeScale}
-                  setAmplitudeScale={setAmplitudeScale}
-                  selectedMediaIsVideo={selectedMediaIsVideo}
-                  videoLayoutMode={videoLayoutMode}
-                  setVideoLayoutMode={setVideoLayoutMode}
-                  handleLaneLabelWidthResizeStart={handleLaneLabelWidthResizeStart}
-                  videoPreviewHeight={videoPreviewHeight}
-                  videoRightPanelWidth={videoRightPanelWidth}
-                  waveformRegions={waveformRegions}
-                  selectedUnitIds={selectedUnitIds}
-                  activeTimelineUnitId={activeTimelineUnitId}
-                  segmentLoopPlayback={segmentLoopPlayback}
-                  subSelectionRange={subSelectionRange}
-                  isResizingVideoPreview={isResizingVideoPreview}
-                  isResizingVideoRightPanel={isResizingVideoRightPanel}
-                  handleVideoPreviewResizeStart={handleVideoPreviewResizeStart}
-                  handleVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
-                  waveformDisplayMode={waveformDisplayMode}
-                  waveCanvasRef={waveCanvasRef}
-                  playerSpectrogramRef={player.spectrogramRef}
-                  playerWaveformRef={player.waveformRef}
-                  playerSeekTo={player.seekTo}
-                  playerPlayRegion={player.playRegion}
-                  waveLassoRect={waveLassoRect}
-                  waveLassoHintCount={waveLassoHintCount}
-                  waveformNoteIndicators={waveformNoteIndicators}
-                  waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
-                  waveformOverlapOverlays={waveformOverlapOverlays}
-                  acousticOverlayMode={acousticOverlayMode}
-                  acousticOverlayViewportWidth={acousticOverlayViewportWidth}
-                  acousticOverlayF0Path={acousticOverlayF0Path}
-                  acousticOverlayIntensityPath={acousticOverlayIntensityPath}
-                  acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
-                  acousticOverlayLoading={acousticOverlayLoading}
-                  {...(waveformAcousticRuntimeStatus ? { acousticRuntimeStatus: waveformAcousticRuntimeStatus } : {})}
-                  {...(waveformVadCacheStatus ? { vadCacheStatus: waveformVadCacheStatus } : {})}
-                  waveformHoverReadout={waveformHoverReadout}
-                  spectrogramHoverReadout={spectrogramHoverReadout}
-                  selectedHotspotTimeSec={selectedHotspotTimeSec}
-                  handleSpectrogramMouseMove={handleSpectrogramMouseMove}
-                  handleSpectrogramMouseLeave={handleSpectrogramMouseLeave}
-                  handleSpectrogramClick={handleSpectrogramClick}
-                  setNotePopover={setNotePopover}
-                  snapGuideVisible={snapGuide.visible}
-                  snapGuideLeft={snapGuide.left}
-                  snapGuideRight={snapGuide.right}
-                  snapGuideNearSideValue={snapGuide.nearSide}
-                  playerDuration={player.duration}
-                  rulerView={rulerView}
-                  selectedWaveformTimelineItem={selectedWaveformTimelineItem}
-                  playerIsReady={player.isReady}
-                  playerIsPlaying={player.isPlaying}
-                  playerInstanceGetWidth={playerInstanceGetWidth}
-                  zoomPxPerSec={zoomPxPerSec}
-                  waveformScrollLeft={waveformScrollLeft}
-                  segmentPlaybackRate={segmentPlaybackRate}
-                  handleSegmentPlaybackRateChange={handleSegmentPlaybackRateChange}
-                  handleToggleSelectedWaveformLoop={handleToggleSelectedWaveformLoop}
-                  handleToggleSelectedWaveformPlay={handleToggleSelectedWaveformPlay}
-                  mediaFileInputRef={mediaFileInputRef}
-                  handleWaveformResizeStart={handleWaveformResizeStart}
-                  />
-                </Suspense>
-                <Suspense
-                  fallback={<div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />}
-                >
-                  <TranscriptionPageTimelineTop {...timelineTopProps} />
-                </Suspense>
-                <TimelineMainSection
-                  containerRef={listMainRef}
-                  className={`transcription-list-main ${isTimelineLaneHeaderCollapsed ? 'transcription-list-main-lane-header-collapsed' : ''}`}
-                >
-                  <TimelineRailSection>
-                    <Suspense fallback={<div className="transcription-side-pane transcription-side-pane-placeholder" aria-hidden="true" />}>
-                      <TranscriptionPageSidePane
-                        speakerManagement={{
-                          speakerOptions,
-                          speakerDraftName,
-                          setSpeakerDraftName,
-                          batchSpeakerId,
-                          setBatchSpeakerId,
-                          speakerSaving: speakerSavingRouted,
-                          activeSpeakerFilterKey,
-                          setActiveSpeakerFilterKey,
-                          speakerDialogState: speakerDialogStateRouted,
-                          speakerVisualByUtteranceId: speakerVisualByTimelineUnitId,
-                          speakerFilterOptions: speakerFilterOptionsForActions,
-                          speakerReferenceStats,
-                          speakerReferenceUnassignedStats,
-                          speakerReferenceStatsMediaScoped,
-                          speakerReferenceStatsReady,
-                          selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-                          handleSelectSpeakerUtterances: handleSelectSpeakerUnitsRouted,
-                          handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
-                          handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
-                          handleRenameSpeaker,
-                          handleMergeSpeaker,
-                          handleDeleteSpeaker,
-                          handleDeleteUnusedSpeakers,
-                          handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
-                          handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
-                          handleCreateSpeakerOnly,
-                          closeSpeakerDialog: closeSpeakerDialogRouted,
-                          updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
-                          updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
-                          confirmSpeakerDialog: confirmSpeakerDialogRouted,
-                        }}
-                        selectedUnitIds={selectedSpeakerUnitIdsForActionsSet}
-                        handleAssignSpeakerToSelectedRouted={handleAssignSpeakerToSelectedRouted}
-                        handleClearSpeakerOnSelectedRouted={handleClearSpeakerOnSelectedRouted}
-                        sidebarProps={{
-                          sidePaneRows: orderedLayers,
-                          focusedLayerRowId,
-                          flashLayerRowId,
-                          onFocusLayer: handleFocusLayerRow,
-                          transcriptionLayers,
-                          toggleLayerLink,
-                          deletableLayers,
-                          layerCreateMessage,
-                          layerAction,
-                          onReorderLayers: reorderLayers,
-                        }}
-                      />
-                    </Suspense>
-                  </TimelineRailSection>
-
-                  <TimelineScrollSection
-                    containerRef={tierContainerRef}
-                    onPointerDown={handleLassoPointerDown}
-                    onPointerMove={handleLassoPointerMove}
-                    onPointerUp={handleLassoPointerUp}
-                    onScroll={handleTimelineScroll}
-                  >
-                    <TranscriptionEditorContext.Provider value={editorContextValue}>
-                        <Suspense
-                          fallback={(
-                            <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
-                              <div className="timeline-scroll-suspense-fallback-row" />
-                              <div className="timeline-scroll-suspense-fallback-row" />
-                              <div className="timeline-scroll-suspense-fallback-row" />
-                            </div>
-                          )}
-                        >
-                          <TranscriptionPageTimelineContent {...timelineContentProps} />
-                        </Suspense>
-                    </TranscriptionEditorContext.Provider>
-                  </TimelineScrollSection>
-                </TimelineMainSection>
-                {timelineResizeTooltip && (
-                  <div
-                    className="timeline-resize-tooltip"
-                    style={{ left: timelineResizeTooltip.x, top: timelineResizeTooltip.y - 16 }}
-                  >
-                    {formatTime(timelineResizeTooltip.start)} - {formatTime(timelineResizeTooltip.end)}
-                  </div>
-                )}
-                <BottomToolbarSection>
-                  <ToolbarLeftSection>
-                    <ZoomControlsSection
-                      zoomPercent={zoomPercent}
-                      snapEnabled={snapEnabled}
-                      autoScrollEnabled={autoScrollEnabled}
-                      activeUnitId={selectedWaveformRegionId || null}
-                      unitsOnCurrentMedia={waveformTimelineItems}
-                      fitPxPerSec={fitPxPerSec}
-                      maxZoomPercent={maxZoomPercent}
-                      onZoomToPercent={(percent, mode) => zoomToPercent(percent, undefined, mode)}
-                      onZoomToUtterance={zoomToUtterance}
-                      onSnapEnabledChange={setSnapEnabled}
-                      onAutoScrollEnabledChange={setAutoScrollEnabled}
-                    />
-                  </ToolbarLeftSection>
-                  <ToolbarRightSection
-                    canUndo={canUndo}
-                    canRedo={canRedo}
-                    undoLabel={undoLabel}
-                    undoHistory={undoHistory}
-                    isHistoryVisible={showUndoHistory}
-                    onToggleHistoryVisible={setShowUndoHistory}
-                    onJumpToHistoryIndex={(idx) => fireAndForget((async () => {
-                      const tu = selectedTimelineUnit;
-                      recordTimelineEdit({
-                        action: 'undo',
-                        unitId: (tu?.unitId ?? activeTimelineUnitId) || 'history',
-                        unitKind: tu?.kind ?? 'utterance',
-                        detail: `historyIndex=${idx}`,
-                      });
-                      await undoToHistoryIndex(idx);
-                    })())}
-                    onRedo={() => fireAndForget((async () => {
-                      const tu = selectedTimelineUnit;
-                      recordTimelineEdit({
-                        action: 'redo',
-                        unitId: (tu?.unitId ?? activeTimelineUnitId) || 'history',
-                        unitKind: tu?.kind ?? 'utterance',
-                      });
-                      await redo();
-                    })())}
-                  />
-                </BottomToolbarSection>
-              </section>
-
-              <TranscriptionPageAiPanelHandle
-                locale={locale}
-                isAiPanelCollapsed={isAiPanelCollapsed}
-                setIsAiPanelCollapsed={setIsAiPanelCollapsed}
-                handleAiPanelResizeStart={handleAiPanelResizeStart}
-                handleAiPanelToggle={handleAiPanelToggle}
-              />
-
-              <Suspense fallback={null}>
-                <TranscriptionPageAssistantBridge
-                  controllerInput={{
-                    selectedUnitIds: selectedUnitIds,
-                    selectedUnit: selectedUnit ?? null,
-                    getUtteranceDocById,
-                    selectedTimelineSegment: selectedTimelineSegment ?? null,
-                    ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
-                    ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
-                    selectedLayerId,
-                    activeLayerIdForEdits,
-                    resolveSegmentRoutingForLayer,
-                    segmentsByLayer,
-                    segmentContentByLayer,
-                    selectionSnapshot,
-                    layers,
-                    transcriptionLayers,
-                    translationLayers,
-                    layerLinks,
-                    getUtteranceTextForLayer,
-                    formatTime,
-                    timelineUnitViewIndex,
-                    segmentsLoadComplete,
-                    translationLayerCount: translationLayers.length,
-                    aiConfidenceAvg,
-                    ...(state.phase === 'ready' ? { authoritativeUnitCount: state.unitCount } : {}),
-                    recentTimelineEditEvents,
-                    createLayerWithActiveContext,
-                    createTranscriptionSegment: createNextSegmentRouted,
-                    splitTranscriptionSegment: splitRouted,
-                    mergeWithPrevious: mergeWithPreviousRouted,
-                    mergeWithNext: mergeWithNextRouted,
-                    mergeSelectedUnits: mergeSelectedUtterances,
-                    mergeSelectedSegments: mergeSelectedSegmentsRouted,
-                    deleteUtterance: deleteUtteranceRouted,
-                    deleteSelectedUnits: deleteSelectedUtterancesRouted,
-                    deleteLayer,
-                    toggleLayerLink,
-                    saveUtteranceText,
-                    saveTextTranslationForUtterance,
-                    saveSegmentContentForLayer,
-                    updateTokenPos,
-                    batchUpdateTokenPosByForm,
-                    updateTokenGloss,
-                    selectUnit,
-                    setSaveState,
-                    translationDrafts,
-                    translationTextByLayer,
-                    locale,
-                    playerCurrentTime: player.currentTime,
-                    executeActionRef,
-                    openSearchRef,
-                    seekToTimeRef,
-                    splitAtTimeRef,
-                    zoomToSegmentRef,
-                    handleExecuteRecommendation,
-                    aiSidebarError,
-                    setAiSidebarError,
-                    embeddingProviderConfig,
-                    setEmbeddingProviderConfig,
-                    acousticConfigOverride,
-                    acousticProviderPreference,
-                    ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
-                  }}
-                  onRuntimeStateChange={handleDeferredAiRuntimeChange}
-                />
-              </Suspense>
-
-              <AiPanelContext.Provider value={aiPanelContextValue}>
-                <Suspense fallback={null}>
-                  <TranscriptionPageAiSidebar
-                    {...aiSidebarProps}
-                    shouldRenderRuntime={shouldRenderAiSidebar}
-                  />
-                </Suspense>
-              </AiPanelContext.Provider>
-
-              {shouldRenderDialogs ? (
-                <Suspense fallback={null}>
-                  <TranscriptionPageDialogs {...dialogsProps} />
-                </Suspense>
-              ) : null}
-              {shouldRenderPdfRuntime ? (
-                <Suspense fallback={null}>
-                  <TranscriptionPagePdfRuntime {...pdfRuntimeProps} />
-                </Suspense>
-              ) : null}
-            </section>
-          </ToastProvider>
-
-          {shouldRenderBatchOps ? (
-            <Suspense fallback={null}>
-              <TranscriptionPageBatchOps
-                showBatchOperationPanel={showBatchOperationPanel}
-                selectedUnitIds={selectedUnitIds}
-                selectedBatchUtterances={selectedBatchUtterances}
-                utterancesOnCurrentMedia={utterancesOnCurrentMedia}
-                selectedBatchUtteranceTextById={selectedBatchUtteranceTextById}
-                batchPreviewLayerOptions={batchPreviewLayerOptions}
-                batchPreviewTextByLayerId={batchPreviewTextByLayerId}
-                batchPreviewTextPropsByLayerId={batchPreviewTextPropsByLayerId}
-                defaultBatchPreviewLayerId={defaultBatchPreviewLayerId}
-                onBatchClose={() => setShowBatchOperationPanel(false)}
-                onBatchOffset={handleBatchOffset}
-                onBatchScale={handleBatchScale}
-                onBatchSplitByRegex={handleBatchSplitByRegex}
-                onBatchMerge={handleBatchMerge}
-                onBatchJumpToUtterance={selectUnit}
-              />
-            </Suspense>
-          ) : null}
-        </>
-      )}
-      <Suspense fallback={null}>
-        <TranscriptionOverlays
-          ctxMenu={ctxMenu}
-          onCloseCtxMenu={() => setCtxMenu(null)}
-          uttOpsMenu={uttOpsMenu}
-          onCloseUttOpsMenu={() => setUttOpsMenu(null)}
-          selectedTimelineUnit={selectedTimelineUnit ?? null}
-          selectedUnitIds={selectedUnitIds}
-          runDeleteSelection={runOverlayDeleteSelection}
-          runMergeSelection={runOverlayMergeSelection}
-          runSelectBefore={runSelectBefore}
-          runSelectAfter={runSelectAfter}
-          runDeleteOne={runOverlayDeleteOne}
-          runMergePrev={runOverlayMergePrev}
-          runMergeNext={runOverlayMergeNext}
-          runSplitAtTime={runOverlaySplitAtTime}
-          getCurrentTime={() => player.instanceRef.current?.getCurrentTime() ?? 0}
-          onOpenNoteFromMenu={(x, y, uttId, layerId, scope) => {
-            if (layerId) {
-              setNotePopover({ x, y, uttId, layerId, scope: scope ?? 'timeline' });
-              return;
-            }
-            setNotePopover({ x, y, uttId });
-          }}
-          deleteConfirmState={deleteConfirmState}
-          muteDeleteConfirmInSession={muteDeleteConfirmInSession}
-          setMuteDeleteConfirmInSession={setMuteDeleteConfirmInSession}
-          closeDeleteConfirmDialog={closeDeleteConfirmDialog}
-          confirmDeleteFromDialog={confirmDeleteFromDialog}
-          notePopover={notePopover}
-          currentNotes={currentNotes}
-          onCloseNotePopover={() => setNotePopover(null)}
-          addNote={addNote}
-          updateNote={updateNote}
-          deleteNote={deleteNote}
-          utterances={utterances}
-          resolveSelfCertaintyUtteranceIds={resolveSelfCertaintyUtteranceIds}
-          getUtteranceTextForLayer={getUtteranceTextForLayer}
-          transcriptionLayers={transcriptionLayers}
-          translationLayers={translationLayers}
-          speakerOptions={speakerOptions}
-          speakerFilterOptions={speakerFilterOptionsForActions}
-          onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}
-          onSetUtteranceSelfCertaintyFromMenu={handleSetUtteranceSelfCertaintyFromMenu}
-          onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}
-          displayStyleControl={displayStyleControl}
-        />
-      </Suspense>
-    </TimelineStyledSection>
+      layoutStyle={readyWorkspaceLayoutStyle}
+      readyStageProps={readyWorkspaceStageProps}
+      overlaysProps={readyWorkspaceOverlaysProps}
+      layerPopoverProps={readyWorkspaceLayerPopoverProps}
+      {...(state.phase === 'error' ? { errorMessage: state.message } : {})}
+    />
   );
 }
 

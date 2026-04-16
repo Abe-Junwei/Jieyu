@@ -54,6 +54,28 @@ describe('agentLoop helpers', () => {
     }], 'untranscribed_count')).toBe(true);
   });
 
+  it('stops when an explicit project metric already has a deterministic value', () => {
+    expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, [{
+      ok: true,
+      name: 'get_project_stats',
+      result: {
+        requestedMetric: 'speaker_count',
+        value: 2,
+      },
+    }], 'speaker_count')).toBe(false);
+  });
+
+  it('stops after a detail lookup already returned the requested unit context', () => {
+    expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, [{
+      ok: true,
+      name: 'get_unit_detail',
+      result: {
+        id: 'seg-1',
+        transcription: 'hello world',
+      },
+    }])).toBe(false);
+  });
+
   it('builds continuation prompt with loop marker and payload', () => {
     const prompt = buildAgentLoopContinuationInput(
       'what is this segment?',

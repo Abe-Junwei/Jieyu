@@ -4,6 +4,7 @@ import {
   toNaturalNonActionFallback,
   toNaturalTargetClarify,
   toNaturalToolCancelled,
+  type ToolPlannerClarifyReason,
 } from '../ai/chat/toolCallHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -22,13 +23,7 @@ type ToolIntentAssessment = {
 
 type PlannerDecision = 'resolved' | 'clarify';
 
-type PlannerReason =
-  | 'missing-utterance-target'
-  | 'missing-split-position'
-  | 'missing-translation-layer-target'
-  | 'missing-layer-link-target'
-  | 'missing-layer-target'
-  | 'missing-language-target';
+type PlannerReason = ToolPlannerClarifyReason;
 
 interface ResolveToolIntentOutcomeParams {
   intentAssessment: ToolIntentAssessment;

@@ -666,6 +666,10 @@ export interface LayerDocType {
   name: MultiLangString;
   layerType: 'transcription' | 'translation';
   languageId: string;
+  /** 方言（可选）| Dialect label (optional) */
+  dialect?: string;
+  /** 土语（可选）| Vernacular label (optional) */
+  vernacular?: string;
   /** 绑定的正字法 ID；为空时回退到 languageId → script 推断 | Bound orthography id; falls back to languageId → script inference when absent */
   orthographyId?: string;
   /** 首选入站桥接规则 ID；用于显式写入转换往返 | Preferred inbound bridge bridge id for explicit write-bridge round-tripping */
@@ -940,6 +944,141 @@ export interface UserNoteDocType {
   updatedAt: string;
 }
 
+/**
+ * 统一语段元信息读模型 | Unified segment metadata read model
+ */
+export interface SegmentMetaDocType {
+  /** 主键按 layerId::segmentId 作用域化，避免跨层同源语段互相覆盖 | Primary key is scoped as layerId::segmentId to prevent cross-layer collisions */
+  id: string;
+  segmentId: string;
+  /** 可选，默认按 segment 解释；兼容早期回填与手工构造测试数据 | Optional, defaults to segment for compatibility with backfills/tests */
+  unitKind?: LayerUnitType;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  hostUtteranceId?: string;
+  startTime: number;
+  endTime: number;
+  text: string;
+  normalizedText: string;
+  hasText: boolean;
+  effectiveSpeakerId?: string;
+  effectiveSpeakerName?: string;
+  noteCategoryKeys?: NoteCategory[];
+  effectiveSelfCertainty?: UtteranceSelfCertainty;
+  annotationStatus?: LayerUnitStatus;
+  aiConfidence?: number;
+  sourceType?: 'human' | 'ai';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SegmentQualityIssueKey = 'empty_text' | 'missing_speaker' | 'low_ai_confidence' | 'todo_note';
+export type SegmentQualitySeverity = 'ok' | 'warning' | 'critical';
+
+export interface SegmentQualitySnapshotDocType {
+  id: string;
+  segmentId: string;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  hostUtteranceId?: string;
+  speakerId?: string;
+  speakerName?: string;
+  emptyText: boolean;
+  missingSpeaker: boolean;
+  lowAiConfidence: boolean;
+  hasTodoNote: boolean;
+  issueKeys: SegmentQualityIssueKey[];
+  issueCount: number;
+  severity: SegmentQualitySeverity;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ScopeStatsSnapshotScopeType = 'project' | 'text' | 'media' | 'layer' | 'speaker';
+
+export interface ScopeStatsSnapshotDocType {
+  id: string;
+  scopeType: ScopeStatsSnapshotScopeType;
+  scopeKey: string;
+  textId?: string;
+  mediaId?: string;
+  layerId?: string;
+  speakerId?: string;
+  unitCount: number;
+  segmentCount: number;
+  utteranceCount: number;
+  speakerCount: number;
+  translationLayerCount: number;
+  noteFlaggedCount: number;
+  untranscribedCount: number;
+  missingSpeakerCount: number;
+  avgAiConfidence?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpeakerProfileSnapshotDocType {
+  id: string;
+  textId: string;
+  speakerId: string;
+  speakerName?: string;
+  unitCount: number;
+  segmentCount: number;
+  utteranceCount: number;
+  totalDurationSec: number;
+  noteFlaggedCount: number;
+  emptyTextCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TranslationSnapshotStatus = 'missing' | 'draft' | 'translated' | 'verified';
+
+export interface TranslationStatusSnapshotDocType {
+  id: string;
+  unitId: string;
+  textId: string;
+  mediaId: string;
+  layerId: string;
+  parentUnitId?: string;
+  status: TranslationSnapshotStatus;
+  hasText: boolean;
+  textLength: number;
+  sourceType?: 'human' | 'ai';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LanguageAssetOverviewDocType {
+  id: string;
+  languageId: string;
+  displayName: string;
+  aliasCount: number;
+  orthographyCount: number;
+  bridgeCount: number;
+  hasCustomFields: boolean;
+  completenessScore: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiTaskSnapshotDocType {
+  id: string;
+  taskId: string;
+  taskType: AiTaskType;
+  status: AiTaskStatus;
+  targetId: string;
+  targetType?: string;
+  modelId?: string;
+  hasError: boolean;
+  isTerminal: boolean;
+  durationMs: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TrackEntityDocType {
   id: string;
   textId: string;
@@ -1005,6 +1144,13 @@ export type JieyuCollections = {
   tier_annotations: CollectionAdapter<TierAnnotationDocType>;
   audit_logs: CollectionAdapter<AuditLogDocType>;
   user_notes: CollectionAdapter<UserNoteDocType>;
+  segment_meta: CollectionAdapter<SegmentMetaDocType>;
+  segment_quality_snapshots: CollectionAdapter<SegmentQualitySnapshotDocType>;
+  scope_stats_snapshots: CollectionAdapter<ScopeStatsSnapshotDocType>;
+  speaker_profile_snapshots: CollectionAdapter<SpeakerProfileSnapshotDocType>;
+  translation_status_snapshots: CollectionAdapter<TranslationStatusSnapshotDocType>;
+  language_asset_overviews: CollectionAdapter<LanguageAssetOverviewDocType>;
+  ai_task_snapshots: CollectionAdapter<AiTaskSnapshotDocType>;
   track_entities: CollectionAdapter<TrackEntityDocType>;
 };
 

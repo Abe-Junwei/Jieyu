@@ -47,11 +47,10 @@ export interface TimelineUnitViewIndex {
   allUnits: ReadonlyArray<TimelineUnitView>;
   /** Current media rows for timeline digest / waveform bounds (former effectiveCurrentMediaRows). */
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
-  /**
-   * Union of ids from `allUnits` plus any `currentMediaUnits` ids missing there
-   * (utterance-first project can show segment rows on the current track only).
-   */
+  /** Exact-id lookup (`unit.id`) over `allUnits`. */
   byId: ReadonlyMap<string, TimelineUnitView>;
+  /** Resolve either exact unit id or semantic id (e.g. parent utterance id shadowed by segment). */
+  resolveBySemanticId: (semanticOrExactId: string) => TimelineUnitView | undefined;
   /** Units grouped by layer id; each bucket follows `allUnits` time order. */
   byLayer: ReadonlyMap<string, ReadonlyArray<TimelineUnitView>>;
   /** Resolve referring units (typically segments) by independent unit id. */
@@ -185,10 +184,6 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     const layerBucket = byLayerMutable.get(unit.layerId);
     if (layerBucket) layerBucket.push(unit);
     else byLayerMutable.set(unit.layerId, [unit]);
-    // Keep alias lookup for referring segments addressed by parent utterance id.
-    if (unit.parentUtteranceId && !byId.has(unit.parentUtteranceId)) {
-      byId.set(unit.parentUtteranceId, unit);
-    }
     if (unit.parentUtteranceId) {
       const referringBucket = referringByParentId.get(unit.parentUtteranceId);
       if (referringBucket) referringBucket.push(unit);
@@ -205,6 +200,11 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     if (!normalizedId) return emptyUnits;
     return referringByParentId.get(normalizedId) ?? emptyUnits;
   };
+  const resolveBySemanticId = (semanticOrExactId: string): TimelineUnitView | undefined => {
+    const normalized = semanticOrExactId.trim();
+    if (!normalized) return undefined;
+    return byId.get(normalized) ?? mergedBySemanticKey.get(normalized);
+  };
 
   const totalCount = allUnits.length;
   const currentMediaCount = currentMediaUnits.length;
@@ -215,6 +215,7 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     allUnits,
     currentMediaUnits,
     byId,
+    resolveBySemanticId,
     byLayer,
     getReferringUnits,
     totalCount,

@@ -6,7 +6,12 @@ export type ConversationClarifyReason =
   | 'missing-translation-layer-target'
   | 'missing-layer-link-target'
   | 'missing-layer-target'
-  | 'missing-language-target';
+  | 'missing-language-target'
+  | 'local-metric-ambiguous'
+  | 'local-scope-ambiguous'
+  | 'local-query-ambiguous'
+  | 'local-target-ambiguous'
+  | 'local-action-ambiguous';
 
 export interface ConversationClarifyCandidate {
   label: string;
@@ -19,6 +24,11 @@ const CLARIFY_TARGET_HINT_BY_REASON: Record<ConversationClarifyReason, string> =
   'missing-layer-link-target': '\u7f3a\u5c11\u76ee\u6807\u5c42',
   'missing-layer-target': '\u7f3a\u5c11\u76ee\u6807\u5c42',
   'missing-language-target': '\u7f3a\u5c11\u660e\u786e\u8bed\u8a00\u6216\u76ee\u6807\u5c42',
+  'local-metric-ambiguous': '\u7f3a\u5c11\u660e\u786e\u6307\u6807',
+  'local-scope-ambiguous': '\u7f3a\u5c11\u660e\u786e\u8303\u56f4',
+  'local-query-ambiguous': '\u7f3a\u5c11\u660e\u786e\u67e5\u8be2\u5185\u5bb9',
+  'local-target-ambiguous': '\u7f3a\u5c11\u660e\u786e\u76ee\u6807\u5bf9\u8c61',
+  'local-action-ambiguous': '\u7f3a\u5c11\u660e\u786e\u64cd\u4f5c',
 };
 
 function pickCopyByStyle(style: AiToolFeedbackStyle, concise: string, verbose: string): string {

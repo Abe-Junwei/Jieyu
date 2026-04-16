@@ -99,7 +99,7 @@ export interface ResolveAiChatStreamCompletionResult {
 }
 
 function buildLocalToolClarificationMessage(
-  reason: 'metric_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
+  reason: 'metric_ambiguous' | 'scope_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
   locale: Locale,
 ): string {
   const isZh = locale === 'zh-CN';
@@ -108,6 +108,10 @@ function buildLocalToolClarificationMessage(
       return isZh
         ? '我可以继续查询，但“多少”还不够明确。你是想看语段数、说话人数、翻译层数、未转写数量，还是缺少说话人数量？同时请告诉我是当前范围、当前音频，还是整个项目。'
         : 'I can continue, but “how many” is still ambiguous. Do you mean segment count, speaker count, translation layers, untranscribed count, or missing-speaker count? Also tell me whether this is for current scope, current audio, or the whole project.';
+    case 'scope_ambiguous':
+      return isZh
+        ? '我可以继续，但你还没有说明查询范围。请告诉我是当前范围、当前音频，还是整个项目。'
+        : 'I can continue, but I still need the scope. Please tell me whether this should use the current selection, the current audio, or the whole project.';
     case 'query_ambiguous':
       return isZh
         ? '我可以继续搜索，请先告诉我关键词（例如某个词、短语或术语）。'
@@ -126,7 +130,7 @@ function buildLocalToolClarificationMessage(
 }
 
 function recordLocalToolClarificationMetric(
-  reason: 'metric_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
+  reason: 'metric_ambiguous' | 'scope_ambiguous' | 'query_ambiguous' | 'target_ambiguous' | 'action_ambiguous',
   toolName: LocalContextToolCall['name'],
 ): void {
   recordMetric({
@@ -224,6 +228,12 @@ export async function resolveAiChatStreamCompletion({
       const clarificationNeed = detectLocalToolClarificationNeed([stepCall], userText, rollingMemory);
       if (clarificationNeed.needed) {
         recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);
+        bumpMetric('clarifyCount');
+        setTaskSession({
+          id: taskSessionId,
+          status: 'waiting_clarify',
+          updatedAt: new Date().toISOString(),
+        });
         return {
           finalContent: buildLocalToolClarificationMessage(clarificationNeed.reason, toolFeedbackLocale),
           finalStatus: 'done',
@@ -264,6 +274,12 @@ export async function resolveAiChatStreamCompletion({
     const clarificationNeed = detectLocalToolClarificationNeed([resolvedCall], userText, sessionMemory);
     if (clarificationNeed.needed) {
       recordLocalToolClarificationMetric(clarificationNeed.reason, clarificationNeed.callName);
+      bumpMetric('clarifyCount');
+      setTaskSession({
+        id: taskSessionId,
+        status: 'waiting_clarify',
+        updatedAt: new Date().toISOString(),
+      });
       return {
         finalContent: buildLocalToolClarificationMessage(clarificationNeed.reason, toolFeedbackLocale),
         finalStatus: 'done',

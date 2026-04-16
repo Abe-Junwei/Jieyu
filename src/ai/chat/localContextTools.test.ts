@@ -7,11 +7,31 @@ import {
 
 const mockGetDb = vi.fn();
 const mockListUtteranceTextsByUtterance = vi.fn();
+const mockSegmentMetaListByLayerMedia = vi.fn();
+const mockSegmentMetaSearchSegmentMeta = vi.fn();
+const mockSegmentMetaRebuildForLayerMedia = vi.fn();
+const mockWorkspaceReadModelRebuildForText = vi.fn();
+const mockWorkspaceReadModelGetScopeStats = vi.fn();
+const mockWorkspaceReadModelSummarizeQuality = vi.fn();
 vi.mock('../../db', () => ({
   getDb: (...args: unknown[]) => mockGetDb(...args),
 }));
 vi.mock('../../services/LayerSegmentationTextService', () => ({
   listUtteranceTextsByUtterance: (...args: unknown[]) => mockListUtteranceTextsByUtterance(...args),
+}));
+vi.mock('../../services/SegmentMetaService', () => ({
+  SegmentMetaService: {
+    listByLayerMedia: (...args: unknown[]) => mockSegmentMetaListByLayerMedia(...args),
+    searchSegmentMeta: (...args: unknown[]) => mockSegmentMetaSearchSegmentMeta(...args),
+    rebuildForLayerMedia: (...args: unknown[]) => mockSegmentMetaRebuildForLayerMedia(...args),
+  },
+}));
+vi.mock('../../services/WorkspaceReadModelService', () => ({
+  WorkspaceReadModelService: {
+    rebuildForText: (...args: unknown[]) => mockWorkspaceReadModelRebuildForText(...args),
+    getScopeStats: (...args: unknown[]) => mockWorkspaceReadModelGetScopeStats(...args),
+    summarizeQuality: (...args: unknown[]) => mockWorkspaceReadModelSummarizeQuality(...args),
+  },
 }));
 
 import {
@@ -128,7 +148,35 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   beforeEach(() => {
     mockGetDb.mockReset();
     mockListUtteranceTextsByUtterance.mockReset();
+    mockSegmentMetaListByLayerMedia.mockReset();
+    mockSegmentMetaSearchSegmentMeta.mockReset();
+    mockSegmentMetaRebuildForLayerMedia.mockReset();
+    mockWorkspaceReadModelRebuildForText.mockReset();
+    mockWorkspaceReadModelGetScopeStats.mockReset();
+    mockWorkspaceReadModelSummarizeQuality.mockReset();
     mockGetDb.mockRejectedValue(new Error('getDb must not run when localUnitIndex supplies rows'));
+    mockSegmentMetaListByLayerMedia.mockResolvedValue([]);
+    mockSegmentMetaSearchSegmentMeta.mockResolvedValue([]);
+    mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([]);
+    mockWorkspaceReadModelRebuildForText.mockResolvedValue({
+      qualityCount: 0,
+      scopeStatsCount: 0,
+      speakerProfileCount: 0,
+      translationStatusCount: 0,
+    });
+    mockWorkspaceReadModelGetScopeStats.mockResolvedValue(null);
+    mockWorkspaceReadModelSummarizeQuality.mockResolvedValue({
+      count: 0,
+      items: [],
+      breakdown: {
+        emptyTextCount: 0,
+        missingSpeakerCount: 0,
+        lowAiConfidenceCount: 0,
+        todoNoteCount: 0,
+      },
+      totalUnitsInScope: 0,
+      completionRate: 1,
+    });
   });
 
   it('list_units reads localUnitIndex without touching the database', async () => {
@@ -213,6 +261,95 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
+  it('search_units prefers segment_meta for current_scope lookups and exposes the read-model source', async () => {
+    const ref = { current: 0 };
+    mockSegmentMetaSearchSegmentMeta.mockResolvedValue([
+      {
+        id: 'seg-1',
+        segmentId: 'seg-1',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'morphology note',
+        normalizedText: 'morphology note',
+        hasText: true,
+        effectiveSpeakerId: 'spk-1',
+      },
+    ]);
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'search_units', arguments: { query: 'morphology', scope: 'current_scope', speakerId: 'spk-1' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      scope: 'current_scope',
+      count: 1,
+      matches: [{ id: 'seg-1' }],
+      _readModel: { source: 'segment_meta' },
+    });
+    expect(mockSegmentMetaSearchSegmentMeta).toHaveBeenCalledWith(expect.objectContaining({
+      layerId: 'layer-1',
+      mediaId: 'm1',
+      query: 'morphology',
+      speakerId: 'spk-1',
+    }));
+  });
+
+  it('get_unit_detail falls back to segment_meta when the local snapshot misses the row', async () => {
+    const ref = { current: 0 };
+    mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([
+      {
+        id: 'seg-2',
+        segmentId: 'seg-2',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 4,
+        endTime: 6,
+        text: 'fallback detail',
+        normalizedText: 'fallback detail',
+        hasText: true,
+        annotationStatus: 'verified',
+      },
+    ]);
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_unit_detail', arguments: { unitId: 'seg-2', scope: 'current_scope' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      id: 'seg-2',
+      layerId: 'layer-1',
+      mediaId: 'm1',
+      transcription: 'fallback detail',
+      annotationStatus: 'verified',
+      _readModel: { source: 'segment_meta' },
+    });
+  });
+
   it('get_current_selection does NOT leak localUnitIndex', async () => {
     const ref = { current: 0 };
     const context = {
@@ -243,6 +380,108 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload.projectUnitCount).toBe(4);
     expect(payload).not.toHaveProperty('localUnitIndex');
     expect(payload._readModel).toMatchObject({ unitIndexComplete: true, indexRowCount: 1 });
+  });
+
+  it('get_project_stats prefers scope_stats_snapshot when available', async () => {
+    const ref = { current: 0 };
+    mockWorkspaceReadModelGetScopeStats.mockResolvedValue({
+      id: 'layer::layer-1',
+      scopeType: 'layer',
+      scopeKey: 'layer-1',
+      textId: 'text-1',
+      layerId: 'layer-1',
+      unitCount: 4,
+      segmentCount: 2,
+      utteranceCount: 2,
+      speakerCount: 2,
+      translationLayerCount: 1,
+      noteFlaggedCount: 1,
+      untranscribedCount: 1,
+      missingSpeakerCount: 1,
+      avgAiConfidence: 0.75,
+      createdAt: '2026-04-16T00:00:00.000Z',
+      updatedAt: '2026-04-16T00:00:00.000Z',
+    });
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one', speakerId: 'spk-1' },
+        ],
+        currentScopeUnitCount: 4,
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_project_stats', arguments: { scope: 'current_scope', metric: 'speaker_count' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      scope: 'current_scope',
+      speakerCount: 2,
+      requestedMetric: 'speaker_count',
+      value: 2,
+      _readModel: { source: 'scope_stats_snapshot' },
+    });
+    expect(mockWorkspaceReadModelRebuildForText).toHaveBeenCalledWith('text-1');
+    expect(mockWorkspaceReadModelGetScopeStats).toHaveBeenCalledWith('layer', 'layer-1', 'text-1');
+  });
+
+  it('diagnose_quality prefers segment_quality_snapshot when available', async () => {
+    const ref = { current: 0 };
+    mockWorkspaceReadModelSummarizeQuality.mockResolvedValue({
+      count: 2,
+      items: [
+        { category: 'missing_speaker', count: 1 },
+        { category: 'empty_text', count: 1 },
+      ],
+      breakdown: {
+        emptyTextCount: 1,
+        missingSpeakerCount: 1,
+        lowAiConfidenceCount: 0,
+        todoNoteCount: 0,
+      },
+      totalUnitsInScope: 4,
+      completionRate: 0.75,
+    });
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        localUnitIndex: [
+          { id: 'a', kind: 'segment' as const, textId: 'text-1', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'one' },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'diagnose_quality', arguments: { scope: 'current_scope', metric: 'missing_speaker_count' } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      count: 2,
+      requestedMetric: 'missing_speaker_count',
+      value: 1,
+      breakdown: {
+        emptyTextCount: 1,
+        missingSpeakerCount: 1,
+      },
+      _readModel: { source: 'segment_quality_snapshot' },
+    });
+    expect(mockWorkspaceReadModelSummarizeQuality).toHaveBeenCalledWith({
+      textId: 'text-1',
+      layerId: 'layer-1',
+      mediaId: 'm1',
+    });
   });
 
   it('get_project_stats respects scoped speaker counts from localUnitIndex', async () => {

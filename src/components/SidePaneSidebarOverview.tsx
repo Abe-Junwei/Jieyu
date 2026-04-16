@@ -1,5 +1,6 @@
 import { useMemo, type RefObject } from 'react';
-import type { LayerDocType, OrthographyDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, SpeakerDocType, UtteranceDocType } from '../db';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
@@ -32,6 +33,11 @@ interface SidePaneSidebarOverviewProps {
   bundleBoundaryIndexes: number[];
   layerLabelById: Map<string, string>;
   resolveTargetBundleRange: (draggedId: string, dropIndex: number) => BundleRange | null;
+  defaultTranscriptionLayerId?: string;
+  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  utterancesOnCurrentMedia?: UtteranceDocType[];
+  speakers?: SpeakerDocType[];
+  onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onFocusLayer: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, layerId: string) => void;
   onMouseDown: (e: React.MouseEvent, layer: LayerDocType) => void;
@@ -51,6 +57,11 @@ export function SidePaneSidebarOverview({
   bundleBoundaryIndexes,
   layerLabelById,
   resolveTargetBundleRange,
+  defaultTranscriptionLayerId,
+  segmentsByLayer,
+  utterancesOnCurrentMedia,
+  speakers,
+  onSelectTimelineUnit,
   onFocusLayer,
   onContextMenu,
   onMouseDown,
@@ -125,6 +136,12 @@ export function SidePaneSidebarOverview({
           <SidePaneSidebarSegmentList
             focusedLayerRowId={focusedLayerRowId}
             messages={messages}
+            layers={sidePaneRows}
+            {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
+            {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
+            {...(utterancesOnCurrentMedia !== undefined ? { utterancesOnCurrentMedia } : {})}
+            {...(speakers !== undefined ? { speakers } : {})}
+            {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
           />
         </>
       ) : (

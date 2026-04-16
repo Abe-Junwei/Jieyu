@@ -197,6 +197,12 @@ export function getLayerHeaderLanguageLine(layer: LayerDocType, locale: Language
 }
 
 export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
+  const explicitVarietyParts = [layer.dialect?.trim(), layer.vernacular?.trim()]
+    .filter((part): part is string => Boolean(part));
+  if (explicitVarietyParts.length > 0) {
+    return explicitVarietyParts.join(' · ');
+  }
+
   const code = (layer.languageId ?? '').trim();
   if (!code) return resolveLayerAlias(layer);
   const parsed = parseBcp47(code);

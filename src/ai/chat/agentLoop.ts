@@ -33,17 +33,26 @@ function resolveMetricValue(result: LocalContextToolResult): number | undefined 
   return undefined;
 }
 
+function isKnownMetric(value: unknown): value is LocalToolMetric {
+  return value === 'unit_count'
+    || value === 'speaker_count'
+    || value === 'translation_layer_count'
+    || value === 'ai_confidence_avg'
+    || value === 'untranscribed_count'
+    || value === 'missing_speaker_count';
+}
+
 function resolveRequestedMetric(result: LocalContextToolResult): LocalToolMetric | undefined {
   if (!result.ok) return undefined;
   const body = asObjectRecord(result.result);
   if (!body) return undefined;
   const requestedMetric = typeof body.requestedMetric === 'string' ? body.requestedMetric : undefined;
-  if (requestedMetric === 'untranscribed_count' || requestedMetric === 'missing_speaker_count') {
+  if (isKnownMetric(requestedMetric)) {
     return requestedMetric;
   }
   const meta = asObjectRecord(body.meta);
   const metaRequested = meta && typeof meta.requestedMetric === 'string' ? meta.requestedMetric : undefined;
-  if (metaRequested === 'untranscribed_count' || metaRequested === 'missing_speaker_count') {
+  if (isKnownMetric(metaRequested)) {
     return metaRequested;
   }
   return undefined;
@@ -53,13 +62,20 @@ function isAnswerReadyForMetricQuery(
   metric: LocalToolMetric | undefined,
   localToolResults: LocalContextToolResult[],
 ): boolean {
-  if (metric !== 'untranscribed_count' && metric !== 'missing_speaker_count') return false;
+  if (!isKnownMetric(metric)) return false;
   return localToolResults.some((item) => {
     if (!item.ok || (item.name !== 'diagnose_quality' && item.name !== 'get_project_stats')) return false;
     const value = resolveMetricValue(item);
     if (value === undefined) return false;
     return resolveRequestedMetric(item) === metric;
   });
+}
+
+function isAnswerReadyForDetailQuery(localToolResults: LocalContextToolResult[]): boolean {
+  return localToolResults.some((item) => item.ok && (
+    item.name === 'get_unit_detail'
+    || item.name === 'get_unit_linguistic_memory'
+  ));
 }
 
 export function shouldContinueAgentLoop(
@@ -71,6 +87,7 @@ export function shouldContinueAgentLoop(
   if (!localToolResults || localToolResults.length === 0) return false;
   if (localToolResults.some((item) => !item.ok)) return false;
   if (isAnswerReadyForMetricQuery(metric, localToolResults)) return false;
+  if (isAnswerReadyForDetailQuery(localToolResults)) return false;
   return step < config.maxSteps;
 }
 

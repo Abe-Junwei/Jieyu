@@ -28,6 +28,7 @@ export type ResolveLocalToolCallsOutput = {
 
 export type LocalToolClarificationReason =
   | 'metric_ambiguous'
+  | 'scope_ambiguous'
   | 'query_ambiguous'
   | 'target_ambiguous'
   | 'action_ambiguous';
@@ -503,6 +504,22 @@ function needsMetricClarification(
   return callMetric === 'unit_count';
 }
 
+function needsScopeClarification(
+  call: LocalContextToolCall,
+  userText: string,
+  memory: AiSessionMemory,
+): boolean {
+  if (call.name !== 'get_project_stats' && call.name !== 'diagnose_quality') return false;
+  const metric = normalizeMetricArg(call.arguments.metric)
+    ?? normalizeGapMetricArg(call.arguments.metric)
+    ?? inferMetricFromUserText(userText)
+    ?? inferGapMetricFromUserText(userText);
+  if (metric === undefined) return false;
+  if (inferScopeFromUserText(userText)) return false;
+  if (memory.localToolState?.lastFrame?.scope || memory.localToolState?.lastScope) return false;
+  return true;
+}
+
 function needsQueryClarification(
   call: LocalContextToolCall,
   userText: string,
@@ -557,6 +574,9 @@ export function detectLocalToolClarificationNeed(
     if ((call.name === 'get_project_stats' || call.name === 'diagnose_quality')
       && needsMetricClarification(call, userText, memory)) {
       return { needed: true, reason: 'metric_ambiguous', callName: call.name };
+    }
+    if (needsScopeClarification(call, userText, memory)) {
+      return { needed: true, reason: 'scope_ambiguous', callName: call.name };
     }
     if (needsQueryClarification(call, userText, memory)) {
       return { needed: true, reason: 'query_ambiguous', callName: call.name };

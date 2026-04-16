@@ -11,6 +11,7 @@ const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
   allUnits: [],
   currentMediaUnits: [],
   byId: new Map(),
+  resolveBySemanticId: () => undefined,
   byLayer: new Map(),
   getReferringUnits: () => [],
   totalCount: 0,
@@ -159,6 +160,56 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       translationLayer.id,
       transcriptionLayer.id,
     ]);
+  });
+
+  it('keeps segment unit shape when segment id collides with utterance id', () => {
+    const layer = {
+      ...makeLayer('trc-seg'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const renderAnnotationItem = vi.fn((utt: { id: string }) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>);
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        timelineRenderUtterances={[
+          makeUtterance('seg-1', 0, 2),
+          makeUtterance('utt-host', 4, 6),
+        ]}
+        segmentsByLayer={new Map([
+          [layer.id, [{
+            id: 'seg-1',
+            layerId: layer.id,
+            mediaId: 'm1',
+            utteranceId: 'utt-host',
+            startTime: 4,
+            endTime: 6,
+            textId: 't1',
+            createdAt: NOW,
+            updatedAt: NOW,
+          }]],
+        ])}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        renderAnnotationItem={renderAnnotationItem}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const firstRenderedUnit = renderAnnotationItem.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(firstRenderedUnit).toBeTruthy();
+    expect(firstRenderedUnit?.kind).toBe('segment');
+    expect(firstRenderedUnit?.parentUtteranceId).toBe('utt-host');
   });
 
   it('expands only the clicked overlap window and auto-collapses after timeout', () => {

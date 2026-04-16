@@ -35,7 +35,10 @@ function renderHeader(trackModeControl?: {
 }, options?: {
   layer?: LayerDocType;
   allLayers?: LayerDocType[];
-  onLayerAction?: (action: 'create-transcription' | 'create-translation' | 'delete', layerId: string) => void;
+  onLayerAction?: (
+    action: 'create-transcription' | 'create-translation' | 'edit-transcription-metadata' | 'edit-translation-metadata' | 'delete',
+    layerId: string,
+  ) => void;
   displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
 }) {
   const layer = options?.layer ?? makeLayer('layer-1');
@@ -83,6 +86,7 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
 
+    expect(await findMenuButton('编辑转写层元信息')).toBeTruthy();
     expect(await findMenuButton('新建转写层')).toBeTruthy();
     expect(await findMenuButton('新建翻译层')).toBeTruthy();
     expect(await findMenuButton('删除当前层')).toBeTruthy();

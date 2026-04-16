@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerSegmentDocType, SpeakerDocType, UtteranceDocType } from '../db';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
@@ -34,10 +35,16 @@ interface SidePaneSidebarProps {
   transcriptionLayers: LayerDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: LayerDocType[];
+  updateLayerMetadata?: (layerId: string, input: { dialect?: string; vernacular?: string; alias?: string }) => Promise<boolean>;
   layerCreateMessage: string;
   layerAction: LayerActionResult;
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
+  defaultTranscriptionLayerId?: string;
+  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  utterancesOnCurrentMedia?: UtteranceDocType[];
+  speakers?: SpeakerDocType[];
+  onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
 }
 
@@ -49,10 +56,16 @@ export function SidePaneSidebar({
   transcriptionLayers,
   toggleLayerLink,
   deletableLayers,
+  updateLayerMetadata,
   layerCreateMessage,
   layerAction,
   defaultLanguageId,
   defaultOrthographyId,
+  defaultTranscriptionLayerId,
+  segmentsByLayer,
+  utterancesOnCurrentMedia,
+  speakers,
+  onSelectTimelineUnit,
   onReorderLayers,
 }: SidePaneSidebarProps) {
   const location = useLocation();
@@ -76,7 +89,7 @@ export function SidePaneSidebar({
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; layerId: string } | null>(null);
   const [createLayerPopoverAction, setCreateLayerPopoverAction] = useState<{
-    action: 'create-transcription' | 'create-translation';
+    action: 'create-transcription' | 'create-translation' | 'edit-transcription-metadata' | 'edit-translation-metadata';
     layerId?: string;
   } | null>(null);
 
@@ -117,6 +130,17 @@ export function SidePaneSidebar({
     setLayerActionPanel(null);
     setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
   }, [setLayerActionPanel]);
+
+  const openMetadataLayerPopover = useCallback((layerId: string) => {
+    if (!updateLayerMetadata) return;
+    const layer = sidePaneRows.find((candidate) => candidate.id === layerId);
+    if (!layer) return;
+    setLayerActionPanel(null);
+    setCreateLayerPopoverAction({
+      action: layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata',
+      layerId,
+    });
+  }, [setLayerActionPanel, sidePaneRows, updateLayerMetadata]);
 
   const sidePaneHost = useAppSidePaneHostOptional();
   const hasSidePaneHost = sidePaneHost !== null;
@@ -176,12 +200,18 @@ export function SidePaneSidebar({
   const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
     layerId: contextMenu?.layerId ?? null,
     messages,
+    allLayers: sidePaneRows,
     deletableLayers,
+    canOpenLayerMetadata: Boolean(updateLayerMetadata),
+    requestOpenLayerMetadata: openMetadataLayerPopover,
     requestDeleteLayer,
   }), [
     contextMenu?.layerId,
     deletableLayers,
     messages,
+    sidePaneRows,
+    updateLayerMetadata,
+    openMetadataLayerPopover,
     requestDeleteLayer,
   ]);
 
@@ -207,6 +237,11 @@ export function SidePaneSidebar({
       bundleBoundaryIndexes={bundleBoundaryIndexes}
       layerLabelById={layerLabelById}
       resolveTargetBundleRange={resolveTargetBundleRange}
+      {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
+      {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
+      {...(utterancesOnCurrentMedia !== undefined ? { utterancesOnCurrentMedia } : {})}
+      {...(speakers !== undefined ? { speakers } : {})}
+      {...(onSelectTimelineUnit !== undefined ? { onSelectTimelineUnit } : {})}
       onFocusLayer={onFocusLayer}
       onContextMenu={handleLayerContextMenu}
       onMouseDown={handleDragStart}
@@ -348,6 +383,7 @@ export function SidePaneSidebar({
           }, modality)}
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
+          {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
           checkLayerHasContent={checkLayerHasContent}

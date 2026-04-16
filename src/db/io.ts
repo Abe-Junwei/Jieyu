@@ -17,7 +17,10 @@ import type {
   LayerDocType, LayerUnitDocType, LayerUnitContentDocType,
   UnitRelationDocType, LayerLinkDocType,
   TierDefinitionDocType, TierAnnotationDocType,
-  AuditLogDocType, UserNoteDocType, TrackEntityDocType,
+  AuditLogDocType, UserNoteDocType, SegmentMetaDocType,
+  SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType,
+  SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType,
+  LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType,
   ProvenanceEnvelope,
   JieyuCollections,
   ImportConflictStrategy, ImportResult,
@@ -39,7 +42,10 @@ import {
   validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc,
   validateUnitRelationDoc, validateLayerLinkDoc,
   validateTierDefinitionDoc, validateTierAnnotationDoc,
-  validateAuditLogDoc, validateUserNoteDoc, validateTrackEntityDoc,
+  validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc,
+  validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc,
+  validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc,
+  validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc,
 } from './schemas';
 import { db, getDb } from './engine';
 
@@ -154,6 +160,13 @@ const knownCollectionNames = [
   'tier_annotations',
   'audit_logs',
   'user_notes',
+  'segment_meta',
+  'segment_quality_snapshots',
+  'scope_stats_snapshots',
+  'speaker_profile_snapshots',
+  'translation_status_snapshots',
+  'language_asset_overviews',
+  'ai_task_snapshots',
   'track_entities',
 ] as const;
 
@@ -194,6 +207,13 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   tier_annotations: db.tier_annotations,
   audit_logs: db.audit_logs,
   user_notes: db.user_notes,
+  segment_meta: db.segment_meta,
+  segment_quality_snapshots: db.segment_quality_snapshots,
+  scope_stats_snapshots: db.scope_stats_snapshots,
+  speaker_profile_snapshots: db.speaker_profile_snapshots,
+  translation_status_snapshots: db.translation_status_snapshots,
+  language_asset_overviews: db.language_asset_overviews,
+  ai_task_snapshots: db.ai_task_snapshots,
   track_entities: db.track_entities,
 };
 
@@ -233,6 +253,13 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   tier_annotations: (value) => validateTierAnnotationDoc(value as TierAnnotationDocType),
   audit_logs: (value) => validateAuditLogDoc(value as AuditLogDocType),
   user_notes: (value) => validateUserNoteDoc(value as UserNoteDocType),
+  segment_meta: (value) => validateSegmentMetaDoc(value as SegmentMetaDocType),
+  segment_quality_snapshots: (value) => validateSegmentQualitySnapshotDoc(value as SegmentQualitySnapshotDocType),
+  scope_stats_snapshots: (value) => validateScopeStatsSnapshotDoc(value as ScopeStatsSnapshotDocType),
+  speaker_profile_snapshots: (value) => validateSpeakerProfileSnapshotDoc(value as SpeakerProfileSnapshotDocType),
+  translation_status_snapshots: (value) => validateTranslationStatusSnapshotDoc(value as TranslationStatusSnapshotDocType),
+  language_asset_overviews: (value) => validateLanguageAssetOverviewDoc(value as LanguageAssetOverviewDocType),
+  ai_task_snapshots: (value) => validateAiTaskSnapshotDoc(value as AiTaskSnapshotDocType),
   track_entities: (value) => validateTrackEntityDoc(value as TrackEntityDocType),
 };
 

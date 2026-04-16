@@ -1,9 +1,9 @@
 import type {
   LayerDocType,
-  LayerSegmentDocType,
   MediaItemDocType,
   UtteranceDocType,
 } from '../db';
+import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -11,14 +11,13 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { t, useLocale } from '../i18n';
 
-export type TranslationTimelineRowDoc = UtteranceDocType | LayerSegmentDocType;
-
 interface TranscriptionTimelineMediaTranslationRowProps {
-  item: TranslationTimelineRowDoc;
+  item: TimelineUnitView;
   layer: LayerDocType;
   layerForDisplay: LayerDocType;
   baseLaneHeight: number;
   usesOwnSegments: boolean;
+  utteranceById: Map<string, UtteranceDocType>;
   text: string;
   draft: string;
   draftKey: string;
@@ -36,7 +35,7 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   renderAnnotationItem: (
-    utt: TranslationTimelineRowDoc,
+    utt: TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -58,6 +57,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   layerForDisplay,
   baseLaneHeight,
   usesOwnSegments,
+  utteranceById,
   text,
   draft,
   draftKey,
@@ -83,15 +83,23 @@ export function TranscriptionTimelineMediaTranslationRow({
   const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
   const isCurrentRecording = recording && recordingUtteranceId === item.id && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
+  const sourceUtterance = item.kind === 'segment'
+    ? (item.parentUtteranceId ? utteranceById.get(item.parentUtteranceId) : undefined)
+    : utteranceById.get(item.id);
   const audioControls = layerSupportsAudio ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
-      onStartRecording={() => startRecordingForUtterance?.(item as UtteranceDocType, layer)}
+      onStartRecording={() => {
+        if (!sourceUtterance) return;
+        void startRecordingForUtterance?.(sourceUtterance, layer);
+      }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-      {...(audioMedia && deleteVoiceTranslation ? { onDeleteRecording: () => deleteVoiceTranslation(item as UtteranceDocType, layer) } : {})}
+      {...(audioMedia && deleteVoiceTranslation && sourceUtterance
+        ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUtterance, layer) }
+        : {})}
     />
   ) : undefined;
 

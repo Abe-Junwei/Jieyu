@@ -2,6 +2,9 @@ import type { Locale } from './index';
 import { getLayerActionLabels, type LayerActionLabels } from './layerActionLabels';
 
 export type LayerActionPopoverMessages = LayerActionLabels & {
+  editTranscriptionMetadata: string;
+  editTranslationMetadata: string;
+  saveMetadata: string;
   createFailedPrefix: string;
   transcriptionCreateFallback: string;
   translationCreateFallback: string;
@@ -21,6 +24,8 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   createOrthography: string;
   newOrthographyButton: string;
   orthographyHint: string;
+  dialectPlaceholder: string;
+  vernacularPlaceholder: string;
   aliasShortPlaceholder: string;
   constraintLegend: string;
   dependentConstraint: string;
@@ -55,6 +60,9 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
 
 const zhCN: LayerActionPopoverMessages = {
   ...getLayerActionLabels('zh-CN'),
+  editTranscriptionMetadata: '编辑转写层元信息',
+  editTranslationMetadata: '编辑翻译层元信息',
+  saveMetadata: '保存',
   createFailedPrefix: '\u521b\u5efa\u5931\u8d25',
   transcriptionCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u8f6c\u5199\u5c42\uff1a\u8bf7\u68c0\u67e5\u8fb9\u754c\u6a21\u5f0f\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
   translationCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u7ffb\u8bd1\u5c42\uff1a\u8bf7\u68c0\u67e5\u4f9d\u8d56\u5c42\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
@@ -74,6 +82,8 @@ const zhCN: LayerActionPopoverMessages = {
   createOrthography: '+ \u65b0\u5efa\u6b63\u5b57\u6cd5\u2026',
   newOrthographyButton: '\u65b0\u5efa',
   orthographyHint: '\u5f53\u524d\u8bed\u8a00\u5c1a\u672a\u5339\u914d\u5230\u5185\u7f6e\u6216\u81ea\u5efa\u6b63\u5b57\u6cd5\uff0c\u53ef\u76f4\u63a5\u65b0\u5efa\u4e00\u5957\u6b63\u5b57\u6cd5\u3002',
+  dialectPlaceholder: '\u65b9\u8a00\uff08\u53ef\u9009\uff09',
+  vernacularPlaceholder: '\u571f\u8bed\uff08\u53ef\u9009\uff09',
   aliasShortPlaceholder: '\u522b\u540d\uff08\u53ef\u9009\uff09',
   constraintLegend: '\u5c42\u7ea6\u675f\u7c7b\u578b',
   dependentConstraint: '\u4f9d\u8d56\u8fb9\u754c\uff08\u8ddf\u968f\u4e3b\u8f6c\u5199\u5c42\uff09',
@@ -108,6 +118,9 @@ const zhCN: LayerActionPopoverMessages = {
 
 const enUS: LayerActionPopoverMessages = {
   ...getLayerActionLabels('en-US'),
+  editTranscriptionMetadata: 'Edit Transcription Metadata',
+  editTranslationMetadata: 'Edit Translation Metadata',
+  saveMetadata: 'Save',
   createFailedPrefix: 'Create failed',
   transcriptionCreateFallback: 'Unable to create transcription layer. Check boundary mode, target language, and alias settings.',
   translationCreateFallback: 'Unable to create translation layer. Check dependency layer, target language, and alias settings.',
@@ -127,6 +140,8 @@ const enUS: LayerActionPopoverMessages = {
   createOrthography: '+ Create orthography…',
   newOrthographyButton: 'New',
   orthographyHint: 'No built-in or custom orthography is available for this language yet. Create one directly.',
+  dialectPlaceholder: 'Dialect (optional)',
+  vernacularPlaceholder: 'Vernacular (optional)',
   aliasShortPlaceholder: 'Alias (optional)',
   constraintLegend: 'Layer Constraint Type',
   dependentConstraint: 'Dependent boundary (follows parent transcription layer)',

@@ -1,6 +1,6 @@
 import { Fragment, startTransition, useCallback, useMemo, type MouseEvent, type ReactNode } from 'react';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
-import type { LayerDocType, LayerSegmentDocType, OrthographyDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, OrthographyDocType, UtteranceDocType } from '../db';
 import { t, useLocale } from '../i18n';
 import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
 import type { TimelineUnitView } from './timelineUnitView';
@@ -16,12 +16,12 @@ import {
   resolveTranscriptionUnitTarget,
 } from '../pages/transcriptionUnitTargetResolver';
 import {
-  resolveSelfCertaintyHostUtteranceId,
+  resolveTimelineRowSelfCertainty,
   type UtteranceSelfCertainty,
 } from '../utils/utteranceSelfCertainty';
 
-/** Rows bound into timeline annotation chrome (transcription utterances or translation / segment sources). */
-type TimelineAnnotationBoundDoc = UtteranceDocType | LayerSegmentDocType | TimelineUnitView;
+/** Rows bound into timeline annotation chrome. */
+type TimelineAnnotationBoundDoc = TimelineUnitView;
 
 type SpeakerVisual = {
   name: string;
@@ -313,35 +313,18 @@ export function useTimelineAnnotationHelpers({
     const speakerVisual = showSpeaker ? speakerVisualByUtteranceId[utt.id] : undefined;
     const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
     const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const explicitParentUtteranceId = 'parentUtteranceId' in utt
-      ? utt.parentUtteranceId
-      : 'utteranceId' in utt
-        ? utt.utteranceId
-        : undefined;
-    const isSegmentRow = 'kind' in utt
-      ? utt.kind === 'segment'
-      : 'layerId' in utt || typeof explicitParentUtteranceId === 'string';
-    const uttSelfCertainty = (() => {
-      if (!isSegmentRow) {
-        return ('selfCertainty' in utt && utt.selfCertainty)
-          ? utt.selfCertainty
-          : selfCertaintyByUtteranceId.get(utt.id);
-      }
-      const ownerId = resolveSelfCertaintyHostUtteranceId(
-        utt.id,
-        utterancesForSelfCertainty ?? [],
-        {
-          ...(explicitParentUtteranceId ? { parentUtteranceId: explicitParentUtteranceId } : {}),
-          ...(('mediaId' in utt && typeof utt.mediaId === 'string' && utt.mediaId.trim().length > 0)
-            ? { mediaId: utt.mediaId }
-            : {}),
-          startTime: utt.startTime,
-          endTime: utt.endTime,
-        },
-      );
-      if (!ownerId) return undefined;
-      return selfCertaintyByUtteranceId.get(ownerId);
-    })();
+    const explicitParentUtteranceId = utt.parentUtteranceId;
+    const isSegmentRow = utt.kind === 'segment';
+    const { selfCertainty: uttSelfCertainty } = resolveTimelineRowSelfCertainty({
+      unitId: utt.id,
+      startTime: utt.startTime,
+      endTime: utt.endTime,
+      isSegmentRow,
+      ...(explicitParentUtteranceId ? { parentUtteranceId: explicitParentUtteranceId } : {}),
+      ...((utt.mediaId?.trim() ?? '').length > 0 ? { mediaId: utt.mediaId } : {}),
+      utterances: utterancesForSelfCertainty ?? [],
+      selfCertaintyByUtteranceId,
+    });
     const tierLabel = uttSelfCertainty === 'certain'
       ? t(locale, 'transcription.utterance.selfCertainty.certain')
       : uttSelfCertainty === 'uncertain'
@@ -407,6 +390,7 @@ export function useTimelineAnnotationHelpers({
     resolveNoteIndicatorTarget,
     speakerVisualByUtteranceId,
     selfCertaintyByUtteranceId,
+    utterancesForSelfCertainty,
   ]);
 
   const renderLaneLabel = useCallback((layer: LayerDocType) => {

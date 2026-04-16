@@ -12,6 +12,7 @@ interface UseBatchOperationControllerInput {
   selectedUnitIds: Set<string>;
   selectedTimelineUnit: TimelineUnit | null | undefined;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
   setSaveState: Dispatch<SetStateAction<SaveState>>;
@@ -34,6 +35,7 @@ export function useBatchOperationController({
   selectedUnitIds,
   selectedTimelineUnit,
   unitViewById,
+  resolveUnitViewById,
   unitsOnCurrentMedia,
   getUtteranceDocById,
   setSaveState,
@@ -48,8 +50,9 @@ export function useBatchOperationController({
       selectedUnitIds,
       selectedTimelineUnit,
       unitViewById,
+      ...(resolveUnitViewById ? { resolveUnitViewById } : {}),
     });
-  }, [selectedTimelineUnit, selectedUnitIds, unitViewById]);
+  }, [resolveUnitViewById, selectedTimelineUnit, selectedUnitIds, unitViewById]);
   const selectedUnitIdsForSpeakerActionsSet = batchUtteranceSelectionMapping.mappedUnitIds;
   const hasBatchSelectionSource = batchUtteranceSelectionMapping.hasSelectionSource;
   const selectedBatchUtterances = useMemo(() => {

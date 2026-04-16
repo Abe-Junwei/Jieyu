@@ -76,10 +76,12 @@ function utteranceToTimelineView(u: UtteranceDocType, layerId: string): Timeline
 }
 
 function makeIndex(currentMediaUnits: TimelineUnitView[]): TimelineUnitViewIndex {
+  const byId = new Map(currentMediaUnits.map((unit) => [unit.id, unit] as const));
   return {
     allUnits: currentMediaUnits,
     currentMediaUnits,
-    byId: new Map(currentMediaUnits.map((unit) => [unit.id, unit] as const)),
+    byId,
+    resolveBySemanticId: (id: string) => byId.get(id),
     byLayer: new Map(),
     getReferringUnits: () => [],
     totalCount: currentMediaUnits.length,
@@ -167,6 +169,9 @@ describe('useWaveformSelectionController', () => {
       allUnits: [segView, segView2, uttView],
       currentMediaUnits: [segView, segView2, uttView],
       byId: new Map([[segView.id, segView], [segView2.id, segView2], [uttView.id, uttView]]),
+      resolveBySemanticId: (id: string) => (
+        id === segView.id ? segView : id === segView2.id ? segView2 : id === uttView.id ? uttView : undefined
+      ),
       byLayer: new Map([
         ['layer-seg', [segView, segView2]],
         ['layer-main', [uttView]],
@@ -207,6 +212,7 @@ describe('useWaveformSelectionController', () => {
       allUnits: [uttView1, uttView2],
       currentMediaUnits: [uttView1, uttView2],
       byId: new Map([[uttView1.id, uttView1], [uttView2.id, uttView2]]),
+      resolveBySemanticId: (id: string) => (id === uttView1.id ? uttView1 : id === uttView2.id ? uttView2 : undefined),
       byLayer: new Map([['layer-main', [uttView1, uttView2]]]),
       getReferringUnits: () => [],
       totalCount: 2,

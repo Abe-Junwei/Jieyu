@@ -184,10 +184,11 @@ export function useTranscriptionSnapshotLoader({
     dbNameRef.current = db.name;
     const translationLayerRows = layerRows.filter((l) => l.layerType === 'translation');
     const projectTextId = utteranceRows[0]?.textId ?? layerRows[0]?.textId ?? '';
-    let unitCount = utteranceRows.length;
+    const unitCount = utteranceRows.length;
+    let unifiedUnitCount = unitCount;
     if (projectTextId.trim()) {
       const projectSegments = await LayerSegmentQueryService.listSegmentsByTextId(projectTextId);
-      unitCount = mergedTimelineUnitSemanticKeyCount({
+      unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
         utteranceIds: utteranceRows.map((row) => row.id),
         segments: projectSegments,
       });
@@ -197,6 +198,7 @@ export function useTranscriptionSnapshotLoader({
       phase: 'ready',
       dbName: db.name,
       unitCount,
+      unifiedUnitCount,
       translationLayerCount: translationLayerRows.length,
       translationRecordCount: translationRows.length,
     });

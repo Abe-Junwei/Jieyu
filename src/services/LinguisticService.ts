@@ -69,6 +69,7 @@ import type {
   UpsertLanguageCatalogEntryInput,
 } from './LinguisticService.languageCatalog';
 import { lookupIso639_3Seed } from './languageCatalogSeedLookup';
+import { SegmentMetaService } from './SegmentMetaService';
 export type { Iso639_3Seed } from './languageCatalogSeedLookup';
 
 export {
@@ -545,6 +546,12 @@ export class LinguisticService {
       }
     }
 
+    void SegmentMetaService.syncForUnitIds([
+      ...utterances.map((row) => row.id),
+      ...segments.map((row) => row.id),
+    ]).catch(() => {
+      // SegmentMeta 为统一读模型，说话人同步失败不应阻塞删除流程 | SegmentMeta is a shared read model; speaker-sync failures must not block deletion.
+    });
     await db.collections.speakers.remove(id);
     return affectedCount;
   }
@@ -582,6 +589,9 @@ export class LinguisticService {
     });
 
     await bulkUpsertUtteranceLayerUnits(db, updates);
+    void SegmentMetaService.syncForUnitIds(updates.map((row) => row.id)).catch(() => {
+      // SegmentMeta 为统一读模型，说话人同步失败不应阻塞主流程 | SegmentMeta is a shared read model; speaker-sync failures must not block the primary flow.
+    });
     return updates.length;
   }
 
@@ -617,6 +627,9 @@ export class LinguisticService {
     });
 
     await LayerUnitSegmentWriteService.upsertSegments(db, updates);
+    void SegmentMetaService.syncForUnitIds(updates.map((row) => row.id)).catch(() => {
+      // SegmentMeta 为统一读模型，说话人同步失败不应阻塞主流程 | SegmentMeta is a shared read model; speaker-sync failures must not block the primary flow.
+    });
     return updates.length;
   }
 
@@ -634,6 +647,9 @@ export class LinguisticService {
     if (hasEmbeddedDefaultTextChanged(existing, normalized)) {
       await invalidateUtteranceEmbeddings(db, [normalized.id]);
     }
+    void SegmentMetaService.syncForUnitIds([normalized.id]).catch(() => {
+      // SegmentMeta 为统一读模型，刷新失败不应阻塞保存 | SegmentMeta is a shared read model; refresh failures must not block saves.
+    });
     return normalized.id;
   }
 
@@ -662,6 +678,9 @@ export class LinguisticService {
     if (changedUtteranceIds.length > 0) {
       await invalidateUtteranceEmbeddings(db, changedUtteranceIds);
     }
+    void SegmentMetaService.syncForUnitIds(normalized.map((item) => item.id)).catch(() => {
+      // SegmentMeta 为统一读模型，刷新失败不应阻塞批量保存 | SegmentMeta is a shared read model; refresh failures must not block batch saves.
+    });
   }
 
   static async getTokensByUtteranceId(utteranceId: string): Promise<UtteranceTokenDocType[]> {
@@ -1181,6 +1200,12 @@ export class LinguisticService {
         db.dexie.ai_conversations,
         db.dexie.ai_messages,
         db.dexie.ai_tasks,
+        db.dexie.segment_meta,
+        db.dexie.segment_quality_snapshots,
+        db.dexie.scope_stats_snapshots,
+        db.dexie.speaker_profile_snapshots,
+        db.dexie.translation_status_snapshots,
+        db.dexie.ai_task_snapshots,
         db.dexie.track_entities,
         db.dexie.texts,
       ],
@@ -1237,8 +1262,18 @@ export class LinguisticService {
         // 级联清理轨道实体 | Cascade: track entities scoped to this text
         await db.dexie.track_entities.where('textId').equals(textId).delete();
 
+        // 级联清理统一读模型 / 快照表 | Cascade the derived read-model tables for this text
+        await Promise.all([
+          db.dexie.segment_meta.where('textId').equals(textId).delete(),
+          db.dexie.segment_quality_snapshots.where('textId').equals(textId).delete(),
+          db.dexie.scope_stats_snapshots.where('textId').equals(textId).delete(),
+          db.dexie.speaker_profile_snapshots.where('textId').equals(textId).delete(),
+          db.dexie.translation_status_snapshots.where('textId').equals(textId).delete(),
+        ]);
+
         // 级联清理 AI 任务 | Cascade: AI tasks targeting this text
         await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
+        await db.dexie.ai_task_snapshots.where('targetId').equals(textId).delete();
 
         await db.dexie.texts.delete(textId);
       },
@@ -1262,6 +1297,10 @@ export class LinguisticService {
         db.dexie.user_notes,
         db.dexie.anchors,
         db.dexie.media_items,
+        db.dexie.segment_meta,
+        db.dexie.segment_quality_snapshots,
+        db.dexie.scope_stats_snapshots,
+        db.dexie.translation_status_snapshots,
       ],
       async () => {
         const utts = await db.dexie.layer_units.where('mediaId').equals(mediaId).filter((u) => u.unitType === 'utterance').toArray();
@@ -1287,6 +1326,12 @@ export class LinguisticService {
         }
 
         await deleteResidualLayerUnitGraphByMediaId(db, mediaId);
+        await Promise.all([
+          db.dexie.segment_meta.where('mediaId').equals(mediaId).delete(),
+          db.dexie.segment_quality_snapshots.where('mediaId').equals(mediaId).delete(),
+          db.dexie.scope_stats_snapshots.where('mediaId').equals(mediaId).delete(),
+          db.dexie.translation_status_snapshots.where('mediaId').equals(mediaId).delete(),
+        ]);
         await db.dexie.anchors.where('mediaId').equals(mediaId).delete();
         await db.dexie.media_items.delete(mediaId);
       },
@@ -1337,6 +1382,9 @@ export class LinguisticService {
         }
       },
     );
+    void SegmentMetaService.syncForUnitIds([utteranceId]).catch(() => {
+      // SegmentMeta 为统一读模型，删除后的刷新失败不应阻塞主流程 | SegmentMeta is a shared read model; delete-sync failures must not block the primary flow.
+    });
   }
 
   /**
@@ -1399,6 +1447,9 @@ export class LinguisticService {
         }
       },
     );
+    void SegmentMetaService.syncForUnitIds(ids).catch(() => {
+      // SegmentMeta 为统一读模型，批量删除后的刷新失败不应阻塞主流程 | SegmentMeta is a shared read model; delete-sync failures must not block the primary flow.
+    });
   }
 
 }

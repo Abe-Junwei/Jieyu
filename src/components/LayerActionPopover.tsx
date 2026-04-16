@@ -52,7 +52,12 @@ import {
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { escapeRegExp } from '../utils/escapeRegExp';
 
-type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
+type LayerActionType =
+  | 'create-transcription'
+  | 'create-translation'
+  | 'edit-transcription-metadata'
+  | 'edit-translation-metadata'
+  | 'delete';
 
 interface LayerActionPopoverProps {
   action: LayerActionType;
@@ -66,6 +71,11 @@ interface LayerActionPopoverProps {
     input: LayerCreateInput,
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
+  updateLayerMetadata?: (layerId: string, input: {
+    dialect?: string;
+    vernacular?: string;
+    alias?: string;
+  }) => Promise<boolean>;
   deleteLayer: (layerId: string) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
@@ -108,6 +118,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   defaultOrthographyId,
   layerCreateMessage,
   createLayer,
+  updateLayerMetadata,
   deleteLayer,
   deleteLayerWithoutConfirm,
   checkLayerHasContent,
@@ -143,6 +154,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const normalizedDefaultOrthographyId = useMemo(() => defaultOrthographyId?.trim() ?? '', [defaultOrthographyId]);
   const [languageInput, setLanguageInput] = useState<LanguageIsoInputValue>(defaultLanguageSeed);
   const [orthographyId, setOrthographyId] = useState(normalizedDefaultOrthographyId);
+  const [dialect, setDialect] = useState('');
+  const [vernacular, setVernacular] = useState('');
   const [alias, setAlias] = useState('');
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
@@ -159,6 +172,14 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   useEffect(() => {
     if (layerId) setDeleteLayerId(layerId);
   }, [layerId]);
+
+  const isEditMetadataAction = action === 'edit-transcription-metadata' || action === 'edit-translation-metadata';
+  const editingLayer = useMemo(
+    () => (isEditMetadataAction && layerId
+      ? deletableLayers.find((layer) => layer.id === layerId)
+      : undefined),
+    [deletableLayers, isEditMetadataAction, layerId],
+  );
 
   const independentParentLayers = listIndependentBoundaryTranscriptionLayers(deletableLayers);
   const contextualParentLayerId = useMemo(() => {
@@ -214,12 +235,21 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       pendingDefaultOrthographyIdRef.current = '';
       return;
     }
+    if (isEditMetadataAction) {
+      pendingDefaultOrthographyIdRef.current = '';
+      setDialect(editingLayer?.dialect ?? '');
+      setVernacular(editingLayer?.vernacular ?? '');
+      setAlias(editingLayer ? getLayerLabelParts(editingLayer, locale).alias : '');
+      return;
+    }
     pendingDefaultOrthographyIdRef.current = normalizedDefaultOrthographyId;
     setLanguageInput(defaultLanguageSeed);
     setOrthographyId(normalizedDefaultOrthographyId);
+    setDialect('');
+    setVernacular('');
     setAlias('');
     setModality('text');
-  }, [action, contextualParentLayerId, defaultLanguageSeed, formInitializationKey, normalizedDefaultOrthographyId]);
+  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, formInitializationKey, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
 
   useEffect(() => {
     const pendingDefaultOrthographyId = pendingDefaultOrthographyIdRef.current.trim();
@@ -307,6 +337,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       const success = await createLayer(createLayerType, {
         languageId: resolvedLang,
         ...(orthographyId ? { orthographyId } : {}),
+        ...(dialect.trim() ? { dialect: dialect.trim() } : {}),
+        ...(vernacular.trim() ? { vernacular: vernacular.trim() } : {}),
         ...(alias.trim() ? { alias: alias.trim() } : {}),
         ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
         ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
@@ -331,7 +363,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedLanguageId, customLanguageError, orthographySelectionError, orthographyId, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId, actionMessages]);
+  }, [resolvedLanguageId, customLanguageError, orthographySelectionError, orthographyId, dialect, vernacular, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId, actionMessages]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
@@ -372,21 +404,56 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     setDeleteConfirm(null);
   }, []);
 
+  const handleSaveMetadata = useCallback(async () => {
+    if (!isEditMetadataAction || !layerId || !updateLayerMetadata) return;
+    setCreateFailureMessage('');
+    setIsLoading(true);
+    try {
+      const success = await updateLayerMetadata(layerId, {
+        dialect: dialect.trim(),
+        vernacular: vernacular.trim(),
+        alias: alias.trim(),
+      });
+      if (success) {
+        onClose();
+        return;
+      }
+      setCreateFailureMessage(actionMessages.genericActionFailed);
+    } catch (error) {
+      setCreateFailureMessage(error instanceof Error ? error.message : actionMessages.genericActionFailed);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [actionMessages.genericActionFailed, alias, dialect, isEditMetadataAction, layerId, onClose, updateLayerMetadata, vernacular]);
+
   const handleResetForm = useCallback(() => {
+    if (isEditMetadataAction) {
+      setDialect(editingLayer?.dialect ?? '');
+      setVernacular(editingLayer?.vernacular ?? '');
+      setAlias(editingLayer ? getLayerLabelParts(editingLayer, locale).alias : '');
+      setCreateFailureMessage('');
+      return;
+    }
     pendingDefaultOrthographyIdRef.current = normalizedDefaultOrthographyId;
     setLanguageInput(defaultLanguageSeed);
     setOrthographyId(normalizedDefaultOrthographyId);
+    setDialect('');
+    setVernacular('');
     setAlias('');
     setModality('text');
     setConstraint('symbolic_association');
     setSelectedParentLayerId(contextualParentLayerId);
     setCreateFailureMessage('');
-  }, [contextualParentLayerId, defaultLanguageSeed, normalizedDefaultOrthographyId]);
+  }, [contextualParentLayerId, defaultLanguageSeed, editingLayer, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
 
   const label = action === 'create-transcription'
     ? actionMessages.createTranscriptionLayer
     : action === 'create-translation'
     ? actionMessages.createTranslationLayer
+    : action === 'edit-transcription-metadata'
+    ? actionMessages.editTranscriptionMetadata
+    : action === 'edit-translation-metadata'
+    ? actionMessages.editTranslationMetadata
     : actionMessages.deleteLayer;
 
   const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
@@ -508,7 +575,23 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       </PanelButton>
     </>
   );
+  const editFooter = (
+    <>
+      <PanelButton variant="ghost" onClick={onClose} disabled={isLoading}>
+        {actionMessages.cancel}
+      </PanelButton>
+      <PanelButton
+        variant="primary"
+        disabled={isLoading || !layerId || !updateLayerMetadata}
+        onClick={handleSaveMetadata}
+      >
+        {actionMessages.saveMetadata}
+      </PanelButton>
+    </>
+  );
   const orthographyFieldId = `${fieldIdPrefix}-orthography`;
+  const dialectFieldId = `${fieldIdPrefix}-dialect`;
+  const vernacularFieldId = `${fieldIdPrefix}-vernacular`;
   const aliasFieldId = `${fieldIdPrefix}-alias`;
   const modalityFieldId = `${fieldIdPrefix}-modality`;
   const translationParentLayerFieldId = `${fieldIdPrefix}-translation-parent-layer`;
@@ -551,7 +634,13 @@ export const LayerActionPopover = memo(function LayerActionPopover({
             </button>
           </>
         )}
-        footer={action === 'delete' ? deleteFooter : orthographyPicker.isCreating ? builderFooter : createFooter}
+        footer={action === 'delete'
+          ? deleteFooter
+          : isEditMetadataAction
+            ? editFooter
+            : orthographyPicker.isCreating
+              ? builderFooter
+              : createFooter}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
@@ -591,6 +680,51 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                 </FormField>
               )}
             </PanelSection>
+          </>
+        ) : isEditMetadataAction ? (
+          <>
+            <PanelSummary
+              className="layer-action-dialog-summary"
+              description={editingLayer ? readAnyMultiLangLabel(editingLayer.name) ?? editingLayer.key : ''}
+              meta={(
+                <div className="panel-meta">
+                  <PanelChip>{editingLayer?.layerType === 'translation' ? actionMessages.translationLayerType : actionMessages.transcriptionLayerType}</PanelChip>
+                </div>
+              )}
+            />
+            <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
+              <input
+                id={dialectFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={actionMessages.dialectPlaceholder}
+                value={dialect}
+                onChange={(e) => setDialect(e.target.value)}
+              />
+            </FormField>
+            <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+              <input
+                id={vernacularFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={actionMessages.vernacularPlaceholder}
+                value={vernacular}
+                onChange={(e) => setVernacular(e.target.value)}
+              />
+            </FormField>
+            <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
+              <input
+                id={aliasFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={actionMessages.aliasShortPlaceholder}
+                value={alias}
+                onChange={(e) => setAlias(e.target.value)}
+              />
+              <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
+            </FormField>
+            {createFailureMessage.trim().length > 0 ? (
+              <PanelFeedback role="alert" aria-live="assertive" level="error">
+                {createFailureMessage}
+              </PanelFeedback>
+            ) : null}
           </>
         ) : orthographyPicker.isCreating ? (
           <OrthographyBuilderPanel
@@ -688,6 +822,24 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                 )}
               </div>
             )}
+            <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
+              <input
+                id={dialectFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={actionMessages.dialectPlaceholder}
+                value={dialect}
+                onChange={(e) => setDialect(e.target.value)}
+              />
+            </FormField>
+            <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+              <input
+                id={vernacularFieldId}
+                className="input panel-input layer-action-dialog-input"
+                placeholder={actionMessages.vernacularPlaceholder}
+                value={vernacular}
+                onChange={(e) => setVernacular(e.target.value)}
+              />
+            </FormField>
             <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
               <input
                 id={aliasFieldId}

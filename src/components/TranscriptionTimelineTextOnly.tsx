@@ -42,7 +42,7 @@ import {
 } from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
 import {
-  resolveSelfCertaintyHostUtteranceId,
+  resolveTimelineRowSelfCertainty,
   type UtteranceSelfCertainty,
 } from '../utils/utteranceSelfCertainty';
 
@@ -94,7 +94,7 @@ type TranscriptionTimelineTextOnlyProps = {
   ) => void;
   handleAnnotationContextMenu?: (
     uttId: string,
-    utt: UtteranceDocType | LayerSegmentDocType,
+    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
     layerId: string,
     e: React.MouseEvent,
   ) => void;
@@ -149,7 +149,12 @@ type TranscriptionTimelineTextOnlyProps = {
   };
 };
 
-type LayerActionType = 'create-transcription' | 'create-translation' | 'delete';
+type LayerActionType =
+  | 'create-transcription'
+  | 'create-translation'
+  | 'edit-transcription-metadata'
+  | 'edit-translation-metadata'
+  | 'delete';
 
 export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimelineTextOnly({
   transcriptionLayers,
@@ -266,6 +271,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     saveUtteranceText,
     saveTextTranslationForUtterance,
     createLayer,
+    updateLayerMetadata,
     deleteLayer,
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
@@ -303,6 +309,14 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   const mediaItemById = useMemo(
     () => new Map(mediaItems.map((item) => [item.id, item] as const)),
     [mediaItems],
+  );
+  const selfCertaintyByUtteranceId = useMemo(
+    () => new Map(
+      utterancesOnCurrentMedia
+        .filter((item) => Boolean(item.selfCertainty))
+        .map((item) => [item.id, item.selfCertainty as UtteranceSelfCertainty]),
+    ),
+    [utterancesOnCurrentMedia],
   );
   const { segmentSpeakerLayoutByLayer } = useMemo(() => buildSegmentSpeakerLayoutMaps({
     transcriptionLayers,
@@ -488,16 +502,23 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
               : typeof conf === 'number' && conf >= 0.5 && conf < 0.75
                 ? ' timeline-text-item-confidence-mid'
                 : '';
-            const uttForContext = realUtt ?? unit as unknown as UtteranceDocType;
-            const certaintyHostId = unit.kind === 'segment'
-              ? resolveSelfCertaintyHostUtteranceId(unit.id, utterancesOnCurrentMedia, {
-                  parentUtteranceId: unit.parentUtteranceId,
-                  startTime: unit.startTime,
-                  endTime: unit.endTime,
-                })
-              : unit.id.trim();
-            const certaintyHostUtt = certaintyHostId ? utteranceById.get(certaintyHostId) : undefined;
-            const cellSelfCertainty = certaintyHostUtt?.selfCertainty;
+            const uttForContext = unit;
+            const explicitMediaId = (unit.mediaId?.trim() ?? '').length > 0
+              ? unit.mediaId
+              : (realUtt?.mediaId?.trim() ?? '').length > 0
+                ? realUtt?.mediaId
+                : undefined;
+            const { selfCertainty: cellSelfCertainty } = resolveTimelineRowSelfCertainty({
+              unitId: unit.id,
+              startTime: unit.startTime,
+              endTime: unit.endTime,
+              isSegmentRow: unit.kind === 'segment',
+              ...(unit.kind === 'segment' && unit.parentUtteranceId ? { parentUtteranceId: unit.parentUtteranceId } : {}),
+              ...(explicitMediaId ? { mediaId: explicitMediaId } : {}),
+              ...((unit.kind !== 'segment' && realUtt?.selfCertainty) ? { directSelfCertainty: realUtt.selfCertainty } : {}),
+              utterances: utterancesOnCurrentMedia,
+              selfCertaintyByUtteranceId,
+            });
             const selfCertaintyTitle = cellSelfCertainty
               ? buildTextTimelineSelfCertaintyTitle(locale, cellSelfCertainty)
               : undefined;
@@ -515,7 +536,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
                 title={speakerVisual ? tf(locale, 'transcription.timeline.speakerTitle', { name: speakerVisual.name }) : undefined}
                 onClick={(e) => handleAnnotationClick(unit.id, unit.startTime, layer.id, e, overlapCycleItemsByUtteranceId.get(unit.id))}
-                onContextMenu={(e) => handleAnnotationContextMenu?.(unit.id, uttForContext, layer.id, e)}
+                onContextMenu={(e) => {
+                  handleAnnotationContextMenu?.(unit.id, uttForContext, layer.id, e);
+                }}
               >
                 {speakerVisual && (
                   <span className="timeline-text-item-speaker-badge" title={tf(locale, 'transcription.timeline.speakerTitle', { name: speakerVisual.name })}>
@@ -545,7 +568,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                   placeholder={unit.kind === 'segment' ? t(locale, 'transcription.timeline.placeholder.segment') : undefined}
                   value={draft}
                   dir={renderPolicy?.preferDirAttribute ? renderPolicy.textDirection : undefined}
-                  onContextMenu={(e) => handleAnnotationContextMenu?.(unit.id, uttForContext, layer.id, e)}
+                  onContextMenu={(e) => {
+                    handleAnnotationContextMenu?.(unit.id, uttForContext, layer.id, e);
+                  }}
                   onFocus={() => {
                     setEditingCellKey(cellKey);
                     onFocusLayer(layer.id);
@@ -743,18 +768,22 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const saveStatus = saveStatusByCellKey[cellKey];
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === utt.id;
-            const trHostUtt = usesOwnSegments
-              ? (() => {
-                  const seg = utt as LayerSegmentDocType;
-                  const hid = resolveSelfCertaintyHostUtteranceId(seg.id, utterancesOnCurrentMedia, {
-                    parentUtteranceId: seg.utteranceId,
-                    startTime: seg.startTime,
-                    endTime: seg.endTime,
-                  });
-                  return hid ? utteranceById.get(hid) : undefined;
-                })()
-              : utteranceById.get(utt.id);
-            const trSelfCertainty = trHostUtt?.selfCertainty;
+            const translationOwnerUtt = utteranceById.get(utt.id);
+            const { selfCertainty: trSelfCertainty } = resolveTimelineRowSelfCertainty({
+              unitId: utt.id,
+              startTime: utt.startTime,
+              endTime: utt.endTime,
+              isSegmentRow: usesOwnSegments,
+              ...(usesOwnSegments
+                ? { parentUtteranceId: (utt as LayerSegmentDocType).utteranceId }
+                : {}),
+              ...((utt.mediaId?.trim() ?? '').length > 0 ? { mediaId: utt.mediaId } : {}),
+              ...(!usesOwnSegments && translationOwnerUtt?.selfCertainty
+                ? { directSelfCertainty: translationOwnerUtt.selfCertainty }
+                : {}),
+              utterances: utterancesOnCurrentMedia,
+              selfCertaintyByUtteranceId,
+            });
             const trSelfCertaintyTitle = trSelfCertainty
               ? buildTextTimelineSelfCertaintyTitle(locale, trSelfCertainty)
               : undefined;
@@ -822,6 +851,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}
+          {...(updateLayerMetadata ? { updateLayerMetadata } : {})}
           deleteLayer={deleteLayer}
           deleteLayerWithoutConfirm={deleteLayerWithoutConfirm}
           checkLayerHasContent={checkLayerHasContent}

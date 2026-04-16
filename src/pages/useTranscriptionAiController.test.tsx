@@ -529,6 +529,73 @@ describe('useTranscriptionAiController', () => {
     expect(riskCheck?.riskSummary).toContain('第 1 条句段');
   });
 
+  it('resolves selected owner utterance for AI from selected timeline segment when snapshot selectedUnit is missing', () => {
+    const utterance = makeUtteranceWithId('utt-1', 'media-1');
+    const selectedTimelineSegment = makeSegment('seg-1', 'layer-independent', 0.2, 0.8);
+    const timelineUnitViewIndex = makeTimelineUnitViewIndex({
+      utterances: [utterance],
+      utterancesOnCurrentMedia: [utterance],
+      currentMediaId: 'media-1',
+    });
+
+    renderHook(() => useTranscriptionAiController({
+      selectedUnitIds: new Set([selectedTimelineSegment.id]),
+      selectedUnit: null,
+      getUtteranceDocById: (id) => (id === utterance.id ? utterance : undefined),
+      selectedTimelineSegment,
+      selectedLayerId: 'layer-independent',
+      selectionSnapshot: {
+        timelineUnit: { layerId: 'layer-independent', unitId: selectedTimelineSegment.id, kind: 'segment' },
+        selectedUnitKind: 'segment',
+        activeUnitId: null,
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedLayerId: 'layer-independent',
+        selectedText: '',
+      },
+      layers: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      layerLinks: [],
+      getUtteranceTextForLayer: () => '',
+      formatTime: (seconds) => `${seconds}`,
+      timelineUnitViewIndex,
+      translationLayerCount: 0,
+      aiConfidenceAvg: null,
+      recentTimelineEditEvents: [],
+      createLayerWithActiveContext: vi.fn(async () => true),
+      createTranscriptionSegment: vi.fn(async () => undefined),
+      splitTranscriptionSegment: vi.fn(async () => undefined),
+      mergeSelectedUnits: vi.fn(async () => undefined),
+      deleteUtterance: vi.fn(async () => undefined),
+      deleteSelectedUnits: vi.fn(async () => undefined),
+      deleteLayer: vi.fn(async () => undefined),
+      toggleLayerLink: vi.fn(async () => undefined),
+      saveUtteranceText: vi.fn(async () => undefined),
+      saveTextTranslationForUtterance: vi.fn(async () => undefined),
+      saveSegmentContentForLayer: vi.fn(async () => undefined),
+      updateTokenPos: vi.fn(),
+      batchUpdateTokenPosByForm: vi.fn(async () => 0),
+      updateTokenGloss: vi.fn(),
+      selectUnit: vi.fn(),
+      setSaveState: vi.fn(),
+      translationDrafts: {},
+      translationTextByLayer: new Map(),
+      locale: 'zh-CN',
+      playerCurrentTime: 0,
+      executeActionRef: { current: undefined },
+      openSearchRef: { current: undefined },
+      seekToTimeRef: { current: undefined },
+      splitAtTimeRef: { current: undefined },
+      zoomToSegmentRef: { current: undefined },
+      handleExecuteRecommendation: vi.fn(),
+    }));
+
+    const latestToolCallHandlerCall = mockUseAiToolCallHandler.mock.calls[mockUseAiToolCallHandler.mock.calls.length - 1];
+    const toolHandlerInput = latestToolCallHandlerCall?.[0];
+    expect(toolHandlerInput?.selectedUnit?.id).toBe(utterance.id);
+  });
+
   it('recovers a previewable AI segment scope from the project when current-media utterances are temporarily empty', () => {
     const utterance1 = makeUtteranceWithId('utt-1', 'media-1');
     const utterance2 = {

@@ -235,7 +235,8 @@ export async function resolveDestructiveGate({
 
   const shouldRequireConfirmation = destructiveBlocked && (riskCheck?.requiresConfirmation ?? true);
   if (shouldRequireConfirmation) {
-    const impact = describeAndBuildPending(toolCall, aiContext);
+    const previewSourceCall = executionCall ?? toolCall;
+    const impact = describeAndBuildPending(previewSourceCall, aiContext);
     const finalContent = toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle);
     setTaskSession({
       id: taskSessionId,

@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { db } from '../db';
+import { SegmentMetaService } from '../services/SegmentMetaService';
 import { useNotes, type NoteTarget } from './useNotes';
 
 function UseNotesHarness({ target }: { target: NoteTarget | null }) {
@@ -27,6 +28,10 @@ async function clearDatabase(): Promise<void> {
     db.user_notes.clear(),
     db.utterance_tokens.clear(),
     db.utterance_morphemes.clear(),
+    db.segment_meta.clear(),
+    db.layer_units.clear(),
+    db.layer_unit_contents.clear(),
+    db.speakers.clear(),
   ]);
 }
 
@@ -105,6 +110,62 @@ describe('useNotes canonical target resolution', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('note-count').textContent).toBe('1');
+    });
+  });
+
+  it('refreshes unified segment metadata after adding an utterance note', async () => {
+    const now = new Date().toISOString();
+    await db.layer_units.bulkPut([
+      {
+        id: 'utt_meta',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_seg',
+        unitType: 'utterance',
+        startTime: 0,
+        endTime: 2,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'seg_meta',
+        textId: 'text_1',
+        mediaId: 'media_1',
+        layerId: 'layer_seg',
+        unitType: 'segment',
+        parentUnitId: 'utt_meta',
+        rootUnitId: 'utt_meta',
+        startTime: 0,
+        endTime: 1,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    await db.layer_unit_contents.put({
+      id: 'content_meta',
+      textId: 'text_1',
+      unitId: 'seg_meta',
+      layerId: 'layer_seg',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'hello',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    });
+    await SegmentMetaService.rebuildForLayerMedia('layer_seg', 'media_1');
+
+    const target: NoteTarget = {
+      targetType: 'utterance',
+      targetId: 'utt_meta',
+    };
+
+    render(<UseNotesHarness target={target} />);
+    fireEvent.click(screen.getByText('add-note'));
+
+    await waitFor(async () => {
+      const rows = await SegmentMetaService.listByLayerMedia('layer_seg', 'media_1');
+      expect(rows[0]?.noteCategoryKeys).toEqual(['linguistic']);
     });
   });
 });

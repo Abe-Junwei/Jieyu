@@ -8,7 +8,6 @@ import type React from 'react';
 import type {
   LayerDocType,
   LayerLinkDocType,
-  LayerSegmentDocType,
   LayerDisplaySettings,
   OrthographyDocType,
   UtteranceDocType,
@@ -90,7 +89,7 @@ interface TranscriptionLaneProps {
   saveUtteranceText: (utteranceId: string, value: string, layerId: string) => Promise<void>;
   setUtteranceDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
-    utt: UtteranceDocType | LayerSegmentDocType | TimelineUnitView,
+    utt: TimelineUnitView,
     layer: LayerDocType,
     draft: string,
     extra: Pick<TimelineAnnotationItemProps, 'onChange' | 'onBlur'>
@@ -108,7 +107,15 @@ interface TranscriptionLaneProps {
   // Resize
   startLaneHeightResize: (event: React.PointerEvent<HTMLDivElement>, layerId: string, baseLaneHeight: number) => void;
   // Callbacks
-  handleLayerAction: (action: 'create-transcription' | 'create-translation' | 'delete', layerId?: string) => void;
+  handleLayerAction: (
+    action:
+      | 'create-transcription'
+      | 'create-translation'
+      | 'edit-transcription-metadata'
+      | 'edit-translation-metadata'
+      | 'delete',
+    layerId?: string,
+  ) => void;
   onToggleCollapsed: (layerId: string) => void;
   onActivateTemporaryExpand: (layerId: string, overlapGroupId: string) => void;
   onLanePointerDown: (layerId: string, isCollapsed: boolean, e: React.PointerEvent<HTMLDivElement>) => void;
@@ -248,7 +255,8 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             }
           : undefined;
         const subTrackTop = (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight;
-        const uttForRender = realUtt ?? unit;
+        // Timeline rendering is TimelineUnitView-first; avoid doc-shape replacement by id.
+        const uttForRender = unit;
         return (
           <TranscriptionTimelineMediaTranscriptionRow
             key={`trc-sub-${layer.id}-${unit.id}`}

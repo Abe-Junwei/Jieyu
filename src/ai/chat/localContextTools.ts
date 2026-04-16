@@ -1,9 +1,12 @@
 import type { TimelineUnitView } from '../../hooks/timelineUnitView';
-import type { AiPromptContext } from './chatDomain.types';
+import type { AiLocalToolReadModelMeta, AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
 import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
-import { getDb } from '../../db';
+import { getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../../db';
 import { listUtteranceTextsByUtterance } from '../../services/LayerSegmentationTextService';
+import { SegmentMetaService } from '../../services/SegmentMetaService';
+import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
+import type { UtteranceSelfCertainty } from '../../utils/utteranceSelfCertainty';
 import {
   AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1,
   AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2,
@@ -316,6 +319,59 @@ function loadNormalizedUnitRows(context: AiPromptContext): NormalizedUnitRow[] {
   return [];
 }
 
+function buildReadModelMetaWithSource(
+  context: AiPromptContext,
+  source: AiLocalToolReadModelMeta['source'],
+): AiLocalToolReadModelMeta {
+  return {
+    ...buildLocalToolReadModelMeta(context),
+    ...(source ? { source } : {}),
+  };
+}
+
+function resolveSegmentMetaScopeParams(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+): { layerId: string; mediaId: string } | null {
+  if (scope !== 'current_scope') return null;
+  const layerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
+  const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+  if (layerId.length === 0 || mediaId.length === 0) return null;
+  return { layerId, mediaId };
+}
+
+function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): NormalizedUnitRow[] {
+  return rows.map((row) => ({
+    id: row.segmentId,
+    kind: row.unitKind ?? 'segment',
+    layerId: row.layerId,
+    ...(row.textId ? { textId: row.textId } : {}),
+    ...(row.mediaId ? { mediaId: row.mediaId } : {}),
+    startTime: row.startTime,
+    endTime: row.endTime,
+    transcription: row.text,
+    ...(row.effectiveSpeakerId ? { speakerId: row.effectiveSpeakerId } : {}),
+    ...(row.annotationStatus ? { annotationStatus: row.annotationStatus } : {}),
+  }));
+}
+
+async function loadScopedSegmentMetaRows(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+): Promise<SegmentMetaDocType[] | null> {
+  const scopeParams = resolveSegmentMetaScopeParams(context, scope);
+  if (!scopeParams) return null;
+  try {
+    return await SegmentMetaService.rebuildForLayerMedia(scopeParams.layerId, scopeParams.mediaId);
+  } catch {
+    try {
+      return await SegmentMetaService.listByLayerMedia(scopeParams.layerId, scopeParams.mediaId);
+    } catch {
+      return null;
+    }
+  }
+}
+
 function normalizeProjectMetric(value: unknown): 'unit_count' | 'speaker_count' | 'translation_layer_count' | 'ai_confidence_avg' | 'untranscribed_count' | 'missing_speaker_count' | undefined {
   if (typeof value !== 'string') return undefined;
   const normalized = value.trim().toLowerCase();
@@ -328,10 +384,130 @@ function normalizeProjectMetric(value: unknown): 'unit_count' | 'speaker_count' 
   return undefined;
 }
 
-function getProjectStats(context: AiPromptContext, args: Record<string, unknown>): LocalContextToolResult {
+function normalizeQualityMetric(value: unknown): 'untranscribed_count' | 'missing_speaker_count' | undefined {
+  const normalized = normalizeProjectMetric(value);
+  return normalized === 'untranscribed_count' || normalized === 'missing_speaker_count'
+    ? normalized
+    : undefined;
+}
+
+function resolveContextTextId(context: AiPromptContext): string | undefined {
+  const directRows = loadNormalizedUnitRows(context);
+  const directTextId = directRows.find((row) => normalizeTextValue(row.textId).length > 0)?.textId;
+  return normalizeTextValue(directTextId) || undefined;
+}
+
+function resolveSnapshotScopeParams(
+  context: AiPromptContext,
+  scope: LocalUnitScope,
+  textId: string,
+): {
+  scopeType: 'project' | 'media' | 'layer';
+  scopeKey: string;
+  qualityFilters: { textId: string; mediaId?: string; layerId?: string };
+} | null {
+  if (scope === 'project') {
+    return {
+      scopeType: 'project',
+      scopeKey: textId,
+      qualityFilters: { textId },
+    };
+  }
+
+  const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+  if (scope === 'current_track') {
+    return mediaId
+      ? {
+          scopeType: 'media',
+          scopeKey: mediaId,
+          qualityFilters: { textId, mediaId },
+        }
+      : null;
+  }
+
+  const layerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
+  if (!layerId) return null;
+  return {
+    scopeType: 'layer',
+    scopeKey: layerId,
+    qualityFilters: {
+      textId,
+      ...(mediaId ? { mediaId } : {}),
+      layerId,
+    },
+  };
+}
+
+async function getProjectStats(context: AiPromptContext, args: Record<string, unknown>): Promise<LocalContextToolResult> {
   const scope = normalizeUnitScope(args.scope, 'project');
-  const scopedRows = filterRowsByScope(context, loadNormalizedUnitRows(context), scope);
   const requestedMetric = normalizeProjectMetric(args.metric);
+  const textId = resolveContextTextId(context);
+  const snapshotScope = textId ? resolveSnapshotScopeParams(context, scope, textId) : null;
+
+  if (textId && snapshotScope) {
+    try {
+      await WorkspaceReadModelService.rebuildForText(textId);
+      const [statsRow, qualitySummary] = await Promise.all([
+        WorkspaceReadModelService.getScopeStats(snapshotScope.scopeType, snapshotScope.scopeKey, textId),
+        requestedMetric === 'untranscribed_count' || requestedMetric === 'missing_speaker_count'
+          ? WorkspaceReadModelService.summarizeQuality(snapshotScope.qualityFilters)
+          : Promise.resolve(null),
+      ]);
+
+      if (statsRow) {
+        const unitCount = statsRow.unitCount;
+        const speakerCount = statsRow.speakerCount;
+        const translationLayerCount = statsRow.translationLayerCount;
+        const aiConfidenceAvg = statsRow.avgAiConfidence ?? null;
+        const breakdown = qualitySummary
+          ? {
+              ...qualitySummary.breakdown,
+              currentMediaGapCount: context.longTerm?.waveformAnalysis?.gapCount ?? 0,
+              waveformOverlapCount: context.longTerm?.waveformAnalysis?.overlapCount ?? 0,
+              lowConfidenceRegionCount: context.longTerm?.waveformAnalysis?.lowConfidenceCount ?? 0,
+            }
+          : undefined;
+        const value = requestedMetric === 'unit_count'
+          ? unitCount
+          : requestedMetric === 'speaker_count'
+            ? speakerCount
+            : requestedMetric === 'translation_layer_count'
+              ? translationLayerCount
+              : requestedMetric === 'ai_confidence_avg'
+                ? aiConfidenceAvg
+                : requestedMetric === 'untranscribed_count'
+                  ? (qualitySummary?.breakdown.emptyTextCount ?? statsRow.untranscribedCount)
+                  : requestedMetric === 'missing_speaker_count'
+                    ? (qualitySummary?.breakdown.missingSpeakerCount ?? statsRow.missingSpeakerCount)
+                    : undefined;
+
+        return {
+          ok: true,
+          name: 'get_project_stats',
+          result: {
+            scope,
+            unitCount,
+            speakerCount,
+            translationLayerCount,
+            aiConfidenceAvg,
+            ...(breakdown
+              ? {
+                  breakdown,
+                  totalUnitsInScope: qualitySummary?.totalUnitsInScope ?? unitCount,
+                  completionRate: qualitySummary?.completionRate ?? 1,
+                }
+              : {}),
+            ...(requestedMetric ? { requestedMetric, value } : {}),
+            _readModel: buildReadModelMetaWithSource(context, 'scope_stats_snapshot'),
+          },
+        };
+      }
+    } catch {
+      // fall back to the in-memory timeline index path
+    }
+  }
+
+  const scopedRows = filterRowsByScope(context, loadNormalizedUnitRows(context), scope);
   const unitCount = resolveExpectedTotalForScope(context, scope) ?? scopedRows.length;
   const speakerIds = new Set(
     scopedRows
@@ -380,9 +556,109 @@ function getProjectStats(context: AiPromptContext, args: Record<string, unknown>
   };
 }
 
+async function diagnoseQualityWithSnapshots(
+  context: AiPromptContext,
+  args: Record<string, unknown> = {},
+): Promise<LocalContextToolResult | null> {
+  const scope = normalizeUnitScope(args.scope, 'project');
+  const requestedMetric = normalizeQualityMetric(args.metric);
+  const textId = resolveContextTextId(context);
+  const snapshotScope = textId ? resolveSnapshotScopeParams(context, scope, textId) : null;
+  if (!textId || !snapshotScope) return null;
+
+  try {
+    await WorkspaceReadModelService.rebuildForText(textId);
+    const summary = await WorkspaceReadModelService.summarizeQuality(snapshotScope.qualityFilters);
+    const wa = context.longTerm?.waveformAnalysis;
+    const breakdown = {
+      emptyTextCount: summary.breakdown.emptyTextCount,
+      missingSpeakerCount: summary.breakdown.missingSpeakerCount,
+      currentMediaGapCount: wa?.gapCount ?? 0,
+      waveformOverlapCount: wa?.overlapCount ?? 0,
+      lowConfidenceRegionCount: wa?.lowConfidenceCount ?? 0,
+    };
+    const value = requestedMetric === 'untranscribed_count'
+      ? summary.breakdown.emptyTextCount
+      : requestedMetric === 'missing_speaker_count'
+        ? summary.breakdown.missingSpeakerCount
+        : undefined;
+
+    return {
+      ok: true,
+      name: 'diagnose_quality',
+      result: {
+        count: summary.count,
+        items: summary.items,
+        suggestion: summary.count > 0
+          ? 'Use find_incomplete_units to inspect concrete targets before editing.'
+          : 'No obvious quality issues detected.',
+        meta: {
+          scope,
+          ...(requestedMetric ? { requestedMetric } : {}),
+          ...(value !== undefined ? { value } : {}),
+          breakdown,
+          totalUnitsInScope: summary.totalUnitsInScope,
+          completionRate: summary.completionRate,
+        },
+        ...(requestedMetric ? { requestedMetric } : {}),
+        ...(value !== undefined ? { value } : {}),
+        scope,
+        breakdown,
+        totalUnitsInScope: summary.totalUnitsInScope,
+        completionRate: summary.completionRate,
+        _readModel: buildReadModelMetaWithSource(context, 'segment_quality_snapshot'),
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function searchUnits(context: AiPromptContext, args: Record<string, unknown>): Promise<LocalContextToolResult> {
   const scope = normalizeUnitScope(args.scope, 'project');
   const query = normalizeTextValue(args.query);
+  const limit = normalizeLimit(args.limit);
+  const speakerId = normalizeTextValue(args.speakerId) || undefined;
+  const noteCategory = normalizeTextValue(args.noteCategory) || undefined;
+  const selfCertainty = normalizeTextValue(args.selfCertainty) || undefined;
+  const annotationStatus = normalizeTextValue(args.annotationStatus) || undefined;
+  const hasText = typeof args.hasText === 'boolean' ? args.hasText : undefined;
+  const hasStructuredFilter = Boolean(speakerId || noteCategory || selfCertainty || annotationStatus || typeof hasText === 'boolean');
+
+  const segmentMetaScope = resolveSegmentMetaScopeParams(context, scope);
+  if (segmentMetaScope && (query.length > 0 || hasStructuredFilter)) {
+    try {
+      await SegmentMetaService.rebuildForLayerMedia(segmentMetaScope.layerId, segmentMetaScope.mediaId);
+      const rows = await SegmentMetaService.searchSegmentMeta({
+        layerId: segmentMetaScope.layerId,
+        mediaId: segmentMetaScope.mediaId,
+        ...(query.length > 0 ? { query } : {}),
+        ...(speakerId ? { speakerId } : {}),
+        ...(noteCategory ? { noteCategory: noteCategory as NoteCategory } : {}),
+        ...(selfCertainty ? { selfCertainty: selfCertainty as UtteranceSelfCertainty } : {}),
+        ...(annotationStatus ? { annotationStatus: annotationStatus as LayerUnitStatus } : {}),
+        ...(typeof hasText === 'boolean' ? { hasText } : {}),
+        limit,
+      });
+      const matches = mapSegmentMetaRows(rows);
+      if (matches.length > 0 || loadNormalizedUnitRows(context).length === 0) {
+        return {
+          ok: true,
+          name: 'search_units',
+          result: {
+            scope,
+            query,
+            count: matches.length,
+            matches,
+            _readModel: buildReadModelMetaWithSource(context, 'segment_meta'),
+          },
+        };
+      }
+    } catch {
+      // fall through to timeline snapshot lookup
+    }
+  }
+
   if (query.length === 0) {
     const listFallback = await listUnits(context, args);
     return {
@@ -416,7 +692,6 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
     };
   }
   const lowered = query.toLowerCase();
-  const limit = normalizeLimit(args.limit);
 
   const matches = rows
     .filter((row) => row.transcription.toLowerCase().includes(lowered))
@@ -444,7 +719,7 @@ function buildListUnitsPageResult(
   rowsUnsorted: NormalizedUnitRow[],
   args: Record<string, unknown>,
   scope: LocalUnitScope,
-  opts: { resultHandle?: string; snapshotPaging?: boolean },
+  opts: { resultHandle?: string; snapshotPaging?: boolean; readModelSource?: AiLocalToolReadModelMeta['source'] },
 ): LocalContextToolResult {
   const limit = normalizeLimit(args.limit, 8);
   const offsetMax = opts.snapshotPaging || opts.resultHandle
@@ -479,6 +754,7 @@ function buildListUnitsPageResult(
     limit,
     sort,
     matches,
+    ...(opts.readModelSource ? { _readModel: buildReadModelMetaWithSource(context, opts.readModelSource) } : {}),
   };
   if (opts.resultHandle) {
     result.resultHandle = opts.resultHandle;
@@ -516,6 +792,12 @@ async function listUnits(context: AiPromptContext, args: Record<string, unknown>
       resultHandle: handleArg,
       snapshotPaging: true,
     });
+  }
+
+  const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);
+  if (scopedSegmentMetaRows && (scopedSegmentMetaRows.length > 0 || loadNormalizedUnitRows(context).length === 0)) {
+    const rows = mapSegmentMetaRows(scopedSegmentMetaRows);
+    return buildListUnitsPageResult(context, rows, args, scope, { readModelSource: 'segment_meta' });
   }
 
   const allRows = loadNormalizedUnitRows(context);
@@ -560,6 +842,31 @@ async function getUnitDetail(args: Record<string, unknown>, context: AiPromptCon
       result: null,
       error: 'unitId is required',
     };
+  }
+
+  const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);
+  if (scopedSegmentMetaRows) {
+    const hit = scopedSegmentMetaRows.find((row) => row.segmentId === unitId || row.id === unitId);
+    if (hit) {
+      return {
+        ok: true,
+        name: 'get_unit_detail',
+        result: {
+          scope,
+          id: hit.segmentId,
+          kind: hit.unitKind ?? 'segment',
+          layerId: hit.layerId,
+          textId: hit.textId,
+          mediaId: hit.mediaId,
+          startTime: hit.startTime,
+          endTime: hit.endTime,
+          ...(hit.effectiveSpeakerId ? { speakerId: hit.effectiveSpeakerId } : {}),
+          ...(hit.annotationStatus ? { annotationStatus: hit.annotationStatus } : {}),
+          transcription: hit.text,
+          _readModel: buildReadModelMetaWithSource(context, 'segment_meta'),
+        },
+      };
+    }
   }
 
   const localRows = normalizedUnitRowsFromContext(context);
@@ -947,7 +1254,7 @@ export async function executeLocalContextToolCall(
       break;
     }
     case 'get_project_stats':
-      out = getProjectStats(context, call.arguments);
+      out = await getProjectStats(context, call.arguments);
       break;
     case 'get_waveform_analysis':
       out = { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
@@ -958,9 +1265,11 @@ export async function executeLocalContextToolCall(
     case 'find_incomplete_units':
       out = { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
       break;
-    case 'diagnose_quality':
-      out = { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
+    case 'diagnose_quality': {
+      const snapshotResult = await diagnoseQualityWithSnapshots(context, call.arguments);
+      out = snapshotResult ?? { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
       break;
+    }
     case 'batch_apply':
       out = { ok: true, name: call.name, result: batchApply(context, call.arguments) };
       break;
@@ -1522,7 +1831,7 @@ export function buildLocalContextToolGuide(): string {
     'Query tools (auto-executed, use freely even for questions — preferred over guessing):',
     '- Successful tool JSON includes `_readModel`: { timelineReadModelEpoch?, unitIndexComplete, capturedAtMs, indexRowCount? } — system metadata for snapshot freshness; do not treat as transcript content.',
     '- list_units(arguments:{"limit":8,"offset":0,"sort":"time_asc","scope":"current_scope|current_track|project","resultHandle":"..."}): Scoped list; returns {scope,total,count,offset,limit,sort,matches,_readModel}. When total rows exceed 50, response includes resultHandle + snapshotPaging:true — reuse the same resultHandle with offset/limit for additional pages until the handle expires (~15m) or timeline epoch changes (then stale_list_handle; call list_units again without resultHandle).',
-    '- search_units(arguments:{"query":"...","limit":5,"scope":"current_scope|current_track|project"}): Scoped substring search; returns {scope,query,count,matches,_readModel}; empty query => {mode:"list_fallback",...,_readModel}',
+    '- search_units(arguments:{"query":"...","limit":5,"scope":"current_scope|current_track|project","speakerId":"...","noteCategory":"todo|question|comment|correction|linguistic|fieldwork","selfCertainty":"certain|uncertain|guess","annotationStatus":"raw|transcribed|translated|glossed|verified","hasText":true}): Scoped search; for current_scope it prefers the segment_meta read model and supports structured filters. Returns {scope,query,count,matches,_readModel}; empty query without filters => {mode:"list_fallback",...,_readModel}',
     '- get_unit_detail(arguments:{"unitId":"...","scope":"current_scope|current_track|project"}): Scoped unit detail by id (+ `_readModel` on success)',
     '- get_unit_linguistic_memory(arguments:{"unitId":"...","scope":"current_scope|current_track|project","includeNotes":true,"includeMorphemes":true}): Deep per-unit memory snapshot (sentence transcriptions/translations + token/morpheme gloss/POS + annotation notes) (+ `_readModel` on success)',
     '- get_current_selection(arguments:{}): Current selection/track snapshot; includes currentScopeUnitCount/currentMediaUnitCount plus projectUnitCount baseline (+ `_readModel`)',
