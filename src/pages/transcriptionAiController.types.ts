@@ -1,12 +1,6 @@
 import type { AiPanelMode } from '../components/AiAnalysisPanel';
 import type { AiObserverRecommendation } from '../components/transcription/toolbar/ObserverStatus';
-import type {
-  LayerDocType,
-  LayerLinkDocType,
-  LayerSegmentDocType,
-  MediaItemDocType,
-  UtteranceDocType,
-} from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
@@ -16,12 +10,7 @@ import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSna
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import type { ActionableRecommendation } from '../hooks/useAiPanelLogic';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
-import type {
-  AcousticBatchSelectionRange,
-  AcousticCalibrationStatus,
-  AcousticPanelBatchDetail,
-  AcousticPanelDetail,
-} from '../utils/acousticPanelDetail';
+import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { useAiChat } from '../hooks/useAiChat';
 import type { useAiPanelLogic } from '../hooks/useAiPanelLogic';
@@ -30,24 +19,24 @@ import type { ResolvedAcousticProviderState } from '../services/acoustic/acousti
 
 export interface UseTranscriptionAiControllerInput {
   selectedUnitIds: Set<string>;
-  selectedUnit: UtteranceDocType | null;
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
-  selectedTimelineSegment?: LayerSegmentDocType | null;
+  selectedUnit: LayerUnitDocType | null;
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
+  selectedTimelineSegment?: LayerUnitDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
   selectedMediaUrl?: string;
   selectedLayerId: string;
-  /** Primary transcription layer id for utterance rows in `buildTimelineUnitViewIndex`. */
+  /** Primary transcription layer id for unit rows in `buildTimelineUnitViewIndex`. */
   defaultTranscriptionLayerId?: string;
   activeLayerIdForEdits?: string;
   resolveSegmentRoutingForLayer?: (layerId?: string) => SegmentRoutingResult;
-  segmentsByLayer?: ReadonlyMap<string, LayerSegmentDocType[]>;
+  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, { text?: string }>>;
   selectionSnapshot: TranscriptionSelectionSnapshot;
   layers: LayerDocType[];
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   layerLinks: LayerLinkDocType[];
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
   /** Project-wide authoritative unit count (e.g. DbState.unitCount) for read-model consistency checks. */
   authoritativeUnitCount?: number;
@@ -67,19 +56,19 @@ export interface UseTranscriptionAiControllerInput {
   splitTranscriptionSegment: (targetId: string, splitTime: number) => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
-  /** Batch merge by resolved timeline unit ids (typically utterance targets). */
+  /** Batch merge by resolved timeline unit ids (typically unit targets). */
   mergeSelectedUnits: (ids: Set<string>) => Promise<void>;
   mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
-  deleteUtterance: (id: string) => Promise<void>;
+  deleteUnit: (id: string) => Promise<void>;
   /** Batch delete by resolved timeline unit ids. */
   deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
-  deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (id: string, options?: { keepUnits?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   saveSegmentContentForLayer: (segmentId: string, layerId: string, value: string) => Promise<void>;
   updateTokenPos: (tokenId: string, pos: string | null) => Promise<void> | void;
-  batchUpdateTokenPosByForm: (utteranceId: string, form: string, pos: string | null) => Promise<number> | number;
+  batchUpdateTokenPosByForm: (unitId: string, form: string, pos: string | null) => Promise<number> | number;
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
   selectUnit: (id: string) => void;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
@@ -108,7 +97,7 @@ export interface UseTranscriptionAiControllerResult {
   setAiSidebarError: React.Dispatch<React.SetStateAction<string | null>>;
   embeddingProviderConfig: { kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string };
   setEmbeddingProviderConfig: React.Dispatch<React.SetStateAction<{ kind: EmbeddingProviderKind; baseUrl?: string; apiKey?: string; model?: string }>>;
-  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; requestId?: string; timestamp: string }>;
+  aiToolDecisionLogs: Array<{ id: string; toolName: string; decision: string; reason?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>;
   aiChat: ReturnType<typeof useAiChat>;
   lexemeMatches: ReturnType<typeof useAiPanelLogic>['lexemeMatches'];
   observerResult: ReturnType<typeof useAiPanelLogic>['observerResult'];

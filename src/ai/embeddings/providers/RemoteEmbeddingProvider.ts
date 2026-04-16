@@ -9,11 +9,7 @@
  * Response: { data: [{ embedding: number[] }] }
  */
 
-import type {
-  EmbeddingProvider,
-  EmbeddingProviderCreateConfig,
-  OpenAIEmbeddingResponse,
-} from '../EmbeddingProvider';
+import type { EmbeddingProvider, EmbeddingProviderCreateConfig, OpenAIEmbeddingResponse } from '../EmbeddingProvider';
 import { createLogger } from '../../../observability/logger';
 
 const log = createLogger('RemoteEmbeddingProvider');

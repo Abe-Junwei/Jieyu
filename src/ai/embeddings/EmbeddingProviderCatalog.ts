@@ -10,16 +10,8 @@
  *   3. Done — EmbeddingService picks it up via createEmbeddingProvider()
  */
 
-import type {
-  EmbeddingProvider,
-  EmbeddingProviderCreateConfig,
-  EmbeddingProviderDefinition,
-  EmbeddingProviderKind,
-} from './EmbeddingProvider';
-import {
-  ARCTIC_LOCAL_EMBEDDING_MODEL_ID,
-  DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
-} from './localEmbeddingModelConfig';
+import type { EmbeddingProvider, EmbeddingProviderCreateConfig, EmbeddingProviderDefinition, EmbeddingProviderKind } from './EmbeddingProvider';
+import { ARCTIC_LOCAL_EMBEDDING_MODEL_ID, DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
 class LazyEmbeddingProvider implements EmbeddingProvider {
   private providerPromise: Promise<EmbeddingProvider> | null = null;

@@ -37,14 +37,37 @@ export interface AiClarifyCandidate {
   argsPatch: Record<string, unknown>;
 }
 
+export type LocalToolClarificationReason =
+  | 'metric_ambiguous'
+  | 'scope_ambiguous'
+  | 'query_ambiguous'
+  | 'target_ambiguous'
+  | 'action_ambiguous';
+
+export type AiTaskClarifyReason = ToolPlannerClarifyReason | LocalToolClarificationReason;
+
+export type AiTaskTracePhase = 'clarify' | 'local_tool' | 'tool_decision' | 'answer';
+
+export interface AiTaskTraceEntry {
+  phase: AiTaskTracePhase;
+  stepNumber: number;
+  timestamp: string;
+  toolName?: string;
+  requestId?: string;
+  outcome?: 'done' | 'error' | 'clarify';
+  durationMs?: number;
+  errorTaxonomy?: string;
+}
+
 export interface AiTaskSession {
   id: string;
   status: 'idle' | 'waiting_clarify' | 'waiting_confirm' | 'executing' | 'explaining';
   toolName?: AiChatToolName;
-  clarifyReason?: ToolPlannerClarifyReason;
+  clarifyReason?: AiTaskClarifyReason;
   candidates?: AiClarifyCandidate[];
   step?: number;
   maxSteps?: number;
+  trace?: AiTaskTraceEntry[];
   updatedAt: string;
 }
 
@@ -226,7 +249,7 @@ export interface AiSessionMemory {
 }
 
 export type ToolPlannerClarifyReason =
-  | 'missing-utterance-target'
+  | 'missing-unit-target'
   | 'missing-split-position'
   | 'missing-translation-layer-target'
   | 'missing-layer-link-target'
@@ -270,7 +293,7 @@ export type AiChatToolName =
   | 'delete_layer'
   | 'link_translation_layer'
   | 'unlink_translation_layer'
-  | 'auto_gloss_utterance'
+  | 'auto_gloss_unit'
   | 'set_token_pos'
   | 'set_token_gloss'
   | 'propose_changes'
@@ -321,7 +344,7 @@ export interface AiShortTermContext {
   page?: string;
   activeUnitId?: string;
   activeSegmentUnitId?: string;
-  selectedUnitKind?: 'utterance' | 'segment';
+  selectedUnitKind?: 'unit' | 'segment';
   selectedUnitIds?: string[];
   /** Full selection cardinality; `selectedUnitIds` may be capped for prompt size. */
   selectedUnitCount?: number;
@@ -341,7 +364,7 @@ export interface AiShortTermContext {
   currentMediaUnitCount?: number;
   /** Current AI operation scope unit count (active layer + current media). */
   currentScopeUnitCount?: number;
-  /** Timeline digest on current media (utterance or segment). */
+  /** Timeline digest on current media (unit or segment). */
   unitTimeline?: string;
   /** Hierarchical project/media/unit/layer snapshot for AI grounding. */
   worldModelSnapshot?: string;
@@ -362,7 +385,7 @@ export interface AiLongTermContext {
     unitCount?: number;
     speakerCount?: number;
     /** @deprecated Prefer `unitCount`; kept for deserialized legacy snapshots. */
-    utteranceCount?: number;
+    unitCount?: number;
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;
   };

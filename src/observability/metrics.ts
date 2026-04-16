@@ -82,7 +82,7 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'local-context-tools',
     kind: 'counter',
     unit: 'count',
-    description: 'Compatibility alias usage for legacy utterance tool names.',
+    description: 'Compatibility alias usage for legacy unit tool names.',
   },
   {
     id: 'ai.local_tool_result_truncated',
@@ -98,7 +98,7 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     module: 'ai-chat-rag',
     kind: 'counter',
     unit: 'count',
-    description: 'RAG utterance citation refId was not present in localUnitIndex at retrieval (possible stale embedding hit).',
+    description: 'RAG unit citation refId was not present in localUnitIndex at retrieval (possible stale embedding hit).',
   },
   {
     id: 'ai.list_units_snapshot_created',

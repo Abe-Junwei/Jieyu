@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { t, type Locale } from '../i18n';
 import { getDb } from '../db';
-import {
-  formatHistoryLoadFailedFallbackError,
-  formatRecoveredInterruptedMessage,
-} from '../ai/messages';
+import { formatHistoryLoadFailedFallbackError, formatRecoveredInterruptedMessage } from '../ai/messages';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import type { UiChatMessage } from './useAiChat.types';
 

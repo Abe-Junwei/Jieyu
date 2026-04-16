@@ -38,7 +38,7 @@ describe('shouldRetrieve', () => {
       '这个词条是什么意思，查一下文档',
       '引用一下原文中的描述',
       '上次转写的内容是什么',
-      'search for the utterance about phonology',
+      'search for the unit about phonology',
       'look up the PDF annotation',
       '来源是哪个语料？',
     ])('"%s" → force', (text) => {

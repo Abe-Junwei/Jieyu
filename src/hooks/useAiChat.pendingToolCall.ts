@@ -7,27 +7,12 @@ import { useCallback } from 'react';
 import { useLatest } from './useLatest';
 import { nowIso } from './useAiChat.helpers';
 import { executeConfirmedProposedChangeBatch, executeConfirmedToolCall } from './useAiChat.confirmExecution';
-import {
-  buildAiChangeSetFromPendingToolCall,
-  validateChangeSetEpoch,
-} from '../ai/changeset/AiChangeSetProtocol';
+import { buildAiChangeSetFromPendingToolCall, validateChangeSetEpoch } from '../ai/changeset/AiChangeSetProtocol';
 import { persistSessionMemory } from '../ai/chat/sessionMemory';
-import {
-  buildToolAuditContext,
-  buildToolDecisionAuditMetadata,
-  toNaturalToolCancelled,
-} from '../ai/chat/toolCallHelpers';
+import { buildToolAuditContext, buildToolDecisionAuditMetadata, toNaturalToolCancelled } from '../ai/chat/toolCallHelpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import { t, type Locale } from '../i18n';
-import type {
-  AiChatToolCall,
-  AiChatToolResult,
-  AiInteractionMetrics,
-  AiSessionMemory,
-  AiTaskSession,
-  AiToolDecisionMode,
-  PendingAiToolCall,
-} from './useAiChat.types';
+import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession, AiToolDecisionMode, PendingAiToolCall } from './useAiChat.types';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 
 interface UseAiChatPendingToolCallOptions {

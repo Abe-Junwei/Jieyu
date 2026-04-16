@@ -1,17 +1,5 @@
-import {
-  assessToolActionIntent,
-  buildToolAuditContext,
-  buildToolDecisionAuditMetadata,
-  buildToolIntentAuditMetadata,
-  toNaturalToolFailure,
-  toNaturalToolGraySkipped,
-  toNaturalToolRollbackSkipped,
-  validateToolCallArguments,
-} from '../ai/chat/toolCallHelpers';
-import {
-  formatDuplicateRequestIgnoredDetail,
-  formatDuplicateRequestIgnoredError,
-} from '../ai/messages';
+import { assessToolActionIntent, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
 import { buildAndAuditToolIntent } from './useAiChat.toolIntent';
@@ -19,17 +7,7 @@ import { resolveToolIntentOutcome } from './useAiChat.intentResolution';
 import { handleInvalidToolArguments } from './useAiChat.argsValidation';
 import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
-import type {
-  AiChatToolCall,
-  AiInteractionMetrics,
-  AiPromptContext,
-  AiSessionMemory,
-  AiTaskSession,
-  AiToolDecisionMode,
-  AiToolRiskCheckResult,
-  PendingAiToolCall,
-  UiChatMessage,
-} from './useAiChat';
+import type { AiChatToolCall, AiInteractionMetrics, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
 
 interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;

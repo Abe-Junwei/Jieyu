@@ -1,13 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  createFeatureExtractionPipelineWithFallback,
-  configureTransformersEmbeddingRuntime,
-  detectTransformersBrowserCacheAvailability,
-  detectTransformersBrowserRuntime,
-  detectTransformersEmbeddingDevice,
-  resolveTransformersWorkerWasmPath,
-} from './transformersRuntimeConfig';
+import { createFeatureExtractionPipelineWithFallback, configureTransformersEmbeddingRuntime, detectTransformersBrowserCacheAvailability, detectTransformersBrowserRuntime, detectTransformersEmbeddingDevice, resolveTransformersWorkerWasmPath } from './transformersRuntimeConfig';
 
 describe('transformersRuntimeConfig', () => {
   it('prefers webgpu when navigator.gpu returns an adapter', async () => {

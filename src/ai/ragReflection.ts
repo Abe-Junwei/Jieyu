@@ -81,7 +81,7 @@ const FORCE_PATTERNS: RegExp[] = [
   // 文档/笔记/标注 | Document/notes/annotations
   /笔记|note|pdf|PDF|文档|document|参考文献|附件|标注|annotation/i,
   // 语料库内容引用 | Corpus content references
-  /语段|utterance|转写|transcription|发音|pronunciation|词汇|vocabulary|词条|glossary/i,
+  /语段|unit|转写|transcription|发音|pronunciation|词汇|vocabulary|词条|glossary/i,
   // 引用/来源 | Citation / source
   /来源|出处|原文|source|citation|cite|引用/i,
 ];

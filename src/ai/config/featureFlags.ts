@@ -3,8 +3,8 @@
 export const featureFlags = {
   aiChatEnabled: true,
   voiceAgentEnabled: true,
-  /** 单主轴模式：所有时间编辑统一作用于 utterance 主轴 | Single-axis mode: all timing edits target the utterance axis */
-  singleAxisUtteranceMode: true,
+  /** 单主轴模式：所有时间编辑统一作用于 unit 主轴 | Single-axis mode: all timing edits target the unit axis */
+  singleAxisUnitMode: true,
   /** AI 聊天灰度模式开关 | AI chat gray mode toggle */
   aiChatGrayMode: false,
   /** AI 聊天回滚模式开关 | AI chat rollback mode toggle */

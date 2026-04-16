@@ -1,15 +1,5 @@
-import type {
-  AiSessionMemory,
-  AiSessionMemoryLocalSemanticFrame,
-  LocalToolIntent,
-  LocalToolMetric,
-  LocalUnitScope,
-} from './chatDomain.types';
-import {
-  inferIntentFromToolName,
-  isFollowUpIntentText,
-  isUtteranceListIntentText,
-} from './intentContracts';
+import type { AiSessionMemory, AiSessionMemoryLocalSemanticFrame, LocalToolClarificationReason, LocalToolIntent, LocalToolMetric, LocalUnitScope } from './chatDomain.types';
+import { inferIntentFromToolName, isFollowUpIntentText, isUnitListIntentText } from './intentContracts';
 import type { LocalContextToolCall } from './localContextTools';
 
 type LocalToolStatePatch = {
@@ -26,12 +16,14 @@ export type ResolveLocalToolCallsOutput = {
   calls: LocalContextToolCall[];
 };
 
-export type LocalToolClarificationReason =
-  | 'metric_ambiguous'
-  | 'scope_ambiguous'
-  | 'query_ambiguous'
-  | 'target_ambiguous'
-  | 'action_ambiguous';
+export type LocalToolQueryFamily = 'count' | 'search' | 'detail' | 'list' | 'selection' | 'quality' | 'unknown';
+
+export interface LocalToolRoutingPlan {
+  queryFamily: LocalToolQueryFamily;
+  selectedTools: LocalContextToolCall['name'][];
+  scope: LocalUnitScope;
+  requestedMetric?: LocalToolMetric;
+}
 
 export type LocalToolClarificationNeed = {
   needed: true;
@@ -117,21 +109,88 @@ function resolvePreferredScope(
     ?? 'current_scope';
 }
 
-function resolveProjectStatsScope(
-  call: LocalContextToolCall,
+export function resolveLocalToolRoutingPlan(
   userText: string,
   memory: AiSessionMemory,
   scopeHint?: LocalUnitScope,
-): LocalUnitScope {
-  return normalizeScopeArg(call.arguments.scope)
-    ?? inferScopeFromUserText(userText)
+): LocalToolRoutingPlan {
+  const inferredScope = inferScopeFromUserText(userText)
     ?? scopeHint
     ?? memory.localToolState?.lastFrame?.scope
-    ?? memory.localToolState?.lastScope
-    ?? 'project';
+    ?? memory.localToolState?.lastScope;
+
+  const requestedMetric = inferGapMetricFromUserText(userText)
+    ?? inferMetricFromUserText(userText)
+    ?? (shouldReusePreviousMetric(userText)
+      ? memory.localToolState?.lastFrame?.metric
+      : undefined);
+
+  if (isGapCountIntentText(userText)) {
+    const scope = inferredScope ?? 'current_track';
+    return {
+      queryFamily: 'quality',
+      selectedTools: ['diagnose_quality'],
+      scope,
+      ...(requestedMetric ? { requestedMetric } : {}),
+    };
+  }
+
+  if (isCountIntentText(userText) || requestedMetric !== undefined) {
+    const scope = inferredScope ?? 'current_track';
+    return {
+      queryFamily: 'count',
+      selectedTools: ['get_project_stats'],
+      scope,
+      ...(requestedMetric ? { requestedMetric } : {}),
+    };
+  }
+
+  if (isLinguisticMemoryIntentText(userText)) {
+    const scope = inferredScope ?? 'current_scope';
+    return {
+      queryFamily: 'detail',
+      selectedTools: ['get_unit_linguistic_memory'],
+      scope,
+    };
+  }
+
+  if (isUnitListIntentText(userText)) {
+    const scope = inferredScope ?? 'current_scope';
+    return {
+      queryFamily: 'list',
+      selectedTools: ['list_units'],
+      scope,
+    };
+  }
+
+  if (/(搜|搜索|查|查询|检索|search|find|query)/iu.test(userText.trim())) {
+    const scope = inferredScope ?? 'current_scope';
+    return {
+      queryFamily: 'search',
+      selectedTools: ['search_units'],
+      scope,
+    };
+  }
+
+  if (/(详情|detail|词法|词素|gloss|annotation|第\s*\d+\s*个)/iu.test(userText.trim())) {
+    const scope = inferredScope ?? 'current_scope';
+    return {
+      queryFamily: 'detail',
+      selectedTools: ['get_unit_detail'],
+      scope,
+    };
+  }
+
+  const scope = inferredScope ?? 'current_scope';
+
+  return {
+    queryFamily: 'selection',
+    selectedTools: ['get_current_selection'],
+    scope,
+  };
 }
 
-function normalizeUtteranceOrdinal(userText: string): number | null {
+function normalizeUnitOrdinal(userText: string): number | null {
   const cn = userText.match(/第\s*(\d+)\s*个/u);
   if (cn) {
     const idx = Number(cn[1]);
@@ -156,7 +215,7 @@ function inferSearchQueryFromUserText(userText: string): string {
   if (/^(帮我|请|麻烦)?\s*(搜|搜索|查|查询|找|检索)\s*(一下|下|看看|一条|一些)?$/iu.test(normalized)) {
     return '';
   }
-  if (isUtteranceListIntentText(normalized) || isFollowUpIntentText(normalized)) {
+  if (isUnitListIntentText(normalized) || isFollowUpIntentText(normalized)) {
     return '';
   }
   const quoted = normalized.match(/["“”'‘’]([^"“”'‘’]{1,64})["“”'‘’]/u);
@@ -230,7 +289,7 @@ function inferMetricFromUserText(userText: string): LocalToolMetric | undefined 
   if (/(speaker|speakers|说话人|发言人)/i.test(text)) return 'speaker_count';
   if (/(translation\s*layers?|翻译层|译层|层数)/i.test(text)) return 'translation_layer_count';
   if (/(confidence|置信度|可信度)/i.test(text)) return 'ai_confidence_avg';
-  if (/(segments?|units?|utterances?|rows?|语段|句段|条目)/i.test(text)) return 'unit_count';
+  if (/(segments?|units?|units?|rows?|语段|句段|条目)/i.test(text)) return 'unit_count';
   return undefined;
 }
 
@@ -240,7 +299,13 @@ function resolveProjectStatsCall(
   memory: AiSessionMemory,
   scopeHint?: LocalUnitScope,
 ): LocalContextToolCall {
-  const scope = resolveProjectStatsScope(call, userText, memory, scopeHint);
+  const explicitScope = normalizeScopeArg(call.arguments.scope);
+  const inferredScope = inferScopeFromUserText(userText)
+    ?? scopeHint
+    ?? memory.localToolState?.lastFrame?.scope
+    ?? memory.localToolState?.lastScope;
+  const scope = explicitScope ?? inferredScope ?? 'project';
+  const scopeAutofilled = explicitScope === undefined && inferredScope === undefined;
   const metric = normalizeMetricArg(call.arguments.metric)
     ?? inferMetricFromUserText(userText)
     ?? ((shouldReusePreviousMetric(userText) || isCountIntentText(userText))
@@ -254,22 +319,9 @@ function resolveProjectStatsCall(
       ...call.arguments,
       ...(metric ? { metric } : {}),
       scope,
+      ...(scopeAutofilled ? { _scopeAutofilled: true } : {}),
     },
   };
-}
-
-function resolveDiagnoseQualityScope(
-  call: LocalContextToolCall,
-  userText: string,
-  memory: AiSessionMemory,
-  scopeHint?: LocalUnitScope,
-): LocalUnitScope {
-  return normalizeScopeArg(call.arguments.scope)
-    ?? inferScopeFromUserText(userText)
-    ?? scopeHint
-    ?? memory.localToolState?.lastFrame?.scope
-    ?? memory.localToolState?.lastScope
-    ?? 'current_track';
 }
 
 function resolveDiagnoseQualityCall(
@@ -278,7 +330,13 @@ function resolveDiagnoseQualityCall(
   memory: AiSessionMemory,
   scopeHint?: LocalUnitScope,
 ): LocalContextToolCall {
-  const scope = resolveDiagnoseQualityScope(call, userText, memory, scopeHint);
+  const explicitScope = normalizeScopeArg(call.arguments.scope);
+  const inferredScope = inferScopeFromUserText(userText)
+    ?? scopeHint
+    ?? memory.localToolState?.lastFrame?.scope
+    ?? memory.localToolState?.lastScope;
+  const scope = explicitScope ?? inferredScope ?? 'current_track';
+  const scopeAutofilled = explicitScope === undefined && inferredScope === undefined;
   const metric = normalizeGapMetricArg(call.arguments.metric)
     ?? inferGapMetricFromUserText(userText)
     ?? ((shouldReusePreviousMetric(userText) && memory.localToolState?.lastFrame?.metricCategory === 'gap')
@@ -290,6 +348,7 @@ function resolveDiagnoseQualityCall(
     arguments: {
       ...call.arguments,
       scope,
+      ...(scopeAutofilled ? { _scopeAutofilled: true } : {}),
       ...(metric ? { metric } : {}),
     },
   };
@@ -370,7 +429,7 @@ function resolveSearchCall(call: LocalContextToolCall, userText: string, memory:
     return { ...call, arguments: { ...call.arguments, query, limit, scope } };
   }
 
-  if (isUtteranceListIntentText(userText)) {
+  if (isUnitListIntentText(userText)) {
     return {
       name: 'list_units',
       arguments: { limit, scope },
@@ -444,7 +503,7 @@ function resolveDetailCall(call: LocalContextToolCall, userText: string, memory:
       },
     };
   }
-  const ordinal = normalizeUtteranceOrdinal(userText);
+  const ordinal = normalizeUnitOrdinal(userText);
   if (ordinal && ids[ordinal - 1]) {
     return {
       name: detailCallName,
@@ -510,6 +569,9 @@ function needsScopeClarification(
   memory: AiSessionMemory,
 ): boolean {
   if (call.name !== 'get_project_stats' && call.name !== 'diagnose_quality') return false;
+  const explicitScope = normalizeScopeArg(call.arguments.scope);
+  const scopeAutofilled = call.arguments._scopeAutofilled === true;
+  if (explicitScope && !scopeAutofilled) return false;
   const metric = normalizeMetricArg(call.arguments.metric)
     ?? normalizeGapMetricArg(call.arguments.metric)
     ?? inferMetricFromUserText(userText)
@@ -517,7 +579,7 @@ function needsScopeClarification(
   if (metric === undefined) return false;
   if (inferScopeFromUserText(userText)) return false;
   if (memory.localToolState?.lastFrame?.scope || memory.localToolState?.lastScope) return false;
-  return true;
+  return scopeAutofilled || explicitScope === undefined;
 }
 
 function needsQueryClarification(
@@ -549,7 +611,7 @@ function needsTargetClarification(
   if (unitId.length > 0) return false;
   const ids = memory.localToolState?.lastResultUnitIds ?? [];
   if (ids.length === 1) return false;
-  const ordinal = normalizeUtteranceOrdinal(userText);
+  const ordinal = normalizeUnitOrdinal(userText);
   if (ordinal && ids[ordinal - 1]) return false;
   return true;
 }
@@ -671,7 +733,7 @@ export function resolveLocalToolCalls(
   return { calls: resolved };
 }
 
-function asResultUtteranceIds(result: unknown): string[] {
+function asResultUnitIds(result: unknown): string[] {
   if (!result || typeof result !== 'object') return [];
   const matches = (result as { matches?: unknown[] }).matches;
   if (!Array.isArray(matches)) return [];
@@ -688,7 +750,7 @@ export function buildLocalToolStatePatchFromCallResult(
     return {};
   }
   const intent = inferIntentFromToolName(call.name) ?? undefined;
-  const resultIds = asResultUtteranceIds(result.result);
+  const resultIds = asResultUnitIds(result.result);
   const query =
     call.name === 'search_units'
       ? normalizeText(call.arguments.query)

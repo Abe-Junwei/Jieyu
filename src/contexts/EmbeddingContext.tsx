@@ -14,12 +14,12 @@
 import { createContext, useContext } from 'react';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { EmbeddingProviderCreateConfig } from '../ai/embeddings/EmbeddingProvider';
-import type { UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../db';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export interface EmbeddingContextValue {
-  selectedUnit: UtteranceDocType | null;
+  selectedUnit: LayerUnitDocType | null;
   aiEmbeddingBusy: boolean;
   aiEmbeddingProgressLabel: string | null;
   aiEmbeddingLastResult: {
@@ -42,7 +42,7 @@ export interface EmbeddingContextValue {
     errorMessage?: string;
   }>;
   aiEmbeddingMatches: Array<{
-    utteranceId: string;
+    unitId: string;
     score: number;
     label: string;
     text: string;
@@ -54,14 +54,14 @@ export interface EmbeddingContextValue {
   embeddingProviderConfig: EmbeddingProviderCreateConfig | undefined;
   onSetEmbeddingProviderKind: ((kind: EmbeddingProviderKind) => void) | undefined;
   onTestEmbeddingProvider: (() => Promise<{ available: boolean; error?: string }>) | undefined;
-  onBuildUtteranceEmbeddings: (() => Promise<void>) | undefined;
+  onBuildUnitEmbeddings: (() => Promise<void>) | undefined;
   onBuildNotesEmbeddings: (() => Promise<void>) | undefined;
   onBuildPdfEmbeddings: (() => Promise<void>) | undefined;
-  onFindSimilarUtterances: (() => Promise<void>) | undefined;
+  onFindSimilarUnits: (() => Promise<void>) | undefined;
   onRefreshEmbeddingTasks: (() => Promise<void>) | undefined;
-  onJumpToEmbeddingMatch: ((utteranceId: string) => void) | undefined;
+  onJumpToEmbeddingMatch: ((unitId: string) => void) | undefined;
   onJumpToCitation: ((
-    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void) | undefined;
@@ -83,10 +83,10 @@ export const DEFAULT_EMBEDDING_CONTEXT_VALUE: EmbeddingContextValue = {
   embeddingProviderConfig: undefined,
   onSetEmbeddingProviderKind: undefined,
   onTestEmbeddingProvider: undefined,
-  onBuildUtteranceEmbeddings: undefined,
+  onBuildUnitEmbeddings: undefined,
   onBuildNotesEmbeddings: undefined,
   onBuildPdfEmbeddings: undefined,
-  onFindSimilarUtterances: undefined,
+  onFindSimilarUnits: undefined,
   onRefreshEmbeddingTasks: undefined,
   onJumpToEmbeddingMatch: undefined,
   onJumpToCitation: undefined,

@@ -1,7 +1,7 @@
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 
 export type ConversationClarifyReason =
-  | 'missing-utterance-target'
+  | 'missing-unit-target'
   | 'missing-split-position'
   | 'missing-translation-layer-target'
   | 'missing-layer-link-target'
@@ -18,7 +18,7 @@ export interface ConversationClarifyCandidate {
 }
 
 const CLARIFY_TARGET_HINT_BY_REASON: Record<ConversationClarifyReason, string> = {
-  'missing-utterance-target': '\u7f3a\u5c11\u76ee\u6807\u53e5\u6bb5',
+  'missing-unit-target': '\u7f3a\u5c11\u76ee\u6807\u53e5\u6bb5',
   'missing-split-position': '\u7f3a\u5c11\u53ef\u7528\u5207\u5206\u4f4d\u7f6e',
   'missing-translation-layer-target': '\u7f3a\u5c11\u76ee\u6807\u7ffb\u8bd1\u5c42',
   'missing-layer-link-target': '\u7f3a\u5c11\u76ee\u6807\u5c42',

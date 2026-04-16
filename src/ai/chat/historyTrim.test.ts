@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage } from '../providers/LLMProvider';
-import {
-  buildConversationSummaryFromHistory,
-  countHistoryUserTurns,
-  estimateSummaryCoverageSimilarity,
-  splitHistoryByRecentRounds,
-  trimHistoryByChars,
-} from './historyTrim';
+import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars } from './historyTrim';
 
 function makeHistory(): ChatMessage[] {
   return [

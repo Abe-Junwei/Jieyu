@@ -2,14 +2,14 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const {
   mockCreateEmbeddingProvider,
-  mockSearchSimilarUtterances,
+  mockSearchSimilarUnits,
   mockSearchMultiSource,
   mockSearchMultiSourceHybrid,
   mockTerminate,
   mockEmbeddingSearchServiceCtor,
 } = vi.hoisted(() => ({
   mockCreateEmbeddingProvider: vi.fn(),
-  mockSearchSimilarUtterances: vi.fn(),
+  mockSearchSimilarUnits: vi.fn(),
   mockSearchMultiSource: vi.fn(),
   mockSearchMultiSourceHybrid: vi.fn(),
   mockTerminate: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock('./EmbeddingSearchService', () => ({
   EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(function MockEmbeddingSearchService() {
     return {
       terminate: mockTerminate,
-      searchSimilarUtterances: mockSearchSimilarUtterances,
+      searchSimilarUnits: mockSearchSimilarUnits,
       searchMultiSource: mockSearchMultiSource,
       searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
     };
@@ -36,7 +36,7 @@ import { createDeferredEmbeddingSearchService } from './DeferredEmbeddingSearchS
 describe('createDeferredEmbeddingSearchService', () => {
   beforeEach(() => {
     mockCreateEmbeddingProvider.mockReset();
-    mockSearchSimilarUtterances.mockReset();
+    mockSearchSimilarUnits.mockReset();
     mockSearchMultiSource.mockReset();
     mockSearchMultiSourceHybrid.mockReset();
     mockTerminate.mockReset();
@@ -49,27 +49,27 @@ describe('createDeferredEmbeddingSearchService', () => {
     mockSearchMultiSourceHybrid.mockResolvedValue(expected);
 
     const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
-    const result = await service.searchMultiSourceHybrid('hello', ['utterance', 'note'], { topK: 5 });
+    const result = await service.searchMultiSourceHybrid('hello', ['unit', 'note'], { topK: 5 });
 
     expect(result).toEqual(expected);
     expect(mockCreateEmbeddingProvider).toHaveBeenCalledTimes(1);
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchMultiSourceHybrid).toHaveBeenCalledWith('hello', ['utterance', 'note'], { topK: 5 });
+    expect(mockSearchMultiSourceHybrid).toHaveBeenCalledWith('hello', ['unit', 'note'], { topK: 5 });
   });
 
   it('reuses the same lazily created service across search methods', async () => {
-    mockSearchSimilarUtterances.mockResolvedValue({ query: 'a', matches: [] });
+    mockSearchSimilarUnits.mockResolvedValue({ query: 'a', matches: [] });
     mockSearchMultiSource.mockResolvedValue({ query: 'b', matches: [] });
 
     const service = createDeferredEmbeddingSearchService(() => ({ kind: 'local' }));
 
-    await service.searchSimilarUtterances('a', { topK: 3 });
-    await service.searchMultiSource('b', ['utterance'], { topK: 4 });
+    await service.searchSimilarUnits('a', { topK: 3 });
+    await service.searchMultiSource('b', ['unit'], { topK: 4 });
     service.terminate();
 
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchSimilarUtterances).toHaveBeenCalledWith('a', { topK: 3 });
-    expect(mockSearchMultiSource).toHaveBeenCalledWith('b', ['utterance'], { topK: 4 });
+    expect(mockSearchSimilarUnits).toHaveBeenCalledWith('a', { topK: 3 });
+    expect(mockSearchMultiSource).toHaveBeenCalledWith('b', ['unit'], { topK: 4 });
     expect(mockTerminate).toHaveBeenCalledTimes(1);
   });
 });

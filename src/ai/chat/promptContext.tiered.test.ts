@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPromptContextBlock } from './promptContext';
+import { buildAiSystemPrompt, buildPromptContextBlock } from './promptContext';
 import type { AiPromptContext } from './chatDomain.types';
 
 describe('buildPromptContextBlock tiered assembly (Phase 14)', () => {
@@ -57,5 +57,12 @@ describe('buildPromptContextBlock tiered assembly (Phase 14)', () => {
 
     const block = buildPromptContextBlock(context, 4000);
     expect(block).toContain('acousticSummary(');
+  });
+
+  it('adds active-tool subset guidance into the system prompt', () => {
+    const prompt = buildAiSystemPrompt('transcription', '', 'detailed', ['get_project_stats', 'diagnose_quality']);
+    expect(prompt).toContain('Active query tools for this turn');
+    expect(prompt).toContain('get_project_stats');
+    expect(prompt).toContain('diagnose_quality');
   });
 });

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  detectWebLLMRuntimeStatus,
-  warmupWebLLMModel,
-} from './webllmRuntime';
+import { detectWebLLMRuntimeStatus, warmupWebLLMModel } from './webllmRuntime';
 
 function makeAbortError(): Error {
   const error = new Error('aborted');

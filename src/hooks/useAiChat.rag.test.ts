@@ -66,8 +66,8 @@ vi.mock('../observability/logger', () => ({
 }));
 
 vi.mock('../services/LayerSegmentationTextService', () => ({
-  listUtteranceTextsByUtterance: vi.fn(async () => [
-    { id: 'st1', utteranceId: 'u1', text: '测试语段文本 sample utterance text', lang: 'cmn' },
+  listUnitTextsByUnit: vi.fn(async () => [
+    { id: 'st1', unitId: 'u1', text: '测试语段文本 sample unit text', lang: 'cmn' },
   ]),
 }));
 
@@ -124,7 +124,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 
   it('force → topK=8 + 跳过 CRAG | force → topK=8, bypass CRAG', async () => {
     const svc = mockSearchService({
-      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.3, model: 'e5' }],
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.3, model: 'e5' }],
     });
     const result = await enrichContextWithRag({
       embeddingSearchService: svc, userText: '帮我查找上次录的语段', contextBlock: '', ragContextTimeoutMs: 5000,
@@ -142,8 +142,8 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
   it('retrieve + 高分 → cragVerdict=correct | high score → correct', async () => {
     const svc = mockSearchService({
       matches: [
-        { sourceType: 'utterance', sourceId: 'u1', score: 0.82, model: 'e5' },
-        { sourceType: 'utterance', sourceId: 'u2', score: 0.55, model: 'e5' },
+        { sourceType: 'unit', sourceId: 'u1', score: 0.82, model: 'e5' },
+        { sourceType: 'unit', sourceId: 'u2', score: 0.55, model: 'e5' },
       ],
     });
     const result = await enrichContextWithRag({
@@ -157,7 +157,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 
   it('retrieve + 低分 → cragVerdict=incorrect，不注入 | low score → incorrect', async () => {
     const svc = mockSearchService({
-      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.15, model: 'e5' }],
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.15, model: 'e5' }],
     });
     const result = await enrichContextWithRag({
       embeddingSearchService: svc, userText: '解释元音和谐', contextBlock: 'base', ragContextTimeoutMs: 5000,
@@ -172,7 +172,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 
   it('retrieve + 中等分 → ambiguous + queryExpansion 重搜 | mid score → ambiguous', async () => {
     const svc = mockSearchService({
-      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.45, model: 'e5' }],
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.45, model: 'e5' }],
       matchesOnSecondCall: [{ sourceType: 'note', sourceId: 'n1', score: 0.60, model: 'e5' }],
     });
     const result = await enrichContextWithRag({
@@ -207,14 +207,14 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 
   it('attaches readModelEpochAtRetrieval and readModelIndexHit when promptContext has index', async () => {
     const svc = mockSearchService({
-      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.82, model: 'e5' }],
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.82, model: 'e5' }],
     });
     const promptContext: AiPromptContext = {
       shortTerm: {
         timelineReadModelEpoch: 99,
         unitIndexComplete: true,
         localUnitIndex: [
-          { id: 'u1', kind: 'utterance', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello' },
+          { id: 'u1', kind: 'unit', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'hello' },
         ],
       },
       longTerm: {},
@@ -228,7 +228,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     });
     expect(result.citations.length).toBe(1);
     expect(result.citations[0]).toMatchObject({
-      type: 'utterance',
+      type: 'unit',
       refId: 'u1',
       readModelEpochAtRetrieval: 99,
       readModelIndexHit: true,
@@ -236,12 +236,12 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     expect(result.contextBlock).toContain('[RELEVANT_CONTEXT]');
   });
 
-  it('sets readModelIndexHit false and emits ai.rag_citation_read_model_miss when utterance not in index', async () => {
+  it('sets readModelIndexHit false and emits ai.rag_citation_read_model_miss when unit not in index', async () => {
     const events: Array<{ id: string }> = [];
     const dispose = addMetricObserver((e) => events.push({ id: e.id }));
     try {
       const svc = mockSearchService({
-        matches: [{ sourceType: 'utterance', sourceId: 'ghost-u', score: 0.82, model: 'e5' }],
+        matches: [{ sourceType: 'unit', sourceId: 'ghost-u', score: 0.82, model: 'e5' }],
       });
       const result = await enrichContextWithRag({
         embeddingSearchService: svc,
@@ -253,7 +253,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
             timelineReadModelEpoch: 1,
             unitIndexComplete: true,
             localUnitIndex: [
-              { id: 'u1', kind: 'utterance', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'x' },
+              { id: 'u1', kind: 'unit', mediaId: 'm', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'x' },
             ],
           },
           longTerm: {},
@@ -269,7 +269,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 
   it('attaches epoch but omits readModelIndexHit when localUnitIndex is unavailable', async () => {
     const svc = mockSearchService({
-      matches: [{ sourceType: 'utterance', sourceId: 'u1', score: 0.82, model: 'e5' }],
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.82, model: 'e5' }],
     });
     const result = await enrichContextWithRag({
       embeddingSearchService: svc,
@@ -286,7 +286,7 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
 describe('buildLocalUnitIdSetForRagCitationCheck', () => {
   it('returns null when unitIndexComplete is false', () => {
     expect(buildLocalUnitIdSetForRagCitationCheck({
-      shortTerm: { unitIndexComplete: false, localUnitIndex: [{ id: 'a', kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' }] },
+      shortTerm: { unitIndexComplete: false, localUnitIndex: [{ id: 'a', kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' }] },
       longTerm: {},
     })).toBeNull();
   });
@@ -300,7 +300,7 @@ describe('buildLocalUnitIdSetForRagCitationCheck', () => {
       shortTerm: {
         unitIndexComplete: true,
         localUnitIndex: [
-          { id: 'a', kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' },
+          { id: 'a', kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: '' },
           { id: 'b', kind: 'segment', mediaId: 'm', layerId: 'l', startTime: 1, endTime: 2, text: '' },
         ],
       },

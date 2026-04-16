@@ -19,16 +19,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  evaluateCosineSimilarity,
-  recall5,
-  recallK,
-  mrr,
-  ndcgK,
-  measureEmbedLatency,
-  runEvalReport,
-  fnv1aVector,
-} from './embeddingEvalUtils';
+import { evaluateCosineSimilarity, recall5, recallK, mrr, ndcgK, measureEmbedLatency, runEvalReport, fnv1aVector } from './embeddingEvalUtils';
 import type { EvalReport } from './embeddingEvalUtils';
 
 // ---------------------------------------------------------------------------

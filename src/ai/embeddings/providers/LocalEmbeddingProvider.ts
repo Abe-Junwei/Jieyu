@@ -10,11 +10,7 @@
 import type { EmbeddingProvider, EmbeddingProviderCreateConfig } from '../EmbeddingProvider';
 import type { EmbeddingRuntimeOptions } from '../EmbeddingRuntime';
 import { WorkerEmbeddingRuntime } from '../EmbeddingRuntime';
-import {
-  DEFAULT_LOCAL_EMBEDDING_DIMENSION,
-  DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
-  getLocalEmbeddingModelDisplayName,
-} from '../localEmbeddingModelConfig';
+import { DEFAULT_LOCAL_EMBEDDING_DIMENSION, DEFAULT_LOCAL_EMBEDDING_MODEL_ID, getLocalEmbeddingModelDisplayName } from '../localEmbeddingModelConfig';
 
 export class LocalEmbeddingProvider implements EmbeddingProvider {
   readonly kind = 'local';

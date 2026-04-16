@@ -1,10 +1,5 @@
 import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
-import {
-  createFeatureExtractionPipelineWithFallback,
-  configureTransformersEmbeddingRuntime,
-  type TransformersFeatureExtractionPipeline,
-  type TransformersEmbeddingRuntimeConfig,
-} from './transformersRuntimeConfig';
+import { createFeatureExtractionPipelineWithFallback, configureTransformersEmbeddingRuntime, type TransformersFeatureExtractionPipeline, type TransformersEmbeddingRuntimeConfig } from './transformersRuntimeConfig';
 
 type WorkerRequestType = 'preload' | 'embed';
 

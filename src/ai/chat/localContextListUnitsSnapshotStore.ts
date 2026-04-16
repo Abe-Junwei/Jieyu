@@ -11,7 +11,7 @@ export const LIST_UNITS_SNAPSHOT_ROW_THRESHOLD = 50;
 /** Same shape as normalized rows used by `list_units` (kept local to avoid circular imports). */
 export interface ListUnitsSnapshotRow {
   id: string;
-  kind: 'utterance' | 'segment';
+  kind: 'unit' | 'segment';
   layerId: string;
   textId?: string;
   mediaId?: string;

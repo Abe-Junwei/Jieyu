@@ -1,7 +1,4 @@
-import {
-  buildToolDecisionAuditMetadata,
-  toNaturalToolFailure,
-} from '../ai/chat/toolCallHelpers';
+import { buildToolDecisionAuditMetadata, toNaturalToolFailure } from '../ai/chat/toolCallHelpers';
 import { formatInvalidArgsError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';

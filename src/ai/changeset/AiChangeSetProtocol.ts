@@ -22,8 +22,8 @@ function extractPrimaryUnitIdFromToolArgs(call: AiChatToolCall): string | null {
   const a = call.arguments;
   const segmentId = typeof a.segmentId === 'string' ? a.segmentId.trim() : '';
   if (segmentId.length > 0) return segmentId;
-  const utteranceId = typeof a.utteranceId === 'string' ? a.utteranceId.trim() : '';
-  if (utteranceId.length > 0) return utteranceId;
+  const unitId = typeof a.unitId === 'string' ? a.unitId.trim() : '';
+  if (unitId.length > 0) return unitId;
   const layerId = typeof a.layerId === 'string' ? a.layerId.trim() : '';
   if (layerId.length > 0) return layerId;
   const tokenId = typeof a.tokenId === 'string' ? a.tokenId.trim() : '';

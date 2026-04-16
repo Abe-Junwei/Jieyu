@@ -162,20 +162,20 @@ export const unlinkTranslationLayerSchema = z.object({
   }
 });
 
-export const autoGlossUtteranceSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
+export const autoGlossUnitSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 
 export const setTokenPosSchema = z.object({
   tokenId: IdString.optional(),
-  utteranceId: IdString.optional(),
+  unitId: IdString.optional(),
   form: Form.optional(),
   pos: Pos.optional(),
 }).superRefine((args, ctx) => {
   const hasTokenId = Boolean(args.tokenId);
-  const hasBatch = Boolean(args.utteranceId) && Boolean(args.form) && Boolean(args.pos);
+  const hasBatch = Boolean(args.unitId) && Boolean(args.form) && Boolean(args.pos);
   if (!hasTokenId && !hasBatch) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: '\u9700\u8981 tokenId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b utteranceId + form + pos',
+      message: '\u9700\u8981 tokenId\uff0c\u6216\u540c\u65f6\u63d0\u4f9b unitId + form + pos',
     });
   }
 });
@@ -198,12 +198,12 @@ const SEARCH_SEGMENTS_SCHEMA = z.object({
   layers: z.array(z.enum(['transcription', 'translation', 'gloss'])).optional(),
 });
 const OPTIONAL_SEGMENT_TARGET_SCHEMA = z.object({ segmentId: IdString.optional() });
-const SEGMENT_OR_UTTERANCE_TARGET_SCHEMA = z.object({
+const SEGMENT_OR_UNIT_TARGET_SCHEMA = z.object({
   segmentId: IdString.optional(),
-  utteranceId: IdString.optional(),
+  unitId: IdString.optional(),
 }).superRefine((args, ctx) => {
-  if (!args.segmentId && !args.utteranceId) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u9700\u8981 segmentId \u6216 utteranceId\u3002' });
+  if (!args.segmentId && !args.unitId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u9700\u8981 segmentId \u6216 unitId\u3002' });
   }
 });
 
@@ -241,7 +241,7 @@ export const toolArgumentSchemas = {
   delete_layer: deleteLayerSchema,
   link_translation_layer: linkTranslationLayerSchema,
   unlink_translation_layer: unlinkTranslationLayerSchema,
-  auto_gloss_utterance: autoGlossUtteranceSchema,
+  auto_gloss_unit: autoGlossUnitSchema,
   set_token_pos: setTokenPosSchema,
   set_token_gloss: setTokenGlossSchema,
   propose_changes: proposeChangesArgsSchema,
@@ -252,7 +252,7 @@ export const toolArgumentSchemas = {
   toggle_notes: NoArgs,
   mark_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
   delete_segment: OPTIONAL_SEGMENT_TARGET_SCHEMA,
-  auto_gloss_segment: SEGMENT_OR_UTTERANCE_TARGET_SCHEMA,
+  auto_gloss_segment: SEGMENT_OR_UNIT_TARGET_SCHEMA,
   nav_to_segment: NAV_TARGET_SCHEMA,
   nav_to_time: TIME_TARGET_SCHEMA,
   focus_segment: SEGMENT_TARGET_SCHEMA,

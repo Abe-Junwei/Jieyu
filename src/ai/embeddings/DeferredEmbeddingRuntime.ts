@@ -97,9 +97,9 @@ class DeferredEmbeddingSearchRuntime {
     this.runtime.terminate();
   }
 
-  async searchSimilarUtterances(...args: Parameters<EmbeddingSearchService['searchSimilarUtterances']>): ReturnType<EmbeddingSearchService['searchSimilarUtterances']> {
+  async searchSimilarUnits(...args: Parameters<EmbeddingSearchService['searchSimilarUnits']>): ReturnType<EmbeddingSearchService['searchSimilarUnits']> {
     const service = await this.runtime.getEmbeddingSearchService();
-    return service.searchSimilarUtterances(...args);
+    return service.searchSimilarUnits(...args);
   }
 
   async searchMultiSource(...args: Parameters<EmbeddingSearchService['searchMultiSource']>): ReturnType<EmbeddingSearchService['searchMultiSource']> {

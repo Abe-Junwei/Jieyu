@@ -1,9 +1,4 @@
-import type {
-  ChatChunk,
-  ChatMessage,
-  ChatRequestOptions,
-  LLMProvider,
-} from './LLMProvider';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 
 export interface MockLLMProviderOptions {
   delayMs?: number;

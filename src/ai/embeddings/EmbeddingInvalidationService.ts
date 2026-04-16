@@ -1,5 +1,5 @@
-import type { JieyuDatabase, LayerDocType, UtteranceDocType } from '../../db';
-import { getUtteranceDocProjectionById } from '../../services/LayerSegmentGraphService';
+import type { JieyuDatabase, LayerDocType, LayerUnitDocType } from '../../db';
+import { getUnitDocProjectionById } from '../../services/LayerSegmentGraphService';
 
 function normalizeEmbeddedDefaultText(text: string | null | undefined): string {
   return (text ?? '').trim();
@@ -15,18 +15,18 @@ function sortLayersByDefaultPriority(layers: LayerDocType[]): LayerDocType[] {
 }
 
 export function hasEmbeddedDefaultTextChanged(
-  previous: Pick<UtteranceDocType, 'transcription'> | null | undefined,
-  next: Pick<UtteranceDocType, 'transcription'>,
+  previous: Pick<LayerUnitDocType, 'transcription'> | null | undefined,
+  next: Pick<LayerUnitDocType, 'transcription'>,
 ): boolean {
   return normalizeEmbeddedDefaultText(previous?.transcription?.default)
     !== normalizeEmbeddedDefaultText(next.transcription?.default);
 }
 
-export async function invalidateUtteranceEmbeddings(
+export async function invalidateUnitEmbeddings(
   db: JieyuDatabase,
-  utteranceIds: Iterable<string>,
+  unitIds: Iterable<string>,
 ): Promise<string[]> {
-  const normalizedIds = [...new Set(Array.from(utteranceIds)
+  const normalizedIds = [...new Set(Array.from(unitIds)
     .map((id) => id.trim())
     .filter((id) => id.length > 0))];
 
@@ -34,7 +34,7 @@ export async function invalidateUtteranceEmbeddings(
 
   const rows = await db.dexie.embeddings.where('sourceId').anyOf(normalizedIds).toArray();
   const embeddingIds = rows
-    .filter((row) => row.sourceType === 'utterance')
+    .filter((row) => row.sourceType === 'unit')
     .map((row) => row.id);
 
   if (embeddingIds.length > 0) {
@@ -104,15 +104,15 @@ export async function resolveDefaultTranscriptionLayerIdForText(
   return sortLayersByDefaultPriority(layers)[0]?.id;
 }
 
-export async function isDefaultTranscriptionLayerForUtteranceText(
+export async function isDefaultTranscriptionLayerForUnitText(
   db: JieyuDatabase,
-  utteranceId: string,
+  unitId: string,
   layerId: string | undefined,
 ): Promise<boolean> {
   if (!layerId) return false;
 
-  const utterance = await getUtteranceDocProjectionById(db, utteranceId);
-  const textId = utterance?.textId;
+  const unit = await getUnitDocProjectionById(db, unitId);
+  const textId = unit?.textId;
   if (!textId) return false;
 
   const defaultLayerId = await resolveDefaultTranscriptionLayerIdForText(db, textId);

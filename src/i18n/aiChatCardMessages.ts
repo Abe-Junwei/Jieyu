@@ -5,7 +5,7 @@ type AiConnectionTestStatus = 'idle' | 'testing' | 'success' | 'error' | null | 
 type AiChatPreferredMode = 'command' | 'dictation' | 'analysis' | null | undefined;
 type AiChatConfirmationThreshold = 'always' | 'destructive' | 'never' | null | undefined;
 type AiChatPage = 'transcription' | 'glossing' | 'settings' | 'other' | null | undefined;
-type AiChatUnitKind = 'utterance' | 'segment' | null | undefined;
+type AiChatUnitKind = 'unit' | 'segment' | null | undefined;
 type AiChatLayerType = 'transcription' | 'translation' | null | undefined;
 type AiAdaptiveIntent = 'translation' | 'transcription' | 'gloss' | 'review' | 'summary' | 'explain' | 'compare' | 'steps' | 'qa';
 type AiAdaptiveResponseStyle = 'analysis' | 'direct_edit' | 'concise' | 'detailed' | 'step_by_step';
@@ -74,8 +74,8 @@ function buildRecommendedPlaceholder(locale: Locale, input: RecommendedPlacehold
   const rowLabel = input.rowNumber ? tf(locale, 'ai.chat.placeholder.scope.row', { rowNumber: input.rowNumber }) : '';
   const unitLabel = input.selectedUnitKind === 'segment'
     ? t(locale, 'ai.chat.placeholder.scope.unit.segment')
-    : input.selectedUnitKind === 'utterance'
-      ? t(locale, 'ai.chat.placeholder.scope.unit.utterance')
+    : input.selectedUnitKind === 'unit'
+      ? t(locale, 'ai.chat.placeholder.scope.unit.unit')
       : '';
   const layerLabel = input.selectedLayerType === 'translation'
     ? t(locale, 'ai.chat.placeholder.scope.layer.translation')
@@ -201,6 +201,9 @@ export type AiChatCardMessages = {
   recommendationApply: string;
   recommendationDismiss: string;
   recommendationApplyHint: string;
+  followUpTitle: string;
+  taskTraceTitle: string;
+  taskTraceStepLabel: (step: number) => string;
   promptLab: string;
   promptTemplateCountSuffix: string;
   voiceInput: string;
@@ -292,6 +295,9 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       recommendationApply: '\u586b\u5165\u8f93\u5165\u6846',
       recommendationDismiss: '\u5ffd\u7565\u672c\u6761\u63a8\u8350',
       recommendationApplyHint: 'Tab \u586b\u5165\uff0cEsc \u5ffd\u7565',
+      followUpTitle: '\u7ee7\u7eed\u8ffd\u95ee',
+      taskTraceTitle: '\u672c\u8f6e\u8fdb\u5ea6',
+      taskTraceStepLabel: (step) => `\u6b65\u9aa4 ${step}`,
       promptLab: 'Prompt \u5b9e\u9a8c\u5ba4',
       promptTemplateCountSuffix: ' \u9879',
       voiceInput: '\u8bed\u97f3\u8f93\u5165',
@@ -382,6 +388,9 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     recommendationApply: 'Use suggestion',
     recommendationDismiss: 'Dismiss suggestion',
     recommendationApplyHint: 'Tab to use, Esc to dismiss',
+    followUpTitle: 'Continue with',
+    taskTraceTitle: 'Latest progress',
+    taskTraceStepLabel: (step) => `Step ${step}`,
     promptLab: 'Prompt Lab',
     promptTemplateCountSuffix: '',
     voiceInput: 'Voice Input',

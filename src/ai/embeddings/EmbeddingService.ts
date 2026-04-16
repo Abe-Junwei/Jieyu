@@ -4,13 +4,7 @@ import type { EmbeddingRuntimeProgress } from './EmbeddingRuntime';
 import { TaskRunner } from '../tasks/TaskRunner';
 import { getGlobalTaskRunner } from '../tasks/taskRunnerSingleton';
 import { createLogger } from '../../observability/logger';
-import {
-  buildPdfEmbeddingSourceId,
-  extractPdfDetailsPatch,
-  extractPdfTextFragments,
-  extractPdfTextFragmentsFromSource,
-  isPdfMediaItem,
-} from './pdfTextUtils';
+import { buildPdfEmbeddingSourceId, extractPdfDetailsPatch, extractPdfTextFragments, extractPdfTextFragmentsFromSource, isPdfMediaItem } from './pdfTextUtils';
 import { semanticChunk } from './semanticChunker';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 

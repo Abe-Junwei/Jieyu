@@ -4,36 +4,11 @@
  * 覆盖：Agent Loop 多步推理、动态上下文预算、摘要触发与钉住、本地工具链路、WebLLM 路径
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildAgentLoopContinuationInput,
-  DEFAULT_AGENT_LOOP_CONFIG,
-  estimateRemainingLoopTokens,
-  shouldContinueAgentLoop,
-  shouldWarnTokenBudget,
-} from './agentLoop';
-import {
-  computeContextBudget,
-  resetProviderContextLimitsCacheForTests,
-  resolveContextCharBudgets,
-} from './contextBudget';
-import {
-  buildConversationSummaryFromHistory,
-  countHistoryUserTurns,
-  estimateSummaryCoverageSimilarity,
-  splitHistoryByRecentRounds,
-  trimHistoryByChars,
-  type HistoryChatMessage,
-} from './historyTrim';
-import {
-  executeLocalContextToolCall,
-  parseLocalContextToolCallFromText,
-  parseLocalContextToolCallsFromText,
-  type LocalContextToolCall,
-} from './localContextTools';
-import {
-  setSessionMemoryMessagePinned,
-  updateConversationSummaryMemory,
-} from './sessionMemory';
+import { buildAgentLoopContinuationInput, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldContinueAgentLoop, shouldWarnTokenBudget } from './agentLoop';
+import { computeContextBudget, resetProviderContextLimitsCacheForTests, resolveContextCharBudgets } from './contextBudget';
+import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from './historyTrim';
+import { executeLocalContextToolCall, parseLocalContextToolCallFromText, parseLocalContextToolCallsFromText, type LocalContextToolCall } from './localContextTools';
+import { setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
 import type { AiPromptContext } from './chatDomain.types';
 
 // ───────────────────────────────────────────────────────────────────────────────

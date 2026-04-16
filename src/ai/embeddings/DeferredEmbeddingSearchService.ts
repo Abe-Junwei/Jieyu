@@ -1,8 +1,8 @@
 import type { EmbeddingSearchService } from './EmbeddingSearchService';
 import type { EmbeddingProviderCreateConfig } from './EmbeddingProvider';
 
-type SearchArgs = Parameters<EmbeddingSearchService['searchSimilarUtterances']>;
-type SearchResult = ReturnType<EmbeddingSearchService['searchSimilarUtterances']>;
+type SearchArgs = Parameters<EmbeddingSearchService['searchSimilarUnits']>;
+type SearchResult = ReturnType<EmbeddingSearchService['searchSimilarUnits']>;
 type MultiSourceArgs = Parameters<EmbeddingSearchService['searchMultiSource']>;
 type MultiSourceResult = ReturnType<EmbeddingSearchService['searchMultiSource']>;
 type MultiSourceHybridArgs = Parameters<EmbeddingSearchService['searchMultiSourceHybrid']>;
@@ -34,9 +34,9 @@ class DeferredEmbeddingSearchService {
     this.resolvedService?.terminate();
   }
 
-  async searchSimilarUtterances(...args: SearchArgs): SearchResult {
+  async searchSimilarUnits(...args: SearchArgs): SearchResult {
     const service = await this.getService();
-    return service.searchSimilarUtterances(...args);
+    return service.searchSimilarUnits(...args);
   }
 
   async searchMultiSource(...args: MultiSourceArgs): MultiSourceResult {

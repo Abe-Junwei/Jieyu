@@ -1,8 +1,4 @@
-import type {
-  AiRecommendationEvent,
-  AiRecommendationTelemetry,
-  AiSessionMemory,
-} from './chatDomain.types';
+import type { AiRecommendationEvent, AiRecommendationTelemetry, AiSessionMemory } from './chatDomain.types';
 
 const MAX_RECENT_EVENTS = 24;
 

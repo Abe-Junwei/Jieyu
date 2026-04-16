@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import {
-  pickAiAssistantHubContextValue,
-  useAiAssistantHubContextValue,
-} from './useAiAssistantHubContextValue';
+import { pickAiAssistantHubContextValue, useAiAssistantHubContextValue } from './useAiAssistantHubContextValue';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
 import type { VoiceAgentContextValue } from '../contexts/VoiceAgentContext';
 import { pickAiChatContextValue } from './useAiChatContextValue';

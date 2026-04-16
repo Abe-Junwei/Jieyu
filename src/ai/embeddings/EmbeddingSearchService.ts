@@ -5,13 +5,10 @@ import MiniSearch from 'minisearch';
 import { splitPdfCitationRef } from '../../utils/citationJumpUtils';
 import { extractPdfSnippet, isPdfMediaItem } from './pdfTextUtils';
 import { resolveFusionWeightsForScenario, type SearchFusionScenario } from './searchFusionProfiles';
-import {
-  listUtteranceTextsFromSegmentation,
-  listUtteranceTextsByUtterances,
-} from '../../services/LayerSegmentationTextService';
+import { listUnitTextsFromSegmentation, listUnitTextsByUnits } from '../../services/LayerSegmentationTextService';
 import { DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from './localEmbeddingModelConfig';
 
-export interface SearchSimilarUtterancesOptions {
+export interface SearchSimilarUnitsOptions {
   modelId?: string;
   modelVersion?: string;
   topK?: number;
@@ -25,7 +22,7 @@ export interface SearchSimilarUtterancesOptions {
   minScore?: number;
 }
 
-export interface SimilarUtteranceMatch {
+export interface SimilarUnitMatch {
   sourceType: EmbeddingSourceType;
   sourceId: string;
   score: number;
@@ -33,9 +30,9 @@ export interface SimilarUtteranceMatch {
   modelVersion?: string;
 }
 
-export interface SearchSimilarUtterancesResult {
+export interface SearchSimilarUnitsResult {
   query: string;
-  matches: SimilarUtteranceMatch[];
+  matches: SimilarUnitMatch[];
   warningCode?: 'query-embedding-unavailable';
 }
 
@@ -169,10 +166,10 @@ export class EmbeddingSearchService {
     this.preloadedCacheKey = cacheKey;
   }
 
-  async searchSimilarUtterances(
+  async searchSimilarUnits(
     query: string,
-    options?: SearchSimilarUtterancesOptions,
-  ): Promise<SearchSimilarUtterancesResult> {
+    options?: SearchSimilarUnitsOptions,
+  ): Promise<SearchSimilarUnitsResult> {
     const normalizedQuery = normalizeText(query);
     if (!normalizedQuery) {
       return { query: '', matches: [] };
@@ -194,13 +191,13 @@ export class EmbeddingSearchService {
     const db = await getDb();
     const embeddingRows = await db.dexie.embeddings
       .where('[sourceType+model]')
-      .equals(['utterance', modelId])
+      .equals(['unit', modelId])
       .toArray();
     const candidateSet = options?.candidateSourceIds
       ? new Set(options.candidateSourceIds)
       : null;
 
-    const scored: SimilarUtteranceMatch[] = [];
+    const scored: SimilarUnitMatch[] = [];
     for (const item of embeddingRows) {
       if ((item.modelVersion ?? DEFAULT_MODEL_VERSION) !== modelVersion) continue;
       if (candidateSet && !candidateSet.has(item.sourceId)) continue;
@@ -227,14 +224,14 @@ export class EmbeddingSearchService {
   }
 
   /**
-   * Search across multiple source types (e.g. 'utterance' + 'note') and
+   * Search across multiple source types (e.g. 'unit' + 'note') and
    * return a unified ranked result set.
    */
   async searchMultiSource(
     query: string,
     sourceTypes: readonly EmbeddingSourceType[],
-    options?: SearchSimilarUtterancesOptions,
-  ): Promise<SearchSimilarUtterancesResult> {
+    options?: SearchSimilarUnitsOptions,
+  ): Promise<SearchSimilarUnitsResult> {
     const normalizedQuery = normalizeText(query);
     if (!normalizedQuery || sourceTypes.length === 0) {
       return { query: normalizedQuery || '', matches: [] };
@@ -254,7 +251,7 @@ export class EmbeddingSearchService {
     }
 
     const db = await getDb();
-    const scored: SimilarUtteranceMatch[] = [];
+    const scored: SimilarUnitMatch[] = [];
     const candidateSet = options?.candidateSourceIds
       ? new Set(options.candidateSourceIds)
       : null;
@@ -297,8 +294,8 @@ export class EmbeddingSearchService {
   async searchMultiSourceHybrid(
     query: string,
     sourceTypes: readonly EmbeddingSourceType[],
-    options?: SearchSimilarUtterancesOptions,
-  ): Promise<SearchSimilarUtterancesResult> {
+    options?: SearchSimilarUnitsOptions,
+  ): Promise<SearchSimilarUnitsResult> {
     const topK = normalizeTopK(options?.topK);
     const minScore = options?.minScore ?? DEFAULT_MIN_SCORE;
     const base = await this.searchMultiSource(query, sourceTypes, {
@@ -345,9 +342,9 @@ export class EmbeddingSearchService {
       ? new Set(options.candidateSourceIds)
       : null;
 
-    const matchedUtteranceIds = [...new Set(
+    const matchedUnitIds = [...new Set(
       base.matches
-        .filter((match) => match.sourceType === 'utterance')
+        .filter((match) => match.sourceType === 'unit')
         .map((match) => match.sourceId),
     )];
     const matchedNoteIds = [...new Set(
@@ -361,19 +358,20 @@ export class EmbeddingSearchService {
         .map((match) => splitPdfCitationRef(match.sourceId).baseRef),
     )];
 
-    const utteranceTextMap = new Map<string, string>();
-    if (matchedUtteranceIds.length > 0) {
-      const rows = await listUtteranceTextsByUtterances(db, new Set(matchedUtteranceIds));
+    const unitTextMap = new Map<string, string>();
+    if (matchedUnitIds.length > 0) {
+      const rows = await listUnitTextsByUnits(db, new Set(matchedUnitIds));
       const merged = new Map<string, string[]>();
       for (const row of rows) {
+        const unitId = row.unitId?.trim();
         const text = row.text?.trim();
-        if (!text) continue;
-        const list = merged.get(row.utteranceId) ?? [];
+        if (!unitId || !text) continue;
+        const list = merged.get(unitId) ?? [];
         list.push(text);
-        merged.set(row.utteranceId, list);
+        merged.set(unitId, list);
       }
-      for (const [utteranceId, chunks] of merged.entries()) {
-        utteranceTextMap.set(utteranceId, chunks.join(' '));
+      for (const [unitId, chunks] of merged.entries()) {
+        unitTextMap.set(unitId, chunks.join(' '));
       }
     }
 
@@ -395,13 +393,13 @@ export class EmbeddingSearchService {
       }
     }
 
-    const fusedCandidates = new Map<string, { match: SimilarUtteranceMatch; rawText: string }>();
+    const fusedCandidates = new Map<string, { match: SimilarUnitMatch; rawText: string }>();
     for (const match of base.matches) {
       const sourceKey = `${match.sourceType}:${match.sourceId}`;
       if (fusedCandidates.has(sourceKey)) continue;
 
-      if (match.sourceType === 'utterance') {
-        fusedCandidates.set(sourceKey, { match, rawText: utteranceTextMap.get(match.sourceId) ?? '' });
+      if (match.sourceType === 'unit') {
+        fusedCandidates.set(sourceKey, { match, rawText: unitTextMap.get(match.sourceId) ?? '' });
         continue;
       }
 
@@ -419,28 +417,29 @@ export class EmbeddingSearchService {
       fusedCandidates.set(sourceKey, { match, rawText: '' });
     }
 
-    if (sourceTypes.includes('utterance')) {
-      const utteranceRows = candidateSet
-        ? await listUtteranceTextsByUtterances(db, candidateSet)
-        : await listUtteranceTextsFromSegmentation(db);
+    if (sourceTypes.includes('unit')) {
+      const unitRows = candidateSet
+        ? await listUnitTextsByUnits(db, candidateSet)
+        : await listUnitTextsFromSegmentation(db);
       const merged = new Map<string, string[]>();
-      for (const row of utteranceRows) {
+      for (const row of unitRows) {
         const item = row;
+        const unitId = item.unitId?.trim();
         const text = item.text?.trim();
-        if (!text) continue;
-        const list = merged.get(item.utteranceId) ?? [];
+        if (!unitId || !text) continue;
+        const list = merged.get(unitId) ?? [];
         list.push(text);
-        merged.set(item.utteranceId, list);
+        merged.set(unitId, list);
       }
 
       for (const [sourceId, chunks] of merged.entries()) {
-        const sourceKey = `utterance:${sourceId}`;
+        const sourceKey = `unit:${sourceId}`;
         if (fusedCandidates.has(sourceKey)) continue;
         const rawText = chunks.join(' ');
         if (calcKeywordScore(rawText, queryTokens) <= 0) continue;
         fusedCandidates.set(sourceKey, {
           match: {
-            sourceType: 'utterance',
+            sourceType: 'unit',
             sourceId,
             score: 0,
             model: modelId,

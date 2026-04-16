@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  addMetricObserver,
-  createMetricTags,
-  isKnownMetricId,
-  recordDurationMetric,
-  recordMetric,
-  startMetricTimer,
-  summarizeMetrics,
-  type MetricEvent,
-} from './metrics';
+import { addMetricObserver, createMetricTags, isKnownMetricId, recordDurationMetric, recordMetric, startMetricTimer, summarizeMetrics, type MetricEvent } from './metrics';
 
 describe('metrics observability foundation', () => {
   it('records known metric and notifies observer', () => {

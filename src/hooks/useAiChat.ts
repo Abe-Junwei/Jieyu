@@ -5,18 +5,9 @@ import { useLocale, useOptionalLocale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
-import {
-  DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
-  INITIAL_METRICS,
-  normalizeAutoProbeIntervalMs,
-  normalizeFirstChunkTimeoutMs,
-  normalizeRagContextTimeoutMs,
-  normalizeStreamPersistInterval,
-  readDevAutoProbeIntervalMs,
-  readDevRagContextTimeoutMs,
-  readDevStreamPersistIntervalMs,
-} from './useAiChat.config';
-import { newAuditLogId, newMessageId, nowIso } from './useAiChat.helpers';
+import { DEFAULT_FIRST_CHUNK_TIMEOUT_MS, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeRagContextTimeoutMs, normalizeStreamPersistInterval, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevStreamPersistIntervalMs } from './useAiChat.config';
+import { newMessageId, nowIso } from './useAiChat.helpers';
+import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
 import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.debug';
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
@@ -25,34 +16,15 @@ import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionP
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
-import {
-  buildConversationSummaryFromHistory,
-  countHistoryUserTurns,
-  estimateSummaryCoverageSimilarity,
-  splitHistoryByRecentRounds,
-  trimHistoryByChars,
-  type HistoryChatMessage,
-} from '../ai/chat/historyTrim';
-import {
-  buildSessionMemoryPromptDigest,
-  clearConversationSummaryMemory,
-  loadSessionMemory,
-  persistSessionMemory,
-  setSessionMemoryMessagePinned,
-  updateConversationSummaryMemory,
-} from '../ai/chat/sessionMemory';
+import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
+import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
-import {
-  buildAgentLoopContinuationInput,
-  DEFAULT_AGENT_LOOP_CONFIG,
-  estimateRemainingLoopTokens,
-  shouldWarnTokenBudget,
-  shouldContinueAgentLoop,
-} from '../ai/chat/agentLoop';
+
+import { resolveLocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
 import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
-import { getAiChatCardMessages } from '../i18n/aiChatCardMessages';
+
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
@@ -61,37 +33,13 @@ import { normalizeAiProviderError } from '../ai/providers/errorUtils';
 import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import {
-  formatAbortedMessage,
-  formatAiChatDisabledError,
-  formatConnectionHealthyMessage,
-  formatFirstChunkTimeoutError,
-  formatPendingConfirmationBlockedError,
-  formatStreamingBusyError,
-} from '../ai/messages';
-import {
-  applyAiChatSettingsPatch,
-  createAiChatProvider,
-  getDefaultAiChatSettings,
-  normalizeAiChatSettings,
-} from '../ai/providers/providerCatalog';
-import {
-  loadAiChatSettingsFromStorage,
-  persistAiChatSettings,
-} from '../ai/config/aiChatSettingsStorage';
+import { formatAbortedMessage, formatAiChatDisabledError, formatConnectionHealthyMessage, formatFirstChunkTimeoutError, formatPendingConfirmationBlockedError, formatStreamingBusyError } from '../ai/messages';
+import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
+import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
 import type { ChatMessage } from '../ai/providers/LLMProvider';
-import type {
-  AiContextDebugSnapshot,
-  AiInteractionMetrics,
-  AiSessionMemory,
-  AiTaskSession,
-  PendingAiToolCall,
-  UiChatMessage,
-  UseAiChatOptions,
-  AiRecommendationEvent,
-} from './useAiChat.types';
+import type { AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions, AiRecommendationEvent } from './useAiChat.types';
 
 function estimateTokensFromText(text: string): number {
   const normalized = text.trim();
@@ -633,6 +581,10 @@ export function useAiChat(options?: UseAiChatOptions) {
           ? { ...basePromptContext, shortTerm: { ...basePromptContext.shortTerm, sessionMemoryDigest } }
           : { shortTerm: { sessionMemoryDigest } })
         : basePromptContext;
+      const routingPlan = resolveLocalToolRoutingPlan(
+        agentLoopSourceUserText,
+        sessionMemoryRef.current,
+      );
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
       if (featureFlags.aiChatRagEnabled) {
@@ -672,6 +624,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         systemPersonaKeyRef.current,
         contextBlock,
         settingsRef.current.toolFeedbackStyle,
+        routingPlan.selectedTools,
       );
       estimatedInputTokens = estimateTokensFromText(effectiveUserText)
         + estimateTokensFromText(systemPrompt)
@@ -706,6 +659,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         },
         persistSessionMemory,
         setTaskSession,
+        getTaskSession: () => taskSessionRef.current,
         setPendingToolCall,
         taskSessionId: taskSessionRef.current.id,
         markExecutedRequestId,
@@ -843,164 +797,55 @@ export function useAiChat(options?: UseAiChatOptions) {
           let resolvedStatus = finalStatus;
           let resolvedErrorMessage = finalErrorMessage;
           let resolvedConnectionErrorMessage = connectionErrorMessage;
-          let resolvedLocalToolResults = localToolResults;
-          let rawAssistantContentForLoop = assistantContent;
-          let loopStep = resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1;
-          let loopExecuted = false;
 
-          while (
-            featureFlags.aiChatAgentLoopEnabled
-            && shouldContinueAgentLoop(
-              loopStep,
-              DEFAULT_AGENT_LOOP_CONFIG,
-              resolvedLocalToolResults,
-              sessionMemoryRef.current.localToolState?.lastFrame?.metric,
-            )
-            && !controller.signal.aborted
-          ) {
-            loopExecuted = true;
-            const loopAiContext = getContextRef.current?.() ?? aiContext;
-            setTaskSession({
-              id: taskSessionRef.current.id,
-              status: 'executing',
-              updatedAt: nowIso(),
-              step: loopStep,
-              maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
-            });
-
-            const continuationUserText = buildAgentLoopContinuationInput(agentLoopSourceUserText, resolvedLocalToolResults!, loopStep);
-            const continuationHistory = trimHistoryByChars([
-              ...history,
-              { role: 'assistant', content: rawAssistantContentForLoop },
-            ], historyCharBudget, 3, sessionMemoryRef.current.conversationSummary);
-            const continuationInputTokens = estimateTokensFromText(continuationUserText)
-              + estimateTokensFromText(systemPrompt)
-              + estimateTokensFromHistory(continuationHistory);
-            const estimatedRemainingTokens = estimateRemainingLoopTokens(
-              continuationInputTokens,
-              loopStep,
-              DEFAULT_AGENT_LOOP_CONFIG,
-            );
-            if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
-              sessionMemoryRef.current = {
-                ...sessionMemoryRef.current,
-                pendingAgentLoopCheckpoint: {
-                  kind: 'token_budget_warning',
-                  originalUserText: agentLoopSourceUserText,
-                  continuationInput: continuationUserText,
-                  step: loopStep,
-                  estimatedRemainingTokens,
-                  createdAt: nowIso(),
-                },
-              };
-              persistSessionMemory(sessionMemoryRef.current);
-              const budgetHint = getAiChatCardMessages(localeRef.current === 'zh-CN').tokenBudgetWarning(estimatedRemainingTokens);
-              resolvedContent = `${resolvedContent}${budgetHint}`;
-              resolvedStatus = 'done';
-              resolvedLocalToolResults = undefined;
-              break;
-            }
-            estimatedInputTokens += continuationInputTokens;
-            setMetrics((prev) => ({
-              ...prev,
-              totalInputTokens: prev.totalInputTokens + continuationInputTokens,
-            }));
-
-            const {
-              stream: continuationStream,
-            } = createAssistantStream({
-              userText: continuationUserText,
-              clarifyFastPathCall: null,
-              history: continuationHistory,
-              orchestrator,
+          // ── Agent loop（已提取至 useAiChat.agentLoopRunner） ──
+          const loopResult = await runAgentLoop(
+            {
+              assistantId,
+              agentLoopSourceUserText,
+              history,
+              historyCharBudget,
               systemPrompt,
+              aiContext,
               signal: controller.signal,
-              taskSessionStatus: 'executing',
-              model: settingsRef.current.model,
-              ...(settingsRef.current.explainModel
-                ? { explainModel: settingsRef.current.explainModel }
-                : {}),
-            });
+              routingPlan,
+              aiChatAgentLoopEnabled: featureFlags.aiChatAgentLoopEnabled,
+              getSessionMemory: () => sessionMemoryRef.current,
+              setSessionMemory: (next) => { sessionMemoryRef.current = next; },
+              getSettings: () => settingsRef.current,
+              getLocaleIsZhCn: () => localeRef.current === 'zh-CN',
+              getAiContext: () => getContextRef.current?.() ?? null,
+              getTaskSession: () => taskSessionRef.current,
+              setTaskSession,
+              setMetrics,
+              persistSessionMemory,
+              buildStreamCompletionEnv,
+              orchestrator,
+              insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
+            },
+            {
+              resolvedContent: finalContent,
+              resolvedStatus: finalStatus,
+              resolvedErrorMessage: finalErrorMessage,
+              resolvedConnectionErrorMessage: connectionErrorMessage,
+              resolvedLocalToolResults: localToolResults,
+              rawAssistantContentForLoop: assistantContent,
+              assistantReasoningContent,
+              estimatedInputTokens,
+              totalModelOutputTokens,
+              startStep: resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1,
+            },
+          );
 
-            let continuationAssistantContent = '';
-            let continuationReasoningContent = '';
-            let continuationStreamError: string | null = null;
-            const loopStepStartedAt = Date.now();
+          resolvedContent = loopResult.resolvedContent;
+          resolvedStatus = loopResult.resolvedStatus;
+          resolvedErrorMessage = loopResult.resolvedErrorMessage;
+          resolvedConnectionErrorMessage = loopResult.resolvedConnectionErrorMessage;
+          assistantReasoningContent = loopResult.assistantReasoningContent;
+          totalModelOutputTokens = loopResult.totalModelOutputTokens;
+          estimatedInputTokens = loopResult.estimatedInputTokens;
 
-            for await (const continuationChunk of continuationStream) {
-              if ((continuationChunk.delta ?? '').length > 0) {
-                continuationAssistantContent += continuationChunk.delta ?? '';
-              }
-              if ((continuationChunk.reasoningContent ?? '').length > 0) {
-                continuationReasoningContent += continuationChunk.reasoningContent ?? '';
-              }
-              if (continuationChunk.error) {
-                continuationStreamError = continuationChunk.error;
-                break;
-              }
-              if (continuationChunk.done) {
-                break;
-              }
-            }
-
-            assistantReasoningContent += continuationReasoningContent;
-            totalModelOutputTokens += estimateOutputTokensFromAssistantParts(continuationAssistantContent, continuationReasoningContent);
-
-            if (continuationStreamError) {
-              resolvedStatus = 'error';
-              resolvedErrorMessage = continuationStreamError;
-              resolvedConnectionErrorMessage = continuationStreamError;
-              resolvedContent = continuationAssistantContent;
-              break;
-            }
-
-            const continuationResult = await finalizeAssistantStreamCompletion(
-              {
-                assistantId,
-                assistantContent: continuationAssistantContent,
-                userText: continuationUserText,
-                aiContext: loopAiContext,
-              },
-              buildStreamCompletionEnv(),
-            );
-
-            const loopStepDurationMs = Date.now() - loopStepStartedAt;
-            const loopStepTokenEstimate = continuationInputTokens + estimateTokensFromText(continuationAssistantContent);
-            await db.collections.audit_logs.insert({
-              id: newAuditLogId(),
-              collection: 'ai_messages',
-              documentId: assistantId,
-              action: 'update',
-              field: 'ai_agent_loop_step',
-              oldValue: `step:${loopStep}`,
-              newValue: continuationResult.finalStatus,
-              source: 'ai',
-              timestamp: nowIso(),
-              requestId: `${assistantId}_loop_${loopStep}`,
-              metadataJson: JSON.stringify({
-                schemaVersion: 1,
-                phase: 'agent_loop_step',
-                requestId: `${assistantId}_loop_${loopStep}`,
-                step: loopStep,
-                maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
-                inputSummary: continuationUserText.slice(0, 500),
-                outputSummary: continuationAssistantContent.slice(0, 500),
-                durationMs: loopStepDurationMs,
-                tokenEstimate: loopStepTokenEstimate,
-              }),
-            });
-
-            resolvedContent = continuationResult.finalContent;
-            resolvedStatus = continuationResult.finalStatus;
-            resolvedErrorMessage = continuationResult.finalErrorMessage;
-            resolvedConnectionErrorMessage = continuationResult.connectionErrorMessage ?? resolvedConnectionErrorMessage;
-            resolvedLocalToolResults = continuationResult.localToolResults;
-            rawAssistantContentForLoop = continuationAssistantContent;
-
-            loopStep += 1;
-          }
-
-          if (loopExecuted) {
+          if (loopResult.loopExecuted) {
             setTaskSession((prev) => {
               if (prev.status !== 'executing') return prev;
               return {

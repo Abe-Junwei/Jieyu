@@ -4,22 +4,22 @@ import type { ObserverMetrics, WaveformSignals } from './ProjectObserver';
 import type { Locale } from '../i18n';
 
 const glossingMetrics: ObserverMetrics = {
-  utteranceRowCount: 100,
+  unitRowCount: 100,
   transcribedRate: 0.9,
   glossedRate: 0.3,
   verifiedRate: 0.1,
 };
 
 const reviewingMetrics: ObserverMetrics = {
-  utteranceRowCount: 100,
+  unitRowCount: 100,
   transcribedRate: 0.95,
   glossedRate: 0.8,
   verifiedRate: 0.7,
 };
 
 describe('inferStage', () => {
-  it('returns collecting when no utterances', () => {
-    expect(inferStage({ utteranceRowCount: 0, transcribedRate: 0, glossedRate: 0, verifiedRate: 0 })).toBe('collecting');
+  it('returns collecting when no units', () => {
+    expect(inferStage({ unitRowCount: 0, transcribedRate: 0, glossedRate: 0, verifiedRate: 0 })).toBe('collecting');
   });
 
   it('returns glossing when glossedRate is low and transcribedRate is high', () => {
@@ -32,7 +32,7 @@ describe('inferStage', () => {
 });
 
 describe('computeMultiSignalRiskScore', () => {
-  it('returns 0 when no utterances', () => {
+  it('returns 0 when no units', () => {
     expect(computeMultiSignalRiskScore({ lowConfidenceCount: 5, overlapCount: 3, gapCount: 2, maxGapSeconds: 4 }, 0)).toBe(0);
   });
 
@@ -55,7 +55,7 @@ describe('computeMultiSignalRiskScore', () => {
 
 describe('generateRecommendations with waveform signals', () => {
   it('adds overlap warning during transcribing when overlapCount >= 3', () => {
-    const metrics: ObserverMetrics = { utteranceRowCount: 50, transcribedRate: 0.5, glossedRate: 0, verifiedRate: 0 };
+    const metrics: ObserverMetrics = { unitRowCount: 50, transcribedRate: 0.5, glossedRate: 0, verifiedRate: 0 };
     const recs = generateRecommendations(metrics, { lowConfidenceCount: 2, overlapCount: 5, gapCount: 0, maxGapSeconds: 0 });
     expect(recs.some((r) => r.id === 'transcribing-overlap-warn')).toBe(true);
   });

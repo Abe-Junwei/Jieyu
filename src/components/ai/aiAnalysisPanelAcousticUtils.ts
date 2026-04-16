@@ -1,21 +1,6 @@
-import {
-  serializeAcousticPanelBatchDetailCsv,
-  serializeAcousticPanelBatchDetailJson,
-  serializeAcousticPanelBatchDetailJsonResearch,
-  serializeAcousticPanelDetailCsv,
-  serializeAcousticPanelDetailJson,
-  serializeAcousticPanelDetailJsonResearch,
-  serializeAcousticPitchTierText,
-  type AcousticPanelBatchDetail,
-  type AcousticPanelDetail,
-} from '../../utils/acousticPanelDetail';
-import {
-  ACOUSTIC_ANALYSIS_PRESETS,
-  type AcousticAnalysisPresetKey,
-} from '../../utils/acousticAnalysisPresets';
-import {
-  type AcousticAnalysisConfig,
-} from '../../utils/acousticOverlayTypes';
+import { serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson, serializeAcousticPanelBatchDetailJsonResearch, serializeAcousticPanelDetailCsv, serializeAcousticPanelDetailJson, serializeAcousticPanelDetailJsonResearch, serializeAcousticPitchTierText, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../../utils/acousticPanelDetail';
+import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../../utils/acousticAnalysisPresets';
+import { type AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
 
 export function formatDb(value: number | null | undefined, digits = 1): string | null {
   return typeof value === 'number' ? `${value.toFixed(digits)} dB` : null;

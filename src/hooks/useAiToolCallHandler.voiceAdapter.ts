@@ -1,9 +1,6 @@
 import { loadRecentVoiceSessions } from '../services/VoiceSessionStore';
 import { t, tf } from '../i18n';
-import {
-  formatVoiceHistoryActorLabel,
-  formatVoiceLayerKinds,
-} from './useAiToolCallHandler.helpers';
+import { formatVoiceHistoryActorLabel, formatVoiceLayerKinds } from './useAiToolCallHandler.helpers';
 import { glossAdapter } from './useAiToolCallHandler.annotationAdapters';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 
@@ -57,19 +54,19 @@ export const voiceAdapter: ToolObjectAdapter = {
         return { ok: true as const, message: successMessage };
       }
 
-      const requestedUtteranceId = String(call.arguments.utteranceId ?? '').trim();
-      if (requestedUtteranceId.length > 0) {
-        const targetUtterance = ctx.resolveRequestedUtterance();
-        if (!targetUtterance) {
+      const requestedUnitId = String(call.arguments.unitId ?? '').trim();
+      if (requestedUnitId.length > 0) {
+        const targetUnit = ctx.resolveRequestedUnit();
+        if (!targetUnit) {
           return {
             ok: false as const,
-            message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: requestedUtteranceId }),
+            message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: requestedUnitId }),
           };
         }
         if (!merge) {
           return { ok: false as const, message: t(locale, 'transcription.aiTool.voice.actionUnsupported') };
         }
-        await merge(targetUtterance.id);
+        await merge(targetUnit.id);
         return { ok: true as const, message: successMessage };
       }
 
@@ -163,7 +160,7 @@ export const voiceAdapter: ToolObjectAdapter = {
     if (call.name === 'focus_segment') {
       const segId = String(call.arguments.segmentId ?? '').trim();
       if (!segId) return { ok: false, message: t(locale, 'transcription.aiTool.voice.focusSegmentMissingId') };
-      const found = ctx.utterances.find((u) => u.id === segId);
+      const found = ctx.units.find((u) => u.id === segId);
       if (!found) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.segmentNotFound', { segmentId: segId }) };
       if (!ctx.navigateTo) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.focusSegmentUnsupported', { segmentId: segId }) };
       ctx.navigateTo(segId);
@@ -180,7 +177,7 @@ export const voiceAdapter: ToolObjectAdapter = {
       const segId = String(call.arguments.segmentId ?? '').trim();
       const zoomLevel = typeof call.arguments.zoomLevel === 'number' ? call.arguments.zoomLevel : undefined;
       if (!segId) return { ok: false, message: t(locale, 'transcription.aiTool.voice.zoomSegmentMissingId') };
-      const found = ctx.utterances.find((u) => u.id === segId);
+      const found = ctx.units.find((u) => u.id === segId);
       if (!found) return { ok: false, message: tf(locale, 'transcription.aiTool.voice.segmentNotFound', { segmentId: segId }) };
       if (ctx.zoomToSegment) {
         const ok = ctx.zoomToSegment(segId, zoomLevel);
@@ -237,8 +234,8 @@ export const voiceAdapter: ToolObjectAdapter = {
       }
     }
     if (call.name === 'get_project_summary') {
-      const total = ctx.utterances.length;
-      const done = ctx.utterances.filter((u) => u.annotationStatus && u.annotationStatus !== 'raw').length;
+      const total = ctx.units.length;
+      const done = ctx.units.filter((u) => u.annotationStatus && u.annotationStatus !== 'raw').length;
       const pct = total > 0 ? Math.round((done / total) * 100) : 0;
       return {
         ok: true,

@@ -10,14 +10,14 @@ import { shouldRetrieve } from '../ai/ragReflection';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
 import { createMetricTags, recordMetric } from '../observability/metrics';
-import { listUtteranceTextsByUtterance } from '../services/LayerSegmentationTextService';
+import { listUnitTextsByUnit } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useAiChat.rag');
 
 /**
  * When `unitIndexComplete` is false, returns null (do not label hits/misses).
  * When `localUnitIndex` is missing, returns null.
- * Empty array yields an empty Set (every utterance id is a miss).
+ * Empty array yields an empty Set (every unit id is a miss).
  */
 export function buildLocalUnitIdSetForRagCitationCheck(
   context: AiPromptContext | null | undefined,
@@ -128,7 +128,7 @@ export async function enrichContextWithRag({
     const ragResult = await withTimeout(
       embeddingSearchService.searchMultiSourceHybrid(
         queryText,
-        ['utterance', 'note', 'pdf'],
+        ['unit', 'note', 'pdf'],
         { topK: searchTopK, fusionScenario: scenario },
       ),
       ragContextTimeoutMs,
@@ -140,7 +140,7 @@ export async function enrichContextWithRag({
       const fallbackResult = await withTimeout(
         embeddingSearchService.searchMultiSourceHybrid(
           queryText,
-          ['utterance', 'note', 'pdf'],
+          ['unit', 'note', 'pdf'],
           { topK: searchTopK, fusionScenario: scenario, minScore: isForced ? 0.05 : 0.1 },
         ),
         ragContextTimeoutMs,
@@ -174,7 +174,7 @@ export async function enrichContextWithRag({
           const expandedResult = await withTimeout(
             embeddingSearchService.searchMultiSourceHybrid(
               ragQuality.refinedQuery,
-              ['utterance', 'note', 'pdf'],
+              ['unit', 'note', 'pdf'],
               { topK: 5, fusionScenario: 'queryExpansion' },
             ),
             ragContextTimeoutMs,
@@ -226,8 +226,8 @@ export async function enrichContextWithRag({
             const contentByLang = noteDoc.content as Record<string, string>;
             snippet = (contentByLang['und'] ?? contentByLang['en'] ?? Object.values(contentByLang).find((value) => value.trim()) ?? '').trim();
           }
-        } else if (match.sourceType === 'utterance') {
-            const textRows = await listUtteranceTextsByUtterance(db, match.sourceId);
+        } else if (match.sourceType === 'unit') {
+            const textRows = await listUnitTextsByUnit(db, match.sourceId);
             const textWithContent = textRows.find((row) => row.text?.trim());
             snippet = textWithContent?.text?.trim() ?? '';
         } else if (match.sourceType === 'pdf') {
@@ -243,31 +243,31 @@ export async function enrichContextWithRag({
 
         const label = match.sourceType === 'note'
           ? '笔记参考'
-          : (match.sourceType === 'utterance' ? '句段参考' : '文档参考');
+          : (match.sourceType === 'unit' ? '句段参考' : '文档参考');
         const contextTag = match.sourceType === 'note'
           ? 'NOTE_CONTEXT'
-          : (match.sourceType === 'utterance' ? 'UTTERANCE_CONTEXT' : 'PDF_CONTEXT');
+          : (match.sourceType === 'unit' ? 'UNIT_CONTEXT' : 'PDF_CONTEXT');
         const safeSnippet = normalizedSnippet.replace(/[\[\]]/g, (char) => (char === '[' ? '【' : '】'));
-        const validCitationTypes: Array<'note' | 'utterance' | 'pdf' | 'schema'> = ['note', 'utterance', 'pdf', 'schema'];
+        const validCitationTypes: Array<'note' | 'unit' | 'pdf' | 'schema'> = ['note', 'unit', 'pdf', 'schema'];
         if (!validCitationTypes.includes(match.sourceType as typeof validCitationTypes[number])) return null;
 
         let readModelIndexHit: boolean | undefined;
-        if (match.sourceType === 'utterance' && idSet !== null) {
-          const utteranceRef = match.sourceId.trim();
-          readModelIndexHit = idSet.has(utteranceRef);
+        if (match.sourceType === 'unit' && idSet !== null) {
+          const unitRef = match.sourceId.trim();
+          readModelIndexHit = idSet.has(unitRef);
           if (!readModelIndexHit) {
             recordMetric({
               id: 'ai.rag_citation_read_model_miss',
               value: 1,
               tags: createMetricTags('useAiChat.rag', {
-                refIdPrefix: utteranceRef.length > 48 ? `${utteranceRef.slice(0, 48)}…` : utteranceRef,
+                refIdPrefix: unitRef.length > 48 ? `${unitRef.slice(0, 48)}…` : unitRef,
               }),
             });
           }
         }
 
         const citation: AiMessageCitation = {
-          type: match.sourceType as 'note' | 'utterance' | 'pdf' | 'schema',
+          type: match.sourceType as 'note' | 'unit' | 'pdf' | 'schema',
           refId: match.sourceId,
           label,
           snippet: normalizedSnippet,
@@ -295,7 +295,7 @@ export async function enrichContextWithRag({
     }
 
     const rawRagSources = rawRagResults.filter((row): row is NonNullable<typeof row> =>
-      row !== null && ['note', 'utterance', 'pdf'].includes(row.citation.type),
+      row !== null && ['note', 'unit', 'pdf'].includes(row.citation.type),
     );
     const seen = new Set<string>();
     const dedupedSources = rawRagSources.filter((source) => {

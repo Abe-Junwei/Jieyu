@@ -1,46 +1,46 @@
-import type { LayerSegmentDocType, UtteranceDocType } from '../db';
+import type { LayerUnitDocType } from '../types/transcriptionDomain.types';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { resolveSegmentOwnerUtterance } from './transcriptionSelectionOwnerResolver';
-import { utteranceDocForSpeakerTargetFromUnitView } from './timelineUnitViewUtteranceHelpers';
+import { resolveSegmentOwnerUnit } from './transcriptionSelectionOwnerResolver';
+import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
 
 /**
  * AI 选择上下文收口 | Narrow AI selection context into pure helpers.
  */
-export function buildOwnerUtteranceCandidates(
+export function buildOwnerUnitCandidates(
   allUnits: ReadonlyArray<TimelineUnitView>,
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined,
-  toSyntheticUtterance: (unit: TimelineUnitView) => UtteranceDocType,
-): UtteranceDocType[] {
-  const byId = new Map<string, UtteranceDocType>();
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined,
+  toSyntheticUnit: (unit: TimelineUnitView) => LayerUnitDocType,
+): LayerUnitDocType[] {
+  const byId = new Map<string, LayerUnitDocType>();
   for (const unit of allUnits) {
-    if (unit.kind !== 'utterance') continue;
+    if (unit.kind !== 'unit') continue;
     if (byId.has(unit.id)) continue;
-    const fromDb = getUtteranceDocById(unit.id);
-    byId.set(unit.id, fromDb ?? toSyntheticUtterance(unit));
+    const fromDb = getUnitDocById(unit.id);
+    byId.set(unit.id, fromDb ?? toSyntheticUnit(unit));
   }
   return [...byId.values()];
 }
 
-export function resolveOwnerUtteranceForAi(input: {
+export function resolveOwnerUnitForAi(input: {
   selectedUnit: TimelineUnitView | null;
-  getUtteranceDocById: (id: string) => UtteranceDocType | undefined;
-  selectedTimelineSegment: LayerSegmentDocType | null | undefined;
-  ownerCandidates: ReadonlyArray<UtteranceDocType>;
-}): UtteranceDocType | undefined {
-  const direct = utteranceDocForSpeakerTargetFromUnitView(input.selectedUnit, input.getUtteranceDocById);
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
+  selectedTimelineSegment: LayerUnitDocType | null | undefined;
+  ownerCandidates: ReadonlyArray<LayerUnitDocType>;
+}): LayerUnitDocType | undefined {
+  const direct = unitDocForSpeakerTargetFromUnitView(input.selectedUnit, input.getUnitDocById);
   if (direct) return direct;
   if (!input.selectedTimelineSegment) return undefined;
-  return resolveSegmentOwnerUtterance(input.selectedTimelineSegment, input.ownerCandidates);
+  return resolveSegmentOwnerUnit(input.selectedTimelineSegment, input.ownerCandidates);
 }
 
 export function resolveSelectedAiSegmentTargetId(input: {
   selectedUnitKind?: string | null | undefined;
   selectedTimelineSegmentId: string | undefined;
   snapshotTimelineUnitId: string | undefined;
-  resolvedOwnerUtteranceId: string | undefined;
+  resolvedOwnerUnitId: string | undefined;
 }): string | undefined {
   if (input.selectedUnitKind === 'segment') {
     return input.selectedTimelineSegmentId ?? input.snapshotTimelineUnitId ?? undefined;
   }
-  return input.resolvedOwnerUtteranceId ?? undefined;
+  return input.resolvedOwnerUnitId ?? undefined;
 }

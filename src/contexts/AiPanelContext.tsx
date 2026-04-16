@@ -2,12 +2,7 @@ import { createContext, useContext, useMemo, useState } from 'react';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelCardKey, AiPanelMode, AiPanelTask } from '../components/AiAnalysisPanel';
 import type { AcousticPromptSummary } from '../pages/TranscriptionPage.aiPromptContext';
-import type {
-  AcousticBatchSelectionRange,
-  AcousticCalibrationStatus,
-  AcousticPanelBatchDetail,
-  AcousticPanelDetail,
-} from '../utils/acousticPanelDetail';
+import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { AcousticHotspotKind } from '../utils/acousticOverlayTypes';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
@@ -52,16 +47,16 @@ export type AiPanelContextValue = {
   selectedAiWarning: boolean;
   lexemeMatches: Array<{ id: string; lemma: Record<string, string> }>;
   // ── Lexeme/Token editing callbacks ──
-  onOpenWordNote?: (utteranceId: string, wordId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onOpenWordNote?: (unitId: string, wordId: string, event: React.MouseEvent<HTMLButtonElement>) => void;
   onOpenMorphemeNote?: (
-    utteranceId: string,
+    unitId: string,
     wordId: string,
     morphemeId: string,
     event: React.MouseEvent<HTMLButtonElement>,
   ) => void;
   onUpdateTokenPos?: (tokenId: string, pos: string | null) => Promise<void> | void;
   onBatchUpdateTokenPosByForm?: (
-    utteranceId: string,
+    unitId: string,
     form: string,
     pos: string | null,
   ) => Promise<number> | number;

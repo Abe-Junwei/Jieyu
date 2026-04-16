@@ -9,7 +9,7 @@ describe('getAiChatCardMessages.recommendedInputPlaceholder', () => {
       observerStage: 'reviewing',
       aiCurrentTask: 'risk_review',
       selectedLayerType: 'translation',
-      selectedUnitKind: 'utterance',
+      selectedUnitKind: 'unit',
       selectedTimeRangeLabel: '00:12-00:15',
       rowNumber: 12,
       selectedText: '这是当前译文，需要再检查一遍',

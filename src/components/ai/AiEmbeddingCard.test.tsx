@@ -47,7 +47,7 @@ describe('AiEmbeddingCard', () => {
         { id: 'task-failed', taskType: 'gloss', status: 'failed', updatedAt: '2026-04-03T00:00:02.000Z', errorMessage: 'quota' },
       ],
       aiEmbeddingMatches: [
-        { utteranceId: 'utt-2', score: 0.93, label: 'U2', text: '相似句内容' },
+        { unitId: 'utt-2', score: 0.93, label: 'U2', text: '相似句内容' },
       ],
       aiEmbeddingWarning: 'Fallback embedding active',
       onJumpToEmbeddingMatch: vi.fn(),
@@ -75,19 +75,19 @@ describe('AiEmbeddingCard', () => {
   });
 
   it('tests provider connectivity and dispatches action callbacks', async () => {
-    const onBuildUtteranceEmbeddings = vi.fn(async () => undefined);
+    const onBuildUnitEmbeddings = vi.fn(async () => undefined);
     const onBuildNotesEmbeddings = vi.fn(async () => undefined);
     const onBuildPdfEmbeddings = vi.fn(async () => undefined);
-    const onFindSimilarUtterances = vi.fn(async () => undefined);
+    const onFindSimilarUnits = vi.fn(async () => undefined);
     const onRefreshEmbeddingTasks = vi.fn(async () => undefined);
     const onTestEmbeddingProvider = vi.fn(async () => ({ available: false, error: 'offline' }));
 
     renderCard({
       selectedUnit: { id: 'utt-1' } as EmbeddingContextValue['selectedUnit'],
-      onBuildUtteranceEmbeddings,
+      onBuildUnitEmbeddings,
       onBuildNotesEmbeddings,
       onBuildPdfEmbeddings,
-      onFindSimilarUtterances,
+      onFindSimilarUnits,
       onRefreshEmbeddingTasks,
       onTestEmbeddingProvider,
     });
@@ -104,10 +104,10 @@ describe('AiEmbeddingCard', () => {
       expect(screen.getByText('不可用: offline')).toBeTruthy();
     });
 
-    expect(onBuildUtteranceEmbeddings).toHaveBeenCalledTimes(1);
+    expect(onBuildUnitEmbeddings).toHaveBeenCalledTimes(1);
     expect(onBuildNotesEmbeddings).toHaveBeenCalledTimes(1);
     expect(onBuildPdfEmbeddings).toHaveBeenCalledTimes(1);
-    expect(onFindSimilarUtterances).toHaveBeenCalledTimes(1);
+    expect(onFindSimilarUnits).toHaveBeenCalledTimes(1);
     expect(onRefreshEmbeddingTasks).toHaveBeenCalledTimes(1);
   });
 

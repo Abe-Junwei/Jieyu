@@ -1,19 +1,19 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { AiChatToolCall } from './useAiChat';
 import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';
 
 export interface SegmentTargetDescriptor {
   id: string;
-  kind: 'utterance' | 'segment';
+  kind: 'unit' | 'segment';
   startTime: number;
   endTime: number;
   text: string;
-  utteranceId?: string;
+  unitId?: string;
 }
 
 interface PendingToolCallPreparationContext {
-  utterances: UtteranceDocType[];
-  selectedUnit?: UtteranceDocType;
+  units: LayerUnitDocType[];
+  selectedUnit?: LayerUnitDocType;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   segmentTargets?: SegmentTargetDescriptor[];
@@ -30,14 +30,14 @@ function orderSegmentTargetsByTimeline(targets: SegmentTargetDescriptor[]): Segm
   });
 }
 
-function buildDefaultSegmentTargets(utterances: UtteranceDocType[]): SegmentTargetDescriptor[] {
-  return utterances.map((utterance) => ({
-    id: utterance.id,
-    kind: 'utterance',
-    startTime: utterance.startTime,
-    endTime: utterance.endTime,
+function buildDefaultSegmentTargets(units: LayerUnitDocType[]): SegmentTargetDescriptor[] {
+  return units.map((unit) => ({
+    id: unit.id,
+    kind: 'unit',
+    startTime: unit.startTime,
+    endTime: unit.endTime,
     text: '',
-    utteranceId: utterance.id,
+    unitId: unit.id,
   }));
 }
 
@@ -45,7 +45,7 @@ function resolveSegmentTargets(context: PendingToolCallPreparationContext): Segm
   if (Array.isArray(context.segmentTargets) && context.segmentTargets.length > 0) {
     return context.segmentTargets;
   }
-  return buildDefaultSegmentTargets(context.utterances);
+  return buildDefaultSegmentTargets(context.units);
 }
 
 function resolveRequestedTarget(
@@ -76,7 +76,7 @@ function resolveRequestedTarget(
   }
   if (call.arguments.segmentPosition === 'previous' || call.arguments.segmentPosition === 'next') {
     if (!selectedTargetId) return null;
-    const anchorIndex = orderedTargets.findIndex((item) => item.id === selectedTargetId || item.utteranceId === selectedTargetId);
+    const anchorIndex = orderedTargets.findIndex((item) => item.id === selectedTargetId || item.unitId === selectedTargetId);
     if (anchorIndex < 0) return null;
     const offset = call.arguments.segmentPosition === 'previous' ? -1 : 1;
     return orderedTargets[anchorIndex + offset] ?? null;
@@ -107,8 +107,8 @@ function materializeSegmentTargetCall(
   }
 
   const nextArguments: Record<string, unknown> = { ...call.arguments };
-  delete nextArguments.utteranceId;
-  delete nextArguments.utteranceIds;
+  delete nextArguments.unitId;
+  delete nextArguments.unitIds;
   const segmentTargets = resolveSegmentTargets(context);
   if (call.name === 'delete_transcription_segment' && call.arguments.allSegments === true) {
     const orderedTargets = orderSegmentTargetsByTimeline(segmentTargets);
@@ -127,14 +127,14 @@ function materializeSegmentTargetCall(
   const selectedTargetId = context.selectedSegmentTargetId ?? context.selectedUnit?.id;
   const target = resolveRequestedTarget(call, segmentTargets, selectedTargetId)
     ?? (!hasSelectorTarget && selectedTargetId
-      ? segmentTargets.find((item) => item.id === selectedTargetId || item.utteranceId === selectedTargetId) ?? null
+      ? segmentTargets.find((item) => item.id === selectedTargetId || item.unitId === selectedTargetId) ?? null
       : null);
   if (!target) return call;
 
   delete nextArguments.segmentIndex;
   delete nextArguments.segmentPosition;
   nextArguments.segmentId = target.id;
-  delete nextArguments.utteranceId;
+  delete nextArguments.unitId;
   return {
     ...call,
     arguments: nextArguments,

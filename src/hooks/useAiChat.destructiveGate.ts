@@ -1,13 +1,5 @@
 import { nowIso } from './useAiChat.helpers';
-import {
-  buildPreviewContract,
-  buildToolDecisionAuditMetadata,
-  describeAndBuildPending,
-  isAmbiguousTargetRiskSummary,
-  isDestructiveToolCall,
-  toNaturalToolFailure,
-  toNaturalToolPending,
-} from '../ai/chat/toolCallHelpers';
+import { buildPreviewContract, buildToolDecisionAuditMetadata, describeAndBuildPending, isAmbiguousTargetRiskSummary, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolPending } from '../ai/chat/toolCallHelpers';
 import { parseProposedChildCallsFromArguments } from '../ai/chat/proposeChangesHelpers';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { t, type Locale } from '../i18n';
@@ -23,7 +15,7 @@ function getMaterializedDeleteBatchIds(call?: AiChatToolCall | null): string[] {
     : [];
   return Array.from(new Set([
     ...collect(call.arguments.segmentIds),
-    ...collect(call.arguments.utteranceIds),
+    ...collect(call.arguments.unitIds),
   ]));
 }
 
@@ -31,7 +23,7 @@ function getMaterializedDeleteSingleId(call?: AiChatToolCall | null): string {
   if (!call) return '';
   const segmentId = typeof call.arguments.segmentId === 'string' ? call.arguments.segmentId.trim() : '';
   if (segmentId.length > 0) return segmentId;
-  return typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId.trim() : '';
+  return typeof call.arguments.unitId === 'string' ? call.arguments.unitId.trim() : '';
 }
 
 function hasSemanticDeleteSegmentSelector(call: AiChatToolCall): boolean {
@@ -208,7 +200,7 @@ export async function resolveDestructiveGate({
       id: taskSessionId,
       status: 'waiting_clarify',
       toolName: toolCall.name,
-      clarifyReason: 'missing-utterance-target',
+      clarifyReason: 'missing-unit-target',
       candidates: [],
       updatedAt: nowIso(),
     });

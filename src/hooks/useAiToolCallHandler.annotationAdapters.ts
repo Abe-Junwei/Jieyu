@@ -3,18 +3,18 @@ import { t, tf } from '../i18n';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 
 export const glossAdapter: ToolObjectAdapter = {
-  handles: ['auto_gloss_utterance'],
+  handles: ['auto_gloss_unit'],
   async execute(ctx) {
     const { locale } = ctx;
-    if (!ctx.hasRequestedUtteranceTarget()) {
-      return { ok: false, message: t(locale, 'transcription.aiTool.gloss.missingUtteranceId') };
+    if (!ctx.hasRequestedUnitTarget()) {
+      return { ok: false, message: t(locale, 'transcription.aiTool.gloss.missingUnitId') };
     }
-    const targetUtterance = ctx.resolveRequestedUtterance();
-    if (!targetUtterance) {
-      return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { utteranceId: ctx.describeRequestedUtteranceTarget() }) };
+    const targetUnit = ctx.resolveRequestedUnit();
+    if (!targetUnit) {
+      return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: ctx.describeRequestedUnitTarget() }) };
     }
     const service = new AutoGlossService();
-    const result = await service.glossUtterance(targetUtterance.id);
+    const result = await service.glossUnit(targetUnit.id);
     if (result.matched.length === 0) {
       return {
         ok: true,
@@ -64,15 +64,15 @@ export const tokenAdapter: ToolObjectAdapter = {
         };
       }
 
-      const utteranceId = String(call.arguments.utteranceId ?? '').trim();
+      const unitId = String(call.arguments.unitId ?? '').trim();
       const form = String(call.arguments.form ?? '').trim();
-      if (!utteranceId || !form) {
+      if (!unitId || !form) {
         return { ok: false, message: t(locale, 'transcription.aiTool.token.setPosMissingTarget') };
       }
       if (!ctx.batchUpdateTokenPosByForm) {
         return { ok: false, message: t(locale, 'transcription.aiTool.token.batchSetPosCallbackMissing') };
       }
-      const updated = await ctx.batchUpdateTokenPosByForm(utteranceId, form, pos);
+      const updated = await ctx.batchUpdateTokenPosByForm(unitId, form, pos);
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.token.batchSetPosDone', {

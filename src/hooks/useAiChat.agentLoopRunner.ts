@@ -1,0 +1,330 @@
+/**
+ * Agent loop 执行器 — 从 useAiChat.send 中提取的纯逻辑子函数
+ * Agent loop runner — pure logic extracted from useAiChat.send's while-loop.
+ *
+ * 将原本 ~120 行深嵌套循环提取为独立函数，减少 send 的认知复杂度。
+ * Extracts the ~120-line deeply-nested loop into a standalone function,
+ * reducing cognitive complexity of the send callback.
+ */
+
+import { buildAgentLoopContinuationInput, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldContinueAgentLoop, shouldWarnTokenBudget } from '../ai/chat/agentLoop';
+import { trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
+import { getAiChatCardMessages } from '../i18n/aiChatCardMessages';
+import { createAssistantStream } from './useAiChat.streamFactory';
+import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
+import { newAuditLogId, nowIso } from './useAiChat.helpers';
+import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
+import type { LocalContextToolResult } from '../ai/chat/localContextTools';
+import type { AiSessionMemory } from '../ai/chat/chatDomain.types';
+import type { AiTaskSession } from './useAiChat.types';
+import type { LocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
+import type { AiPromptContext, AiInteractionMetrics } from '../ai/chat/chatDomain.types';
+import type { AuditLogDocType } from '../db/types';
+
+// ── 类型定义 | Type definitions ────────────────────────────────────────────
+
+/** 循环入口的可变状态快照 | Mutable state snapshot at loop entry */
+export interface AgentLoopInitialState {
+  resolvedContent: string;
+  resolvedStatus: 'done' | 'error';
+  resolvedErrorMessage: string | undefined;
+  resolvedConnectionErrorMessage: string | undefined;
+  resolvedLocalToolResults: LocalContextToolResult[] | undefined;
+  rawAssistantContentForLoop: string;
+  /** 已累积的推理内容 | Accumulated reasoning content */
+  assistantReasoningContent: string;
+  /** 已累积的输入 token 估算 | Accumulated input token estimate */
+  estimatedInputTokens: number;
+  /** 已累积的输出 token 估算 | Accumulated output token estimate */
+  totalModelOutputTokens: number;
+  /** 循环起始步数（断点续跑时 > 1） | Starting step (> 1 when resuming from checkpoint) */
+  startStep: number;
+}
+
+/** 循环结束后的结果快照 | Result snapshot after loop finishes */
+export interface AgentLoopRunnerResult {
+  resolvedContent: string;
+  resolvedStatus: 'done' | 'error';
+  resolvedErrorMessage: string | undefined;
+  resolvedConnectionErrorMessage: string | undefined;
+  resolvedLocalToolResults: LocalContextToolResult[] | undefined;
+  loopExecuted: boolean;
+  assistantReasoningContent: string;
+  totalModelOutputTokens: number;
+  estimatedInputTokens: number;
+}
+
+/** 只读依赖 — 循环执行期间不会被循环本身修改 | Read-only deps — not mutated by the loop itself */
+export interface AgentLoopRunnerDeps {
+  assistantId: string;
+  agentLoopSourceUserText: string;
+  history: HistoryChatMessage[];
+  historyCharBudget: number;
+  systemPrompt: string;
+  aiContext: AiPromptContext | null;
+  signal: AbortSignal;
+  routingPlan: LocalToolRoutingPlan;
+  aiChatAgentLoopEnabled: boolean;
+
+  // Ref-like 读取器 | Ref-like readers
+  getSessionMemory: () => AiSessionMemory;
+  setSessionMemory: (next: AiSessionMemory) => void;
+  getSettings: () => { model: string; explainModel?: string };
+  getLocaleIsZhCn: () => boolean;
+  getAiContext: () => AiPromptContext | null;
+  getTaskSession: () => AiTaskSession;
+
+  // 状态更新器 | State updaters
+  setTaskSession: (value: AiTaskSession | ((prev: AiTaskSession) => AiTaskSession)) => void;
+  setMetrics: (updater: (prev: AiInteractionMetrics) => AiInteractionMetrics) => void;
+
+  // 副作用函数 | Side-effect functions
+  persistSessionMemory: (memory: AiSessionMemory) => void;
+  buildStreamCompletionEnv: () => Omit<
+    ResolveAiChatStreamCompletionParams,
+    'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
+  >;
+  orchestrator: {
+    sendMessage(input: {
+      history: HistoryChatMessage[];
+      userText: string;
+      systemPrompt: string;
+      options: { signal: AbortSignal; model?: string };
+    }): { stream: AsyncGenerator<{ delta?: string; done?: boolean; error?: string; reasoningContent?: string }> };
+  };
+
+  // DB 审计 | DB audit
+  insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>;
+}
+
+// ── token 估算工具（与 useAiChat.ts 内联函数保持一致）──
+// Token estimation utilities (mirror inline helpers in useAiChat.ts)
+
+function estimateTokensFromText(text: string): number {
+  const normalized = text.trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+function estimateTokensFromHistory(messages: HistoryChatMessage[]): number {
+  return messages.reduce((sum, item) => sum + estimateTokensFromText(item.content), 0);
+}
+
+function estimateOutputTokensFromAssistantParts(content: string, reasoning: string): number {
+  return estimateTokensFromText(content) + estimateTokensFromText(reasoning);
+}
+
+// ── 核心循环 | Core loop ───────────────────────────────────────────────────
+
+/**
+ * 执行 agent loop：在首次流完成后，若工具结果仍需后续推理则循环续跑。
+ * Runs the agent loop: after the first stream completes, continues iterating
+ * while local tool results still require follow-up reasoning.
+ */
+export async function runAgentLoop(
+  deps: AgentLoopRunnerDeps,
+  initial: AgentLoopInitialState,
+): Promise<AgentLoopRunnerResult> {
+  let {
+    resolvedContent,
+    resolvedStatus,
+    resolvedErrorMessage,
+    resolvedConnectionErrorMessage,
+    resolvedLocalToolResults,
+    rawAssistantContentForLoop,
+    assistantReasoningContent,
+    estimatedInputTokens,
+    totalModelOutputTokens,
+  } = initial;
+
+  let loopStep = initial.startStep;
+  let loopExecuted = false;
+
+  // ── 循环守卫 | Loop guard ──
+  const shouldContinueWithTaskState = (): boolean => {
+    const mem = deps.getSessionMemory();
+    const loopRequestedMetric = deps.routingPlan.requestedMetric ?? mem.localToolState?.lastFrame?.metric;
+    const loopTaskStateBase = {
+      queryFamily: deps.routingPlan.queryFamily,
+      scope: deps.routingPlan.scope,
+      selectedTools: deps.routingPlan.selectedTools,
+      answerReady: resolvedStatus === 'done' && (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0),
+      executionState: resolvedStatus === 'error' ? 'error' as const : 'running' as const,
+    };
+    const loopTaskState = loopRequestedMetric
+      ? { ...loopTaskStateBase, requestedMetric: loopRequestedMetric }
+      : loopTaskStateBase;
+    return deps.aiChatAgentLoopEnabled
+      && shouldContinueAgentLoop(loopStep, DEFAULT_AGENT_LOOP_CONFIG, resolvedLocalToolResults, loopTaskState)
+      && !deps.signal.aborted;
+  };
+
+  // ── 主循环 | Main loop ──
+  while (shouldContinueWithTaskState()) {
+    loopExecuted = true;
+    const loopAiContext = deps.getAiContext() ?? deps.aiContext;
+    deps.setTaskSession({
+      id: deps.getTaskSession().id,
+      status: 'executing',
+      updatedAt: nowIso(),
+      step: loopStep,
+      maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+    });
+
+    const continuationUserText = buildAgentLoopContinuationInput(
+      deps.agentLoopSourceUserText,
+      resolvedLocalToolResults!,
+      loopStep,
+    );
+    const continuationHistory = trimHistoryByChars(
+      [...deps.history, { role: 'assistant' as const, content: rawAssistantContentForLoop }],
+      deps.historyCharBudget,
+      3,
+      deps.getSessionMemory().conversationSummary,
+    );
+    const continuationInputTokens = estimateTokensFromText(continuationUserText)
+      + estimateTokensFromText(deps.systemPrompt)
+      + estimateTokensFromHistory(continuationHistory);
+    const estimatedRemainingTokens = estimateRemainingLoopTokens(
+      continuationInputTokens,
+      loopStep,
+      DEFAULT_AGENT_LOOP_CONFIG,
+    );
+
+    // ── Token 预算警告 | Token budget warning ──
+    if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
+      const mem = deps.getSessionMemory();
+      const nextMem: AiSessionMemory = {
+        ...mem,
+        pendingAgentLoopCheckpoint: {
+          kind: 'token_budget_warning',
+          originalUserText: deps.agentLoopSourceUserText,
+          continuationInput: continuationUserText,
+          step: loopStep,
+          estimatedRemainingTokens,
+          createdAt: nowIso(),
+        },
+      };
+      deps.setSessionMemory(nextMem);
+      deps.persistSessionMemory(nextMem);
+      const budgetHint = getAiChatCardMessages(deps.getLocaleIsZhCn()).tokenBudgetWarning(estimatedRemainingTokens);
+      resolvedContent = `${resolvedContent}${budgetHint}`;
+      resolvedStatus = 'done';
+      resolvedLocalToolResults = undefined;
+      break;
+    }
+
+    estimatedInputTokens += continuationInputTokens;
+    deps.setMetrics((prev) => ({
+      ...prev,
+      totalInputTokens: prev.totalInputTokens + continuationInputTokens,
+    }));
+
+    const { stream: continuationStream } = createAssistantStream({
+      userText: continuationUserText,
+      clarifyFastPathCall: null,
+      history: continuationHistory,
+      orchestrator: deps.orchestrator,
+      systemPrompt: deps.systemPrompt,
+      signal: deps.signal,
+      taskSessionStatus: 'executing',
+      model: deps.getSettings().model,
+      ...(deps.getSettings().explainModel
+        ? { explainModel: deps.getSettings().explainModel }
+        : {}),
+    });
+
+    let continuationAssistantContent = '';
+    let continuationReasoningContent = '';
+    let continuationStreamError: string | null = null;
+    const loopStepStartedAt = Date.now();
+
+    for await (const chunk of continuationStream) {
+      if ((chunk.delta ?? '').length > 0) {
+        continuationAssistantContent += chunk.delta ?? '';
+      }
+      if ((chunk.reasoningContent ?? '').length > 0) {
+        continuationReasoningContent += chunk.reasoningContent ?? '';
+      }
+      if (chunk.error) {
+        continuationStreamError = chunk.error;
+        break;
+      }
+      if (chunk.done) {
+        break;
+      }
+    }
+
+    assistantReasoningContent += continuationReasoningContent;
+    totalModelOutputTokens += estimateOutputTokensFromAssistantParts(
+      continuationAssistantContent,
+      continuationReasoningContent,
+    );
+
+    if (continuationStreamError) {
+      resolvedStatus = 'error';
+      resolvedErrorMessage = continuationStreamError;
+      resolvedConnectionErrorMessage = continuationStreamError;
+      resolvedContent = continuationAssistantContent;
+      break;
+    }
+
+    const continuationResult = await finalizeAssistantStreamCompletion(
+      {
+        assistantId: deps.assistantId,
+        assistantContent: continuationAssistantContent,
+        userText: continuationUserText,
+        aiContext: loopAiContext,
+      },
+      deps.buildStreamCompletionEnv(),
+    );
+
+    // ── 审计日志 | Audit log ──
+    const loopStepDurationMs = Date.now() - loopStepStartedAt;
+    const loopStepTokenEstimate = continuationInputTokens + estimateTokensFromText(continuationAssistantContent);
+    await deps.insertAuditLog({
+      id: newAuditLogId(),
+      collection: 'ai_messages',
+      documentId: deps.assistantId,
+      action: 'update',
+      field: 'ai_agent_loop_step',
+      oldValue: `step:${loopStep}`,
+      newValue: continuationResult.finalStatus,
+      source: 'ai',
+      timestamp: nowIso(),
+      requestId: `${deps.assistantId}_loop_${loopStep}`,
+      metadataJson: JSON.stringify({
+        schemaVersion: 1,
+        phase: 'agent_loop_step',
+        requestId: `${deps.assistantId}_loop_${loopStep}`,
+        step: loopStep,
+        maxSteps: DEFAULT_AGENT_LOOP_CONFIG.maxSteps,
+        inputSummary: continuationUserText.slice(0, 500),
+        outputSummary: continuationAssistantContent.slice(0, 500),
+        durationMs: loopStepDurationMs,
+        tokenEstimate: loopStepTokenEstimate,
+      }),
+    });
+
+    resolvedContent = continuationResult.finalContent;
+    resolvedStatus = continuationResult.finalStatus;
+    resolvedErrorMessage = continuationResult.finalErrorMessage;
+    resolvedConnectionErrorMessage = continuationResult.connectionErrorMessage ?? resolvedConnectionErrorMessage;
+    resolvedLocalToolResults = continuationResult.localToolResults;
+    rawAssistantContentForLoop = continuationAssistantContent;
+
+    loopStep += 1;
+  }
+
+  return {
+    resolvedContent,
+    resolvedStatus,
+    resolvedErrorMessage,
+    resolvedConnectionErrorMessage,
+    resolvedLocalToolResults,
+    loopExecuted,
+    assistantReasoningContent,
+    totalModelOutputTokens,
+    estimatedInputTokens,
+  };
+}

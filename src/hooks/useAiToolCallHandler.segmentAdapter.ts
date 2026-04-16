@@ -26,17 +26,17 @@ export const segmentAdapter: ToolObjectAdapter = {
         await ctx.createTranscriptionSegment(targetSegment.id);
         return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
       }
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.createMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.createMissingUnitId') };
       }
-      const baseUtterance = ctx.resolveRequestedUtterance();
-      if (!baseUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const baseUnit = ctx.resolveRequestedUnit();
+      if (!baseUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
       const mediaDuration = typeof ctx.selectedUnitMedia?.duration === 'number'
         ? ctx.selectedUnitMedia.duration
-        : baseUtterance.endTime + 2;
-      await ctx.createNextUtterance(baseUtterance, mediaDuration);
+        : baseUnit.endTime + 2;
+      await ctx.createAdjacentUnit(baseUnit, mediaDuration);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
     }
 
@@ -70,15 +70,15 @@ export const segmentAdapter: ToolObjectAdapter = {
         await ctx.splitTranscriptionSegment(targetSegment.id, splitTime);
         return { ok: true, message: tf(locale, 'transcription.aiTool.segment.splitDone', { splitTime: splitTime.toFixed(2) }) };
       }
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitMissingUnitId') };
       }
-      const targetUtterance = ctx.resolveRequestedUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const targetUnit = ctx.resolveRequestedUnit();
+      if (!targetUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
-      const start = Number(targetUtterance.startTime);
-      const end = Number(targetUtterance.endTime);
+      const start = Number(targetUnit.startTime);
+      const end = Number(targetUnit.endTime);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
         return { ok: false, message: t(locale, 'transcription.aiTool.segment.splitInvalidRange') };
       }
@@ -97,7 +97,7 @@ export const segmentAdapter: ToolObjectAdapter = {
           }),
         };
       }
-      await ctx.splitUtterance(targetUtterance.id, splitTime);
+      await ctx.splitUnit(targetUnit.id, splitTime);
       return { ok: true, message: tf(locale, 'transcription.aiTool.segment.splitDone', { splitTime: splitTime.toFixed(2) }) };
     }
 
@@ -107,7 +107,7 @@ export const segmentAdapter: ToolObjectAdapter = {
         return { ok: false, message: t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo') };
       }
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
-      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUnits ?? ctx.mergeSelectedUtterances;
+      const mergeExecutor = ctx.mergeSelectedSegments ?? ctx.mergeSelectedUnits ?? ctx.mergeSelectedUnits;
       if (!mergeExecutor) {
         return { ok: false, message: t(locale, 'transcription.aiTool.voice.actionUnsupported') };
       }
@@ -129,53 +129,53 @@ export const segmentAdapter: ToolObjectAdapter = {
       const requestedSegmentIds = normalizeRequestedIds(call.arguments.segmentIds);
       const requestedBatchIds = Array.from(new Set(requestedSegmentIds));
       if (requestedBatchIds.length > 0) {
-        const deleteBatch = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUtterances;
+        const deleteBatch = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUnits;
         if (deleteBatch) {
           await deleteBatch(new Set(requestedBatchIds));
         } else {
           for (const targetId of requestedBatchIds) {
-            await ctx.deleteUtterance(targetId);
+            await ctx.deleteUnit(targetId);
           }
         }
         return {
           ok: true,
-          message: tf(locale, 'transcription.utteranceAction.done.deleteSelection', { count: requestedBatchIds.length }),
+          message: tf(locale, 'transcription.unitAction.done.deleteSelection', { count: requestedBatchIds.length }),
         };
       }
 
       if (call.arguments.allSegments === true) {
-        const allIds = ctx.utterances.map((utterance) => utterance.id);
+        const allIds = ctx.units.map((unit) => unit.id);
         if (allIds.length === 0) {
           return { ok: false, message: t(locale, 'transcription.aiTool.voice.navSegmentEmpty') };
         }
-        const deleteBatchAll = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUtterances;
+        const deleteBatchAll = ctx.deleteSelectedUnits ?? ctx.deleteSelectedUnits;
         if (deleteBatchAll) {
           await deleteBatchAll(new Set(allIds));
         } else {
           for (const targetId of allIds) {
-            await ctx.deleteUtterance(targetId);
+            await ctx.deleteUnit(targetId);
           }
         }
         return {
           ok: true,
-          message: tf(locale, 'transcription.utteranceAction.done.deleteSelection', { count: allIds.length }),
+          message: tf(locale, 'transcription.unitAction.done.deleteSelection', { count: allIds.length }),
         };
       }
 
       const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
       if (requestedSegmentId.length > 0) {
-        await ctx.deleteUtterance(requestedSegmentId);
+        await ctx.deleteUnit(requestedSegmentId);
         return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
       }
 
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.deleteMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.deleteMissingUnitId') };
       }
-      const targetUtterance = ctx.resolveRequestedUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const targetUnit = ctx.resolveRequestedUnit();
+      if (!targetUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
-      await ctx.deleteUtterance(targetUtterance.id);
+      await ctx.deleteUnit(targetUnit.id);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.deleteDone') };
     }
 
@@ -190,7 +190,7 @@ export const segmentAdapter: ToolObjectAdapter = {
           ? ctx.selectedLayerId
           : (ctx.transcriptionLayers.length === 1 ? ctx.transcriptionLayers[0]!.id : '');
         if (!targetLayerId || !ctx.saveSegmentContentForLayer) {
-          return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUtteranceId') };
+          return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUnitId') };
         }
         const transformedText = ctx.bridgeTextForLayerWrite
           ? await ctx.bridgeTextForLayerWrite({
@@ -202,12 +202,12 @@ export const segmentAdapter: ToolObjectAdapter = {
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
         return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranscriptionDone') };
       }
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUnitId') };
       }
-      const targetUtterance = ctx.resolveRequestedUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const targetUnit = ctx.resolveRequestedUnit();
+      if (!targetUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
       const targetLayerId = ctx.transcriptionLayers.some((layer) => layer.id === ctx.selectedLayerId)
         ? ctx.selectedLayerId
@@ -219,7 +219,7 @@ export const segmentAdapter: ToolObjectAdapter = {
             selectedLayerId: ctx.selectedLayerId,
           })
         : text;
-      await ctx.saveUtteranceText(targetUtterance.id, transformedText, targetLayerId);
+      await ctx.saveUnitText(targetUnit.id, transformedText, targetLayerId);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranscriptionDone') };
     }
 
@@ -239,7 +239,7 @@ export const segmentAdapter: ToolObjectAdapter = {
       const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
       if (requestedSegmentId.length > 0) {
         if (!ctx.saveSegmentContentForLayer) {
-          return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUtteranceId') };
+          return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUnitId') };
         }
         const transformedText = ctx.bridgeTextForLayerWrite
           ? await ctx.bridgeTextForLayerWrite({
@@ -251,12 +251,12 @@ export const segmentAdapter: ToolObjectAdapter = {
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, transformedText);
         return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranslationDone') };
       }
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.setTranslationMissingUnitId') };
       }
-      const targetUtterance = ctx.resolveRequestedUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const targetUnit = ctx.resolveRequestedUnit();
+      if (!targetUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
       const transformedText = ctx.bridgeTextForLayerWrite
         ? await ctx.bridgeTextForLayerWrite({
@@ -265,7 +265,7 @@ export const segmentAdapter: ToolObjectAdapter = {
             selectedLayerId: ctx.selectedLayerId,
           })
         : text;
-      await ctx.saveTextTranslationForUtterance(targetUtterance.id, transformedText, targetLayerId);
+      await ctx.saveUnitLayerText(targetUnit.id, transformedText, targetLayerId);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.setTranslationDone') };
     }
 
@@ -285,7 +285,7 @@ export const segmentAdapter: ToolObjectAdapter = {
       const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
       if (requestedSegmentId.length > 0) {
         if (!ctx.saveSegmentContentForLayer) {
-          return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUtteranceId') };
+          return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId') };
         }
         await ctx.saveSegmentContentForLayer(requestedSegmentId, targetLayerId, '');
         const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
@@ -297,19 +297,19 @@ export const segmentAdapter: ToolObjectAdapter = {
           }),
         };
       }
-      if (!ctx.hasRequestedUtteranceTarget()) {
-        return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUtteranceId') };
+      if (!ctx.hasRequestedUnitTarget()) {
+        return { ok: false, message: t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId') };
       }
-      const targetUtterance = ctx.resolveRequestedUtterance();
-      if (!targetUtterance) {
-        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUtteranceTarget() }) };
+      const targetUnit = ctx.resolveRequestedUnit();
+      if (!targetUnit) {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
-      await ctx.saveTextTranslationForUtterance(targetUtterance.id, '', targetLayerId);
+      await ctx.saveUnitLayerText(targetUnit.id, '', targetLayerId);
       const layerLabel = readAnyMultiLangLabel(targetLayer.name) ?? targetLayer.key;
       return {
         ok: true,
         message: tf(locale, 'transcription.aiTool.segment.clearTranslationDone', {
-          segmentId: targetUtterance.id,
+          segmentId: targetUnit.id,
           layerLabel,
         }),
       };

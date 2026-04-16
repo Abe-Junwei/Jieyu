@@ -1,13 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { AiSessionMemory } from './chatDomain.types';
-import {
-  buildLocalToolStatePatchFromCallResult,
-  detectLocalToolClarificationNeed,
-  resolveLocalToolCalls,
-} from './localToolSlotResolver';
+import { buildLocalToolStatePatchFromCallResult, detectLocalToolClarificationNeed, resolveLocalToolCalls, resolveLocalToolRoutingPlan } from './localToolSlotResolver';
 
 describe('localToolSlotResolver', () => {
-  it('rewrites empty search query to list intent for list-like user utterance', () => {
+  it('rewrites empty search query to list intent for list-like user unit', () => {
     const result = resolveLocalToolCalls(
       [{ name: 'search_units', arguments: {} }],
       '列出哪八个语段',
@@ -127,6 +123,14 @@ describe('localToolSlotResolver', () => {
       name: 'get_project_stats',
       arguments: { scope: 'current_track', metric: 'speaker_count' },
     });
+  });
+
+  it('builds a dynamic active-tool subset for count questions', () => {
+    const plan = resolveLocalToolRoutingPlan('当前有多少说话人', {});
+    expect(plan.queryFamily).toBe('count');
+    expect(plan.requestedMetric).toBe('speaker_count');
+    expect(plan.selectedTools).toEqual(['get_project_stats']);
+    expect(plan.scope).toBe('current_track');
   });
 
   it('reroutes unfinished transcription count questions to quality diagnosis instead of total stats', () => {
@@ -295,6 +299,15 @@ describe('localToolSlotResolver', () => {
       reason: 'scope_ambiguous',
       callName: 'get_project_stats',
     });
+  });
+
+  it('does not require scope clarification when tool call already has explicit scope', () => {
+    const calls = resolveLocalToolCalls(
+      [{ name: 'get_project_stats', arguments: { metric: 'speaker_count', scope: 'current_scope' } }],
+      '有多少说话人',
+      {},
+    ).calls;
+    expect(detectLocalToolClarificationNeed(calls, '有多少说话人', {})).toEqual({ needed: false });
   });
 
   it('does not require metric clarification when previous count metric exists', () => {

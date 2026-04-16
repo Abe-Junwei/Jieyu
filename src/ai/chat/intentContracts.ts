@@ -40,7 +40,7 @@ const LIST_INTENT_PATTERNS = [
   /全部/u,
   /所有/u,
   /哪(些|几个|八个)/u,
-  /\b(list|show\s+all|all\s+utterances?)\b/i,
+  /\b(list|show\s+all|all\s+units?)\b/i,
 ] as const;
 
 const FOLLOW_UP_PATTERNS = [
@@ -51,7 +51,7 @@ const FOLLOW_UP_PATTERNS = [
   /^\s*(continue|next)\b/i,
 ] as const;
 
-export function isUtteranceListIntentText(userText: string): boolean {
+export function isUnitListIntentText(userText: string): boolean {
   const text = userText.trim();
   if (!text) return false;
   return LIST_INTENT_PATTERNS.some((pattern) => pattern.test(text));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 
 function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'key' | 'layerType' | 'languageId'>): LayerDocType {
@@ -19,7 +19,7 @@ function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 
   } as LayerDocType;
 }
 
-function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocType {
+function makeUnit(overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id: 'utt-1',
     textId: 'text-1',
@@ -29,7 +29,7 @@ function makeUtterance(overrides: Partial<UtteranceDocType> = {}): UtteranceDocT
     createdAt: '2026-03-31T00:00:00.000Z',
     updatedAt: '2026-03-31T00:00:00.000Z',
     ...overrides,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 describe('createTranscriptionAiToolRiskCheck', () => {
@@ -43,11 +43,11 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     });
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [],
+      units: [],
       transcriptionLayers: [transcriptionLayer],
       translationLayers: [],
       formatTime: (seconds) => `${seconds}`,
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       translationTextByLayer: new Map(),
     });
 
@@ -65,7 +65,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   });
 
   it('requires confirmation when deleting a segment that still has transcription and translation content', () => {
-    const utterance = makeUtterance({
+    const unit = makeUnit({
       id: 'utt-2',
       startTime: 12.3,
       endTime: 15.8,
@@ -75,11 +75,11 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     ]);
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [utterance],
+      units: [unit],
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => seconds.toFixed(1),
-      getUtteranceTextForLayer: () => 'transcription body',
+      getUnitTextForLayer: () => 'transcription body',
       translationTextByLayer: translationByLayer,
     });
 
@@ -102,21 +102,21 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   });
 
   it('returns low risk when deleting an empty segment', () => {
-    const utterance = makeUtterance();
+    const unit = makeUnit();
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [utterance],
+      units: [unit],
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => `${seconds}`,
-      getUtteranceTextForLayer: () => '   ',
+      getUnitTextForLayer: () => '   ',
       translationTextByLayer: new Map(),
     });
 
     const result = check({
       name: 'delete_transcription_segment',
       arguments: {
-        segmentId: utterance.id,
+        segmentId: unit.id,
       },
     });
 
@@ -124,20 +124,20 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   });
 
   it('requires confirmation with batch preview when deleting all segments with existing content', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', startTime: 0, endTime: 1 }),
-      makeUtterance({ id: 'utt-2', startTime: 1.5, endTime: 3 }),
+    const units = [
+      makeUnit({ id: 'utt-1', startTime: 0, endTime: 1 }),
+      makeUnit({ id: 'utt-2', startTime: 1.5, endTime: 3 }),
     ];
     const translationByLayer = new Map<string, Map<string, { text?: string }>>([
       ['layer-1', new Map([['utt-1', { text: 'hello' }], ['utt-2', { text: 'world' }]])],
     ]);
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances,
+      units,
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => seconds.toFixed(1),
-      getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '第一句' : '第二句',
+      getUnitTextForLayer: (unit) => unit.id === 'utt-1' ? '第一句' : '第二句',
       translationTextByLayer: translationByLayer,
     });
 
@@ -157,11 +157,11 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   it('returns a blocking summary when delete-all has no current-page targets', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => `${seconds}`,
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       translationTextByLayer: new Map(),
     });
 
@@ -180,17 +180,17 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   });
 
   it('resolves ordinal selector preview to a concrete current-page segment', () => {
-    const utterances = [
-      makeUtterance({ id: 'utt-1', startTime: 0, endTime: 1 }),
-      makeUtterance({ id: 'utt-2', startTime: 1.5, endTime: 3 }),
+    const units = [
+      makeUnit({ id: 'utt-1', startTime: 0, endTime: 1 }),
+      makeUnit({ id: 'utt-2', startTime: 1.5, endTime: 3 }),
     ];
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances,
+      units,
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => seconds.toFixed(1),
-      getUtteranceTextForLayer: (utterance) => utterance.id === 'utt-1' ? '第一句' : '第二句',
+      getUnitTextForLayer: (unit) => unit.id === 'utt-1' ? '第一句' : '第二句',
       translationTextByLayer: new Map([
         ['layer-1', new Map([['utt-1', { text: 'hello' }]])],
       ]),
@@ -211,11 +211,11 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   it('returns a blocking summary when ordinal selector cannot be resolved on the current page', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => `${seconds}`,
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       translationTextByLayer: new Map(),
     });
 
@@ -236,7 +236,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   it('resolves ordinal selector preview to a concrete independent segment on the current layer timeline', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [],
+      units: [],
       selectedSegmentTargetId: 'seg-2',
       segmentTargets: [
         { id: 'seg-1', kind: 'segment', startTime: 0, endTime: 1, text: '第一段' },
@@ -245,7 +245,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => seconds.toFixed(1),
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       translationTextByLayer: new Map(),
     });
 
@@ -264,7 +264,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
   it('resolves previous and delete-all previews on an independent segment timeline', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
-      utterances: [],
+      units: [],
       selectedSegmentTargetId: 'seg-2',
       segmentTargets: [
         { id: 'seg-1', kind: 'segment', startTime: 0, endTime: 1, text: '第一段' },
@@ -274,7 +274,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
       transcriptionLayers: [],
       translationLayers: [],
       formatTime: (seconds) => seconds.toFixed(1),
-      getUtteranceTextForLayer: () => '',
+      getUnitTextForLayer: () => '',
       translationTextByLayer: new Map(),
     });
 

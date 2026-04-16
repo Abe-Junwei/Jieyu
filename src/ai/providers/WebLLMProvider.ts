@@ -1,9 +1,4 @@
-import type {
-  ChatChunk,
-  ChatMessage,
-  ChatRequestOptions,
-  LLMProvider,
-} from './LLMProvider';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { normalizeAiProviderError } from './errorUtils';
 import { toErrorChunk } from './streamUtils';
 

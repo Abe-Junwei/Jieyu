@@ -1,13 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  editDistance,
-  normalizeForEval,
-  wer,
-  cer,
-  evaluateSttSample,
-  runSttEvalReport,
-  type SttEvalSample,
-} from './sttEvalUtils';
+import { editDistance, normalizeForEval, wer, cer, evaluateSttSample, runSttEvalReport, type SttEvalSample } from './sttEvalUtils';
 
 // ── editDistance | 编辑距离 ────────────────────────────────────────────────
 

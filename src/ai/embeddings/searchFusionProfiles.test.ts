@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  SEARCH_FUSION_PROFILES,
-  SEARCH_FUSION_SCENARIOS,
-  getFusionWeightsForScenario,
-  isSearchFusionScenario,
-  resolveFusionWeightsForScenario,
-  validateFusionWeights,
-} from './searchFusionProfiles';
+import { SEARCH_FUSION_PROFILES, SEARCH_FUSION_SCENARIOS, getFusionWeightsForScenario, isSearchFusionScenario, resolveFusionWeightsForScenario, validateFusionWeights } from './searchFusionProfiles';
 
 describe('searchFusionProfiles', () => {
   it('exposes all expected scenarios', () => {

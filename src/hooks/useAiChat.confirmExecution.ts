@@ -1,28 +1,10 @@
-import {
-  buildToolDecisionAuditMetadata,
-  toNaturalToolFailure,
-  toNaturalToolSuccess,
-  validateToolCallArguments,
-} from '../ai/chat/toolCallHelpers';
-import {
-  formatDuplicateRequestIgnoredDetail,
-  formatDuplicateRequestIgnoredError,
-  formatInvalidArgsError,
-  formatNoExecutorInternalError,
-  formatNoExecutorToolFailureDetail,
-  formatToolExecutionFallbackError,
-} from '../ai/messages';
-import { patchSessionMemoryPreferences } from '../ai/chat/sessionMemory';
+import { buildToolDecisionAuditMetadata, toNaturalToolFailure, toNaturalToolSuccess, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError, formatInvalidArgsError, formatNoExecutorInternalError, formatNoExecutorToolFailureDetail, formatToolExecutionFallbackError } from '../ai/messages';
+import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import { nowIso } from './useAiChat.helpers';
 import { genRequestId } from './useAiChat.toolAudit';
 import type { Locale } from '../i18n';
-import type {
-  AiChatToolCall,
-  AiChatToolResult,
-  AiInteractionMetrics,
-  AiSessionMemory,
-  AiTaskSession,
-} from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 
 interface ExecuteConfirmedToolCallParams {
@@ -190,21 +172,12 @@ export async function executeConfirmedToolCall({
 
     if (result.ok) {
       bumpMetric('successCount');
-      let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
-        ...sessionMemory,
-        lastToolName: call.name,
-      }, {
-        lastToolName: call.name,
+      const nextSessionMemory = buildPostExecSessionMemory({
+        sessionMemory,
+        toolName: call.name,
+        language: typeof call.arguments.language === 'string' ? call.arguments.language : undefined,
+        layerId: undefined,
       });
-      const lang = typeof call.arguments.language === 'string' ? call.arguments.language : undefined;
-      if (lang) {
-        nextSessionMemory = patchSessionMemoryPreferences({
-          ...nextSessionMemory,
-          lastLanguage: lang,
-        }, {
-          lastLanguage: lang,
-        });
-      }
       updateSessionMemory(nextSessionMemory);
       persistSessionMemory(nextSessionMemory);
     } else {
@@ -498,11 +471,11 @@ export async function executeConfirmedProposedChangeBatch({
     }
 
     bumpMetric('successCount');
-    let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
-      ...sessionMemory,
-      lastToolName: lastOkChildName,
-    }, {
-      lastToolName: lastOkChildName,
+    const nextSessionMemory = buildPostExecSessionMemory({
+      sessionMemory,
+      toolName: lastOkChildName,
+      language: undefined,
+      layerId: undefined,
     });
     updateSessionMemory(nextSessionMemory);
     persistSessionMemory(nextSessionMemory);

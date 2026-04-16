@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AlignmentInterval } from '../../types/alignmentTask';
-import {
-  alignWordIntervalsLcs,
-  computeBoundaryF1,
-  evaluateTimestampSample,
-  runTimestampEvalReport,
-} from './timestampEvalUtils';
+import { alignWordIntervalsLcs, computeBoundaryF1, evaluateTimestampSample, runTimestampEvalReport } from './timestampEvalUtils';
 
 function word(text: string, startTime: number, endTime: number): AlignmentInterval {
   return { text, startTime, endTime };

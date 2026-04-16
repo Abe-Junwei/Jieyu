@@ -34,7 +34,7 @@ function makeServices() {
     },
     embeddingSearchService: {
       terminate: vi.fn(),
-      searchSimilarUtterances: vi.fn(),
+      searchSimilarUnits: vi.fn(),
       searchMultiSource: vi.fn(),
       searchMultiSourceHybrid: vi.fn(),
     },
@@ -54,8 +54,8 @@ describe('useAiEmbeddingState', () => {
       embeddingService: services.embeddingService,
       embeddingSearchService: services.embeddingSearchService,
       selectedUnit: null,
-      utterancesOnCurrentMedia: [],
-      getUtteranceTextForLayer: () => '',
+      unitsOnCurrentMedia: [],
+      getUnitTextForLayer: () => '',
       formatTime: (seconds: number) => String(seconds),
     }));
 
@@ -65,27 +65,27 @@ describe('useAiEmbeddingState', () => {
 
   it('surfaces query-embedding warnings instead of silently returning empty matches', async () => {
     const services = makeServices();
-    services.embeddingSearchService.searchSimilarUtterances.mockResolvedValue({
+    services.embeddingSearchService.searchSimilarUnits.mockResolvedValue({
       query: 'target',
       matches: [],
       warningCode: 'query-embedding-unavailable',
     });
 
-    const utterance = { id: 'utt-1', startTime: 0, endTime: 1 };
+    const unit = { id: 'utt-1', startTime: 0, endTime: 1 };
     const { result } = renderHook(() => useAiEmbeddingState({
       locale: 'zh-CN',
       enabled: true,
       taskRunner: services.taskRunner,
       embeddingService: services.embeddingService,
       embeddingSearchService: services.embeddingSearchService,
-      selectedUnit: utterance,
-      utterancesOnCurrentMedia: [utterance],
-      getUtteranceTextForLayer: () => 'target',
+      selectedUnit: unit,
+      unitsOnCurrentMedia: [unit],
+      getUnitTextForLayer: () => 'target',
       formatTime: (seconds: number) => String(seconds),
     }));
 
     await act(async () => {
-      await result.current.handleFindSimilarUtterances();
+      await result.current.handleFindSimilarUnits();
     });
 
     expect(result.current.aiEmbeddingWarning).toContain('未生成可用 embedding');

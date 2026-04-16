@@ -1,15 +1,5 @@
-import type {
-  ChatChunk,
-  ChatMessage,
-  ChatRequestOptions,
-  LLMProvider,
-} from './LLMProvider';
-import {
-  ensureHttpHeaderValue,
-  parseProviderJson,
-  requireProviderValue,
-  throwProviderHttpError,
-} from './errorUtils';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
+import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface AnthropicProviderConfig {

@@ -57,7 +57,7 @@ function unit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 'id'
 describe('worldModelSnapshot', () => {
   it('renders a hierarchical snapshot for the current media and layers', () => {
     const allUnits = [
-      unit({ id: 'u-1', kind: 'utterance', mediaId: 'media-a', layerId: 'layer-transcription', startTime: 0, endTime: 3, text: '你好' }),
+      unit({ id: 'u-1', kind: 'unit', mediaId: 'media-a', layerId: 'layer-transcription', startTime: 0, endTime: 3, text: '你好' }),
       unit({ id: 'u-2', kind: 'segment', mediaId: 'media-a', layerId: 'layer-translation', startTime: 3, endTime: 6, text: 'hello' }),
       unit({ id: 'u-3', kind: 'segment', mediaId: 'media-b', layerId: 'layer-translation', startTime: 1, endTime: 2, text: 'thanks' }),
     ];

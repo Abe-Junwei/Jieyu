@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
 import { buildAiToolGoldenSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
-import {
-  compactInternalId,
-  formatReplayableLabel,
-  formatToolDecision,
-  formatToolName,
-} from './aiChatCardUtils';
+import { compactInternalId, formatReplayableLabel, formatToolDecision, formatToolName } from './aiChatCardUtils';
 import { getAiChatReplayDetailPanelMessages } from '../../i18n/aiChatReplayDetailPanelMessages';
 import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';

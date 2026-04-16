@@ -1,15 +1,5 @@
-import type {
-  ChatChunk,
-  ChatMessage,
-  ChatRequestOptions,
-  LLMProvider,
-} from './LLMProvider';
-import {
-  ensureHttpHeaderValue,
-  parseProviderJson,
-  requireProviderValue,
-  throwProviderHttpError,
-} from './errorUtils';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
+import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { createThinkTagStripper, iterateJsonLines, iterateSseData, toErrorChunk } from './streamUtils';
 
 export type CustomHttpAuthScheme = 'none' | 'bearer' | 'raw';

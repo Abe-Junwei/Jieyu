@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addMetricObserver } from '../../observability/metrics';
 import { LOCAL_TOOL_RESULT_CHAR_BUDGET } from './localContextTools';
-import {
-  buildAgentLoopContinuationInput,
-  DEFAULT_AGENT_LOOP_CONFIG,
-  estimateRemainingLoopTokens,
-  shouldWarnTokenBudget,
-  shouldContinueAgentLoop,
-} from './agentLoop';
+import { buildAgentLoopContinuationInput, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldWarnTokenBudget, shouldContinueAgentLoop } from './agentLoop';
 
 describe('agentLoop helpers', () => {
   it('continues within max steps when local tool result is successful', () => {
@@ -76,6 +70,24 @@ describe('agentLoop helpers', () => {
     }])).toBe(false);
   });
 
+  it('stops when task state already marks the answer as ready', () => {
+    expect(shouldContinueAgentLoop(1, DEFAULT_AGENT_LOOP_CONFIG, [{
+      ok: true,
+      name: 'search_units',
+      result: {
+        query: 'tone consonant',
+        count: 1,
+        matches: [{ id: 'seg-2' }],
+      },
+    }], {
+      queryFamily: 'search',
+      scope: 'current_scope',
+      selectedTools: ['search_units'],
+      answerReady: true,
+      executionState: 'answer_ready',
+    })).toBe(false);
+  });
+
   it('builds continuation prompt with loop marker and payload', () => {
     const prompt = buildAgentLoopContinuationInput(
       'what is this segment?',
@@ -112,7 +124,7 @@ describe('agentLoop helpers', () => {
         sort: 'time_asc',
         matches: Array.from({ length: 24 }, (_, i) => ({
           id: `u-${i}`,
-          kind: 'utterance' as const,
+          kind: 'unit' as const,
           layerId: 'l',
           mediaId: 'm',
           startTime: i,
@@ -151,7 +163,7 @@ describe('agentLoop helpers', () => {
           sort: 'time_asc',
           matches: Array.from({ length: 24 }, (_, i) => ({
             id: `u-${i}`,
-            kind: 'utterance' as const,
+            kind: 'unit' as const,
             layerId: 'l',
             mediaId: 'm',
             startTime: i,

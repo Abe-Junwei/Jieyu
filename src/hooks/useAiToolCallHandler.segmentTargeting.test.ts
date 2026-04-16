@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { AiChatToolCall } from './useAiChat';
 import { materializePendingToolCallTargets } from './useAiToolCallHandler.segmentTargeting';
 
 const NOW = new Date().toISOString();
 
-function makeUtterance(id: string, startTime: number): UtteranceDocType {
+function makeUnit(id: string, startTime: number): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -15,7 +15,7 @@ function makeUtterance(id: string, startTime: number): UtteranceDocType {
     transcription: {},
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeLayer(id: string, layerType: 'transcription' | 'translation', languageId: string, label: string): LayerDocType {
@@ -40,7 +40,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [makeUtterance('u2', 5), makeUtterance('u1', 1), makeUtterance('u3', 9)],
+      units: [makeUnit('u2', 5), makeUnit('u1', 1), makeUnit('u3', 9)],
       transcriptionLayers: [],
       translationLayers: [],
     });
@@ -56,7 +56,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [makeUtterance('u2', 5), makeUtterance('u1', 1), makeUtterance('u3', 9)],
+      units: [makeUnit('u2', 5), makeUnit('u1', 1), makeUnit('u3', 9)],
       transcriptionLayers: [],
       translationLayers: [],
     });
@@ -72,7 +72,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [makeUtterance('u1', 1)],
+      units: [makeUnit('u1', 1)],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
@@ -82,7 +82,7 @@ describe('materializePendingToolCallTargets', () => {
     });
 
     expect(prepared.arguments.segmentId).toBe('seg-1');
-    expect(prepared.arguments.utteranceId).toBeUndefined();
+    expect(prepared.arguments.unitId).toBeUndefined();
     expect(prepared.arguments.segmentIndex).toBeUndefined();
   });
 
@@ -93,7 +93,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
@@ -119,7 +119,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const context = {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
@@ -149,7 +149,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const context = {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
@@ -176,7 +176,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
@@ -186,44 +186,44 @@ describe('materializePendingToolCallTargets', () => {
     });
 
     expect(prepared.arguments.segmentIds).toEqual(['seg-1', 'seg-2']);
-    expect(prepared.arguments.utteranceIds).toBeUndefined();
+    expect(prepared.arguments.unitIds).toBeUndefined();
     expect(prepared.arguments.allSegments).toBeUndefined();
   });
 
-  it('does not canonicalize legacy utteranceIds batch merge payloads anymore', () => {
+  it('does not canonicalize legacy unitIds batch merge payloads anymore', () => {
     const call: AiChatToolCall = {
       name: 'merge_transcription_segments',
-      arguments: { utteranceIds: ['utt-2', 'utt-1'] },
+      arguments: { unitIds: ['utt-2', 'utt-1'] },
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
       segmentTargets: [
-        { id: 'seg-1', kind: 'segment', startTime: 1, endTime: 2, text: '第一段', utteranceId: 'utt-1' },
-        { id: 'seg-2', kind: 'segment', startTime: 3, endTime: 4, text: '第二段', utteranceId: 'utt-2' },
+        { id: 'seg-1', kind: 'segment', startTime: 1, endTime: 2, text: '第一段', unitId: 'utt-1' },
+        { id: 'seg-2', kind: 'segment', startTime: 3, endTime: 4, text: '第二段', unitId: 'utt-2' },
       ],
     });
 
     expect(prepared.arguments.segmentIds).toBeUndefined();
-    expect(prepared.arguments.utteranceIds).toEqual(['utt-2', 'utt-1']);
+    expect(prepared.arguments.unitIds).toEqual(['utt-2', 'utt-1']);
   });
 
-  it('keeps allSegments when there are no utterances to snapshot', () => {
+  it('keeps allSegments when there are no units to snapshot', () => {
     const call: AiChatToolCall = {
       name: 'delete_transcription_segment',
       arguments: { allSegments: true },
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [],
     });
 
     expect(prepared.arguments.allSegments).toBe(true);
-    expect(prepared.arguments.utteranceIds).toBeUndefined();
+    expect(prepared.arguments.unitIds).toBeUndefined();
   });
 
   it('materializes delete-layer semantic target to concrete layerId', () => {
@@ -236,7 +236,7 @@ describe('materializePendingToolCallTargets', () => {
     };
 
     const prepared = materializePendingToolCallTargets(call, {
-      utterances: [],
+      units: [],
       transcriptionLayers: [],
       translationLayers: [
         makeLayer('layer-en', 'translation', 'eng', '英语'),

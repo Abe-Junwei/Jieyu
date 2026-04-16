@@ -1,8 +1,5 @@
 import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
-import type {
-  ResolveAiChatStreamCompletionParams,
-  ResolveAiChatStreamCompletionResult,
-} from './useAiChat.streamCompletion';
+import type { ResolveAiChatStreamCompletionParams, ResolveAiChatStreamCompletionResult } from './useAiChat.streamCompletion';
 
 /** Per-turn identity + model output slice (varies between first completion and agent-loop steps). */
 export type AiChatStreamCompletionCore = Pick<

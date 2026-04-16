@@ -6,7 +6,7 @@ describe('parseProposedChildCallsFromArguments', () => {
     const result = parseProposedChildCallsFromArguments({
       description: 'Batch text edits',
       changes: [
-        { tool: 'set_transcription_text', arguments: { utteranceId: 'u1', text: 'a' } },
+        { tool: 'set_transcription_text', arguments: { unitId: 'u1', text: 'a' } },
         { name: 'undo', arguments: {} },
       ],
     });

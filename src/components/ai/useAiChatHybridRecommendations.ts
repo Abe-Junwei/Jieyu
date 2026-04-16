@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getAiChatHybridMessages } from '../../i18n/aiChatHybridMessages';
-import {
-  aiHybridRecommendationService,
-  type AiHybridRecommendation,
-  type AiHybridRecommendationInput,
-} from '../../services/AiHybridRecommendationService';
+import { aiHybridRecommendationService, type AiHybridRecommendation, type AiHybridRecommendationInput } from '../../services/AiHybridRecommendationService';
 
 interface UseAiChatHybridRecommendationsOptions extends AiHybridRecommendationInput {}
 

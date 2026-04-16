@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  deriveAdaptiveProfileFromMessages,
-  mergeAdaptiveProfiles,
-  updateAdaptiveInputProfile,
-  updateSessionMemoryWithPrompt,
-} from './adaptiveInputProfile';
+import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles, updateAdaptiveInputProfile, updateSessionMemoryWithPrompt } from './adaptiveInputProfile';
 
 describe('adaptiveInputProfile', () => {
   it('extracts dominant intent, style, and keywords from recent prompts', () => {

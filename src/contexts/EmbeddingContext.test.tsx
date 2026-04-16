@@ -2,11 +2,7 @@
 import type { PropsWithChildren } from 'react';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import {
-  DEFAULT_EMBEDDING_CONTEXT_VALUE,
-  EmbeddingProvider,
-  useEmbeddingContext,
-} from './EmbeddingContext';
+import { DEFAULT_EMBEDDING_CONTEXT_VALUE, EmbeddingProvider, useEmbeddingContext } from './EmbeddingContext';
 
 describe('EmbeddingContext', () => {
   it('throws when the provider is missing', () => {

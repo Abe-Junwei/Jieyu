@@ -1,11 +1,4 @@
-import {
-  diffAiToolSnapshot,
-  loadAiToolReplayBundle,
-  serializeAiToolGoldenSnapshot,
-  type AiToolGoldenSnapshot,
-  type AiToolReplayBundle,
-  type AiToolSnapshotDiff,
-} from '../../ai/auditReplay';
+import { diffAiToolSnapshot, loadAiToolReplayBundle, serializeAiToolGoldenSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
 import { createLogger } from '../../observability/logger';
 import { buildSnapshotDownloadName } from './aiChatCardUtils';
 import { getAiChatReplayUtilsMessages } from '../../i18n/aiChatReplayUtilsMessages';

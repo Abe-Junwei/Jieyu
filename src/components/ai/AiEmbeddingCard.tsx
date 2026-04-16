@@ -24,10 +24,10 @@ export function AiEmbeddingCard() {
     embeddingProviderKind,
     onSetEmbeddingProviderKind,
     onTestEmbeddingProvider,
-    onBuildUtteranceEmbeddings,
+    onBuildUnitEmbeddings,
     onBuildNotesEmbeddings,
     onBuildPdfEmbeddings,
-    onFindSimilarUtterances,
+    onFindSimilarUnits,
     onRefreshEmbeddingTasks,
     onJumpToEmbeddingMatch,
     onCancelAiTask,
@@ -138,10 +138,10 @@ export function AiEmbeddingCard() {
         )}
       </div>
       <div className="ai-embed-actions-grid">
-        <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildUtteranceEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildUtteranceEmbeddings?.()}>{messages.buildCurrentMedia}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildUnitEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildUnitEmbeddings?.()}>{messages.buildCurrentMedia}</button>
         <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildNotesEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildNotesEmbeddings?.()}>{messages.embedNotes}</button>
         <button type="button" className="icon-btn ai-btn-action" disabled={!onBuildPdfEmbeddings || !!aiEmbeddingBusy} onClick={() => void onBuildPdfEmbeddings?.()}>{messages.embedPdf}</button>
-        <button type="button" className="icon-btn ai-btn-action" disabled={!onFindSimilarUtterances || !selectedUnit || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUtterances?.()}>{messages.findSimilar}</button>
+        <button type="button" className="icon-btn ai-btn-action" disabled={!onFindSimilarUnits || !selectedUnit || !!aiEmbeddingBusy} onClick={() => void onFindSimilarUnits?.()}>{messages.findSimilar}</button>
         <button type="button" className="icon-btn ai-btn-action ai-btn-min-refresh" disabled={!onRefreshEmbeddingTasks || !!aiEmbeddingBusy} onClick={() => void onRefreshEmbeddingTasks?.()}>{messages.refresh}</button>
       </div>
 
@@ -207,9 +207,9 @@ export function AiEmbeddingCard() {
           <p className="small-text">{messages.similarityHint}</p>
         ) : (
           (aiEmbeddingMatches ?? []).slice(0, 5).map((item) => {
-            const isActive = selectedUnit?.id === item.utteranceId;
+            const isActive = selectedUnit?.id === item.unitId;
             return (
-              <button key={item.utteranceId} type="button" className={`transcription-match-row ai-embed-match-btn ${isActive ? 'ai-embed-match-btn-active' : ''}`} onClick={() => onJumpToEmbeddingMatch?.(item.utteranceId)}>
+              <button key={item.unitId} type="button" className={`transcription-match-row ai-embed-match-btn ${isActive ? 'ai-embed-match-btn-active' : ''}`} onClick={() => onJumpToEmbeddingMatch?.(item.unitId)}>
                 <div className="ai-card-row ai-card-row-space">
                   <span className="ai-text-12">{item.label}</span>
                   <em>{formatEmbeddingScore(item.score)}</em>

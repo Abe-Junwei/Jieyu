@@ -2,13 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import type { AiAdaptiveInputProfile } from '../../ai/chat/chatDomain.types';
 import { useLocale } from '../../i18n';
 import { getAiChatQuickPromptTemplates } from '../../i18n/aiChatQuickPromptTemplates';
-import {
-  interpolatePromptTemplate,
-  loadPromptTemplatesFromStorage,
-  newTemplateId,
-  PROMPT_TEMPLATES_STORAGE_KEY,
-  type PromptTemplateItem,
-} from './aiChatCardUtils';
+import { interpolatePromptTemplate, loadPromptTemplatesFromStorage, newTemplateId, PROMPT_TEMPLATES_STORAGE_KEY, type PromptTemplateItem } from './aiChatCardUtils';
 import { rankPromptTemplatesByAdaptiveProfile } from './aiChatAdaptiveRanking';
 
 interface UseAiPromptTemplatesOptions {

@@ -1,23 +1,9 @@
-import {
-  buildToolDecisionAuditMetadata,
-  toNaturalToolFailure,
-  toNaturalToolSuccess,
-} from '../ai/chat/toolCallHelpers';
-import {
-  formatNoExecutorInternalError,
-  formatNoExecutorToolFailureDetail,
-  formatToolExecutionFallbackError,
-} from '../ai/messages';
-import { patchSessionMemoryPreferences } from '../ai/chat/sessionMemory';
+import { buildToolDecisionAuditMetadata, toNaturalToolFailure, toNaturalToolSuccess } from '../ai/chat/toolCallHelpers';
+import { formatNoExecutorInternalError, formatNoExecutorToolFailureDetail, formatToolExecutionFallbackError } from '../ai/messages';
+import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
-import type {
-  AiChatToolCall,
-  AiChatToolResult,
-  AiInteractionMetrics,
-  AiSessionMemory,
-  AiTaskSession,
-} from './useAiChat';
+import type { AiChatToolCall, AiChatToolResult, AiInteractionMetrics, AiSessionMemory, AiTaskSession } from './useAiChat';
 import { nowIso } from './useAiChat.helpers';
 
 interface ExecuteAutoToolCallParams {
@@ -117,30 +103,12 @@ export async function executeAutoToolCall({
 
     if (result.ok) {
       bumpMetric('successCount');
-      let nextSessionMemory: AiSessionMemory = patchSessionMemoryPreferences({
-        ...sessionMemory,
-        lastToolName: toolCall.name,
-      }, {
-        lastToolName: toolCall.name,
+      const nextSessionMemory = buildPostExecSessionMemory({
+        sessionMemory,
+        toolName: toolCall.name,
+        language: typeof toolCall.arguments.language === 'string' ? toolCall.arguments.language : undefined,
+        layerId: typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined,
       });
-      const lang = typeof toolCall.arguments.language === 'string' ? toolCall.arguments.language : undefined;
-      if (lang) {
-        nextSessionMemory = patchSessionMemoryPreferences({
-          ...nextSessionMemory,
-          lastLanguage: lang,
-        }, {
-          lastLanguage: lang,
-        });
-      }
-      const layerId = typeof toolCall.arguments.layerId === 'string' ? toolCall.arguments.layerId : undefined;
-      if (layerId) {
-        nextSessionMemory = patchSessionMemoryPreferences({
-          ...nextSessionMemory,
-          lastLayerId: layerId,
-        }, {
-          lastLayerId: layerId,
-        });
-      }
       updateSessionMemory(nextSessionMemory);
       persistSessionMemory(nextSessionMemory);
       if (shouldBumpRecovery) {

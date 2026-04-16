@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  getStructuredErrorAggregation,
-  recordStructuredError,
-  resetStructuredErrorAggregation,
-} from './errorAggregation';
+import { getStructuredErrorAggregation, recordStructuredError, resetStructuredErrorAggregation } from './errorAggregation';
 
 describe('errorAggregation', () => {
   beforeEach(() => {

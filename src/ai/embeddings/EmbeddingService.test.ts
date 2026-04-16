@@ -62,7 +62,7 @@ describe('EmbeddingService', () => {
     ]));
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'utterance', sourceId: 'utt_1', text: 'hello world' },
+      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
       { sourceType: 'note', sourceId: 'note_1', text: 'linguistic note' },
     ];
 
@@ -91,7 +91,7 @@ describe('EmbeddingService', () => {
     ]));
 
     const sources: EmbeddingBuildSource[] = [
-      { sourceType: 'utterance', sourceId: 'utt_1', text: 'hello world' },
+      { sourceType: 'unit', sourceId: 'utt_1', text: 'hello world' },
       { sourceType: 'schema', sourceId: 'tier_def_1', text: 'tier description' },
     ];
 
@@ -116,7 +116,7 @@ describe('EmbeddingService', () => {
     const service = new EmbeddingService(new FakeRuntime([], true));
 
     await expect(service.buildEmbeddings([
-      { sourceType: 'utterance', sourceId: 'utt_1', text: 'x' },
+      { sourceType: 'unit', sourceId: 'utt_1', text: 'x' },
     ], {
       modelId: 'test-model',
       modelVersion: 'v-test',

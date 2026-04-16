@@ -7,7 +7,7 @@ const {
   mockBuildEmbeddings,
   mockBuildNotesEmbeddings,
   mockBuildPdfEmbeddings,
-  mockSearchSimilarUtterances,
+  mockSearchSimilarUnits,
   mockSearchMultiSource,
   mockSearchMultiSourceHybrid,
   mockTerminate,
@@ -18,7 +18,7 @@ const {
   mockBuildEmbeddings: vi.fn(),
   mockBuildNotesEmbeddings: vi.fn(),
   mockBuildPdfEmbeddings: vi.fn(),
-  mockSearchSimilarUtterances: vi.fn(),
+  mockSearchSimilarUnits: vi.fn(),
   mockSearchMultiSource: vi.fn(),
   mockSearchMultiSourceHybrid: vi.fn(),
   mockTerminate: vi.fn(),
@@ -43,7 +43,7 @@ vi.mock('./EmbeddingSearchService', () => ({
   EmbeddingSearchService: mockEmbeddingSearchServiceCtor.mockImplementation(function MockEmbeddingSearchService() {
     return {
       terminate: mockTerminate,
-      searchSimilarUtterances: mockSearchSimilarUtterances,
+      searchSimilarUnits: mockSearchSimilarUnits,
       searchMultiSource: mockSearchMultiSource,
       searchMultiSourceHybrid: mockSearchMultiSourceHybrid,
     };
@@ -60,7 +60,7 @@ describe('createDeferredEmbeddingRuntime', () => {
     mockBuildEmbeddings.mockReset();
     mockBuildNotesEmbeddings.mockReset();
     mockBuildPdfEmbeddings.mockReset();
-    mockSearchSimilarUtterances.mockReset();
+    mockSearchSimilarUnits.mockReset();
     mockSearchMultiSource.mockReset();
     mockSearchMultiSourceHybrid.mockReset();
     mockTerminate.mockReset();
@@ -80,10 +80,10 @@ describe('createDeferredEmbeddingRuntime', () => {
       retry: vi.fn(),
     } as never);
 
-    const result = await runtime.embeddingSearchService.searchMultiSource('hello', ['utterance'], { topK: 5 });
+    const result = await runtime.embeddingSearchService.searchMultiSource('hello', ['unit'], { topK: 5 });
 
     expect(result).toEqual(expected);
     expect(mockEmbeddingSearchServiceCtor).toHaveBeenCalledTimes(1);
-    expect(mockSearchMultiSource).toHaveBeenCalledWith('hello', ['utterance'], { topK: 5 });
+    expect(mockSearchMultiSource).toHaveBeenCalledWith('hello', ['unit'], { topK: 5 });
   });
 });

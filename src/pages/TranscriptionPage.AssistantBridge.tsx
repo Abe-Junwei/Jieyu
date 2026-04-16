@@ -1,17 +1,8 @@
 import { useEffect, useMemo } from 'react';
-import {
-  useTranscriptionAiController,
-  type UseTranscriptionAiControllerInput,
-  type UseTranscriptionAiControllerResult,
-} from './useTranscriptionAiController';
+import { useTranscriptionAiController, type UseTranscriptionAiControllerInput, type UseTranscriptionAiControllerResult } from './useTranscriptionAiController';
 import type { AcousticRuntimeStatus } from '../contexts/AiPanelContext';
 import type { AcousticPromptSummary } from './TranscriptionPage.aiPromptContext';
-import type {
-  AcousticBatchSelectionRange,
-  AcousticCalibrationStatus,
-  AcousticPanelBatchDetail,
-  AcousticPanelDetail,
-} from '../utils/acousticPanelDetail';
+import type { AcousticBatchSelectionRange, AcousticCalibrationStatus, AcousticPanelBatchDetail, AcousticPanelDetail } from '../utils/acousticPanelDetail';
 import type { ResolvedAcousticProviderState } from '../services/acoustic/acousticProviderContract';
 
 type DeferredAiChatState = {

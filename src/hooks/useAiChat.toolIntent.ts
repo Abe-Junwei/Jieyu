@@ -1,16 +1,6 @@
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
-import {
-  assessToolActionIntent,
-  buildToolAuditContext,
-  buildToolIntentAuditMetadata,
-  shouldAllowDeicticExecutionIntent,
-} from '../ai/chat/toolCallHelpers';
-import type {
-  AiChatToolCall,
-  AiPromptContext,
-  AiToolDecisionMode,
-  UiChatMessage,
-} from './useAiChat';
+import { assessToolActionIntent, buildToolAuditContext, buildToolIntentAuditMetadata, shouldAllowDeicticExecutionIntent } from '../ai/chat/toolCallHelpers';
+import type { AiChatToolCall, AiPromptContext, AiToolDecisionMode, UiChatMessage } from './useAiChat';
 
 interface BuildAndAuditToolIntentParams {
   assistantMessageId: string;

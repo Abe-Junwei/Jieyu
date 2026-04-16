@@ -32,10 +32,10 @@ const AI_FUNCTION_CALLING_SYSTEM_PROMPT = [
   '    link_translation_layer     — \\u5173\\u8054\\u8f6c\\u5199\\u5c42\\u4e0e\\u7ffb\\u8bd1\\u5c42，\\u5fc5\\u987b\\u63d0\\u4f9b transcriptionLayerId/transcriptionLayerKey \\u4e0e translationLayerId/layerId',
   '    unlink_translation_layer   — \\u89e3\\u9664\\u5173\\u8054，\\u5fc5\\u987b\\u63d0\\u4f9b transcriptionLayerId/transcriptionLayerKey \\u4e0e translationLayerId/layerId',
   '  \\u81ea\\u52a8\\u6807\\u6ce8（gloss = \\u4ece\\u8bcd\\u5e93\\u7cbe\\u786e\\u5339\\u914d\\u81ea\\u52a8\\u63a8\\u5bfc\\u8bcd\\u4e49\\u6ce8\\u91ca）：',
-  '    auto_gloss_utterance       — \\u5bf9\\u76ee\\u6807\\u53e5\\u6bb5\\u7684\\u6240\\u6709 token \\u6267\\u884c\\u8bcd\\u5e93\\u7cbe\\u786e\\u5339\\u914d\\u5e76\\u81ea\\u52a8\\u586b\\u5199 gloss，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b utteranceId',
+  '    auto_gloss_unit       — \\u5bf9\\u76ee\\u6807\\u53e5\\u6bb5\\u7684\\u6240\\u6709 token \\u6267\\u884c\\u8bcd\\u5e93\\u7cbe\\u786e\\u5339\\u914d\\u5e76\\u81ea\\u52a8\\u586b\\u5199 gloss，\\u4e14\\u5fc5\\u987b\\u63d0\\u4f9b unitId',
   '  \\u8bcd（token）\\u64cd\\u4f5c：',
-  '    set_token_pos              — \\u8bbe\\u7f6e\\u8bcd\\u6027\\u6807\\u7b7e；\\u7cbe\\u786e\\u6a21\\u5f0f\\u9700\\u8981 tokenId + pos，\\u6279\\u91cf\\u6a21\\u5f0f\\u9700\\u8981 utteranceId + form + pos（\\u5c06\\u540c\\u4e00\\u53e5\\u6bb5\\u5185\\u6240\\u6709\\u5339\\u914d form \\u7684 token \\u7edf\\u4e00\\u6807\\u6ce8）',
-  '    set_token_gloss            — \\u8bbe\\u7f6e/\\u8986\\u76d6\\u5355\\u4e2a token \\u7684 gloss；\\u9700\\u8981 tokenId + gloss（\\u5b57\\u7b26\\u4e32），\\u53ef\\u9009 lang（ISO 639-3，\\u9ed8\\u8ba4 eng）。\\u82e5\\u9700\\u6279\\u91cf\\u6807\\u6ce8\\u8bf7\\u7528 auto_gloss_utterance',
+  '    set_token_pos              — \\u8bbe\\u7f6e\\u8bcd\\u6027\\u6807\\u7b7e；\\u7cbe\\u786e\\u6a21\\u5f0f\\u9700\\u8981 tokenId + pos，\\u6279\\u91cf\\u6a21\\u5f0f\\u9700\\u8981 unitId + form + pos（\\u5c06\\u540c\\u4e00\\u53e5\\u6bb5\\u5185\\u6240\\u6709\\u5339\\u914d form \\u7684 token \\u7edf\\u4e00\\u6807\\u6ce8）',
+  '    set_token_gloss            — \\u8bbe\\u7f6e/\\u8986\\u76d6\\u5355\\u4e2a token \\u7684 gloss；\\u9700\\u8981 tokenId + gloss（\\u5b57\\u7b26\\u4e32），\\u53ef\\u9009 lang（ISO 639-3，\\u9ed8\\u8ba4 eng）。\\u82e5\\u9700\\u6279\\u91cf\\u6807\\u6ce8\\u8bf7\\u7528 auto_gloss_unit',
   '【\\u547d\\u540d\\u89c4\\u5219】clear = \\u5220\\u9664\\u8bf4\\u8bdd\\u4eba\\u6807\\u7b7e/\\u6e05\\u7a7a\\u5185\\u5bb9；delete = \\u5220\\u9664\\u8bf4\\u8bdd\\u4eba\\u5b9e\\u4f53；segment = \\u53e5\\u6bb5（\\u5355\\u6761）；layer = \\u6574\\u5c42（\\u542b\\u6240\\u6709\\u53e5\\u6bb5）。',
   '【\\u53c2\\u6570\\u7ea6\\u675f】\\u6267\\u884c\\u5199\\u5165/\\u6e05\\u7a7a/\\u5220\\u9664/\\u5207\\u5206/\\u81ea\\u52a8\\u6807\\u6ce8/\\u5c42\\u94fe\\u63a5\\u52a8\\u4f5c\\u65f6，\\u5fc5\\u987b\\u663e\\u5f0f\\u63d0\\u4f9b\\u76ee\\u6807 id（segmentId/layerId/transcriptionLayerId \\u7b49），\\u4e0d\\u8981\\u7701\\u7565。',
   '【\\u5173\\u952e\\u5224\\u65ad】\\u7528\\u6237\\u8bf4"\\u5220\\u9664××\\u8bed\\u8f6c\\u5199\\u884c/\\u8f6c\\u5199\\u5c42/\\u7ffb\\u8bd1\\u5c42" → \\u6709\\u8bed\\u8a00\\u9650\\u5b9a\\u8bcd → \\u6307\\u5411\\u6574\\u5c42 → delete_layer。',
@@ -129,8 +129,8 @@ const SHORT_TERM_TEMPLATES: ContextFieldTemplate[] = [
       : null),
   },
   { key: 'selectedUnitIds', tier: 1, render: (v) => `selectedUnitIds=${(v as string[]).join(',')}` },
-  { key: 'selectedUnitStartSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitStartSec=${(v as number).toFixed(2)} [utterance or segment per selectedUnitKind]` : null },
-  { key: 'selectedUnitEndSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitEndSec=${(v as number).toFixed(2)} [utterance or segment per selectedUnitKind]` : null },
+  { key: 'selectedUnitStartSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitStartSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]` : null },
+  { key: 'selectedUnitEndSec', tier: 1, render: (v) => Number.isFinite(v as number) ? `selectedUnitEndSec=${(v as number).toFixed(2)} [unit or segment per selectedUnitKind]` : null },
   { key: 'selectedLayerId', tier: 1, render: (v) => `selectedLayerId=${v}` },
   { key: 'selectedLayerType', tier: 1, render: (v) => `selectedLayerType=${v}` },
   { key: 'selectedTranslationLayerId', tier: 1, render: (v) => `selectedTranslationLayerId=${v}` },
@@ -154,14 +154,14 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
       const s = v as {
         unitCount?: number;
         speakerCount?: number;
-        utteranceCount?: number;
+        unitCount?: number;
         translationLayerCount?: number;
         aiConfidenceAvg?: number | null;
       };
       const speakerSegment = typeof s.speakerCount === 'number' && Number.isFinite(s.speakerCount)
         ? `, speakers=${s.speakerCount}`
         : '';
-      return `projectStats(units=${s.unitCount ?? s.utteranceCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
+      return `projectStats(units=${s.unitCount ?? s.unitCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
   {
@@ -444,8 +444,12 @@ export function buildAiSystemPrompt(
   personaKey: AiSystemPersonaKey,
   contextBlock: string,
   style: AiToolFeedbackStyle = 'detailed',
+  activeQueryTools?: readonly string[],
 ): string {
-  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}\n${buildLocalContextToolGuide()}`;
+  const activeToolGuide = Array.isArray(activeQueryTools) && activeQueryTools.length > 0
+    ? `\nActive query tools for this turn: ${activeQueryTools.join(', ')}\nUse these first unless clarification is required.`
+    : '';
+  const base = `${AI_FUNCTION_CALLING_SYSTEM_PROMPT}\n${AI_SYSTEM_PERSONAS[personaKey]}\n${AI_RESPONSE_STYLE_PROMPT[style]}\n${buildLocalContextToolGuide()}${activeToolGuide}`;
   return contextBlock.trim().length > 0 ? `${base}\n${contextBlock}` : base;
 }
 

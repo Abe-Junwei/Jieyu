@@ -2,13 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
-import {
-  buildAiToolGoldenSnapshot,
-  diffAiToolSnapshot,
-  listRecentAiToolDecisionLogs,
-  loadAiToolReplayBundle,
-  serializeAiToolGoldenSnapshot,
-} from './auditReplay';
+import { buildAiToolGoldenSnapshot, diffAiToolSnapshot, listRecentAiToolDecisionLogs, loadAiToolReplayBundle, serializeAiToolGoldenSnapshot } from './auditReplay';
 
 async function clearAuditLogs(): Promise<void> {
   await db.audit_logs.clear();
@@ -44,7 +38,7 @@ describe('audit replay helpers', () => {
           assistantMessageId: 'assistant-1',
           toolCall: {
             name: 'set_transcription_text',
-            arguments: { utteranceId: 'u1', text: 'hello' },
+            arguments: { unitId: 'u1', text: 'hello' },
             requestId: 'toolreq_bundle_1',
           },
           context: { userText: '把这句改成 hello', providerId: 'mock' },
@@ -69,7 +63,7 @@ describe('audit replay helpers', () => {
           source: 'ai',
           toolCall: {
             name: 'set_transcription_text',
-            arguments: { utteranceId: 'u1', text: 'hello' },
+            arguments: { unitId: 'u1', text: 'hello' },
             requestId: 'toolreq_bundle_1',
           },
           context: { userText: '把这句改成 hello', providerId: 'mock' },
@@ -86,7 +80,7 @@ describe('audit replay helpers', () => {
     expect(bundle?.requestId).toBe('toolreq_bundle_1');
     expect(bundle?.toolName).toBe('set_transcription_text');
     expect(bundle?.replayable).toBe(true);
-    expect(bundle?.toolCall?.arguments).toEqual({ utteranceId: 'u1', text: 'hello' });
+    expect(bundle?.toolCall?.arguments).toEqual({ unitId: 'u1', text: 'hello' });
     expect(bundle?.context).toEqual({ userText: '把这句改成 hello', providerId: 'mock' });
     expect(bundle?.intentAssessment).toEqual({ decision: 'execute', confidence: 0.98 });
     expect(bundle?.latestDecision?.decision).toBe('auto_confirmed');
@@ -182,7 +176,7 @@ describe('audit replay helpers', () => {
           schemaVersion: 1,
           phase: 'intent',
           requestId: 'toolreq_export_1',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
           context: { userText: '补一条翻译' },
         }),
       },
@@ -202,7 +196,7 @@ describe('audit replay helpers', () => {
           phase: 'decision',
           requestId: 'toolreq_export_1',
           source: 'ai',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
           context: { userText: '补一条翻译' },
           executed: true,
           outcome: 'auto_confirmed',

@@ -7,9 +7,7 @@ import { saveEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { AiAnalysisPanel } from '../components/AiAnalysisPanel';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createDeferredEmbeddingRuntime } from '../ai/embeddings/DeferredEmbeddingRuntime';
-import type {
-  TranscriptionPageAnalysisRuntimeProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
 export function TranscriptionPageAnalysisRuntime({
   panel,
@@ -37,10 +35,10 @@ export function TranscriptionPageAnalysisRuntime({
     refreshEmbeddingTasks,
     handleCancelAiTask,
     handleRetryAiTask,
-    handleBuildUtteranceEmbeddings,
+    handleBuildUnitEmbeddings,
     handleBuildNotesEmbeddings,
     handleBuildPdfEmbeddings,
-    handleFindSimilarUtterances,
+    handleFindSimilarUnits,
   } = useAiEmbeddingState({
     locale: panel.locale,
     enabled: panel.analysisTab === 'embedding',
@@ -48,8 +46,8 @@ export function TranscriptionPageAnalysisRuntime({
     embeddingService: deferredEmbeddingRuntime.embeddingService,
     embeddingSearchService: deferredEmbeddingRuntime.embeddingSearchService,
     selectedUnit: embedding.source.selectedUnit,
-    utterancesOnCurrentMedia: embedding.source.utterancesOnCurrentMedia,
-    getUtteranceTextForLayer: embedding.source.getUtteranceTextForLayer,
+    unitsOnCurrentMedia: embedding.source.unitsOnCurrentMedia,
+    getUnitTextForLayer: embedding.source.getUnitTextForLayer,
     formatTime: embedding.source.formatTime,
   });
 
@@ -85,10 +83,10 @@ export function TranscriptionPageAnalysisRuntime({
       embedding.provider.actions.onEmbeddingProviderConfigChange({ ...embedding.provider.config.embeddingProviderConfig, kind });
     },
     onTestEmbeddingProvider: handleTestEmbeddingProvider,
-    onBuildUtteranceEmbeddings: handleBuildUtteranceEmbeddings,
+    onBuildUnitEmbeddings: handleBuildUnitEmbeddings,
     onBuildNotesEmbeddings: handleBuildNotesEmbeddings,
     onBuildPdfEmbeddings: handleBuildPdfEmbeddings,
-    onFindSimilarUtterances: handleFindSimilarUtterances,
+    onFindSimilarUnits: handleFindSimilarUnits,
     onRefreshEmbeddingTasks: refreshEmbeddingTasks,
     onJumpToEmbeddingMatch: embedding.navigation.onJumpToEmbeddingMatch,
     onJumpToCitation: embedding.navigation.onJumpToCitation,

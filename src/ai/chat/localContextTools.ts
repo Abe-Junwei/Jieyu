@@ -3,26 +3,14 @@ import type { AiLocalToolReadModelMeta, AiPromptContext } from './chatDomain.typ
 import { extractJsonCandidates } from './toolCallSchemas';
 import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
 import { getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../../db';
-import { listUtteranceTextsByUtterance } from '../../services/LayerSegmentationTextService';
+import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
 import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
-import type { UtteranceSelfCertainty } from '../../utils/utteranceSelfCertainty';
-import {
-  AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1,
-  AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2,
-  AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS,
-  AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS,
-  AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS,
-  AI_LOCAL_TOOL_RESULT_CHAR_BUDGET,
-} from '../../hooks/useAiChat.config';
+import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
+import { AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2, AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS, AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS, AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS, AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import { buildLocalToolReadModelMeta } from './localContextToolReadModelMeta';
-import {
-  createListUnitsSnapshot,
-  getListUnitsSnapshot,
-  LIST_UNITS_SNAPSHOT_ROW_THRESHOLD,
-  type ListUnitsSnapshotRow,
-} from './localContextListUnitsSnapshotStore';
+import { createListUnitsSnapshot, getListUnitsSnapshot, LIST_UNITS_SNAPSHOT_ROW_THRESHOLD, type ListUnitsSnapshotRow } from './localContextListUnitsSnapshotStore';
 
 export type LocalContextToolName =
   | 'get_current_selection'
@@ -71,10 +59,10 @@ const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
  * Sunset: remove once audit shows zero alias usage for several releases.
  */
 const LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP = {
-  list_utterances: 'list_units',
-  search_utterances: 'search_units',
-  get_utterance_detail: 'get_unit_detail',
-  get_utterance_linguistic_memory: 'get_unit_linguistic_memory',
+  list_units: 'list_units',
+  search_units: 'search_units',
+  get_unit_detail: 'get_unit_detail',
+  get_unit_linguistic_memory: 'get_unit_linguistic_memory',
 } as const satisfies Record<string, LocalContextToolName>;
 
 type ResolvedLocalToolName = {
@@ -186,6 +174,14 @@ function normalizeTextValue(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function tokenizeLocalSearchQuery(query: string): string[] {
+  const lowered = query.trim().toLowerCase();
+  if (!lowered) return [];
+  const cjkChars = lowered.match(/[\u4e00-\u9fff]/g) ?? [];
+  const latinWords = lowered.split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 2);
+  return [...new Set([...cjkChars, ...latinWords])];
+}
+
 function normalizeLimit(value: unknown, fallback = 5): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return Math.min(20, Math.max(1, Math.floor(value)));
@@ -282,7 +278,7 @@ function resolveExpectedTotalForScope(context: AiPromptContext, scope: LocalUnit
 
 interface NormalizedUnitRow {
   id: string;
-  kind: 'utterance' | 'segment';
+  kind: 'unit' | 'segment';
   layerId: string;
   textId?: string;
   mediaId?: string;
@@ -329,15 +325,29 @@ function buildReadModelMetaWithSource(
   };
 }
 
+/** scope 解析结果 | Resolved segment_meta scope params */
+type SegmentMetaScopeResolution =
+  | { kind: 'layer_media'; layerId: string; mediaId: string }
+  | { kind: 'media'; mediaId: string }
+  | { kind: 'all' };
+
 function resolveSegmentMetaScopeParams(
   context: AiPromptContext,
   scope: LocalUnitScope,
-): { layerId: string; mediaId: string } | null {
-  if (scope !== 'current_scope') return null;
-  const layerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
-  const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
-  if (layerId.length === 0 || mediaId.length === 0) return null;
-  return { layerId, mediaId };
+): SegmentMetaScopeResolution | null {
+  if (scope === 'current_scope') {
+    const layerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
+    const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+    if (layerId.length === 0 || mediaId.length === 0) return null;
+    return { kind: 'layer_media', layerId, mediaId };
+  }
+  if (scope === 'current_track') {
+    const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+    if (mediaId.length === 0) return null;
+    return { kind: 'media', mediaId };
+  }
+  // project scope — 全量查询 | full table
+  return { kind: 'all' };
 }
 
 function mapSegmentMetaRows(rows: readonly SegmentMetaDocType[]): NormalizedUnitRow[] {
@@ -359,16 +369,28 @@ async function loadScopedSegmentMetaRows(
   context: AiPromptContext,
   scope: LocalUnitScope,
 ): Promise<SegmentMetaDocType[] | null> {
-  const scopeParams = resolveSegmentMetaScopeParams(context, scope);
-  if (!scopeParams) return null;
+  const resolution = resolveSegmentMetaScopeParams(context, scope);
+  if (!resolution) return null;
   try {
-    return await SegmentMetaService.rebuildForLayerMedia(scopeParams.layerId, scopeParams.mediaId);
-  } catch {
-    try {
-      return await SegmentMetaService.listByLayerMedia(scopeParams.layerId, scopeParams.mediaId);
-    } catch {
-      return null;
+    if (resolution.kind === 'layer_media') {
+      // current_scope: rebuild 保证新鲜度，回退到 list | rebuild for freshness, fallback to list
+      try {
+        return await SegmentMetaService.rebuildForLayerMedia(resolution.layerId, resolution.mediaId);
+      } catch {
+        try {
+          return await SegmentMetaService.listByLayerMedia(resolution.layerId, resolution.mediaId);
+        } catch {
+          return null;
+        }
+      }
     }
+    if (resolution.kind === 'media') {
+      return await SegmentMetaService.listByMediaId(resolution.mediaId);
+    }
+    // kind === 'all' — project scope
+    return await SegmentMetaService.listAll();
+  } catch {
+    return null;
   }
 }
 
@@ -556,6 +578,138 @@ async function getProjectStats(context: AiPromptContext, args: Record<string, un
   };
 }
 
+/**
+ * segment_meta 优先路径：查找未完成语段 | Snapshot-first path for finding incomplete units
+ */
+async function findIncompleteUnitsWithSnapshots(
+  context: AiPromptContext,
+  args: Record<string, unknown>,
+): Promise<LocalContextToolResult | null> {
+  const rows = await loadScopedSegmentMetaRows(context, 'current_scope');
+  if (!rows || rows.length === 0) return null;
+
+  const limit = typeof args.limit === 'number' && Number.isFinite(args.limit)
+    ? Math.min(50, Math.max(1, Math.floor(args.limit)))
+    : 12;
+
+  const incomplete = rows
+    .filter((row) => {
+      const status = row.annotationStatus?.trim().toLowerCase() ?? '';
+      if (status === 'verified') return false;
+      return true;
+    })
+    .sort((a, b) => a.startTime - b.startTime);
+
+  const items = incomplete.slice(0, limit).map((row) => ({
+    id: row.segmentId,
+    kind: row.unitKind ?? 'segment',
+    layerId: row.layerId,
+    mediaId: row.mediaId,
+    text: row.text,
+    status: row.annotationStatus?.trim().toLowerCase()
+      || (row.hasText ? 'transcribed' : 'raw'),
+  }));
+
+  // 按 layerId 汇总 | Summarize by layer
+  const layerCounts = new Map<string, number>();
+  for (const row of incomplete) {
+    layerCounts.set(row.layerId, (layerCounts.get(row.layerId) ?? 0) + 1);
+  }
+  const byLayer = Array.from(layerCounts.entries())
+    .map(([layerId, count]) => ({ layerId, count }))
+    .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.layerId.localeCompare(b.layerId)));
+
+  return {
+    ok: true,
+    name: 'find_incomplete_units',
+    result: {
+      count: items.length,
+      items,
+      suggestion: items.length > 0
+        ? 'Prioritize verified transcription on current media before cross-layer polishing.'
+        : 'No incomplete units detected.',
+      meta: {
+        totalIncomplete: incomplete.length,
+        byLayer,
+      },
+      _readModel: buildReadModelMetaWithSource(context, 'segment_meta'),
+    },
+  };
+}
+
+/**
+ * segment_meta 优先路径：校验 batchApply unitIds | Snapshot-first validation for batch_apply unitIds
+ */
+async function batchApplyWithSnapshots(
+  context: AiPromptContext,
+  args: Record<string, unknown>,
+): Promise<LocalContextToolResult | null> {
+  const rows = await loadScopedSegmentMetaRows(context, 'current_scope');
+  if (!rows || rows.length === 0) return null;
+
+  const rawIds = Array.isArray(args.unitIds) ? args.unitIds.filter((item): item is string => typeof item === 'string') : [];
+  const unitIds = rawIds.map((id) => id.trim()).filter((id) => id.length > 0);
+  const action = typeof args.action === 'string' ? args.action.trim() : '';
+
+  const rowsById = new Map(rows.map((row) => [row.segmentId, row] as const));
+
+  const CHUNK_SIZE = 24;
+  const MAX_PREVIEW = 64;
+
+  const matchedRows: SegmentMetaDocType[] = [];
+  const seen = new Set<string>();
+  for (const id of unitIds) {
+    const hit = rowsById.get(id);
+    if (hit && !seen.has(id)) {
+      seen.add(id);
+      matchedRows.push(hit);
+    }
+  }
+  const unresolvedUnitIds = [...new Set(unitIds.filter((id) => !rowsById.has(id)))];
+
+  const allItems = matchedRows.map((row) => ({
+    id: row.segmentId,
+    kind: row.unitKind ?? 'segment',
+    action,
+    preview: `Would apply ${action || 'update'} to ${row.segmentId}`,
+  }));
+  const previewTruncated = allItems.length > MAX_PREVIEW;
+  const items = previewTruncated ? allItems.slice(0, MAX_PREVIEW) : allItems;
+
+  // 按 layerId 汇总 | Summarize by layer
+  const layerCounts = new Map<string, number>();
+  for (const row of matchedRows) {
+    layerCounts.set(row.layerId, (layerCounts.get(row.layerId) ?? 0) + 1);
+  }
+  const byLayer = Array.from(layerCounts.entries())
+    .map(([layerId, count]) => ({ layerId, count }))
+    .sort((a, b) => (b.count !== a.count ? b.count - a.count : a.layerId.localeCompare(b.layerId)));
+
+  return {
+    ok: true,
+    name: 'batch_apply',
+    result: {
+      count: items.length,
+      items,
+      suggestion: items.length > 0
+        ? 'Route batch_apply through preview-confirm before executing.'
+        : unresolvedUnitIds.length > 0 && unitIds.length > 0
+          ? 'No matching units for batch_apply; check unitIds against list_units / get_unit_detail.'
+          : 'No matching units for batch_apply.',
+      meta: {
+        requestedUnitIdCount: unitIds.length,
+        matchedUnitIdCount: matchedRows.length,
+        chunkSize: CHUNK_SIZE,
+        chunkCount: unitIds.length === 0 ? 0 : Math.ceil(unitIds.length / CHUNK_SIZE),
+        ...(previewTruncated ? { previewTruncated: true, previewItemCap: MAX_PREVIEW } : {}),
+        ...(unresolvedUnitIds.length > 0 ? { unresolvedUnitIds } : {}),
+        byLayer,
+      },
+      _readModel: buildReadModelMetaWithSource(context, 'segment_meta'),
+    },
+  };
+}
+
 async function diagnoseQualityWithSnapshots(
   context: AiPromptContext,
   args: Record<string, unknown> = {},
@@ -628,14 +782,16 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
   const segmentMetaScope = resolveSegmentMetaScopeParams(context, scope);
   if (segmentMetaScope && (query.length > 0 || hasStructuredFilter)) {
     try {
-      await SegmentMetaService.rebuildForLayerMedia(segmentMetaScope.layerId, segmentMetaScope.mediaId);
+      if (segmentMetaScope.kind === 'layer_media') {
+        await SegmentMetaService.rebuildForLayerMedia(segmentMetaScope.layerId, segmentMetaScope.mediaId);
+      }
       const rows = await SegmentMetaService.searchSegmentMeta({
-        layerId: segmentMetaScope.layerId,
-        mediaId: segmentMetaScope.mediaId,
+        ...(segmentMetaScope.kind === 'layer_media' ? { layerId: segmentMetaScope.layerId, mediaId: segmentMetaScope.mediaId } : {}),
+        ...(segmentMetaScope.kind === 'media' ? { mediaId: segmentMetaScope.mediaId } : {}),
         ...(query.length > 0 ? { query } : {}),
         ...(speakerId ? { speakerId } : {}),
         ...(noteCategory ? { noteCategory: noteCategory as NoteCategory } : {}),
-        ...(selfCertainty ? { selfCertainty: selfCertainty as UtteranceSelfCertainty } : {}),
+        ...(selfCertainty ? { selfCertainty: selfCertainty as UnitSelfCertainty } : {}),
         ...(annotationStatus ? { annotationStatus: annotationStatus as LayerUnitStatus } : {}),
         ...(typeof hasText === 'boolean' ? { hasText } : {}),
         limit,
@@ -692,11 +848,27 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
     };
   }
   const lowered = query.toLowerCase();
+  const tokens = tokenizeLocalSearchQuery(query);
 
-  const matches = rows
-    .filter((row) => row.transcription.toLowerCase().includes(lowered))
-    .sort((a, b) => a.startTime - b.startTime)
+  const scoredMatches = rows
+    .map((row) => {
+      const text = row.transcription.toLowerCase();
+      if (!text) return null;
+      const phraseHit = text.includes(lowered);
+      const tokenHitCount = tokens.reduce((count, token) => (text.includes(token) ? count + 1 : count), 0);
+      if (!phraseHit && tokenHitCount === 0) return null;
+      const tokenScore = tokens.length > 0 ? tokenHitCount / tokens.length : 0;
+      const score = (phraseHit ? 1 : 0) + tokenScore;
+      return { row, score };
+    })
+    .filter((item): item is { row: NormalizedUnitRow; score: number } => item !== null)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.row.startTime - b.row.startTime;
+    })
     .slice(0, limit);
+
+  const matches = scoredMatches.map((item) => item.row);
 
   return {
     ok: true,
@@ -706,6 +878,9 @@ async function searchUnits(context: AiPromptContext, args: Record<string, unknow
       query,
       count: matches.length,
       matches,
+      ranking: {
+        strategy: 'hybrid_local',
+      },
     },
   };
 }
@@ -899,7 +1074,7 @@ async function getUnitDetail(args: Record<string, unknown>, context: AiPromptCon
   return { ok: false, name: 'get_unit_detail', result: null, error: `unit not found: ${unitId}` };
 }
 
-type LinguisticMemoryNoteTargetType = 'utterance' | 'translation' | 'token' | 'morpheme';
+type LinguisticMemoryNoteTargetType = 'unit' | 'translation' | 'token' | 'morpheme';
 
 interface LinguisticMemoryNoteView {
   id: string;
@@ -982,22 +1157,22 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
 
   const [
     layerUnit,
-    utteranceTexts,
+    unitTexts,
     tokenRowsRaw,
     morphemeRowsRaw,
   ] = await Promise.all([
     db.dexie.layer_units.get(unitId),
-    listUtteranceTextsByUtterance(db, unitId),
-    db.dexie.utterance_tokens.where('unitId').equals(unitId).toArray(),
+    listUnitTextsByUnit(db, unitId),
+    db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
     includeMorphemes
-      ? db.dexie.utterance_morphemes.where('unitId').equals(unitId).toArray()
+      ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
       : Promise.resolve([]),
   ]);
 
   const hasAnyData = Boolean(
     localHit
     || layerUnit
-    || utteranceTexts.length > 0
+    || unitTexts.length > 0
     || tokenRowsRaw.length > 0
     || morphemeRowsRaw.length > 0,
   );
@@ -1016,7 +1191,11 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     return a.tokenId.localeCompare(b.tokenId);
   });
 
-  const layerIds = [...new Set(utteranceTexts.map((row) => row.layerId).filter((id) => typeof id === 'string' && id.length > 0))];
+  const layerIds = [...new Set(
+    unitTexts
+      .map((row) => row.layerId)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0),
+  )];
   const layerRows = layerIds.length > 0
     ? (await db.collections.layers.findByIndexAnyOf('id', layerIds)).map((doc) => doc.toJSON())
     : [];
@@ -1024,13 +1203,13 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     layerRows.map((layer) => [layer.id, mapLayerType(layer.layerType)]),
   );
 
-  const utteranceNotes = includeNotes
-    ? await listNotesByTarget(db, 'utterance', unitId)
+  const unitNotes = includeNotes
+    ? await listNotesByTarget(db, 'unit', unitId)
     : [];
 
   const translationNoteRows = includeNotes
     ? await Promise.all(
-      utteranceTexts.map(async (row) => ({
+      unitTexts.map(async (row) => ({
         textId: row.id,
         notes: await listNotesByTarget(db, 'translation', row.id),
       })),
@@ -1088,11 +1267,12 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     ...(includeMorphemes ? { morphemes: morphemesByTokenId.get(row.id) ?? [] } : {}),
   }));
 
-  const layerTexts = utteranceTexts.map((row) => {
-    const layerType = layerTypeById.get(row.layerId) ?? 'unknown';
+  const layerTexts = unitTexts.map((row) => {
+    const layerId = row.layerId ?? '';
+    const layerType = layerTypeById.get(layerId) ?? 'unknown';
     return {
       id: row.id,
-      layerId: row.layerId,
+      layerId,
       layerType,
       ...(row.text !== undefined ? { text: row.text } : {}),
       modality: row.modality,
@@ -1154,7 +1334,7 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
         transcription: localHit?.transcription ?? fallbackTranscription ?? '',
         ...(localHit?.speakerId !== undefined ? { speakerId: localHit.speakerId } : {}),
         ...(localHit?.annotationStatus !== undefined ? { annotationStatus: localHit.annotationStatus } : {}),
-        ...(includeNotes ? { notes: utteranceNotes } : {}),
+        ...(includeNotes ? { notes: unitNotes } : {}),
       },
       sentence: {
         primaryTranscription: localHit?.transcription ?? fallbackTranscription ?? '',
@@ -1246,8 +1426,8 @@ export async function executeLocalContextToolCall(
           ...visibleShortTerm,
           ...(context.longTerm?.projectStats?.unitCount !== undefined
             ? { projectUnitCount: context.longTerm.projectStats.unitCount }
-            : context.longTerm?.projectStats?.utteranceCount !== undefined
-              ? { projectUnitCount: context.longTerm.projectStats.utteranceCount }
+            : context.longTerm?.projectStats?.unitCount !== undefined
+              ? { projectUnitCount: context.longTerm.projectStats.unitCount }
               : {}),
         },
       };
@@ -1262,17 +1442,21 @@ export async function executeLocalContextToolCall(
     case 'get_acoustic_summary':
       out = { ok: true, name: call.name, result: context.longTerm?.acousticSummary ?? null };
       break;
-    case 'find_incomplete_units':
-      out = { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
+    case 'find_incomplete_units': {
+      const snapshotIncomplete = await findIncompleteUnitsWithSnapshots(context, call.arguments);
+      out = snapshotIncomplete ?? { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
       break;
+    }
     case 'diagnose_quality': {
       const snapshotResult = await diagnoseQualityWithSnapshots(context, call.arguments);
       out = snapshotResult ?? { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
       break;
     }
-    case 'batch_apply':
-      out = { ok: true, name: call.name, result: batchApply(context, call.arguments) };
+    case 'batch_apply': {
+      const snapshotBatch = await batchApplyWithSnapshots(context, call.arguments);
+      out = snapshotBatch ?? { ok: true, name: call.name, result: batchApply(context, call.arguments) };
       break;
+    }
     case 'suggest_next_action':
       out = { ok: true, name: call.name, result: suggestNextAction(context) };
       break;
@@ -1423,6 +1607,7 @@ function summarizeProjectStatsResult(body: Record<string, unknown>, locale?: str
   const zh = isZhLocale(locale);
   const scopeLabel = humanizeScope(body.scope, locale);
   const metric = normalizeProjectMetric(body.requestedMetric);
+  const requestedMetricRaw = typeof body.requestedMetric === 'string' ? body.requestedMetric : '';
   const unitCount = asFiniteNumber(body.unitCount);
   const speakerCount = asFiniteNumber(body.speakerCount);
   const translationLayerCount = asFiniteNumber(body.translationLayerCount);
@@ -1463,6 +1648,38 @@ function summarizeProjectStatsResult(body: Record<string, unknown>, locale?: str
         ? `${scopeLabel}还有 ${value} 条语段缺少说话人。`
         : `There are ${value} segments missing speakers in ${scopeLabel}.`;
     }
+  }
+
+  if (zh) {
+    const conclusion = requestedMetricRaw === 'speaker_count' && speakerCount !== undefined
+      ? `${scopeLabel}共有 ${speakerCount} 位说话人。`
+      : metric === 'unit_count' && unitCount !== undefined
+        ? `${scopeLabel}共有 ${unitCount} 条语段。`
+        : metric === 'translation_layer_count' && translationLayerCount !== undefined
+          ? `${scopeLabel}共有 ${translationLayerCount} 个翻译层。`
+          : metric === 'ai_confidence_avg' && aiConfidenceAvg !== undefined
+            ? `${scopeLabel}平均置信度为 ${aiConfidenceAvg.toFixed(3)}。`
+            : `${scopeLabel}统计已读取。`;
+    const evidenceBits: string[] = [];
+    if (unitCount !== undefined) evidenceBits.push(`语段数 ${unitCount}`);
+    if (speakerCount !== undefined) evidenceBits.push(`说话人数 ${speakerCount}`);
+    if (translationLayerCount !== undefined) evidenceBits.push(`翻译层 ${translationLayerCount}`);
+    if (aiConfidenceAvg !== undefined) evidenceBits.push(`平均置信度 ${aiConfidenceAvg.toFixed(3)}`);
+    const readModel = asObject(body._readModel);
+    const isComplete = readModel?.unitIndexComplete === true;
+    const uncertainty = isComplete
+      ? '当前读模型快照完整，暂无明显不确定项。'
+      : '当前读模型可能未完全同步，建议在最新范围下复查一次。';
+    const nextStep = requestedMetricRaw === 'speaker_count'
+      ? '如需细分，请继续问“按说话人分别有多少条语段”。'
+      : '如需深入，请继续问“按说话人/层级细分统计”。';
+    return [
+      `结论：${conclusion}`,
+      `证据：${evidenceBits.length > 0 ? evidenceBits.join('，') : '暂无可结构化统计字段。'}`,
+      `范围：${scopeLabel}。`,
+      `不确定项：${uncertainty}`,
+      `建议下一步：${nextStep}`,
+    ].join('\n');
   }
 
   const bits: string[] = [];
@@ -1620,6 +1837,208 @@ function summarizeLocalContextToolResult(
   }
 }
 
+function previewPlainText(value: unknown, maxChars = 48): string {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return trimmed.length > maxChars ? `${trimmed.slice(0, maxChars)}…` : trimmed;
+}
+
+function joinStructuredBits(bits: string[], locale?: string): string {
+  const zh = isZhLocale(locale);
+  return bits.length > 0
+    ? bits.join(zh ? '；' : '; ')
+    : (zh ? '当前没有额外的结构化证据。' : 'There is no additional structured evidence in this result.');
+}
+
+function buildLocalToolEvidenceText(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  const body = asObjectRecord(result.result);
+  if (!body) {
+    return zh ? '当前结果没有返回结构化字段。' : 'The current result did not return structured fields.';
+  }
+
+  const bits: string[] = [];
+  const scopeLabel = result.name === 'get_current_selection'
+    ? (zh ? '当前上下文' : 'current context')
+    : humanizeScope(body.scope, locale);
+
+  switch (result.name) {
+    case 'get_project_stats': {
+      const unitCount = asFiniteNumber(body.unitCount);
+      const speakerCount = asFiniteNumber(body.speakerCount);
+      const translationLayerCount = asFiniteNumber(body.translationLayerCount);
+      const value = asFiniteNumber(body.value);
+      if (speakerCount !== undefined) bits.push(zh ? `${speakerCount} 位说话人` : `${speakerCount} speakers`);
+      if (unitCount !== undefined) bits.push(zh ? `${unitCount} 条语段` : `${unitCount} segments`);
+      if (translationLayerCount !== undefined) bits.push(zh ? `${translationLayerCount} 个翻译层` : `${translationLayerCount} translation layers`);
+      if (value !== undefined && value !== unitCount && value !== speakerCount && value !== translationLayerCount) {
+        bits.push(zh ? `目标指标值 ${value}` : `target metric value ${value}`);
+      }
+      break;
+    }
+    case 'list_units':
+    case 'search_units': {
+      const count = asFiniteNumber(body.count) ?? asFiniteNumber(body.total);
+      if (count !== undefined) bits.push(zh ? `${scopeLabel}命中 ${count} 条` : `${count} matches in ${scopeLabel}`);
+      const matches = Array.isArray(body.matches) ? body.matches : [];
+      const first = matches[0];
+      if (first && typeof first === 'object' && !Array.isArray(first)) {
+        const row = first as Record<string, unknown>;
+        const firstId = typeof row.id === 'string' ? row.id : '';
+        const textPreview = previewPlainText(row.transcription ?? row.text);
+        if (firstId || textPreview) {
+          bits.push(zh
+            ? `示例 ${firstId || '首条'}${textPreview ? `：${textPreview}` : ''}`
+            : `example ${firstId || 'first item'}${textPreview ? `: ${textPreview}` : ''}`);
+        }
+      }
+      break;
+    }
+    case 'get_unit_detail': {
+      const unitId = typeof body.id === 'string' ? body.id : '';
+      const startTime = asFiniteNumber(body.startTime);
+      const endTime = asFiniteNumber(body.endTime);
+      const transcription = previewPlainText(body.transcription);
+      if (unitId) bits.push(zh ? `语段 ID ${unitId}` : `segment ID ${unitId}`);
+      if (startTime !== undefined && endTime !== undefined) {
+        bits.push(zh ? `时间 ${startTime.toFixed(1)}s–${endTime.toFixed(1)}s` : `time ${startTime.toFixed(1)}s–${endTime.toFixed(1)}s`);
+      }
+      if (transcription) bits.push(zh ? `文本“${transcription}”` : `text “${transcription}”`);
+      break;
+    }
+    case 'get_unit_linguistic_memory': {
+      const coverage = asObject(body.coverage);
+      const tokenCount = asFiniteNumber(coverage?.tokenCount);
+      const translationCount = asFiniteNumber(coverage?.translationCount);
+      if (translationCount !== undefined) bits.push(zh ? `${translationCount} 条译文` : `${translationCount} translations`);
+      if (tokenCount !== undefined) bits.push(zh ? `${tokenCount} 个词项` : `${tokenCount} tokens`);
+      break;
+    }
+    case 'diagnose_quality': {
+      const count = asFiniteNumber(body.count);
+      const breakdown = asObject(body.breakdown) ?? asObject(asObject(body.meta)?.breakdown);
+      const emptyTextCount = asFiniteNumber(breakdown?.emptyTextCount);
+      const missingSpeakerCount = asFiniteNumber(breakdown?.missingSpeakerCount);
+      const completionRate = asFiniteNumber(body.completionRate) ?? asFiniteNumber(asObject(body.meta)?.completionRate);
+      if (count !== undefined) bits.push(zh ? `${count} 类质量问题` : `${count} quality issue categories`);
+      if (emptyTextCount !== undefined) bits.push(zh ? `${emptyTextCount} 条未转写` : `${emptyTextCount} untranscribed`);
+      if (missingSpeakerCount !== undefined) bits.push(zh ? `${missingSpeakerCount} 条缺少说话人` : `${missingSpeakerCount} missing speakers`);
+      if (completionRate !== undefined) bits.push(zh ? `完成率 ${(completionRate * 100).toFixed(1)}%` : `completion ${(completionRate * 100).toFixed(1)}%`);
+      break;
+    }
+    case 'get_current_selection': {
+      const currentScopeUnitCount = asFiniteNumber(body.currentScopeUnitCount);
+      const currentMediaUnitCount = asFiniteNumber(body.currentMediaUnitCount);
+      const projectUnitCount = asFiniteNumber(body.projectUnitCount);
+      if (currentScopeUnitCount !== undefined) bits.push(zh ? `当前范围 ${currentScopeUnitCount} 条` : `${currentScopeUnitCount} segments in the current scope`);
+      if (currentMediaUnitCount !== undefined) bits.push(zh ? `当前音频 ${currentMediaUnitCount} 条` : `${currentMediaUnitCount} segments in the current audio`);
+      if (projectUnitCount !== undefined) bits.push(zh ? `整个项目 ${projectUnitCount} 条` : `${projectUnitCount} segments in the whole project`);
+      break;
+    }
+    default:
+      bits.push(zh ? `已完成 ${scopeLabel} 的本地读取` : `local read completed for ${scopeLabel}`);
+      break;
+  }
+
+  const readModel = asObject(body._readModel);
+  const source = typeof readModel?.source === 'string' ? readModel.source.trim() : '';
+  if (source) {
+    bits.push(zh ? `读取来源 ${source}` : `read source ${source}`);
+  }
+
+  return joinStructuredBits(bits, locale);
+}
+
+function buildLocalToolScopeText(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  const body = asObjectRecord(result.result);
+  if (result.name === 'get_current_selection') {
+    return zh ? '当前上下文（选区、当前音频与项目级状态）。' : 'Current context (selection, current audio, and project-level state).';
+  }
+  return zh
+    ? `本次查询范围：${humanizeScope(body?.scope, locale)}。`
+    : `This query used ${humanizeScope(body?.scope, locale)}.`;
+}
+
+function buildLocalToolUncertaintyText(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  if (!result.ok) {
+    const reason = result.error ?? 'unknown_error';
+    return zh
+      ? `这一步尚未成功，错误原因为 ${reason}。`
+      : `This step did not complete successfully. Reported reason: ${reason}.`;
+  }
+
+  const body = asObjectRecord(result.result);
+  const readModel = asObject(body?._readModel);
+  if (readModel?.unitIndexComplete === false) {
+    return zh
+      ? '当前时间轴索引仍在加载，数量类结果可能偏少。'
+      : 'The timeline index is still loading, so count-like results may be low.';
+  }
+  if (result.name === 'search_units' || result.name === 'list_units') {
+    const count = asFiniteNumber(body?.count) ?? 0;
+    if (count === 0) {
+      return zh
+        ? '本次没有命中结果，可能是关键词过窄，或当前范围内确实为空。'
+        : 'This lookup returned no hits; the keyword may be narrow, or the current scope may truly be empty.';
+    }
+  }
+  if (result.name === 'get_project_stats' && asFiniteNumber(body?.speakerCount) === undefined) {
+    return zh
+      ? '说话人数依赖已标注的说话人信息；未标注部分不会被计入。'
+      : 'Speaker counts depend on existing speaker labels; unlabeled items are not counted.';
+  }
+  return zh
+    ? '当前结果基于本地快照；如果你刚修改过内容，我可以继续复核明细。'
+    : 'This answer is based on the local snapshot; if you edited content just now, I can re-check the details.';
+}
+
+function buildLocalToolNextStepText(result: LocalContextToolResult, locale?: string): string {
+  const zh = isZhLocale(locale);
+  switch (result.name) {
+    case 'get_project_stats':
+    case 'diagnose_quality':
+      return zh
+        ? '我可以继续列出具体语段、缺失项，或只看当前范围。'
+        : 'I can next list the exact segments, the missing items, or narrow this to the current scope.';
+    case 'list_units':
+    case 'search_units':
+      return zh
+        ? '告诉我第几个语段或直接给语段 ID，我就继续展开详情。'
+        : 'Tell me which segment number or ID you want, and I can open the details.';
+    case 'get_unit_detail':
+    case 'get_unit_linguistic_memory':
+      return zh
+        ? '如果需要，我可以继续查看译文、词法标注或相关质量问题。'
+        : 'If needed, I can continue with translations, linguistic annotations, or related quality issues.';
+    case 'get_current_selection':
+      return zh
+        ? '你可以继续指定想看的指标，例如语段数、说话人数或缺失项。'
+        : 'You can now name the exact metric you want, such as segment count, speaker count, or missing items.';
+    default:
+      return zh ? '告诉我你想继续到哪一步，我会沿着当前结果往下做。' : 'Tell me the next step you want, and I will continue from this result.';
+  }
+}
+
+function formatStructuredLocalToolAnswer(
+  result: LocalContextToolResult,
+  locale: string,
+  userText: string,
+): string {
+  const zh = isZhLocale(locale);
+  const summary = summarizeLocalContextToolResult(result, locale, userText);
+  const sections = [
+    `${zh ? '结论：' : 'Conclusion: '}${summary}`,
+    `${zh ? '证据：' : 'Evidence: '}${buildLocalToolEvidenceText(result, locale)}`,
+    `${zh ? '范围：' : 'Scope: '}${buildLocalToolScopeText(result, locale)}`,
+    `${zh ? '不确定项：' : 'Uncertainty: '}${buildLocalToolUncertaintyText(result, locale)}`,
+    `${zh ? '建议下一步：' : 'Suggested next step: '}${buildLocalToolNextStepText(result, locale)}`,
+  ];
+  return sections.join('\n');
+}
+
 export function formatLocalContextToolResultMessage(
   result: LocalContextToolResult,
   locale: string = 'en-US',
@@ -1632,7 +2051,7 @@ export function formatLocalContextToolResultMessage(
     scope: 'single',
     toolName: result.name,
   });
-  const summary = summarizeLocalContextToolResult(result, locale, userText);
+  const summary = formatStructuredLocalToolAnswer(result, locale, userText);
   return truncated ? `${summary}${TOOL_RESULT_TRUNCATION_WARNING}` : summary;
 }
 
@@ -1646,18 +2065,27 @@ export function formatLocalContextToolBatchResultMessage(
   const zh = isZhLocale(locale);
   const successCount = results.filter((item) => item.ok).length;
   const failedCount = results.length - successCount;
-  const detail = results
+  const evidence = results
     .slice(0, 2)
     .map((item) => summarizeLocalContextToolResult(item, locale, userText).replace(/[。.]$/, ''))
     .join(zh ? '；' : '; ');
-  let summary = zh
-    ? `我已完成 ${results.length} 项本地查询${detail ? `：${detail}。` : '。'}`
-    : `I completed ${results.length} local lookups${detail ? `: ${detail}.` : '.'}`;
-  if (failedCount > 0) {
-    summary += zh
-      ? ` 其中 ${failedCount} 项还需要进一步确认。`
-      : ` ${failedCount} of them still need clarification.`;
-  }
+  const scopeLabels = Array.from(new Set(results.map((item) => {
+    const body = asObjectRecord(item.result);
+    return item.name === 'get_current_selection'
+      ? (zh ? '当前上下文' : 'current context')
+      : humanizeScope(body?.scope, locale);
+  })));
+  const summary = [
+    `${zh ? '结论：' : 'Conclusion: '}${zh ? `已完成 ${results.length} 项本地查询，其中成功 ${successCount} 项。` : `Completed ${results.length} local lookups, with ${successCount} successful.`}`,
+    `${zh ? '证据：' : 'Evidence: '}${evidence || (zh ? '当前批次没有返回更多细节。' : 'This batch did not return extra detail.')}`,
+    `${zh ? '范围：' : 'Scope: '}${scopeLabels.join(zh ? '、' : ', ')}`,
+    `${zh ? '不确定项：' : 'Uncertainty: '}${failedCount > 0
+      ? (zh ? `仍有 ${failedCount} 项需要进一步澄清或重试。` : `${failedCount} items still need clarification or retry.`)
+      : (zh ? '当前批次未发现明显冲突。' : 'No obvious conflict was found in this batch.')}`,
+    `${zh ? '建议下一步：' : 'Suggested next step: '}${failedCount > 0
+      ? (zh ? '先缩小范围或补充关键词，我可以继续处理失败项。' : 'First narrow the scope or add a keyword, and I can continue with the failed items.')
+      : (zh ? '如果需要，我可以继续展开某一项的详情。' : 'If needed, I can now expand the details of any one result.')}`,
+  ].join('\n');
   return truncated ? `${summary}${TOOL_RESULT_TRUNCATION_WARNING}` : summary;
 }
 

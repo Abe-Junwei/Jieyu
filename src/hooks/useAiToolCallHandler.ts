@@ -1,12 +1,9 @@
 import { useCallback, useRef } from 'react';
-import type { UtteranceDocType, LayerDocType } from '../db';
+import type { LayerUnitDocType, LayerDocType } from '../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import { useLatest } from './useLatest';
 import { tf, useLocale } from '../i18n';
-import {
-  layerMatchesLanguage,
-  parseLayerHintFromOpaqueId,
-} from './useAiToolCallHandler.helpers';
+import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';
 import type { ExecutionContext, UseAiToolCallHandlerParams as Params, CompensationEntry } from './useAiToolCallHandler.types';
 import { AI_TOOL_CALL_ADAPTER_MAP } from './useAiToolCallHandler.adapters';
 
@@ -16,7 +13,7 @@ import { AI_TOOL_CALL_ADAPTER_MAP } from './useAiToolCallHandler.adapters';
 // ─────────────────────────────────────────────────────────────
 
 export function useAiToolCallHandler({
-  utterances,
+  units,
   selectedUnit,
   selectedUnitMedia,
   selectedLayerId,
@@ -24,22 +21,20 @@ export function useAiToolCallHandler({
   translationLayers,
   layerLinks,
   createLayer,
-  createNextUtterance,
+  createAdjacentUnit,
   createTranscriptionSegment,
-  splitUtterance,
+  splitUnit,
   splitTranscriptionSegment,
   mergeWithPrevious,
   mergeWithNext,
   mergeSelectedUnits,
-  mergeSelectedUtterances,
   mergeSelectedSegments,
-  deleteUtterance,
+  deleteUnit,
   deleteSelectedUnits,
-  deleteSelectedUtterances,
   deleteLayer,
   toggleLayerLink,
-  saveUtteranceText,
-  saveTextTranslationForUtterance,
+  saveUnitText,
+  saveUnitLayerText,
   saveSegmentContentForLayer,
   segmentTargets,
   updateTokenPos,
@@ -55,7 +50,7 @@ export function useAiToolCallHandler({
   bridgeTextForLayerWrite,
 }: Params): (call: AiChatToolCall) => Promise<AiChatToolResult> {
   const locale = useLocale();
-  const utterancesRef = useLatest(utterances);
+  const unitsRef = useLatest(units);
   const selectedUnitRef = useLatest(selectedUnit);
   const selectedUnitMediaRef = useLatest(selectedUnitMedia);
   const selectedLayerIdRef = useLatest(selectedLayerId);
@@ -70,13 +65,13 @@ export function useAiToolCallHandler({
   const COMPENSATION_TTL_MS = 60_000;
 
   return useCallback(async (call: AiChatToolCall): Promise<AiChatToolResult> => {
-    const currentUtterances = utterancesRef.current;
-    const currentSelectedUtterance = selectedUnitRef.current;
+    const currentUnits = unitsRef.current;
+    const currentSelectedUnit = selectedUnitRef.current;
     const currentSelectedUnitMedia = selectedUnitMediaRef.current;
     const currentTranscriptionLayers = transcriptionLayersRef.current;
     const currentTranslationLayers = translationLayersRef.current;
     const currentLayerLinks = layerLinksRef.current;
-    const orderedUtterances = [...currentUtterances].sort((left, right) => {
+    const orderedUnits = [...currentUnits].sort((left, right) => {
       const startDiff = Number(left.startTime) - Number(right.startTime);
       if (startDiff !== 0) return startDiff;
       const endDiff = Number(left.endTime) - Number(right.endTime);
@@ -98,12 +93,12 @@ export function useAiToolCallHandler({
       if (segmentOnlyTargetTools.has(call.name)) {
         return String(call.arguments.segmentId ?? '').trim();
       }
-      return String(call.arguments.utteranceId ?? call.arguments.segmentId ?? '').trim();
+      return String(call.arguments.unitId ?? call.arguments.segmentId ?? '').trim();
     };
 
     // 预绑定解析函数（已捕获当前 call + 快照数据）
     // Pre-bind resolver helpers (closed over current call + snapshot)
-    const hasRequestedUtteranceTarget = (): boolean => {
+    const hasRequestedUnitTarget = (): boolean => {
       const requestedId = resolvePrimaryRequestedTargetId();
       if (requestedId.length > 0) return true;
       const segmentIndex = call.arguments.segmentIndex;
@@ -111,7 +106,7 @@ export function useAiToolCallHandler({
       return typeof call.arguments.segmentPosition === 'string' && call.arguments.segmentPosition.length > 0;
     };
 
-    const describeRequestedUtteranceTarget = (): string => {
+    const describeRequestedUnitTarget = (): string => {
       const requestedId = resolvePrimaryRequestedTargetId();
       if (requestedId.length > 0) return requestedId;
       const segmentIndex = call.arguments.segmentIndex;
@@ -136,31 +131,31 @@ export function useAiToolCallHandler({
       return '';
     };
 
-    const resolveRequestedUtterance = (): UtteranceDocType | null => {
+    const resolveRequestedUnit = (): LayerUnitDocType | null => {
       const requestedId = resolvePrimaryRequestedTargetId();
       if (requestedId.length > 0) {
-        return currentUtterances.find((item) => item.id === requestedId) ?? null;
+        return currentUnits.find((item) => item.id === requestedId) ?? null;
       }
       const segmentIndex = call.arguments.segmentIndex;
       if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
-        return orderedUtterances[segmentIndex - 1] ?? null;
+        return orderedUnits[segmentIndex - 1] ?? null;
       }
       if (call.arguments.segmentPosition === 'last') {
-        return orderedUtterances.length > 0 ? orderedUtterances[orderedUtterances.length - 1] ?? null : null;
+        return orderedUnits.length > 0 ? orderedUnits[orderedUnits.length - 1] ?? null : null;
       }
       if (call.arguments.segmentPosition === 'penultimate') {
-        return orderedUtterances.length > 1 ? orderedUtterances[orderedUtterances.length - 2] ?? null : null;
+        return orderedUnits.length > 1 ? orderedUnits[orderedUnits.length - 2] ?? null : null;
       }
       if (call.arguments.segmentPosition === 'middle') {
-        if (orderedUtterances.length === 0) return null;
-        return orderedUtterances[Math.floor((orderedUtterances.length - 1) / 2)] ?? null;
+        if (orderedUnits.length === 0) return null;
+        return orderedUnits[Math.floor((orderedUnits.length - 1) / 2)] ?? null;
       }
       if (call.arguments.segmentPosition === 'previous' || call.arguments.segmentPosition === 'next') {
-        if (!currentSelectedUtterance) return null;
-        const anchorIndex = orderedUtterances.findIndex((item) => item.id === currentSelectedUtterance.id);
+        if (!currentSelectedUnit) return null;
+        const anchorIndex = orderedUnits.findIndex((item) => item.id === currentSelectedUnit.id);
         if (anchorIndex < 0) return null;
         const offset = call.arguments.segmentPosition === 'previous' ? -1 : 1;
-        return orderedUtterances[anchorIndex + offset] ?? null;
+        return orderedUnits[anchorIndex + offset] ?? null;
       }
       return null;
     };
@@ -198,14 +193,14 @@ export function useAiToolCallHandler({
       return null;
     };
 
-    const mergeSelectedBatch = mergeSelectedUnits ?? mergeSelectedUtterances;
-    const deleteSelectedBatch = deleteSelectedUnits ?? deleteSelectedUtterances;
+    const mergeSelectedBatch = mergeSelectedUnits;
+    const deleteSelectedBatch = deleteSelectedUnits;
 
     const ctx: ExecutionContext = {
       call,
       locale,
-      utterances: currentUtterances,
-      selectedUnit: currentSelectedUtterance,
+      units: currentUnits,
+      selectedUnit: currentSelectedUnit,
       selectedUnitMedia: currentSelectedUnitMedia,
       selectedLayerId: selectedLayerIdRef.current,
       transcriptionLayers: currentTranscriptionLayers,
@@ -214,9 +209,9 @@ export function useAiToolCallHandler({
       layerLinks: currentLayerLinks,
       compensationRef,
       COMPENSATION_TTL_MS,
-      hasRequestedUtteranceTarget,
-      describeRequestedUtteranceTarget,
-      resolveRequestedUtterance,
+      hasRequestedUnitTarget,
+      describeRequestedUnitTarget,
+      resolveRequestedUnit,
       resolveRequestedSegmentTarget,
       resolveRequestedTranslationLayerId,
       resolveTranscriptionLayerForLink,
@@ -224,22 +219,20 @@ export function useAiToolCallHandler({
       layerMatchesLanguage,
       parseLayerHintFromOpaqueId,
       createLayer,
-      createNextUtterance,
+      createAdjacentUnit,
       createTranscriptionSegment,
-      splitUtterance,
+      splitUnit,
       splitTranscriptionSegment,
       mergeWithPrevious,
       mergeWithNext,
       mergeSelectedUnits: mergeSelectedBatch,
-      mergeSelectedUtterances: mergeSelectedBatch,
       mergeSelectedSegments,
-      deleteUtterance,
+      deleteUnit,
       deleteSelectedUnits: deleteSelectedBatch,
-      deleteSelectedUtterances: deleteSelectedBatch,
       deleteLayer,
       toggleLayerLink,
-      saveUtteranceText,
-      saveTextTranslationForUtterance,
+      saveUnitText,
+      saveUnitLayerText,
       saveSegmentContentForLayer,
       updateTokenPos,
       batchUpdateTokenPosByForm,
@@ -262,23 +255,21 @@ export function useAiToolCallHandler({
   }, [
     locale,
     createLayer,
-    createNextUtterance,
+    createAdjacentUnit,
     createTranscriptionSegment,
-    splitUtterance,
+    splitUnit,
     splitTranscriptionSegment,
     mergeWithPrevious,
     mergeWithNext,
     mergeSelectedUnits,
-    mergeSelectedUtterances,
     mergeSelectedSegments,
     deleteLayer,
-    deleteUtterance,
+    deleteUnit,
     deleteSelectedUnits,
-    deleteSelectedUtterances,
     toggleLayerLink,
-    saveTextTranslationForUtterance,
+    saveUnitLayerText,
     saveSegmentContentForLayer,
-    saveUtteranceText,
+    saveUnitText,
     updateTokenPos,
     batchUpdateTokenPosByForm,
     updateTokenGloss,
@@ -290,7 +281,7 @@ export function useAiToolCallHandler({
     splitAtTime,
     zoomToSegment,
     bridgeTextForLayerWrite,
-    utterancesRef,
+    unitsRef,
     selectedUnitRef,
     selectedUnitMediaRef,
     selectedLayerIdRef,

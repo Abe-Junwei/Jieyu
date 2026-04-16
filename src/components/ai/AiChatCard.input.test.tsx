@@ -7,10 +7,7 @@ import { AiChatCard } from './AiChatCard';
 import * as replayUtils from './aiChatReplayUtils';
 import { db } from '../../db';
 import { normalizeAiChatSettings } from '../../ai/providers/providerCatalog';
-import {
-  AiAssistantHubContext,
-  type AiAssistantHubContextValue,
-} from '../../contexts/AiAssistantHubContext';
+import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';
 import { pickAiAssistantHubContextValue } from '../../hooks/useAiAssistantHubContextValue';
@@ -135,7 +132,7 @@ describe('AiChatCard input submit', () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({
         currentPage: 'transcription',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedLayerType: 'translation',
         selectedText: '这是一条需要补充说明的译文',
         selectedTimeRangeLabel: '00:12-00:15',
@@ -158,7 +155,7 @@ describe('AiChatCard input submit', () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({
         currentPage: 'transcription',
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedLayerType: 'translation',
         selectedText: '这里是一条待处理的译文',
         aiMessages: [
@@ -346,6 +343,107 @@ describe('AiChatCard input submit', () => {
     expect(within(view.container).getByText(/Agent loop 2\/6|多步推理 2\/6/)).toBeTruthy();
   });
 
+  it('shows compact task trace items for the latest tool steps', () => {
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        aiTaskSession: {
+          id: 'task-trace',
+          status: 'explaining',
+          updatedAt: new Date().toISOString(),
+          trace: [
+            {
+              phase: 'local_tool',
+              stepNumber: 1,
+              toolName: 'get_project_stats',
+              outcome: 'done',
+              durationMs: 18,
+              timestamp: new Date().toISOString(),
+            },
+            {
+              phase: 'clarify',
+              stepNumber: 2,
+              toolName: 'search_units',
+              outcome: 'clarify',
+              errorTaxonomy: 'query_ambiguous',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(within(view.container).getByText(/get_project_stats/)).toBeTruthy();
+    expect(within(view.container).getByText(/18ms/)).toBeTruthy();
+    expect(within(view.container).getByText(/需澄清|Needs input/i)).toBeTruthy();
+  });
+
+  it('renders follow-up chips from the latest local-query frame and sends the selected follow-up', () => {
+    const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
+    const now = new Date().toISOString();
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        onSendAiMessage,
+        aiMessages: [
+          { id: 'u1', role: 'user', content: '当前范围有多少说话人？', status: 'done' },
+          { id: 'a1', role: 'assistant', content: '结论：当前范围共有 3 位说话人。', status: 'done', generationSource: 'local' },
+        ],
+        aiSessionMemory: {
+          localToolState: {
+            updatedAt: now,
+            lastFrame: {
+              domain: 'project_stats',
+              questionKind: 'count',
+              metric: 'speaker_count',
+              scope: 'current_scope',
+              updatedAt: now,
+            },
+          },
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    const followUpButton = within(view.container).getByRole('button', { name: /按说话人分别统计|Break down by speaker/i });
+    fireEvent.click(followUpButton);
+    expect(onSendAiMessage).toHaveBeenCalledWith(expect.stringMatching(/说话人|speaker/i));
+  });
+
+  it('does not show stale follow-up chips when the latest assistant reply is not a local-query answer', () => {
+    const now = new Date().toISOString();
+    const view = render(
+      <AiAssistantHubContext.Provider value={makeContextValue({
+        aiMessages: [
+          { id: 'u1', role: 'user', content: '当前范围有多少说话人？', status: 'done' },
+          { id: 'a1', role: 'assistant', content: '结论：当前范围共有 3 位说话人。', status: 'done', generationSource: 'local' },
+          { id: 'u2', role: 'user', content: '顺便解释一下这个缩写', status: 'done' },
+          { id: 'a2', role: 'assistant', content: '这是一个普通解释回复。', status: 'done', generationSource: 'llm' },
+        ],
+        aiSessionMemory: {
+          localToolState: {
+            updatedAt: now,
+            lastFrame: {
+              domain: 'project_stats',
+              questionKind: 'count',
+              metric: 'speaker_count',
+              scope: 'current_scope',
+              updatedAt: now,
+            },
+          },
+        },
+      })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    expect(within(view.container).queryByRole('button', { name: /按说话人分别统计|Break down by speaker/i })).toBeNull();
+  });
+
   it('shows stop button while assistant is streaming without persistent hint', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
 
@@ -385,13 +483,13 @@ describe('AiChatCard input submit', () => {
 
   it('shows user-friendly pending target label instead of full internal id', () => {
     const onSendAiMessage = vi.fn().mockResolvedValue(undefined);
-    const utteranceId = 'utt_1773986765082_joj08x';
+    const unitId = 'utt_1773986765082_joj08x';
 
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({
         onSendAiMessage,
         aiPendingToolCall: {
-          call: { name: 'delete_transcription_segment', arguments: { utteranceId } },
+          call: { name: 'delete_transcription_segment', arguments: { unitId } },
           assistantMessageId: 'ast-1',
           riskSummary: '将删除 1 条句段',
           impactPreview: ['删除后不可恢复'],
@@ -407,7 +505,7 @@ describe('AiChatCard input submit', () => {
     }
 
     expect(within(view.container).getByText(/目标:|Target:/i)).toBeTruthy();
-    expect(within(view.container).queryByText(utteranceId)).toBeNull();
+    expect(within(view.container).queryByText(unitId)).toBeNull();
     expect(within(view.container).getByRole('button', { name: /确认删除|Confirm Delete/i })).toBeTruthy();
   });
 
@@ -450,7 +548,7 @@ describe('AiChatCard input submit', () => {
         value={makeContextValue({
           selectedUnit: {
             id: 'utt-quick-1',
-            kind: 'utterance',
+            kind: 'unit',
             mediaId: 'media-1',
             layerId: 'layer-1',
             startTime: 1.25,
@@ -477,7 +575,7 @@ describe('AiChatCard input submit', () => {
         value={makeContextValue({
           selectedUnit: {
             id: 'utt-quick-2',
-            kind: 'utterance',
+            kind: 'unit',
             mediaId: 'media-1',
             layerId: 'layer-1',
             startTime: 2.5,
@@ -511,7 +609,7 @@ describe('AiChatCard input submit', () => {
               citations: [
                 { type: 'pdf', refId: 'pdf-1', label: '文档参考' },
                 { type: 'note', refId: 'note-1', label: '笔记参考' },
-                { type: 'utterance', refId: 'u-1', label: '句段参考' },
+                { type: 'unit', refId: 'u-1', label: '句段参考' },
               ],
             },
           ],
@@ -533,7 +631,7 @@ describe('AiChatCard input submit', () => {
     expect(pdfIndex).toBeGreaterThan(noteIndex);
   });
 
-  it('hides legacy utterance id labels and shows friendly citation text', () => {
+  it('hides legacy unit id labels and shows friendly citation text', () => {
     const view = render(
       <AiAssistantHubContext.Provider
         value={makeContextValue({
@@ -544,7 +642,7 @@ describe('AiChatCard input submit', () => {
               content: 'reply',
               status: 'done',
               citations: [
-                { type: 'utterance', refId: 'utt_1773986765082_joj08x', label: 'utt:utt_1773986765082_joj08x' },
+                { type: 'unit', refId: 'utt_1773986765082_joj08x', label: 'utt:utt_1773986765082_joj08x' },
               ],
             },
           ],
@@ -554,7 +652,7 @@ describe('AiChatCard input submit', () => {
       </AiAssistantHubContext.Provider>,
     );
 
-    expect(within(view.container).getByRole('button', { name: /语段参照|句段参考|Unit ref|Utterance Ref/i })).toBeTruthy();
+    expect(within(view.container).getByRole('button', { name: /语段参照|句段参考|Unit ref|Unit Ref/i })).toBeTruthy();
     expect(within(view.container).queryByText('utt:utt_1773986765082_joj08x')).toBeNull();
   });
 
@@ -689,7 +787,7 @@ describe('AiChatCard input submit', () => {
         requestId: 'toolreq_ui_1',
         toolName: 'set_transcription_text',
         replayable: true,
-        toolCall: { name: 'set_transcription_text', arguments: { utteranceId: 'u1', text: 'hello' } },
+        toolCall: { name: 'set_transcription_text', arguments: { unitId: 'u1', text: 'hello' } },
         context: { userText: '改成 hello' },
         decisions: [
           {
@@ -724,7 +822,7 @@ describe('AiChatCard input submit', () => {
           schemaVersion: 1,
           phase: 'intent',
           requestId: 'toolreq_ui_1',
-          toolCall: { name: 'set_transcription_text', arguments: { utteranceId: 'u1', text: 'hello' } },
+          toolCall: { name: 'set_transcription_text', arguments: { unitId: 'u1', text: 'hello' } },
           context: { userText: '改成 hello' },
         }),
       },
@@ -744,7 +842,7 @@ describe('AiChatCard input submit', () => {
           phase: 'decision',
           requestId: 'toolreq_ui_1',
           source: 'ai',
-          toolCall: { name: 'set_transcription_text', arguments: { utteranceId: 'u1', text: 'hello' } },
+          toolCall: { name: 'set_transcription_text', arguments: { unitId: 'u1', text: 'hello' } },
           context: { userText: '改成 hello' },
           executed: true,
           outcome: 'auto_confirmed',
@@ -846,7 +944,7 @@ describe('AiChatCard input submit', () => {
           schemaVersion: 1,
           phase: 'intent',
           requestId: 'toolreq_ui_export_1',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
         }),
       },
       {
@@ -865,7 +963,7 @@ describe('AiChatCard input submit', () => {
           phase: 'decision',
           requestId: 'toolreq_ui_export_1',
           source: 'ai',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
           executed: true,
           outcome: 'auto_confirmed',
         }),
@@ -924,7 +1022,7 @@ describe('AiChatCard input submit', () => {
         metadataJson: JSON.stringify({
           phase: 'intent',
           requestId: 'toolreq_import_1',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
           context: { userText: '补一条翻译' },
         }),
       },
@@ -942,7 +1040,7 @@ describe('AiChatCard input submit', () => {
         metadataJson: JSON.stringify({
           phase: 'decision',
           requestId: 'toolreq_import_1',
-          toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' } },
+          toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' } },
           context: { userText: '补一条翻译' },
           executed: true,
           outcome: 'auto_confirmed',
@@ -958,7 +1056,7 @@ describe('AiChatCard input submit', () => {
       requestId: 'toolreq_import_1',
       toolName: 'set_translation_text',
       replayable: true,
-      toolCall: { name: 'set_translation_text', arguments: { utteranceId: 'u1', layerId: 'trl-1', text: '你好' }, requestId: 'toolreq_import_1' },
+      toolCall: { name: 'set_translation_text', arguments: { unitId: 'u1', layerId: 'trl-1', text: '你好' }, requestId: 'toolreq_import_1' },
       context: { userText: '补一条翻译' },
       latestDecision: { decision: 'auto_confirmed', executed: true, source: 'ai', timestamp: '2026-03-21T17:00:01.000Z' },
       decisions: [{ decision: 'auto_confirmed', executed: true, source: 'ai', timestamp: '2026-03-21T17:00:01.000Z' }],

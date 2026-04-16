@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LLMProvider } from '../ai/providers/LLMProvider';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
-import {
-  formatConnectionProbeNoContentError,
-  formatConnectionProbeSuccessMessage,
-} from '../ai/messages';
+import { formatConnectionProbeNoContentError, formatConnectionProbeSuccessMessage } from '../ai/messages';
 import type { AiConnectionTestStatus } from './useAiChat.types';
 
 interface UseAiChatConnectionProbeOptions {

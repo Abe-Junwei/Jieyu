@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  buildAiChangeSetFromPendingToolCall,
-  validateChangeSetEpoch,
-} from './AiChangeSetProtocol';
+import { buildAiChangeSetFromPendingToolCall, validateChangeSetEpoch } from './AiChangeSetProtocol';
 import type { PendingAiToolCall } from '../chat/chatDomain.types';
 
 function pendingBase(overrides: Partial<PendingAiToolCall> = {}): PendingAiToolCall {
@@ -46,7 +43,7 @@ describe('AiChangeSetProtocol', () => {
         arguments: { description: 'Two edits', sourceEpoch: 9 },
       },
       proposedChildCalls: [
-        { name: 'set_transcription_text', arguments: { utteranceId: 'seg-1', text: 'hello' } },
+        { name: 'set_transcription_text', arguments: { unitId: 'seg-1', text: 'hello' } },
         { name: 'undo', arguments: {} },
       ],
       assistantMessageId: 'a1',

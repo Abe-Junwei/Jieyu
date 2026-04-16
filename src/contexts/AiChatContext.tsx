@@ -18,7 +18,7 @@ export interface AiChatContextValue {
   currentPage?: 'transcription' | 'glossing' | 'settings' | 'other';
   selectedUnit: TimelineUnitView | null;
   selectedRowMeta: { rowNumber: number; start: number; end: number } | null;
-  selectedUnitKind?: 'utterance' | 'segment' | null;
+  selectedUnitKind?: 'unit' | 'segment' | null;
   selectedLayerType?: 'transcription' | 'translation';
   selectedText?: string | null;
   selectedTimeRangeLabel?: string | null;
@@ -41,14 +41,19 @@ export interface AiChatContextValue {
     id: string;
     toolName: string;
     decision: string;
+    reason?: string;
     requestId?: string;
     timestamp: string;
+    source?: 'human' | 'ai' | 'system';
+    executed?: boolean;
+    durationMs?: number;
+    message?: string;
   }>;
   // Observer
   observerStage: ProjectStage;
   observerRecommendations: Array<{
     actionType?: 'jump' | 'batch_pos' | 'risk_review';
-    targetUtteranceId?: string;
+    targetUnitId?: string;
     targetForm?: string;
     targetPos?: string;
     targetConfidence?: number;
@@ -65,7 +70,7 @@ export interface AiChatContextValue {
   onCancelPendingToolCall: (() => Promise<void>) | undefined;
   onTrackAiRecommendationEvent: ((event: AiRecommendationEvent) => void) | undefined;
   onJumpToCitation: ((
-    citationType: 'utterance' | 'note' | 'pdf' | 'schema',
+    citationType: 'unit' | 'note' | 'pdf' | 'schema',
     refId: string,
     citation?: { snippet?: string },
   ) => Promise<void> | void) | undefined;

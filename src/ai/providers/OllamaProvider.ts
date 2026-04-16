@@ -1,14 +1,5 @@
-import type {
-  ChatChunk,
-  ChatMessage,
-  ChatRequestOptions,
-  LLMProvider,
-} from './LLMProvider';
-import {
-  parseProviderJson,
-  requireProviderValue,
-  throwProviderHttpError,
-} from './errorUtils';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
+import { parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { createThinkTagStripper, iterateJsonLines, toErrorChunk } from './streamUtils';
 
 export interface OllamaProviderConfig {

@@ -1,4 +1,4 @@
-import type { LayerLinkDocType, UtteranceDocType, LayerDocType, MediaItemDocType } from '../db';
+import type { LayerLinkDocType, LayerUnitDocType, LayerDocType, MediaItemDocType } from '../db';
 import type { AiChatToolCall, AiChatToolResult } from './useAiChat';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import type { Locale } from '../i18n';
@@ -12,8 +12,8 @@ export interface CompensationEntry {
 }
 
 export type UseAiToolCallHandlerParams = {
-  utterances: UtteranceDocType[];
-  selectedUnit: UtteranceDocType | undefined;
+  units: LayerUnitDocType[];
+  selectedUnit: LayerUnitDocType | undefined;
   selectedUnitMedia?: MediaItemDocType | undefined;
   selectedLayerId: string;
   transcriptionLayers: LayerDocType[];
@@ -24,33 +24,29 @@ export type UseAiToolCallHandlerParams = {
     input: { languageId: string; alias?: string },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;
-  createNextUtterance: (utt: UtteranceDocType, duration: number) => Promise<void>;
+  createAdjacentUnit: (utt: LayerUnitDocType, duration: number) => Promise<void>;
   createTranscriptionSegment?: (targetId: string) => Promise<void>;
-  splitUtterance: (utteranceId: string, splitTime: number) => Promise<void>;
+  splitUnit: (unitId: string, splitTime: number) => Promise<void>;
   splitTranscriptionSegment?: (targetId: string, splitTime: number) => Promise<void>;
   mergeWithPrevious?: (id: string) => Promise<void>;
   mergeWithNext?: (id: string) => Promise<void>;
-  /** Preferred: merge selected timeline units (batch targets are utterance ids after mapping). */
+  /** Preferred: merge selected timeline units (batch targets are unit ids after mapping). */
   mergeSelectedUnits?: (ids: Set<string>) => Promise<void>;
-  /** @deprecated Use `mergeSelectedUnits` — same signature; legacy name from utterance-only era. */
-  mergeSelectedUtterances?: (ids: Set<string>) => Promise<void>;
   mergeSelectedSegments?: (ids: Set<string>) => Promise<void>;
-  deleteUtterance: (id: string) => Promise<void>;
-  /** Preferred: delete selected timeline units (batch targets are utterance ids after mapping). */
+  deleteUnit: (id: string) => Promise<void>;
+  /** Preferred: delete selected timeline units (batch targets are unit ids after mapping). */
   deleteSelectedUnits?: (ids: Set<string>) => Promise<void>;
-  /** @deprecated Use `deleteSelectedUnits` — same signature. */
-  deleteSelectedUtterances?: (ids: Set<string>) => Promise<void>;
-  deleteLayer: (id: string, options?: { keepUtterances?: boolean }) => Promise<void>;
+  deleteLayer: (id: string, options?: { keepUnits?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
-  saveUtteranceText: (utteranceId: string, text: string, layerId?: string) => Promise<void>;
-  saveTextTranslationForUtterance: (utteranceId: string, text: string, layerId: string) => Promise<void>;
+  saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
   segmentTargets?: SegmentTargetDescriptor[];
   updateTokenPos?: (tokenId: string, pos: string | null) => Promise<void> | void;
-  batchUpdateTokenPosByForm?: (utteranceId: string, form: string, pos: string | null) => Promise<number> | number;
+  batchUpdateTokenPosByForm?: (unitId: string, form: string, pos: string | null) => Promise<number> | number;
   updateTokenGloss?: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
   executeAction?: (actionId: string) => void;
-  getSegments?: () => UtteranceDocType[];
+  getSegments?: () => LayerUnitDocType[];
   navigateTo?: (segmentId: string) => void;
   openSearch?: (detail: { query: string; scope?: AppShellSearchScope; layerKinds?: Array<'transcription' | 'translation' | 'gloss'> }) => void;
   seekToTime?: (timeSeconds: number) => void;
@@ -70,8 +66,8 @@ export type UseAiToolCallHandlerParams = {
 export interface ExecutionContext {
   call: AiChatToolCall;
   locale: Locale;
-  utterances: UtteranceDocType[];
-  selectedUnit: UtteranceDocType | undefined;
+  units: LayerUnitDocType[];
+  selectedUnit: LayerUnitDocType | undefined;
   selectedUnitMedia: MediaItemDocType | undefined;
   selectedLayerId: string;
   transcriptionLayers: LayerDocType[];
@@ -80,9 +76,9 @@ export interface ExecutionContext {
   layerLinks: LayerLinkDocType[];
   compensationRef: { current: Map<string, CompensationEntry> };
   COMPENSATION_TTL_MS: number;
-  hasRequestedUtteranceTarget: () => boolean;
-  describeRequestedUtteranceTarget: () => string;
-  resolveRequestedUtterance: () => UtteranceDocType | null;
+  hasRequestedUnitTarget: () => boolean;
+  describeRequestedUnitTarget: () => string;
+  resolveRequestedUnit: () => LayerUnitDocType | null;
   resolveRequestedSegmentTarget: () => SegmentTargetDescriptor | null;
   resolveRequestedTranslationLayerId: () => string;
   resolveTranscriptionLayerForLink: () => LayerDocType | null;
@@ -90,28 +86,26 @@ export interface ExecutionContext {
   layerMatchesLanguage: (layer: LayerDocType, languageQuery: string) => boolean;
   parseLayerHintFromOpaqueId: (value: string) => { layerType: 'translation' | 'transcription'; languageQuery: string } | null;
   createLayer: UseAiToolCallHandlerParams['createLayer'];
-  createNextUtterance: UseAiToolCallHandlerParams['createNextUtterance'];
+  createAdjacentUnit: UseAiToolCallHandlerParams['createAdjacentUnit'];
   createTranscriptionSegment?: UseAiToolCallHandlerParams['createTranscriptionSegment'];
-  splitUtterance: UseAiToolCallHandlerParams['splitUtterance'];
+  splitUnit: UseAiToolCallHandlerParams['splitUnit'];
   splitTranscriptionSegment?: UseAiToolCallHandlerParams['splitTranscriptionSegment'];
   mergeWithPrevious?: UseAiToolCallHandlerParams['mergeWithPrevious'];
   mergeWithNext?: UseAiToolCallHandlerParams['mergeWithNext'];
   mergeSelectedUnits?: UseAiToolCallHandlerParams['mergeSelectedUnits'];
-  mergeSelectedUtterances?: UseAiToolCallHandlerParams['mergeSelectedUtterances'];
   mergeSelectedSegments?: UseAiToolCallHandlerParams['mergeSelectedSegments'];
-  deleteUtterance: UseAiToolCallHandlerParams['deleteUtterance'];
+  deleteUnit: UseAiToolCallHandlerParams['deleteUnit'];
   deleteSelectedUnits?: UseAiToolCallHandlerParams['deleteSelectedUnits'];
-  deleteSelectedUtterances?: UseAiToolCallHandlerParams['deleteSelectedUtterances'];
   deleteLayer: UseAiToolCallHandlerParams['deleteLayer'];
   toggleLayerLink: UseAiToolCallHandlerParams['toggleLayerLink'];
-  saveUtteranceText: UseAiToolCallHandlerParams['saveUtteranceText'];
-  saveTextTranslationForUtterance: UseAiToolCallHandlerParams['saveTextTranslationForUtterance'];
+  saveUnitText: UseAiToolCallHandlerParams['saveUnitText'];
+  saveUnitLayerText: UseAiToolCallHandlerParams['saveUnitLayerText'];
   saveSegmentContentForLayer?: UseAiToolCallHandlerParams['saveSegmentContentForLayer'];
   updateTokenPos?: UseAiToolCallHandlerParams['updateTokenPos'];
   batchUpdateTokenPosByForm?: UseAiToolCallHandlerParams['batchUpdateTokenPosByForm'];
   updateTokenGloss?: UseAiToolCallHandlerParams['updateTokenGloss'];
   executeAction: ((actionId: string) => void) | undefined;
-  getSegments?: () => UtteranceDocType[];
+  getSegments?: () => LayerUnitDocType[];
   navigateTo?: (segmentId: string) => void;
   openSearch?: UseAiToolCallHandlerParams['openSearch'];
   seekToTime?: UseAiToolCallHandlerParams['seekToTime'];

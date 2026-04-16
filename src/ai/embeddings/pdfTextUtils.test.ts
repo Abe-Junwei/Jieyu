@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  extractPdfDetailsPatch,
-  extractPdfTextFragments,
-  extractPdfTextFragmentsFromSource,
-  splitPdfFragmentsToChunks,
-} from './pdfTextUtils';
+import { extractPdfDetailsPatch, extractPdfTextFragments, extractPdfTextFragmentsFromSource, splitPdfFragmentsToChunks } from './pdfTextUtils';
 
 describe('pdfTextUtils', () => {
   it('extracts fragments from structured details fields', () => {

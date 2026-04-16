@@ -1,9 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { normalizeLocale, t } from '../i18n';
-import type {
-  TranscriptionPageAnalysisRuntimeProps,
-  TranscriptionPageAssistantRuntimeProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
 const AssistantRuntime = lazy(async () => import('./TranscriptionPage.AssistantRuntime').then((module) => ({
   default: module.TranscriptionPageAssistantRuntime,

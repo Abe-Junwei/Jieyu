@@ -32,7 +32,7 @@ function toNaturalTargetResolutionPrompt(
 ): string | null {
   const normalized = message.toLowerCase();
   const isMissingOrNotFound = includesAny(normalized, [SIGNAL_MISSING, 'missing', SIGNAL_NOT_FOUND, 'not found']);
-  const hasUtteranceSignal = includesAny(normalized, ['utteranceid', SIGNAL_SEGMENT]);
+  const hasUnitSignal = includesAny(normalized, ['unitid', SIGNAL_SEGMENT]);
   const hasLayerSignal = includesAny(normalized, ['layerid', SIGNAL_LAYER]);
   const hasTranslationLayerSignal = includesAny(normalized, [SIGNAL_TRANSLATION_LAYER, 'translation']);
   const hasLinkLayerSignal = includesAny(normalized, ['transcriptionlayerid', 'translationlayerid', SIGNAL_TARGET_LAYER]);
@@ -51,13 +51,13 @@ function toNaturalTargetResolutionPrompt(
   }
 
   if (
-    ['create_transcription_segment', 'split_transcription_segment', 'set_transcription_text', 'delete_transcription_segment', 'auto_gloss_utterance'].includes(callName)
+    ['create_transcription_segment', 'split_transcription_segment', 'set_transcription_text', 'delete_transcription_segment', 'auto_gloss_unit'].includes(callName)
     && isMissingOrNotFound
-    && hasUtteranceSignal
+    && hasUnitSignal
   ) {
     const actionNoun = callName === 'delete_transcription_segment'
       ? t(locale, 'transcription.toolFeedback.action.delete')
-      : callName === 'auto_gloss_utterance'
+      : callName === 'auto_gloss_unit'
         ? t(locale, 'transcription.toolFeedback.action.annotate')
         : callName === 'set_transcription_text'
           ? t(locale, 'transcription.toolFeedback.action.edit')
@@ -72,7 +72,7 @@ function toNaturalTargetResolutionPrompt(
   if (
     ['set_translation_text', 'clear_translation_segment'].includes(callName)
     && isMissingOrNotFound
-    && (hasUtteranceSignal || hasLayerSignal || hasTranslationLayerSignal)
+    && (hasUnitSignal || hasLayerSignal || hasTranslationLayerSignal)
   ) {
     return pickToolCopyByStyle(
       style,

@@ -46,7 +46,7 @@ describe('audit log indexed query', () => {
       },
       {
         id: 'audit-ignore-1',
-        collection: 'utterances',
+        collection: 'units',
         documentId: 'utt-1',
         action: 'update' as const,
         field: 'text',

@@ -18,7 +18,7 @@ interface MediaItemPromptInput {
   filename: string;
 }
 
-interface UtteranceTimelineEntry {
+interface UnitTimelineEntry {
   id: string;
   startTime: number;
   endTime: number;
@@ -28,9 +28,9 @@ interface UtteranceTimelineEntry {
 const TIMELINE_MAX_CHARS = 800;
 const TIMELINE_TEXT_TRUNCATE = 30;
 
-export function buildUtteranceTimelineDigest(utterances: UtteranceTimelineEntry[]): string {
-  if (utterances.length === 0) return '';
-  const sorted = [...utterances].sort((a, b) => a.startTime - b.startTime);
+export function buildUnitTimelineDigest(units: UnitTimelineEntry[]): string {
+  if (units.length === 0) return '';
+  const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const lines: string[] = [];
   let charBudget = TIMELINE_MAX_CHARS;
   for (let i = 0; i < sorted.length; i += 1) {
@@ -61,12 +61,12 @@ interface BuildTranscriptionAiPromptContextParams {
   selectedUnitIds: string[];
   /** Total selected timeline units (may exceed `selectedUnitIds.length` when capped). */
   selectedUnitCount: number;
-  /** Current media timeline rows (utterance or segment), single read model. */
+  /** Current media timeline rows (unit or segment), single read model. */
   currentMediaUnits: ReadonlyArray<TimelineUnitView>;
   /** Full-project list for local list/search/detail tools. */
   projectUnitsForTools?: ReadonlyArray<TimelineUnitView>;
   unitIndexComplete?: boolean;
-  /** Project-wide timeline unit count (utterance + segment read model). */
+  /** Project-wide timeline unit count (unit + segment read model). */
   unitCount: number;
   /** Current AI operation scope unit count (active layer + current media). */
   currentScopeUnitCount?: number;

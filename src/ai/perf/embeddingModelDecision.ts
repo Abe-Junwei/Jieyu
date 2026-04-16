@@ -7,10 +7,7 @@
  * tests, docs, and runtime decisions share the same thresholds.
  */
 
-import {
-  ARCTIC_LOCAL_EMBEDDING_MODEL_ID,
-  DEFAULT_LOCAL_EMBEDDING_MODEL_ID,
-} from '../embeddings/localEmbeddingModelConfig';
+import { ARCTIC_LOCAL_EMBEDDING_MODEL_ID, DEFAULT_LOCAL_EMBEDDING_MODEL_ID } from '../embeddings/localEmbeddingModelConfig';
 
 export const ARCTIC_RECALL_RATIO_THRESHOLD = 0.95;
 export const ARCTIC_LOAD_TIME_RATIO_THRESHOLD = 0.5;

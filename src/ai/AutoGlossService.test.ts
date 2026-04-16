@@ -8,7 +8,7 @@ const NOW = new Date().toISOString();
 
 async function clearTables(): Promise<void> {
   await Promise.all([
-    db.utterance_tokens.clear(),
+    db.unit_tokens.clear(),
     db.lexemes.clear(),
     db.token_lexeme_links.clear(),
     db.ai_tasks.clear(),
@@ -28,7 +28,7 @@ describe('AutoGlossService', () => {
   // ── 精确匹配 | Exact match ──
 
   it('matches token form to lexeme lemma and writes gloss', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -47,7 +47,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.gloss).toEqual({ eng: 'canine' });
@@ -58,7 +58,7 @@ describe('AutoGlossService', () => {
     expect(result.skipped).toBe(0);
 
     // Verify token was updated
-    const updated = await db.utterance_tokens.get('tok_1');
+    const updated = await db.unit_tokens.get('tok_1');
     expect(updated?.gloss).toEqual({ eng: 'canine' });
 
     // Verify link was created
@@ -75,7 +75,7 @@ describe('AutoGlossService', () => {
   });
 
   it('skips tokens that already have a gloss', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -95,18 +95,18 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(0);
     expect(result.skipped).toBe(1);
 
     // Gloss should not have been overwritten
-    const tok = await db.utterance_tokens.get('tok_1');
+    const tok = await db.unit_tokens.get('tok_1');
     expect(tok?.gloss).toEqual({ eng: 'existing' });
   });
 
   it('case-insensitive matching of form to lemma', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -125,14 +125,14 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.matchType).toBe('exact');
   });
 
   it('returns empty matches when no lexemes match', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -143,14 +143,14 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(0);
     expect(result.total).toBe(1);
   });
 
   it('skips lexemes with empty senses array', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -169,14 +169,14 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(0);
   });
 
-  it('returns empty when utterance has no tokens', async () => {
+  it('returns empty when unit has no tokens', async () => {
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('nonexistent');
+    const result = await service.glossUnit('nonexistent');
 
     expect(result.matched.length).toBe(0);
     expect(result.total).toBe(0);
@@ -185,7 +185,7 @@ describe('AutoGlossService', () => {
   // ── 前缀匹配 | Prefix (stem) match ──
 
   it('prefix match: lemma "walk" matches form "walking" as stem', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -204,7 +204,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.matchType).toBe('stem');
@@ -217,7 +217,7 @@ describe('AutoGlossService', () => {
   });
 
   it('prefix match: prefers longest lemma prefix', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -246,7 +246,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.lexemeId).toBe('lex_helpful');
@@ -254,7 +254,7 @@ describe('AutoGlossService', () => {
   });
 
   it('exact match takes priority over prefix match', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -281,7 +281,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched[0]?.matchType).toBe('exact');
     expect(result.matched[0]?.lexemeId).toBe('lex_exact');
@@ -290,7 +290,7 @@ describe('AutoGlossService', () => {
   // ── 子串匹配 | Substring match ──
 
   it('substring match: lemma "happ" found inside form "unhappiness"', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -309,7 +309,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.matchType).toBe('gloss_candidate');
@@ -317,7 +317,7 @@ describe('AutoGlossService', () => {
   });
 
   it('substring too short (< 3 chars) does not match', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -336,7 +336,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(0);
   });
@@ -344,7 +344,7 @@ describe('AutoGlossService', () => {
   // ── forms[] 匹配 | forms[] matching ──
 
   it('matches against lexeme alternative forms', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -364,7 +364,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.matched[0]?.matchType).toBe('exact');
@@ -374,7 +374,7 @@ describe('AutoGlossService', () => {
   // ── Leipzig 提示 | Leipzig hints ──
 
   it('returns Leipzig warnings for non-standard abbreviation glosses', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -394,7 +394,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     expect(result.leipzigHints).toBeDefined();
@@ -403,7 +403,7 @@ describe('AutoGlossService', () => {
   });
 
   it('no Leipzig hints for standard glosses', async () => {
-    await db.utterance_tokens.put({
+    await db.unit_tokens.put({
       id: 'tok_1',
       textId: 't1',
       unitId: 'utt_1',
@@ -422,7 +422,7 @@ describe('AutoGlossService', () => {
     });
 
     const service = new AutoGlossService();
-    const result = await service.glossUtterance('utt_1');
+    const result = await service.glossUnit('utt_1');
 
     expect(result.matched.length).toBe(1);
     // 纯小写词汇 gloss 不会产生 Leipzig 警告 | Pure lowercase lexical gloss produces no warnings

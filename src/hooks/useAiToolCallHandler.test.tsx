@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, renderHook } from '@testing-library/react';
-import type { UtteranceDocType, LayerDocType } from '../db';
+import type { LayerUnitDocType, LayerDocType } from '../db';
 import { LOCALE_PREFERENCE_STORAGE_KEY } from '../i18n';
 import { useAiToolCallHandler } from './useAiToolCallHandler';
 
@@ -17,7 +17,7 @@ afterEach(() => {
 
 const NOW = new Date().toISOString();
 
-function makeUtterance(id: string): UtteranceDocType {
+function makeUnit(id: string): LayerUnitDocType {
   return {
     id,
     textId: 't1',
@@ -27,7 +27,7 @@ function makeUtterance(id: string): UtteranceDocType {
     transcription: {},
     createdAt: NOW,
     updatedAt: NOW,
-  } as UtteranceDocType;
+  } as LayerUnitDocType;
 }
 
 function makeTranslationLayer(id: string, zhoName: string): LayerDocType {
@@ -48,7 +48,7 @@ function makeParams(
   overrides: Partial<Parameters<typeof useAiToolCallHandler>[0]> = {},
 ): Parameters<typeof useAiToolCallHandler>[0] {
   return {
-    utterances: [],
+    units: [],
     selectedUnit: undefined,
     selectedUnitMedia: undefined,
     selectedLayerId: '',
@@ -56,15 +56,15 @@ function makeParams(
     translationLayers: [],
     layerLinks: [],
     createLayer: vi.fn(),
-    createNextUtterance: vi.fn(),
+    createAdjacentUnit: vi.fn(),
     createTranscriptionSegment: vi.fn(),
-    splitUtterance: vi.fn(),
+    splitUnit: vi.fn(),
     splitTranscriptionSegment: vi.fn(),
-    deleteUtterance: vi.fn(),
+    deleteUnit: vi.fn(),
     deleteLayer: vi.fn(),
     toggleLayerLink: vi.fn(),
-    saveUtteranceText: vi.fn(),
-    saveTextTranslationForUtterance: vi.fn(),
+    saveUnitText: vi.fn(),
+    saveUnitLayerText: vi.fn(),
     saveSegmentContentForLayer: vi.fn(),
     segmentTargets: [],
     bridgeTextForLayerWrite: vi.fn(async ({ text }) => text),
@@ -80,19 +80,19 @@ function makeParams(
 // ---------------------------------------------------------------------------
 
 describe('useAiToolCallHandler — clear_translation_segment', () => {
-  it('以空字符串调用 saveTextTranslationForUtterance 并返回精确成功消息', async () => {
-    const utterance = makeUtterance('u1');
+  it('以空字符串调用 saveUnitLayerText 并返回精确成功消息', async () => {
+    const unit = makeUnit('u1');
     const layer = makeTranslationLayer('layer1', '普通话');
     const saveSpy = vi.fn<(u: string, t: string, l: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
         }),
       ),
     );
@@ -113,18 +113,18 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     expect(response?.message).toBe('已清空句段 u1 在层 普通话 的翻译文本。');
   });
 
-  it('无句段时返回失败且不调用 saveTextTranslationForUtterance', async () => {
+  it('无句段时返回失败且不调用 saveUnitLayerText', async () => {
     const layer = makeTranslationLayer('layer1', '普通话');
     const saveSpy = vi.fn();
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [],
+          units: [],
           selectedUnit: undefined,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
         }),
       ),
     );
@@ -141,18 +141,18 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     expect(saveSpy).not.toHaveBeenCalled();
   });
 
-  it('无翻译层时返回失败且不调用 saveTextTranslationForUtterance', async () => {
-    const utterance = makeUtterance('u1');
+  it('无翻译层时返回失败且不调用 saveUnitLayerText', async () => {
+    const unit = makeUnit('u1');
     const saveSpy = vi.fn();
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
           selectedLayerId: '',
           translationLayers: [],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
         }),
       ),
     );
@@ -170,19 +170,19 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
   });
 
   it('指定 segmentIndex 参数时清空目标句段而非当前选中', async () => {
-    const selected = makeUtterance('selected-u');
-    const target = makeUtterance('target-u');
+    const selected = makeUnit('selected-u');
+    const target = makeUnit('target-u');
     const layer = makeTranslationLayer('layer1', '英语');
     const saveSpy = vi.fn<(u: string, t: string, l: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [selected, target],
+          units: [selected, target],
           selectedUnit: selected,
           selectedLayerId: 'layer1',
           translationLayers: [layer],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
         }),
       ),
     );
@@ -204,14 +204,14 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
-            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          units: [
+            { ...makeUnit('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
           selectedLayerId: 'layer1',
           translationLayers: [layer],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
         }),
       ),
     );
@@ -232,13 +232,13 @@ describe('useAiToolCallHandler — clear_translation_segment', () => {
 // ---------------------------------------------------------------------------
 
 describe('useAiToolCallHandler — delete_transcription_segment', () => {
-  it('uses all current utterances when allSegments is requested', async () => {
+  it('uses all current units when allSegments is requested', async () => {
     const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
+          units: [makeUnit('seg-1'), makeUnit('seg-2'), makeUnit('seg-3')],
           deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
@@ -264,7 +264,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [makeUtterance('seg-1'), makeUtterance('seg-2'), makeUtterance('seg-3')],
+          units: [makeUnit('seg-1'), makeUnit('seg-2'), makeUnit('seg-3')],
           deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
@@ -284,18 +284,18 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(response?.message).toContain('已删除 1 个句段');
   });
 
-  it('resolves segmentIndex to the ordered utterance target', async () => {
+  it('resolves segmentIndex to the ordered unit target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
-            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          units: [
+            { ...makeUnit('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -310,18 +310,18 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSpy).toHaveBeenCalledWith('seg-2');
   });
 
-  it('resolves segmentPosition=last to the last ordered utterance target', async () => {
+  it('resolves segmentPosition=last to the last ordered unit target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
-            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          units: [
+            { ...makeUnit('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -336,18 +336,18 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSpy).toHaveBeenCalledWith('seg-3');
   });
 
-  it('resolves segmentPosition=penultimate to the penultimate utterance target', async () => {
+  it('resolves segmentPosition=penultimate to the penultimate unit target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
-            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+          units: [
+            { ...makeUnit('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -362,20 +362,20 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSpy).toHaveBeenCalledWith('seg-2');
   });
 
-  it('resolves previous selector relative to the selected utterance', async () => {
+  it('resolves previous selector relative to the selected unit', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
-    const selected = { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 };
+    const selected = { ...makeUnit('seg-2'), startTime: 2, endTime: 3 };
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
+          units: [
             selected,
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
           selectedUnit: selected,
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -390,20 +390,20 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSpy).toHaveBeenCalledWith('seg-1');
   });
 
-  it('resolves next selector relative to the selected utterance', async () => {
+  it('resolves next selector relative to the selected unit', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
-    const selected = { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 };
+    const selected = { ...makeUnit('seg-2'), startTime: 2, endTime: 3 };
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
+          units: [
             selected,
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
           ],
           selectedUnit: selected,
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -418,20 +418,20 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(deleteSpy).toHaveBeenCalledWith('seg-3');
   });
 
-  it('resolves middle selector to the middle ordered utterance target', async () => {
+  it('resolves middle selector to the middle ordered unit target', async () => {
     const deleteSpy = vi.fn<(id: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [
-            { ...makeUtterance('seg-4'), startTime: 6, endTime: 7 },
-            { ...makeUtterance('seg-2'), startTime: 2, endTime: 3 },
-            { ...makeUtterance('seg-1'), startTime: 0, endTime: 1 },
-            { ...makeUtterance('seg-3'), startTime: 4, endTime: 5 },
-            { ...makeUtterance('seg-5'), startTime: 8, endTime: 9 },
+          units: [
+            { ...makeUnit('seg-4'), startTime: 6, endTime: 7 },
+            { ...makeUnit('seg-2'), startTime: 2, endTime: 3 },
+            { ...makeUnit('seg-1'), startTime: 0, endTime: 1 },
+            { ...makeUnit('seg-3'), startTime: 4, endTime: 5 },
+            { ...makeUnit('seg-5'), startTime: 8, endTime: 9 },
           ],
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -452,7 +452,7 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          deleteUtterance: deleteSpy,
+          deleteUnit: deleteSpy,
         }),
       ),
     );
@@ -494,13 +494,13 @@ describe('useAiToolCallHandler — delete_transcription_segment', () => {
     expect(response?.message).toContain('已删除 2 个句段');
   });
 
-  it('still accepts deprecated deleteSelectedUtterances for batch delete targets', async () => {
+  it('still accepts deprecated deleteSelectedUnits for batch delete targets', async () => {
     const deleteSelectionSpy = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          deleteSelectedUtterances: deleteSelectionSpy,
+          deleteSelectedUnits: deleteSelectionSpy,
         }),
       ),
     );
@@ -572,13 +572,13 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
     expect(response?.message).toContain('2');
   });
 
-  it('still accepts deprecated mergeSelectedUtterances when segment merge executor is unavailable', async () => {
-    const mergeSelectedUtterances = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
+  it('still accepts deprecated mergeSelectedUnits when segment merge executor is unavailable', async () => {
+    const mergeSelectedUnits = vi.fn<(ids: Set<string>) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          mergeSelectedUtterances,
+          mergeSelectedUnits,
         }),
       ),
     );
@@ -591,8 +591,8 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
       });
     });
 
-    expect(mergeSelectedUtterances).toHaveBeenCalledTimes(1);
-    expect(Array.from(mergeSelectedUtterances.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
+    expect(mergeSelectedUnits).toHaveBeenCalledTimes(1);
+    expect(Array.from(mergeSelectedUnits.mock.calls[0]?.[0] ?? [])).toEqual(['seg-a', 'seg-b']);
     expect(response?.ok).toBe(true);
   });
 
@@ -702,10 +702,10 @@ describe('useAiToolCallHandler — merge_transcription_segments', () => {
 });
 
 // ---------------------------------------------------------------------------
-// auto_gloss_utterance
+// auto_gloss_unit
 // ---------------------------------------------------------------------------
 
-describe('useAiToolCallHandler — auto_gloss_utterance', () => {
+describe('useAiToolCallHandler — auto_gloss_unit', () => {
   it('returns 暂不支持 for utterly unknown tool name', async () => {
     const { result } = renderHook(() => useAiToolCallHandler(makeParams()));
 
@@ -713,23 +713,23 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
     await act(async () => {
       // Use a cast since 'no_such_tool' is not in AiChatToolName
       response = await result.current({
-        name: 'auto_gloss_utterance' as Parameters<typeof result.current>[0]['name'],
-        arguments: { utteranceId: 'u1' },
+        name: 'auto_gloss_unit' as Parameters<typeof result.current>[0]['name'],
+        arguments: { unitId: 'u1' },
       });
     });
 
-    // When target utterance does not exist, it should return an error
+    // When target unit does not exist, it should return an error
     expect(response?.ok).toBe(false);
     expect(response?.message).toContain('未找到目标句段');
   });
 
-  it('calls glossUtterance when utterance is selected', async () => {
-    const utterance = makeUtterance('u1');
+  it('calls glossUnit when unit is selected', async () => {
+    const unit = makeUnit('u1');
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
         }),
       ),
     );
@@ -737,12 +737,12 @@ describe('useAiToolCallHandler — auto_gloss_utterance', () => {
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
       response = await result.current({
-        name: 'auto_gloss_utterance',
-        arguments: { utteranceId: 'u1' },
+        name: 'auto_gloss_unit',
+        arguments: { unitId: 'u1' },
       });
     });
 
-    // The service will find 0 tokens for this utterance (they're in IndexedDB, not mocked here)
+    // The service will find 0 tokens for this unit (they're in IndexedDB, not mocked here)
     expect(response?.ok).toBe(true);
     expect(response?.message).toContain('token');
   });
@@ -812,15 +812,15 @@ describe('useAiToolCallHandler — strict target requirements', () => {
   });
 
   it('rejects set_transcription_text without segmentId', async () => {
-    const utterance = makeUtterance('u1');
+    const unit = makeUnit('u1');
     const saveSpy = vi.fn<(u: string, t: string, l?: string) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
-          saveUtteranceText: saveSpy,
+          units: [unit],
+          selectedUnit: unit,
+          saveUnitText: saveSpy,
         }),
       ),
     );
@@ -980,16 +980,16 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     expect(deleteLayerSpy).not.toHaveBeenCalled();
   });
 
-  it('rejects create_transcription_segment without utteranceId', async () => {
-    const utterance = makeUtterance('u1');
-    const createNextSpy = vi.fn<(u: UtteranceDocType, d: number) => Promise<void>>().mockResolvedValue(undefined);
+  it('rejects create_transcription_segment without unitId', async () => {
+    const unit = makeUnit('u1');
+    const createNextSpy = vi.fn<(u: LayerUnitDocType, d: number) => Promise<void>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
-          createNextUtterance: createNextSpy,
+          units: [unit],
+          selectedUnit: unit,
+          createAdjacentUnit: createNextSpy,
         }),
       ),
     );
@@ -1104,24 +1104,24 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     expect(splitSegmentSpy).toHaveBeenCalledWith('seg-2', 2.5);
   });
 
-  it('rejects auto_gloss_utterance without utteranceId', async () => {
-    const utterance = makeUtterance('u1');
+  it('rejects auto_gloss_unit without unitId', async () => {
+    const unit = makeUnit('u1');
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
         }),
       ),
     );
 
     let response: Awaited<ReturnType<typeof result.current>> | undefined;
     await act(async () => {
-      response = await result.current({ name: 'auto_gloss_utterance', arguments: {} });
+      response = await result.current({ name: 'auto_gloss_unit', arguments: {} });
     });
 
     expect(response?.ok).toBe(false);
-    expect(response?.message).toContain('缺少 utteranceId');
+    expect(response?.message).toContain('缺少 unitId');
   });
 
   it('rejects link/unlink without explicit source and target layer ids', async () => {
@@ -1270,11 +1270,11 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
   it('honors zoomLevel when zoom_to_segment is backed by runtime callback', async () => {
     const zoomToSegment = vi.fn<(segmentId: string, zoomLevel?: number) => boolean>().mockReturnValue(true);
-    const utterance = makeUtterance('u-zoom');
+    const unit = makeUnit('u-zoom');
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
+          units: [unit],
           zoomToSegment,
         }),
       ),
@@ -1293,7 +1293,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
   });
 
   it('transforms translation text before writeback when source/target layers differ', async () => {
-    const utterance = makeUtterance('u1');
+    const unit = makeUnit('u1');
     const targetLayer = {
       ...makeTranslationLayer('trl-eng', '英语'),
       orthographyId: 'orth-target',
@@ -1304,8 +1304,8 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
           selectedLayerId: 'trc-source',
           transcriptionLayers: [{
             id: 'trc-source',
@@ -1320,7 +1320,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
             updatedAt: NOW,
           } as LayerDocType],
           translationLayers: [targetLayer],
-          saveTextTranslationForUtterance: saveSpy,
+          saveUnitLayerText: saveSpy,
           bridgeTextForLayerWrite: transformSpy,
         }),
       ),
@@ -1338,7 +1338,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
   });
 
   it('writes transformed transcription text into the selected transcription layer', async () => {
-    const utterance = makeUtterance('u1');
+    const unit = makeUnit('u1');
     const saveSpy = vi.fn<(u: string, t: string, l?: string) => Promise<void>>().mockResolvedValue(undefined);
     const transformSpy = vi.fn(async ({ text }: { text: string }) => `xf:${text}`);
     const selectedLayer = {
@@ -1357,11 +1357,11 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     const { result } = renderHook(() =>
       useAiToolCallHandler(
         makeParams({
-          utterances: [utterance],
-          selectedUnit: utterance,
+          units: [unit],
+          selectedUnit: unit,
           selectedLayerId: 'trc-alt',
           transcriptionLayers: [selectedLayer],
-          saveUtteranceText: saveSpy,
+          saveUnitText: saveSpy,
           bridgeTextForLayerWrite: transformSpy,
         }),
       ),

@@ -2,10 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { AiAssistantHubCard } from './AiAssistantHubCard';
-import {
-  AiAssistantHubContext,
-  type AiAssistantHubContextValue,
-} from '../../contexts/AiAssistantHubContext';
+import { AiAssistantHubContext, type AiAssistantHubContextValue } from '../../contexts/AiAssistantHubContext';
 import { LocaleProvider } from '../../i18n';
 import { DEFAULT_AI_CHAT_CONTEXT_VALUE } from '../../contexts/AiChatContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../../contexts/VoiceAgentContext';

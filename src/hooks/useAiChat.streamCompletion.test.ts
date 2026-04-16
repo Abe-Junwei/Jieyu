@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AiPromptContext, AiSessionMemory } from './useAiChat.types';
+import type { AiPromptContext, AiSessionMemory, AiTaskSession } from './useAiChat.types';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
@@ -148,11 +148,24 @@ describe('resolveAiChatStreamCompletion local tools JIT context', () => {
       ],
     });
 
+    let taskState: AiTaskSession | null = null;
+    let traceSteps: number[] = [];
+    const setTaskSession = vi.fn((session: AiTaskSession) => {
+      taskState = session;
+      traceSteps = Array.isArray(session.trace)
+        ? session.trace
+          .map((entry) => entry.stepNumber)
+          .filter((step): step is number => typeof step === 'number')
+        : [];
+    });
+
     const result = await resolveAiChatStreamCompletion(
       baseParams({
         assistantContent: batchPayload,
         aiContext: stale,
         resolveFreshAiContext,
+        setTaskSession,
+        getTaskSession: () => taskState,
       }),
     );
 
@@ -160,6 +173,8 @@ describe('resolveAiChatStreamCompletion local tools JIT context', () => {
     expect(result.localToolResults).toHaveLength(2);
     expect((result.localToolResults![0]!.result as { unitCount: number }).unitCount).toBe(101);
     expect((result.localToolResults![1]!.result as { unitCount: number }).unitCount).toBe(102);
+    expect(taskState).not.toBeNull();
+    expect(traceSteps).toEqual([1, 2]);
   });
 
   it('asks for clarification instead of executing ambiguous bare metric query', async () => {
@@ -267,6 +282,60 @@ describe('resolveAiChatStreamCompletion local tools JIT context', () => {
     expect(result.finalStatus).toBe('done');
     expect(result.localToolResults).toBeUndefined();
     expect(result.finalContent).toMatch(/第几个语段|segment ID|ordinal/i);
+  });
+
+  it('formats successful local stats results as a five-part evidence answer', async () => {
+    const result = await resolveAiChatStreamCompletion(
+      baseParams({
+        assistantContent: '{"tool_call":{"name":"get_project_stats","arguments":{"metric":"speaker_count","scope":"current_scope"}}}',
+        userText: '当前范围有多少说话人？',
+        aiContext: {
+          shortTerm: {
+            currentScopeUnitCount: 4,
+            currentMediaUnitCount: 9,
+            projectUnitCount: 12,
+            currentMediaId: 'media-1',
+            selectedLayerId: 'layer-1',
+          },
+          longTerm: {
+            projectStats: { unitCount: 12, speakerCount: 3, translationLayerCount: 1, aiConfidenceAvg: null },
+          },
+        },
+      }),
+    );
+
+    expect(result.finalStatus).toBe('done');
+    expect(result.finalContent).toContain('结论：');
+    expect(result.finalContent).toContain('证据：');
+    expect(result.finalContent).toContain('范围：');
+    expect(result.finalContent).toContain('不确定项：');
+    expect(result.finalContent).toContain('建议下一步：');
+    expect(result.finalContent).toContain('说话人');
+    expect(result.finalContent).toContain('当前范围');
+  });
+
+  it('records a unified local-tool trace on task session updates', async () => {
+    const setTaskSession = vi.fn();
+
+    await resolveAiChatStreamCompletion(
+      baseParams({
+        setTaskSession,
+        assistantId: 'ast-trace',
+        assistantContent: '{"tool_call":{"name":"get_project_stats","arguments":{"metric":"unit_count","scope":"project"}}}',
+        userText: '整个项目有多少语段？',
+        aiContext: {
+          shortTerm: {
+            projectUnitCount: 12,
+          },
+          longTerm: {
+            projectStats: { unitCount: 12, speakerCount: 3, translationLayerCount: 1, aiConfidenceAvg: null },
+          },
+        },
+      }),
+    );
+
+    const taskUpdates = setTaskSession.mock.calls.map((call) => call[0]);
+    expect(taskUpdates.some((session) => Array.isArray(session?.trace) && session.trace.some((item: { phase?: string; toolName?: string; requestId?: string }) => item.phase === 'local_tool' && item.toolName === 'get_project_stats' && item.requestId === 'ast-trace_local_1'))).toBe(true);
   });
 });
 

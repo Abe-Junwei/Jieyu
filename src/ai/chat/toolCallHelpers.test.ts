@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AiChatToolCall, AiPromptContext } from './chatDomain.types';
-import {
-  buildClarifyCandidates,
-  extractClarifySplitPositionPatch,
-  planToolCallTargets,
-  resolveSelectionTargetPatchForTool,
-  shouldAllowDeicticExecutionIntent,
-  validateToolCallArguments,
-} from './toolCallHelpers';
+import { buildClarifyCandidates, extractClarifySplitPositionPatch, planToolCallTargets, resolveSelectionTargetPatchForTool, shouldAllowDeicticExecutionIntent, validateToolCallArguments } from './toolCallHelpers';
 
 function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext['shortTerm']>> = {}): AiPromptContext {
   return {
@@ -30,11 +23,11 @@ function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext[
 }
 
 describe('planToolCallTargets', () => {
-  it('prefers current segmentId over hallucinated utteranceId for segment-backed text edits', () => {
+  it('prefers current segmentId over hallucinated unitId for segment-backed text edits', () => {
     const call: AiChatToolCall = {
       name: 'set_transcription_text',
       arguments: {
-        utteranceId: 'utt_fake_999',
+        unitId: 'utt_fake_999',
         text: 'hello',
       },
     };
@@ -45,14 +38,14 @@ describe('planToolCallTargets', () => {
       selectedText: '旧文本',
     });
 
-    const planned = planToolCallTargets(call, '__TOOL_SET_TEXT_HALLUCINATED_UTTERANCE__', context);
+    const planned = planToolCallTargets(call, '__TOOL_SET_TEXT_HALLUCINATED_UNIT__', context);
 
     expect(planned.decision).toBe('resolved');
     expect(planned.call.arguments.segmentId).toBe('seg_real_007');
-    expect(planned.call.arguments.utteranceId).toBeUndefined();
+    expect(planned.call.arguments.unitId).toBeUndefined();
   });
 
-  it('prefers current segmentId over hallucinated utteranceId for segment create and split tools', () => {
+  it('prefers current segmentId over hallucinated unitId for segment create and split tools', () => {
     const context = makeSegmentContext({
       selectedLayerId: 'layer_seg',
       selectedLayerType: 'transcription',
@@ -63,20 +56,20 @@ describe('planToolCallTargets', () => {
 
     const createPlan = planToolCallTargets({
       name: 'create_transcription_segment',
-      arguments: { utteranceId: 'utt_fake_999' },
-    }, '__TOOL_CREATE_SEGMENT_HALLUCINATED_UTTERANCE__', context);
+      arguments: { unitId: 'utt_fake_999' },
+    }, '__TOOL_CREATE_SEGMENT_HALLUCINATED_UNIT__', context);
     const splitPlan = planToolCallTargets({
       name: 'split_transcription_segment',
-      arguments: { utteranceId: 'utt_fake_999' },
-    }, '__TOOL_SPLIT_SEGMENT_HALLUCINATED_UTTERANCE__', context);
+      arguments: { unitId: 'utt_fake_999' },
+    }, '__TOOL_SPLIT_SEGMENT_HALLUCINATED_UNIT__', context);
 
     expect(createPlan.decision).toBe('resolved');
     expect(createPlan.call.arguments.segmentId).toBe('seg_real_007');
-    expect(createPlan.call.arguments.utteranceId).toBeUndefined();
+    expect(createPlan.call.arguments.unitId).toBeUndefined();
 
     expect(splitPlan.decision).toBe('resolved');
     expect(splitPlan.call.arguments.segmentId).toBe('seg_real_007');
-    expect(splitPlan.call.arguments.utteranceId).toBeUndefined();
+    expect(splitPlan.call.arguments.unitId).toBeUndefined();
     expect(splitPlan.call.arguments.splitTime).toBe(2.5);
   });
 
@@ -110,7 +103,7 @@ describe('planToolCallTargets', () => {
     ['set_transcription_text', { segmentId: 'seg_real_007' }],
     ['set_translation_text', { segmentId: 'seg_real_007' }],
     ['clear_translation_segment', { segmentId: 'seg_real_007' }],
-    ['auto_gloss_utterance', { utteranceId: 'utt_owner_001' }],
+    ['auto_gloss_unit', { unitId: 'utt_owner_001' }],
   ] as const)('resolves current selection target patch for %s', (callName, expectedPatch) => {
     expect(resolveSelectionTargetPatchForTool(callName, makeSegmentContext())).toEqual(expectedPatch);
   });
@@ -118,7 +111,7 @@ describe('planToolCallTargets', () => {
   it('does not fall back to activeUnitId for segment-only tools when no segment is selected', () => {
     const context = makeSegmentContext({
       activeSegmentUnitId: '',
-      selectedUnitKind: 'utterance',
+      selectedUnitKind: 'unit',
     });
 
     expect(resolveSelectionTargetPatchForTool('delete_transcription_segment', context)).toBeNull();
@@ -127,7 +120,7 @@ describe('planToolCallTargets', () => {
   it('builds clarify candidates from the same segment-aware selection target helper', () => {
     expect(buildClarifyCandidates(
       'split_transcription_segment',
-      'missing-utterance-target',
+      'missing-unit-target',
       makeSegmentContext(),
     )).toEqual([
       {
@@ -138,21 +131,21 @@ describe('planToolCallTargets', () => {
     ]);
   });
 
-  it('does not require utteranceId for merge_prev when the tool relies on current selection context', () => {
+  it('does not require unitId for merge_prev when the tool relies on current selection context', () => {
     expect(validateToolCallArguments({
       name: 'merge_prev',
       arguments: {},
     })).toBeNull();
   });
 
-  it('accepts segmentId-only merge_next calls without falling back to utteranceId validation', () => {
+  it('accepts segmentId-only merge_next calls without falling back to unitId validation', () => {
     expect(validateToolCallArguments({
       name: 'merge_next',
       arguments: { segmentId: 'seg_real_007' },
     })).toBeNull();
   });
 
-  it('accepts segmentId-only arguments for auto_gloss_segment without reintroducing utteranceId validation', () => {
+  it('accepts segmentId-only arguments for auto_gloss_segment without reintroducing unitId validation', () => {
     expect(validateToolCallArguments({
       name: 'auto_gloss_segment',
       arguments: { segmentId: 'seg_real_007' },
@@ -172,14 +165,14 @@ describe('planToolCallTargets', () => {
     expect(planned.call.arguments).toEqual({ segmentId: 'seg_real_007' });
   });
 
-  it('rewrites legacy utteranceIds batch merge payloads to selected segmentIds in segment context', () => {
+  it('rewrites legacy unitIds batch merge payloads to selected segmentIds in segment context', () => {
     const planned = planToolCallTargets({
       name: 'merge_transcription_segments',
-      arguments: { utteranceIds: ['utt_fake_1', 'utt_fake_2'] },
+      arguments: { unitIds: ['utt_fake_1', 'utt_fake_2'] },
     }, '__TOOL_MERGE_SELECTION__', makeSegmentContext({ selectedUnitIds: ['seg_real_007', 'seg_real_008'] }));
 
     expect(planned.decision).toBe('resolved');
     expect(planned.call.arguments.segmentIds).toEqual(['seg_real_007', 'seg_real_008']);
-    expect(planned.call.arguments.utteranceIds).toBeUndefined();
+    expect(planned.call.arguments.unitIds).toBeUndefined();
   });
 });

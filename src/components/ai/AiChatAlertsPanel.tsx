@@ -2,12 +2,7 @@ import { memo, useMemo } from 'react';
 import { buildAiChangeSetFromPendingToolCall } from '../../ai/changeset/AiChangeSetProtocol';
 import type { PendingAiToolCall } from '../../hooks/useAiChat';
 import { t, useLocale } from '../../i18n';
-import {
-  formatPendingConfirmActionLabel,
-  formatPendingTarget,
-  formatToolName,
-  normalizeImpactPreviewLines,
-} from './aiChatCardUtils';
+import { formatPendingConfirmActionLabel, formatPendingTarget, formatToolName, normalizeImpactPreviewLines } from './aiChatCardUtils';
 import { resolveTextDirectionFromLocale } from '../../utils/panelAdaptiveLayout';
 import { PanelButton, PanelChip, PanelNote } from '../ui';
 import { PanelSection } from '../ui/PanelSection';

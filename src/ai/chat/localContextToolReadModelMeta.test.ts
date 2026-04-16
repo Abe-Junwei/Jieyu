@@ -9,7 +9,7 @@ describe('buildLocalToolReadModelMeta', () => {
         timelineReadModelEpoch: 7,
         unitIndexComplete: true,
         localUnitIndex: [
-          { id: 'a', kind: 'utterance', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: 'x' },
+          { id: 'a', kind: 'unit', mediaId: 'm', layerId: 'l', startTime: 0, endTime: 1, text: 'x' },
         ],
       },
       longTerm: {},
@@ -21,6 +21,7 @@ describe('buildLocalToolReadModelMeta', () => {
         timelineReadModelEpoch: 7,
         unitIndexComplete: true,
         capturedAtMs: 1_700_000_000_000,
+        source: 'timeline_index',
         indexRowCount: 1,
       });
     } finally {

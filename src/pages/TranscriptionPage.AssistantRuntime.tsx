@@ -9,11 +9,7 @@ import { pickVoiceAgentContextValue, useVoiceAgentContextValue } from '../hooks/
 import { ToastController } from './TranscriptionPage.ToastController';
 import { featureFlags } from '../ai/config/featureFlags';
 import { normalizeLocale, t } from '../i18n';
-import type {
-  TranscriptionPageAssistantRuntimeFrameProps,
-  TranscriptionPageAssistantRuntimeProps,
-  TranscriptionPageAssistantRuntimeVoiceProps,
-} from './TranscriptionPage.runtimeContracts';
+import type { TranscriptionPageAssistantRuntimeFrameProps, TranscriptionPageAssistantRuntimeProps, TranscriptionPageAssistantRuntimeVoiceProps } from './TranscriptionPage.runtimeContracts';
 
 const VoiceAgentWidget = lazy(async () => import('../components/VoiceAgentWidget').then((module) => ({
   default: module.VoiceAgentWidget,
@@ -73,7 +69,7 @@ function AssistantRuntimeFrame({
             voiceAgent={toastVoiceAgent}
             saveState={frame.saveState}
             recording={frame.recording}
-            recordingUtteranceId={frame.recordingUtteranceId}
+            recordingUnitId={frame.recordingUnitId}
             recordingError={frame.recordingError}
             {...(frame.overlapCycleToast !== undefined ? { overlapCycleToast: frame.overlapCycleToast } : {})}
             {...(frame.lockConflictToast !== undefined ? { lockConflictToast: frame.lockConflictToast } : {})}

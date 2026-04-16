@@ -107,7 +107,7 @@ export function findIncompleteUnits(context: AiPromptContext, args: Record<strin
       id: unit.id,
       kind: unit.kind,
       ...(unit.layerRole ? { layerRole: unit.layerRole } : {}),
-      ...(unit.parentUtteranceId ? { parentUtteranceId: unit.parentUtteranceId } : {}),
+      ...(unit.parentUnitId ? { parentUnitId: unit.parentUnitId } : {}),
       layerId: unit.layerId,
       mediaId: unit.mediaId,
       text: unit.text,

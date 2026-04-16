@@ -1,8 +1,5 @@
 import type { AiChatToolName, AiPromptContext, AiTaskSession } from './useAiChat.types';
-import {
-  extractClarifyLanguagePatch,
-  extractClarifySplitPositionPatch,
-} from '../ai/chat/toolCallHelpers';
+import { extractClarifyLanguagePatch, extractClarifySplitPositionPatch } from '../ai/chat/toolCallHelpers';
 
 export interface ClarifyFastPathCall {
   name: AiChatToolName;

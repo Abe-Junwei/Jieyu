@@ -16,7 +16,7 @@ const units: TimelineUnitView[] = [
   },
   {
     id: 'utt-2',
-    kind: 'utterance',
+    kind: 'unit',
     mediaId: 'media-1',
     layerId: 'layer-a',
     startTime: 1,
@@ -118,7 +118,7 @@ describe('intentTools', () => {
     const manyIds = Array.from({ length: 50 }, (_, i) => `u-${i}`);
     const localUnitIndex: TimelineUnitView[] = manyIds.map((id, index) => ({
       id,
-      kind: 'utterance',
+      kind: 'unit',
       mediaId: 'm1',
       layerId: 'layer-a',
       startTime: index,
@@ -140,7 +140,7 @@ describe('intentTools', () => {
     const manyIds = Array.from({ length: 100 }, (_, i) => `u-${i}`);
     const localUnitIndex: TimelineUnitView[] = manyIds.map((id, index) => ({
       id,
-      kind: 'utterance',
+      kind: 'unit',
       mediaId: 'm1',
       layerId: 'layer-a',
       startTime: index,

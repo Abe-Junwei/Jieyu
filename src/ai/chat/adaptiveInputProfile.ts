@@ -1,10 +1,4 @@
-import type {
-  AiAdaptiveInputProfile,
-  AiAdaptiveIntent,
-  AiAdaptiveResponseStyle,
-  AiSessionMemory,
-  UiChatMessage,
-} from './chatDomain.types';
+import type { AiAdaptiveInputProfile, AiAdaptiveIntent, AiAdaptiveResponseStyle, AiSessionMemory, UiChatMessage } from './chatDomain.types';
 import { patchSessionMemoryPreferences } from './sessionMemory';
 
 const MAX_RECENT_PROMPTS = 20;
@@ -12,7 +6,7 @@ const MAX_KEYWORDS = 5;
 
 const EN_STOPWORDS = new Set([
   'the', 'and', 'for', 'with', 'this', 'that', 'from', 'into', 'please', 'current', 'segment',
-  'utterance', 'layer', 'need', 'show', 'tell', 'help', 'make', 'more', 'what', 'which', 'when',
+  'unit', 'layer', 'need', 'show', 'tell', 'help', 'make', 'more', 'what', 'which', 'when',
   'where', 'your', 'about', 'have', 'been', 'should', 'would', 'could', 'review', 'check',
 ]);
 

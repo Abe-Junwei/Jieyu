@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import {
-  AiProviderError,
-  normalizeAiProviderError,
-  parseProviderJson,
-  throwProviderHttpError,
-} from './errorUtils';
+import { AiProviderError, normalizeAiProviderError, parseProviderJson, throwProviderHttpError } from './errorUtils';
 
 describe('errorUtils', () => {
   it('maps common HTTP status codes to provider-friendly messages', async () => {

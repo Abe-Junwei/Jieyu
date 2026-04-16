@@ -41,13 +41,13 @@ describe('Embedding candidate-set performance baseline', () => {
     await clearTables();
   });
 
-  it('keeps hybrid utterance search stable with large candidate set', async () => {
+  it('keeps hybrid unit search stable with large candidate set', async () => {
     const now = new Date().toISOString();
     const total = 2500;
 
     const embeddings = Array.from({ length: total }, (_, index) => ({
-      id: `utterance::utt_perf_${index + 1}::test-model::v-test`,
-      sourceType: 'utterance' as const,
+      id: `unit::utt_perf_${index + 1}::test-model::v-test`,
+      sourceType: 'unit' as const,
       sourceId: `utt_perf_${index + 1}`,
       model: 'test-model',
       modelVersion: 'v-test',
@@ -78,7 +78,7 @@ describe('Embedding candidate-set performance baseline', () => {
       modality: 'text' as const,
       text: index % 7 === 0
         ? `morphology keyword ${index + 1}`
-        : `generic utterance ${index + 1}`,
+        : `generic unit ${index + 1}`,
       sourceType: 'human' as const,
       createdAt: now,
       updatedAt: now,
@@ -92,7 +92,7 @@ describe('Embedding candidate-set performance baseline', () => {
     const service = new EmbeddingSearchService(new PerfQueryRuntime());
 
     const startedAt = performance.now();
-    const result = await service.searchMultiSourceHybrid('morphology keyword', ['utterance'], {
+    const result = await service.searchMultiSourceHybrid('morphology keyword', ['unit'], {
       modelId: 'test-model',
       modelVersion: 'v-test',
       topK: 20,

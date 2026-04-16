@@ -1,7 +1,4 @@
-import {
-  buildAgentLoopContinuationToolPayload,
-  type LocalContextToolResult,
-} from './localContextTools';
+import { buildAgentLoopContinuationToolPayload, type LocalContextToolResult } from './localContextTools';
 import type { LocalToolMetric } from './chatDomain.types';
 
 /** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
@@ -11,6 +8,15 @@ const AGENT_LOOP_CONTINUATION_TRUNCATION_TAIL =
 export interface AgentLoopConfig {
   maxSteps: number;
   tokenBudgetWarningThreshold: number;
+}
+
+export interface AgentLoopTaskState {
+  queryFamily?: 'count' | 'search' | 'detail' | 'list' | 'selection' | 'quality' | 'unknown';
+  requestedMetric?: LocalToolMetric;
+  scope?: 'project' | 'current_track' | 'current_scope';
+  selectedTools?: string[];
+  answerReady?: boolean;
+  executionState?: 'running' | 'waiting_clarify' | 'answer_ready' | 'error';
 }
 
 export const DEFAULT_AGENT_LOOP_CONFIG: AgentLoopConfig = {
@@ -78,14 +84,33 @@ function isAnswerReadyForDetailQuery(localToolResults: LocalContextToolResult[])
   ));
 }
 
+function isAnswerReadyForSearchQuery(localToolResults: LocalContextToolResult[]): boolean {
+  return localToolResults.some((item) => item.ok && item.name === 'search_units');
+}
+
+function isTaskStateObject(value: unknown): value is AgentLoopTaskState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return true;
+}
+
 export function shouldContinueAgentLoop(
   step: number,
   config: AgentLoopConfig,
   localToolResults: LocalContextToolResult[] | undefined,
-  metric?: LocalToolMetric,
+  metricOrTaskState?: LocalToolMetric | AgentLoopTaskState,
 ): boolean {
+  const taskState = isTaskStateObject(metricOrTaskState) ? metricOrTaskState : undefined;
+  const metric = isTaskStateObject(metricOrTaskState)
+    ? metricOrTaskState.requestedMetric
+    : metricOrTaskState;
+
+  if (taskState?.answerReady === true) return false;
+  if (taskState?.executionState === 'answer_ready') return false;
   if (!localToolResults || localToolResults.length === 0) return false;
   if (localToolResults.some((item) => !item.ok)) return false;
+
+  if (taskState?.queryFamily === 'search' && isAnswerReadyForSearchQuery(localToolResults)) return false;
+  if (taskState?.queryFamily === 'detail' && isAnswerReadyForDetailQuery(localToolResults)) return false;
   if (isAnswerReadyForMetricQuery(metric, localToolResults)) return false;
   if (isAnswerReadyForDetailQuery(localToolResults)) return false;
   return step < config.maxSteps;

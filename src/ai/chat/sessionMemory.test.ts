@@ -1,13 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  buildSessionMemoryPromptDigest,
-  clearConversationSummaryMemory,
-  loadSessionMemory,
-  patchSessionMemoryPreferences,
-  setSessionMemoryMessagePinned,
-  updateConversationSummaryMemory,
-} from './sessionMemory';
+import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, patchSessionMemoryPreferences, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from './sessionMemory';
 
 describe('sessionMemory P2 helpers', () => {
   beforeEach(() => {

@@ -22,7 +22,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('set_translation_text和set_transcription_text有什么区别')) {
-          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"utteranceId":"u1","text":"x"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"unitId":"u1","text":"x"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -46,7 +46,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('__TOOL_DELETE_SEGMENT__')) {
-          yield { delta: '{"tool_call":{"name":"delete_transcription_segment","arguments":{"utteranceId":"u1"}}}' };
+          yield { delta: '{"tool_call":{"name":"delete_transcription_segment","arguments":{"unitId":"u1"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -121,7 +121,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('__LEGACY_TOOL_MERGE_SELECTED_SEGMENTS__')) {
-          yield { delta: '{"tool_call":{"name":"merge_transcription_segments","arguments":{"utteranceIds":["utt-legacy-1","utt-legacy-2"]}}}' };
+          yield { delta: '{"tool_call":{"name":"merge_transcription_segments","arguments":{"unitIds":["utt-legacy-1","utt-legacy-2"]}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -151,22 +151,22 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('__TOOL_RENAME_LAYER__')) {
-          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"u1","text":"hello"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"unitId":"u1","text":"hello"}}}' };
           yield { delta: '', done: true };
           return;
         }
         if (userText.includes('__TOOL_INVALID_ARGS__')) {
-          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"u1"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"unitId":"u1"}}}' };
           yield { delta: '', done: true };
           return;
         }
         if (userText.includes('__TOOL_SET_TRANSLATION_MISSING_LAYER__')) {
-          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"utteranceId":"u1","text":"译文"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"unitId":"u1","text":"译文"}}}' };
           yield { delta: '', done: true };
           return;
         }
         if (userText.includes('__TOOL_CLEAR_TRANSLATION_MISSING_LAYER__')) {
-          yield { delta: '{"tool_call":{"name":"clear_translation_segment","arguments":{"utteranceId":"u1"}}}' };
+          yield { delta: '{"tool_call":{"name":"clear_translation_segment","arguments":{"unitId":"u1"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -186,7 +186,7 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('__TOOL_MIXED_REPLY__')) {
-          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"u1","text":"hello"}}}\n---\n好的，我已经处理完毕。' };
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"unitId":"u1","text":"hello"}}}\n---\n好的，我已经处理完毕。' };
           yield { delta: '', done: true };
           return;
         }
@@ -243,12 +243,12 @@ vi.mock('../ai/ChatOrchestrator', () => {
           return;
         }
         if (userText.includes('可以把当前句段转写改为你好么')) {
-          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"u1","text":"你好"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"unitId":"u1","text":"你好"}}}' };
           yield { delta: '', done: true };
           return;
         }
         if (userText.includes('这个句段呢？')) {
-          yield { delta: '{"tool_call":{"name":"create_transcription_segment","arguments":{"utteranceId":"u1"}}}' };
+          yield { delta: '{"tool_call":{"name":"create_transcription_segment","arguments":{"unitId":"u1"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -267,13 +267,13 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
-        if (userText.includes('__TOOL_SET_TEXT_HALLUCINATED_UTTERANCE__')) {
-          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"utteranceId":"utt_fake_999","text":"hello"}}}' };
+        if (userText.includes('__TOOL_SET_TEXT_HALLUCINATED_UNIT__')) {
+          yield { delta: '{"tool_call":{"name":"set_transcription_text","arguments":{"unitId":"utt_fake_999","text":"hello"}}}' };
           yield { delta: '', done: true };
           return;
         }
         if (userText.includes('__TOOL_SET_TRANSLATION_HALLUCINATED_LAYER__')) {
-          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"layerId":"translation_layer_fake","utteranceId":"u1","text":"hi"}}}' };
+          yield { delta: '{"tool_call":{"name":"set_translation_text","arguments":{"layerId":"translation_layer_fake","unitId":"u1","text":"hi"}}}' };
           yield { delta: '', done: true };
           return;
         }
@@ -759,7 +759,7 @@ describe('useAiChat abort and recovery', () => {
     });
 
     expect(result.current.pendingToolCall?.call.arguments.segmentId).toBe('seg-current');
-    expect(result.current.pendingToolCall?.call.arguments.utteranceId).toBeUndefined();
+    expect(result.current.pendingToolCall?.call.arguments.unitId).toBeUndefined();
     expect(onToolCall).not.toHaveBeenCalled();
   });
 
@@ -944,7 +944,7 @@ describe('useAiChat abort and recovery', () => {
     expect(resolvedCall?.arguments.segmentIds).toEqual(['seg-a', 'seg-b']);
   });
 
-  it('should rewrite legacy utteranceIds merge payloads to selected segmentIds', async () => {
+  it('should rewrite legacy unitIds merge payloads to selected segmentIds', async () => {
     const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: '已合并 2 个句段。' });
     const { result } = renderHook(() => useAiChat({
       onToolCall,
@@ -976,7 +976,7 @@ describe('useAiChat abort and recovery', () => {
     const resolvedCall = result.current.pendingToolCall?.call ?? onToolCall.mock.calls[0]?.[0];
     expect(resolvedCall?.name).toBe('merge_transcription_segments');
     expect(resolvedCall?.arguments.segmentIds).toEqual(['seg-a', 'seg-b']);
-    expect(resolvedCall?.arguments.utteranceIds).toBeUndefined();
+    expect(resolvedCall?.arguments.unitIds).toBeUndefined();
   });
 
   it('should require segment selection for 删除之 deictic deletion', async () => {
@@ -1976,8 +1976,8 @@ describe('useAiChat abort and recovery', () => {
           ...defaultSelectedSegmentShortTerm,
           activeUnitId: 'u1',
           activeSegmentUnitId: 'seg1',
-          selectedUtteranceStartSec: 10,
-          selectedUtteranceEndSec: 14,
+          selectedUnitStartSec: 10,
+          selectedUnitEndSec: 14,
           audioTimeSec: 12.5,
         },
       }),
@@ -2012,8 +2012,8 @@ describe('useAiChat abort and recovery', () => {
           ...defaultSelectedSegmentShortTerm,
           activeUnitId: 'u1',
           activeSegmentUnitId: 'seg1',
-          selectedUtteranceStartSec: 10,
-          selectedUtteranceEndSec: 14,
+          selectedUnitStartSec: 10,
+          selectedUnitEndSec: 14,
           ...(cursor !== undefined ? { audioTimeSec: cursor } : {}),
         },
       }),
@@ -2124,7 +2124,7 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).not.toHaveBeenCalled();
     expect(result.current.taskSession.status).toBe('waiting_clarify');
     expect(result.current.taskSession.toolName).toBe('delete_transcription_segment');
-    expect(result.current.taskSession.clarifyReason).toBe('missing-utterance-target');
+    expect(result.current.taskSession.clarifyReason).toBe('missing-unit-target');
 
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.content).toContain('补充对应 ID');
@@ -2267,7 +2267,7 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).toHaveBeenCalledTimes(1);
     const firstCall = onToolCall.mock.calls[0]?.[0];
     expect(firstCall?.name).toBe('set_translation_text');
-    // 幻觉防护：LLM 的 segment/utterance 幻觉目标被上下文真实 segment 替换 | Hallucination guard: the model target is replaced by the real segment from context
+    // 幻觉防护：LLM 的 segment/unit 幻觉目标被上下文真实 segment 替换 | Hallucination guard: the model target is replaced by the real segment from context
     expect(firstCall?.arguments.segmentId).toBe('seg-selected');
     expect(firstCall?.arguments.layerId).toBe('trl-selected');
   });
@@ -2323,7 +2323,7 @@ describe('useAiChat abort and recovery', () => {
     expect(onToolCall).toHaveBeenCalledTimes(1);
     const firstCall = onToolCall.mock.calls[0]?.[0];
     expect(firstCall?.name).toBe('clear_translation_segment');
-    // 幻觉防护：LLM 的 segment/utterance 幻觉目标被上下文真实 segment 替换 | Hallucination guard: the model target is replaced by the real segment from context
+    // 幻觉防护：LLM 的 segment/unit 幻觉目标被上下文真实 segment 替换 | Hallucination guard: the model target is replaced by the real segment from context
     expect(firstCall?.arguments.segmentId).toBe('seg-selected');
     expect(firstCall?.arguments.layerId).toBe('trl-selected');
   });
@@ -2801,7 +2801,7 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.pendingToolCall).not.toBeNull();
     });
 
-    expect(result.current.pendingToolCall?.previewContract?.affectedCount).toBe(0);
+    expect(result.current.pendingToolCall?.previewContract?.affectedCount).toBe(1);
   });
 
   it('should prefer current scope count for delete-all preview when scope and project totals differ', async () => {
@@ -3015,7 +3015,7 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall).toBeNull();
     expect(result.current.taskSession.status).toBe('waiting_clarify');
     expect(result.current.taskSession.toolName).toBe('delete_transcription_segment');
-    expect(result.current.taskSession.clarifyReason).toBe('missing-utterance-target');
+    expect(result.current.taskSession.clarifyReason).toBe('missing-unit-target');
   });
 
   it('should clarify English previous-segment delete when there is no current anchor', async () => {
@@ -3045,7 +3045,7 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall).toBeNull();
     expect(result.current.taskSession.status).toBe('waiting_clarify');
     expect(result.current.taskSession.toolName).toBe('delete_transcription_segment');
-    expect(result.current.taskSession.clarifyReason).toBe('missing-utterance-target');
+    expect(result.current.taskSession.clarifyReason).toBe('missing-unit-target');
   });
 
   it('should resolve previous-segment delete when there is a current anchor', async () => {
@@ -3395,7 +3395,7 @@ describe('useAiChat abort and recovery', () => {
     expect(result.current.pendingToolCall?.call.arguments.layerId).toBe('real_layer_42');
   });
 
-  it('should replace hallucinated utteranceId with context currentSegmentId', async () => {
+  it('should replace hallucinated unitId with context currentSegmentId', async () => {
     const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: 'done' });
     const { result } = renderHook(() => useAiChat({
       onToolCall,
@@ -3414,13 +3414,13 @@ describe('useAiChat abort and recovery', () => {
     });
 
     await act(async () => {
-      await result.current.send('__TOOL_SET_TEXT_HALLUCINATED_UTTERANCE__');
+      await result.current.send('__TOOL_SET_TEXT_HALLUCINATED_UNIT__');
     });
     await waitFor(() => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    // 幻觉 utteranceId 被替换为上下文真实 segment ID | Hallucinated utteranceId replaced by the real segment ID from context
+    // 幻觉 unitId 被替换为上下文真实 segment ID | Hallucinated unitId replaced by the real segment ID from context
     expect(onToolCall).toHaveBeenCalledWith(
       expect.objectContaining({
         arguments: expect.objectContaining({ segmentId: 'seg_real_001' }),

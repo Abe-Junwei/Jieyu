@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyAiChatSettingsPatch,
-  getAiChatProviderDefinition,
-  getDefaultAiChatSettings,
-} from './providerCatalog';
+import { applyAiChatSettingsPatch, getAiChatProviderDefinition, getDefaultAiChatSettings } from './providerCatalog';
 
 describe('providerCatalog runtime fallbacks', () => {
   it('returns mapped definition for valid kind', () => {

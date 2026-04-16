@@ -5,7 +5,22 @@ export interface AiToolDecisionLogItem {
   reason?: string;
   requestId?: string;
   timestamp: string;
+  source?: 'human' | 'ai' | 'system';
+  executed?: boolean;
+  durationMs?: number;
+  message?: string;
 }
+
+type ParsedToolDecision = {
+  decision: string;
+  toolName: string;
+  reason?: string;
+  requestId?: string;
+  source?: 'human' | 'ai' | 'system';
+  executed?: boolean;
+  durationMs?: number;
+  message?: string;
+};
 
 interface AuditLogDecisionRow {
   id: string;
@@ -18,14 +33,18 @@ interface AuditLogDecisionRow {
 interface ToolDecisionAuditMetadataLike {
   phase?: string;
   requestId?: string;
+  source?: 'human' | 'ai' | 'system';
   toolCall?: {
     name?: string;
   };
   outcome?: string;
   reason?: string;
+  executed?: boolean;
+  durationMs?: number;
+  message?: string;
 }
 
-export function parseAiToolDecision(raw: string | undefined): { decision: string; toolName: string; reason?: string } {
+export function parseAiToolDecision(raw: string | undefined): ParsedToolDecision {
   const decisionRaw = (raw ?? '').trim();
   const parts = decisionRaw.split(':');
   const decision = parts[0] ?? '';
@@ -34,7 +53,7 @@ export function parseAiToolDecision(raw: string | undefined): { decision: string
   return reason ? { decision, toolName, reason } : { decision, toolName };
 }
 
-function parseToolDecisionMetadata(raw: string | undefined): { decision: string; toolName: string; reason?: string; requestId?: string } | null {
+function parseToolDecisionMetadata(raw: string | undefined): ParsedToolDecision | null {
   if (typeof raw !== 'string' || raw.trim().length === 0) return null;
   try {
     const parsed = JSON.parse(raw) as ToolDecisionAuditMetadataLike;
@@ -53,6 +72,10 @@ function parseToolDecisionMetadata(raw: string | undefined): { decision: string;
       toolName,
       ...(reason ? { reason } : {}),
       ...(requestId ? { requestId } : {}),
+      ...(parsed.source ? { source: parsed.source } : {}),
+      ...(typeof parsed.executed === 'boolean' ? { executed: parsed.executed } : {}),
+      ...(typeof parsed.durationMs === 'number' && Number.isFinite(parsed.durationMs) ? { durationMs: parsed.durationMs } : {}),
+      ...(typeof parsed.message === 'string' && parsed.message.trim().length > 0 ? { message: parsed.message.trim() } : {}),
     };
   } catch (err) {
     console.error('[Jieyu] toolDecisionLog: failed to parse tool decision metadata', { raw, err });
@@ -68,6 +91,10 @@ export function mapAuditRowToAiToolDecisionLog(row: AuditLogDecisionRow): AiTool
     decision: parsed.decision,
     ...(parsed.reason ? { reason: parsed.reason } : {}),
     ...(row.requestId ? { requestId: row.requestId } : {}),
+    ...(parsed.source ? { source: parsed.source } : {}),
+    ...(typeof parsed.executed === 'boolean' ? { executed: parsed.executed } : {}),
+    ...(typeof parsed.durationMs === 'number' ? { durationMs: parsed.durationMs } : {}),
+    ...(parsed.message ? { message: parsed.message } : {}),
     timestamp: row.timestamp,
   };
 }

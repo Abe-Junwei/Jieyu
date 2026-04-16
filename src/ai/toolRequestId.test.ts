@@ -5,11 +5,11 @@ describe('buildAiToolRequestId', () => {
   it('is stable for the same logical tool call', () => {
     const left = buildAiToolRequestId({
       name: 'set_transcription_text',
-      arguments: { utteranceId: 'u1', text: 'hello' },
+      arguments: { unitId: 'u1', text: 'hello' },
     });
     const right = buildAiToolRequestId({
       name: 'set_transcription_text',
-      arguments: { text: 'hello', utteranceId: 'u1' },
+      arguments: { text: 'hello', unitId: 'u1' },
     });
 
     expect(left).toBe(right);

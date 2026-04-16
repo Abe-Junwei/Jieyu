@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { buildTranscriptionAiPromptContext, buildUtteranceTimelineDigest } from './TranscriptionPage.aiPromptContext';
+import { buildTranscriptionAiPromptContext, buildUnitTimelineDigest } from './TranscriptionPage.aiPromptContext';
 import { buildPromptContextBlock } from '../ai/chat/promptContext';
 
-const MOCK_UTTERANCE_DIGEST_ROWS = [
+const MOCK_UNIT_DIGEST_ROWS = [
   { id: 'utt-1', startTime: 0, endTime: 35.1, transcription: 'Hello world' },
   { id: 'utt-2', startTime: 35.1, endTime: 48.4, transcription: 'Second segment' },
   { id: 'utt-3', startTime: 48.4, endTime: 59.9 },
@@ -12,9 +12,9 @@ const MOCK_UTTERANCE_DIGEST_ROWS = [
   { id: 'utt-6', startTime: 86.7, endTime: 100.1, transcription: 'Sixth' },
 ];
 
-const MOCK_CURRENT_MEDIA_UNITS: TimelineUnitView[] = MOCK_UTTERANCE_DIGEST_ROWS.map((u) => ({
+const MOCK_CURRENT_MEDIA_UNITS: TimelineUnitView[] = MOCK_UNIT_DIGEST_ROWS.map((u) => ({
   id: u.id,
-  kind: 'utterance',
+  kind: 'unit',
   mediaId: 'media-1',
   layerId: 'layer-1',
   startTime: u.startTime,
@@ -29,7 +29,7 @@ describe('buildTranscriptionAiPromptContext', () => {
         activeUnitId: 'utt-1',
         selectedUnit: null,
         selectedRowMeta: null,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedUnitStartSec: 1.2,
         selectedUnitEndSec: 3.4,
         selectedLayerId: 'layer-1',
@@ -118,15 +118,15 @@ describe('buildTranscriptionAiPromptContext', () => {
 
   it('keeps localUnitIndex out of serialized context while exposing world model snapshot', () => {
     const projectUnitsForTools: TimelineUnitView[] = [
-      { id: 'u1', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'alpha', textId: 't1' },
-      { id: 'u2', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 4, text: 'beta' },
+      { id: 'u1', kind: 'unit', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 2, text: 'alpha', textId: 't1' },
+      { id: 'u2', kind: 'unit', mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 4, text: 'beta' },
     ];
     const context = buildTranscriptionAiPromptContext({
       selectionSnapshot: {
         activeUnitId: 'utt-1',
         selectedUnit: null,
         selectedRowMeta: null,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedUnitStartSec: 0,
         selectedUnitEndSec: 1,
         selectedLayerId: 'layer-1',
@@ -215,9 +215,9 @@ describe('buildTranscriptionAiPromptContext', () => {
       selectedUnitCount: 0,
       currentMediaUnits: [],
       projectUnitsForTools: [
-        { id: 'u1', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-1' },
-        { id: 'u2', kind: 'utterance', mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-2' },
-        { id: 'u3', kind: 'utterance', mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'c', speakerId: 'spk-1' },
+        { id: 'u1', kind: 'unit', mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'a', speakerId: 'spk-1' },
+        { id: 'u2', kind: 'unit', mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'b', speakerId: 'spk-2' },
+        { id: 'u3', kind: 'unit', mediaId: 'm2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'c', speakerId: 'spk-1' },
       ],
       unitCount: 3,
       translationLayerCount: 0,
@@ -238,7 +238,7 @@ describe('buildTranscriptionAiPromptContext', () => {
         activeUnitId: 'utt-1',
         selectedUnit: null,
         selectedRowMeta: null,
-        selectedUnitKind: 'utterance',
+        selectedUnitKind: 'unit',
         selectedUnitStartSec: 0,
         selectedUnitEndSec: 1,
         selectedLayerId: 'layer-1',
@@ -324,21 +324,21 @@ describe('buildTranscriptionAiPromptContext', () => {
   });
 });
 
-describe('buildUtteranceTimelineDigest', () => {
+describe('buildUnitTimelineDigest', () => {
   it('returns empty string for empty array', () => {
-    expect(buildUtteranceTimelineDigest([])).toBe('');
+    expect(buildUnitTimelineDigest([])).toBe('');
   });
 
-  it('formats utterances with time ranges and truncated text', () => {
-    const result = buildUtteranceTimelineDigest(MOCK_UTTERANCE_DIGEST_ROWS);
+  it('formats units with time ranges and truncated text', () => {
+    const result = buildUnitTimelineDigest(MOCK_UNIT_DIGEST_ROWS);
     expect(result).toContain('#1 00:00.0');
     expect(result).toContain('#3');
     expect(result).toContain('#6');
     expect(result).not.toContain('#7');
   });
 
-  it('omits text for utterances without transcription', () => {
-    const result = buildUtteranceTimelineDigest([
+  it('omits text for units without transcription', () => {
+    const result = buildUnitTimelineDigest([
       { id: 'a', startTime: 0, endTime: 5 },
     ]);
     expect(result).toContain('#1 00:00.0');
@@ -346,7 +346,7 @@ describe('buildUtteranceTimelineDigest', () => {
   });
 
   it('truncates text longer than 30 characters', () => {
-    const result = buildUtteranceTimelineDigest([
+    const result = buildUnitTimelineDigest([
       { id: 'a', startTime: 0, endTime: 5, transcription: 'A'.repeat(50) },
     ]);
     expect(result).toContain('A'.repeat(30));

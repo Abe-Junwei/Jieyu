@@ -1,8 +1,5 @@
 import { getDb } from '../db';
-import type {
-  LexemeDocType, UtteranceTokenDocType, TokenLexemeLinkDocType,
-  TokenLexemeLinkRole, Transcription, MultiLangString,
-} from '../db';
+import type { LexemeDocType, UnitTokenDocType, TokenLexemeLinkDocType, TokenLexemeLinkRole, Transcription, MultiLangString } from '../db';
 import { TaskRunner } from './tasks/TaskRunner';
 import { getGlobalTaskRunner } from './tasks/taskRunnerSingleton';
 import { LeipzigValidator, type LeipzigWarning as LzWarning } from './LeipzigValidator';
@@ -48,7 +45,7 @@ export interface AutoGlossLeipzigHint {
 
 export interface AutoGlossResult {
   taskId?: string;
-  utteranceId: string;
+  unitId: string;
   matched: AutoGlossMatch[];
   skipped: number;
   total: number;
@@ -76,17 +73,17 @@ export class AutoGlossService {
   }
 
   /**
-   * 对给定 utterance 中尚无 gloss 的 token 自动标注
-   * Auto-gloss unglossed tokens in the given utterance
+   * 对给定 unit 中尚无 gloss 的 token 自动标注
+   * Auto-gloss unglossed tokens in the given unit
    */
-  async glossUtterance(utteranceId: string): Promise<AutoGlossResult> {
+  async glossUnit(unitId: string): Promise<AutoGlossResult> {
     const enqueued = await this.taskRunner.enqueue<AutoGlossResult>({
       taskType: 'gloss',
-      targetId: utteranceId,
-      targetType: 'utterance',
+      targetId: unitId,
+      targetType: 'unit',
       modelId: 'lexeme-match',
       maxAttempts: 1,
-      run: async () => this.executeGloss(utteranceId),
+      run: async () => this.executeGloss(unitId),
     });
 
     const result = await enqueued.result;
@@ -96,9 +93,9 @@ export class AutoGlossService {
     };
   }
 
-  private async executeGloss(utteranceId: string): Promise<AutoGlossResult> {
+  private async executeGloss(unitId: string): Promise<AutoGlossResult> {
     const db = await getDb();
-    const tokens = await db.collections.utterance_tokens.findByIndex('unitId', utteranceId);
+    const tokens = await db.collections.unit_tokens.findByIndex('unitId', unitId);
 
     const allLexemes = await db.collections.lexemes.find().exec();
     const lexemes = allLexemes.map((d) => d.toJSON());
@@ -112,7 +109,7 @@ export class AutoGlossService {
     const total = tokens.length;
 
     for (const tokenDoc of tokens) {
-      const token: UtteranceTokenDocType = tokenDoc.toJSON();
+      const token: UnitTokenDocType = tokenDoc.toJSON();
 
       // 跳过已有 gloss 的 token | Skip tokens with existing gloss
       if (token.gloss && Object.keys(token.gloss).length > 0) {
@@ -142,7 +139,7 @@ export class AutoGlossService {
 
       // 写入 gloss | Write gloss
       const now = new Date().toISOString();
-      await db.collections.utterance_tokens.update(token.id, {
+      await db.collections.unit_tokens.update(token.id, {
         gloss,
         updatedAt: now,
       });
@@ -185,7 +182,7 @@ export class AutoGlossService {
     }
 
     return {
-      utteranceId, matched, skipped, total,
+      unitId, matched, skipped, total,
       ...(leipzigHints.length > 0 ? { leipzigHints } : {}),
     };
   }

@@ -1,29 +1,14 @@
 import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
-import {
-  diffAiToolSnapshot,
-  type AiToolGoldenSnapshot,
-  type AiToolReplayBundle,
-  type AiToolSnapshotDiff,
-} from '../../ai/auditReplay';
+import { diffAiToolSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';
 import { buildCopyableAssistantPlainText, splitCitationMarkers } from '../../utils/citationFootnoteUtils';
 import { t, useLocale } from '../../i18n';
-import {
-  aiChatProviderDefinitions,
-  getAiChatProviderDefinition,
-} from '../../ai/providers/providerCatalog';
+import { aiChatProviderDefinitions, getAiChatProviderDefinition } from '../../ai/providers/providerCatalog';
 import type { AiChatProviderKind, AiChatSettings, AiToolFeedbackStyle } from '../../ai/providers/providerCatalog';
 import { useAiAssistantHubContext } from '../../contexts/AiAssistantHubContext';
-import {
-  formatCitationLabel,
-  formatToolDecision,
-} from './aiChatCardUtils';
-import {
-  exportReplayBundleSnapshot,
-  openReplayBundleByRequestId,
-  parseImportedGoldenSnapshot,
-} from './aiChatReplayUtils';
+import { formatCitationLabel, formatToolDecision } from './aiChatCardUtils';
+import { exportReplayBundleSnapshot, openReplayBundleByRequestId, parseImportedGoldenSnapshot } from './aiChatReplayUtils';
 import { AiChatAlertsPanel } from './AiChatAlertsPanel';
 import { AiChatCandidateChips } from './AiChatCandidateChips';
 import { AiChatMetricsBar } from './AiChatMetricsBar';
@@ -38,12 +23,8 @@ import { useGlobalContext } from '../../services/GlobalContextService';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';
 import { rankCandidateLabelsByAdaptiveProfile } from './aiChatAdaptiveRanking';
 import { useAiChatHybridRecommendations } from './useAiChatHybridRecommendations';
-import {
-  detectWebLLMRuntimeStatus,
-  warmupWebLLMModel,
-  type WebLLMRuntimeStatus,
-  type WebLLMWarmupProgress,
-} from '../../ai/providers/webllmRuntime';
+import { detectWebLLMRuntimeStatus, warmupWebLLMModel, type WebLLMRuntimeStatus, type WebLLMWarmupProgress } from '../../ai/providers/webllmRuntime';
+import { buildFollowUpSuggestions, classifyRecommendationAdoption, formatTaskTraceOutcome } from './aiChatCardFollowUps';
 
 type AiChatCardProps = {
   embedded?: boolean;
@@ -56,37 +37,6 @@ type AiChatCardProps = {
     onTogglePanel: () => void;
   } | undefined;
 };
-
-function normalizeRecommendationText(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-function classifyRecommendationAdoption(
-  inputText: string,
-  recommendedText: string,
-): 'accepted_exact' | 'accepted_edited' | null {
-  const normalizedInput = normalizeRecommendationText(inputText);
-  const normalizedRecommended = normalizeRecommendationText(recommendedText);
-  if (!normalizedInput || !normalizedRecommended) return null;
-  if (normalizedInput === normalizedRecommended) return 'accepted_exact';
-
-  const anchorLength = normalizedRecommended.length >= 16 ? 10 : 6;
-  const recommendedAnchor = normalizedRecommended.slice(0, Math.min(anchorLength, normalizedRecommended.length));
-  if (recommendedAnchor.length >= 4 && normalizedInput.startsWith(recommendedAnchor)) {
-    return 'accepted_edited';
-  }
-
-  let sharedPrefix = 0;
-  while (
-    sharedPrefix < normalizedInput.length
-    && sharedPrefix < normalizedRecommended.length
-    && normalizedInput[sharedPrefix] === normalizedRecommended[sharedPrefix]
-  ) {
-    sharedPrefix += 1;
-  }
-
-  return sharedPrefix / normalizedRecommended.length >= 0.45 ? 'accepted_edited' : null;
-}
 
 export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChatCardProps = {}) {
   const locale = useLocale();
@@ -158,12 +108,12 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     [aiChatSettings?.toolFeedbackStyle],
   );
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
-  const hasApiKeyField = useMemo(() => activeProviderDefinition.fields.some((field) => field.key === 'apiKey'), [activeProviderDefinition.fields]);
+  const hasApiKeyField = activeProviderDefinition.fields.some((field) => field.key === 'apiKey');
 
   const promptVars = useMemo<Record<string, string>>(() => {
     const selectedText = selectedUnit?.text?.trim()
       ?? '';
-    const currentUtterance = selectedUnit
+    const currentUnit = selectedUnit
       ? `id=${selectedUnit.id}; text=${selectedText}; time=${selectedUnit.startTime}-${selectedUnit.endTime}`
       : '';
     const lexiconSummary = lexemeMatches.length === 0
@@ -175,8 +125,8 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
 
     return {
       selected_text: String(selectedText ?? ''),
-      current_unit: currentUtterance,
-      current_utterance: currentUtterance,
+      current_unit: currentUnit,
+      current_unit: currentUnit,
       lexicon_summary: lexiconSummary,
       project_stage: observerStage ?? '',
       current_row: selectedRowMeta ? String(selectedRowMeta.rowNumber) : '',
@@ -437,6 +387,26 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
   const rankedClarifyCandidates = useMemo(
     () => rankCandidateLabelsByAdaptiveProfile(aiTaskSession?.candidates ?? [], adaptiveInputProfile),
     [adaptiveInputProfile, aiTaskSession?.candidates],
+  );
+
+  const latestAssistantMessage = useMemo(() => {
+    const sourceMessages = aiMessages ?? [];
+    for (let index = sourceMessages.length - 1; index >= 0; index -= 1) {
+      const item = sourceMessages[index];
+      if (item?.role === 'assistant') return item;
+    }
+    return null;
+  }, [aiMessages]);
+
+  const followUpSuggestions = useMemo(() => buildFollowUpSuggestions({
+    isZh,
+    latestAssistantMessage,
+    lastFrame: aiSessionMemory?.localToolState?.lastFrame,
+  }), [aiSessionMemory?.localToolState?.lastFrame, isZh, latestAssistantMessage]);
+
+  const recentTaskTrace = useMemo(
+    () => [...(aiTaskSession?.trace ?? [])].slice(-3).reverse(),
+    [aiTaskSession?.trace],
   );
 
   const hybridRecommendations = useAiChatHybridRecommendations({
@@ -889,6 +859,28 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     setDismissedRecommendationSignature(null);
   };
 
+  const submitFollowUpPrompt = (prompt: string): void => {
+    const normalized = prompt.trim();
+    if (!normalized) return;
+    if (!onSendAiMessage) {
+      showTransientBlockedReason(cardMessages.chatNotReady);
+      return;
+    }
+    if (aiIsStreaming) {
+      showTransientBlockedReason(cardMessages.previousReplyStreaming);
+      return;
+    }
+    if (hasToolPending) {
+      setShowAlertBar(true);
+      showTransientBlockedReason(inputBlockedReason ?? cardMessages.pendingActionBeforeSend);
+      return;
+    }
+    exposedRecommendationRef.current = null;
+    void onSendAiMessage(normalized);
+    setChatInput('');
+    setDismissedRecommendationSignature(null);
+  };
+
   const applyInlineRecommendation = (): void => {
     if (!topHybridRecommendation) return;
     setChatInput(topHybridRecommendation.prompt);
@@ -1160,7 +1152,7 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                     ? rawCitations
                     : [...rawCitations].sort((a, b) => {
                         const rank = (type: string): number => {
-                          if (type === 'utterance') return 1;
+                          if (type === 'unit') return 1;
                           if (type === 'note') return 2;
                           if (type === 'pdf') return 3;
                           return 99;
@@ -1410,6 +1402,38 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                 {cardMessages.agentLoopProgress(aiTaskSession.step!, aiTaskSession.maxSteps!)}
               </div>
             )}
+            {recentTaskTrace.length > 0 && (
+              <div className="ai-chat-task-trace" role="status" aria-live="polite">
+                <div className="ai-chat-task-trace-title">{cardMessages.taskTraceTitle}</div>
+                <div className="ai-chat-task-trace-list">
+                  {recentTaskTrace.map((entry) => (
+                    <div key={`${entry.requestId ?? entry.toolName ?? entry.phase}-${entry.stepNumber}`} className="ai-chat-task-trace-chip">
+                      <span className="ai-chat-task-trace-step">{cardMessages.taskTraceStepLabel(entry.stepNumber)}</span>
+                      <span className="ai-chat-task-trace-tool">{entry.toolName ?? entry.phase}</span>
+                      <span className="ai-chat-task-trace-status">{formatTaskTraceOutcome(entry, isZh)}</span>
+                      {typeof entry.durationMs === 'number' ? <span className="ai-chat-task-trace-duration">{`${entry.durationMs}ms`}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {followUpSuggestions.length > 0 && (
+              <div className="ai-chat-follow-up-panel">
+                <div className="ai-chat-follow-up-title">{cardMessages.followUpTitle}</div>
+                <div className="ai-chat-composer-shortcuts-list">
+                  {followUpSuggestions.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="icon-btn ai-chat-composer-shortcut ai-chat-follow-up-chip"
+                      onClick={() => submitFollowUpPrompt(item.prompt)}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <AiChatMetricsBar
               isZh={isZh}
               aiInteractionMetrics={aiInteractionMetrics}
@@ -1599,10 +1623,15 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
                         const canReplay = typeof item.requestId === 'string' && item.requestId.trim().length > 0;
                         const isLoading = replayLoadingRequestId === item.requestId;
                         const isSelected = selectedReplayBundle?.requestId === item.requestId;
+                        const decisionBits = [
+                          formatToolDecision(isZh, item.decision),
+                          item.reason,
+                          typeof item.durationMs === 'number' ? `${item.durationMs}ms` : '',
+                        ].filter((value) => typeof value === 'string' && value.trim().length > 0);
                         return (
                           <div key={item.id} className="ai-chat-decision-item ai-chat-decision-item-compact">
                             <div className="ai-chat-decision-item-meta">
-                              <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {formatToolDecision(isZh, item.decision)}</span>
+                              <span className="ai-chat-decision-item-main">{item.toolName || cardMessages.unknownTool} · {decisionBits.join(' · ')}</span>
                               <em className="ai-chat-decision-item-time">{new Date(item.timestamp).toLocaleTimeString()}</em>
                             </div>
                             {canReplay && (

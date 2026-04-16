@@ -1,4 +1,4 @@
-import type { LayerDocType, UtteranceDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
 import type { AiChatToolCall, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
@@ -7,14 +7,14 @@ import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 interface CreateTranscriptionAiToolRiskCheckInput {
   locale: Locale;
-  utterances: UtteranceDocType[];
-  selectedUnit?: UtteranceDocType;
+  units: LayerUnitDocType[];
+  selectedUnit?: LayerUnitDocType;
   selectedSegmentTargetId?: string;
   segmentTargets?: SegmentTargetDescriptor[];
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   formatTime: (seconds: number) => string;
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string;
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   translationTextByLayer: Map<string, Map<string, { text?: string }>>;
 }
 
@@ -29,16 +29,16 @@ function orderSegmentTargetsByTimeline(targets: SegmentTargetDescriptor[]): Segm
 }
 
 function buildDefaultSegmentTargets(
-  utterances: UtteranceDocType[],
-  getUtteranceTextForLayer: (utterance: UtteranceDocType, layerId?: string) => string,
+  units: LayerUnitDocType[],
+  getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string,
 ): SegmentTargetDescriptor[] {
-  return utterances.map((utterance) => ({
-    id: utterance.id,
-    kind: 'utterance',
-    startTime: utterance.startTime,
-    endTime: utterance.endTime,
-    text: getUtteranceTextForLayer(utterance).trim(),
-    utteranceId: utterance.id,
+  return units.map((unit) => ({
+    id: unit.id,
+    kind: 'unit',
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    text: getUnitTextForLayer(unit).trim(),
+    unitId: unit.id,
   }));
 }
 
@@ -72,7 +72,7 @@ function resolveSelectorTargets(
   }
   if (call.arguments.segmentPosition === 'previous' || call.arguments.segmentPosition === 'next') {
     if (!selectedTargetId) return [];
-    const anchorIndex = orderedTargets.findIndex((item) => item.id === selectedTargetId || item.utteranceId === selectedTargetId);
+    const anchorIndex = orderedTargets.findIndex((item) => item.id === selectedTargetId || item.unitId === selectedTargetId);
     if (anchorIndex < 0) return [];
     const offset = call.arguments.segmentPosition === 'previous' ? -1 : 1;
     const target = orderedTargets[anchorIndex + offset];
@@ -113,19 +113,19 @@ function resolveTargetSegments(
 
 export function createTranscriptionAiToolRiskCheck({
   locale,
-  utterances,
+  units,
   selectedUnit,
   selectedSegmentTargetId,
   segmentTargets,
   transcriptionLayers,
   translationLayers,
   formatTime,
-  getUtteranceTextForLayer,
+  getUnitTextForLayer,
   translationTextByLayer,
 }: CreateTranscriptionAiToolRiskCheckInput) {
   const resolvedSegmentTargets = Array.isArray(segmentTargets) && segmentTargets.length > 0
     ? segmentTargets
-    : buildDefaultSegmentTargets(utterances, getUtteranceTextForLayer);
+    : buildDefaultSegmentTargets(units, getUnitTextForLayer);
 
   return (call: AiChatToolCall): AiToolRiskCheckResult | null => {
     if (call.name === 'delete_layer') {
@@ -213,9 +213,9 @@ export function createTranscriptionAiToolRiskCheck({
     }
 
     const sortedByTime = orderSegmentTargetsByTimeline(resolvedSegmentTargets);
-    const targetUtteranceIds = new Set(targetSegments
-      .filter((item) => item.kind === 'utterance')
-      .map((item) => item.utteranceId ?? item.id));
+    const targetUnitIds = new Set(targetSegments
+      .filter((item) => item.kind === 'unit')
+      .map((item) => item.unitId ?? item.id));
     const firstTarget = targetSegments[0]!;
     const lastTarget = targetSegments[targetSegments.length - 1]!;
     const timeRange = `${formatTime(firstTarget.startTime)}-${formatTime(lastTarget.endTime)}`;
@@ -223,7 +223,7 @@ export function createTranscriptionAiToolRiskCheck({
       .map((item) => item.text.trim())
       .filter((item) => item.length > 0);
     const translationEntryCountWithContent = Array.from(translationTextByLayer.values()).reduce((count, layerMap) => {
-      for (const targetId of targetUtteranceIds) {
+      for (const targetId of targetUnitIds) {
         if (layerMap.get(targetId)?.text?.trim()) count += 1;
       }
       return count;

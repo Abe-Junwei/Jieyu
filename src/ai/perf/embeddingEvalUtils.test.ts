@@ -1,17 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  fnv1aVector,
-  cosineSimilarity,
-  evaluateCosineSimilarity,
-  recallK,
-  recall5,
-  mrr,
-  ndcgK,
-  measureEmbedLatency,
-  runEvalReport,
-  type EmbedFn,
-  type RecallQuery,
-} from './embeddingEvalUtils';
+import { fnv1aVector, cosineSimilarity, evaluateCosineSimilarity, recallK, recall5, mrr, ndcgK, measureEmbedLatency, runEvalReport, type EmbedFn, type RecallQuery } from './embeddingEvalUtils';
 
 // ── fnv1aVector | FNV-1a 降级向量 ────────────────────────────────────────
 

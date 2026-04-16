@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  computeStreamTailSliceCut,
-  sliceAssistantStreamText,
-} from './streamAssistantWords';
+import { computeStreamTailSliceCut, sliceAssistantStreamText } from './streamAssistantWords';
 
 describe('sliceAssistantStreamText', () => {
   it('returns empty array for empty string', () => {

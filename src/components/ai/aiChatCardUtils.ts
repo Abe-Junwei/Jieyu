@@ -92,18 +92,18 @@ export function formatPendingTarget(
     const segmentIds = Array.isArray(call.arguments.segmentIds)
       ? call.arguments.segmentIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       : [];
-    const utteranceIds = Array.isArray(call.arguments.utteranceIds)
-      ? call.arguments.utteranceIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    const unitIds = Array.isArray(call.arguments.unitIds)
+      ? call.arguments.unitIds.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       : [];
-    const batchCount = segmentIds.length + utteranceIds.length;
+    const batchCount = segmentIds.length + unitIds.length;
     if (batchCount > 1) return messages.selectedSegments(batchCount);
 
     const segmentId = typeof call.arguments.segmentId === 'string' ? call.arguments.segmentId.trim() : '';
     if (segmentId) return messages.segmentWithId(compactInternalId(segmentId));
 
-    const utteranceId = typeof call.arguments.utteranceId === 'string' ? call.arguments.utteranceId.trim() : '';
-    if (!utteranceId) return messages.currentSelectedSegment;
-    return messages.segmentWithId(compactInternalId(utteranceId));
+    const unitId = typeof call.arguments.unitId === 'string' ? call.arguments.unitId.trim() : '';
+    if (!unitId) return messages.currentSelectedSegment;
+    return messages.segmentWithId(compactInternalId(unitId));
   }
 
   if (call.name === 'delete_layer') {
@@ -170,10 +170,10 @@ export function formatReplayableLabel(isZh: boolean, replayable: boolean): strin
 
 export function formatCitationLabel(
   isZh: boolean,
-  citation: { type: 'utterance' | 'note' | 'pdf' | 'schema'; label?: string; refId: string; readModelIndexHit?: boolean },
+  citation: { type: 'unit' | 'note' | 'pdf' | 'schema'; label?: string; refId: string; readModelIndexHit?: boolean },
 ): string {
   const messages = getAiChatCardUtilityMessages(isZh);
-  const fallback = citation.type === 'utterance'
+  const fallback = citation.type === 'unit'
     ? messages.timelineUnitRef
     : citation.type === 'note'
       ? messages.noteRef

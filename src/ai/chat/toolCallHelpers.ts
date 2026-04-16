@@ -1,33 +1,10 @@
 import { featureFlags } from '../config/featureFlags';
 import { buildAiToolRequestId } from '../toolRequestId';
-import {
-  formatActionClarify,
-  formatNonActionFallback,
-  formatTargetClarify,
-  formatToolCancelledMessage,
-  formatToolFailureMessage,
-  formatToolGraySkippedMessage,
-  formatToolPendingMessage,
-  formatToolRollbackSkippedMessage,
-  formatToolSuccessMessage,
-} from '../messages';
+import { formatActionClarify, formatNonActionFallback, formatTargetClarify, formatToolCancelledMessage, formatToolFailureMessage, formatToolGraySkippedMessage, formatToolPendingMessage, formatToolRollbackSkippedMessage, formatToolSuccessMessage } from '../messages';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
-import type {
-  AiChatToolCall,
-  AiChatToolName,
-  AiClarifyCandidate,
-  AiPromptContext,
-  AiSessionMemory,
-  AiToolDecisionMode,
-  PreviewContract,
-  UiChatMessage,
-} from './chatDomain.types';
+import type { AiChatToolCall, AiChatToolName, AiClarifyCandidate, AiPromptContext, AiSessionMemory, AiToolDecisionMode, PreviewContract, UiChatMessage } from './chatDomain.types';
 import type { Locale } from '../../i18n';
-import {
-  extractJsonCandidates,
-  parseToolCallFromTextZod,
-  validateToolArgumentsZod,
-} from './toolCallSchemas';
+import { extractJsonCandidates, parseToolCallFromTextZod, validateToolArgumentsZod } from './toolCallSchemas';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { resolveLanguageQuery } from '../../utils/langMapping';
 
@@ -37,7 +14,7 @@ interface RawToolCallEnvelope {
 }
 
 export type ToolPlannerClarifyReason =
-  | 'missing-utterance-target'
+  | 'missing-unit-target'
   | 'missing-split-position'
   | 'missing-translation-layer-target'
   | 'missing-layer-link-target'
@@ -115,10 +92,10 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   if (name === 'clear_translation_segment') return name;
   if (name === 'merge_prev') return name;
   if (name === 'merge_next') return name;
-  if (['split_segment', 'split_transcription_row', 'split_row', 'split_utterance', 'cut_segment', 'split_current_segment'].includes(name)) return 'split_transcription_segment';
+  if (['split_segment', 'split_transcription_row', 'split_row', 'split_unit', 'cut_segment', 'split_current_segment'].includes(name)) return 'split_transcription_segment';
   if (['create_transcription_row', 'create_segment', 'new_segment', 'add_segment', 'new_transcription_row', 'add_transcription_row'].includes(name)) return 'create_transcription_segment';
   if (['merge_segments', 'merge_segment_selection', 'merge_selected_segments', 'merge_selected_transcription_segments', 'merge_transcription_segment_selection'].includes(name)) return 'merge_transcription_segments';
-  if (['delete_transcription_row', 'remove_transcription_row', 'remove_utterance', 'delete_utterance', 'remove_row', 'delete_row', 'delete_segment', 'remove_segment'].includes(name)) return 'delete_transcription_segment';
+  if (['delete_transcription_row', 'remove_transcription_row', 'remove_unit', 'delete_unit', 'remove_row', 'delete_row', 'delete_segment', 'remove_segment'].includes(name)) return 'delete_transcription_segment';
   if (['delete_translation_row', 'clear_translation_text', 'clear_translation', 'empty_translation', 'remove_translation_text', 'clear_segment_translation'].includes(name)) return 'clear_translation_segment';
   if (name === 'set_transcription_text') return name;
   if (name === 'set_translation_text') return name;
@@ -127,13 +104,13 @@ function normalizeToolCallName(rawName: string): AiChatToolName | null {
   if (name === 'delete_layer') return name;
   if (name === 'link_translation_layer') return name;
   if (name === 'unlink_translation_layer') return name;
-  if (name === 'auto_gloss_utterance') return name;
+  if (name === 'auto_gloss_unit') return name;
   if (name === 'set_token_pos') return name;
   if (name === 'set_token_gloss') return name;
   if (name === 'propose_changes') return name;
 
-  if (['auto_gloss', 'auto_gloss_selected', 'gloss_utterance', 'auto_annotate'].includes(name)) {
-    return 'auto_gloss_utterance';
+  if (['auto_gloss', 'auto_gloss_selected', 'gloss_unit', 'auto_annotate'].includes(name)) {
+    return 'auto_gloss_unit';
   }
 
   if (['create_layer', 'new_layer', 'add_layer', 'new_transcription_layer', 'add_transcription_layer'].includes(name)) {
@@ -217,7 +194,7 @@ function inferFallbackActionLabel(userText: string, rawToolName: string): string
 
 function looksLikeSegmentScopedTool(rawToolName: string, args: Record<string, unknown>): boolean {
   const normalizedName = rawToolName.toLowerCase();
-  if (normalizedName.includes('segment') || normalizedName.includes('utterance') || normalizedName.includes('row')) {
+  if (normalizedName.includes('segment') || normalizedName.includes('unit') || normalizedName.includes('row')) {
     return true;
   }
   return [
@@ -394,7 +371,7 @@ function getContextScopeOrProjectUnitCount(context: AiPromptContext | null | und
     context?.shortTerm?.currentMediaUnitCount,
     context?.shortTerm?.projectUnitCount,
     context?.longTerm?.projectStats?.unitCount,
-    context?.longTerm?.projectStats?.utteranceCount,
+    context?.longTerm?.projectStats?.unitCount,
   ];
   for (const value of candidates) {
     if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
@@ -602,7 +579,7 @@ function validateLinkLayerArgs(args: Record<string, unknown>): string | null {
 }
 
 interface ToolContextFillSpec {
-  utteranceId?: boolean;
+  unitId?: boolean;
   translationLayerId?: boolean;
   linkBothLayers?: boolean;
   layerTargetInference?: boolean;
@@ -650,7 +627,7 @@ export function resolveSelectionTargetPatchForTool(
     return null;
   }
   if (activeUnitId.length > 0) {
-    return { utteranceId: activeUnitId };
+    return { unitId: activeUnitId };
   }
   return null;
 }
@@ -658,12 +635,12 @@ export function resolveSelectionTargetPatchForTool(
 const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   create_transcription_segment: {
     label: '\\u521b\\u5efa\\u53e5\\u6bb5',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: validateSegmentTargetArgs,
   },
   split_transcription_segment: {
     label: '\\u5207\\u5206\\u53e5\\u6bb5',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: (args) => validateSegmentTargetArgs(args) ?? validateSplitSegmentArgs(args),
   },
   merge_transcription_segments: {
@@ -676,7 +653,7 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   },
   delete_transcription_segment: {
     label: '\\u5220\\u9664\\u53e5\\u6bb5',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     destructive: true,
     validateArgs: validateDeleteSegmentArgs,
     riskSpec: {
@@ -704,17 +681,17 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   },
   clear_translation_segment: {
     label: '\\u6e05\\u7a7a\\u7ffb\\u8bd1',
-    contextFill: { utteranceId: true, translationLayerId: true },
+    contextFill: { unitId: true, translationLayerId: true },
     validateArgs: (args) => validateSegmentTargetArgs(args) ?? validateArgId(args, 'layerId', true),
   },
   set_transcription_text: {
     label: '\\u5199\\u5165\\u8f6c\\u5199',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: (args) => validateArgText(args) ?? validateSegmentTargetArgs(args),
   },
   set_translation_text: {
     label: '\\u5199\\u5165\\u7ffb\\u8bd1',
-    contextFill: { utteranceId: true, translationLayerId: true },
+    contextFill: { unitId: true, translationLayerId: true },
     validateArgs: (args) => validateArgText(args) ?? validateSegmentTargetArgs(args) ?? validateArgId(args, 'layerId', true),
   },
   create_transcription_layer: {
@@ -759,15 +736,15 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
     contextFill: { linkBothLayers: true },
     validateArgs: validateLinkLayerArgs,
   },
-  auto_gloss_utterance: {
+  auto_gloss_unit: {
     label: '\\u81ea\\u52a8\\u8bcd\\u6c47\\u6807\\u6ce8',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: validateSegmentTargetArgs,
   },
   set_token_pos: {
     label: '\\u8bbe\\u7f6e\\u8bcd\\u6027',
-    contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'utteranceId', false),
+    contextFill: { unitId: true },
+    validateArgs: (args) => validateArgId(args, 'unitId', false),
   },
   set_token_gloss: {
     label: '\\u8bbe\\u7f6e\\u8bcd\\u6c47\\u6807\\u6ce8',
@@ -802,8 +779,8 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   delete_segment: { label: '\\u5220\\u9664\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
   auto_gloss_segment: {
     label: '\\u81ea\\u52a8\\u6807\\u6ce8',
-    contextFill: { utteranceId: true },
-    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'utteranceId', false),
+    contextFill: { unitId: true },
+    validateArgs: (args) => validateArgId(args, 'segmentId', false) ?? validateArgId(args, 'unitId', false),
   },
   nav_to_segment: {
     label: '\\u5bfc\\u822a\\u5230\\u53e5\\u6bb5',
@@ -832,12 +809,12 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   },
   merge_prev: {
     label: '\\u5408\\u5e76\\u4e0a\\u4e00\\u4e2a',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: validateOptionalSegmentTargetArgs,
   },
   merge_next: {
     label: '\\u5408\\u5e76\\u4e0b\\u4e00\\u4e2a',
-    contextFill: { utteranceId: true },
+    contextFill: { unitId: true },
     validateArgs: validateOptionalSegmentTargetArgs,
   },
   get_current_segment: { label: '\\u83b7\\u53d6\\u5f53\\u524d\\u53e5\\u6bb5', contextFill: {}, validateArgs: () => null },
@@ -851,7 +828,7 @@ export function planToolCallTargets(
   context: AiPromptContext | null | undefined,
 ): ToolPlannerResult {
   const shortTerm = context?.shortTerm;
-  const currentUtteranceId = getFirstNonEmptyString(shortTerm?.activeUnitId);
+  const currentUnitId = getFirstNonEmptyString(shortTerm?.activeUnitId);
   const currentSegmentId = getFirstNonEmptyString(shortTerm?.activeSegmentUnitId);
   const selectedUnitIds = getNormalizedIdList(shortTerm?.selectedUnitIds);
   const currentAudioTimeSec = typeof shortTerm?.audioTimeSec === 'number' && Number.isFinite(shortTerm.audioTimeSec)
@@ -873,36 +850,36 @@ export function planToolCallTargets(
     arguments: { ...call.arguments },
   };
   if (toolSupportsSegmentSelectionTarget(call.name)) {
-    delete nextCall.arguments.utteranceId;
+    delete nextCall.arguments.unitId;
   }
   if (call.name === 'merge_transcription_segments' || call.name === 'delete_transcription_segment') {
-    delete nextCall.arguments.utteranceIds;
+    delete nextCall.arguments.unitIds;
   }
   const parsedSegmentSelector = extractSegmentSelectorFromUserText(userText);
   const activeSelectionTargetPatch = resolveSelectionTargetPatchForTool(call.name, context);
 
-  const ensureUtteranceId = (): string => {
+  const ensureUnitId = (): string => {
     const existingSegmentId = getFirstNonEmptyString(nextCall.arguments.segmentId);
     if (existingSegmentId) {
       return existingSegmentId;
     }
-    const existing = getFirstNonEmptyString(nextCall.arguments.utteranceId);
+    const existing = getFirstNonEmptyString(nextCall.arguments.unitId);
     if (existing) {
-      if (currentUtteranceId && existing !== currentUtteranceId) {
-        nextCall.arguments.utteranceId = currentUtteranceId;
+      if (currentUnitId && existing !== currentUnitId) {
+        nextCall.arguments.unitId = currentUnitId;
         if (call.name === 'auto_gloss_segment') {
-          nextCall.arguments.segmentId = currentUtteranceId;
+          nextCall.arguments.segmentId = currentUnitId;
         }
-        return currentUtteranceId;
+        return currentUnitId;
       }
       return existing;
     }
-    if (currentUtteranceId) {
-      nextCall.arguments.utteranceId = currentUtteranceId;
+    if (currentUnitId) {
+      nextCall.arguments.unitId = currentUnitId;
       if (call.name === 'auto_gloss_segment') {
-        nextCall.arguments.segmentId = currentUtteranceId;
+        nextCall.arguments.segmentId = currentUnitId;
       }
-      return currentUtteranceId;
+      return currentUnitId;
     }
     return '';
   };
@@ -917,7 +894,7 @@ export function planToolCallTargets(
       return existingSegmentId;
     }
     nextCall.arguments.segmentId = segmentId;
-    delete nextCall.arguments.utteranceId;
+    delete nextCall.arguments.unitId;
     return segmentId;
   };
 
@@ -931,8 +908,8 @@ export function planToolCallTargets(
 
   if (call.name === 'delete_transcription_segment') {
     const hasExplicitDeleteTarget = getDeleteTargetIds(nextCall.arguments).length > 0 || hasSegmentSelector(nextCall.arguments);
-    if (hasSegmentSelector(nextCall.arguments) && segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
-      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+    if (hasSegmentSelector(nextCall.arguments) && segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUnitId && !currentSegmentId) {
+      return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
     }
     const refersAllSelectedSegments = /(\u6240\u6709|\u5168\u90e8|\u5168\u4f53|all)/i.test(userText)
       && /(\u53e5\u6bb5|\u5206\u6bb5|segment)/i.test(userText);
@@ -944,8 +921,8 @@ export function planToolCallTargets(
         nextCall.arguments.allSegments = true;
       } else if (parsedSegmentSelector) {
         Object.assign(nextCall.arguments, parsedSegmentSelector);
-        if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
-          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUnitId && !currentSegmentId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
         }
       } else {
         const selectedTargetPatch = resolveSelectionTargetPatchForTool(call.name, context);
@@ -954,13 +931,13 @@ export function planToolCallTargets(
         }
         const segmentId = ensureSegmentScopedTarget();
         if (!getFirstNonEmptyString(nextCall.arguments.segmentId) && !segmentId) {
-          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+          return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
         }
       }
     }
 
     if (!hasDeleteAllSegmentsScope(nextCall.arguments) && getDeleteTargetIds(nextCall.arguments).length === 0 && !hasSegmentSelector(nextCall.arguments)) {
-      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+      return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
     }
   }
 
@@ -973,7 +950,7 @@ export function planToolCallTargets(
       if (selectedUnitIds.length > 1) {
         nextCall.arguments.segmentIds = selectedUnitIds;
       } else {
-        return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
       }
     }
   }
@@ -983,27 +960,27 @@ export function planToolCallTargets(
     delete nextCall.arguments.segmentPosition;
     const segmentId = ensureSegmentScopedTarget();
     if (!segmentId) {
-      return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+      return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
     }
   }
 
-  if (cf?.utteranceId && call.name !== 'delete_transcription_segment' && call.name !== 'merge_prev' && call.name !== 'merge_next') {
-    if (!getFirstNonEmptyString(nextCall.arguments.segmentId, nextCall.arguments.utteranceId) && !hasSegmentSelector(nextCall.arguments) && parsedSegmentSelector) {
+  if (cf?.unitId && call.name !== 'delete_transcription_segment' && call.name !== 'merge_prev' && call.name !== 'merge_next') {
+    if (!getFirstNonEmptyString(nextCall.arguments.segmentId, nextCall.arguments.unitId) && !hasSegmentSelector(nextCall.arguments) && parsedSegmentSelector) {
       Object.assign(nextCall.arguments, parsedSegmentSelector);
-      if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUtteranceId && !currentSegmentId) {
-        return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+      if (segmentSelectorNeedsAnchor(nextCall.arguments) && !currentUnitId && !currentSegmentId) {
+        return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
       }
     }
     if (!hasSegmentSelector(nextCall.arguments)) {
       const segmentId = ensureSegmentScopedTarget();
       if (toolSupportsSegmentSelectionTarget(call.name)) {
         if (!segmentId) {
-          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+          return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
         }
       } else if (!segmentId) {
-        const utteranceId = ensureUtteranceId();
-        if (!utteranceId) {
-          return { decision: 'clarify', call: nextCall, reason: 'missing-utterance-target' };
+        const unitId = ensureUnitId();
+        if (!unitId) {
+          return { decision: 'clarify', call: nextCall, reason: 'missing-unit-target' };
         }
       }
     }
@@ -1150,7 +1127,7 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
   );
   const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
 
-  if (['create_transcription_segment', 'split_transcription_segment', 'merge_prev', 'merge_next', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_utterance', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
+  if (['create_transcription_segment', 'split_transcription_segment', 'merge_prev', 'merge_next', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_unit', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
     if (callName === 'delete_transcription_segment' && selectedUnitIds.length > 1) {
       return true;
     }
@@ -1247,9 +1224,9 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
 
   const executionCuePattern = escapedUnicodeRegExp('(\\u8bf7\\u5e2e|\\u8bf7\\u628a|\\u8bf7\\u5c06|\\u5e2e\\u6211|\\u628a|\\u5c06|\\u7ed9\\u6211|\\u6267\\u884c|run|do|please|\\u9ebb\\u70e6|\\u5e2e\\u5fd9|\\u53ef\\u5426|\\u53ef\\u4ee5\\u628a|\\u5f53\\u524d|\\u6b64)', 'i');
   const actionVerbPattern = escapedUnicodeRegExp('(\\u521b\\u5efa|\\u65b0\\u5efa|\\u65b0\\u589e|\\u5207\\u5206|\\u62c6\\u5206|\\u5408\\u5e76|\\u5220\\u9664|\\u6e05\\u7a7a|\\u79fb\\u9664|\\u5199\\u5165|\\u586b\\u5199|\\u586b\\u5165|\\u8bbe\\u7f6e|\\u8bbe\\u4e3a|\\u4fee\\u6539|\\u6539\\u6210|\\u6539\\u4e3a|\\u66f4\\u65b0|\\u8986\\u76d6|\\u66ff\\u6362|\\u5173\\u8054|\\u94fe\\u63a5|\\u89e3\\u9664|\\u65ad\\u5f00|\\u81ea\\u52a8\\u6807\\u6ce8|\\u8f6c\\u5199|\\u7ffb\\u8bd1|create|add|insert|split|merge|delete|remove|clear|set|update|replace|link|unlink|gloss)', 'i');
-  const actionTargetPattern = escapedUnicodeRegExp('(\\u53e5\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|utterance|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
+  const actionTargetPattern = escapedUnicodeRegExp('(\\u53e5\\u6bb5|\\u6bb5\\u843d|segment|\\u5c42|layer|\\u8f6c\\u5199|\\u7ffb\\u8bd1|\\u6587\\u672c|text|gloss|\\u8bcd\\u4e49|unit|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
   const actionObjectPronounPattern = escapedUnicodeRegExp('(\\u4e4b|\\u5b83|\\u5176|\\u8fd9\\u6761|\\u8be5\\u6761|\\u672c\\u6761|\\u6b64\\u6761|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)$', 'i');
-  const explicitIdPattern = escapedUnicodeRegExp('(utteranceId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
+  const explicitIdPattern = escapedUnicodeRegExp('(unitId|layerId|transcriptionLayerId|translationLayerId|\\bu\\d+\\b|\\blayer[-_a-z0-9]+\\b|\\u5f53\\u524d|\\u6b64|\\u8fd9\\u4e2a|\\u90a3\\u4e2a)', 'i');
 
   let score = 0;
   const hasExecutionCue = executionCuePattern.test(trimmed);
@@ -1552,7 +1529,7 @@ export function buildClarifyCandidates(
   );
 
   const candidates: AiClarifyCandidate[] = [];
-  if (reason === 'missing-utterance-target') {
+  if (reason === 'missing-unit-target') {
     const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
     if (selectionTargetPatch?.segmentId) {
       candidates.push({ key: '1', label: `\\u5f53\\u524d\\u9009\\u4e2d\\u53e5\\u6bb5（${selectionTargetPatch.segmentId}）`, argsPatch: selectionTargetPatch });
@@ -1605,7 +1582,7 @@ export function normalizeUnsupportedToolCallJson(
 
   const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
   if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
-    return formatTargetClarify(actionLabel, 'missing-utterance-target', style);
+    return formatTargetClarify(actionLabel, 'missing-unit-target', style);
   }
   return formatActionClarify(actionLabel, style);
 }
@@ -1639,7 +1616,7 @@ export function normalizeJsonishAssistantReply(
   if (rawCall) {
     const actionLabel = inferFallbackActionLabel(userText, rawCall.name);
     if (looksLikeSegmentScopedTool(rawCall.name, rawCall.arguments)) {
-      return formatTargetClarify(actionLabel, 'missing-utterance-target', style);
+      return formatTargetClarify(actionLabel, 'missing-unit-target', style);
     }
     return formatActionClarify(actionLabel, style);
   }

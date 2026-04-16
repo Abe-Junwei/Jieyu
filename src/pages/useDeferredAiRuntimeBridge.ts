@@ -1,15 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
-import {
-  buildAiStateWorkerFingerprint,
-  type AiStateWorkerRequest,
-  type AiStateWorkerResponse,
-  type AiStateWorkerSlice,
-} from '../ai/workers/aiStateWorkerProtocol';
-import {
-  buildAiStateWorkerSlice,
-  createInitialDeferredAiRuntimeState,
-} from './TranscriptionPage.ReadyWorkspace.runtime';
+import { buildAiStateWorkerFingerprint, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from '../ai/workers/aiStateWorkerProtocol';
+import { buildAiStateWorkerSlice, createInitialDeferredAiRuntimeState } from './TranscriptionPage.ReadyWorkspace.runtime';
 
 export interface DeferredAiRuntimeBridgeResult {
   deferredAiRuntime: DeferredTranscriptionAiRuntimeState;
