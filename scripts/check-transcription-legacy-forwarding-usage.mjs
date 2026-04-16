@@ -3,15 +3,12 @@ import path from 'node:path';
 
 const SRC_DIR = path.resolve(process.cwd(), 'src');
 
-const LEGACY_SYMBOL_REGEX = /\blegacy(?:ResolveAutoSegmentCandidates|CreateProject|ImportAudio|DeleteProject|DeleteAudio|DeleteSegments|SplitSegment|MergeAdjacentSegments|DeleteSegment)\b/g;
+// 彻底移除兼容别名后，任何 legacy 标识都视为回退 | After removal, any legacy symbol is treated as regression
+const LEGACY_SYMBOL_REGEX = /\b(?:legacy(?:ResolveAutoSegmentCandidates|CreateProject|ImportAudio|DeleteProject|DeleteAudio|DeleteSegments|SplitSegment|MergeAdjacentSegments|DeleteSegment)|ITranscriptionLegacyForwardingAppService|transcriptionLegacyForwarding)\b/g;
 
-const allowedFiles = new Set([
+const forbiddenFiles = [
   'src/app/transcriptionLegacyForwarding.ts',
-  'src/pages/useTranscriptionProjectMediaController.ts',
-  'src/pages/useTranscriptionSegmentMutationController.ts',
-]);
-
-const maxConsumerFiles = 2;
+];
 
 // M4 首批目标 + 一层相邻文件：禁止直连 services（必须经 app）
 // M4 first-batch targets + one-layer adjacent files: forbid direct services imports (must go through app layer)
@@ -51,23 +48,25 @@ for (const filePath of files) {
   matchedFiles.push(relativePath);
 }
 
-const illegalFiles = matchedFiles.filter((file) => !allowedFiles.has(file));
-const consumerFiles = matchedFiles.filter((file) => file !== 'src/app/transcriptionLegacyForwarding.ts');
-
-if (illegalFiles.length > 0) {
-  console.error('[check-transcription-legacy-forwarding-usage] Found illegal legacy forwarding usage:');
-  for (const file of illegalFiles) {
+if (matchedFiles.length > 0) {
+  console.error('[check-transcription-legacy-forwarding-usage] Found forbidden legacy forwarding usage:');
+  for (const file of matchedFiles) {
     console.error(`- ${file}`);
   }
   process.exit(1);
 }
 
-if (consumerFiles.length > maxConsumerFiles) {
-  console.error(`[check-transcription-legacy-forwarding-usage] Legacy forwarding consumer files exceeded ceiling: ${consumerFiles.length}/${maxConsumerFiles}`);
-  for (const file of consumerFiles) {
-    console.error(`- ${file}`);
+for (const file of forbiddenFiles) {
+  const fullPath = path.resolve(process.cwd(), file);
+  try {
+    const stat = statSync(fullPath);
+    if (stat.isFile()) {
+      console.error(`[check-transcription-legacy-forwarding-usage] Forbidden compatibility file exists: ${file}`);
+      process.exit(1);
+    }
+  } catch {
+    // 文件不存在是期望状态 | Missing file is the expected state
   }
-  process.exit(1);
 }
 
 const serviceBypassFiles = [];
@@ -88,9 +87,4 @@ if (serviceBypassFiles.length > 0) {
   process.exit(1);
 }
 
-console.log(`[check-transcription-legacy-forwarding-usage] OK: ${consumerFiles.length} consumer file(s), ceiling ${maxConsumerFiles}.`);
-if (consumerFiles.length > 0) {
-  for (const file of consumerFiles) {
-    console.log(`- ${file}`);
-  }
-}
+console.log('[check-transcription-legacy-forwarding-usage] OK: no legacy forwarding usage found.');
