@@ -853,7 +853,11 @@ export function useTranscriptionUnitActions({
     const unresolvedIds = [...idSet].filter((id) => !localTargets.some((u) => u.id === id));
     const db = await getDb();
     const persistedTargets = unresolvedIds.length > 0
-      ? (await db.dexie.layer_units.bulkGet(unresolvedIds)).filter((row): row is LayerUnitDocType => Boolean(row))
+      ? await db.dexie.transaction(
+          'r',
+          db.dexie.layer_units,
+          async () => (await db.dexie.layer_units.bulkGet(unresolvedIds)).filter((row): row is LayerUnitDocType => Boolean(row)),
+        )
       : [];
     const targets = [...localTargets, ...persistedTargets];
     if (targets.length === 0) return;

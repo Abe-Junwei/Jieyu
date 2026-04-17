@@ -126,6 +126,13 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.note-panel-item:hover .note-panel-edit-trigger,
+.note-panel-item:hover .note-panel-delete {
+  opacity: 1;
 }
 
 .note-panel-edit-trigger:hover {

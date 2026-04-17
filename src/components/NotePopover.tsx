@@ -162,6 +162,11 @@ export const NotePopover = memo(function NotePopover({
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
             <div key={note.id} className="note-popover-item">
+              {note.category && (
+                <span className={`note-popover-tag note-popover-tag-${note.category}`}>
+                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
+                </span>
+              )}
               {editingId === note.id ? (
                 <div className="note-popover-edit">
                   <textarea

@@ -281,11 +281,16 @@ export class WorkspaceReadModelService {
     }
 
     const db = await getDb();
-    const [unitRows, layerDocsWrapped, contentRows] = await Promise.all([
-      db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
-      db.collections.layers.find().exec(),
-      db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
-    ]);
+    const [unitRows, contentRows] = await db.dexie.transaction(
+      'r',
+      db.dexie.layer_units,
+      db.dexie.layer_unit_contents,
+      async () => Promise.all([
+        db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
+        db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
+      ]),
+    );
+    const layerDocsWrapped = await db.collections.layers.find().exec();
 
     const layers = layerDocsWrapped
       .map((doc) => doc.toJSON())

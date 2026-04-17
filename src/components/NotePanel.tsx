@@ -128,6 +128,11 @@ export const NotePanel = memo(function NotePanel({
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
             <div key={note.id} className="note-panel-item">
+              {note.category && (
+                <span className={`note-panel-category note-panel-category-${note.category}`}>
+                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
+                </span>
+              )}
               {editingId === note.id ? (
                 <div className="note-panel-edit">
                   <textarea

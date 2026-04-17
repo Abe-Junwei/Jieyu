@@ -281,8 +281,7 @@ export function createTranscriptionUnitBatchActions(input: BatchActionsInput) {
     let splitter: RegExp;
     try {
       splitter = new RegExp(rawPattern, normalizedFlags);
-    } catch (err) {
-      console.error('[Jieyu] useTranscriptionUnitActions: regex compilation failed', { rawPattern, flags, err });
+    } catch {
       reportValidationError({
         message: t(locale, 'transcription.error.validation.regexPatternInvalid'),
         i18nKey: 'transcription.error.validation.regexPatternInvalid',

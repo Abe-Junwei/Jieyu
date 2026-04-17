@@ -1121,14 +1121,21 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     unitTexts,
     tokenRowsRaw,
     morphemeRowsRaw,
-  ] = await Promise.all([
-    db.dexie.layer_units.get(unitId),
-    listUnitTextsByUnit(db, unitId),
-    db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
-    includeMorphemes
-      ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
-      : Promise.resolve([]),
-  ]);
+  ] = await db.dexie.transaction(
+    'r',
+    db.dexie.layer_units,
+    db.dexie.layer_unit_contents,
+    db.dexie.unit_tokens,
+    db.dexie.unit_morphemes,
+    async () => Promise.all([
+      db.dexie.layer_units.get(unitId),
+      listUnitTextsByUnit(db, unitId),
+      db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
+      includeMorphemes
+        ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
+        : Promise.resolve([]),
+    ]),
+  );
 
   const hasAnyData = Boolean(
     localHit

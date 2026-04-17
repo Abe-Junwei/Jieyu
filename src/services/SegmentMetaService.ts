@@ -196,11 +196,16 @@ export class SegmentMetaService {
     if (ids.length === 0) return;
 
     const db = await getDb();
-    const [units, staleRowsById, staleRowsByHostId] = await Promise.all([
-      db.dexie.layer_units.bulkGet(ids).then((rows) => rows.filter((row): row is LayerUnitDocType => Boolean(row))),
-      db.dexie.segment_meta.where('segmentId').anyOf(ids).toArray(),
-      db.dexie.segment_meta.where('hostUnitId').anyOf(ids).toArray(),
-    ]);
+    const [units, staleRowsById, staleRowsByHostId] = await db.dexie.transaction(
+      'r',
+      db.dexie.layer_units,
+      db.dexie.segment_meta,
+      async () => Promise.all([
+        db.dexie.layer_units.bulkGet(ids).then((rows) => rows.filter((row): row is LayerUnitDocType => Boolean(row))),
+        db.dexie.segment_meta.where('segmentId').anyOf(ids).toArray(),
+        db.dexie.segment_meta.where('hostUnitId').anyOf(ids).toArray(),
+      ]),
+    );
     const staleRows = [...new Map(
       [...staleRowsById, ...staleRowsByHostId].map((row) => [row.id, row] as const),
     ).values()];
@@ -214,20 +219,28 @@ export class SegmentMetaService {
       return hostIds;
     }))];
     const relatedHosts = relatedHostIds.length > 0
-      ? (await db.dexie.layer_units.bulkGet(relatedHostIds)).filter((row): row is LayerUnitDocType => Boolean(row))
+      ? await db.dexie.transaction(
+          'r',
+          db.dexie.layer_units,
+          async () => (await db.dexie.layer_units.bulkGet(relatedHostIds)).filter((row): row is LayerUnitDocType => Boolean(row)),
+        )
       : [];
 
     const referencingUnits = relatedHostIds.length > 0
-      ? await Promise.all([
-          db.dexie.layer_units.where('parentUnitId').anyOf(relatedHostIds).toArray(),
-          db.dexie.layer_units.where('rootUnitId').anyOf(relatedHostIds).toArray(),
-        ]).then(([fromParent, fromRoot]) => {
-          const byId = new Map<string, LayerUnitDocType>();
-          for (const row of [...fromParent, ...fromRoot]) {
-            byId.set(row.id, row);
-          }
-          return [...byId.values()];
-        })
+      ? await db.dexie.transaction(
+          'r',
+          db.dexie.layer_units,
+          async () => Promise.all([
+            db.dexie.layer_units.where('parentUnitId').anyOf(relatedHostIds).toArray(),
+            db.dexie.layer_units.where('rootUnitId').anyOf(relatedHostIds).toArray(),
+          ]).then(([fromParent, fromRoot]) => {
+            const byId = new Map<string, LayerUnitDocType>();
+            for (const row of [...fromParent, ...fromRoot]) {
+              byId.set(row.id, row);
+            }
+            return [...byId.values()];
+          }),
+        )
       : [];
 
     await SegmentMetaService.rebuildScopes([
@@ -284,12 +297,19 @@ export class SegmentMetaService {
     if (!normalizedLayerId || !normalizedMediaId) return [];
 
     const db = await getDb();
-    const [unitRows, contentRows, noteRows, speakerRows] = await Promise.all([
-      db.dexie.layer_units.where('[layerId+mediaId]').equals([normalizedLayerId, normalizedMediaId]).toArray(),
-      db.dexie.layer_unit_contents.where('layerId').equals(normalizedLayerId).toArray(),
-      db.dexie.user_notes.toArray(),
-      db.dexie.speakers.toArray(),
-    ]);
+    const [unitRows, contentRows, noteRows, speakerRows] = await db.dexie.transaction(
+      'r',
+      db.dexie.layer_units,
+      db.dexie.layer_unit_contents,
+      db.dexie.user_notes,
+      db.dexie.speakers,
+      async () => Promise.all([
+        db.dexie.layer_units.where('[layerId+mediaId]').equals([normalizedLayerId, normalizedMediaId]).toArray(),
+        db.dexie.layer_unit_contents.where('layerId').equals(normalizedLayerId).toArray(),
+        db.dexie.user_notes.toArray(),
+        db.dexie.speakers.toArray(),
+      ]),
+    );
 
     const metaRows = unitRows.filter((row) => row.unitType === 'segment' || row.unitType === 'unit');
     const hostIds = [...new Set(metaRows.flatMap((row) => {
@@ -299,7 +319,11 @@ export class SegmentMetaService {
       if (row.rootUnitId?.trim()) ids.push(row.rootUnitId.trim());
       return ids;
     }))];
-    const hostRows = await db.dexie.layer_units.bulkGet(hostIds);
+    const hostRows = await db.dexie.transaction(
+      'r',
+      db.dexie.layer_units,
+      async () => db.dexie.layer_units.bulkGet(hostIds),
+    );
     const hostById = new Map(hostRows.filter((row): row is LayerUnitDocType => Boolean(row)).map((row) => [row.id, row] as const));
 
     const contentsByUnitId = new Map<string, LayerUnitContentDocType[]>();
