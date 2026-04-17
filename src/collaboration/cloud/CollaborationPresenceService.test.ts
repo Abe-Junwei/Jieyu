@@ -39,7 +39,7 @@ const {
   };
 });
 
-vi.mock('../../integrations/supabase/client', () => ({
+vi.mock('./collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({
     channel: mockChannelFactory,
   }),

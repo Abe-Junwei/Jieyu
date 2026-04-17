@@ -3,7 +3,7 @@ import {
   removeProjectAsset,
   type CollaborationStorageBucket,
 } from '../../integrations/supabase/storage';
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import type { CollaborationProjectSnapshotRecord } from './syncTypes';
 
 export interface UploadSnapshotInput {

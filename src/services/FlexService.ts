@@ -9,9 +9,12 @@
  */
 
 import type { LayerDocType, LayerSegmentViewDocType, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, OrthographyDocType } from '../db';
+import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
+
+type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -23,6 +26,8 @@ export interface FlexExportInput {
   tokens?: UnitTokenDocType[];
   morphemes?: UnitMorphemeDocType[];
   languageTag?: string;
+  /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
+  timelineMetadata?: TimelineInteropMetadata;
   /** 独立层 segment 数据 | Independent layer segment data */
   segmentsByLayer?: Map<string, LayerSegmentViewDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
@@ -30,6 +35,8 @@ export interface FlexExportInput {
 }
 
 export interface FlexImportResult {
+  /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
+  timelineMetadata?: TimelineInteropMetadata;
   units: Array<{
     startTime: number;
     endTime: number;
@@ -66,10 +73,38 @@ function getText(el: Element | null): string {
   return el?.textContent?.trim() ?? '';
 }
 
+function buildTimelineAttributeFragment(timelineMetadata?: TimelineInteropMetadata): string {
+  if (!timelineMetadata) return '';
+  return [
+    timelineMetadata.timelineMode ? ` jieyu_timeline_mode="${escapeXml(timelineMetadata.timelineMode)}"` : '',
+    timelineMetadata.logicalDurationSec !== undefined ? ` jieyu_logical_duration_sec="${escapeXml(String(timelineMetadata.logicalDurationSec))}"` : '',
+    timelineMetadata.timebaseLabel ? ` jieyu_timebase_label="${escapeXml(timelineMetadata.timebaseLabel)}"` : '',
+  ].join('');
+}
+
+function readTimelineMetadataFromAttributes(element: Element | null): TimelineInteropMetadata | undefined {
+  if (!element) return undefined;
+  const timelineModeAttr = element.getAttribute('jieyu_timeline_mode');
+  const timelineMode = timelineModeAttr === 'document' || timelineModeAttr === 'media'
+    ? timelineModeAttr
+    : undefined;
+  const logicalDurationRaw = element.getAttribute('jieyu_logical_duration_sec');
+  const logicalDurationSec = logicalDurationRaw !== null && Number.isFinite(Number(logicalDurationRaw))
+    ? Number(logicalDurationRaw)
+    : undefined;
+  const timebaseLabel = element.getAttribute('jieyu_timebase_label')?.trim() || undefined;
+  if (!timelineMode && logicalDurationSec === undefined && !timebaseLabel) return undefined;
+  return {
+    ...(timelineMode ? { timelineMode } : {}),
+    ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
+    ...(timebaseLabel ? { timebaseLabel } : {}),
+  };
+}
+
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToFlextext(input: FlexExportInput): string {
-  const { units, layers, translations, orthographies, tokens = [], morphemes = [], languageTag = 'und', segmentsByLayer, segmentContents } = input;
+  const { units, layers, translations, orthographies, tokens = [], morphemes = [], languageTag = 'und', timelineMetadata, segmentsByLayer, segmentContents } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
     ?? layers.find((l) => l.layerType === 'transcription');
@@ -167,7 +202,7 @@ export function exportToFlextext(input: FlexExportInput): string {
   const additionalItsXml = additionalIts.length > 0 ? `\n${additionalIts.join('\n')}` : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<document version="2">
+<document version="2"${buildTimelineAttributeFragment(timelineMetadata)}>
   <interlinear-text guid="it1">
     <item type="title" lang="en">Jieyu Export</item>
     <paragraphs>
@@ -195,6 +230,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
 
   const units: FlexImportResult['units'] = [];
   const phraseGlosses = new Map<string, string>();
+  const timelineMetadata = readTimelineMetadataFromAttributes(doc.documentElement);
   let sourceLanguage: string | undefined;
   let glossLanguage: string | undefined;
 
@@ -291,6 +327,7 @@ export function importFromFlextext(xmlString: string): FlexImportResult {
   return {
     units,
     phraseGlosses,
+    ...(timelineMetadata ? { timelineMetadata } : {}),
     ...(sourceLanguage !== undefined && { sourceLanguage }),
     ...(glossLanguage !== undefined && { glossLanguage }),
   };

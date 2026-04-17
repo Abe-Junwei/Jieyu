@@ -195,6 +195,31 @@ describe('useTranscriptionSelfCertaintyController', () => {
     expect(result.current.resolveSelfCertaintyForUnit('seg-2', 'layer-seg')).toBeUndefined();
   });
 
+  it('optimistically mirrors a segment certainty edit to related scoped rows before refresh', () => {
+    const saveUnitSelfCertainty = vi.fn();
+    const { result } = renderHook(() => useTranscriptionSelfCertaintyController({
+      segmentsByLayer: new Map([
+        ['source-layer', [{ id: 'seg-1', layerId: 'source-layer', unitId: 'utt-host', mediaId: 'media-1', startTime: 1, endTime: 2 }]],
+      ]),
+      currentMediaUnits: [
+        { id: 'seg-1', layerId: 'display-layer', mediaId: 'media-1', startTime: 1, endTime: 2 },
+        { id: 'seg-1', layerId: 'source-layer', parentUnitId: 'utt-host', mediaId: 'media-1', startTime: 1, endTime: 2 },
+      ],
+      units: [
+        { id: 'utt-host', mediaId: 'media-1', startTime: 1, endTime: 2 },
+      ],
+      saveUnitSelfCertainty: saveUnitSelfCertainty,
+    }));
+
+    act(() => {
+      result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'display-layer');
+    });
+
+    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['seg-1'], 'uncertain');
+    expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'display-layer')).toBe('uncertain');
+    expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'source-layer')).toBe('uncertain');
+  });
+
   it('does not leak certainty across layers when duplicate segment ids exist', () => {
     const saveUnitSelfCertainty = vi.fn();
     const { result } = renderHook(() => useTranscriptionSelfCertaintyController({

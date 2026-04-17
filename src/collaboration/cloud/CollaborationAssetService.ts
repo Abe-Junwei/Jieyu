@@ -4,7 +4,7 @@
  * 负责资产元数据记录与 Storage 文件的注册、列表、签名URL、删除。
  * Manages asset metadata records alongside Storage upload/signed-url/remove.
  */
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import {
   uploadProjectAsset,
   createSignedProjectAssetUrl,

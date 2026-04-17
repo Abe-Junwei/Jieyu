@@ -10,6 +10,8 @@ import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
+type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+
 // ── Types ───────────────────────────────────────────────────
 
 export interface EafExportInput {
@@ -20,6 +22,8 @@ export interface EafExportInput {
   orthographies?: OrthographyDocType[];
   translations: LayerUnitContentDocType[];
   userNotes?: UserNoteDocType[];
+  /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
+  timelineMetadata?: TimelineInteropMetadata;
   /** 独立边界层的 segment 数据（按 layerId 分组）| Segment data for independent-boundary layers, keyed by layerId */
   layerSegments?: Map<string, LayerUnitDocType[]>;
   /** 独立边界层的 segment 内容（按 layerId 分组，内层按 segmentId）| Segment content for independent-boundary layers */
@@ -32,6 +36,8 @@ export interface EafExportInput {
 
 export interface EafImportResult {
   mediaFilename: string;
+  /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
+  timelineMetadata?: TimelineInteropMetadata;
   /** Units extracted from the default transcription tier */
   units: Array<{
     startTime: number;
@@ -67,6 +73,7 @@ export interface EafImportResult {
 }
 
 const JIEYU_LAYER_META_PREFIX = 'jieyu:layer-meta:';
+const JIEYU_PROJECT_META_TIMELINE = 'jieyu:project-meta:timeline';
 
 // ── Export ───────────────────────────────────────────────────
 
@@ -99,8 +106,21 @@ function parseEafMetaFromLayerKey(layerKey?: string): { tierId?: string; langLab
   }
 }
 
+function extractTimelineMetadata(metadata?: OrthographyInteropMetadata): TimelineInteropMetadata | undefined {
+  if (!metadata) return undefined;
+  const timelineMode = metadata.timelineMode;
+  const logicalDurationSec = metadata.logicalDurationSec;
+  const timebaseLabel = metadata.timebaseLabel;
+  if (!timelineMode && logicalDurationSec === undefined && !timebaseLabel) return undefined;
+  return {
+    ...(timelineMode ? { timelineMode } : {}),
+    ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
+    ...(timebaseLabel ? { timebaseLabel } : {}),
+  };
+}
+
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, units, anchors, layers, orthographies, translations, userNotes, layerSegments, layerSegmentContents, speakers } = input;
+  const { mediaItem, units, anchors, layers, orthographies, translations, userNotes, timelineMetadata, layerSegments, layerSegmentContents, speakers } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const unitById = new Map(units.map((unit) => [unit.id, unit] as const));
 
@@ -477,6 +497,9 @@ ${annotations.join('\n')}
   for (const [tierId, metadata] of tierIdentityMetadata) {
     headerLines.push(`        <PROPERTY NAME="${escapeXml(`${JIEYU_LAYER_META_PREFIX}${tierId}`)}">${escapeXml(JSON.stringify(metadata))}</PROPERTY>`);
   }
+  if (timelineMetadata && Object.keys(timelineMetadata).length > 0) {
+    headerLines.push(`        <PROPERTY NAME="${escapeXml(JIEYU_PROJECT_META_TIMELINE)}">${escapeXml(JSON.stringify(timelineMetadata))}</PROPERTY>`);
+  }
   const mediaHeader = headerLines.length > 0
     ? `    <HEADER MEDIA_FILE="" TIME_UNITS="milliseconds">
 ${headerLines.join('\n')}
@@ -684,13 +707,18 @@ export function importFromEaf(xmlString: string): EafImportResult {
     if (id && val) timeSlotMap.set(id, parseInt(val, 10));
   });
   const tierMetadata = new Map<string, OrthographyInteropMetadata>();
+  let timelineMetadata: TimelineInteropMetadata | undefined;
   doc.querySelectorAll('HEADER > PROPERTY').forEach((property) => {
     const name = property.getAttribute('NAME') ?? '';
-    if (!name.startsWith(JIEYU_LAYER_META_PREFIX)) return;
-    const tierId = name.slice(JIEYU_LAYER_META_PREFIX.length).trim();
-    if (!tierId) return;
     try {
       const metadata = parseOrthographyInteropMetadata(JSON.parse(property.textContent ?? ''));
+      if (name === JIEYU_PROJECT_META_TIMELINE) {
+        timelineMetadata = extractTimelineMetadata(metadata);
+        return;
+      }
+      if (!name.startsWith(JIEYU_LAYER_META_PREFIX)) return;
+      const tierId = name.slice(JIEYU_LAYER_META_PREFIX.length).trim();
+      if (!tierId) return;
       if (metadata) tierMetadata.set(tierId, metadata);
     } catch (error) {
       console.warn('[Jieyu] EafService: failed to parse tier metadata property', { name, error });
@@ -782,6 +810,7 @@ export function importFromEaf(xmlString: string): EafImportResult {
 
   return {
     mediaFilename,
+    ...(timelineMetadata ? { timelineMetadata } : {}),
     units,
     translationTiers,
     ...(defaultLocale ? { defaultLocale } : {}),

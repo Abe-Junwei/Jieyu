@@ -1,6 +1,7 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import type { CollaborationPresenceRecord, ProjectEntityType } from './syncTypes';
+import { subscribeRealtimeChannel } from './realtimeSubscription';
 
 export interface PresenceConnectionInput {
   projectId: string;
@@ -102,33 +103,37 @@ function createChannelName(projectId: string): string {
   return `project:${projectId}:presence`;
 }
 
-const DEFAULT_SUBSCRIBE_TIMEOUT_MS = 15_000;
+function toPresenceUpsertRow(record: CollaborationPresenceRecord): {
+  project_id: string;
+  user_id: string;
+  display_name: string | null;
+  state: 'online' | 'idle' | 'offline';
+  focused_entity_type: ProjectEntityType | null;
+  focused_entity_id: string | null;
+  cursor_payload: Record<string, unknown> | null;
+  last_seen_at: string;
+} {
+  return {
+    project_id: record.projectId,
+    user_id: record.userId,
+    display_name: record.displayName ?? null,
+    state: record.state,
+    focused_entity_type: record.focusedEntityType ?? null,
+    focused_entity_id: record.focusedEntityId ?? null,
+    cursor_payload: record.cursorPayload ?? null,
+    last_seen_at: record.lastSeenAt,
+  };
+}
 
-function subscribeChannel(channel: RealtimeChannel, timeoutMs = DEFAULT_SUBSCRIBE_TIMEOUT_MS): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error(`Presence channel subscribe timed out after ${timeoutMs}ms`));
-      }
-    }, timeoutMs);
-
-    channel.subscribe((status) => {
-      if (settled) return;
-      if (status === 'SUBSCRIBED') {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-        return;
-      }
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        settled = true;
-        clearTimeout(timer);
-        reject(new Error(`Presence channel subscribe failed: ${status}`));
-      }
-    });
-  });
+/**
+ * Persist presence row to `project_presence` (Supabase).
+ */
+export async function upsertCollaborationPresenceRecord(record: CollaborationPresenceRecord): Promise<void> {
+  const client = getSupabaseBrowserClient();
+  const { error } = await client
+    .from('project_presence')
+    .upsert(toPresenceUpsertRow(record), { onConflict: 'project_id,user_id' });
+  if (error) throw error;
 }
 
 export class CollaborationPresenceService {
@@ -175,7 +180,7 @@ export class CollaborationPresenceService {
         this.refreshMembersFromChannel();
       });
 
-    await subscribeChannel(channel);
+    await subscribeRealtimeChannel(channel, { channelLabel: 'Presence channel' });
 
     this.channel = channel;
     this.connection = input;

@@ -3,7 +3,7 @@ title: execution/release-gates 文档索引
 doc_type: execution-release-gates-index
 status: active
 owner: repo
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-18
 source_of_truth: release-gate-index
 ---
 

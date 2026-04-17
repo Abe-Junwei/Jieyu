@@ -27,8 +27,11 @@
  */
 
 import type { LayerDocType, OrthographyDocType, LayerUnitDocType } from '../db';
+import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
+
+type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -46,11 +49,15 @@ export interface TrsExportInput {
   transcriptionLayer?: LayerDocType;
   /** Programme title written into <Trans program="..."> */
   programTitle?: string;
+  /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
+  timelineMetadata?: TimelineInteropMetadata;
 }
 
 export interface TrsImportResult {
   /** Speaker records extracted from <Speakers> */
   speakers: TrsSpeaker[];
+  /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
+  timelineMetadata?: TimelineInteropMetadata;
   /** Unit segments extracted from <Turn>/<Sync> structure */
   units: Array<{
     startTime: number;
@@ -79,10 +86,39 @@ function formatTime(seconds: number): string {
   return seconds.toFixed(3);
 }
 
+function buildTimelineAttributeFragment(timelineMetadata?: TimelineInteropMetadata): string {
+  if (!timelineMetadata) return '';
+  const attrs = [
+    timelineMetadata.timelineMode ? ` jieyu_timeline_mode="${escapeXml(timelineMetadata.timelineMode)}"` : '',
+    timelineMetadata.logicalDurationSec !== undefined ? ` jieyu_logical_duration_sec="${escapeXml(String(timelineMetadata.logicalDurationSec))}"` : '',
+    timelineMetadata.timebaseLabel ? ` jieyu_timebase_label="${escapeXml(timelineMetadata.timebaseLabel)}"` : '',
+  ].join('');
+  return attrs;
+}
+
+function readTimelineMetadataFromAttributes(element: Element | null): TimelineInteropMetadata | undefined {
+  if (!element) return undefined;
+  const timelineModeAttr = element.getAttribute('jieyu_timeline_mode');
+  const timelineMode = timelineModeAttr === 'document' || timelineModeAttr === 'media'
+    ? timelineModeAttr
+    : undefined;
+  const logicalDurationRaw = element.getAttribute('jieyu_logical_duration_sec');
+  const logicalDurationSec = logicalDurationRaw !== null && Number.isFinite(Number(logicalDurationRaw))
+    ? Number(logicalDurationRaw)
+    : undefined;
+  const timebaseLabel = element.getAttribute('jieyu_timebase_label')?.trim() || undefined;
+  if (!timelineMode && logicalDurationSec === undefined && !timebaseLabel) return undefined;
+  return {
+    ...(timelineMode ? { timelineMode } : {}),
+    ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
+    ...(timebaseLabel ? { timebaseLabel } : {}),
+  };
+}
+
 // ── Export ───────────────────────────────────────────────────
 
 export function exportToTrs(input: TrsExportInput): string {
-  const { units, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export' } = input;
+  const { units, speakers = [], orthographies, transcriptionLayer, programTitle = 'Jieyu Export', timelineMetadata } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const transcriptionRenderPolicy = transcriptionLayer?.languageId
     ? resolveOrthographyRenderPolicy(transcriptionLayer.languageId, orthographies, transcriptionLayer.orthographyId)
@@ -155,7 +191,7 @@ ${segments}
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Trans SYSTEM "trans-14.dtd">
-<Trans program="${escapeXml(programTitle)}" air_date="${date}" scribe="" version="1" version_date="${date}">
+<Trans program="${escapeXml(programTitle)}" air_date="${date}" scribe="" version="1" version_date="${date}"${buildTimelineAttributeFragment(timelineMetadata)}>
   <Speakers>
 ${speakersXml}
   </Speakers>
@@ -193,6 +229,7 @@ export function importFromTrs(xmlString: string): TrsImportResult {
   });
 
   const units: TrsImportResult['units'] = [];
+  const timelineMetadata = readTimelineMetadataFromAttributes(doc.documentElement);
 
   // Each <Turn> contains one or more <Sync> nodes with interleaved text nodes.
   // We reconstruct segments as the text between consecutive <Sync> elements.
@@ -253,7 +290,11 @@ export function importFromTrs(xmlString: string): TrsImportResult {
   // Sort by startTime for consistency
   units.sort((a, b) => a.startTime - b.startTime);
 
-  return { speakers, units };
+  return {
+    speakers,
+    ...(timelineMetadata ? { timelineMetadata } : {}),
+    units,
+  };
 }
 
 /** Extract concatenated text content from an array of DOM nodes */

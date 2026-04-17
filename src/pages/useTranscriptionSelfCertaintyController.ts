@@ -330,7 +330,16 @@ export function useTranscriptionSelfCertaintyController(
       const next = new Map(prev);
       const normalizedLayerId = layerId?.trim() ?? '';
       for (const unitId of normalizedUnitIds) {
-        next.set(`${normalizedLayerId}::${unitId}`, value ?? null);
+        const scopedKeys = new Set<string>();
+        scopedKeys.add(`${normalizedLayerId}::${unitId}`);
+        for (const scopedUnitKey of selfCertaintyHostHintsByUnitAndLayerId.keys()) {
+          if (scopedUnitKey.endsWith(`::${unitId}`)) {
+            scopedKeys.add(scopedUnitKey);
+          }
+        }
+        for (const scopedKey of scopedKeys) {
+          next.set(scopedKey, value ?? null);
+        }
       }
       return next;
     });
@@ -340,7 +349,7 @@ export function useTranscriptionSelfCertaintyController(
       : resolveSelfCertaintyUnitIds(normalizedUnitIds, layerId);
     if (resolved.length === 0) return;
     fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(resolved, value)));
-  }, [input.saveUnitSelfCertainty, resolveSelfCertaintyUnitIds]);
+  }, [input.saveUnitSelfCertainty, resolveSelfCertaintyUnitIds, selfCertaintyHostHintsByUnitAndLayerId]);
 
   return {
     resolveSelfCertaintyUnitIds,

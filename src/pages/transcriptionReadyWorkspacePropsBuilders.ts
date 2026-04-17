@@ -91,7 +91,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
   return dropUndefinedKeys({
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    activeTextTimelineMode: input.activeTextTimelineMode,
+    activeTextTimelineMode: input.activeTextTimelineMode ?? null,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
@@ -542,7 +542,7 @@ export function buildReadyWorkspaceStageProps(
     vadCacheStatus: input.vadCacheStatus,
     projectHubProps: {
       currentProjectLabel: input.currentProjectLabel,
-      activeTextTimelineMode: input.activeTextTimelineMode,
+      activeTextTimelineMode: input.activeTextTimelineMode ?? null,
       canDeleteProject: input.canDeleteProject,
       canDeleteAudio: input.canDeleteAudio,
       onOpenProjectSetup: input.onOpenProjectSetup,

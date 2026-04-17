@@ -4,7 +4,7 @@
  * 查询 project_changes 表，提供变更时间线、筛选与分页。
  * Queries project_changes table for change timeline, filtering, and pagination.
  */
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import type {
   CollaborationProjectChangeRecord,
   ProjectChangePayload,

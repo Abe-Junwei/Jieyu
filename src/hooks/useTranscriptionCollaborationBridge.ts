@@ -25,8 +25,7 @@ import {
   loadProjectLastSeenRevision,
   saveProjectLastSeenRevision,
 } from '../collaboration/cloud/CollaborationClientStateStore';
-import { getSupabaseUserId } from '../integrations/supabase/auth';
-import { getSupabaseBrowserClient, hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
+import { getSupabaseBrowserClient, getSupabaseUserId, hasSupabaseBrowserClientConfig } from '../collaboration/cloud/collaborationSupabaseFacade';
 
 interface UseTranscriptionCollaborationBridgeParams {
   enabled: boolean;

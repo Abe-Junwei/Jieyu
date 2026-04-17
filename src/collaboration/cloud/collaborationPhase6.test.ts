@@ -14,7 +14,7 @@ const mockSupabaseFrom = vi.fn();
 const mockSupabaseStorage = { from: vi.fn() };
 const mockSupabaseChannel = vi.fn();
 
-vi.mock('../../integrations/supabase/client', () => ({
+vi.mock('./collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({
     from: mockSupabaseFrom,
     storage: mockSupabaseStorage,

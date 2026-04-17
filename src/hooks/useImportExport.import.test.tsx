@@ -144,6 +144,72 @@ describe('useImportExport - import success under stop-write', () => {
     }));
   });
 
+  it('persists logical timeline metadata back onto the active text after import', async () => {
+    await db.texts.put({
+      id: 'text-import',
+      title: { zho: '导入项目' },
+      metadata: {},
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-import-meta',
+      textId: 'text-import',
+      key: 'trc_default_import_meta',
+      name: { zho: '默认转写层' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: 'dummy textgrid', detectedEncoding: 'utf-8', confidence: 'high' as const });
+    mockImportFromTextGrid.mockReturnValueOnce({
+      units: [
+        {
+          startTime: 0,
+          endTime: 1,
+          transcription: 'imported transcription',
+        },
+      ],
+      additionalTiers: new Map(),
+      transcriptionTierName: undefined,
+      timelineMetadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUnitMedia: undefined,
+      unitsOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'demo.textgrid', { type: 'text/plain' }));
+    });
+
+    const savedText = await db.texts.get('text-import');
+    expect(savedText?.metadata).toEqual(expect.objectContaining({
+      timelineMode: 'document',
+      logicalDurationSec: 1800,
+      timebaseLabel: 'logical-second',
+    }));
+  });
+
   it('applies active orthography transform before saving imported transcription text', async () => {
     const defaultLayer: LayerDocType = {
       id: 'trc-default-transform-import',

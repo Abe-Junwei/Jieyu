@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
+import { subscribeRealtimeChannel } from './realtimeSubscription';
 import { CollaborationInboundApplier } from './CollaborationInboundApplier';
 import { CollaborationOutboundQueue } from './CollaborationOutboundQueue';
 import {
@@ -49,35 +50,6 @@ export type ListProjectAssetsInput = Omit<ListAssetsInput, 'projectId'>;
 export type CreateProjectSnapshotInput = Omit<CreateSnapshotVersionInput, 'projectId'>;
 export type ListProjectSnapshotsInput = Omit<ListSnapshotsInput, 'projectId'>;
 export type QueryProjectTimelineInput = Omit<QueryChangeTimelineInput, 'projectId'>;
-
-const DEFAULT_SUBSCRIBE_TIMEOUT_MS = 15_000;
-
-function subscribeChannel(channel: RealtimeChannel, timeoutMs = DEFAULT_SUBSCRIBE_TIMEOUT_MS): Promise<void> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true;
-        reject(new Error(`Change channel subscribe timed out after ${timeoutMs}ms`));
-      }
-    }, timeoutMs);
-
-    channel.subscribe((status) => {
-      if (settled) return;
-      if (status === 'SUBSCRIBED') {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-        return;
-      }
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        settled = true;
-        clearTimeout(timer);
-        reject(new Error(`Change channel subscribe failed: ${status}`));
-      }
-    });
-  });
-}
 
 function toStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -225,7 +197,10 @@ export class CollaborationSyncBridge {
       },
     );
 
-    await subscribeChannel(channel, this.options.subscribeTimeoutMs);
+    await subscribeRealtimeChannel(channel, {
+      channelLabel: 'Change channel',
+      ...(this.options.subscribeTimeoutMs !== undefined ? { timeoutMs: this.options.subscribeTimeoutMs } : {}),
+    });
 
     this.channel = channel;
     this.outbound.start();

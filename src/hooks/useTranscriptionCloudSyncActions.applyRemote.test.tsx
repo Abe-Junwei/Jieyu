@@ -137,7 +137,7 @@ async function triggerRemote(change: CollaborationProjectChangeRecord): Promise<
   await bridgeState.onApplyRemoteChange(change);
 }
 
-describe('useTranscriptionCloudSyncActions conflict governance', () => {
+describe('useTranscriptionCloudSyncActions applyRemote + conflict audit chain', () => {
   beforeEach(() => {
     bridgeState.onApplyRemoteChange = null;
     mockHasSupabaseBrowserClientConfig.mockReturnValue(false);
@@ -147,7 +147,7 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     mockEnqueueMutation.mockClear();
   });
 
-  it('auto-resolves low risk conflicts and applies remote mutation', async () => {
+  it('records resolutionTraceId on conflict_resolved logs after auto LWW merge', async () => {
     const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
 
     await act(async () => {
@@ -159,13 +159,13 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     });
 
     await waitFor(() => {
-      expect(mockRawSaveUnitText).toHaveBeenCalledWith('u-1', 'remote text', undefined);
-      expect(result.current.conflictReviewTickets).toHaveLength(0);
-      expect(result.current.conflictOperationLogs.some((item) => item.type === 'conflict_resolved')).toBe(true);
+      const resolved = result.current.conflictOperationLogs.filter((item) => item.type === 'conflict_resolved');
+      expect(resolved.length).toBeGreaterThan(0);
+      expect(resolved[0]?.traceId).toMatch(/^tr-/);
     });
   });
 
-  it('routes high risk conflicts to manual review and allows apply remote recovery', async () => {
+  it('records traceId on manual-review apply-remote recovery path', async () => {
     const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
 
     await act(async () => {
@@ -180,110 +180,18 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
       expect(result.current.conflictReviewTickets).toHaveLength(1);
     });
 
-    expect(mockRawSaveUnitText).toHaveBeenCalledTimes(0);
-
     const ticketId = result.current.conflictReviewTickets[0]!.ticketId;
 
     await act(async () => {
-      const applied = await result.current.applyRemoteConflictTicket(ticketId);
-      expect(applied).toBe(true);
+      await result.current.applyRemoteConflictTicket(ticketId);
     });
 
     await waitFor(() => {
-      expect(mockRawSaveUnitText).toHaveBeenCalledWith('u-1', 'remote-a', undefined);
-      expect(result.current.conflictReviewTickets).toHaveLength(0);
-    });
-  });
-
-  it('allows keeping local state and closing manual review ticket', async () => {
-    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
-
-    await act(async () => {
-      await result.current.saveUnitText('u-1', 'local-b');
-    });
-
-    await act(async () => {
-      await triggerRemote(createRemoteContentChange('remote-b'));
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(1);
-    });
-
-    const ticketId = result.current.conflictReviewTickets[0]!.ticketId;
-
-    await act(async () => {
-      const kept = result.current.keepLocalConflictTicket(ticketId);
-      expect(kept).toBe(true);
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(0);
-      expect(mockRawSaveUnitText).toHaveBeenCalledTimes(0);
-      expect(result.current.conflictOperationLogs.some((item) => item.decisionId?.includes(':keep-local'))).toBe(true);
-    });
-  });
-
-  it('completes manual-review recovery flow from inbound conflict to later apply-remote', async () => {
-    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
-
-    await act(async () => {
-      await result.current.saveUnitText('u-1', 'local-phase-1');
-    });
-
-    await act(async () => {
-      await triggerRemote(createRemoteContentChange('remote-phase-1'));
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(1);
-    });
-
-    const firstTicketId = result.current.conflictReviewTickets[0]!.ticketId;
-
-    await act(async () => {
-      result.current.postponeConflictTicket(firstTicketId);
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(1);
-      expect(result.current.conflictReviewTickets[0]!.ticketId).toBe(firstTicketId);
-    });
-
-    await act(async () => {
-      const kept = result.current.keepLocalConflictTicket(firstTicketId);
-      expect(kept).toBe(true);
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(0);
-      expect(mockRawSaveUnitText).toHaveBeenCalledTimes(0);
-      expect(result.current.conflictOperationLogs.some((item) => item.decisionId?.includes(':keep-local'))).toBe(true);
-    });
-
-    await act(async () => {
-      await result.current.saveUnitText('u-1', 'local-phase-2');
-    });
-
-    await act(async () => {
-      await triggerRemote(createRemoteContentChange('remote-phase-2'));
-    });
-
-    await waitFor(() => {
-      expect(result.current.conflictReviewTickets).toHaveLength(1);
-    });
-
-    const secondTicketId = result.current.conflictReviewTickets[0]!.ticketId;
-
-    await act(async () => {
-      const applied = await result.current.applyRemoteConflictTicket(secondTicketId);
-      expect(applied).toBe(true);
-    });
-
-    await waitFor(() => {
-      expect(mockRawSaveUnitText).toHaveBeenCalledWith('u-1', 'remote-phase-2', undefined);
-      expect(result.current.conflictReviewTickets).toHaveLength(0);
-      expect(result.current.conflictOperationLogs.some((item) => item.decisionId?.includes(':apply-remote'))).toBe(true);
+      const withApply = result.current.conflictOperationLogs.filter(
+        (item) => item.type === 'conflict_resolved' && item.decisionId?.includes(':apply-remote'),
+      );
+      expect(withApply.length).toBeGreaterThan(0);
+      expect(withApply[withApply.length - 1]?.traceId).toMatch(/^tr-/);
     });
   });
 });

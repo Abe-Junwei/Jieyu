@@ -419,7 +419,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode}
+            activeTextTimelineMode={activeTextTimelineMode ?? null}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -702,7 +702,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode}
+            activeTextTimelineMode={activeTextTimelineMode ?? null}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}

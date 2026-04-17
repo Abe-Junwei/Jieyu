@@ -631,7 +631,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode}
+            activeTextTimelineMode={activeTextTimelineMode ?? null}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}

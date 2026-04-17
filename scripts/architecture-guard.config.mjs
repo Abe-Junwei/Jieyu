@@ -880,4 +880,12 @@ export const architectureGuardRules = [
       'src/pages/voiceDictationRuntime.ts',
     ],
   }),
+
+  // React hooks must not import Supabase directly — use `collaboration/cloud/collaborationSupabaseFacade` or cloud services.
+  patternRule(/^src\/hooks\/(?!.*\.test\.).*\.(ts|tsx)$/, {
+    forbiddenRegexes: [
+      /^import .* from ['"]\.\.\/integrations\/supabase\//m,
+      /^import .* from ['"]\.\.\/\.\.\/integrations\/supabase\//m,
+    ],
+  }),
 ];

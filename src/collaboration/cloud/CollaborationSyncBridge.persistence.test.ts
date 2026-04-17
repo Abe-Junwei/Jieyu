@@ -12,7 +12,7 @@ const mockChannelSubscribe = vi.fn();
 const mockChannelUnsubscribe = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 const mockChannelFactory = vi.fn();
 
-vi.mock('../../integrations/supabase/client', () => ({
+vi.mock('./collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({
     channel: mockChannelFactory,
   }),

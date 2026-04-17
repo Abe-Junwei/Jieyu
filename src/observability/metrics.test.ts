@@ -91,6 +91,7 @@ describe('metrics observability foundation', () => {
     expect(isKnownMetricId('parent_fallback_attempt_total')).toBe(true);
     expect(isKnownMetricId('parent_fallback_ambiguous_total')).toBe(true);
     expect(isKnownMetricId('blocked_write_without_explicit_target_total')).toBe(true);
+    expect(isKnownMetricId('business.collaboration.conflict_resolved_count')).toBe(true);
     expect(isKnownMetricId('ai.local_tool_result_truncated')).toBe(true);
     expect(isKnownMetricId('ai.rag_citation_read_model_miss')).toBe(true);
     expect(isKnownMetricId('ai.list_units_snapshot_created')).toBe(true);

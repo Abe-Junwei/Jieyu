@@ -5,6 +5,9 @@ const root = process.cwd();
 
 const requiredFiles = [
   'src/collaboration/cloud/collaborationProtocolGuard.ts',
+  'src/collaboration/cloud/collaborationSupabaseFacade.ts',
+  'src/collaboration/cloud/realtimeSubscription.ts',
+  'src/collaboration/cloud/CollaborationDirectoryService.ts',
   'src/collaboration/cloud/collaborationSyncDerived.ts',
   'src/collaboration/cloud/CollaborationSyncBridge.ts',
   'src/collaboration/cloud/CollaborationAssetService.ts',

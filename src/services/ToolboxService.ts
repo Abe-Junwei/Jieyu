@@ -12,9 +12,12 @@
  */
 
 import type { LayerUnitDocType, LayerDocType, LayerUnitContentDocType, UnitTokenDocType, UnitMorphemeDocType, OrthographyDocType } from '../db';
+import type { OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../utils/bidiPlainText';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
+
+type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
 
 export interface ToolboxExportInput {
   units: LayerUnitDocType[];
@@ -23,6 +26,8 @@ export interface ToolboxExportInput {
   orthographies?: OrthographyDocType[];
   tokens?: UnitTokenDocType[];
   morphemes?: UnitMorphemeDocType[];
+  /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
+  timelineMetadata?: TimelineInteropMetadata;
   /** 独立层 segment 数据 | Independent layer segment data */
   segmentsByLayer?: Map<string, LayerUnitDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
@@ -30,6 +35,8 @@ export interface ToolboxExportInput {
 }
 
 export interface ToolboxImportResult {
+  /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
+  timelineMetadata?: TimelineInteropMetadata;
   units: Array<{
     startTime: number;
     endTime: number;
@@ -66,6 +73,14 @@ type RawRecord = {
 function splitTokens(line: string | undefined): string[] {
   if (!line) return [];
   return line.trim().split(/\s+/).filter(Boolean);
+}
+
+function appendTimelineHeaderMarkers(lines: string[], timelineMetadata?: TimelineInteropMetadata): void {
+  if (!timelineMetadata) return;
+  if (timelineMetadata.timelineMode) lines.push(`\\_jieyu_timelineMode ${timelineMetadata.timelineMode}`);
+  if (timelineMetadata.logicalDurationSec !== undefined) lines.push(`\\_jieyu_logicalDurationSec ${timelineMetadata.logicalDurationSec}`);
+  if (timelineMetadata.timebaseLabel) lines.push(`\\_jieyu_timebaseLabel ${timelineMetadata.timebaseLabel}`);
+  if (lines.length > 0) lines.push('');
 }
 
 function parseTime(value: string | undefined, fallback: number): number {
@@ -116,6 +131,7 @@ export function importFromToolbox(content: string): ToolboxImportResult {
   const rawRecords: RawRecord[] = [];
   let current: RawRecord = {};
   let lastMarker: keyof RawRecord | null = null;
+  let timelineMetadata: TimelineInteropMetadata | undefined;
 
   const finalizeCurrent = () => {
     const hasContent = Object.values(current).some((v) => (v ?? '').trim().length > 0);
@@ -142,7 +158,26 @@ export function importFromToolbox(content: string): ToolboxImportResult {
         finalizeCurrent();
       }
 
-      if (marker === 'ref' || marker === 'ts' || marker === 'te' || marker === 'tx' || marker === 'mb' || marker === 'ge' || marker === 'ps' || marker === 'ft') {
+      if (marker === '_jieyu_timelinemode') {
+        timelineMetadata = {
+          ...(timelineMetadata ?? {}),
+          ...(value.trim() === 'document' || value.trim() === 'media' ? { timelineMode: value.trim() as 'document' | 'media' } : {}),
+        };
+        lastMarker = null;
+      } else if (marker === '_jieyu_logicaldurationsec') {
+        const parsed = Number.parseFloat(value.trim());
+        timelineMetadata = {
+          ...(timelineMetadata ?? {}),
+          ...(Number.isFinite(parsed) ? { logicalDurationSec: parsed } : {}),
+        };
+        lastMarker = null;
+      } else if (marker === '_jieyu_timebaselabel') {
+        timelineMetadata = {
+          ...(timelineMetadata ?? {}),
+          ...(value.trim() ? { timebaseLabel: value.trim() } : {}),
+        };
+        lastMarker = null;
+      } else if (marker === 'ref' || marker === 'ts' || marker === 'te' || marker === 'tx' || marker === 'mb' || marker === 'ge' || marker === 'ps' || marker === 'ft') {
         const key = marker as keyof RawRecord;
         const prev = current[key];
         current[key] = prev ? `${prev} ${value}`.trim() : value.trim();
@@ -188,7 +223,11 @@ export function importFromToolbox(content: string): ToolboxImportResult {
   const additionalTiers = new Map<string, Array<{ startTime: number; endTime: number; text: string }>>();
   if (freeTranslations.length > 0) additionalTiers.set('Toolbox Free Translation', freeTranslations);
 
-  return { units, additionalTiers };
+  return {
+    ...(timelineMetadata ? { timelineMetadata } : {}),
+    units,
+    additionalTiers,
+  };
 }
 
 function buildWordMarkers(
@@ -222,7 +261,7 @@ function buildWordMarkers(
 }
 
 export function exportToToolbox(input: ToolboxExportInput): string {
-  const { units, layers, translations, orthographies, tokens = [], morphemes = [], segmentsByLayer, segmentContents } = input;
+  const { units, layers, translations, orthographies, tokens = [], morphemes = [], timelineMetadata, segmentsByLayer, segmentContents } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const defaultTranscriptionLayer = layers.find((l) => l.layerType === 'transcription' && l.isDefault)
     ?? layers.find((l) => l.layerType === 'transcription');
@@ -268,6 +307,7 @@ export function exportToToolbox(input: ToolboxExportInput): string {
   const firstTranslationLayerId = layers.find((l) => l.layerType === 'translation')?.id;
 
   const lines: string[] = [];
+  appendTimelineHeaderMarkers(lines, timelineMetadata);
 
   sorted.forEach((u, i) => {
     const ref = u.id || `r${i + 1}`;
