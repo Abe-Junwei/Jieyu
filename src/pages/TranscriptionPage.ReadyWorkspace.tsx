@@ -1678,7 +1678,10 @@ function TranscriptionPageReadyWorkspace({
     },
   });
 
-  const toolbarPropsWithCollaboration = toolbarProps;
+  const toolbarPropsWithCollaboration = {
+    ...toolbarProps,
+    leftToolbarExtras: <CollaborationSyncBadge locale={locale} badge={collaborationSyncBadge} />,
+  };
 
   const timelineTopPropsWithWaveformResizeHandle = useMemo(() => ({
     ...timelineTopProps,
@@ -2011,10 +2014,7 @@ function TranscriptionPageReadyWorkspace({
     onApplyRecoveryBanner: applyRecoveryBanner,
     onDismissRecoveryBanner: dismissRecoveryBanner,
     collaborationCloudStatusSlot: (
-      <div className="app-collaboration-cloud-status-strip">
-        <CollaborationSyncBadge locale={locale} badge={collaborationSyncBadge} />
-        <CollaborationCloudReadOnlyBanner locale={locale} guard={collaborationProtocolGuard} />
-      </div>
+      <CollaborationCloudReadOnlyBanner locale={locale} guard={collaborationProtocolGuard} />
     ),
     toolbarProps: toolbarPropsWithCollaboration,
     observerStage: observerResult.stage,

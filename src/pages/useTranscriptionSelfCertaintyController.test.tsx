@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { useTranscriptionSelfCertaintyController } from './useTranscriptionSelfCertaintyController';
 
 describe('useTranscriptionSelfCertaintyController', () => {
-  it('resolves duplicate segment ids by layer scope', () => {
+  it('routes duplicate segment ids to the layer-scoped host unit instead of polluting siblings', () => {
     const saveUnitSelfCertainty = vi.fn();
     const { result } = renderHook(() => useTranscriptionSelfCertaintyController({
       segmentsByLayer: new Map([
@@ -22,11 +22,18 @@ describe('useTranscriptionSelfCertaintyController', () => {
       saveUnitSelfCertainty: saveUnitSelfCertainty,
     }));
 
-    result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'certain', 'layer-a');
-    result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'layer-b');
+    act(() => {
+      result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'certain', 'layer-a');
+    });
+    expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'layer-a')).toBe('certain');
+    expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'layer-b')).toBeUndefined();
 
-    expect(saveUnitSelfCertainty).toHaveBeenNthCalledWith(1, ['seg-1'], 'certain');
-    expect(saveUnitSelfCertainty).toHaveBeenNthCalledWith(2, ['seg-1'], 'uncertain');
+    act(() => {
+      result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'layer-b');
+    });
+
+    expect(saveUnitSelfCertainty).toHaveBeenNthCalledWith(1, ['utt-a'], 'certain');
+    expect(saveUnitSelfCertainty).toHaveBeenNthCalledWith(2, ['utt-b'], 'uncertain');
   });
 
   it('resolves display certainty with the same layer-scoped path used by note badges', () => {
@@ -69,7 +76,7 @@ describe('useTranscriptionSelfCertaintyController', () => {
 
     result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'display-layer');
 
-    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['seg-1'], 'uncertain');
+    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['utt-host'], 'uncertain');
   });
 
   it('marks fallback as ambiguous when duplicate source-layer hints map to multiple hosts', () => {
@@ -120,7 +127,7 @@ describe('useTranscriptionSelfCertaintyController', () => {
 
     result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'display-layer');
 
-    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['seg-1'], 'uncertain');
+    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['utt-host'], 'uncertain');
   });
 
   it('treats multiple scoped overlap hosts as ambiguous even when one host is certainty-bearing', () => {
@@ -190,7 +197,7 @@ describe('useTranscriptionSelfCertaintyController', () => {
       result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'certain', 'layer-seg');
     });
 
-    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['seg-1'], 'certain');
+    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['utt-host'], 'certain');
     expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'layer-seg')).toBe('certain');
     expect(result.current.resolveSelfCertaintyForUnit('seg-2', 'layer-seg')).toBeUndefined();
   });
@@ -215,7 +222,7 @@ describe('useTranscriptionSelfCertaintyController', () => {
       result.current.handleSetUnitSelfCertaintyFromMenu(['seg-1'], 'segment', 'uncertain', 'display-layer');
     });
 
-    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['seg-1'], 'uncertain');
+    expect(saveUnitSelfCertainty).toHaveBeenCalledWith(['utt-host'], 'uncertain');
     expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'display-layer')).toBe('uncertain');
     expect(result.current.resolveSelfCertaintyForUnit('seg-1', 'source-layer')).toBe('uncertain');
   });

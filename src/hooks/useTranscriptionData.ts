@@ -488,7 +488,9 @@ export function useTranscriptionData() {
   };
 
   const actionApi = {
-    loadSnapshot, loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
+    loadSnapshot,
+    refreshTimeMappingData: loadSnapshot,
+    loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
     saveUnitText: cloudSyncActions.saveUnitText, saveUnitSelfCertainty: cloudSyncActions.saveUnitSelfCertainty,
     saveUnitTiming: cloudSyncActions.saveUnitTiming, saveUnitLayerText: cloudSyncActions.saveUnitLayerText,
     createAdjacentUnit, createUnitFromSelection: cloudSyncActions.createUnitFromSelection,

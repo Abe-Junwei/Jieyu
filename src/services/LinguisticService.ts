@@ -57,6 +57,46 @@ function loadLanguageCatalogService() {
   return import('./LinguisticService.languageCatalog');
 }
 
+export interface TextTimeMapping {
+  offsetSec: number;
+  scale: number;
+  revision: number;
+  updatedAt: string;
+  sourceMediaId?: string;
+}
+
+export interface UpdateTextTimeMappingInput {
+  textId: string;
+  offsetSec?: number;
+  scale?: number;
+  sourceMediaId?: string;
+}
+
+function normalizeTextTimeMapping(value: unknown): TextTimeMapping | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const candidate = value as Partial<TextTimeMapping>;
+  const offsetSec = typeof candidate.offsetSec === 'number' && Number.isFinite(candidate.offsetSec)
+    ? candidate.offsetSec
+    : undefined;
+  const scale = typeof candidate.scale === 'number' && Number.isFinite(candidate.scale)
+    ? candidate.scale
+    : undefined;
+  if (offsetSec === undefined || scale === undefined) return undefined;
+  return {
+    offsetSec,
+    scale,
+    revision: typeof candidate.revision === 'number' && Number.isFinite(candidate.revision)
+      ? Math.max(1, Math.trunc(candidate.revision))
+      : 1,
+    updatedAt: typeof candidate.updatedAt === 'string' && candidate.updatedAt.trim().length > 0
+      ? candidate.updatedAt
+      : new Date(0).toISOString(),
+    ...(typeof candidate.sourceMediaId === 'string' && candidate.sourceMediaId.trim().length > 0
+      ? { sourceMediaId: candidate.sourceMediaId.trim() }
+      : {}),
+  };
+}
+
 export class LinguisticService {
   private static async removeNotesForUnitIds(
     db: Awaited<ReturnType<typeof getDb>>,
@@ -891,6 +931,55 @@ export class LinguisticService {
     const db = await getDb();
     const doc = await db.collections.texts.insert(data);
     return doc.primary;
+  }
+
+  static async updateTextTimeMapping(input: UpdateTextTimeMappingInput): Promise<TextDocType> {
+    const db = await getDb();
+    const textId = input.textId.trim();
+    if (!textId) throw new Error('textId 不能为空');
+
+    const existing = await db.texts.get(textId);
+    if (!existing) throw new Error(`文本不存在: ${textId}`);
+
+    const now = new Date().toISOString();
+    const metadata = existing.metadata && typeof existing.metadata === 'object'
+      ? existing.metadata as Record<string, unknown>
+      : {};
+    const currentMapping = normalizeTextTimeMapping(metadata.timeMapping);
+    const nextOffsetSec = input.offsetSec ?? currentMapping?.offsetSec ?? 0;
+    const nextScale = input.scale ?? currentMapping?.scale ?? 1;
+
+    if (!Number.isFinite(nextOffsetSec)) {
+      throw new Error('offsetSec 必须是有限数字');
+    }
+    if (!Number.isFinite(nextScale) || nextScale <= 0) {
+      throw new Error('scale 必须是大于 0 的有限数字');
+    }
+
+    const nextMapping: TextTimeMapping = {
+      offsetSec: nextOffsetSec,
+      scale: nextScale,
+      revision: (currentMapping?.revision ?? 0) + 1,
+      updatedAt: now,
+      ...(input.sourceMediaId?.trim()
+        ? { sourceMediaId: input.sourceMediaId.trim() }
+        : currentMapping?.sourceMediaId
+          ? { sourceMediaId: currentMapping.sourceMediaId }
+          : {}),
+    };
+
+    const updated: TextDocType = {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timeMapping: nextMapping,
+        ...(currentMapping ? { timeMappingRollback: currentMapping } : {}),
+      },
+      updatedAt: now,
+    };
+
+    await db.texts.put(updated);
+    return updated;
   }
 
   static async getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
