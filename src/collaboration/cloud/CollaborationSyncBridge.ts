@@ -39,6 +39,11 @@ export interface CollaborationSyncBridgeOptions {
   onError?: (error: unknown, context: string) => void;
   /** 出站队列长度变化（含持久化恢复的待发送批次）| Pending outbound batch size changes */
   onOutboundPendingSizeChanged?: (pendingCount: number) => void;
+  /**
+   * 覆盖出站初始队列（默认从 CollaborationClientStateStore 读取）。
+   * 协议禁止写云时应传 []，避免把持久化 pending 读入内存后又被「抑制发送」静默丢弃。
+   */
+  initialOutboundPending?: CollaborationProjectChangeRecord[];
   flushIntervalMs?: number;
   maxBatchSize?: number;
   channelPrefix?: string;
@@ -160,7 +165,8 @@ export class CollaborationSyncBridge {
     this.inbound = new CollaborationInboundApplier({
       applier: options.onApplyRemoteChange,
     });
-    const initialPendingChanges = loadProjectPendingOutboundChanges(options.projectId);
+    const initialPendingChanges = options.initialOutboundPending
+      ?? loadProjectPendingOutboundChanges(options.projectId);
     this.outbound = new CollaborationOutboundQueue({
       sender: options.onSendLocalChanges,
       initialPending: initialPendingChanges,

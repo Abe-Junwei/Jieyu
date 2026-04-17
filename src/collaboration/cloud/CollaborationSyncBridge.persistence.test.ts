@@ -124,4 +124,51 @@ describe('CollaborationSyncBridge persistence flow', () => {
 
     await recoveredBridge.stop();
   });
+
+  it('initialOutboundPending: [] 不消费 localStorage 中的 pending（避免禁写时静默丢批次）| empty override skips replay without clearing storage', async () => {
+    saveProjectPendingOutboundChanges('project-1', [makeChange('seed-op')]);
+
+    const sender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>().mockResolvedValue(undefined);
+    const bridge = new CollaborationSyncBridge({
+      projectId: 'project-1',
+      onApplyRemoteChange: async () => {},
+      onSendLocalChanges: sender,
+      initialOutboundPending: [],
+    });
+
+    await bridge.start();
+    await flushMicroTasks();
+
+    expect(sender).not.toHaveBeenCalled();
+    expect(loadProjectPendingOutboundChanges('project-1')).toEqual([
+      expect.objectContaining({ clientOpId: 'seed-op' }),
+    ]);
+
+    await bridge.stop();
+  });
+
+  it('sender 抛错时出站批次回退且持久化 pending 不丢 | throw from sender keeps batch and persisted pending', async () => {
+    saveProjectPendingOutboundChanges('project-1', [makeChange('seed-op')]);
+
+    const sender = vi.fn<(changes: CollaborationProjectChangeRecord[]) => Promise<void>>()
+      .mockRejectedValue(new Error('Collaboration cloud writes are disabled: test'));
+
+    const bridge = new CollaborationSyncBridge({
+      projectId: 'project-1',
+      onApplyRemoteChange: async () => {},
+      onSendLocalChanges: sender,
+    });
+
+    await bridge.start();
+    await flushMicroTasks();
+
+    expect(sender).toHaveBeenCalledWith([
+      expect.objectContaining({ clientOpId: 'seed-op' }),
+    ]);
+    expect(loadProjectPendingOutboundChanges('project-1')).toEqual([
+      expect.objectContaining({ clientOpId: 'seed-op' }),
+    ]);
+
+    await bridge.stop();
+  });
 });

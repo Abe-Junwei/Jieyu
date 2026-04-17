@@ -23,6 +23,7 @@ import { ProjectChangeCodec } from '../collaboration/cloud/ProjectChangeCodec';
 import type { ChangeTimelineResult } from '../collaboration/cloud/CollaborationAuditLogService';
 import {
   loadProjectLastSeenRevision,
+  loadProjectPendingOutboundChanges,
   saveProjectLastSeenRevision,
 } from '../collaboration/cloud/CollaborationClientStateStore';
 import { getSupabaseBrowserClient, getSupabaseUserId, hasSupabaseBrowserClientConfig } from '../collaboration/cloud/collaborationSupabaseFacade';
@@ -203,6 +204,9 @@ export function useTranscriptionCollaborationBridge({
 
       const bridge = new CollaborationSyncBridge({
         projectId: normalizedProjectId,
+        initialOutboundPending: guard.cloudWritesDisabled
+          ? []
+          : loadProjectPendingOutboundChanges(normalizedProjectId),
         onOutboundPendingSizeChanged: (count) => {
           if (!disposed) {
             setOutboundPendingCount(count);
@@ -220,11 +224,14 @@ export function useTranscriptionCollaborationBridge({
         onSendLocalChanges: async (changes) => {
           if (changes.length === 0) return;
           if (writeGuardRef.current.cloudWritesDisabled) {
+            const detail = writeGuardRef.current.reasons.length > 0
+              ? writeGuardRef.current.reasons.join('; ')
+              : 'cloud-writes-disabled';
             console.warn(
               '[TranscriptionCollaborationBridge] suppressed project_changes insert (protocol guard):',
               writeGuardRef.current.reasons,
             );
-            return;
+            throw new Error(`Collaboration cloud writes are disabled: ${detail}`);
           }
           const rows = changes.map(toChangeInsertRow);
           const { error } = await client.from('project_changes').insert(rows);
