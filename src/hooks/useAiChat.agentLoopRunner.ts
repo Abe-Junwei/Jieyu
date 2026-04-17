@@ -7,12 +7,14 @@
  * reducing cognitive complexity of the send callback.
  */
 
-import { buildAgentLoopContinuationInput, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldContinueAgentLoop, shouldWarnTokenBudget } from '../ai/chat/agentLoop';
+import { buildAgentLoopContinuationInput, buildAgentLoopStepTraceTags, createAgentLoopTraceContext, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldContinueAgentLoop, shouldWarnTokenBudget } from '../ai/chat/agentLoop';
 import { trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
 import { getAiChatCardMessages } from '../i18n/aiChatCardMessages';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';
+import { startAiTraceSpan } from '../observability/aiTrace';
+import { createMetricTags } from '../observability/metrics';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import type { LocalContextToolResult } from '../ai/chat/localContextTools';
 import type { AiSessionMemory } from '../ai/chat/chatDomain.types';
@@ -139,9 +141,9 @@ export async function runAgentLoop(
 
   let loopStep = initial.startStep;
   let loopExecuted = false;
+  const agentLoopTraceContext = createAgentLoopTraceContext();
 
-  // ── 循环守卫 | Loop guard ──
-  const shouldContinueWithTaskState = (): boolean => {
+  const getLoopStepTaskState = () => {
     const mem = deps.getSessionMemory();
     const loopRequestedMetric = deps.routingPlan.requestedMetric ?? mem.localToolState?.lastFrame?.metric;
     const loopTaskStateBase = {
@@ -151,9 +153,14 @@ export async function runAgentLoop(
       answerReady: resolvedStatus === 'done' && (!resolvedLocalToolResults || resolvedLocalToolResults.length === 0),
       executionState: resolvedStatus === 'error' ? 'error' as const : 'running' as const,
     };
-    const loopTaskState = loopRequestedMetric
+    return loopRequestedMetric
       ? { ...loopTaskStateBase, requestedMetric: loopRequestedMetric }
       : loopTaskStateBase;
+  };
+
+  // ── 循环守卫 | Loop guard ──
+  const shouldContinueWithTaskState = (): boolean => {
+    const loopTaskState = getLoopStepTaskState();
     return deps.aiChatAgentLoopEnabled
       && shouldContinueAgentLoop(loopStep, DEFAULT_AGENT_LOOP_CONFIG, resolvedLocalToolResults, loopTaskState)
       && !deps.signal.aborted;
@@ -162,6 +169,17 @@ export async function runAgentLoop(
   // ── 主循环 | Main loop ──
   while (shouldContinueWithTaskState()) {
     loopExecuted = true;
+    const stepTaskState = getLoopStepTaskState();
+    const stepSpan = startAiTraceSpan({
+      kind: 'agent-loop-step',
+      traceId: agentLoopTraceContext.traceId,
+      tags: createMetricTags(
+        'useAiChat.agentLoopRunner',
+        buildAgentLoopStepTraceTags(loopStep, stepTaskState),
+      ),
+    });
+
+    try {
     const loopAiContext = deps.getAiContext() ?? deps.aiContext;
     deps.setTaskSession({
       id: deps.getTaskSession().id,
@@ -211,6 +229,7 @@ export async function runAgentLoop(
       resolvedContent = `${resolvedContent}${budgetHint}`;
       resolvedStatus = 'done';
       resolvedLocalToolResults = undefined;
+      stepSpan.end();
       break;
     }
 
@@ -266,6 +285,7 @@ export async function runAgentLoop(
       resolvedErrorMessage = continuationStreamError;
       resolvedConnectionErrorMessage = continuationStreamError;
       resolvedContent = continuationAssistantContent;
+      stepSpan.endWithError(continuationStreamError);
       break;
     }
 
@@ -276,7 +296,13 @@ export async function runAgentLoop(
         userText: continuationUserText,
         aiContext: loopAiContext,
       },
-      deps.buildStreamCompletionEnv(),
+      {
+        ...deps.buildStreamCompletionEnv(),
+        localToolTraceOptions: {
+          traceId: agentLoopTraceContext.traceId,
+          step: loopStep,
+        },
+      },
     );
 
     // ── 审计日志 | Audit log ──
@@ -313,7 +339,18 @@ export async function runAgentLoop(
     resolvedLocalToolResults = continuationResult.localToolResults;
     rawAssistantContentForLoop = continuationAssistantContent;
 
+    if (continuationResult.finalStatus === 'error') {
+      stepSpan.endWithError(continuationResult.finalErrorMessage ?? 'agent loop continuation failed');
+    } else {
+      stepSpan.end();
+    }
+
     loopStep += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      stepSpan.endWithError(message);
+      throw error;
+    }
   }
 
   return {

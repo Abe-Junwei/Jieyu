@@ -39,30 +39,58 @@
 
 .waveform-overview-resize-handle {
   position: absolute;
-  top: -7px;
-  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px) + ((100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px))) / 2) - 12px);
-  width: 24px;
-  height: 8px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--text-tertiary) 38%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 88%, var(--header-accent) 12%);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 12%, transparent);
+  top: -6px;
+  left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px) + ((100% - (var(--lane-label-width) + var(--video-left-panel-width, 0px))) / 2) - 16px);
+  width: 32px;
+  height: 10px;
   cursor: ns-resize;
-  z-index: calc(var(--z-overlay-base) + 2);
+  z-index: calc(var(--z-overlay-base) + 3);
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 120ms ease, opacity 120ms ease, filter 120ms ease;
+}
+
+.waveform-overview-resize-handle::before,
+.waveform-overview-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  opacity: 0.96;
+}
+
+.waveform-overview-resize-handle::before {
+  top: 50%;
+  transform: translate(-50%, calc(-100% - 4px));
+  border-bottom: 4px solid color-mix(in srgb, var(--header-accent) 76%, var(--text-secondary) 24%);
+}
+
+.waveform-overview-resize-handle::after {
+  top: 50%;
+  transform: translate(-50%, 4px);
+  border-top: 4px solid color-mix(in srgb, var(--header-accent) 76%, var(--text-secondary) 24%);
 }
 
 .waveform-overview-resize-handle:hover,
 .waveform-overview-resize-handle-resizing {
-  border-color: color-mix(in srgb, var(--header-accent) 50%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 82%, var(--header-accent) 18%);
+  opacity: 1;
+  transform: translateY(-1px) scale(1.04);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--header-accent) 22%, transparent));
 }
 
 .waveform-overview-resize-handle-dots {
-  width: 12px;
-  height: 2px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--header-accent) 84%, var(--text-secondary) 16%);
+  width: 18px;
+  height: 7px;
+  opacity: 0.98;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--header-accent) 74%, var(--text-secondary) 26%) 0 2px,
+      transparent 2px 5px,
+      color-mix(in srgb, var(--header-accent) 74%, var(--text-secondary) 26%) 5px 7px
+    );
 }

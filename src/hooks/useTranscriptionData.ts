@@ -18,6 +18,7 @@ import { useTranscriptionLifecycle } from './useTranscriptionLifecycle';
 import { useTranscriptionMutexActionWrappers } from './useTranscriptionMutexActionWrappers';
 import { useTranscriptionCanonicalActions } from './useTranscriptionCanonicalActions';
 import { useTranscriptionPersistence } from './useTranscriptionPersistence';
+import { useTranscriptionCloudSyncActions } from './useTranscriptionCloudSyncActions';
 import { isSegmentTimelineUnit, isUnitTimelineUnit, type DbState, type LayerCreateInput, type SaveState, type SnapGuide } from './transcriptionTypes';
 export type { DbState, LayerCreateInput, SaveState, SnapGuide };
 
@@ -367,7 +368,6 @@ export function useTranscriptionData() {
     unitsRef,
   });
 
-  // Selection guards and translation draft sync --------------------------
   useTranscriptionSelectionGuards({
     selectedLayerId,
     setSelectedLayerId,
@@ -385,7 +385,6 @@ export function useTranscriptionData() {
     focusedTranslationDraftKeyRef,
   });
 
-  // Bootstrap and cleanup ------------------------------------------------
   useTranscriptionLifecycle({
     loadSnapshot,
     loadLinguisticAnnotations,
@@ -400,7 +399,33 @@ export function useTranscriptionData() {
     saveState,
   });
 
-  // v16-1 Phase 2: Canonical token/morpheme read APIs
+  const collaborationPresenceFocus = (() => {
+    if (isUnitTimelineUnit(selectedTimelineUnit) || isSegmentTimelineUnit(selectedTimelineUnit)) {
+      return {
+        entityType: 'layer_unit' as const,
+        entityId: selectedTimelineUnit.unitId,
+      };
+    }
+
+    if (selectedLayerId) {
+      return {
+        entityType: 'layer' as const,
+        entityId: selectedLayerId,
+      };
+    }
+
+    return {};
+  })();
+
+  const cloudSyncActions = useTranscriptionCloudSyncActions({
+    phase: state.phase, units, layers, unitsRef, layersRef, layerLinksRef,
+    rawActions: { saveUnitText: saveUnitTextRaw, saveUnitSelfCertainty: saveUnitSelfCertaintyRaw, saveUnitTiming: saveUnitTimingRaw, deleteUnit: deleteUnitRaw, deleteSelectedUnits: deleteSelectedUnitsRaw, deleteLayer: deleteLayerRaw, toggleLayerLink: toggleLayerLinkRaw },
+    wrappedActions: { saveUnitText, saveUnitSelfCertainty, saveUnitTiming, saveUnitLayerText, createUnitFromSelection, deleteUnit, deleteSelectedUnits, createLayer, deleteLayer, toggleLayerLink },
+    runWithDbMutex,
+    loadSnapshot,
+    presenceFocus: collaborationPresenceFocus,
+  });
+
   const {
     getCanonicalTokensForUnit,
     getCanonicalMorphemesForToken,
@@ -439,133 +464,60 @@ export function useTranscriptionData() {
   });
 
   const stateApi = {
-    state,
-    setState,
-    units,
-    anchors,
-    layers,
-    translations,
-    layerLinks,
-    mediaItems,
-    speakers,
-    selectedTimelineUnit,
-    setSelectedTimelineUnit,
-    activeUnitId,
-    selectedUnitIds,
-    setSelectedUnitIds,
-    activeSegmentUnitId,
-    setSelectedMediaId,
-    selectedLayerId,
-    setSelectedLayerId,
-    saveState,
-    setSaveState,
-    layerCreateMessage,
-    setLayerCreateMessage,
-    unitDrafts,
-    setUnitDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    focusedTranslationDraftKeyRef,
-    snapGuide,
-    setSnapGuide,
-    layerToDeleteId,
-    setLayerToDeleteId,
-    showLayerManager,
-    setShowLayerManager,
-    transcriptionTrackMode,
-    setTranscriptionTrackMode,
+    state, setState, units, anchors, layers, translations, layerLinks, mediaItems, speakers,
+    selectedTimelineUnit, setSelectedTimelineUnit, activeUnitId, selectedUnitIds, setSelectedUnitIds,
+    activeSegmentUnitId, setSelectedMediaId, selectedLayerId, setSelectedLayerId, saveState, setSaveState,
+    layerCreateMessage, setLayerCreateMessage, unitDrafts, setUnitDrafts, translationDrafts,
+    setTranslationDrafts, focusedTranslationDraftKeyRef, snapGuide, setSnapGuide, layerToDeleteId,
+    setLayerToDeleteId, showLayerManager, setShowLayerManager, transcriptionTrackMode, setTranscriptionTrackMode,
   };
 
   const derivedApi = {
-    orderedLayers,
-    translationLayers,
-    transcriptionLayers,
-    defaultTranscriptionLayerId,
-    sidePaneRows,
-    deletableLayers,
-    layerPendingDelete,
-    selectedUnit,
-    selectedUnitMedia,
-    selectedMediaUrl,
-    selectedMediaBlobSize,
-    selectedMediaIsVideo,
-    unitsOnCurrentMedia,
-    visibleUnits,
-    aiConfidenceAvg,
-    translationTextByLayer,
-    getUnitTextForLayer,
-    selectedRowMeta,
+    orderedLayers, translationLayers, transcriptionLayers, defaultTranscriptionLayerId, sidePaneRows,
+    deletableLayers, layerPendingDelete, selectedUnit, selectedUnitMedia, selectedMediaUrl,
+    selectedMediaBlobSize, selectedMediaIsVideo, unitsOnCurrentMedia, visibleUnits, aiConfidenceAvg,
+    translationTextByLayer, getUnitTextForLayer, selectedRowMeta,
+    collaborationPresenceMembers: cloudSyncActions.presenceMembers,
+    collaborationPresenceCurrentUserId: cloudSyncActions.presenceCurrentUserId,
+    collaborationConflictTickets: cloudSyncActions.conflictReviewTickets,
+    collaborationConflictOperationLogs: cloudSyncActions.conflictOperationLogs,
+    collaborationProtocolGuard: cloudSyncActions.collaborationProtocolGuard,
+    collaborationSyncBadge: cloudSyncActions.collaborationSyncBadge,
+    listAccessibleCloudProjects: cloudSyncActions.listAccessibleCloudProjects,
+    listCloudProjectMembers: cloudSyncActions.listCloudProjectMembers,
   };
 
   const actionApi = {
-    loadSnapshot,
-    loadLinguisticAnnotations,
-    addMediaItem,
-    saveVoiceTranslation,
-    deleteVoiceTranslation,
-    saveUnitText,
-    saveUnitSelfCertainty,
-    saveUnitTiming,
-    saveUnitLayerText,
-    createAdjacentUnit,
-    createUnitFromSelection,
-    deleteUnit,
-    mergeWithPrevious,
-    mergeWithNext,
-    splitUnit,
-    selectTimelineUnit,
-    selectUnit,
-    selectSegment,
-    setUnitSelection,
-    toggleUnitSelection,
-    selectUnitRange,
-    selectAllBefore,
-    selectAllAfter,
-    selectAllUnits,
-    clearUnitSelection,
-    toggleSegmentSelection,
-    selectSegmentRange,
-    deleteSelectedUnits,
-    offsetSelectedTimes,
-    scaleSelectedTimes,
-    splitByRegex,
-    mergeSelectedUnits,
-    createLayer,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-    checkLayerHasContent,
-    toggleLayerLink,
-    reorderLayers,
-    getNeighborBounds,
-    makeSnapGuide,
-    clearAutoSaveTimer,
-    scheduleAutoSave,
-    beginTimingGesture,
-    endTimingGesture,
+    loadSnapshot, loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
+    saveUnitText: cloudSyncActions.saveUnitText, saveUnitSelfCertainty: cloudSyncActions.saveUnitSelfCertainty,
+    saveUnitTiming: cloudSyncActions.saveUnitTiming, saveUnitLayerText: cloudSyncActions.saveUnitLayerText,
+    createAdjacentUnit, createUnitFromSelection: cloudSyncActions.createUnitFromSelection,
+    deleteUnit: cloudSyncActions.deleteUnit, mergeWithPrevious, mergeWithNext, splitUnit,
+    selectTimelineUnit, selectUnit, selectSegment, setUnitSelection, toggleUnitSelection, selectUnitRange,
+    selectAllBefore, selectAllAfter, selectAllUnits, clearUnitSelection, toggleSegmentSelection,
+    selectSegmentRange, deleteSelectedUnits: cloudSyncActions.deleteSelectedUnits, offsetSelectedTimes,
+    scaleSelectedTimes, splitByRegex, mergeSelectedUnits, createLayer: cloudSyncActions.createLayer,
+    deleteLayer: cloudSyncActions.deleteLayer, deleteLayerWithoutConfirm, checkLayerHasContent,
+    toggleLayerLink: cloudSyncActions.toggleLayerLink, registerProjectAsset: cloudSyncActions.registerProjectAsset,
+    listProjectAssets: cloudSyncActions.listProjectAssets, removeProjectAsset: cloudSyncActions.removeProjectAsset,
+    getProjectAssetSignedUrl: cloudSyncActions.getProjectAssetSignedUrl,
+    createProjectSnapshot: cloudSyncActions.createProjectSnapshot,
+    listProjectSnapshots: cloudSyncActions.listProjectSnapshots,
+    restoreProjectSnapshotById: cloudSyncActions.restoreProjectSnapshotById,
+    restoreProjectSnapshotToLocalById: cloudSyncActions.restoreProjectSnapshotToLocalById,
+    queryProjectChangeTimeline: cloudSyncActions.queryProjectChangeTimeline,
+    queryProjectEntityHistory: cloudSyncActions.queryProjectEntityHistory,
+    applyRemoteConflictTicket: cloudSyncActions.applyRemoteConflictTicket,
+    keepLocalConflictTicket: cloudSyncActions.keepLocalConflictTicket,
+    postponeConflictTicket: cloudSyncActions.postponeConflictTicket,
+    reorderLayers, getNeighborBounds, makeSnapGuide, clearAutoSaveTimer, scheduleAutoSave,
+    beginTimingGesture, endTimingGesture,
   };
 
-  const undoApi = {
-    undo,
-    undoToHistoryIndex,
-    redo,
-    canUndo,
-    canRedo,
-    undoLabel,
-    undoHistory,
-  };
-
-  const recoveryApi = {
-    checkRecovery,
-    applyRecovery,
-    dismissRecovery,
-  };
-
+  const undoApi = { undo, undoToHistoryIndex, redo, canUndo, canRedo, undoLabel, undoHistory };
+  const recoveryApi = { checkRecovery, applyRecovery, dismissRecovery };
   const canonicalApi = {
-    getCanonicalTokensForUnit,
-    getCanonicalMorphemesForToken,
-    updateTokenPos,
-    batchUpdateTokenPosByForm,
-    updateTokenGloss,
+    getCanonicalTokensForUnit, getCanonicalMorphemesForToken, updateTokenPos, batchUpdateTokenPosByForm, updateTokenGloss,
   };
 
   return {

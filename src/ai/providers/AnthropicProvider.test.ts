@@ -21,7 +21,7 @@ describe('AnthropicProvider', () => {
   });
 
   it('streams content_block_delta and stops on message_stop', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createSseResponse([
         'data: {"type":"content_block_delta","delta":{"text":"你好"}}\n\n',
         'data: {"type":"message_stop"}\n\n',
@@ -43,6 +43,41 @@ describe('AnthropicProvider', () => {
 
     expect(chunks.join('')).toBe('你好');
     expect(doneSeen).toBe(true);
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers['x-api-key']).toBe('sk-ant-test');
+  });
+
+  it('injects trace context headers when traceContext is provided', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"type":"message_stop"}\n\n',
+      ]),
+    );
+
+    const provider = new AnthropicProvider({
+      baseUrl: 'https://api.anthropic.com/v1',
+      apiKey: 'sk-ant-test',
+      model: 'claude-test',
+    });
+
+    for await (const _chunk of provider.chat(
+      [{ role: 'user', content: 'ping' }],
+      {
+        traceContext: {
+          traceparent: '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+          tracestate: 'vendor=b',
+        },
+      },
+    )) {
+      // noop
+    }
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers.traceparent).toBe('00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01');
+    expect(headers.tracestate).toBe('vendor=b');
   });
 
   it('returns error chunk when anthropic error event appears', async () => {

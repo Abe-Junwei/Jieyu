@@ -204,6 +204,10 @@ export type AiChatCardMessages = {
   followUpTitle: string;
   taskTraceTitle: string;
   taskTraceStepLabel: (step: number) => string;
+  taskTraceOutcomeClarify: string;
+  taskTraceOutcomeError: string;
+  taskTraceOutcomeDone: string;
+  taskTraceOutcomeRunning: string;
   promptLab: string;
   promptTemplateCountSuffix: string;
   voiceInput: string;
@@ -298,6 +302,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       followUpTitle: '\u7ee7\u7eed\u8ffd\u95ee',
       taskTraceTitle: '\u672c\u8f6e\u8fdb\u5ea6',
       taskTraceStepLabel: (step) => `\u6b65\u9aa4 ${step}`,
+      taskTraceOutcomeClarify: '\u9700\u6f84\u6e05',
+      taskTraceOutcomeError: '\u5931\u8d25',
+      taskTraceOutcomeDone: '\u5b8c\u6210',
+      taskTraceOutcomeRunning: '\u8fdb\u884c\u4e2d',
       promptLab: 'Prompt \u5b9e\u9a8c\u5ba4',
       promptTemplateCountSuffix: ' \u9879',
       voiceInput: '\u8bed\u97f3\u8f93\u5165',
@@ -391,6 +399,10 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     followUpTitle: 'Continue with',
     taskTraceTitle: 'Latest progress',
     taskTraceStepLabel: (step) => `Step ${step}`,
+    taskTraceOutcomeClarify: 'Needs input',
+    taskTraceOutcomeError: 'Error',
+    taskTraceOutcomeDone: 'Done',
+    taskTraceOutcomeRunning: 'Running',
     promptLab: 'Prompt Lab',
     promptTemplateCountSuffix: '',
     voiceInput: 'Voice Input',

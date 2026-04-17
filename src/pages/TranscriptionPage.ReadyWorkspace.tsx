@@ -73,6 +73,9 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
+import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
+import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
+import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
@@ -166,6 +169,22 @@ function TranscriptionPageReadyWorkspace({
     aiConfidenceAvg,
     translationTextByLayer,
     getUnitTextForLayer,
+    collaborationPresenceMembers,
+    collaborationPresenceCurrentUserId,
+    collaborationProtocolGuard,
+    collaborationSyncBadge,
+    listAccessibleCloudProjects,
+    listCloudProjectMembers,
+    collaborationConflictTickets,
+    applyRemoteConflictTicket,
+    keepLocalConflictTicket,
+    postponeConflictTicket,
+    listProjectAssets,
+    removeProjectAsset,
+    getProjectAssetSignedUrl,
+    listProjectSnapshots,
+    restoreProjectSnapshotToLocalById,
+    queryProjectChangeTimeline,
     loadSnapshot,
     addMediaItem,
     saveVoiceTranslation,
@@ -282,6 +301,7 @@ function TranscriptionPageReadyWorkspace({
     activeTextId,
     setActiveTextId,
     activeTextPrimaryLanguageId,
+    activeTextTimelineMode,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
     searchOverlayRequest,
@@ -1243,6 +1263,7 @@ function TranscriptionPageReadyWorkspace({
     activeSpeakerManagementLayer,
     speakerFilterOptionsForActions,
     selectedUnitIdsForSpeakerActions,
+    selectedBatchSegmentsForSpeakerActions,
     selectedBatchUnits: selectedSpeakerBatchUnits,
     resolveSpeakerActionUnitIds,
     selectedSpeakerUnitIdsForActionsSet,
@@ -1262,7 +1283,6 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const {
-    selectedUnitIdsForSpeakerActionsSet,
     selectedBatchUnits: selectedBatchUnitDocs,
     handleBatchOffset,
     handleBatchScale,
@@ -1327,8 +1347,8 @@ function TranscriptionPageReadyWorkspace({
     getUnitDocById,
     activeTimelineUnitId,
     selectedUnitIds,
+    selectedBatchSegmentsForSpeakerActions,
     selectedBatchUnits: selectedSpeakerBatchUnits,
-    selectedUnitIdsForSpeakerActionsSet,
     selectedTimelineUnit,
     selectedTimelineMediaId: selectedTimelineMedia?.id ?? null,
     selectedUnit: selectedUnit ?? null,
@@ -1361,6 +1381,7 @@ function TranscriptionPageReadyWorkspace({
   const {
     resolveSelfCertaintyUnitIds,
     resolveSelfCertaintyForUnit,
+    resolveSelfCertaintyAmbiguityForUnit,
     handleSetUnitSelfCertaintyFromMenu,
   } = useTranscriptionSelfCertaintyController({
     segmentsByLayer,
@@ -1395,6 +1416,7 @@ function TranscriptionPageReadyWorkspace({
     manualSelectTsRef,
     player,
     selectedTimelineUnit,
+    currentTimelineUnitId: activeTimelineUnitId,
     selectUnitRange,
     toggleUnitSelection,
     selectTimelineUnit,
@@ -1418,6 +1440,7 @@ function TranscriptionPageReadyWorkspace({
     independentLayerIds: segmentTimelineLayerIds,
     orthographies: displayStyleControl.orthographies,
     resolveSelfCertaintyForUnit,
+    resolveSelfCertaintyAmbiguityForUnit,
     setOverlapCycleToast,
     overlapCycleTelemetryRef,
   });
@@ -1536,6 +1559,7 @@ function TranscriptionPageReadyWorkspace({
       activeSpeakerFilterKey,
       speakerQuickActions,
       handleLaneLabelWidthResizeStart,
+      activeTextTimelineMode,
       translationAudioByLayer,
       mediaItems: _mediaItems,
       recording,
@@ -1566,6 +1590,7 @@ function TranscriptionPageReadyWorkspace({
       navigateUnitFromInput,
       speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
+      resolveSelfCertaintyAmbiguityForUnit,
       selectedTimelineMedia,
       waveformDisplayMode,
       setWaveformDisplayMode,
@@ -1652,6 +1677,16 @@ function TranscriptionPageReadyWorkspace({
       exitFocusMode,
     },
   });
+
+  const toolbarPropsWithCollaboration = useMemo(() => ({
+    ...toolbarProps,
+    leftToolbarExtras: (
+      <>
+        <CollaborationSyncBadge locale={locale} badge={collaborationSyncBadge} />
+        {toolbarProps.leftToolbarExtras}
+      </>
+    ),
+  }), [collaborationSyncBadge, locale, toolbarProps]);
 
   const timelineTopPropsWithWaveformResizeHandle = useMemo(() => ({
     ...timelineTopProps,
@@ -1796,6 +1831,25 @@ function TranscriptionPageReadyWorkspace({
     segmentContentByLayer,
     unitsOnCurrentMedia,
     speakers,
+    presenceMembers: collaborationPresenceMembers,
+    presenceCurrentUserId: collaborationPresenceCurrentUserId,
+    collaborationCloudPanelProps: {
+      listProjectAssets,
+      removeProjectAsset,
+      getProjectAssetSignedUrl,
+      listProjectSnapshots,
+      restoreProjectSnapshotToLocalById,
+      queryProjectChangeTimeline,
+      ...(hasSupabaseBrowserClientConfig() && activeTextId
+        ? {
+          directory: {
+            workspaceProjectId: activeTextId,
+            listAccessibleProjects: listAccessibleCloudProjects,
+            listProjectMembers: listCloudProjectMembers,
+          },
+        }
+        : {}),
+    },
     getUnitTextForLayer,
     onSelectTimelineUnit: selectTimelineUnit,
     onReorderLayers: reorderLayers,
@@ -1964,13 +2018,17 @@ function TranscriptionPageReadyWorkspace({
     recoveryDiffSummary,
     onApplyRecoveryBanner: applyRecoveryBanner,
     onDismissRecoveryBanner: dismissRecoveryBanner,
-    toolbarProps,
+    collaborationCloudStatusSlot: (
+      <CollaborationCloudReadOnlyBanner locale={locale} guard={collaborationProtocolGuard} />
+    ),
+    toolbarProps: toolbarPropsWithCollaboration,
     observerStage: observerResult.stage,
     recommendations: actionableObserverRecommendations || [],
     onExecuteRecommendation: handleExecuteObserverRecommendation,
     acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
     vadCacheStatus,
     currentProjectLabel: toolbarProps.filename,
+    activeTextTimelineMode,
     canDeleteProject: Boolean(activeTextId),
     canDeleteAudio: Boolean(selectedTimelineMedia),
     onOpenProjectSetup: () => setShowProjectSetup(true),
@@ -2070,6 +2128,16 @@ function TranscriptionPageReadyWorkspace({
       readyStageProps={readyWorkspaceStageProps}
       overlaysProps={readyWorkspaceOverlaysProps}
       layerPopoverProps={readyWorkspaceLayerPopoverProps}
+      conflictReviewDrawerProps={{
+        tickets: collaborationConflictTickets,
+        onApplyRemote: async (ticketId) => {
+          await applyRemoteConflictTicket(ticketId);
+        },
+        onKeepLocal: (ticketId) => {
+          keepLocalConflictTicket(ticketId);
+        },
+        onPostpone: postponeConflictTicket,
+      }}
       {...(state.phase === 'error' ? { errorMessage: state.message } : {})}
     />
   );

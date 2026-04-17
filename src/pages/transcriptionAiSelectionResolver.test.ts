@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { buildOwnerUnitCandidates, resolveOwnerUnitForAi, resolveSelectedAiSegmentTargetId } from './transcriptionAiSelectionResolver';
+import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 
 function makeUnit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 'id' | 'kind' | 'mediaId' | 'layerId' | 'startTime' | 'endTime' | 'text'>): TimelineUnitView {
   return {
@@ -83,23 +83,38 @@ describe('transcriptionAiSelectionResolver', () => {
       ownerCandidates: candidates,
     });
 
+    const explicitOnlyFallback = resolveExplicitOwnerUnitForAi({
+      selectedUnit: null,
+      getUnitDocById: (id) => candidates.find((item) => item.id === id),
+      selectedTimelineSegment: makeSegment('seg-2', 0.2, 0.8),
+      ownerCandidates: candidates,
+    });
+
     expect(direct?.id).toBe('utt-owner');
     expect(fallback?.id).toBe('utt-owner');
+    expect(explicitOnlyFallback).toBeUndefined();
   });
 
-  it('selects the segment target id according to the selection kind', () => {
-    expect(resolveSelectedAiSegmentTargetId({
+  it('resolves writable target id according to explicit writable selection', () => {
+    expect(resolveWritableAiTargetId({
       selectedUnitKind: 'segment',
       selectedTimelineSegmentId: 'seg-1',
       snapshotTimelineUnitId: 'seg-shadow',
-      resolvedOwnerUnitId: 'utt-1',
+      explicitOwnerUnitId: 'utt-1',
     })).toBe('seg-1');
 
-    expect(resolveSelectedAiSegmentTargetId({
+    expect(resolveWritableAiTargetId({
       selectedUnitKind: 'unit',
       selectedTimelineSegmentId: 'seg-1',
       snapshotTimelineUnitId: 'seg-shadow',
-      resolvedOwnerUnitId: 'utt-1',
+      explicitOwnerUnitId: 'utt-1',
     })).toBe('utt-1');
+
+    expect(resolveWritableAiTargetId({
+      selectedUnitKind: 'unit',
+      selectedTimelineSegmentId: 'seg-1',
+      snapshotTimelineUnitId: 'seg-shadow',
+      explicitOwnerUnitId: undefined,
+    })).toBeUndefined();
   });
 });

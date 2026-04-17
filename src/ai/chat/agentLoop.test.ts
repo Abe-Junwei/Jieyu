@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addMetricObserver } from '../../observability/metrics';
 import { LOCAL_TOOL_RESULT_CHAR_BUDGET } from './localContextTools';
-import { buildAgentLoopContinuationInput, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldWarnTokenBudget, shouldContinueAgentLoop } from './agentLoop';
+import { buildAgentLoopContinuationInput, buildAgentLoopStepTraceTags, createAgentLoopTraceContext, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldWarnTokenBudget, shouldContinueAgentLoop } from './agentLoop';
 
 describe('agentLoop helpers', () => {
   it('continues within max steps when local tool result is successful', () => {
@@ -179,5 +179,23 @@ describe('agentLoop helpers', () => {
     } finally {
       dispose();
     }
+  });
+
+  it('creates agent loop trace context with generated id', () => {
+    const context = createAgentLoopTraceContext();
+    expect(context.traceId).toMatch(/^tr-/);
+  });
+
+  it('builds loop-step trace tags from task state', () => {
+    const tags = buildAgentLoopStepTraceTags(2, {
+      queryFamily: 'quality',
+      scope: 'current_track',
+      selectedTools: ['diagnose_quality', 'get_project_stats'],
+    });
+
+    expect(tags.step).toBe(2);
+    expect(tags.queryFamily).toBe('quality');
+    expect(tags.scope).toBe('current_track');
+    expect(tags.selectedToolCount).toBe(2);
   });
 });

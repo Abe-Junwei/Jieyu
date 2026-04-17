@@ -73,6 +73,40 @@ describe('CustomHttpProvider', () => {
     expect(chunks[0]?.done).toBe(true);
   });
 
+  it('injects trace context headers when traceContext is provided', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createStreamResponse([
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    const provider = new CustomHttpProvider({
+      endpointUrl: 'https://gateway.example.com/chat',
+      model: 'model-x',
+      apiKey: 'sk-test',
+      authHeaderName: 'Authorization',
+      authScheme: 'bearer',
+      responseFormat: 'openai-sse',
+    });
+
+    for await (const _chunk of provider.chat(
+      [{ role: 'user', content: 'ping' }],
+      {
+        traceContext: {
+          traceparent: '00-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-ffffffffffffffff-01',
+          tracestate: 'vendor=d',
+        },
+      },
+    )) {
+      // noop
+    }
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers.traceparent).toBe('00-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee-ffffffffffffffff-01');
+    expect(headers.tracestate).toBe('vendor=d');
+  });
+
   it('keeps reasoning_content private and strips think tags in openai-sse mode', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createStreamResponse([

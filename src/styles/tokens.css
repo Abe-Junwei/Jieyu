@@ -1,5 +1,5 @@
 /* ── 设计令牌 | Design Tokens ─────────────────────────────────
- * 架构：data-appearance（配色方案）+ data-theme（明暗模式）
+ * 架构：data-appearance（配色方案）+ data-theme（明暗模式）+ data-theme-accent（主题色覆盖）
  *
  * data-appearance="…|googleLightModern|solarizedDark|…" — 配色方案（完整列表见文末主题块与 theme.ts）
  *   默认（default）= 墨域数轴（纯灰度）
@@ -837,7 +837,7 @@
   --state-info-bg-strong: color-mix(in srgb, #1e3a8a 40%, transparent); /* blue-900/40 */
   --state-info-border: color-mix(in srgb, #3b82f6 30%, transparent); /* blue-500/30 */
   --state-info-border-strong: color-mix(in srgb, #3b82f6 50%, transparent);
-  --timeline-playhead-color: #3b82f6; /* blue-500 播放头 */
+  --timeline-playhead-color: var(--state-danger-solid); /* 播放头统一红色 */
 
   --focus-ring: color-mix(in srgb, #3b82f6 32%, transparent);
   --focus-ring-soft: color-mix(in srgb, #3b82f6 20%, transparent);
@@ -887,4 +887,99 @@
   --state-danger-text: #dc322f;
   --state-danger-bg: color-mix(in srgb, #dc322f 12%, transparent);
   --state-danger-border: color-mix(in srgb, #dc322f 30%, transparent);
+}
+
+/* ── 主题色覆盖 | Accent color override（Outlook 风格预设） ── */
+:root[data-theme-accent='blue'] {
+  --theme-accent-solid-light: #0078d4;
+  --theme-accent-solid-dark: #74bcff;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='orange'] {
+  --theme-accent-solid-light: #da3b01;
+  --theme-accent-solid-dark: #ffb074;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='green'] {
+  --theme-accent-solid-light: #107c10;
+  --theme-accent-solid-dark: #7ad77a;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='red'] {
+  --theme-accent-solid-light: #d13438;
+  --theme-accent-solid-dark: #ff9aa2;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='purple'] {
+  --theme-accent-solid-light: #5c2d91;
+  --theme-accent-solid-dark: #cdb0f3;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='pink'] {
+  --theme-accent-solid-light: #e3008c;
+  --theme-accent-solid-dark: #ff9ade;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='teal'] {
+  --theme-accent-solid-light: #038387;
+  --theme-accent-solid-dark: #7bede6;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme-accent='graphite'] {
+  --theme-accent-solid-light: #4c4a48;
+  --theme-accent-solid-dark: #d0cecc;
+  --theme-accent-solid: var(--theme-accent-solid-light);
+}
+
+:root[data-theme='dark'][data-theme-accent='blue'],
+:root[data-theme='dark'][data-theme-accent='orange'],
+:root[data-theme='dark'][data-theme-accent='green'],
+:root[data-theme='dark'][data-theme-accent='red'],
+:root[data-theme='dark'][data-theme-accent='purple'],
+:root[data-theme='dark'][data-theme-accent='pink'],
+:root[data-theme='dark'][data-theme-accent='teal'],
+:root[data-theme='dark'][data-theme-accent='graphite'] {
+  --theme-accent-solid: var(--theme-accent-solid-dark);
+}
+
+:root[data-theme='dark'][data-theme-accent] {
+  --accent-secondary: color-mix(in srgb, var(--theme-accent-solid) 82%, var(--surface-panel));
+  --border-accent: color-mix(in srgb, var(--theme-accent-solid) 54%, transparent);
+
+  --state-info-text: color-mix(in srgb, var(--theme-accent-solid) 88%, #ffffff);
+  --state-info-bg: color-mix(in srgb, var(--theme-accent-solid) 16%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, var(--theme-accent-solid) 28%, transparent);
+  --state-info-border: color-mix(in srgb, var(--theme-accent-solid) 42%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--theme-accent-solid) 64%, transparent);
+
+  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 40%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--theme-accent-solid) 26%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--theme-accent-solid) 58%, transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--theme-accent-solid) 36%, transparent);
+}
+
+:root[data-theme-accent] {
+  --header-accent: var(--theme-accent-solid);
+  --accent-primary: var(--theme-accent-solid);
+  --accent-secondary: color-mix(in srgb, var(--theme-accent-solid) 72%, var(--surface-panel));
+  --border-accent: color-mix(in srgb, var(--theme-accent-solid) 44%, transparent);
+
+  --state-info-solid: var(--theme-accent-solid);
+  --state-info-text: color-mix(in srgb, var(--theme-accent-solid) 74%, var(--text-primary));
+  --state-info-bg: color-mix(in srgb, var(--theme-accent-solid) 12%, transparent);
+  --state-info-bg-strong: color-mix(in srgb, var(--theme-accent-solid) 20%, transparent);
+  --state-info-border: color-mix(in srgb, var(--theme-accent-solid) 34%, transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--theme-accent-solid) 52%, transparent);
+
+  --focus-ring: color-mix(in srgb, var(--theme-accent-solid) 32%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--theme-accent-solid) 20%, transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--theme-accent-solid) 44%, transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--theme-accent-solid) 28%, transparent);
 }

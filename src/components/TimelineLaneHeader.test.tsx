@@ -35,6 +35,7 @@ function renderHeader(trackModeControl?: {
 }, options?: {
   layer?: LayerDocType;
   allLayers?: LayerDocType[];
+  activeTextTimelineMode?: 'document' | 'media' | null;
   onLayerAction?: (
     action: 'create-transcription' | 'create-translation' | 'edit-transcription-metadata' | 'edit-translation-metadata' | 'delete',
     layerId: string,
@@ -46,6 +47,7 @@ function renderHeader(trackModeControl?: {
     <TimelineLaneHeader
       layer={layer}
       layerIndex={0}
+      activeTextTimelineMode={options?.activeTextTimelineMode ?? null}
       allLayers={options?.allLayers ?? [layer]}
       onReorderLayers={vi.fn(async () => undefined)}
       deletableLayers={options?.allLayers ?? [layer]}
@@ -91,6 +93,13 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(await findMenuButton('新建翻译层')).toBeTruthy();
     expect(await findMenuButton('删除当前层')).toBeTruthy();
     expect(await findMenuButton('视图')).toBeTruthy();
+  });
+
+  it('renders a logical timeline badge when timeline mode is document', () => {
+    renderHeader(undefined, { activeTextTimelineMode: 'document' });
+
+    const badge = screen.getByText(/逻辑时间|Logical Time/);
+    expect(badge.className).toContain('timeline-lane-timebase-badge');
   });
 
   it('disables switching to locked multi-track mode when no lane locks exist', async () => {

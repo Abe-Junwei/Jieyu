@@ -3,5 +3,6 @@
 @import './foundation/context-menu.css';
 @import './foundation/media-controls.css';
 @import './panels/layer-list.css';
+@import './panels/collaboration-conflict-drawer.css';
 @import './pages/transcription-layout.css';
 @import './transcription-waveform-shell.css';

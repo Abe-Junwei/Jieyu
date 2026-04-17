@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { resolveSentryBootstrapConfig } from './sentry';
+import { describe, expect, it, vi } from 'vitest';
+import { initSentryWithResolvedConfig, resolveSentryBootstrapConfig } from './sentry';
 
 describe('resolveSentryBootstrapConfig', () => {
   it('disables Sentry when DSN is missing or runtime flag is off', () => {
@@ -26,6 +26,7 @@ describe('resolveSentryBootstrapConfig', () => {
       VITE_SENTRY_RELEASE: 'jieyu@2026.03.28',
       VITE_SENTRY_ENVIRONMENT: 'staging',
       VITE_SENTRY_SEND_DEFAULT_PII: 'true',
+      VITE_SENTRY_ENABLE_BROWSER_TRACING: 'false',
     })).toEqual({
       enabled: true,
       dsn: 'https://example.com/1',
@@ -33,6 +34,7 @@ describe('resolveSentryBootstrapConfig', () => {
       tracesSampleRate: 1,
       release: 'jieyu@2026.03.28',
       sendDefaultPii: true,
+      enableBrowserTracing: false,
     });
 
     expect(resolveSentryBootstrapConfig({
@@ -47,6 +49,31 @@ describe('resolveSentryBootstrapConfig', () => {
       environment: 'production',
       tracesSampleRate: 0,
       sendDefaultPii: false,
+      enableBrowserTracing: true,
     });
+  });
+
+  it('does not throw when runtime loader fails', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(initSentryWithResolvedConfig(
+      {
+        enabled: true,
+        dsn: 'https://example.com/1',
+        environment: 'production',
+        tracesSampleRate: 1,
+        sendDefaultPii: false,
+        enableBrowserTracing: true,
+      },
+      async () => {
+        throw new Error('dynamic import failed');
+      },
+    )).resolves.toBeUndefined();
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Jieyu] Sentry bootstrap failed; error reporting disabled for this session.',
+      expect.any(Error),
+    );
+    warnSpy.mockRestore();
   });
 });

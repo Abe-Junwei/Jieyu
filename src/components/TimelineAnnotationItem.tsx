@@ -1,8 +1,7 @@
 import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
-import { DotIcon } from './SvgIcons';
-import { tf, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 // ── Types ────────────────────────────────────────────────────
@@ -11,6 +10,7 @@ export interface TimelineAnnotationItemProps {
   left: number;
   width: number;
   isSelected: boolean;
+  isLayerCurrent?: boolean;
   isActive: boolean;
   isCompact: boolean;
   title: string;
@@ -25,6 +25,7 @@ export interface TimelineAnnotationItemProps {
   /** 标注者自我确信度角标 | Annotator self-certainty badge */
   selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
+  selfCertaintyAmbiguous?: boolean;
   content?: ReactNode;
   tools?: ReactNode;
   hasTrailingTools?: boolean;
@@ -50,6 +51,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   left,
   width,
   isSelected,
+  isLayerCurrent,
   isActive,
   isCompact,
   title,
@@ -62,6 +64,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   confidence,
   selfCertainty,
   selfCertaintyTitle,
+  selfCertaintyAmbiguous,
   content,
   tools,
   hasTrailingTools,
@@ -79,12 +82,14 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   contentDirection,
 }: TimelineAnnotationItemProps) {
   const locale = useLocale();
+  const selfCertaintyAmbiguousTitle = t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
 
   return (
     <div
       className={[
         'timeline-annotation',
         isSelected ? 'timeline-annotation-selected' : '',
+        isLayerCurrent ? 'timeline-annotation-layer-current' : '',
         isActive ? 'timeline-annotation-active' : '',
         isCompact ? 'timeline-annotation-compact' : '',
         !draft.trim() && !isActive ? 'timeline-annotation-empty' : '',
@@ -92,7 +97,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         hasTrailingTools ? 'timeline-annotation-has-tools' : '',
         typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
         typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
-        selfCertainty ? 'timeline-annotation-has-self-certainty' : '',
+        selfCertainty || selfCertaintyAmbiguous ? 'timeline-annotation-has-self-certainty' : '',
       ].filter(Boolean).join(' ')}
       style={{
         left,
@@ -114,14 +119,13 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         className="timeline-annotation-resize-handle timeline-annotation-resize-handle-end"
         onPointerDown={onResizeEndPointerDown}
       />
-      {speakerLabel && (
+      {speakerLabel ? (
         <span
-          className={`timeline-annotation-speaker-badge${isCompact ? ' timeline-annotation-speaker-badge-compact' : ''}`}
+          className="timeline-annotation-speaker-badge"
           title={tf(locale, 'transcription.timeline.speakerTitle', { name: speakerLabel })}
-        >
-          {isCompact ? <DotIcon className="timeline-annotation-speaker-dot" /> : speakerLabel}
-        </span>
-      )}
+          aria-hidden
+        />
+      ) : null}
       {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && (
         <span
           className="timeline-annotation-overlap-cycle-badge"
@@ -158,6 +162,18 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           className="timeline-annotation-self-certainty"
           {...(selfCertaintyTitle ? { title: selfCertaintyTitle, ariaLabel: selfCertaintyTitle } : {})}
         />
+      )}
+      {!selfCertainty && selfCertaintyAmbiguous && (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty-ambiguous"
+          role="img"
+          aria-label={selfCertaintyAmbiguousTitle}
+          title={selfCertaintyAmbiguousTitle}
+        >
+          <span className="timeline-annotation-self-certainty-icon" aria-hidden>
+            !
+          </span>
+        </span>
       )}
       {noteCount != null && noteCount > 0 && onNoteClick && (
         <NoteDocumentIcon

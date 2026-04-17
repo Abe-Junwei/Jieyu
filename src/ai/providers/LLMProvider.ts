@@ -5,11 +5,17 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface TraceContextHeaders {
+  traceparent: string;
+  tracestate?: string;
+}
+
 export interface ChatRequestOptions {
   model?: string;
   temperature?: number;
   maxTokens?: number;
   signal?: AbortSignal;
+  traceContext?: TraceContextHeaders;
 }
 
 export interface ChatChunk {

@@ -116,6 +116,31 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(await screen.findByRole('menuitem', { name: /确信程度/ })).toBeTruthy();
   });
 
+  it('keeps segment target ids for self-certainty even when resolver maps to host units', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_ref_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+    };
+    props.resolveSelfCertaintyUnitIds = (ids) => ids
+      .map((raw) => (raw === 'seg_ref_1' ? 'utt_1' : raw))
+      .filter((uid) => props.units.some((u) => u.id === uid));
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const certaintyItem = await screen.findByRole('menuitem', { name: /确信程度/ });
+    fireEvent.mouseEnter(certaintyItem);
+
+    const certainOptions = await screen.findAllByRole('menuitem', { name: /^确定$/ });
+    fireEvent.click(certainOptions[certainOptions.length - 1]!);
+
+    expect(props.onSetUnitSelfCertaintyFromMenu).toHaveBeenCalledWith(['seg_ref_1'], 'segment', 'certain', 'layer_default');
+  });
+
   it('shows self-certainty when handler is set even if unitId is not an unit id, and falls back to raw target ids', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {

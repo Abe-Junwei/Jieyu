@@ -50,6 +50,37 @@ describe('GeminiProvider', () => {
     expect(headers['x-goog-api-key']).toBe('AIza-test-key');
   });
 
+  it('injects trace context headers when traceContext is provided', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"candidates":[{"content":{"parts":[{"text":"ok"}]},"finishReason":"STOP"}]}\n\n',
+      ]),
+    );
+
+    const provider = new GeminiProvider({
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      model: 'gemini-2.0-flash',
+      apiKey: 'AIza-test-key',
+    });
+
+    for await (const _chunk of provider.chat(
+      [{ role: 'user', content: 'ping' }],
+      {
+        traceContext: {
+          traceparent: '00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01',
+          tracestate: 'vendor=c',
+        },
+      },
+    )) {
+      // noop
+    }
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers.traceparent).toBe('00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01');
+    expect(headers.tracestate).toBe('vendor=c');
+  });
+
   it('strips think tags from streamed visible content', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createSseResponse([

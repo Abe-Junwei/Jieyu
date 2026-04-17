@@ -243,6 +243,95 @@ describe('useTimelineAnnotationHelpers', () => {
     }));
   });
 
+  it('marks focused-layer current segment with theme highlight class', () => {
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: { layerId: 'layer-source', unitId: 'seg-1', kind: 'segment' },
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-display',
+      zoomToUnit: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-display']),
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      makeSegmentUnit('seg-1', 'layer-display', 1, 2),
+      makeLayer('layer-display'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-layer-current')).toBeTruthy();
+  });
+
+  it('uses currentTimelineUnitId fallback for focused-layer current highlight', () => {
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      currentTimelineUnitId: 'seg-fallback',
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-display',
+      zoomToUnit: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-display']),
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      makeSegmentUnit('seg-fallback', 'layer-display', 1, 2),
+      makeLayer('layer-display'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-layer-current')).toBeTruthy();
+  });
+
   it('renders self-certainty badge on segment row from host unit', () => {
     const host: LayerUnitDocType = {
       ...makeUnitDoc('utt-host', 1, 2),
@@ -500,6 +589,55 @@ describe('useTimelineAnnotationHelpers', () => {
     ));
 
     expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+  });
+
+  it('renders ambiguous self-certainty marker when certainty host is non-unique', () => {
+    const seg = makeSegmentUnit('seg-ambiguous', 'layer-source', 3, 4, 'utt-host');
+
+    const { result } = renderHook(() => useTimelineAnnotationHelpers({
+      manualSelectTsRef: { current: 0 },
+      player: {
+        isPlaying: false,
+        stop: vi.fn(),
+        seekTo: vi.fn(),
+      },
+      selectedTimelineUnit: null,
+      selectUnitRange: vi.fn(),
+      toggleUnitSelection: vi.fn(),
+      selectTimelineUnit: vi.fn(),
+      selectUnit: vi.fn(),
+      selectSegment: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      onFocusLayerRow: vi.fn(),
+      tierContainerRef: { current: null },
+      zoomPxPerSec: 100,
+      setCtxMenu: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      waveformAreaRef: { current: null },
+      dragPreview: null,
+      selectedUnitIds: new Set(),
+      focusedLayerRowId: 'layer-display',
+      zoomToUnit: vi.fn(),
+      startTimelineResizeDrag: vi.fn(),
+      handleNoteClick: vi.fn(),
+      resolveNoteIndicatorTarget: vi.fn(() => null),
+      independentLayerIds: new Set(['layer-source']),
+      resolveSelfCertaintyForUnit: () => undefined,
+      resolveSelfCertaintyAmbiguityForUnit: (_unitId, layerId) => layerId === 'layer-source',
+    }));
+
+    const { container } = render(result.current.renderAnnotationItem(
+      seg,
+      makeLayer('layer-display'),
+      'segment text',
+      {
+        onChange: vi.fn(),
+        onBlur: vi.fn(),
+      },
+    ));
+
+    expect(container.querySelector('.timeline-annotation-self-certainty-ambiguous')).toBeTruthy();
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
   });
 
   it('omits the middle blank row when a lane has no variety or alias line', () => {

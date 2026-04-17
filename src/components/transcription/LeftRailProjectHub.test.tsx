@@ -154,4 +154,17 @@ describe('LeftRailProjectHub project import dialog', () => {
       expect(onImportAnnotationFile).toHaveBeenCalledWith(file, 'bridge-target');
     });
   });
+
+  it('shows logical timeline hint in export submenu when timeline mode is document', async () => {
+    renderHub({ activeTextTimelineMode: 'document' });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
+    fireEvent.mouseEnter(exportMenuButton);
+
+    const hintText = await screen.findByText('当前项目使用逻辑时间轴；导出时间戳不等于声学秒。');
+    const hintButton = hintText.closest('button') as HTMLButtonElement;
+    expect(hintButton.disabled).toBe(true);
+  });
 });

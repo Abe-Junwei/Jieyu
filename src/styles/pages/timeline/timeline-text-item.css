@@ -21,7 +21,9 @@
   border: 0;
   cursor: pointer;
   overflow: hidden;
-  transition: background-color var(--duration-fast, 120ms), border-color var(--duration-fast, 120ms), box-shadow var(--duration-fast, 120ms);
+  transition: background-color var(--duration-fast, 120ms) ease,
+              border-color var(--duration-fast, 120ms) ease,
+              box-shadow var(--duration-fast, 120ms) ease;
   padding-left: 2px;
   padding-right: 2px;
   margin-left: 1px;
@@ -54,7 +56,8 @@
   background: var(--timeline-item-divider-color);
   border-radius: 1px;
   pointer-events: none;
-  transition: width var(--duration-fast, 120ms), background-color var(--duration-fast, 120ms);
+  transition: width var(--duration-fast, 120ms) ease,
+              background-color var(--duration-fast, 120ms) ease;
 }
 
 /* Hover 时仅给无说话人项轻提示，避免与说话人语义冲突 | Gentle non-speaker hover indicator to avoid speaker-semantic clash */
@@ -105,9 +108,40 @@
   display: none;
 }
 
+/* 选中/编辑某栏时，该栏所有语段统一为主题色等价透明度高亮 | In focused/editing lane, keep all text items highlighted with theme-equivalent opacity. */
+.timeline-lane-focused .timeline-text-item,
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item,
+.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+}
+
 /* ── Hover ── */
 .timeline-text-item:hover {
   background: var(--timeline-neutral-hover-bg);
+}
+
+/* 高亮行内 hover 保持主题高亮，不回落中性灰 | Keep themed highlight on hover inside highlighted lanes. */
+.timeline-lane-focused .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within),
+.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item:hover:not(.timeline-text-item-editing):not(:focus-within) {
+  background: var(--timeline-accent-hover-bg);
+  --timeline-item-divider-color: var(--timeline-accent-divider-hover);
+}
+
+/* 高亮栏内进入编辑态时回到轻灰编辑底，和非高亮行一致 | In highlighted lanes, editing state returns to a subtle neutral editing background like non-highlighted rows. */
+.timeline-lane-focused .timeline-text-item:focus-within,
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item:focus-within,
+.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item:focus-within {
+  background: var(--timeline-neutral-empty-bg);
+  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
+}
+
+.timeline-lane-focused .timeline-text-item.timeline-text-item-editing,
+.timeline-lane:has(.timeline-text-item.timeline-text-item-active) .timeline-text-item.timeline-text-item-editing,
+.timeline-lane:has(.timeline-text-item:focus-within) .timeline-text-item.timeline-text-item-editing {
+  background: var(--timeline-neutral-empty-bg);
+  --timeline-item-divider-color: var(--header-accent);
 }
 
 .timeline-text-item:hover:not(.timeline-text-item-has-speaker) {
@@ -116,17 +150,16 @@
 
 /* ── Active / Selected ── */
 .timeline-text-item.timeline-text-item-active {
-  background: var(--surface-panel);
-  border: 1px solid var(--state-info-solid);
-  border-bottom-width: 1.5px;
-  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 74%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  border: 0;
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+  box-shadow: none;
   z-index: var(--z-raised, 2);
 }
 
 /* ── Focus within (input focused) ── */
 .timeline-text-item:focus-within {
-  background: var(--surface-panel);
+  background: var(--timeline-neutral-empty-bg);
   border: 1px solid var(--state-info-solid);
   border-bottom-width: 1.5px;
   --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
@@ -139,7 +172,7 @@
 
 .timeline-text-item.timeline-text-item-editing {
   opacity: 1;
-  background: var(--surface-panel);
+  background: var(--timeline-neutral-empty-bg);
   border: 1px solid color-mix(in srgb, var(--state-info-solid) 48%, transparent);
   --timeline-item-divider-color: var(--header-accent);
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),

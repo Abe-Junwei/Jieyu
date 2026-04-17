@@ -1,7 +1,8 @@
 import { normalizeJsonishAssistantReply, normalizeLegacyRiskNarration, normalizeUnsupportedToolCallJson, parseLegacyNarratedToolCall, parseToolCallFromText, planToolCallTargets } from '../ai/chat/toolCallHelpers';
-import { executeLocalContextToolCall, formatLocalContextToolBatchResultMessage, formatLocalContextToolResultMessage, type LocalContextToolCall, type LocalContextToolResult, parseLocalContextToolCallsFromText } from '../ai/chat/localContextTools';
+import { executeLocalContextToolCall, formatLocalContextToolBatchResultMessage, formatLocalContextToolResultMessage, type LocalContextToolCall, type LocalContextToolResult, type LocalToolExecutionTraceOptions, parseLocalContextToolCallsFromText } from '../ai/chat/localContextTools';
 import { buildLocalToolStatePatchFromCallResult, detectLocalToolClarificationNeed, resolveLocalToolCalls } from '../ai/chat/localToolSlotResolver';
 import { formatEmptyModelReply, formatEmptyModelResponseError } from '../ai/messages';
+import { generateTraceId } from '../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -51,6 +52,7 @@ export interface ResolveAiChatStreamCompletionParams {
   shouldBumpRecovery: boolean;
   genRequestId: (call: AiChatToolCall, scopeMessageId?: string) => string;
   localToolCallCountRef: { current: number };
+  localToolTraceOptions?: LocalToolExecutionTraceOptions;
   /**
    * Fresh prompt/read-model snapshot for **local** context tools (`list_units`, `get_project_stats`, …).
    * Invoked at each tool execution (including each step of a multi-tool batch) so tools see current UI state,
@@ -219,6 +221,7 @@ export async function resolveAiChatStreamCompletion({
   shouldBumpRecovery,
   genRequestId,
   localToolCallCountRef,
+  localToolTraceOptions,
   resolveFreshAiContext,
 }: ResolveAiChatStreamCompletionParams): Promise<ResolveAiChatStreamCompletionResult> {
   if (assistantContent.trim().length === 0) {
@@ -237,6 +240,7 @@ export async function resolveAiChatStreamCompletion({
 
   const localToolCallsParsed = parseLocalContextToolCallsFromText(assistantContent);
   if (localToolCallsParsed.length > 1) {
+    const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const localToolResults: LocalContextToolResult[] = [];
     let rollingMemory = sessionMemory;
     for (let index = 0; index < localToolCallsParsed.length; index += 1) {
@@ -270,6 +274,11 @@ export async function resolveAiChatStreamCompletion({
         stepCall,
         toolContext,
         localToolCallCountRef,
+        20,
+        {
+          traceId: sharedTraceId,
+          step: localToolTraceOptions?.step ?? (index + 1),
+        },
       );
       publishLocalToolTaskTrace({
         assistantId,
@@ -308,6 +317,7 @@ export async function resolveAiChatStreamCompletion({
   }
 
   if (localToolCallsParsed.length === 1) {
+    const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
     const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory);
     const resolvedCall = singleCalls[0]!;
     const clarificationNeed = detectLocalToolClarificationNeed([resolvedCall], userText, sessionMemory);
@@ -337,6 +347,11 @@ export async function resolveAiChatStreamCompletion({
       resolvedCall,
       toolContext,
       localToolCallCountRef,
+      20,
+      {
+        traceId: sharedTraceId,
+        step: localToolTraceOptions?.step ?? 1,
+      },
     );
     publishLocalToolTaskTrace({
       assistantId,

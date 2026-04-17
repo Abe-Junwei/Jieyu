@@ -288,6 +288,88 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
   });
 
+  it('renders ambiguous self-certainty marker without certainty badge in text-only rows', () => {
+    const layer = makeLayer('trc-ambiguous');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        resolveSelfCertaintyForUnit={() => undefined}
+        resolveSelfCertaintyAmbiguityForUnit={() => true}
+      />,
+    );
+
+    expect(container.querySelector('.timeline-annotation-self-certainty-ambiguous')).toBeTruthy();
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
+  });
+
+  it('renders ambiguous self-certainty marker without certainty badge in translation rows', () => {
+    const translationLayer = {
+      ...makeLayer('trl-ambiguous'),
+      layerType: 'translation',
+      key: 'trl_eng_1',
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    editorContextValue.translationTextByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
+      [translationLayer.id, new Map([
+        ['u1', {
+          id: 'txt-u1',
+          unitId: 'u1',
+          layerId: translationLayer.id,
+          text: 'hello',
+          modality: 'text',
+          createdAt: NOW,
+          updatedAt: NOW,
+        } as LayerUnitContentDocType],
+      ])],
+    ]);
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[]}
+        translationLayers={[translationLayer]}
+        unitsOnCurrentMedia={[makeUnit('u1', 's1')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId="trc-base"
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        resolveSelfCertaintyForUnit={() => undefined}
+        resolveSelfCertaintyAmbiguityForUnit={() => true}
+      />,
+    );
+
+    expect(container.querySelector('.timeline-annotation-self-certainty-ambiguous')).toBeTruthy();
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
+  });
+
   it('keeps segment unit shape for context menu when segment id collides with unit id', () => {
     const layer = {
       ...makeLayer('trc-seg-only'),

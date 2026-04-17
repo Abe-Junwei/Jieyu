@@ -31,6 +31,7 @@ interface AnnotationImportState {
 
 interface LeftRailProjectHubProps {
   currentProjectLabel: string;
+  activeTextTimelineMode?: 'document' | 'media' | null;
   canDeleteProject: boolean;
   canDeleteAudio: boolean;
   onOpenProjectSetup: () => void;
@@ -64,6 +65,7 @@ function pickInsertEstimate(
 export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const {
     currentProjectLabel,
+    activeTextTimelineMode,
     canDeleteProject,
     canDeleteAudio,
     onOpenProjectSetup,
@@ -234,6 +236,26 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       },
     ];
 
+    const exportItems: ContextMenuItem[] = [
+      ...(activeTextTimelineMode === 'document'
+        ? [{
+            label: t(locale, 'transcription.projectHub.exchange.logicalTimelineHint'),
+            disabled: true,
+          }]
+        : []),
+      {
+        label: t(locale, 'transcription.toolbar.export.eaf'),
+        ...(activeTextTimelineMode === 'document' ? { separatorBefore: true } : {}),
+        onClick: onExportEaf,
+      },
+      { label: t(locale, 'transcription.toolbar.export.textgrid'), onClick: onExportTextGrid },
+      { label: t(locale, 'transcription.toolbar.export.trs'), onClick: onExportTrs },
+      { label: t(locale, 'transcription.toolbar.export.flextext'), onClick: onExportFlextext },
+      { label: t(locale, 'transcription.toolbar.export.toolbox'), onClick: onExportToolbox },
+      { label: t(locale, 'transcription.toolbar.export.jyt'), separatorBefore: true, onClick: () => { fireAndForget(onExportJyt()); } },
+      { label: t(locale, 'transcription.toolbar.export.jym'), onClick: () => { fireAndForget(onExportJym()); } },
+    ];
+
     return [
       {
         label: t(locale, 'transcription.projectHub.group.project'),
@@ -265,15 +287,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         label: t(locale, 'transcription.projectHub.exchange.exportTitle'),
         variant: 'category',
         submenuClassName: 'context-menu-submenu-export',
-        children: [
-          { label: t(locale, 'transcription.toolbar.export.eaf'), onClick: onExportEaf },
-          { label: t(locale, 'transcription.toolbar.export.textgrid'), onClick: onExportTextGrid },
-          { label: t(locale, 'transcription.toolbar.export.trs'), onClick: onExportTrs },
-          { label: t(locale, 'transcription.toolbar.export.flextext'), onClick: onExportFlextext },
-          { label: t(locale, 'transcription.toolbar.export.toolbox'), onClick: onExportToolbox },
-          { label: t(locale, 'transcription.toolbar.export.jyt'), separatorBefore: true, onClick: () => { fireAndForget(onExportJyt()); } },
-          { label: t(locale, 'transcription.toolbar.export.jym'), onClick: () => { fireAndForget(onExportJym()); } },
-        ],
+        children: exportItems,
       },
       {
         label: t(locale, 'transcription.projectHub.group.more'),
@@ -296,6 +310,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     canDeleteAudio,
     canDeleteProject,
     currentProjectLabel,
+    activeTextTimelineMode,
     locale,
     onDeleteCurrentAudio,
     onDeleteCurrentProject,

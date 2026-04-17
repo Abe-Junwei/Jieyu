@@ -78,7 +78,7 @@ describe('useBatchOperationController', () => {
       mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
-    expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet).sort()).toEqual(['utt-1', 'utt-2']);
+    expect(Array.from(result.current.selectedBatchUnitIdsSet).sort()).toEqual(['utt-1', 'utt-2']);
     expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-1', 'utt-2']);
   });
 
@@ -112,7 +112,7 @@ describe('useBatchOperationController', () => {
       kind: 'done',
       message: expect.stringContaining('已忽略 1 个不可映射选中项'),
     }));
-    expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedUnitIdsForSpeakerActionsSet, 1.5);
+    expect(offsetSelectedTimes).toHaveBeenCalledWith(result.current.selectedBatchUnitIdsSet, 1.5);
   });
 
   it('closes batch action failures into saveState error after partial mapping feedback', async () => {
@@ -210,7 +210,7 @@ describe('useBatchOperationController', () => {
       mergeSelectedUnits: vi.fn(async () => undefined),
     }));
 
-    expect(Array.from(result.current.selectedUnitIdsForSpeakerActionsSet)).toEqual(['utt-2']);
+    expect(Array.from(result.current.selectedBatchUnitIdsSet)).toEqual(['utt-2']);
     expect(result.current.selectedBatchUnits.map((item) => item.id)).toEqual(['utt-2']);
 
     await act(async () => {

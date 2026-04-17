@@ -1,5 +1,6 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
+import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateJsonLines, iterateSseData, toErrorChunk } from './streamUtils';
 
 export type CustomHttpAuthScheme = 'none' | 'bearer' | 'raw';
@@ -14,9 +15,12 @@ export interface CustomHttpProviderConfig {
   responseFormat: CustomHttpResponseFormat;
 }
 
-function buildAuthHeaders(config: CustomHttpProviderConfig): HeadersInit {
+function buildAuthHeaders(config: CustomHttpProviderConfig, options?: ChatRequestOptions): HeadersInit {
   if (config.authScheme === 'none') {
-    return { 'Content-Type': 'application/json' };
+    return {
+      'Content-Type': 'application/json',
+      ...buildTraceContextHeaders(options),
+    };
   }
 
   const headerName = config.authHeaderName.trim() || 'Authorization';
@@ -25,6 +29,7 @@ function buildAuthHeaders(config: CustomHttpProviderConfig): HeadersInit {
   return {
     'Content-Type': 'application/json',
     [headerName]: config.authScheme === 'bearer' ? `Bearer ${apiKey}` : apiKey,
+    ...buildTraceContextHeaders(options),
   };
 }
 
@@ -86,7 +91,7 @@ export class CustomHttpProvider implements LLMProvider {
 
     const response = await fetch(endpointUrl, {
       method: 'POST',
-      headers: buildAuthHeaders(this.config),
+      headers: buildAuthHeaders(this.config, options),
       body: JSON.stringify({
         model: options?.model ?? this.config.model,
         messages,

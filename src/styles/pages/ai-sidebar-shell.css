@@ -87,7 +87,8 @@
   top: 0;
   bottom: 0;
   width: var(--transcription-ai-visible-width);
-  z-index: calc(var(--z-timeline-sticky) + 4);
+  /* 侧栏应始终盖在时间轴标尺之上，避免刻度线穿入聊天区 | Keep sidebar above timeline ruler to prevent ruler bleeding into chat */
+  z-index: var(--z-hub-sidebar);
   height: 100%;
   border-left: 1px solid var(--header-border);
   background: var(--surface-panel);

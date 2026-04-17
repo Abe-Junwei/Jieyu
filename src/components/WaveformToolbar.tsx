@@ -119,7 +119,7 @@ export const WaveformToolbar = memo(function WaveformToolbar({
           <MaterialSymbol name="replay_10" aria-hidden className={JIEYU_MATERIAL_WAVE} />
         </button>
         <button
-          className="play-btn"
+          className="transcription-wave-toolbar-play-btn"
           onClick={onTogglePlayback}
           disabled={!isReady}
           aria-label={isPlaying ? t(locale, 'transcription.wave.toolbar.pause') : t(locale, 'transcription.wave.toolbar.play')}

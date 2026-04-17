@@ -4,7 +4,7 @@ import { resolveSpeakerTargetUnitIdFromUnitId } from './timelineUnitViewUnitHelp
 
 type SelectionMappingInput = {
   selectedUnitIds: Set<string>;
-  selectedTimelineUnit: TimelineUnit | null | undefined;
+  selectedTimelineUnit: Pick<TimelineUnit, 'unitId'> | TimelineUnit | null | undefined;
 };
 
 export type UnitSelectionMappingResult = {
@@ -42,14 +42,46 @@ export function resolveMappedUnitIds(
   return Array.from(unique);
 }
 
+export function resolveSegmentOnlyIds(
+  unitIds: Iterable<string>,
+  unitViewById: ReadonlyMap<string, TimelineUnitView>,
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined,
+): string[] {
+  const unique = new Set<string>();
+  for (const rawId of unitIds) {
+    const id = rawId.trim();
+    if (!id) continue;
+    const view = resolveUnitViewById?.(id) ?? unitViewById.get(id);
+    if (!view || view.kind !== 'segment') continue;
+    unique.add(view.id);
+  }
+  return Array.from(unique);
+}
+
 export function resolveMappedUnitIdsFromSelection(input: {
   selectedUnitIds: Set<string>;
-  selectedTimelineUnit: TimelineUnit | null | undefined;
+  selectedTimelineUnit: Pick<TimelineUnit, 'unitId'> | TimelineUnit | null | undefined;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
   resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
 }): Set<string> {
   return resolveUnitSelectionMapping(input).mappedUnitIds;
 }
+
+export function resolveSegmentOnlyIdsFromSelection(input: {
+  selectedUnitIds: Set<string>;
+  selectedTimelineUnit: Pick<TimelineUnit, 'unitId'> | TimelineUnit | null | undefined;
+  unitViewById: ReadonlyMap<string, TimelineUnitView>;
+  resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
+}): Set<string> {
+  const sourceUnitIds = resolveSelectionSourceUnitIds(input);
+  return new Set(resolveSegmentOnlyIds(sourceUnitIds, input.unitViewById, input.resolveUnitViewById));
+}
+
+/** 与治理方案文档中的命名对齐；语义同 {@link resolveSegmentOnlyIds}。 | Doc-aligned alias for parent-unit governance plan. */
+export const resolveSegmentActionIds = resolveSegmentOnlyIds;
+
+/** 语义同 {@link resolveSegmentOnlyIdsFromSelection}。 | Doc-aligned alias. */
+export const resolveSegmentActionIdsFromSelection = resolveSegmentOnlyIdsFromSelection;
 
 export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): boolean {
   return resolveSelectionSourceUnitIds(input).length > 0;
@@ -57,7 +89,7 @@ export function hasSelectionSourceForUnitMapping(input: SelectionMappingInput): 
 
 export function resolveUnitSelectionMapping(input: {
   selectedUnitIds: Set<string>;
-  selectedTimelineUnit: TimelineUnit | null | undefined;
+  selectedTimelineUnit: Pick<TimelineUnit, 'unitId'> | TimelineUnit | null | undefined;
   unitViewById: ReadonlyMap<string, TimelineUnitView>;
   resolveUnitViewById?: (unitId: string) => TimelineUnitView | undefined;
 }): UnitSelectionMappingResult {

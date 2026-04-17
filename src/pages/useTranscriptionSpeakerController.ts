@@ -22,8 +22,8 @@ interface UseTranscriptionSpeakerControllerInput {
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   activeTimelineUnitId: string;
   selectedUnitIds: Set<string>;
+  selectedBatchSegmentsForSpeakerActions: LayerUnitDocType[];
   selectedBatchUnits: TimelineUnitView[];
-  selectedUnitIdsForSpeakerActionsSet: Set<string>;
   selectedTimelineUnit: TimelineUnit | null;
   selectedTimelineMediaId: string | null;
   selectedUnit: LayerUnitDocType | null;
@@ -85,13 +85,6 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       .map((unit) => input.getUnitDocById(unit.id))
       .filter((unit): unit is LayerUnitDocType => Boolean(unit)),
     [input.getUnitDocById, input.selectedBatchUnits],
-  );
-  const selectedBatchSegmentsForSpeakerActions = useMemo(
-    () => input.selectedBatchUnits
-      .filter((unit) => unit.kind === 'segment')
-      .map((unit) => input.segmentByIdForSpeakerActions.get(unit.id))
-      .filter((segment): segment is LayerUnitDocType => Boolean(segment)),
-    [input.segmentByIdForSpeakerActions, input.selectedBatchUnits],
   );
   const {
     speakerOptions,
@@ -191,10 +184,9 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
     segmentContentByLayer: input.segmentContentByLayer,
     resolveExplicitSpeakerKeyForSegment: input.resolveExplicitSpeakerKeyForSegment,
     resolveSpeakerKeyForSegment: input.resolveSpeakerKeyForSegment,
-    selectedBatchSegmentsForSpeakerActions,
+    selectedBatchSegmentsForSpeakerActions: input.selectedBatchSegmentsForSpeakerActions,
     selectedUnitIdsForSpeakerActions: input.selectedUnitIdsForSpeakerActions,
     segmentByIdForSpeakerActions: input.segmentByIdForSpeakerActions,
-    selectedUnitIdsForSpeakerActionsSet: input.selectedUnitIdsForSpeakerActionsSet,
     resolveSpeakerActionUnitIds: input.resolveSpeakerActionUnitIds,
     selectedBatchUnits,
     selectedSpeakerSummary,

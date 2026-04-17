@@ -3,7 +3,6 @@ import type WaveSurfer from 'wavesurfer.js';
 import type { LayerUnitDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
 import { TimeRuler } from '../TimeRuler';
-import { WaveformOverviewBar } from '../WaveformOverviewBar';
 import { TimelineStyledContainer } from './TimelineStyledContainer';
 import type { WaveSurferRegion } from '../../hooks/useWaveSurfer';
 import { t, useLocale } from '../../i18n';
@@ -214,45 +213,29 @@ export function TimelineHeaderSection({
   onWaveformResizeStart,
   isResizingWaveform,
 }: TimelineHeaderSectionProps) {
+  const onResizeStart = onWaveformResizeStart;
   const hasTimelineContext = isReady || duration > 0 || Boolean(rulerView) || units.length > 0;
-  const canRenderOverviewBar = isReady && duration > 0;
   const canRenderTimeRuler = isReady && duration > 0 && Boolean(rulerView);
-  const shouldReserveOverviewSlot = hasTimelineContext;
   const shouldReserveTimeRulerSlot = hasTimelineContext;
 
-  return (
-    <>
-      {canRenderOverviewBar ? (
-        <WaveformOverviewBar
-          duration={duration}
-          rulerView={rulerView}
-          onSeek={onSeek}
-          isReady={isReady}
-          {...(onWaveformResizeStart ? { onResizeStart: onWaveformResizeStart } : {})}
-          {...(isResizingWaveform !== undefined ? { isResizingWaveform } : {})}
-        />
-      ) : shouldReserveOverviewSlot ? (
-        <div className="waveform-overview-bar waveform-overview-placeholder" aria-hidden="true" />
-      ) : null}
-      {canRenderTimeRuler && rulerView ? (
-        <TimeRuler
-          duration={duration}
-          currentTime={currentTime}
-          rulerView={rulerView}
-          zoomPxPerSec={zoomPxPerSec}
-          isLaneHeaderCollapsed={isLaneHeaderCollapsed}
-          onToggleLaneHeader={onToggleLaneHeader}
-          seekTo={onSeek}
-          instanceRef={instanceRef}
-          waveCanvasRef={waveCanvasRef}
-          tierContainerRef={tierContainerRef}
-          units={units}
-        />
-      ) : shouldReserveTimeRulerSlot ? (
-        <div className="time-ruler time-ruler-placeholder" aria-hidden="true" />
-      ) : null}
-    </>
-  );
+  return canRenderTimeRuler && rulerView ? (
+    <TimeRuler
+      duration={duration}
+      currentTime={currentTime}
+      rulerView={rulerView}
+      zoomPxPerSec={zoomPxPerSec}
+      isLaneHeaderCollapsed={isLaneHeaderCollapsed}
+      onToggleLaneHeader={onToggleLaneHeader}
+      seekTo={onSeek}
+      instanceRef={instanceRef}
+      waveCanvasRef={waveCanvasRef}
+      tierContainerRef={tierContainerRef}
+      {...(onResizeStart ? { onWaveformResizeStart: onResizeStart } : {})}
+      {...(isResizingWaveform !== undefined ? { isResizingWaveform } : {})}
+    />
+  ) : shouldReserveTimeRulerSlot ? (
+    <div className="time-ruler time-ruler-placeholder" aria-hidden="true" />
+  ) : null;
 }
 
 type TimelineRailSectionProps = {

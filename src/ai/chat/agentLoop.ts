@@ -1,5 +1,6 @@
 import { buildAgentLoopContinuationToolPayload, type LocalContextToolResult } from './localContextTools';
 import type { LocalToolMetric } from './chatDomain.types';
+import { generateTraceId } from '../../observability/aiTrace';
 
 /** Same guidance as `formatLocalContextToolResultMessage` when structured shrink still leaves gaps. */
 const AGENT_LOOP_CONTINUATION_TRUNCATION_TAIL =
@@ -19,10 +20,30 @@ export interface AgentLoopTaskState {
   executionState?: 'running' | 'waiting_clarify' | 'answer_ready' | 'error';
 }
 
+export interface AgentLoopTraceContext {
+  traceId: string;
+}
+
 export const DEFAULT_AGENT_LOOP_CONFIG: AgentLoopConfig = {
   maxSteps: 6,
   tokenBudgetWarningThreshold: 12000,
 };
+
+export function createAgentLoopTraceContext(traceId = generateTraceId()): AgentLoopTraceContext {
+  return { traceId };
+}
+
+export function buildAgentLoopStepTraceTags(
+  step: number,
+  taskState?: Pick<AgentLoopTaskState, 'queryFamily' | 'scope' | 'selectedTools'>,
+): Record<string, string | number | boolean> {
+  return {
+    step,
+    ...(taskState?.queryFamily ? { queryFamily: taskState.queryFamily } : {}),
+    ...(taskState?.scope ? { scope: taskState.scope } : {}),
+    ...(Array.isArray(taskState?.selectedTools) ? { selectedToolCount: taskState.selectedTools.length } : {}),
+  };
+}
 
 function asObjectRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;

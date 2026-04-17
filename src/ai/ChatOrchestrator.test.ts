@@ -2,7 +2,7 @@
  * ChatOrchestrator 测试：降级链 (fallback) 与基本消息组装
  * ChatOrchestrator tests: fallback chain & basic message assembly
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChatOrchestrator, isRetryableStreamError } from './ChatOrchestrator';
 import type { ChatChunk, LLMProvider } from './providers/LLMProvider';
 
@@ -77,11 +77,57 @@ describe('isRetryableStreamError', () => {
 });
 
 describe('ChatOrchestrator', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   const baseInput = {
     history: [],
     userText: '你好',
     systemPrompt: '你是助手',
   };
+
+  it('injects trace context into provider options when header flag is enabled', async () => {
+    vi.stubEnv('VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS', 'true');
+
+    let capturedOptions: { traceContext?: { traceparent: string } } | undefined;
+    const provider: LLMProvider = {
+      id: 'primary',
+      label: 'primary',
+      supportsStreaming: true,
+      async *chat(_messages, options) {
+        capturedOptions = options;
+        yield { delta: 'ok', done: true };
+      },
+    };
+
+    const orchestrator = new ChatOrchestrator(provider);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    await collectChunks(stream);
+
+    expect(capturedOptions?.traceContext?.traceparent).toMatch(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
+  });
+
+  it('does not inject trace context when header flag is disabled', async () => {
+    vi.stubEnv('VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS', 'false');
+
+    let capturedOptions: { traceContext?: { traceparent: string } } | undefined;
+    const provider: LLMProvider = {
+      id: 'primary',
+      label: 'primary',
+      supportsStreaming: true,
+      async *chat(_messages, options) {
+        capturedOptions = options;
+        yield { delta: 'ok', done: true };
+      },
+    };
+
+    const orchestrator = new ChatOrchestrator(provider);
+    const { stream } = orchestrator.sendMessage(baseInput);
+    await collectChunks(stream);
+
+    expect(capturedOptions?.traceContext).toBeUndefined();
+  });
 
   it('should assemble messages in correct order', () => {
     const provider = makeMockProvider('primary', [{ delta: 'Hi', done: true }]);

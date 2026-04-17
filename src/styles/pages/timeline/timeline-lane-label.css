@@ -97,6 +97,18 @@
   outline-offset: -2px;
 }
 
+.timeline-lane-timebase-badge {
+  margin-top: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--state-info-solid) 38%, var(--border-soft));
+  background: color-mix(in srgb, var(--state-info-bg, var(--surface-panel)) 78%, transparent);
+  color: color-mix(in srgb, var(--state-info-text, var(--text-secondary)) 88%, var(--text-primary));
+  font-size: 0.62rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
 .lane-label-resize-handle {
   position: absolute;
   top: 0;

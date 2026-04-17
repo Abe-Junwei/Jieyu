@@ -109,6 +109,29 @@ describe('collaboration cross-device runtime', () => {
     expect(rollback.action).toBe('hard-rollback');
   });
 
+  it('[rollback] treats non-concurrent delete/update as manual-review and keeps tombstone', () => {
+    const local = buildReplica({
+      deleted: true,
+      vectorClock: { 'device-a': 4, 'device-b': 1 },
+      updatedAt: 10_000,
+      fields: {},
+    });
+    const remote = buildReplica({
+      deviceId: 'device-b',
+      sessionId: 'session-b',
+      deleted: false,
+      vectorClock: { 'device-a': 3, 'device-b': 1 },
+      updatedAt: 8_000,
+      fields: { text: 'stale-remote-edit' },
+    });
+
+    const merged = mergeCrossDeviceReplicas(local, remote, { driftBudgetMs: 5_000 });
+    expect(merged.conflicts.includes('delete-update')).toBe(true);
+    expect(merged.requiresManualReview).toBe(true);
+    expect(merged.requiresRollback).toBe(true);
+    expect(merged.merged?.deleted).toBe(true);
+  });
+
   it('[cross-device] validates consistency across replicas with different session/device ids', () => {
     const resolved = buildReplica();
     const replica = duplicateCrossDeviceReplica({

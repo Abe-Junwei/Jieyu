@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
-import type { LayerUnitDocType } from '../db';
 import { t, useLocale } from '../i18n';
 
 interface TimeRulerProps {
@@ -14,8 +13,8 @@ interface TimeRulerProps {
   instanceRef: React.RefObject<WaveSurfer | null>;
   waveCanvasRef: React.RefObject<HTMLDivElement | null>;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
-  /** 全部语段（用于密度热力条）| All units for density heatmap */
-  units?: LayerUnitDocType[];
+  onWaveformResizeStart?: React.PointerEventHandler<HTMLDivElement>;
+  isResizingWaveform?: boolean;
 }
 
 const NICE_STEPS = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
@@ -24,6 +23,8 @@ const RULER_HEIGHT_PX = 22;
 const RULER_MINOR_TICK_Y2_PX = 4;
 const RULER_MAJOR_TICK_Y2_PX = 8;
 const RULER_LABEL_Y_PX = 16;
+const RULER_CURSOR_TOP_OFFSET_PX = 8;
+const RULER_CURSOR_JOIN_OVERLAP_PX = 2;
 
 export function TimeRuler({
   duration,
@@ -36,10 +37,12 @@ export function TimeRuler({
   instanceRef,
   waveCanvasRef,
   tierContainerRef,
-  units,
+  onWaveformResizeStart,
+  isResizingWaveform,
 }: TimeRulerProps) {
   const locale = useLocale();
   const rulerDragRef = useRef<{ dragging: boolean; startX: number; startScroll: number }>({ dragging: false, startX: 0, startScroll: 0 });
+  const overviewDragRef = useRef(false);
   const clearDragFlagTimerRef = useRef<number | null>(null);
   const moveListenerRef = useRef<((ev: MouseEvent) => void) | null>(null);
   const upListenerRef = useRef<(() => void) | null>(null);
@@ -102,6 +105,19 @@ export function TimeRuler({
     const isMajor = Math.abs(ratio - Math.round(ratio)) < 1e-6;
     ticks.push({ time: rounded, kind: isMajor ? 'major' : 'minor' });
   }
+
+  const seekFromOverview = useCallback((clientX: number, element: HTMLDivElement) => {
+    const rect = element.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / rect.width;
+    seekTo(Math.max(0, Math.min(dur, ratio * dur)));
+  }, [dur, seekTo]);
+
+  const overviewViewportLeft = `${(Math.max(0, start) / dur) * 100}%`;
+  const overviewViewportWidth = `${Math.max(0.8, ((Math.min(dur, end) - Math.max(0, start)) / dur) * 100)}%`;
+  const cursorLineTopY = -Math.max(
+    RULER_CURSOR_TOP_OFFSET_PX,
+    Math.max(0, waveCanvasRef.current?.clientHeight ?? 0) + RULER_CURSOR_JOIN_OVERLAP_PX,
+  );
 
   return (
     <div className="time-ruler">
@@ -187,17 +203,62 @@ export function TimeRuler({
             className="time-ruler-cursor-line"
             x1={`${((currentTime - start) / windowSec) * 100}%`}
             x2={`${((currentTime - start) / windowSec) * 100}%`}
-            y1={0}
+            y1={cursorLineTopY}
             y2={RULER_HEIGHT_PX}
           />
-          <circle
-            className="time-ruler-cursor-dot"
-            cx={`${((currentTime - start) / windowSec) * 100}%`}
-            cy={2.5}
-            r={2.2}
-          />
         </svg>
+        <div
+          className="time-ruler-overview"
+          title={t(locale, 'transcription.wave.overviewTooltip')}
+          onClick={(e) => {
+            e.stopPropagation();
+            seekFromOverview(e.clientX, e.currentTarget);
+          }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            overviewDragRef.current = true;
+            seekFromOverview(e.clientX, e.currentTarget);
+          }}
+          onPointerMove={(e) => {
+            if (overviewDragRef.current) seekFromOverview(e.clientX, e.currentTarget);
+          }}
+          onPointerUp={(e) => {
+            overviewDragRef.current = false;
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+          }}
+          onPointerCancel={(e) => {
+            overviewDragRef.current = false;
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+          }}
+        >
+          <div className="time-ruler-overview-track" />
+          <div
+            className="time-ruler-overview-viewport"
+            style={{ left: overviewViewportLeft, width: overviewViewportWidth }}
+            aria-hidden="true"
+          />
+        </div>
       </div>
+      {onWaveformResizeStart ? (
+        <div
+          className={`waveform-overview-resize-handle${isResizingWaveform ? ' waveform-overview-resize-handle-resizing' : ''}`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onWaveformResizeStart(event);
+          }}
+          role="separator"
+          aria-orientation="horizontal"
+          title={t(locale, 'transcription.wave.resizeHeight')}
+          aria-label={t(locale, 'transcription.wave.resizeHeight')}
+        >
+          <div className="waveform-overview-resize-handle-dots" />
+        </div>
+      ) : null}
     </div>
   );
 }

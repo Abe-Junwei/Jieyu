@@ -27,20 +27,39 @@ export function resolveOwnerUnitForAi(input: {
   selectedTimelineSegment: LayerUnitDocType | null | undefined;
   ownerCandidates: ReadonlyArray<LayerUnitDocType>;
 }): LayerUnitDocType | undefined {
-  const direct = unitDocForSpeakerTargetFromUnitView(input.selectedUnit, input.getUnitDocById);
+  const direct = resolveExplicitOwnerUnitForAi(input);
   if (direct) return direct;
   if (!input.selectedTimelineSegment) return undefined;
   return resolveSegmentOwnerUnit(input.selectedTimelineSegment, input.ownerCandidates);
 }
 
-export function resolveSelectedAiSegmentTargetId(input: {
+export function resolveExplicitOwnerUnitForAi(input: {
+  selectedUnit: TimelineUnitView | null;
+  getUnitDocById: (id: string) => LayerUnitDocType | undefined;
+  selectedTimelineSegment: LayerUnitDocType | null | undefined;
+  ownerCandidates: ReadonlyArray<LayerUnitDocType>;
+}): LayerUnitDocType | undefined {
+  const direct = unitDocForSpeakerTargetFromUnitView(input.selectedUnit, input.getUnitDocById);
+  if (direct) return direct;
+
+  const explicitOwnerId = input.selectedTimelineSegment?.unitId?.trim();
+  if (!explicitOwnerId) return undefined;
+
+  return input.ownerCandidates.find((item) => item.id === explicitOwnerId)
+    ?? input.getUnitDocById(explicitOwnerId);
+}
+
+export function resolveWritableAiTargetId(input: {
   selectedUnitKind?: string | null | undefined;
   selectedTimelineSegmentId: string | undefined;
   snapshotTimelineUnitId: string | undefined;
-  resolvedOwnerUnitId: string | undefined;
+  explicitOwnerUnitId: string | undefined;
 }): string | undefined {
   if (input.selectedUnitKind === 'segment') {
     return input.selectedTimelineSegmentId ?? input.snapshotTimelineUnitId ?? undefined;
   }
-  return input.resolvedOwnerUnitId ?? undefined;
+  if (input.selectedUnitKind === 'unit') {
+    return input.explicitOwnerUnitId ?? undefined;
+  }
+  return undefined;
 }

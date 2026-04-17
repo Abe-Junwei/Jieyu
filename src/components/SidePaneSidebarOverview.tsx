@@ -32,7 +32,7 @@ interface SidePaneSidebarOverviewProps {
   flashLayerRowId: string;
   bundleRootIds: Set<string>;
   bundleBoundaryIndexes: number[];
-  layerLabelById: Map<string, string>;
+  layerLanguageNameById: Map<string, string>;
   resolveTargetBundleRange: (draggedId: string, dropIndex: number) => BundleRange | null;
   defaultTranscriptionLayerId?: string;
   segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
@@ -58,7 +58,7 @@ export function SidePaneSidebarOverview({
   flashLayerRowId,
   bundleRootIds,
   bundleBoundaryIndexes,
-  layerLabelById,
+  layerLanguageNameById,
   resolveTargetBundleRange,
   defaultTranscriptionLayerId,
   segmentsByLayer,
@@ -111,7 +111,7 @@ export function SidePaneSidebarOverview({
         dropTargetIndex={dropTargetIndex}
         boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
         bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
-        parentLabel={layer.parentLayerId ? (layerLabelById.get(layer.parentLayerId) ?? '') : ''}
+        parentLabel={layer.parentLayerId ? (layerLanguageNameById.get(layer.parentLayerId) ?? '') : ''}
         orthographyById={orthographyById}
         messages={messages}
         onFocusLayer={onFocusLayer}
@@ -131,9 +131,6 @@ export function SidePaneSidebarOverview({
       {hasSidePaneHost ? (
         <>
           <section className="app-side-pane-group app-side-pane-layer-group" aria-label={messages.overviewLayerListAria}>
-            <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-              <span className="app-side-pane-section-title">{messages.overviewLayerListTitle}</span>
-            </div>
             <div className="app-side-pane-nav app-side-pane-layer-list">
               {renderSidePaneItems()}
             </div>

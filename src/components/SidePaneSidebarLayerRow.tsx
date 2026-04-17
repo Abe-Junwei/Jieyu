@@ -67,7 +67,15 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
       ? messages.constraintTimeSubdivision
       : messages.constraintSymbolicAssociation;
   const relationLine = parentLabel ? `${messages.inspectorParentLayer}：${parentLabel}` : '';
-  const layerLabel = [languageLine, varietyOrAliasLine, orthographyLine, constraintLabel, relationLine]
+  const metadataParts = [orthographyLine, constraintLabel]
+    .filter((part) => part.length > 0);
+  const secondaryParts = hasDependency
+    ? [...metadataParts, relationLine].filter((part) => part.length > 0)
+    : (varietyOrAliasLine ? [varietyOrAliasLine] : []);
+  const tertiaryParts = hasDependency
+    ? (varietyOrAliasLine ? [varietyOrAliasLine] : [])
+    : metadataParts;
+  const layerLabel = [languageLine, ...secondaryParts, ...tertiaryParts]
     .filter((part) => part.length > 0)
     .join(' · ');
 
@@ -76,6 +84,7 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
       key={layer.id}
       className={[
         'transcription-side-pane-item-row',
+        isActiveLayer ? 'transcription-side-pane-item-row-active' : '',
         boundaryHighlight === 'top' ? 'transcription-side-pane-item-row-boundary-highlight-top' : '',
         boundaryHighlight === 'bottom' ? 'transcription-side-pane-item-row-boundary-highlight-bottom' : '',
         bundleTargetHighlighted ? 'transcription-side-pane-item-row-bundle-target' : '',
@@ -86,7 +95,7 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
       )}
       <button
         type="button"
-        className={`transcription-side-pane-item ${isActiveLayer ? 'transcription-side-pane-item-active' : ''} ${isFlashLayer ? 'transcription-side-pane-item-flash' : ''} ${isDragged ? 'transcription-side-pane-item-dragging' : ''} ${isTranslationLayer ? 'transcription-side-pane-item-translation' : 'transcription-side-pane-item-transcription'} ${hasDependency ? 'transcription-side-pane-item-dependent' : ''}`}
+        className={`transcription-side-pane-item ${isFlashLayer ? 'transcription-side-pane-item-flash' : ''} ${isDragged ? 'transcription-side-pane-item-dragging' : ''} ${isTranslationLayer ? 'transcription-side-pane-item-translation' : 'transcription-side-pane-item-transcription'} ${hasDependency ? 'transcription-side-pane-item-dependent' : ''}`}
         onClick={() => !dragState && onFocusLayer(layer.id)}
         onContextMenu={(event) => onContextMenu(event, layer.id)}
         onMouseDown={(event) => !dragState && onMouseDown(event, layer)}
@@ -102,20 +111,29 @@ export const SidePaneSidebarLayerRow = memo(function SidePaneSidebarLayerRow({
         <span className="transcription-side-pane-item-drag-handle" aria-hidden="true">⠇</span>
         <span className="transcription-side-pane-item-label">
           <strong className="transcription-side-pane-item-line transcription-side-pane-item-line-primary">{languageLine}</strong>
-          <span className="transcription-side-pane-item-line transcription-side-pane-item-line-secondary">{varietyOrAliasLine}</span>
-          <span className="transcription-side-pane-item-line transcription-side-pane-item-line-tertiary">
-            {orthographyLine && (
-              <span className="transcription-side-pane-item-inline-text">{orthographyLine}</span>
-            )}
-            {orthographyLine && constraintLabel && (
-              <span className="transcription-side-pane-item-inline-separator" aria-hidden="true">·</span>
-            )}
-            {constraintLabel && (
-              <span className="transcription-side-pane-item-inline-text">{constraintLabel}</span>
-            )}
-          </span>
-          {relationLine && (
-            <span className="transcription-side-pane-item-line transcription-side-pane-item-line-quaternary">{relationLine}</span>
+          {secondaryParts.length > 0 && (
+            <span className="transcription-side-pane-item-line transcription-side-pane-item-line-secondary">
+              {secondaryParts.map((part, partIndex) => (
+                <span key={`secondary-${part}-${partIndex}`} className="transcription-side-pane-item-inline-text">
+                  {partIndex > 0 && (
+                    <span className="transcription-side-pane-item-inline-separator" aria-hidden="true">·</span>
+                  )}
+                  {part}
+                </span>
+              ))}
+            </span>
+          )}
+          {tertiaryParts.length > 0 && (
+            <span className="transcription-side-pane-item-line transcription-side-pane-item-line-tertiary">
+              {tertiaryParts.map((part, partIndex) => (
+                <span key={`tertiary-${part}-${partIndex}`} className="transcription-side-pane-item-inline-text">
+                  {partIndex > 0 && (
+                    <span className="transcription-side-pane-item-inline-separator" aria-hidden="true">·</span>
+                  )}
+                  {part}
+                </span>
+              ))}
+            </span>
           )}
         </span>
       </button>

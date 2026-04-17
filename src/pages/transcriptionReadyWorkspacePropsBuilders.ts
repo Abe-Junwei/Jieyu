@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -18,6 +18,7 @@ type SharedLaneFields = Pick<
   MediaLanesProps,
   | 'transcriptionLayers'
   | 'translationLayers'
+  | 'activeTextTimelineMode'
   | 'timelineUnitViewIndex'
   | 'segmentsByLayer'
   | 'segmentContentByLayer'
@@ -90,6 +91,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
   return dropUndefinedKeys({
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
+    activeTextTimelineMode: input.activeTextTimelineMode,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
@@ -183,6 +185,9 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   segmentContentByLayer: ReadyWorkspaceSidePaneSidebarProps['segmentContentByLayer'];
   unitsOnCurrentMedia: ReadyWorkspaceSidePaneSidebarProps['unitsOnCurrentMedia'];
   speakers: ReadyWorkspaceSidePaneSidebarProps['speakers'];
+  presenceMembers?: ReadyWorkspaceSidePaneSidebarProps['presenceMembers'];
+  presenceCurrentUserId?: ReadyWorkspaceSidePaneSidebarProps['presenceCurrentUserId'];
+  collaborationCloudPanelProps?: ReadyWorkspaceSidePaneSidebarProps['collaborationCloudPanelProps'];
   getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
@@ -243,6 +248,9 @@ export function buildReadyWorkspaceSidePaneProps(
       segmentContentByLayer: input.segmentContentByLayer,
       unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       speakers: input.speakers,
+      ...(input.presenceMembers !== undefined ? { presenceMembers: input.presenceMembers } : {}),
+      ...(input.presenceCurrentUserId !== undefined ? { presenceCurrentUserId: input.presenceCurrentUserId } : {}),
+      ...(input.collaborationCloudPanelProps !== undefined ? { collaborationCloudPanelProps: input.collaborationCloudPanelProps } : {}),
       ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
       onReorderLayers: input.onReorderLayers,
@@ -395,6 +403,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   recoveryDiffSummary: ReadyWorkspaceStageProps['recoveryBannerProps']['recoveryDiffSummary'];
   onApplyRecoveryBanner: ReadyWorkspaceStageProps['recoveryBannerProps']['onApply'];
   onDismissRecoveryBanner: ReadyWorkspaceStageProps['recoveryBannerProps']['onDismiss'];
+  collaborationCloudStatusSlot?: ReactNode;
   toolbarProps: ReadyWorkspaceStageProps['toolbarProps'];
   observerStage: ReadyWorkspaceStageProps['observerProps']['observerStage'];
   recommendations: ReadyWorkspaceStageProps['observerProps']['recommendations'];
@@ -402,6 +411,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   acousticRuntimeStatus: ReadyWorkspaceStageProps['acousticRuntimeStatus'];
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
   currentProjectLabel: ReadyWorkspaceStageProps['projectHubProps']['currentProjectLabel'];
+  activeTextTimelineMode: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimelineMode'];
   canDeleteProject: ReadyWorkspaceStageProps['projectHubProps']['canDeleteProject'];
   canDeleteAudio: ReadyWorkspaceStageProps['projectHubProps']['canDeleteAudio'];
   onOpenProjectSetup: ReadyWorkspaceStageProps['projectHubProps']['onOpenProjectSetup'];
@@ -519,6 +529,9 @@ export function buildReadyWorkspaceStageProps(
       onApply: input.onApplyRecoveryBanner,
       onDismiss: input.onDismissRecoveryBanner,
     },
+    ...(input.collaborationCloudStatusSlot !== undefined
+      ? { collaborationCloudStatusSlot: input.collaborationCloudStatusSlot }
+      : {}),
     toolbarProps: input.toolbarProps,
     observerProps: {
       observerStage: input.observerStage,
@@ -529,6 +542,7 @@ export function buildReadyWorkspaceStageProps(
     vadCacheStatus: input.vadCacheStatus,
     projectHubProps: {
       currentProjectLabel: input.currentProjectLabel,
+      activeTextTimelineMode: input.activeTextTimelineMode,
       canDeleteProject: input.canDeleteProject,
       canDeleteAudio: input.canDeleteAudio,
       onOpenProjectSetup: input.onOpenProjectSetup,

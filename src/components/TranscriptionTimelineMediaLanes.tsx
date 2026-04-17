@@ -83,6 +83,7 @@ function getSegmentTimelineIterationSource(
 }
 
 type TranscriptionTimelineMediaLanesProps = {
+  activeTextTimelineMode?: 'document' | 'media' | null;
   playerDuration: number;
   zoomPxPerSec: number;
   lassoRect: LassoRect | null;
@@ -173,6 +174,7 @@ type LayerActionType =
   | 'delete';
 
 export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimelineMediaLanes({
+  activeTextTimelineMode,
   playerDuration,
   zoomPxPerSec,
   lassoRect,
@@ -629,6 +631,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
+            activeTextTimelineMode={activeTextTimelineMode}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}

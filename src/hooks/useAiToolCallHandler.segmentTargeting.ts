@@ -13,7 +13,6 @@ export interface SegmentTargetDescriptor {
 
 interface PendingToolCallPreparationContext {
   units: LayerUnitDocType[];
-  selectedUnit?: LayerUnitDocType;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   segmentTargets?: SegmentTargetDescriptor[];
@@ -124,7 +123,7 @@ function materializeSegmentTargetCall(
     };
   }
 
-  const selectedTargetId = context.selectedSegmentTargetId ?? context.selectedUnit?.id;
+  const selectedTargetId = context.selectedSegmentTargetId;
   const target = resolveRequestedTarget(call, segmentTargets, selectedTargetId)
     ?? (!hasSelectorTarget && selectedTargetId
       ? segmentTargets.find((item) => item.id === selectedTargetId || item.unitId === selectedTargetId) ?? null

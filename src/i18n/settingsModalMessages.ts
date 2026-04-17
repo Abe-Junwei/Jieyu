@@ -15,6 +15,7 @@ export type SettingsModalMessages = {
   themeLight: string;
   themeDark: string;
   themeSystem: string;
+  themeAccentLabel: string;
   localeLabel: string;
   localeChinese: string;
   localeEnglish: string;
@@ -140,6 +141,7 @@ const zhCN: SettingsModalMessages = {
   themeLight: '浅色',
   themeDark: '深色',
   themeSystem: '跟随系统',
+  themeAccentLabel: '主题色',
   localeLabel: '界面语言',
   localeChinese: '中文',
   localeEnglish: 'English',
@@ -259,6 +261,7 @@ const enUS: SettingsModalMessages = {
   themeLight: 'Light',
   themeDark: 'Dark',
   themeSystem: 'System',
+  themeAccentLabel: 'Accent color',
   localeLabel: 'Language',
   localeChinese: '中文',
   localeEnglish: 'English',

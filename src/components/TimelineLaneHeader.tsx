@@ -24,6 +24,7 @@ type LayerActionType =
 interface TimelineLaneHeaderProps {
   layer: LayerDocType;
   layerIndex: number;
+  activeTextTimelineMode?: 'document' | 'media' | null;
   allLayers: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
   deletableLayers: LayerDocType[];
@@ -126,6 +127,7 @@ function formatTrackModeMenuLabel(mode: TranscriptionTrackDisplayMode): string {
 export function TimelineLaneHeader({
   layer,
   layerIndex,
+  activeTextTimelineMode,
   allLayers,
   onReorderLayers,
   deletableLayers,
@@ -518,6 +520,15 @@ export function TimelineLaneHeader({
           );
         })()}
         {!isCollapsed && renderLaneLabel(layer)}
+        {!isCollapsed && layerIndex === 0 && activeTextTimelineMode === 'document' && (
+          <span
+            className="timeline-lane-timebase-badge"
+            aria-label={messages.timelineModeDocumentBadgeAriaLabel}
+            title={messages.timelineModeDocumentBadgeAriaLabel}
+          >
+            {messages.timelineModeDocumentBadge}
+          </span>
+        )}
         {/* Lane label width resize handle — pinned to header right edge */}
         {onLaneLabelWidthResize && (
           <div

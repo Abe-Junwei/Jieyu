@@ -11,6 +11,10 @@ export interface CollaborationOperationLog {
   sessionId: string;
   at: number;
   payloadDigest: string;
+  // 审计扩展字段（仅 conflict_resolved 填充） | Audit fields (populated only for conflict_resolved)
+  strategy?: string;
+  conflictCodes?: string[];
+  decisionId?: string;
 }
 
 export interface CreateCollaborationOperationLogInput {
@@ -19,6 +23,10 @@ export interface CreateCollaborationOperationLogInput {
   sessionId: string;
   at?: number;
   payloadSource: string;
+  // 审计扩展 | Audit extensions
+  strategy?: string;
+  conflictCodes?: string[];
+  decisionId?: string;
 }
 
 function hashString(input: string): string {
@@ -43,6 +51,9 @@ export function createCollaborationOperationLog(
     sessionId: input.sessionId,
     at,
     payloadDigest,
+    ...(input.strategy !== undefined ? { strategy: input.strategy } : {}),
+    ...(input.conflictCodes !== undefined ? { conflictCodes: input.conflictCodes } : {}),
+    ...(input.decisionId !== undefined ? { decisionId: input.decisionId } : {}),
   };
 }
 

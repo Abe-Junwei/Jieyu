@@ -1,14 +1,16 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
+import type { CollaborationPresenceLiveMember } from '../collaboration/cloud/CollaborationPresenceService';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
-import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
+import { formatSidePaneLayerLabel, getLayerHeaderLanguageName } from '../utils/transcriptionFormatters';
 import { ContextMenu } from './ContextMenu';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { LayerActionPopover } from './LayerActionPopover';
 import { SidePaneSidebarOverview } from './SidePaneSidebarOverview';
+import { CollaborationCloudPanel } from './transcription/CollaborationCloudPanel';
 import { TranscriptionLeftRailLayerActions } from './transcription/TranscriptionLeftRailLayerActions';
 import { SidePaneSidebarActions } from './SidePaneSidebarActions';
 import { buildSidePaneSidebarContextMenuItems } from './SidePaneSidebar.contextMenu';
@@ -43,6 +45,9 @@ interface SidePaneSidebarProps {
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
   unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
+  presenceMembers?: CollaborationPresenceLiveMember[];
+  presenceCurrentUserId?: string;
+  collaborationCloudPanelProps?: React.ComponentProps<typeof CollaborationCloudPanel>;
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -66,6 +71,9 @@ export function SidePaneSidebar({
   segmentContentByLayer,
   unitsOnCurrentMedia,
   speakers,
+  presenceMembers,
+  presenceCurrentUserId,
+  collaborationCloudPanelProps,
   getUnitTextForLayer,
   onSelectTimelineUnit,
   onReorderLayers,
@@ -185,6 +193,10 @@ export function SidePaneSidebar({
     () => new Map(sidePaneRows.map((layer) => [layer.id, formatSidePaneLayerLabel(layer)] as const)),
     [sidePaneRows],
   );
+  const layerLanguageNameById = useMemo(
+    () => new Map(sidePaneRows.map((layer) => [layer.id, getLayerHeaderLanguageName(layer, locale)] as const)),
+    [locale, sidePaneRows],
+  );
   const {
     constraintRepairBusy,
     constraintRepairMessage,
@@ -237,7 +249,7 @@ export function SidePaneSidebar({
       flashLayerRowId={flashLayerRowId}
       bundleRootIds={bundleRootIds}
       bundleBoundaryIndexes={bundleBoundaryIndexes}
-      layerLabelById={layerLabelById}
+      layerLanguageNameById={layerLanguageNameById}
       resolveTargetBundleRange={resolveTargetBundleRange}
       {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
       {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
@@ -262,7 +274,7 @@ export function SidePaneSidebar({
     flashLayerRowId,
     bundleRootIds,
     bundleBoundaryIndexes,
-    layerLabelById,
+    layerLanguageNameById,
     resolveTargetBundleRange,
     defaultTranscriptionLayerId,
     segmentsByLayer,
@@ -325,9 +337,69 @@ export function SidePaneSidebar({
     setConstraintRepairDetailsCollapsed,
   ]);
 
+  const visiblePresenceMembers = useMemo(() => {
+    const members = (presenceMembers ?? []).filter((member) => member.state !== 'offline');
+    return members.slice().sort((left, right) => {
+      const leftTimestamp = left.lastSeenAt ? Date.parse(left.lastSeenAt) : 0;
+      const rightTimestamp = right.lastSeenAt ? Date.parse(right.lastSeenAt) : 0;
+      if (rightTimestamp !== leftTimestamp) {
+        return rightTimestamp - leftTimestamp;
+      }
+      return left.userId.localeCompare(right.userId);
+    });
+  }, [presenceMembers]);
+
+  const sidePanePresenceNode = useMemo(() => (
+    <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-presence-group" aria-label={messages.presenceCardAria}>
+      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+        <span className="app-side-pane-section-title">{messages.presenceCardTitle}</span>
+      </div>
+      <div className="app-side-pane-nav app-side-pane-presence-wrap">
+        {visiblePresenceMembers.length === 0 ? (
+          <p className="transcription-side-pane-presence-empty">{messages.presenceEmpty}</p>
+        ) : (
+          <ul className="transcription-side-pane-presence-list">
+            {visiblePresenceMembers.map((member) => {
+              const displayName = member.displayName?.trim() || member.userId;
+              const isCurrentUser = Boolean(presenceCurrentUserId) && member.userId === presenceCurrentUserId;
+              const focusHint = member.focusedEntityType && member.focusedEntityId
+                ? messages.presenceFocusLabel(messages.presenceEntityLabel(member.focusedEntityType), member.focusedEntityId)
+                : '';
+
+              return (
+                <li key={member.userId} className="transcription-side-pane-presence-item">
+                  <div className="transcription-side-pane-presence-item-header">
+                    <span className="transcription-side-pane-presence-name">
+                      {displayName}
+                      {isCurrentUser ? ` ${messages.presenceSelfSuffix}` : ''}
+                    </span>
+                    <span className={`transcription-side-pane-presence-state transcription-side-pane-presence-state-${member.state}`}>
+                      {messages.presenceStateLabel(member.state)}
+                    </span>
+                  </div>
+                  {focusHint ? (
+                    <div className="transcription-side-pane-presence-focus">
+                      {focusHint}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
+  ), [messages, presenceCurrentUserId, visiblePresenceMembers]);
+
+  const sidePaneCollaborationNode = useMemo(() => (
+    collaborationCloudPanelProps ? <CollaborationCloudPanel {...collaborationCloudPanelProps} /> : null
+  ), [collaborationCloudPanelProps]);
+
   const sidePanePortaledNode = useMemo(() => (
     <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
       {sidePaneOverviewNode}
+      {sidePanePresenceNode}
+      {sidePaneCollaborationNode}
       <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
@@ -337,7 +409,7 @@ export function SidePaneSidebar({
         </div>
       </section>
     </div>
-  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneOverviewNode]);
+  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
 
   const sidePaneInlineFallbackNode = useMemo(() => (
     <div
@@ -346,9 +418,11 @@ export function SidePaneSidebar({
       data-layer-pane-interactive="true"
     >
       {sidePaneOverviewNode}
+      {sidePanePresenceNode}
+      {sidePaneCollaborationNode}
       {sidePaneActionsNode}
     </div>
-  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode]);
+  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
 
   useRegisterAppSidePane({
     title: messages.paneTitle,

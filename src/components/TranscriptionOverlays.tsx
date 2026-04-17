@@ -181,8 +181,10 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const targetKind = ctxMenu.unitKind;
             const isSegmentUnitContext = targetKind === 'segment';
             // 与「添加备注」一致：只要提供 handler 即显示；segment id / 宿主 unit id 在点击或 ReadyWorkspace 内统一解析
-            const selfCertaintyTargetUnitIds = (resolveSelfCertaintyUnitIds?.(targetIds, ctxMenu.layerId)
-              ?? targetIds.filter((uid) => units.some((u) => u.id === uid)));
+            const selfCertaintyTargetUnitIds = isSegmentUnitContext
+              ? targetIds
+              : (resolveSelfCertaintyUnitIds?.(targetIds, ctxMenu.layerId)
+                ?? targetIds.filter((uid) => units.some((u) => u.id === uid)));
             const setSelfCertaintyFromMenu = onSetUnitSelfCertaintyFromMenu;
             const isTranscriptionLayerContext = transcriptionLayers.some((layer) => layer.id === ctxMenu.layerId);
             const items: ContextMenuItem[] = multiCount > 1

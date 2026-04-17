@@ -5,6 +5,15 @@ import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { t, type Locale } from '../i18n';
 import type { AiChatToolCall, AiPromptContext, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat';
 
+function isWriteTargetSensitiveTool(callName: AiChatToolCall['name']): boolean {
+  return callName === 'create_transcription_segment'
+    || callName === 'split_transcription_segment'
+    || callName === 'merge_transcription_segments'
+    || callName === 'set_transcription_text'
+    || callName === 'set_translation_text'
+    || callName === 'clear_translation_segment';
+}
+
 function getMaterializedDeleteBatchIds(call?: AiChatToolCall | null): string[] {
   if (!call) return [];
   const collect = (value: unknown): string[] => Array.isArray(value)
@@ -39,8 +48,43 @@ function requiresDeleteSegmentMaterialization(call: AiChatToolCall): boolean {
     && (call.arguments.allSegments === true || hasSemanticDeleteSegmentSelector(call));
 }
 
+function requiresWriteTargetMaterialization(call: AiChatToolCall): boolean {
+  if (call.name === 'merge_transcription_segments') return true;
+  return isWriteTargetSensitiveTool(call.name);
+}
+
 function hasConcreteDeleteSegmentTarget(call?: AiChatToolCall | null): boolean {
   return getMaterializedDeleteBatchIds(call).length > 0 || getMaterializedDeleteSingleId(call).length > 0;
+}
+
+function hasConcreteWriteTarget(call?: AiChatToolCall | null): boolean {
+  if (!call) return false;
+  if (call.name === 'merge_transcription_segments') {
+    return getMaterializedDeleteBatchIds(call).length >= 2;
+  }
+  return getMaterializedDeleteSingleId(call).length > 0 || getMaterializedDeleteBatchIds(call).length > 0;
+}
+
+function getWriteTargetFallbackMessage(locale: Locale, call: AiChatToolCall): string {
+  if (call.name === 'merge_transcription_segments') {
+    return t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo');
+  }
+  if (call.name === 'create_transcription_segment') {
+    return t(locale, 'transcription.aiTool.segment.createMissingUnitId');
+  }
+  if (call.name === 'split_transcription_segment') {
+    return t(locale, 'transcription.aiTool.segment.splitMissingUnitId');
+  }
+  if (call.name === 'set_transcription_text') {
+    return t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUnitId');
+  }
+  if (call.name === 'set_translation_text') {
+    return t(locale, 'transcription.aiTool.segment.setTranslationMissingUnitId');
+  }
+  if (call.name === 'clear_translation_segment') {
+    return t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId');
+  }
+  return t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable');
 }
 
 interface ResolveDestructiveGateParams {
@@ -146,13 +190,14 @@ export async function resolveDestructiveGate({
   }
 
   const destructiveBlocked = !allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name);
+  const writeTargetSensitive = isWriteTargetSensitiveTool(toolCall.name);
   let riskCheck: AiToolRiskCheckResult | null | undefined;
 
-  if (destructiveBlocked && onToolRiskCheck) {
+  if ((destructiveBlocked || writeTargetSensitive) && onToolRiskCheck) {
     riskCheck = await onToolRiskCheck(toolCall);
   }
 
-  if (destructiveBlocked && riskCheck?.riskSummary && isAmbiguousTargetRiskSummary(riskCheck.riskSummary)) {
+  if ((destructiveBlocked || writeTargetSensitive) && riskCheck?.riskSummary && isAmbiguousTargetRiskSummary(riskCheck.riskSummary)) {
     const finalErrorMessage = riskCheck.riskSummary;
     const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
     bumpFailureMetric();
@@ -160,7 +205,7 @@ export async function resolveDestructiveGate({
       id: taskSessionId,
       status: 'waiting_clarify',
       toolName: toolCall.name,
-      clarifyReason: 'missing-layer-target',
+      clarifyReason: writeTargetSensitive ? 'missing-unit-target' : 'missing-layer-target',
       candidates: [],
       updatedAt: nowIso(),
     });
@@ -185,7 +230,7 @@ export async function resolveDestructiveGate({
     return { kind: 'error', finalContent, finalErrorMessage };
   }
 
-  const executionCall = destructiveBlocked && preparePendingToolCall
+  const executionCall = (destructiveBlocked || writeTargetSensitive) && preparePendingToolCall
     ? await preparePendingToolCall(toolCall)
     : undefined;
 
@@ -219,6 +264,39 @@ export async function resolveDestructiveGate({
         false,
         finalErrorMessage,
         'unresolved_delete_segment_target',
+      ),
+    );
+
+    return { kind: 'error', finalContent, finalErrorMessage };
+  }
+
+  if (writeTargetSensitive && requiresWriteTargetMaterialization(toolCall) && !hasConcreteWriteTarget(executionCall)) {
+    const finalErrorMessage = riskCheck?.riskSummary ?? getWriteTargetFallbackMessage(locale, toolCall);
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
+    bumpFailureMetric();
+    setTaskSession({
+      id: taskSessionId,
+      status: 'waiting_clarify',
+      toolName: toolCall.name,
+      clarifyReason: 'missing-unit-target',
+      candidates: [],
+      updatedAt: nowIso(),
+    });
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `auto:${toolCall.name}`,
+      `auto_failed:${toolCall.name}:unresolved_write_target`,
+      'ai',
+      toolCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        toolCall,
+        auditContext,
+        'ai',
+        'auto_failed',
+        false,
+        finalErrorMessage,
+        'unresolved_write_target',
       ),
     );
 

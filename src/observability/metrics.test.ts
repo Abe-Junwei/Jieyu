@@ -87,10 +87,18 @@ describe('metrics observability foundation', () => {
   });
 
   it('registers timeline CQRS / AI grounding metric ids', () => {
+    expect(isKnownMetricId('business.transcription.speaker_mixed_selection_apply_count')).toBe(true);
+    expect(isKnownMetricId('parent_fallback_attempt_total')).toBe(true);
+    expect(isKnownMetricId('parent_fallback_ambiguous_total')).toBe(true);
+    expect(isKnownMetricId('blocked_write_without_explicit_target_total')).toBe(true);
     expect(isKnownMetricId('ai.local_tool_result_truncated')).toBe(true);
     expect(isKnownMetricId('ai.rag_citation_read_model_miss')).toBe(true);
     expect(isKnownMetricId('ai.list_units_snapshot_created')).toBe(true);
     expect(isKnownMetricId('ai.count_claim_mismatch')).toBe(true);
     expect(isKnownMetricId('ai.timeline_unit_count_mismatch')).toBe(true);
+    expect(isKnownMetricId('ai.trace.otel_bootstrap_failure_count')).toBe(true);
+    expect(isKnownMetricId('ai.trace.otel_export_failure_count')).toBe(true);
+    expect(isKnownMetricId('ai.trace.otel_circuit_open_count')).toBe(true);
+    expect(isKnownMetricId('ai.trace.otel_circuit_short_circuit_count')).toBe(true);
   });
 });

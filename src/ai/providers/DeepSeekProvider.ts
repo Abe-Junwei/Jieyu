@@ -1,5 +1,6 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { buildBearerAuthHeader, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
+import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface DeepSeekProviderConfig {
@@ -31,6 +32,7 @@ export class DeepSeekProvider implements LLMProvider {
       headers: {
         'Content-Type': 'application/json',
         Authorization: authorization,
+        ...buildTraceContextHeaders(options),
       },
       body: JSON.stringify({
         model: options?.model ?? this.config.model,

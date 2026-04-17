@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { addAiTraceObserver } from '../../observability/aiTrace';
 import { addMetricObserver } from '../../observability/metrics';
 import { clearListUnitsSnapshotsForTests, LIST_UNITS_SNAPSHOT_ROW_THRESHOLD } from './localContextListUnitsSnapshotStore';
 
@@ -182,6 +183,63 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload._readModel.unitIndexComplete).toBe(true);
     expect(typeof payload._readModel.capturedAtMs).toBe('number');
     expect(mockGetDb).not.toHaveBeenCalled();
+  });
+
+  it('emits tool-execution span on successful call', async () => {
+    const removeObserverCalls: Array<{ kind: string; error?: string; tags?: Record<string, unknown> }> = [];
+    const removeObserver = addAiTraceObserver((span) => {
+      removeObserverCalls.push({
+        kind: span.kind,
+        ...(span.error ? { error: span.error } : {}),
+        ...(span.tags ? { tags: span.tags as Record<string, unknown> } : {}),
+      });
+    });
+
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        page: 'transcription',
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_current_selection', arguments: {} },
+      context,
+      ref,
+      20,
+      { traceId: 'trace-tool-success', step: 1 },
+    );
+
+    removeObserver();
+    expect(result.ok).toBe(true);
+    const span = removeObserverCalls.find((item) => item.kind === 'tool-execution');
+    expect(span).toBeDefined();
+    expect(span?.error).toBeUndefined();
+    expect(span?.tags?.toolName).toBe('get_current_selection');
+    expect(span?.tags?.step).toBe(1);
+  });
+
+  it('emits tool-execution error span when context is unavailable', async () => {
+    const observed: Array<{ kind: string; error?: string }> = [];
+    const removeObserver = addAiTraceObserver((span) => {
+      observed.push({ kind: span.kind, ...(span.error ? { error: span.error } : {}) });
+    });
+
+    const ref = { current: 0 };
+    const result = await executeLocalContextToolCall(
+      { name: 'get_current_selection', arguments: {} },
+      null,
+      ref,
+      20,
+      { traceId: 'trace-tool-error', step: 1 },
+    );
+
+    removeObserver();
+    expect(result.ok).toBe(false);
+    expect(result.error).toBe('context is unavailable');
+    const span = observed.find((item) => item.kind === 'tool-execution');
+    expect(span?.error).toBe('context is unavailable');
   });
 
   it('search_units uses localUnitIndex for non-empty query', async () => {
@@ -982,6 +1040,16 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
 
     const mockDb = {
       dexie: {
+        transaction: vi.fn(async (
+          _mode: unknown,
+          ...args: Array<unknown>
+        ) => {
+          const callback = args[args.length - 1];
+          if (typeof callback !== 'function') {
+            throw new Error('transaction callback missing');
+          }
+          return callback();
+        }),
         layer_units: {
           get: vi.fn(async () => ({ id: 'utt-1', layerId: 'layer-tr', textId: 'text-1', mediaId: 'media-1', startTime: 1, endTime: 3, unitType: 'unit' })),
         },

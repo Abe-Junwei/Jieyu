@@ -1,5 +1,6 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
+import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface GeminiProviderConfig {
@@ -50,6 +51,7 @@ export class GeminiProvider implements LLMProvider {
       headers: {
         'Content-Type': 'application/json',
         'x-goog-api-key': this.config.apiKey,
+        ...buildTraceContextHeaders(options),
       },
       body: JSON.stringify({
         contents,

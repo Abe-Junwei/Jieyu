@@ -57,6 +57,8 @@ interface TranscriptionTimelineTextTranslationItemProps {
   /** 来自宿主 unit 的确信角标（segment 翻译行经父组件解析） */
   selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
+  selfCertaintyAmbiguous?: boolean;
+  selfCertaintyAmbiguousTitle?: string;
 }
 
 export function TranscriptionTimelineTextTranslationItem({
@@ -96,6 +98,8 @@ export function TranscriptionTimelineTextTranslationItem({
   handleAnnotationContextMenu,
   selfCertainty,
   selfCertaintyTitle,
+  selfCertaintyAmbiguous,
+  selfCertaintyAmbiguousTitle,
 }: TranscriptionTimelineTextTranslationItemProps) {
   const locale = useLocale();
   const layerSupportsAudio = !usesOwnSegments
@@ -136,7 +140,7 @@ export function TranscriptionTimelineTextTranslationItem({
 
   return (
     <TimelineStyledContainer
-      className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}${selfCertainty ? ' timeline-text-item-has-self-certainty' : ''}`}
+      className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${showAudioTools ? ' timeline-text-item-has-tools' : ''}${isAudioOnlyLayer ? ' timeline-text-item-audio-only' : ''}${selfCertainty || selfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}`}
       layoutStyle={layoutStyle}
       dir={dir}
       onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
@@ -251,6 +255,18 @@ export function TranscriptionTimelineTextTranslationItem({
           title={selfCertaintyTitle}
           ariaLabel={selfCertaintyTitle}
         />
+      ) : null}
+      {!selfCertainty && selfCertaintyAmbiguous ? (
+        <span
+          className="timeline-annotation-self-certainty timeline-annotation-self-certainty-ambiguous"
+          role="img"
+          aria-label={selfCertaintyAmbiguousTitle}
+          title={selfCertaintyAmbiguousTitle}
+        >
+          <span className="timeline-annotation-self-certainty-icon" aria-hidden>
+            !
+          </span>
+        </span>
       ) : null}
     </TimelineStyledContainer>
   );

@@ -1,5 +1,6 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
+import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
 
 export interface AnthropicProviderConfig {
@@ -45,6 +46,7 @@ export class AnthropicProvider implements LLMProvider {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
         'anthropic-version': '2024-06-01',
+        ...buildTraceContextHeaders(options),
       },
       body: JSON.stringify({
         model: options?.model ?? this.config.model,

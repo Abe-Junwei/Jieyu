@@ -105,7 +105,6 @@ describe('useSpeakerActionScopeController', () => {
     expect(result.current.speakerFilterOptionsForActions.map((item) => item.key)).toEqual(['spk-explicit']);
     expect(result.current.segmentSpeakerAssignmentsOnCurrentMedia).toEqual([
       { unitId: 'seg-explicit', speakerKey: 'spk-explicit' },
-      { unitId: 'seg-inherited', speakerKey: 'spk-owner' },
     ]);
     expect(result.current.selectedSegmentIdsForSpeakerActions.sort()).toEqual(['seg-explicit', 'seg-inherited']);
     expect(Array.from(result.current.selectedSpeakerUnitIdsForActionsSet).sort()).toEqual(['seg-explicit', 'seg-inherited']);
@@ -129,7 +128,7 @@ describe('useSpeakerActionScopeController', () => {
       defaultTranscriptionLayerId: 'layer-seg',
       selectedLayerId: 'layer-seg',
       selectedUnitIds: new Set(),
-      selectedTimelineUnit: { unitId: 'seg-1' },
+      selectedTimelineUnit: { unitId: 'seg-1', layerId: 'layer-seg', kind: 'segment' },
       getUnitSpeakerKey: (unit) => unit.speakerId ?? 'unknown-speaker',
     }));
 

@@ -176,7 +176,8 @@ describe('SidePaneSidebarSegmentList', () => {
     const scoped = within(view.container);
     const emptyRows = await scoped.findAllByText('无内容');
     expect(emptyRows.length).toBeGreaterThanOrEqual(2);
-    const rowButtons = await scoped.findAllByRole('button');
+    const rowButtons = view.container.querySelectorAll<HTMLButtonElement>('.app-side-pane-segment-list-item-btn');
+    expect(rowButtons.length).toBeGreaterThanOrEqual(2);
     fireEvent.click(rowButtons[0] as HTMLElement);
     expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'root', unitId: 'seg-1', kind: 'segment' });
   });
@@ -385,9 +386,14 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(await scoped.findByText('确定')).toBeTruthy();
 
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    fireEvent.change(await scoped.findByLabelText('按说话人筛选'), { target: { value: 'speaker-a' } });
-    fireEvent.change(await scoped.findByLabelText('按备注分类筛选'), { target: { value: 'todo' } });
-    fireEvent.change(await scoped.findByLabelText('按确信度筛选'), { target: { value: 'certain' } });
+    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const panelScope = within(filterPanel);
+    fireEvent.click(panelScope.getByRole('button', { name: '说话人' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /Alice/ }));
+    fireEvent.click(panelScope.getByRole('button', { name: '备注分类' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /待办/ }));
+    fireEvent.click(panelScope.getByRole('button', { name: '确信度' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /^确定/ }));
 
     expect(scoped.getByText('第一句')).toBeTruthy();
     expect(scoped.queryByText('第二句')).toBeNull();
@@ -504,16 +510,118 @@ describe('SidePaneSidebarSegmentList', () => {
     const scoped = within(view.container);
 
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    expect(await scoped.findByLabelText('按内容状态筛选')).toBeTruthy();
-    expect(await scoped.findByLabelText('按标注状态筛选')).toBeTruthy();
-    expect(await scoped.findByLabelText('按来源筛选')).toBeTruthy();
+    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const panelScope = within(filterPanel);
+    expect(panelScope.getByRole('button', { name: '内容状态' })).toBeTruthy();
+    expect(panelScope.getByRole('button', { name: '标注状态' })).toBeTruthy();
+    expect(panelScope.getByRole('button', { name: '来源' })).toBeTruthy();
 
-    fireEvent.change(await scoped.findByLabelText('按内容状态筛选'), { target: { value: 'has_text' } });
-    fireEvent.change(await scoped.findByLabelText('按标注状态筛选'), { target: { value: 'verified' } });
-    fireEvent.change(await scoped.findByLabelText('按来源筛选'), { target: { value: 'human' } });
+    fireEvent.click(panelScope.getByRole('button', { name: '内容状态' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /有内容/ }));
+    fireEvent.click(panelScope.getByRole('button', { name: '标注状态' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /已校验/ }));
+    fireEvent.click(panelScope.getByRole('button', { name: '来源' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /人工/ }));
 
     expect(scoped.getByText('第一句')).toBeTruthy();
     expect(scoped.queryByText('无内容')).toBeNull();
+  });
+
+  it('shows compact metadata list and supports multi-select chips', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '甲',
+        annotationStatus: 'verified',
+      },
+      {
+        segmentId: 'utt-2',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 1,
+        endTime: 2,
+        text: '乙',
+        annotationStatus: 'raw',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        unitsOnCurrentMedia={[
+          { ...makeUnit('utt-1', 0, 1), transcription: { default: '甲' } },
+          { ...makeUnit('utt-2', 1, 2), transcription: { default: '乙' } },
+        ]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
+    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const panelScope = within(filterPanel);
+    fireEvent.click(panelScope.getByRole('button', { name: '标注状态' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /原始/ }));
+    fireEvent.click(panelScope.getByRole('button', { name: /已校验/ }));
+
+    expect(scoped.getByText('甲')).toBeTruthy();
+    expect(scoped.getByText('乙')).toBeTruthy();
+  });
+
+  it('renders selected filters as tags inside the search shell', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+    const speakers = [makeSpeaker('speaker-a', 'Alice')];
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '第一句',
+        effectiveSpeakerId: 'speaker-a',
+        effectiveSpeakerName: 'Alice',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        speakers={speakers}
+        unitsOnCurrentMedia={[{ ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', transcription: { default: '第一句' } }]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
+    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const panelScope = within(filterPanel);
+    fireEvent.click(panelScope.getByRole('button', { name: '说话人' }));
+    fireEvent.click(panelScope.getByRole('button', { name: /Alice/ }));
+
+    const searchShell = view.container.querySelector('.app-side-pane-segment-list-search-shell') as HTMLElement;
+    const searchScope = within(searchShell);
+    const tagButton = searchScope.getByRole('button', { name: 'Alice' });
+    expect(tagButton.className).toContain('app-side-pane-segment-list-search-tag');
   });
 
   it('shows loading when media scope is pending and renders facet filters after context hydration', async () => {
@@ -564,9 +672,11 @@ describe('SidePaneSidebarSegmentList', () => {
 
     expect(await scoped.findByText('第一句')).toBeTruthy();
     fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
-    expect(await scoped.findByLabelText('按说话人筛选')).toBeTruthy();
-    expect(await scoped.findByLabelText('按备注分类筛选')).toBeTruthy();
-    expect(await scoped.findByLabelText('按确信度筛选')).toBeTruthy();
+    const filterPanel = view.container.querySelector('.app-side-pane-segment-list-filter-panel') as HTMLElement;
+    const panelScope = within(filterPanel);
+    expect(panelScope.getByRole('button', { name: '说话人' })).toBeTruthy();
+    expect(panelScope.getByRole('button', { name: '备注分类' })).toBeTruthy();
+    expect(panelScope.getByRole('button', { name: '确信度' })).toBeTruthy();
     expect(scoped.queryByText('正在加载语段…')).toBeNull();
   });
 });

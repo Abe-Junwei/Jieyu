@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
+import { addMetricObserver } from '../observability/metrics';
 import { createTranscriptionAiToolRiskCheck } from './transcriptionAiToolRiskCheck';
 
 function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'key' | 'layerType' | 'languageId'>): LayerDocType {
@@ -233,6 +234,35 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     });
   });
 
+  it('returns a blocking summary when relative selector has no explicit writable anchor', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      segmentTargets: [
+        { id: 'seg-1', kind: 'segment', startTime: 0, endTime: 1, text: '第一段' },
+        { id: 'seg-2', kind: 'segment', startTime: 1.5, endTime: 3, text: '第二段' },
+      ],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'delete_transcription_segment',
+      arguments: {
+        segmentPosition: 'previous',
+      },
+    });
+
+    expect(result).toEqual({
+      requiresConfirmation: false,
+      riskSummary: '当前页面无法定位到目标句段。',
+      impactPreview: [],
+    });
+  });
+
   it('resolves ordinal selector preview to a concrete independent segment on the current layer timeline', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',
@@ -296,5 +326,135 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     expect(deleteAllResult?.requiresConfirmation).toBe(true);
     expect(deleteAllResult?.riskSummary).toContain('将删除 3 条句段');
     expect(deleteAllResult?.impactPreview?.[0]).toContain('第一段 / 第二段');
+  });
+
+  it('blocks create_transcription_segment when no explicit writable target exists', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'create_transcription_segment',
+      arguments: {},
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('缺少目标句段编号');
+  });
+
+  it('blocks set_transcription_text when no explicit writable target exists', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'set_transcription_text',
+      arguments: { text: 'hello' },
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('缺少 segmentId');
+  });
+
+  it('blocks delete_transcription_segment when no explicit writable target exists', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'delete_transcription_segment',
+      arguments: {},
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('缺少目标句段编号');
+  });
+
+  it('records blocked-write metric when write tool has no explicit target', () => {
+    const metrics: string[] = [];
+    const dispose = addMetricObserver((event) => {
+      metrics.push(event.id);
+    });
+
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    check({ name: 'set_transcription_text', arguments: { text: 'hello' } });
+    dispose();
+
+    expect(metrics).toContain('blocked_write_without_explicit_target_total');
+  });
+
+  it('allows set_transcription_text to pass risk check when selected writable anchor exists', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      selectedSegmentTargetId: 'seg-2',
+      segmentTargets: [
+        { id: 'seg-1', kind: 'segment', startTime: 0, endTime: 1, text: '第一段' },
+        { id: 'seg-2', kind: 'segment', startTime: 1.5, endTime: 3, text: '第二段' },
+      ],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'set_transcription_text',
+      arguments: { text: 'hello' },
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it('blocks merge_transcription_segments when explicit segment ids are insufficient', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'merge_transcription_segments',
+      arguments: { segmentIds: ['seg-1'] },
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('2 个句段');
   });
 });

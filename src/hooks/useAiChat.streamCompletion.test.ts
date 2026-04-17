@@ -3,6 +3,7 @@ import type { AiPromptContext, AiSessionMemory, AiTaskSession } from './useAiCha
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { resolveAiChatStreamCompletion } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
+import { addAiTraceObserver } from '../observability/aiTrace';
 import { addMetricObserver } from '../observability/metrics';
 
 const emptySession: AiSessionMemory = {};
@@ -336,6 +337,47 @@ describe('resolveAiChatStreamCompletion local tools JIT context', () => {
 
     const taskUpdates = setTaskSession.mock.calls.map((call) => call[0]);
     expect(taskUpdates.some((session) => Array.isArray(session?.trace) && session.trace.some((item: { phase?: string; toolName?: string; requestId?: string }) => item.phase === 'local_tool' && item.toolName === 'get_project_stats' && item.requestId === 'ast-trace_local_1'))).toBe(true);
+  });
+
+  it('reuses localToolTraceOptions traceId and step for local tool spans', async () => {
+    const observed: Array<{ kind: string; traceId: string; tags?: Record<string, unknown> }> = [];
+    const removeObserver = addAiTraceObserver((span) => {
+      observed.push({
+        kind: span.kind,
+        traceId: span.traceId,
+        ...(span.tags ? { tags: span.tags as Record<string, unknown> } : {}),
+      });
+    });
+
+    try {
+      const result = await resolveAiChatStreamCompletion(
+        baseParams({
+          assistantContent: JSON.stringify({
+            tool_calls: [
+              { name: 'get_project_stats', arguments: { metric: 'unit_count', scope: 'project' } },
+              { name: 'get_project_stats', arguments: { metric: 'unit_count', scope: 'project' } },
+            ],
+          }),
+          aiContext: {
+            longTerm: {
+              projectStats: { unitCount: 12, translationLayerCount: 1, aiConfidenceAvg: null },
+            },
+          },
+          localToolTraceOptions: {
+            traceId: 'trace-loop-step-3',
+            step: 3,
+          },
+        }),
+      );
+
+      expect(result.finalStatus).toBe('done');
+      const toolSpans = observed.filter((span) => span.kind === 'tool-execution');
+      expect(toolSpans).toHaveLength(2);
+      expect(toolSpans.every((span) => span.traceId === 'trace-loop-step-3')).toBe(true);
+      expect(toolSpans.every((span) => span.tags?.step === 3)).toBe(true);
+    } finally {
+      removeObserver();
+    }
   });
 });
 

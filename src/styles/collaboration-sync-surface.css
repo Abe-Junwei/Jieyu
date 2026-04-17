@@ -1,0 +1,82 @@
+.app-collaboration-readonly-banner {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--color-warning, #c27803) 45%, transparent);
+  background: color-mix(in srgb, var(--color-warning, #c27803) 12%, transparent);
+  color: var(--color-text, inherit);
+}
+
+.app-collaboration-readonly-banner-title {
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.app-collaboration-readonly-banner-body {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  opacity: 0.95;
+}
+
+.app-collaboration-readonly-banner-reasons {
+  margin: 0.45rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.app-collaboration-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-inline-end: 0.5rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 70%, transparent);
+  background: color-mix(in srgb, var(--color-surface-elevated, #f4f4f5) 90%, transparent);
+  color: var(--color-text-muted, inherit);
+  white-space: nowrap;
+}
+
+.app-collaboration-sync-badge.is-read-only {
+  border-color: color-mix(in srgb, var(--color-warning, #c27803) 55%, transparent);
+  background: color-mix(in srgb, var(--color-warning, #c27803) 14%, transparent);
+}
+
+.app-collaboration-sync-badge.is-conflict {
+  border-color: color-mix(in srgb, var(--color-danger, #c62828) 55%, transparent);
+  background: color-mix(in srgb, var(--color-danger, #c62828) 12%, transparent);
+}
+
+.app-collaboration-sync-badge.is-syncing,
+.app-collaboration-sync-badge.is-offline_queue {
+  border-color: color-mix(in srgb, var(--color-accent, #2563eb) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent, #2563eb) 10%, transparent);
+}
+
+.app-collaboration-sync-badge.is-synced {
+  border-color: color-mix(in srgb, var(--color-success, #2e7d32) 45%, transparent);
+  background: color-mix(in srgb, var(--color-success, #2e7d32) 10%, transparent);
+}
+
+.app-side-pane-collaboration-directory-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  opacity: 0.92;
+}
+
+.app-side-pane-collaboration-directory-current {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.app-side-pane-collaboration-subheading {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}

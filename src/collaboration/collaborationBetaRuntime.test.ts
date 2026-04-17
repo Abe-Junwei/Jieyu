@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { CollaborationRecord } from './collaborationConflictRuntime';
-import { applyMultiLayerBatchEdits, buildCollaboratorHints, createStabilityValidationLog, evaluateContinuousEditingStability, planBatchProcessing, type LayerEditOperation, type LayerObjectState } from './collaborationBetaRuntime';
+import type { CollaborationOperationLog } from './collaborationRulesRuntime';
+import { applyMultiLayerBatchEdits, applyMultiLayerBatchEditsWithWriter, buildCollaboratorHints, createStabilityValidationLog, evaluateContinuousEditingStability, planBatchProcessing, type LayerEditOperation, type LayerObjectState } from './collaborationBetaRuntime';
 
 function buildObjectState(overrides?: Partial<LayerObjectState>): LayerObjectState {
   return {
@@ -92,6 +93,107 @@ describe('collaboration beta runtime', () => {
     const result = applyMultiLayerBatchEdits(base, operations);
     expect(result.operationLogs.some((item) => item.type === 'arbitration_requested')).toBe(true);
     expect(result.operationLogs.some((item) => item.type === 'arbitration_decided')).toBe(true);
+    expect(result.operationLogs.filter((item) => item.type === 'conflict_resolved')).toHaveLength(1);
+  });
+
+  it('[audit] conflict_resolved log carries strategy, conflictCodes and decisionId', () => {
+    const base = [buildObjectState()];
+    const operations: LayerEditOperation[] = [
+      buildOperation({
+        actorId: 'editor-b',
+        sessionId: 'session-b',
+        editedAt: 1_710_000_000_500,
+        baseVersion: 0,
+      }),
+    ];
+
+    const result = applyMultiLayerBatchEdits(base, operations);
+    const resolved = result.operationLogs.find((item) => item.type === 'conflict_resolved');
+    expect(resolved).toBeDefined();
+    expect(resolved!.strategy).toBe('last-write-wins');
+    expect(Array.isArray(resolved!.conflictCodes)).toBe(true);
+    expect(resolved!.conflictCodes!.length).toBeGreaterThan(0);
+    expect(resolved!.decisionId).toMatch(/^arb_/);
+  });
+
+  it('[audit] same conflict event produces exactly one conflict_resolved log', () => {
+    const base = [buildObjectState()];
+    const operations: LayerEditOperation[] = [
+      buildOperation({
+        actorId: 'editor-b',
+        sessionId: 'session-b',
+        editedAt: 1_710_000_000_500,
+        baseVersion: 0,
+      }),
+    ];
+
+    const result = applyMultiLayerBatchEdits(base, operations);
+    const resolvedLogs = result.operationLogs.filter((item) => item.type === 'conflict_resolved');
+    expect(resolvedLogs).toHaveLength(1);
+
+    const resolvedLogIds = new Set(resolvedLogs.map((item) => item.logId));
+    expect(resolvedLogIds.size).toBe(1);
+  });
+
+  it('[multi-layer] persists operation logs through a single writer call', async () => {
+    const base = [buildObjectState()];
+    const operations: LayerEditOperation[] = [
+      buildOperation({
+        actorId: 'editor-b',
+        sessionId: 'session-b',
+        editedAt: 1_710_000_000_500,
+        baseVersion: 0,
+      }),
+    ];
+    const writeOperationLogs = vi.fn(async () => {});
+
+    const result = await applyMultiLayerBatchEditsWithWriter(base, operations, writeOperationLogs);
+
+    expect(writeOperationLogs).toHaveBeenCalledTimes(1);
+    expect(result.persistedLogCount).toBe(result.operationLogs.length);
+    expect(result.operationLogs.filter((item) => item.type === 'conflict_resolved')).toHaveLength(1);
+  });
+
+  it('[audit] writer receives conflict_resolved with audit fields intact', async () => {
+    const base = [buildObjectState()];
+    const operations: LayerEditOperation[] = [
+      buildOperation({
+        actorId: 'editor-b',
+        sessionId: 'session-b',
+        editedAt: 1_710_000_000_500,
+        baseVersion: 0,
+      }),
+    ];
+    let capturedLogs: CollaborationOperationLog[] = [];
+    const writeOperationLogs = vi.fn(async (logs: CollaborationOperationLog[]) => { capturedLogs = logs; });
+
+    await applyMultiLayerBatchEditsWithWriter(base, operations, writeOperationLogs);
+
+    const resolved = capturedLogs.find((item) => item.type === 'conflict_resolved');
+    expect(resolved).toBeDefined();
+    expect(resolved!.strategy).toBe('last-write-wins');
+    expect(resolved!.conflictCodes!.length).toBeGreaterThan(0);
+    expect(resolved!.decisionId).toMatch(/^arb_/);
+  });
+
+  it('[multi-layer] skips writer call when no operation logs are produced', async () => {
+    const base = [buildObjectState()];
+    const operations: LayerEditOperation[] = [
+      buildOperation({
+        actorId: 'editor-a',
+        sessionId: 'session-a',
+        editedAt: 1_710_000_001_200,
+        baseVersion: 1,
+        patch: { text: 'no-conflict' },
+      }),
+    ];
+    const writeOperationLogs = vi.fn(async () => {});
+
+    const result = await applyMultiLayerBatchEditsWithWriter(base, operations, writeOperationLogs);
+
+    expect(result.operationLogs).toHaveLength(0);
+    expect(result.persistedLogCount).toBe(0);
+    expect(writeOperationLogs).not.toHaveBeenCalled();
   });
 
   it('[perf] plans processing chunks to meet frame budget', () => {

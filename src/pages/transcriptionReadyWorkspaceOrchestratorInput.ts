@@ -34,6 +34,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
+  resolveSelfCertaintyAmbiguityForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyAmbiguityForUnit'];
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -144,6 +145,7 @@ export function buildOrchestratorViewModelsInput(
     navigateUnitFromInput,
     speakerVisualByTimelineUnitId,
     resolveSelfCertaintyForUnit,
+    resolveSelfCertaintyAmbiguityForUnit,
     selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
@@ -257,6 +259,7 @@ export function buildOrchestratorViewModelsInput(
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
+      resolveSelfCertaintyAmbiguityForUnit,
     }) as UseOrchestratorViewModelsInput['textOnlyPropsInput'],
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
     player,

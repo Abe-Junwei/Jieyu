@@ -1,5 +1,6 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 import { parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
+import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateJsonLines, toErrorChunk } from './streamUtils';
 
 export interface OllamaProviderConfig {
@@ -28,6 +29,7 @@ export class OllamaProvider implements LLMProvider {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...buildTraceContextHeaders(options),
       },
       body: JSON.stringify({
         model: options?.model ?? this.config.model,

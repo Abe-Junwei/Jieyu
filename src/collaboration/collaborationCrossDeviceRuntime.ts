@@ -196,10 +196,12 @@ export function mergeCrossDeviceReplicas(
     vectorClock: mergeVectorClock(local.vectorClock, remote.vectorClock),
     updatedAt: Math.max(local.updatedAt, remote.updatedAt),
     fields: mergedFields,
-    ...((winner.deleted === true || loser.deleted === true) ? { deleted: winner.deleted === true && loser.deleted === true } : {}),
+    ...((winner.deleted === true || loser.deleted === true) ? { deleted: true } : {}),
   };
 
-  const requiresManualReview = conflicts.includes('concurrent-vector-clock') && conflicts.includes('delete-update');
+  const hasDeleteUpdateConflict = conflicts.includes('delete-update');
+  const hasConcurrentClockConflict = conflicts.includes('concurrent-vector-clock');
+  const requiresManualReview = hasDeleteUpdateConflict || hasConcurrentClockConflict;
   const requiresRollback = requiresManualReview || drift.exceedsBudget || conflicts.includes('entity-id-mismatch');
 
   return {

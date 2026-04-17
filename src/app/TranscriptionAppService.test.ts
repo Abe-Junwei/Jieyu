@@ -4,6 +4,15 @@ import { createTranscriptionAppService, type TranscriptionAppServiceDeps } from 
 function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): TranscriptionAppServiceDeps {
   const deps: TranscriptionAppServiceDeps = {
     createProject: vi.fn(async () => ({ textId: 'text-1' })),
+    createPlaceholderMedia: vi.fn(async () => ({
+      id: 'media-placeholder-1',
+      textId: 'text-1',
+      filename: 'document-placeholder.track',
+      duration: 1800,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: '2026-04-17T00:00:00.000Z',
+    })),
     importAudio: vi.fn(async () => ({ mediaId: 'media-1' })),
     deleteProject: vi.fn(async () => undefined),
     deleteAudio: vi.fn(async () => undefined),
@@ -98,11 +107,15 @@ describe('TranscriptionAppService', () => {
   it('forwards project/media and segment operations to underlying dependencies', async () => {
     const deps = createDeps();
     const service = createTranscriptionAppService(deps);
-
-    await service.createProject({
+    const createProjectRequest = {
       primaryTitle: 'demo',
       englishFallbackTitle: 'demo',
       primaryLanguageId: 'und',
+    };
+
+    await service.createProject(createProjectRequest);
+    await service.createPlaceholderMedia({
+      textId: 'text-1',
     });
     await service.importAudio({
       textId: 'text-1',
@@ -118,6 +131,9 @@ describe('TranscriptionAppService', () => {
     await service.deleteSegment('seg-1');
 
     expect(deps.createProject).toHaveBeenCalledTimes(1);
+    expect(deps.createProject).toHaveBeenCalledWith(createProjectRequest);
+    expect(deps.createPlaceholderMedia).toHaveBeenCalledTimes(1);
+    expect(deps.createPlaceholderMedia).toHaveBeenCalledWith({ textId: 'text-1' });
     expect(deps.importAudio).toHaveBeenCalledTimes(1);
     expect(deps.deleteProject).toHaveBeenCalledWith('text-1');
     expect(deps.deleteAudio).toHaveBeenCalledWith('media-1');

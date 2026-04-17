@@ -12,7 +12,7 @@ import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/conf
 import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
-import { THEMES, setAppearance, type ThemeId } from '../utils/theme';
+import { THEME_ACCENTS, THEMES, getTheme, getThemeAccent, setAppearance, setThemeAccent, type ThemeAccentId, type ThemeId } from '../utils/theme';
 import { type IconEffect } from '../utils/iconEffect';
 import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_DISPLAY_MODE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, emitWaveformRuntimePreferenceChanged, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference } from '../utils/waveformRuntimePreferenceSync';
 import { NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, WAVEFORM_DOUBLE_CLICK_ACTION_KEY, readStoredNewSegmentSelectionBehavior, readStoredWaveformDoubleClickAction, type NewSegmentSelectionBehavior, type WaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
@@ -365,14 +365,17 @@ export const SettingsModal = memo(function SettingsModal({
   );
 
   // ── 配色主题 | Appearance theme ──
-  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => {
-    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem('jieyu-appearance') : null;
-    return (stored as ThemeId) || 'default';
-  });
+  const [activeTheme, setActiveTheme] = useState<ThemeId>(() => getTheme());
+  const [activeThemeAccent, setActiveThemeAccent] = useState<ThemeAccentId>(() => getThemeAccent());
 
   const handleThemeChange = useCallback((themeId: ThemeId) => {
     setActiveTheme(themeId);
     setAppearance(themeId);
+  }, []);
+
+  const handleThemeAccentChange = useCallback((accentId: ThemeAccentId) => {
+    setActiveThemeAccent(accentId);
+    setThemeAccent(accentId);
   }, []);
 
   // 解析实际明暗模式（system → 查媒体查询）| Resolve actual light/dark from tri-state mode
@@ -748,6 +751,8 @@ export const SettingsModal = memo(function SettingsModal({
       setVoiceDockPositionResetAt(null);
       return;
     }
+    setActiveTheme(getTheme());
+    setActiveThemeAccent(getThemeAccent());
     setEmbeddingProviderDefault(loadEmbeddingProviderConfig());
     setAcousticRuntimeDraft(resolveAcousticProviderRuntimeConfig());
     setMapProviderDefault(readStoredMapProviderPreference());
@@ -931,6 +936,34 @@ export const SettingsModal = memo(function SettingsModal({
                       </div>
                     </button>
                   ))}
+                </div>
+              </SettingsSection>
+
+              <SettingsSection title={msg.themeAccentLabel}>
+                <div className="theme-accent-grid" role="radiogroup" aria-label={msg.themeAccentLabel}>
+                  {THEME_ACCENTS.map((accent) => {
+                    const label = locale === 'zh-CN' ? accent.labelZh : accent.labelEn;
+                    const isActive = activeThemeAccent === accent.id;
+                    const swatchColor = resolvedMode === 'dark' ? accent.swatchDark : accent.swatchLight;
+                    return (
+                      <button
+                        key={accent.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={isActive}
+                        className={`theme-accent-chip${isActive ? ' theme-accent-chip-active' : ''}`}
+                        onClick={() => handleThemeAccentChange(accent.id)}
+                        title={label}
+                      >
+                        <span
+                          className={`theme-accent-chip-swatch${accent.id === 'default' ? ' theme-accent-chip-swatch-default' : ''}`}
+                          style={{ ['--theme-accent-chip-color' as string]: swatchColor }}
+                          aria-hidden="true"
+                        />
+                        <span className="theme-accent-chip-label">{label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </SettingsSection>
 

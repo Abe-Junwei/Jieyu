@@ -488,10 +488,12 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(false);
 
     expect(routingHookCode.includes('const selectedStandaloneUnitIdsForSpeakerActions = useMemo(')).toBe(true);
+    expect(routingHookCode.includes('selectedUnitIdsForSpeakerActions.filter((id) => !segmentByIdForSpeakerActions.has(id))')).toBe(true);
     expect(routingHookCode.includes('selectedBatchSegmentsForSpeakerActions.length + selectedStandaloneUnitIdsForSpeakerActions.length')).toBe(true);
     expect(routingHookCode.includes('const applySpeakerToMixedSelection = useCallback(async (speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {')).toBe(true);
     expect(routingHookCode.includes('await applySpeakerToMixedSelection(batchSpeakerId || undefined);')).toBe(true);
+    expect(routingHookCode.includes('selectedUnitIdsForSpeakerActionsSet')).toBe(false);
   });
 
   it('does not render the removed floating speaker assign panel', () => {

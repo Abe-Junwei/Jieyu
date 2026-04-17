@@ -1,4 +1,10 @@
-import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './providers/LLMProvider';
+import type {
+  ChatChunk,
+  ChatMessage,
+  ChatRequestOptions,
+  LLMProvider,
+  TraceContextHeaders,
+} from './providers/LLMProvider';
 import { generateTraceId, startAiTraceSpan, type ActiveSpan } from '../observability/aiTrace';
 
 export interface SendMessageInput {
@@ -29,6 +35,37 @@ export function isRetryableStreamError(error: unknown): boolean {
 
 function trimMessageContent(value: string): string {
   return value.trim();
+}
+
+function hashToHex32(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function stableHex(input: string, length: number): string {
+  let hex = '';
+  let salt = 0;
+  while (hex.length < length) {
+    hex += hashToHex32(`${input}:${salt}`);
+    salt += 1;
+  }
+  return hex.slice(0, length);
+}
+
+function createTraceContextHeaders(traceId: string): TraceContextHeaders {
+  const traceIdHex = stableHex(traceId, 32);
+  const spanIdHex = stableHex(`${traceId}:llm-request`, 16);
+  return {
+    traceparent: `00-${traceIdHex}-${spanIdHex}-01`,
+  };
+}
+
+function shouldInjectTraceContextHeaders(env: ImportMetaEnv): boolean {
+  return (env.VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS ?? '').trim().toLowerCase() === 'true';
 }
 
 function assembleMessages(input: SendMessageInput): ChatMessage[] {
@@ -74,6 +111,13 @@ export class ChatOrchestrator {
     const fallback = this.fallbackProvider;
 
     const traceId = generateTraceId();
+    const optionsWithTraceContext = shouldInjectTraceContextHeaders(import.meta.env)
+      ? {
+          ...(input.options ?? {}),
+          traceContext: createTraceContextHeaders(traceId),
+        }
+      : input.options;
+
     const span = startAiTraceSpan({
       kind: 'llm-request',
       traceId,
@@ -84,8 +128,8 @@ export class ChatOrchestrator {
     // 包装 stream：主 provider 遇到可重试错误时自动降级到 fallback
     // Wrap stream: auto-fallback to secondary provider on retryable errors
     const rawStream = fallback
-      ? this.streamWithFallback(primary, fallback, nextMessages, input.options, span)
-      : primary.chat(nextMessages, input.options);
+      ? this.streamWithFallback(primary, fallback, nextMessages, optionsWithTraceContext, span)
+      : primary.chat(nextMessages, optionsWithTraceContext);
 
     // 包装 stream 以自动记录 span 生命周期 | Wrap stream to auto-track span lifecycle
     const tracedStream = this.wrapStreamWithTrace(rawStream, span);

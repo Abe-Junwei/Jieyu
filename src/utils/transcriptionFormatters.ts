@@ -192,6 +192,20 @@ export function getLayerHeaderLanguageLine(layer: LayerDocType, locale: Language
   return formatBcp47Label(code, locale) || code;
 }
 
+export function getLayerHeaderLanguageName(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): string {
+  const code = (layer.languageId ?? '').trim().toLowerCase();
+  if (!code) return '';
+  const parsed = parseBcp47(code);
+  const primary = (parsed.primary || code).toLowerCase();
+  const catalogEntry = getLanguageCatalogEntry(primary);
+  if (catalogEntry) {
+    return getLanguageDisplayName(catalogEntry.iso6393, locale);
+  }
+  return LANGUAGE_NAME_MAP[primary]
+    ?? COMMON_LANGUAGES.find((language) => language.code === primary)?.label
+    ?? primary;
+}
+
 export function getLayerHeaderVarietyOrAliasLine(layer: LayerDocType): string {
   const explicitVarietyParts = [layer.dialect?.trim(), layer.vernacular?.trim()]
     .filter((part): part is string => Boolean(part));

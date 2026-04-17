@@ -968,6 +968,9 @@ export class LinguisticService {
       }),
       metadata: {
         primaryLanguageId,
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
         ...(input.primaryOrthographyId ? { primaryOrthographyId: input.primaryOrthographyId } : {}),
       },
       createdAt: now,
@@ -1123,6 +1126,36 @@ export class LinguisticService {
     });
 
     return { mediaId };
+  }
+
+  static async createPlaceholderMedia(input: {
+    textId: string;
+    duration?: number;
+    filename?: string;
+  }): Promise<MediaItemDocType> {
+    const db = await getDb();
+    const now = new Date().toISOString();
+    const mediaId = newId('media');
+    const duration = Number.isFinite(input.duration) && (input.duration ?? 0) > 0
+      ? (input.duration as number)
+      : 1800;
+    const filename = input.filename?.trim() || 'document-placeholder.track';
+
+    const mediaItem: MediaItemDocType = {
+      id: mediaId,
+      textId: input.textId,
+      filename,
+      duration,
+      details: {
+        placeholder: true,
+        timelineMode: 'document',
+      },
+      isOfflineCached: true,
+      createdAt: now,
+    };
+
+    await db.collections.media_items.insert(mediaItem);
+    return mediaItem;
   }
 
   /** Delete a project (text) and all associated data (cascade). */

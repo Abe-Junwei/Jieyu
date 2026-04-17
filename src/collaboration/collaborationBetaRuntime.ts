@@ -1,4 +1,4 @@
-import { type CollaborationRecord, type ConflictDescriptor, type FieldValue } from './collaborationConflictRuntime';
+import { createConflictResolutionLog, type CollaborationRecord, type ConflictDescriptor, type FieldValue } from './collaborationConflictRuntime';
 import { appendOperationLog, createReconnectValidationLog, openArbitrationTicket, toArbitrationOperationLogs, validateReconnectConsistency, type ArbitrationTicket, type CollaborationOperationLog } from './collaborationRulesRuntime';
 
 export interface LayerObjectState {
@@ -26,6 +26,12 @@ export interface MultiLayerBatchApplyResult {
   unresolvedTickets: ArbitrationTicket[];
   operationLogs: CollaborationOperationLog[];
   appliedCount: number;
+}
+
+export type CollaborationOperationLogWriter = (logs: CollaborationOperationLog[]) => void | Promise<void>;
+
+export interface MultiLayerBatchPersistResult extends MultiLayerBatchApplyResult {
+  persistedLogCount: number;
 }
 
 export interface BatchProcessingPlan {
@@ -85,6 +91,16 @@ function emptyState(operation: LayerEditOperation): LayerObjectState {
     fields: {},
     lastActorId: operation.actorId,
     lastSessionId: operation.sessionId,
+  };
+}
+
+function toCollaborationRecord(state: LayerObjectState): CollaborationRecord {
+  return {
+    entityId: `${state.layerId}:${state.objectId}`,
+    sessionId: state.lastSessionId,
+    version: state.version,
+    updatedAt: state.updatedAt,
+    fields: { ...state.fields },
   };
 }
 
@@ -152,6 +168,8 @@ export function applyMultiLayerBatchEdits(
     const key = toObjectKey(operation.layerId, operation.objectId);
     const current = objectMap.get(key) ?? emptyState(operation);
     const conflicts = detectOperationConflicts(current, operation);
+    let resolvedConflictStrategy: 'last-write-wins' | 'manual-review' | null = null;
+    let resolvedTicketId: string | undefined;
 
     if (conflicts.length > 0) {
       const ticket = openArbitrationTicket({
@@ -172,6 +190,9 @@ export function applyMultiLayerBatchEdits(
         unresolvedTickets.push(ticket);
         continue;
       }
+
+      resolvedConflictStrategy = ticket.decision.selectedStrategy;
+      resolvedTicketId = ticket.ticketId;
     }
 
     const nextState: LayerObjectState = {
@@ -189,6 +210,19 @@ export function applyMultiLayerBatchEdits(
 
     objectMap.set(key, nextState);
     appliedCount += 1;
+
+    if (conflicts.length > 0 && resolvedConflictStrategy !== null) {
+      operationLogs = appendOperationLog(
+        operationLogs,
+        createConflictResolutionLog(
+          toCollaborationRecord(nextState),
+          resolvedConflictStrategy,
+          conflicts,
+          nextState.updatedAt,
+          resolvedTicketId,
+        ),
+      );
+    }
   }
 
   const objects = [...objectMap.values()].sort((left, right) => {
@@ -203,6 +237,36 @@ export function applyMultiLayerBatchEdits(
     unresolvedTickets,
     operationLogs,
     appliedCount,
+  };
+}
+
+function dedupeOperationLogs(logs: CollaborationOperationLog[]): CollaborationOperationLog[] {
+  const seen = new Set<string>();
+  const deduped: CollaborationOperationLog[] = [];
+  for (const log of logs) {
+    if (seen.has(log.logId)) {
+      continue;
+    }
+    seen.add(log.logId);
+    deduped.push(log);
+  }
+  return deduped;
+}
+
+export async function applyMultiLayerBatchEditsWithWriter(
+  baseObjects: LayerObjectState[],
+  operations: LayerEditOperation[],
+  writeOperationLogs: CollaborationOperationLogWriter,
+): Promise<MultiLayerBatchPersistResult> {
+  const result = applyMultiLayerBatchEdits(baseObjects, operations);
+  const operationLogs = dedupeOperationLogs(result.operationLogs);
+  if (operationLogs.length > 0) {
+    await writeOperationLogs(operationLogs);
+  }
+  return {
+    ...result,
+    operationLogs,
+    persistedLogCount: operationLogs.length,
   };
 }
 

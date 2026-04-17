@@ -495,6 +495,11 @@
   transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
 }
 
+/* 左侧栏按钮文案隐藏，仅保留图标 | Hide left-rail button labels and keep icon-only rail */
+.app-left-rail .left-rail-btn > span:not(.jieyu-material) {
+  display: none;
+}
+
 .left-rail-btn svg {
   color: currentColor;
   stroke: currentColor;
@@ -515,6 +520,81 @@
   background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
 }
 
+/* 核心工作区主导航标签化选中态 | Tab-like active state for core workspace primary nav */
+.app-left-rail-primary {
+  position: relative;
+  padding-top: 6px;
+}
+
+.app-left-rail-primary .left-rail-btn {
+  position: relative;
+  min-height: 56px;
+  margin-right: -4px;
+  border: 1px solid transparent;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  padding: 8px 6px;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* 非激活层级更后置 | Push inactive buttons one visual level back */
+.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active) {
+  color: color-mix(in srgb, var(--tab-text-muted) 82%, var(--text-secondary));
+  opacity: 0.9;
+}
+
+/* 图标默认线框态 | Default icon in outlined tone */
+.app-left-rail-primary .left-rail-btn > .jieyu-material {
+  --jieyu-material-fill: 0;
+  --jieyu-material-wght: 320;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+/* 未选中项悬停反馈 | Hover feedback for inactive nav items */
+.app-left-rail-primary .left-rail-btn:not(.left-rail-btn-active):hover {
+  background: color-mix(in srgb, var(--overlay-hover-soft) 72%, transparent);
+}
+
+/* 选中项呈现“已打开标签”面片 | Active item appears like an opened tab */
+.app-left-rail-primary .left-rail-btn-active {
+  color: var(--state-info-contrast, #fff);
+  background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
+  border-color: color-mix(in srgb, var(--state-info-solid) 70%, transparent);
+  border-left: 0;
+  border-right: 0;
+  border-left-color: transparent;
+  opacity: 1;
+  z-index: 2;
+  font-weight: 700;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--state-info-solid) 36%, transparent);
+}
+
+/* 右侧补片与主内容视觉连通 | Right bridge to visually connect with main content */
+.app-left-rail-primary .left-rail-btn-active::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: -4px;
+  bottom: -1px;
+  width: 4px;
+  background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
+}
+
+/* 选中图标切 Filled 并提升字重 | Active icon switches to filled with stronger weight */
+.app-left-rail-primary .left-rail-btn-active > .jieyu-material {
+  --jieyu-material-fill: 1;
+  --jieyu-material-wght: 520;
+  color: var(--state-info-contrast, #fff);
+  background: transparent;
+}
+
 .left-rail-btn:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--focus-ring-soft);
@@ -525,6 +605,11 @@
     min-height: 52px;
     font-size: calc(9px * var(--ui-font-scale, 1));
   }
+
+  .app-left-rail-primary .left-rail-btn {
+    min-height: 52px;
+  }
+
 }
 
 @media (max-width: 640px) {
@@ -538,6 +623,22 @@
   .left-rail-btn span {
     display: none;
   }
+
+  .app-left-rail-primary .left-rail-btn {
+    min-height: 46px;
+    margin-right: 0;
+    border-right: 1px solid transparent;
+    border-radius: 10px;
+  }
+
+  .app-left-rail-primary .left-rail-btn-active::after {
+    display: none;
+  }
+
+  .app-left-rail-primary .left-rail-btn-active {
+    border-color: color-mix(in srgb, var(--state-info-solid) 32%, var(--divider-base));
+  }
+
 }
 /* ── 首屏过渡抑制：避免初始挂载时的布局过渡产生 CLS | Suppress layout transitions on initial mount to prevent CLS ── */
 :root:not([data-motion-ready]) .app-side-pane,

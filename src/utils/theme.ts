@@ -4,6 +4,7 @@
  *
  * Architecture:
  *   data-appearance 含 googleLightModern（Google 浅色现代）/ solarizedDark（Solarized 暗色）等
+ *   data-theme-accent 含 blue / orange / green / red 等 Outlook 风格主题色
  *   data-theme="dark" — 明暗模式（独立控制；Solarized 外观时始终为 dark）
  */
 
@@ -31,6 +32,25 @@ export interface ThemeInfo {
   /** Background color swatch for preview */
   bgLight: string;
   bgDark: string;
+}
+
+export type ThemeAccentId =
+  | 'default'
+  | 'blue'
+  | 'orange'
+  | 'green'
+  | 'red'
+  | 'purple'
+  | 'pink'
+  | 'teal'
+  | 'graphite';
+
+export interface ThemeAccentInfo {
+  id: ThemeAccentId;
+  labelZh: string;
+  labelEn: string;
+  swatchLight: string;
+  swatchDark: string;
 }
 
 export const THEMES: ThemeInfo[] = [
@@ -147,7 +167,20 @@ export const THEMES: ThemeInfo[] = [
   },
 ];
 
+export const THEME_ACCENTS: ThemeAccentInfo[] = [
+  { id: 'default', labelZh: '跟随配色方案', labelEn: 'Follow appearance', swatchLight: '#9E9E9E', swatchDark: '#BDBDBD' },
+  { id: 'blue', labelZh: '蓝色', labelEn: 'Blue', swatchLight: '#0078D4', swatchDark: '#74BCFF' },
+  { id: 'orange', labelZh: '橙色', labelEn: 'Orange', swatchLight: '#DA3B01', swatchDark: '#FFB074' },
+  { id: 'green', labelZh: '绿色', labelEn: 'Green', swatchLight: '#107C10', swatchDark: '#7AD77A' },
+  { id: 'red', labelZh: '红色', labelEn: 'Red', swatchLight: '#D13438', swatchDark: '#FF9AA2' },
+  { id: 'purple', labelZh: '紫色', labelEn: 'Purple', swatchLight: '#5C2D91', swatchDark: '#CDB0F3' },
+  { id: 'pink', labelZh: '粉色', labelEn: 'Pink', swatchLight: '#E3008C', swatchDark: '#FF9ADE' },
+  { id: 'teal', labelZh: '青色', labelEn: 'Teal', swatchLight: '#038387', swatchDark: '#7BEDE6' },
+  { id: 'graphite', labelZh: '石墨灰', labelEn: 'Graphite', swatchLight: '#4C4A48', swatchDark: '#D0CECC' },
+];
+
 const APPEARANCE_KEY = 'jieyu-appearance';
+const THEME_ACCENT_KEY = 'jieyu-theme-accent';
 export const THEME_MODE_STORAGE_KEY = 'jieyu-theme';
 
 function readStoredColorSchemePreference(): 'light' | 'dark' | 'system' {
@@ -216,6 +249,35 @@ export function getThemeMode(): 'light' | 'dark' {
   return resolveColorScheme(readStoredColorSchemePreference());
 }
 
+export function getThemeAccent(): ThemeAccentId {
+  try {
+    const stored = localStorage.getItem(THEME_ACCENT_KEY);
+    if (stored && THEME_ACCENTS.some((accent) => accent.id === stored)) {
+      return stored as ThemeAccentId;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return 'default';
+}
+
+function applyThemeAccentAttribute(accentId: ThemeAccentId): void {
+  if (accentId === 'default') {
+    document.documentElement.removeAttribute('data-theme-accent');
+  } else {
+    document.documentElement.setAttribute('data-theme-accent', accentId);
+  }
+}
+
+export function setThemeAccent(accentId: ThemeAccentId): void {
+  try {
+    localStorage.setItem(THEME_ACCENT_KEY, accentId);
+  } catch {
+    // localStorage unavailable
+  }
+  applyThemeAccentAttribute(accentId);
+}
+
 /**
  * Set the appearance theme (配色方案)
  * Updates both localStorage and the DOM data-appearance attribute
@@ -241,6 +303,8 @@ export function setAppearance(themeId: ThemeId): void {
 export function initTheme(): { theme: ThemeId; mode: 'light' | 'dark' } {
   const theme = getTheme();
   setAppearance(theme);
+  const accent = getThemeAccent();
+  setThemeAccent(accent);
   const preference = readStoredColorSchemePreference();
   const mode = resolveColorScheme(preference);
   return { theme, mode };

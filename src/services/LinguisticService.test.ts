@@ -228,6 +228,10 @@ describe('LinguisticService smoke tests', () => {
     const saved = await db.texts.get(created.textId);
     expect(saved?.title.und).toBe('白马藏语田野调查');
     expect(saved?.title.eng).toBe('Baima Tibetan Fieldwork');
+    expect(saved?.metadata?.primaryLanguageId).toBe('eng');
+    expect((saved?.metadata as { timelineMode?: unknown } | undefined)?.timelineMode).toBe('document');
+    expect((saved?.metadata as { logicalDurationSec?: unknown } | undefined)?.logicalDurationSec).toBe(1800);
+    expect((saved?.metadata as { timebaseLabel?: unknown } | undefined)?.timebaseLabel).toBe('logical-second');
   });
 
   it('can update an existing orthography while preserving catalog metadata', async () => {

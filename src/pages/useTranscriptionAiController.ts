@@ -20,7 +20,7 @@ import { vadCache } from '../services/vad/VadCacheService';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import type { LayerUnitDocType } from '../db';
-import { buildOwnerUnitCandidates, resolveOwnerUnitForAi, resolveSelectedAiSegmentTargetId } from './transcriptionAiSelectionResolver';
+import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
 
@@ -72,6 +72,12 @@ export function useTranscriptionAiController(
     input.getUnitDocById,
     toSyntheticUnit,
   ), [effectiveUnitIndex.allUnits, input.getUnitDocById, toSyntheticUnit]);
+  const explicitOwnerUnitForAi = resolveExplicitOwnerUnitForAi({
+    selectedUnit: input.selectionSnapshot.selectedUnit,
+    getUnitDocById: input.getUnitDocById,
+    selectedTimelineSegment: input.selectedTimelineSegment,
+    ownerCandidates: ownerUnitCandidatesForAi,
+  });
   const resolvedOwnerUnitForAi = useMemo(() => resolveOwnerUnitForAi({
     selectedUnit: input.selectionSnapshot.selectedUnit,
     getUnitDocById: input.getUnitDocById,
@@ -162,22 +168,20 @@ export function useTranscriptionAiController(
     ...(input.resolveSegmentRoutingForLayer !== undefined ? { resolveSegmentRoutingForLayer: input.resolveSegmentRoutingForLayer } : {}),
     getUnitTextForLayer,
   });
-  const selectedSegmentTargetId = resolveSelectedAiSegmentTargetId({
+  const selectedSegmentTargetId = resolveWritableAiTargetId({
     selectedUnitKind: input.selectionSnapshot.selectedUnitKind,
     selectedTimelineSegmentId: input.selectedTimelineSegment?.id,
     snapshotTimelineUnitId: input.selectionSnapshot.timelineUnit?.unitId,
-    resolvedOwnerUnitId: resolvedOwnerUnitForAi?.id,
+    explicitOwnerUnitId: explicitOwnerUnitForAi?.id,
   });
 
   const materializeAiToolCall = useCallback((call: Parameters<typeof materializePendingToolCallTargets>[0]) => materializePendingToolCallTargets(call, {
     units: segmentTargetScopeUnits,
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
-    ...(resolvedOwnerUnitForAi ? { selectedUnit: resolvedOwnerUnitForAi } : {}),
     segmentTargets: segmentTargetDescriptors,
     ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
   }), [
-    resolvedOwnerUnitForAi,
     input.transcriptionLayers,
     input.translationLayers,
     segmentTargetDescriptors,
@@ -207,7 +211,7 @@ export function useTranscriptionAiController(
 
   const aiToolCallHandler = useAiToolCallHandler({
     units: segmentTargetScopeUnits,
-    selectedUnit: resolvedOwnerUnitForAi ?? undefined,
+    selectedUnit: explicitOwnerUnitForAi ?? undefined,
     selectedUnitMedia: input.selectedTimelineMedia,
     selectedLayerId: input.selectedLayerId,
     transcriptionLayers: input.transcriptionLayers,
@@ -312,7 +316,6 @@ export function useTranscriptionAiController(
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
     units: segmentTargetScopeUnits,
-    ...(resolvedOwnerUnitForAi ? { selectedUnit: resolvedOwnerUnitForAi } : {}),
     ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
     segmentTargets: segmentTargetDescriptors,
     transcriptionLayers,

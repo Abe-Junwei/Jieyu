@@ -18,6 +18,7 @@ import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Servi
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import { ensureVadCacheForMedia, VAD_AUTO_WARM_MAX_BYTES } from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
+import type { MediaItemDocType } from '../db';
 
 export const TranscriptionAppServiceMeta: AppServiceMeta = {
   domain: 'transcription',
@@ -93,6 +94,12 @@ export interface ImportAudioRequest {
   duration: number;
 }
 
+export interface CreatePlaceholderMediaRequest {
+  textId: string;
+  duration?: number;
+  filename?: string;
+}
+
 export interface TranscriptionSplitResult {
   first: { id: string };
   second: { id: string };
@@ -105,6 +112,7 @@ export interface TranscriptionMergeResult {
 export interface ITranscriptionAppServiceGateway {
   resolveAutoSegmentCandidates(request: ResolveAutoSegmentCandidatesRequest): Promise<Array<{ start: number; end: number }>>;
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
+  createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
   deleteProject(textId: string): Promise<void>;
   deleteAudio(mediaId: string): Promise<void>;
@@ -116,6 +124,7 @@ export interface ITranscriptionAppServiceGateway {
 
 export interface TranscriptionAppServiceDeps {
   createProject: typeof LinguisticService.createProject;
+  createPlaceholderMedia: typeof LinguisticService.createPlaceholderMedia;
   importAudio: typeof LinguisticService.importAudio;
   deleteProject: typeof LinguisticService.deleteProject;
   deleteAudio: typeof LinguisticService.deleteAudio;
@@ -131,6 +140,7 @@ export interface TranscriptionAppServiceDeps {
 
 const defaultDeps: TranscriptionAppServiceDeps = {
   createProject: LinguisticService.createProject.bind(LinguisticService),
+  createPlaceholderMedia: LinguisticService.createPlaceholderMedia.bind(LinguisticService),
   importAudio: LinguisticService.importAudio.bind(LinguisticService),
   deleteProject: LinguisticService.deleteProject.bind(LinguisticService),
   deleteAudio: LinguisticService.deleteAudio.bind(LinguisticService),
@@ -177,6 +187,10 @@ export function createTranscriptionAppService(
 
     async createProject(request: CreateProjectRequest): Promise<{ textId: string }> {
       return deps.createProject(request);
+    },
+
+    async createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType> {
+      return deps.createPlaceholderMedia(request);
     },
 
     async importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }> {

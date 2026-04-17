@@ -86,9 +86,8 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     resolveExplicitSpeakerKeyForSegment: (item) => item.speakerId?.trim() ?? '',
     resolveSpeakerKeyForSegment: (item) => item.speakerId?.trim() ?? 'unknown-speaker',
     selectedBatchSegmentsForSpeakerActions: [segment],
-    selectedUnitIdsForSpeakerActions: ['seg-1'],
+    selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
     segmentByIdForSpeakerActions: new Map([['seg-1', segment]]),
-    selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
     resolveSpeakerActionUnitIds: (ids) => Array.from(ids).map((id) => (id === 'seg-1' ? 'utt-1' : id)),
     selectedBatchUnits: [unit],
     selectedSpeakerSummary: '当前统一说话人：Alice',
@@ -200,7 +199,6 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       undo,
       setSaveState,
     })));
@@ -264,7 +262,6 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       setSaveState,
     })));
 
@@ -278,6 +275,26 @@ describe('useSpeakerActionRoutingController', () => {
       kind: 'done',
       message: '已应用说话人到 2 项选中内容',
     }));
+
+    assignSpeakerToSegments.mockRestore();
+    assignSpeakerToUnits.mockRestore();
+  });
+
+  it('clears speaker on segment-only selection without unit fallback writes', async () => {
+    const assignSpeakerToSegments = vi.spyOn(LinguisticService, 'assignSpeakerToSegments').mockResolvedValue(1);
+    const assignSpeakerToUnits = vi.spyOn(LinguisticService, 'assignSpeakerToUnits').mockResolvedValue(1);
+    const { result } = renderHook(() => useSpeakerActionRoutingController(createBaseInput({
+      selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
+      selectedUnitIdsForSpeakerActions: ['seg-1'],
+      segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
+    })));
+
+    await act(async () => {
+      await result.current.handleClearSpeakerOnSelectedRouted();
+    });
+
+    expect(assignSpeakerToSegments).toHaveBeenCalledWith(['seg-1'], undefined);
+    expect(assignSpeakerToUnits).not.toHaveBeenCalled();
 
     assignSpeakerToSegments.mockRestore();
     assignSpeakerToUnits.mockRestore();
@@ -297,7 +314,6 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       setSaveState,
       setBatchSpeakerId,
       setSpeakerDraftName,
@@ -342,7 +358,6 @@ describe('useSpeakerActionRoutingController', () => {
       selectedBatchSegmentsForSpeakerActions: [makeSegment('seg-1', 'layer-seg', 0, 1)],
       selectedUnitIdsForSpeakerActions: ['seg-1', 'utt-1'],
       segmentByIdForSpeakerActions: new Map([['seg-1', makeSegment('seg-1', 'layer-seg', 0, 1)]]),
-      selectedUnitIdsForSpeakerActionsSet: new Set(['utt-1']),
       undo,
       setSaveState,
       setBatchSpeakerId,

@@ -5,11 +5,12 @@
  */
 
 import { Suspense, lazy } from 'react';
-import type { CSSProperties, ContextType, RefObject } from 'react';
+import type { CSSProperties, ContextType, ReactNode, RefObject } from 'react';
 import { TimelineRailSection, TimelineScrollSection } from '../components/transcription/TranscriptionTimelineSections';
 import { BottomToolbarSection, ObserverStatusSection, TimelineMainSection, ToolbarLeftSection, ToolbarRightSection, ZoomControlsSection } from '../components/transcription/TranscriptionLayoutSections';
 import { TimelineStyledSection } from '../components/transcription/TimelineStyledContainer';
 import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectHub';
+import { CollaborationConflictReviewDrawer } from '../components/transcription/CollaborationConflictReviewDrawer';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { AiPanelContext } from '../contexts/AiPanelContext';
 import { ToastProvider } from '../contexts/ToastContext';
@@ -93,6 +94,7 @@ interface WorkspaceAreaProps {
 interface ReadyStageProps {
   toastProps: React.ComponentProps<typeof ToastController>;
   recoveryBannerProps: RecoveryBannerProps;
+  collaborationCloudStatusSlot?: ReactNode;
   toolbarProps: React.ComponentProps<typeof TranscriptionPageToolbar>;
   observerProps: React.ComponentProps<typeof ObserverStatusSection>;
   acousticRuntimeStatus: React.ComponentProps<typeof TranscriptionPageToolbar>['acousticRuntimeStatus'];
@@ -113,12 +115,14 @@ export interface TranscriptionPageReadyWorkspaceLayoutProps {
   readyStageProps: ReadyStageProps;
   overlaysProps: React.ComponentProps<typeof TranscriptionOverlays>;
   layerPopoverProps: React.ComponentProps<typeof LayerActionPopover> | null;
+  conflictReviewDrawerProps?: React.ComponentProps<typeof CollaborationConflictReviewDrawer>;
 }
 
 function ReadyStageContent({
   locale,
   toastProps,
   recoveryBannerProps,
+  collaborationCloudStatusSlot,
   toolbarProps,
   observerProps,
   acousticRuntimeStatus,
@@ -171,6 +175,8 @@ function ReadyStageContent({
             />
           </Suspense>
         ) : null}
+
+        {collaborationCloudStatusSlot}
 
         <section className="transcription-waveform" ref={waveformSectionRef}>
           <Suspense fallback={null}>
@@ -312,6 +318,7 @@ export function TranscriptionPageReadyWorkspaceLayout({
   readyStageProps,
   overlaysProps,
   layerPopoverProps,
+  conflictReviewDrawerProps,
 }: TranscriptionPageReadyWorkspaceLayoutProps) {
   return (
     <TimelineStyledSection
@@ -323,6 +330,7 @@ export function TranscriptionPageReadyWorkspaceLayout({
       {phase === 'loading' ? <p className="hint">{t(locale, 'transcription.status.loading')}</p> : null}
       {phase === 'error' ? <p className="error">{tf(locale, 'transcription.status.dbError', { message: errorMessage ?? '' })}</p> : null}
       {phase === 'ready' ? <ReadyStageContent locale={locale} {...readyStageProps} /> : null}
+      {phase === 'ready' && conflictReviewDrawerProps ? <CollaborationConflictReviewDrawer {...conflictReviewDrawerProps} /> : null}
 
       <Suspense fallback={null}>
         <TranscriptionOverlays {...overlaysProps} />

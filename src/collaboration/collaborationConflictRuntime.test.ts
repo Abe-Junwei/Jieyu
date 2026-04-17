@@ -154,4 +154,36 @@ describe('collaboration conflict runtime', () => {
     expect(log.at).toBe(4_001);
     expect(log.payloadDigest.length).toBeGreaterThan(0);
   });
+
+  it('[oplog] populates audit fields (strategy, conflictCodes, decisionId)', () => {
+    const record = buildRecord({ version: 6, updatedAt: 5_000 });
+    const log = createConflictResolutionLog(
+      record,
+      'last-write-wins',
+      [
+        { scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' },
+        { scope: 'session', code: 'stale-base-version', message: 'stale' },
+      ],
+      5_001,
+      'arb_abc12345',
+    );
+
+    expect(log.strategy).toBe('last-write-wins');
+    expect(log.conflictCodes).toEqual(['field:field-value-diverged:text', 'session:stale-base-version:*']);
+    expect(log.decisionId).toBe('arb_abc12345');
+  });
+
+  it('[oplog] omits decisionId when not provided', () => {
+    const record = buildRecord({ version: 7, updatedAt: 6_000 });
+    const log = createConflictResolutionLog(
+      record,
+      'last-write-wins',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'confidence', message: 'diverged' }],
+      6_001,
+    );
+
+    expect(log.strategy).toBe('last-write-wins');
+    expect(log.conflictCodes).toEqual(['field:field-value-diverged:confidence']);
+    expect(log.decisionId).toBeUndefined();
+  });
 });

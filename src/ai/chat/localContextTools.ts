@@ -8,6 +8,7 @@ import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
 import type { UnitSelfCertainty } from '../../utils/unitSelfCertainty';
 import { AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1, AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2, AI_AGENT_LOOP_MATCH_TRANSCRIPTION_PREVIEW_MAX_CHARS, AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS, AI_AGENT_LOOP_USER_REQUEST_MAX_CHARS, AI_LOCAL_TOOL_RESULT_CHAR_BUDGET } from '../../hooks/useAiChat.config';
+import { generateTraceId, startAiTraceSpan } from '../../observability/aiTrace';
 import { createMetricTags, recordMetric } from '../../observability/metrics';
 import { buildLocalToolReadModelMeta } from './localContextToolReadModelMeta';
 import { createListUnitsSnapshot, getListUnitsSnapshot, LIST_UNITS_SNAPSHOT_ROW_THRESHOLD, type ListUnitsSnapshotRow } from './localContextListUnitsSnapshotStore';
@@ -36,6 +37,11 @@ export interface LocalContextToolResult {
   name: LocalContextToolName;
   result: unknown;
   error?: string;
+}
+
+export interface LocalToolExecutionTraceOptions {
+  traceId?: string;
+  step?: number;
 }
 
 const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
@@ -1363,105 +1369,132 @@ export async function executeLocalContextToolCall(
   context: AiPromptContext | null,
   callCountRef: { current: number },
   maxCalls = 20,
+  traceOptions?: LocalToolExecutionTraceOptions,
 ): Promise<LocalContextToolResult> {
+  const traceId = traceOptions?.traceId ?? generateTraceId();
+  const toolSpan = startAiTraceSpan({
+    kind: 'tool-execution',
+    traceId,
+    tags: createMetricTags('localContextTools', {
+      toolName: call.name,
+      ...(traceOptions?.step !== undefined ? { step: traceOptions.step } : {}),
+    }),
+  });
+
   if (!context) {
-    return {
+    const out = {
       ok: false,
       name: call.name,
       result: null,
       error: 'context is unavailable',
     };
+    toolSpan.endWithError(out.error);
+    return out;
   }
 
   if (callCountRef.current >= maxCalls) {
-    return {
+    const out = {
       ok: false,
       name: call.name,
       result: null,
       error: 'local tool call limit exceeded',
     };
+    toolSpan.endWithError(out.error);
+    return out;
   }
   callCountRef.current += 1;
 
   let out: LocalContextToolResult;
-  switch (call.name) {
-    case 'get_current_selection': {
-      const { localUnitIndex: _stripped, ...visibleShortTerm } = context.shortTerm ?? {};
-      out = {
-        ok: true,
-        name: call.name,
-        result: {
-          ...visibleShortTerm,
-          ...(context.longTerm?.projectStats?.unitCount !== undefined
-            ? { projectUnitCount: context.longTerm.projectStats.unitCount }
-            : context.longTerm?.projectStats?.unitCount !== undefined
+  try {
+    switch (call.name) {
+      case 'get_current_selection': {
+        const { localUnitIndex: _stripped, ...visibleShortTerm } = context.shortTerm ?? {};
+        out = {
+          ok: true,
+          name: call.name,
+          result: {
+            ...visibleShortTerm,
+            ...(context.longTerm?.projectStats?.unitCount !== undefined
               ? { projectUnitCount: context.longTerm.projectStats.unitCount }
-              : {}),
-        },
-      };
-      break;
+              : context.longTerm?.projectStats?.unitCount !== undefined
+                ? { projectUnitCount: context.longTerm.projectStats.unitCount }
+                : {}),
+          },
+        };
+        break;
+      }
+      case 'get_project_stats':
+        out = await getProjectStats(context, call.arguments);
+        break;
+      case 'get_waveform_analysis':
+        out = { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
+        break;
+      case 'get_acoustic_summary':
+        out = { ok: true, name: call.name, result: context.longTerm?.acousticSummary ?? null };
+        break;
+      case 'find_incomplete_units': {
+        const snapshotIncomplete = await findIncompleteUnitsWithSnapshots(context, call.arguments);
+        out = snapshotIncomplete ?? { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
+        break;
+      }
+      case 'diagnose_quality': {
+        const snapshotResult = await diagnoseQualityWithSnapshots(context, call.arguments);
+        out = snapshotResult ?? { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
+        break;
+      }
+      case 'batch_apply': {
+        const snapshotBatch = await batchApplyWithSnapshots(context, call.arguments);
+        out = snapshotBatch ?? { ok: true, name: call.name, result: batchApply(context, call.arguments) };
+        break;
+      }
+      case 'suggest_next_action':
+        out = { ok: true, name: call.name, result: suggestNextAction(context) };
+        break;
+      case 'list_units':
+        out = {
+          ...(await listUnits(context, call.arguments)),
+          name: call.name,
+        };
+        break;
+      case 'search_units':
+        out = {
+          ...(await searchUnits(context, call.arguments)),
+          name: call.name,
+        };
+        break;
+      case 'get_unit_detail':
+        out = {
+          ...(await getUnitDetail(call.arguments, context)),
+          name: call.name,
+        };
+        break;
+      case 'get_unit_linguistic_memory':
+        out = {
+          ...(await getUnitLinguisticMemory(call.arguments, context)),
+          name: call.name,
+        };
+        break;
+      default:
+        out = {
+          ok: false,
+          name: call.name,
+          result: null,
+          error: `unsupported local context tool: ${call.name}`,
+        };
     }
-    case 'get_project_stats':
-      out = await getProjectStats(context, call.arguments);
-      break;
-    case 'get_waveform_analysis':
-      out = { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
-      break;
-    case 'get_acoustic_summary':
-      out = { ok: true, name: call.name, result: context.longTerm?.acousticSummary ?? null };
-      break;
-    case 'find_incomplete_units': {
-      const snapshotIncomplete = await findIncompleteUnitsWithSnapshots(context, call.arguments);
-      out = snapshotIncomplete ?? { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
-      break;
-    }
-    case 'diagnose_quality': {
-      const snapshotResult = await diagnoseQualityWithSnapshots(context, call.arguments);
-      out = snapshotResult ?? { ok: true, name: call.name, result: diagnoseQuality(context, call.arguments) };
-      break;
-    }
-    case 'batch_apply': {
-      const snapshotBatch = await batchApplyWithSnapshots(context, call.arguments);
-      out = snapshotBatch ?? { ok: true, name: call.name, result: batchApply(context, call.arguments) };
-      break;
-    }
-    case 'suggest_next_action':
-      out = { ok: true, name: call.name, result: suggestNextAction(context) };
-      break;
-    case 'list_units':
-      out = {
-        ...(await listUnits(context, call.arguments)),
-        name: call.name,
-      };
-      break;
-    case 'search_units':
-      out = {
-        ...(await searchUnits(context, call.arguments)),
-        name: call.name,
-      };
-      break;
-    case 'get_unit_detail':
-      out = {
-        ...(await getUnitDetail(call.arguments, context)),
-        name: call.name,
-      };
-      break;
-    case 'get_unit_linguistic_memory':
-      out = {
-        ...(await getUnitLinguisticMemory(call.arguments, context)),
-        name: call.name,
-      };
-      break;
-    default:
-      return {
-        ok: false,
-        name: call.name,
-        result: null,
-        error: `unsupported local context tool: ${call.name}`,
-      };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    toolSpan.endWithError(message);
+    throw error;
   }
 
-  return finalizeLocalContextToolResult(context, out);
+  const finalized = finalizeLocalContextToolResult(context, out);
+  if (finalized.ok) {
+    toolSpan.end();
+  } else {
+    toolSpan.endWithError(finalized.error ?? 'local context tool failed');
+  }
+  return finalized;
 }
 
 export async function executeLocalContextToolCallsBatch(
@@ -1469,10 +1502,22 @@ export async function executeLocalContextToolCallsBatch(
   context: AiPromptContext | null,
   callCountRef: { current: number },
   maxCalls = 20,
+  traceOptions?: LocalToolExecutionTraceOptions,
 ): Promise<LocalContextToolResult[]> {
   const results: LocalContextToolResult[] = [];
-  for (const call of calls) {
-    const result = await executeLocalContextToolCall(call, context, callCountRef, maxCalls);
+  const traceId = traceOptions?.traceId ?? generateTraceId();
+  for (let index = 0; index < calls.length; index += 1) {
+    const call = calls[index]!;
+    const result = await executeLocalContextToolCall(
+      call,
+      context,
+      callCountRef,
+      maxCalls,
+      {
+        traceId,
+        step: traceOptions?.step !== undefined ? traceOptions.step + index : index + 1,
+      },
+    );
     results.push(result);
   }
   return results;

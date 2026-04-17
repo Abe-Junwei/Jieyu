@@ -35,6 +35,12 @@ function buildTextTimelineSelfCertaintyTitle(
   return `${tier}\n${t(locale, 'transcription.unit.selfCertainty.dimensionHint')}`;
 }
 
+function buildTextTimelineSelfCertaintyAmbiguousTitle(
+  locale: Parameters<typeof t>[0],
+): string {
+  return t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
+}
+
 function getSegmentTimelineItems(
   layer: LayerDocType,
   layerById: ReadonlyMap<string, LayerDocType>,
@@ -51,6 +57,7 @@ function getSegmentTimelineItems(
 }
 
 type TranscriptionTimelineTextOnlyProps = {
+  activeTextTimelineMode?: 'document' | 'media' | null;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
@@ -126,6 +133,7 @@ type TranscriptionTimelineTextOnlyProps = {
   };
   /** 按句段/层解析自述确信度（与波形区标注一致的可选注入） */
   resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
+  resolveSelfCertaintyAmbiguityForUnit?: (unitId: string, layerId?: string) => boolean;
 };
 
 type LayerActionType =
@@ -140,7 +148,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
 ) {
   // 从 props 对象读取，保证本地绑定存在（避免个别 HMR/打包路径下参数解构未生成绑定）
   const resolveSelfCertaintyForUnit = props.resolveSelfCertaintyForUnit;
+  const resolveSelfCertaintyAmbiguityForUnit = props.resolveSelfCertaintyAmbiguityForUnit;
   const {
+    activeTextTimelineMode,
     transcriptionLayers,
     unitsOnCurrentMedia,
     segmentsByLayer,
@@ -409,6 +419,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
+            activeTextTimelineMode={activeTextTimelineMode}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -482,13 +493,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const certaintyLookupLayerId = (unit.layerId?.trim() ?? '') || layer.id;
             const cellSelfCertainty = resolveSelfCertaintyForUnit?.(unit.id, certaintyLookupLayerId)
               ?? (unit.kind !== 'segment' ? realUtt?.selfCertainty : undefined);
+            const cellSelfCertaintyAmbiguous = !cellSelfCertainty
+              && resolveSelfCertaintyAmbiguityForUnit?.(unit.id, certaintyLookupLayerId) === true;
             const selfCertaintyTitle = cellSelfCertainty
               ? buildTextTimelineSelfCertaintyTitle(locale, cellSelfCertainty)
+              : undefined;
+            const selfCertaintyAmbiguousTitle = cellSelfCertaintyAmbiguous
+              ? buildTextTimelineSelfCertaintyAmbiguousTitle(locale)
               : undefined;
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty ? ' timeline-text-item-has-self-certainty' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -612,6 +628,17 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     title={selfCertaintyTitle}
                     ariaLabel={selfCertaintyTitle}
                   />
+                ) : cellSelfCertaintyAmbiguous && selfCertaintyAmbiguousTitle ? (
+                  <span
+                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty-ambiguous"
+                    role="img"
+                    aria-label={selfCertaintyAmbiguousTitle}
+                    title={selfCertaintyAmbiguousTitle}
+                  >
+                    <span className="timeline-annotation-self-certainty-icon" aria-hidden>
+                      !
+                    </span>
+                  </span>
                 ) : null}
               </TimelineStyledContainer>
             );
@@ -675,6 +702,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
+            activeTextTimelineMode={activeTextTimelineMode}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -720,8 +748,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const certaintyLookupLayerId = (unit.layerId?.trim() ?? '') || layer.id;
             const trSelfCertainty = resolveSelfCertaintyForUnit?.(unit.id, certaintyLookupLayerId)
               ?? translationOwnerUtt?.selfCertainty;
+            const trSelfCertaintyAmbiguous = !trSelfCertainty
+              && resolveSelfCertaintyAmbiguityForUnit?.(unit.id, certaintyLookupLayerId) === true;
             const trSelfCertaintyTitle = trSelfCertainty
               ? buildTextTimelineSelfCertaintyTitle(locale, trSelfCertainty)
+              : undefined;
+            const trSelfCertaintyAmbiguousTitle = trSelfCertaintyAmbiguous
+              ? buildTextTimelineSelfCertaintyAmbiguousTitle(locale)
               : undefined;
             return (
               <TranscriptionTimelineTextTranslationItem
@@ -766,6 +799,12 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 handleAnnotationContextMenu={handleAnnotationContextMenu}
                 {...(trSelfCertainty && trSelfCertaintyTitle
                   ? { selfCertainty: trSelfCertainty, selfCertaintyTitle: trSelfCertaintyTitle }
+                  : {})}
+                {...(trSelfCertaintyAmbiguous && trSelfCertaintyAmbiguousTitle
+                  ? {
+                      selfCertaintyAmbiguous: trSelfCertaintyAmbiguous,
+                      selfCertaintyAmbiguousTitle: trSelfCertaintyAmbiguousTitle,
+                    }
                   : {})}
               />
             );

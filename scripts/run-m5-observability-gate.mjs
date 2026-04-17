@@ -39,6 +39,7 @@ function main() {
   console.log(`[m5-gate] runId=${runId}`);
 
   runStep('npm', ['run', 'check:m5-observability-foundation'], env);
+  runStep('npm', ['run', 'test:otel-contract'], env);
   runStep('npm', ['run', 'test:m5-observability-regression'], env);
   runStep('npm', ['run', 'report:m5-mainpath-success-rate'], env);
   runStep('npm', ['run', 'report:m5-runtime-latency-samples'], env);

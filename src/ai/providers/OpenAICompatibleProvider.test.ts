@@ -50,6 +50,38 @@ describe('OpenAICompatibleProvider', () => {
     expect(headers.Authorization).toBe('Bearer sk-test');
   });
 
+  it('injects trace context headers when traceContext is provided', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-test',
+    });
+
+    for await (const _chunk of provider.chat(
+      [{ role: 'user', content: 'ping' }],
+      {
+        traceContext: {
+          traceparent: '00-0123456789abcdef0123456789abcdef-0123456789abcdef-01',
+          tracestate: 'vendor=a',
+        },
+      },
+    )) {
+      // noop
+    }
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const headers = (init?.headers ?? {}) as Record<string, string>;
+    expect(headers.traceparent).toBe('00-0123456789abcdef0123456789abcdef-0123456789abcdef-01');
+    expect(headers.tracestate).toBe('vendor=a');
+  });
+
   it('returns error chunk when provider emits error payload', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createSseResponse([

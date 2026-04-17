@@ -1,4 +1,5 @@
 import type { AiSessionMemoryLocalSemanticFrame, AiTaskTraceEntry, UiChatMessage } from '../../ai/chat/chatDomain.types';
+import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
 
 export type FollowUpSuggestion = {
   id: string;
@@ -122,8 +123,9 @@ export function buildFollowUpSuggestions(params: {
 }
 
 export function formatTaskTraceOutcome(entry: AiTaskTraceEntry, isZh: boolean): string {
-  if (entry.outcome === 'clarify') return isZh ? '需澄清' : 'Needs input';
-  if (entry.outcome === 'error') return isZh ? '失败' : 'Error';
-  if (entry.outcome === 'done') return isZh ? '完成' : 'Done';
-  return isZh ? '进行中' : 'Running';
+  const messages = getAiChatCardMessages(isZh);
+  if (entry.outcome === 'clarify') return messages.taskTraceOutcomeClarify;
+  if (entry.outcome === 'error') return messages.taskTraceOutcomeError;
+  if (entry.outcome === 'done') return messages.taskTraceOutcomeDone;
+  return messages.taskTraceOutcomeRunning;
 }

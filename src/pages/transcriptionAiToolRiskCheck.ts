@@ -1,14 +1,14 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
-import type { AiChatToolCall, AiToolRiskCheckResult } from '../hooks/useAiChat';
+import type { AiChatToolCall, AiChatToolName, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
+import { createMetricTags, recordMetric } from '../observability/metrics';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
 
 interface CreateTranscriptionAiToolRiskCheckInput {
   locale: Locale;
   units: LayerUnitDocType[];
-  selectedUnit?: LayerUnitDocType;
   selectedSegmentTargetId?: string;
   segmentTargets?: SegmentTargetDescriptor[];
   transcriptionLayers: LayerDocType[];
@@ -111,10 +111,57 @@ function resolveTargetSegments(
   return resolveSelectorTargets(call, targets, selectedTargetId);
 }
 
+function getMissingSegmentTargetSummary(locale: Locale, callName: AiChatToolName): string {
+  if (callName === 'create_transcription_segment') {
+    return t(locale, 'transcription.aiTool.segment.createMissingUnitId');
+  }
+  if (callName === 'split_transcription_segment') {
+    return t(locale, 'transcription.aiTool.segment.splitMissingUnitId');
+  }
+  if (callName === 'set_transcription_text') {
+    return t(locale, 'transcription.aiTool.segment.setTranscriptionMissingUnitId');
+  }
+  if (callName === 'set_translation_text') {
+    return t(locale, 'transcription.aiTool.segment.setTranslationMissingUnitId');
+  }
+  if (callName === 'clear_translation_segment') {
+    return t(locale, 'transcription.aiTool.segment.clearTranslationMissingUnitId');
+  }
+  return t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable');
+}
+
+function isNonDeleteSegmentWriteTool(name: AiChatToolName): boolean {
+  return name === 'create_transcription_segment'
+    || name === 'split_transcription_segment'
+    || name === 'set_transcription_text'
+    || name === 'set_translation_text'
+    || name === 'clear_translation_segment';
+}
+
+function getRequestedSegmentIds(call: AiChatToolCall): string[] {
+  return Array.from(new Set(
+    (Array.isArray(call.arguments.segmentIds) ? call.arguments.segmentIds : [])
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0),
+  ));
+}
+
+function recordBlockedWriteWithoutExplicitTarget(callName: AiChatToolName): void {
+  try {
+    recordMetric({
+      id: 'blocked_write_without_explicit_target_total',
+      value: 1,
+      tags: createMetricTags('transcriptionAiToolRiskCheck', { toolName: callName }),
+    });
+  } catch {
+    // 指标上报失败不影响风险检查判定 | Ignore metrics failures to keep risk checks deterministic
+  }
+}
+
 export function createTranscriptionAiToolRiskCheck({
   locale,
   units,
-  selectedUnit,
   selectedSegmentTargetId,
   segmentTargets,
   transcriptionLayers,
@@ -185,6 +232,64 @@ export function createTranscriptionAiToolRiskCheck({
       return null;
     }
 
+    if (call.name === 'merge_transcription_segments') {
+      const requestedSegmentIds = getRequestedSegmentIds(call);
+      if (requestedSegmentIds.length < 2) {
+        return {
+          requiresConfirmation: false,
+          riskSummary: t(locale, 'transcription.error.validation.mergeSelectionRequireAtLeastTwo'),
+          impactPreview: [],
+        };
+      }
+      const targetSegments = resolveTargetSegments(
+        call,
+        resolvedSegmentTargets,
+        selectedSegmentTargetId,
+      );
+      if (targetSegments.length < 2) {
+        return {
+          requiresConfirmation: false,
+          riskSummary: t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable'),
+          impactPreview: [],
+        };
+      }
+      return null;
+    }
+
+    if (isNonDeleteSegmentWriteTool(call.name)) {
+      const targetSegments = resolveTargetSegments(
+        call,
+        resolvedSegmentTargets,
+        selectedSegmentTargetId,
+      );
+      if (targetSegments.length === 0) {
+        const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
+        if (requestedSegmentId.length > 0) {
+          return {
+            requiresConfirmation: false,
+            riskSummary: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: requestedSegmentId }),
+            impactPreview: [],
+          };
+        }
+        if (hasSemanticSegmentSelector(call)) {
+          return {
+            requiresConfirmation: false,
+            riskSummary: t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable'),
+            impactPreview: [],
+          };
+        }
+        if (!selectedSegmentTargetId) {
+          recordBlockedWriteWithoutExplicitTarget(call.name);
+          return {
+            requiresConfirmation: false,
+            riskSummary: getMissingSegmentTargetSummary(locale, call.name),
+            impactPreview: [],
+          };
+        }
+      }
+      return null;
+    }
+
     if (call.name !== 'delete_transcription_segment') {
       return null;
     }
@@ -192,7 +297,7 @@ export function createTranscriptionAiToolRiskCheck({
     const targetSegments = resolveTargetSegments(
       call,
       resolvedSegmentTargets,
-      selectedSegmentTargetId ?? selectedUnit?.id,
+      selectedSegmentTargetId,
     );
     if (targetSegments.length === 0) {
       if (call.arguments.allSegments === true) {
@@ -206,6 +311,14 @@ export function createTranscriptionAiToolRiskCheck({
         return {
           requiresConfirmation: false,
           riskSummary: t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable'),
+          impactPreview: [],
+        };
+      }
+      if (!selectedSegmentTargetId) {
+        recordBlockedWriteWithoutExplicitTarget(call.name);
+        return {
+          requiresConfirmation: false,
+          riskSummary: t(locale, 'transcription.aiTool.segment.deleteMissingUnitId'),
           impactPreview: [],
         };
       }

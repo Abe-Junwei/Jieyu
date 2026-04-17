@@ -42,6 +42,8 @@
   --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 18%, var(--surface-panel));
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 58%, transparent);
   --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 68%, transparent);
+  --timeline-accent-hover-bg: color-mix(in srgb, var(--header-accent) 14%, transparent);
+  --timeline-accent-divider-hover: color-mix(in srgb, var(--header-accent) 68%, transparent);
   --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 60%, transparent);
   --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 16%, transparent);
   --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 22%, transparent);
@@ -63,6 +65,8 @@
   --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 22%, var(--surface-panel));
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 66%, transparent);
   --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 76%, transparent);
+  --timeline-accent-hover-bg: color-mix(in srgb, var(--header-accent) 18%, transparent);
+  --timeline-accent-divider-hover: color-mix(in srgb, var(--header-accent) 76%, transparent);
   --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 68%, transparent);
   --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 22%, transparent);
   --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 28%, transparent);

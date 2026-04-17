@@ -14,7 +14,9 @@
   padding: 0 6px;
   font-size: 0.78rem;
   color: var(--text-primary);
-  transition: background-color var(--duration-fast, 120ms), border-color var(--duration-fast, 120ms);
+  transition: background-color var(--duration-fast, 120ms) ease,
+              border-color var(--duration-fast, 120ms) ease,
+              box-shadow var(--duration-fast, 120ms) ease;
   justify-content: center;
   pointer-events: auto;
   margin-left: 1px;
@@ -42,6 +44,8 @@
   width: var(--timeline-item-divider-width);
   background: var(--timeline-item-divider-color);
   pointer-events: none;
+  transition: width var(--duration-fast, 120ms) ease,
+              background-color var(--duration-fast, 120ms) ease;
 }
 
 .timeline-annotation-has-speaker {
@@ -96,6 +100,10 @@
   min-width: 0;
 }
 
+.timeline-annotation-compact > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-self-certainty) {
+  text-overflow: clip;
+}
+
 .timeline-annotation-has-tools > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
   padding-right: 56px;
 }
@@ -142,6 +150,10 @@
 
 /* speaker-badge 已迁至 divider-color 方案，保留类名但不再渲染独立元素 | speaker-badge migrated to divider-color, class kept for compat */
 
+.timeline-annotation-speaker-badge {
+  display: none;
+}
+
 .timeline-annotation-speaker-dot {
   width: 8px;
   height: 8px;
@@ -164,20 +176,55 @@
   pointer-events: none;
 }
 
+/* 选中/编辑某栏时，该栏所有语段统一高亮为同一档灰度 | Highlight all segments in selected/editing lane with one neutral gray level. */
+.timeline-lane-focused .timeline-annotation,
+.timeline-lane:has(.timeline-annotation.timeline-annotation-active) .timeline-annotation,
+.timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+  box-shadow: none;
+}
+
+/* 编辑行内 hover 使用另一档高亮，便于区分光标所在语段 | In focused lane, hover uses a second highlight level for clearer targeting. */
+.timeline-lane-focused .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
+.timeline-lane:has(.timeline-annotation.timeline-annotation-active) .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within),
+.timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation:hover:not(.timeline-annotation-active):not(:focus-within) {
+  background: var(--timeline-accent-hover-bg);
+  --timeline-item-divider-color: var(--timeline-accent-divider-hover);
+}
+
+/* 高亮栏内进入编辑态时回到轻灰编辑底，和非高亮行一致 | In highlighted lanes, editing state returns to a subtle neutral editing background like non-highlighted rows. */
+.timeline-lane-focused .timeline-annotation:focus-within,
+.timeline-lane:has(.timeline-annotation.timeline-annotation-active) .timeline-annotation:focus-within,
+.timeline-lane:has(.timeline-annotation:focus-within) .timeline-annotation:focus-within {
+  background: var(--timeline-neutral-empty-bg);
+  border: 0;
+  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
+  box-shadow: none;
+}
+
 /* 状态 selected：specificity 0,2,0，超越 hover | State: selected > hover via double-class */
 .timeline-annotation.timeline-annotation-selected {
-  background: var(--timeline-neutral-selected-bg);
-  --timeline-item-divider-color: var(--timeline-neutral-divider-selected);
-  box-shadow: inset 0 0 0 1px var(--timeline-neutral-outline-selected);
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+  box-shadow: none;
+  z-index: var(--z-base);
+}
+
+/* 聚焦层中的当前语段使用主题色底，未命中仍沿用原背景 | Current segment in focused layer uses theme-color background; others keep existing background. */
+.timeline-annotation.timeline-annotation-layer-current {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+  box-shadow: none;
   z-index: var(--z-base);
 }
 
 /* 状态 active：specificity 0,2,0，超越 selected | State: active > selected via double-class */
 .timeline-annotation.timeline-annotation-active {
-  background: var(--surface-panel);
-  border: 1px solid var(--state-info-solid);
-  border-bottom-width: 1.5px;
-  --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 74%, transparent);
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  border: 0;
+  --timeline-item-divider-color: color-mix(in srgb, var(--header-accent) 52%, transparent);
+  box-shadow: none;
   z-index: var(--z-raised);
 }
 
@@ -250,12 +297,10 @@
 }
 
 .timeline-annotation:focus-within {
-  background: var(--surface-panel);
-  border: 1px solid color-mix(in srgb, var(--state-info-solid) 48%, transparent);
+  background: var(--timeline-neutral-empty-bg);
+  border: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-elevated) 72%, transparent),
-              0 1px 2px color-mix(in srgb, var(--shadow-color) 10%, transparent),
-              0 0 0 2px color-mix(in srgb, var(--state-info-solid) 20%, transparent);
+  box-shadow: none;
 }
 
 /* 编辑态输入框：保持原始单层框架，不再叠加内层边框 | Keep single-frame editing box, no inner framed input */
@@ -330,4 +375,11 @@
 
 .timeline-annotation-self-certainty--uncertain {
   color: var(--state-warning-solid, #b35c00);
+}
+
+.timeline-annotation-self-certainty-ambiguous {
+  color: color-mix(in srgb, var(--text-secondary) 88%, var(--state-warning-solid) 12%);
+  border-style: dashed;
+  border-width: 1px;
+  background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
 }

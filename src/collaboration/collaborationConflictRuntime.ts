@@ -285,12 +285,17 @@ export function createConflictResolutionLog(
   strategy: ConflictResolutionStrategy,
   conflicts: ConflictDescriptor[],
   at = Date.now(),
+  decisionId?: string,
 ): CollaborationOperationLog {
+  const conflictCodes = conflicts.map((item) => `${item.scope}:${item.code}:${item.fieldKey ?? '*'}`);
   return createCollaborationOperationLog({
     type: 'conflict_resolved',
     entityId: record.entityId,
     sessionId: record.sessionId,
     at,
-    payloadSource: `${strategy}:${record.version}:${record.updatedAt}:${conflicts.map((item) => `${item.scope}:${item.code}:${item.fieldKey ?? '*'}`).join('|')}`,
+    payloadSource: `${strategy}:${record.version}:${record.updatedAt}:${conflictCodes.join('|')}`,
+    strategy,
+    conflictCodes,
+    ...(decisionId !== undefined ? { decisionId } : {}),
   });
 }

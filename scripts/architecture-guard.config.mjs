@@ -130,18 +130,40 @@ export const architectureGuardRules = [
     maxUseCallbackDecls: 6,
     maxUseMemoDecls: 2,
     maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useBatchOperationController\(/,
+      /resolveUnitSelectionMapping\(\{/,
+      /const selectedBatchUnitIdsSet = batchUnitSelectionMapping\.mappedUnitIds;/,
+    ],
+    forbiddenRegexes: [
+      /resolveSegmentOnlyIdsFromSelection\(/,
+    ],
   }),
   pageControllerRule('useSpeakerActionRoutingController', {
     maxLines: 730,
     maxUseCallbackDecls: 17,
     maxUseMemoDecls: 8,
     maxUseEffects: 1,
+    requiredRegexes: [
+      /export function useSpeakerActionRoutingController\(/,
+      /selectedUnitIdsForSpeakerActions\.filter\(\(id\) => !segmentByIdForSpeakerActions\.has\(id\)\)/,
+      /recordMetric\(\{\s*id:\s*'business\.transcription\.speaker_mixed_selection_apply_count'/,
+    ],
+    forbiddenRegexes: [
+      /selectedUnitIdsForSpeakerActionsSet/,
+    ],
   }),
   pageControllerRule('useSpeakerActionScopeController', {
     maxLines: 250,
     maxUseCallbackDecls: 4,
     maxUseMemoDecls: 15,
     maxUseEffects: 0,
+    requiredRegexes: [
+      /export function useSpeakerActionScopeController\(/,
+      /resolveSegmentOnlyIdsFromSelection\(\{/,
+      /const selectedSegmentIdsForSpeakerActions = useMemo\(\(\) => \{/,
+      /const selectedBatchSegmentsForSpeakerActions = useMemo\(/,
+    ],
   }),
   pageControllerRule('useTranscriptionSpeakerController', {
     maxLines: 320,
@@ -179,6 +201,11 @@ export const architectureGuardRules = [
       /layers:\s*input\.layers/,
       /recentActions:\s*formatRecentActions\(input\.recentTimelineEditEvents\)/,
       /unitCount:\s*effectiveUnitIndex\.totalCount/,
+      /explicitOwnerUnitId:\s*explicitOwnerUnitForAi\?\.id/,
+    ],
+    forbiddenRegexes: [
+      /explicitOwnerUnitId:\s*resolvedOwnerUnitForAi\?\.id/,
+      /selectedSegmentTargetId\s*=\s*resolveOwnerUnitForAi\(/,
     ],
   }),
   pageControllerRule('useTranscriptionProjectMediaController', {
@@ -323,6 +350,16 @@ export const architectureGuardRules = [
     maxUseEffects: 5,
     warnAtRatio: 0.85,
     requiredRegexes: [/export function use[A-Za-z0-9]+Controller\(/],
+  }),
+  // ── Phase D: 写入口不得直接依赖 fallback owner 解析 | Write paths must not directly depend on fallback owner resolution ──
+  patternRule(/^src\/pages\/(?!.*\.test\.).*\.(ts|tsx)$/, {
+    excludeFiles: [
+      'src/pages/transcriptionSelectionOwnerResolver.ts',
+      'src/pages/useTranscriptionSelectionContextController.ts',
+    ],
+    forbiddenRegexes: [
+      /resolveFallbackOwnerUnit\(/,
+    ],
   }),
   patternRule(/^src\/hooks\/use.*\.(ts|tsx)$/, {
     excludeFiles: [

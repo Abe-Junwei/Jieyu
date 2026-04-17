@@ -1,4 +1,19 @@
 .transcription-wave-toolbar {
+  --wave-toolbar-accent: var(--state-info-solid);
+  --wave-toolbar-surface: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
+  --wave-toolbar-flyout-surface: color-mix(in srgb, var(--surface-panel) 92%, transparent);
+  --wave-toolbar-on-surface: var(--text-primary);
+  --wave-toolbar-on-surface-muted: var(--text-secondary);
+  --wave-toolbar-divider: var(--divider-subtle);
+  --wave-toolbar-btn-bg: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  --wave-toolbar-btn-hover-bg: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+  --wave-toolbar-btn-active-bg: color-mix(in srgb, var(--state-info-bg) 88%, var(--surface-header));
+  --wave-toolbar-active-foreground: var(--wave-toolbar-accent);
+  --wave-toolbar-play-foreground: var(--surface-panel);
+  --wave-toolbar-icon-fill: 0;
+  --wave-toolbar-icon-wght: 430;
+  --wave-toolbar-icon-active-fill: 1;
+  --wave-toolbar-icon-active-wght: 620;
   position: relative;
   z-index: var(--z-popover);
   min-height: 52px;
@@ -8,7 +23,7 @@
   gap: 12px;
   padding: 8px 14px;
   border-bottom: 1px solid var(--border-soft);
-  background: color-mix(in srgb, var(--surface-panel) 96%, var(--surface-header));
+  background: var(--wave-toolbar-surface);
   overflow: visible;
 }
 
@@ -38,7 +53,7 @@
 }
 
 .transcription-wave-toolbar-right {
-  color: var(--text-secondary);
+  color: var(--wave-toolbar-on-surface-muted);
   font-size: 0.78rem;
   font-family: var(--font-base);
   flex-wrap: wrap;
@@ -60,10 +75,10 @@
   padding: 8px;
   border-radius: var(--radius-xl);
   border: 1px solid color-mix(in srgb, var(--header-border) 92%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
+  background: var(--wave-toolbar-flyout-surface);
   box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 12%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   overflow-y: auto;
   scrollbar-gutter: stable;
   z-index: var(--z-header);
@@ -71,12 +86,12 @@
   pointer-events: none;
   /* 与 `.transcription-wave-toolbar` 主行同一套 icon 按钮 token；高度略小以适配浮层密度 */
   --icon-btn-border: none;
-  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  --icon-btn-color: var(--text-primary);
+  --icon-btn-background: var(--wave-toolbar-btn-bg);
+  --icon-btn-color: var(--wave-toolbar-on-surface);
   --icon-btn-border-radius: var(--radius-md);
   --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --icon-btn-hover-transform: none;
-  --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+  --icon-btn-hover-background: var(--wave-toolbar-btn-hover-bg);
   --icon-btn-hover-border-color: transparent;
   --icon-btn-height: 28px;
   --icon-btn-min-width: 28px;
@@ -122,26 +137,28 @@
 }
 
 .transcription-wave-toolbar .transcription-file-brand strong {
-  color: var(--text-primary);
+  color: var(--wave-toolbar-on-surface);
   max-width: 240px;
 }
 
 .transcription-toolbar-sep {
   width: 1px;
   height: 20px;
-  background: var(--divider-subtle);
+  background: var(--wave-toolbar-divider);
 }
 
 .transcription-wave-toolbar {
   /* 次动作：无边框，靠底/阴影与 :active 表达交互；高饱和蓝仅留给播放/激活态 */
   --icon-btn-border: none;
-  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
-  --icon-btn-color: var(--text-primary);
+  --icon-btn-background: var(--wave-toolbar-btn-bg);
+  --icon-btn-color: var(--wave-toolbar-on-surface);
   --icon-btn-border-radius: var(--radius-md);
   --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
   --icon-btn-hover-transform: none;
-  --icon-btn-hover-background: color-mix(in srgb, var(--surface-header) 68%, var(--surface-panel));
+  --icon-btn-hover-background: var(--wave-toolbar-btn-hover-bg);
   --icon-btn-hover-border-color: transparent;
+  --icon-btn-active-color: var(--wave-toolbar-active-foreground);
+  --icon-btn-active-background: var(--wave-toolbar-btn-active-bg);
 }
 
 .transcription-wave-toolbar .transcription-wave-toolbar-vad-btn {
@@ -173,8 +190,13 @@
 
 .transcription-wave-toolbar-left {
   --icon-btn-border: none;
-  --icon-btn-background: color-mix(in srgb, var(--surface-panel) 97%, var(--surface-header));
+  --icon-btn-background: var(--wave-toolbar-btn-bg);
   --icon-btn-box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
+}
+
+.transcription-wave-toolbar .jieyu-material {
+  --jieyu-material-fill: var(--wave-toolbar-icon-fill);
+  --jieyu-material-wght: var(--wave-toolbar-icon-wght);
 }
 
 .transcription-wave-toolbar .icon-btn {
@@ -186,37 +208,44 @@
   box-shadow: inset 0 3px 10px color-mix(in srgb, var(--shadow-color) 14%, transparent);
 }
 
-.transcription-wave-toolbar-left .play-btn {
+.transcription-wave-toolbar-left .transcription-wave-toolbar-play-btn {
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--state-info-solid);
-  color: var(--surface-panel);
-  box-shadow: 0 2px 10px color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  background: var(--wave-toolbar-accent);
+  color: var(--wave-toolbar-play-foreground);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--wave-toolbar-accent) 24%, transparent);
   transition: filter 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
 }
 
-.transcription-wave-toolbar .play-btn:hover:not(:disabled) {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn .jieyu-material,
+.transcription-wave-toolbar .icon-btn-active .jieyu-material {
+  --jieyu-material-fill: var(--wave-toolbar-icon-active-fill);
+  --jieyu-material-wght: var(--wave-toolbar-icon-active-wght);
+}
+
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:hover:not(:disabled) {
   transform: none;
   filter: brightness(0.97);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
 }
 
-.transcription-wave-toolbar .play-btn:active:not(:disabled) {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:active:not(:disabled) {
   transform: scale(0.96);
   filter: brightness(0.92);
   box-shadow: inset 0 4px 14px color-mix(in srgb, var(--shadow-color) 22%, transparent), 0 2px 8px color-mix(in srgb, var(--state-info-solid) 14%, transparent);
 }
 
 .transcription-wave-toolbar .speed-select {
-  color: var(--text-primary);
+  color: var(--wave-toolbar-on-surface);
   border: none;
+  background-color: var(--wave-toolbar-btn-bg);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 7%, transparent);
   transition: background-color 0.14s ease, box-shadow 0.14s ease, transform 0.1s ease;
 }
 
 .transcription-wave-toolbar .speed-select:hover {
   transform: none;
-  background-color: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+  background-color: var(--wave-toolbar-btn-hover-bg);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 10%, transparent);
 }
 
@@ -231,20 +260,21 @@
 
 .transcription-wave-toolbar .icon-btn:hover:not(:disabled) {
   transform: none;
+  color: var(--wave-toolbar-on-surface);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow-color) 9%, transparent);
 }
 
 .transcription-wave-toolbar .icon-btn.icon-btn-active:hover:not(:disabled) {
   transform: none;
-  background: color-mix(in srgb, var(--state-info-bg) 88%, var(--surface-header));
+  background: var(--wave-toolbar-btn-active-bg);
   border: none;
-  color: var(--state-info-solid);
+  color: var(--wave-toolbar-active-foreground);
   box-shadow: 0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
 .transcription-wave-toolbar .icon-btn.icon-btn-active {
   border: none;
-  box-shadow: 0 1px 3px color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--wave-toolbar-accent) 14%, transparent);
 }
 
 .transcription-wave-toolbar .icon-btn.icon-btn-active:active:not(:disabled) {
@@ -270,7 +300,7 @@
   background: color-mix(in srgb, var(--surface-panel) 94%, var(--surface-header));
 }
 
-.transcription-wave-toolbar .play-btn:disabled {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:disabled {
   opacity: 1;
   cursor: not-allowed;
   transform: none;
@@ -318,7 +348,7 @@
 
 .waveform-view-options-trigger[aria-expanded='true'] {
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--state-info-solid) 28%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--wave-toolbar-accent) 30%, transparent),
     0 1px 3px color-mix(in srgb, var(--shadow-color) 6%, transparent);
 }
 
@@ -330,8 +360,8 @@
   width: min(400px, calc(100vw - 28px));
   padding: 12px 14px 14px;
   border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  border: 1px solid color-mix(in srgb, var(--wave-toolbar-accent) 16%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-panel) 90%, var(--wave-toolbar-accent) 10%);
   box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 14%, transparent);
 }
 
@@ -366,7 +396,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  color: color-mix(in srgb, var(--text-tertiary) 82%, var(--wave-toolbar-accent));
   line-height: 1.25;
 }
 
@@ -422,20 +452,21 @@
 
 .waveform-view-options-panel .waveform-view-options-acoustic-toggle {
   flex: 0 0 auto;
-  border: 1px solid var(--border-soft);
+  border: 1px solid color-mix(in srgb, var(--wave-toolbar-accent) 20%, var(--border-soft));
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 78%, var(--wave-toolbar-accent) 22%);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
 .waveform-view-options-panel .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active) {
-  background: color-mix(in srgb, var(--text-tertiary) 10%, var(--surface-header));
-  border-color: color-mix(in srgb, var(--border-soft) 92%, var(--text-tertiary));
+  background: color-mix(in srgb, var(--wave-toolbar-accent) 26%, var(--surface-header));
+  border-color: color-mix(in srgb, var(--wave-toolbar-accent) 42%, var(--border-soft));
 }
 
 .waveform-view-options-panel .waveform-view-options-acoustic-toggle.is-active {
-  border-color: color-mix(in srgb, var(--header-accent) 42%, var(--border-soft));
-  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  border-color: color-mix(in srgb, var(--wave-toolbar-accent) 48%, var(--border-soft));
+  background: color-mix(in srgb, var(--wave-toolbar-accent) 26%, var(--surface-header));
+  color: var(--wave-toolbar-accent);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
@@ -678,7 +709,7 @@
   color: color-mix(in srgb, var(--state-danger-text) 74%, var(--text-primary));
 }
 
-.play-btn {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn {
   border: 1px solid var(--border-soft);
   background: var(--surface-panel);
   color: var(--text-primary);
@@ -691,7 +722,7 @@
   cursor: pointer;
 }
 
-.play-btn {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn {
   border-color: var(--state-info-solid);
   background: var(--state-info-solid);
   color: var(--surface-panel);

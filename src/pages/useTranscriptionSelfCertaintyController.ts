@@ -1,7 +1,18 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
-import { mergeUnitSelfCertaintyConservative, resolveSelfCertaintyHostUnitId, type UnitSelfCertainty } from '../utils/unitSelfCertainty';
+import { resolveSelfCertaintyHostUnitId, type UnitSelfCertainty } from '../utils/unitSelfCertainty';
+
+type SelfCertaintyHostResolution = {
+  hostIds: string[];
+  explicit: boolean;
+};
+
+type LayerScopedSelfCertaintyResolution =
+  | { kind: 'none' }
+  | { kind: 'exact'; hostId: string }
+  | { kind: 'fallback-single'; hostId: string }
+  | { kind: 'ambiguous' };
 
 type SelfCertaintyHintUnit = {
   id: string;
@@ -78,27 +89,42 @@ export function useTranscriptionSelfCertaintyController(
         out.set(unit.id, unit.selfCertainty);
       }
     }
-    for (const segments of input.segmentsByLayer.values()) {
-      for (const seg of segments) {
-        if (seg.selfCertainty && !out.has(seg.id)) {
-          out.set(seg.id, seg.selfCertainty);
-        }
-      }
-    }
     for (const unit of input.currentMediaUnits) {
-      if (unit.selfCertainty && !out.has(unit.id)) {
+      const normalizedLayerId = unit.layerId?.trim() ?? '';
+      if (!normalizedLayerId && unit.selfCertainty && !out.has(unit.id)) {
         out.set(unit.id, unit.selfCertainty);
       }
     }
     return out;
   }, [input.currentMediaUnits, input.segmentsByLayer, input.units]);
 
-  const collectCandidateHostIdsForUnit = useCallback((
+  const selfCertaintyByScopedUnitId = useMemo(() => {
+    const out = new Map<string, UnitSelfCertainty>();
+    const scopedKey = (layerId: string | undefined, unitId: string) => `${layerId ?? ''}::${unitId}`;
+
+    for (const segments of input.segmentsByLayer.values()) {
+      for (const seg of segments) {
+        if (seg.selfCertainty) {
+          out.set(scopedKey(seg.layerId ?? '', seg.id), seg.selfCertainty);
+        }
+      }
+    }
+
+    for (const unit of input.currentMediaUnits) {
+      if (unit.selfCertainty) {
+        out.set(scopedKey(unit.layerId ?? '', unit.id), unit.selfCertainty);
+      }
+    }
+
+    return out;
+  }, [input.currentMediaUnits, input.segmentsByLayer]);
+
+  const resolveCandidateHostsForUnit = useCallback((
     unitId: string,
     options?: { parentUnitId?: string; mediaId?: string; startTime?: number; endTime?: number },
-  ) => {
+  ): SelfCertaintyHostResolution => {
     const normalizedUnitId = unitId.trim();
-    if (!normalizedUnitId) return [] as string[];
+    if (!normalizedUnitId) return { hostIds: [], explicit: false };
 
     const out = new Set<string>();
     const explicitParentId = options?.parentUnitId?.trim() ?? '';
@@ -109,15 +135,15 @@ export function useTranscriptionSelfCertaintyController(
 
     if (hasExplicitUnitParent) {
       out.add(explicitParentId);
-      return [...out];
+      return { hostIds: [...out], explicit: true };
     }
     if (isSelfHostedUnit) {
       out.add(normalizedUnitId);
-      return [...out];
+      return { hostIds: [...out], explicit: true };
     }
 
     if (typeof options?.startTime !== 'number' || typeof options?.endTime !== 'number') {
-      return [...out];
+      return { hostIds: [...out], explicit: false };
     }
 
     const normalizedMediaId = options.mediaId?.trim() ?? '';
@@ -140,9 +166,10 @@ export function useTranscriptionSelfCertaintyController(
 
     if (out.size === 0 && input.units.length === 0) {
       out.add(normalizedUnitId);
+      return { hostIds: [...out], explicit: true };
     }
 
-    return [...out];
+    return { hostIds: [...out], explicit: false };
   }, [input.units]);
 
   const fallbackHostIdsByUnitId = useMemo(() => {
@@ -151,7 +178,7 @@ export function useTranscriptionSelfCertaintyController(
       const separatorIndex = scopedUnitKey.indexOf('::');
       const unitId = separatorIndex >= 0 ? scopedUnitKey.slice(separatorIndex + 2) : scopedUnitKey;
       if (!unitId) continue;
-      const resolvedHostIds = collectCandidateHostIdsForUnit(unitId, hint);
+      const { hostIds: resolvedHostIds } = resolveCandidateHostsForUnit(unitId, hint);
       if (resolvedHostIds.length === 0) continue;
       const existing = out.get(unitId) ?? [];
       const merged = [...existing];
@@ -163,47 +190,39 @@ export function useTranscriptionSelfCertaintyController(
       out.set(unitId, merged);
     }
     return out;
-  }, [collectCandidateHostIdsForUnit, selfCertaintyHostHintsByUnitAndLayerId]);
+  }, [resolveCandidateHostsForUnit, selfCertaintyHostHintsByUnitAndLayerId]);
 
-  const displaySelfCertaintyByScopedUnitId = useMemo(() => {
-    const out = new Map<string, UnitSelfCertainty>();
-    const scopedKey = (layerId: string | undefined, unitId: string) => `${layerId ?? ''}::${unitId}`;
-    const writeScopedValue = (
-      layerId: string | undefined,
-      unitId: string,
-      options?: { parentUnitId?: string; mediaId?: string; startTime?: number; endTime?: number },
-    ) => {
-      const candidateHostIds = collectCandidateHostIdsForUnit(unitId, options);
-      const markedValues = [
-        selfCertaintyByUnitId.get(unitId),
-        ...candidateHostIds.map((hostId) => selfCertaintyByUnitId.get(hostId)),
-      ].filter((value): value is UnitSelfCertainty => value !== undefined);
-      const value = mergeUnitSelfCertaintyConservative(markedValues);
-      if (value) out.set(scopedKey(layerId, unitId), value);
-    };
-
-    for (const segments of input.segmentsByLayer.values()) {
-      for (const seg of segments) {
-        writeScopedValue(seg.layerId ?? '', seg.id, {
-          ...(seg.unitId ? { parentUnitId: seg.unitId } : {}),
-          ...(seg.mediaId ? { mediaId: seg.mediaId } : {}),
-          startTime: seg.startTime,
-          endTime: seg.endTime,
-        });
-      }
+  const resolveLayerScopedSelfCertaintyResolution = useCallback((
+    unitId: string,
+    layerId?: string,
+  ): LayerScopedSelfCertaintyResolution => {
+    const normalizedUnitId = unitId.trim();
+    const normalizedLayerId = layerId?.trim() ?? '';
+    if (!normalizedUnitId || !normalizedLayerId) {
+      return { kind: 'none' };
     }
 
-    for (const unit of input.currentMediaUnits) {
-      writeScopedValue(unit.layerId ?? '', unit.id, {
-        ...(unit.parentUnitId ? { parentUnitId: unit.parentUnitId } : {}),
-        ...(unit.mediaId ? { mediaId: unit.mediaId } : {}),
-        startTime: unit.startTime,
-        endTime: unit.endTime,
-      });
+    const scopedHint = selfCertaintyHostHintsByUnitAndLayerId.get(`${normalizedLayerId}::${normalizedUnitId}`);
+    const scopedResolution = resolveCandidateHostsForUnit(normalizedUnitId, scopedHint);
+    if (scopedResolution.hostIds.length === 1) {
+      return scopedResolution.explicit
+        ? { kind: 'exact', hostId: scopedResolution.hostIds[0] as string }
+        : { kind: 'fallback-single', hostId: scopedResolution.hostIds[0] as string };
+    }
+    if (scopedResolution.hostIds.length > 1) {
+      return { kind: 'ambiguous' };
     }
 
-    return out;
-  }, [collectCandidateHostIdsForUnit, input.currentMediaUnits, input.segmentsByLayer, selfCertaintyByUnitId]);
+    const fallbackHostIds = fallbackHostIdsByUnitId.get(normalizedUnitId) ?? [];
+    if (fallbackHostIds.length === 1) {
+      return { kind: 'fallback-single', hostId: fallbackHostIds[0] as string };
+    }
+    if (fallbackHostIds.length > 1) {
+      return { kind: 'ambiguous' };
+    }
+
+    return { kind: 'none' };
+  }, [fallbackHostIdsByUnitId, resolveCandidateHostsForUnit, selfCertaintyHostHintsByUnitAndLayerId]);
 
   const resolveSelfCertaintyUnitIds = useCallback((ids: readonly string[], layerId?: string) => {
     const normalizedLayerId = layerId?.trim() ?? '';
@@ -216,7 +235,7 @@ export function useTranscriptionSelfCertaintyController(
       if (normalizedLayerId) {
         const scopedKey = `${normalizedLayerId}::${unitId}`;
         const scopedHint = selfCertaintyHostHintsByUnitAndLayerId.get(scopedKey);
-        const scopedHostIds = collectCandidateHostIdsForUnit(unitId, scopedHint);
+        const { hostIds: scopedHostIds } = resolveCandidateHostsForUnit(unitId, scopedHint);
         if (scopedHostIds.length > 0) {
           for (const scopedHostId of scopedHostIds) {
             resolved.add(scopedHostId);
@@ -240,7 +259,7 @@ export function useTranscriptionSelfCertaintyController(
     }
 
     return [...resolved];
-  }, [collectCandidateHostIdsForUnit, fallbackHostIdsByUnitId, input.units, selfCertaintyHostHintsByUnitAndLayerId]);
+  }, [fallbackHostIdsByUnitId, input.units, resolveCandidateHostsForUnit, selfCertaintyHostHintsByUnitAndLayerId]);
 
   const resolveSelfCertaintyForUnit = useCallback((unitId: string, layerId?: string) => {
     const normalizedUnitId = unitId.trim();
@@ -253,30 +272,22 @@ export function useTranscriptionSelfCertaintyController(
     }
 
     if (normalizedLayerId) {
-      const scopedValue = displaySelfCertaintyByScopedUnitId.get(`${normalizedLayerId}::${normalizedUnitId}`);
-      if (scopedValue) return scopedValue;
+      const scopedDirectValue = selfCertaintyByScopedUnitId.get(`${normalizedLayerId}::${normalizedUnitId}`);
+      if (scopedDirectValue) return scopedDirectValue;
 
-      const scopedHint = selfCertaintyHostHintsByUnitAndLayerId.get(`${normalizedLayerId}::${normalizedUnitId}`);
-      const scopedHostIds = collectCandidateHostIdsForUnit(normalizedUnitId, scopedHint);
-      if (scopedHostIds.length > 0) {
-        const mergedScopedValue = mergeUnitSelfCertaintyConservative(
-          scopedHostIds
-            .map((scopedHostId) => selfCertaintyByUnitId.get(scopedHostId))
-            .filter((value): value is UnitSelfCertainty => value !== undefined),
-        );
-        if (mergedScopedValue) return mergedScopedValue;
-        return undefined;
+      const scopedResolution = resolveLayerScopedSelfCertaintyResolution(normalizedUnitId, normalizedLayerId);
+      if (scopedResolution.kind === 'exact' || scopedResolution.kind === 'fallback-single') {
+        return selfCertaintyByUnitId.get(scopedResolution.hostId);
       }
     }
 
     const fallbackHostIds = fallbackHostIdsByUnitId.get(normalizedUnitId) ?? [];
-    if (fallbackHostIds.length > 0) {
-      const mergedFallbackValue = mergeUnitSelfCertaintyConservative(
-        fallbackHostIds
-          .map((fallbackHostId) => selfCertaintyByUnitId.get(fallbackHostId))
-          .filter((value): value is UnitSelfCertainty => value !== undefined),
-      );
-      if (mergedFallbackValue) return mergedFallbackValue;
+    if (fallbackHostIds.length === 1) {
+      return selfCertaintyByUnitId.get(fallbackHostIds[0] as string);
+    }
+
+    if (normalizedLayerId) {
+      return undefined;
     }
 
     return selfCertaintyByUnitId.get(normalizedUnitId)
@@ -284,11 +295,31 @@ export function useTranscriptionSelfCertaintyController(
         const fallbackHostId = resolveSelfCertaintyHostUnitId(normalizedUnitId, input.units);
         return fallbackHostId ? selfCertaintyByUnitId.get(fallbackHostId) : undefined;
       })();
-  }, [collectCandidateHostIdsForUnit, displaySelfCertaintyByScopedUnitId, fallbackHostIdsByUnitId, input.units, localSelfCertaintyByScopedUnitId, selfCertaintyByUnitId, selfCertaintyHostHintsByUnitAndLayerId]);
+  }, [fallbackHostIdsByUnitId, input.units, localSelfCertaintyByScopedUnitId, resolveLayerScopedSelfCertaintyResolution, selfCertaintyByScopedUnitId, selfCertaintyByUnitId]);
+
+  const resolveSelfCertaintyAmbiguityForUnit = useCallback((unitId: string, layerId?: string) => {
+    const normalizedUnitId = unitId.trim();
+    if (!normalizedUnitId) return false;
+
+    const normalizedLayerId = layerId?.trim() ?? '';
+    if (!normalizedLayerId) return false;
+
+    const localScopedKey = `${normalizedLayerId}::${normalizedUnitId}`;
+    if (localSelfCertaintyByScopedUnitId.has(localScopedKey)) {
+      return false;
+    }
+
+    const scopedDirectValue = selfCertaintyByScopedUnitId.get(localScopedKey);
+    if (scopedDirectValue) {
+      return false;
+    }
+
+    return resolveLayerScopedSelfCertaintyResolution(normalizedUnitId, normalizedLayerId).kind === 'ambiguous';
+  }, [localSelfCertaintyByScopedUnitId, resolveLayerScopedSelfCertaintyResolution, selfCertaintyByScopedUnitId]);
 
   const handleSetUnitSelfCertaintyFromMenu = useCallback((
     unitIds: Iterable<string>,
-    _kind: TimelineUnitKind,
+    kind: TimelineUnitKind,
     value: UnitSelfCertainty | undefined,
     layerId?: string,
   ) => {
@@ -300,23 +331,21 @@ export function useTranscriptionSelfCertaintyController(
       const normalizedLayerId = layerId?.trim() ?? '';
       for (const unitId of normalizedUnitIds) {
         next.set(`${normalizedLayerId}::${unitId}`, value ?? null);
-        for (const scopedUnitKey of selfCertaintyHostHintsByUnitAndLayerId.keys()) {
-          if (scopedUnitKey.endsWith(`::${unitId}`)) {
-            next.set(scopedUnitKey, value ?? null);
-          }
-        }
       }
       return next;
     });
 
-    const resolved = resolveSelfCertaintyUnitIds(normalizedUnitIds, layerId);
+    const resolved = kind === 'segment'
+      ? normalizedUnitIds
+      : resolveSelfCertaintyUnitIds(normalizedUnitIds, layerId);
     if (resolved.length === 0) return;
     fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(resolved, value)));
-  }, [input.saveUnitSelfCertainty, resolveSelfCertaintyUnitIds, selfCertaintyHostHintsByUnitAndLayerId]);
+  }, [input.saveUnitSelfCertainty, resolveSelfCertaintyUnitIds]);
 
   return {
     resolveSelfCertaintyUnitIds,
     resolveSelfCertaintyForUnit,
+    resolveSelfCertaintyAmbiguityForUnit,
     handleSetUnitSelfCertaintyFromMenu,
   };
 }

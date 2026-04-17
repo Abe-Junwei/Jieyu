@@ -45,6 +45,7 @@ type UseTimelineAnnotationHelpersParams = {
     seekTo: (time: number) => void;
   };
   selectedTimelineUnit?: TimelineUnit | null;
+  currentTimelineUnitId?: string;
   selectUnitRange: (startId: string, endId: string) => void;
   toggleUnitSelection: (id: string) => void;
   selectTimelineUnit?: (unit: TimelineUnit | null) => void;
@@ -76,12 +77,14 @@ type UseTimelineAnnotationHelpersParams = {
   /** 备注标签同风格的按单元解析器：预先算好 layer + unit -> selfCertainty，再交给渲染层直接读取 */
   /** Note-badge style per-unit resolver: precompute layer + unit -> selfCertainty and let the renderer read it directly. */
   resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
+  resolveSelfCertaintyAmbiguityForUnit?: (unitId: string, layerId?: string) => boolean;
 };
 
 export function useTimelineAnnotationHelpers({
   manualSelectTsRef,
   player,
   selectedTimelineUnit,
+  currentTimelineUnitId,
   selectUnitRange,
   toggleUnitSelection,
   selectTimelineUnit,
@@ -106,6 +109,7 @@ export function useTimelineAnnotationHelpers({
   independentLayerIds = new Set<string>(),
   orthographies = [],
   resolveSelfCertaintyForUnit,
+  resolveSelfCertaintyAmbiguityForUnit,
 }: UseTimelineAnnotationHelpersParams) {
   const locale = useLocale();
 
@@ -297,6 +301,8 @@ export function useTimelineAnnotationHelpers({
     const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
     const certaintyLookupLayerId = (utt.layerId?.trim() ?? '') || layer.id;
     const uttSelfCertainty = resolveSelfCertaintyForUnit?.(utt.id, certaintyLookupLayerId);
+    const selfCertaintyAmbiguous = !uttSelfCertainty
+      && resolveSelfCertaintyAmbiguityForUnit?.(utt.id, certaintyLookupLayerId) === true;
     const tierLabel = uttSelfCertainty === 'certain'
       ? t(locale, 'transcription.unit.selfCertainty.certain')
       : uttSelfCertainty === 'uncertain'
@@ -307,12 +313,17 @@ export function useTimelineAnnotationHelpers({
     const selfCertaintyTitle = uttSelfCertainty && tierLabel
       ? `${tierLabel}\n${t(locale, 'transcription.unit.selfCertainty.dimensionHint')}`
       : undefined;
+    const currentUnitId = selectedTimelineUnit?.unitId ?? currentTimelineUnitId;
     return (
       <TimelineAnnotationItem
         key={utt.id}
         left={dpStart * zoomPxPerSec}
         width={Math.max(4, (dpEnd - dpStart) * zoomPxPerSec)}
         isSelected={selectedUnitIds.has(utt.id)}
+        isLayerCurrent={
+          layer.id === focusedLayerRowId
+            && currentUnitId === utt.id
+        }
         isActive={
           layer.id === focusedLayerRowId
             && selectedTimelineUnit?.layerId === layer.id
@@ -328,6 +339,7 @@ export function useTimelineAnnotationHelpers({
         {...(uttSelfCertainty && selfCertaintyTitle
           ? { selfCertainty: uttSelfCertainty, selfCertaintyTitle }
           : {})}
+        {...(selfCertaintyAmbiguous ? { selfCertaintyAmbiguous } : {})}
         {...(content ? { content } : {})}
         {...(tools ? { tools } : {})}
         {...(hasTrailingTools ? { hasTrailingTools } : {})}
@@ -349,6 +361,7 @@ export function useTimelineAnnotationHelpers({
     zoomPxPerSec,
     selectedUnitIds,
     selectedTimelineUnit,
+    currentTimelineUnitId,
     focusedLayerRowId,
     independentLayerIds,
     handleAnnotationClick,
@@ -361,6 +374,7 @@ export function useTimelineAnnotationHelpers({
     locale,
     resolveNoteIndicatorTarget,
     speakerVisualByUnitId,
+    resolveSelfCertaintyAmbiguityForUnit,
     resolveSelfCertaintyForUnit,
   ]);
 

@@ -23,7 +23,7 @@ interface UseBatchOperationControllerInput {
 }
 
 interface UseBatchOperationControllerResult {
-  selectedUnitIdsForSpeakerActionsSet: Set<string>;
+  selectedBatchUnitIdsSet: Set<string>;
   selectedBatchUnits: LayerUnitDocType[];
   handleBatchOffset: (deltaSec: number) => Promise<void>;
   handleBatchScale: (factor: number, anchorTime?: number) => Promise<void>;
@@ -53,38 +53,38 @@ export function useBatchOperationController({
       ...(resolveUnitViewById ? { resolveUnitViewById } : {}),
     });
   }, [resolveUnitViewById, selectedTimelineUnit, selectedUnitIds, unitViewById]);
-  const selectedUnitIdsForSpeakerActionsSet = batchUnitSelectionMapping.mappedUnitIds;
+  const selectedBatchUnitIdsSet = batchUnitSelectionMapping.mappedUnitIds;
   const hasBatchSelectionSource = batchUnitSelectionMapping.hasSelectionSource;
   const selectedBatchUnits = useMemo(() => {
     const docs: LayerUnitDocType[] = [];
     for (const unit of unitsOnCurrentMedia) {
       if (unit.kind !== 'unit') continue;
-      if (!selectedUnitIdsForSpeakerActionsSet.has(unit.id)) continue;
+      if (!selectedBatchUnitIdsSet.has(unit.id)) continue;
       const doc = getUnitDocById(unit.id);
       if (doc) docs.push(doc);
     }
     return docs.sort((a, b) => a.startTime - b.startTime);
-  }, [getUnitDocById, selectedUnitIdsForSpeakerActionsSet, unitsOnCurrentMedia]);
+  }, [getUnitDocById, selectedBatchUnitIdsSet, unitsOnCurrentMedia]);
   const resolveBatchUnitTargetIds = useCallback(() => {
     if (!hasBatchSelectionSource) return null;
-    if (selectedUnitIdsForSpeakerActionsSet.size > 0) {
+    if (selectedBatchUnitIdsSet.size > 0) {
       if (batchUnitSelectionMapping.unmappedSourceCount > 0) {
         setSaveState({
           kind: 'done',
           message: tf(locale, 'transcription.batchOperation.mappingIgnored', {
             ignored: batchUnitSelectionMapping.unmappedSourceCount,
-            count: selectedUnitIdsForSpeakerActionsSet.size,
+            count: selectedBatchUnitIdsSet.size,
           }),
         });
       }
-      return selectedUnitIdsForSpeakerActionsSet;
+      return selectedBatchUnitIdsSet;
     }
     setSaveState({
       kind: 'error',
       message: t(locale, 'transcription.batchOperation.mappingUnavailable'),
     });
     return null;
-  }, [batchUnitSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedUnitIdsForSpeakerActionsSet, setSaveState]);
+  }, [batchUnitSelectionMapping.unmappedSourceCount, hasBatchSelectionSource, locale, selectedBatchUnitIdsSet, setSaveState]);
   const runMappedBatchAction = useCallback(async (
     actionLabelKey: Parameters<typeof t>[1],
     i18nKey: Parameters<typeof t>[1],
@@ -120,7 +120,7 @@ export function useBatchOperationController({
     await runMappedBatchAction('transcription.unitAction.undo.mergeSelection', 'transcription.error.action.mergeSelectionFailed', (targetIds) => mergeSelectedUnits(targetIds));
   }, [mergeSelectedUnits, runMappedBatchAction]);
   return {
-    selectedUnitIdsForSpeakerActionsSet,
+    selectedBatchUnitIdsSet,
     selectedBatchUnits,
     handleBatchOffset,
     handleBatchScale,

@@ -1,13 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
+import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { buildSpeakerFilterOptionsFromKeys, buildSpeakerVisualMapFromKeys } from '../hooks/speakerManagement/speakerUtils';
-import { resolveMappedUnitIds } from './selectionIdResolvers';
-
-type SelectedTimelineUnitLike = {
-  unitId: string;
-} | null;
+import { resolveMappedUnitIds, resolveSegmentOnlyIdsFromSelection } from './selectionIdResolvers';
 
 type SpeakerAssignmentLike = {
   unitId: string;
@@ -26,7 +23,7 @@ interface UseSpeakerActionScopeControllerInput {
   defaultTranscriptionLayerId?: string;
   selectedLayerId?: string | null;
   selectedUnitIds: Set<string>;
-  selectedTimelineUnit: SelectedTimelineUnitLike;
+  selectedTimelineUnit: TimelineUnit | null;
   getUnitSpeakerKey: (unit: LayerUnitDocType) => string;
 }
 
@@ -114,13 +111,13 @@ export function useSpeakerActionScopeController({
     const next: SpeakerAssignmentLike[] = [];
     for (const segments of segmentsByLayer.values()) {
       for (const segment of segments) {
-        const speakerKey = resolveSpeakerAssignmentKeyForSegment(segment);
+        const speakerKey = resolveExplicitSpeakerKeyForSegment(segment);
         if (!speakerKey) continue;
         next.push({ unitId: segment.id, speakerKey });
       }
     }
     return next;
-  }, [resolveSpeakerAssignmentKeyForSegment, segmentsByLayer]);
+  }, [resolveExplicitSpeakerKeyForSegment, segmentsByLayer]);
 
   const speakerVisualByTimelineUnitId = useMemo(() => ({
     ...buildSpeakerVisualMapFromKeys(unitSpeakerAssignmentsOnCurrentMedia, speakers),
@@ -162,9 +159,15 @@ export function useSpeakerActionScopeController({
     return [];
   }, [selectedTimelineUnit, selectedUnitIds]);
 
-  const selectedSegmentIdsForSpeakerActions = useMemo(() => (
-    Array.from(new Set(selectedUnitIdsForSpeakerActions.filter((id) => segmentByIdForSpeakerActions.has(id))))
-  ), [segmentByIdForSpeakerActions, selectedUnitIdsForSpeakerActions]);
+  const selectedSegmentIdsForSpeakerActions = useMemo(() => {
+    const selectedSegmentIds = resolveSegmentOnlyIdsFromSelection({
+      selectedUnitIds,
+      selectedTimelineUnit,
+      unitViewById,
+      ...(resolveUnitViewById ? { resolveUnitViewById } : {}),
+    });
+    return Array.from(selectedSegmentIds).filter((id) => segmentByIdForSpeakerActions.has(id));
+  }, [resolveUnitViewById, segmentByIdForSpeakerActions, selectedTimelineUnit, selectedUnitIds, unitViewById]);
 
   const selectedBatchSegmentsForSpeakerActions = useMemo(
     () => selectedSegmentIdsForSpeakerActions

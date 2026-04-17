@@ -1,4 +1,14 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../observability/metrics', () => ({
+  createMetricTags: vi.fn((module: string, tags: Record<string, string | number | boolean>) => ({
+    module,
+    ...tags,
+  })),
+  recordMetric: vi.fn(),
+}));
+
+import { recordMetric } from '../observability/metrics';
 import { resolveFallbackOwnerUnit, resolveSegmentOwnerUnit } from './transcriptionSelectionOwnerResolver';
 
 type UnitLike = {
@@ -9,6 +19,33 @@ type UnitLike = {
 };
 
 describe('transcriptionSelectionOwnerResolver', () => {
+  beforeEach(() => {
+    vi.mocked(recordMetric).mockClear();
+  });
+
+  it('records parent_fallback_ambiguous_total only when multiple overlapping candidates exist', () => {
+    const units: UnitLike[] = [
+      { id: 'utt-a', startTime: 10, endTime: 12, mediaId: 'media-1' },
+      { id: 'utt-b', startTime: 10.5, endTime: 11.5, mediaId: 'media-1' },
+    ];
+    resolveFallbackOwnerUnit({ startTime: 10.8, endTime: 11.2, mediaId: 'media-1' }, units);
+    const ambiguousCalls = vi.mocked(recordMetric).mock.calls.filter((call) => call[0]?.id === 'parent_fallback_ambiguous_total');
+    expect(ambiguousCalls.length).toBe(1);
+
+    vi.mocked(recordMetric).mockClear();
+    resolveFallbackOwnerUnit({ startTime: 50, endTime: 52, mediaId: 'media-1' }, units);
+    const ambiguousAfterNone = vi.mocked(recordMetric).mock.calls.filter((call) => call[0]?.id === 'parent_fallback_ambiguous_total');
+    expect(ambiguousAfterNone.length).toBe(0);
+    expect(vi.mocked(recordMetric).mock.calls.some((call) => call[0]?.id === 'parent_fallback_attempt_total')).toBe(true);
+
+    vi.mocked(recordMetric).mockClear();
+    resolveFallbackOwnerUnit({ startTime: 10, endTime: 12, mediaId: 'media-1' }, [
+      { id: 'utt-only', startTime: 9, endTime: 13, mediaId: 'media-1' },
+    ]);
+    const ambiguousSingle = vi.mocked(recordMetric).mock.calls.filter((call) => call[0]?.id === 'parent_fallback_ambiguous_total');
+    expect(ambiguousSingle.length).toBe(0);
+  });
+
   it('prioritizes explicit owner id when present', () => {
     const units: UnitLike[] = [
       { id: 'utt-1', startTime: 0, endTime: 1, mediaId: 'media-1' },

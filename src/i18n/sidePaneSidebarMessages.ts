@@ -105,6 +105,13 @@ export type SidePaneSidebarMessages = {
   repairDetailsCollapse: string;
   quickActionsCardAria: string;
   quickActionsCardTitle: string;
+  presenceCardAria: string;
+  presenceCardTitle: string;
+  presenceEmpty: string;
+  presenceSelfSuffix: string;
+  presenceStateLabel: (state: 'online' | 'idle' | 'offline') => string;
+  presenceEntityLabel: (entityType: string) => string;
+  presenceFocusLabel: (entityLabel: string, entityId: string) => string;
   layerCreateStripAria: string;
   inlinePaneAria: string;
   paneTitle: string;
@@ -118,6 +125,8 @@ export type SidePaneSidebarMessages = {
   segmentListEmpty: string;
   segmentListFilterPlaceholder: string;
   segmentListFilterButton: string;
+  segmentListFilterOptionSearchPlaceholder: string;
+  segmentListFilterNoOptions: string;
   segmentListContentFilterLabel: string;
   segmentListSpeakerFilterLabel: string;
   segmentListNoteCategoryFilterLabel: string;
@@ -252,6 +261,26 @@ const zhCN: SidePaneSidebarMessages = {
   repairDetailsCollapse: '\u6536\u8d77\u660e\u7ec6',
   quickActionsCardAria: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c\u5361\u7247',
   quickActionsCardTitle: '\u5c42\u7ba1\u7406\u5feb\u6377\u64cd\u4f5c',
+  presenceCardAria: '在线协作成员',
+  presenceCardTitle: '在线协作',
+  presenceEmpty: '当前暂无在线成员',
+  presenceSelfSuffix: '（你）',
+  presenceStateLabel: (state) => {
+    if (state === 'idle') return '暂离';
+    if (state === 'offline') return '离线';
+    return '在线';
+  },
+  presenceEntityLabel: (entityType) => {
+    if (entityType === 'layer') return '层';
+    if (entityType === 'layer_unit') return '语段';
+    if (entityType === 'layer_unit_content') return '语段内容';
+    if (entityType === 'unit_relation') return '层关系';
+    if (entityType === 'asset') return '资产';
+    if (entityType === 'snapshot') return '快照';
+    if (entityType === 'comment') return '备注';
+    return '实体';
+  },
+  presenceFocusLabel: (entityLabel, entityId) => `聚焦：${entityLabel} #${entityId}`,
   layerCreateStripAria: '\u65b0\u5efa\u8f6c\u5199\u4e0e\u7ffb\u8bd1\u5c42',
   inlinePaneAria: '\u6587\u672c\u533a\u5c42\u6eda\u52a8\u680f',
   paneTitle: '\u6587\u672c\u5c42\u5de5\u4f5c\u53f0',
@@ -265,6 +294,8 @@ const zhCN: SidePaneSidebarMessages = {
   segmentListEmpty: '\u65e0\u5185\u5bb9',
   segmentListFilterPlaceholder: '\u68c0\u7d22\u8bed\u6bb5\u5185\u5bb9\u2026',
   segmentListFilterButton: '\u7b5b\u9009',
+  segmentListFilterOptionSearchPlaceholder: '\u641c\u7d22\u7b5b\u9009\u9879\u2026',
+  segmentListFilterNoOptions: '\u6ca1\u6709\u5339\u914d\u7684\u7b5b\u9009\u9879',
   segmentListContentFilterLabel: '\u6309\u5185\u5bb9\u72b6\u6001\u7b5b\u9009',
   segmentListSpeakerFilterLabel: '\u6309\u8bf4\u8bdd\u4eba\u7b5b\u9009',
   segmentListNoteCategoryFilterLabel: '\u6309\u5907\u6ce8\u5206\u7c7b\u7b5b\u9009',
@@ -399,6 +430,26 @@ const enUS: SidePaneSidebarMessages = {
   repairDetailsCollapse: 'Collapse details',
   quickActionsCardAria: 'Layer management quick actions card',
   quickActionsCardTitle: 'Layer management quick actions',
+  presenceCardAria: 'Online collaborators',
+  presenceCardTitle: 'Presence',
+  presenceEmpty: 'No collaborators online right now',
+  presenceSelfSuffix: '(you)',
+  presenceStateLabel: (state) => {
+    if (state === 'idle') return 'Idle';
+    if (state === 'offline') return 'Offline';
+    return 'Online';
+  },
+  presenceEntityLabel: (entityType) => {
+    if (entityType === 'layer') return 'Layer';
+    if (entityType === 'layer_unit') return 'Segment';
+    if (entityType === 'layer_unit_content') return 'Segment content';
+    if (entityType === 'unit_relation') return 'Layer relation';
+    if (entityType === 'asset') return 'Asset';
+    if (entityType === 'snapshot') return 'Snapshot';
+    if (entityType === 'comment') return 'Comment';
+    return 'Entity';
+  },
+  presenceFocusLabel: (entityLabel, entityId) => `Focus: ${entityLabel} #${entityId}`,
   layerCreateStripAria: 'Create transcription and translation layers',
   inlinePaneAria: 'Text-area layer rail',
   paneTitle: 'Text Layer Workspace',
@@ -412,6 +463,8 @@ const enUS: SidePaneSidebarMessages = {
   segmentListEmpty: 'No content',
   segmentListFilterPlaceholder: 'Search segment text…',
   segmentListFilterButton: 'Filters',
+  segmentListFilterOptionSearchPlaceholder: 'Search filter options…',
+  segmentListFilterNoOptions: 'No matching filter options',
   segmentListContentFilterLabel: 'Filter by content state',
   segmentListSpeakerFilterLabel: 'Filter by speaker',
   segmentListNoteCategoryFilterLabel: 'Filter by note category',
