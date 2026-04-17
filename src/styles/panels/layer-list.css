@@ -677,7 +677,6 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-width: 0;
   flex: 1 1 6.25rem;
   min-width: 5.5rem;
   max-width: calc(50% - 4px);
