@@ -154,14 +154,13 @@ const LONG_TERM_TEMPLATES: ContextFieldTemplate[] = [
       const s = v as {
         unitCount?: number;
         speakerCount?: number;
-        unitCount?: number;
         translationLayerCount?: number;
         aiConfidenceAvg?: number | null;
       };
       const speakerSegment = typeof s.speakerCount === 'number' && Number.isFinite(s.speakerCount)
         ? `, speakers=${s.speakerCount}`
         : '';
-      return `projectStats(units=${s.unitCount ?? s.unitCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
+      return `projectStats(units=${s.unitCount ?? 0}${speakerSegment}, translationLayers=${s.translationLayerCount ?? 0}, aiConfidenceAvg=${typeof s.aiConfidenceAvg === 'number' ? s.aiConfidenceAvg.toFixed(3) : 'n/a'})`;
     },
   },
   {

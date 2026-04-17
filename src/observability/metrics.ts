@@ -77,14 +77,6 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     description: 'Mismatch between unit counts across prompt, tools, and read model.',
   },
   {
-    id: 'ai.local_tool_alias_usage',
-    category: 'ai',
-    module: 'local-context-tools',
-    kind: 'counter',
-    unit: 'count',
-    description: 'Compatibility alias usage for legacy unit tool names.',
-  },
-  {
     id: 'ai.local_tool_result_truncated',
     category: 'ai',
     module: 'local-context-tools',

@@ -53,45 +53,12 @@ const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
   'get_unit_linguistic_memory',
 ]);
 
-/**
- * Legacy local-tool names kept for older prompts / model outputs.
- * Metrics: `ai.local_tool_alias_usage` records each alias hit; do not add new aliases without an ADR.
- * Sunset: remove once audit shows zero alias usage for several releases.
- */
-const LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP = {
-  list_units: 'list_units',
-  search_units: 'search_units',
-  get_unit_detail: 'get_unit_detail',
-  get_unit_linguistic_memory: 'get_unit_linguistic_memory',
-} as const satisfies Record<string, LocalContextToolName>;
-
-type ResolvedLocalToolName = {
-  name: LocalContextToolName;
-  usedAlias: boolean;
-  rawName: string;
-};
-
-function normalizeToolName(name: string): ResolvedLocalToolName | null {
+function normalizeToolName(name: string): LocalContextToolName | null {
   const normalized = name.trim().toLowerCase();
   if (LOCAL_CONTEXT_TOOL_NAMES.has(normalized as LocalContextToolName)) {
-    return { name: normalized as LocalContextToolName, usedAlias: false, rawName: normalized };
-  }
-  const aliased = LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP[normalized as keyof typeof LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP];
-  if (aliased) {
-    return { name: aliased, usedAlias: true, rawName: normalized };
+    return normalized as LocalContextToolName;
   }
   return null;
-}
-
-function recordLocalToolAliasUsage(aliasName: string, canonicalName: LocalContextToolName): void {
-  recordMetric({
-    id: 'ai.local_tool_alias_usage',
-    value: 1,
-    tags: createMetricTags('localContextTools', {
-      aliasName,
-      canonicalName,
-    }),
-  });
 }
 
 function toToolCallCandidate(rawText: string): { name: string; arguments: Record<string, unknown> } | null {
@@ -132,14 +99,11 @@ function toToolCallCandidates(rawText: string): LocalContextToolCall[] {
           const rawName = typeof holder.name === 'string' ? holder.name : '';
           const normalized = normalizeToolName(rawName);
           if (!normalized) continue;
-          if (normalized.usedAlias) {
-            recordLocalToolAliasUsage(normalized.rawName, normalized.name);
-          }
           const rawArgs = holder.arguments;
           const args = typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs)
             ? rawArgs as Record<string, unknown>
             : {};
-          parsedCalls.push({ name: normalized.name, arguments: args });
+          parsedCalls.push({ name: normalized, arguments: args });
         }
       }
     } catch {
@@ -157,11 +121,8 @@ export function parseLocalContextToolCallFromText(rawText: string): LocalContext
   if (!candidate) return null;
   const normalized = normalizeToolName(candidate.name);
   if (!normalized) return null;
-  if (normalized.usedAlias) {
-    recordLocalToolAliasUsage(normalized.rawName, normalized.name);
-  }
   return {
-    name: normalized.name,
+    name: normalized,
     arguments: candidate.arguments,
   };
 }

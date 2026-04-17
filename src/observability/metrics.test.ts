@@ -87,7 +87,6 @@ describe('metrics observability foundation', () => {
   });
 
   it('registers timeline CQRS / AI grounding metric ids', () => {
-    expect(isKnownMetricId('ai.local_tool_alias_usage')).toBe(true);
     expect(isKnownMetricId('ai.local_tool_result_truncated')).toBe(true);
     expect(isKnownMetricId('ai.rag_citation_read_model_miss')).toBe(true);
     expect(isKnownMetricId('ai.list_units_snapshot_created')).toBe(true);

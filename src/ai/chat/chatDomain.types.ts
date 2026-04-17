@@ -384,8 +384,6 @@ export interface AiLongTermContext {
   projectStats?: {
     unitCount?: number;
     speakerCount?: number;
-    /** @deprecated Prefer `unitCount`; kept for deserialized legacy snapshots. */
-    unitCount?: number;
     translationLayerCount?: number;
     aiConfidenceAvg?: number | null;
   };

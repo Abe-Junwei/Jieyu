@@ -114,28 +114,6 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
       arguments: { limit: 8 },
     });
   });
-
-  it('maps legacy unit tool aliases and emits usage metric', () => {
-    const recorded: Array<{ id: string; tags: Record<string, unknown> | undefined }> = [];
-    const dispose = addMetricObserver((event) => {
-      recorded.push({ id: event.id, tags: event.tags as Record<string, unknown> | undefined });
-    });
-    try {
-      const raw = '{"tool_call":{"name":"list_units","arguments":{"limit":8}}}';
-      const parsed = parseLocalContextToolCallFromText(raw);
-      expect(parsed).toEqual({
-        name: 'list_units',
-        arguments: { limit: 8 },
-      });
-      expect(recorded.some((event) => (
-        event.id === 'ai.local_tool_alias_usage'
-        && event.tags?.aliasName === 'list_units'
-        && event.tags?.canonicalName === 'list_units'
-      ))).toBe(true);
-    } finally {
-      dispose();
-    }
-  });
 });
 
 describe('executeLocalContextToolCall with localUnitIndex', () => {
@@ -415,7 +393,6 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
       layerId: 'layer-1',
       unitCount: 4,
       segmentCount: 2,
-      unitCount: 2,
       speakerCount: 2,
       translationLayerCount: 1,
       noteFlaggedCount: 1,
