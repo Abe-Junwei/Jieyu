@@ -66,7 +66,6 @@ describe('M18 linguistic unit cutover (Dexie / IndexedDB)', () => {
       const tok = await db.unit_tokens.get('tok-dexie');
       expect(tok).toBeDefined();
       expect(tok).toMatchObject({ unitId: 'utt-dexie', id: 'tok-dexie' });
-      expect(tok as unknown as Record<string, unknown>).not.toHaveProperty('unitId');
 
       await db.close();
     } finally {

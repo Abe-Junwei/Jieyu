@@ -135,7 +135,7 @@ export class LinguisticService {
       if (typeof legacyTr === 'string' && legacyTr.trim().length > 0) {
         transcribedUttIds.add(utt.id);
       }
-      if (utt.status === 'verified') {
+      if (utt.annotationStatus === 'verified') {
         verifiedUttIds.add(utt.id);
       }
     }

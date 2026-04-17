@@ -725,7 +725,6 @@ export interface LayerUnitContentDocType {
   updatedAt: string;
 
   /** 可选内容补充字段 | Optional content supplement fields */
-  unitId?: string | undefined;
   segmentId?: string | undefined;
   translationAudioMediaId?: string | undefined;
   recordedBySpeakerId?: string | undefined;
@@ -947,7 +946,6 @@ export interface ScopeStatsSnapshotDocType {
   speakerId?: string;
   unitCount: number;
   segmentCount: number;
-  unitCount: number;
   speakerCount: number;
   translationLayerCount: number;
   noteFlaggedCount: number;
@@ -965,7 +963,6 @@ export interface SpeakerProfileSnapshotDocType {
   speakerName?: string;
   unitCount: number;
   segmentCount: number;
-  unitCount: number;
   totalDurationSec: number;
   noteFlaggedCount: number;
   emptyTextCount: number;

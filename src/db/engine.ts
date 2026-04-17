@@ -118,7 +118,6 @@ export function buildSegmentationV2BackfillRows(input: {
       textId: unit.textId,
       unitId: targetSegment.id,
       segmentId: targetSegment.id,
-      unitId: unit.id,
       layerId: rowLayerId,
       contentRole: 'primary_text',
       modality: row.modality ?? 'text',
@@ -210,7 +209,6 @@ export function buildV28BackfillPlanForText(input: {
     textId: unit.textId,
     unitId: canonicalSegmentId,
     segmentId: canonicalSegmentId,
-    unitId: unit.id,
     layerId: text.layerId ?? '',
     contentRole: 'primary_text',
     modality: text.modality ?? 'text',
@@ -1127,6 +1125,12 @@ export class JieyuDexie extends Dexie {
       translation_status_snapshots: 'id, unitId, textId, mediaId, layerId, status, [layerId+mediaId], [textId+layerId], updatedAt',
       language_asset_overviews: 'id, languageId, displayName, aliasCount, orthographyCount, bridgeCount, updatedAt',
       ai_task_snapshots: 'id, taskId, taskType, status, targetId, updatedAt',
+    });
+
+    // v40: restore canonical layer_units after the accidental v32 removal.
+    // 恢复正式 layer_units 真表，避免新版读取路径在历史数据库上崩溃。
+    this.version(40).stores({
+      layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
     });
   }
 }

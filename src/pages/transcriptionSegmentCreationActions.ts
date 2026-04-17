@@ -16,9 +16,6 @@ export interface CreateUnitOptions {
   selectionBehavior?: NewSegmentSelectionBehavior;
 }
 
-/** @deprecated Use CreateUnitOptions instead. */
-export type CreateUnitOptions = CreateUnitOptions;
-
 export interface UseTranscriptionSegmentCreationControllerInput {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;

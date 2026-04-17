@@ -71,7 +71,6 @@ describe('LayerUnitSegmentWriteService', () => {
     expect(unitContent?.unitId).toBe(segment.id);
     expect(unitContent?.text).toBe('hello');
     expect(unitContent?.segmentId).toBeUndefined();
-    expect(unitContent?.unitId).toBeUndefined();
     expect(relation?.sourceUnitId).toBe(segment.id);
     expect(relation?.targetUnitId).toBe('utt_flag_1');
     expect(relation?.relationType).toBe('derived_from');

@@ -49,6 +49,45 @@ describe('LayerSegmentationTextService', () => {
     expect(content?.text).toBe('hello');
   });
 
+  it('preserves translation audio media ids through v2 sync and projection', async () => {
+    const database = await getDb();
+    const unit: LayerUnitDocType = {
+      id: 'utt_audio_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translation: LayerUnitContentDocType = {
+      id: 'utr_audio_1',
+      unitId: 'utt_audio_1',
+      layerId: 'layer_trl_audio',
+      modality: 'audio',
+      translationAudioMediaId: 'media_audio_translation_1',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    await syncUnitTextToSegmentationV2(database, unit, translation);
+
+    const ids = getSegmentationV2Ids(translation.layerId, unit.id, translation.id);
+    const content = await db.layer_unit_contents.get(ids.segmentContentId);
+    const rows = await listUnitTextsByUnits(database, [unit.id]);
+
+    expect(content?.mediaRefId).toBe('media_audio_translation_1');
+    expect(rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'utr_audio_1',
+        unitId: 'utt_audio_1',
+        translationAudioMediaId: 'media_audio_translation_1',
+        mediaRefId: 'media_audio_translation_1',
+      }),
+    ]));
+  });
+
   it('projects unit speakerId into synced segments', async () => {
     const database = await getDb();
     const unit: LayerUnitDocType = {

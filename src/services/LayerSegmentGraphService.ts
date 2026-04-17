@@ -98,10 +98,10 @@ export async function bulkGetLayerUnits(
 export async function upsertUnitLayerUnit(db: JieyuDatabase, unit: LayerUnitDocType): Promise<void> {
   const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
   if (!layerId) return;
-  const { unit, content } = mapUnitToLayerUnit(unit, layerId);
+  const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, layerId);
   await db.dexie.layer_units.put({
-    ...unit,
-    mediaId: normalizeMediaId(unit.mediaId),
+    ...mappedUnit,
+    mediaId: normalizeMediaId(mappedUnit.mediaId),
   });
   await db.dexie.layer_unit_contents.put(content);
 }
@@ -117,21 +117,21 @@ export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonl
     }
   }
 
-  const units: LayerUnitDocType[] = [];
+  const mappedUnits: LayerUnitDocType[] = [];
   const contents: LayerUnitContentDocType[] = [];
   for (const unit of units) {
     const layerId = layerIdByTextId.get(unit.textId);
     if (!layerId) continue;
-    const { unit, content } = mapUnitToLayerUnit(unit, layerId);
-    units.push({
-      ...unit,
-      mediaId: normalizeMediaId(unit.mediaId),
+    const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, layerId);
+    mappedUnits.push({
+      ...mappedUnit,
+      mediaId: normalizeMediaId(mappedUnit.mediaId),
     });
     contents.push(content);
   }
 
-  if (units.length > 0) {
-    await db.dexie.layer_units.bulkPut(units);
+  if (mappedUnits.length > 0) {
+    await db.dexie.layer_units.bulkPut(mappedUnits);
   }
   if (contents.length > 0) {
     await db.dexie.layer_unit_contents.bulkPut(contents);
@@ -139,6 +139,10 @@ export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonl
 }
 
 export async function listUnitDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<LayerUnitDocType[]> {
+  // 兼容历史库：若 layer_units 尚未恢复，先返回空数组避免首屏崩溃。
+  // Compatibility for older DBs: return an empty project view instead of crashing.
+  if (!db.dexie.layer_units || !db.dexie.layer_unit_contents) return [];
+
   const units = await db.dexie.layer_units.filter((u) => u.unitType === 'unit').toArray();
   if (units.length === 0) return [];
   const unitIds = units.map((u) => u.id);

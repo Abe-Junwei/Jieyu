@@ -153,9 +153,7 @@ describe('M18 linguistic unit cutover replay', () => {
     expect(m.layer_unit_contents).toHaveLength(1);
     expect(m.layer_unit_contents[0]).toMatchObject(m18PostCutoverGolden.layer_unit_contents[0]!);
     expect(m.tokens[0]).toMatchObject(m18PostCutoverGolden.tokens[0]!);
-    expect(m.tokens[0]).not.toHaveProperty('unitId');
     expect(m.morphemes[0]).toMatchObject(m18PostCutoverGolden.morphemes[0]!);
-    expect(m.morphemes[0]).not.toHaveProperty('unitId');
 
     const unitsSnap = JSON.stringify(m.layer_units);
     const contentsSnap = JSON.stringify(m.layer_unit_contents);
@@ -210,6 +208,5 @@ describe('M18 linguistic unit cutover replay', () => {
     await upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction);
     expect(m.layer_units.filter((u) => u.unitType === 'unit')).toHaveLength(1);
     expect(m.tokens[0]).toMatchObject({ unitId: 'utt-m18' });
-    expect(m.tokens[0]).not.toHaveProperty('unitId');
   });
 });

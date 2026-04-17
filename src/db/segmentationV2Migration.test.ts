@@ -6,6 +6,14 @@ import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 const NOW = '2026-03-25T00:00:00.000Z';
 
 describe('buildSegmentationV2BackfillRows', () => {
+  it('exposes the canonical layer_units store in the latest schema', async () => {
+    await db.open();
+    const tableNames = db.tables.map((table) => table.name);
+
+    expect(tableNames).toContain('layer_units');
+    await expect(db.layer_units.count()).resolves.toBeGreaterThanOrEqual(0);
+  });
+
   it('builds base transcription segments and bridge links for unit texts', () => {
     const units: LayerUnitDocType[] = [
       {

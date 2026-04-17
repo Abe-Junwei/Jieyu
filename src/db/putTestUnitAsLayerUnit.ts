@@ -8,7 +8,7 @@ export async function putTestUnitAsLayerUnit(
   unit: LayerUnitDocType,
   defaultTranscriptionLayerId: string,
 ): Promise<void> {
-  const { unit, content } = mapUnitToLayerUnit(unit, defaultTranscriptionLayerId);
-  await dexie.layer_units.put(unit);
+  const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, defaultTranscriptionLayerId);
+  await dexie.layer_units.put(mappedUnit);
   await dexie.layer_unit_contents.put(content);
 }

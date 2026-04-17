@@ -39,15 +39,16 @@ function toLegacyLikeUnitText(
   content: LayerUnitContentDocType,
   unitId: string,
 ): LayerUnitContentViewDocType {
+  const mediaRefId = content.mediaRefId?.trim() || content.translationAudioMediaId?.trim() || '';
+
   return {
     id: parseTranslationIdFromContentId(content.id),
     unitId,
-    unitId: content.unitId ?? unitId,
     layerId: content.layerId ?? segment.layerId,
     contentRole: content.contentRole ?? 'primary_text',
     modality: content.modality ?? 'text',
     ...(content.text !== undefined ? { text: content.text } : {}),
-    ...(content.mediaRefId ? { mediaRefId: content.mediaRefId, translationAudioMediaId: content.mediaRefId } : {}),
+    ...(mediaRefId ? { mediaRefId, translationAudioMediaId: mediaRefId } : {}),
     sourceType: content.sourceType,
     ...(content.ai_metadata ? { ai_metadata: content.ai_metadata } : {}),
     ...(content.provenance ? { provenance: content.provenance } : {}),
@@ -88,6 +89,7 @@ export async function syncUnitTextToSegmentationV2(
 ): Promise<void> {
   const now = new Date().toISOString();
   const layerId = translation.layerId?.trim() || '';
+  const translationMediaRefId = translation.mediaRefId?.trim() || translation.translationAudioMediaId?.trim() || '';
   const ids = getSegmentationV2Ids(layerId, unit.id, translation.id);
 
   const segmentDoc: LayerUnitDocType = {
@@ -120,7 +122,7 @@ export async function syncUnitTextToSegmentationV2(
     contentRole: 'primary_text',
     modality: translation.modality ?? 'text',
     ...(translation.text !== undefined ? { text: translation.text } : {}),
-    ...(translation.mediaRefId ? { mediaRefId: translation.mediaRefId } : {}),
+    ...(translationMediaRefId ? { mediaRefId: translationMediaRefId } : {}),
     sourceType: translation.sourceType ?? 'human',
     ...(translation.ai_metadata ? { ai_metadata: translation.ai_metadata } : {}),
     ...(translation.provenance ? { provenance: translation.provenance } : {}),

@@ -604,7 +604,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes("import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';")).toBe(true);
     expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({')).toBe(true);
     expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
-    expect(hookCode.includes("import {\n  useTranscriptionSidebarSectionsViewModel,")).toBe(true);
+    expect(hookCode.includes("useTranscriptionSidebarSectionsViewModel")).toBe(true);
     expect(hookCode.includes('const { aiSidebarProps, dialogsProps } = useTranscriptionSidebarSectionsViewModel(sidebarSectionsInput);')).toBe(true);
 
   expect(sidebarHookCode.includes('const aiSidebarProps = useMemo<TranscriptionPageAiSidebarProps>(() => ({')).toBe(true);

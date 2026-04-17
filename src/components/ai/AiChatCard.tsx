@@ -126,7 +126,6 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     return {
       selected_text: String(selectedText ?? ''),
       current_unit: currentUnit,
-      current_unit: currentUnit,
       lexicon_summary: lexiconSummary,
       project_stage: observerStage ?? '',
       current_row: selectedRowMeta ? String(selectedRowMeta.rowNumber) : '',

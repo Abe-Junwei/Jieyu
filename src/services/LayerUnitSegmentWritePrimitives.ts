@@ -4,8 +4,8 @@ import { newId } from '../utils/transcriptionFormatters';
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
 
 function mapLegacyLinkTypeToRelationType(linkType: UnitRelationViewDocType['linkType']): UnitRelationDocType['relationType'] {
-  if (linkType === 'projection') return 'derived_from';
-  if (linkType === 'equivalent' || linkType === 'bridge' || linkType === 'time_subdivision') return 'aligned_to';
+  if (linkType === 'projection' || linkType === 'time_subdivision') return 'derived_from';
+  if (linkType === 'equivalent' || linkType === 'bridge') return 'aligned_to';
   return undefined;
 }
 
@@ -43,7 +43,6 @@ function normalizeLayerUnitForStorage(unit: LayerUnitDocType): LayerUnitDocType 
 function normalizeLayerUnitContentForStorage(content: LayerUnitContentDocType | LayerUnitContentViewDocType): LayerUnitContentDocType {
   const {
     segmentId: _legacySegmentId,
-    unitId: _legacyUnitId,
     translationAudioMediaId: _legacyTranslationAudioMediaId,
     ...rest
   } = content as LayerUnitContentViewDocType;

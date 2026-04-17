@@ -18,7 +18,7 @@ function makeUnit(overrides: Partial<TimelineUnitView> & Pick<TimelineUnitView, 
   };
 }
 
-function makeUnit(id: string, mediaId: string): LayerUnitDocType {
+function makeUnitDoc(id: string, mediaId: string): LayerUnitDocType {
   return {
     id,
     textId: 'text-1',
@@ -52,8 +52,8 @@ describe('transcriptionAiSelectionResolver', () => {
       makeUnit({ id: 'utt-2', kind: 'unit', mediaId: 'media-2', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'two', textId: 'text-2' }),
     ];
 
-    const getUnitDocById = vi.fn((id: string) => (id === 'utt-1' ? makeUnit('utt-1', 'media-1') : undefined));
-    const toSyntheticUnit = vi.fn((unit: TimelineUnitView) => makeUnit(unit.id, unit.mediaId));
+    const getUnitDocById = vi.fn((id: string) => (id === 'utt-1' ? makeUnitDoc('utt-1', 'media-1') : undefined));
+    const toSyntheticUnit = vi.fn((unit: TimelineUnitView) => makeUnitDoc(unit.id, unit.mediaId));
 
     const result = buildOwnerUnitCandidates(units, getUnitDocById, toSyntheticUnit);
 
@@ -65,8 +65,8 @@ describe('transcriptionAiSelectionResolver', () => {
   it('falls back from direct selection to segment owner resolution', () => {
     const directUnit = makeUnit({ id: 'seg-shadow', kind: 'segment', mediaId: 'media-1', layerId: 'layer-1', startTime: 4, endTime: 6, text: 'shadow', parentUnitId: 'utt-owner' });
     const candidates = [
-      makeUnit('utt-owner', 'media-1'),
-      makeUnit('utt-other', 'media-1'),
+      makeUnitDoc('utt-owner', 'media-1'),
+      makeUnitDoc('utt-other', 'media-1'),
     ];
 
     const direct = resolveOwnerUnitForAi({

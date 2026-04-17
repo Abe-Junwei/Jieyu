@@ -103,7 +103,6 @@ export function mapSegmentToLayerUnit(input: {
             textId: content.textId ?? segment.textId,
             unitId: segment.id,
             segmentId: segment.id,
-            unitId: segment.unitId,
             layerId: content.layerId ?? segment.layerId,
             contentRole: 'primary_text',
             modality: content.modality ?? 'text',

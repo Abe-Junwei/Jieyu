@@ -1,11 +1,10 @@
-import type { LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 
 /** Resolve backing unit doc for speaker/batch/AI tools from a unified row view. */
-export function unitDocForSpeakerTargetFromUnitView(
+export function unitDocForSpeakerTargetFromUnitView<T extends { id: string }>(
   view: TimelineUnitView | null | undefined,
-  getUnitDocById: (id: string) => LayerUnitDocType | undefined,
-): LayerUnitDocType | null {
+  getUnitDocById: (id: string) => T | undefined,
+): T | null {
   if (!view) return null;
   if (view.kind === 'unit') return getUnitDocById(view.id) ?? null;
   const pid = view.parentUnitId?.trim();
