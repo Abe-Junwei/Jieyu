@@ -124,6 +124,8 @@ export function useTranscriptionCollaborationBridge({
   const [isBridgeReady, setIsBridgeReady] = useState(false);
   const [protocolGuard, setProtocolGuard] = useState<CollaborationProtocolGuardEvaluation>(DEFAULT_PROTOCOL_GUARD);
   const [outboundPendingCount, setOutboundPendingCount] = useState(0);
+  /** 云端从禁写切到允许写时递增，用于重启桥接以灌入持久化 pending | Bump when cloud flips disabled→enabled writes */
+  const [writeGateEpoch, setWriteGateEpoch] = useState(0);
 
   const commitLatestRevision = useCallback((revision: number): void => {
     if (!Number.isFinite(revision)) return;
@@ -261,7 +263,63 @@ export function useTranscriptionCollaborationBridge({
       disposed = true;
       void stopBridge();
     };
-  }, [commitLatestRevision, enabled, normalizedProjectId, onApplyRemoteChange]);
+  }, [commitLatestRevision, enabled, normalizedProjectId, onApplyRemoteChange, writeGateEpoch]);
+
+  useEffect(() => {
+    if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig()) return;
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+
+    const refreshGuardFromCloud = async () => {
+      try {
+        const client = getSupabaseBrowserClient();
+        const { data: projectRow, error } = await client
+          .from('projects')
+          .select('protocol_version, app_min_version')
+          .eq('id', normalizedProjectId)
+          .maybeSingle();
+        if (cancelled || error) return;
+
+        const next = evaluateCollaborationProtocolGuard(
+          projectRow
+            ? {
+              protocolVersion: projectRow.protocol_version,
+              appMinVersion: projectRow.app_min_version,
+            }
+            : null,
+        );
+        const prev = writeGuardRef.current;
+        writeGuardRef.current = next;
+        if (!cancelled) {
+          setProtocolGuard(next);
+        }
+        if (!cancelled && prev.cloudWritesDisabled && !next.cloudWritesDisabled) {
+          setWriteGateEpoch((n) => n + 1);
+        }
+      } catch {
+        // 轮询失败不阻断协同 | Ignore transient polling failures
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void refreshGuardFromCloud();
+    }, 90_000);
+
+    const onVisible = () => {
+      if (!cancelled && document.visibilityState === 'visible') {
+        void refreshGuardFromCloud();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    void refreshGuardFromCloud();
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [enabled, normalizedProjectId]);
 
   const enqueueMutation = useCallback((input: TranscriptionCollaborationMutationInput): void => {
     if (!normalizedProjectId) return;

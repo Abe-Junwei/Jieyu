@@ -36,6 +36,12 @@ export interface DetectConflictOptions {
 
 export type ConflictResolutionStrategy = 'last-write-wins' | 'manual-review';
 
+/** 审计日志用策略（含纯人工决议，不经自动 merge）| Log-only strategies for manual decisions */
+export type ConflictResolutionLogStrategy =
+  | ConflictResolutionStrategy
+  | 'manual-apply-remote'
+  | 'manual-keep-local';
+
 export interface ResolveConflictResult {
   conflicts: ConflictDescriptor[];
   resolved: boolean;
@@ -308,7 +314,7 @@ export function duplicateResolvedRecord(record: CollaborationRecord): Collaborat
 
 export function createConflictResolutionLog(
   record: CollaborationRecord,
-  strategy: ConflictResolutionStrategy,
+  strategy: ConflictResolutionLogStrategy,
   conflicts: ConflictDescriptor[],
   at = Date.now(),
   decisionId?: string,

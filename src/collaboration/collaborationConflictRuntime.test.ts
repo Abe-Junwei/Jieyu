@@ -202,6 +202,31 @@ describe('collaboration conflict runtime', () => {
     expect(log.traceId).toBe('tr-test-trace-id');
   });
 
+  it('[oplog] accepts manual-apply-remote / manual-keep-local strategies for audit', () => {
+    const record = buildRecord({ version: 9, updatedAt: 8_000 });
+    const applyLog = createConflictResolutionLog(
+      record,
+      'manual-apply-remote',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' }],
+      8_001,
+      'tkt:apply',
+      'tr-manual-apply',
+    );
+    const keepLog = createConflictResolutionLog(
+      record,
+      'manual-keep-local',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' }],
+      8_002,
+      'tkt:keep',
+      'tr-manual-keep',
+    );
+
+    expect(applyLog.strategy).toBe('manual-apply-remote');
+    expect(applyLog.traceId).toBe('tr-manual-apply');
+    expect(keepLog.strategy).toBe('manual-keep-local');
+    expect(keepLog.traceId).toBe('tr-manual-keep');
+  });
+
   it('[resolve] omits resolutionTraceId when manual review is required', () => {
     const local = buildRecord({ updatedAt: 2_000 });
     const remote = buildRecord({

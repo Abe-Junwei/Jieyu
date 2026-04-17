@@ -2,6 +2,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import type { CollaborationPresenceRecord, ProjectEntityType } from './syncTypes';
 import { subscribeRealtimeChannel } from './realtimeSubscription';
+import { asRecord, asString } from './cloudSyncConflictHelpers';
 
 export interface PresenceConnectionInput {
   projectId: string;
@@ -24,17 +25,6 @@ export interface CollaborationPresenceLiveMember {
   focusedEntityId?: string;
   cursorPayload?: Record<string, unknown>;
   lastSeenAt?: string;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object') return null;
-  return value as Record<string, unknown>;
-}
-
-function asString(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 function asProjectEntityType(value: unknown): ProjectEntityType | null {

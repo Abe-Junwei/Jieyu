@@ -1,4 +1,5 @@
 import { getDb, exportDatabaseAsJson, importDatabaseFromJson, type ImportConflictStrategy, type ImportResult, type LayerUnitDocType, type UnitTokenDocType, type UnitMorphemeDocType, type TokenLexemeLinkDocType, type TokenLexemeLinkTargetType, type LexemeDocType, type LayerDocType, type LayerUnitContentDocType, type TextDocType, type MediaItemDocType, type OrthographyDocType, type OrthographyBridgeDocType, type SpeakerDocType } from '../db';
+import { syncLayerToTier } from './TierBridgeService';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../../src/utils/transcriptionFormatters';
 import { normalizeUnitDocForStorage } from '../../src/utils/camDataUtils';
@@ -843,6 +844,19 @@ export class LinguisticService {
     const db = await getDb();
     const doc = await db.collections.layers.insert(data);
     return doc.primary;
+  }
+
+  /** 协同远端 upsert：按 id 替换层并同步 tier 索引 | Replace layer by id for inbound collaboration */
+  static async upsertLayer(data: LayerDocType): Promise<void> {
+    const db = await getDb();
+    if (data.id) {
+      const existingDoc = await db.collections.layers.findOne({ selector: { id: data.id } }).exec();
+      if (existingDoc) {
+        await db.collections.layers.remove(data.id);
+      }
+    }
+    await db.collections.layers.insert(data);
+    await syncLayerToTier(data, data.textId);
   }
 
   static async getUnitTexts(unitId: string): Promise<LayerUnitContentDocType[]> {

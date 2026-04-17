@@ -72,8 +72,27 @@ function hashString(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
+/** 旧版短指纹（与历史 project_snapshots.checksum 兼容）| Legacy 8-hex fingerprint for existing rows */
 export function calculateSnapshotChecksum(payloadJson: string): string {
   return hashString(payloadJson);
+}
+
+/** 新快照优先 SHA-256 hex（64 字符）；无 WebCrypto 时回退 legacy | Prefer SHA-256 for new snapshots */
+export async function computeSnapshotChecksum(payloadJson: string): Promise<string> {
+  if (typeof crypto !== 'undefined' && crypto.subtle?.digest) {
+    const bytes = new TextEncoder().encode(payloadJson);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  return hashString(payloadJson);
+}
+
+async function snapshotChecksumMatchesPayload(payloadJson: string, storedChecksum: string): Promise<boolean> {
+  if (/^[a-f0-9]{64}$/i.test(storedChecksum)) {
+    const next = await computeSnapshotChecksum(payloadJson);
+    return next.toLowerCase() === storedChecksum.toLowerCase();
+  }
+  return hashString(payloadJson) === storedChecksum;
 }
 
 function buildSnapshotFileName(version: number): string {
@@ -96,10 +115,12 @@ export class CollaborationSnapshotService {
       upsert: false,
     });
 
+    const checksum = await computeSnapshotChecksum(input.payloadJson);
+
     return {
       snapshotStorageBucket: bucket,
       snapshotStoragePath: path,
-      checksum: calculateSnapshotChecksum(input.payloadJson),
+      checksum,
       sizeBytes: new TextEncoder().encode(input.payloadJson).byteLength,
     };
   }
@@ -214,8 +235,8 @@ export class CollaborationSnapshotService {
       record.snapshotStoragePath,
     );
 
-    const resolvedChecksum = calculateSnapshotChecksum(payloadJson);
-    if (resolvedChecksum !== record.checksum) {
+    const checksumOk = await snapshotChecksumMatchesPayload(payloadJson, record.checksum);
+    if (!checksumOk) {
       throw new Error(`Snapshot checksum mismatch for ${snapshotId}`);
     }
 

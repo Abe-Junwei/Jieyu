@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranscriptionCollaborationBridge } from './useTranscriptionCollaborationBridge';
 import { useCloudSyncAutoSnapshot } from './useCloudSyncAutoSnapshot';
+import { generateTraceId } from '../observability/aiTrace';
 import { LinguisticService } from '../services/LinguisticService';
 import {
 	CollaborationPresenceService,
@@ -380,7 +381,7 @@ export function useTranscriptionCloudSyncActions({
 			}
 
 			const certaintyValue = payload?.value;
-			if (!action && unitIds.length > 0 && certaintyValue !== undefined) {
+			if (action === null && unitIds.length > 0 && certaintyValue !== undefined) {
 				await runWithDbMutex(() => rawActionsRef.current.saveUnitSelfCertainty(unitIds, certaintyValue as UnitSelfCertainty | undefined));
 				mutated = true;
 			}
@@ -389,7 +390,7 @@ export function useTranscriptionCloudSyncActions({
 		if (change.opType === 'upsert_layer') {
 			const fullLayer = asRecord(payload?.layer);
 			if (fullLayer) {
-				await runWithDbMutex(() => LinguisticService.saveTranslationLayer(fullLayer as unknown as import('../db').LayerDocType).then(() => undefined));
+				await runWithDbMutex(() => LinguisticService.upsertLayer(fullLayer as unknown as import('../db').LayerDocType).then(() => undefined));
 				mutated = true;
 			}
 		}
@@ -529,21 +530,14 @@ export function useTranscriptionCloudSyncActions({
 			skipConflictGovernance: true,
 		});
 
-		const resolved = resolveCollaborationConflicts(
-			ticket.localRecord,
-			ticket.remoteRecord,
-			{ stage: 'cross-device' },
-			'last-write-wins',
-		);
-
 		appendConflictLogs([
 			createConflictResolutionLog(
-				resolved.resolvedRecord ?? ticket.remoteRecord,
-				'manual-review',
+				ticket.remoteRecord,
+				'manual-apply-remote',
 				ticket.conflicts,
 				Date.now(),
 				`${ticket.ticketId}:apply-remote`,
-				resolved.resolutionTraceId,
+				generateTraceId(),
 			),
 		]);
 
@@ -559,10 +553,11 @@ export function useTranscriptionCloudSyncActions({
 		appendConflictLogs([
 			createConflictResolutionLog(
 				ticket.localRecord,
-				'manual-review',
+				'manual-keep-local',
 				ticket.conflicts,
 				Date.now(),
 				`${ticket.ticketId}:keep-local`,
+				generateTraceId(),
 			),
 		]);
 
@@ -856,8 +851,17 @@ export function useTranscriptionCloudSyncActions({
 			let latestRevision = getLatestKnownRevision();
 
 			if (hasProjectLocalData && latestRevision <= 0) {
-				autoHydrationDoneProjectIdsRef.current.add(collaborationProjectId);
-				return;
+				const headSnapshots = await listProjectSnapshots({ limit: 1, offset: 0 });
+				const probe = await queryProjectChangeTimeline({
+					sinceRevision: 1,
+					limit: 1,
+					offset: 0,
+				});
+				const cloudHasData = headSnapshots.length > 0 || probe.changes.length > 0;
+				if (!cloudHasData) {
+					autoHydrationDoneProjectIdsRef.current.add(collaborationProjectId);
+					return;
+				}
 			}
 
 			try {
