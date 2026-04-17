@@ -8,9 +8,8 @@ import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { DialogShell } from './ui/DialogShell';
-import { PanelButton, PanelChip } from './ui';
+import { PanelButton } from './ui';
 import { PanelSection } from './ui/PanelSection';
-import { PanelSummary } from './ui/PanelSummary';
 
 interface NotePanelProps {
   isOpen: boolean;
@@ -53,7 +52,6 @@ export const NotePanel = memo(function NotePanel({
     { value: 'question', label: messages.categoryQuestion },
     { value: 'todo', label: messages.categoryTodo },
   ];
-  const hasNotes = notes.length > 0;
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<NoteCategory | ''>('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -123,35 +121,13 @@ export const NotePanel = memo(function NotePanel({
       dir={uiTextDirection}
         layoutStyle={{ width: `min(${panelWidth}px, 100%)`, fontSize: `calc(1rem * ${uiFontScale})` }}
     >
-      <PanelSummary
-        className="note-panel-summary"
-        title={messages.panelTitlePrefix}
-        description={targetLabel}
-        meta={(
-          <div className="panel-meta">
-            <PanelChip>{messages.noteCount(notes.length)}</PanelChip>
-            <PanelChip variant={hasNotes ? undefined : 'danger'}>
-              {hasNotes ? messages.notesSectionTitle : messages.empty}
-            </PanelChip>
-          </div>
-        )}
-        supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
-      />
-
       <PanelSection
         className="note-panel-list-surface"
-        title={messages.notesSectionTitle}
-        description={messages.editHint}
       >
         <div className="note-panel-list">
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
             <div key={note.id} className="note-panel-item">
-              {note.category && (
-                <span className={`note-panel-category note-panel-category-${note.category}`}>
-                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
-                </span>
-              )}
               {editingId === note.id ? (
                 <div className="note-panel-edit">
                   <textarea
@@ -174,15 +150,26 @@ export const NotePanel = memo(function NotePanel({
               ) : (
                 <div className="note-panel-content" onDoubleClick={() => handleEditStart(note)}>
                   <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button
-                    type="button"
-                    className="note-panel-delete"
-                    onClick={() => onDelete(note.id)}
-                    title={messages.deleteNote}
-                    aria-label={messages.deleteNote}
-                  >
-                    <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO} />
-                  </button>
+                  <div className="note-panel-actions">
+                    <button
+                      type="button"
+                      className="note-panel-edit-trigger"
+                      onClick={() => handleEditStart(note)}
+                      title={messages.editNote}
+                      aria-label={messages.editNote}
+                    >
+                      <MaterialSymbol name="edit" className={JIEYU_MATERIAL_MICRO} />
+                    </button>
+                    <button
+                      type="button"
+                      className="note-panel-delete"
+                      onClick={() => onDelete(note.id)}
+                      title={messages.deleteNote}
+                      aria-label={messages.deleteNote}
+                    >
+                      <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

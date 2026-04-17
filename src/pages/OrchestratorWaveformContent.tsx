@@ -595,7 +595,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                       <div
                         key={`note-${uttId}`}
                         className="waveform-note-indicator-trigger"
-                        style={{ left: leftPx + widthPx - 26 }}
+                        style={{ left: leftPx + widthPx - 22 }}
                         onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
                         onClick={(e) => {
                           e.stopPropagation();

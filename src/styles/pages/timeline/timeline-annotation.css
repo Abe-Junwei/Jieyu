@@ -21,6 +21,11 @@
   margin-right: 1px;
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
+  --timeline-annotation-side-stack-top: 4px;
+  --timeline-annotation-side-stack-right: 5px;
+  --timeline-annotation-side-stack-size: 18px;
+  --timeline-annotation-side-stack-gap: 4px;
+  --timeline-annotation-tools-row-height: 18px;
 }
 
 /* 空段（未转写）显示极浅灰底色，标识“这里有段” | Empty segment: faint bg as slot indicator */
@@ -91,14 +96,22 @@
   min-width: 0;
 }
 
-.timeline-annotation-has-tools > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge) {
+.timeline-annotation-has-tools > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
   padding-right: 56px;
+}
+
+.timeline-annotation:has(.timeline-annotation-note-icon) > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+  padding-right: 28px;
+}
+
+.timeline-annotation:has(.timeline-annotation-note-icon) .timeline-annotation-input {
+  padding-right: 32px;
 }
 
 .timeline-annotation-tools {
   position: absolute;
   top: 4px;
-  right: 8px;
+  right: var(--timeline-annotation-side-stack-right);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -234,45 +247,37 @@
   box-shadow: none;
 }
 
-/* 自我确信度角标（右侧居中）| Self-certainty badge (right-center anchor) */
-.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge) {
-  padding-right: 24px;
+/* 自我确信度角标（右侧竖排）| Self-certainty badge in the right-side vertical stack */
+.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+  padding-right: 28px;
 }
 
 .timeline-annotation-has-self-certainty .timeline-annotation-input {
-  padding-right: 28px;
+  padding-right: 32px;
 }
 
 .timeline-annotation-self-certainty {
   position: absolute;
-  top: 50%;
-  right: 6px;
-  transform: translateY(-50%);
+  top: var(--timeline-annotation-side-stack-top);
+  right: calc(var(--timeline-annotation-side-stack-right) - 1px);
   z-index: calc(var(--z-overlay-base) + 3);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 16px;
-  width: 16px;
-  height: 16px;
+  display: grid;
+  place-items: center;
+  min-width: var(--timeline-annotation-side-stack-size);
+  width: var(--timeline-annotation-side-stack-size);
+  height: var(--timeline-annotation-side-stack-size);
   line-height: 1;
   box-sizing: border-box;
   pointer-events: none;
   border-radius: 999px;
   border: 1.5px solid currentColor;
-  background: color-mix(in srgb, currentColor 10%, white 90%);
-  box-shadow: 0 1px 2px color-mix(in srgb, currentColor 16%, transparent);
+  background: transparent;
+  box-shadow: none;
   --timeline-self-certainty-symbol-color: currentColor;
 }
 
-.timeline-annotation:has(.timeline-annotation-note-icon) .timeline-annotation-self-certainty {
-  top: auto;
-  bottom: 21px;
-  transform: none;
-}
-
-:root[data-theme='dark'] .timeline-annotation-self-certainty {
-  background: color-mix(in srgb, currentColor 12%, #0f172a 88%);
+.timeline-annotation:has(.timeline-annotation-tools) .timeline-annotation-self-certainty {
+  top: calc(var(--timeline-annotation-side-stack-top) + var(--timeline-annotation-tools-row-height) + var(--timeline-annotation-side-stack-gap));
 }
 
 .timeline-annotation-note-icon {
@@ -280,9 +285,8 @@
 }
 
 .timeline-annotation-self-certainty-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 100%;
   height: 100%;
   font-size: 10px;
@@ -290,7 +294,6 @@
   font-weight: 800;
   font-family: system-ui, sans-serif;
   color: var(--timeline-self-certainty-symbol-color);
-  transform: translateY(-0.2px);
 }
 
 .timeline-annotation-self-certainty--certain .timeline-annotation-self-certainty-icon,
@@ -311,15 +314,13 @@
 }
 
 .timeline-annotation-self-certainty--uncertain .timeline-annotation-self-certainty-wavy {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 100%;
   height: 100%;
   font-size: 10px;
   line-height: 1;
   font-weight: 800;
   color: var(--timeline-self-certainty-symbol-color);
-  transform: translateY(-0.4px);
   font-family: system-ui, sans-serif;
 }

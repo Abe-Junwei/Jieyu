@@ -96,7 +96,7 @@
 .note-panel-content {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
 }
 
 .note-panel-content p {
@@ -106,6 +106,14 @@
   word-break: break-word;
 }
 
+.note-panel-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.note-panel-edit-trigger,
 .note-panel-delete {
   flex-shrink: 0;
   display: inline-flex;
@@ -114,13 +122,20 @@
   width: 24px;
   height: 24px;
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
 }
 
+.note-panel-edit-trigger:hover {
+  color: var(--state-info-solid);
+  background: var(--state-info-bg);
+}
+
 .note-panel-delete:hover {
   color: var(--state-danger-solid);
+  background: var(--state-danger-bg);
 }
 
 .note-panel-add {

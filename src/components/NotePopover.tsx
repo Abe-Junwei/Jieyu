@@ -4,7 +4,7 @@ import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_MICRO_XS } 
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
-import { DialogOverlay, DialogShell, PanelButton, PanelChip, PanelSection, PanelSummary } from './ui';
+import { DialogOverlay, DialogShell, PanelButton, PanelSection } from './ui';
 
 interface NotePopoverProps {
   x: number;
@@ -29,7 +29,6 @@ export const NotePopover = memo(function NotePopover({
     { value: 'question', label: messages.categoryQuestion },
     { value: 'todo', label: messages.categoryTodo },
   ];
-  const hasNotes = notes.length > 0;
   const ref = useRef<HTMLDivElement>(null);
   const [newContent, setNewContent] = useState('');
   const [newCategory, setNewCategory] = useState<NoteCategory>('comment');
@@ -156,35 +155,13 @@ export const NotePopover = memo(function NotePopover({
       style={isDialogMode ? undefined : { left: pos.left, top: pos.top }}
       {...(isDialogMode ? { role: 'dialog', 'aria-modal': true } : {})}
     >
-      <PanelSummary
-        className="note-popover-summary"
-        title={messages.panelTitlePrefix}
-        description={targetLabel ? undefined : messages.emptyStateHint}
-        meta={(
-          <div className="panel-meta">
-            <PanelChip>{messages.noteCount(notes.length)}</PanelChip>
-            <PanelChip variant={hasNotes ? undefined : 'danger'}>
-              {categories.find((category) => category.value === newCategory)?.label ?? messages.noCategory}
-            </PanelChip>
-          </div>
-        )}
-        supportingText={hasNotes ? messages.editHint : messages.emptyStateHint}
-      />
-
       <PanelSection
         className="note-popover-list-surface"
-        title={messages.notesSectionTitle}
-        description={messages.editHint}
       >
         <div className="note-popover-list">
           {notes.length === 0 && <p className="note-panel-empty">{messages.empty}</p>}
           {notes.map((note) => (
             <div key={note.id} className="note-popover-item">
-              {note.category && (
-                <span className={`note-popover-tag note-popover-tag-${note.category}`}>
-                  {categories.find((c) => c.value === note.category)?.label ?? note.category}
-                </span>
-              )}
               {editingId === note.id ? (
                 <div className="note-popover-edit">
                   <textarea
@@ -203,15 +180,26 @@ export const NotePopover = memo(function NotePopover({
               ) : (
                 <div className="note-popover-content" onDoubleClick={() => handleEditStart(note)}>
                   <p>{note.content['default'] ?? Object.values(note.content)[0] ?? ''}</p>
-                  <button
-                    type="button"
-                    className="note-popover-delete"
-                    onClick={() => onDelete(note.id)}
-                    title={messages.deleteNote}
-                    aria-label={messages.deleteNote}
-                  >
-                    <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO_XS} />
-                  </button>
+                  <div className="note-popover-actions">
+                    <button
+                      type="button"
+                      className="note-popover-edit-trigger"
+                      onClick={() => handleEditStart(note)}
+                      title={messages.editNote}
+                      aria-label={messages.editNote}
+                    >
+                      <MaterialSymbol name="edit" className={JIEYU_MATERIAL_MICRO_XS} />
+                    </button>
+                    <button
+                      type="button"
+                      className="note-popover-delete"
+                      onClick={() => onDelete(note.id)}
+                      title={messages.deleteNote}
+                      aria-label={messages.deleteNote}
+                    >
+                      <MaterialSymbol name="delete" className={JIEYU_MATERIAL_MICRO_XS} />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

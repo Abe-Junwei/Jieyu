@@ -61,7 +61,7 @@ describe('NotePanel', () => {
     expect(screen.queryByText('备注面板 · 测试目标')).toBeNull();
   });
 
-  it('renders panel shell with summary, sections, and header close action', () => {
+  it('renders panel shell with header, composer, and explicit edit action', () => {
     const { view } = renderPanel();
     const panel = view.container.querySelector('.pnl-note-panel') as HTMLDivElement;
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
@@ -75,9 +75,10 @@ describe('NotePanel', () => {
     expect(addButton.className).toContain('panel-button--primary');
     expect(composerInput).toBeTruthy();
     expect(categorySelect).toBeTruthy();
-    expect(screen.getAllByText('现有备注').length).toBeGreaterThan(0);
+    expect(screen.queryByText('现有备注')).toBeNull();
     expect(screen.getAllByText('新增备注').length).toBeGreaterThan(0);
     expect(screen.getByText('已有备注')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '编辑备注' })).toBeTruthy();
   });
 
   it('adds a note through the composer section', async () => {

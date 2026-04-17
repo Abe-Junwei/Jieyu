@@ -236,23 +236,26 @@
 
 .waveform-note-indicator-trigger {
   position: absolute;
-  top: 0;
-  width: 16px;
-  height: 100%;
+  top: auto;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
   pointer-events: auto;
   z-index: 6;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding-bottom: 2px;
   cursor: pointer;
 }
 
 .waveform-note-indicator-icon {
-  width: 16px;
-  height: 16px;
-  color: var(--state-info-border);
-  opacity: 0.92;
+  width: 18px;
+  height: 18px;
+  color: var(--state-info-solid);
+  opacity: 1;
+  transform: scale(1.08);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--state-info-solid) 28%, transparent));
 }
 
 /* Region action overlay: play / loop buttons on selected segment */

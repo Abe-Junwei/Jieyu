@@ -99,10 +99,11 @@ describe('NotePopover', () => {
     );
 
     expect(screen.getByRole('textbox', { name: '新备注内容' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '编辑备注' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '删除备注' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '新备注分类: 评论' }).getAttribute('aria-pressed')).toBe('true');
 
-    fireEvent.doubleClick(screen.getByText('已有备注'));
+    fireEvent.click(screen.getByRole('button', { name: '编辑备注' }));
 
     await waitFor(() => {
       expect(screen.getByRole('textbox', { name: '编辑备注内容' })).toBeTruthy();
