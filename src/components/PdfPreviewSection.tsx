@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { normalizeLocale } from '../i18n';
 import { getPdfPreviewSectionMessages } from '../i18n/pdfPreviewSectionMessages';
+import { CloseIcon } from './SvgIcons';
 
 const PdfViewerPanel = lazy(async () => import('./PdfViewerPanel').then((module) => ({ default: module.PdfViewerPanel })));
 
@@ -76,7 +77,7 @@ export function PdfPreviewSection({
             {messages.openExternal}
           </button>
           <button type="button" className="transcription-pdf-preview-close" onClick={onClose} aria-label={messages.closePreviewAriaLabel}>
-            ×
+            <CloseIcon className="transcription-pdf-preview-close-icon" />
           </button>
         </div>
       </header>

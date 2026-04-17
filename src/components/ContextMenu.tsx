@@ -1,5 +1,6 @@
 import { memo, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { CheckIcon } from './SvgIcons';
 
 interface OpenSubmenu {
   path: number[];
@@ -279,7 +280,9 @@ export const ContextMenu = memo(function ContextMenu({ x, y, items, onClose, anc
                 item.selectionState === 'selected' ? 'context-menu-item-selection-selected' : '',
               ].filter(Boolean).join(' ')}
               aria-hidden="true"
-            />
+            >
+              {item.selectionVariant === 'check' && <CheckIcon className="context-menu-item-selection-check-icon" />}
+            </span>
           ) : item.icon ? <span className="context-menu-item-icon" aria-hidden="true">{item.icon}</span> : null}
           <span>{item.label}</span>
         </span>

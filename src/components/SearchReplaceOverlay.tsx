@@ -6,6 +6,7 @@ import { analyzeSearchPattern, buildReplacePlan, findSearchMatches, type SearchM
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { DialogOverlay, DialogShell } from './ui';
+import { ChevronUpIcon, ChevronDownIcon, SwapIcon, CloseIcon } from './SvgIcons';
 
 interface SearchReplaceOverlayProps {
   /** All searchable items: { id, text, layerId?, layerKind? } */
@@ -186,10 +187,10 @@ export function SearchReplaceOverlay({
         <span className="search-replace-count">
           {matches.length > 0 ? `${safeIndex + 1}/${matches.length}` : debouncedQuery ? messages.noResults : ''}
         </span>
-        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title={messages.previousTitle} aria-label={messages.previousTitle}>▲</button>
-        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title={messages.nextTitle} aria-label={messages.nextTitle}>▼</button>
-        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title={messages.toggleReplaceTitle} aria-label={messages.toggleReplaceTitle}>⇄</button>
-        <button onClick={onClose} className="search-replace-btn" title={messages.closeTitle} aria-label={messages.closeTitle}>✕</button>
+        <button onClick={goPrev} disabled={matches.length === 0} className="search-replace-btn" title={messages.previousTitle} aria-label={messages.previousTitle}><ChevronUpIcon className="search-replace-btn-icon" /></button>
+        <button onClick={goNext} disabled={matches.length === 0} className="search-replace-btn" title={messages.nextTitle} aria-label={messages.nextTitle}><ChevronDownIcon className="search-replace-btn-icon" /></button>
+        <button onClick={() => setShowReplace((v) => !v)} className="search-replace-btn" title={messages.toggleReplaceTitle} aria-label={messages.toggleReplaceTitle}><SwapIcon className="search-replace-btn-icon" /></button>
+        <button onClick={onClose} className="search-replace-btn" title={messages.closeTitle} aria-label={messages.closeTitle}><CloseIcon className="search-replace-btn-icon" /></button>
       </div>
 
       <div className="search-replace-toolbar">

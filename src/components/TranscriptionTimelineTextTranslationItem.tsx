@@ -4,6 +4,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { t, useLocale } from '../i18n';
+import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 type SaveStatus = 'dirty' | 'saving' | 'error' | undefined;
@@ -243,34 +244,13 @@ export function TranscriptionTimelineTextTranslationItem({
           }}
         />
       )}
-      {selfCertainty === 'certain' && selfCertaintyTitle ? (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
+      {selfCertainty && selfCertaintyTitle ? (
+        <SelfCertaintyIcon
+          certainty={selfCertainty}
+          className="timeline-annotation-self-certainty"
           title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
-        </span>
-      ) : null}
-      {selfCertainty === 'not_understood' && selfCertaintyTitle ? (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
-          title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
-        </span>
-      ) : null}
-      {selfCertainty === 'uncertain' && selfCertaintyTitle ? (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
-          title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
-            {'\u2248'}
-          </span>
-        </span>
+          ariaLabel={selfCertaintyTitle}
+        />
       ) : null}
     </TimelineStyledContainer>
   );

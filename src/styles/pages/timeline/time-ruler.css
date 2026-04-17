@@ -2,7 +2,7 @@
 
 .time-ruler {
   position: relative;
-  height: 30px;
+  height: 22px;
   max-width: 100%;
   flex-shrink: 0;
   border-top: 1px solid var(--divider-base);
@@ -51,8 +51,8 @@
   left: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px) + 2px);
   top: 1px;
   transform: translate(-50%, -50%);
-  width: 18px;
-  height: 16px;
+  width: 15px;
+  height: 13px;
   border: 1px solid color-mix(in srgb, var(--text-secondary) 45%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
@@ -141,35 +141,19 @@
 
 .time-ruler-label-text {
   fill: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: 0.65rem;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
-/* ── 热力条 | Heat bands ── */
-
-.time-ruler-heat-band {
-  opacity: 0.7;
-}
-
-.time-ruler-heat-band-level-1 {
-  fill: color-mix(in srgb, var(--state-success-solid) 42%, transparent);
-}
-
-.time-ruler-heat-band-level-2 {
-  fill: color-mix(in srgb, var(--state-warning-solid) 46%, transparent);
-}
-
-.time-ruler-heat-band-level-3 {
-  fill: color-mix(in srgb, var(--state-warning-text) 48%, transparent);
-}
-
-.time-ruler-heat-band-level-4 {
-  fill: color-mix(in srgb, var(--state-danger-solid) 52%, transparent);
-}
-
 .time-ruler-cursor-line {
-  stroke: var(--timeline-playhead-color, var(--state-danger-solid));
-  stroke-width: 2;
+  stroke: var(--header-accent, var(--timeline-playhead-color, var(--state-info-solid)));
+  stroke-width: 2.6;
   vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--header-accent, var(--state-info-solid)) 34%, transparent));
+}
+
+.time-ruler-cursor-dot {
+  fill: var(--header-accent, var(--timeline-playhead-color, var(--state-info-solid)));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--header-accent, var(--state-info-solid)) 42%, transparent));
 }

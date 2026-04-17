@@ -8,6 +8,7 @@ import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../../hooks/useViewportWidth';
 import { PanelButton, PanelChip } from '../ui';
 import { PanelSection } from '../ui/PanelSection';
+import { CheckIcon } from '../SvgIcons';
 import { PanelSummary } from '../ui/PanelSummary';
 import { EmbeddedPanelShell } from '../ui/EmbeddedPanelShell';
 
@@ -171,7 +172,7 @@ export function AiChatReplayDetailPanel({
                     <span className="ai-chat-replay-panel-diff-label">{field.label}</span>
                     {field.changed
                       ? <span className="ai-chat-replay-panel-diff-value is-changed">{field.baseline} {'\u2192'} {field.live}</span>
-                      : <span className="ai-chat-replay-panel-diff-value is-match">✓</span>
+                      : <span className="ai-chat-replay-panel-diff-value is-match"><CheckIcon className="ai-chat-replay-panel-diff-icon" /></span>
                     }
                   </div>
                 ))}

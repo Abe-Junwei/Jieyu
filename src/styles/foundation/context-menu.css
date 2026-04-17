@@ -93,18 +93,16 @@
   justify-content: center;
 }
 
-.context-menu-item-selection-check::before {
-  content: '✓';
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  line-height: 1;
-  font-weight: 700;
+.context-menu-item-selection-check-icon {
+  width: 12px;
+  height: 12px;
   color: var(--state-info-solid);
   opacity: 0;
   transform: scale(0.9);
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
 
-.context-menu-item-selection-check.context-menu-item-selection-selected::before {
+.context-menu-item-selection-check.context-menu-item-selection-selected .context-menu-item-selection-check-icon {
   opacity: 1;
   transform: scale(1);
 }

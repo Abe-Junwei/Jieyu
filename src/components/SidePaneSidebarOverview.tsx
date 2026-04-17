@@ -5,6 +5,7 @@ import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
+import { FolderOpenIcon } from './SvgIcons';
 
 type DragState = {
   draggedId: string;
@@ -85,7 +86,7 @@ export function SidePaneSidebarOverview({
     if (sidePaneRows.length === 0) {
       return (
         <div className="transcription-side-pane-empty">
-          <span className="transcription-side-pane-empty-icon">📂</span>
+          <FolderOpenIcon className="transcription-side-pane-empty-icon" />
           <span>{messages.emptyLayerHint}</span>
           <span className="transcription-side-pane-empty-hint" aria-hidden="true">←</span>
         </div>

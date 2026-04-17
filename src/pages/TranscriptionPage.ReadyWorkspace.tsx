@@ -1653,6 +1653,15 @@ function TranscriptionPageReadyWorkspace({
     },
   });
 
+  const timelineTopPropsWithWaveformResizeHandle = useMemo(() => ({
+    ...timelineTopProps,
+    headerProps: {
+      ...timelineTopProps.headerProps,
+      ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStart } : {}),
+      isResizingWaveform,
+    },
+  }), [handleWaveformResizeStart, isResizingWaveform, selectedMediaUrl, timelineTopProps]);
+
   const {
     shouldRenderAiSidebar,
     shouldRenderDialogs,
@@ -1878,7 +1887,6 @@ function TranscriptionPageReadyWorkspace({
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
     mediaFileInputRef,
-    handleWaveformResizeStart,
   });
 
   const readyWorkspaceOverlaysProps = buildReadyWorkspaceOverlaysProps({
@@ -1989,7 +1997,7 @@ function TranscriptionPageReadyWorkspace({
     isAiPanelCollapsed,
     isTimelineLaneHeaderCollapsed,
     readyWorkspaceWaveformContentProps,
-    timelineTopProps,
+    timelineTopProps: timelineTopPropsWithWaveformResizeHandle,
     readyWorkspaceSidePaneProps,
     timelineContentProps,
     editorContextValue,

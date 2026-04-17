@@ -84,21 +84,15 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('OrchestratorWaveformContent')).toBe(true);
   });
 
-  it('keeps waveform height resize handle in layout', () => {
-    // resize handle 已提取到 OrchestratorWaveformContent | resize handle now in OrchestratorWaveformContent
-    const filePath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
-    const code = fs.readFileSync(filePath, 'utf8');
-    const sourceFile = ts.createSourceFile(filePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  it('keeps waveform height resize handle on timeline overview header', () => {
+    const headerFilePath = path.resolve(process.cwd(), 'src/components/transcription/TranscriptionTimelineSections.tsx');
+    const headerCode = fs.readFileSync(headerFilePath, 'utf8');
+    const waveformFilePath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const waveformCode = fs.readFileSync(waveformFilePath, 'utf8');
 
-    const waveformArea = findFirstJsxByClassName(sourceFile, 'transcription-waveform-area');
-    const waveformResizeHandle = findFirstJsxByClassName(sourceFile, 'transcription-waveform-resize-handle');
-
-    expect(waveformArea).not.toBeNull();
-    expect(waveformResizeHandle).not.toBeNull();
-
-    if (!waveformArea || !waveformResizeHandle) return;
-
-    expect(waveformResizeHandle.start).toBeGreaterThan(waveformArea.end);
+    expect(headerCode.includes('onWaveformResizeStart')).toBe(true);
+    expect(headerCode.includes('onResizeStart')).toBe(true);
+    expect(waveformCode.includes('transcription-waveform-resize-handle')).toBe(false);
   });
 
   it('keeps waveform runtime progress badges wired into the waveform overlay', () => {

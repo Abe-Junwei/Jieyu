@@ -92,7 +92,7 @@ export async function ensureVadCacheForMedia(options: EnsureVadCacheForMediaOpti
 
   const ref: VadMediaRef = { mediaId, mediaUrl, ...(options.mediaBlobSize !== undefined && { byteSize: options.mediaBlobSize }) };
   if (!backend.canProcess(ref)) {
-    log.info('VAD backend cannot process media (size/format gate)', { mediaId, byteSize: options.mediaBlobSize });
+    log.debug('VAD backend cannot process media (size/format gate)', { mediaId, byteSize: options.mediaBlobSize });
     return null;
   }
 

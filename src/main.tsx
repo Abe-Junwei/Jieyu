@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
+import { initOtelForReleaseStage } from './observability/otel';
 import { initSentryForReleaseStage } from './observability/sentry';
 import { initLcpMetricObserver } from './observability/webVitals';
 import { initIconEffect } from './utils/iconEffect';
@@ -10,6 +11,7 @@ import { initTheme } from './utils/theme';
 import './services/vad/VadMediaBackend.browser'; // 注册浏览器端 VAD 后端 | Register browser VAD backend
 import './styles/app-foundation.css';
 
+void initOtelForReleaseStage();
 void initSentryForReleaseStage();
 initLcpMetricObserver();
 initTheme(); // 初始化配色主题 | Initialize appearance theme

@@ -65,18 +65,17 @@ describe('NotePanel', () => {
     const { view } = renderPanel();
     const panel = view.container.querySelector('.pnl-note-panel') as HTMLDivElement;
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
-    const addButton = screen.getByRole('button', { name: /新增备注|添加备注|add/i });
+    const addButton = screen.getByRole('button', { name: /新增|添加|add/i });
     const composerInput = screen.getByRole('textbox', { name: '新备注内容' });
-    const categorySelect = screen.getByRole('combobox', { name: '新备注分类' });
+    const categoryToggle = screen.getByRole('button', { name: '新备注分类: 评论' });
 
     expect(panel.className).toContain('dialog-card');
     expect(panel.className).toContain('pnl-note-panel');
     expect(closeButton.closest('.dialog-header')).toBeTruthy();
     expect(addButton.className).toContain('panel-button--primary');
     expect(composerInput).toBeTruthy();
-    expect(categorySelect).toBeTruthy();
+    expect(categoryToggle).toBeTruthy();
     expect(screen.queryByText('现有备注')).toBeNull();
-    expect(screen.getAllByText('新增备注').length).toBeGreaterThan(0);
     expect(screen.getByText('已有备注')).toBeTruthy();
     expect(screen.getByRole('button', { name: '编辑备注' })).toBeTruthy();
   });
@@ -87,8 +86,8 @@ describe('NotePanel', () => {
     fireEvent.change(screen.getByRole('textbox', { name: '新备注内容' }), {
       target: { value: '新的面板备注' },
     });
-    fireEvent.change(screen.getByRole('combobox', { name: '新备注分类' }), { target: { value: 'question' } });
-    fireEvent.click(screen.getByRole('button', { name: /新增备注|添加备注|add/i }));
+    fireEvent.click(screen.getByRole('button', { name: '新备注分类: 疑问' }));
+    fireEvent.click(screen.getByRole('button', { name: /新增|添加|add/i }));
 
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith({ default: '新的面板备注' }, 'question');

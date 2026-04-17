@@ -8,8 +8,6 @@ export type NotePanelMessages = {
   panelTitle: (targetLabel: string) => string;
   noteCount: (count: number) => string;
   notesSectionTitle: string;
-  composerSectionTitle: string;
-  composerHint: string;
   editHint: string;
   emptyStateHint: string;
   closePanel: string;
@@ -34,8 +32,6 @@ const zhCN: NotePanelMessages = {
   panelTitle: (targetLabel) => `\u5907\u6ce8\u9762\u677f \u00b7 ${targetLabel}`,
   noteCount: (count) => `\u5171 ${count} \u6761`,
   notesSectionTitle: '\u73b0\u6709\u5907\u6ce8',
-  composerSectionTitle: '\u65b0\u589e\u5907\u6ce8',
-  composerHint: '\u652f\u6301\u5206\u7c7b\u4e0e\u5feb\u6377\u63d0\u4ea4\uff0cCtrl+Enter \u53ef\u76f4\u63a5\u4fdd\u5b58\u3002',
   editHint: '\u53cc\u51fb\u5df2\u6709\u5907\u6ce8\u53ef\u5feb\u901f\u7f16\u8f91\u3002',
   emptyStateHint: '\u8fd8\u6ca1\u6709\u5907\u6ce8\uff0c\u53ef\u4ece\u4e0b\u65b9\u521b\u5efa\u7b2c\u4e00\u6761\u3002',
   closePanel: '\u5173\u95ed\u5907\u6ce8\u9762\u677f',
@@ -47,9 +43,9 @@ const zhCN: NotePanelMessages = {
   editNoteContentLabel: '\u7f16\u8f91\u5907\u6ce8\u5185\u5bb9',
   newNoteContentLabel: '\u65b0\u5907\u6ce8\u5185\u5bb9',
   newNoteCategoryLabel: '\u65b0\u5907\u6ce8\u5206\u7c7b',
-  newNotePlaceholder: '\u8f93\u5165\u65b0\u5907\u6ce8\u2026\uff08Ctrl+Enter \u63d0\u4ea4\uff09',
+  newNotePlaceholder: '\u8f93\u5165\u5907\u6ce8\u2026',
   noCategory: '\u65e0\u5206\u7c7b',
-  add: '\u65b0\u589e\u5907\u6ce8',
+  add: '\u65b0\u589e',
 };
 
 const enUS: NotePanelMessages = {
@@ -60,8 +56,6 @@ const enUS: NotePanelMessages = {
   panelTitle: (targetLabel) => `Notes Panel · ${targetLabel}`,
   noteCount: (count) => `${count} total`,
   notesSectionTitle: 'Existing notes',
-  composerSectionTitle: 'Add note',
-  composerHint: 'Category and quick submit are available. Press Ctrl+Enter to save.',
   editHint: 'Double-click an existing note to edit it in place.',
   emptyStateHint: 'No notes yet. Create the first one below.',
   closePanel: 'Close notes panel',
@@ -73,7 +67,7 @@ const enUS: NotePanelMessages = {
   editNoteContentLabel: 'Edit note content',
   newNoteContentLabel: 'New note content',
   newNoteCategoryLabel: 'New note category',
-  newNotePlaceholder: 'Enter a new note… (Ctrl+Enter to submit)',
+  newNotePlaceholder: 'Enter a note…',
   noCategory: 'No category',
   add: 'Add',
 };

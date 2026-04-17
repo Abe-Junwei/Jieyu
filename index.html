@@ -3,13 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src  'self' 'wasm-unsafe-eval';
+      style-src   'self' 'unsafe-inline';
+      font-src    'self';
+      img-src     'self' data: blob: https:;
+      media-src   'self' blob: data:;
+      connect-src 'self' blob: https: wss:;
+      worker-src  'self' blob:;
+      child-src   'self' blob:;
+      object-src  'none';
+      base-uri    'self';
+      form-action 'self';
+    " />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-      rel="stylesheet"
-    />
+    <!-- 自托管图标字体，消除 Google Fonts 供应链风险 | Self-hosted icon font, eliminates Google Fonts supply-chain risk -->
+    <link rel="stylesheet" href="/fonts/material-symbols.css" />
     <title>解语 Jieyu</title>
   </head>
   <body>

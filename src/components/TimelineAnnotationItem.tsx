@@ -1,5 +1,7 @@
 import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
+import { SelfCertaintyIcon } from './SelfCertaintyIcon';
+import { DotIcon } from './SvgIcons';
 import { tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
@@ -117,7 +119,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           className={`timeline-annotation-speaker-badge${isCompact ? ' timeline-annotation-speaker-badge-compact' : ''}`}
           title={tf(locale, 'transcription.timeline.speakerTitle', { name: speakerLabel })}
         >
-          {isCompact ? '●' : speakerLabel}
+          {isCompact ? <DotIcon className="timeline-annotation-speaker-dot" /> : speakerLabel}
         </span>
       )}
       {overlapCycleIndicator && overlapCycleIndicator.total > 1 && isActive && (
@@ -150,34 +152,12 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         <span>{draft || '\u00A0'}</span>
       )}
       {tools ? <div className="timeline-annotation-tools">{tools}</div> : null}
-      {selfCertainty === 'certain' && (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
-          title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
-        </span>
-      )}
-      {selfCertainty === 'not_understood' && (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
-          title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
-        </span>
-      )}
-      {selfCertainty === 'uncertain' && (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
-          title={selfCertaintyTitle}
-          aria-label={selfCertaintyTitle}
-        >
-          <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
-            {'\u2248'}
-          </span>
-        </span>
+      {selfCertainty && (
+        <SelfCertaintyIcon
+          certainty={selfCertainty}
+          className="timeline-annotation-self-certainty"
+          {...(selfCertaintyTitle ? { title: selfCertaintyTitle, ariaLabel: selfCertaintyTitle } : {})}
+        />
       )}
       {noteCount != null && noteCount > 0 && onNoteClick && (
         <NoteDocumentIcon

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { LayerUnitDocType } from '../db';
 import { t, useLocale } from '../i18n';
@@ -20,12 +20,10 @@ interface TimeRulerProps {
 
 const NICE_STEPS = [0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
 const SUB_DIVS = [10, 5, 4, 2, 1];
-const RULER_HEIGHT_PX = 30;
-const RULER_MINOR_TICK_Y2_PX = 6;
-const RULER_MAJOR_TICK_Y2_PX = 13;
-const RULER_LABEL_Y_PX = 23;
-const RULER_HEAT_BAND_HEIGHT_PX = 4;
-const RULER_HEAT_BAND_Y_PX = RULER_HEIGHT_PX - RULER_HEAT_BAND_HEIGHT_PX;
+const RULER_HEIGHT_PX = 22;
+const RULER_MINOR_TICK_Y2_PX = 4;
+const RULER_MAJOR_TICK_Y2_PX = 8;
+const RULER_LABEL_Y_PX = 16;
 
 export function TimeRuler({
   duration,
@@ -66,35 +64,6 @@ export function TimeRuler({
   const dur = duration;
   const { start, end } = rulerView;
   const windowSec = end - start;
-
-  /** 计算可见窗口内的语段密度色块 | Compute density segments for the heatmap strip */
-  const densitySegments = useMemo(() => {
-    if (!units || units.length === 0 || duration <= 0) return [];
-    const BINS = 200;
-    const binSize = duration / BINS;
-    const counts = new Array<number>(BINS).fill(0);
-    for (const utt of units) {
-      const binStart = Math.floor(utt.startTime / binSize);
-      const binEnd = Math.min(BINS - 1, Math.floor(utt.endTime / binSize));
-      for (let b = binStart; b <= binEnd; b++) counts[b]!++;
-    }
-    const maxCount = Math.max(1, ...counts);
-    type Segment = { start: number; end: number; level: number };
-    const segments: Segment[] = [];
-    let cur: Segment | null = null;
-    for (let b = 0; b < BINS; b++) {
-      const level = Math.round(((counts[b] ?? 0) / maxCount) * 4);
-      const t = b * binSize;
-      if (cur && cur.level === level) {
-        cur.end = t + binSize;
-      } else {
-        if (cur) segments.push(cur);
-        cur = { start: t, end: t + binSize, level };
-      }
-    }
-    if (cur) segments.push(cur);
-    return segments.filter((s) => s.level > 0);
-  }, [units, duration]);
 
   if (windowSec <= 0) return null;
 
@@ -189,23 +158,6 @@ export function TimeRuler({
         }}
       >
         <svg className="time-ruler-overlay" aria-hidden="true">
-          {densitySegments.map((seg, i) => {
-            const leftPct = ((seg.start - start) / windowSec) * 100;
-            const widthPct = ((seg.end - seg.start) / windowSec) * 100;
-            if (leftPct + widthPct < 0 || leftPct > 100) return null;
-            return (
-              <rect
-                key={`heat-${i}`}
-                className={`time-ruler-heat-band time-ruler-heat-band-level-${seg.level}`}
-                x={`${Math.max(0, leftPct)}%`}
-                y={RULER_HEAT_BAND_Y_PX}
-                width={`${Math.min(100, leftPct + widthPct) - Math.max(0, leftPct)}%`}
-                height={RULER_HEAT_BAND_HEIGHT_PX}
-                rx={1}
-                ry={1}
-              />
-            );
-          })}
           {ticks.map((tk) => {
             const leftPct = ((tk.time - start) / windowSec) * 100;
             const left = `${leftPct}%`;
@@ -237,6 +189,12 @@ export function TimeRuler({
             x2={`${((currentTime - start) / windowSec) * 100}%`}
             y1={0}
             y2={RULER_HEIGHT_PX}
+          />
+          <circle
+            className="time-ruler-cursor-dot"
+            cx={`${((currentTime - start) / windowSec) * 100}%`}
+            cy={2.5}
+            r={2.2}
           />
         </svg>
       </div>

@@ -1,9 +1,16 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import type { Plugin as EsbuildPlugin } from 'esbuild';
+
+// CI 环境提供 SENTRY_AUTH_TOKEN 时自动上传 source map 并删除本地产物 | Upload source maps in CI when SENTRY_AUTH_TOKEN is present
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim();
+const sentryOrg = process.env.SENTRY_ORG?.trim();
+const sentryProject = process.env.SENTRY_PROJECT?.trim();
+const enableSentrySourceMaps = Boolean(sentryAuthToken && sentryOrg && sentryProject);
 
 const packageJson = JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version?: string };
 const appVersion = typeof packageJson.version === 'string' && packageJson.version.trim().length > 0
@@ -93,7 +100,20 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion),
   },
-  plugins: [react(), copyOnnxWasm()],
+  plugins: [
+    react(),
+    copyOnnxWasm(),
+    // Sentry source map 上传：仅在 CI 提供凭据时启用 | Sentry source map upload: only enabled when CI provides credentials
+    ...(enableSentrySourceMaps
+      ? [sentryVitePlugin({
+          org: sentryOrg!,
+          project: sentryProject!,
+          authToken: sentryAuthToken!,
+          release: { name: appVersion },
+          sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+        })]
+      : []),
+  ],
   server: {
     host: true,
     port: 5173,
@@ -107,7 +127,7 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: false,
+    sourcemap: enableSentrySourceMaps ? 'hidden' : false,
     chunkSizeWarningLimit: 1400,
     rollupOptions: {
       onwarn(warning, defaultHandler) {

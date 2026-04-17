@@ -93,9 +93,15 @@
   color: var(--text-primary);
   border-radius: var(--radius-pill);
   padding: 4px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
-  font-weight: 600;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transcription-pdf-preview-close-icon {
+  width: calc(12px * var(--ui-font-scale, 1));
+  height: calc(12px * var(--ui-font-scale, 1));
 }
 
 .transcription-pdf-preview-close:hover {

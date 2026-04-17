@@ -111,11 +111,13 @@ export type SidePaneSidebarMessages = {
   paneSubtitle: string;
   segmentListAria: string;
   segmentListTitle: string;
+  segmentListSubtitle: string;
   segmentListLoading: string;
   segmentListNoSegments: string;
   segmentListNoMatches: string;
   segmentListEmpty: string;
   segmentListFilterPlaceholder: string;
+  segmentListFilterButton: string;
   segmentListContentFilterLabel: string;
   segmentListSpeakerFilterLabel: string;
   segmentListNoteCategoryFilterLabel: string;
@@ -256,11 +258,13 @@ const zhCN: SidePaneSidebarMessages = {
   paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
   segmentListAria: '\u8bed\u6bb5\u5217\u8868',
   segmentListTitle: '\u8bed\u6bb5\u5217\u8868',
+  segmentListSubtitle: '\u6309\u6587\u672c\u3001\u8bf4\u8bdd\u4eba\u4e0e\u6807\u6ce8\u72b6\u6001\u5feb\u901f\u5b9a\u4f4d',
   segmentListLoading: '\u6b63\u5728\u52a0\u8f7d\u8bed\u6bb5\u2026',
   segmentListNoSegments: '\u5f53\u524d\u5c42\u6682\u65e0\u8bed\u6bb5',
   segmentListNoMatches: '\u5f53\u524d\u7b5b\u9009\u6761\u4ef6\u4e0b\u65e0\u5339\u914d\u8bed\u6bb5',
   segmentListEmpty: '\u65e0\u5185\u5bb9',
-  segmentListFilterPlaceholder: '\u7b5b\u9009\u8bed\u6bb5\u2026',
+  segmentListFilterPlaceholder: '\u68c0\u7d22\u8bed\u6bb5\u5185\u5bb9\u2026',
+  segmentListFilterButton: '\u7b5b\u9009',
   segmentListContentFilterLabel: '\u6309\u5185\u5bb9\u72b6\u6001\u7b5b\u9009',
   segmentListSpeakerFilterLabel: '\u6309\u8bf4\u8bdd\u4eba\u7b5b\u9009',
   segmentListNoteCategoryFilterLabel: '\u6309\u5907\u6ce8\u5206\u7c7b\u7b5b\u9009',
@@ -401,11 +405,13 @@ const enUS: SidePaneSidebarMessages = {
   paneSubtitle: 'Layer list, current layer details and quick actions',
   segmentListAria: 'Segment list',
   segmentListTitle: 'Segment list',
+  segmentListSubtitle: 'Quickly locate segments by text, speaker, and status',
   segmentListLoading: 'Loading segments…',
   segmentListNoSegments: 'No segments in the current layer',
   segmentListNoMatches: 'No segments match the current filters',
   segmentListEmpty: 'No content',
-  segmentListFilterPlaceholder: 'Filter segments…',
+  segmentListFilterPlaceholder: 'Search segment text…',
+  segmentListFilterButton: 'Filters',
   segmentListContentFilterLabel: 'Filter by content state',
   segmentListSpeakerFilterLabel: 'Filter by speaker',
   segmentListNoteCategoryFilterLabel: 'Filter by note category',

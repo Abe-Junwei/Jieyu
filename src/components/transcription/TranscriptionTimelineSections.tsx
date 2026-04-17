@@ -194,6 +194,8 @@ type TimelineHeaderSectionProps = {
   instanceRef: RefObject<WaveSurfer | null>;
   waveCanvasRef: RefObject<HTMLDivElement | null>;
   tierContainerRef: RefObject<HTMLDivElement | null>;
+  onWaveformResizeStart?: PointerEventHandler<HTMLDivElement>;
+  isResizingWaveform?: boolean;
 };
 
 export function TimelineHeaderSection({
@@ -209,6 +211,8 @@ export function TimelineHeaderSection({
   instanceRef,
   waveCanvasRef,
   tierContainerRef,
+  onWaveformResizeStart,
+  isResizingWaveform,
 }: TimelineHeaderSectionProps) {
   const hasTimelineContext = isReady || duration > 0 || Boolean(rulerView) || units.length > 0;
   const canRenderOverviewBar = isReady && duration > 0;
@@ -221,10 +225,11 @@ export function TimelineHeaderSection({
       {canRenderOverviewBar ? (
         <WaveformOverviewBar
           duration={duration}
-          units={units}
           rulerView={rulerView}
           onSeek={onSeek}
           isReady={isReady}
+          {...(onWaveformResizeStart ? { onResizeStart: onWaveformResizeStart } : {})}
+          {...(isResizingWaveform !== undefined ? { isResizingWaveform } : {})}
         />
       ) : shouldReserveOverviewSlot ? (
         <div className="waveform-overview-bar waveform-overview-placeholder" aria-hidden="true" />

@@ -140,6 +140,57 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     unit: 'count',
     description: 'Local tool execution was paused to request clarification for ambiguous metric/query/target.',
   },
+  // ─── AI trace span 指标 | AI trace span metrics ───────────────────────
+  {
+    id: 'ai.trace.llm_request_latency_ms',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'histogram',
+    unit: 'ms',
+    description: 'Total wall-clock latency of a single LLM request (primary or after fallback).',
+    targetP95: 15_000,
+  },
+  {
+    id: 'ai.trace.llm_first_token_ms',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'histogram',
+    unit: 'ms',
+    description: 'Time from request start to first streamed token.',
+    targetP95: 8_000,
+  },
+  {
+    id: 'ai.trace.llm_request_error_count',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'counter',
+    unit: 'count',
+    description: 'Count of LLM requests that ended with an error.',
+  },
+  {
+    id: 'ai.trace.llm_fallback_count',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'counter',
+    unit: 'count',
+    description: 'Count of LLM requests that fell back to secondary provider.',
+  },
+  {
+    id: 'ai.trace.tool_execution_latency_ms',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'histogram',
+    unit: 'ms',
+    description: 'Wall-clock latency of a single tool execution within the agent loop.',
+  },
+  {
+    id: 'ai.trace.agent_loop_step_latency_ms',
+    category: 'ai',
+    module: 'ai-trace',
+    kind: 'histogram',
+    unit: 'ms',
+    description: 'Wall-clock latency of one agent loop step (stream + tool resolution).',
+  },
 ] as const;
 
 const METRIC_ID_SET = new Set(M5_METRIC_CATALOG.map((item) => item.id));

@@ -128,6 +128,13 @@
 
 .ai-chat-replay-panel-diff-value.is-match {
   color: var(--state-success-text);
+  display: inline-flex;
+  align-items: center;
+}
+
+.ai-chat-replay-panel-diff-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .ai-chat-replay-panel-diff-value.is-changed {

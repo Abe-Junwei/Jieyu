@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeCollaborationDigest, detectCollaborationConflicts, duplicateResolvedRecord, evaluateResolutionConsistency, resolveCollaborationConflicts, type CollaborationRecord } from './collaborationConflictRuntime';
+import { computeCollaborationDigest, createConflictResolutionLog, detectCollaborationConflicts, duplicateResolvedRecord, evaluateResolutionConsistency, resolveCollaborationConflicts, type CollaborationRecord } from './collaborationConflictRuntime';
 
 function buildRecord(overrides?: Partial<CollaborationRecord>): CollaborationRecord {
   return {
@@ -137,5 +137,21 @@ describe('collaboration conflict runtime', () => {
     const consistency = evaluateResolutionConsistency(resolved, [replicaA, replicaB]);
     expect(consistency.consistent).toBe(true);
     expect(consistency.mismatchCount).toBe(0);
+  });
+
+  it('[oplog] creates structured operation log for resolved conflicts', () => {
+    const record = buildRecord({ version: 5, updatedAt: 4_000 });
+    const log = createConflictResolutionLog(
+      record,
+      'last-write-wins',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'Field value diverged on text.' }],
+      4_001,
+    );
+
+    expect(log.type).toBe('conflict_resolved');
+    expect(log.entityId).toBe(record.entityId);
+    expect(log.sessionId).toBe(record.sessionId);
+    expect(log.at).toBe(4_001);
+    expect(log.payloadDigest.length).toBeGreaterThan(0);
   });
 });

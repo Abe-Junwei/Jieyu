@@ -28,6 +28,10 @@
   margin-right: 1px;
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
+  --timeline-annotation-side-stack-top: 4px;
+  --timeline-annotation-side-stack-right: 5px;
+  --timeline-annotation-side-stack-size: 16px;
+  --timeline-annotation-side-stack-gap: 4px;
 }
 
 .timeline-text-item-has-self-certainty {

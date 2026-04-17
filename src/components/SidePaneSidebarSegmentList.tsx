@@ -72,6 +72,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const [certaintyFilter, setCertaintyFilter] = useState<'' | UnitSelfCertainty>('');
   const [annotationStatusFilter, setAnnotationStatusFilter] = useState<'' | LayerUnitStatus>('');
   const [sourceTypeFilter, setSourceTypeFilter] = useState<'' | SegmentSourceType>('');
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [segmentMetaRows, setSegmentMetaRows] = useState<SegmentMetaDocType[]>([]);
   const [segmentMetaLoading, setSegmentMetaLoading] = useState(false);
   const [segmentMetaHydrated, setSegmentMetaHydrated] = useState(false);
@@ -225,16 +226,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         const certainty = linkedUnit?.selfCertainty;
         const annotationStatus = linkedUnit?.status;
         const empty = text.length === 0;
-        const searchIndex = [
-          text,
-          empty ? messages.segmentListEmpty : '',
-          formatTime(segment.startTime),
-          formatTime(segment.endTime),
-          ...(speakerLabel ? [speakerLabel] : []),
-          ...(certainty ? [getSegmentCertaintyLabel(certainty, messages)] : []),
-          ...(annotationStatus ? [getSegmentAnnotationStatusLabel(annotationStatus, messages)] : []),
-          getSegmentContentStateLabel(empty ? 'empty_text' : 'has_text', messages),
-        ].join(' ').toLowerCase();
+        const searchIndex = text.toLowerCase();
 
         return {
           key: `${focusedLayerRowId}::fallback::${segment.id}`,
@@ -265,16 +257,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         const certainty = unit.selfCertainty;
         const annotationStatus = unit.status;
         const empty = text.length === 0;
-        const searchIndex = [
-          text,
-          empty ? messages.segmentListEmpty : '',
-          formatTime(unit.startTime),
-          formatTime(unit.endTime),
-          ...(speakerLabel ? [speakerLabel] : []),
-          ...(certainty ? [getSegmentCertaintyLabel(certainty, messages)] : []),
-          ...(annotationStatus ? [getSegmentAnnotationStatusLabel(annotationStatus, messages)] : []),
-          getSegmentContentStateLabel(empty ? 'empty_text' : 'has_text', messages),
-        ].join(' ').toLowerCase();
+        const searchIndex = text.toLowerCase();
 
         return {
           key: `${focusedLayerRowId}::fallback::${unit.id}`,
@@ -311,18 +294,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       ? (sourceLayer?.id ?? row.layerId)
       : row.layerId;
     const empty = !row.hasText;
-    const searchIndex = [
-      text,
-      empty ? messages.segmentListEmpty : '',
-      formatTime(row.startTime),
-      formatTime(row.endTime),
-      ...speakerLabels,
-      ...noteCategories.map((category) => getSegmentNoteCategoryLabel(category, messages)),
-      ...(certainty ? [getSegmentCertaintyLabel(certainty, messages)] : []),
-      ...(annotationStatus ? [getSegmentAnnotationStatusLabel(annotationStatus, messages)] : []),
-      ...(sourceType ? [getSegmentSourceTypeLabel(sourceType, messages)] : []),
-      getSegmentContentStateLabel(row.hasText ? 'has_text' : 'empty_text', messages),
-    ].join(' ').toLowerCase();
+    const searchIndex = text.toLowerCase();
 
       return {
         key: row.id,
@@ -533,138 +505,176 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     || certaintyOptions.length > 0
     || annotationStatusOptions.length > 0
     || sourceTypeOptions.length > 0;
+  const activeFacetCount = [contentStateFilter, speakerFilter, noteCategoryFilter, certaintyFilter, annotationStatusFilter, sourceTypeFilter]
+    .filter((value) => Boolean(value)).length;
+  const visibleCount = filtered.length;
+  const totalCount = items.length;
 
   return (
     <section className="app-side-pane-group app-side-pane-segment-list-group" aria-label={messages.segmentListAria}>
-      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-        <span className="app-side-pane-section-title">{messages.segmentListTitle}</span>
+      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static app-side-pane-segment-list-heading" role="presentation">
+        <div className="app-side-pane-segment-list-heading-copy">
+          <span className="app-side-pane-section-title">{messages.segmentListTitle}</span>
+          <p className="app-side-pane-segment-list-heading-subtitle">{messages.segmentListSubtitle}</p>
+        </div>
+        <span className="app-side-pane-segment-list-heading-badge" aria-label={`${visibleCount}/${totalCount}`}>
+          {hasActiveFilters ? `${visibleCount}/${totalCount}` : totalCount}
+        </span>
       </div>
       <div className="app-side-pane-segment-list-filter">
-        <input
-          type="text"
-          className="app-side-pane-segment-list-filter-input"
-          placeholder={messages.segmentListFilterPlaceholder}
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          aria-label={messages.segmentListFilterPlaceholder}
-        />
-        {hasFacetFilters ? (
-          <div className="app-side-pane-segment-list-filter-grid">
-            {contentStateOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListContentFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={contentStateFilter}
-                  onChange={(e) => setContentStateFilter(e.target.value as '' | SegmentContentStateFilter)}
-                  aria-label={messages.segmentListContentFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {contentStateOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {annotationStatusOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListAnnotationStatusFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={annotationStatusFilter}
-                  onChange={(e) => setAnnotationStatusFilter(e.target.value as '' | LayerUnitStatus)}
-                  aria-label={messages.segmentListAnnotationStatusFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {annotationStatusOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {sourceTypeOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListSourceTypeFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={sourceTypeFilter}
-                  onChange={(e) => setSourceTypeFilter(e.target.value as '' | SegmentSourceType)}
-                  aria-label={messages.segmentListSourceTypeFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {sourceTypeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {speakerOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListSpeakerFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={speakerFilter}
-                  onChange={(e) => setSpeakerFilter(e.target.value)}
-                  aria-label={messages.segmentListSpeakerFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {speakerOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {noteCategoryOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListNoteCategoryFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={noteCategoryFilter}
-                  onChange={(e) => setNoteCategoryFilter(e.target.value)}
-                  aria-label={messages.segmentListNoteCategoryFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {noteCategoryOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {certaintyOptions.length > 0 ? (
-              <label className="app-side-pane-segment-list-filter-field">
-                <span className="app-side-pane-segment-list-filter-label">{messages.segmentListCertaintyFilterLabel}</span>
-                <select
-                  className="app-side-pane-segment-list-filter-select"
-                  value={certaintyFilter}
-                  onChange={(e) => setCertaintyFilter(e.target.value as '' | UnitSelfCertainty)}
-                  aria-label={messages.segmentListCertaintyFilterLabel}
-                >
-                  <option value="">{messages.speakerFilterAllLabel}</option>
-                  {certaintyOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
+        <div className="app-side-pane-segment-list-filter-toolbar">
+          <div className="app-side-pane-segment-list-search-shell">
+            <span className="app-side-pane-segment-list-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 20 20" className="app-side-pane-segment-list-search-icon-svg" focusable="false">
+                <circle cx="8.5" cy="8.5" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M12 12l4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              className="app-side-pane-segment-list-filter-input"
+              placeholder=""
+              value={filterText}
+              onChange={(e) => setFilterText(e.target.value)}
+              aria-label={messages.segmentListFilterPlaceholder}
+            />
           </div>
-        ) : null}
-        {hasActiveFilters ? (
-          <button
-            type="button"
-            className="app-side-pane-segment-list-filter-reset"
-            onClick={() => {
-              setFilterText('');
-              setContentStateFilter('');
-              setSpeakerFilter('');
-              setNoteCategoryFilter('');
-              setCertaintyFilter('');
-              setAnnotationStatusFilter('');
-              setSourceTypeFilter('');
-            }}
-          >
-            {messages.segmentListFilterReset}
-          </button>
-        ) : null}
+          {hasFacetFilters ? (
+            <div className={`app-side-pane-segment-list-filter-box${isFilterMenuOpen ? ' is-open' : ''}`}>
+              <button
+                type="button"
+                className="app-side-pane-segment-list-filter-trigger"
+                aria-expanded={isFilterMenuOpen}
+                onClick={() => setIsFilterMenuOpen((value) => !value)}
+              >
+                <span className="app-side-pane-segment-list-filter-trigger-label">{messages.segmentListFilterButton}</span>
+                {activeFacetCount > 0 ? (
+                  <span className="app-side-pane-segment-list-filter-trigger-count">{activeFacetCount}</span>
+                ) : null}
+                <span className="app-side-pane-segment-list-filter-trigger-caret" aria-hidden="true">▾</span>
+              </button>
+              {isFilterMenuOpen ? (
+                <div className="app-side-pane-segment-list-filter-panel">
+                  <div className="app-side-pane-segment-list-filter-grid">
+                    {contentStateOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListContentFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={contentStateFilter}
+                          onChange={(e) => setContentStateFilter(e.target.value as '' | SegmentContentStateFilter)}
+                          aria-label={messages.segmentListContentFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {contentStateOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {annotationStatusOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListAnnotationStatusFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={annotationStatusFilter}
+                          onChange={(e) => setAnnotationStatusFilter(e.target.value as '' | LayerUnitStatus)}
+                          aria-label={messages.segmentListAnnotationStatusFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {annotationStatusOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {sourceTypeOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListSourceTypeFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={sourceTypeFilter}
+                          onChange={(e) => setSourceTypeFilter(e.target.value as '' | SegmentSourceType)}
+                          aria-label={messages.segmentListSourceTypeFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {sourceTypeOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {speakerOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListSpeakerFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={speakerFilter}
+                          onChange={(e) => setSpeakerFilter(e.target.value)}
+                          aria-label={messages.segmentListSpeakerFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {speakerOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {noteCategoryOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListNoteCategoryFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={noteCategoryFilter}
+                          onChange={(e) => setNoteCategoryFilter(e.target.value)}
+                          aria-label={messages.segmentListNoteCategoryFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {noteCategoryOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    {certaintyOptions.length > 0 ? (
+                      <label className="app-side-pane-segment-list-filter-field">
+                        <span className="app-side-pane-segment-list-filter-label">{messages.segmentListCertaintyFilterLabel}</span>
+                        <select
+                          className="app-side-pane-segment-list-filter-select"
+                          value={certaintyFilter}
+                          onChange={(e) => setCertaintyFilter(e.target.value as '' | UnitSelfCertainty)}
+                          aria-label={messages.segmentListCertaintyFilterLabel}
+                        >
+                          <option value="">{messages.speakerFilterAllLabel}</option>
+                          {certaintyOptions.map((option) => (
+                            <option key={option.value} value={option.value}>{`${option.label} (${option.count})`}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {hasActiveFilters ? (
+            <button
+              type="button"
+              className="app-side-pane-segment-list-filter-reset"
+              onClick={() => {
+                setFilterText('');
+                setContentStateFilter('');
+                setSpeakerFilter('');
+                setNoteCategoryFilter('');
+                setCertaintyFilter('');
+                setAnnotationStatusFilter('');
+                setSourceTypeFilter('');
+              }}
+            >
+              {messages.segmentListFilterReset}
+            </button>
+          ) : null}
+        </div>
       </div>
       <div className="app-side-pane-segment-list-scroll">
         {filtered.length === 0 ? (

@@ -29,7 +29,7 @@ describe('NotePopover', () => {
 
     const dialog = screen.getByRole('dialog');
     const overlay = dialog.parentElement?.parentElement as HTMLDivElement;
-    const addButton = screen.getByRole('button', { name: /新增备注|添加备注|add/i });
+    const addButton = screen.getByRole('button', { name: /新增|添加|add/i });
     const closeButton = screen.getByRole('button', { name: '关闭备注面板' });
 
     expect(dialog.className).toContain('dialog-card');
@@ -60,11 +60,11 @@ describe('NotePopover', () => {
       </LocaleProvider>,
     );
 
-    fireEvent.change(screen.getByPlaceholderText(/输入新备注|添加备注/u), {
+    fireEvent.change(screen.getByPlaceholderText(/输入备注|添加备注/u), {
       target: { value: '新备注' },
     });
 
-      fireEvent.click(screen.getByRole('button', { name: /\u65b0\u589e\u5907\u6ce8|\u6dfb\u52a0/ }));
+      fireEvent.click(screen.getByRole('button', { name: /\u65b0\u589e|\u6dfb\u52a0/ }));
 
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith({ default: '新备注' }, 'comment');

@@ -20,6 +20,7 @@ import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelin
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EMPTY_SPEAKER_LAYOUT, normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
+import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 function buildTextTimelineSelfCertaintyTitle(
@@ -604,34 +605,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     }
                   }}
                 />
-                {cellSelfCertainty === 'certain' && selfCertaintyTitle ? (
-                  <span
-                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--certain"
+                {cellSelfCertainty && selfCertaintyTitle ? (
+                  <SelfCertaintyIcon
+                    certainty={cellSelfCertainty}
+                    className="timeline-annotation-self-certainty"
                     title={selfCertaintyTitle}
-                    aria-label={selfCertaintyTitle}
-                  >
-                    <span aria-hidden className="timeline-annotation-self-certainty-icon">✓</span>
-                  </span>
-                ) : null}
-                {cellSelfCertainty === 'not_understood' && selfCertaintyTitle ? (
-                  <span
-                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--not-understood"
-                    title={selfCertaintyTitle}
-                    aria-label={selfCertaintyTitle}
-                  >
-                    <span aria-hidden className="timeline-annotation-self-certainty-icon">?</span>
-                  </span>
-                ) : null}
-                {cellSelfCertainty === 'uncertain' && selfCertaintyTitle ? (
-                  <span
-                    className="timeline-annotation-self-certainty timeline-annotation-self-certainty--uncertain"
-                    title={selfCertaintyTitle}
-                    aria-label={selfCertaintyTitle}
-                  >
-                    <span className="timeline-annotation-self-certainty-wavy" aria-hidden>
-                      {'\u2248'}
-                    </span>
-                  </span>
+                    ariaLabel={selfCertaintyTitle}
+                  />
                 ) : null}
               </TimelineStyledContainer>
             );

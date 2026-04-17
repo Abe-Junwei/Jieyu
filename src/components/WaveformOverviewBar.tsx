@@ -6,24 +6,25 @@
  * Click or drag to seek.
  */
 import { useCallback, useEffect, useRef } from 'react';
-import type { LayerUnitDocType } from '../db';
 import { t, useLocale } from '../i18n';
 
 interface WaveformOverviewBarProps {
   duration: number;
-  units: LayerUnitDocType[];
   /** Currently visible ruler window, or null while the waveform is not ready */
   rulerView: { start: number; end: number } | null;
   onSeek: (time: number) => void;
   isReady: boolean;
+  onResizeStart?: (event: React.PointerEvent<HTMLDivElement>) => void;
+  isResizingWaveform?: boolean;
 }
 
 export function WaveformOverviewBar({
   duration,
-  units,
   rulerView,
   onSeek,
   isReady,
+  onResizeStart,
+  isResizingWaveform,
 }: WaveformOverviewBarProps) {
   const locale = useLocale();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -57,31 +58,21 @@ export function WaveformOverviewBar({
     ctx.fillStyle = readThemeColor('--surface-elevated', '--surface-panel');
     ctx.fillRect(0, 0, W, H);
 
-    // 语段色块 | Unit segments
-    ctx.fillStyle = readThemeColor('--state-info-solid', '--header-accent');
-    ctx.globalAlpha = 0.55;
-    for (const utt of units) {
-      const start = Math.max(0, Math.min(duration, utt.startTime));
-      const end = Math.max(start, Math.min(duration, utt.endTime));
-      const x = Math.floor((start / duration) * W);
-      const w = Math.max(2, Math.ceil(((end - start) / duration) * W));
-      ctx.fillRect(x, 3, w, H - 6);
-    }
-    ctx.globalAlpha = 1.0;
+    // 左侧语段带会和视口高亮混淆，鸟瞰仅保留视口指示 | Remove segment band to avoid confusion; keep only viewport cue
 
     // 视口指示框 | Viewport indicator
     if (rulerView) {
       const vx = (rulerView.start / duration) * W;
       const vw = Math.max(4, ((rulerView.end - rulerView.start) / duration) * W);
-      ctx.fillStyle = readThemeColor('--state-danger-solid', '--header-accent');
-      ctx.globalAlpha = 0.10;
+      ctx.fillStyle = readThemeColor('--header-accent', '--state-info-solid');
+      ctx.globalAlpha = 0.18;
       ctx.fillRect(vx, 0, vw, H);
       ctx.globalAlpha = 1.0;
-      ctx.strokeStyle = readThemeColor('--state-danger-solid', '--header-accent');
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = readThemeColor('--header-accent', '--state-info-solid');
+      ctx.lineWidth = 1.25;
       ctx.strokeRect(vx + 0.75, 0.75, vw - 1.5, H - 1.5);
     }
-  }, [duration, readThemeColor, units, rulerView]);
+  }, [duration, readThemeColor, rulerView]);
 
   /** 绑定 ResizeObserver，使 canvas 跟随容器宽度 | Bind ResizeObserver to follow container width */
   useEffect(() => {
@@ -131,6 +122,21 @@ export function WaveformOverviewBar({
         onPointerUp={() => { isDraggingRef.current = false; }}
         onPointerCancel={() => { isDraggingRef.current = false; }}
       />
+      {onResizeStart ? (
+        <div
+          className={`waveform-overview-resize-handle${isResizingWaveform ? ' waveform-overview-resize-handle-resizing' : ''}`}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            onResizeStart(event);
+          }}
+          role="separator"
+          aria-orientation="horizontal"
+          title={t(locale, 'transcription.wave.resizeHeight')}
+          aria-label={t(locale, 'transcription.wave.resizeHeight')}
+        >
+          <div className="waveform-overview-resize-handle-dots" />
+        </div>
+      ) : null}
     </div>
   );
 }

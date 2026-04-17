@@ -1,3 +1,5 @@
+import { createCollaborationOperationLog, type CollaborationOperationLog } from './collaborationOpLog';
+
 export type CollaborationStage = 'async' | 'same-device-realtime' | 'cross-device';
 
 export type ConflictScope = 'field' | 'entity' | 'session';
@@ -276,4 +278,19 @@ export function evaluateResolutionConsistency(
 
 export function duplicateResolvedRecord(record: CollaborationRecord): CollaborationRecord {
   return cloneRecord(record);
+}
+
+export function createConflictResolutionLog(
+  record: CollaborationRecord,
+  strategy: ConflictResolutionStrategy,
+  conflicts: ConflictDescriptor[],
+  at = Date.now(),
+): CollaborationOperationLog {
+  return createCollaborationOperationLog({
+    type: 'conflict_resolved',
+    entityId: record.entityId,
+    sessionId: record.sessionId,
+    at,
+    payloadSource: `${strategy}:${record.version}:${record.updatedAt}:${conflicts.map((item) => `${item.scope}:${item.code}:${item.fieldKey ?? '*'}`).join('|')}`,
+  });
 }

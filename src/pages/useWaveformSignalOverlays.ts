@@ -20,9 +20,22 @@ interface UseWaveformSignalOverlaysResult {
 }
 
 export function useWaveformSignalOverlays(input: UseWaveformSignalOverlaysInput): UseWaveformSignalOverlaysResult {
-  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(input.unitsOnCurrentMedia, {
+  const visibleWaveformAnalysisRows = useMemo(() => {
+    const confidenceById = new Map(
+      input.unitsOnCurrentMedia.map((unit) => [unit.id, unit.ai_metadata] as const),
+    );
+
+    return input.waveformTimelineItems.map((item) => ({
+      id: item.id,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      ...(confidenceById.get(item.id) ? { ai_metadata: confidenceById.get(item.id) } : {}),
+    }));
+  }, [input.unitsOnCurrentMedia, input.waveformTimelineItems]);
+
+  const waveformAnalysisSummary = useMemo(() => buildWaveformAnalysisOverlaySummary(visibleWaveformAnalysisRows, {
     ...(input.vadSegments ? { vadSegments: input.vadSegments } : {}),
-  }), [input.unitsOnCurrentMedia, input.vadSegments]);
+  }), [input.vadSegments, visibleWaveformAnalysisRows]);
 
   const waveformNoteIndicators = useMemo(() => {
     const result: WaveformNoteIndicator[] = [];

@@ -1,6 +1,6 @@
 import { memo, useCallback, useMemo, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
+import { JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
@@ -184,8 +184,6 @@ export const NotePanel = memo(function NotePanel({
 
       <PanelSection
         className="note-panel-add"
-        title={messages.composerSectionTitle}
-        description={messages.composerHint}
       >
         <textarea
           className="panel-input note-panel-textarea"
@@ -196,21 +194,22 @@ export const NotePanel = memo(function NotePanel({
           aria-label={messages.newNoteContentLabel}
         />
         <div className="note-panel-add-actions">
-          <select
-            className="panel-input note-panel-category-select select-caret"
-            value={newCategory}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => setNewCategory(e.target.value as NoteCategory | '')}
-            aria-label={messages.newNoteCategoryLabel}
-          >
-            <option value="">{messages.noCategory}</option>
+          <div className="note-panel-tags" role="group" aria-label={messages.newNoteCategoryLabel}>
             {categories.map((c) => (
-              <option key={c.value} value={c.value}>
+              <button
+                key={c.value}
+                type="button"
+                className={`note-panel-category note-panel-category-${c.value}${newCategory === c.value ? ' note-panel-category-selected' : ''}`}
+                onClick={() => setNewCategory(c.value)}
+                aria-label={`${messages.newNoteCategoryLabel}: ${c.label}`}
+                aria-pressed={newCategory === c.value}
+              >
                 {c.label}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
           <PanelButton variant="primary" className="note-panel-btn note-panel-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <MaterialSymbol name="add" className={JIEYU_MATERIAL_INLINE} /> {messages.add}
+            {messages.add}
           </PanelButton>
         </div>
       </PanelSection>

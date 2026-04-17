@@ -2,6 +2,7 @@ import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
 import type { LayerDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { fireAndForget } from '../utils/fireAndForget';
+import { WrenchIcon } from './SvgIcons';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
 import { ActionButtonGroup } from './ui';
 import { SidePaneActionModal } from './SidePaneActionModal';
@@ -83,7 +84,7 @@ export function SidePaneSidebarActions({
           fireAndForget(onRunRepair());
         }}
       >
-        <span className="transcription-side-pane-quick-action-icon" aria-hidden="true">🔧</span>
+        <WrenchIcon className="transcription-side-pane-quick-action-icon" />
         <span className="transcription-side-pane-quick-action-label">{constraintRepairBusy ? messages.quickActionRepairing : messages.quickActionRepair}</span>
       </button>
 

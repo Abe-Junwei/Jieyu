@@ -1,4 +1,10 @@
 import { computeCollaborationDigest, evaluateResolutionConsistency, type CollaborationRecord, type ConflictDescriptor, type ConflictResolutionStrategy } from './collaborationConflictRuntime';
+import {
+  createCollaborationOperationLog,
+  type CollaborationOperationLog,
+} from './collaborationOpLog';
+
+export { appendOperationLog, type CollaborationOperationLog, type CollaborationOperationType } from './collaborationOpLog';
 
 export type ConflictPriority = 'critical' | 'high' | 'medium' | 'low';
 
@@ -38,16 +44,6 @@ export interface ArbitrationTicket {
   note?: string;
 }
 
-export type CollaborationOperationType = 'arbitration_requested' | 'arbitration_decided' | 'reconnect_validated';
-
-export interface CollaborationOperationLog {
-  logId: string;
-  type: CollaborationOperationType;
-  entityId: string;
-  sessionId: string;
-  at: number;
-  payloadDigest: string;
-}
 
 export interface ReconnectConsistencyResult {
   consistent: boolean;
@@ -186,43 +182,22 @@ export function openArbitrationTicket(input: OpenArbitrationTicketInput): Arbitr
 }
 
 export function toArbitrationOperationLogs(ticket: ArbitrationTicket): CollaborationOperationLog[] {
-  const requestDigest = hashString(`${ticket.ticketId}:request:${ticket.prioritizedConflicts.length}`);
-  const decisionDigest = hashString(
-    `${ticket.ticketId}:decision:${ticket.decision.selectedStrategy}:${ticket.decision.accepted}`,
-  );
-
   return [
-    {
-      logId: `log_${hashString(`${ticket.ticketId}:requested`)}`,
+    createCollaborationOperationLog({
       type: 'arbitration_requested',
       entityId: ticket.entityId,
       sessionId: ticket.localSessionId,
       at: ticket.createdAt,
-      payloadDigest: requestDigest,
-    },
-    {
-      logId: `log_${hashString(`${ticket.ticketId}:decided`)}`,
+      payloadSource: `${ticket.ticketId}:request:${ticket.prioritizedConflicts.length}`,
+    }),
+    createCollaborationOperationLog({
       type: 'arbitration_decided',
       entityId: ticket.entityId,
       sessionId: ticket.localSessionId,
       at: ticket.createdAt + 1,
-      payloadDigest: decisionDigest,
-    },
+      payloadSource: `${ticket.ticketId}:decision:${ticket.decision.selectedStrategy}:${ticket.decision.accepted}`,
+    }),
   ];
-}
-
-export function appendOperationLog(
-  logs: CollaborationOperationLog[],
-  incoming: CollaborationOperationLog,
-): CollaborationOperationLog[] {
-  const merged = [...logs, incoming];
-  merged.sort((left, right) => {
-    if (left.at !== right.at) {
-      return left.at - right.at;
-    }
-    return left.logId.localeCompare(right.logId);
-  });
-  return merged;
 }
 
 export function validateReconnectConsistency(
@@ -256,16 +231,11 @@ export function createReconnectValidationLog(
   result: ReconnectConsistencyResult,
   at = Date.now(),
 ): CollaborationOperationLog {
-  const payloadDigest = hashString(
-    `${result.digest}:${result.mismatchCount}:${result.hasStructuralDamage}:${result.replicaDigests.join('|')}`,
-  );
-
-  return {
-    logId: `log_${hashString(`${entityId}:${sessionId}:${at}:reconnect`)}`,
+  return createCollaborationOperationLog({
     type: 'reconnect_validated',
     entityId,
     sessionId,
     at,
-    payloadDigest,
-  };
+    payloadSource: `${result.digest}:${result.mismatchCount}:${result.hasStructuralDamage}:${result.replicaDigests.join('|')}`,
+  });
 }

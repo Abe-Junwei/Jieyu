@@ -1,4 +1,5 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './providers/LLMProvider';
+import { generateTraceId, startAiTraceSpan, type ActiveSpan } from '../observability/aiTrace';
 
 export interface SendMessageInput {
   history: ChatMessage[];
@@ -72,13 +73,41 @@ export class ChatOrchestrator {
     const primary = this.provider;
     const fallback = this.fallbackProvider;
 
+    const traceId = generateTraceId();
+    const span = startAiTraceSpan({
+      kind: 'llm-request',
+      traceId,
+      provider: primary.id,
+      ...(input.options?.model !== undefined ? { model: input.options.model } : {}),
+    });
+
     // 包装 stream：主 provider 遇到可重试错误时自动降级到 fallback
     // Wrap stream: auto-fallback to secondary provider on retryable errors
-    const wrappedStream = fallback
-      ? this.streamWithFallback(primary, fallback, nextMessages, input.options)
+    const rawStream = fallback
+      ? this.streamWithFallback(primary, fallback, nextMessages, input.options, span)
       : primary.chat(nextMessages, input.options);
 
-    return { messages: nextMessages, stream: wrappedStream };
+    // 包装 stream 以自动记录 span 生命周期 | Wrap stream to auto-track span lifecycle
+    const tracedStream = this.wrapStreamWithTrace(rawStream, span);
+
+    return { messages: nextMessages, stream: tracedStream };
+  }
+
+  private async *wrapStreamWithTrace(
+    stream: AsyncGenerator<ChatChunk, void, unknown>,
+    span: ActiveSpan,
+  ): AsyncGenerator<ChatChunk, void, unknown> {
+    try {
+      for await (const chunk of stream) {
+        if (chunk.delta && chunk.delta.length > 0) span.markFirstToken();
+        yield chunk;
+        if (chunk.done) { span.end(); return; }
+      }
+      span.end();
+    } catch (error) {
+      span.endWithError(error instanceof Error ? error.message : String(error));
+      throw error;
+    }
   }
 
   private async *streamWithFallback(
@@ -86,6 +115,7 @@ export class ChatOrchestrator {
     fallback: LLMProvider,
     messages: ChatMessage[],
     options?: ChatRequestOptions,
+    span?: ActiveSpan,
   ): AsyncGenerator<ChatChunk, void, unknown> {
     let usedFallback = false;
     let hasYielded = false;
@@ -110,6 +140,7 @@ export class ChatOrchestrator {
     }
 
     if (usedFallback) {
+      span?.markFallback(fallback.id);
       // 降级到备用 provider | Fallback to secondary provider
       // 若主模型已输出部分内容后中断，提示可能存在重复 | If primary already emitted partial content, warn about potential duplicates
       const retryable = isRetryableStreamError(fallbackError);

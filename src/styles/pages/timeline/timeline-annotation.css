@@ -23,9 +23,9 @@
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
   --timeline-annotation-side-stack-top: 4px;
   --timeline-annotation-side-stack-right: 5px;
-  --timeline-annotation-side-stack-size: 18px;
+  --timeline-annotation-side-stack-size: 16px;
   --timeline-annotation-side-stack-gap: 4px;
-  --timeline-annotation-tools-row-height: 18px;
+  --timeline-annotation-tools-row-height: 16px;
 }
 
 /* 空段（未转写）显示极浅灰底色，标识“这里有段” | Empty segment: faint bg as slot indicator */
@@ -100,6 +100,14 @@
   padding-right: 56px;
 }
 
+.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
+  padding-right: 28px;
+}
+
+.timeline-annotation-has-self-certainty .timeline-annotation-input {
+  padding-right: 32px;
+}
+
 .timeline-annotation:has(.timeline-annotation-note-icon) > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
   padding-right: 28px;
 }
@@ -119,7 +127,27 @@
   pointer-events: auto;
 }
 
+.timeline-annotation-has-self-certainty .timeline-annotation-tools {
+  right: calc(
+    var(--timeline-annotation-side-stack-right)
+    + var(--timeline-annotation-side-stack-size)
+    + var(--timeline-annotation-side-stack-gap)
+    + 2px
+  );
+}
+
+.timeline-annotation-has-self-certainty .timeline-annotation-overlap-cycle-badge {
+  right: calc(6px + var(--timeline-annotation-side-stack-size) + var(--timeline-annotation-side-stack-gap) + 2px);
+}
+
 /* speaker-badge 已迁至 divider-color 方案，保留类名但不再渲染独立元素 | speaker-badge migrated to divider-color, class kept for compat */
+
+.timeline-annotation-speaker-dot {
+  width: 8px;
+  height: 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
 
 .timeline-annotation-overlap-cycle-badge {
   position: absolute;
@@ -247,58 +275,49 @@
   box-shadow: none;
 }
 
-/* 自我确信度角标（右侧竖排）| Self-certainty badge in the right-side vertical stack */
-.timeline-annotation-has-self-certainty > span:not(.timeline-annotation-speaker-badge):not(.timeline-annotation-overlap-cycle-badge):not(.timeline-annotation-self-certainty) {
-  padding-right: 28px;
-}
-
-.timeline-annotation-has-self-certainty .timeline-annotation-input {
-  padding-right: 32px;
-}
-
+/* 自我确信度角标固定锚在右上角；临时工具位向左让位，避免 hover/active 时跳位 | Keep self-certainty pinned to the top-right; move transient controls left instead of moving the badge. */
 .timeline-annotation-self-certainty {
   position: absolute;
-  top: var(--timeline-annotation-side-stack-top);
-  right: calc(var(--timeline-annotation-side-stack-right) - 1px);
+  top: var(--timeline-annotation-side-stack-top, 4px);
+  right: var(--timeline-annotation-side-stack-right, 5px);
   z-index: calc(var(--z-overlay-base) + 3);
   display: grid;
   place-items: center;
-  min-width: var(--timeline-annotation-side-stack-size);
-  width: var(--timeline-annotation-side-stack-size);
-  height: var(--timeline-annotation-side-stack-size);
+  min-width: var(--timeline-annotation-side-stack-size, 16px);
+  width: var(--timeline-annotation-side-stack-size, 16px);
+  height: var(--timeline-annotation-side-stack-size, 16px);
   line-height: 1;
   box-sizing: border-box;
   pointer-events: none;
   border-radius: 999px;
-  border: 1.45px solid currentColor;
-  background: transparent;
-  box-shadow: none;
-  --timeline-self-certainty-symbol-color: currentColor;
+  border: 1.5px solid currentColor;
+  background: color-mix(in srgb, var(--surface-panel) 94%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--surface-panel) 68%, transparent);
+  opacity: 0.98;
 }
 
-.timeline-annotation:has(.timeline-annotation-tools) .timeline-annotation-self-certainty {
-  top: calc(var(--timeline-annotation-side-stack-top) + var(--timeline-annotation-tools-row-height) + var(--timeline-annotation-side-stack-gap));
-}
-
-.timeline-annotation-note-icon {
-  z-index: calc(var(--z-overlay-base) + 1);
-}
-
-.timeline-annotation-self-certainty-icon {
+.timeline-annotation-self-certainty-icon,
+.timeline-annotation-self-certainty-wavy {
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 850;
   font-family: system-ui, sans-serif;
-  color: var(--timeline-self-certainty-symbol-color);
+  font-weight: 850;
+  line-height: 1;
+  color: currentColor;
 }
 
-.timeline-annotation-self-certainty--certain .timeline-annotation-self-certainty-icon,
-.timeline-annotation-self-certainty--not-understood .timeline-annotation-self-certainty-icon {
-  color: var(--timeline-self-certainty-symbol-color);
+.timeline-annotation-self-certainty-icon {
+  font-size: 10px;
+}
+
+.timeline-annotation-self-certainty-wavy {
+  font-size: 9px;
+}
+
+.timeline-annotation-note-icon {
+  z-index: calc(var(--z-overlay-base) + 1);
 }
 
 .timeline-annotation-self-certainty--certain {
@@ -311,16 +330,4 @@
 
 .timeline-annotation-self-certainty--uncertain {
   color: var(--state-warning-solid, #b35c00);
-}
-
-.timeline-annotation-self-certainty--uncertain .timeline-annotation-self-certainty-wavy {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  font-size: 9px;
-  line-height: 1;
-  font-weight: 850;
-  color: var(--timeline-self-certainty-symbol-color);
-  font-family: system-ui, sans-serif;
 }

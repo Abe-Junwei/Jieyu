@@ -3,6 +3,7 @@ import { useLocale } from '../i18n';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { formatSidePaneLayerLabel, getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
+import { CloseIcon } from './SvgIcons';
 import { getOrthographyCatalogBadgeInfo } from './orthographyCatalogUi';
 
 type SidePaneSidebarFocusedLayerInspectorProps = {
@@ -66,7 +67,7 @@ export function SidePaneSidebarFocusedLayerInspector({
           title={messages.inspectorDeleteCurrentLayerTitle}
           aria-label={messages.inspectorDeleteCurrentLayerAria}
         >
-          ✕
+          <CloseIcon className="transcription-side-pane-inspector-del-icon" />
         </button>
       </div>
       <dl className="transcription-side-pane-inspector-props">

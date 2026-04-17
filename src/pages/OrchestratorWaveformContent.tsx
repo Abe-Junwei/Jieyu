@@ -175,8 +175,6 @@ export interface OrchestratorWaveformContentProps {
   // Empty state
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
 
-  // Resize handle
-  handleWaveformResizeStart: React.PointerEventHandler<HTMLDivElement>;
 }
 
 export const OrchestratorWaveformContent = React.memo(function OrchestratorWaveformContent(props: OrchestratorWaveformContentProps) {
@@ -264,7 +262,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
     mediaFileInputRef,
-    handleWaveformResizeStart,
   } = props;
 
   // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
@@ -654,17 +651,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
           )}
         </div>
       </WaveformAreaSection>
-      {selectedMediaUrl ? (
-        <div
-          className={`transcription-waveform-resize-handle ${isResizingWaveform ? 'transcription-waveform-resize-handle-resizing' : ''}`}
-          onPointerDown={handleWaveformResizeStart}
-          role="separator"
-          aria-orientation="horizontal"
-          title={t(locale, 'transcription.wave.resizeHeight')}
-        >
-          <div className="transcription-waveform-resize-dots" />
-        </div>
-      ) : null}
     </>
   );
 });

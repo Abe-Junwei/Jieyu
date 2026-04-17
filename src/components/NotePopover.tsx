@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
-import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
+import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
 import { getNotePanelMessages } from '../i18n/notePanelMessages';
@@ -214,8 +214,6 @@ export const NotePopover = memo(function NotePopover({
 
       <PanelSection
         className="note-popover-add"
-        title={messages.composerSectionTitle}
-        description={messages.composerHint}
       >
         <textarea
           className="panel-input note-popover-textarea"
@@ -242,7 +240,7 @@ export const NotePopover = memo(function NotePopover({
             ))}
           </div>
           <PanelButton variant="primary" className="note-popover-btn note-popover-btn-add" onClick={handleAdd} disabled={!newContent.trim()}>
-            <MaterialSymbol name="add" className={JIEYU_MATERIAL_MICRO} /> {messages.add}
+            {messages.add}
           </PanelButton>
         </div>
       </PanelSection>

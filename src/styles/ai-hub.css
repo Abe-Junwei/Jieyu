@@ -1712,6 +1712,15 @@ select.ai-cfg-input {
 
 .ai-chat-metrics-bar__item {
   color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ai-chat-metrics-bar__icon {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
 }
 
 .ai-chat-metrics-bar__item--success {

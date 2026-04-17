@@ -66,20 +66,41 @@
 }
 
 .note-popover-tag {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
   border-radius: var(--radius-pill);
   font-size: 0.68rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  border: 1.5px solid transparent;
-  transition: border-color 0.1s;
+  border: 1px solid transparent;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
+  transition: border-color 0.1s, transform 0.1s;
 }
 
-.note-popover-tag-comment  { background: var(--state-info-bg); color: var(--state-info-solid); }
-.note-popover-tag-question { background: var(--state-warning-bg); color: var(--state-warning-text); }
-.note-popover-tag-todo     { background: var(--state-info-bg); color: var(--state-info-solid); }
-.note-popover-tag-selected { border-color: currentColor; }
+.note-popover-tag-comment {
+  background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
+  color: var(--state-info-solid);
+  border-color: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+}
+
+.note-popover-tag-question {
+  background: color-mix(in srgb, var(--state-warning-bg) 88%, var(--surface-panel));
+  color: var(--state-warning-solid);
+  border-color: color-mix(in srgb, var(--state-warning-solid) 28%, transparent);
+}
+
+.note-popover-tag-todo {
+  background: color-mix(in srgb, var(--state-success-bg) 88%, var(--surface-panel));
+  color: var(--state-success-solid);
+  border-color: color-mix(in srgb, var(--state-success-solid) 24%, transparent);
+}
+
+.note-popover-tag-selected {
+  border-color: currentColor;
+  transform: translateY(-0.5px);
+}
 
 .note-popover-content {
   display: flex;
@@ -181,7 +202,11 @@
 .note-popover-btn-save,
 .note-popover-btn-cancel,
 .note-popover-btn-add {
-  min-width: 72px;
+  min-width: 64px;
+}
+
+.note-popover-btn-add {
+  padding-inline: 10px;
 }
 
 /* ── Note indicator (from ai-hub.css) ── */
@@ -231,8 +256,8 @@
 .timeline-annotation-note-icon {
   position: absolute;
   top: auto;
-  bottom: 2px;
-  right: calc(var(--timeline-annotation-side-stack-right, 5px) - 1px);
+  bottom: 4px;
+  right: var(--timeline-annotation-side-stack-right, 5px);
   display: block;
   width: var(--timeline-annotation-side-stack-size, 18px);
   height: var(--timeline-annotation-side-stack-size, 18px);

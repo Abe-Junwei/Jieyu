@@ -253,8 +253,6 @@
   height: 18px;
   color: var(--state-info-solid);
   opacity: 1;
-  transform: scale(1.08);
-  transform-origin: center bottom;
   filter: drop-shadow(0 0 1px color-mix(in srgb, var(--state-info-solid) 28%, transparent));
 }
 

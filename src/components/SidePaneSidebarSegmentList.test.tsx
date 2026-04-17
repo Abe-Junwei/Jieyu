@@ -384,12 +384,79 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(await scoped.findByText('待办')).toBeTruthy();
     expect(await scoped.findByText('确定')).toBeTruthy();
 
+    fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
     fireEvent.change(await scoped.findByLabelText('按说话人筛选'), { target: { value: 'speaker-a' } });
     fireEvent.change(await scoped.findByLabelText('按备注分类筛选'), { target: { value: 'todo' } });
     fireEvent.change(await scoped.findByLabelText('按确信度筛选'), { target: { value: 'certain' } });
 
     expect(scoped.getByText('第一句')).toBeTruthy();
     expect(scoped.queryByText('第二句')).toBeNull();
+  });
+
+  it('matches the keyword field against actual segment text instead of derived status labels', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '这里有字',
+      },
+      {
+        segmentId: 'utt-2',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 1,
+        endTime: 2,
+        text: '普通文本',
+      },
+      {
+        segmentId: 'utt-3',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 2,
+        endTime: 3,
+        text: '',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        unitsOnCurrentMedia={[
+          { ...makeUnit('utt-1', 0, 1), transcription: { default: '这里有字' } },
+          { ...makeUnit('utt-2', 1, 2), transcription: { default: '普通文本' } },
+          { ...makeUnit('utt-3', 2, 3), transcription: { default: '' } },
+        ]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    const keywordInput = await scoped.findByLabelText(messages.segmentListFilterPlaceholder);
+
+    fireEvent.change(keywordInput, { target: { value: '有' } });
+    expect(scoped.getByText('这里有字')).toBeTruthy();
+    expect(scoped.queryByText('普通文本')).toBeNull();
+    expect(scoped.queryByText('无内容')).toBeNull();
+
+    fireEvent.change(keywordInput, { target: { value: '无' } });
+    expect(scoped.queryByText('这里有字')).toBeNull();
+    expect(scoped.queryByText('普通文本')).toBeNull();
+    expect(scoped.queryByText('无内容')).toBeNull();
+    expect(scoped.getByText(messages.segmentListNoMatches)).toBeTruthy();
   });
 
   it('surfaces extended metadata facets from segment_meta and filters by them', async () => {
@@ -436,6 +503,7 @@ describe('SidePaneSidebarSegmentList', () => {
 
     const scoped = within(view.container);
 
+    fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
     expect(await scoped.findByLabelText('按内容状态筛选')).toBeTruthy();
     expect(await scoped.findByLabelText('按标注状态筛选')).toBeTruthy();
     expect(await scoped.findByLabelText('按来源筛选')).toBeTruthy();
@@ -495,6 +563,7 @@ describe('SidePaneSidebarSegmentList', () => {
     );
 
     expect(await scoped.findByText('第一句')).toBeTruthy();
+    fireEvent.click(await scoped.findByRole('button', { name: '筛选' }));
     expect(await scoped.findByLabelText('按说话人筛选')).toBeTruthy();
     expect(await scoped.findByLabelText('按备注分类筛选')).toBeTruthy();
     expect(await scoped.findByLabelText('按确信度筛选')).toBeTruthy();
