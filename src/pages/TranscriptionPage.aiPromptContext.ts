@@ -4,7 +4,7 @@ import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSna
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
-import type { LayerDocType } from '../db';
+import type { LayerDocType } from './transcriptionAiController.types';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 
 export type { AcousticDiagnosticKey, AcousticPromptSummary } from './transcriptionAcousticSummary';

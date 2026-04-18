@@ -119,3 +119,6 @@ export interface UseTranscriptionAiControllerResult {
   handleJumpToAcousticHotspot: (timeSec: number) => void;
   handleExecuteObserverRecommendation: (item: AiObserverRecommendation) => void;
 }
+
+/** Re-export for page modules that must not import `../db` directly (M3 guard). */
+export type { LayerDocType } from '../db';

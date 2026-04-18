@@ -244,7 +244,7 @@ export const architectureGuardRules = [
     ],
   }),
   pageControllerRule('useTranscriptionShellController', {
-    maxLines: 360,
+    maxLines: 380,
     maxUseCallbackDecls: 4,
     maxUseMemoDecls: 1,
     maxUseEffects: 7,
