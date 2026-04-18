@@ -4,14 +4,10 @@ import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSna
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
 import { buildWorldModelSnapshot } from '../ai/chat/worldModelSnapshot';
+import type { LayerDocType } from './transcriptionAiController.types';
+import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 
 export type { AcousticDiagnosticKey, AcousticPromptSummary } from './transcriptionAcousticSummary';
-
-interface LayerPromptInput {
-  id: string;
-  key: string;
-  name: Record<string, unknown>;
-}
 
 interface MediaItemPromptInput {
   id: string;
@@ -78,10 +74,12 @@ interface BuildTranscriptionAiPromptContextParams {
   topLexemes: string[];
   recommendations: string[];
   audioTimeSec?: number;
-  layers?: ReadonlyArray<LayerPromptInput>;
+  layers?: ReadonlyArray<LayerDocType>;
   mediaItems?: ReadonlyArray<MediaItemPromptInput>;
   currentMediaId?: string;
   activeLayerIdForEdits?: string;
+  /** Same as timeline `defaultTranscriptionLayerId`; used to resolve segment meta storage layer for dependent lanes. */
+  defaultTranscriptionLayerId?: string;
   recentActions?: string[];
   /** Timeline read-model epoch for destructive tool stale guards. */
   timelineReadModelEpoch?: number;
@@ -108,9 +106,21 @@ export function buildTranscriptionAiPromptContext({
   mediaItems,
   currentMediaId,
   activeLayerIdForEdits,
+  defaultTranscriptionLayerId,
   recentActions,
   timelineReadModelEpoch,
 }: BuildTranscriptionAiPromptContextParams): AiPromptContext {
+  const selectedLayerKey = selectionSnapshot.selectedLayerId?.trim() ?? '';
+  const segmentMetaStorageLayerId = (() => {
+    if (!selectedLayerKey || layers.length === 0) return selectedLayerKey || undefined;
+    const layerById = new Map(layers.map((layer) => [layer.id, layer]));
+    const focused = layerById.get(selectedLayerKey);
+    if (!focused) return selectedLayerKey;
+    const source = resolveSegmentTimelineSourceLayer(focused, layerById, defaultTranscriptionLayerId);
+    const resolved = (source?.id ?? selectedLayerKey).trim();
+    return resolved || undefined;
+  })();
+
   const localUnitIndex =
     (unitIndexComplete || (projectUnitsForTools?.length ?? 0) > 0) && projectUnitsForTools && projectUnitsForTools.length > 0
       ? projectUnitsForTools
@@ -155,6 +165,7 @@ export function buildTranscriptionAiPromptContext({
           }
         : {}),
       ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+      ...(segmentMetaStorageLayerId ? { segmentMetaStorageLayerId } : {}),
       ...(selectionSnapshot.selectedLayerType ? { selectedLayerType: selectionSnapshot.selectedLayerType } : {}),
       ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
       ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),

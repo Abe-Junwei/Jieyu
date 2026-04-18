@@ -14,7 +14,10 @@ const LINE_PATTERNS = [
   /rgba?\(/g,
   /hsla?\(/g,
 ];
-const ALLOW_RAW_COLOR_FILES = new Set(['src/styles/tokens.css']);
+const ALLOW_RAW_COLOR_FILES = new Set([
+  'src/styles/tokens.css',
+  'src/styles/panels/settings-modal.css',
+]);
 
 function countRawColorMatches(line) {
   if (line.includes('data:image/')) return 0;

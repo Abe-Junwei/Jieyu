@@ -1,4 +1,4 @@
-import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
+import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider, ChatTokenUsage } from './LLMProvider';
 import { normalizeAiProviderError } from './errorUtils';
 import { toErrorChunk } from './streamUtils';
 
@@ -10,6 +10,7 @@ type RuntimeChunk = string | {
   delta?: string;
   done?: boolean;
   error?: string;
+  usage?: ChatTokenUsage;
 };
 
 type RuntimeOutput =
@@ -176,6 +177,9 @@ function createPromptApiRuntime(namespace: PromptApiNamespace): WebLLMRuntime | 
             if (chunk.error) {
               yield { error: chunk.error, done: true };
               return;
+            }
+            if (chunk.usage) {
+              yield { delta: '', usage: chunk.usage };
             }
             if (typeof chunk.delta === 'string' && chunk.delta.length > 0) {
               yield chunk.delta;

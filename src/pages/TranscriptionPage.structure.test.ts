@@ -95,16 +95,18 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformCode.includes('transcription-waveform-resize-handle')).toBe(false);
   });
 
-  it('keeps waveform runtime progress badges wired into the waveform overlay', () => {
+  it('keeps waveform runtime progress badges wired into the top toolbar only', () => {
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    const toolbarPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Toolbar.tsx');
+    const toolbarCode = fs.readFileSync(toolbarPath, 'utf8');
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
 
-    expect(waveformContentCode.includes("import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';")).toBe(true);
-    expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(true);
-    expect(waveformContentCode.includes('...(acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus } : {})')).toBe(true);
-    expect(waveformContentCode.includes('...(vadCacheStatus !== undefined ? { vadCacheStatus } : {})')).toBe(true);
+    expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(false);
+    expect(toolbarCode.includes('const combinedLeftToolbarExtras')).toBe(true);
+    expect(toolbarCode.includes('<ToolbarAiProgress')).toBe(true);
+    expect(toolbarCode.includes('leftToolbarExtras={combinedLeftToolbarExtras}')).toBe(true);
     expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
     expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
   });

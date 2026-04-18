@@ -318,6 +318,7 @@ export function App() {
     }
     prewarmLanguageAssetChunk(import('./pages/TranscriptionPage'));
     prewarmLanguageAssetChunk(import('./pages/TranscriptionPage.Orchestrator'));
+    prewarmLanguageAssetChunk(import('./pages/TranscriptionPage.DataShell'));
     prewarmLanguageAssetChunk(import('./pages/TranscriptionPage.ReadyWorkspace'));
     prewarmLanguageAssetChunk(import('./pages/OrchestratorWaveformContent'));
   }, [location.pathname]);

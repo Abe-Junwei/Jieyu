@@ -1,0 +1,227 @@
+// @vitest-environment jsdom
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { CollaborationProjectChangeRecord } from '../collaboration/cloud/syncTypes';
+import { useTranscriptionCloudSyncActions, type UseTranscriptionCloudSyncActionsParams } from './useTranscriptionCloudSyncActions';
+
+const {
+  bridgeState,
+  mockHasSupabaseBrowserClientConfig,
+  mockGetSupabaseUserId,
+  mockWrappedSaveUnitText,
+  mockWrappedSaveUnitLayerFields,
+  mockRawSaveUnitText,
+  mockRawSaveUnitLayerFields,
+  mockEnqueueMutation,
+} = vi.hoisted(() => {
+  const bridgeState: {
+    onApplyRemoteChange: ((change: CollaborationProjectChangeRecord) => Promise<void>) | null;
+  } = {
+    onApplyRemoteChange: null,
+  };
+
+  const mockHasSupabaseBrowserClientConfig = vi.fn<() => boolean>().mockReturnValue(false);
+  const mockGetSupabaseUserId = vi.fn<() => Promise<string | null>>().mockResolvedValue('user-1');
+
+  const mockWrappedSaveUnitText = vi.fn(async () => undefined);
+  const mockWrappedSaveUnitLayerFields = vi.fn(async () => undefined);
+  const mockRawSaveUnitText = vi.fn(async () => undefined);
+  const mockRawSaveUnitLayerFields = vi.fn(async () => undefined);
+  const mockEnqueueMutation = vi.fn();
+
+  return {
+    bridgeState,
+    mockHasSupabaseBrowserClientConfig,
+    mockGetSupabaseUserId,
+    mockWrappedSaveUnitText,
+    mockWrappedSaveUnitLayerFields,
+    mockRawSaveUnitText,
+    mockRawSaveUnitLayerFields,
+    mockEnqueueMutation,
+  };
+});
+
+vi.mock('./useTranscriptionCollaborationBridge', () => ({
+  useTranscriptionCollaborationBridge: (params: {
+    onApplyRemoteChange?: (change: CollaborationProjectChangeRecord) => Promise<void>;
+  }) => {
+    bridgeState.onApplyRemoteChange = params.onApplyRemoteChange ?? null;
+    return {
+      isBridgeReady: true,
+      collaborationProtocolGuard: {
+        cloudWritesDisabled: false,
+        reasons: [],
+        outboundProtocolVersion: 1,
+      },
+      collaborationOutboundPendingCount: 0,
+      enqueueMutation: mockEnqueueMutation,
+      markProjectRevisionSeen: vi.fn(),
+      getLatestKnownRevision: vi.fn(() => 0),
+      registerProjectAsset: vi.fn(),
+      listProjectAssets: vi.fn(async () => []),
+      removeProjectAsset: vi.fn(),
+      getProjectAssetSignedUrl: vi.fn(),
+      createProjectSnapshot: vi.fn(),
+      listProjectSnapshots: vi.fn(async () => []),
+      restoreProjectSnapshotById: vi.fn(),
+      queryProjectChangeTimeline: vi.fn(async () => ({ changes: [], total: 0 })),
+      queryProjectEntityHistory: vi.fn(async () => []),
+    };
+  },
+}));
+
+vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
+  getSupabaseBrowserClient: () => ({ from: vi.fn() }),
+  hasSupabaseBrowserClientConfig: mockHasSupabaseBrowserClientConfig,
+  getSupabaseUserId: mockGetSupabaseUserId,
+}));
+
+function buildParams(): UseTranscriptionCloudSyncActionsParams {
+  const noop = vi.fn(async () => undefined);
+  return {
+    phase: 'ready',
+    units: [{ id: 'u-1', textId: 'project-1' }],
+    layers: [],
+    unitsRef: { current: [{ id: 'u-1', text: 'local text' } as unknown as { id: string }] },
+    layersRef: { current: [] },
+    layerLinksRef: { current: [] },
+    rawActions: {
+      saveUnitText: mockRawSaveUnitText,
+      saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: mockRawSaveUnitLayerFields,
+      saveUnitTiming: noop,
+      deleteUnit: noop,
+      deleteSelectedUnits: noop,
+      deleteLayer: noop,
+      toggleLayerLink: noop,
+    },
+    wrappedActions: {
+      saveUnitText: mockWrappedSaveUnitText,
+      saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: mockWrappedSaveUnitLayerFields,
+      saveUnitTiming: noop,
+      saveUnitLayerText: noop,
+      createUnitFromSelection: noop,
+      deleteUnit: noop,
+      deleteSelectedUnits: noop,
+      createLayer: vi.fn(async () => false),
+      deleteLayer: noop,
+      toggleLayerLink: noop,
+    },
+    runWithDbMutex: async (fn) => fn(),
+    loadSnapshot: async () => undefined,
+  };
+}
+
+function createRemoteContentChange(
+  value: string,
+  createdAt = new Date().toISOString(),
+): CollaborationProjectChangeRecord {
+  return {
+    id: `change-${value}`,
+    projectId: 'project-1',
+    actorId: 'remote-user',
+    clientId: 'remote-client',
+    clientOpId: `op-${value}`,
+    protocolVersion: 1,
+    projectRevision: 12,
+    baseRevision: 11,
+    entityType: 'layer_unit_content',
+    entityId: 'u-1',
+    opType: 'upsert_unit_content',
+    payload: {
+      unitId: 'u-1',
+      value,
+    },
+    sourceKind: 'user',
+    createdAt,
+  };
+}
+
+async function triggerRemote(change: CollaborationProjectChangeRecord): Promise<void> {
+  if (!bridgeState.onApplyRemoteChange) {
+    throw new Error('missing onApplyRemoteChange callback');
+  }
+  await bridgeState.onApplyRemoteChange(change);
+}
+
+describe('useTranscriptionCloudSyncActions applyRemote + conflict audit chain', () => {
+  beforeEach(() => {
+    bridgeState.onApplyRemoteChange = null;
+    mockHasSupabaseBrowserClientConfig.mockReturnValue(false);
+    mockGetSupabaseUserId.mockClear();
+    mockWrappedSaveUnitText.mockClear();
+    mockWrappedSaveUnitLayerFields.mockClear();
+    mockRawSaveUnitText.mockClear();
+    mockRawSaveUnitLayerFields.mockClear();
+    mockEnqueueMutation.mockClear();
+  });
+
+  it('enqueues explicit layer-fields batch patches for per-layer writes', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitLayerFields(['seg-1'], { status: 'verified' });
+    });
+
+    expect(mockWrappedSaveUnitLayerFields).toHaveBeenCalledWith(['seg-1'], { status: 'verified' });
+    expect(mockEnqueueMutation).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: 'layer_unit',
+      entityId: 'seg-1',
+      opType: 'batch_patch',
+      payload: expect.objectContaining({
+        action: 'layer-fields',
+        unitIds: ['seg-1'],
+        patch: { status: 'verified' },
+      }),
+    }));
+  });
+
+  it('records resolutionTraceId on conflict_resolved logs after auto LWW merge', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitText('u-1', 'local text');
+    });
+
+    await act(async () => {
+      await triggerRemote(createRemoteContentChange('remote text', new Date(Date.now() - 10_000).toISOString()));
+    });
+
+    await waitFor(() => {
+      const resolved = result.current.conflictOperationLogs.filter((item) => item.type === 'conflict_resolved');
+      expect(resolved.length).toBeGreaterThan(0);
+      expect(resolved[0]?.traceId).toMatch(/^tr-/);
+    });
+  });
+
+  it('records traceId on manual-review apply-remote recovery path', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitText('u-1', 'local-a');
+    });
+
+    await act(async () => {
+      await triggerRemote(createRemoteContentChange('remote-a'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.conflictReviewTickets).toHaveLength(1);
+    });
+
+    const ticketId = result.current.conflictReviewTickets[0]!.ticketId;
+
+    await act(async () => {
+      await result.current.applyRemoteConflictTicket(ticketId);
+    });
+
+    await waitFor(() => {
+      const withApply = result.current.conflictOperationLogs.filter(
+        (item) => item.type === 'conflict_resolved' && item.decisionId?.includes(':apply-remote'),
+      );
+      expect(withApply.length).toBeGreaterThan(0);
+      expect(withApply[withApply.length - 1]?.traceId).toMatch(/^tr-/);
+    });
+  });
+});

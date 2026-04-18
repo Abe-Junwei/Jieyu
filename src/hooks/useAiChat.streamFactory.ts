@@ -1,5 +1,5 @@
 import { resolveCommand } from '../services/CommandResolver';
-import type { ChatMessage } from '../ai/providers/LLMProvider';
+import type { ChatMessage, ChatTokenUsage } from '../ai/providers/LLMProvider';
 
 export type AssistantStreamChunk = {
   delta?: string;
@@ -7,6 +7,7 @@ export type AssistantStreamChunk = {
   error?: string;
   reasoningContent?: string;
   thinking?: boolean;
+  usage?: ChatTokenUsage;
 };
 
 interface ToolCallLike {

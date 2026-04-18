@@ -7,7 +7,7 @@
   border: 1px solid color-mix(in srgb, var(--border-muted) 82%, transparent);
   border-radius: 14px;
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 14px 36px color-mix(in srgb, var(--shadow-color) 24%, transparent);
   overflow: hidden;
 }
 
@@ -36,7 +36,7 @@
   height: 22px;
   border-radius: 999px;
   background: var(--accent-primary);
-  color: var(--text-on-accent, #fff);
+  color: var(--text-on-accent, var(--text-on-solid));
   font-size: 12px;
   line-height: 22px;
   text-align: center;
@@ -71,7 +71,7 @@
 
 .collaboration-conflict-ticket-head strong {
   font-size: 12px;
-  color: var(--danger-strong, #ff7467);
+  color: var(--danger-strong, var(--state-danger-solid));
 }
 
 .collaboration-conflict-ticket-summary {

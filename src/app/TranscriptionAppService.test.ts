@@ -23,9 +23,24 @@ function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): Trans
     } as { first: { id: string }; second: { id: string } })),
     mergeAdjacentSegments: vi.fn(async () => ({ id: 'seg-merged' } as { id: string })),
     deleteSegment: vi.fn(async () => undefined),
-    ensureVadCacheForMedia: vi.fn(async () => null),
+    updateTextTimeMapping: vi.fn(async () => ({
+      id: 'text-1',
+      title: { und: 'Demo' },
+      metadata: { timeMapping: { offsetSec: 3, scale: 1.2, revision: 1 } },
+      createdAt: '2026-04-18T00:00:00.000Z',
+      updatedAt: '2026-04-18T00:00:00.000Z',
+    })),
+    previewTextTimeMapping: vi.fn(() => ({
+      documentStartTime: 1,
+      documentEndTime: 2,
+      realStartTime: 4.2,
+      realEndTime: 5.4,
+      offsetSec: 3,
+      scale: 1.2,
+    })),
     loadAudioBuffer: vi.fn(async () => ({ duration: 3 } as AudioBuffer)),
     detectVadSegments: vi.fn(() => [{ start: 0.1, end: 0.9 }]),
+    ensureVadCacheForMedia: vi.fn(async () => null),
     vadAutoWarmMaxBytes: 100,
     ...overrides,
   };
@@ -112,6 +127,18 @@ describe('TranscriptionAppService', () => {
       englishFallbackTitle: 'demo',
       primaryLanguageId: 'und',
     };
+    const mappingRequest = {
+      textId: 'text-1',
+      offsetSec: 3,
+      scale: 1.2,
+      sourceMediaId: 'media-1',
+    };
+    const previewRequest = {
+      startTime: 1,
+      endTime: 2,
+      offsetSec: 3,
+      scale: 1.2,
+    };
 
     await service.createProject(createProjectRequest);
     await service.createPlaceholderMedia({
@@ -123,6 +150,8 @@ describe('TranscriptionAppService', () => {
       filename: 'demo.wav',
       duration: 12,
     });
+    await service.updateTextTimeMapping(mappingRequest);
+    service.previewTextTimeMapping(previewRequest);
     await service.deleteProject('text-1');
     await service.deleteAudio('media-1');
     await service.deleteSegments(['seg-1', 'seg-2']);
@@ -135,6 +164,8 @@ describe('TranscriptionAppService', () => {
     expect(deps.createPlaceholderMedia).toHaveBeenCalledTimes(1);
     expect(deps.createPlaceholderMedia).toHaveBeenCalledWith({ textId: 'text-1' });
     expect(deps.importAudio).toHaveBeenCalledTimes(1);
+    expect(deps.updateTextTimeMapping).toHaveBeenCalledWith(mappingRequest);
+    expect(deps.previewTextTimeMapping).toHaveBeenCalledWith(previewRequest);
     expect(deps.deleteProject).toHaveBeenCalledWith('text-1');
     expect(deps.deleteAudio).toHaveBeenCalledWith('media-1');
     expect(deps.deleteSegments).toHaveBeenCalledWith(['seg-1', 'seg-2']);

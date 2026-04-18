@@ -234,6 +234,115 @@ describe('LinguisticService smoke tests', () => {
     expect((saved?.metadata as { timebaseLabel?: unknown } | undefined)?.timebaseLabel).toBe('logical-second');
   });
 
+  it('stores logical-to-real time mapping metadata with a rollback snapshot', async () => {
+    const created = await LinguisticService.createProject({
+      primaryTitle: '逻辑时间映射项目',
+      englishFallbackTitle: 'Logical Mapping Project',
+      primaryLanguageId: 'eng',
+    });
+
+    await LinguisticService.updateTextTimeMapping({
+      textId: created.textId,
+      offsetSec: 12.5,
+      scale: 0.8,
+      sourceMediaId: 'media_mapping_1',
+    });
+
+    await LinguisticService.updateTextTimeMapping({
+      textId: created.textId,
+      offsetSec: 18,
+      scale: 1.25,
+    });
+
+    await LinguisticService.updateTextTimeMapping({
+      textId: created.textId,
+      offsetSec: 24,
+      scale: 1.5,
+    });
+
+    const saved = await db.texts.get(created.textId);
+    const metadata = saved?.metadata as {
+      timeMapping?: {
+        offsetSec?: unknown;
+        scale?: unknown;
+        revision?: unknown;
+        sourceMediaId?: unknown;
+      };
+      timeMappingRollback?: {
+        offsetSec?: unknown;
+        scale?: unknown;
+        revision?: unknown;
+        sourceMediaId?: unknown;
+      };
+      timeMappingHistory?: Array<{
+        offsetSec?: unknown;
+        scale?: unknown;
+        revision?: unknown;
+        sourceMediaId?: unknown;
+      }>;
+    } | undefined;
+
+    expect(metadata?.timeMapping).toEqual(expect.objectContaining({
+      offsetSec: 24,
+      scale: 1.5,
+      revision: 3,
+      sourceMediaId: 'media_mapping_1',
+    }));
+    expect(metadata?.timeMappingRollback).toEqual(expect.objectContaining({
+      offsetSec: 18,
+      scale: 1.25,
+      revision: 2,
+      sourceMediaId: 'media_mapping_1',
+    }));
+    expect(metadata?.timeMappingHistory).toEqual([
+      expect.objectContaining({
+        offsetSec: 18,
+        scale: 1.25,
+        revision: 2,
+        sourceMediaId: 'media_mapping_1',
+      }),
+      expect.objectContaining({
+        offsetSec: 12.5,
+        scale: 0.8,
+        revision: 1,
+        sourceMediaId: 'media_mapping_1',
+      }),
+    ]);
+  });
+
+  it('previews offset-scale mapping and can invert real time back to document time', () => {
+    const preview = LinguisticService.previewTextTimeMapping({
+      startTime: 10,
+      endTime: 22,
+      offsetSec: 5,
+      scale: 2,
+    });
+
+    expect(preview).toEqual({
+      documentStartTime: 10,
+      documentEndTime: 22,
+      realStartTime: 25,
+      realEndTime: 49,
+      offsetSec: 5,
+      scale: 2,
+    });
+    expect(LinguisticService.invertTextTimeMapping(25, { offsetSec: 5, scale: 2 })).toBeCloseTo(10);
+    expect(LinguisticService.invertTextTimeMapping(49, { offsetSec: 5, scale: 2 })).toBeCloseTo(22);
+  });
+
+  it('keeps previewed real times non-negative and monotonic', () => {
+    const preview = LinguisticService.previewTextTimeMapping({
+      startTime: 0,
+      endTime: 4,
+      offsetSec: -3,
+      scale: 1,
+    });
+
+    expect(preview.realStartTime).toBe(0);
+    expect(preview.realEndTime).toBe(1);
+    expect(preview.realEndTime).toBeGreaterThanOrEqual(preview.realStartTime);
+  });
+
   it('can update an existing orthography while preserving catalog metadata', async () => {
     await db.orthographies.put({
       id: 'orth_update_1',
@@ -1805,7 +1914,14 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
   });
 
-  it('regression: single/media cascade deletes token_lexeme_links via indexed composite key', async () => {
+  it('regression: deleting audio keeps the text rows and switches the project to document mode', async () => {
+    await db.texts.put({
+      id: 'text_del',
+      title: { default: 'Delete audio regression' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
     await db.media_items.bulkPut([
       {
         id: 'media_del_single',
@@ -1930,7 +2046,151 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
 
     await expect(LinguisticService.deleteAudio('media_del_audio')).resolves.toBeUndefined();
-    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(0);
+
+    expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
+    expect(await db.layer_units.get('utt_del_audio')).toBeTruthy();
+    await expect(db.media_items.get('media_del_audio')).resolves.toEqual(expect.objectContaining({
+      filename: 'document-placeholder.track',
+      details: expect.objectContaining({
+        placeholder: true,
+        timelineMode: 'document',
+      }),
+    }));
+    await expect(db.texts.get('text_del')).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({
+        timelineMode: 'document',
+        timebaseLabel: 'logical-second',
+      }),
+    }));
+  });
+
+  it('promotes the existing placeholder media when importing audio into a pure-text project', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_import', 'layer_trc_doc_import', now);
+    await db.texts.put({
+      id: 'text_doc_import',
+      title: { default: 'Doc Import' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 30,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.put({
+      id: 'media_doc_placeholder',
+      textId: 'text_doc_import',
+      filename: 'document-placeholder.track',
+      duration: 30,
+      details: {
+        placeholder: true,
+        timelineMode: 'document',
+      },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_keep',
+      textId: 'text_doc_import',
+      mediaId: 'media_doc_placeholder',
+      startTime: 1,
+      endTime: 3,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const blob = new Blob(['audio-data'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId: 'text_doc_import',
+      audioBlob: blob,
+      filename: 'imported.wav',
+      duration: 18,
+    });
+
+    expect(result.mediaId).toBe('media_doc_placeholder');
+    await expect(db.media_items.where('textId').equals('text_doc_import').toArray()).resolves.toHaveLength(1);
+    await expect(db.media_items.get('media_doc_placeholder')).resolves.toEqual(expect.objectContaining({
+      filename: 'imported.wav',
+      duration: 18,
+      details: expect.objectContaining({
+        audioBlob: blob,
+      }),
+    }));
+    await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_placeholder',
+    }));
+  });
+
+  it('keeps both pre-import and post-import segments on one placeholder timeline after deleting audio', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_merge', 'layer_trc_doc_merge', now);
+    await db.texts.put({
+      id: 'text_doc_merge',
+      title: { default: 'Doc Merge' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 40,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.bulkPut([
+      {
+        id: 'media_doc_old',
+        textId: 'text_doc_merge',
+        filename: 'document-placeholder.track',
+        duration: 40,
+        details: {
+          placeholder: true,
+          timelineMode: 'document',
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+      {
+        id: 'media_doc_new',
+        textId: 'text_doc_merge',
+        filename: 'imported.wav',
+        duration: 20,
+        details: {
+          audioBlob: new Blob(['audio'], { type: 'audio/wav' }),
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+    ]);
+
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_old',
+      textId: 'text_doc_merge',
+      mediaId: 'media_doc_old',
+      startTime: 2,
+      endTime: 4,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_new',
+      textId: 'text_doc_merge',
+      mediaId: 'media_doc_new',
+      startTime: 10,
+      endTime: 12,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.deleteAudio('media_doc_new');
+
+    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
+    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
+    await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
   });
 
   // ── Regression guard: segmentation text queries ──────

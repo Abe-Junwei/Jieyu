@@ -22,6 +22,8 @@ import type { AiTaskSession } from './useAiChat.types';
 import type { LocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
 import type { AiPromptContext, AiInteractionMetrics } from '../ai/chat/chatDomain.types';
 import type { AuditLogDocType } from '../db/types';
+import type { ChatTokenUsage } from '../ai/providers/LLMProvider';
+import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 
 // ── 类型定义 | Type definitions ────────────────────────────────────────────
 
@@ -35,10 +37,10 @@ export interface AgentLoopInitialState {
   rawAssistantContentForLoop: string;
   /** 已累积的推理内容 | Accumulated reasoning content */
   assistantReasoningContent: string;
-  /** 已累积的输入 token 估算 | Accumulated input token estimate */
-  estimatedInputTokens: number;
-  /** 已累积的输出 token 估算 | Accumulated output token estimate */
-  totalModelOutputTokens: number;
+  /** 已累积的输入 token 回传值 | Accumulated provider-reported input tokens */
+  reportedInputTokens: number;
+  /** 已累积的输出 token 回传值 | Accumulated provider-reported output tokens */
+  totalOutputTokens: number;
   /** 循环起始步数（断点续跑时 > 1） | Starting step (> 1 when resuming from checkpoint) */
   startStep: number;
 }
@@ -52,8 +54,8 @@ export interface AgentLoopRunnerResult {
   resolvedLocalToolResults: LocalContextToolResult[] | undefined;
   loopExecuted: boolean;
   assistantReasoningContent: string;
-  totalModelOutputTokens: number;
-  estimatedInputTokens: number;
+  totalOutputTokens: number;
+  reportedInputTokens: number;
 }
 
 /** 只读依赖 — 循环执行期间不会被循环本身修改 | Read-only deps — not mutated by the loop itself */
@@ -92,28 +94,11 @@ export interface AgentLoopRunnerDeps {
       userText: string;
       systemPrompt: string;
       options: { signal: AbortSignal; model?: string };
-    }): { stream: AsyncGenerator<{ delta?: string; done?: boolean; error?: string; reasoningContent?: string }> };
+    }): { stream: AsyncGenerator<{ delta?: string; done?: boolean; error?: string; reasoningContent?: string; usage?: ChatTokenUsage }> };
   };
 
   // DB 审计 | DB audit
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>;
-}
-
-// ── token 估算工具（与 useAiChat.ts 内联函数保持一致）──
-// Token estimation utilities (mirror inline helpers in useAiChat.ts)
-
-function estimateTokensFromText(text: string): number {
-  const normalized = text.trim();
-  if (!normalized) return 0;
-  return Math.max(1, Math.ceil(normalized.length / 4));
-}
-
-function estimateTokensFromHistory(messages: HistoryChatMessage[]): number {
-  return messages.reduce((sum, item) => sum + estimateTokensFromText(item.content), 0);
-}
-
-function estimateOutputTokensFromAssistantParts(content: string, reasoning: string): number {
-  return estimateTokensFromText(content) + estimateTokensFromText(reasoning);
 }
 
 // ── 核心循环 | Core loop ───────────────────────────────────────────────────
@@ -135,8 +120,8 @@ export async function runAgentLoop(
     resolvedLocalToolResults,
     rawAssistantContentForLoop,
     assistantReasoningContent,
-    estimatedInputTokens,
-    totalModelOutputTokens,
+    reportedInputTokens,
+    totalOutputTokens,
   } = initial;
 
   let loopStep = initial.startStep;
@@ -200,14 +185,16 @@ export async function runAgentLoop(
       3,
       deps.getSessionMemory().conversationSummary,
     );
-    const continuationInputTokens = estimateTokensFromText(continuationUserText)
-      + estimateTokensFromText(deps.systemPrompt)
-      + estimateTokensFromHistory(continuationHistory);
-    const estimatedRemainingTokens = estimateRemainingLoopTokens(
-      continuationInputTokens,
-      loopStep,
-      DEFAULT_AGENT_LOOP_CONFIG,
-    );
+    const observedPerStepInputTokens = reportedInputTokens > 0
+      ? Math.max(1, Math.ceil(reportedInputTokens / Math.max(1, loopStep - initial.startStep + 1)))
+      : 0;
+    const estimatedRemainingTokens = observedPerStepInputTokens > 0
+      ? estimateRemainingLoopTokens(
+          observedPerStepInputTokens,
+          loopStep,
+          DEFAULT_AGENT_LOOP_CONFIG,
+        )
+      : 0;
 
     // ── Token 预算警告 | Token budget warning ──
     if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {
@@ -233,12 +220,6 @@ export async function runAgentLoop(
       break;
     }
 
-    estimatedInputTokens += continuationInputTokens;
-    deps.setMetrics((prev) => ({
-      ...prev,
-      totalInputTokens: prev.totalInputTokens + continuationInputTokens,
-    }));
-
     const { stream: continuationStream } = createAssistantStream({
       userText: continuationUserText,
       clarifyFastPathCall: null,
@@ -256,6 +237,7 @@ export async function runAgentLoop(
     let continuationAssistantContent = '';
     let continuationReasoningContent = '';
     let continuationStreamError: string | null = null;
+    let continuationUsage: ChatTokenUsage | undefined;
     const loopStepStartedAt = Date.now();
 
     for await (const chunk of continuationStream) {
@@ -264,6 +246,9 @@ export async function runAgentLoop(
       }
       if ((chunk.reasoningContent ?? '').length > 0) {
         continuationReasoningContent += chunk.reasoningContent ?? '';
+      }
+      if (chunk.usage) {
+        continuationUsage = mergeTokenUsage(continuationUsage, chunk.usage);
       }
       if (chunk.error) {
         continuationStreamError = chunk.error;
@@ -275,10 +260,8 @@ export async function runAgentLoop(
     }
 
     assistantReasoningContent += continuationReasoningContent;
-    totalModelOutputTokens += estimateOutputTokensFromAssistantParts(
-      continuationAssistantContent,
-      continuationReasoningContent,
-    );
+    reportedInputTokens += continuationUsage?.inputTokens ?? 0;
+    totalOutputTokens += continuationUsage?.outputTokens ?? 0;
 
     if (continuationStreamError) {
       resolvedStatus = 'error';
@@ -307,7 +290,8 @@ export async function runAgentLoop(
 
     // ── 审计日志 | Audit log ──
     const loopStepDurationMs = Date.now() - loopStepStartedAt;
-    const loopStepTokenEstimate = continuationInputTokens + estimateTokensFromText(continuationAssistantContent);
+    const loopStepTokenCount = continuationUsage?.totalTokens
+      ?? ((continuationUsage?.inputTokens ?? 0) + (continuationUsage?.outputTokens ?? 0));
     await deps.insertAuditLog({
       id: newAuditLogId(),
       collection: 'ai_messages',
@@ -328,7 +312,7 @@ export async function runAgentLoop(
         inputSummary: continuationUserText.slice(0, 500),
         outputSummary: continuationAssistantContent.slice(0, 500),
         durationMs: loopStepDurationMs,
-        tokenEstimate: loopStepTokenEstimate,
+        reportedTokens: loopStepTokenCount,
       }),
     });
 
@@ -361,7 +345,7 @@ export async function runAgentLoop(
     resolvedLocalToolResults,
     loopExecuted,
     assistantReasoningContent,
-    totalModelOutputTokens,
-    estimatedInputTokens,
+    totalOutputTokens,
+    reportedInputTokens,
   };
 }

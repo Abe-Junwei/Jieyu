@@ -4,7 +4,7 @@
       "file": "src/components/BatchOperationPanel.tsx",
       "reason": "Draggable batch-operation panel uses runtime left/top/width/height geometry.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "left: `${position.x}px`",
@@ -16,7 +16,7 @@
       "file": "src/components/ContextMenu.tsx",
       "reason": "Portaled submenu placement depends on runtime anchor geometry.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "left: submenu.left",
@@ -28,7 +28,7 @@
       "file": "src/components/OrthographyBuilderPanel.tsx",
       "reason": "Render preview typography must reflect runtime font family, direction, and bidi policy.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "fontFamily: picker.draftRenderPolicy.defaultFontCss",
@@ -40,7 +40,7 @@
       "file": "src/components/PdfPreviewSection.tsx",
       "reason": "Floating PDF preview panel preserves draggable right/bottom coordinates.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "right: `${pdfPreviewPos.right}px`",
@@ -52,7 +52,7 @@
       "file": "src/components/TimelineAnnotationItem.tsx",
       "reason": "Timeline annotation layout uses per-item left/width geometry and speaker color variables.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "'--speaker-color': speakerColor",
@@ -64,7 +64,7 @@
       "file": "src/components/VideoPlayer.tsx",
       "reason": "Video player height is driven by runtime preview sizing.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "'--video-player-height': `${videoHeight}px`",
@@ -76,7 +76,7 @@
       "file": "src/components/transcription/RegionActionOverlay.tsx",
       "reason": "Selected-region action overlay follows runtime waveform x-position.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "left: Math.max(0, leftPx)",
@@ -88,7 +88,7 @@
       "file": "src/components/transcription/WaveformHoverTooltip.tsx",
       "reason": "Waveform hover tooltip follows live pointer coordinates.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "left: x, top: y",
@@ -100,19 +100,43 @@
       "file": "src/pages/OrchestratorWaveformContent.tsx",
       "reason": "Waveform note indicator trigger follows runtime note marker geometry.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
-          "anchor": "left: leftPx + widthPx - 26",
-          "reviewedSha256": "1fc188785a56fc9c4569ac46f545ed8a580b84f6ad77b2ee8c4529f69e86cdb5"
+          "anchor": "left: leftPx + widthPx - 22",
+          "reviewedSha256": "5670770d771fcb8f5ba3e978306a28a3c2c04b63f09f305b302ded9ecef699fc"
         }
       ]
     },
     {
-      "file": "src/pages/TranscriptionPage.ReadyWorkspace.tsx",
+      "file": "src/components/TimeRuler.tsx",
+      "reason": "Overview viewport position and width depend on the live waveform window geometry.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-18",
+      "snippets": [
+        {
+          "anchor": "left: overviewViewportLeft, width: overviewViewportWidth",
+          "reviewedSha256": "a4fb4360fbe33f6f68b3bdf0661f93260cf259dd2b71f0869d01eba823144695"
+        }
+      ]
+    },
+    {
+      "file": "src/components/TranscriptionTimelineTextOnly.tsx",
+      "reason": "The text-only drag preview follows live pointer geometry while marking a creation range.",
+      "reviewer": "GitHub Copilot + junwei",
+      "reviewedAt": "2026-04-18",
+      "snippets": [
+        {
+          "anchor": "left: `${Math.min(textOnlyDragState.anchorX, textOnlyDragState.currentX)}px`",
+          "reviewedSha256": "7272edd4fdddbd201d5f3b1e3fff6820eec9e5232486a18995ad7bcbd301e2dc"
+        }
+      ]
+    },
+    {
+      "file": "src/pages/TranscriptionPage.ReadyWorkspaceLayout.tsx",
       "reason": "Timeline resize tooltip is positioned from live pointer geometry.",
       "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-09",
+      "reviewedAt": "2026-04-18",
       "snippets": [
         {
           "anchor": "left: timelineResizeTooltip.x, top: timelineResizeTooltip.y - 16",

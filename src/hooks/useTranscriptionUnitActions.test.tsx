@@ -1047,6 +1047,69 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     expect(updated?.selfCertainty).toBe('uncertain');
   });
 
+  it('saveUnitLayerFields writes status onto a segment row without touching canonical unit rows', async () => {
+    const now = new Date().toISOString();
+    await db.layer_units.bulkPut([
+      {
+        id: 'utt-host',
+        textId: 't1',
+        mediaId: 'm1',
+        layerId: 'layer-default',
+        unitType: 'unit',
+        startTime: 0,
+        endTime: 10,
+        status: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+      {
+        id: 'seg-a',
+        textId: 't1',
+        mediaId: 'm1',
+        layerId: 'layer-seg',
+        unitType: 'segment',
+        parentUnitId: 'utt-host',
+        startTime: 1,
+        endTime: 2,
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+    ]);
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map(),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [] },
+      unitsOnCurrentMediaRef: { current: [] },
+      getUnitTextForLayer: (unit) => unit.id,
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveUnitLayerFields(['seg-a'], { status: 'verified' });
+    });
+
+    const seg = await db.layer_units.get('seg-a');
+    const host = await db.layer_units.get('utt-host');
+    expect(seg?.status).toBe('verified');
+    expect(host?.status).toBe('raw');
+  });
+
   it('projects a new unit to both dependent transcription layer and its parent root', async () => {
     const now = new Date().toISOString();
     const rootLayer = makeLayer({

@@ -25,6 +25,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   lassoRect: TranscriptionPageTimelineMediaLanesProps['lassoRect'];
   timelineRenderUnits: TranscriptionPageTimelineMediaLanesProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TranscriptionPageTimelineMediaLanesProps['defaultTranscriptionLayerId'];
+  textOnlyLogicalDurationSec?: number;
+  createUnitFromSelectionRouted?: (start: number, end: number) => Promise<void>;
   renderAnnotationItem: TranscriptionPageTimelineMediaLanesProps['renderAnnotationItem'];
   speakerSortKeyById: TranscriptionPageTimelineMediaLanesProps['speakerSortKeyById'];
   filteredUnitsOnCurrentMedia: TranscriptionPageTimelineTextOnlyProps['unitsOnCurrentMedia'];
@@ -136,6 +138,8 @@ export function buildOrchestratorViewModelsInput(
     lassoRect,
     timelineRenderUnits,
     defaultTranscriptionLayerId,
+    textOnlyLogicalDurationSec,
+    createUnitFromSelectionRouted,
     renderAnnotationItem,
     speakerSortKeyById,
     filteredUnitsOnCurrentMedia,
@@ -253,6 +257,8 @@ export function buildOrchestratorViewModelsInput(
       ...sharedLaneProps,
       unitsOnCurrentMedia: filteredUnitsOnCurrentMedia,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
+      ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
+      ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,

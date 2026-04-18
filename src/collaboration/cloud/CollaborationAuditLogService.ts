@@ -4,13 +4,13 @@
  * 查询 project_changes 表，提供变更时间线、筛选与分页。
  * Queries project_changes table for change timeline, filtering, and pagination.
  */
-import { getSupabaseBrowserClient } from '../../integrations/supabase/client';
+import { getSupabaseBrowserClient } from './collaborationSupabaseFacade';
 import type {
   CollaborationProjectChangeRecord,
-  ProjectChangePayload,
   ProjectEntityType,
   ProjectChangeOperation,
 } from './syncTypes';
+import { parsePostgresProjectChangeRow } from './projectChangeRowParse';
 
 // ── 输入类型 | Input types ──
 
@@ -97,8 +97,12 @@ export class CollaborationAuditLogService {
     const { data, error, count } = await query;
     if (error) throw error;
 
+    const changes = (data ?? [])
+      .map((row) => parsePostgresProjectChangeRow(row as Record<string, unknown>))
+      .filter((item): item is CollaborationProjectChangeRecord => item !== null);
+
     return {
-      changes: (data ?? []).map(mapChangeRow),
+      changes,
       total: count,
     };
   }
@@ -120,32 +124,4 @@ export class CollaborationAuditLogService {
     });
     return result.changes;
   }
-}
-
-// ── 行映射 | Row mapper ──
-
-function mapChangeRow(row: Record<string, unknown>): CollaborationProjectChangeRecord {
-  return {
-    id: row.id as string,
-    projectId: row.project_id as string,
-    actorId: row.actor_id as string,
-    clientId: row.client_id as string,
-    clientOpId: row.client_op_id as string,
-    ...(row.session_id ? { sessionId: row.session_id as string } : {}),
-    protocolVersion: row.protocol_version as number,
-    projectRevision: row.project_revision as number,
-    baseRevision: row.base_revision as number,
-    entityType: row.entity_type as ProjectEntityType,
-    entityId: row.entity_id as string,
-    opType: row.op_type as ProjectChangeOperation,
-    ...(row.payload !== undefined && row.payload !== null
-      ? { payload: row.payload as ProjectChangePayload }
-      : {}),
-    ...(row.payload_ref_path ? { payloadRefPath: row.payload_ref_path as string } : {}),
-    ...(row.vector_clock && typeof row.vector_clock === 'object'
-      ? { vectorClock: row.vector_clock as Record<string, number> }
-      : {}),
-    sourceKind: row.source_kind as CollaborationProjectChangeRecord['sourceKind'],
-    createdAt: row.created_at as string,
-  };
 }

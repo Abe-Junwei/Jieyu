@@ -19,6 +19,7 @@ import { useTranscriptionMutexActionWrappers } from './useTranscriptionMutexActi
 import { useTranscriptionCanonicalActions } from './useTranscriptionCanonicalActions';
 import { useTranscriptionPersistence } from './useTranscriptionPersistence';
 import { useTranscriptionCloudSyncActions } from './useTranscriptionCloudSyncActions';
+import { getTranscriptionAppService } from '../app/TranscriptionAppService';
 import { isSegmentTimelineUnit, isUnitTimelineUnit, type DbState, type LayerCreateInput, type SaveState, type SnapGuide } from './transcriptionTypes';
 export type { DbState, LayerCreateInput, SaveState, SnapGuide };
 
@@ -258,6 +259,7 @@ export function useTranscriptionData() {
     deleteVoiceTranslation: deleteVoiceTranslationRaw,
     saveUnitText: saveUnitTextRaw,
     saveUnitSelfCertainty: saveUnitSelfCertaintyRaw,
+    saveUnitLayerFields: saveUnitLayerFieldsRaw,
     saveUnitTiming: saveUnitTimingRaw,
     saveUnitLayerText: saveUnitLayerTextRaw,
     createAdjacentUnit: createAdjacentUnitRaw,
@@ -321,6 +323,7 @@ export function useTranscriptionData() {
     deleteVoiceTranslation,
     saveUnitText,
     saveUnitSelfCertainty,
+    saveUnitLayerFields,
     saveUnitTiming,
     saveUnitLayerText,
     createAdjacentUnit,
@@ -343,6 +346,7 @@ export function useTranscriptionData() {
     deleteVoiceTranslationRaw,
     saveUnitTextRaw,
     saveUnitSelfCertaintyRaw,
+    saveUnitLayerFieldsRaw,
     saveUnitTimingRaw,
     saveUnitLayerTextRaw,
     createAdjacentUnitRaw,
@@ -419,8 +423,8 @@ export function useTranscriptionData() {
 
   const cloudSyncActions = useTranscriptionCloudSyncActions({
     phase: state.phase, units, layers, unitsRef, layersRef, layerLinksRef,
-    rawActions: { saveUnitText: saveUnitTextRaw, saveUnitSelfCertainty: saveUnitSelfCertaintyRaw, saveUnitTiming: saveUnitTimingRaw, deleteUnit: deleteUnitRaw, deleteSelectedUnits: deleteSelectedUnitsRaw, deleteLayer: deleteLayerRaw, toggleLayerLink: toggleLayerLinkRaw },
-    wrappedActions: { saveUnitText, saveUnitSelfCertainty, saveUnitTiming, saveUnitLayerText, createUnitFromSelection, deleteUnit, deleteSelectedUnits, createLayer, deleteLayer, toggleLayerLink },
+    rawActions: { saveUnitText: saveUnitTextRaw, saveUnitSelfCertainty: saveUnitSelfCertaintyRaw, saveUnitLayerFields: saveUnitLayerFieldsRaw, saveUnitTiming: saveUnitTimingRaw, deleteUnit: deleteUnitRaw, deleteSelectedUnits: deleteSelectedUnitsRaw, deleteLayer: deleteLayerRaw, toggleLayerLink: toggleLayerLinkRaw },
+    wrappedActions: { saveUnitText, saveUnitSelfCertainty, saveUnitLayerFields, saveUnitTiming, saveUnitLayerText, createUnitFromSelection, deleteUnit, deleteSelectedUnits, createLayer, deleteLayer, toggleLayerLink },
     runWithDbMutex,
     loadSnapshot,
     presenceFocus: collaborationPresenceFocus,
@@ -487,9 +491,42 @@ export function useTranscriptionData() {
     listCloudProjectMembers: cloudSyncActions.listCloudProjectMembers,
   };
 
+  const transcriptionAppService = getTranscriptionAppService();
+
+  const applyTextTimeMapping = async (input: {
+    textId?: string;
+    offsetSec?: number;
+    scale?: number;
+    sourceMediaId?: string;
+  }) => {
+    const textId = input.textId?.trim() || units[0]?.textId || layers[0]?.textId || '';
+    if (!textId) {
+      throw new Error('当前没有可更新的文本项目');
+    }
+    await transcriptionAppService.updateTextTimeMapping({
+      textId,
+      ...(input.offsetSec !== undefined ? { offsetSec: input.offsetSec } : {}),
+      ...(input.scale !== undefined ? { scale: input.scale } : {}),
+      ...(input.sourceMediaId?.trim() ? { sourceMediaId: input.sourceMediaId.trim() } : {}),
+    });
+    await loadSnapshot();
+  };
+
+  const previewTextTimeMapping = (input: {
+    startTime: number;
+    endTime: number;
+    offsetSec?: number;
+    scale?: number;
+  }) => transcriptionAppService.previewTextTimeMapping(input);
+
   const actionApi = {
-    loadSnapshot, loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
+    loadSnapshot,
+    refreshTimeMappingData: loadSnapshot,
+    applyTextTimeMapping,
+    previewTextTimeMapping,
+    loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
     saveUnitText: cloudSyncActions.saveUnitText, saveUnitSelfCertainty: cloudSyncActions.saveUnitSelfCertainty,
+    saveUnitLayerFields: cloudSyncActions.saveUnitLayerFields,
     saveUnitTiming: cloudSyncActions.saveUnitTiming, saveUnitLayerText: cloudSyncActions.saveUnitLayerText,
     createAdjacentUnit, createUnitFromSelection: cloudSyncActions.createUnitFromSelection,
     deleteUnit: cloudSyncActions.deleteUnit, mergeWithPrevious, mergeWithNext, splitUnit,

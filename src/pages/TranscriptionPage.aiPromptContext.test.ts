@@ -1,7 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { LayerDocType } from '../db';
 import { buildTranscriptionAiPromptContext, buildUnitTimelineDigest } from './TranscriptionPage.aiPromptContext';
 import { buildPromptContextBlock } from '../ai/chat/promptContext';
+
+function makeTestLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>): LayerDocType {
+  return {
+    id: partial.id,
+    textId: partial.textId ?? 'text-1',
+    key: partial.key ?? partial.id,
+    layerType: partial.layerType ?? 'transcription',
+    name: partial.name,
+    languageId: partial.languageId ?? 'eng',
+    modality: partial.modality ?? 'text',
+    ...(partial.parentLayerId !== undefined ? { parentLayerId: partial.parentLayerId } : {}),
+    ...(partial.constraint !== undefined ? { constraint: partial.constraint } : {}),
+    createdAt: partial.createdAt ?? '2026-01-01T00:00:00.000Z',
+    updatedAt: partial.updatedAt ?? '2026-01-01T00:00:00.000Z',
+  };
+}
 
 const MOCK_UNIT_DIGEST_ROWS = [
   { id: 'utt-1', startTime: 0, endTime: 35.1, transcription: 'Hello world' },
@@ -295,6 +312,40 @@ describe('buildTranscriptionAiPromptContext', () => {
     expect(context.shortTerm?.localUnitIndex).toBeUndefined();
     const block = buildPromptContextBlock(context, 4000);
     expect(block).toContain('unitIndexComplete=false');
+  });
+
+  it('sets segmentMetaStorageLayerId to segment source layer when focus is a dependent lane', () => {
+    const root = makeTestLayer({ id: 'root', name: { 'en-US': 'Main' }, constraint: 'independent_boundary' });
+    const dependent = makeTestLayer({
+      id: 'translation',
+      name: { 'en-US': 'Translation' },
+      parentLayerId: 'root',
+      constraint: 'symbolic_association',
+    });
+    const context = buildTranscriptionAiPromptContext({
+      selectionSnapshot: {
+        activeUnitId: null,
+        selectedUnit: null,
+        selectedRowMeta: null,
+        selectedUnitKind: null,
+        selectedLayerId: 'translation',
+        selectedText: '',
+        selectedTimeRangeLabel: '',
+        timelineUnit: null,
+      },
+      selectedUnitIds: [],
+      selectedUnitCount: 0,
+      currentMediaUnits: MOCK_CURRENT_MEDIA_UNITS,
+      unitCount: 1,
+      translationLayerCount: 1,
+      aiConfidenceAvg: null,
+      observerStage: null,
+      topLexemes: [],
+      recommendations: [],
+      layers: [root, dependent],
+      defaultTranscriptionLayerId: 'root',
+    });
+    expect(context.shortTerm?.segmentMetaStorageLayerId).toBe('root');
   });
 
   it('includes timelineReadModelEpoch in shortTerm when provided', () => {

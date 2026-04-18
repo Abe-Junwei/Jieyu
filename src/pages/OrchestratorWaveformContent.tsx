@@ -18,7 +18,6 @@ import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelC
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
 import { WaveformReadoutCard } from '../components/transcription/WaveformReadoutCard';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
-import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
 import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
 import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
@@ -236,8 +235,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     acousticOverlayIntensityPath,
     acousticOverlayVisibleSummary,
     acousticOverlayLoading,
-    acousticRuntimeStatus,
-    vadCacheStatus,
     waveformHoverReadout,
     spectrogramHoverReadout,
     selectedHotspotTimeSec,
@@ -458,12 +455,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                       ))}
 
                     </svg>
-                    <div className="waveform-runtime-status">
-                      <ToolbarAiProgress
-                        {...(acousticRuntimeStatus !== undefined ? { acousticRuntimeStatus } : {})}
-                        {...(vadCacheStatus !== undefined ? { vadCacheStatus } : {})}
-                      />
-                    </div>
                     {activeReadout ? (
                       <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
                     ) : null}

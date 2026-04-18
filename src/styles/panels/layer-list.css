@@ -17,7 +17,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) 16%, transparent), color-mix(in srgb, var(--state-info-solid) 92%, transparent) 16%, color-mix(in srgb, var(--state-info-solid) 92%, transparent) 84%, color-mix(in srgb, var(--state-info-solid) 16%, transparent));
+  background: linear-gradient(90deg, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent), color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 16%, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-6), transparent) 84%, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent));
   opacity: 0.85;
   pointer-events: none;
   z-index: var(--z-timeline-annotation);
@@ -32,8 +32,8 @@
 }
 
 .transcription-side-pane-item-row-bundle-target {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) 6%, transparent), color-mix(in srgb, var(--state-info-border) 12%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-border) 12%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent), color-mix(in srgb, var(--state-info-border) var(--theme-opacity-1), transparent));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-border) var(--theme-opacity-1), transparent);
 }
 /* ── 层列表行 | Layer list rows ── */
 
@@ -81,7 +81,7 @@
 
 .transcription-side-pane-item:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) 55%, transparent);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
 }
 
 /* — 类型 chip：写/译 小方块 | Type chip — */
@@ -479,7 +479,7 @@
 }
 
 .transcription-side-pane-portaled-stack .app-side-pane-layer-list {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .transcription-side-pane-portaled-stack .app-side-pane-layer-group .app-side-pane-nav {
@@ -516,7 +516,7 @@
 }
 
 .transcription-side-pane-portaled-stack .app-side-pane-layer-list {
-  gap: 0 !important;
+  gap: 0;
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;

@@ -155,7 +155,7 @@ describe('Transcription layout guard', () => {
     expect(entryCode).not.toContain("@import './pages/transcription-timeline.css';");
     expect(entryCode).not.toContain("@import './foundation/waveform-display.css';");
     expect(entryCode).not.toContain("@import './pages/transcription-waveform.css';");
-    expect(entryCode).toContain("@import './transcription-waveform-shell.css';");
+    expect(entryCode).toContain("@import './pages/transcription-waveform-shell.css';");
     const toolbarPagePath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Toolbar.tsx');
     expect(fs.readFileSync(toolbarPagePath, 'utf8')).toContain("import '../styles/pages/transcription-toolbar.css';");
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');

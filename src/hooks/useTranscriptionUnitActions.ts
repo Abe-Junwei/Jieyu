@@ -1,6 +1,14 @@
 import { startTransition, useCallback, useMemo } from 'react';
 import { getDb } from '../db';
-import type { AnchorDocType, MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import type {
+  AnchorDocType,
+  MediaItemDocType,
+  LayerDocType,
+  LayerUnitDocType,
+  LayerUnitContentDocType,
+  LayerUnitStatus,
+  ProvenanceEnvelope,
+} from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUtils';
@@ -21,6 +29,50 @@ import { getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits } from '.
 import { isTranscriptionPerfDebugEnabled } from '../utils/transcriptionPerfDebug';
 
 const log = createLogger('useTranscriptionUnitActions');
+
+/**
+ * 写入 `layer_units` 上「层私有的」标柱字段的统一 patch。
+ * - 键出现且值为 `null`：从行上删除该字段。
+ * - 键出现且值为非 null：写入该值。
+ * - 键省略：不修改该字段。
+ *
+ * 存储约定 | Storage:
+ *   - 段行与规范单元行均使用 `status`（LayerUnitDocType.status）存标注深度；读模型里 segment 视图映射为 `annotationStatus`。
+ *   - `selfCertainty` / `provenance` 与 `status` 相同，均按行的 `unitType` 经 {@link saveUnitLayerFields} 分派到 segment upsert 或 unit batch。
+ */
+export type PerLayerRowFieldPatch = {
+  selfCertainty?: UnitSelfCertainty | null;
+  status?: LayerUnitStatus | null;
+  provenance?: ProvenanceEnvelope | null;
+};
+
+function perLayerPatchTouchesOnlySelfCertainty(patch: PerLayerRowFieldPatch): boolean {
+  return patch.selfCertainty !== undefined
+    && patch.status === undefined
+    && patch.provenance === undefined;
+}
+
+function applyPerLayerRowFieldPatch(row: LayerUnitDocType, patch: PerLayerRowFieldPatch, nowIso: string): LayerUnitDocType {
+  const next: LayerUnitDocType = { ...row, updatedAt: nowIso };
+  if (patch.selfCertainty !== undefined) {
+    if (patch.selfCertainty === null) delete next.selfCertainty;
+    else next.selfCertainty = patch.selfCertainty;
+  }
+  if (patch.status !== undefined) {
+    if (patch.status === null) {
+      delete next.status;
+      delete next.annotationStatus;
+    } else {
+      next.status = patch.status;
+      delete next.annotationStatus;
+    }
+  }
+  if (patch.provenance !== undefined) {
+    if (patch.provenance === null) delete next.provenance;
+    else next.provenance = patch.provenance;
+  }
+  return next;
+}
 
 export type TranscriptionUnitActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
@@ -838,10 +890,18 @@ export function useTranscriptionUnitActions({
     });
   }, [clearSelection, locale, pruneOrphanAnchors, pushUndo, setSaveState, setTranslations, setUnits, unitsRef]);
 
-  const saveUnitSelfCertainty = useCallback(async (
+  const saveUnitLayerFields = useCallback(async (
     unitIds: Iterable<string>,
-    value: UnitSelfCertainty | undefined,
+    patch: PerLayerRowFieldPatch,
   ) => {
+    if (
+      patch.selfCertainty === undefined
+      && patch.status === undefined
+      && patch.provenance === undefined
+    ) {
+      return;
+    }
+
     const idSet = new Set(
       [...unitIds]
         .map((id) => id.trim())
@@ -862,17 +922,12 @@ export function useTranscriptionUnitActions({
     const targets = [...localTargets, ...persistedTargets];
     if (targets.length === 0) return;
 
-    pushUndo(getUndoLabel(locale, 'editSelfCertainty'));
+    const undoKey: 'editSelfCertainty' | 'editPerLayerRowFields' = perLayerPatchTouchesOnlySelfCertainty(patch)
+      ? 'editSelfCertainty'
+      : 'editPerLayerRowFields';
+    pushUndo(getUndoLabel(locale, undoKey));
     const now = new Date().toISOString();
-    const updated = targets.map((u) => {
-      const next: LayerUnitDocType = { ...u, updatedAt: now };
-      if (value === undefined) {
-        delete next.selfCertainty;
-      } else {
-        next.selfCertainty = value;
-      }
-      return next;
-    });
+    const updated = targets.map((u) => applyPerLayerRowFieldPatch(u, patch, now));
 
     const updatedUnits = updated.filter((item) => item.unitType !== 'segment');
     const updatedSegments = updated.filter((item) => item.unitType === 'segment');
@@ -886,12 +941,25 @@ export function useTranscriptionUnitActions({
     if (updatedSegments.length > 0) {
       await LayerUnitSegmentWriteService.upsertSegments(db, updatedSegments);
       void SegmentMetaService.syncForUnitIds(updatedSegments.map((item) => item.id)).catch(() => {
-        // SegmentMeta 为统一读模型，刷新失败不应阻塞确信度保存 | SegmentMeta is a shared read model; refresh failures must not block certainty saves.
+        // SegmentMeta 为统一读模型；刷新失败不应阻塞 per-layer 字段保存 | SegmentMeta is a shared read model.
       });
     }
 
-    setSaveState({ kind: 'done', message: t(locale, 'transcription.unitAction.done.selfCertaintyUpdated') });
+    const doneKey = perLayerPatchTouchesOnlySelfCertainty(patch)
+      ? 'transcription.unitAction.done.selfCertaintyUpdated'
+      : 'transcription.unitAction.done.perLayerRowFieldsUpdated';
+    setSaveState({ kind: 'done', message: t(locale, doneKey) });
   }, [locale, pushUndo, setSaveState, setUnits, unitsRef]);
+
+  const saveUnitSelfCertainty = useCallback(async (
+    unitIds: Iterable<string>,
+    value: UnitSelfCertainty | undefined,
+  ) => {
+    await saveUnitLayerFields(
+      unitIds,
+      value === undefined ? { selfCertainty: null } : { selfCertainty: value },
+    );
+  }, [saveUnitLayerFields]);
 
   const {
     offsetSelectedTimes,
@@ -939,6 +1007,7 @@ export function useTranscriptionUnitActions({
     deleteVoiceTranslation,
     saveUnitText: saveUnitText,
     saveUnitSelfCertainty: saveUnitSelfCertainty,
+    saveUnitLayerFields: saveUnitLayerFields,
     saveUnitTiming: saveUnitTiming,
     saveUnitLayerText: saveUnitLayerText,
     createAdjacentUnit: createAdjacentUnit,

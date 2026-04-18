@@ -18,6 +18,12 @@ export interface ChatRequestOptions {
   traceContext?: TraceContextHeaders;
 }
 
+export interface ChatTokenUsage {
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+}
+
 export interface ChatChunk {
   delta: string;
   done?: boolean;
@@ -33,6 +39,10 @@ export interface ChatChunk {
    * Hook累积时不使用此字段，仅用于UI层判断。
    */
   thinking?: boolean;
+  /**
+   * 模型或服务端回传的真实 token 使用量。
+   */
+  usage?: ChatTokenUsage;
 }
 
 export interface LLMProvider {

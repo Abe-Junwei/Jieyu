@@ -141,6 +141,19 @@ export function segmentToView(
 }
 
 /**
+ * 纯显示路径下，把借来的 segment view 重新标记到当前可见 lane。
+ * Re-scope borrowed segment views to the currently visible lane for display-only consumers.
+ */
+export function scopeTimelineUnitViewToLayer(view: TimelineUnitView, displayLayerId: string): TimelineUnitView {
+  const normalizedDisplayLayerId = displayLayerId.trim();
+  if (!normalizedDisplayLayerId || view.layerId === normalizedDisplayLayerId) return view;
+  return {
+    ...view,
+    layerId: normalizedDisplayLayerId,
+  };
+}
+
+/**
  * Builds a single read-model index for unit-first or segment-first projects.
  * Matches prior `useTranscriptionAiController` effective* row selection.
  */

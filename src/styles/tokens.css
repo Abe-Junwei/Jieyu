@@ -104,10 +104,10 @@
   --state-uncertainty-bg: var(--state-warning-bg);
   --state-uncertainty-border: var(--state-warning-border);
 
-  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
-  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) 10%, transparent);
-  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) 8%, transparent);
-  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) 10%, transparent);
+  --bg-info-tint: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
+  --bg-success-tint: color-mix(in srgb, var(--state-success-solid) var(--theme-opacity-1), transparent);
+  --bg-warning-tint: color-mix(in srgb, var(--state-warning-solid) var(--theme-opacity-1), transparent);
+  --bg-danger-tint: color-mix(in srgb, var(--state-danger-solid) var(--theme-opacity-1), transparent);
 
   /* 字体 */
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Noto Sans SC", "Noto Sans", "Noto Sans Arabic", "Noto Sans Devanagari", "Noto Sans Thai", "Noto Sans Tibetan", sans-serif;
@@ -194,9 +194,9 @@
   --tab-underline-hover: color-mix(in srgb, var(--gray-12) 10%, transparent);
 
   --focus-ring: color-mix(in srgb, var(--gray-12) 24%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--border-soft) 24%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--border-soft) 30%, transparent);
@@ -207,6 +207,14 @@
   --mix-medium: 32%;
   --mix-strong: 56%;
   --mix-heavy: 76%;
+
+  /* 主题透明度 6 档 | Six-step theme opacity scale */
+  --theme-opacity-1: var(--mix-subtle);
+  --theme-opacity-2: var(--mix-light);
+  --theme-opacity-3: var(--mix-medium);
+  --theme-opacity-4: var(--mix-strong);
+  --theme-opacity-5: var(--mix-heavy);
+  --theme-opacity-6: 92%;
 
   --opacity-disabled: 0.38;
   --opacity-dimmed: 0.54;
@@ -252,10 +260,10 @@
 
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--border-soft) 18%, transparent);
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+  --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 64%, transparent);
-  --timeline-neutral-divider-selected: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
-  --timeline-neutral-outline-selected: color-mix(in srgb, var(--state-info-solid) 30%, transparent);
+  --timeline-neutral-divider-selected: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
+  --timeline-neutral-outline-selected: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
 
   --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
   --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
@@ -274,8 +282,8 @@
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
   --timeline-label-offset: calc(var(--lane-label-width) + var(--video-left-panel-width, 0px));
 
-  --ruler-top-accent-start: color-mix(in srgb, var(--state-info-solid) 20%, transparent);
-  --ruler-top-accent-end: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
+  --ruler-top-accent-start: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  --ruler-top-accent-end: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
 
   --divider-subtle: color-mix(in srgb, var(--border-soft) 60%, transparent);
   --divider-base: var(--border-soft);
@@ -349,30 +357,30 @@
 
   --state-info-solid: var(--gray-11);
   --state-info-text: var(--gray-11);
-  --state-info-bg: color-mix(in srgb, var(--gray-11) 12%, transparent);
-  --state-info-bg-strong: color-mix(in srgb, var(--gray-11) 18%, transparent);
-  --state-info-border: color-mix(in srgb, var(--gray-11) 30%, transparent);
-  --state-info-border-strong: color-mix(in srgb, var(--gray-11) 42%, transparent);
+  --state-info-bg: color-mix(in srgb, var(--gray-11) var(--theme-opacity-1), transparent);
+  --state-info-bg-strong: color-mix(in srgb, var(--gray-11) var(--theme-opacity-2), transparent);
+  --state-info-border: color-mix(in srgb, var(--gray-11) var(--theme-opacity-3), transparent);
+  --state-info-border-strong: color-mix(in srgb, var(--gray-11) var(--theme-opacity-4), transparent);
 
   --state-success-solid: #22c55e;
   --state-success-text: #4ade80;
-  --state-success-bg: color-mix(in srgb, #22c55e 14%, transparent);
-  --state-success-border: color-mix(in srgb, #22c55e 30%, transparent);
+  --state-success-bg: color-mix(in srgb, #22c55e var(--theme-opacity-2), transparent);
+  --state-success-border: color-mix(in srgb, #22c55e var(--theme-opacity-3), transparent);
 
   --state-warning-solid: #f59e0b;
   --state-warning-text: #fbbf24;
-  --state-warning-bg: color-mix(in srgb, #f59e0b 12%, transparent);
-  --state-warning-border: color-mix(in srgb, #f59e0b 30%, transparent);
+  --state-warning-bg: color-mix(in srgb, #f59e0b var(--theme-opacity-1), transparent);
+  --state-warning-border: color-mix(in srgb, #f59e0b var(--theme-opacity-3), transparent);
 
   --state-danger-solid: #ef4444;
   --state-danger-text: #f87171;
-  --state-danger-bg: color-mix(in srgb, #ef4444 12%, transparent);
-  --state-danger-border: color-mix(in srgb, #ef4444 30%, transparent);
+  --state-danger-bg: color-mix(in srgb, #ef4444 var(--theme-opacity-1), transparent);
+  --state-danger-border: color-mix(in srgb, #ef4444 var(--theme-opacity-3), transparent);
 
   --focus-ring: color-mix(in srgb, var(--header-accent) 32%, transparent);
-  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) 24%, transparent);
-  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) 44%, transparent);
-  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
+  --focus-ring-soft: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
+  --focus-ring-strong: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
+  --focus-ring-glow: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2), transparent);
 
   --overlay-hover-soft: color-mix(in srgb, var(--surface-panel) 8%, transparent);
   --overlay-hover-muted: color-mix(in srgb, var(--surface-panel) 6%, transparent);
@@ -383,6 +391,14 @@
   --mix-medium: 38%;
   --mix-strong: 62%;
   --mix-heavy: 80%;
+
+  /* 主题透明度 6 档 | Six-step theme opacity scale */
+  --theme-opacity-1: var(--mix-subtle);
+  --theme-opacity-2: var(--mix-light);
+  --theme-opacity-3: var(--mix-medium);
+  --theme-opacity-4: var(--mix-strong);
+  --theme-opacity-5: var(--mix-heavy);
+  --theme-opacity-6: 92%;
 
   --glass-border: color-mix(in srgb, var(--gray-12) 12%, transparent);
   --glass-shadow: 0 4px 30px color-mix(in srgb, #000000 30%, transparent);

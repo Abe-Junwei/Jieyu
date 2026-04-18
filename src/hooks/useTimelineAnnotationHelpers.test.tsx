@@ -544,7 +544,7 @@ describe('useTimelineAnnotationHelpers', () => {
     expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
   });
 
-  it('renders self-certainty from the source unit layer even when the display lane differs', () => {
+  it('keeps certainty isolated to the display lane when a dependent row reuses a source segment', () => {
     const seg = makeSegmentUnit('seg-source', 'layer-source', 3, 4, 'utt-host');
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
@@ -588,10 +588,10 @@ describe('useTimelineAnnotationHelpers', () => {
       },
     ));
 
-    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
   });
 
-  it('renders ambiguous self-certainty marker when certainty host is non-unique', () => {
+  it('does not surface a source-layer ambiguity marker inside a different display lane', () => {
     const seg = makeSegmentUnit('seg-ambiguous', 'layer-source', 3, 4, 'utt-host');
 
     const { result } = renderHook(() => useTimelineAnnotationHelpers({
@@ -636,7 +636,7 @@ describe('useTimelineAnnotationHelpers', () => {
       },
     ));
 
-    expect(container.querySelector('.timeline-annotation-self-certainty-ambiguous')).toBeTruthy();
+    expect(container.querySelector('.timeline-annotation-self-certainty-ambiguous')).toBeFalsy();
     expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
   });
 

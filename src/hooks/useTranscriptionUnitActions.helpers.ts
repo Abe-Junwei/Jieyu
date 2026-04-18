@@ -18,6 +18,8 @@ export const UNDO_LABEL_KEYS = {
   splitByRegex: 'transcription.unitAction.undo.regexSplitSelection',
   mergeSelectedUnits: 'transcription.unitAction.undo.mergeSelection',
   editSelfCertainty: 'transcription.unitAction.undo.editSelfCertainty',
+  /** 同时修改段行/单元行上的多个 per-layer 存储字段（status / provenance / selfCertainty 等） */
+  editPerLayerRowFields: 'transcription.unitAction.undo.editPerLayerRowFields',
 } as const;
 
 export type UndoLabelKey = keyof typeof UNDO_LABEL_KEYS;

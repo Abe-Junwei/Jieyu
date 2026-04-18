@@ -36,6 +36,19 @@ function projectContentReadModel(content: LayerUnitContentDocType): LayerUnitCon
   };
 }
 
+function withSegmentStorageLayerId(
+  rows: readonly LayerUnitDocType[],
+  fallbackLayerId: string | undefined,
+): LayerUnitDocType[] {
+  const lid = fallbackLayerId?.trim() ?? '';
+  if (!lid) return [...rows];
+  return rows.map((row) => {
+    if (row.unitType !== 'segment') return row;
+    if (row.layerId?.trim()) return row;
+    return { ...row, layerId: lid };
+  });
+}
+
 function toSegmentViews(unitRows: readonly LayerUnitDocType[]): LayerSegmentViewDocType[] {
   return sortSegments(
     unitRows
@@ -73,13 +86,13 @@ export class LayerSegmentQueryService {
   static async listSegmentsByLayerId(layerId: string): Promise<LayerSegmentViewDocType[]> {
     const db = await getDb();
     const unitRows = await db.dexie.layer_units.where('layerId').equals(layerId).toArray();
-    return toSegmentViews(unitRows);
+    return toSegmentViews(withSegmentStorageLayerId(unitRows, layerId));
   }
 
   static async listSegmentsByLayerMedia(layerId: string, mediaId: string): Promise<LayerSegmentViewDocType[]> {
     const db = await getDb();
     const unitRows = await db.dexie.layer_units.where('[layerId+mediaId]').equals([layerId, mediaId]).toArray();
-    return toSegmentViews(unitRows);
+    return toSegmentViews(withSegmentStorageLayerId(unitRows, layerId));
   }
 
   static async listSegmentsByIds(segmentIds: readonly string[]): Promise<LayerSegmentViewDocType[]> {

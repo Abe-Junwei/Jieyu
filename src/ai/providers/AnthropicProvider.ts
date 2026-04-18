@@ -2,6 +2,7 @@ import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './
 import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
+import { normalizeAnthropicUsage } from './tokenUsage';
 
 export interface AnthropicProviderConfig {
   baseUrl: string;
@@ -83,6 +84,8 @@ export class AnthropicProvider implements LLMProvider {
           type?: string;
           delta?: { text?: string };
           error?: { message?: string } | string;
+          usage?: { input_tokens?: number; output_tokens?: number };
+          message?: { usage?: { input_tokens?: number; output_tokens?: number } };
         }>(payload, this.label, 'Anthropic SSE');
 
         // 显式 error.message 优先处理
@@ -99,6 +102,11 @@ export class AnthropicProvider implements LLMProvider {
           const rawError = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
           yield toErrorChunk(`Anthropic 请求异常：${rawError}`);
           return;
+        }
+
+        const usage = normalizeAnthropicUsage(json.usage ?? json.message?.usage);
+        if (usage) {
+          yield { delta: '', usage };
         }
 
         if (json.type === 'content_block_delta') {

@@ -1,3 +1,5 @@
+import { generateTraceId } from '../observability/aiTrace';
+import { createMetricTags, recordMetric } from '../observability/metrics';
 import { createCollaborationOperationLog, type CollaborationOperationLog } from './collaborationOpLog';
 
 export type CollaborationStage = 'async' | 'same-device-realtime' | 'cross-device';
@@ -34,12 +36,20 @@ export interface DetectConflictOptions {
 
 export type ConflictResolutionStrategy = 'last-write-wins' | 'manual-review';
 
+/** 审计日志用策略（含纯人工决议，不经自动 merge）| Log-only strategies for manual decisions */
+export type ConflictResolutionLogStrategy =
+  | ConflictResolutionStrategy
+  | 'manual-apply-remote'
+  | 'manual-keep-local';
+
 export interface ResolveConflictResult {
   conflicts: ConflictDescriptor[];
   resolved: boolean;
   requiresManual: boolean;
   resolvedRecord: CollaborationRecord | null;
   consistencyDigest: string;
+  /** 成功自动合并/删除解决时生成的观测 trace id | Observability trace id when auto-resolved */
+  resolutionTraceId?: string;
 }
 
 export interface ConsistencyCheckResult {
@@ -49,6 +59,23 @@ export interface ConsistencyCheckResult {
 }
 
 const DEFAULT_SESSION_OVERLAP_WINDOW_MS = 5_000;
+
+function emitCollaborationConflictResolvedObservation(
+  strategy: ConflictResolutionStrategy,
+  hadConflicts: boolean,
+): string {
+  const traceId = generateTraceId();
+  recordMetric({
+    id: 'business.collaboration.conflict_resolved_count',
+    value: 1,
+    tags: createMetricTags('collaboration', {
+      trace_id: traceId,
+      strategy,
+      had_conflicts: hadConflicts ? 'true' : 'false',
+    }),
+  });
+  return traceId;
+}
 
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') {
@@ -215,12 +242,14 @@ export function resolveCollaborationConflicts(
         fields: {},
         deleted: true,
       };
+      const resolutionTraceId = emitCollaborationConflictResolvedObservation(strategy, detection.hasConflict);
       return {
         conflicts: detection.conflicts,
         resolved: true,
         requiresManual: false,
         resolvedRecord: deletedRecord,
         consistencyDigest: computeCollaborationDigest(deletedRecord),
+        resolutionTraceId,
       };
     }
   }
@@ -248,12 +277,15 @@ export function resolveCollaborationConflicts(
     ...(latest.deleted === true ? { deleted: true } : {}),
   };
 
+  const resolutionTraceId = emitCollaborationConflictResolvedObservation(strategy, detection.hasConflict);
+
   return {
     conflicts: detection.conflicts,
     resolved: true,
     requiresManual: false,
     resolvedRecord,
     consistencyDigest: computeCollaborationDigest(resolvedRecord),
+    resolutionTraceId,
   };
 }
 
@@ -282,10 +314,11 @@ export function duplicateResolvedRecord(record: CollaborationRecord): Collaborat
 
 export function createConflictResolutionLog(
   record: CollaborationRecord,
-  strategy: ConflictResolutionStrategy,
+  strategy: ConflictResolutionLogStrategy,
   conflicts: ConflictDescriptor[],
   at = Date.now(),
   decisionId?: string,
+  traceId?: string,
 ): CollaborationOperationLog {
   const conflictCodes = conflicts.map((item) => `${item.scope}:${item.code}:${item.fieldKey ?? '*'}`);
   return createCollaborationOperationLog({
@@ -297,5 +330,6 @@ export function createConflictResolutionLog(
     strategy,
     conflictCodes,
     ...(decisionId !== undefined ? { decisionId } : {}),
+    ...(traceId !== undefined ? { traceId } : {}),
   });
 }

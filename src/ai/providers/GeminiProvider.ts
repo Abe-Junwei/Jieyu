@@ -2,6 +2,7 @@ import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './
 import { parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
+import { normalizeGeminiUsage } from './tokenUsage';
 
 export interface GeminiProviderConfig {
   baseUrl: string;
@@ -96,6 +97,11 @@ export class GeminiProvider implements LLMProvider {
             finishReason?: string;
           }>;
           error?: { message?: string } | string;
+          usageMetadata?: {
+            promptTokenCount?: number;
+            candidatesTokenCount?: number;
+            totalTokenCount?: number;
+          };
         }>(payload, this.label, 'Gemini SSE');
 
         // 显式 error.message 优先处理
@@ -113,6 +119,11 @@ export class GeminiProvider implements LLMProvider {
           const rawError = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
           yield toErrorChunk(`Gemini 请求异常：${rawError}`);
           return;
+        }
+
+        const usage = normalizeGeminiUsage(json.usageMetadata);
+        if (usage) {
+          yield { delta: '', usage };
         }
 
         if (fullText.length > emittedText.length) {

@@ -30,6 +30,8 @@ import type { AiMessageCitation } from '../db';
 import { featureFlags } from '../ai/config/featureFlags';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import { normalizeAiProviderError } from '../ai/providers/errorUtils';
+import type { ChatTokenUsage } from '../ai/providers/LLMProvider';
+import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
@@ -38,23 +40,7 @@ import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSetting
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
 import type { AiChatSettings } from '../ai/providers/providerCatalog';
-import type { ChatMessage } from '../ai/providers/LLMProvider';
 import type { AiContextDebugSnapshot, AiInteractionMetrics, AiSessionMemory, AiTaskSession, PendingAiToolCall, UiChatMessage, UseAiChatOptions, AiRecommendationEvent } from './useAiChat.types';
-
-function estimateTokensFromText(text: string): number {
-  const normalized = text.trim();
-  if (!normalized) return 0;
-  return Math.max(1, Math.ceil(normalized.length / 4));
-}
-
-function estimateTokensFromHistory(messages: ChatMessage[]): number {
-  return messages.reduce((sum, item) => sum + estimateTokensFromText(item.content), 0);
-}
-
-/** 生成侧估算：可见正文 + 推理/思考链（与常见 API 的 completion_tokens 更接近） */
-function estimateOutputTokensFromAssistantParts(content: string, reasoning: string): number {
-  return estimateTokensFromText(content) + estimateTokensFromText(reasoning);
-}
 
 function isAgentLoopResumeText(userText: string): boolean {
   const normalized = userText.trim();
@@ -144,7 +130,13 @@ export function useAiChat(options?: UseAiChatOptions) {
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
-    setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
+    setMetrics((prev) => {
+      const currentValue = prev[key];
+      if (typeof currentValue !== 'number') {
+        return prev;
+      }
+      return { ...prev, [key]: currentValue + delta };
+    });
   }, []);
   const abortRef = useRef<AbortController | null>(null);
   const localToolCallCountRef = useRef(0);
@@ -431,7 +423,6 @@ export function useAiChat(options?: UseAiChatOptions) {
     let firstChunkArrived = false;
     let connectionMarkedSuccess = false;
     let timedOutBeforeFirstChunk = false;
-    let totalModelOutputTokens = 0;
     const sendStartedAtMs = performance.now();
     const aiMetricTags = createMetricTags('ai-chat', {
       provider: provider.id,
@@ -475,7 +466,17 @@ export function useAiChat(options?: UseAiChatOptions) {
     });
 
     let assistantContent = '';
-    let estimatedInputTokens = 0;
+    let reportedInputTokens = 0;
+    let totalReportedOutputTokens = 0;
+    let primaryStreamUsage: ChatTokenUsage | undefined;
+    let usageObservedThisTurn = false;
+    let primaryUsageCommitted = false;
+    const commitPrimaryStreamUsage = () => {
+      if (primaryUsageCommitted) return;
+      primaryUsageCommitted = true;
+      reportedInputTokens += primaryStreamUsage?.inputTokens ?? 0;
+      totalReportedOutputTokens += primaryStreamUsage?.outputTokens ?? 0;
+    };
     const agentLoopSourceUserText = resumeCheckpoint?.originalUserText ?? trimmed;
     const effectiveUserText = resumeCheckpoint?.continuationInput ?? trimmed;
 
@@ -626,13 +627,10 @@ export function useAiChat(options?: UseAiChatOptions) {
         settingsRef.current.toolFeedbackStyle,
         routingPlan.selectedTools,
       );
-      estimatedInputTokens = estimateTokensFromText(effectiveUserText)
-        + estimateTokensFromText(systemPrompt)
-        + estimateTokensFromHistory(history);
       setMetrics((prev) => ({
         ...prev,
-        totalInputTokens: prev.totalInputTokens + estimatedInputTokens,
         currentTurnTokens: 0,
+        currentTurnTokensAvailable: false,
       }));
 
       const buildStreamCompletionEnv = (): Omit<
@@ -727,7 +725,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         if (chunk.error) {
           const errorText = chunk.error;
           streamFinalized = true;
-          totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
+          commitPrimaryStreamUsage();
           await awaitQueuedPersistence();
           await finalizeAssistantMessage('error', assistantContent, errorText, ragCitations, assistantReasoningContent);
           setLastError(errorText);
@@ -772,11 +770,16 @@ export function useAiChat(options?: UseAiChatOptions) {
           )));
         }
 
+        if (chunk.usage) {
+          usageObservedThisTurn = true;
+          primaryStreamUsage = mergeTokenUsage(primaryStreamUsage, chunk.usage);
+        }
+
         if (chunk.done) {
           streamFinalized = true;
           queueFlushAssistantDraft(assistantContent, true);
           await awaitQueuedPersistence();
-          totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
+          commitPrimaryStreamUsage();
           const {
             finalContent,
             finalStatus,
@@ -831,8 +834,8 @@ export function useAiChat(options?: UseAiChatOptions) {
               resolvedLocalToolResults: localToolResults,
               rawAssistantContentForLoop: assistantContent,
               assistantReasoningContent,
-              estimatedInputTokens,
-              totalModelOutputTokens,
+              reportedInputTokens,
+              totalOutputTokens: totalReportedOutputTokens,
               startStep: resumeCheckpoint ? Math.max(1, resumeCheckpoint.step + 1) : 1,
             },
           );
@@ -842,8 +845,8 @@ export function useAiChat(options?: UseAiChatOptions) {
           resolvedErrorMessage = loopResult.resolvedErrorMessage;
           resolvedConnectionErrorMessage = loopResult.resolvedConnectionErrorMessage;
           assistantReasoningContent = loopResult.assistantReasoningContent;
-          totalModelOutputTokens = loopResult.totalModelOutputTokens;
-          estimatedInputTokens = loopResult.estimatedInputTokens;
+          totalReportedOutputTokens = loopResult.totalOutputTokens;
+          reportedInputTokens = loopResult.reportedInputTokens;
 
           if (loopResult.loopExecuted) {
             setTaskSession((prev) => {
@@ -881,7 +884,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       }
 
       if (!streamFinalized && !controller.signal.aborted) {
-        totalModelOutputTokens += estimateOutputTokensFromAssistantParts(assistantContent, assistantReasoningContent);
+        commitPrimaryStreamUsage();
         recordCompletionSuccessMetric();
         await awaitQueuedPersistence();
         await finalizeAssistantMessage('done', assistantContent, undefined, ragCitations, assistantReasoningContent);
@@ -907,8 +910,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         }
         const abortedMsg = messagesRef.current.find((msg) => msg.id === assistantId);
         const abortedContent = abortedMsg?.content ?? '';
-        const abortedReasoning = abortedMsg?.reasoningContent ?? '';
-        totalModelOutputTokens += estimateOutputTokensFromAssistantParts(abortedContent, abortedReasoning);
+        commitPrimaryStreamUsage();
         await awaitQueuedPersistence();
         await finalizeAssistantMessage('aborted', abortedContent, formatAbortedMessage());
         return;
@@ -917,8 +919,7 @@ export function useAiChat(options?: UseAiChatOptions) {
       const message = normalizeAiProviderError(error, provider.label);
       const errorMsg = messagesRef.current.find((msg) => msg.id === assistantId);
       const errorContent = errorMsg?.content ?? '';
-      const errorReasoning = errorMsg?.reasoningContent ?? '';
-      totalModelOutputTokens += estimateOutputTokensFromAssistantParts(errorContent, errorReasoning);
+      commitPrimaryStreamUsage();
       await awaitQueuedPersistence();
       await finalizeAssistantMessage('error', errorContent, message);
       setLastError(message);
@@ -940,11 +941,17 @@ export function useAiChat(options?: UseAiChatOptions) {
         ?? (assistantContent.trim().length > 0
           ? assistantContent
           : '');
-      const outputTokens = totalModelOutputTokens;
+      commitPrimaryStreamUsage();
+      const inputTokens = reportedInputTokens;
+      const outputTokens = totalReportedOutputTokens;
       setMetrics((prev) => ({
         ...prev,
+        totalInputTokens: prev.totalInputTokens + inputTokens,
         totalOutputTokens: prev.totalOutputTokens + outputTokens,
-        currentTurnTokens: estimatedInputTokens + outputTokens,
+        currentTurnTokens: inputTokens + outputTokens,
+        totalInputTokensAvailable: prev.totalInputTokensAvailable || usageObservedThisTurn,
+        totalOutputTokensAvailable: prev.totalOutputTokensAvailable || usageObservedThisTurn,
+        currentTurnTokensAvailable: usageObservedThisTurn,
       }));
       if (completionContent) {
         onMessageCompleteRef.current?.(assistantId, completionContent);

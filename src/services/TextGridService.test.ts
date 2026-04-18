@@ -171,4 +171,33 @@ item []:
       bridgeId: 'xf-1',
     });
   });
+
+  it('round-trips logical timeline project metadata for document-mode exports', () => {
+    const trc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+      languageId: 'zho',
+    });
+
+    const textGrid = exportToTextGrid({
+      units: [makeUnit()],
+      layers: [trc],
+      translations: [
+        makeTranslation({ id: 'utr_trc', layerId: trc.id, unitId: 'utt_1', text: '你好' }),
+      ],
+      timelineMetadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+
+    const imported = importFromTextGrid(textGrid);
+    expect(imported.timelineMetadata).toEqual({
+      timelineMode: 'document',
+      logicalDurationSec: 1800,
+      timebaseLabel: 'logical-second',
+    });
+  });
 });

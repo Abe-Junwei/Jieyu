@@ -106,6 +106,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         ?? toolboxResult?.units
         ?? [];
 
+      const importedTimelineMetadata = eafResult?.timelineMetadata
+        ?? tgResult?.timelineMetadata
+        ?? trsResult?.timelineMetadata
+        ?? flexResult?.timelineMetadata
+        ?? toolboxResult?.timelineMetadata;
+
       const additionalTiers: Map<string, Array<{ startTime: number; endTime: number; text: string }>> =
         eafResult?.translationTiers
         ?? tgResult?.additionalTiers
@@ -138,6 +144,19 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
 
       const db = await getDb();
       const now = new Date().toISOString();
+      if (importedTimelineMetadata) {
+        const currentText = await db.dexie.texts.get(importTextId);
+        if (currentText) {
+          await db.dexie.texts.put({
+            ...currentText,
+            metadata: {
+              ...(currentText.metadata ?? {}),
+              ...importedTimelineMetadata,
+            },
+            updatedAt: now,
+          });
+        }
+      }
       const layersAfterImport: LayerDocType[] = [...layers];
       const layerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
 

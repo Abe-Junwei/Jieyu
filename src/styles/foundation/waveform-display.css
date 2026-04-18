@@ -130,22 +130,6 @@
   overflow: hidden;
 }
 
-.waveform-runtime-status {
-  position: absolute;
-  top: 8px;
-  left: 10px;
-  max-width: min(42vw, 320px);
-  z-index: var(--z-overlay);
-}
-
-.waveform-runtime-status .toolbar-ai-progress {
-  justify-content: flex-start;
-}
-
-.waveform-runtime-status .toolbar-ai-progress-badge {
-  max-width: min(100%, 260px);
-  background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
-}
 
 .waveform-guide-overlay {
   position: absolute;

@@ -451,6 +451,37 @@ describe('useImportExport - export TextGrid/FLEx/Toolbox with V2 segment data', 
     expect(arg?.segmentContents?.get('trl-sub')?.get('seg-trl-sub')?.text).toBe('layer-unit-trl-sub');
   });
 
+  it('TextGrid: passes active text logical timeline metadata into export payload', async () => {
+    const dbWithTimelineMetadata = buildMockDb({ preferLayerUnits: true });
+    (dbWithTimelineMetadata.dexie.texts.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      metadata: {
+        primaryOrthographyId: 'orth-project',
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+    mockGetDb.mockResolvedValue(dbWithTimelineMetadata);
+    const { result } = renderHook(() => useImportExport(makeInputWithSegmentLayers()));
+
+    await act(async () => {
+      await result.current.handleExportTextGrid();
+    });
+
+    const arg = (mockExportToTextGrid.mock.calls as any[])[0]?.[0] as unknown as {
+      timelineMetadata?: {
+        timelineMode?: string;
+        logicalDurationSec?: number;
+        timebaseLabel?: string;
+      };
+    };
+    expect(arg?.timelineMetadata).toEqual({
+      timelineMode: 'document',
+      logicalDurationSec: 1800,
+      timebaseLabel: 'logical-second',
+    });
+  });
+
   it('transforms legacy default transcription fallback before plain-text export', async () => {
     const input = makeInputWithSegmentLayers();
     input.layers = input.layers.map((layer) => (layer.id === 'trc-1'

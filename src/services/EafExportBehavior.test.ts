@@ -398,6 +398,30 @@ describe('EAF export behavior for constraint layers', () => {
     });
   });
 
+  it('exports and re-imports logical timeline project metadata via header properties', () => {
+    const trc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: 'trc_default' });
+
+    const xml = exportToEaf({
+      units: [makeUnit()],
+      layers: [trc],
+      translations: [],
+      timelineMetadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 1800,
+        timebaseLabel: 'logical-second',
+      },
+    });
+
+    expect(xml).toContain('jieyu:project-meta:timeline');
+
+    const imported = importFromEaf(xml);
+    expect(imported.timelineMetadata).toEqual({
+      timelineMode: 'document',
+      logicalDurationSec: 1800,
+      timebaseLabel: 'logical-second',
+    });
+  });
+
   it('exports PARTICIPANT when speakerId is a free string instead of a speaker entity id', () => {
     const unit = {
       ...makeUnit(),

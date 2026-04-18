@@ -64,18 +64,17 @@ export function useTranscriptionMediaSelection({
 
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | undefined>();
   const objectUrlRef = useRef<string | undefined>(undefined);
-  const blobMediaIdRef = useRef<string | undefined>(undefined);
+  const mediaSourceKeyRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     const media = selectedUnitMedia;
-    const mediaId = media?.id;
 
     if (!media) {
       // 选中媒体切换时可能出现短暂空态，避免提前 revoke 导致 blob 加载失败 | During media switching, avoid premature revoke on transient empty state.
       if (selectedMediaId) {
         return;
       }
-      blobMediaIdRef.current = undefined;
+      mediaSourceKeyRef.current = undefined;
       if (objectUrlRef.current) {
         URL.revokeObjectURL(objectUrlRef.current);
         objectUrlRef.current = undefined;
@@ -84,16 +83,20 @@ export function useTranscriptionMediaSelection({
       return;
     }
 
-    if (mediaId && mediaId === blobMediaIdRef.current) return;
-    blobMediaIdRef.current = mediaId;
+    const details = media.details as Record<string, unknown> | undefined;
+    const blob = details?.audioBlob;
+    const mediaSourceKey = blob instanceof Blob
+      ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}`
+      : `${media.id}|url|${media.url ?? ''}|${media.filename}|${details?.placeholder === true ? 'placeholder' : 'media'}|${String(details?.timelineMode ?? '')}`;
+
+    if (mediaSourceKey === mediaSourceKeyRef.current) return;
+    mediaSourceKeyRef.current = mediaSourceKey;
 
     if (objectUrlRef.current) {
       URL.revokeObjectURL(objectUrlRef.current);
       objectUrlRef.current = undefined;
     }
 
-    const details = media.details as Record<string, unknown> | undefined;
-    const blob = details?.audioBlob;
     if (blob instanceof Blob) {
       const url = URL.createObjectURL(blob);
       objectUrlRef.current = url;

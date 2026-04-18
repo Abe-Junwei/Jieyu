@@ -56,16 +56,14 @@ vi.mock('./useTranscriptionCollaborationBridge', () => ({
   useTranscriptionCollaborationBridge: () => mockBridge,
 }));
 
-vi.mock('../integrations/supabase/client', () => ({
+vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({ from: mockFrom }),
   hasSupabaseBrowserClientConfig: mockHasSupabaseBrowserClientConfig,
-}));
-
-vi.mock('../integrations/supabase/auth', () => ({
   getSupabaseUserId: mockGetSupabaseUserId,
 }));
 
-vi.mock('../collaboration/cloud/CollaborationPresenceService', () => {
+vi.mock('../collaboration/cloud/CollaborationPresenceService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../collaboration/cloud/CollaborationPresenceService')>();
   class PresenceServiceMock {
     private connection: { projectId: string; userId: string; displayName?: string } | null = null;
 
@@ -99,6 +97,7 @@ vi.mock('../collaboration/cloud/CollaborationPresenceService', () => {
   }
 
   return {
+    ...actual,
     CollaborationPresenceService: PresenceServiceMock,
   };
 });
@@ -117,6 +116,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     rawActions: {
       saveUnitText: rawAction,
       saveUnitSelfCertainty: rawAction,
+      saveUnitLayerFields: rawAction,
       saveUnitTiming: rawAction,
       deleteUnit: rawAction,
       deleteSelectedUnits: rawAction,
@@ -126,6 +126,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     wrappedActions: {
       saveUnitText: rawAction,
       saveUnitSelfCertainty: rawAction,
+      saveUnitLayerFields: rawAction,
       saveUnitTiming: rawAction,
       saveUnitLayerText: rawAction,
       createUnitFromSelection: rawAction,

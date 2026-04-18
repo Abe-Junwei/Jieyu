@@ -98,6 +98,7 @@ describe('collaboration conflict runtime', () => {
     expect(resolution.resolved).toBe(true);
     expect(resolution.requiresManual).toBe(false);
     expect(resolution.resolvedRecord?.fields.text).toBe('hello merged');
+    expect(resolution.resolutionTraceId).toMatch(/^tr-/);
 
     const digest = computeCollaborationDigest(resolution.resolvedRecord as CollaborationRecord);
     expect(digest).toBe(resolution.consistencyDigest);
@@ -185,5 +186,62 @@ describe('collaboration conflict runtime', () => {
     expect(log.strategy).toBe('last-write-wins');
     expect(log.conflictCodes).toEqual(['field:field-value-diverged:confidence']);
     expect(log.decisionId).toBeUndefined();
+  });
+
+  it('[oplog] carries traceId when provided', () => {
+    const record = buildRecord({ version: 8, updatedAt: 7_000 });
+    const log = createConflictResolutionLog(
+      record,
+      'last-write-wins',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' }],
+      7_001,
+      'decision-xyz',
+      'tr-test-trace-id',
+    );
+
+    expect(log.traceId).toBe('tr-test-trace-id');
+  });
+
+  it('[oplog] accepts manual-apply-remote / manual-keep-local strategies for audit', () => {
+    const record = buildRecord({ version: 9, updatedAt: 8_000 });
+    const applyLog = createConflictResolutionLog(
+      record,
+      'manual-apply-remote',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' }],
+      8_001,
+      'tkt:apply',
+      'tr-manual-apply',
+    );
+    const keepLog = createConflictResolutionLog(
+      record,
+      'manual-keep-local',
+      [{ scope: 'field', code: 'field-value-diverged', fieldKey: 'text', message: 'diverged' }],
+      8_002,
+      'tkt:keep',
+      'tr-manual-keep',
+    );
+
+    expect(applyLog.strategy).toBe('manual-apply-remote');
+    expect(applyLog.traceId).toBe('tr-manual-apply');
+    expect(keepLog.strategy).toBe('manual-keep-local');
+    expect(keepLog.traceId).toBe('tr-manual-keep');
+  });
+
+  it('[resolve] omits resolutionTraceId when manual review is required', () => {
+    const local = buildRecord({ updatedAt: 2_000 });
+    const remote = buildRecord({
+      sessionId: 'session-B',
+      updatedAt: 2_050,
+      version: 4,
+      fields: {
+        ...local.fields,
+        text: 'hello merged',
+        reviewed: true,
+      },
+    });
+
+    const resolution = resolveCollaborationConflicts(local, remote, { stage: 'cross-device' }, 'manual-review');
+    expect(resolution.resolved).toBe(false);
+    expect(resolution.resolutionTraceId).toBeUndefined();
   });
 });

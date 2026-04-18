@@ -7,6 +7,9 @@ export interface OrthographyInteropMetadata {
   regionTag?: string;
   variantTag?: string;
   bridgeId?: string;
+  timelineMode?: 'document' | 'media';
+  logicalDurationSec?: number;
+  timebaseLabel?: string;
 }
 
 function normalizeInteropString(value: unknown): string | undefined {
@@ -46,6 +49,13 @@ export function parseOrthographyInteropMetadata(raw: unknown): OrthographyIntero
   const regionTag = normalizeInteropString(parsed.regionTag);
   const variantTag = normalizeInteropString(parsed.variantTag);
   const resolvedBridgeId = resolveInteropBridgeId(parsed);
+  const timelineMode = parsed.timelineMode === 'document' || parsed.timelineMode === 'media'
+    ? parsed.timelineMode
+    : undefined;
+  const logicalDurationSec = typeof parsed.logicalDurationSec === 'number' && Number.isFinite(parsed.logicalDurationSec)
+    ? parsed.logicalDurationSec
+    : undefined;
+  const timebaseLabel = normalizeInteropString(parsed.timebaseLabel);
   const metadata: OrthographyInteropMetadata = {
     ...(languageId ? { languageId } : {}),
     ...(orthographyId ? { orthographyId } : {}),
@@ -53,6 +63,9 @@ export function parseOrthographyInteropMetadata(raw: unknown): OrthographyIntero
     ...(regionTag ? { regionTag } : {}),
     ...(variantTag ? { variantTag } : {}),
     ...(resolvedBridgeId ? { bridgeId: resolvedBridgeId } : {}),
+    ...(timelineMode ? { timelineMode } : {}),
+    ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
+    ...(timebaseLabel ? { timebaseLabel } : {}),
   };
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }

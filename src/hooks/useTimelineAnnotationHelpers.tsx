@@ -299,7 +299,9 @@ export function useTimelineAnnotationHelpers({
     const speakerVisual = showSpeaker ? speakerVisualByUnitId[utt.id] : undefined;
     const noteIndicator = resolveNoteIndicatorTarget(utt.id, layer.id);
     const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
-    const certaintyLookupLayerId = (utt.layerId?.trim() ?? '') || layer.id;
+    // self-certainty 必须按当前显示 lane 解析，不能沿用借来的 source row layerId。
+    // Resolve self-certainty by the visible lane identity, not the borrowed source row layer id.
+    const certaintyLookupLayerId = layer.id;
     const uttSelfCertainty = resolveSelfCertaintyForUnit?.(utt.id, certaintyLookupLayerId);
     const selfCertaintyAmbiguous = !uttSelfCertainty
       && resolveSelfCertaintyAmbiguityForUnit?.(utt.id, certaintyLookupLayerId) === true;

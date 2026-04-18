@@ -14,7 +14,7 @@ const mockSupabaseFrom = vi.fn();
 const mockSupabaseStorage = { from: vi.fn() };
 const mockSupabaseChannel = vi.fn();
 
-vi.mock('../../integrations/supabase/client', () => ({
+vi.mock('./collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({
     from: mockSupabaseFrom,
     storage: mockSupabaseStorage,
@@ -33,7 +33,7 @@ vi.mock('../../integrations/supabase/storage', () => ({
 }));
 
 import { CollaborationAssetService } from './CollaborationAssetService';
-import { CollaborationSnapshotService, calculateSnapshotChecksum } from './CollaborationSnapshotService';
+import { CollaborationSnapshotService, computeSnapshotChecksum } from './CollaborationSnapshotService';
 import { CollaborationAuditLogService } from './CollaborationAuditLogService';
 
 // ── 辅助工厂 | Helper factories ──
@@ -300,7 +300,7 @@ describe('CollaborationSnapshotService (Phase 6 extensions)', () => {
 
   it('[downloadSnapshotById] checksum 匹配时返回正文 | returns payload when checksum matches', async () => {
     const expectedPayloadJson = '{"entities":[]}';
-    const row = makeSnapshotRow({ checksum: calculateSnapshotChecksum(expectedPayloadJson) });
+    const row = makeSnapshotRow({ checksum: await computeSnapshotChecksum(expectedPayloadJson) });
     const chain = createQueryChain({ data: row, error: null });
     mockSupabaseFrom.mockReturnValue(chain);
 
@@ -366,6 +366,20 @@ describe('CollaborationAuditLogService', () => {
     expect(result.changes[0]!.projectId).toBe('proj-1');
     expect(result.changes[0]!.opType).toBe('upsert_text');
     expect(mockSupabaseFrom).toHaveBeenCalledWith('project_changes');
+  });
+
+  it('[queryTimeline] 丢弃非法枚举行（与 Realtime 校验一致）| drops invalid enum rows like realtime parser', async () => {
+    const rows = [
+      makeChangeRow(),
+      makeChangeRow({ id: 'ch-bad', op_type: 'not-a-real-op' }),
+    ];
+    const chain = createQueryChain({ data: rows, error: null, count: 2 });
+    mockSupabaseFrom.mockReturnValue(chain);
+
+    const result = await service.queryTimeline({ projectId: 'proj-1' });
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0]!.id).toBe('ch-1');
   });
 
   it('[queryTimeline] 支持多维筛选 | supports multi-dimensional filters', async () => {

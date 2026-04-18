@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-04-08
+last_reviewed: 2026-04-18
 source_of_truth: current-state-index
 ---
 
@@ -15,6 +15,12 @@ source_of_truth: current-state-index
 
 - [仓库现状与代码地图.md](%E4%BB%93%E5%BA%93%E7%8E%B0%E7%8A%B6%E4%B8%8E%E4%BB%A3%E7%A0%81%E5%9C%B0%E5%9B%BE.md)
   - 用途：仓库全局现状、代码地图、功能域总表。
+
+- [collaboration-cloud.md](collaboration-cloud.md)
+  - 用途：Supabase 协作云桥接的数据流、工程约束与观测基线。
+
+- [collaboration-runtime-map.md](collaboration-runtime-map.md)
+  - 用途：`collaboration*Runtime` 与 `cloud/*` 的职责分工（生产 vs 门禁）。
 
 - [转写工作区声学分析现状.md](%E8%BD%AC%E5%86%99%E5%B7%A5%E4%BD%9C%E5%8C%BA%E5%A3%B0%E5%AD%A6%E5%88%86%E6%9E%90%E7%8E%B0%E7%8A%B6.md)
   - 用途：转写工作区声学分析能力的当前实现边界、代码挂点与未完成项。

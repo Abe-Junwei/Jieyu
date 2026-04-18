@@ -31,6 +31,9 @@ describe('AiChatMetricsBar', () => {
           totalInputTokens: 120,
           totalOutputTokens: 88,
           currentTurnTokens: 34,
+          totalInputTokensAvailable: true,
+          totalOutputTokensAvailable: true,
+          currentTurnTokensAvailable: true,
         }}
         aiSessionMemory={{
           lastToolName: 'delete_layer',
@@ -42,8 +45,8 @@ describe('AiChatMetricsBar', () => {
 
     expect(root).toBeTruthy();
     expect(root.textContent).toContain('Turns 6');
-    expect(root.textContent).toContain('✓ 3');
-    expect(root.textContent).toContain('✗ 1');
+    expect(screen.getByTitle('Successes').textContent).toContain('3');
+    expect(screen.getByTitle('Failures').textContent).toContain('1');
     expect(root.textContent).toContain('Clarify 2');
     expect(root.textContent).toContain('Cancel 1');
     expect(root.textContent).toContain('Explain 1');
@@ -52,5 +55,34 @@ describe('AiChatMetricsBar', () => {
     expect(root.textContent).toContain('Gen 88');
     expect(root.textContent).toContain('Turn 34');
     expect(screen.getByTitle('Last tool').textContent).toContain('Delete Layer');
+  });
+
+  it('renders an unavailable marker when token usage is not reported', () => {
+    const { container } = render(
+      <AiChatMetricsBar
+        isZh={false}
+        aiInteractionMetrics={{
+          turnCount: 1,
+          successCount: 0,
+          failureCount: 0,
+          clarifyCount: 0,
+          explainFallbackCount: 0,
+          cancelCount: 0,
+          recoveryCount: 0,
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          currentTurnTokens: 0,
+          totalInputTokensAvailable: false,
+          totalOutputTokensAvailable: false,
+          currentTurnTokensAvailable: false,
+        }}
+        aiSessionMemory={null}
+      />,
+    );
+
+    const root = container.querySelector('.ai-chat-metrics-bar') as HTMLDivElement;
+    expect(root.textContent).toContain('Prompt —');
+    expect(root.textContent).toContain('Gen —');
+    expect(root.textContent).toContain('Turn —');
   });
 });

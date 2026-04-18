@@ -92,12 +92,9 @@ vi.mock('../collaboration/cloud/CollaborationSyncBridge', () => ({
   CollaborationSyncBridge: BridgeMock,
 }));
 
-vi.mock('../integrations/supabase/client', () => ({
+vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
   hasSupabaseBrowserClientConfig: hasConfig,
   getSupabaseBrowserClient: () => ({ from: supabaseFrom }),
-}));
-
-vi.mock('../integrations/supabase/auth', () => ({
   getSupabaseUserId: getUserId,
 }));
 

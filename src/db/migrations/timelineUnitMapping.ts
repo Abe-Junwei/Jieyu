@@ -92,6 +92,10 @@ export function mapSegmentToLayerUnit(input: {
       ...(segment.ordinal !== undefined ? { orderKey: String(segment.ordinal) } : {}),
       ...(segment.speakerId ? { speakerId: segment.speakerId } : {}),
       ...(segment.externalRef ? { externalRef: segment.externalRef } : {}),
+      ...(segment.selfCertainty ? { selfCertainty: segment.selfCertainty } : {}),
+      ...((segment.status ?? segment.annotationStatus)
+        ? { status: segment.status ?? segment.annotationStatus }
+        : {}),
       ...(segment.provenance ? { provenance: segment.provenance } : {}),
       createdAt: segment.createdAt,
       updatedAt: segment.updatedAt,

@@ -75,6 +75,14 @@ export const M5_METRIC_CATALOG: ReadonlyArray<MetricDefinition> = [
     description: 'Count of AI write attempts blocked because no explicit writable target is available.',
   },
   {
+    id: 'business.collaboration.conflict_resolved_count',
+    category: 'business',
+    module: 'collaboration',
+    kind: 'counter',
+    unit: 'count',
+    description: 'Count of collaboration conflicts auto-resolved (merge or delete convergence).',
+  },
+  {
     id: 'business.e2e.main_path_success_rate',
     category: 'business',
     module: 'release-gate',

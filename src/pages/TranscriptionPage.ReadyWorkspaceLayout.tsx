@@ -184,8 +184,13 @@ function ReadyStageContent({
               {...toolbarProps}
               leftToolbarExtras={(
                 <>
-                  <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
                   <ObserverStatusSection {...observerProps} />
+                  {toolbarProps.leftToolbarExtras ? (
+                    <>
+                      <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+                      {toolbarProps.leftToolbarExtras}
+                    </>
+                  ) : null}
                 </>
               )}
               {...(acousticRuntimeStatus ? { acousticRuntimeStatus } : {})}

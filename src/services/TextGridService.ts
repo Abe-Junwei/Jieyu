@@ -11,6 +11,8 @@ import { stripPlainTextBidiIsolation, wrapPlainTextWithBidiIsolation } from '../
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
 
+type TimelineInteropMetadata = Pick<OrthographyInteropMetadata, 'timelineMode' | 'logicalDurationSec' | 'timebaseLabel'>;
+
 // ── Types ───────────────────────────────────────────────────
 
 export interface TextGridExportInput {
@@ -19,6 +21,8 @@ export interface TextGridExportInput {
   translations: LayerUnitContentViewDocType[];
   orthographies?: OrthographyDocType[];
   userNotes?: UserNoteDocType[];
+  /** 逻辑时间元数据（文献项目导出声明）| Logical timeline metadata for document-mode export */
+  timelineMetadata?: TimelineInteropMetadata;
   /** 独立层 segment 数据（用于独立转写层区间导出）| Independent layer segment data (for independent transcription tier export) */
   segmentsByLayer?: Map<string, LayerSegmentViewDocType[]>;
   /** segment 内容按 layerId → segmentId 索引 | Segment content indexed by layerId → segmentId */
@@ -40,6 +44,8 @@ export interface TextGridImportResult {
   }>>;
   /** Name of the first IntervalTier | 首层名称 */
   transcriptionTierName?: string;
+  /** 项目级逻辑时间元数据 | Project-level logical timeline metadata */
+  timelineMetadata?: TimelineInteropMetadata;
   /** Jieyu 自定义 tier 身份元数据 | Jieyu custom tier identity metadata */
   tierMetadata: Map<string, OrthographyInteropMetadata>;
 }
@@ -67,12 +73,25 @@ function decodeTierNameWithMetadata(name: string): { name: string; metadata?: Or
 
 // ── Export ───────────────────────────────────────────────────
 
+function extractTimelineMetadata(metadata?: OrthographyInteropMetadata): TimelineInteropMetadata | undefined {
+  if (!metadata) return undefined;
+  const timelineMode = metadata.timelineMode;
+  const logicalDurationSec = metadata.logicalDurationSec;
+  const timebaseLabel = metadata.timebaseLabel;
+  if (!timelineMode && logicalDurationSec === undefined && !timebaseLabel) return undefined;
+  return {
+    ...(timelineMode ? { timelineMode } : {}),
+    ...(logicalDurationSec !== undefined ? { logicalDurationSec } : {}),
+    ...(timebaseLabel ? { timebaseLabel } : {}),
+  };
+}
+
 function escapeTextGridString(s: string): string {
   return s.replace(/"/g, '""');
 }
 
 export function exportToTextGrid(input: TextGridExportInput): string {
-  const { units, layers, translations, orthographies, userNotes, segmentsByLayer, segmentContents } = input;
+  const { units, layers, translations, orthographies, userNotes, timelineMetadata, segmentsByLayer, segmentContents } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   if (sorted.length === 0) return '';
 
@@ -112,8 +131,12 @@ export function exportToTextGrid(input: TextGridExportInput): string {
     globalXmin,
     globalXmax,
   );
+  const transcriptionTierMetadata: OrthographyInteropMetadata | undefined = {
+    ...(buildOrthographyInteropMetadata(defaultTrcLayer, orthographies) ?? {}),
+    ...(timelineMetadata ?? {}),
+  };
   tiers.push({
-    name: encodeTierNameWithMetadata('transcription', buildOrthographyInteropMetadata(defaultTrcLayer, orthographies)),
+    name: encodeTierNameWithMetadata('transcription', Object.keys(transcriptionTierMetadata).length > 0 ? transcriptionTierMetadata : undefined),
     intervals: transcriptionIntervals,
   });
 
@@ -365,10 +388,14 @@ export function importFromTextGrid(text: string): TextGridImportResult {
   });
 
   const transcriptionTierName = parsedTiers[0]?.name;
+  const timelineMetadata = transcriptionTierName
+    ? extractTimelineMetadata(tierMetadata.get(transcriptionTierName))
+    : undefined;
   return {
     units,
     additionalTiers,
     ...(transcriptionTierName ? { transcriptionTierName } : {}),
+    ...(timelineMetadata ? { timelineMetadata } : {}),
     tierMetadata,
   };
 }

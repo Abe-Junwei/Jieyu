@@ -29,9 +29,37 @@ interface AnnotationImportState {
   importing: boolean;
 }
 
+interface TimeMappingDialogState {
+  offsetSecText: string;
+  scaleText: string;
+  saving: boolean;
+}
+
 interface LeftRailProjectHubProps {
   currentProjectLabel: string;
   activeTextTimelineMode?: 'document' | 'media' | null;
+  activeTextTimeMapping?: {
+    offsetSec: number;
+    scale: number;
+    revision: number;
+    updatedAt?: string;
+    sourceMediaId?: string;
+    logicalDurationSec?: number;
+    rollback?: {
+      offsetSec: number;
+      scale: number;
+      revision: number;
+      updatedAt?: string;
+      sourceMediaId?: string;
+    };
+    history?: Array<{
+      offsetSec: number;
+      scale: number;
+      revision: number;
+      updatedAt?: string;
+      sourceMediaId?: string;
+    }>;
+  } | null;
   canDeleteProject: boolean;
   canDeleteAudio: boolean;
   onOpenProjectSetup: () => void;
@@ -42,6 +70,7 @@ interface LeftRailProjectHubProps {
   onImportAnnotationFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
   onPreviewProjectArchiveImport: (file: File) => Promise<JieyuArchiveImportPreview>;
   onImportProjectArchive: (file: File, strategy: ImportConflictStrategy) => Promise<boolean>;
+  onApplyTextTimeMapping?: (input: { offsetSec: number; scale: number }) => Promise<void>;
   onExportEaf: () => void;
   onExportTextGrid: () => void;
   onExportTrs: () => void;
@@ -66,6 +95,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const {
     currentProjectLabel,
     activeTextTimelineMode,
+    activeTextTimeMapping,
     canDeleteProject,
     canDeleteAudio,
     onOpenProjectSetup,
@@ -76,6 +106,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onImportAnnotationFile,
     onPreviewProjectArchiveImport,
     onImportProjectArchive,
+    onApplyTextTimeMapping,
     onExportEaf,
     onExportTextGrid,
     onExportTrs,
@@ -93,6 +124,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const [panelPosition, setPanelPosition] = useState({ top: 88, left: 88 });
   const [projectImportState, setProjectImportState] = useState<ProjectImportState | null>(null);
   const [annotationImportState, setAnnotationImportState] = useState<AnnotationImportState | null>(null);
+  const [timeMappingDialogState, setTimeMappingDialogState] = useState<TimeMappingDialogState | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
 
   const buttonRef = useRef<HTMLButtonElement | null>(null);
@@ -148,6 +180,15 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const openAnnotationImportPicker = useCallback(() => {
     annotationImportInputRef.current?.click();
   }, []);
+
+  const openTimeMappingDialog = useCallback(() => {
+    setTimeMappingDialogState({
+      offsetSecText: String(activeTextTimeMapping?.offsetSec ?? 0),
+      scaleText: String(activeTextTimeMapping?.scale ?? 1),
+      saving: false,
+    });
+    setIsOpen(false);
+  }, [activeTextTimeMapping]);
 
   const handleAnnotationImportPicked = useCallback((file: File) => {
     setAnnotationImportState({
@@ -219,6 +260,148 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     return pickInsertEstimate(projectImportState.preview, projectImportState.strategy);
   }, [projectImportState]);
 
+  const timeMappingPreviewLabel = useMemo(() => {
+    if (activeTextTimelineMode !== 'document') return null;
+    const offsetSec = activeTextTimeMapping?.offsetSec ?? 0;
+    const scale = activeTextTimeMapping?.scale ?? 1;
+    const revision = activeTextTimeMapping?.revision ?? 0;
+    const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
+    const documentStart = 0;
+    const documentEnd = typeof logicalDurationSec === 'number' && Number.isFinite(logicalDurationSec) && logicalDurationSec > 0
+      ? logicalDurationSec
+      : 10;
+    const realStart = Math.max(0, offsetSec + scale * documentStart);
+    const realEnd = Math.max(realStart, offsetSec + scale * documentEnd);
+    return tf(locale, 'transcription.projectHub.exchange.timeMappingPreview', {
+      docStart: documentStart.toFixed(1),
+      docEnd: documentEnd.toFixed(1),
+      realStart: realStart.toFixed(1),
+      realEnd: realEnd.toFixed(1),
+      offset: offsetSec.toFixed(1),
+      scale: scale.toFixed(2),
+      revision: String(revision),
+    });
+  }, [activeTextTimeMapping, activeTextTimelineMode, locale]);
+
+  const timeMappingDialogPreview = useMemo(() => {
+    if (!timeMappingDialogState) return null;
+    const offsetSec = Number(timeMappingDialogState.offsetSecText);
+    const scale = Number(timeMappingDialogState.scaleText);
+    if (!Number.isFinite(offsetSec) || !Number.isFinite(scale) || scale <= 0) {
+      return t(locale, 'transcription.projectHub.timeMappingDialogInvalid');
+    }
+    const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
+    const documentStart = 0;
+    const documentEnd = typeof logicalDurationSec === 'number' && Number.isFinite(logicalDurationSec) && logicalDurationSec > 0
+      ? logicalDurationSec
+      : 10;
+    const realStart = Math.max(0, offsetSec + scale * documentStart);
+    const realEnd = Math.max(realStart, offsetSec + scale * documentEnd);
+    return tf(locale, 'transcription.projectHub.timeMappingDialogPreview', {
+      docStart: documentStart.toFixed(1),
+      docEnd: documentEnd.toFixed(1),
+      realStart: realStart.toFixed(1),
+      realEnd: realEnd.toFixed(1),
+      offset: offsetSec.toFixed(1),
+      scale: scale.toFixed(2),
+    });
+  }, [activeTextTimeMapping?.logicalDurationSec, locale, timeMappingDialogState]);
+
+  const timeMappingHistoryItems = useMemo(() => {
+    if (activeTextTimelineMode !== 'document' || !activeTextTimeMapping) {
+      return [] as Array<{ key: string; label: string; offsetSec: number; scale: number }>;
+    }
+
+    const items = [{
+      key: `current-${activeTextTimeMapping.revision}`,
+      label: tf(locale, 'transcription.projectHub.timeMappingHistoryCurrent', {
+        revision: String(activeTextTimeMapping.revision),
+        offset: activeTextTimeMapping.offsetSec.toFixed(1),
+        scale: activeTextTimeMapping.scale.toFixed(2),
+      }),
+      offsetSec: activeTextTimeMapping.offsetSec,
+      scale: activeTextTimeMapping.scale,
+    }];
+    const seenRevisions = new Set<number>([activeTextTimeMapping.revision]);
+
+    if (activeTextTimeMapping.rollback && !seenRevisions.has(activeTextTimeMapping.rollback.revision)) {
+      seenRevisions.add(activeTextTimeMapping.rollback.revision);
+      items.push({
+        key: `rollback-${activeTextTimeMapping.rollback.revision}`,
+        label: tf(locale, 'transcription.projectHub.timeMappingHistoryPrevious', {
+          revision: String(activeTextTimeMapping.rollback.revision),
+          offset: activeTextTimeMapping.rollback.offsetSec.toFixed(1),
+          scale: activeTextTimeMapping.rollback.scale.toFixed(2),
+        }),
+        offsetSec: activeTextTimeMapping.rollback.offsetSec,
+        scale: activeTextTimeMapping.rollback.scale,
+      });
+    }
+
+    for (const item of activeTextTimeMapping.history ?? []) {
+      if (seenRevisions.has(item.revision)) continue;
+      seenRevisions.add(item.revision);
+      items.push({
+        key: `history-${item.revision}`,
+        label: tf(locale, 'transcription.projectHub.timeMappingHistoryOlder', {
+          revision: String(item.revision),
+          offset: item.offsetSec.toFixed(1),
+          scale: item.scale.toFixed(2),
+        }),
+        offsetSec: item.offsetSec,
+        scale: item.scale,
+      });
+    }
+
+    return items;
+  }, [activeTextTimeMapping, activeTextTimelineMode, locale]);
+
+  const handleSelectTimeMappingHistoryItem = useCallback((offsetSec: number, scale: number) => {
+    setTimeMappingDialogState((prev) => ({
+      offsetSecText: String(offsetSec),
+      scaleText: String(scale),
+      saving: prev?.saving ?? false,
+    }));
+  }, []);
+
+  const handleConfirmTimeMapping = useCallback(async () => {
+    const current = timeMappingDialogState;
+    if (!current || !onApplyTextTimeMapping) return;
+    const offsetSec = Number(current.offsetSecText);
+    const scale = Number(current.scaleText);
+    if (!Number.isFinite(offsetSec) || !Number.isFinite(scale) || scale <= 0) {
+      showToast(t(locale, 'transcription.projectHub.timeMappingDialogInvalid'), 'error', 0);
+      return;
+    }
+
+    setTimeMappingDialogState((prev) => (prev ? { ...prev, saving: true } : prev));
+    try {
+      await onApplyTextTimeMapping({ offsetSec, scale });
+      setTimeMappingDialogState(null);
+      showToast(t(locale, 'transcription.projectHub.timeMappingDialogSaved'), 'success');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      setTimeMappingDialogState((prev) => (prev ? { ...prev, saving: false } : prev));
+      showToast(tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }), 'error', 0);
+    }
+  }, [locale, onApplyTextTimeMapping, showToast, timeMappingDialogState]);
+
+  const handleRollbackTimeMapping = useCallback(async () => {
+    const rollback = activeTextTimeMapping?.rollback;
+    if (!rollback || !onApplyTextTimeMapping) return;
+    try {
+      await onApplyTextTimeMapping({
+        offsetSec: rollback.offsetSec,
+        scale: rollback.scale,
+      });
+      setIsOpen(false);
+      showToast(t(locale, 'transcription.projectHub.timeMappingRollbackSucceeded'), 'success');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      showToast(tf(locale, 'transcription.projectHub.timeMappingDialogSaveFailed', { message: detail }), 'error', 0);
+    }
+  }, [activeTextTimeMapping, locale, onApplyTextTimeMapping, showToast]);
+
   const menuItems = useMemo<ContextMenuItem[]>(() => {
     const importItems: ContextMenuItem[] = [
       {
@@ -241,6 +424,17 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         ? [{
             label: t(locale, 'transcription.projectHub.exchange.logicalTimelineHint'),
             disabled: true,
+          }, {
+            label: timeMappingPreviewLabel ?? '',
+            disabled: true,
+          }, {
+            label: t(locale, 'transcription.projectHub.exchange.calibrateTimeMapping'),
+            disabled: !onApplyTextTimeMapping,
+            onClick: openTimeMappingDialog,
+          }, {
+            label: t(locale, 'transcription.projectHub.exchange.rollbackTimeMapping'),
+            disabled: !onApplyTextTimeMapping || !activeTextTimeMapping?.rollback,
+            onClick: () => { fireAndForget(handleRollbackTimeMapping()); },
           }]
         : []),
       {
@@ -310,6 +504,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     canDeleteAudio,
     canDeleteProject,
     currentProjectLabel,
+    activeTextTimeMapping,
     activeTextTimelineMode,
     locale,
     onDeleteCurrentAudio,
@@ -324,10 +519,15 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onOpenAudioImport,
     onOpenProjectSetup,
     onOpenSpeakerManagementPanel,
+    onApplyTextTimeMapping,
+    handleRollbackTimeMapping,
+    handleSelectTimeMappingHistoryItem,
     openAnnotationImportPicker,
     openProjectArchivePicker,
+    openTimeMappingDialog,
     previewBusy,
     sidePaneMessages.quickActionSpeakerManagement,
+    timeMappingPreviewLabel,
   ]);
 
   const handleCloseProjectImport = useCallback(() => {
@@ -337,6 +537,10 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const handleCloseAnnotationImport = useCallback(() => {
     if (!annotationImportState?.importing) setAnnotationImportState(null);
   }, [annotationImportState?.importing]);
+
+  const handleCloseTimeMappingDialog = useCallback(() => {
+    if (!timeMappingDialogState?.saving) setTimeMappingDialogState(null);
+  }, [timeMappingDialogState?.saving]);
 
   if (!hostElement) return null;
 
@@ -510,6 +714,91 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     </ModalPanel>
   );
 
+  const timeMappingDialogNode = (
+    <ModalPanel
+      isOpen={timeMappingDialogState !== null}
+      onClose={handleCloseTimeMappingDialog}
+      topmost
+      className="left-rail-project-import-dialog panel-design-match panel-design-match-dialog"
+      ariaLabel={t(locale, 'transcription.projectHub.timeMappingDialogTitle')}
+      title={t(locale, 'transcription.projectHub.timeMappingDialogTitle')}
+      closeLabel={`${t(locale, 'transcription.projectHub.timeMappingDialogTitle')} ${t(locale, 'transcription.dialog.cancel')}`}
+      closeDisabled={timeMappingDialogState?.saving}
+      footer={timeMappingDialogState ? (
+        <>
+          <PanelButton
+            variant="ghost"
+            disabled={timeMappingDialogState.saving}
+            onClick={() => setTimeMappingDialogState(null)}
+          >
+            {t(locale, 'transcription.dialog.cancel')}
+          </PanelButton>
+          <PanelButton
+            variant="primary"
+            disabled={timeMappingDialogState.saving}
+            onClick={() => {
+              fireAndForget(handleConfirmTimeMapping());
+            }}
+          >
+            {t(locale, 'transcription.projectHub.timeMappingDialogApply')}
+          </PanelButton>
+        </>
+      ) : undefined}
+    >
+      {timeMappingDialogState ? (
+        <>
+          <PanelSummary
+            className="left-rail-project-import-summary"
+            title={t(locale, 'transcription.projectHub.timeMappingDialogTitle')}
+            description={timeMappingDialogPreview ?? ''}
+          />
+          <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.importDialogStrategy')}>
+            <div className="left-rail-project-time-mapping-form">
+              <label className="left-rail-project-time-mapping-field">
+                <span>{t(locale, 'transcription.projectHub.timeMappingDialogOffset')}</span>
+                <input
+                  aria-label={t(locale, 'transcription.projectHub.timeMappingDialogOffset')}
+                  type="number"
+                  step="0.1"
+                  value={timeMappingDialogState.offsetSecText}
+                  onChange={(event) => setTimeMappingDialogState((prev) => (prev ? { ...prev, offsetSecText: event.target.value } : prev))}
+                />
+              </label>
+              <label className="left-rail-project-time-mapping-field">
+                <span>{t(locale, 'transcription.projectHub.timeMappingDialogScale')}</span>
+                <input
+                  aria-label={t(locale, 'transcription.projectHub.timeMappingDialogScale')}
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={timeMappingDialogState.scaleText}
+                  onChange={(event) => setTimeMappingDialogState((prev) => (prev ? { ...prev, scaleText: event.target.value } : prev))}
+                />
+              </label>
+            </div>
+          </PanelSection>
+
+          <PanelSection className="left-rail-project-import-table-section" title={t(locale, 'transcription.projectHub.timeMappingHistoryTitle')}>
+            <div className="left-rail-project-time-mapping-history">
+              {timeMappingHistoryItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="panel-button panel-button--ghost left-rail-project-time-mapping-history-button"
+                  onClick={() => handleSelectTimeMappingHistoryItem(item.offsetSec, item.scale)}
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </PanelSection>
+        </>
+      ) : null}
+    </ModalPanel>
+  );
+
   const annotationImportDialogNode = (
     <ModalPanel
       isOpen={annotationImportState !== null}
@@ -595,6 +884,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       {createPortal(buttonNode, hostElement)}
       {panelNode}
       {projectImportDialogNode}
+      {timeMappingDialogNode}
       {annotationImportDialogNode}
     </>
   );

@@ -49,4 +49,25 @@ describe('OllamaProvider', () => {
     expect(headers.traceparent).toBe('00-77777777777777777777777777777777-8888888888888888-01');
     expect(headers.tracestate).toBe('vendor=ollama');
   });
+
+  it('surfaces prompt and generation token counts from the final JSONL record', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createJsonlResponse([
+        '{"message":{"content":"hello"},"done":false}\n',
+        '{"message":{"content":" world"},"prompt_eval_count":21,"eval_count":9,"done":true}\n',
+      ]),
+    );
+
+    const provider = new OllamaProvider({
+      baseUrl: 'http://localhost:11434',
+      model: 'qwen3:8b',
+    });
+
+    let finalUsage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined;
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.usage) finalUsage = chunk.usage;
+    }
+
+    expect(finalUsage).toEqual({ inputTokens: 21, outputTokens: 9, totalTokens: 30 });
+  });
 });

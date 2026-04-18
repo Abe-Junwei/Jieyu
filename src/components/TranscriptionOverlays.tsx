@@ -190,9 +190,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             const items: ContextMenuItem[] = multiCount > 1
               ? [
                   { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUnitIds, targetKind, ctxMenu.layerId); } },
-                  ...(isSegmentUnitContext
-                    ? []
-                    : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, ctxMenu.layerId); } }]),
+                  { label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, ctxMenu.layerId); } },
                   ...(isSegmentUnitContext
                     ? []
                     : [
@@ -330,9 +328,7 @@ export function TranscriptionOverlays(props: TranscriptionOverlaysProps) {
             if (multiCount > 1) {
               return [
                 { label: messages.deleteSegments(multiCount), shortcut: '⌫', danger: true, onClick: () => { runDeleteSelection(id, selectedUnitIds, targetKind, targetLayerId); } },
-                ...(targetKind === 'segment'
-                  ? []
-                  : [{ label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, targetLayerId); } }]),
+                { label: messages.mergeSegments(multiCount), onClick: () => { runMergeSelection(selectedUnitIds, targetKind, targetLayerId); } },
               ];
             }
             return [

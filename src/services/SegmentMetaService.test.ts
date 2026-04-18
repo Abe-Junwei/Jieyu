@@ -117,11 +117,33 @@ describe('SegmentMetaService', () => {
       hostUnitId: 'utt-1',
       effectiveSpeakerId: 'spk-1',
       effectiveSpeakerName: 'Alice',
-      effectiveSelfCertainty: 'certain',
-      annotationStatus: 'verified',
       noteCategoryKeys: ['todo'],
       text: 'hello world',
       hasText: true,
+    });
+    // 段行自身无 per-layer 字段时，不得把宿主 unit 的值投影进 segment_meta（串层污染根因）。
+    expect(rows[0]?.effectiveSelfCertainty).toBeUndefined();
+    expect(rows[0]?.annotationStatus).toBeUndefined();
+  });
+
+  it('projects selfCertainty and status only from the segment row, not from the shared host', async () => {
+    await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
+    await db.layer_units.bulkPut([
+      { ...makeUnitUnit('utt-1', 'layer-utt'), selfCertainty: 'certain', status: 'verified' },
+      {
+        ...makeSegmentUnit('seg-1', 'layer-seg', 'utt-1', 0, 1),
+        selfCertainty: 'uncertain',
+        status: 'transcribed',
+      },
+    ]);
+    await db.layer_unit_contents.put(makeContent('content-1', 'seg-1', 'layer-seg', 'hello'));
+
+    const rows = await SegmentMetaService.rebuildForLayerMedia('layer-seg', 'media-1');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      effectiveSelfCertainty: 'uncertain',
+      annotationStatus: 'transcribed',
     });
   });
 
@@ -203,9 +225,10 @@ describe('SegmentMetaService', () => {
     expect(rows[0]).toMatchObject({
       effectiveSpeakerId: 'spk-2',
       effectiveSpeakerName: 'Beatrice',
-      effectiveSelfCertainty: 'uncertain',
       noteCategoryKeys: ['todo', 'comment'],
     });
+    // 宿主 unit 的 selfCertainty 变更不再「泄漏」到未自带该字段的段行 meta 投影。
+    expect(rows[0]?.effectiveSelfCertainty).toBeUndefined();
   });
 
   it('refreshes dependent layer scopes when host unit metadata changes', async () => {

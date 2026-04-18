@@ -15,6 +15,8 @@ export interface CollaborationOperationLog {
   strategy?: string;
   conflictCodes?: string[];
   decisionId?: string;
+  /** 与观测侧关联的轻量 trace id（resolveCollaborationConflicts 生成） | Trace id for observability correlation */
+  traceId?: string;
 }
 
 export interface CreateCollaborationOperationLogInput {
@@ -27,6 +29,7 @@ export interface CreateCollaborationOperationLogInput {
   strategy?: string;
   conflictCodes?: string[];
   decisionId?: string;
+  traceId?: string;
 }
 
 function hashString(input: string): string {
@@ -54,6 +57,7 @@ export function createCollaborationOperationLog(
     ...(input.strategy !== undefined ? { strategy: input.strategy } : {}),
     ...(input.conflictCodes !== undefined ? { conflictCodes: input.conflictCodes } : {}),
     ...(input.decisionId !== undefined ? { decisionId: input.decisionId } : {}),
+    ...(input.traceId !== undefined ? { traceId: input.traceId } : {}),
   };
 }
 

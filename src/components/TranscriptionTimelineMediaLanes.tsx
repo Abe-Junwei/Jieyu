@@ -13,7 +13,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { unitToView, segmentToView, type TimelineUnitView } from '../hooks/timelineUnitView';
+import { unitToView, segmentToView, scopeTimelineUnitViewToLayer, type TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
@@ -516,10 +516,9 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           : (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
               ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
               : timelineRenderUnits);
-        const defaultLayerId = defaultTranscriptionLayerId ?? '';
         const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
-          ? rawVisibleSegments.map((s) => segmentToView(s, () => ''))
-          : rawVisibleUnits.map((u) => unitToView(u, defaultLayerId));
+          ? rawVisibleSegments.map((s) => scopeTimelineUnitViewToLayer(segmentToView(s, () => ''), layer.id))
+          : rawVisibleUnits.map((u) => unitToView(u, layer.id));
         const overlapCycleItemsByUnitId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? ((usesSegmentTimeline
               ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)
@@ -616,7 +615,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
         );
         const iterationUnits: TimelineUnitView[] = iterationSource.map((item) => (
           'layerId' in item
-            ? segmentToView(item, () => '')
+            ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
         return (
@@ -631,7 +630,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode}
+            activeTextTimelineMode={activeTextTimelineMode ?? null}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}

@@ -64,12 +64,9 @@ vi.mock('./useTranscriptionCollaborationBridge', () => ({
   },
 }));
 
-vi.mock('../integrations/supabase/client', () => ({
+vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({ from: vi.fn() }),
   hasSupabaseBrowserClientConfig: mockHasSupabaseBrowserClientConfig,
-}));
-
-vi.mock('../integrations/supabase/auth', () => ({
   getSupabaseUserId: mockGetSupabaseUserId,
 }));
 
@@ -85,6 +82,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     rawActions: {
       saveUnitText: mockRawSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: noop,
       saveUnitTiming: noop,
       deleteUnit: noop,
       deleteSelectedUnits: noop,
@@ -94,6 +92,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     wrappedActions: {
       saveUnitText: mockWrappedSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: noop,
       saveUnitTiming: noop,
       saveUnitLayerText: noop,
       createUnitFromSelection: noop,

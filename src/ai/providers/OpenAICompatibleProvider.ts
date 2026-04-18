@@ -2,6 +2,7 @@ import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './
 import { buildBearerAuthHeader, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateSseData, toErrorChunk } from './streamUtils';
+import { normalizeOpenAIUsage } from './tokenUsage';
 
 export interface OpenAICompatibleProviderConfig {
   baseUrl: string;
@@ -40,6 +41,7 @@ export class OpenAICompatibleProvider implements LLMProvider {
         temperature: options?.temperature ?? 0.2,
         max_tokens: options?.maxTokens,
         stream: true,
+        stream_options: { include_usage: true },
       }),
       ...(options?.signal ? { signal: options.signal } : {}),
     });
@@ -64,10 +66,18 @@ export class OpenAICompatibleProvider implements LLMProvider {
         const json = parseProviderJson<{
           choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
           error?: { message?: string } | string;
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+            input_tokens?: number;
+            output_tokens?: number;
+          };
         }>(payload, this.label, 'OpenAI SSE');
 
         const reasoningDelta = json.choices?.[0]?.delta?.reasoning_content ?? '';
         const contentDelta = json.choices?.[0]?.delta?.content ?? '';
+        const usage = normalizeOpenAIUsage(json.usage);
 
         // 显式 error.message 优先处理
         const explicitError = json.error && typeof json.error === 'object' && 'message' in json.error
@@ -83,6 +93,10 @@ export class OpenAICompatibleProvider implements LLMProvider {
           const rawError = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
           yield toErrorChunk(`请求异常：${rawError}`);
           return;
+        }
+
+        if (usage) {
+          yield { delta: '', usage };
         }
 
         // 推理内容单独 yield

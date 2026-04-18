@@ -1,6 +1,6 @@
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
-import { resolveSpeakerTargetUnitIdFromUnitId } from './timelineUnitViewUnitHelpers';
+import { resolveHostUnitIdForTimelineView } from './timelineUnitViewUnitHelpers';
 
 type SelectionMappingInput = {
   selectedUnitIds: Set<string>;
@@ -35,7 +35,7 @@ export function resolveMappedUnitIds(
   for (const rawId of unitIds) {
     const id = rawId.trim();
     if (!id) continue;
-    const resolved = resolveSpeakerTargetUnitIdFromUnitId(id, unitViewById, resolveUnitViewById);
+    const resolved = resolveHostUnitIdForTimelineView(id, unitViewById, resolveUnitViewById);
     if (!resolved) continue;
     unique.add(resolved);
   }
@@ -107,7 +107,7 @@ export function resolveUnitSelectionMapping(input: {
   let mappedSourceCount = 0;
   const mappedUnitIds = new Set<string>();
   for (const unitId of sourceUnitIds) {
-    const mappedUnitId = resolveSpeakerTargetUnitIdFromUnitId(unitId, input.unitViewById, input.resolveUnitViewById);
+    const mappedUnitId = resolveHostUnitIdForTimelineView(unitId, input.unitViewById, input.resolveUnitViewById);
     if (!mappedUnitId) continue;
     mappedSourceCount += 1;
     mappedUnitIds.add(mappedUnitId);

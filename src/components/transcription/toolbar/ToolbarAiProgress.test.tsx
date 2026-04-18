@@ -32,8 +32,8 @@ describe('ToolbarAiProgress', () => {
     expect(screen.getByText('分析失败')).toBeTruthy();
   });
 
-  it('renders nothing when no foreground progress is active', () => {
-    const { container } = render(
+  it('renders stable ready badges after analysis and VAD warmup complete', () => {
+    render(
       <LocaleProvider locale="zh-CN">
         <ToolbarAiProgress
           acousticRuntimeStatus={{ state: 'ready', phase: 'done', progressRatio: 1, processedFrames: 100, totalFrames: 100 }}
@@ -42,6 +42,7 @@ describe('ToolbarAiProgress', () => {
       </LocaleProvider>,
     );
 
-    expect(container.firstChild).toBeNull();
+    expect(screen.getByText('已完成')).toBeTruthy();
+    expect(screen.getByText('已命中 · silero · 3 段')).toBeTruthy();
   });
 });

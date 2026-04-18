@@ -366,15 +366,15 @@
 }
 
 .timeline-annotation-self-certainty--certain {
-  color: var(--state-success-solid, #1b7f3b);
+  color: var(--state-success-solid);
 }
 
 .timeline-annotation-self-certainty--not-understood {
-  color: var(--state-danger-solid, #c62828);
+  color: var(--state-danger-solid);
 }
 
 .timeline-annotation-self-certainty--uncertain {
-  color: var(--state-warning-solid, #b35c00);
+  color: var(--state-warning-solid);
 }
 
 .timeline-annotation-self-certainty-ambiguous {
