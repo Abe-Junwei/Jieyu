@@ -110,7 +110,12 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   }, [focusedLayer, mediaUnits, segmentsByLayer, sourceLayer]);
 
   const sourceLayerId = sourceLayer?.id ?? focusedLayer?.id ?? '';
-  /** segment_meta / layer_units 段行按 Dexie storage layerId 索引；依附层焦点必须与源层 id 对齐，避免空 meta 与串层观感。 */
+  const displayLayerId = focusedLayerRowId.trim();
+  /**
+   * 读模型仍可用源层 scope 来拿共享边界/文本，但展示与点击行为必须锚定当前聚焦 lane。
+   * The read-model may still consult the source scope for shared boundaries/text, but display and
+   * selection semantics must stay anchored to the currently focused lane.
+   */
   const segmentMetaScopeLayerId = useMemo(
     () => (sourceLayer?.id ?? focusedLayerRowId).trim(),
     [focusedLayerRowId, sourceLayer?.id],
@@ -250,14 +255,15 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         // ⚠️ selfCertainty / status 是 per-layer 字段，禁止向宿主 unit 回退（串层污染根因）。
         //    只读 segment 自身的值；若该 segment row 是 unit-kind，segment.selfCertainty 就是其自身值。
         // ⚠️ selfCertainty / status are per-layer; NEVER fall back to the (shared) host unit.
-        const certainty = segment.selfCertainty;
-        const annotationStatus = segment.status;
+        const sameDisplayLayer = (segment.layerId?.trim() ?? '') === displayLayerId;
+        const certainty = sameDisplayLayer ? segment.selfCertainty : undefined;
+        const annotationStatus = sameDisplayLayer ? segment.status : undefined;
         const empty = text.length === 0;
         const searchIndex = text.toLowerCase();
 
         return {
           key: `${focusedLayerRowId}::fallback::${segment.id}`,
-          unit: createTimelineUnit(sourceLayerId || focusedLayerRowId, segment.id, 'segment'),
+          unit: createTimelineUnit(displayLayerId || sourceLayerId || focusedLayerRowId, segment.id, 'segment'),
           startTime: segment.startTime,
           endTime: segment.endTime,
           text,
@@ -303,7 +309,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           searchIndex,
         };
       });
-  }, [activeMediaId, focusedLayerRowId, getUnitTextForLayer, mediaUnits, messages, segmentContentByLayer, sourceLayerId, sourceSegments, speakerById, unitById]);
+  }, [activeMediaId, displayLayerId, focusedLayerRowId, getUnitTextForLayer, mediaUnits, messages, segmentContentByLayer, sourceLayerId, sourceSegments, speakerById, unitById]);
 
   const items = useMemo<SegmentListItem[]>(() => {
     const metaItems: SegmentListItem[] = segmentMetaRows.map((row): SegmentListItem => {
@@ -313,13 +319,13 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     const speakerLabel = row.effectiveSpeakerName?.trim() || fallbackSpeakerLabel;
     const speakerKeys = speakerKey ? [speakerKey] : [];
     const speakerLabels = speakerLabel ? [speakerLabel] : [];
-    const noteCategories = row.noteCategoryKeys ?? [];
-    const certainty = row.effectiveSelfCertainty;
-    const annotationStatus = row.annotationStatus;
-    const sourceType = row.sourceType;
-    const timelineLayerId = row.unitKind === 'segment'
-      ? (sourceLayer?.id ?? row.layerId)
-      : row.layerId;
+    const rowMatchesFocusedLayer = row.unitKind !== 'segment'
+      || (row.layerId?.trim() ?? '') === displayLayerId;
+    const noteCategories = rowMatchesFocusedLayer ? (row.noteCategoryKeys ?? []) : [];
+    const certainty = rowMatchesFocusedLayer ? row.effectiveSelfCertainty : undefined;
+    const annotationStatus = rowMatchesFocusedLayer ? row.annotationStatus : undefined;
+    const sourceType = rowMatchesFocusedLayer ? row.sourceType : undefined;
+    const timelineLayerId = displayLayerId || row.layerId;
     const empty = !row.hasText;
     const searchIndex = text.toLowerCase();
 
@@ -398,7 +404,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       if (left.endTime !== right.endTime) return left.endTime - right.endTime;
       return left.key.localeCompare(right.key);
     });
-  }, [fallbackItems, messages, segmentMetaRows, sourceLayerId, speakerById]);
+  }, [displayLayerId, fallbackItems, messages, segmentMetaRows, speakerById]);
 
   const contentStateOptions = useMemo<FacetOption[]>(() => {
     const withTextCount = items.filter((item) => item.hasText).length;

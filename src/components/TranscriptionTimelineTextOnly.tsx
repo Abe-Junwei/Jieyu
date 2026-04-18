@@ -367,7 +367,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           : unitsOnCurrentMedia;
         const layerUnits: TimelineUnitView[] = rawLayerItems.map((item) => (
           'layerId' in item
-            ? segmentToView(item, () => '')
+            ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
         const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
@@ -670,7 +670,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
         const usesSegmentTimeline = layerItems !== unitsOnCurrentMedia;
         const layerUnits: TimelineUnitView[] = layerItems.map((item) => (
           'layerId' in item
-            ? segmentToView(item, () => '')
+            ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
         const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
