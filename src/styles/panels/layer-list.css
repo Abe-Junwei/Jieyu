@@ -511,10 +511,6 @@
   padding: 8px 6px;
 }
 
-.transcription-side-pane-portaled-stack .app-side-pane-presence-wrap {
-  padding: 8px 6px;
-}
-
 .transcription-side-pane-portaled-stack .app-side-pane-layer-list {
   gap: 0;
   overflow-y: auto;
@@ -612,82 +608,6 @@
   color: var(--text-primary);
   border-color: var(--border-strong);
   background: color-mix(in srgb, var(--surface-header) 60%, transparent);
-}
-
-.transcription-side-pane-presence-empty {
-  margin: 0;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-}
-
-.transcription-side-pane-presence-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.transcription-side-pane-presence-item {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  padding: 6px 8px;
-  background: color-mix(in srgb, var(--surface-panel) 70%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.transcription-side-pane-presence-item-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.transcription-side-pane-presence-name {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.transcription-side-pane-presence-state {
-  font-size: 0.64rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border: 1px solid color-mix(in srgb, var(--border-strong) 60%, transparent);
-  border-radius: 999px;
-  padding: 1px 6px;
-  flex-shrink: 0;
-}
-
-.transcription-side-pane-presence-state-online {
-  color: var(--state-success-solid);
-  border-color: color-mix(in srgb, var(--state-success-solid) 45%, transparent);
-  background: color-mix(in srgb, var(--state-success-soft) 70%, transparent);
-}
-
-.transcription-side-pane-presence-state-idle {
-  color: var(--state-warning-solid);
-  border-color: color-mix(in srgb, var(--state-warning-solid) 45%, transparent);
-  background: color-mix(in srgb, var(--state-warning-soft) 75%, transparent);
-}
-
-.transcription-side-pane-presence-state-offline {
-  color: var(--text-secondary);
-}
-
-.transcription-side-pane-presence-focus {
-  font-size: 0.66rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .app-side-pane-collaboration-wrap {

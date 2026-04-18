@@ -847,7 +847,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 {layer.modality === 'audio' && trcAudioControls ? (
                   <div className="timeline-translation-audio-card">{trcAudioControls}</div>
                 ) : null}
-                {layer.modality === 'mixed' && trcAudioControls ? (
+                {(layer.modality === 'mixed' || (layer.modality === 'text' && Boolean(layer.acceptsAudio))) && trcAudioControls ? (
                   <div className="timeline-text-item-trc-audio-inline">{trcAudioControls}</div>
                 ) : null}
                 {startTimelineResizeDrag ? (

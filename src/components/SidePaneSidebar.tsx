@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
-import type { CollaborationPresenceLiveMember } from '../collaboration/cloud/CollaborationPresenceService';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -28,65 +27,6 @@ import { buildLayerBundles } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
-type SidePaneSidebarMessages = ReturnType<typeof getSidePaneSidebarMessages>;
-
-function SidePanePresenceSection({
-  messages,
-  presenceMembers,
-  presenceCurrentUserId,
-}: {
-  messages: SidePaneSidebarMessages;
-  presenceMembers?: CollaborationPresenceLiveMember[] | undefined;
-  presenceCurrentUserId?: string | undefined;
-}) {
-  const visibleMembers = (presenceMembers ?? []).filter((member) => member.state !== 'offline');
-  const sortedMembers = visibleMembers.slice().sort((left, right) => {
-    const leftTimestamp = left.lastSeenAt ? Date.parse(left.lastSeenAt) : 0;
-    const rightTimestamp = right.lastSeenAt ? Date.parse(right.lastSeenAt) : 0;
-    if (rightTimestamp !== leftTimestamp) {
-      return rightTimestamp - leftTimestamp;
-    }
-    return left.userId.localeCompare(right.userId);
-  });
-
-  return (
-    <section className="app-side-pane-group app-side-pane-layer-group" aria-label={messages.presenceCardAria}>
-      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-        <span className="app-side-pane-section-title">{messages.presenceCardTitle}</span>
-      </div>
-      {sortedMembers.length === 0 ? (
-        <p className="transcription-side-pane-presence-empty">{messages.presenceEmpty}</p>
-      ) : (
-        <ul className="transcription-side-pane-presence-list">
-          {sortedMembers.map((member) => {
-            const displayName = member.displayName?.trim() || member.userId;
-            const isCurrentUser = presenceCurrentUserId === member.userId;
-            const focusLabel = member.focusedEntityType && member.focusedEntityId
-              ? messages.presenceFocusLabel(
-                  messages.presenceEntityLabel(member.focusedEntityType),
-                  member.focusedEntityId,
-                )
-              : null;
-            return (
-              <li key={member.userId} className="transcription-side-pane-presence-item">
-                <div className="transcription-side-pane-presence-item-header">
-                  <span className="transcription-side-pane-presence-name">
-                    {displayName}
-                    {isCurrentUser ? ` ${messages.presenceSelfSuffix}` : ''}
-                  </span>
-                  <span className={`transcription-side-pane-presence-state transcription-side-pane-presence-state-${member.state}`}>
-                    {messages.presenceStateLabel(member.state)}
-                  </span>
-                </div>
-                {focusLabel ? <span className="transcription-side-pane-presence-focus">{focusLabel}</span> : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </section>
-  );
-}
 
 interface SidePaneSidebarProps {
   sidePaneRows: LayerDocType[];
@@ -106,8 +46,6 @@ interface SidePaneSidebarProps {
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
   unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
-  presenceMembers?: CollaborationPresenceLiveMember[];
-  presenceCurrentUserId?: string;
   collaborationCloudPanelProps?: React.ComponentProps<typeof CollaborationCloudPanel>;
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
@@ -132,8 +70,6 @@ export function SidePaneSidebar({
   segmentContentByLayer,
   unitsOnCurrentMedia,
   speakers,
-  presenceMembers,
-  presenceCurrentUserId,
   collaborationCloudPanelProps,
   getUnitTextForLayer,
   onSelectTimelineUnit,
@@ -435,11 +371,6 @@ export function SidePaneSidebar({
   const sidePanePortaledNode = useMemo(() => (
     <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
       {sidePaneOverviewNode}
-      <SidePanePresenceSection
-        messages={messages}
-        presenceMembers={presenceMembers}
-        presenceCurrentUserId={presenceCurrentUserId}
-      />
       <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
@@ -449,7 +380,7 @@ export function SidePaneSidebar({
         </div>
       </section>
     </div>
-  ), [messages, messages.quickActionsCardAria, messages.quickActionsCardTitle, presenceCurrentUserId, presenceMembers, sidePaneActionsNode, sidePaneOverviewNode]);
+  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneOverviewNode]);
 
   const sidePaneInlineFallbackNode = useMemo(() => (
     <div
@@ -458,14 +389,9 @@ export function SidePaneSidebar({
       data-layer-pane-interactive="true"
     >
       {sidePaneOverviewNode}
-      <SidePanePresenceSection
-        messages={messages}
-        presenceMembers={presenceMembers}
-        presenceCurrentUserId={presenceCurrentUserId}
-      />
       {sidePaneActionsNode}
     </div>
-  ), [messages, messages.inlinePaneAria, presenceCurrentUserId, presenceMembers, sidePaneActionsNode, sidePaneOverviewNode]);
+  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode]);
 
   useRegisterAppSidePane({
     title: messages.paneTitle,

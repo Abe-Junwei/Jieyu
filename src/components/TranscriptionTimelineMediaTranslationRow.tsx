@@ -78,7 +78,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   const locale = useLocale();
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
+  const showAudioTools = layerSupportsAudio && !isAudioOnlyLayer;
   const recordingScopeId = recordingScopeUnitId(item);
   const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;

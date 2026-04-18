@@ -74,7 +74,7 @@ import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWor
 import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
 import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
-import { resolveTimelineAxisStatus } from '../utils/timelineAxisStatus';
+import { resolveTimelineAxisStatus, shouldShowLogicalAxisLengthOnAxisStrip } from '../utils/timelineAxisStatus';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
 import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
@@ -1784,9 +1784,11 @@ function TranscriptionPageReadyWorkspace({
       const logicalOk = typeof logicalDurationSec === 'number'
         && Number.isFinite(logicalDurationSec)
         && logicalDurationSec > 0;
-      const showLogical = logicalOk
-        && (activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media')
-        && hint.kind === 'no_playable_media';
+      const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
+        ...(logicalOk ? { logicalDurationSec } : {}),
+        ...(activeTextTimelineMode !== undefined ? { timelineMode: activeTextTimelineMode } : {}),
+        hintKind: hint.kind,
+      });
       if (hint.kind !== 'acoustic_ok' || showLogical) {
         axisStatus = {
           locale,
@@ -1952,8 +1954,6 @@ function TranscriptionPageReadyWorkspace({
     segmentContentByLayer,
     unitsOnCurrentMedia,
     speakers,
-    presenceMembers: collaborationPresenceMembers,
-    presenceCurrentUserId: collaborationPresenceCurrentUserId,
     collaborationCloudPanelProps: {
       listProjectAssets,
       removeProjectAsset,

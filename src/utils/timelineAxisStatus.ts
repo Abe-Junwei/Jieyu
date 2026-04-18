@@ -9,6 +9,21 @@ export type TimelineAxisMediaHint =
   | { kind: 'duration_short'; acousticSec: number; maxUnitEndSec: number }
   | { kind: 'acoustic_ok'; acousticSec: number };
 
+/**
+ * 顶栏逻辑轴长度行是否与媒体状态条一并展示（`TimelineAxisStatusStrip` 与 ReadyWorkspace 编排共用，ADR-0004 7A）。
+ */
+export function shouldShowLogicalAxisLengthOnAxisStrip(input: {
+  logicalDurationSec?: number;
+  timelineMode?: string | null;
+  hintKind: TimelineAxisMediaHint['kind'];
+}): boolean {
+  const d = input.logicalDurationSec;
+  if (!(typeof d === 'number' && Number.isFinite(d) && d > 0)) return false;
+  const m = input.timelineMode;
+  if (!(m === 'document' || m === 'media')) return false;
+  return input.hintKind === 'no_playable_media';
+}
+
 export function maxUnitEndTimeSec(units: ReadonlyArray<Pick<LayerUnitDocType, 'endTime'>>): number {
   return units.reduce((m, u) => (Number.isFinite(u.endTime) ? Math.max(m, u.endTime) : m), 0);
 }

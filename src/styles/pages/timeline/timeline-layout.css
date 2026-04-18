@@ -38,15 +38,9 @@
   /* 语段状态灰度阶梯（默认：柔和版，无需额外配置）| Segment neutral ladder (default: soft, no extra setup) */
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 6%, var(--surface-panel));
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 9%, var(--surface-panel));
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--text-secondary) 14%, var(--surface-panel));
-  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 18%, var(--surface-panel));
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 58%, transparent);
-  --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 68%, transparent);
   --timeline-accent-hover-bg: color-mix(in srgb, var(--header-accent) 14%, transparent);
   --timeline-accent-divider-hover: color-mix(in srgb, var(--header-accent) 68%, transparent);
-  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 60%, transparent);
-  --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 16%, transparent);
-  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 22%, transparent);
   --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 38%, transparent);
   /* border-box：全宽 + padding-left 留出标签/左视频列；勿再减 width，否则内容区会少一列宽，lane 底部分割线比标尺/波形提前结束 | Full width with left padding for label/video gutter; avoid shrinking width or lane dividers stop short of ruler/waveform */
   width: 100%;
@@ -61,15 +55,9 @@
 :root[data-timeline-segment-contrast='clear'] .timeline-content {
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--text-tertiary) 8%, var(--surface-panel));
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--text-secondary) 12%, var(--surface-panel));
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--text-secondary) 18%, var(--surface-panel));
-  --timeline-neutral-focus-bg: color-mix(in srgb, var(--text-secondary) 22%, var(--surface-panel));
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 66%, transparent);
-  --timeline-neutral-divider-selected: color-mix(in srgb, var(--text-secondary) 76%, transparent);
   --timeline-accent-hover-bg: color-mix(in srgb, var(--header-accent) 18%, transparent);
   --timeline-accent-divider-hover: color-mix(in srgb, var(--header-accent) 76%, transparent);
-  --timeline-neutral-divider-focus: color-mix(in srgb, var(--text-secondary) 68%, transparent);
-  --timeline-neutral-outline-selected: color-mix(in srgb, var(--text-secondary) 22%, transparent);
-  --timeline-neutral-outline-focus: color-mix(in srgb, var(--text-secondary) 28%, transparent);
   --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 46%, transparent);
 }
 
@@ -188,12 +176,7 @@
   box-shadow: none;
 }
 
-.timeline-empty-actions-row > button:hover {
-  background: var(--border-soft);
-  border-color: var(--text-secondary);
-}
-
-.timeline-empty-actions-row:focus-within > button {
+.timeline-empty-actions-row:is(:hover, :focus-within) > button {
   background: var(--border-soft);
   border-color: var(--text-secondary);
 }

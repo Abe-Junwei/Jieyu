@@ -423,8 +423,7 @@
   min-height: 0;
 }
 
-.app-side-pane-collaboration-group,
-.app-side-pane-presence-group {
+.app-side-pane-collaboration-group {
   min-height: 0;
 }
 

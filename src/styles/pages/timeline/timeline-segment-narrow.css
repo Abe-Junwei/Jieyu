@@ -1,0 +1,54 @@
+/* ── 窄语段：容器查询降级（与 RTL 逻辑边距配合）| Narrow segments via @container inline-size ──
+ *
+ * 断点与 tokens.css 中 --timeline-seg-narrow-* 数值对齐（此处用字面量以保容器查询兼容）。
+ * | Breakpoint literals mirror tokens (custom properties in @container conditions are not universally supported).
+ *
+ * md：隐藏重叠轮次（装饰性、pointer-events 已为 none）
+ * sm：确信角标略缩小
+ * xs：确信/模糊角标常态淡化，hover 或 focus-within 语段时恢复；笔记略缩小；工具 gap 收紧
+ */
+
+.timeline-text-item,
+.timeline-annotation {
+  container-type: inline-size;
+  container-name: timeline-seg;
+}
+
+@container timeline-seg (max-width: 120px) {
+  .timeline-annotation-overlap-cycle-badge {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@container timeline-seg (max-width: 96px) {
+  .timeline-annotation-self-certainty {
+    transform: scale(0.88);
+    transform-origin: top inline-end;
+  }
+}
+
+@container timeline-seg (max-width: 72px) {
+  .timeline-annotation-self-certainty,
+  .timeline-annotation-self-certainty.timeline-annotation-self-certainty-ambiguous {
+    opacity: 0.22;
+    transition: opacity 140ms ease;
+  }
+
+  .timeline-text-item:hover .timeline-annotation-self-certainty,
+  .timeline-text-item:focus-within .timeline-annotation-self-certainty,
+  .timeline-annotation:hover .timeline-annotation-self-certainty,
+  .timeline-annotation:focus-within .timeline-annotation-self-certainty {
+    opacity: 0.98;
+  }
+
+  .timeline-annotation-note-icon {
+    transform: scale(0.9);
+    transform-origin: bottom inline-end;
+  }
+
+  .timeline-text-item-tools,
+  .timeline-annotation-tools {
+    gap: 2px;
+  }
+}

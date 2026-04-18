@@ -20,51 +20,6 @@ body,
   min-height: 100%;
 }
 
-/* ═══════════════════════════════════════════════════════
-   Glassmorphism — 毛玻璃/玻璃拟态工具类
-   Antigravity 轻量现代风格核心元素
-   ═══════════════════════════════════════════════════════ */
-
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-}
-
-.glass-subtle {
-  background: var(--glass-bg-subtle);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--glass-border);
-}
-
-.glass-strong {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow-strong);
-}
-
-/* Antigravity 主题专属玻璃效果 */
-:root[data-appearance='antigravity'] .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, var(--header-accent) 12%, transparent);
-  box-shadow: 0 4px 30px color-mix(in srgb, var(--header-accent) 8%, transparent);
-}
-
-:root[data-appearance='antigravity'][data-theme='dark'] .glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid color-mix(in srgb, var(--header-accent) 14%, transparent);
-  box-shadow: var(--glass-shadow);
-}
-
 body {
   margin: 0;
   color: var(--text-primary);
@@ -246,23 +201,6 @@ body {
   max-width: 100%;
 }
 
-.skeleton-heading {
-  height: 1.25rem;
-  width: 60%;
-}
-
-.skeleton-circle {
-  width: 2rem;
-  height: 2rem;
-  border-radius: var(--radius-pill);
-}
-
-.skeleton-rectangle {
-  height: 2rem;
-  width: 80%;
-  border-radius: var(--radius-sm);
-}
-
 /* ═══════════════════════════════════════════════════════
    全局 Loading Spinner
    ═══════════════════════════════════════════════════════ */
@@ -280,16 +218,4 @@ body {
   border-radius: var(--radius-pill);
   animation: spin 0.6s linear infinite;
   flex-shrink: 0;
-}
-
-.spinner--sm {
-  width: 0.875rem;
-  height: 0.875rem;
-  border-width: 1.5px;
-}
-
-.spinner--lg {
-  width: 2rem;
-  height: 2rem;
-  border-width: 2.5px;
 }

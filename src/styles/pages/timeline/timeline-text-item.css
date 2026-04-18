@@ -24,16 +24,10 @@
   transition: background-color var(--duration-fast, 120ms) ease,
               border-color var(--duration-fast, 120ms) ease,
               box-shadow var(--duration-fast, 120ms) ease;
-  padding-left: 2px;
-  padding-right: 2px;
-  margin-left: 1px;
-  margin-right: 1px;
+  padding-inline: 2px;
+  margin-inline: 1px;
   --timeline-item-divider-width: 0;
   --timeline-item-divider-color: color-mix(in srgb, var(--text-tertiary) 52%, transparent);
-  --timeline-annotation-side-stack-top: 4px;
-  --timeline-annotation-side-stack-right: 5px;
-  --timeline-annotation-side-stack-size: 16px;
-  --timeline-annotation-side-stack-gap: 4px;
 }
 
 .timeline-text-item-has-self-certainty {
@@ -49,7 +43,7 @@
 .timeline-text-item::before {
   content: '';
   position: absolute;
-  left: 0;
+  inset-inline-start: 0;
   top: 15%;   /* 不贯穿上下，减少僵硬感 */
   bottom: 15%;
   width: var(--timeline-item-divider-width);
@@ -196,7 +190,8 @@
 .timeline-text-item-editing .timeline-text-input {
   height: 100%;
   margin: 0;
-  padding: 2px 20px 3px 8px;
+  padding-block: 2px 3px;
+  padding-inline: 8px 20px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -210,24 +205,38 @@
   box-shadow: none;
 }
 
+.timeline-text-item-editing.timeline-text-item-has-self-certainty .timeline-text-input {
+  padding-inline-end: var(--timeline-segment-text-input-pad-end-self-certainty-only);
+}
+
+.timeline-text-item-editing.timeline-text-item-has-tools .timeline-text-input {
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end);
+}
+
+.timeline-text-item-editing.timeline-text-item-has-tools.timeline-text-item-has-self-certainty .timeline-text-input {
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end-with-self-certainty);
+}
+
 /* ═══════════════════════════════════════
    状态点（保存状态）
    ═══════════════════════════════════════ */
 
 .timeline-text-item-status-dot {
   position: absolute;
-  top: 4px;     /* 居中调整 */
-  right: 6px;   /* 与工具栏对齐 */
-  width: 8px;
-  height: 8px;
+  top: var(--timeline-annotation-side-stack-top);
+  inset-inline-end: var(--timeline-annotation-side-stack-right);
+  width: var(--timeline-segment-save-status-dot-size);
+  height: var(--timeline-segment-save-status-dot-size);
   border-radius: var(--radius-pill);
   pointer-events: none;
-  z-index: var(--z-overlay-base);
+  z-index: var(--z-timeline-seg-save-dot);
   opacity: 0.88;
 }
 
 .timeline-text-item-has-tools .timeline-text-item-status-dot {
-  right: 52px;
+  inset-inline-end: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance)
+  );
 }
 
 .timeline-text-item-status-dot-action {
@@ -235,6 +244,7 @@
   padding: 0;
   cursor: pointer;
   pointer-events: auto;
+  z-index: var(--z-timeline-seg-save-error);
 }
 
 .timeline-text-item-status-dot-action:focus-visible {
@@ -280,8 +290,8 @@
   content: '';
   position: absolute;
   bottom: 2px;
-  left: 10px;
-  right: 10px;
+  inset-inline-start: var(--timeline-confidence-underline-inset);
+  inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 1px;
   border-top: 1px dashed var(--text-secondary);
   background: transparent;
@@ -298,8 +308,8 @@
   content: '';
   position: absolute;
   bottom: 2px;
-  left: 10px;
-  right: 10px;
+  inset-inline-start: var(--timeline-confidence-underline-inset);
+  inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 2px;
   background: var(--state-danger-solid);
   opacity: 0.5;
@@ -319,7 +329,8 @@
   font-size: 0.88rem;
   line-height: 1.3;
   color: var(--text-primary);
-  padding: 2px 20px 3px 8px;
+  padding-block: 2px 3px;
+  padding-inline: 8px 20px;
   margin: 0;
   box-sizing: border-box;
   transition: border-color 140ms ease;
@@ -344,26 +355,50 @@
 }
 
 .timeline-text-item-has-self-certainty .timeline-text-input {
-  padding-right: 30px;
+  padding-inline-end: var(--timeline-segment-text-input-pad-end-self-certainty-only);
 }
 
 .timeline-text-item-has-tools .timeline-text-input {
-  padding-right: 62px;
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end);
+}
+
+.timeline-text-item-has-tools.timeline-text-item-has-self-certainty .timeline-text-input {
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end-with-self-certainty);
 }
 
 .timeline-text-item-tools {
   position: absolute;
-  top: 4px;
-  right: 6px;
+  top: var(--timeline-annotation-side-stack-top);
+  inset-inline-end: var(--timeline-annotation-side-stack-right);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  z-index: var(--z-overlay-base);
+  z-index: var(--z-timeline-seg-tools);
+}
+
+.timeline-text-item-has-self-certainty .timeline-text-item-tools {
+  inset-inline-end: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
 }
 
 .timeline-text-item-audio-only {
   justify-content: center;
-  padding: 0 10px;
+  padding-block: 0;
+  padding-inline: 10px;
+}
+
+/* TRC 混合轨内联音频控件容器 | Inline audio controls container for TRC mixed lanes */
+.timeline-text-item-trc-audio-inline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  padding-block: 0;
+  padding-inline: 8px;
+  box-sizing: border-box;
 }
 
 /* 纯文本壳层拖边改时（与波形区共用 saveUnitTiming 路径）| Text-only shell edge timing (shared saveUnitTiming) */
@@ -376,7 +411,7 @@
   top: 0;
   bottom: 0;
   width: 8px;
-  z-index: calc(var(--z-overlay-base) + 1);
+  z-index: var(--z-timeline-seg-resize-handle);
   opacity: 0;
   cursor: ew-resize;
   touch-action: none;

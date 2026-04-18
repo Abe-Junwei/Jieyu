@@ -1,7 +1,7 @@
 import type { Locale } from '../../i18n';
 import { t, tf } from '../../i18n';
 import { formatTime } from '../../utils/transcriptionFormatters';
-import type { TimelineAxisMediaHint } from '../../utils/timelineAxisStatus';
+import { shouldShowLogicalAxisLengthOnAxisStrip, type TimelineAxisMediaHint } from '../../utils/timelineAxisStatus';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { PanelButton } from '../ui/PanelButton';
 import { JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
@@ -23,12 +23,11 @@ export function TimelineAxisStatusStrip({
 }: TimelineAxisStatusStripProps) {
   if (hint.kind === 'hidden') return null;
 
-  const logicalOk = typeof logicalDurationSec === 'number'
-    && Number.isFinite(logicalDurationSec)
-    && logicalDurationSec > 0;
-  const showLogical = logicalOk
-    && (timelineMode === 'document' || timelineMode === 'media')
-    && hint.kind === 'no_playable_media';
+  const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
+    ...(typeof logicalDurationSec === 'number' ? { logicalDurationSec } : {}),
+    ...(timelineMode !== undefined ? { timelineMode } : {}),
+    hintKind: hint.kind,
+  });
 
   const mediaLine = (() => {
     switch (hint.kind) {

@@ -187,8 +187,6 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   segmentContentByLayer: ReadyWorkspaceSidePaneSidebarProps['segmentContentByLayer'];
   unitsOnCurrentMedia: ReadyWorkspaceSidePaneSidebarProps['unitsOnCurrentMedia'];
   speakers: ReadyWorkspaceSidePaneSidebarProps['speakers'];
-  presenceMembers?: ReadyWorkspaceSidePaneSidebarProps['presenceMembers'];
-  presenceCurrentUserId?: ReadyWorkspaceSidePaneSidebarProps['presenceCurrentUserId'];
   collaborationCloudPanelProps?: ReadyWorkspaceSidePaneSidebarProps['collaborationCloudPanelProps'];
   getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
@@ -250,8 +248,6 @@ export function buildReadyWorkspaceSidePaneProps(
       segmentContentByLayer: input.segmentContentByLayer,
       unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       speakers: input.speakers,
-      ...(input.presenceMembers !== undefined ? { presenceMembers: input.presenceMembers } : {}),
-      ...(input.presenceCurrentUserId !== undefined ? { presenceCurrentUserId: input.presenceCurrentUserId } : {}),
       ...(input.collaborationCloudPanelProps !== undefined ? { collaborationCloudPanelProps: input.collaborationCloudPanelProps } : {}),
       ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,

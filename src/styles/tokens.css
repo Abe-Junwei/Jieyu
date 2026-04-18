@@ -235,6 +235,66 @@
   --z-header-float: 150;
   --z-popover: 170;
   --z-timeline-tooltip: 175;
+  /* 语段行内角标叠层（低→高）：重叠提示 < 确信 < 保存点 < 工具 < 笔记 < 保存失败 < 拖边把手
+     | In-segment badge stack; resize handles stay above so edges stay grabbable */
+  --z-timeline-seg-overlap: 2;
+  --z-timeline-seg-certainty: 3;
+  --z-timeline-seg-save-dot: 4;
+  --z-timeline-seg-tools: 5;
+  --z-timeline-seg-note: 6;
+  --z-timeline-seg-save-error: 7;
+  --z-timeline-seg-resize-handle: 8;
+  /* 文本轨与媒体轨「AI 置信度」下划线共用左右内缩 | Shared confidence underline inset */
+  --timeline-confidence-underline-inset: 8px;
+  /* 语段右上角堆叠（角标/工具/内边距算式唯一源）| Single source for side-stack + segment chrome */
+  --timeline-annotation-side-stack-top: 4px;
+  /* 命名含 right，语义为距行尾（inline-end）内边距，与 inset-inline-end 一致 | Legacy key: inset from inline-end */
+  --timeline-annotation-side-stack-right: 6px;
+  --timeline-annotation-side-stack-size: 16px;
+  --timeline-annotation-side-stack-gap: 4px;
+  --timeline-annotation-side-stack-bottom: 4px;
+  /* 内联工具条在轨端的占位（= 保存状态点右移量）；随 TimelineTranslationAudioControls 变宽时改 clearance | Inline tools gutter */
+  --timeline-segment-tools-clearance: 46px;
+  /* 与 .timeline-text-item-status-dot 尺寸一致 | Matches save-status dot */
+  --timeline-segment-save-status-dot-size: 8px;
+  --timeline-segment-save-status-dot-trailing-gap: 2px;
+  /* 文本轨 input：stack_right + clearance + 保存点 + 间隙 | Text lane tools reserve */
+  --timeline-segment-tools-text-input-pad-end: calc(
+    var(--timeline-annotation-side-stack-right)
+    + var(--timeline-segment-tools-clearance)
+    + var(--timeline-segment-save-status-dot-size)
+    + var(--timeline-segment-save-status-dot-trailing-gap)
+  );
+  /* 注释卡横向 padding 与文本轨不同，单独占位；须与工具条对齐 | Annotation lane (card padding differs from text-only) */
+  --timeline-segment-tools-annotation-span-pad-end: 56px;
+  --timeline-segment-tools-annotation-input-pad-end: 60px;
+  /* 注释卡仅角标/笔记（无工具条）时 span / input 右内边距 | Annotation lane: icon-only chrome */
+  --timeline-segment-annotation-span-pad-end-icon-only: 28px;
+  --timeline-segment-annotation-input-pad-end-icon-only: 32px;
+  /* 文本轨仅确信角标时的 input 行尾内边距 | Text lane: self-certainty only */
+  --timeline-segment-text-input-pad-end-self-certainty-only: 30px;
+  /* 窄语段 @container(inline-size) 断点（与 timeline-segment-narrow 模块一致）| Narrow segment breakpoints */
+  --timeline-seg-narrow-md: 120px;
+  --timeline-seg-narrow-sm: 96px;
+  --timeline-seg-narrow-xs: 72px;
+  /* 显示确信角标时，在「工具/input 已预留」之外再让出的宽度 | Extra when self-certainty badge */
+  --timeline-segment-self-certainty-input-end-gutter: calc(
+    var(--timeline-annotation-side-stack-size)
+    + var(--timeline-annotation-side-stack-gap)
+    + 2px
+  );
+  --timeline-segment-tools-text-input-pad-end-with-self-certainty: calc(
+    var(--timeline-segment-tools-text-input-pad-end)
+    + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
+  --timeline-segment-tools-annotation-span-pad-end-with-self-certainty: calc(
+    var(--timeline-segment-tools-annotation-span-pad-end)
+    + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
+  --timeline-segment-tools-annotation-input-pad-end-with-self-certainty: calc(
+    var(--timeline-segment-tools-annotation-input-pad-end)
+    + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
   --z-context-menu: 180;
   --z-timeline-annotation: 190;
   --z-timeline-annotation-strong: 200;
@@ -260,10 +320,7 @@
 
   --timeline-neutral-empty-bg: color-mix(in srgb, var(--border-soft) 18%, transparent);
   --timeline-neutral-hover-bg: color-mix(in srgb, var(--border-soft) 24%, transparent);
-  --timeline-neutral-selected-bg: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1), transparent);
   --timeline-neutral-divider-hover: color-mix(in srgb, var(--text-secondary) 64%, transparent);
-  --timeline-neutral-divider-selected: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
-  --timeline-neutral-outline-selected: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-3), transparent);
 
   --timeline-link-color-0: color-mix(in srgb, var(--state-info-solid) 62%, transparent);
   --timeline-link-color-active-0: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
@@ -292,14 +349,6 @@
   --popover-bg: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   --popover-border: var(--border-soft);
   --popover-shadow: var(--shadow-md);
-
-  /* 毛玻璃工具类基底 | global.css .glass* */
-  --glass-bg: color-mix(in srgb, var(--surface-panel) 70%, transparent);
-  --glass-bg-subtle: color-mix(in srgb, var(--surface-panel) 50%, transparent);
-  --glass-bg-strong: color-mix(in srgb, var(--surface-panel) 85%, transparent);
-  --glass-border: color-mix(in srgb, var(--color-white) 28%, transparent);
-  --glass-shadow: 0 4px 30px color-mix(in srgb, var(--shadow-color) 6%, transparent);
-  --glass-shadow-strong: 0 8px 32px color-mix(in srgb, var(--shadow-color) 10%, transparent);
 
   --accent-primary: var(--header-accent);
   --accent-secondary: var(--gray-9);

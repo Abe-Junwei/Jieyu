@@ -256,14 +256,14 @@
 .timeline-annotation-note-icon {
   position: absolute;
   top: auto;
-  bottom: 4px;
-  right: var(--timeline-annotation-side-stack-right, 5px);
+  bottom: var(--timeline-annotation-side-stack-bottom, 4px);
+  inset-inline-end: var(--timeline-annotation-side-stack-right, 6px);
   display: block;
-  width: var(--timeline-annotation-side-stack-size, 18px);
-  height: var(--timeline-annotation-side-stack-size, 18px);
+  width: var(--timeline-annotation-side-stack-size, 16px);
+  height: var(--timeline-annotation-side-stack-size, 16px);
   color: var(--state-info-solid);
   cursor: pointer;
-  z-index: var(--z-overlay);
+  z-index: var(--z-timeline-seg-note);
   opacity: 1;
   transition: color 0.15s, filter 0.15s;
   flex-shrink: 0;

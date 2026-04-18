@@ -1192,4 +1192,113 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       expect.objectContaining({ id: translationLayer.id }),
     );
   });
+
+  it('keeps text input and renders recording controls for text translation rows with acceptsAudio', () => {
+    const transcriptionLayer = makeLayer('trc-base');
+    const translationLayer = {
+      ...makeLayer('trl-text-audio'),
+      layerType: 'translation',
+      key: 'trl_text_audio',
+      modality: 'text',
+      acceptsAudio: true,
+    } as LayerDocType;
+    const unit = makeUnit('u1', 's1');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const startRecordingForUnit = vi.fn(async () => undefined);
+
+    editorContextValue.translationTextByLayer = new Map([
+      [translationLayer.id, new Map([
+        [unit.id, {
+          id: 'utr-text-audio',
+          unitId: unit.id,
+          layerId: translationLayer.id,
+          modality: 'text',
+          text: 'bonjour',
+          sourceType: 'human',
+          createdAt: NOW,
+          updatedAt: NOW,
+        }],
+      ])],
+    ]);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        unitsOnCurrentMedia={[unit]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
+        mediaItems={[]}
+        startRecordingForUnit={startRecordingForUnit}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByDisplayValue('bonjour')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
+
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: unit.id }),
+      expect.objectContaining({ id: translationLayer.id }),
+    );
+  });
+
+  it('renders recording controls for text transcription rows with acceptsAudio', () => {
+    const transcriptionLayer = {
+      ...makeLayer('trc-text-audio'),
+      key: 'trc_text_audio',
+      modality: 'text',
+      acceptsAudio: true,
+    } as LayerDocType;
+    const unit = makeUnit('u1', 's1');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const startRecordingForUnit = vi.fn(async () => undefined);
+
+    render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[unit]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={new Map([[transcriptionLayer.id, new Map()]])}
+        mediaItems={[]}
+        startRecordingForUnit={startRecordingForUnit}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i }));
+
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: unit.id }),
+      expect.objectContaining({ id: transcriptionLayer.id }),
+    );
+  });
 });
