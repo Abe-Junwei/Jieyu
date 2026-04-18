@@ -272,9 +272,30 @@
 
 .timeline-lane-flash .timeline-lane-label {
   border-right-color: color-mix(in srgb, var(--state-info-solid) 45%, transparent);
-  background: var(--state-info-solid);
-  color: var(--text-on-solid);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 72%, transparent);
+  background: color-mix(in srgb, var(--state-info-solid) 10%, var(--surface-elevated));
+  color: var(--state-info-solid);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 32%, transparent);
+  animation: timeline-lane-created-flash 1680ms ease-in-out 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-lane-flash .timeline-lane-label {
+    animation: none;
+  }
+}
+
+@keyframes timeline-lane-created-flash {
+  0%, 11%, 33%, 44%, 66%, 77% {
+    background: var(--state-info-solid);
+    color: var(--text-on-solid);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 72%, transparent);
+  }
+
+  16%, 27%, 49%, 60%, 82%, 100% {
+    background: color-mix(in srgb, var(--state-info-solid) 10%, var(--surface-elevated));
+    color: var(--state-info-solid);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-info-solid) 32%, transparent);
+  }
 }
 
 /* ═══════════════════════════════════════

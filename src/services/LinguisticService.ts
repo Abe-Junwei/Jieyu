@@ -974,6 +974,45 @@ export class LinguisticService {
     return doc.primary;
   }
 
+  /**
+   * 确保文本进入文献项目的逻辑时间模式 | Ensure the text is configured for document-mode logical time.
+   */
+  static async ensureDocumentTimeline(input: {
+    textId: string;
+    logicalDurationSec?: number;
+  }): Promise<TextDocType> {
+    const db = await getDb();
+    const textId = input.textId.trim();
+    if (!textId) throw new Error('textId 不能为空');
+
+    const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
+    if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
+
+    const existing = existingDoc.toJSON();
+    const metadata = (existing.metadata as Record<string, unknown> | undefined) ?? {};
+    const logicalDurationSec = Number.isFinite(input.logicalDurationSec) && (input.logicalDurationSec ?? 0) > 0
+      ? (input.logicalDurationSec as number)
+      : (typeof metadata.logicalDurationSec === 'number' && Number.isFinite(metadata.logicalDurationSec)
+        ? metadata.logicalDurationSec
+        : 1800);
+    const now = new Date().toISOString();
+
+    const updated: TextDocType = {
+      ...existing,
+      metadata: {
+        ...metadata,
+        timelineMode: 'document',
+        logicalDurationSec,
+        timebaseLabel: 'logical-second',
+      },
+      updatedAt: now,
+    };
+
+    await db.collections.texts.remove(textId);
+    await db.collections.texts.insert(updated);
+    return updated;
+  }
+
   static async updateTextTimeMapping(input: UpdateTextTimeMappingInput): Promise<TextDocType> {
     const db = await getDb();
     const textId = input.textId.trim();

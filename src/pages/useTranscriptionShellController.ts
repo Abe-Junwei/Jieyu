@@ -240,6 +240,17 @@ export function useTranscriptionShellController(
       resolvedTextId = result.textId;
       setActiveTextId(resolvedTextId);
     }
+
+    if (resolvedTextId) {
+      const mediaItems = await LinguisticService.getMediaItemsByTextId(resolvedTextId);
+      if (mediaItems.length === 0) {
+        await Promise.all([
+          LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId }),
+          LinguisticService.createPlaceholderMedia({ textId: resolvedTextId }),
+        ]);
+      }
+    }
+
     return createLayer(layerType, {
       ...config,
       ...(resolvedTextId ? { textId: resolvedTextId } : {}),
