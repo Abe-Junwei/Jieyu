@@ -113,6 +113,30 @@ export class LayerSegmentQueryService {
     return toSegmentViews(unitRows);
   }
 
+  static async countUnitsByMediaId(mediaId: string): Promise<number> {
+    const normalized = mediaId.trim();
+    if (!normalized) return 0;
+
+    const db = await getDb();
+    return db.dexie.layer_units.where('mediaId').equals(normalized).count();
+  }
+
+  static async listUnitsByMediaIds(mediaIds: readonly string[]): Promise<LayerUnitDocType[]> {
+    const ids = [...new Set(mediaIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+    if (ids.length === 0) return [];
+
+    const db = await getDb();
+    return db.dexie.layer_units.where('mediaId').anyOf(ids).toArray();
+  }
+
+  static async listUnitsByMediaId(mediaId: string): Promise<LayerUnitDocType[]> {
+    const normalized = mediaId.trim();
+    if (!normalized) return [];
+
+    const db = await getDb();
+    return db.dexie.layer_units.where('mediaId').equals(normalized).toArray();
+  }
+
   static async listAllSegments(): Promise<LayerSegmentViewDocType[]> {
     const db = await getDb();
     const unitRows = await db.dexie.layer_units.where('unitType').equals('segment').toArray();

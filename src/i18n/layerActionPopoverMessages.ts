@@ -44,6 +44,8 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   modalityText: string;
   modalityAudio: string;
   modalityMixed: string;
+  /** 新建转写层时模态说明 | Note when choosing modality for new transcription layer */
+  transcriptionModalityHint: string;
   translationBoundarySource: string;
   languageNameLabel: string;
   languageAssetIdLabel: string;
@@ -102,6 +104,7 @@ const zhCN: LayerActionPopoverMessages = {
   modalityText: '\u6587\u672c\uff08\u7eaf\u6587\u5b57\u7ffb\u8bd1\uff09',
   modalityAudio: '\u8bed\u97f3\uff08\u53e3\u8bd1\u5f55\u97f3\uff09',
   modalityMixed: '\u6df7\u5408\uff08\u6587\u5b57 + \u5f55\u97f3\uff09',
+  transcriptionModalityHint: '\u97f3\u9891/\u6df7\u5408\u8f6c\u5199\u5c42\u53ef\u5728\u65f6\u95f4\u8f74\u5f55\u5236\u4e0e\u64ad\u653e\uff08\u4e0e\u7ffb\u8bd1\u5c42\u5f55\u97f3\u4ea4\u4e92\u4e00\u81f4\uff09\u3002',
   translationBoundarySource: '\u8fb9\u754c\u6765\u6e90\uff1a\u7ffb\u8bd1\u5c42\u4f1a\u6cbf\u7528\u6240\u9009\u8f6c\u5199\u5c42\u7684\u8fb9\u754c\u8303\u56f4\u3002',
   languageNameLabel: '\u8bed\u8a00\u540d\u79f0',
   languageAssetIdLabel: '\u8bed\u8a00 ID\uff08\u7cfb\u7edf\u552f\u4e00\u6807\u8bc6\uff09',
@@ -160,6 +163,7 @@ const enUS: LayerActionPopoverMessages = {
   modalityLabel: 'Modality',
   modalityAudio: 'Audio (interpreting recording)',
   modalityMixed: 'Mixed (text + recording)',
+  transcriptionModalityHint: 'Audio or mixed transcription layers support timeline recording and playback, same as translation recording.',
   translationBoundarySource: 'Boundary source: translation layers inherit the boundary range of the selected transcription layer.',
   languageNameLabel: 'Language Name',
   languageAssetIdLabel: 'Language ID (unique identifier)',

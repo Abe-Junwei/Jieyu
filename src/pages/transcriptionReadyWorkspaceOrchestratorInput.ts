@@ -1,5 +1,6 @@
 import type { ChangeEvent, RefObject } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { TextTimeMapping } from '../types/textTimeMapping';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
@@ -26,6 +27,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   timelineRenderUnits: TranscriptionPageTimelineMediaLanesProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TranscriptionPageTimelineMediaLanesProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
+  /** 纯文本轨拖建/改时：像素→文献秒 与 `previewTextTimeMapping` 视口一致 */
+  textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'>;
   createUnitFromSelectionRouted?: (start: number, end: number) => Promise<void>;
   renderAnnotationItem: TranscriptionPageTimelineMediaLanesProps['renderAnnotationItem'];
   speakerSortKeyById: TranscriptionPageTimelineMediaLanesProps['speakerSortKeyById'];
@@ -33,6 +36,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
+  startTimelineResizeDrag?: TranscriptionPageTimelineTextOnlyProps['startTimelineResizeDrag'];
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
@@ -108,7 +112,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   showProjectSetup: boolean;
   handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   showAudioImport: boolean;
-  handleAudioImport: (file: File, duration: number) => Promise<void>;
+  handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
+  audioImportDisposition: TranscriptionPageDialogsProps['audioImportDisposition'];
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: ChangeEvent<HTMLInputElement>) => void;
   audioDeleteConfirm: { filename: string } | null;
@@ -139,6 +144,7 @@ export function buildOrchestratorViewModelsInput(
     timelineRenderUnits,
     defaultTranscriptionLayerId,
     textOnlyLogicalDurationSec,
+    textOnlyTimeMapping,
     createUnitFromSelectionRouted,
     renderAnnotationItem,
     speakerSortKeyById,
@@ -222,6 +228,7 @@ export function buildOrchestratorViewModelsInput(
     handleProjectSetupSubmit,
     showAudioImport,
     handleAudioImport,
+    audioImportDisposition,
     mediaFileInputRef,
     handleDirectMediaImport,
     audioDeleteConfirm,
@@ -256,12 +263,15 @@ export function buildOrchestratorViewModelsInput(
     textOnlyPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
       unitsOnCurrentMedia: filteredUnitsOnCurrentMedia,
+      segmentParentUnitLookup: unitsOnCurrentMedia,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
       ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
+      ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
       ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
+      ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
@@ -347,6 +357,7 @@ export function buildOrchestratorViewModelsInput(
       showAudioImport,
       setShowAudioImport,
       handleAudioImport,
+      audioImportDisposition,
       mediaFileInputRef,
       handleDirectMediaImport,
       audioDeleteConfirm,

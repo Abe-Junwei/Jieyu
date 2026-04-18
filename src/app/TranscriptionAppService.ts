@@ -92,6 +92,13 @@ export interface ImportAudioRequest {
   audioBlob: Blob;
   filename: string;
   duration: number;
+  importMode?: 'default' | 'replace' | 'add';
+  replaceMediaId?: string;
+}
+
+export interface ExpandTextLogicalDurationRequest {
+  textId: string;
+  minLogicalDurationSec: number;
 }
 
 export interface CreatePlaceholderMediaRequest {
@@ -114,6 +121,7 @@ export interface ITranscriptionAppServiceGateway {
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
+  expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void>;
   updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType>;
   previewTextTimeMapping(request: Parameters<typeof LinguisticService.previewTextTimeMapping>[0]): ReturnType<typeof LinguisticService.previewTextTimeMapping>;
   deleteProject(textId: string): Promise<void>;
@@ -128,6 +136,7 @@ export interface TranscriptionAppServiceDeps {
   createProject: typeof LinguisticService.createProject;
   createPlaceholderMedia: typeof LinguisticService.createPlaceholderMedia;
   importAudio: typeof LinguisticService.importAudio;
+  expandTextLogicalDurationToAtLeast: typeof LinguisticService.expandTextLogicalDurationToAtLeast;
   updateTextTimeMapping: typeof LinguisticService.updateTextTimeMapping;
   previewTextTimeMapping: typeof LinguisticService.previewTextTimeMapping;
   deleteProject: typeof LinguisticService.deleteProject;
@@ -146,6 +155,7 @@ const defaultDeps: TranscriptionAppServiceDeps = {
   createProject: LinguisticService.createProject.bind(LinguisticService),
   createPlaceholderMedia: LinguisticService.createPlaceholderMedia.bind(LinguisticService),
   importAudio: LinguisticService.importAudio.bind(LinguisticService),
+  expandTextLogicalDurationToAtLeast: LinguisticService.expandTextLogicalDurationToAtLeast.bind(LinguisticService),
   updateTextTimeMapping: LinguisticService.updateTextTimeMapping.bind(LinguisticService),
   previewTextTimeMapping: LinguisticService.previewTextTimeMapping.bind(LinguisticService),
   deleteProject: LinguisticService.deleteProject.bind(LinguisticService),
@@ -201,6 +211,10 @@ export function createTranscriptionAppService(
 
     async importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }> {
       return deps.importAudio(request);
+    },
+
+    async expandTextLogicalDurationToAtLeast(request: ExpandTextLogicalDurationRequest): Promise<void> {
+      await deps.expandTextLogicalDurationToAtLeast(request);
     },
 
     async updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType> {

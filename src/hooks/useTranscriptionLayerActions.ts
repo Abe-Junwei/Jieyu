@@ -203,9 +203,11 @@ export function useTranscriptionLayerActions({
       : undefined;
     const resolvedParentLayerId = resolvedParent?.id ?? requestedParentLayerId;
 
+    const effectiveModality = modality ?? 'text';
     const createGuard = getLayerCreateGuard(layers, layerType, {
       languageId,
       alias,
+      modality: effectiveModality,
       ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
       ...(resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
       hasSupportedParent: independentParentCandidates.length > 0,
@@ -226,7 +228,6 @@ export function useTranscriptionLayerActions({
 
     const suffix = Math.random().toString(36).slice(2, 7);
     const key = `${layerType === 'transcription' ? 'trc' : 'trl'}_${languageId}_${suffix}`;
-    const effectiveModality = layerType === 'transcription' ? 'text' : (modality ?? 'text');
     const typeLabel = layerType === 'transcription' ? '\u8f6c\u5199' : '\u7ffb\u8bd1';
     const autoName = alias ? `${typeLabel} · ${alias}` : typeLabel;
 

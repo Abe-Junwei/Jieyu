@@ -13,6 +13,7 @@ import { LinguisticService } from '../services/LinguisticService';
 import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUtils';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { assertTimelineMediaForMutation } from '../utils/assertTimelineMediaForMutation';
 import { createTimelineUnit, type SaveState, type SnapGuide, type TimelineUnit } from './transcriptionTypes';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import { useTranscriptionVoiceTranslationActions } from './useTranscriptionVoiceTranslationActions';
@@ -411,6 +412,9 @@ export function useTranscriptionUnitActions({
   }, [layerById, locale, pushUndo, resolveUnitById, setSaveState, setTranslations]);
 
   const createAdjacentUnit = useCallback(async (base: LayerUnitDocType, playerDuration: number) => {
+    if (!assertTimelineMediaForMutation(selectedUnitMedia, { locale, setSaveState })) {
+      return;
+    }
     pushUndo(getUndoLabel(locale, 'createAdjacentUnit'));
     const db = await getDb();
     const now = new Date().toISOString();
@@ -449,7 +453,7 @@ export function useTranscriptionUnitActions({
         end: formatTime(finalEnd),
       }),
     });
-  }, [createAnchor, locale, pushUndo, selectUnitPrimary, setSaveState, setUnitDrafts, setUnits]);
+  }, [createAnchor, locale, pushUndo, selectUnitPrimary, selectedUnitMedia, setSaveState, setUnitDrafts, setUnits]);
 
   const createUnitFromSelection = useCallback(async (
     start: number,
@@ -460,12 +464,7 @@ export function useTranscriptionUnitActions({
     const perfStartMs = perfDebugEnabled ? performance.now() : 0;
 
     const media = selectedUnitMedia;
-    if (!media) {
-      reportValidationError({
-        message: t(locale, 'transcription.error.validation.mediaRequired'),
-        i18nKey: 'transcription.error.validation.mediaRequired',
-        setErrorState: ({ message, meta }) => setSaveState({ kind: 'error', message, errorMeta: meta }),
-      });
+    if (!assertTimelineMediaForMutation(media, { locale, setSaveState })) {
       return;
     }
 

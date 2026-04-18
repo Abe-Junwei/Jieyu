@@ -496,6 +496,9 @@ describe('useTranscriptionUnitActions - batch operations', () => {
 
     expect(translationsState).toHaveLength(1);
     expect(mediaItemsState).toHaveLength(1);
+    expect(mediaItemsState[0]).toEqual(expect.objectContaining({
+      details: expect.objectContaining({ timelineKind: 'acoustic' }),
+    }));
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
       kind: 'done',
       message: expect.stringMatching(/^录音翻译已保存 \(.+\)$/),

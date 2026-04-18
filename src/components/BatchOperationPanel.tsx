@@ -648,11 +648,11 @@ export function BatchOperationPanel({
         />
 
           <PanelSection className="batch-operation-section batch-operation-section-dense" title={activeTabLabel}>
-            <div className="dialog-segmented-tabs" role="tablist" aria-label={messages.panelTitle}>
-              <button className={`dialog-segmented-tab${tab === 'offset' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('offset')}>{messages.tabOffset}</button>
-              <button className={`dialog-segmented-tab${tab === 'scale' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('scale')}>{messages.tabScale}</button>
-              <button className={`dialog-segmented-tab${tab === 'split' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('split')}>{messages.tabSplit}</button>
-              <button className={`dialog-segmented-tab${tab === 'merge' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('merge')}>{messages.tabMerge}</button>
+            <div className="dialog-segmented-tabs panel-edge-nav panel-edge-nav--inline" role="tablist" aria-label={messages.panelTitle}>
+              <div className={`panel-edge-nav-row ${tab === 'offset' ? 'panel-edge-nav-row-active' : ''}`.trim()}><button className={`dialog-segmented-tab panel-edge-nav-btn${tab === 'offset' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('offset')}><span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabOffset}</strong></span></button></div>
+              <div className={`panel-edge-nav-row ${tab === 'scale' ? 'panel-edge-nav-row-active' : ''}`.trim()}><button className={`dialog-segmented-tab panel-edge-nav-btn${tab === 'scale' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('scale')}><span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabScale}</strong></span></button></div>
+              <div className={`panel-edge-nav-row ${tab === 'split' ? 'panel-edge-nav-row-active' : ''}`.trim()}><button className={`dialog-segmented-tab panel-edge-nav-btn${tab === 'split' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('split')}><span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabSplit}</strong></span></button></div>
+              <div className={`panel-edge-nav-row ${tab === 'merge' ? 'panel-edge-nav-row-active' : ''}`.trim()}><button className={`dialog-segmented-tab panel-edge-nav-btn${tab === 'merge' ? ' dialog-segmented-tab-active' : ''}`} onClick={() => setTab('merge')}><span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabMerge}</strong></span></button></div>
             </div>
 
             {tab === 'offset' && (

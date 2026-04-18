@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MediaItemDocType } from '../db';
+import { resolveMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 
 type Params = {
   mediaItems: MediaItemDocType[];
@@ -87,7 +88,7 @@ export function useTranscriptionMediaSelection({
     const blob = details?.audioBlob;
     const mediaSourceKey = blob instanceof Blob
       ? `${media.id}|blob|${media.filename}|${blob.size}|${blob.type}|${media.duration ?? ''}`
-      : `${media.id}|url|${media.url ?? ''}|${media.filename}|${details?.placeholder === true ? 'placeholder' : 'media'}|${String(details?.timelineMode ?? '')}`;
+      : `${media.id}|url|${media.url ?? ''}|${media.filename}|${resolveMediaItemTimelineKind(media)}`;
 
     if (mediaSourceKey === mediaSourceKeyRef.current) return;
     mediaSourceKeyRef.current = mediaSourceKey;

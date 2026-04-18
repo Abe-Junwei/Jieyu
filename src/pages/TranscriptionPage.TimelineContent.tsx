@@ -3,6 +3,7 @@ import type { ComponentProps } from 'react';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
+import { resolveTimelineShellMode } from '../utils/timelineShellMode';
 
 export type TranscriptionPageTimelineMediaLanesProps = ComponentProps<typeof TranscriptionTimelineMediaLanes>;
 export type TranscriptionPageTimelineTextOnlyProps = ComponentProps<typeof TranscriptionTimelineTextOnly>;
@@ -27,11 +28,23 @@ export function TranscriptionPageTimelineContent({
   textOnlyProps,
   emptyStateProps,
 }: TranscriptionPageTimelineContentProps) {
-  if (selectedMediaUrl && playerIsReady && playerDuration > 0 && layersCount > 0) {
+  const { shell, acousticPending } = resolveTimelineShellMode({
+    selectedMediaUrl,
+    playerIsReady,
+    playerDuration,
+    layersCount,
+  });
+
+  if (shell === 'waveform') {
     return <TranscriptionTimelineMediaLanes {...mediaLanesProps} />;
   }
-  if (layersCount > 0) {
-    return <TranscriptionTimelineTextOnly {...textOnlyProps} />;
+  if (shell === 'text-only') {
+    return (
+      <TranscriptionTimelineTextOnly
+        {...textOnlyProps}
+        {...(acousticPending ? { acousticPending: true } : {})}
+      />
+    );
   }
   return (
     <div className="timeline-empty-state">

@@ -7,6 +7,9 @@ import { ShortcutsPanel } from '../components/ShortcutsPanel';
 import { normalizeLocale, t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { SpeakerActionDialogState } from '../hooks/speakerManagement/types';
+import type { AudioImportDisposition, TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
+
+export type { AudioImportDisposition, TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
 
 export type TranscriptionPageDialogsProps = {
   locale: string;
@@ -24,7 +27,8 @@ export type TranscriptionPageDialogsProps = {
   // Audio import
   showAudioImport: boolean;
   onCloseAudioImport: () => void;
-  onImportAudio: (file: File, duration: number) => Promise<void>;
+  audioImportDisposition: AudioImportDisposition;
+  onImportAudio: (file: File, duration: number, options?: TranscriptionAudioImportOptions) => Promise<void>;
   // File input ref
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   onDirectMediaImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -57,6 +61,7 @@ export function TranscriptionPageDialogs({
   onSubmitProjectSetup,
   showAudioImport,
   onCloseAudioImport,
+  audioImportDisposition,
   onImportAudio,
   mediaFileInputRef: _mediaFileInputRef,
   onDirectMediaImport: _onDirectMediaImport,
@@ -93,6 +98,7 @@ export function TranscriptionPageDialogs({
       <AudioImportDialog
         isOpen={showAudioImport}
         onClose={onCloseAudioImport}
+        disposition={audioImportDisposition}
         onImport={onImportAudio}
       />
 

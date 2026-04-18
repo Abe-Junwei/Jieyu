@@ -1,5 +1,6 @@
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -14,6 +15,7 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   baseLaneHeight: number;
   usesOwnSegments: boolean;
   unitById: Map<string, LayerUnitDocType>;
+  segmentById: Map<string, LayerUnitDocType>;
   text: string;
   draft: string;
   draftKey: string;
@@ -54,6 +56,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   baseLaneHeight,
   usesOwnSegments,
   unitById,
+  segmentById,
   text,
   draft,
   draftKey,
@@ -73,15 +76,13 @@ export function TranscriptionTimelineMediaTranslationRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranslationRowProps) {
   const locale = useLocale();
-  const layerSupportsAudio = !usesOwnSegments
-    && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
+  const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
   const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
-  const isCurrentRecording = recording && recordingUnitId === item.id && recordingLayerId === layer.id;
+  const recordingScopeId = recordingScopeUnitId(item);
+  const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
-  const sourceUnit = item.kind === 'segment'
-    ? (item.parentUnitId ? unitById.get(item.parentUnitId) : undefined)
-    : unitById.get(item.id);
+  const sourceUnit = resolveVoiceRecordingSourceUnit(item, unitById, segmentById);
   const audioControls = layerSupportsAudio ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}

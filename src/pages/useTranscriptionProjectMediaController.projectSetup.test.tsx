@@ -22,6 +22,7 @@ const {
     details: {
       placeholder: true,
       timelineMode: 'document',
+      timelineKind: 'placeholder',
     },
     isOfflineCached: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -60,6 +61,7 @@ describe('useTranscriptionProjectMediaController project setup placeholder flow'
 
     const { result } = renderHook(() => useTranscriptionProjectMediaController({
       activeTextId: null,
+      mediaItems: [],
       getActiveTextId: vi.fn(async () => null),
       setActiveTextId,
       setShowAudioImport,

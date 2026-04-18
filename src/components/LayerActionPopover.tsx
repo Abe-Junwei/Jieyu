@@ -298,6 +298,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     const immediateGuard = getLayerCreateGuard(deletableLayers, createLayerType, {
       languageId: resolvedLang,
       alias,
+      modality,
       ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
       ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
       hasSupportedParent,
@@ -313,7 +314,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
         ...(alias.trim() ? { alias: alias.trim() } : {}),
         ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
         ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
-      }, action === 'create-translation' ? modality : undefined);
+      }, (action === 'create-translation' || action === 'create-transcription') ? modality : undefined);
       if (success) {
         onClose();
         return;
@@ -435,6 +436,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     ? getLayerCreateGuard(deletableLayers, 'translation', {
       languageId: resolvedLangForGuard,
       alias,
+      modality,
       constraint: 'symbolic_association',
       ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
       hasSupportedParent: independentParentLayers.length > 0,
@@ -444,6 +446,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     ? getLayerCreateGuard(deletableLayers, 'transcription', {
       languageId: resolvedLangForGuard,
       alias,
+      modality,
       ...(showConstraintSelector ? { constraint } : {}),
       ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
       hasSupportedParent: independentParentLayers.length > 0,
@@ -466,6 +469,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       {
         languageId: resolvedLangForGuard,
         alias,
+        modality,
         constraint: candidate,
         ...(optionParentLayerId ? { parentLayerId: optionParentLayerId } : {}),
         hasSupportedParent: independentParentLayers.length > 0,
@@ -821,7 +825,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
               />
               <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
             </FormField>
-            {action === 'create-translation' && (
+            {(action === 'create-translation' || action === 'create-transcription') && (
               <div className="layer-action-dialog-field-group">
                 <FormField htmlFor={modalityFieldId} label={actionMessages.modalityLabel}>
                   <select
@@ -836,9 +840,11 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                   </select>
                 </FormField>
                 <PanelNote className="layer-action-dialog-meta-note">
-                  {actionMessages.translationBoundarySource}
+                  {action === 'create-translation'
+                    ? actionMessages.translationBoundarySource
+                    : actionMessages.transcriptionModalityHint}
                 </PanelNote>
-                {independentParentLayers.length > 1 && (
+                {action === 'create-translation' && independentParentLayers.length > 1 && (
                   <FormField htmlFor={translationParentLayerFieldId} label={actionMessages.selectParentLayer}>
                     <select
                       id={translationParentLayerFieldId}
@@ -853,7 +859,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                     </select>
                   </FormField>
                 )}
-                {autoParentLayer && (
+                {action === 'create-translation' && autoParentLayer && (
                   <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
                     {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
                   </PanelNote>

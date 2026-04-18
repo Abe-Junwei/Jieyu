@@ -1,4 +1,5 @@
 import { Fragment, startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
+import type { TimelineResizeDragOptions } from './useTimelineResize';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, OrthographyDocType } from '../db';
 import { t, useLocale } from '../i18n';
@@ -67,6 +68,7 @@ type UseTimelineAnnotationHelpersParams = {
     row: TimelineAnnotationBoundDoc,
     edge: 'start' | 'end',
     layerId: string,
+    options?: TimelineResizeDragOptions,
   ) => void;
   handleNoteClick: (unitId: string, layerId: string | undefined, event: React.MouseEvent) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;

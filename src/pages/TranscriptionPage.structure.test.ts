@@ -102,8 +102,9 @@ describe('TranscriptionPage structure invariants', () => {
     const toolbarCode = fs.readFileSync(toolbarPath, 'utf8');
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const legacyWaveformRuntimeStatusClass = ['waveform', 'runtime-status'].join('-');
 
-    expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(false);
+    expect(waveformContentCode.includes(legacyWaveformRuntimeStatusClass)).toBe(false);
     expect(toolbarCode.includes('const combinedLeftToolbarExtras')).toBe(true);
     expect(toolbarCode.includes('<ToolbarAiProgress')).toBe(true);
     expect(toolbarCode.includes('leftToolbarExtras={combinedLeftToolbarExtras}')).toBe(true);

@@ -17,6 +17,8 @@ source_of_truth: execution-plan-index
 
 - [文献项目伪时长一条轨互通执行方案-2026-04-17.md](%E6%96%87%E7%8C%AE%E9%A1%B9%E7%9B%AE%E4%BC%AA%E6%97%B6%E9%95%BF%E4%B8%80%E6%9D%A1%E8%BD%A8%E4%BA%92%E9%80%9A%E6%89%A7%E8%A1%8C%E6%96%B9%E6%A1%88-2026-04-17.md)
 
+- [逻辑时间轴与媒体生命周期 — 执行计划](logical_timeline_media_lifecycle.plan.md)（占位媒体、`timelineMode`、导音/删音对称、门控、时间坐标守恒审计与行业对标补充；**阶段 0 已冻结于** [`docs/adr/0004-logical-timeline-acoustic-media-lifecycle.md`](../../adr/0004-logical-timeline-acoustic-media-lifecycle.md)；**当前计划状态见该文件 YAML `status`**）
+
 - [OTel-Trace透传与ConflictResolved五阶段执行清单-2026-04-17.md](OTel-Trace%E9%80%8F%E4%BC%A0%E4%B8%8EConflictResolved%E4%BA%94%E9%98%B6%E6%AE%B5%E6%89%A7%E8%A1%8C%E6%B8%85%E5%8D%95-2026-04-17.md)
 
 - [M1-M13-执行合并总文档-2026-04-13.md](M1-M13-%E6%89%A7%E8%A1%8C%E5%90%88%E5%B9%B6%E6%80%BB%E6%96%87%E6%A1%A3-2026-04-13.md)（单一入口，按当前代码状态更新）

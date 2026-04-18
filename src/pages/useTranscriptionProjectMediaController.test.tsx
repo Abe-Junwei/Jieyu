@@ -62,6 +62,7 @@ type HookInput = Parameters<typeof useTranscriptionProjectMediaController>[0];
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
   return {
     activeTextId: 'text-1',
+    mediaItems: [],
     getActiveTextId: vi.fn(async () => 'text-1'),
     setActiveTextId: vi.fn(),
     setShowAudioImport: vi.fn(),

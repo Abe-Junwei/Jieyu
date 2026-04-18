@@ -409,6 +409,11 @@
 }
 
 /* 与 AI 聊天头「详细/简洁」共用 .transcription-ai-mode-switch / .transcription-ai-mode-btn（ai-hub.css）| Shared AI mode pill styles */
+.waveform-view-options-panel .waveform-view-options-ai-switch {
+  width: 100%;
+  min-width: 0;
+}
+
 .waveform-view-options-panel .waveform-view-options-ai-switch--canvas {
   width: 100%;
 }

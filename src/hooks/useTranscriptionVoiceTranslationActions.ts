@@ -1,6 +1,7 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { getDb } from '../db';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 import { newId } from '../utils/transcriptionFormatters';
 import { listUnitTextsByUnit, removeUnitTextFromSegmentationV2, syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { type UnitTextWithoutLayerId, withUnitTextLayerId } from '../services/LayerIdBridgeService';
@@ -38,14 +39,15 @@ export function useTranscriptionVoiceTranslationActions({
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
 
     const mediaId = newId('media');
-    const newMedia: MediaItemDocType = {
+    const recordingSource = targetLayer.layerType === 'transcription' ? 'transcription-recording' : 'translation-recording';
+    const newMedia = withResolvedMediaItemTimelineKind({
       id: mediaId,
       textId: targetUnit.textId,
       filename: `${targetLayer.key}-${mediaId}.webm`,
       isOfflineCached: true,
-      details: { source: 'translation-recording', mimeType: blob.type || 'audio/webm', audioBlob: blob },
+      details: { source: recordingSource, mimeType: blob.type || 'audio/webm', audioBlob: blob },
       createdAt: now,
-    } as MediaItemDocType;
+    } as MediaItemDocType);
     await db.collections.media_items.insert(newMedia);
 
     const translationId = existingAudioTranslation?.id ?? newId('utr');

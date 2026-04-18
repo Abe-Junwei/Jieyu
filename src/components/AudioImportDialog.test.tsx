@@ -36,7 +36,12 @@ afterEach(() => {
 describe('AudioImportDialog', () => {
   it('does not render when closed', () => {
     renderWithLocale(
-      <AudioImportDialog isOpen={false} onClose={vi.fn()} onImport={vi.fn(async () => undefined)} />,
+      <AudioImportDialog
+        isOpen={false}
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        onImport={vi.fn(async () => undefined)}
+      />,
     );
 
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -44,7 +49,12 @@ describe('AudioImportDialog', () => {
 
   it('renders through DialogShell with panel footer actions', () => {
     renderWithLocale(
-      <AudioImportDialog isOpen onClose={vi.fn()} onImport={vi.fn(async () => undefined)} />,
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'simple' }}
+        onImport={vi.fn(async () => undefined)}
+      />,
     );
 
     const dialog = screen.getByRole('dialog', { name: '导入音视频' });
@@ -64,7 +74,12 @@ describe('AudioImportDialog', () => {
     const onImport = vi.fn(async () => undefined);
     const onClose = vi.fn();
     renderWithLocale(
-      <AudioImportDialog isOpen onClose={onClose} onImport={onImport} />,
+      <AudioImportDialog
+        isOpen
+        onClose={onClose}
+        disposition={{ kind: 'simple' }}
+        onImport={onImport}
+      />,
     );
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -82,6 +97,37 @@ describe('AudioImportDialog', () => {
     await waitFor(() => {
       expect(onImport).toHaveBeenCalledWith(file, 125);
       expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('passes { mode: add } when disposition is choose and the add radio is selected', async () => {
+    installMediaMetadataMock(30);
+    const onImport = vi.fn(async () => undefined);
+    renderWithLocale(
+      <AudioImportDialog
+        isOpen
+        onClose={vi.fn()}
+        disposition={{ kind: 'choose', replaceMediaId: 'm1', replaceLabel: 'track.wav' }}
+        onImport={onImport}
+      />,
+    );
+
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['a'], 'new.wav', { type: 'audio/wav' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: '确认导入' }).hasAttribute('disabled')).toBe(false);
+    });
+
+    const radios = screen.getAllByRole('radio');
+    expect(radios).toHaveLength(2);
+    fireEvent.click(radios[1]!);
+
+    fireEvent.click(screen.getByRole('button', { name: '确认导入' }));
+
+    await waitFor(() => {
+      expect(onImport).toHaveBeenCalledWith(file, 30, { mode: 'add' });
     });
   });
 });

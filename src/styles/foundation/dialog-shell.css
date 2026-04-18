@@ -429,26 +429,37 @@
 
 /* ── 对话框分段标签 | Dialog segmented tabs ── */
 .dialog-segmented-tabs {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 0;
+  flex-wrap: nowrap;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
 .dialog-segmented-tab {
   min-height: 32px;
-  padding: 0 var(--space-4, 12px);
-  border-radius: var(--radius-pill);
-  border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
-  background: var(--surface-panel);
+  padding: 8px 12px;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
+  justify-content: center;
+}
+
+.dialog-segmented-tab .panel-edge-nav-label {
+  align-items: center;
+}
+
+.dialog-segmented-tab .panel-edge-nav-title {
+  text-align: center;
 }
 
 .dialog-segmented-tab-active {
   color: var(--state-info-solid);
-  border-color: color-mix(in srgb, var(--state-info-border) 92%, transparent);
   background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
 }
 

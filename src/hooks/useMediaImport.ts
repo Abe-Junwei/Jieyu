@@ -7,6 +7,7 @@ import { useCallback, useRef } from 'react';
 import { getTranscriptionAppService } from '../app/index';
 import type { MediaItemDocType } from '../db';
 import type { SaveState } from './transcriptionTypes';
+import { withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
 import { reportActionError } from '../utils/actionErrorReporter';
 
 interface UseMediaImportOptions {
@@ -80,7 +81,7 @@ export function useMediaImport({
         filename: file.name,
         duration,
       });
-      addMediaItem({
+      addMediaItem(withResolvedMediaItemTimelineKind({
         id: mediaId,
         textId,
         filename: file.name,
@@ -88,7 +89,7 @@ export function useMediaImport({
         details: { audioBlob: blob },
         isOfflineCached: true,
         createdAt: new Date().toISOString(),
-      } as MediaItemDocType);
+      } as MediaItemDocType));
       setSaveState({ kind: 'done', message: tf('transcription.action.audioImported', { filename: file.name }) });
     } catch (error) {
       reportActionError({

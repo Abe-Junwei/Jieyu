@@ -73,9 +73,12 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
+import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
+import { resolveTimelineAxisStatus } from '../utils/timelineAxisStatus';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
 import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
+import { getTranscriptionAppService } from '../app/index';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
@@ -474,6 +477,7 @@ function TranscriptionPageReadyWorkspace({
 
   const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
+  const [logicalExpandBusy, setLogicalExpandBusy] = useState(false);
 
   const {
     recording,
@@ -1217,6 +1221,7 @@ function TranscriptionPageReadyWorkspace({
 
   const projectMediaControllerInput = useTranscriptionProjectMediaControllerInput({
     activeTextId,
+    mediaItems: _mediaItems,
     getActiveTextId,
     setActiveTextId,
     setShowAudioImport,
@@ -1249,6 +1254,7 @@ function TranscriptionPageReadyWorkspace({
     handleConfirmProjectDelete,
     handleProjectSetupSubmit,
     handleAudioImport,
+    audioImportDisposition,
     searchableItems,
     setAudioDeleteConfirm,
     setProjectDeleteConfirm,
@@ -1537,6 +1543,7 @@ function TranscriptionPageReadyWorkspace({
       transcriptionLayers,
       translationLayers,
       timelineUnitViewIndex,
+      segmentParentUnitLookup: unitsOnCurrentMedia,
       segmentsByLayer,
       segmentContentByLayer,
       saveSegmentContentForLayer,
@@ -1590,6 +1597,14 @@ function TranscriptionPageReadyWorkspace({
       ...(activeTextTimeMapping?.logicalDurationSec !== undefined
         ? { textOnlyLogicalDurationSec: activeTextTimeMapping.logicalDurationSec }
         : {}),
+      ...(activeTextTimeMapping
+        ? {
+          textOnlyTimeMapping: {
+            offsetSec: activeTextTimeMapping.offsetSec,
+            scale: activeTextTimeMapping.scale,
+          },
+        }
+        : {}),
       createUnitFromSelectionRouted,
       renderAnnotationItem,
       speakerSortKeyById,
@@ -1597,6 +1612,7 @@ function TranscriptionPageReadyWorkspace({
       tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
+      startTimelineResizeDrag,
       navigateUnitFromInput,
       speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
@@ -1673,6 +1689,7 @@ function TranscriptionPageReadyWorkspace({
       handleProjectSetupSubmit,
       showAudioImport,
       handleAudioImport,
+      audioImportDisposition,
       mediaFileInputRef,
       handleDirectMediaImport,
       audioDeleteConfirm,
@@ -1690,17 +1707,116 @@ function TranscriptionPageReadyWorkspace({
 
   const toolbarPropsWithCollaboration = {
     ...toolbarProps,
-    leftToolbarExtras: <CollaborationSyncBadge locale={locale} badge={collaborationSyncBadge} />,
+    leftToolbarExtras: (
+      <CollaborationSyncBadge
+        locale={locale}
+        badge={collaborationSyncBadge}
+        presenceMembers={collaborationPresenceMembers}
+        currentUserId={collaborationPresenceCurrentUserId}
+      />
+    ),
   };
 
-  const timelineTopPropsWithWaveformResizeHandle = useMemo(() => ({
-    ...timelineTopProps,
-    headerProps: {
-      ...timelineTopProps.headerProps,
-      ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStart } : {}),
-      isResizingWaveform,
-    },
-  }), [handleWaveformResizeStart, isResizingWaveform, selectedMediaUrl, timelineTopProps]);
+  const expandLogicalDurationFromAxisStatus = useCallback(() => {
+    const hint = resolveTimelineAxisStatus({
+      layersCount: layers.length,
+      selectedMediaUrl,
+      playerIsReady: player.isReady,
+      playerDuration: player.duration,
+      selectedTimelineMedia: selectedTimelineMedia ?? null,
+      unitsOnCurrentMedia,
+    });
+    if (hint.kind !== 'duration_short' || !activeTextId) return;
+    const minSec = hint.maxUnitEndSec;
+    if (!Number.isFinite(minSec) || minSec <= 0) return;
+    fireAndForget((async () => {
+      setLogicalExpandBusy(true);
+      try {
+        await getTranscriptionAppService().expandTextLogicalDurationToAtLeast({
+          textId: activeTextId,
+          minLogicalDurationSec: minSec,
+        });
+        await loadSnapshot();
+        setSaveState({ kind: 'done', message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess') });
+      } catch (e) {
+        const detail = e instanceof Error ? e.message : String(e);
+        setSaveState({
+          kind: 'error',
+          message: tf(locale, 'transcription.timelineAxisStatus.expandLogicalError', { detail }),
+        });
+      } finally {
+        setLogicalExpandBusy(false);
+      }
+    })());
+  }, [
+    activeTextId,
+    layers.length,
+    loadSnapshot,
+    locale,
+    player.duration,
+    player.isReady,
+    selectedMediaUrl,
+    selectedTimelineMedia,
+    setSaveState,
+    unitsOnCurrentMedia,
+  ]);
+
+  const timelineTopPropsWithAxisStatus = useMemo(() => {
+    const withResize = {
+      ...timelineTopProps,
+      headerProps: {
+        ...timelineTopProps.headerProps,
+        ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStart } : {}),
+        isResizingWaveform,
+      },
+    };
+    const hint = resolveTimelineAxisStatus({
+      layersCount: layers.length,
+      selectedMediaUrl,
+      playerIsReady: player.isReady,
+      playerDuration: player.duration,
+      selectedTimelineMedia: selectedTimelineMedia ?? null,
+      unitsOnCurrentMedia,
+    });
+    let axisStatus: TimelineAxisStatusStripProps | null = null;
+    if (hint.kind !== 'hidden') {
+      const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
+      const logicalOk = typeof logicalDurationSec === 'number'
+        && Number.isFinite(logicalDurationSec)
+        && logicalDurationSec > 0;
+      const showLogical = logicalOk
+        && (activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media')
+        && hint.kind === 'no_playable_media';
+      if (hint.kind !== 'acoustic_ok' || showLogical) {
+        axisStatus = {
+          locale,
+          hint,
+          ...(logicalOk ? { logicalDurationSec } : {}),
+          ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
+          ...(hint.kind === 'duration_short' && activeTextId
+            ? { expandLogical: { busy: logicalExpandBusy, onPress: expandLogicalDurationFromAxisStatus } }
+            : {}),
+        };
+      }
+    }
+    return axisStatus ? { ...withResize, axisStatus } : withResize;
+  }, [
+    activeTextId,
+    activeTextTimeMapping?.logicalDurationSec,
+    activeTextTimelineMode,
+    expandLogicalDurationFromAxisStatus,
+    handleWaveformResizeStart,
+    isResizingWaveform,
+    layers.length,
+    locale,
+    logicalExpandBusy,
+    player.duration,
+    player.isReady,
+    selectedMediaUrl,
+    selectedTimelineMedia,
+    timelineTopProps,
+    unitsOnCurrentMedia,
+  ]);
 
   const {
     shouldRenderAiSidebar,
@@ -2067,7 +2183,7 @@ function TranscriptionPageReadyWorkspace({
     isAiPanelCollapsed,
     isTimelineLaneHeaderCollapsed,
     readyWorkspaceWaveformContentProps,
-    timelineTopProps: timelineTopPropsWithWaveformResizeHandle,
+    timelineTopProps: timelineTopPropsWithAxisStatus,
     readyWorkspaceSidePaneProps,
     timelineContentProps,
     editorContextValue,

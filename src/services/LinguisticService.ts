@@ -10,6 +10,12 @@ import { hasEmbeddedDefaultTextChanged, invalidateUnitEmbeddings, isDefaultTrans
 import { bulkUpsertUnitLayerUnits, deleteResidualLayerUnitGraphByTextId, deleteUnitLayerUnitCascade, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
+import {
+  isMediaItemPlaceholderRow,
+  MEDIA_TIMELINE_KIND_ACOUSTIC,
+  MEDIA_TIMELINE_KIND_PLACEHOLDER,
+  withResolvedMediaItemTimelineKind,
+} from '../utils/mediaItemTimelineKind';
 import { type ImportQualityReport } from './LinguisticService.constraints';
 import type { ApplyOrthographyBridgeInput, CloneOrthographyToLanguageInput, CreateOrthographyInput, CreateOrthographyBridgeInput, GetActiveOrthographyBridgeInput, ListOrthographyRecordsSelector, ListOrthographyBridgesSelector, PreviewOrthographyBridgeInput, UpdateOrthographyInput, UpdateOrthographyBridgeInput } from './LinguisticService.orthography';
 import type { LanguageCatalogEntry, UpsertLanguageCatalogEntryInput } from './LinguisticService.languageCatalog';
@@ -1115,12 +1121,18 @@ export class LinguisticService {
   static async getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
     const db = await getDb();
     const docs = await db.collections.media_items.findByIndex('textId', textId);
-    return docs.map((doc) => doc.toJSON());
+    const rows = docs.map((doc) => doc.toJSON());
+    const normalizedRows = rows.map((row) => withResolvedMediaItemTimelineKind(row));
+    const changedRows = normalizedRows.filter((row, index) => row !== rows[index]);
+    if (changedRows.length > 0) {
+      await db.dexie.media_items.bulkPut(changedRows);
+    }
+    return normalizedRows;
   }
 
   static async saveMediaItem(data: MediaItemDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.media_items.insert(data);
+    const doc = await db.collections.media_items.insert(withResolvedMediaItemTimelineKind(data));
     return doc.primary;
   }
 
@@ -1343,46 +1355,126 @@ export class LinguisticService {
     audioBlob: Blob;
     filename: string;
     duration: number;
+    /**
+     * `default`：与既有行为一致——仅占位行时晋升占位；已存在非占位声学则新建 `mediaId`。
+     * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升某条占位）。
+     * `add`：在已存在非占位声学时强制新建一条媒体轨；若当前仅有占位则与 `default` 相同（仍晋升占位）。
+     */
+    importMode?: 'default' | 'replace' | 'add';
+    /** `importMode === 'replace'` 时必填，且须属于 `textId`。 */
+    replaceMediaId?: string;
   }): Promise<{ mediaId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
+    const mode = input.importMode ?? 'default';
+    const replaceMediaIdTrimmed = typeof input.replaceMediaId === 'string' ? input.replaceMediaId.trim() : '';
+    if (mode === 'replace' && replaceMediaIdTrimmed.length === 0) {
+      throw new Error('importAudio: replaceMediaId is required when importMode is replace');
+    }
     const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
-    const placeholderRows = mediaRows.filter((row) => {
-      const details = (row.details as Record<string, unknown> | undefined) ?? {};
-      return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
-    });
+    const placeholderRows = mediaRows.filter((row) => isMediaItemPlaceholderRow(row));
     const nonPlaceholderRows = mediaRows.filter((row) => !placeholderRows.some((candidate) => candidate.id === row.id));
+
+    const refreshMediaTimelineMetadata = async (mediaId: string) => {
+      const textRow = await db.dexie.texts.get(input.textId);
+      if (!textRow) return;
+      const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+      if (rowMeta.timelineMode === 'media') {
+        const prevLogical = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+          ? rowMeta.logicalDurationSec
+          : 0;
+        const nextLogical = Math.max(prevLogical, input.duration);
+        await db.dexie.texts.put({
+          ...textRow,
+          metadata: {
+            ...rowMeta,
+            timelineMode: 'media',
+            ...(nextLogical > 0 ? { logicalDurationSec: nextLogical } : {}),
+          },
+          updatedAt: now,
+        });
+      }
+    };
+
+    if (mode === 'replace') {
+      const targetRow = mediaRows.find((r) => r.id === replaceMediaIdTrimmed);
+      if (!targetRow || targetRow.textId !== input.textId) {
+        throw new Error('importAudio: replaceMediaId must refer to a media item in this text');
+      }
+      if (!isMediaItemPlaceholderRow(targetRow)) {
+        const previousDetails = (targetRow.details as Record<string, unknown> | undefined) ?? {};
+        const {
+          placeholder: _placeholder,
+          timelineMode: _timelineMode,
+          timelineKind: _timelineKind,
+          audioBlob: _oldAudioBlob,
+          ...remainingDetails
+        } = previousDetails;
+        await db.dexie.media_items.put({
+          id: targetRow.id,
+          textId: input.textId,
+          filename: input.filename,
+          duration: input.duration,
+          details: {
+            ...remainingDetails,
+            audioBlob: input.audioBlob,
+            timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+          },
+          isOfflineCached: targetRow.isOfflineCached,
+          ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
+          createdAt: targetRow.createdAt,
+        });
+        await refreshMediaTimelineMetadata(targetRow.id);
+        return { mediaId: targetRow.id };
+      }
+    }
+
+    const shouldPromotePlaceholders = placeholderRows.length > 0
+      && (
+        (mode === 'default' && nonPlaceholderRows.length === 0)
+        || (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed))
+        || (mode === 'add' && nonPlaceholderRows.length === 0)
+      );
 
     let mediaId = newId('media');
     let createdAt = now;
     let mergedDetails: Record<string, unknown> = {};
     let accessRights: MediaItemDocType['accessRights'] | undefined;
+    let isOfflineCached = true;
 
-    if (placeholderRows.length > 0 && nonPlaceholderRows.length === 0) {
-      const placeholderCounts = await Promise.all(placeholderRows.map(async (row) => ({
-        row,
-        count: await db.dexie.layer_units.where('mediaId').equals(row.id).count(),
-      })));
-      placeholderCounts.sort((a, b) => b.count - a.count);
-      const primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
+    if (shouldPromotePlaceholders) {
+      let primaryPlaceholder: MediaItemDocType;
+      if (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed)) {
+        primaryPlaceholder = placeholderRows.find((p) => p.id === replaceMediaIdTrimmed)!;
+      } else {
+        const placeholderCounts = await Promise.all(placeholderRows.map(async (row) => ({
+          row,
+          count: await LayerSegmentQueryService.countUnitsByMediaId(row.id),
+        })));
+        placeholderCounts.sort((a, b) => b.count - a.count);
+        primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
+      }
       mediaId = primaryPlaceholder.id;
       createdAt = primaryPlaceholder.createdAt;
       accessRights = primaryPlaceholder.accessRights;
+      isOfflineCached = primaryPlaceholder.isOfflineCached;
       const previousDetails = (primaryPlaceholder.details as Record<string, unknown> | undefined) ?? {};
-      const { placeholder: _placeholder, timelineMode: _timelineMode, audioBlob: _oldAudioBlob, ...remainingDetails } = previousDetails;
+      const {
+        placeholder: _placeholder,
+        timelineMode: _timelineMode,
+        timelineKind: _timelineKind,
+        audioBlob: _oldAudioBlob,
+        ...remainingDetails
+      } = previousDetails;
       mergedDetails = remainingDetails;
 
       const stalePlaceholderIds = placeholderRows
         .filter((row) => row.id !== mediaId)
         .map((row) => row.id);
       if (stalePlaceholderIds.length > 0) {
-        const staleUnits = await db.dexie.layer_units.where('mediaId').anyOf(stalePlaceholderIds).toArray();
+        const staleUnits = await LayerSegmentQueryService.listUnitsByMediaIds(stalePlaceholderIds);
         if (staleUnits.length > 0) {
-          await db.dexie.layer_units.bulkPut(staleUnits.map((unit) => ({
-            ...unit,
-            mediaId,
-            updatedAt: now,
-          })));
+          await LayerUnitSegmentWriteService.reassignUnitsToMediaId(db, staleUnits, mediaId, now);
         }
         await db.dexie.media_items.bulkDelete(stalePlaceholderIds);
       }
@@ -1396,11 +1488,14 @@ export class LinguisticService {
       details: {
         ...mergedDetails,
         audioBlob: input.audioBlob,
+        timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
       },
-      isOfflineCached: true,
+      isOfflineCached,
       ...(accessRights ? { accessRights } : {}),
       createdAt,
     });
+
+    await refreshMediaTimelineMetadata(mediaId);
 
     return { mediaId };
   }
@@ -1426,6 +1521,7 @@ export class LinguisticService {
       details: {
         placeholder: true,
         timelineMode: 'document',
+        timelineKind: MEDIA_TIMELINE_KIND_PLACEHOLDER,
       },
       isOfflineCached: true,
       createdAt: now,
@@ -1433,6 +1529,38 @@ export class LinguisticService {
 
     await db.collections.media_items.insert(mediaItem);
     return mediaItem;
+  }
+
+  /**
+   * 显式扩展 `texts.metadata.logicalDurationSec` 至不小于给定值（ADR-0004 决策 2 选项 C，7C 最小闭环）。
+   * **不**修改 `layer_units` 坐标；不缩放声学时间轴。
+   */
+  static async expandTextLogicalDurationToAtLeast(input: {
+    textId: string;
+    minLogicalDurationSec: number;
+  }): Promise<void> {
+    const db = await getDb();
+    const textRow = await db.dexie.texts.get(input.textId);
+    if (!textRow) return;
+    const minSec = Number.isFinite(input.minLogicalDurationSec) && input.minLogicalDurationSec > 0
+      ? input.minLogicalDurationSec
+      : 0;
+    if (minSec <= 0) return;
+    const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+    const prev = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+      ? rowMeta.logicalDurationSec
+      : 0;
+    const next = Math.max(prev, minSec);
+    if (next <= prev) return;
+    const now = new Date().toISOString();
+    await db.dexie.texts.put({
+      ...textRow,
+      metadata: {
+        ...rowMeta,
+        logicalDurationSec: next,
+      },
+      updatedAt: now,
+    });
   }
 
   /** Delete a project (text) and all associated data (cascade). */
@@ -1559,21 +1687,14 @@ export class LinguisticService {
         const siblingRows = await db.dexie.media_items.where('textId').equals(media.textId).toArray();
         const siblingPlaceholderIds = siblingRows
           .filter((row) => row.id !== mediaId)
-          .filter((row) => {
-            const details = (row.details as Record<string, unknown> | undefined) ?? {};
-            return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
-          })
+          .filter((row) => isMediaItemPlaceholderRow(row))
           .map((row) => row.id);
-        const relatedUnits = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
+        const relatedUnits = await LayerSegmentQueryService.listUnitsByMediaId(mediaId);
         if (siblingPlaceholderIds.length > 0) {
-          const siblingUnits = await db.dexie.layer_units.where('mediaId').anyOf(siblingPlaceholderIds).toArray();
+          const siblingUnits = await LayerSegmentQueryService.listUnitsByMediaIds(siblingPlaceholderIds);
           if (siblingUnits.length > 0) {
-            await db.dexie.layer_units.bulkPut(siblingUnits.map((unit) => ({
-              ...unit,
-              mediaId,
-              updatedAt: now,
-            })));
-            relatedUnits.push(...siblingUnits.map((unit) => ({ ...unit, mediaId })));
+            const reassignedUnits = await LayerUnitSegmentWriteService.reassignUnitsToMediaId(db, siblingUnits, mediaId, now);
+            relatedUnits.push(...reassignedUnits);
           }
           await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
         }
@@ -1588,7 +1709,14 @@ export class LinguisticService {
           : 0;
         const logicalDurationSec = Math.max(media.duration ?? 0, maxUnitEnd, existingLogicalDurationSec, 1);
         const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
-        const { audioBlob: _audioBlob, ...remainingDetails } = previousDetails;
+        const { audioBlob: _audioBlob, timelineKind: _prevTimelineKind, ...remainingDetails } = previousDetails;
+
+        const textMeta = (text?.metadata as Record<string, unknown> | undefined) ?? {};
+        const preservedTimelineMode = textMeta.timelineMode === 'media' ? 'media' : 'document';
+        const placeholderDetailTimelineMode = preservedTimelineMode === 'media' ? 'media' : 'document';
+        const preservedTimebaseLabel = typeof textMeta.timebaseLabel === 'string' && textMeta.timebaseLabel.trim().length > 0
+          ? textMeta.timebaseLabel.trim()
+          : 'logical-second';
 
         const placeholderMedia: MediaItemDocType = {
           id: media.id,
@@ -1598,7 +1726,8 @@ export class LinguisticService {
           details: {
             ...remainingDetails,
             placeholder: true,
-            timelineMode: 'document',
+            timelineMode: placeholderDetailTimelineMode,
+            timelineKind: MEDIA_TIMELINE_KIND_PLACEHOLDER,
           },
           isOfflineCached: true,
           ...(media.accessRights ? { accessRights: media.accessRights } : {}),
@@ -1612,9 +1741,9 @@ export class LinguisticService {
             ...text,
             metadata: {
               ...(text.metadata ?? {}),
-              timelineMode: 'document',
+              timelineMode: preservedTimelineMode,
               logicalDurationSec,
-              timebaseLabel: 'logical-second',
+              timebaseLabel: preservedTimelineMode === 'media' ? preservedTimebaseLabel : 'logical-second',
             },
             updatedAt: now,
           });

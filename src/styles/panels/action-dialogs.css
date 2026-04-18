@@ -11,6 +11,41 @@
   display: none;
 }
 
+.audio-import-disposition {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-design-border-color, rgba(0, 0, 0, 0.08));
+}
+
+.audio-import-disposition-legend {
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--panel-design-text-color, var(--text-secondary));
+}
+
+.audio-import-disposition-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: calc(12px * var(--ui-font-scale, 1));
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.audio-import-disposition-option input {
+  margin-top: 3px;
+}
+
+.audio-import-disposition-hint {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  line-height: 1.4;
+  padding-inline-start: 22px;
+}
+
 .side-pane-action-modal-speaker {
   width: min(var(--dialog-auto-width, 560px), 92vw);
   max-height: 85vh;

@@ -1,5 +1,8 @@
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, OrthographyDocType } from '../db';
 import { memo, useCallback, useMemo, useState } from 'react';
+import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
+import type { TextTimeMapping } from '../services/LinguisticService';
+import { computeTextOnlyZoomPxPerDocSec, documentTimeFromTextOnlyTrackX } from '../utils/textOnlyTimelineTimeMapping';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -17,6 +20,8 @@ import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { unitToView, segmentToView, scopeTimelineUnitViewToLayer } from '../hooks/timelineUnitView';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
+import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EMPTY_SPEAKER_LAYOUT, normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
 import { t, tf, useLocale } from '../i18n';
@@ -41,6 +46,30 @@ function buildTextTimelineSelfCertaintyAmbiguousTitle(
   return t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
 }
 
+function resolveTextOnlyResizeTimingUnit(
+  unit: TimelineUnitView,
+  segmentLookupLayerId: string | undefined,
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
+  unitById: ReadonlyMap<string, LayerUnitDocType>,
+): { id: string; startTime: number; endTime: number; mediaId?: string } {
+  if (unit.kind === 'segment' && segmentLookupLayerId && segmentsByLayer) {
+    const seg = segmentsByLayer.get(segmentLookupLayerId)?.find((s) => s.id === unit.id);
+    if (seg) {
+      const base = { id: seg.id, startTime: seg.startTime, endTime: seg.endTime };
+      return typeof seg.mediaId === 'string' && seg.mediaId.length > 0 ? { ...base, mediaId: seg.mediaId } : base;
+    }
+  }
+  const u = unitById.get(unit.id);
+  if (u) {
+    const base = { id: u.id, startTime: u.startTime, endTime: u.endTime };
+    return typeof u.mediaId === 'string' && u.mediaId.length > 0 ? { ...base, mediaId: u.mediaId } : base;
+  }
+  const fallback = { id: unit.id, startTime: unit.startTime, endTime: unit.endTime };
+  return typeof unit.mediaId === 'string' && unit.mediaId.length > 0
+    ? { ...fallback, mediaId: unit.mediaId }
+    : fallback;
+}
+
 function getSegmentTimelineItems(
   layer: LayerDocType,
   layerById: ReadonlyMap<string, LayerDocType>,
@@ -61,6 +90,8 @@ type TranscriptionTimelineTextOnlyProps = {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
+  /** 当前媒体单元全集，用于语段 parentUnitId→宿主 解析（可宽于说话人过滤后的 unitsOnCurrentMedia） */
+  segmentParentUnitLookup?: LayerUnitDocType[];
   segmentsByLayer?: Map<string, LayerUnitDocType[]>;
   segmentContentByLayer?: Map<string, Map<string, LayerUnitContentDocType>>;
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
@@ -136,6 +167,18 @@ type TranscriptionTimelineTextOnlyProps = {
   /** 按句段/层解析自述确信度（与波形区标注一致的可选注入） */
   resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
   resolveSelfCertaintyAmbiguityForUnit?: (unitId: string, layerId?: string) => boolean;
+  /** 有声学 URL 但解码尚未就绪（壳层由 resolveTimelineShellMode 判定）| Acoustic URL present but decode not ready */
+  acousticPending?: boolean;
+  /** 与波形区相同的拖边改时；逻辑轴下由轨道宽度 / logicalDuration 推导 px/秒 | Edge drag timing edit (shared with waveform shell) */
+  startTimelineResizeDrag?: (
+    event: React.PointerEvent<HTMLElement>,
+    unit: { id: string; mediaId?: string; startTime: number; endTime: number },
+    edge: 'start' | 'end',
+    layerId?: string,
+    options?: TimelineResizeDragOptions,
+  ) => void;
+  /** 文献↔声学映射；拖建/改时按 `previewTextTimeMapping` 视口换算像素→文献秒 | Document↔real mapping for pointer→document time */
+  textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'> | null;
 };
 
 type LayerActionType =
@@ -164,6 +207,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     activeTextTimelineMode,
     transcriptionLayers,
     unitsOnCurrentMedia,
+    segmentParentUnitLookup,
     segmentsByLayer,
     segmentContentByLayer,
     saveSegmentContentForLayer,
@@ -210,8 +254,17 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     stopRecording,
     deleteVoiceTranslation,
     displayStyleControl,
+    acousticPending = false,
+    startTimelineResizeDrag,
+    textOnlyTimeMapping,
   } = props;
   const locale = useLocale();
+
+  const canUseLogicTimelineDragCreate = useMemo(
+    () => Boolean(createUnitFromSelection)
+      && (activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media'),
+    [createUnitFromSelection, activeTextTimelineMode],
+  );
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, 'dirty' | 'saving' | 'error'>>({});
@@ -307,7 +360,23 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
 
   const virtualItems = horizontalVirtualizer.getVirtualItems();
   const totalSize = horizontalVirtualizer.getTotalSize();
-  const unitById = new Map(unitsOnCurrentMedia.map((item) => [item.id, item] as const));
+  const unitById = useMemo(() => {
+    const next = new Map(unitsOnCurrentMedia.map((item) => [item.id, item] as const));
+    for (const u of segmentParentUnitLookup ?? []) {
+      if (!next.has(u.id)) next.set(u.id, u);
+    }
+    return next;
+  }, [unitsOnCurrentMedia, segmentParentUnitLookup]);
+  const segmentById = useMemo(() => {
+    const next = new Map<string, LayerUnitDocType>();
+    if (!segmentsByLayer) return next;
+    for (const list of segmentsByLayer.values()) {
+      for (const s of list) {
+        if (!next.has(s.id)) next.set(s.id, s);
+      }
+    }
+    return next;
+  }, [segmentsByLayer]);
   const layerById = useMemo(
     () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
     [allLayersOrdered],
@@ -375,10 +444,10 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   };
 
   const handleTrackPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
-    if (activeTextTimelineMode !== 'document' || !createUnitFromSelection) return;
+    if (!canUseLogicTimelineDragCreate) return;
     if (event.button !== 0) return;
     const target = event.target as HTMLElement | null;
-    const blockedTarget = target?.closest('button, [role="button"], .timeline-text-item-status-dot, .timeline-lane-resize-handle');
+    const blockedTarget = target?.closest('button, [role="button"], .timeline-text-item-status-dot, .timeline-text-item-timing-resize-handle, .timeline-lane-resize-handle, .timeline-translation-audio-controls');
     if (blockedTarget) return;
     const startedOnInput = Boolean(target?.closest('input, textarea, [contenteditable="true"], .timeline-text-input'));
     if (startedOnInput) return;
@@ -405,7 +474,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
       event.preventDefault();
       event.stopPropagation();
     }
-  }, [activeTextTimelineMode, createUnitFromSelection, onFocusLayer]);
+  }, [canUseLogicTimelineDragCreate, onFocusLayer]);
 
   const handleTrackPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -430,7 +499,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   }, []);
 
   const handleTrackPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
-    if (activeTextTimelineMode !== 'document' || !createUnitFromSelection) {
+    if (!canUseLogicTimelineDragCreate) {
       clearTrackDragState(event);
       return;
     }
@@ -443,16 +512,21 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     const endX = Math.max(drag.anchorX, releaseX);
     clearTrackDragState(event);
     if (Math.abs(endX - startX) < 3) return;
-    const start = Number(((startX / trackWidth) * resolvedLogicalDurationSec).toFixed(3));
-    const end = Number(((endX / trackWidth) * resolvedLogicalDurationSec).toFixed(3));
-    if (end <= start) return;
+    let start = Number(documentTimeFromTextOnlyTrackX(startX, trackWidth, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
+    let end = Number(documentTimeFromTextOnlyTrackX(endX, trackWidth, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
+    if (end < start) {
+      const swap = start;
+      start = end;
+      end = swap;
+    }
+    if (end <= start || !createUnitFromSelection) return;
     fireAndForget(createUnitFromSelection(start, end));
     event.preventDefault();
     event.stopPropagation();
-  }, [activeTextTimelineMode, clearTrackDragState, createUnitFromSelection, resolvedLogicalDurationSec, textOnlyDragState]);
+  }, [canUseLogicTimelineDragCreate, clearTrackDragState, createUnitFromSelection, resolvedLogicalDurationSec, textOnlyDragState, textOnlyTimeMapping]);
 
   return (
-    <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}`}>
+    <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}${acousticPending ? ' timeline-content-acoustic-pending' : ''}`}>
       {allLayersOrdered.map((layer, idx) => {
         if (layer.layerType === 'transcription') {
         const isCollapsed = collapsedLayerIds.has(layer.id);
@@ -558,7 +632,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             {...(displayStyleControl && { displayStyleControl })}
           />
           {!isCollapsed && <div
-            className={`timeline-lane-text-only-track${activeTextTimelineMode === 'document' && createUnitFromSelection ? ' timeline-lane-text-only-track-creatable' : ''}${textOnlyDragState?.layerId === layer.id ? ' timeline-lane-text-only-track-marking' : ''}`}
+            className={`timeline-lane-text-only-track${canUseLogicTimelineDragCreate ? ' timeline-lane-text-only-track-creatable' : ''}${textOnlyDragState?.layerId === layer.id ? ' timeline-lane-text-only-track-marking' : ''}`}
             onPointerDown={(event) => handleTrackPointerDown(event, layer.id)}
             onPointerMove={(event) => handleTrackPointerMove(event, layer.id)}
             onPointerUp={(event) => handleTrackPointerUp(event, layer.id)}
@@ -624,10 +698,34 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const selfCertaintyAmbiguousTitle = cellSelfCertaintyAmbiguous
               ? buildTextTimelineSelfCertaintyAmbiguousTitle(locale)
               : undefined;
+            const trcAudioLayerSupports = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
+            const trcAudioScopeId = recordingScopeUnitId(unit);
+            const trcAudioTranslation = translationAudioByLayer?.get(layer.id)?.get(trcAudioScopeId);
+            const trcAudioMedia = trcAudioTranslation?.translationAudioMediaId
+              ? mediaItemById.get(trcAudioTranslation.translationAudioMediaId)
+              : undefined;
+            const trcSourceUnit = resolveVoiceRecordingSourceUnit(unit, unitById, segmentById);
+            const trcIsCurrentRecording = recording && recordingUnitId === trcAudioScopeId && recordingLayerId === layer.id;
+            const trcAudioActionDisabled = recording && !trcIsCurrentRecording;
+            const trcAudioControls = trcAudioLayerSupports && trcSourceUnit ? (
+              <TimelineTranslationAudioControls
+                isRecording={trcIsCurrentRecording}
+                disabled={trcAudioActionDisabled}
+                compact={layer.modality === 'mixed'}
+                {...(trcAudioMedia ? { mediaItem: trcAudioMedia } : {})}
+                onStartRecording={() => {
+                  void startRecordingForUnit?.(trcSourceUnit, layer);
+                }}
+                {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+                {...(trcAudioMedia && deleteVoiceTranslation
+                  ? { onDeleteRecording: () => deleteVoiceTranslation(trcSourceUnit, layer) }
+                  : {})}
+              />
+            ) : null;
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -664,6 +762,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
                   />
                 ) : null}
+                {layer.modality !== 'audio' && (
                 <input
                   type="text"
                   className="timeline-text-input"
@@ -744,6 +843,67 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     }
                   }}
                 />
+                )}
+                {layer.modality === 'audio' && trcAudioControls ? (
+                  <div className="timeline-translation-audio-card">{trcAudioControls}</div>
+                ) : null}
+                {layer.modality === 'mixed' && trcAudioControls ? (
+                  <div className="timeline-text-item-trc-audio-inline">{trcAudioControls}</div>
+                ) : null}
+                {startTimelineResizeDrag ? (
+                  <>
+                    <span
+                      role="separator"
+                      aria-orientation="vertical"
+                      className="timeline-text-item-timing-resize-handle timeline-text-item-timing-resize-handle-start"
+                      onPointerDown={(e) => {
+                        const trackEl = (e.currentTarget as HTMLElement).closest('.timeline-lane-text-only-track') as HTMLElement | null;
+                        const trackW = trackEl?.getBoundingClientRect().width ?? 0;
+                        const zoomPxPerSec = computeTextOnlyZoomPxPerDocSec(trackW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        if (zoomPxPerSec === undefined) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const segmentLookupLayerId = usesSegmentTimeline && segmentSourceLayerId
+                          ? segmentSourceLayerId
+                          : undefined;
+                        const timingUnit = resolveTextOnlyResizeTimingUnit(
+                          unit,
+                          segmentLookupLayerId,
+                          segmentsByLayer,
+                          unitById,
+                        );
+                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec };
+                        if (segmentLookupLayerId) resizeOpts.segmentLookupLayerId = segmentLookupLayerId;
+                        startTimelineResizeDrag(e, timingUnit, 'start', layer.id, resizeOpts);
+                      }}
+                    />
+                    <span
+                      role="separator"
+                      aria-orientation="vertical"
+                      className="timeline-text-item-timing-resize-handle timeline-text-item-timing-resize-handle-end"
+                      onPointerDown={(e) => {
+                        const trackEl = (e.currentTarget as HTMLElement).closest('.timeline-lane-text-only-track') as HTMLElement | null;
+                        const trackW = trackEl?.getBoundingClientRect().width ?? 0;
+                        const zoomPxPerSec = computeTextOnlyZoomPxPerDocSec(trackW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        if (zoomPxPerSec === undefined) return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const segmentLookupLayerId = usesSegmentTimeline && segmentSourceLayerId
+                          ? segmentSourceLayerId
+                          : undefined;
+                        const timingUnit = resolveTextOnlyResizeTimingUnit(
+                          unit,
+                          segmentLookupLayerId,
+                          segmentsByLayer,
+                          unitById,
+                        );
+                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec };
+                        if (segmentLookupLayerId) resizeOpts.segmentLookupLayerId = segmentLookupLayerId;
+                        startTimelineResizeDrag(e, timingUnit, 'end', layer.id, resizeOpts);
+                      }}
+                    />
+                  </>
+                ) : null}
                 {cellSelfCertainty && selfCertaintyTitle ? (
                   <SelfCertaintyIcon
                     certainty={cellSelfCertainty}
@@ -853,7 +1013,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(unit.id)?.text ?? '');
-            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(unit.id);
+            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(recordingScopeUnitId(unit));
             const audioMedia = audioTranslation?.translationAudioMediaId
               ? mediaItemById.get(audioTranslation.translationAudioMediaId)
               : undefined;
@@ -865,9 +1025,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const saveStatus = saveStatusByCellKey[cellKey];
             const isActive = selectedTimelineUnit?.layerId === layer.id
               && selectedTimelineUnit.unitId === unit.id;
-            const translationOwnerUtt = unit.kind === 'segment'
-              ? (unit.parentUnitId ? unitById.get(unit.parentUnitId) : undefined)
-              : unitById.get(unit.id);
+            const translationOwnerUtt = resolveVoiceRecordingSourceUnit(unit, unitById, segmentById);
             // 这里也必须按显示层隔离，避免借来的 source segment layerId 把徽标带进依附翻译层。
             // Use the display lane scope here as well so borrowed source segment ids do not light up dependent rows.
             const certaintyLookupLayerId = layer.id;
@@ -900,6 +1058,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 saveStatus={saveStatus}
                 usesOwnSegments={usesOwnSegments}
                 unitById={unitById}
+                segmentById={segmentById}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,

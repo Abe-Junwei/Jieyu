@@ -9,6 +9,7 @@ import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { type ParentUnitBounds } from './timelineUnitViewUnitHelpers';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
+import { assertTimelineMediaForMutation } from '../utils/assertTimelineMediaForMutation';
 
 export interface CreateUnitOptions {
   speakerId?: string;
@@ -132,8 +133,8 @@ export function createTranscriptionSegmentCreationActions(
   const createNextSegmentRouted = async (targetId: string) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
-      if (!input.selectedTimelineMedia) {
-        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.mediaRequired') });
+      const selectedMedia = input.selectedTimelineMedia;
+      if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
         return;
       }
       if (!routing.layer || !routing.segmentSourceLayer) {
@@ -153,8 +154,8 @@ export function createTranscriptionSegmentCreationActions(
       const targetIndex = siblings.findIndex((segment) => segment.id === targetId);
       const nextSegment = targetIndex >= 0 ? siblings[targetIndex + 1] : undefined;
       const startTime = Number((targetSegment.endTime + gap).toFixed(3));
-      const mediaDuration = typeof input.selectedTimelineMedia.duration === 'number'
-        ? input.selectedTimelineMedia.duration
+      const mediaDuration = typeof selectedMedia.duration === 'number'
+        ? selectedMedia.duration
         : Number.POSITIVE_INFINITY;
 
       let upperBound = Math.min(mediaDuration, nextSegment ? nextSegment.startTime - gap : Number.POSITIVE_INFINITY);
@@ -178,8 +179,8 @@ export function createTranscriptionSegmentCreationActions(
       const now = new Date().toISOString();
       const newSeg: LayerUnitDocType = {
         id: newId('seg'),
-        textId: input.selectedTimelineMedia.textId,
-        mediaId: input.selectedTimelineMedia.id,
+        textId: selectedMedia.textId,
+        mediaId: selectedMedia.id,
         layerId: routing.sourceLayerId,
         startTime,
         endTime,
@@ -216,8 +217,8 @@ export function createTranscriptionSegmentCreationActions(
   const createUnitFromSelectionRouted = async (start: number, end: number) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
-      if (!input.selectedTimelineMedia) {
-        input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.mediaRequired') });
+      const selectedMedia = input.selectedTimelineMedia;
+      if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
         return;
       }
       const minSpan = 0.05;
@@ -237,8 +238,8 @@ export function createTranscriptionSegmentCreationActions(
           : siblings[insertionIndex - 1];
       const next = insertionIndex < 0 ? undefined : siblings[insertionIndex];
       const lowerBound = Math.max(0, prev ? prev.endTime + gap : 0);
-      const mediaDuration = typeof input.selectedTimelineMedia.duration === 'number'
-        ? input.selectedTimelineMedia.duration
+      const mediaDuration = typeof selectedMedia.duration === 'number'
+        ? selectedMedia.duration
         : Number.POSITIVE_INFINITY;
       const upperBound = Math.min(mediaDuration, next ? next.startTime - gap : Number.POSITIVE_INFINITY);
       const boundedStart = Math.max(lowerBound, rawStart);
@@ -253,8 +254,8 @@ export function createTranscriptionSegmentCreationActions(
       const now = new Date().toISOString();
       const newSeg: LayerUnitDocType = {
         id: newId('seg'),
-        textId: input.selectedTimelineMedia.textId,
-        mediaId: input.selectedTimelineMedia.id,
+        textId: selectedMedia.textId,
+        mediaId: selectedMedia.id,
         layerId: routing.sourceLayerId,
         startTime: finalStart,
         endTime: finalEnd,

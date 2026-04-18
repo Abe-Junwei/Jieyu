@@ -16,6 +16,7 @@
 @import './timeline/timeline-text-item.css';
 @import './timeline/timeline-translation-audio.css';
 @import './timeline/time-ruler.css';
+@import '../timeline/timeline-axis-status.css';
 @import './timeline/timeline-a11y.css';
 
 /*
@@ -34,6 +35,7 @@
  * .lane-label-resize-handle { }
  * .lane-link-stack { }
  * .waveform-overview-bar { }
+ * .timeline-axis-status-strip { }
  * .timeline-lane-resize-handle { }
  * .timeline-lane-row-dragging { }
  */

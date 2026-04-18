@@ -1914,7 +1914,7 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
   });
 
-  it('regression: deleting audio keeps the text rows and switches the project to document mode', async () => {
+  it('regression: deleting audio keeps the text rows; defaults text to document when no timelineMode', async () => {
     await db.texts.put({
       id: 'text_del',
       title: { default: 'Delete audio regression' },
@@ -2191,6 +2191,347 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
     await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
     await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
+  });
+
+  it('deleteAudio preserves timelineMode media and importAudio keeps media metadata', async () => {
+    const now = new Date().toISOString();
+    await seedDefaultTranscriptionLayerForText('text_media_roundtrip', 'layer_trc_media_rt', now);
+    await db.texts.put({
+      id: 'text_media_roundtrip',
+      title: { default: 'Media roundtrip' },
+      metadata: {
+        timelineMode: 'media',
+        logicalDurationSec: 60,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_media_rt',
+      textId: 'text_media_roundtrip',
+      filename: 'clip.wav',
+      duration: 25,
+      details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_media_rt',
+      textId: 'text_media_roundtrip',
+      mediaId: 'media_media_rt',
+      startTime: 0,
+      endTime: 5,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.deleteAudio('media_media_rt');
+
+    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({
+        timelineMode: 'media',
+        logicalDurationSec: 60,
+        timebaseLabel: 'logical-second',
+      }),
+    }));
+    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(expect.objectContaining({
+      filename: 'document-placeholder.track',
+      details: expect.objectContaining({
+        placeholder: true,
+        timelineMode: 'media',
+        timelineKind: 'placeholder',
+      }),
+    }));
+
+    const blob2 = new Blob(['y'], { type: 'audio/wav' });
+    await LinguisticService.importAudio({
+      textId: 'text_media_roundtrip',
+      audioBlob: blob2,
+      filename: 'reimport.wav',
+      duration: 30,
+    });
+
+    await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({
+        timelineMode: 'media',
+        logicalDurationSec: 60,
+      }),
+    }));
+    await expect(db.media_items.get('media_media_rt')).resolves.toEqual(expect.objectContaining({
+      filename: 'reimport.wav',
+      duration: 30,
+      details: expect.objectContaining({ audioBlob: blob2, timelineKind: 'acoustic' }),
+    }));
+  });
+
+  it('createPlaceholderMedia writes details.timelineKind placeholder', async () => {
+    const now = new Date().toISOString();
+    await db.texts.put({
+      id: 'text_ph_timeline_kind',
+      title: { default: 'Ph kind' },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await seedDefaultTranscriptionLayerForText('text_ph_timeline_kind', 'layer_trc_ph_timeline_kind', now);
+    const media = await LinguisticService.createPlaceholderMedia({ textId: 'text_ph_timeline_kind' });
+    await expect(db.media_items.get(media.id)).resolves.toEqual(expect.objectContaining({
+      details: expect.objectContaining({
+        placeholder: true,
+        timelineMode: 'document',
+        timelineKind: 'placeholder',
+      }),
+    }));
+  });
+
+  it('expandTextLogicalDurationToAtLeast bumps logicalDurationSec upward and no-ops otherwise', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_expand_logical_dur';
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Expand logical' },
+      metadata: { logicalDurationSec: 10, timelineMode: 'document' },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId: 'missing_text_expand', minLogicalDurationSec: 50 });
+    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 0 });
+    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({ logicalDurationSec: 10, timelineMode: 'document' }),
+    }));
+    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 25 });
+    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({ logicalDurationSec: 25, timelineMode: 'document' }),
+    }));
+    await LinguisticService.expandTextLogicalDurationToAtLeast({ textId, minLogicalDurationSec: 20 });
+    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({ logicalDurationSec: 25 }),
+    }));
+  });
+
+  it('getMediaItemsByTextId backfills explicit timelineKind for legacy media rows', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_media_kind_backfill';
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Backfill timeline kind' },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_media_kind_backfill', now);
+    await db.media_items.bulkPut([
+      {
+        id: 'media_backfill_placeholder',
+        textId,
+        filename: 'document-placeholder.track',
+        duration: 100,
+        details: { placeholder: true, timelineMode: 'document' },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+      {
+        id: 'media_backfill_acoustic',
+        textId,
+        filename: 'document-placeholder.track',
+        duration: 12,
+        details: {
+          placeholder: true,
+          timelineMode: 'document',
+          audioBlob: new Blob(['legacy'], { type: 'audio/wav' }),
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+    ]);
+
+    const mediaItems = await LinguisticService.getMediaItemsByTextId(textId);
+    expect(mediaItems.find((row) => row.id === 'media_backfill_placeholder')).toEqual(expect.objectContaining({
+      details: expect.objectContaining({ timelineKind: 'placeholder' }),
+    }));
+    expect(mediaItems.find((row) => row.id === 'media_backfill_acoustic')).toEqual(expect.objectContaining({
+      details: expect.objectContaining({ timelineKind: 'acoustic' }),
+    }));
+
+    await expect(db.media_items.get('media_backfill_placeholder')).resolves.toEqual(expect.objectContaining({
+      details: expect.objectContaining({ timelineKind: 'placeholder' }),
+    }));
+    await expect(db.media_items.get('media_backfill_acoustic')).resolves.toEqual(expect.objectContaining({
+      details: expect.objectContaining({ timelineKind: 'acoustic' }),
+    }));
+  });
+
+  it('importAudio does not rescale existing layer_units when imported duration is shorter than segment span', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_no_rescale';
+    const layerId = 'layer_trc_import_no_rescale';
+    const mediaId = 'media_import_no_rescale';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Import no rescale' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 400,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: mediaId,
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 400,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_import_no_rescale',
+      textId,
+      mediaId,
+      startTime: 10,
+      endTime: 320,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.importAudio({
+      textId,
+      audioBlob: new Blob(['z'], { type: 'audio/wav' }),
+      filename: 'short.wav',
+      duration: 12,
+    });
+
+    const unit = await db.layer_units.get('utt_import_no_rescale');
+    expect(unit).toMatchObject({ startTime: 10, endTime: 320, mediaId });
+    await expect(db.media_items.get(mediaId)).resolves.toEqual(expect.objectContaining({
+      filename: 'short.wav',
+      duration: 12,
+      details: expect.objectContaining({ timelineKind: 'acoustic' }),
+    }));
+  });
+
+  it('importAudio importMode add creates a new media row when an acoustic row already exists', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_add_second';
+    const layerId = 'layer_trc_import_add_second';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Add second' },
+      metadata: { timelineMode: 'document', logicalDurationSec: 100 },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_first_acoustic',
+      textId,
+      filename: 'first.wav',
+      duration: 50,
+      details: { audioBlob: new Blob(['a'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    const blob = new Blob(['b'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId,
+      audioBlob: blob,
+      filename: 'second.wav',
+      duration: 40,
+      importMode: 'add',
+    });
+    expect(result.mediaId).not.toBe('media_first_acoustic');
+    const rows = await db.media_items.where('textId').equals(textId).toArray();
+    expect(rows).toHaveLength(2);
+    const second = await db.media_items.get(result.mediaId);
+    expect(second).toEqual(expect.objectContaining({
+      filename: 'second.wav',
+      duration: 40,
+      details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+    }));
+    await expect(db.media_items.get('media_first_acoustic')).resolves.toEqual(expect.objectContaining({
+      filename: 'first.wav',
+    }));
+  });
+
+  it('importAudio importMode replace overwrites the targeted acoustic row in place', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_replace_acoustic';
+    const layerId = 'layer_trc_import_replace_acoustic';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Replace acoustic' },
+      metadata: { timelineMode: 'media', logicalDurationSec: 80 },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_replace_target',
+      textId,
+      filename: 'old.wav',
+      duration: 60,
+      details: { audioBlob: new Blob(['old'], { type: 'audio/wav' }), timelineKind: 'acoustic' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    const blob = new Blob(['new'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId,
+      audioBlob: blob,
+      filename: 'new.wav',
+      duration: 22,
+      importMode: 'replace',
+      replaceMediaId: 'media_replace_target',
+    });
+    expect(result.mediaId).toBe('media_replace_target');
+    await expect(db.media_items.where('textId').equals(textId).count()).resolves.toBe(1);
+    await expect(db.media_items.get('media_replace_target')).resolves.toEqual(expect.objectContaining({
+      filename: 'new.wav',
+      duration: 22,
+      details: expect.objectContaining({ audioBlob: blob, timelineKind: 'acoustic' }),
+    }));
+  });
+
+  it('importAudio importMode replace without replaceMediaId throws', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_replace_no_id';
+    const layerId = 'layer_trc_import_replace_no_id';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Replace no id' },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await expect(LinguisticService.importAudio({
+      textId,
+      audioBlob: new Blob(['x'], { type: 'audio/wav' }),
+      filename: 'x.wav',
+      duration: 1,
+      importMode: 'replace',
+    })).rejects.toThrow(/replaceMediaId/);
+  });
+
+  it('importAudio importMode replace with unknown replaceMediaId throws', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_import_replace_bad';
+    const layerId = 'layer_trc_import_replace_bad';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Bad replace' },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await expect(LinguisticService.importAudio({
+      textId,
+      audioBlob: new Blob(['x'], { type: 'audio/wav' }),
+      filename: 'x.wav',
+      duration: 1,
+      importMode: 'replace',
+      replaceMediaId: 'missing-id',
+    })).rejects.toThrow(/replaceMediaId/);
   });
 
   // ── Regression guard: segmentation text queries ──────

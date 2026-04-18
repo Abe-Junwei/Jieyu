@@ -225,4 +225,45 @@ describe('LayerConstraintService constraint mode guards', () => {
     expect(trl?.parentLayerId).toBe('trc_1');
     expect(repaired.repairs.some((item) => item.code === 'constraint-runtime-not-supported')).toBe(true);
   });
+
+  it('allows second transcription same language when modality differs without alias', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({
+        id: 'trc_1',
+        layerType: 'transcription',
+        languageId: 'zho',
+        modality: 'text',
+        constraint: 'independent_boundary',
+      }),
+    ];
+    const guard = getLayerCreateGuard(layers, 'transcription', {
+      languageId: 'zho',
+      modality: 'audio',
+      constraint: 'symbolic_association',
+      parentLayerId: 'trc_1',
+      hasSupportedParent: true,
+    });
+    expect(guard.allowed).toBe(true);
+  });
+
+  it('blocks second transcription same language same modality without alias', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({
+        id: 'trc_1',
+        layerType: 'transcription',
+        languageId: 'zho',
+        modality: 'text',
+        constraint: 'independent_boundary',
+      }),
+    ];
+    const guard = getLayerCreateGuard(layers, 'transcription', {
+      languageId: 'zho',
+      modality: 'text',
+      constraint: 'symbolic_association',
+      parentLayerId: 'trc_1',
+      hasSupportedParent: true,
+    });
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe('duplicate-same-type-without-alias');
+  });
 });

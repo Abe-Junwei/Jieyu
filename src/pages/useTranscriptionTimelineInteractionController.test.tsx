@@ -40,7 +40,7 @@ function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocT
   } as LayerUnitDocType;
 }
 
-function makeSegment(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
+function makeSegment(id: string, layerId: string, startTime: number, endTime: number, unitId?: string): LayerUnitDocType {
   return {
     id,
     layerId,
@@ -48,6 +48,7 @@ function makeSegment(id: string, layerId: string, startTime: number, endTime: nu
     textId: 'text-1',
     startTime,
     endTime,
+    ...(unitId ? { unitId } : {}),
     createdAt: '2026-03-31T00:00:00.000Z',
     updatedAt: '2026-03-31T00:00:00.000Z',
   } as LayerUnitDocType;
@@ -419,6 +420,10 @@ describe('useTranscriptionTimelineInteractionController', () => {
     const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
       reloadSegments,
       setSaveState,
+      segmentsByLayer: new Map([[
+        'layer-sub',
+        [makeSegment('seg-1', 'layer-sub', 0, 2, 'utt-1'), makeSegment('seg-2', 'layer-sub', 3, 4, 'utt-1')],
+      ]]),
     })));
 
     await act(async () => {
@@ -431,5 +436,30 @@ describe('useTranscriptionTimelineInteractionController', () => {
     }));
     expect(reloadSegments).toHaveBeenCalled();
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已按父句段边界自动修正时间细分区间。' });
+  });
+
+  it('keeps a time-subdivision segment inside its original parent instead of jumping to the next unit', async () => {
+    mockUpdateSegment.mockClear();
+    const reloadSegments = vi.fn(async () => undefined);
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      reloadSegments,
+      setSaveState,
+      segmentsByLayer: new Map([[
+        'layer-sub',
+        [
+          makeSegment('seg-1', 'layer-sub', 1, 2, 'utt-1'),
+          makeSegment('seg-2', 'layer-sub', 5.2, 5.8, 'utt-2'),
+        ],
+      ]]),
+    })));
+
+    await act(async () => {
+      await result.current.saveTimingRouted('seg-1', 5.2, 5.6, 'layer-sub');
+    });
+
+    expect(mockUpdateSegment).not.toHaveBeenCalled();
+    expect(reloadSegments).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith({ kind: 'error', message: '无法将时间细分区间拖动到父句段范围之外。' });
   });
 });

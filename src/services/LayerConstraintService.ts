@@ -292,6 +292,15 @@ function normalizeLanguageId(languageId: string | undefined): string {
   return (languageId ?? '').trim().toLowerCase();
 }
 
+/** Normalize layer / intent modality for duplicate detection (missing → text). */
+function normalizeEffectiveModality(
+  modality: LayerDocType['modality'] | undefined,
+): 'text' | 'audio' | 'mixed' {
+  const m = modality ?? 'text';
+  if (m === 'audio' || m === 'mixed') return m;
+  return 'text';
+}
+
 function getLayerTypeLabel(layerType: 'transcription' | 'translation', msg: ReturnType<typeof getLayerConstraintServiceMessages>): string {
   return layerType === 'transcription' ? msg.transcription : msg.translation;
 }
@@ -306,6 +315,7 @@ export function getLayerCreateGuard(
   input: {
     languageId?: string;
     alias?: string;
+    modality?: LayerDocType['modality'];
     constraint?: LayerDocType['constraint'];
     parentLayerId?: string;
     hasSupportedParent?: boolean;
@@ -425,10 +435,13 @@ export function getLayerCreateGuard(
     };
   }
 
-  const hasSameTypeLanguage = layers.some(
-    (l) => l.layerType === layerType && normalizeLanguageId(l.languageId) === languageId,
+  const incomingModality = normalizeEffectiveModality(input.modality);
+  const hasSameTypeLanguageAndModality = layers.some(
+    (l) => l.layerType === layerType
+      && normalizeLanguageId(l.languageId) === languageId
+      && normalizeEffectiveModality(l.modality) === incomingModality,
   );
-  if (hasSameTypeLanguage && alias.length === 0) {
+  if (hasSameTypeLanguageAndModality && alias.length === 0) {
     return {
       allowed: false,
       reasonCode: 'duplicate-same-type-without-alias',
@@ -443,7 +456,7 @@ export function getLayerCreateGuard(
 /** Shared translation-create guard (UI + backend). */
 export function getTranslationCreateGuard(
   layers: LayerDocType[],
-  input: { languageId?: string; alias?: string },
+  input: { languageId?: string; alias?: string; modality?: LayerDocType['modality'] },
   locale: Locale = DEFAULT_LOCALE,
 ): TranslationCreateGuardResult {
   return getLayerCreateGuard(layers, 'translation', input, locale);

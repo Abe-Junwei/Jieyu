@@ -101,6 +101,11 @@
   padding-bottom: 0;
 }
 
+/* 有声学 URL 但解码未就绪时壳层仍走纯文本轨 | Text-only shell while acoustic decode is pending */
+.timeline-content-text-only.timeline-content-acoustic-pending {
+  box-shadow: inset 0 -2px 0 0 color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 .timeline-resize-tooltip {
   position: fixed;
   z-index: var(--z-timeline-tooltip);

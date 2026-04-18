@@ -297,6 +297,24 @@ describe('useTranscriptionSegmentCreationController', () => {
     });
   });
 
+  it('rejects independent-segment create when selected timeline media is missing', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      selectedTimelineMedia: null,
+      setSaveState,
+    })));
+
+    await act(async () => {
+      await result.current.createUnitFromSelectionRouted(1, 2);
+    });
+
+    expect(mockCreateSegment).not.toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'error',
+      errorMeta: expect.objectContaining({ i18nKey: 'transcription.error.validation.mediaRequired' }),
+    }));
+  });
+
   it('falls back to unit creation when current layer does not use segments', async () => {
     const createUnitFromSelection = vi.fn(async () => undefined);
     const createAdjacentUnit = vi.fn(async () => undefined);

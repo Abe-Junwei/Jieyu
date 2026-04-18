@@ -4,7 +4,7 @@
  * 统一设置入口：外观、快捷键、AI、播放、数据管理、关于。
  * Unified settings: Appearance, Shortcuts, AI, Playback, Data, About.
  */
-import { useState, useCallback, useMemo, useEffect, useRef, memo, type CSSProperties, type ReactNode } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
 import { ModalPanel } from './ui';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay, loadUserOverrides, saveUserOverride, removeUserOverride, resetUserOverrides, type KeyCombo } from '../services/KeybindingService';
 import { aiChatProviderDefinitions, normalizeAiChatSettings, type AiChatSettings, type AiChatProviderKind } from '../ai/providers/providerCatalog';
@@ -18,8 +18,7 @@ import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY
 import { NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, WAVEFORM_DOUBLE_CLICK_ACTION_KEY, readStoredNewSegmentSelectionBehavior, readStoredWaveformDoubleClickAction, type NewSegmentSelectionBehavior, type WaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
 import { ACOUSTIC_OVERLAY_MODES, type AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import { WAVEFORM_VISUAL_STYLE_OPTIONS, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import { type UiFontScaleMode, computeAdaptivePanelWidth, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
-import { useViewportWidth } from '../hooks/useViewportWidth';
+import { type UiFontScaleMode, resolveTextDirectionFromLocale } from '../utils/panelAdaptiveLayout';
 import { WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY, WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY, emitWorkspaceLayoutPreferenceChanged, readStoredVideoLayoutModePreference, readStoredVideoPreviewHeightPreference, readStoredVideoRightPanelWidthPreference } from '../utils/workspaceLayoutPreferenceSync';
 import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeConfig, type AcousticProviderRoutingStrategy, type AcousticProviderRuntimeConfig } from '../services/acoustic/acousticProviderContract';
 import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
@@ -250,19 +249,28 @@ function SettingsTabBar({
   tabs: { id: SettingsTab; label: string }[];
 }) {
   return (
-    <div className="settings-tab-bar" role="tablist" aria-orientation="vertical">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          className="settings-tab-btn"
-          aria-selected={activeTab === tab.id}
-          onClick={() => onTabChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div className="settings-tab-bar panel-edge-nav" role="tablist" aria-orientation="vertical">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.id;
+        return (
+          <div
+            key={tab.id}
+            className={`panel-edge-nav-row${isActive ? ' panel-edge-nav-row-active' : ''}`}
+          >
+            <button
+              type="button"
+              role="tab"
+              className="settings-tab-btn panel-edge-nav-btn"
+              aria-selected={isActive}
+              onClick={() => onTabChange(tab.id)}
+            >
+              <span className="panel-edge-nav-label">
+                <strong className="panel-edge-nav-title">{tab.label}</strong>
+              </span>
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -343,25 +351,9 @@ export const SettingsModal = memo(function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
-  const viewportWidth = useViewportWidth();
   const settingsShellTextDirection = useMemo(
     () => resolveTextDirectionFromLocale(locale),
     [locale],
-  );
-  const settingsModalFluidWidthPx = useMemo(
-    () => computeAdaptivePanelWidth({
-      baseWidth: 600,
-      locale,
-      direction: settingsShellTextDirection,
-      uiFontScale: fontScale,
-      density: 'standard',
-      minWidth: 300,
-      maxWidth: 960,
-      scaleWidthByFont: true,
-      scaleWidthByScript: true,
-      ...(viewportWidth !== undefined ? { viewportWidth } : {}),
-    }),
-    [fontScale, locale, settingsShellTextDirection, viewportWidth],
   );
 
   // ── 配色主题 | Appearance theme ──
@@ -901,9 +893,6 @@ export const SettingsModal = memo(function SettingsModal({
       bodyClassName="settings-modal-body"
       titleClassName="settings-modal-title"
       closeLabel={msg.close}
-      layoutStyle={{
-        ['--settings-modal-fluid-width' as string]: `${settingsModalFluidWidthPx}px`,
-      } as CSSProperties}
     >
       <div className="settings-layout">
         <SettingsTabBar activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs} />

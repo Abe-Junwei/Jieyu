@@ -32,7 +32,7 @@ export function useRecording({
       const layerSupportsAudio =
         layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
       if (!layerSupportsAudio) {
-        setRecordingError('\u5f53\u524d\u5c42\u4e0d\u662f\u53e3\u8bd1\u5c42\uff0c\u65e0\u6cd5\u5f55\u97f3\u3002');
+        setRecordingError('\u5f53\u524d\u5c42\u4e0d\u652f\u6301\u5f55\u97f3\uff08\u9700\u97f3\u9891/\u6df7\u5408\u6a21\u6001\u6216 acceptsAudio\uff09\u3002');
         return;
       }
 

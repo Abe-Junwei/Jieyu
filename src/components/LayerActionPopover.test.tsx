@@ -212,7 +212,7 @@ describe('LayerActionPopover orthography creation', () => {
           languageId: 'cmn',
           orthographyId: 'orth_cmn_derived',
         }),
-        undefined,
+        'text',
       );
       expect(onClose).toHaveBeenCalled();
     });

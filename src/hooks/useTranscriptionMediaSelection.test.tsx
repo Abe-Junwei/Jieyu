@@ -143,6 +143,7 @@ describe('useTranscriptionMediaSelection', () => {
       details: {
         placeholder: true,
         timelineMode: 'document',
+        timelineKind: 'placeholder',
       },
     } as MediaItemDocType;
 

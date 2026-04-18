@@ -12,6 +12,7 @@ import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../ho
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { unitToView, segmentToView, scopeTimelineUnitViewToLayer, type TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
@@ -91,6 +92,10 @@ type TranscriptionTimelineMediaLanesProps = {
   translationLayers: LayerDocType[];
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   timelineRenderUnits: LayerUnitDocType[];
+  /**
+   * 当前媒体上的单元全集，用于语段行按 parentUnitId 解析宿主单元（可宽于标尺视窗下的 timelineRenderUnits）。
+   */
+  segmentParentUnitLookup?: LayerUnitDocType[];
   flashLayerRowId: string;
   focusedLayerRowId: string;
   activeUnitId?: string;
@@ -182,6 +187,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   translationLayers,
   timelineUnitViewIndex: _timelineUnitViewIndex,
   timelineRenderUnits,
+  segmentParentUnitLookup,
   flashLayerRowId,
   focusedLayerRowId,
   activeUnitId,
@@ -280,10 +286,24 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     [laneLockMap, speakerSortKeyById, timelineRenderUnits, trackDisplayMode],
   );
   const speakerLayerLayout = incomingSpeakerLayerLayout ?? localSpeakerLayerLayout;
-  const unitById = useMemo(
-    () => new Map(timelineRenderUnits.map((item) => [item.id, item] as const)),
-    [timelineRenderUnits],
-  );
+  const unitById = useMemo(() => {
+    const next = new Map(timelineRenderUnits.map((item) => [item.id, item] as const));
+    const extra = segmentParentUnitLookup ?? [];
+    for (const u of extra) {
+      if (!next.has(u.id)) next.set(u.id, u);
+    }
+    return next;
+  }, [timelineRenderUnits, segmentParentUnitLookup]);
+  const segmentById = useMemo(() => {
+    const next = new Map<string, LayerUnitDocType>();
+    if (!segmentsByLayer) return next;
+    for (const list of segmentsByLayer.values()) {
+      for (const s of list) {
+        if (!next.has(s.id)) next.set(s.id, s);
+      }
+    }
+    return next;
+  }, [segmentsByLayer]);
   const layerById = useMemo(
     () => new Map(allLayersOrdered.map((layer) => [layer.id, layer] as const)),
     [allLayersOrdered],
@@ -407,7 +427,6 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
     getUnitTextForLayer,
     scheduleAutoSave,
     clearAutoSaveTimer,
-    saveUnitText: saveUnitText,
     saveUnitLayerText: saveUnitLayerText,
     createLayer,
     updateLayerMetadata,
@@ -536,6 +555,8 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             zoomPxPerSec={zoomPxPerSec}
             flashLayerRowId={flashLayerRowId}
             focusedLayerRowId={focusedLayerRowId}
+            {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
+            {...(activeUnitId !== undefined ? { activeUnitId } : {})}
             allLayersOrdered={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -571,13 +592,23 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             segmentSpeakerIdByLayer={segmentSpeakerIdByLayer}
             {...(segmentContentByLayer ? { segmentContentByLayer } : {})}
             unitById={unitById}
+            segmentById={segmentById}
             {...(activeOverlapGroupId ? { activeOverlapGroupId } : {})}
             unitDrafts={unitDrafts}
             getUnitTextForLayer={getUnitTextForLayer}
             {...(saveSegmentContentForLayer ? { saveSegmentContentForLayer } : {})}
             scheduleAutoSave={scheduleAutoSave}
             clearAutoSaveTimer={clearAutoSaveTimer}
-            saveUnitText={saveUnitText}
+            saveUnitLayerText={saveUnitLayerText}
+            focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+            {...(translationAudioByLayer !== undefined ? { translationAudioByLayer } : {})}
+            mediaItemById={mediaItemById}
+            recording={recording}
+            recordingUnitId={recordingUnitId}
+            recordingLayerId={recordingLayerId}
+            {...(startRecordingForUnit ? { startRecordingForUnit } : {})}
+            {...(stopRecording ? { stopRecording } : {})}
+            {...(deleteVoiceTranslation ? { deleteVoiceTranslation } : {})}
             setUnitDrafts={setUnitDrafts}
             renderAnnotationItem={renderAnnotationItem}
             renderLaneLabel={renderLaneLabel}
@@ -649,7 +680,8 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(item.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(item.id)?.text ?? '');
-            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(item.id);
+            const audioScopeId = recordingScopeUnitId(item);
+            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(audioScopeId);
             const audioMedia = audioTranslation?.translationAudioMediaId
               ? mediaItemById.get(audioTranslation.translationAudioMediaId)
               : undefined;
@@ -664,6 +696,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
                 baseLaneHeight={baseLaneHeight}
                 usesOwnSegments={usesOwnSegments}
                 unitById={unitById}
+                segmentById={segmentById}
                 text={text}
                 draft={draft}
                 draftKey={draftKey}

@@ -20,6 +20,7 @@ type SharedLaneFields = Pick<
   | 'translationLayers'
   | 'activeTextTimelineMode'
   | 'timelineUnitViewIndex'
+  | 'segmentParentUnitLookup'
   | 'segmentsByLayer'
   | 'segmentContentByLayer'
   | 'saveSegmentContentForLayer'
@@ -93,6 +94,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     translationLayers: input.translationLayers,
     activeTextTimelineMode: input.activeTextTimelineMode ?? null,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
+    ...(input.segmentParentUnitLookup !== undefined ? { segmentParentUnitLookup: input.segmentParentUnitLookup } : {}),
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
