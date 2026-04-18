@@ -10,6 +10,10 @@ interface AiChatMetricsBarProps {
   aiSessionMemory: AiSessionMemory | null | undefined;
 }
 
+function formatMetricValue(value: number, available: boolean | undefined): string {
+  return available ? String(value) : '—';
+}
+
 export const AiChatMetricsBar = memo(function AiChatMetricsBar({
   isZh,
   aiInteractionMetrics,
@@ -41,13 +45,13 @@ export const AiChatMetricsBar = memo(function AiChatMetricsBar({
         <span className="ai-chat-metrics-bar__item ai-chat-metrics-bar__item--recovery" title={messages.recoveriesTitle}>{messages.recoveriesLabel} {aiInteractionMetrics.recoveryCount}</span>
       )}
       <span title={messages.totalInputTokensTitle}>
-        {messages.totalInputTokensLabel} {aiInteractionMetrics.totalInputTokens}
+        {messages.totalInputTokensLabel} {formatMetricValue(aiInteractionMetrics.totalInputTokens, aiInteractionMetrics.totalInputTokensAvailable)}
       </span>
       <span title={messages.totalOutputTokensTitle}>
-        {messages.totalOutputTokensLabel} {aiInteractionMetrics.totalOutputTokens}
+        {messages.totalOutputTokensLabel} {formatMetricValue(aiInteractionMetrics.totalOutputTokens, aiInteractionMetrics.totalOutputTokensAvailable)}
       </span>
       <span title={messages.currentTurnTokensTitle}>
-        {messages.currentTurnTokensLabel} {aiInteractionMetrics.currentTurnTokens}
+        {messages.currentTurnTokensLabel} {formatMetricValue(aiInteractionMetrics.currentTurnTokens, aiInteractionMetrics.currentTurnTokensAvailable)}
       </span>
       {lastToolName && (
         <span className="ai-chat-metrics-bar__last-tool" title={messages.lastToolTitle}>

@@ -2,6 +2,7 @@ import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './
 import { parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateJsonLines, toErrorChunk } from './streamUtils';
+import { normalizeOllamaUsage } from './tokenUsage';
 
 export interface OllamaProviderConfig {
   baseUrl: string;
@@ -58,11 +59,18 @@ export class OllamaProvider implements LLMProvider {
           message?: { content?: string };
           error?: string;
           done?: boolean;
+          prompt_eval_count?: number;
+          eval_count?: number;
         }>(line, this.label, 'Ollama JSONL');
 
         if (json.error) {
           yield toErrorChunk(json.error);
           return;
+        }
+
+        const usage = normalizeOllamaUsage(json);
+        if (usage) {
+          yield { delta: '', usage };
         }
 
         const delta = json.message?.content ?? '';

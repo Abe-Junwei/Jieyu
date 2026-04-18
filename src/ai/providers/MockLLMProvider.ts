@@ -1,5 +1,11 @@
 import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './LLMProvider';
 
+function estimateMockTokenCount(text: string): number {
+  const normalized = text.trim();
+  if (normalized.length === 0) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
 export interface MockLLMProviderOptions {
   delayMs?: number;
   prefix?: string;
@@ -153,6 +159,17 @@ export class MockLLMProvider implements LLMProvider {
       await sleep(this.delayMs);
     }
 
-    yield { delta: '', done: true };
+    const promptText = messages.map((message) => message.content).join('\n');
+    const inputTokens = estimateMockTokenCount(promptText);
+    const outputTokens = estimateMockTokenCount(full);
+    yield {
+      delta: '',
+      done: true,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+      },
+    };
   }
 }

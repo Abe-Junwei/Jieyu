@@ -190,4 +190,30 @@ describe('OpenAICompatibleProvider', () => {
     expect(visible.join('')).toBe('可见');
     expect(reasoning.join('')).toBe('内部推理');
   });
+
+  it('surfaces provider-reported token usage from the stream', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createSseResponse([
+        'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+        'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":5,"total_tokens":17}}\n\n',
+        'data: [DONE]\n\n',
+      ]),
+    );
+
+    const provider = new OpenAICompatibleProvider({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-test',
+    });
+
+    const usageChunks: Array<{ inputTokens?: number; outputTokens?: number; totalTokens?: number }> = [];
+    for await (const chunk of provider.chat([{ role: 'user', content: 'ping' }])) {
+      if (chunk.usage) usageChunks.push(chunk.usage);
+    }
+
+    expect(usageChunks.at(-1)).toEqual({ inputTokens: 12, outputTokens: 5, totalTokens: 17 });
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse(String(init?.body ?? '{}')) as { stream_options?: { include_usage?: boolean } };
+    expect(body.stream_options?.include_usage).toBe(true);
+  });
 });

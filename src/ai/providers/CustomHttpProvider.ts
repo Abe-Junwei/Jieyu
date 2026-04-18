@@ -2,6 +2,7 @@ import type { ChatChunk, ChatMessage, ChatRequestOptions, LLMProvider } from './
 import { ensureHttpHeaderValue, parseProviderJson, requireProviderValue, throwProviderHttpError } from './errorUtils';
 import { buildTraceContextHeaders } from './traceContextHeaders';
 import { createThinkTagStripper, iterateJsonLines, iterateSseData, toErrorChunk } from './streamUtils';
+import { normalizeAnthropicUsage, normalizeOpenAIUsage, normalizeOllamaUsage } from './tokenUsage';
 
 export type CustomHttpAuthScheme = 'none' | 'bearer' | 'raw';
 export type CustomHttpResponseFormat = 'openai-sse' | 'anthropic-sse' | 'ollama-jsonl' | 'plain-json';
@@ -109,6 +110,14 @@ export class CustomHttpProvider implements LLMProvider {
     if (this.config.responseFormat === 'plain-json') {
       // Non-streaming single-shot: read entire response body and yield at once.
       const payload = parseProviderJson<unknown>(await response.text(), this.label, 'Plain JSON');
+      const usage = normalizeOpenAIUsage(
+        payload && typeof payload === 'object'
+          ? (payload as { usage?: unknown }).usage
+          : undefined,
+      );
+      if (usage) {
+        yield { delta: '', usage };
+      }
       const text = extractPlainJsonText(payload);
       if (text.length > 0) {
         const visibleTextStripper = createThinkTagStripper();
@@ -129,11 +138,18 @@ export class CustomHttpProvider implements LLMProvider {
             message?: { content?: string };
             error?: string;
             done?: boolean;
+            prompt_eval_count?: number;
+            eval_count?: number;
           }>(line, this.label, 'Ollama JSONL');
 
           if (json.error) {
             yield toErrorChunk(json.error);
             return;
+          }
+
+          const usage = normalizeOllamaUsage(json);
+          if (usage) {
+            yield { delta: '', usage };
           }
 
           const delta = json.message?.content ?? '';
@@ -183,12 +199,19 @@ export class CustomHttpProvider implements LLMProvider {
             type?: string;
             delta?: { text?: string };
             error?: { message?: string };
+            usage?: { input_tokens?: number; output_tokens?: number };
+            message?: { usage?: { input_tokens?: number; output_tokens?: number } };
           }>(payload, this.label, 'Anthropic SSE');
 
           const errorMessage = json.error?.message;
           if (errorMessage) {
             yield toErrorChunk(errorMessage);
             return;
+          }
+
+          const usage = normalizeAnthropicUsage(json.usage ?? json.message?.usage);
+          if (usage) {
+            yield { delta: '', usage };
           }
 
           if (json.type === 'content_block_delta') {
@@ -216,12 +239,24 @@ export class CustomHttpProvider implements LLMProvider {
         const json = parseProviderJson<{
           choices?: Array<{ delta?: { content?: string; reasoning_content?: string } }>;
           error?: { message?: string };
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+            input_tokens?: number;
+            output_tokens?: number;
+          };
         }>(payload, this.label, 'OpenAI SSE');
 
         const errorMessage = json.error?.message;
         if (errorMessage) {
           yield toErrorChunk(errorMessage);
           return;
+        }
+
+        const usage = normalizeOpenAIUsage(json.usage);
+        if (usage) {
+          yield { delta: '', usage };
         }
 
         const reasoningContent = json.choices?.[0]?.delta?.reasoning_content;

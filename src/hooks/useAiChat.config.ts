@@ -28,6 +28,9 @@ export const INITIAL_METRICS: AiInteractionMetrics = {
   totalInputTokens: 0,
   totalOutputTokens: 0,
   currentTurnTokens: 0,
+  totalInputTokensAvailable: false,
+  totalOutputTokensAvailable: false,
+  currentTurnTokensAvailable: false,
 };
 
 export const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
@@ -107,6 +110,9 @@ interface AiInteractionMetrics {
   totalInputTokens: number;
   totalOutputTokens: number;
   currentTurnTokens: number;
+  totalInputTokensAvailable?: boolean;
+  totalOutputTokensAvailable?: boolean;
+  currentTurnTokensAvailable?: boolean;
 }
 
 // Note: Message formatters are in ../ai/messages - import from there

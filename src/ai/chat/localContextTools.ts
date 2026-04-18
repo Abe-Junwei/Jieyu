@@ -303,8 +303,10 @@ function resolveSegmentMetaScopeParams(
   scope: LocalUnitScope,
 ): SegmentMetaScopeResolution | null {
   if (scope === 'current_scope') {
-    const layerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
     const mediaId = normalizeTextValue(context.shortTerm?.currentMediaId);
+    const storageLayer = normalizeTextValue(context.shortTerm?.segmentMetaStorageLayerId);
+    const displayLayer = normalizeTextValue(context.shortTerm?.selectedLayerId);
+    const layerId = storageLayer.length > 0 ? storageLayer : displayLayer;
     if (layerId.length === 0 || mediaId.length === 0) return null;
     return { kind: 'layer_media', layerId, mediaId };
   }

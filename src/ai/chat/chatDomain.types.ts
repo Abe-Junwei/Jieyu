@@ -86,6 +86,9 @@ export interface AiInteractionMetrics {
   totalInputTokens: number;
   totalOutputTokens: number;
   currentTurnTokens: number;
+  totalInputTokensAvailable?: boolean;
+  totalOutputTokensAvailable?: boolean;
+  currentTurnTokensAvailable?: boolean;
 }
 
 export type AiAdaptiveIntent =
@@ -374,6 +377,12 @@ export interface AiShortTermContext {
   unitIndexComplete?: boolean;
   /** Full-project unit snapshot for local list/search/detail tools (not serialized into prompt text). */
   localUnitIndex?: ReadonlyArray<TimelineUnitView>;
+  /**
+   * Dexie `segment_meta` / segment rows are keyed by **storage** `layerId` (independent boundary source).
+   * When the UI focus is a dependent lane, this is the resolved source layer id — use for `SegmentMetaService`
+   * scoped tools so AI reads align with the timeline (avoids cross-layer empty/wrong meta).
+   */
+  segmentMetaStorageLayerId?: string;
   recentEdits?: string[];
   recentActions?: string[];
   /** Tier-2 rolling conversation digest from session memory (not a substitute for [CONTEXT] counts). */
