@@ -5,15 +5,9 @@
  * Ready 态重包与 transcription-entry.css 经 lazy 进入独立 chunk，便于构建侧拆分 CSS | Ready workspace + entry CSS load in a separate chunk for CSS code-splitting.
  */
 
-import { lazy, Suspense } from 'react';
-import { useTranscriptionData } from '../hooks/useTranscriptionData';
-import { t, useLocale } from '../i18n';
+import { useLocale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
-
-const TranscriptionPageReadyWorkspace = lazy(async () => {
-  const mod = await import('./TranscriptionPage.ReadyWorkspace');
-  return { default: mod.TranscriptionPageReadyWorkspace };
-});
+import { TranscriptionPageDataShell } from './TranscriptionPage.DataShell';
 
 interface TranscriptionPageOrchestratorProps {
   appSearchRequest?: AppShellOpenSearchDetail | null;
@@ -25,24 +19,12 @@ function TranscriptionPageOrchestrator({
   onConsumeAppSearchRequest,
 }: TranscriptionPageOrchestratorProps) {
   const locale = useLocale();
-  const data = useTranscriptionData();
-
-  if (data.state.phase === 'loading') {
-    return <p className="hint">{t(locale, 'transcription.status.loading')}</p>;
-  }
-
-  if (data.state.phase === 'error') {
-    return <p className="error">{data.state.message}</p>;
-  }
-
   return (
-    <Suspense fallback={<p className="hint">{t(locale, 'transcription.status.loading')}</p>}>
-      <TranscriptionPageReadyWorkspace
-        data={data}
-        {...(appSearchRequest !== undefined ? { appSearchRequest } : {})}
-        {...(onConsumeAppSearchRequest ? { onConsumeAppSearchRequest } : {})}
-      />
-    </Suspense>
+    <TranscriptionPageDataShell
+      locale={locale}
+      {...(appSearchRequest !== undefined ? { appSearchRequest } : {})}
+      {...(onConsumeAppSearchRequest ? { onConsumeAppSearchRequest } : {})}
+    />
   );
 }
 

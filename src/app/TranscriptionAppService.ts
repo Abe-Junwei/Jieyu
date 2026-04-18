@@ -18,7 +18,7 @@ import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Servi
 import { detectVadSegments, loadAudioBuffer } from '../services/VadService';
 import { ensureVadCacheForMedia, VAD_AUTO_WARM_MAX_BYTES } from '../services/vad/VadMediaCacheService';
 import type { AppServiceMeta, AppServiceResult } from './contracts';
-import type { MediaItemDocType } from '../db';
+import type { MediaItemDocType, TextDocType } from '../db';
 
 export const TranscriptionAppServiceMeta: AppServiceMeta = {
   domain: 'transcription',
@@ -114,6 +114,8 @@ export interface ITranscriptionAppServiceGateway {
   createProject(request: CreateProjectRequest): Promise<{ textId: string }>;
   createPlaceholderMedia(request: CreatePlaceholderMediaRequest): Promise<MediaItemDocType>;
   importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }>;
+  updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType>;
+  previewTextTimeMapping(request: Parameters<typeof LinguisticService.previewTextTimeMapping>[0]): ReturnType<typeof LinguisticService.previewTextTimeMapping>;
   deleteProject(textId: string): Promise<void>;
   deleteAudio(mediaId: string): Promise<void>;
   deleteSegments(segmentIds: readonly string[]): Promise<void>;
@@ -126,6 +128,8 @@ export interface TranscriptionAppServiceDeps {
   createProject: typeof LinguisticService.createProject;
   createPlaceholderMedia: typeof LinguisticService.createPlaceholderMedia;
   importAudio: typeof LinguisticService.importAudio;
+  updateTextTimeMapping: typeof LinguisticService.updateTextTimeMapping;
+  previewTextTimeMapping: typeof LinguisticService.previewTextTimeMapping;
   deleteProject: typeof LinguisticService.deleteProject;
   deleteAudio: typeof LinguisticService.deleteAudio;
   deleteSegments: typeof LayerSegmentationV2Service.deleteSegmentsBatch;
@@ -142,6 +146,8 @@ const defaultDeps: TranscriptionAppServiceDeps = {
   createProject: LinguisticService.createProject.bind(LinguisticService),
   createPlaceholderMedia: LinguisticService.createPlaceholderMedia.bind(LinguisticService),
   importAudio: LinguisticService.importAudio.bind(LinguisticService),
+  updateTextTimeMapping: LinguisticService.updateTextTimeMapping.bind(LinguisticService),
+  previewTextTimeMapping: LinguisticService.previewTextTimeMapping.bind(LinguisticService),
   deleteProject: LinguisticService.deleteProject.bind(LinguisticService),
   deleteAudio: LinguisticService.deleteAudio.bind(LinguisticService),
   deleteSegments: LayerSegmentationV2Service.deleteSegmentsBatch.bind(LayerSegmentationV2Service),
@@ -195,6 +201,14 @@ export function createTranscriptionAppService(
 
     async importAudio(request: ImportAudioRequest): Promise<{ mediaId: string }> {
       return deps.importAudio(request);
+    },
+
+    async updateTextTimeMapping(request: Parameters<typeof LinguisticService.updateTextTimeMapping>[0]): Promise<TextDocType> {
+      return deps.updateTextTimeMapping(request);
+    },
+
+    previewTextTimeMapping(request: Parameters<typeof LinguisticService.previewTextTimeMapping>[0]): ReturnType<typeof LinguisticService.previewTextTimeMapping> {
+      return deps.previewTextTimeMapping(request);
     },
 
     async deleteProject(textId: string): Promise<void> {

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
+import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';
 
 type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
@@ -9,6 +10,7 @@ type Params = {
   deleteVoiceTranslationRaw: (targetUnit: LayerUnitDocType, targetLayer: LayerDocType) => Promise<void>;
   saveUnitTextRaw: (unitId: string, value: string, layerId?: string) => Promise<void>;
   saveUnitSelfCertaintyRaw: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
+  saveUnitLayerFieldsRaw: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;
   saveUnitTimingRaw: (unitId: string, startTime: number, endTime: number) => Promise<void>;
   saveUnitLayerTextRaw: (unitId: string, value: string, layerId: string) => Promise<void>;
   createAdjacentUnitRaw: (base: LayerUnitDocType, playerDuration: number) => Promise<void>;
@@ -33,6 +35,7 @@ export function useTranscriptionMutexActionWrappers({
   deleteVoiceTranslationRaw,
   saveUnitTextRaw,
   saveUnitSelfCertaintyRaw,
+  saveUnitLayerFieldsRaw,
   saveUnitTimingRaw,
   saveUnitLayerTextRaw,
   createAdjacentUnitRaw,
@@ -71,6 +74,14 @@ export function useTranscriptionMutexActionWrappers({
   ) => runWithDbMutex(() => saveUnitSelfCertaintyRaw(unitIds, value)), [
     runWithDbMutex,
     saveUnitSelfCertaintyRaw,
+  ]);
+
+  const saveUnitLayerFields = useCallback((
+    unitIds: Iterable<string>,
+    patch: PerLayerRowFieldPatch,
+  ) => runWithDbMutex(() => saveUnitLayerFieldsRaw(unitIds, patch)), [
+    runWithDbMutex,
+    saveUnitLayerFieldsRaw,
   ]);
 
   const saveUnitTiming = useCallback((unitId: string, startTime: number, endTime: number) => (
@@ -152,6 +163,7 @@ export function useTranscriptionMutexActionWrappers({
     deleteVoiceTranslation,
     saveUnitText,
     saveUnitSelfCertainty,
+    saveUnitLayerFields,
     saveUnitTiming,
     saveUnitLayerText,
     createAdjacentUnit,

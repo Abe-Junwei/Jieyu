@@ -10,6 +10,7 @@ import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType,
 import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridgeId, BRIDGE_TIER_PREFIX } from './adapter';
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
+import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 
 const JIEYU_DB_NAME = 'jieyudb';
 
@@ -1131,6 +1132,21 @@ export class JieyuDexie extends Dexie {
     // 恢复正式 layer_units 真表，避免新版读取路径在历史数据库上崩溃。
     this.version(40).stores({
       layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
+    });
+
+    /*
+     * v41: one-shot lazy migration for self-certainty cross-layer contamination cleanup.
+     *   历史 controller 把 segment 菜单的 selfCertainty 写到 parent canonical unit 上；
+     *   新语义不再向 host 回退读/写。本迁移做 additive 下刷：
+     *   可唯一消歧的段（一层内一个段引用同一 host）→ 把 host 的值复制到该段；其余不动。
+     *   详见 src/db/migrations/m41SelfCertaintyHostDepollute.ts 顶端注释。
+     *
+     *   One-shot Dexie upgrade that best-effort restores hidden self-certainty values after the
+     *   controller flip. See the migration file for detailed rules; never overwrites existing
+     *   segment values and never clears host fields.
+     */
+    this.version(41).stores({}).upgrade(async (tx) => {
+      await upgradeM41SelfCertaintyHostDepollute(tx);
     });
   }
 }

@@ -412,6 +412,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
   currentProjectLabel: ReadyWorkspaceStageProps['projectHubProps']['currentProjectLabel'];
   activeTextTimelineMode: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimelineMode'];
+  activeTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimeMapping'];
   canDeleteProject: ReadyWorkspaceStageProps['projectHubProps']['canDeleteProject'];
   canDeleteAudio: ReadyWorkspaceStageProps['projectHubProps']['canDeleteAudio'];
   onOpenProjectSetup: ReadyWorkspaceStageProps['projectHubProps']['onOpenProjectSetup'];
@@ -422,6 +423,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   handleImportFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
   onPreviewProjectArchiveImport: ReadyWorkspaceStageProps['projectHubProps']['onPreviewProjectArchiveImport'];
   onImportProjectArchive: ReadyWorkspaceStageProps['projectHubProps']['onImportProjectArchive'];
+  onApplyTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['onApplyTextTimeMapping'];
   onExportEaf: ReadyWorkspaceStageProps['projectHubProps']['onExportEaf'];
   onExportTextGrid: ReadyWorkspaceStageProps['projectHubProps']['onExportTextGrid'];
   onExportTrs: ReadyWorkspaceStageProps['projectHubProps']['onExportTrs'];
@@ -543,6 +545,7 @@ export function buildReadyWorkspaceStageProps(
     projectHubProps: {
       currentProjectLabel: input.currentProjectLabel,
       activeTextTimelineMode: input.activeTextTimelineMode ?? null,
+      activeTextTimeMapping: input.activeTextTimeMapping ?? null,
       canDeleteProject: input.canDeleteProject,
       canDeleteAudio: input.canDeleteAudio,
       onOpenProjectSetup: input.onOpenProjectSetup,
@@ -555,6 +558,7 @@ export function buildReadyWorkspaceStageProps(
       },
       onPreviewProjectArchiveImport: input.onPreviewProjectArchiveImport,
       onImportProjectArchive: input.onImportProjectArchive,
+      onApplyTextTimeMapping: input.onApplyTextTimeMapping,
       onExportEaf: input.onExportEaf,
       onExportTextGrid: input.onExportTextGrid,
       onExportTrs: input.onExportTrs,

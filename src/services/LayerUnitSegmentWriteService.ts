@@ -78,6 +78,7 @@ export class LayerUnitSegmentWriteService {
       ...(changes.endAnchorId !== undefined ? { endAnchorId: changes.endAnchorId } : {}),
       ...(changes.orderKey !== undefined ? { orderKey: changes.orderKey } : {}),
       ...(changes.speakerId !== undefined ? { speakerId: changes.speakerId } : {}),
+      ...(changes.selfCertainty !== undefined ? { selfCertainty: changes.selfCertainty } : {}),
       ...(changes.status !== undefined ? { status: changes.status } : {}),
       ...(changes.externalRef !== undefined ? { externalRef: changes.externalRef } : {}),
       ...(changes.provenance !== undefined ? { provenance: changes.provenance } : {}),

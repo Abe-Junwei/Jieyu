@@ -7,7 +7,7 @@ import { enforceTimeSubdivisionParentBounds, listUnitTextsFromSegmentation, list
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import type { SpeakerReferenceStatsBundle } from '../hooks/speakerManagement/types';
 import { hasEmbeddedDefaultTextChanged, invalidateUnitEmbeddings, isDefaultTranscriptionLayerForUnitText } from '../ai/embeddings/EmbeddingInvalidationService';
-import { bulkUpsertUnitLayerUnits, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, deleteUnitLayerUnitCascade, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
+import { bulkUpsertUnitLayerUnits, deleteResidualLayerUnitGraphByTextId, deleteUnitLayerUnitCascade, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { type ImportQualityReport } from './LinguisticService.constraints';
@@ -72,6 +72,22 @@ export interface UpdateTextTimeMappingInput {
   sourceMediaId?: string;
 }
 
+export interface PreviewTextTimeMappingInput {
+  startTime: number;
+  endTime: number;
+  offsetSec?: number;
+  scale?: number;
+}
+
+export interface PreviewTextTimeMappingResult {
+  documentStartTime: number;
+  documentEndTime: number;
+  realStartTime: number;
+  realEndTime: number;
+  offsetSec: number;
+  scale: number;
+}
+
 function normalizeTextTimeMapping(value: unknown): TextTimeMapping | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const candidate = value as Partial<TextTimeMapping>;
@@ -95,6 +111,31 @@ function normalizeTextTimeMapping(value: unknown): TextTimeMapping | undefined {
       ? { sourceMediaId: candidate.sourceMediaId.trim() }
       : {}),
   };
+}
+
+function mergeTextTimeMappingHistory(
+  currentMapping: TextTimeMapping | undefined,
+  rawHistory: unknown,
+): TextTimeMapping[] | undefined {
+  const normalizedHistory = Array.isArray(rawHistory)
+    ? rawHistory
+      .map((item) => normalizeTextTimeMapping(item))
+      .filter((item): item is TextTimeMapping => item !== undefined)
+    : [];
+
+  const merged = currentMapping ? [currentMapping, ...normalizedHistory] : normalizedHistory;
+  const deduped: TextTimeMapping[] = [];
+  const seen = new Set<string>();
+
+  for (const item of merged) {
+    const key = `${item.revision}:${item.offsetSec}:${item.scale}:${item.sourceMediaId ?? ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+    if (deduped.length >= 8) break;
+  }
+
+  return deduped.length > 0 ? deduped : undefined;
 }
 
 export class LinguisticService {
@@ -938,14 +979,16 @@ export class LinguisticService {
     const textId = input.textId.trim();
     if (!textId) throw new Error('textId 不能为空');
 
-    const existing = await db.texts.get(textId);
-    if (!existing) throw new Error(`文本不存在: ${textId}`);
+    const existingDoc = await db.collections.texts.findOne({ selector: { id: textId } }).exec();
+    if (!existingDoc) throw new Error(`文本不存在: ${textId}`);
 
+    const existing = existingDoc.toJSON();
     const now = new Date().toISOString();
     const metadata = existing.metadata && typeof existing.metadata === 'object'
       ? existing.metadata as Record<string, unknown>
       : {};
     const currentMapping = normalizeTextTimeMapping(metadata.timeMapping);
+    const mappingHistory = mergeTextTimeMappingHistory(currentMapping, metadata.timeMappingHistory);
     const nextOffsetSec = input.offsetSec ?? currentMapping?.offsetSec ?? 0;
     const nextScale = input.scale ?? currentMapping?.scale ?? 1;
 
@@ -974,12 +1017,60 @@ export class LinguisticService {
         ...metadata,
         timeMapping: nextMapping,
         ...(currentMapping ? { timeMappingRollback: currentMapping } : {}),
+        ...(mappingHistory ? { timeMappingHistory: mappingHistory } : {}),
       },
       updatedAt: now,
     };
 
-    await db.texts.put(updated);
+    await db.collections.texts.remove(textId);
+    await db.collections.texts.insert(updated);
     return updated;
+  }
+
+  static previewTextTimeMapping(input: PreviewTextTimeMappingInput): PreviewTextTimeMappingResult {
+    const { startTime, endTime } = input;
+    const offsetSec = input.offsetSec ?? 0;
+    const scale = input.scale ?? 1;
+
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) {
+      throw new Error('startTime 与 endTime 必须是有限数字');
+    }
+    if (endTime < startTime) {
+      throw new Error('endTime 不能小于 startTime');
+    }
+    if (!Number.isFinite(offsetSec)) {
+      throw new Error('offsetSec 必须是有限数字');
+    }
+    if (!Number.isFinite(scale) || scale <= 0) {
+      throw new Error('scale 必须是大于 0 的有限数字');
+    }
+
+    const mappedStart = offsetSec + scale * startTime;
+    const mappedEnd = offsetSec + scale * endTime;
+    const realStartTime = Math.max(0, mappedStart);
+    const realEndTime = Math.max(realStartTime, mappedEnd);
+
+    return {
+      documentStartTime: startTime,
+      documentEndTime: endTime,
+      realStartTime,
+      realEndTime,
+      offsetSec,
+      scale,
+    };
+  }
+
+  static invertTextTimeMapping(realTime: number, mapping: Pick<TextTimeMapping, 'offsetSec' | 'scale'>): number {
+    if (!Number.isFinite(realTime)) {
+      throw new Error('realTime 必须是有限数字');
+    }
+    if (!Number.isFinite(mapping.offsetSec)) {
+      throw new Error('offsetSec 必须是有限数字');
+    }
+    if (!Number.isFinite(mapping.scale) || mapping.scale <= 0) {
+      throw new Error('scale 必须是大于 0 的有限数字');
+    }
+    return Math.max(0, (realTime - mapping.offsetSec) / mapping.scale);
   }
 
   static async getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
@@ -1363,60 +1454,68 @@ export class LinguisticService {
     );
   }
 
-  /** Delete a media item and its associated units + translations + anchors (cascade). */
+  /**
+   * 删除声学音频，但保留文本时间线与语段行 | Remove the acoustic audio while preserving the text timeline and segment rows.
+   */
   static async deleteAudio(mediaId: string): Promise<void> {
     const db = await getDb();
+    const now = new Date().toISOString();
 
     await db.dexie.transaction(
       'rw',
       [
-        db.dexie.embeddings,
-        db.dexie.layer_unit_contents,
-        db.dexie.layer_units,
-        db.dexie.unit_relations,
-        db.dexie.unit_tokens,
-        db.dexie.unit_morphemes,
-        db.dexie.token_lexeme_links,
-        db.dexie.user_notes,
-        db.dexie.anchors,
         db.dexie.media_items,
-        db.dexie.segment_meta,
-        db.dexie.segment_quality_snapshots,
-        db.dexie.scope_stats_snapshots,
-        db.dexie.translation_status_snapshots,
+        db.dexie.texts,
+        db.dexie.layer_units,
       ],
       async () => {
-        const utts = await db.dexie.layer_units.where('mediaId').equals(mediaId).filter((u) => u.unitType === 'unit').toArray();
-        const uttIds = utts.map((u) => u.id);
+        const media = await db.dexie.media_items.get(mediaId);
+        if (!media) return;
 
-        await this.removeNotesForUnitIds(db, uttIds);
-        await invalidateUnitEmbeddings(db, uttIds);
+        const text = await db.dexie.texts.get(media.textId);
+        const relatedUnits = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
+        const maxUnitEnd = relatedUnits.reduce((maxValue, unit) => {
+          const endTime = typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
+          return Math.max(maxValue, endTime);
+        }, 0);
+        const existingMetadata = text?.metadata as { logicalDurationSec?: unknown } | undefined;
+        const existingLogicalDurationSec = typeof existingMetadata?.logicalDurationSec === 'number'
+          && Number.isFinite(existingMetadata.logicalDurationSec)
+          ? existingMetadata.logicalDurationSec
+          : 0;
+        const logicalDurationSec = Math.max(media.duration ?? 0, maxUnitEnd, existingLogicalDurationSec, 1);
+        const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
+        const { audioBlob: _audioBlob, ...remainingDetails } = previousDetails;
 
-        for (const u of utts) {
-          const tokens = await db.dexie.unit_tokens.where('unitId').equals(u.id).toArray();
-          const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(u.id).toArray()).map((m) => m.id);
-          await removeUnitCascadeFromSegmentationV2(db, u.id);
-          if (tokenIds.length > 0 || morphemeIds.length > 0) {
-            const targets: Array<[string, string]> = [
-              ...tokenIds.map((id) => ['token', id] as [string, string]),
-              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-            ];
-            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-          }
-          await db.dexie.unit_tokens.where('unitId').equals(u.id).delete();
-          await db.dexie.unit_morphemes.where('unitId').equals(u.id).delete();
+        const placeholderMedia: MediaItemDocType = {
+          id: media.id,
+          textId: media.textId,
+          filename: 'document-placeholder.track',
+          ...(logicalDurationSec > 0 ? { duration: logicalDurationSec } : {}),
+          details: {
+            ...remainingDetails,
+            placeholder: true,
+            timelineMode: 'document',
+          },
+          isOfflineCached: true,
+          ...(media.accessRights ? { accessRights: media.accessRights } : {}),
+          createdAt: media.createdAt,
+        };
+
+        await db.dexie.media_items.put(placeholderMedia);
+
+        if (text) {
+          await db.dexie.texts.put({
+            ...text,
+            metadata: {
+              ...(text.metadata ?? {}),
+              timelineMode: 'document',
+              logicalDurationSec,
+              timebaseLabel: 'logical-second',
+            },
+            updatedAt: now,
+          });
         }
-
-        await deleteResidualLayerUnitGraphByMediaId(db, mediaId);
-        await Promise.all([
-          db.dexie.segment_meta.where('mediaId').equals(mediaId).delete(),
-          db.dexie.segment_quality_snapshots.where('mediaId').equals(mediaId).delete(),
-          db.dexie.scope_stats_snapshots.where('mediaId').equals(mediaId).delete(),
-          db.dexie.translation_status_snapshots.where('mediaId').equals(mediaId).delete(),
-        ]);
-        await db.dexie.anchors.where('mediaId').equals(mediaId).delete();
-        await db.dexie.media_items.delete(mediaId);
       },
     );
   }

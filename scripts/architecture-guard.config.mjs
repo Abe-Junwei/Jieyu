@@ -361,6 +361,54 @@ export const architectureGuardRules = [
       /resolveFallbackOwnerUnit\(/,
     ],
   }),
+  // ── 串层污染防护：新代码禁止引用 deprecated 的 segment→host 别名 ──
+  // Cross-layer contamination guard: forbid deprecated segment→host alias in new code.
+  patternRule(/^src\/(?!.*\.test\.).*\.(ts|tsx)$/, {
+    excludeFiles: [
+      'src/pages/timelineUnitViewUnitHelpers.ts',
+    ],
+    forbiddenRegexes: [
+      /\bresolveSpeakerTargetUnitIdFromUnitId\b/,
+    ],
+  }),
+  // ── segment → 宿主 unit 的时间重叠解析严禁在「use*Controller」写路径里出现 ──
+  // Segment→host time-overlap resolvers must not appear inside write-path controllers.
+  // They are READ-ONLY / navigation-only helpers (see src/utils/segmentHostResolution.ts).
+  patternRule(/^src\/pages\/use[A-Za-z0-9]+Controller\.(ts|tsx)$/, {
+    excludeFiles: [
+      // ⚠️ 选择解析涉及"在当前层找宿主 unit"的合法导航场景，仍需 host resolver 做只读查找。
+      //   它不是 per-layer 字段写入路径（不写 selfCertainty/status/provenance）。
+      'src/pages/useTranscriptionSelectionContextController.ts',
+    ],
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    forbiddenRegexes: [
+      /\bresolveHostUnitCascadeMedia\b/,
+      /\bresolveHostUnitStrictMedia\b/,
+      /\bselectBestHostByTimeOverlap\b/,
+      /\bresolveSelfCertaintyHostUnitId\b/,
+    ],
+  }),
+  // ── UI 层 per-layer 字段严禁裸 `?? xxx.selfCertainty / .status / .provenance` 回退 ──
+  // UI layer must not `??`-fall-back to host/parent-unit per-layer fields without a kind guard.
+  // Safe form: `?? (unit.kind !== 'segment' ? x.selfCertainty : undefined)` — after `??` comes `(`.
+  // Unsafe form blocked: `?? ident?.selfCertainty` etc.
+  // 背景：UI 直连回退把被串层污染的 host unit 字段放大为可见角标/状态，详见
+  //   self-certainty 串层 post-mortem。
+  patternRule(/^src\/components\/.*\.tsx$/, {
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    forbiddenRegexes: [
+      /\?\?\s+[A-Za-z_$][\w$]*\??\.(selfCertainty|status|provenance)\b/,
+    ],
+  }),
+  // ── `saveUnitLayerFields` 等 per-layer 写入枢纽：禁止再引入 segment→host 解析依赖 ──
+  patternRule(/^src\/hooks\/useTranscriptionUnitActions\.ts$/, {
+    forbiddenRegexes: [
+      /from\s+['"][^'"]*segmentHostResolution['"]/,
+      /\bresolveHostUnit(Strict|Cascade)Media\b/,
+      /\bresolveSelfCertaintyHostUnitId\b/,
+      /\bresolveFallbackOwnerUnit\b/,
+    ],
+  }),
   patternRule(/^src\/hooks\/use.*\.(ts|tsx)$/, {
     excludeFiles: [
       'src/hooks/useVoiceAgent.ts',

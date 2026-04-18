@@ -177,7 +177,7 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(props.runDeleteOne).toHaveBeenCalledWith('seg_1', 'segment', 'layer_default');
   });
 
-  it('hides batch merge action for multi-selected segment context', async () => {
+  it('shows batch merge action for multi-selected segment context and routes the selected ids', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
       x: 120,
@@ -192,7 +192,14 @@ describe('TranscriptionOverlays independent selection routing', () => {
 
     render(<TranscriptionOverlays {...props} />);
 
-    expect(screen.queryByText('合并 2 个句段')).toBeNull();
+    const mergeItem = await screen.findByRole('menuitem', { name: '合并 2 个句段' });
+    fireEvent.click(mergeItem);
+
+    expect(props.runMergeSelection).toHaveBeenCalledWith(
+      new Set(['seg_1', 'seg_2']),
+      'segment',
+      'layer_independent',
+    );
   });
 
   it('hides select-before/after actions for independent-boundary layer context', async () => {

@@ -51,6 +51,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
   const onPreviewProjectArchiveImport = vi.fn(async () => makePreview());
   const onImportProjectArchive = vi.fn(async () => true);
   const onImportAnnotationFile = vi.fn(async () => undefined);
+  const onApplyTextTimeMapping = vi.fn(async () => undefined);
 
   render(
     <LocaleProvider locale="zh-CN">
@@ -66,6 +67,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
         onImportAnnotationFile={onImportAnnotationFile}
         onPreviewProjectArchiveImport={onPreviewProjectArchiveImport}
         onImportProjectArchive={onImportProjectArchive}
+        onApplyTextTimeMapping={onApplyTextTimeMapping}
         onExportEaf={vi.fn()}
         onExportTextGrid={vi.fn()}
         onExportTrs={vi.fn()}
@@ -82,6 +84,7 @@ function renderHub(overrides: Partial<Parameters<typeof LeftRailProjectHub>[0]> 
     onPreviewProjectArchiveImport,
     onImportProjectArchive,
     onImportAnnotationFile,
+    onApplyTextTimeMapping,
   };
 }
 
@@ -155,8 +158,16 @@ describe('LeftRailProjectHub project import dialog', () => {
     });
   });
 
-  it('shows logical timeline hint in export submenu when timeline mode is document', async () => {
-    renderHub({ activeTextTimelineMode: 'document' });
+  it('shows logical timeline hint and mapping preview in export submenu when timeline mode is document', async () => {
+    renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 3,
+        scale: 1.2,
+        revision: 2,
+        logicalDurationSec: 1800,
+      },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
     const exportText = await screen.findByText('导出');
@@ -166,5 +177,142 @@ describe('LeftRailProjectHub project import dialog', () => {
     const hintText = await screen.findByText('当前项目使用逻辑时间轴；导出时间戳不等于声学秒。');
     const hintButton = hintText.closest('button') as HTMLButtonElement;
     expect(hintButton.disabled).toBe(true);
+    expect(await screen.findByText('时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）')).toBeTruthy();
+  });
+
+  it('opens the time-mapping calibration dialog and saves the edited values', async () => {
+    const { onApplyTextTimeMapping } = renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 1,
+        scale: 1.1,
+        revision: 3,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
+    fireEvent.mouseEnter(exportMenuButton);
+    fireEvent.click(await screen.findByText('校准时间映射…'));
+
+    await screen.findByRole('dialog', { name: '校准逻辑时间映射' });
+    const offsetInput = screen.getByLabelText('偏移秒数');
+    const scaleInput = screen.getByLabelText('时间倍率');
+
+    fireEvent.change(offsetInput, { target: { value: '5' } });
+    fireEvent.change(scaleInput, { target: { value: '1.5' } });
+    fireEvent.click(screen.getByRole('button', { name: '应用映射' }));
+
+    await waitFor(() => {
+      expect(onApplyTextTimeMapping).toHaveBeenCalledWith({
+        offsetSec: 5,
+        scale: 1.5,
+      });
+    });
+  });
+
+  it('rolls back to the previous time-mapping snapshot when available', async () => {
+    const { onApplyTextTimeMapping } = renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 5,
+        scale: 1.5,
+        revision: 4,
+        rollback: {
+          offsetSec: 1,
+          scale: 1.1,
+          revision: 3,
+        },
+      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
+    fireEvent.mouseEnter(exportMenuButton);
+    fireEvent.click(await screen.findByText('回滚上一版映射'));
+
+    await waitFor(() => {
+      expect(onApplyTextTimeMapping).toHaveBeenCalledWith({
+        offsetSec: 1,
+        scale: 1.1,
+      });
+    });
+  });
+
+  it('shows current and previous mapping entries in the calibration dialog', async () => {
+    renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 5,
+        scale: 1.5,
+        revision: 4,
+        rollback: {
+          offsetSec: 1,
+          scale: 1.1,
+          revision: 3,
+        },
+        history: [
+          {
+            offsetSec: 0.5,
+            scale: 0.95,
+            revision: 2,
+          },
+          {
+            offsetSec: 0,
+            scale: 1,
+            revision: 1,
+          },
+        ],
+      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
+    fireEvent.mouseEnter(exportMenuButton);
+    fireEvent.click(await screen.findByText('校准时间映射…'));
+
+    await screen.findByRole('dialog', { name: '校准逻辑时间映射' });
+    expect(await screen.findByText('当前版本 v4 · 偏移 5.0s · 倍率 ×1.50')).toBeTruthy();
+    expect(await screen.findByText('上一版本 v3 · 偏移 1.0s · 倍率 ×1.10')).toBeTruthy();
+    expect(await screen.findByText('更早版本 v2 · 偏移 0.5s · 倍率 ×0.95')).toBeTruthy();
+    expect(await screen.findByText('更早版本 v1 · 偏移 0.0s · 倍率 ×1.00')).toBeTruthy();
+  });
+
+  it('fills the calibration form when a history entry is clicked', async () => {
+    renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 5,
+        scale: 1.5,
+        revision: 4,
+        rollback: {
+          offsetSec: 1,
+          scale: 1.1,
+          revision: 3,
+        },
+        history: [
+          {
+            offsetSec: 0.5,
+            scale: 0.95,
+            revision: 2,
+          },
+        ],
+      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
+    fireEvent.mouseEnter(exportMenuButton);
+    fireEvent.click(await screen.findByText('校准时间映射…'));
+
+    await screen.findByRole('dialog', { name: '校准逻辑时间映射' });
+    fireEvent.click(screen.getByRole('button', { name: '更早版本 v2 · 偏移 0.5s · 倍率 ×0.95' }));
+
+    expect((screen.getByLabelText('偏移秒数') as HTMLInputElement).value).toBe('0.5');
+    expect((screen.getByLabelText('时间倍率') as HTMLInputElement).value).toBe('0.95');
   });
 });

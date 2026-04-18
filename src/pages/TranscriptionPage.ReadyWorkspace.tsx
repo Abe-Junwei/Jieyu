@@ -186,6 +186,7 @@ function TranscriptionPageReadyWorkspace({
     restoreProjectSnapshotToLocalById,
     queryProjectChangeTimeline,
     loadSnapshot,
+    applyTextTimeMapping,
     addMediaItem,
     saveVoiceTranslation,
     deleteVoiceTranslation,
@@ -302,6 +303,7 @@ function TranscriptionPageReadyWorkspace({
     setActiveTextId,
     activeTextPrimaryLanguageId,
     activeTextTimelineMode,
+    activeTextTimeMapping,
     getActiveTextId,
     getActiveTextPrimaryLanguageId,
     searchOverlayRequest,
@@ -1387,7 +1389,11 @@ function TranscriptionPageReadyWorkspace({
     segmentsByLayer,
     currentMediaUnits: timelineUnitViewIndex.currentMediaUnits,
     units,
-    saveUnitSelfCertainty: saveUnitSelfCertainty,
+    // brand → raw-string adapter：leaf 写入 API 仍接收 string ids，由 controller 打标
+    // 保证送入此处的每个 id 都带正确 kind；leaf 内部按 unitType 路由到对应表的写入原语。
+    // Brand-to-string adapter: the leaf API still accepts string ids, but the controller
+    // has already attached kind brands, so routing intent is preserved across the seam.
+    saveUnitSelfCertainty: (targets, value) => saveUnitSelfCertainty(targets.map((t) => t.id), value),
   });
 
   const {
@@ -2024,6 +2030,7 @@ function TranscriptionPageReadyWorkspace({
     vadCacheStatus,
     currentProjectLabel: toolbarProps.filename,
     activeTextTimelineMode,
+    activeTextTimeMapping,
     canDeleteProject: Boolean(activeTextId),
     canDeleteAudio: Boolean(selectedTimelineMedia),
     onOpenProjectSetup: () => setShowProjectSetup(true),
@@ -2034,6 +2041,12 @@ function TranscriptionPageReadyWorkspace({
     handleImportFile,
     onPreviewProjectArchiveImport: previewProjectArchiveImport,
     onImportProjectArchive: importProjectArchive,
+    onApplyTextTimeMapping: async (input) => {
+      await applyTextTimeMapping({
+        ...input,
+        ...(selectedUnitMedia?.id ? { sourceMediaId: selectedUnitMedia.id } : {}),
+      });
+    },
     onExportEaf: handleExportEaf,
     onExportTextGrid: handleExportTextGrid,
     onExportTrs: handleExportTrs,

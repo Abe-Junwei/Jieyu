@@ -165,9 +165,9 @@ export function useTranscriptionCloudSyncActions({
 
 	const collaborationSupabaseConfigured = useMemo(() => hasSupabaseBrowserClientConfig(), []);
 
-	const [collaborationBrowserOnline, setCollaborationBrowserOnline] = useState(() => (
-		typeof navigator !== 'undefined' ? navigator.onLine : true
-	));
+	const [collaborationBrowserOnline, setCollaborationBrowserOnline] = useState(
+		typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true,
+	);
 
 	useEffect(() => {
 		const onOnline = () => setCollaborationBrowserOnline(true);

@@ -378,8 +378,13 @@ export class SegmentMetaService {
         ...(effectiveSpeakerId ? { effectiveSpeakerId } : {}),
         ...(speaker?.name ? { effectiveSpeakerName: speaker.name } : {}),
         ...(noteCategoryKeys ? { noteCategoryKeys } : {}),
-        ...((host?.selfCertainty ?? unit.selfCertainty) ? { effectiveSelfCertainty: (host?.selfCertainty ?? unit.selfCertainty) } : {}),
-        ...((host?.status ?? unit.status) ? { annotationStatus: (host?.status ?? unit.status) } : {}),
+        // Per-layer 字段只读当前 layer_units 行本身，禁止向宿主 unit 回退合并到 segment_meta。
+        // Host-first 会把共享 host 上的确信度/标注状态「投影」到所有 sibling 段行，被 AI 检索、
+        // 侧栏 facet 等消费后表现为串层污染（与 UI 直连 `?? host.selfCertainty` 同根因）。
+        ...(unit.selfCertainty ? { effectiveSelfCertainty: unit.selfCertainty } : {}),
+        ...((unit.status ?? unit.annotationStatus)
+          ? { annotationStatus: unit.status ?? unit.annotationStatus }
+          : {}),
         ...(typeof content?.ai_metadata?.confidence === 'number' ? { aiConfidence: content.ai_metadata.confidence } : {}),
         ...(content?.sourceType ? { sourceType: content.sourceType } : {}),
         createdAt: unit.createdAt,

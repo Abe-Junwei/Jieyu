@@ -305,13 +305,14 @@ export function useTranscriptionAiController(
       recommendations: aiRecommendationRef.current,
       audioTimeSec: aiAudioTimeRef.current,
       layers: input.layers,
+      ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       ...(input.selectedTimelineMedia ? { mediaItems: [input.selectedTimelineMedia] } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
       ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
       recentActions: formatRecentActions(input.recentTimelineEditEvents),
       timelineReadModelEpoch: effectiveUnitIndex.epoch,
     });
-  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.layers, input.recentTimelineEditEvents, input.selectedTimelineMedia, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
+  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layers, input.recentTimelineEditEvents, input.selectedTimelineMedia, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,

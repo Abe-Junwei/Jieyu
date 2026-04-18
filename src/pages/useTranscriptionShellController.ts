@@ -3,7 +3,7 @@ import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
-import { useDialogs } from '../hooks/useDialogs';
+import { useDialogs, type TextTimeMappingSummary } from '../hooks/useDialogs';
 import { usePanelToggles } from '../hooks/usePanelToggles';
 import { APP_SHELL_OPEN_SEARCH_EVENT, type AppShellOpenSearchDetail } from '../utils/appShellEvents';
 import { buildLayerLinkConnectorLayout } from '../utils/layerLinkConnector';
@@ -89,6 +89,7 @@ interface UseTranscriptionShellControllerResult {
   activeTextPrimaryLanguageId: string | null;
   activeTextPrimaryOrthographyId: string | null;
   activeTextTimelineMode: 'document' | 'media' | null;
+  activeTextTimeMapping: TextTimeMappingSummary | null;
   getActiveTextId: () => Promise<string | null>;
   getActiveTextPrimaryLanguageId: () => Promise<string | null>;
   getActiveTextTimelineMode: () => Promise<'document' | 'media' | null>;

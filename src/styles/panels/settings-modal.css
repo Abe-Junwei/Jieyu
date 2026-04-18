@@ -1,6 +1,7 @@
 /* ── 设置面板 | Settings Modal ───────────────────────────── */
 
-.pnl-settings-modal {
+.dialog-card.pnl-settings-modal,
+.modal-panel-host.pnl-settings-modal {
   /* 像素上限由 JS 写入 --settings-modal-fluid-width，随 UI 字号缩放 | Pixel cap from JS, scales with UI font */
   width: min(var(--settings-modal-fluid-width, 600px), 94vw);
   max-width: 94vw;
@@ -770,7 +771,8 @@
 }
 
 @media (max-width: 768px) {
-  .pnl-settings-modal {
+  .dialog-card.pnl-settings-modal,
+  .modal-panel-host.pnl-settings-modal {
     width: min(var(--settings-modal-fluid-width, 600px), 96vw);
     max-width: 96vw;
   }

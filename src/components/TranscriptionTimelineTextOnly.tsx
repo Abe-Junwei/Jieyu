@@ -359,7 +359,6 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           ? (segmentSpeakerLayoutByLayer.get(segmentSourceLayerId) ?? EMPTY_SPEAKER_LAYOUT)
           : speakerLayerLayout;
         const isMultiTrackMode = trackDisplayMode !== 'single';
-        const defaultLayerId = defaultTranscriptionLayerId ?? '';
         const rawLayerItems = usesSegmentTimeline
           ? (segmentsByLayer?.get(segmentSourceLayerId) ?? []).filter((segment) => (
               activeSpeakerFilterKey === 'all'
@@ -369,7 +368,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
         const layerUnits: TimelineUnitView[] = rawLayerItems.map((item) => (
           'layerId' in item
             ? segmentToView(item, () => '')
-            : unitToView(item, defaultLayerId)
+            : unitToView(item, layer.id)
         ));
         const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
           ? layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 }))
@@ -490,7 +489,12 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 ? ' timeline-text-item-confidence-mid'
                 : '';
             const uttForContext = unit;
-            const certaintyLookupLayerId = (unit.layerId?.trim() ?? '') || layer.id;
+            // 按当前显示 lane 取 badge，不能借用 source row 自带的 layerId；否则依附层会显示独立层的徽标。
+            // Resolve certainty by the visible lane id, not the borrowed source row id, to prevent cross-lane leaks.
+            const certaintyLookupLayerId = layer.id;
+            // ⚠️ 禁止向宿主 unit 回退读 per-layer 字段（kind === 'segment' 时宿主在多层共享，
+            // 会造成串层污染）。此处 kind === 'unit' 时宿主即自身，安全。
+            // ⚠️ Guarded fallback: only when kind !== 'segment' (host unit is the row itself).
             const cellSelfCertainty = resolveSelfCertaintyForUnit?.(unit.id, certaintyLookupLayerId)
               ?? (unit.kind !== 'segment' ? realUtt?.selfCertainty : undefined);
             const cellSelfCertaintyAmbiguous = !cellSelfCertainty
@@ -745,9 +749,15 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const translationOwnerUtt = unit.kind === 'segment'
               ? (unit.parentUnitId ? unitById.get(unit.parentUnitId) : undefined)
               : unitById.get(unit.id);
-            const certaintyLookupLayerId = (unit.layerId?.trim() ?? '') || layer.id;
+            // 这里也必须按显示层隔离，避免借来的 source segment layerId 把徽标带进依附翻译层。
+            // Use the display lane scope here as well so borrowed source segment ids do not light up dependent rows.
+            const certaintyLookupLayerId = layer.id;
+            // ⚠️ 禁止向宿主 unit 回退读 selfCertainty（kind === 'segment' 时宿主在多层共享，
+            // 回退读会让同一个 host unit 的 badge 串层显示）。kind === 'unit' 时宿主即自身，安全。
+            // ⚠️ Do NOT fall back to host-unit selfCertainty when kind === 'segment'; the host is
+            // shared across sibling layers and would surface cross-layer contamination.
             const trSelfCertainty = resolveSelfCertaintyForUnit?.(unit.id, certaintyLookupLayerId)
-              ?? translationOwnerUtt?.selfCertainty;
+              ?? (unit.kind !== 'segment' ? translationOwnerUtt?.selfCertainty : undefined);
             const trSelfCertaintyAmbiguous = !trSelfCertainty
               && resolveSelfCertaintyAmbiguityForUnit?.(unit.id, certaintyLookupLayerId) === true;
             const trSelfCertaintyTitle = trSelfCertainty

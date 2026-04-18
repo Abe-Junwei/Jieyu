@@ -516,10 +516,9 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           : (isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
               ? (unitsByOverlapGroupId.get(activeOverlapGroupId) ?? [])
               : timelineRenderUnits);
-        const defaultLayerId = defaultTranscriptionLayerId ?? '';
         const visibleUnits: TimelineUnitView[] = usesSegmentTimeline
           ? rawVisibleSegments.map((s) => segmentToView(s, () => ''))
-          : rawVisibleUnits.map((u) => unitToView(u, defaultLayerId));
+          : rawVisibleUnits.map((u) => unitToView(u, layer.id));
         const overlapCycleItemsByUnitId = isMultiTrackMode && !effectiveCollapsed && activeOverlapGroupId
           ? ((usesSegmentTimeline
               ? activeLayerLayout.overlapCycleItemsByGroupId.get(activeOverlapGroupId)

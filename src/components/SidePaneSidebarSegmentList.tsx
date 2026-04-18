@@ -9,6 +9,7 @@ import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
+import { resolveHostUnitStrictMedia } from '../utils/segmentHostResolution';
 import { ANNOTATION_STATUS_ORDER as SEGMENT_ANNOTATION_STATUS_ORDER, CERTAINTY_ORDER as SEGMENT_CERTAINTY_ORDER, NOTE_CATEGORY_ORDER as SEGMENT_NOTE_CATEGORY_ORDER, SOURCE_TYPE_ORDER as SEGMENT_SOURCE_TYPE_ORDER, getAnnotationStatusLabel as getSegmentAnnotationStatusLabel, getCertaintyLabel as getSegmentCertaintyLabel, getContentStateLabel as getSegmentContentStateLabel, getNoteCategoryLabel as getSegmentNoteCategoryLabel, getSourceTypeLabel as getSegmentSourceTypeLabel, resolveSpeakerLabel as resolveSegmentSpeakerLabel, type SegmentContentStateFilter } from './sidePaneSegmentListViewModel';
 import { SegmentMetaService } from '../services/SegmentMetaService';
 
@@ -109,6 +110,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   }, [focusedLayer, mediaUnits, segmentsByLayer, sourceLayer]);
 
   const sourceLayerId = sourceLayer?.id ?? focusedLayer?.id ?? '';
+  /** segment_meta / layer_units 段行按 Dexie storage layerId 索引；依附层焦点必须与源层 id 对齐，避免空 meta 与串层观感。 */
+  const segmentMetaScopeLayerId = useMemo(
+    () => (sourceLayer?.id ?? focusedLayerRowId).trim(),
+    [focusedLayerRowId, sourceLayer?.id],
+  );
   const sourceSegments = useMemo(() => {
     if (!sourceLayerId) return [];
     const rows = segmentsByLayer?.get(sourceLayerId) ?? [];
@@ -128,7 +134,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   }, [activeMediaId, focusedLayer, focusedLayerRowId, segmentsByLayer, sourceLayer, unitsOnCurrentMedia]);
 
   useEffect(() => {
-    const layerId = focusedLayerRowId.trim();
+    const layerId = segmentMetaScopeLayerId;
     const mediaId = activeMediaId.trim();
     if (!layerId || !mediaId) {
       setSegmentMetaRows([]);
@@ -160,10 +166,10 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [activeMediaId, focusedLayerRowId]);
+  }, [activeMediaId, segmentMetaScopeLayerId]);
 
   useEffect(() => {
-    const layerId = focusedLayerRowId.trim();
+    const layerId = segmentMetaScopeLayerId;
     const mediaId = activeMediaId.trim();
     const hasRawItems = sourceSegments.length > 0
       || mediaUnits.some((unit) => (unit.mediaId?.trim() ?? '') === mediaId);
@@ -173,7 +179,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
 
     void SegmentMetaService.rebuildForLayerMedia(layerId, mediaId).catch(() => undefined);
     return () => undefined;
-  }, [activeMediaId, focusedLayerRowId, mediaUnits, segmentMetaHydrated, segmentMetaLoading, segmentMetaRows.length, sourceSegments.length]);
+  }, [activeMediaId, mediaUnits, segmentMetaHydrated, segmentMetaLoading, segmentMetaRows.length, segmentMetaScopeLayerId, sourceSegments.length]);
 
   const fallbackItems = useMemo<SegmentListItem[]>(() => {
     const resolveLiveText = (unit: LayerUnitDocType | undefined, layerId?: string): {
@@ -188,6 +194,14 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       return { text: '', source: 'none' };
     };
 
+    /**
+     * READ-ONLY 导航：尽力给 segment 找一个「可展示文本的宿主 unit」，
+     * 仅用于在 SegmentMetaService 投影未就位时的 fallback 文本回退。
+     *
+     * ⚠️ 严禁用返回值去读 per-layer 字段（selfCertainty / status / provenance 等），
+     *    否则会导致串层污染。per-layer 字段必须直接读 `segment.X` 本身。
+     *    详见 self-certainty 串层 post-mortem。
+     */
     const resolveLinkedUnit = (segment: LayerSegmentViewDocType): LayerUnitDocType | undefined => {
       const explicitUnitId = (segment.parentUnitId ?? segment.unitId)?.trim();
       if (explicitUnitId) {
@@ -206,12 +220,16 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       });
       if (exactTimingMatch) return exactTimingMatch;
 
-      return mediaUnits.find((unit) => {
-        const sameMedia = (unit.mediaId?.trim() ?? '') === (segment.mediaId?.trim() ?? '');
-        return sameMedia
-          && unit.startTime <= segment.startTime + 0.01
-          && unit.endTime >= segment.endTime - 0.01;
-      });
+      // 时间包含/重叠回退：直接复用 utils/segmentHostResolution 里已集中维护的算法。
+      // 该入口为 READ-ONLY（见文件头注释），不得用于 per-layer 字段写入。
+      return resolveHostUnitStrictMedia(
+        {
+          startTime: segment.startTime,
+          endTime: segment.endTime,
+          ...(segment.mediaId !== undefined ? { mediaId: segment.mediaId } : {}),
+        },
+        mediaUnits,
+      );
     };
 
     if (sourceSegments.length > 0) {
@@ -225,10 +243,15 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           ? { text: directSegmentText, source: 'live-layer' as const }
           : resolveLiveText(linkedUnit, focusedLayerRowId || sourceLayerId || undefined);
         const text = liveText.text;
+        // speakerId 是 unit-intrinsic 字段（跨层共享语义正确），可以向宿主回退。
+        // speakerId is unit-intrinsic; falling back to the host unit is semantically correct.
         const speakerKey = segment.speakerId?.trim() || linkedUnit?.speakerId?.trim() || '';
         const speakerLabel = speakerKey ? resolveSegmentSpeakerLabel(speakerKey, speakerById) : '';
-        const certainty = linkedUnit?.selfCertainty;
-        const annotationStatus = linkedUnit?.status;
+        // ⚠️ selfCertainty / status 是 per-layer 字段，禁止向宿主 unit 回退（串层污染根因）。
+        //    只读 segment 自身的值；若该 segment row 是 unit-kind，segment.selfCertainty 就是其自身值。
+        // ⚠️ selfCertainty / status are per-layer; NEVER fall back to the (shared) host unit.
+        const certainty = segment.selfCertainty;
+        const annotationStatus = segment.status;
         const empty = text.length === 0;
         const searchIndex = text.toLowerCase();
 
