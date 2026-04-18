@@ -428,6 +428,56 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     );
   });
 
+  it('keeps dependent translation rows from inheriting a source-layer certainty badge', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent-certainty'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const translationLayer = {
+      ...makeLayer('trl-dependent-certainty'),
+      layerType: 'translation',
+      key: 'trl_fra_certainty',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+
+    editorContextValue.translationTextByLayer = new Map([
+      [translationLayer.id, new Map([
+        ['seg-1', { id: 'txt-1', unitId: 'seg-1', layerId: translationLayer.id, text: 'bonjour', modality: 'text', createdAt: NOW, updatedAt: NOW }],
+      ])],
+    ]);
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[]}
+        translationLayers={[translationLayer]}
+        unitsOnCurrentMedia={[makeUnit('u-main')]}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+          ]],
+        ])}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        resolveSelfCertaintyForUnit={(_unitId, layerId) => (layerId === parentLayer.id ? 'certain' : undefined)}
+      />,
+    );
+
+    expect(container.querySelector('.timeline-annotation-self-certainty--certain')).toBeFalsy();
+  });
+
   it('renders dependent translation rows from the parent transcription segments', () => {
     const parentLayer = {
       ...makeLayer('trc-parent'),
