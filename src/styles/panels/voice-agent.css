@@ -964,13 +964,10 @@
 }
 
 .voice-agent-insights-tabs {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  padding: 4px;
+  width: 100%;
   background: color-mix(in srgb, var(--shadow-color) 4%, transparent);
   border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 :root[data-theme='dark'] .voice-agent-insights-tabs {
@@ -978,24 +975,25 @@
 }
 
 .voice-agent-insights-tab {
-  display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
+  min-height: 32px;
+  padding: 8px 12px;
   font-size: calc(12px * var(--ui-font-scale, 1));
   font-weight: 600;
-  cursor: pointer;
+}
+
+.voice-agent-insights-tab .panel-edge-nav-label {
+  align-items: flex-start;
+}
+
+.voice-agent-insights-tab .panel-edge-nav-title {
+  font-size: calc(12px * var(--ui-font-scale, 1));
 }
 
 .voice-agent-insights-tab.is-active {
-  background: var(--surface-panel);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 8%, transparent);
+  box-shadow: none;
 }
 
 .voice-agent-history-list {

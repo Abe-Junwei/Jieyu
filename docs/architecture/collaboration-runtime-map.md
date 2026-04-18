@@ -1,12 +1,11 @@
 ---
-
-## title: 协作 Runtime 角色地图
-
+title: 协作 Runtime 角色地图
 doc_type: architecture-current-state
 status: active
 owner: collaboration
 last_reviewed: 2026-04-18
 source_of_truth: current-state
+---
 
 # 协作 Runtime 角色地图
 

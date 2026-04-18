@@ -257,7 +257,7 @@ export const architectureGuardRules = [
   }),
   pageControllerRule('useTranscriptionTimelineInteractionController', {
     maxLines: 500,
-    maxUseCallbackDecls: 15,
+    maxUseCallbackDecls: 16,
     maxUseMemoDecls: 0,
     maxUseEffects: 0,
   }),

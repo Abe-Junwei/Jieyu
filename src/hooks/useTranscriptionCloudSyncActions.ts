@@ -50,8 +50,9 @@ import {
 	type FieldValue,
 } from '../collaboration/collaborationConflictRuntime';
 import {
-	appendOperationLog,
+	mergeOperationLogs,
 	openArbitrationTicket,
+	persistCollaborationOperationLogs,
 	prioritizeConflicts,
 	toArbitrationOperationLogs,
 	type ArbitrationTicket,
@@ -196,12 +197,9 @@ export function useTranscriptionCloudSyncActions({
 
 	const appendConflictLogs = useCallback((logs: CollaborationOperationLog[]): void => {
 		if (logs.length === 0) return;
-		setConflictOperationLogs((prev) => {
-			let next = prev;
-			for (const log of logs) {
-				next = appendOperationLog(next, log);
-			}
-			return next.slice(-200);
+		setConflictOperationLogs((prev) => mergeOperationLogs([...prev, ...logs]).slice(-200));
+		void persistCollaborationOperationLogs(logs).catch((error) => {
+			console.warn('[collaboration] failed to persist conflict operation logs', error);
 		});
 	}, []);
 

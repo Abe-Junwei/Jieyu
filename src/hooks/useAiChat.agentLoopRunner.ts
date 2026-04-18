@@ -185,16 +185,18 @@ export async function runAgentLoop(
       3,
       deps.getSessionMemory().conversationSummary,
     );
+    const fallbackPerStepInputTokens = Math.max(
+      1,
+      Math.ceil(Math.max(continuationUserText.length, deps.agentLoopSourceUserText.length) / 4),
+    );
     const observedPerStepInputTokens = reportedInputTokens > 0
       ? Math.max(1, Math.ceil(reportedInputTokens / Math.max(1, loopStep - initial.startStep + 1)))
-      : 0;
-    const estimatedRemainingTokens = observedPerStepInputTokens > 0
-      ? estimateRemainingLoopTokens(
-          observedPerStepInputTokens,
-          loopStep,
-          DEFAULT_AGENT_LOOP_CONFIG,
-        )
-      : 0;
+      : fallbackPerStepInputTokens;
+    const estimatedRemainingTokens = estimateRemainingLoopTokens(
+      observedPerStepInputTokens,
+      loopStep,
+      DEFAULT_AGENT_LOOP_CONFIG,
+    );
 
     // ── Token 预算警告 | Token budget warning ──
     if (shouldWarnTokenBudget(estimatedRemainingTokens, DEFAULT_AGENT_LOOP_CONFIG)) {

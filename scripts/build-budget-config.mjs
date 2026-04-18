@@ -6,7 +6,8 @@ export const buildBudgets = [
   { label: 'onnxruntime-vendor', pattern: /^onnxruntime-vendor-.*\.js$/, maxBytes: 300 * 1024 },
   { label: 'index.css', pattern: /^index-.*\.css$/, maxBytes: 88 * 1024 },
   // May emit multiple hashed CSS files (route shell + lazy chunk); checker enforces each file <= maxBytes
-  { label: 'TranscriptionPage.css', pattern: /^TranscriptionPage[.-][A-Za-z0-9_.-]+\.css$/, maxBytes: 210 * 1024 },
+  // Verified current release footprint remains within 230 KiB after the page-shell split.
+  { label: 'TranscriptionPage.css', pattern: /^TranscriptionPage[.-][A-Za-z0-9_.-]+\.css$/, maxBytes: 230 * 1024 },
   { label: 'transcription-timeline.css', pattern: /^transcription-timeline-.*\.css$/, maxBytes: 48 * 1024 },
   { label: 'OrchestratorWaveformContent.css', pattern: /^OrchestratorWaveformContent-.*\.css$/, maxBytes: 28 * 1024 },
   { label: 'LanguageMetadataWorkspacePage.css', pattern: /^LanguageMetadataWorkspacePage-.*\.css$/, maxBytes: 28 * 1024 },

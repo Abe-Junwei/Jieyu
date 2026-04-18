@@ -12,6 +12,9 @@ import { recordMetric, type MetricTags } from './metrics';
 
 export type AiTraceSpanKind = 'llm-request' | 'tool-execution' | 'agent-loop-step';
 
+export type AiTraceStatusCode = 'OK' | 'ERROR';
+export type AiTraceAttributeValue = string | number | boolean;
+
 export interface AiTraceSpan {
   kind: AiTraceSpanKind;
   traceId: string;
@@ -23,12 +26,116 @@ export interface AiTraceSpan {
   model?: string;
   usedFallback?: boolean;
   error?: string;
+  statusCode?: AiTraceStatusCode;
+  attributes?: Record<string, AiTraceAttributeValue>;
   tags?: MetricTags;
 }
 
 // ─── trace ID 生成 | Trace ID generation ────────────────────────────────
 
 let traceCounter = 0;
+
+const KNOWN_TOOL_NAME_ALLOWLIST = new Set([
+  'get_current_selection',
+  'get_project_stats',
+  'get_waveform_analysis',
+  'get_acoustic_summary',
+  'find_incomplete_units',
+  'diagnose_quality',
+  'search_units',
+  'get_unit_detail',
+  'get_unit_linguistic_memory',
+  'list_layers',
+  'list_speakers',
+  'read_selection_context',
+  'tool_slot_resolver',
+]);
+
+function normalizeSemanticToken(value: string | undefined): string | undefined {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  const normalized = trimmed.replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  return normalized || undefined;
+}
+
+function resolveToolName(tags: MetricTags | undefined): string | undefined {
+  const rawValue = typeof tags?.toolName === 'string'
+    ? tags.toolName
+    : typeof tags?.tool_name === 'string'
+      ? tags.tool_name
+      : undefined;
+  const normalized = normalizeSemanticToken(rawValue);
+  if (!normalized) return undefined;
+  return KNOWN_TOOL_NAME_ALLOWLIST.has(normalized) ? normalized : 'other';
+}
+
+function sanitizeUrlForAttribute(value: string): string {
+  return value.replace(/([?&](?:api.?key|token|password|secret|authorization)=)[^&]*/gi, '$1[REDACTED]');
+}
+
+function buildSemanticAttributes(
+  kind: AiTraceSpanKind,
+  provider: string | undefined,
+  model: string | undefined,
+  usedFallback: boolean,
+  fallbackProvider: string | undefined,
+  tags: MetricTags | undefined,
+  error: string | undefined,
+): Record<string, AiTraceAttributeValue> {
+  const attributes: Record<string, AiTraceAttributeValue> = {};
+  const normalizedProvider = normalizeSemanticToken(provider);
+  const normalizedFallbackProvider = normalizeSemanticToken(fallbackProvider);
+
+  if (normalizedProvider) {
+    attributes['gen_ai.system'] = normalizedProvider;
+  }
+  if (model?.trim()) {
+    attributes['gen_ai.request.model'] = model.trim();
+  }
+  if (usedFallback) {
+    attributes['gen_ai.jieyu.used_fallback'] = true;
+    if (normalizedFallbackProvider) {
+      attributes['gen_ai.jieyu.fallback_system'] = normalizedFallbackProvider;
+    }
+  }
+
+  const toolName = resolveToolName(tags);
+  if (toolName) {
+    attributes['gen_ai.jieyu.tool_name'] = toolName;
+  }
+
+  if (typeof tags?.step === 'number' && Number.isFinite(tags.step)) {
+    attributes['gen_ai.jieyu.step'] = tags.step;
+  }
+
+  const httpMethod = typeof tags?.httpMethod === 'string'
+    ? tags.httpMethod
+    : typeof tags?.method === 'string'
+      ? tags.method
+      : undefined;
+  if (httpMethod?.trim()) {
+    attributes['http.request.method'] = httpMethod.trim().toUpperCase();
+  }
+
+  const rawUrl = typeof tags?.urlFull === 'string'
+    ? tags.urlFull
+    : typeof tags?.url === 'string'
+      ? tags.url
+      : undefined;
+  if (rawUrl?.trim()) {
+    attributes['url.full'] = sanitizeUrlForAttribute(rawUrl.trim());
+  }
+
+  attributes['otel.status_code'] = error ? 'ERROR' : 'OK';
+  if (error) {
+    attributes['otel.status_description'] = error;
+  }
+  if (kind === 'agent-loop-step' && typeof tags?.queryFamily === 'string' && tags.queryFamily.trim()) {
+    attributes['gen_ai.jieyu.query_family'] = normalizeSemanticToken(tags.queryFamily) ?? tags.queryFamily.trim();
+  }
+
+  return attributes;
+}
 
 export function generateTraceId(): string {
   traceCounter += 1;
@@ -127,6 +234,17 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
       recordMetric({ id: 'ai.trace.agent_loop_step_latency_ms', value: durationMs, tags: baseTags });
     }
 
+    const resolvedProvider = usedFallback ? fallbackProvider : options.provider;
+    const semanticAttributes = buildSemanticAttributes(
+      options.kind,
+      options.provider,
+      options.model,
+      usedFallback,
+      fallbackProvider,
+      baseTags,
+      error,
+    );
+
     const span: AiTraceSpan = {
       kind: options.kind,
       traceId: options.traceId,
@@ -136,8 +254,10 @@ export function startAiTraceSpan(options: StartSpanOptions): ActiveSpan {
       durationMs,
       usedFallback,
       ...(error ? { error } : {}),
-      ...(usedFallback ? (fallbackProvider !== undefined ? { provider: fallbackProvider } : {}) : (options.provider !== undefined ? { provider: options.provider } : {})),
+      statusCode: error ? 'ERROR' : 'OK',
+      ...(resolvedProvider !== undefined ? { provider: resolvedProvider } : {}),
       ...(options.model !== undefined ? { model: options.model } : {}),
+      attributes: semanticAttributes,
       tags: baseTags,
     };
 

@@ -37,26 +37,34 @@ export function TranscriptionPageAiSidebar({
 
   return (
     <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
-      <div className="transcription-hub-sidebar-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={hubSidebarTab === 'assistant'}
-          className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'assistant' ? 'is-active' : ''}`}
-          onClick={() => onHubSidebarTabChange('assistant')}
-        >
-          {t(uiLocale, 'transcription.aiSidebar.assistantTab')}
-          {assistantAttentionCount > 0 && <span className="transcription-ai-tab-badge">{assistantAttentionCount}</span>}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={hubSidebarTab === 'analysis'}
-          className={`transcription-hub-sidebar-tab ${hubSidebarTab === 'analysis' ? 'is-active' : ''}`}
-          onClick={() => onHubSidebarTabChange('analysis')}
-        >
-          {t(uiLocale, 'transcription.aiSidebar.analysisTab')}
-        </button>
+      <div className="transcription-hub-sidebar-tabs panel-edge-nav panel-edge-nav--inline" role="tablist">
+        <div className={`panel-edge-nav-row ${hubSidebarTab === 'assistant' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={hubSidebarTab === 'assistant'}
+            className={`transcription-hub-sidebar-tab panel-edge-nav-btn ${hubSidebarTab === 'assistant' ? 'is-active' : ''}`}
+            onClick={() => onHubSidebarTabChange('assistant')}
+          >
+            <span className="panel-edge-nav-label">
+              <strong className="panel-edge-nav-title">{t(uiLocale, 'transcription.aiSidebar.assistantTab')}</strong>
+            </span>
+            {assistantAttentionCount > 0 && <span className="transcription-ai-tab-badge">{assistantAttentionCount}</span>}
+          </button>
+        </div>
+        <div className={`panel-edge-nav-row ${hubSidebarTab === 'analysis' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={hubSidebarTab === 'analysis'}
+            className={`transcription-hub-sidebar-tab panel-edge-nav-btn ${hubSidebarTab === 'analysis' ? 'is-active' : ''}`}
+            onClick={() => onHubSidebarTabChange('analysis')}
+          >
+            <span className="panel-edge-nav-label">
+              <strong className="panel-edge-nav-title">{t(uiLocale, 'transcription.aiSidebar.analysisTab')}</strong>
+            </span>
+          </button>
+        </div>
       </div>
 
       {shouldRenderRuntime ? (

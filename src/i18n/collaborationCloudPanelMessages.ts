@@ -3,6 +3,7 @@ import type { CollaborationAssetRecord, CollaborationProjectSnapshotRecord, Proj
 
 export type CollaborationCloudPanelMessages = {
   title: string;
+  entryLabel: string;
   subtitle: string;
   tabAssets: string;
   tabSnapshots: string;
@@ -59,6 +60,7 @@ function formatReadableSize(sizeBytes: number): string {
 
 const zhCN: CollaborationCloudPanelMessages = {
   title: '\u534f\u540c\u4e91\u5de5\u4f5c\u533a',
+  entryLabel: '\u534f\u540c',
   subtitle: '\u8d44\u4ea7 / \u7248\u672c / \u6062\u590d / \u53d8\u66f4\u65f6\u95f4\u7ebf',
   tabAssets: '\u8d44\u4ea7\u5217\u8868',
   tabSnapshots: '\u7248\u672c\u5386\u53f2',
@@ -108,6 +110,7 @@ const zhCN: CollaborationCloudPanelMessages = {
 
 const enUS: CollaborationCloudPanelMessages = {
   title: 'Collaboration Cloud Workspace',
+  entryLabel: 'Cloud',
   subtitle: 'Assets / Versions / Restore / Change Timeline',
   tabAssets: 'Assets',
   tabSnapshots: 'Versions',

@@ -6,6 +6,28 @@ import { renderWithLocale } from '../../test/localeTestUtils';
 import { CollaborationCloudPanel } from './CollaborationCloudPanel';
 
 describe('CollaborationCloudPanel', () => {
+  it('renders as a standalone collaboration surface', async () => {
+    const { container, unmount } = renderWithLocale(
+      <CollaborationCloudPanel
+        listProjectAssets={vi.fn(async () => [])}
+        removeProjectAsset={vi.fn(async () => undefined)}
+        getProjectAssetSignedUrl={vi.fn(async () => 'https://example.test/signed-url')}
+        listProjectSnapshots={vi.fn(async () => [])}
+        restoreProjectSnapshotToLocalById={vi.fn(async () => {
+          throw new Error('not-used');
+        })}
+        queryProjectChangeTimeline={vi.fn(async () => ({ changes: [], total: 0 }))}
+      />,
+      'zh-CN',
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('.app-side-pane-collaboration-group')).toBeTruthy();
+    });
+
+    unmount();
+  });
+
   it('loads assets and timeline, and restores selected snapshot', async () => {
     const listProjectAssets = vi.fn(async () => [
       {

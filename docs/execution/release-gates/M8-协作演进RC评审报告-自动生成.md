@@ -1,6 +1,6 @@
 # M8 协作演进 RC 评审报告（自动生成）
 
-- 生成时间：2026/4/14 17:13:04
+- 生成时间：2026/4/18 15:35:36
 - 模式：enforce
 - 结论：go
 
@@ -10,7 +10,7 @@
 |---|---:|---:|---|
 | conflict_detection_rate | 100% | 100.00% (4/4) | PASS |
 | consistency_after_resolution_rate | >= 99.90% | 100.00% (1/1) | PASS |
-| resolution_contract_pass_rate | 100% | 100.00% (2/2) | PASS |
+| resolution_contract_pass_rate | 100% | 100.00% (3/3) | PASS |
 
 ## 分级门禁发现
 

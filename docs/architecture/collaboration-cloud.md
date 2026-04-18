@@ -1,11 +1,11 @@
 ---
-
-## title: 托管协作云（Supabase）现状基线
+title: 托管协作云（Supabase）现状基线
 doc_type: architecture-current-state
 status: active
 owner: collaboration-cloud
 last_reviewed: 2026-04-18
 source_of_truth: current-state
+---
 
 # 托管协作云（Supabase）现状基线
 

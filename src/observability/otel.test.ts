@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { addMetricObserver, type MetricEvent } from './metrics';
 import { initOtelWithResolvedConfig, resolveOtelBootstrapConfig } from './otel';
 
 describe('resolveOtelBootstrapConfig', () => {
@@ -156,6 +157,79 @@ describe('initOtelWithResolvedConfig', () => {
     expect(fakeSpan.attributes.apiKey).toBe('[REDACTED]');
     expect(fakeSpan.attributes.prompt).toBe('len:15');
     expect(fakeSpan.attributes.urlFull).toBe('https://api.example.com/chat?token=[REDACTED]&safe=yes');
+  });
+
+  it('opens exporter circuit after repeated failures and records metrics', async () => {
+    const registerSpy = vi.fn();
+    let exporterRef: { export: (spans: unknown[], cb: (result: { code: number }) => void) => void } | undefined;
+    const observedMetrics: MetricEvent[] = [];
+    const removeObserver = addMetricObserver((event) => observedMetrics.push(event));
+
+    class MockWebTracerProvider {
+      constructor(readonly config?: unknown) {}
+
+      register(): void {
+        registerSpy();
+      }
+    }
+
+    class MockBatchSpanProcessor {
+      constructor(readonly exporter: unknown) {
+        exporterRef = exporter as typeof exporterRef;
+      }
+    }
+
+    class MockParentBasedSampler {
+      constructor(readonly config: { root: unknown }) {}
+    }
+
+    class MockTraceIdRatioBasedSampler {
+      constructor(readonly ratio: number) {}
+    }
+
+    class MockFailingOtlpTraceExporter {
+      export(_spans: unknown[], resultCallback: (result: { code: number }) => void): void {
+        resultCallback({ code: 1 });
+      }
+
+      shutdown(): Promise<void> {
+        return Promise.resolve();
+      }
+    }
+
+    await initOtelWithResolvedConfig(
+      {
+        enabled: true,
+        endpoint: 'https://otel.example/v1/traces',
+        serviceName: 'jieyu-web-prod',
+        environment: 'staging',
+        tracesSampleRate: 0.5,
+        circuitBreakerFailureThreshold: 2,
+      },
+      async () => ({
+        sdkWeb: { WebTracerProvider: MockWebTracerProvider },
+        sdkBase: {
+          BatchSpanProcessor: MockBatchSpanProcessor,
+          ParentBasedSampler: MockParentBasedSampler,
+          TraceIdRatioBasedSampler: MockTraceIdRatioBasedSampler,
+        },
+        otlp: { OTLPTraceExporter: MockFailingOtlpTraceExporter },
+        resources: {},
+        semantics: {},
+      }),
+    );
+
+    expect(registerSpy).toHaveBeenCalledTimes(1);
+    expect(exporterRef).toBeDefined();
+
+    exporterRef?.export([], () => undefined);
+    exporterRef?.export([], () => undefined);
+    exporterRef?.export([], () => undefined);
+
+    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_export_failure_count')).toBe(true);
+    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_open_count')).toBe(true);
+    expect(observedMetrics.some((event) => event.id === 'ai.trace.otel_circuit_short_circuit_count')).toBe(true);
+    removeObserver();
   });
 
   it('warns and skips when required SDK exports are missing', async () => {

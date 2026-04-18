@@ -696,6 +696,71 @@
   gap: 8px;
 }
 
+.app-side-pane-collaboration-content {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.dialog-card.pnl-collaboration-cloud-modal,
+.modal-panel-host.pnl-collaboration-cloud-modal {
+  width: min(530px, 88vw);
+  max-width: 88vw;
+  height: min(58vh, 430px);
+  max-height: min(58vh, 430px);
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-group-settings {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-wrap-settings {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 0;
+  min-height: 100%;
+  align-items: stretch;
+  padding: 0;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings {
+  border-right: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
+  padding: 0;
+  background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
+  align-content: start;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-btn {
+  min-height: 34px;
+  padding: 9px 10px 9px 14px;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-title {
+  font-size: 0.74rem;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-row-active {
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-1, 8%), transparent);
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-row-active .panel-edge-nav-btn,
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-btn[aria-selected="true"] {
+  color: var(--header-accent);
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-content-settings {
+  padding: 8px 10px;
+  align-content: start;
+  overflow: auto;
+}
+
 .app-side-pane-collaboration-title-wrap {
   display: flex;
   flex-direction: column;
@@ -708,33 +773,38 @@
 }
 
 .app-side-pane-collaboration-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
+  gap: 0;
 }
 
 .app-side-pane-collaboration-tab {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface-panel) 68%, transparent);
-  color: var(--text-secondary);
   font-size: 0.66rem;
-  padding: 5px 6px;
-  cursor: pointer;
+  justify-content: flex-start;
+}
+
+.app-side-pane-collaboration-tab .panel-edge-nav-title {
+  font-size: 0.66rem;
 }
 
 .app-side-pane-collaboration-tab.is-active {
   color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--state-info-solid) 42%, transparent);
-  background: color-mix(in srgb, var(--state-info-bg) 84%, transparent);
 }
 
 .app-side-pane-collaboration-actions {
   display: flex;
 }
 
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-actions {
+  justify-content: flex-end;
+}
+
 .app-side-pane-collaboration-refresh {
   width: 100%;
+}
+
+.pnl-collaboration-cloud-modal .app-side-pane-collaboration-refresh {
+  width: auto;
+  min-width: 112px;
+  min-height: 30px;
 }
 
 .app-side-pane-collaboration-list {

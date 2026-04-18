@@ -62,6 +62,9 @@ function hasConcreteWriteTarget(call?: AiChatToolCall | null): boolean {
   if (call.name === 'merge_transcription_segments') {
     return getMaterializedDeleteBatchIds(call).length >= 2;
   }
+  if (hasSemanticDeleteSegmentSelector(call)) {
+    return true;
+  }
   return getMaterializedDeleteSingleId(call).length > 0 || getMaterializedDeleteBatchIds(call).length > 0;
 }
 
@@ -233,8 +236,9 @@ export async function resolveDestructiveGate({
   const executionCall = (destructiveBlocked || writeTargetSensitive) && preparePendingToolCall
     ? await preparePendingToolCall(toolCall)
     : undefined;
+  const materializedCall = executionCall ?? toolCall;
 
-  if (destructiveBlocked && requiresDeleteSegmentMaterialization(toolCall) && !hasConcreteDeleteSegmentTarget(executionCall)) {
+  if (destructiveBlocked && requiresDeleteSegmentMaterialization(toolCall) && !hasConcreteDeleteSegmentTarget(materializedCall)) {
     const fallbackMessage = toolCall.arguments.allSegments === true
       ? t(locale, 'transcription.aiTool.segment.deleteAllNoTargets')
       : t(locale, 'transcription.aiTool.segment.deleteTargetNotResolvable');
@@ -270,7 +274,7 @@ export async function resolveDestructiveGate({
     return { kind: 'error', finalContent, finalErrorMessage };
   }
 
-  if (writeTargetSensitive && requiresWriteTargetMaterialization(toolCall) && !hasConcreteWriteTarget(executionCall)) {
+  if (writeTargetSensitive && requiresWriteTargetMaterialization(toolCall) && !hasConcreteWriteTarget(materializedCall)) {
     const finalErrorMessage = riskCheck?.riskSummary ?? getWriteTargetFallbackMessage(locale, toolCall);
     const finalContent = toNaturalToolFailure(locale, toolCall.name, finalErrorMessage, toolFeedbackStyle);
     bumpFailureMetric();

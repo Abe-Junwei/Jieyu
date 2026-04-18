@@ -14,36 +14,40 @@
 }
 
 .transcription-hub-sidebar-tabs {
-  display: flex;
   border-bottom: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-header) 96%, transparent);
   flex-shrink: 0;
 }
 
-.transcription-hub-sidebar-tab {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
+.transcription-hub-sidebar-tabs .panel-edge-nav-row {
+  min-width: 0;
 }
 
-.transcription-hub-sidebar-tab:hover {
-  color: var(--text-primary);
+.transcription-hub-sidebar-tab {
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+}
+
+.transcription-hub-sidebar-tab .panel-edge-nav-label {
+  align-items: center;
+}
+
+.transcription-hub-sidebar-tab .panel-edge-nav-title {
+  text-align: center;
+  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .transcription-hub-sidebar-tab.is-active {
   color: var(--header-accent);
-  border-bottom-color: var(--header-accent);
+}
+
+.transcription-hub-sidebar-tabs .panel-edge-nav-row-active .panel-edge-nav-btn,
+.transcription-hub-sidebar-tabs .panel-edge-nav-btn[aria-selected="true"] {
+  color: var(--header-accent);
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), transparent);
 }
 
 .transcription-ai-tab-badge {

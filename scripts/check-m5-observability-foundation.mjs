@@ -13,6 +13,7 @@ const requiredFiles = [
   'docs/execution/audits/M5-观测指标事件流水-v1.ndjson',
   'docs/execution/plans/M5-执行记录-2026-04-12.md',
   'docs/execution/release-gates/M5-观测门禁清单-2026-04-12.md',
+  'docs/execution/release-gates/OTel-观测灰度与回滚-runbook-2026-04-17.md',
   'docs/execution/audits/M5-质量仪表盘-v1-数据定义-2026-04-12.md',
 ];
 
@@ -42,4 +43,23 @@ if (missingMetricIds.length > 0) {
   process.exit(1);
 }
 
-console.log(`[check-m5-observability-foundation] OK: ${requiredFiles.length} required files and ${requiredMetricIds.length} required metrics.`);
+const runbookSource = readFileSync(
+  path.resolve(root, 'docs/execution/release-gates/OTel-观测灰度与回滚-runbook-2026-04-17.md'),
+  'utf8',
+);
+const requiredRunbookMarkers = [
+  'VITE_OTEL_EXPORT_ENABLED',
+  'VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS',
+  '回滚顺序',
+  '灰度顺序',
+];
+const missingRunbookMarkers = requiredRunbookMarkers.filter((marker) => !runbookSource.includes(marker));
+if (missingRunbookMarkers.length > 0) {
+  console.error('[check-m5-observability-foundation] Missing required OTel runbook markers:');
+  for (const marker of missingRunbookMarkers) {
+    console.error(`- ${marker}`);
+  }
+  process.exit(1);
+}
+
+console.log(`[check-m5-observability-foundation] OK: ${requiredFiles.length} required files, ${requiredMetricIds.length} required metrics, and OTel runbook markers present.`);

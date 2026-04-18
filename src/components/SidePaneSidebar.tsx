@@ -19,13 +19,74 @@ import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { SidePaneLayerProvider } from '../contexts/SidePaneContext';
 import { useLocale } from '../i18n';
+import { getCollaborationCloudPanelMessages } from '../i18n/collaborationCloudPanelMessages';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { ModalPanel } from './ui';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { isTranscriptionWorkspacePathname } from '../utils/transcriptionWorkspaceRoute';
 
 type LayerActionResult = ReturnType<typeof useLayerActionPanel>;
+type SidePaneSidebarMessages = ReturnType<typeof getSidePaneSidebarMessages>;
+
+function SidePanePresenceSection({
+  messages,
+  presenceMembers,
+  presenceCurrentUserId,
+}: {
+  messages: SidePaneSidebarMessages;
+  presenceMembers?: CollaborationPresenceLiveMember[] | undefined;
+  presenceCurrentUserId?: string | undefined;
+}) {
+  const visibleMembers = (presenceMembers ?? []).filter((member) => member.state !== 'offline');
+  const sortedMembers = visibleMembers.slice().sort((left, right) => {
+    const leftTimestamp = left.lastSeenAt ? Date.parse(left.lastSeenAt) : 0;
+    const rightTimestamp = right.lastSeenAt ? Date.parse(right.lastSeenAt) : 0;
+    if (rightTimestamp !== leftTimestamp) {
+      return rightTimestamp - leftTimestamp;
+    }
+    return left.userId.localeCompare(right.userId);
+  });
+
+  return (
+    <section className="app-side-pane-group app-side-pane-layer-group" aria-label={messages.presenceCardAria}>
+      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+        <span className="app-side-pane-section-title">{messages.presenceCardTitle}</span>
+      </div>
+      {sortedMembers.length === 0 ? (
+        <p className="transcription-side-pane-presence-empty">{messages.presenceEmpty}</p>
+      ) : (
+        <ul className="transcription-side-pane-presence-list">
+          {sortedMembers.map((member) => {
+            const displayName = member.displayName?.trim() || member.userId;
+            const isCurrentUser = presenceCurrentUserId === member.userId;
+            const focusLabel = member.focusedEntityType && member.focusedEntityId
+              ? messages.presenceFocusLabel(
+                  messages.presenceEntityLabel(member.focusedEntityType),
+                  member.focusedEntityId,
+                )
+              : null;
+            return (
+              <li key={member.userId} className="transcription-side-pane-presence-item">
+                <div className="transcription-side-pane-presence-item-header">
+                  <span className="transcription-side-pane-presence-name">
+                    {displayName}
+                    {isCurrentUser ? ` ${messages.presenceSelfSuffix}` : ''}
+                  </span>
+                  <span className={`transcription-side-pane-presence-state transcription-side-pane-presence-state-${member.state}`}>
+                    {messages.presenceStateLabel(member.state)}
+                  </span>
+                </div>
+                {focusLabel ? <span className="transcription-side-pane-presence-focus">{focusLabel}</span> : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 interface SidePaneSidebarProps {
   sidePaneRows: LayerDocType[];
@@ -82,6 +143,21 @@ export function SidePaneSidebar({
   const showLeftRailLayerActions = isTranscriptionWorkspacePathname(location.pathname);
   const locale = useLocale();
   const messages = getSidePaneSidebarMessages(locale);
+  const collaborationMessages = useMemo(() => getCollaborationCloudPanelMessages(locale), [locale]);
+  const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
+
+  useEffect(() => {
+    if (!showLeftRailLayerActions) {
+      setIsCollaborationPanelOpen(false);
+    }
+  }, [showLeftRailLayerActions]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOpen = () => setIsCollaborationPanelOpen(true);
+    window.addEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
+    return () => window.removeEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
+  }, []);
 
   // ── Speaker management context ───────────────────────────────────────────────
   const speakerCtx = useSpeakerRailContext();
@@ -337,69 +413,33 @@ export function SidePaneSidebar({
     setConstraintRepairDetailsCollapsed,
   ]);
 
-  const visiblePresenceMembers = useMemo(() => {
-    const members = (presenceMembers ?? []).filter((member) => member.state !== 'offline');
-    return members.slice().sort((left, right) => {
-      const leftTimestamp = left.lastSeenAt ? Date.parse(left.lastSeenAt) : 0;
-      const rightTimestamp = right.lastSeenAt ? Date.parse(right.lastSeenAt) : 0;
-      if (rightTimestamp !== leftTimestamp) {
-        return rightTimestamp - leftTimestamp;
-      }
-      return left.userId.localeCompare(right.userId);
-    });
-  }, [presenceMembers]);
-
-  const sidePanePresenceNode = useMemo(() => (
-    <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-presence-group" aria-label={messages.presenceCardAria}>
-      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-        <span className="app-side-pane-section-title">{messages.presenceCardTitle}</span>
-      </div>
-      <div className="app-side-pane-nav app-side-pane-presence-wrap">
-        {visiblePresenceMembers.length === 0 ? (
-          <p className="transcription-side-pane-presence-empty">{messages.presenceEmpty}</p>
-        ) : (
-          <ul className="transcription-side-pane-presence-list">
-            {visiblePresenceMembers.map((member) => {
-              const displayName = member.displayName?.trim() || member.userId;
-              const isCurrentUser = Boolean(presenceCurrentUserId) && member.userId === presenceCurrentUserId;
-              const focusHint = member.focusedEntityType && member.focusedEntityId
-                ? messages.presenceFocusLabel(messages.presenceEntityLabel(member.focusedEntityType), member.focusedEntityId)
-                : '';
-
-              return (
-                <li key={member.userId} className="transcription-side-pane-presence-item">
-                  <div className="transcription-side-pane-presence-item-header">
-                    <span className="transcription-side-pane-presence-name">
-                      {displayName}
-                      {isCurrentUser ? ` ${messages.presenceSelfSuffix}` : ''}
-                    </span>
-                    <span className={`transcription-side-pane-presence-state transcription-side-pane-presence-state-${member.state}`}>
-                      {messages.presenceStateLabel(member.state)}
-                    </span>
-                  </div>
-                  {focusHint ? (
-                    <div className="transcription-side-pane-presence-focus">
-                      {focusHint}
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
-  ), [messages, presenceCurrentUserId, visiblePresenceMembers]);
-
-  const sidePaneCollaborationNode = useMemo(() => (
-    collaborationCloudPanelProps ? <CollaborationCloudPanel {...collaborationCloudPanelProps} /> : null
-  ), [collaborationCloudPanelProps]);
+  const collaborationCloudModalNode = useMemo(() => (
+    collaborationCloudPanelProps ? (
+      <ModalPanel
+        isOpen={isCollaborationPanelOpen}
+        onClose={() => setIsCollaborationPanelOpen(false)}
+        title={collaborationMessages.title}
+        ariaLabel={collaborationMessages.title}
+        className="pnl-settings-modal pnl-collaboration-cloud-modal"
+        bodyClassName="settings-modal-body collaboration-cloud-settings-body"
+        titleClassName="settings-modal-title"
+      >
+        <CollaborationCloudPanel
+          {...collaborationCloudPanelProps}
+          hideHeader
+        />
+      </ModalPanel>
+    ) : null
+  ), [collaborationCloudPanelProps, collaborationMessages.title, isCollaborationPanelOpen]);
 
   const sidePanePortaledNode = useMemo(() => (
     <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
       {sidePaneOverviewNode}
-      {sidePanePresenceNode}
-      {sidePaneCollaborationNode}
+      <SidePanePresenceSection
+        messages={messages}
+        presenceMembers={presenceMembers}
+        presenceCurrentUserId={presenceCurrentUserId}
+      />
       <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
@@ -409,7 +449,7 @@ export function SidePaneSidebar({
         </div>
       </section>
     </div>
-  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
+  ), [messages, messages.quickActionsCardAria, messages.quickActionsCardTitle, presenceCurrentUserId, presenceMembers, sidePaneActionsNode, sidePaneOverviewNode]);
 
   const sidePaneInlineFallbackNode = useMemo(() => (
     <div
@@ -418,11 +458,14 @@ export function SidePaneSidebar({
       data-layer-pane-interactive="true"
     >
       {sidePaneOverviewNode}
-      {sidePanePresenceNode}
-      {sidePaneCollaborationNode}
+      <SidePanePresenceSection
+        messages={messages}
+        presenceMembers={presenceMembers}
+        presenceCurrentUserId={presenceCurrentUserId}
+      />
       {sidePaneActionsNode}
     </div>
-  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
+  ), [messages, messages.inlinePaneAria, presenceCurrentUserId, presenceMembers, sidePaneActionsNode, sidePaneOverviewNode]);
 
   useRegisterAppSidePane({
     title: messages.paneTitle,
@@ -442,6 +485,7 @@ export function SidePaneSidebar({
         />
       ) : null}
       {sidePaneHost ? null : sidePaneInlineFallbackNode}
+      {collaborationCloudModalNode}
 
       {/* Context menu for right-click on layer items */}
       {contextMenu && (
