@@ -1587,6 +1587,8 @@ function TranscriptionPageReadyWorkspace({
       lassoRect,
       timelineRenderUnits,
       defaultTranscriptionLayerId,
+      textOnlyLogicalDurationSec: activeTextTimeMapping?.logicalDurationSec,
+      createUnitFromSelectionRouted,
       renderAnnotationItem,
       speakerSortKeyById,
       filteredUnitsOnCurrentMedia,

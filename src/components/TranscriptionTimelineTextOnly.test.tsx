@@ -630,6 +630,120 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(textboxes[1]?.value).toBe('child two');
   });
 
+  it('creates a segment from drag selection in pure-text mode and shows preview feedback', () => {
+    const layer = makeLayer('trc-drag-create');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const createUnitFromSelection = vi.fn(async () => undefined);
+    const onFocusLayer = vi.fn();
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        activeTextTimelineMode="document"
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={onFocusLayer}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        createUnitFromSelection={createUnitFromSelection}
+        logicalDurationSec={20}
+      />,
+    );
+
+    const track = container.querySelector('.timeline-lane-text-only-track') as HTMLDivElement | null;
+    expect(track).toBeTruthy();
+    if (!track) return;
+
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 44,
+      top: 0,
+      right: 200,
+      bottom: 44,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(track, { clientX: 20, clientY: 10, button: 0, pointerId: 1 });
+    fireEvent.pointerMove(track, { clientX: 120, clientY: 10, pointerId: 1 });
+
+    const preview = container.querySelector('.timeline-text-only-drag-preview');
+    expect(preview).toBeTruthy();
+
+    fireEvent.pointerUp(track, { clientX: 120, clientY: 10, pointerId: 1 });
+
+    expect(onFocusLayer).toHaveBeenCalledWith(layer.id);
+    expect(createUnitFromSelection).toHaveBeenCalledWith(2, 12);
+  });
+
+  it('allows pure-text drag creation from text-item chrome instead of only blank track background', () => {
+    const layer = makeLayer('trc-drag-on-item');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const createUnitFromSelection = vi.fn(async () => undefined);
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        activeTextTimelineMode="document"
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[makeUnit('u1')]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        createUnitFromSelection={createUnitFromSelection}
+        logicalDurationSec={20}
+      />,
+    );
+
+    const track = container.querySelector('.timeline-lane-text-only-track') as HTMLDivElement | null;
+    const textItem = container.querySelector('.timeline-text-item') as HTMLDivElement | null;
+    expect(track).toBeTruthy();
+    expect(textItem).toBeTruthy();
+    if (!track || !textItem) return;
+
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 44,
+      top: 0,
+      right: 200,
+      bottom: 44,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(textItem, { clientX: 40, clientY: 10, button: 0, pointerId: 2 });
+    fireEvent.pointerMove(track, { clientX: 140, clientY: 10, pointerId: 2 });
+    fireEvent.pointerUp(track, { clientX: 140, clientY: 10, pointerId: 2 });
+
+    expect(createUnitFromSelection).toHaveBeenCalledWith(4, 14);
+  });
+
   it('does not prevent default pointerdown on text input when lane is expanded', () => {
     const layer = makeLayer('trc-1');
     const scrollEl = document.createElement('div');

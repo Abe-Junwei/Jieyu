@@ -223,7 +223,8 @@
   --jieyu-material-wght: var(--wave-toolbar-icon-active-wght);
 }
 
-.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:hover:not(:disabled) {
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:hover:not(:disabled),
+.transcription-wave-toolbar .transcription-wave-toolbar-play-btn:focus-visible:not(:disabled) {
   transform: none;
   filter: brightness(0.97);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--state-info-solid) 24%, transparent);
@@ -458,7 +459,8 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 4%, transparent);
 }
 
-.waveform-view-options-panel .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active) {
+.waveform-view-options-panel .waveform-view-options-acoustic-toggle:hover:not(:disabled):not(.is-active),
+.waveform-view-options-panel .waveform-view-options-acoustic-toggle:focus-visible:not(:disabled):not(.is-active) {
   background: color-mix(in srgb, var(--wave-toolbar-accent) 26%, var(--surface-header));
   border-color: color-mix(in srgb, var(--wave-toolbar-accent) 42%, var(--border-soft));
 }

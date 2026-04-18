@@ -23,13 +23,23 @@ export function ToolbarAiProgress({ acousticRuntimeStatus, vadCacheStatus }: Too
           totalFrames: acousticRuntimeStatus.totalFrames ?? 0,
         }),
       }
-    : acousticRuntimeStatus?.state === 'error'
+    : acousticRuntimeStatus?.state === 'ready'
       ? {
-          className: 'toolbar-ai-progress-badge toolbar-ai-progress-badge-error',
-          text: t(locale, 'ai.acoustic.runtimeProgressFailed'),
-          title: t(locale, 'ai.acoustic.runtimeProgressFailed'),
+          className: 'toolbar-ai-progress-badge toolbar-ai-progress-badge-acoustic',
+          text: t(locale, 'ai.acoustic.runtimeProgressReady'),
+          title: tf(locale, 'ai.acoustic.runtimeProgressLoading', {
+            progress: 100,
+            processedFrames: acousticRuntimeStatus.processedFrames ?? acousticRuntimeStatus.totalFrames ?? 0,
+            totalFrames: acousticRuntimeStatus.totalFrames ?? acousticRuntimeStatus.processedFrames ?? 0,
+          }),
         }
-      : null;
+      : acousticRuntimeStatus?.state === 'error'
+        ? {
+            className: 'toolbar-ai-progress-badge toolbar-ai-progress-badge-error',
+            text: t(locale, 'ai.acoustic.runtimeProgressFailed'),
+            title: t(locale, 'ai.acoustic.runtimeProgressFailed'),
+          }
+        : null;
 
   const vadBadge = vadCacheStatus?.state === 'warming'
     ? {
@@ -42,7 +52,19 @@ export function ToolbarAiProgress({ acousticRuntimeStatus, vadCacheStatus }: Too
           totalFrames: vadCacheStatus.totalFrames ?? 0,
         }),
       }
-    : null;
+    : vadCacheStatus?.state === 'ready'
+      ? {
+          className: 'toolbar-ai-progress-badge toolbar-ai-progress-badge-vad',
+          text: tf(locale, 'ai.stats.vadCacheHit', {
+            engine: vadCacheStatus.engine ?? 'unknown',
+            segmentCount: vadCacheStatus.segmentCount ?? 0,
+          }),
+          title: tf(locale, 'ai.stats.vadCacheHit', {
+            engine: vadCacheStatus.engine ?? 'unknown',
+            segmentCount: vadCacheStatus.segmentCount ?? 0,
+          }),
+        }
+      : null;
 
   if (!acousticBadge && !vadBadge) {
     return null;

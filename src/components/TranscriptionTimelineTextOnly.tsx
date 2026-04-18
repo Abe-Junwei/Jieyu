@@ -14,7 +14,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import { unitToView, segmentToView } from '../hooks/timelineUnitView';
+import { unitToView, segmentToView, scopeTimelineUnitViewToLayer } from '../hooks/timelineUnitView';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
@@ -68,7 +68,9 @@ type TranscriptionTimelineTextOnlyProps = {
   flashLayerRowId: string;
   focusedLayerRowId: string;
   defaultTranscriptionLayerId?: string;
+  logicalDurationSec?: number;
   scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  createUnitFromSelection?: (start: number, end: number) => Promise<void>;
   handleAnnotationClick: (
     uttId: string,
     uttStartTime: number,
@@ -143,6 +145,15 @@ type LayerActionType =
   | 'edit-translation-metadata'
   | 'delete';
 
+type TextOnlyDragState = {
+  layerId: string;
+  pointerId: number;
+  anchorX: number;
+  currentX: number;
+  trackWidth: number;
+  startedOnInput: boolean;
+};
+
 export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimelineTextOnly(
   props: TranscriptionTimelineTextOnlyProps,
 ) {
@@ -160,7 +171,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     flashLayerRowId,
     focusedLayerRowId,
     defaultTranscriptionLayerId,
+    logicalDurationSec,
     scrollContainerRef,
+    createUnitFromSelection,
     handleAnnotationClick,
     handleAnnotationContextMenu,
     allLayersOrdered,
@@ -204,6 +217,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, 'dirty' | 'saving' | 'error'>>({});
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
   const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
+  const [textOnlyDragState, setTextOnlyDragState] = useState<TextOnlyDragState | null>(null);
 
   const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
     if (!displayStyleControl) return;
@@ -323,6 +337,19 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     unitById,
   ]);
 
+  const resolvedLogicalDurationSec = useMemo(() => {
+    if (typeof logicalDurationSec === 'number' && Number.isFinite(logicalDurationSec) && logicalDurationSec > 0) {
+      return logicalDurationSec;
+    }
+    const mediaMaxEnd = unitsOnCurrentMedia.reduce((max, unit) => Math.max(max, unit.endTime ?? 0), 0);
+    const segmentMaxEnd = segmentsByLayer
+      ? Array.from(segmentsByLayer.values()).reduce((max, layerSegments) => (
+          Math.max(max, ...layerSegments.map((segment) => segment.endTime ?? 0), 0)
+        ), 0)
+      : 0;
+    return Math.max(mediaMaxEnd, segmentMaxEnd, 10);
+  }, [logicalDurationSec, segmentsByLayer, unitsOnCurrentMedia]);
+
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
     setSaveStatusByCellKey((prev) => {
       if (!status) {
@@ -346,6 +373,82 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
       setCellSaveStatus(cellKey, 'error');
     }
   };
+
+  const handleTrackPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
+    if (activeTextTimelineMode !== 'document' || !createUnitFromSelection) return;
+    if (event.button !== 0) return;
+    const target = event.target as HTMLElement | null;
+    const blockedTarget = target?.closest('button, [role="button"], .timeline-text-item-status-dot, .timeline-lane-resize-handle');
+    if (blockedTarget) return;
+    const startedOnInput = Boolean(target?.closest('input, textarea, [contenteditable="true"], .timeline-text-input'));
+    const rect = event.currentTarget.getBoundingClientRect();
+    const trackWidth = Math.max(rect.width, 1);
+    const anchorX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    setTextOnlyDragState({
+      layerId,
+      pointerId: event.pointerId,
+      anchorX,
+      currentX: anchorX,
+      trackWidth,
+      startedOnInput,
+    });
+    onFocusLayer(layerId);
+    if (typeof event.currentTarget.setPointerCapture === 'function') {
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // noop
+      }
+    }
+    if (!startedOnInput) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, [activeTextTimelineMode, createUnitFromSelection, onFocusLayer]);
+
+  const handleTrackPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const trackWidth = Math.max(rect.width, 1);
+    const currentX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    const pointerId = event.pointerId;
+    setTextOnlyDragState((prev) => {
+      if (!prev || prev.layerId !== layerId || prev.pointerId !== pointerId) return prev;
+      return { ...prev, currentX, trackWidth };
+    });
+  }, []);
+
+  const clearTrackDragState = useCallback((event?: React.PointerEvent<HTMLDivElement>) => {
+    if (event && typeof event.currentTarget.releasePointerCapture === 'function') {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // noop
+      }
+    }
+    setTextOnlyDragState(null);
+  }, []);
+
+  const handleTrackPointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
+    if (activeTextTimelineMode !== 'document' || !createUnitFromSelection) {
+      clearTrackDragState(event);
+      return;
+    }
+    const drag = textOnlyDragState;
+    if (!drag || drag.layerId !== layerId || drag.pointerId !== event.pointerId) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const trackWidth = Math.max(rect.width, drag.trackWidth, 1);
+    const releaseX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    const startX = Math.min(drag.anchorX, releaseX);
+    const endX = Math.max(drag.anchorX, releaseX);
+    clearTrackDragState(event);
+    if (Math.abs(endX - startX) < 3) return;
+    const start = Number(((startX / trackWidth) * resolvedLogicalDurationSec).toFixed(3));
+    const end = Number(((endX / trackWidth) * resolvedLogicalDurationSec).toFixed(3));
+    if (end <= start) return;
+    fireAndForget(createUnitFromSelection(start, end));
+    event.preventDefault();
+    event.stopPropagation();
+  }, [activeTextTimelineMode, clearTrackDragState, createUnitFromSelection, resolvedLogicalDurationSec, textOnlyDragState]);
 
   return (
     <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}`}>
@@ -453,7 +556,22 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
             {...(displayStyleControl && { displayStyleControl })}
           />
-          {!isCollapsed && <div className="timeline-lane-text-only-track">
+          {!isCollapsed && <div
+            className={`timeline-lane-text-only-track${activeTextTimelineMode === 'document' && createUnitFromSelection ? ' timeline-lane-text-only-track-creatable' : ''}${textOnlyDragState?.layerId === layer.id ? ' timeline-lane-text-only-track-marking' : ''}`}
+            onPointerDown={(event) => handleTrackPointerDown(event, layer.id)}
+            onPointerMove={(event) => handleTrackPointerMove(event, layer.id)}
+            onPointerUp={(event) => handleTrackPointerUp(event, layer.id)}
+            onPointerCancel={(event) => clearTrackDragState(event)}
+          >
+          {textOnlyDragState?.layerId === layer.id ? (
+            <div
+              className="timeline-text-only-drag-preview"
+              style={{
+                left: `${Math.min(textOnlyDragState.anchorX, textOnlyDragState.currentX)}px`,
+                width: `${Math.max(Math.abs(textOnlyDragState.currentX - textOnlyDragState.anchorX), 2)}px`,
+              }}
+            />
+          ) : null}
           {laneVirtualItems.map((virtualItem) => {
             const unit = layerUnits[virtualItem.index];
             if (!unit) return null;

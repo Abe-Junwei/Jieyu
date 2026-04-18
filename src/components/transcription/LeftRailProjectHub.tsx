@@ -753,8 +753,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             description={timeMappingDialogPreview ?? ''}
           />
           <PanelSection className="left-rail-project-import-strategy-section" title={t(locale, 'transcription.projectHub.importDialogStrategy')}>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <label style={{ display: 'grid', gap: 6 }}>
+            <div className="left-rail-project-time-mapping-form">
+              <label className="left-rail-project-time-mapping-field">
                 <span>{t(locale, 'transcription.projectHub.timeMappingDialogOffset')}</span>
                 <input
                   aria-label={t(locale, 'transcription.projectHub.timeMappingDialogOffset')}
@@ -764,7 +764,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                   onChange={(event) => setTimeMappingDialogState((prev) => (prev ? { ...prev, offsetSecText: event.target.value } : prev))}
                 />
               </label>
-              <label style={{ display: 'grid', gap: 6 }}>
+              <label className="left-rail-project-time-mapping-field">
                 <span>{t(locale, 'transcription.projectHub.timeMappingDialogScale')}</span>
                 <input
                   aria-label={t(locale, 'transcription.projectHub.timeMappingDialogScale')}
@@ -779,13 +779,12 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           </PanelSection>
 
           <PanelSection className="left-rail-project-import-table-section" title={t(locale, 'transcription.projectHub.timeMappingHistoryTitle')}>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div className="left-rail-project-time-mapping-history">
               {timeMappingHistoryItems.map((item) => (
                 <button
                   key={item.key}
                   type="button"
-                  className="panel-button panel-button--ghost"
-                  style={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                  className="panel-button panel-button--ghost left-rail-project-time-mapping-history-button"
                   onClick={() => handleSelectTimeMappingHistoryItem(item.offsetSec, item.scale)}
                   aria-label={item.label}
                   title={item.label}

@@ -174,7 +174,7 @@ describe('LeftRailProjectHub project import dialog', () => {
     const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
     fireEvent.mouseEnter(exportMenuButton);
 
-    const hintText = await screen.findByText('当前项目使用逻辑时间轴；导出时间戳不等于声学秒。');
+    const hintText = await screen.findByText('当前项目使用纯文本模式；导出时间戳不等于声学秒。');
     const hintButton = hintText.closest('button') as HTMLButtonElement;
     expect(hintButton.disabled).toBe(true);
     expect(await screen.findByText('时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）')).toBeTruthy();

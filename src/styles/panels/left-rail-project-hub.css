@@ -111,3 +111,23 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+.left-rail-project-time-mapping-form {
+  display: grid;
+  gap: 12px;
+}
+
+.left-rail-project-time-mapping-field {
+  display: grid;
+  gap: 6px;
+}
+
+.left-rail-project-time-mapping-history {
+  display: grid;
+  gap: 8px;
+}
+
+.left-rail-project-time-mapping-history-button {
+  justify-content: flex-start;
+  text-align: left;
+}

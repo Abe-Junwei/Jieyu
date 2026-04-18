@@ -1346,16 +1346,60 @@ export class LinguisticService {
   }): Promise<{ mediaId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
-    const mediaId = newId('media');
+    const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
+    const placeholderRows = mediaRows.filter((row) => {
+      const details = (row.details as Record<string, unknown> | undefined) ?? {};
+      return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
+    });
+    const nonPlaceholderRows = mediaRows.filter((row) => !placeholderRows.some((candidate) => candidate.id === row.id));
 
-    await db.collections.media_items.insert({
+    let mediaId = newId('media');
+    let createdAt = now;
+    let mergedDetails: Record<string, unknown> = {};
+    let accessRights: MediaItemDocType['accessRights'] | undefined;
+
+    if (placeholderRows.length > 0 && nonPlaceholderRows.length === 0) {
+      const placeholderCounts = await Promise.all(placeholderRows.map(async (row) => ({
+        row,
+        count: await db.dexie.layer_units.where('mediaId').equals(row.id).count(),
+      })));
+      placeholderCounts.sort((a, b) => b.count - a.count);
+      const primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
+      mediaId = primaryPlaceholder.id;
+      createdAt = primaryPlaceholder.createdAt;
+      accessRights = primaryPlaceholder.accessRights;
+      const previousDetails = (primaryPlaceholder.details as Record<string, unknown> | undefined) ?? {};
+      const { placeholder: _placeholder, timelineMode: _timelineMode, audioBlob: _oldAudioBlob, ...remainingDetails } = previousDetails;
+      mergedDetails = remainingDetails;
+
+      const stalePlaceholderIds = placeholderRows
+        .filter((row) => row.id !== mediaId)
+        .map((row) => row.id);
+      if (stalePlaceholderIds.length > 0) {
+        const staleUnits = await db.dexie.layer_units.where('mediaId').anyOf(stalePlaceholderIds).toArray();
+        if (staleUnits.length > 0) {
+          await db.dexie.layer_units.bulkPut(staleUnits.map((unit) => ({
+            ...unit,
+            mediaId,
+            updatedAt: now,
+          })));
+        }
+        await db.dexie.media_items.bulkDelete(stalePlaceholderIds);
+      }
+    }
+
+    await db.dexie.media_items.put({
       id: mediaId,
       textId: input.textId,
       filename: input.filename,
       duration: input.duration,
-      details: { audioBlob: input.audioBlob },
+      details: {
+        ...mergedDetails,
+        audioBlob: input.audioBlob,
+      },
       isOfflineCached: true,
-      createdAt: now,
+      ...(accessRights ? { accessRights } : {}),
+      createdAt,
     });
 
     return { mediaId };
@@ -1512,7 +1556,27 @@ export class LinguisticService {
         if (!media) return;
 
         const text = await db.dexie.texts.get(media.textId);
+        const siblingRows = await db.dexie.media_items.where('textId').equals(media.textId).toArray();
+        const siblingPlaceholderIds = siblingRows
+          .filter((row) => row.id !== mediaId)
+          .filter((row) => {
+            const details = (row.details as Record<string, unknown> | undefined) ?? {};
+            return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
+          })
+          .map((row) => row.id);
         const relatedUnits = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
+        if (siblingPlaceholderIds.length > 0) {
+          const siblingUnits = await db.dexie.layer_units.where('mediaId').anyOf(siblingPlaceholderIds).toArray();
+          if (siblingUnits.length > 0) {
+            await db.dexie.layer_units.bulkPut(siblingUnits.map((unit) => ({
+              ...unit,
+              mediaId,
+              updatedAt: now,
+            })));
+            relatedUnits.push(...siblingUnits.map((unit) => ({ ...unit, mediaId })));
+          }
+          await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
+        }
         const maxUnitEnd = relatedUnits.reduce((maxValue, unit) => {
           const endTime = typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
           return Math.max(maxValue, endTime);

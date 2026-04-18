@@ -37,17 +37,17 @@
 }
 
 .timeline-lane-label-bundle-root {
-  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) 76%, transparent);
+  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-5), transparent);
   --timeline-bundle-accent-opacity: 0.94;
 }
 
 .timeline-lane-label-bundle-child-middle {
-  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) 58%, transparent);
+  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
   --timeline-bundle-accent-opacity: 0.72;
 }
 
 .timeline-lane-label-bundle-child-end {
-  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) 52%, transparent);
+  --timeline-bundle-accent-color: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
   --timeline-bundle-accent-opacity: 0.66;
 }
 
@@ -93,7 +93,7 @@
 }
 
 .timeline-lane-header:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 42%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
   outline-offset: -2px;
 }
 

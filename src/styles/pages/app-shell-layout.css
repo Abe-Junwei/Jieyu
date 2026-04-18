@@ -564,7 +564,7 @@
 
 /* 选中项呈现“已打开标签”面片 | Active item appears like an opened tab */
 .app-left-rail-primary .left-rail-btn-active {
-  color: var(--state-info-contrast, #fff);
+  color: var(--state-info-contrast, var(--text-on-solid));
   background: color-mix(in srgb, var(--state-info-solid) 92%, transparent);
   border-color: color-mix(in srgb, var(--state-info-solid) 70%, transparent);
   border-left: 0;
@@ -591,7 +591,7 @@
 .app-left-rail-primary .left-rail-btn-active > .jieyu-material {
   --jieyu-material-fill: 1;
   --jieyu-material-wght: 520;
-  color: var(--state-info-contrast, #fff);
+  color: var(--state-info-contrast, var(--text-on-solid));
   background: transparent;
 }
 

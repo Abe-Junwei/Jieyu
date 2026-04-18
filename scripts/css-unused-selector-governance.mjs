@@ -159,6 +159,12 @@ function isAutoAllowed(className) {
   return className.startsWith('is-')
     || className.startsWith('has-')
     || className.startsWith('maplibregl-')
+    || className.startsWith('jieyu-material--')
+    || className.startsWith('glass')
+    || className.startsWith('skeleton-')
+    || className === 'no-scrollbar'
+    || className === 'spinner'
+    || className.startsWith('spinner--')
     || className === 'active'
     || className === 'primary'
     || className === 'secondary';
@@ -190,9 +196,7 @@ export function collectUnusedSelectorStats({ rootDir, stylesDir, sourceRoots }) 
   for (const filePath of sourceFiles) {
     const content = fs.readFileSync(filePath, 'utf8');
     collectUsedClassesFromContent(content, used, cssClasses, dynamicPrefixes);
-    if (/className|classList|querySelector|closest|classNamePrefix/.test(content)) {
-      collectUsedClassesFromBroadSourceStrings(content, used, cssClasses, dynamicPrefixes);
-    }
+    collectUsedClassesFromBroadSourceStrings(content, used, cssClasses, dynamicPrefixes);
     if (isTestLikeFile(filePath)) {
       collectUsedClassesFromTestContent(content, used, cssClasses, dynamicPrefixes);
     }

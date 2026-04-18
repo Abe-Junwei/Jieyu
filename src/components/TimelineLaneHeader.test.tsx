@@ -95,10 +95,10 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(await findMenuButton('视图')).toBeTruthy();
   });
 
-  it('renders a logical timeline badge when timeline mode is document', () => {
+  it('renders a pure-text mode badge when timeline mode is document', () => {
     renderHeader(undefined, { activeTextTimelineMode: 'document' });
 
-    const badge = screen.getByText(/逻辑时间|Logical Time/);
+    const badge = screen.getByText(/纯文本模式|Text-only mode/);
     expect(badge.className).toContain('timeline-lane-timebase-badge');
   });
 

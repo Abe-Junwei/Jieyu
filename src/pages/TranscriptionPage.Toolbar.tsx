@@ -117,7 +117,27 @@ export function TranscriptionPageToolbar({
 }: TranscriptionPageToolbarProps) {
   const locale = useLocale();
   const showToolbarAiProgress = acousticRuntimeStatus?.state === 'loading'
-    || vadCacheStatus?.state === 'warming';
+    || acousticRuntimeStatus?.state === 'ready'
+    || acousticRuntimeStatus?.state === 'error'
+    || vadCacheStatus?.state === 'warming'
+    || vadCacheStatus?.state === 'ready';
+
+  const combinedLeftToolbarExtras = (
+    <>
+      {leftToolbarExtras}
+      {showToolbarAiProgress ? (
+        <>
+          {leftToolbarExtras ? (
+            <span className="transcription-toolbar-sep transcription-wave-toolbar-extras-sep" aria-hidden="true" />
+          ) : null}
+          <ToolbarAiProgress
+            acousticRuntimeStatus={acousticRuntimeStatus}
+            vadCacheStatus={vadCacheStatus}
+          />
+        </>
+      ) : null}
+    </>
+  );
 
   return (
     <WaveformToolbar
@@ -144,7 +164,7 @@ export function TranscriptionPageToolbar({
       {...(autoSegmentBusy != null ? { autoSegmentBusy } : {})}
       autoSegmentRunTitle={t(locale, 'transcription.toolbar.autoSegmentRun')}
       autoSegmentRunningTitle={t(locale, 'transcription.toolbar.autoSegmentRunning')}
-      leftToolbarExtras={leftToolbarExtras}
+      leftToolbarExtras={combinedLeftToolbarExtras}
     >
       {lowConfidenceCount != null && lowConfidenceCount > 0 && (
         <span
@@ -154,12 +174,6 @@ export function TranscriptionPageToolbar({
           ⚠ {lowConfidenceCount}
         </span>
       )}
-      {showToolbarAiProgress ? (
-        <ToolbarAiProgress
-          acousticRuntimeStatus={acousticRuntimeStatus}
-          vadCacheStatus={vadCacheStatus}
-        />
-      ) : null}
     </WaveformToolbar>
   );
 }

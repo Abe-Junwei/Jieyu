@@ -2064,6 +2064,135 @@ describe('LinguisticService smoke tests', () => {
     }));
   });
 
+  it('promotes the existing placeholder media when importing audio into a pure-text project', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_import', 'layer_trc_doc_import', now);
+    await db.texts.put({
+      id: 'text_doc_import',
+      title: { default: 'Doc Import' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 30,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.put({
+      id: 'media_doc_placeholder',
+      textId: 'text_doc_import',
+      filename: 'document-placeholder.track',
+      duration: 30,
+      details: {
+        placeholder: true,
+        timelineMode: 'document',
+      },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_keep',
+      textId: 'text_doc_import',
+      mediaId: 'media_doc_placeholder',
+      startTime: 1,
+      endTime: 3,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const blob = new Blob(['audio-data'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId: 'text_doc_import',
+      audioBlob: blob,
+      filename: 'imported.wav',
+      duration: 18,
+    });
+
+    expect(result.mediaId).toBe('media_doc_placeholder');
+    await expect(db.media_items.where('textId').equals('text_doc_import').toArray()).resolves.toHaveLength(1);
+    await expect(db.media_items.get('media_doc_placeholder')).resolves.toEqual(expect.objectContaining({
+      filename: 'imported.wav',
+      duration: 18,
+      details: expect.objectContaining({
+        audioBlob: blob,
+      }),
+    }));
+    await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_placeholder',
+    }));
+  });
+
+  it('keeps both pre-import and post-import segments on one placeholder timeline after deleting audio', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_merge', 'layer_trc_doc_merge', now);
+    await db.texts.put({
+      id: 'text_doc_merge',
+      title: { default: 'Doc Merge' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 40,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.bulkPut([
+      {
+        id: 'media_doc_old',
+        textId: 'text_doc_merge',
+        filename: 'document-placeholder.track',
+        duration: 40,
+        details: {
+          placeholder: true,
+          timelineMode: 'document',
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+      {
+        id: 'media_doc_new',
+        textId: 'text_doc_merge',
+        filename: 'imported.wav',
+        duration: 20,
+        details: {
+          audioBlob: new Blob(['audio'], { type: 'audio/wav' }),
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+    ]);
+
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_old',
+      textId: 'text_doc_merge',
+      mediaId: 'media_doc_old',
+      startTime: 2,
+      endTime: 4,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_new',
+      textId: 'text_doc_merge',
+      mediaId: 'media_doc_new',
+      startTime: 10,
+      endTime: 12,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.deleteAudio('media_doc_new');
+
+    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
+    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
+    await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
+  });
+
   // ── Regression guard: segmentation text queries ──────
 
   it('regression: saveUnitText round-trips via layer-field index', async () => {
