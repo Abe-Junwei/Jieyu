@@ -4,7 +4,7 @@ Behavioral guidelines to reduce common LLM coding mistakes. Sourced from [forres
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
-The same sections are mirrored in **`CLAUDE.md`** for Claude Code and other tools that read that filename.
+The same sections are mirrored in `**CLAUDE.md`** for Claude Code and other tools that read that filename.
 
 ## Jieyu-specific
 
