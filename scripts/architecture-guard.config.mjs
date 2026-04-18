@@ -409,6 +409,18 @@ export const architectureGuardRules = [
       /\bresolveFallbackOwnerUnit\b/,
     ],
   }),
+  // ── 写路径不得把 read-only 映射 helper 结果当持久化 id ──
+  // Complementary guard: keep resolveMappedUnitIds / resolveHostUnitIdForTimelineView out of persistence hubs.
+  patternRule(/^(src\/hooks\/useTranscription(UnitActions|CloudSyncActions)\.ts|src\/pages\/useTranscription(?!SelectionContext)[A-Za-z0-9]+Controller\.(ts|tsx))$/, {
+    excludeFiles: [
+      'src/pages/useSpeakerActionScopeController.ts',
+    ],
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    forbiddenRegexes: [
+      /\bresolveMappedUnitIds(?:FromSelection)?\(/,
+      /\bresolveHostUnitIdForTimelineView\(/,
+    ],
+  }),
   patternRule(/^src\/hooks\/use.*\.(ts|tsx)$/, {
     excludeFiles: [
       'src/hooks/useVoiceAgent.ts',
@@ -501,7 +513,7 @@ export const architectureGuardRules = [
     ],
   },
   {
-    file: 'src/styles/transcription-waveform-shell.css',
+    file: 'src/styles/pages/transcription-waveform-shell.css',
     requiredLiterals: ['.transcription-waveform {'],
   },
   {

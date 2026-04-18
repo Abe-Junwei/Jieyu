@@ -211,7 +211,7 @@ export function useTranscriptionAiController(
 
   const aiToolCallHandler = useAiToolCallHandler({
     units: segmentTargetScopeUnits,
-    selectedUnit: explicitOwnerUnitForAi ?? undefined,
+    selectedUnit: resolvedOwnerUnitForAi ?? undefined,
     selectedUnitMedia: input.selectedTimelineMedia,
     selectedLayerId: input.selectedLayerId,
     transcriptionLayers: input.transcriptionLayers,

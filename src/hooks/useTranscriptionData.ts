@@ -423,8 +423,8 @@ export function useTranscriptionData() {
 
   const cloudSyncActions = useTranscriptionCloudSyncActions({
     phase: state.phase, units, layers, unitsRef, layersRef, layerLinksRef,
-    rawActions: { saveUnitText: saveUnitTextRaw, saveUnitSelfCertainty: saveUnitSelfCertaintyRaw, saveUnitTiming: saveUnitTimingRaw, deleteUnit: deleteUnitRaw, deleteSelectedUnits: deleteSelectedUnitsRaw, deleteLayer: deleteLayerRaw, toggleLayerLink: toggleLayerLinkRaw },
-    wrappedActions: { saveUnitText, saveUnitSelfCertainty, saveUnitTiming, saveUnitLayerText, createUnitFromSelection, deleteUnit, deleteSelectedUnits, createLayer, deleteLayer, toggleLayerLink },
+    rawActions: { saveUnitText: saveUnitTextRaw, saveUnitSelfCertainty: saveUnitSelfCertaintyRaw, saveUnitLayerFields: saveUnitLayerFieldsRaw, saveUnitTiming: saveUnitTimingRaw, deleteUnit: deleteUnitRaw, deleteSelectedUnits: deleteSelectedUnitsRaw, deleteLayer: deleteLayerRaw, toggleLayerLink: toggleLayerLinkRaw },
+    wrappedActions: { saveUnitText, saveUnitSelfCertainty, saveUnitLayerFields, saveUnitTiming, saveUnitLayerText, createUnitFromSelection, deleteUnit, deleteSelectedUnits, createLayer, deleteLayer, toggleLayerLink },
     runWithDbMutex,
     loadSnapshot,
     presenceFocus: collaborationPresenceFocus,
@@ -526,7 +526,7 @@ export function useTranscriptionData() {
     previewTextTimeMapping,
     loadLinguisticAnnotations, addMediaItem, saveVoiceTranslation, deleteVoiceTranslation,
     saveUnitText: cloudSyncActions.saveUnitText, saveUnitSelfCertainty: cloudSyncActions.saveUnitSelfCertainty,
-    saveUnitLayerFields,
+    saveUnitLayerFields: cloudSyncActions.saveUnitLayerFields,
     saveUnitTiming: cloudSyncActions.saveUnitTiming, saveUnitLayerText: cloudSyncActions.saveUnitLayerText,
     createAdjacentUnit, createUnitFromSelection: cloudSyncActions.createUnitFromSelection,
     deleteUnit: cloudSyncActions.deleteUnit, mergeWithPrevious, mergeWithNext, splitUnit,

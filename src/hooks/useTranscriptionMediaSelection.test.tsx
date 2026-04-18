@@ -131,4 +131,49 @@ describe('useTranscriptionMediaSelection', () => {
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
   });
+
+  it('clears the stale blob URL when the same media id becomes a document placeholder after deletion', async () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValueOnce('blob:media-1-url');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const setSelectedMediaId = vi.fn();
+    const audioMedia = makeBlobMedia('media-1', 'demo.wav');
+    const placeholderMedia = {
+      ...audioMedia,
+      filename: 'document-placeholder.track',
+      details: {
+        placeholder: true,
+        timelineMode: 'document',
+      },
+    } as MediaItemDocType;
+
+    const { result, rerender } = renderHook<ReturnType<typeof useTranscriptionMediaSelection>, HookProps>((props: HookProps) => useTranscriptionMediaSelection({
+      ...props,
+      setSelectedMediaId,
+    }), {
+      initialProps: {
+        mediaItems: [audioMedia],
+        selectedMediaId: 'media-1',
+        selectedUnitMediaId: undefined,
+        selectedUnitMedia: audioMedia,
+      },
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBe('blob:media-1-url');
+    });
+
+    rerender({
+      mediaItems: [placeholderMedia],
+      selectedMediaId: 'media-1',
+      selectedUnitMediaId: undefined,
+      selectedUnitMedia: placeholderMedia,
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMediaUrl).toBeUndefined();
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:media-1-url');
+  });
 });

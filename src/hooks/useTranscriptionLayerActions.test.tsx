@@ -178,6 +178,68 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockCountSegmentContentsByLayerId).toHaveBeenCalledWith('layer_count_1');
   });
 
+  it('replaces an existing media item with the same id instead of appending a duplicate', () => {
+    const setMediaItems = vi.fn();
+    const setSelectedMediaId = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: '',
+      unitsRef: { current: [] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId,
+      setMediaItems,
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    const existing = {
+      id: 'media_1',
+      textId: 'text_1',
+      filename: 'document-placeholder.track',
+      duration: 10,
+      details: { placeholder: true, timelineMode: 'document' },
+      isOfflineCached: true,
+      createdAt: '2026-03-25T00:00:00.000Z',
+    };
+    const other = {
+      id: 'media_2',
+      textId: 'text_1',
+      filename: 'other.wav',
+      duration: 5,
+      details: {},
+      isOfflineCached: true,
+      createdAt: '2026-03-25T00:00:00.000Z',
+    };
+    const replacement = {
+      ...existing,
+      filename: 'updated.wav',
+      duration: 18,
+      details: { audioBlob: new Blob(['updated'], { type: 'audio/wav' }) },
+    };
+
+    act(() => {
+      result.current.addMediaItem(replacement as never);
+    });
+
+    expect(setSelectedMediaId).toHaveBeenCalledWith('media_1');
+    expect(setMediaItems).toHaveBeenCalledTimes(1);
+    const updater = setMediaItems.mock.calls[0]?.[0] as ((items: Array<typeof existing | typeof other>) => Array<typeof existing | typeof other>);
+    const next = updater([existing, other]);
+    expect(next).toHaveLength(2);
+    expect(next[0]).toEqual(replacement);
+    expect(next[1]).toEqual(other);
+  });
+
   it('sets parentLayerId when creating a translation layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {

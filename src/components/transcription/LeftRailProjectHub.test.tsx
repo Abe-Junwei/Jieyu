@@ -224,7 +224,7 @@ describe('LeftRailProjectHub project import dialog', () => {
           scale: 1.1,
           revision: 3,
         },
-      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+      } as NonNullable<Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping']>,
     });
 
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
@@ -265,7 +265,7 @@ describe('LeftRailProjectHub project import dialog', () => {
             revision: 1,
           },
         ],
-      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+      } as NonNullable<Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping']>,
     });
 
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
@@ -300,7 +300,7 @@ describe('LeftRailProjectHub project import dialog', () => {
             revision: 2,
           },
         ],
-      } as Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping'],
+      } as NonNullable<Parameters<typeof LeftRailProjectHub>[0]['activeTextTimeMapping']>,
     });
 
     fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));

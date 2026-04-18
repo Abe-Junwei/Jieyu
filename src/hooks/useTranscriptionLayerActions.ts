@@ -561,7 +561,15 @@ export function useTranscriptionLayerActions({
   }, [layerLinks, layers, locale, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
 
   const addMediaItem = useCallback((item: MediaItemDocType) => {
-    setMediaItems((prev) => [...prev, item]);
+    setMediaItems((prev) => {
+      const existingIndex = prev.findIndex((candidate) => candidate.id === item.id);
+      if (existingIndex < 0) {
+        return [...prev, item];
+      }
+      const next = [...prev];
+      next[existingIndex] = item;
+      return next;
+    });
     setSelectedMediaId(item.id);
     clearTimelineSelection();
   }, [clearTimelineSelection, setMediaItems, setSelectedMediaId]);

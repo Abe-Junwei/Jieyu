@@ -2469,11 +2469,6 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    const firstModelOutput = [
-      '```json',
-      '{"tool_call":{"name":"get_current_selection","arguments":{}}}',
-      '```',
-    ].join('\n');
     const secondModelOutput = '基于本地上下文，这是下一步回复。';
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.content).toContain(secondModelOutput);

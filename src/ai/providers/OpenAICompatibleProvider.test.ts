@@ -211,7 +211,7 @@ describe('OpenAICompatibleProvider', () => {
       if (chunk.usage) usageChunks.push(chunk.usage);
     }
 
-    expect(usageChunks.at(-1)).toEqual({ inputTokens: 12, outputTokens: 5, totalTokens: 17 });
+    expect(usageChunks[usageChunks.length - 1]).toEqual({ inputTokens: 12, outputTokens: 5, totalTokens: 17 });
     const [, init] = fetchMock.mock.calls[0] ?? [];
     const body = JSON.parse(String(init?.body ?? '{}')) as { stream_options?: { include_usage?: boolean } };
     expect(body.stream_options?.include_usage).toBe(true);

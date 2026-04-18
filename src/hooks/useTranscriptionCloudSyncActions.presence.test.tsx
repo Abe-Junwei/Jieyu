@@ -116,6 +116,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     rawActions: {
       saveUnitText: rawAction,
       saveUnitSelfCertainty: rawAction,
+      saveUnitLayerFields: rawAction,
       saveUnitTiming: rawAction,
       deleteUnit: rawAction,
       deleteSelectedUnits: rawAction,
@@ -125,6 +126,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     wrappedActions: {
       saveUnitText: rawAction,
       saveUnitSelfCertainty: rawAction,
+      saveUnitLayerFields: rawAction,
       saveUnitTiming: rawAction,
       saveUnitLayerText: rawAction,
       createUnitFromSelection: rawAction,

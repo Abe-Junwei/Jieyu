@@ -5,7 +5,7 @@
  * 尽管早期命名里带 "Speaker" / "SpeakerTarget"，它们实际是「通用的 kind-无关 segment→host」
  * 解析器，只在以下场景使用：
  *   - 读模型：展示 unit 维度字段（speaker、unit-intrinsic 数据）；
- *   - 结构性操作：split / merge / delete 真正需要 parent unit 的情况（见 findParentUnitXxx）。
+ *   - 只读导航与作用域解析。
  *
  * ❌ 严禁用途：写入段层 per-layer 字段（selfCertainty、status、provenance、per-layer notes…）
  *    之前把 segment ID 映射成 host unit ID 再写回——那会让同一 host unit 被多层共享的
@@ -56,53 +56,6 @@ export function resolveHostUnitIdForTimelineView(
  */
 export const resolveSpeakerTargetUnitIdFromUnitId = resolveHostUnitIdForTimelineView;
 
-export function unitUnitsOnMedia(units: ReadonlyArray<TimelineUnitView>): TimelineUnitView[] {
-  return units.filter((u) => u.kind === 'unit');
-}
-
-export function findUnitUnitById(
-  units: ReadonlyArray<TimelineUnitView>,
-  id: string,
-): TimelineUnitView | undefined {
-  const row = units.find((x) => x.id === id);
-  return row?.kind === 'unit' ? row : undefined;
-}
-
-/** Time-subdivision: parent by `parentUnitId` or containment of segment bounds. */
-export function findParentUnitUnitForSegment(
-  units: ReadonlyArray<TimelineUnitView>,
-  segment: { parentUnitId?: string; startTime: number; endTime: number },
-): TimelineUnitView | undefined {
-  if (segment.parentUnitId) {
-    return findUnitUnitById(units, segment.parentUnitId);
-  }
-  return unitUnitsOnMedia(units).find(
-    (u) => u.startTime <= segment.startTime + 0.01 && u.endTime >= segment.endTime - 0.01,
-  );
-}
-
-/** Subdivision: unit that fully contains [innerStart, innerEnd]. */
-export function findUnitContainingTimeRange(
-  units: ReadonlyArray<TimelineUnitView>,
-  innerStart: number,
-  innerEnd: number,
-): TimelineUnitView | undefined {
-  return unitUnitsOnMedia(units).find(
-    (u) => u.startTime <= innerStart + 0.01 && u.endTime >= innerEnd - 0.01,
-  );
-}
-
-/** Independent segment: any unit overlapping the range (open interval tolerance). */
-export function findOverlappingUnitUnit(
-  units: ReadonlyArray<TimelineUnitView>,
-  rangeStart: number,
-  rangeEnd: number,
-): TimelineUnitView | undefined {
-  return unitUnitsOnMedia(units).find(
-    (u) => u.startTime <= rangeEnd - 0.01 && u.endTime >= rangeStart + 0.01,
-  );
-}
-
 export type ParentUnitBounds = {
   id: string;
   startTime: number;
@@ -110,19 +63,3 @@ export type ParentUnitBounds = {
   speakerId?: string | undefined;
 };
 
-/** Batch merge: shared parent id wins; else unit containing [first.start, last.end]. */
-export function findParentUnitForMergedSegmentRange(
-  units: ReadonlyArray<TimelineUnitView>,
-  firstSegment: { parentUnitId?: string; startTime: number },
-  lastSegment: { parentUnitId?: string; endTime: number },
-): TimelineUnitView | undefined {
-  if (
-    firstSegment.parentUnitId
-    && firstSegment.parentUnitId === lastSegment.parentUnitId
-  ) {
-    return findUnitUnitById(units, firstSegment.parentUnitId);
-  }
-  return unitUnitsOnMedia(units).find(
-    (u) => u.startTime <= firstSegment.startTime + 0.01 && u.endTime >= lastSegment.endTime - 0.01,
-  );
-}

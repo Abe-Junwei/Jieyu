@@ -106,7 +106,9 @@ function scopedLayerIdForSegmentRead(
   if (req) return req;
   const rows = segmentRowLayerIndex.get(id);
   if (!rows || rows.length !== 1) return req;
-  const storage = rows[0].layerId.trim();
+  const firstRow = rows[0];
+  if (!firstRow) return req;
+  const storage = firstRow.layerId.trim();
   return storage || req;
 }
 
@@ -123,7 +125,9 @@ function scopedLayerIdForSegmentWrite(
   const rows = segmentRowLayerIndex.get(id);
   if (!rows || rows.length === 0) return menu;
   if (rows.length === 1) {
-    const storage = rows[0].layerId.trim();
+    const firstRow = rows[0];
+    if (!firstRow) return menu;
+    const storage = firstRow.layerId.trim();
     return storage || menu;
   }
   const hit = rows.find((r) => r.layerId.trim() === menu);

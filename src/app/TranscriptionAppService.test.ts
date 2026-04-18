@@ -40,6 +40,7 @@ function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): Trans
     })),
     loadAudioBuffer: vi.fn(async () => ({ duration: 3 } as AudioBuffer)),
     detectVadSegments: vi.fn(() => [{ start: 0.1, end: 0.9 }]),
+    ensureVadCacheForMedia: vi.fn(async () => null),
     vadAutoWarmMaxBytes: 100,
     ...overrides,
   };

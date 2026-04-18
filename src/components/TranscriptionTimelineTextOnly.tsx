@@ -381,6 +381,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     const blockedTarget = target?.closest('button, [role="button"], .timeline-text-item-status-dot, .timeline-lane-resize-handle');
     if (blockedTarget) return;
     const startedOnInput = Boolean(target?.closest('input, textarea, [contenteditable="true"], .timeline-text-input'));
+    if (startedOnInput) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const trackWidth = Math.max(rect.width, 1);
     const anchorX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
@@ -390,7 +391,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
       anchorX,
       currentX: anchorX,
       trackWidth,
-      startedOnInput,
+      startedOnInput: false,
     });
     onFocusLayer(layerId);
     if (typeof event.currentTarget.setPointerCapture === 'function') {

@@ -59,6 +59,7 @@ import {
 } from '../collaboration/collaborationRulesRuntime';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
+import type { PerLayerRowFieldPatch } from './useTranscriptionUnitActions';
 import {
 	deriveCollaborationSyncBadge,
 	type CollaborationCloudDirectoryMember,
@@ -89,6 +90,7 @@ export interface CloudSyncConflictReviewTicket {
 export interface CloudSyncRawActions {
 	saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
 	saveUnitSelfCertainty: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
+	saveUnitLayerFields: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;
 	saveUnitTiming: (unitId: string, startTime: number, endTime: number) => Promise<void>;
 	deleteUnit: (unitId: string) => Promise<void>;
 	deleteSelectedUnits: (ids: Set<string>) => Promise<void>;
@@ -99,6 +101,7 @@ export interface CloudSyncRawActions {
 export interface CloudSyncWrappedActions {
 	saveUnitText: (unitId: string, value: string, layerId?: string) => Promise<void>;
 	saveUnitSelfCertainty: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
+	saveUnitLayerFields: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;
 	saveUnitTiming: (unitId: string, startTime: number, endTime: number) => Promise<void>;
 	saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
 	createUnitFromSelection: (start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => Promise<void>;
@@ -381,8 +384,14 @@ export function useTranscriptionCloudSyncActions({
 			}
 
 			const certaintyValue = payload?.value;
-			if (action === null && unitIds.length > 0 && certaintyValue !== undefined) {
+			if ((action === null || action === 'self-certainty') && unitIds.length > 0 && certaintyValue !== undefined) {
 				await runWithDbMutex(() => rawActionsRef.current.saveUnitSelfCertainty(unitIds, certaintyValue as UnitSelfCertainty | undefined));
+				mutated = true;
+			}
+
+			const patchRecord = asRecord(payload?.patch);
+			if (action === 'layer-fields' && unitIds.length > 0 && patchRecord) {
+				await runWithDbMutex(() => rawActionsRef.current.saveUnitLayerFields(unitIds, patchRecord as PerLayerRowFieldPatch));
 				mutated = true;
 			}
 		}
@@ -984,8 +993,29 @@ export function useTranscriptionCloudSyncActions({
 			const unitIdList = Array.from(unitIds);
 			const entityId = unitIdList.length === 1 ? (unitIdList[0] ?? 'batch:self-certainty') : 'batch:self-certainty';
 			const payload: Record<string, unknown> = {
+				action: 'self-certainty',
 				unitIds: unitIdList,
 				value,
+			};
+			enqueueMutation({
+				entityType: 'layer_unit',
+				entityId,
+				opType: 'batch_patch',
+				payload,
+			});
+			rememberLocalShadowMutation('layer_unit', entityId, 'batch_patch', payload);
+		},
+		saveUnitLayerFields: async (
+			unitIds: Iterable<string>,
+			patch: PerLayerRowFieldPatch,
+		) => {
+			await wrappedActionsRef.current.saveUnitLayerFields(unitIds, patch);
+			const unitIdList = Array.from(unitIds);
+			const entityId = unitIdList.length === 1 ? (unitIdList[0] ?? 'batch:layer-fields') : 'batch:layer-fields';
+			const payload: Record<string, unknown> = {
+				action: 'layer-fields',
+				unitIds: unitIdList,
+				patch,
 			};
 			enqueueMutation({
 				entityType: 'layer_unit',
@@ -1151,6 +1181,7 @@ export function useTranscriptionCloudSyncActions({
 		listCloudProjectMembers,
 		saveUnitText: cloudSyncedWriteActions.saveUnitText,
 		saveUnitSelfCertainty: cloudSyncedWriteActions.saveUnitSelfCertainty,
+		saveUnitLayerFields: cloudSyncedWriteActions.saveUnitLayerFields,
 		saveUnitTiming: cloudSyncedWriteActions.saveUnitTiming,
 		saveUnitLayerText: cloudSyncedWriteActions.saveUnitLayerText,
 		createUnitFromSelection: cloudSyncedWriteActions.createUnitFromSelection,

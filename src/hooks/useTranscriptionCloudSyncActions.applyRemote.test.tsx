@@ -9,7 +9,9 @@ const {
   mockHasSupabaseBrowserClientConfig,
   mockGetSupabaseUserId,
   mockWrappedSaveUnitText,
+  mockWrappedSaveUnitLayerFields,
   mockRawSaveUnitText,
+  mockRawSaveUnitLayerFields,
   mockEnqueueMutation,
 } = vi.hoisted(() => {
   const bridgeState: {
@@ -22,7 +24,9 @@ const {
   const mockGetSupabaseUserId = vi.fn<() => Promise<string | null>>().mockResolvedValue('user-1');
 
   const mockWrappedSaveUnitText = vi.fn(async () => undefined);
+  const mockWrappedSaveUnitLayerFields = vi.fn(async () => undefined);
   const mockRawSaveUnitText = vi.fn(async () => undefined);
+  const mockRawSaveUnitLayerFields = vi.fn(async () => undefined);
   const mockEnqueueMutation = vi.fn();
 
   return {
@@ -30,7 +34,9 @@ const {
     mockHasSupabaseBrowserClientConfig,
     mockGetSupabaseUserId,
     mockWrappedSaveUnitText,
+    mockWrappedSaveUnitLayerFields,
     mockRawSaveUnitText,
+    mockRawSaveUnitLayerFields,
     mockEnqueueMutation,
   };
 });
@@ -82,6 +88,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     rawActions: {
       saveUnitText: mockRawSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: mockRawSaveUnitLayerFields,
       saveUnitTiming: noop,
       deleteUnit: noop,
       deleteSelectedUnits: noop,
@@ -91,6 +98,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     wrappedActions: {
       saveUnitText: mockWrappedSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: mockWrappedSaveUnitLayerFields,
       saveUnitTiming: noop,
       saveUnitLayerText: noop,
       createUnitFromSelection: noop,
@@ -143,8 +151,30 @@ describe('useTranscriptionCloudSyncActions applyRemote + conflict audit chain', 
     mockHasSupabaseBrowserClientConfig.mockReturnValue(false);
     mockGetSupabaseUserId.mockClear();
     mockWrappedSaveUnitText.mockClear();
+    mockWrappedSaveUnitLayerFields.mockClear();
     mockRawSaveUnitText.mockClear();
+    mockRawSaveUnitLayerFields.mockClear();
     mockEnqueueMutation.mockClear();
+  });
+
+  it('enqueues explicit layer-fields batch patches for per-layer writes', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitLayerFields(['seg-1'], { status: 'verified' });
+    });
+
+    expect(mockWrappedSaveUnitLayerFields).toHaveBeenCalledWith(['seg-1'], { status: 'verified' });
+    expect(mockEnqueueMutation).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: 'layer_unit',
+      entityId: 'seg-1',
+      opType: 'batch_patch',
+      payload: expect.objectContaining({
+        action: 'layer-fields',
+        unitIds: ['seg-1'],
+        patch: { status: 'verified' },
+      }),
+    }));
   });
 
   it('records resolutionTraceId on conflict_resolved logs after auto LWW merge', async () => {

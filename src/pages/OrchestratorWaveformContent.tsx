@@ -235,8 +235,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     acousticOverlayIntensityPath,
     acousticOverlayVisibleSummary,
     acousticOverlayLoading,
-    acousticRuntimeStatus,
-    vadCacheStatus,
     waveformHoverReadout,
     spectrogramHoverReadout,
     selectedHotspotTimeSec,

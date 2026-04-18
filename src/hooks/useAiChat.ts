@@ -130,7 +130,13 @@ export function useAiChat(options?: UseAiChatOptions) {
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
-    setMetrics((prev) => ({ ...prev, [key]: prev[key] + delta }));
+    setMetrics((prev) => {
+      const currentValue = prev[key];
+      if (typeof currentValue !== 'number') {
+        return prev;
+      }
+      return { ...prev, [key]: currentValue + delta };
+    });
   }, []);
   const abortRef = useRef<AbortController | null>(null);
   const localToolCallCountRef = useRef(0);

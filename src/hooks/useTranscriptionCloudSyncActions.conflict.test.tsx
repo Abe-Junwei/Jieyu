@@ -82,6 +82,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     rawActions: {
       saveUnitText: mockRawSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: noop,
       saveUnitTiming: noop,
       deleteUnit: noop,
       deleteSelectedUnits: noop,
@@ -91,6 +92,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
     wrappedActions: {
       saveUnitText: mockWrappedSaveUnitText,
       saveUnitSelfCertainty: noop,
+      saveUnitLayerFields: noop,
       saveUnitTiming: noop,
       saveUnitLayerText: noop,
       createUnitFromSelection: noop,

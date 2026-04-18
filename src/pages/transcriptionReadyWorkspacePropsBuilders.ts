@@ -558,7 +558,7 @@ export function buildReadyWorkspaceStageProps(
       },
       onPreviewProjectArchiveImport: input.onPreviewProjectArchiveImport,
       onImportProjectArchive: input.onImportProjectArchive,
-      onApplyTextTimeMapping: input.onApplyTextTimeMapping,
+      ...(input.onApplyTextTimeMapping ? { onApplyTextTimeMapping: input.onApplyTextTimeMapping } : {}),
       onExportEaf: input.onExportEaf,
       onExportTextGrid: input.onExportTextGrid,
       onExportTrs: input.onExportTrs,
