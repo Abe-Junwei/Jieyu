@@ -111,7 +111,45 @@ describe('SidePaneSidebarSegmentList', () => {
     const emptyRows = await screen.findAllByText('无内容');
     expect(emptyRows).toHaveLength(2);
     fireEvent.click(emptyRows[0] as HTMLElement);
-    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'root', unitId: 'seg-1', kind: 'segment' });
+    expect(onSelectTimelineUnit).toHaveBeenCalledWith({ layerId: 'dependent', unitId: 'seg-1', kind: 'segment' });
+  });
+
+  it('does not surface source-layer certainty or status chips inside a dependent layer list', async () => {
+    const rootLayer = makeLayer({ id: 'root', name: { 'en-US': 'English' }, constraint: 'independent_boundary' });
+    const dependentLayer = makeLayer({ id: 'dependent', name: { 'en-US': 'English Translation' }, parentLayerId: 'root', constraint: 'symbolic_association' });
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'seg-1',
+        unitKind: 'segment',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'root',
+        startTime: 0,
+        endTime: 1.5,
+        text: '源层文本',
+        effectiveSelfCertainty: 'certain',
+        annotationStatus: 'verified',
+        sourceType: 'human',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="dependent"
+        messages={messages}
+        layers={[rootLayer, dependentLayer]}
+        defaultTranscriptionLayerId="root"
+        segmentsByLayer={new Map([['root', [makeSegment('seg-1', 'root', 0, 1.5)]]])}
+        unitsOnCurrentMedia={[]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect(await scoped.findByText('源层文本')).toBeTruthy();
+    expect(scoped.queryByText('确定')).toBeNull();
+    expect(scoped.queryByText('已校验')).toBeNull();
+    expect(scoped.queryByText('人工')).toBeNull();
   });
 
   it('falls back to unit-kind rows for non-segment-backed layers', async () => {
