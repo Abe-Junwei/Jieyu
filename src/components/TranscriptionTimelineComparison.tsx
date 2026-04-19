@@ -14,7 +14,13 @@ import { NoteDocumentIcon } from './NoteDocumentIcon';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import { normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
-import { buildComparisonGroups, listSegmentsOverlappingTimeRange, pickTranslationSegmentForPersist, type ComparisonGroup } from '../utils/transcriptionComparisonGroups';
+import {
+  buildComparisonGroups,
+  listSegmentsOverlappingTimeRange,
+  pickTranslationSegmentForPersist,
+  type ComparisonGroup,
+  type ComparisonTargetItem,
+} from '../utils/transcriptionComparisonGroups';
 import { buildLaneHeaderInlineDotSeparatedLabel, formatTime, normalizeSingleLine } from '../utils/transcriptionFormatters';
 import {
   BASE_FONT_SIZE,
@@ -173,6 +179,16 @@ function renderComparisonOverlay(input: {
 
 /** 首条语段顶相对层头再下移的余量（发丝线、subpixel、hover 外光）| clearance below dual-column header */
 const COMPARISON_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX = 12;
+
+/** 译文层按独立语段分项时，纵向对照为每段单独编辑面 | One editor row per translation segment */
+function comparisonUsesPerSegmentTargetEditors(group: ComparisonGroup): boolean {
+  return (
+    group.targetItems.length > 0
+    && group.targetItems.every(
+      (t) => typeof t.translationSegmentId === 'string' && t.translationSegmentId.trim().length > 0,
+    )
+  );
+}
 
 function accumulatedOffsetTopUntil(el: HTMLElement | null, ancestor: HTMLElement | null): number | null {
   if (!el || !ancestor) return null;
@@ -339,6 +355,14 @@ function resolveComparisonGroupSourceUnits(input: {
   return out.sort((left, right) => left.startTime - right.startTime || left.endTime - right.endTime || left.id.localeCompare(right.id));
 }
 
+/** 行左侧窄轨可见字符：取展示名首字素，避免整段层头塞进每一行 | One grapheme for row rail */
+function comparisonRowRailMark(fullLabel: string): string {
+  const trimmed = normalizeSingleLine(fullLabel);
+  if (trimmed.length === 0) return '·';
+  const first = Array.from(trimmed)[0];
+  return first ?? '·';
+}
+
 function resolveComparisonLayerLabel(layer: LayerDocType | undefined, locale: Locale, fallback: string): string {
   if (!layer) return fallback;
   const localizedName = typeof layer.name === 'string'
@@ -460,7 +484,14 @@ export function TranscriptionTimelineComparison({
     if (updateComparisonFocus != null) {
       updateComparisonFocus(patch);
     } else {
-      setInternalComparisonFocus((prev) => ({ ...prev, ...patch }));
+      setInternalComparisonFocus((prev) => {
+        const entries = Object.entries(patch) as Array<[
+          keyof TranscriptionComparisonViewFocusState,
+          TranscriptionComparisonViewFocusState[keyof TranscriptionComparisonViewFocusState],
+        ]>;
+        if (entries.every(([key, value]) => prev[key] === value)) return prev;
+        return { ...prev, ...patch };
+      });
     }
   }, [updateComparisonFocus]);
   const activeComparisonGroupId = comparisonFocus.activeComparisonGroupId;
@@ -538,14 +569,14 @@ export function TranscriptionTimelineComparison({
     };
     const inner = host.querySelector('.timeline-comparison-split-host-inner') as HTMLElement | null;
     const headerEl = host.querySelector('.timeline-comparison-header') as HTMLElement | null;
-    if (inner && headerEl) {
+    if (inner && group) {
       const innerStyle = getComputedStyle(inner);
       const rowGap = parseFloat(innerStyle.rowGap || innerStyle.columnGap || innerStyle.gap || '8') || 8;
-      const fromHeader = headerEl.offsetHeight + rowGap;
+      const fromHeader = headerEl && headerEl.offsetHeight > 0 ? headerEl.offsetHeight + rowGap : 0;
       const fromFirstGroup = accumulatedOffsetTopUntil(group, inner);
       const layoutTop = Math.max(fromHeader, fromFirstGroup ?? 0);
       const lineTopPx = Math.max(0, Math.round(layoutTop + COMPARISON_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX));
-      /* split-host-inner 顶 → 分割条命中区顶；取 max(层头推算, 首组实际 offset) 避免层头占位大于 offsetHeight 时仍穿层头 */
+      /* split-host-inner 顶 → 分割条命中区顶；无吸顶层头时 fromHeader 为 0，仅靠首组 offset */
       inner.style.setProperty('--timeline-comparison-global-splitter-line-top', `${lineTopPx}px`);
     }
   }, [compactMode, isNarrowComparisonLayout]);
@@ -765,6 +796,21 @@ export function TranscriptionTimelineComparison({
         }
         return translationTextByLayer.get(targetLayer.id)?.get(unit.id)?.text ?? '';
       },
+      getTargetItems: (unit) => {
+        if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length) return undefined;
+        const overlapping = listSegmentsOverlappingTimeRange(
+          translationSegmentsForTarget,
+          unit.startTime,
+          unit.endTime,
+        );
+        if (overlapping.length === 0) return undefined;
+        return overlapping.map((s) => ({
+          id: `${unit.id}:target:seg:${s.id}`,
+          text: normalizeSingleLine(layerContent.get(s.id)?.text ?? ''),
+          anchorUnitIds: [unit.id],
+          translationSegmentId: s.id,
+        }));
+      },
       getSpeakerLabel: (unit) => speakerVisualByUnitId[unit.id]?.name ?? '',
     });
   }, [
@@ -825,6 +871,20 @@ export function TranscriptionTimelineComparison({
     showToast,
     targetLayer,
   ]);
+
+  const persistComparisonTargetTranslation = useCallback(async (
+    targetItem: ComparisonTargetItem,
+    group: ComparisonGroup,
+    anchorUnitIds: string[],
+    value: string,
+  ) => {
+    const segId = typeof targetItem.translationSegmentId === 'string' ? targetItem.translationSegmentId.trim() : '';
+    if (segId.length > 0 && targetLayer && saveSegmentContentForLayer) {
+      await saveSegmentContentForLayer(segId, targetLayer.id, value);
+      return;
+    }
+    await persistGroupTranslation(group, anchorUnitIds, value);
+  }, [persistGroupTranslation, saveSegmentContentForLayer, targetLayer]);
 
   const persistSourceText = useCallback(async (unitId: string, value: string, layerId?: string) => {
     await saveUnitText(unitId, value, layerId);
@@ -1014,15 +1074,7 @@ export function TranscriptionTimelineComparison({
   }, [compactMode, comparisonLeftGrow, isNarrowComparisonLayout]);
 
   useEffect(() => {
-    if (!activeUnitId) {
-      patchComparisonFocus({
-        activeComparisonGroupId: null,
-        activeComparisonCellId: null,
-        comparisonTargetSide: null,
-        contextMenuSourceUnitId: null,
-      });
-      return;
-    }
+    if (!activeUnitId) return;
 
     const matchedGroup = groups.find((group) => (
       group.sourceItems.some((item) => item.unitId === activeUnitId)
@@ -1039,11 +1091,14 @@ export function TranscriptionTimelineComparison({
     }
 
     const syncedSide = targetLayer?.id === focusedLayerRowId ? 'target' : 'source';
+    const targetCellIdForSync = syncedSide === 'target'
+      ? (comparisonUsesPerSegmentTargetEditors(matchedGroup) && matchedGroup.targetItems[0]
+        ? `target:${matchedGroup.id}:${matchedGroup.targetItems[0].id}`
+        : `target:${matchedGroup.id}:editor`)
+      : `source:${activeUnitId}`;
     patchComparisonFocus({
       activeComparisonGroupId: matchedGroup.id,
-      activeComparisonCellId: syncedSide === 'target'
-        ? `target:${matchedGroup.id}:editor`
-        : `source:${activeUnitId}`,
+      activeComparisonCellId: targetCellIdForSync,
       comparisonTargetSide: syncedSide,
       contextMenuSourceUnitId: activeUnitId,
     });
@@ -1153,43 +1208,11 @@ export function TranscriptionTimelineComparison({
         </div>
         <div ref={comparisonSplitHostRef} className="timeline-comparison-split-host">
           <div className="timeline-comparison-split-host-inner">
-          <div
-            className="timeline-comparison-header"
-            role="group"
-            aria-label={t(locale, 'transcription.comparison.columnMode')}
-            style={comparisonDualGridStyle}
-          >
-            <button
-              type="button"
-              className={`timeline-comparison-header-cell timeline-comparison-header-btn${isSourceHeaderActive ? ' is-active' : ''}`}
-              aria-pressed={isSourceHeaderActive}
-              onClick={() => {
-                patchComparisonFocus({ comparisonTargetSide: 'source' });
-                if (sourceLayer?.id) onFocusLayer(sourceLayer.id);
-              }}
-            >
-              <span className="timeline-comparison-header-inner">
-                <span className="timeline-comparison-header-content">{sourceHeaderContent}</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              className={`timeline-comparison-header-cell timeline-comparison-header-btn${isTargetHeaderActive ? ' is-active' : ''}`}
-              aria-pressed={isTargetHeaderActive}
-              onClick={() => {
-                patchComparisonFocus({ comparisonTargetSide: 'target' });
-                if (targetLayer?.id) onFocusLayer(targetLayer.id);
-              }}
-            >
-              <span className="timeline-comparison-header-inner">
-                <span className="timeline-comparison-header-content">{targetHeaderContent}</span>
-              </span>
-            </button>
-          </div>
         {groups.map((group, groupIndex) => {
         const draftKey = targetLayer ? `cmp:${targetLayer.id}:${group.id}` : `cmp:none:${group.id}`;
         const anchorUnitIds = Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
         const initialTargetText = group.targetItems.map((item) => item.text).join('\n');
+        const perSegTargets = comparisonUsesPerSegmentTargetEditors(group);
         const draft = translationDrafts[draftKey] ?? initialTargetText;
         const targetCellKey = targetLayer ? `cmp-target:${targetLayer.id}:${group.id}` : `cmp-target:none:${group.id}`;
         const targetSaveStatus = saveStatusByCellKey[targetCellKey];
@@ -1205,7 +1228,7 @@ export function TranscriptionTimelineComparison({
           : undefined;
         const derivedActive = activeUnitId != null && group.sourceItems.some((item) => item.unitId === activeUnitId);
         const isGroupActive = activeComparisonGroupId === group.id || (activeComparisonGroupId == null && derivedActive);
-        const isTargetActive = isGroupActive && comparisonTargetSide === 'target';
+        const isTargetColumnFocused = isGroupActive && comparisonTargetSide === 'target';
         const audioScopeUnitId = resolveComparisonTranslationAudioScopeUnitId({
           audioAnchorSeg,
           anchorUnitIds,
@@ -1336,9 +1359,42 @@ export function TranscriptionTimelineComparison({
                         : sourceItemLayer.displaySettings,
                     )
                   : buildOrthographyPreviewTextProps(undefined, undefined);
+                const sourceRowTitle = sourceItemLayer
+                  ? (() => {
+                      const inline = buildLaneHeaderInlineDotSeparatedLabel(
+                        sourceItemLayer,
+                        locale,
+                        comparisonHeaderOrthographies,
+                      ).trim();
+                      return inline.length > 0
+                        ? inline
+                        : resolveComparisonLayerLabel(
+                            sourceItemLayer,
+                            locale,
+                            t(locale, 'transcription.comparison.sourceHeader'),
+                          );
+                    })()
+                  : t(locale, 'transcription.comparison.sourceHeader');
+                const sourceRailAriaLabel = tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: sourceRowTitle });
                 return (
-                  <TimelineDraftEditorSurface
-                    key={item.unitId}
+                  <div key={item.unitId} className="timeline-comparison-editor-row timeline-comparison-editor-row-source">
+                    <button
+                      type="button"
+                      className={`timeline-comparison-row-rail timeline-comparison-row-rail-source${isSourceHeaderActive ? ' is-active' : ''}`}
+                      aria-pressed={isSourceHeaderActive}
+                      aria-label={sourceRailAriaLabel}
+                      title={sourceRowTitle}
+                      data-testid={`comparison-source-rail-${group.id}-${item.unitId}`}
+                      onClick={() => {
+                        patchComparisonFocus({ comparisonTargetSide: 'source' });
+                        if (sourceLayerId) onFocusLayer(sourceLayerId);
+                      }}
+                    >
+                      <span className="timeline-comparison-row-rail-mark" aria-hidden>
+                        {comparisonRowRailMark(sourceRowTitle)}
+                      </span>
+                    </button>
+                    <TimelineDraftEditorSurface
                     multiline
                     wrapperClassName={[
                       'timeline-comparison-source-surface',
@@ -1452,12 +1508,46 @@ export function TranscriptionTimelineComparison({
                       handleAnnotationContextMenu(item.unitId, unitToView(unitDoc, sourceLayerId), sourceLayerId, event);
                     }}
                   />
+                  </div>
                 );
               })}
             </div>
 
-            <div className={`timeline-comparison-target-column${isTargetActive ? ' timeline-comparison-target-column-active' : ''}`}>
-              <TimelineDraftEditorSurface
+            <div className={`timeline-comparison-target-column${isTargetColumnFocused ? ' timeline-comparison-target-column-active' : ''}`}>
+              {perSegTargets
+                ? group.targetItems.map((targetItem, ti) => {
+                    const itemDraftKey = targetLayer ? `cmp:${targetLayer.id}:${group.id}:${targetItem.id}` : `cmp:none:${group.id}:${targetItem.id}`;
+                    const itemInitial = normalizeComparisonText(targetItem.text || '');
+                    const itemDraft = translationDrafts[itemDraftKey] ?? itemInitial;
+                    const itemCellKey = targetLayer
+                      ? `cmp-target:${targetLayer.id}:${group.id}:${targetItem.id}`
+                      : `cmp-target:none:${group.id}:${targetItem.id}`;
+                    const itemSaveStatus = saveStatusByCellKey[itemCellKey];
+                    const isItemDraftEmpty = normalizeComparisonText(itemDraft).trim().length === 0;
+                    const isThisTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
+                      && activeComparisonCellId === `target:${group.id}:${targetItem.id}`;
+                    const segAutoSaveKey = targetLayer
+                      ? `cmp-seg-${targetLayer.id}-${group.id}-${targetItem.id}`
+                      : `cmp-seg-none-${group.id}-${targetItem.id}`;
+                    return (
+                      <div key={targetItem.id} className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
+                <button
+                  type="button"
+                  className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
+                  aria-pressed={isTargetHeaderActive}
+                  aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: targetHeaderContent })}
+                  title={targetHeaderContent}
+                  data-testid={`comparison-target-rail-${group.id}`}
+                  onClick={() => {
+                    patchComparisonFocus({ comparisonTargetSide: 'target' });
+                    if (targetLayer?.id) onFocusLayer(targetLayer.id);
+                  }}
+                >
+                  <span className="timeline-comparison-row-rail-mark" aria-hidden>
+                    {comparisonRowRailMark(targetHeaderContent)}
+                  </span>
+                </button>
+                <TimelineDraftEditorSurface
                 multiline
                 wrapperClassName={[
                   'timeline-comparison-target-surface',
@@ -1590,6 +1680,7 @@ export function TranscriptionTimelineComparison({
                   handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, targetLayer.id), targetLayer.id, event);
                 }}
               />
+              </div>
             </div>
           </div>
         );

@@ -13,6 +13,8 @@ export interface ComparisonTargetItem {
   id: string;
   text: string;
   anchorUnitIds: string[];
+  /** 译文独立语段 id：有则纵向对照按语段分项编辑并写回该段 | Translation segment id for per-segment comparison rows */
+  translationSegmentId?: string;
 }
 
 export interface ComparisonGroup {
@@ -81,6 +83,11 @@ interface BuildComparisonGroupsInput {
   sourceLayerIds?: readonly string[];
   getSourceText: (unit: LayerUnitDocType) => string;
   getTargetText: (unit: LayerUnitDocType) => string;
+  /**
+   * 若返回非空数组则替代 getTargetText 拆行结果（用于译文按 segment 分项） |
+   * When non-empty, replaces newline-split target items (e.g. one row per translation segment).
+   */
+  getTargetItems?: (unit: LayerUnitDocType) => ComparisonTargetItem[] | undefined;
   getSpeakerLabel?: (unit: LayerUnitDocType) => string;
   maxMergeGapSec?: number;
 }
@@ -162,7 +169,10 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
 
   for (const unit of orderedUnits) {
     const sourceText = normalizeSingleLine(input.getSourceText(unit) ?? '');
-    const targetItems = buildComparisonTargetItems(unit.id, input.getTargetText(unit) ?? '');
+    const explicitTargetItems = input.getTargetItems?.(unit);
+    const targetItems = explicitTargetItems != null && explicitTargetItems.length > 0
+      ? explicitTargetItems
+      : buildComparisonTargetItems(unit.id, input.getTargetText(unit) ?? '');
     const targetSignature = buildComparisonTargetSignature(targetItems);
     const speakerLabel = resolveComparisonSpeakerLabel(unit, input.getSpeakerLabel?.(unit));
     const bundleRootId = resolveComparisonBundleRootId(unit);

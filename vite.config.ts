@@ -248,6 +248,8 @@ export default defineConfig({
     },
   },
   test: {
+    /* threads：单进程内跑用例，避免 forks 多进程各拉一份巨型 i18n 导致堆 OOM | Avoid per-fork duplicate heaps for large dict imports */
+    pool: 'threads',
     setupFiles: ['src/test/vitestLocalStorageSetup.ts'],
     coverage: {
       provider: 'v8',

@@ -114,8 +114,8 @@
 
 /* 内层随语段总高增高；全局分割条相对此层 top/bottom 才覆盖全长，避免相对滚动视口仅半截且压住下方语段 */
 .timeline-comparison-split-host-inner {
-  /* 首帧占位：偏大以免未测量前穿层头；与 measure 写入的「分割条 top」一致 */
-  --timeline-comparison-global-splitter-line-top: 76px;
+  /* 首帧占位；JS 测量后写入；无吸顶层头时接近首组顶 | Initial splitter top until measured */
+  --timeline-comparison-global-splitter-line-top: 20px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -125,93 +125,9 @@
   min-height: 100%;
 }
 
-/* 层头在 split-host 内：与语段、分割条共用同一内容宽（含滚动条占位）| Header shares split-host content box with groups + splitter math */
-.timeline-comparison-header {
-  display: grid;
-  grid-template-columns:
-    minmax(0, calc((100% - var(--timeline-comparison-block-gap)) * var(--timeline-comparison-left-grow) / 100))
-    minmax(0, calc((100% - var(--timeline-comparison-block-gap)) * var(--timeline-comparison-right-grow) / 100));
-  column-gap: var(--timeline-comparison-block-gap);
-  box-sizing: border-box;
-  flex-shrink: 0;
-  /* 用 margin 做水平内缩，避免 border-bottom 画在 padding 空带上（左/右会像「线头多出一截」）| Inset via margin so bottom rule matches button span */
-  width: calc(100% - 2 * var(--timeline-comparison-side-padding));
-  max-width: 100%;
-  margin-inline: var(--timeline-comparison-side-padding);
-  padding: 0;
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  /* 间隙不铺层头条色，避免与非高亮按钮同色块连成一片 | Gap stays clear of header tint */
-  background: transparent;
-  /* 底边画在按钮上而非整格容器：整宽 border-bottom 会横跨 column-gap，中间无底色易被当成「线穿过/压字」 */
-}
-
-.timeline-comparison-header-cell {
-  min-width: 0;
-}
-
-.timeline-comparison-header-btn {
-  -webkit-appearance: none;
-  appearance: none;
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  justify-items: center;
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  border-bottom: 1px solid var(--timeline-comparison-column-rail);
-  border-radius: 0;
-  background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
-  color: var(--text-secondary);
-  padding: 10px 12px;
-  font: inherit;
-  font-size: calc(0.82rem * var(--ui-font-scale, 1));
-  font-weight: 600;
-  line-height: 1.35;
-  cursor: pointer;
-  transition: color var(--shell-motion-fast, 140ms) ease, background-color var(--shell-motion-fast, 140ms) ease;
-}
-
-.timeline-comparison-header-inner {
-  box-sizing: border-box;
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.timeline-comparison-header-content {
-  display: block;
-  max-width: 100%;
-  line-height: 1.35;
-  text-align: center;
-  unicode-bidi: isolate;
-  direction: ltr;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.timeline-comparison-header-btn:hover {
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--surface-panel) 78%, var(--header-accent) 10%);
-}
-
-.timeline-comparison-header-btn:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus-ring) 72%, transparent);
-}
-
-.timeline-comparison-header-btn.is-active {
-  color: var(--header-accent);
-  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
-}
-
 .timeline-comparison-group {
-  /* 滚到语段时避开 split-host 内 sticky 层头遮挡 | Clear sticky header when scrolling group into view */
-  scroll-margin-top: 56px;
+  /* 滚入视口时少量顶距（已无 split-host 内吸顶层头）| Light scroll inset without sticky column header */
+  scroll-margin-top: 12px;
   flex-shrink: 0;
   display: grid;
   grid-template-columns:
@@ -396,14 +312,7 @@
   display: none;
 }
 
-.timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-header-cell:last-child,
-.timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-header-cell:first-child {
-  display: none;
-}
-
-.timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-header,
 .timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-group,
-.timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-header,
 .timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-group {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -437,6 +346,71 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* 每条原文/译文编辑行左侧窄轨（层身份与列聚焦），与顶栏双列层头解耦 | Per-row layer rail */
+.timeline-comparison-editor-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.timeline-comparison-editor-row .timeline-comparison-source-surface,
+.timeline-comparison-editor-row .timeline-comparison-target-surface {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.timeline-comparison-row-rail {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: 32px;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 2px;
+  border: 1px solid var(--timeline-comparison-column-rail);
+  border-radius: var(--radius-xs, 7px);
+  background: color-mix(in srgb, var(--surface-header) 52%, var(--surface-panel));
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: calc(0.75rem * var(--ui-font-scale, 1));
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--shell-motion-fast, 140ms) ease, background-color var(--shell-motion-fast, 140ms) ease,
+    border-color var(--shell-motion-fast, 140ms) ease;
+}
+
+.timeline-comparison-row-rail-mark {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+}
+
+.timeline-comparison-row-rail:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-panel) 78%, var(--header-accent) 8%);
+}
+
+.timeline-comparison-row-rail:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus-ring) 72%, transparent);
+}
+
+.timeline-comparison-row-rail.is-active {
+  color: var(--header-accent);
+  border-color: color-mix(in srgb, var(--header-accent) 42%, var(--timeline-comparison-column-rail));
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
 }
 
 .timeline-comparison-view[data-compact-mode='both'] .timeline-comparison-source-column {
@@ -662,17 +636,12 @@
 }
 
 @media (max-width: 960px) {
-  .timeline-comparison-header,
   .timeline-comparison-group {
     grid-template-columns: 1fr;
   }
 
   .timeline-comparison-global-splitter {
     display: none;
-  }
-
-  .timeline-comparison-header-cell:first-child .timeline-comparison-header-btn {
-    box-shadow: none;
   }
 
   .timeline-comparison-source-column {

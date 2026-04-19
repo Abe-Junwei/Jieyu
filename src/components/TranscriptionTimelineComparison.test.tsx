@@ -13,9 +13,9 @@ vi.mock('../contexts/ToastContext', () => ({
   }),
 }));
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRef } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import { TranscriptionEditorContext, type TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import { LocaleProvider } from '../i18n';
@@ -55,6 +55,11 @@ function makeUnit(id: string, layerId: string, startTime: number, endTime: numbe
     updatedAt: now,
   } as LayerUnitDocType;
 }
+
+afterEach(() => {
+  cleanup();
+  mockShowToast.mockReset();
+});
 
 function makeEditorContext(): TranscriptionEditorContextValue {
   return {
@@ -527,7 +532,7 @@ describe('TranscriptionTimelineComparison', () => {
     expect(localStorage.getItem('jieyu:comparison-column-left-grow')).toBe('50');
   });
 
-  it('shows inline dot-separated lane headers, focuses layers from the header, and only reveals bundle chips when multiple bundles exist', () => {
+  it('shows per-row layer rails, focuses layers from the rail, and only reveals bundle chips when multiple bundles exist', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription', '普通话转写')];
@@ -552,16 +557,16 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceHeader = screen.getByRole('button', { name: /普通话转写/ });
-    const targetHeader = screen.getByRole('button', { name: /英文翻译/ });
-    expect(sourceHeader).toBeTruthy();
-    expect(targetHeader).toBeTruthy();
-    expect(sourceHeader.getAttribute('aria-pressed')).toBe('true');
-    expect(targetHeader.getAttribute('aria-pressed')).toBe('false');
-    fireEvent.click(targetHeader);
+    const sourceRail = screen.getByTestId('comparison-source-rail-cmp-u1-u1');
+    const targetRail = screen.getByTestId('comparison-target-rail-cmp-u1');
+    expect(sourceRail).toBeTruthy();
+    expect(targetRail).toBeTruthy();
+    expect(sourceRail.getAttribute('aria-pressed')).toBe('true');
+    expect(targetRail.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(targetRail);
     expect(onFocusLayer).toHaveBeenCalledWith('translation-1');
-    expect(sourceHeader.getAttribute('aria-pressed')).toBe('false');
-    expect(targetHeader.getAttribute('aria-pressed')).toBe('true');
+    expect(sourceRail.getAttribute('aria-pressed')).toBe('false');
+    expect(targetRail.getAttribute('aria-pressed')).toBe('true');
     expect(viewRender.container.querySelector('.timeline-comparison-chip-speaker')?.textContent).toContain('Alice');
     expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(0);
 
@@ -584,6 +589,41 @@ describe('TranscriptionTimelineComparison', () => {
     );
 
     expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(2);
+  });
+
+  it('renders one source rail per source row when a comparison group merges multiple anchors', () => {
+    const onFocusLayer = vi.fn();
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription', '合并转写')];
+    const translationLayers = [makeLayer('translation-1', 'translation', '合并译文')];
+    const units = [
+      { ...makeUnit('u1', 'tr-a', 0, 1), rootUnitId: 'bundle-x' } as LayerUnitDocType,
+      { ...makeUnit('u2', 'tr-a', 1.02, 2), rootUnitId: 'bundle-x' } as LayerUnitDocType,
+    ];
+    const contextValue = makeEditorContext();
+    const trMap = contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>;
+    trMap.set('u1', { text: '' });
+    trMap.set('u2', { text: '' });
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={onFocusLayer}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId('comparison-source-rail-cmp-u1-u1')).toBeTruthy();
+    expect(screen.getByTestId('comparison-source-rail-cmp-u1-u2')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('comparison-source-rail-cmp-u1-u2'));
+    expect(onFocusLayer).toHaveBeenCalledWith('tr-a');
   });
 
   it('avoids rendering duplicated target preview lines above the editor', () => {
