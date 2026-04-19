@@ -203,7 +203,6 @@ describe('import/export round-trip idempotency', () => {
         audioBlob: new Blob(['abc'], { type: 'audio/wav' }),
       },
       createdAt: NOW,
-      updatedAt: NOW,
     });
 
     const snap = await exportDatabaseAsJson();

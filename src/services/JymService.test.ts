@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { strToU8, zipSync } from 'fflate';
-import { importFromJieyuArchive } from './JymService';
+import { exportToJieyuArchive, importFromJieyuArchive } from './JymService';
 import { importDatabaseFromJson } from '../db';
 
 vi.mock('../db', () => ({
@@ -146,6 +146,22 @@ describe('JymService import hard guards', () => {
     expect(result.kind).toBe('jym');
     expect(importDatabaseFromJson).toHaveBeenCalledWith(snapshot, {
       strategy: 'replace-all',
+    });
+  });
+
+  it('exports a standard archive that importFromJieyuArchive can ingest', async () => {
+    const archive = await exportToJieyuArchive('jym');
+
+    const result = await importFromJieyuArchive(archive, {
+      strategy: 'upsert',
+    });
+
+    expect(result.kind).toBe('jym');
+    expect(importDatabaseFromJson).toHaveBeenLastCalledWith(expect.objectContaining({
+      schemaVersion: 4,
+      dbName: 'jieyu-test',
+    }), {
+      strategy: 'upsert',
     });
   });
 });

@@ -456,9 +456,10 @@ export function useTranscriptionUnitActions({
 
   const createAdjacentUnit = useCallback(async (base: LayerUnitDocType, playerDuration: number) => {
     const db = await getDb();
-    const fromBase = base.mediaId
-      ? await db.collections.media_items.get(base.mediaId)
-      : undefined;
+    const fromBaseDoc = base.mediaId
+      ? await db.collections.media_items.findOne({ selector: { id: base.mediaId } }).exec()
+      : null;
+    const fromBase = fromBaseDoc ? fromBaseDoc.toJSON() : undefined;
     let media = selectedUnitMedia ?? fromBase ?? null;
     if (!media) {
       media = await ensureTimelineMediaRowResolved();
