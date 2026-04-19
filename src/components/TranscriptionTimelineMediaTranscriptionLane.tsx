@@ -106,11 +106,18 @@ interface TranscriptionLaneProps {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
   renderLaneLabel: (layer: LayerDocType) => React.ReactNode;
   // Resize
-  startLaneHeightResize: (event: React.PointerEvent<HTMLDivElement>, layerId: string, baseLaneHeight: number) => void;
+  startLaneHeightResize: (
+    event: React.PointerEvent<HTMLDivElement>,
+    layerId: string,
+    baseLaneHeight: number,
+    edge?: 'top' | 'bottom',
+  ) => void;
   // Callbacks
   handleLayerAction: (
     action:
@@ -312,12 +319,20 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
           />
         );
       })}
-      {!effectiveCollapsed && <div
-        className="timeline-lane-resize-handle"
-        onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight)}
-        role="separator"
-        aria-orientation="horizontal"
-      />}
+      {!effectiveCollapsed && <>
+        <div
+          className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
+          onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'top')}
+          role="separator"
+          aria-orientation="horizontal"
+        />
+        <div
+          className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+          onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
+          role="separator"
+          aria-orientation="horizontal"
+        />
+      </>}
     </TimelineStyledContainer>
   );
 });

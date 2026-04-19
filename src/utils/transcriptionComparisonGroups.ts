@@ -81,6 +81,7 @@ interface BuildComparisonGroupsInput {
   sourceLayerIds?: readonly string[];
   getSourceText: (unit: LayerUnitDocType) => string;
   getTargetText: (unit: LayerUnitDocType) => string;
+  getSpeakerLabel?: (unit: LayerUnitDocType) => string;
   maxMergeGapSec?: number;
 }
 
@@ -91,13 +92,20 @@ function resolveComparisonBundleRootId(unit: LayerUnitDocType): string | undefin
   return bundleRootId;
 }
 
-function resolveComparisonSpeakerLabel(unit: LayerUnitDocType): string {
-  const speakerLabel = typeof unit.speaker === 'string' && unit.speaker.trim().length > 0
-    ? unit.speaker.trim()
-    : typeof unit.speakerId === 'string' && unit.speakerId.trim().length > 0
-      ? unit.speakerId.trim()
-      : '';
-  return normalizeSingleLine(speakerLabel);
+function resolveComparisonSpeakerLabel(unit: LayerUnitDocType, preferredLabel?: string): string {
+  const normalizedPreferred = normalizeSingleLine(preferredLabel ?? '');
+  if (normalizedPreferred.length > 0) return normalizedPreferred;
+
+  const normalizedSpeaker = normalizeSingleLine(typeof unit.speaker === 'string' ? unit.speaker.trim() : '');
+  if (normalizedSpeaker.length > 0 && normalizedSpeaker !== unit.speakerId?.trim()) {
+    return normalizedSpeaker;
+  }
+
+  const speakerId = typeof unit.speakerId === 'string' ? unit.speakerId.trim() : '';
+  if (/^speaker[_:-]/i.test(speakerId)) {
+    return '';
+  }
+  return normalizeSingleLine(speakerId);
 }
 
 function buildComparisonSpeakerSummary(labels: string[]): string {
@@ -156,7 +164,7 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
     const sourceText = normalizeSingleLine(input.getSourceText(unit) ?? '');
     const targetItems = buildComparisonTargetItems(unit.id, input.getTargetText(unit) ?? '');
     const targetSignature = buildComparisonTargetSignature(targetItems);
-    const speakerLabel = resolveComparisonSpeakerLabel(unit);
+    const speakerLabel = resolveComparisonSpeakerLabel(unit, input.getSpeakerLabel?.(unit));
     const bundleRootId = resolveComparisonBundleRootId(unit);
     const previous = groups[groups.length - 1];
     const sameBundle = previous?.bundleRootId === bundleRootId;

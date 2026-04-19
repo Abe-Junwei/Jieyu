@@ -97,6 +97,27 @@
   width: 100%;
 }
 
+.left-rail-workspace-layout-root {
+  width: 100%;
+}
+
+.left-rail-workspace-layout-toggle-btn {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 2px;
+  background: transparent;
+  border-left-color: transparent;
+}
+
+.left-rail-workspace-layout-toggle-icon {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
 .left-rail-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -556,6 +577,11 @@
 .left-rail-btn:hover {
   color: var(--text-primary);
   background: var(--overlay-hover-soft);
+}
+
+.left-rail-btn.left-rail-workspace-layout-toggle-btn:active:not(:disabled) {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--overlay-hover-soft) 88%, transparent);
 }
 
 .left-rail-btn-utility {

@@ -288,9 +288,9 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
 
   // Navigate to prev/next unit from an inline input
   const navigateUnitFromInput = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>, direction: 1 | -1) => {
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: 1 | -1) => {
       e.preventDefault();
-      (e.target as HTMLInputElement).blur();
+      (e.target as HTMLInputElement | HTMLTextAreaElement).blur();
       const idx = timelineUnitsOnCurrentMedia.findIndex((u) => u.id === navFocusUnitId);
       if (idx < 0) return;
       const target = timelineUnitsOnCurrentMedia[idx + direction];

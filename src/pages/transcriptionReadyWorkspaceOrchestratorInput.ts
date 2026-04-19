@@ -37,6 +37,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
+  handleNoteClick?: TranscriptionPageTimelineTextOnlyProps['handleNoteClick'];
+  resolveNoteIndicatorTarget?: TranscriptionPageTimelineTextOnlyProps['resolveNoteIndicatorTarget'];
   startTimelineResizeDrag?: TranscriptionPageTimelineTextOnlyProps['startTimelineResizeDrag'];
   /** 纯文本轨拖边调时与 `useTimelineResize` 的 dragPreview 对齐 | Edge-resize live layout */
   timingDragPreview?: TranscriptionPageTimelineTextOnlyProps['timingDragPreview'];
@@ -158,6 +160,8 @@ export function buildOrchestratorViewModelsInput(
     tierContainerRef,
     handleAnnotationClick,
     handleAnnotationContextMenu,
+    handleNoteClick,
+    resolveNoteIndicatorTarget,
     navigateUnitFromInput,
     speakerVisualByTimelineUnitId,
     resolveSelfCertaintyForUnit,
@@ -283,9 +287,12 @@ export function buildOrchestratorViewModelsInput(
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
+      ...(handleNoteClick ? { handleNoteClick } : {}),
+      ...(resolveNoteIndicatorTarget ? { resolveNoteIndicatorTarget } : {}),
       ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
       ...(input.timingDragPreview != null ? { timingDragPreview: input.timingDragPreview } : {}),
       ...(typeof zoomPxPerSec === 'number' && Number.isFinite(zoomPxPerSec) && zoomPxPerSec > 0
+        && !comparisonViewEnabled
         ? { textTimelineZoomPxPerSec: zoomPxPerSec }
         : {}),
       navigateUnitFromInput,

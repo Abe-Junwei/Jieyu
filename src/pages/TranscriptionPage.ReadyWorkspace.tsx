@@ -25,7 +25,7 @@ import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
 import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
-import { isUnitTimelineUnit } from '../hooks/transcriptionTypes';
+import { isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { reportValidationError } from '../utils/validationErrorReporter';
@@ -247,7 +247,9 @@ function TranscriptionPageReadyWorkspace({
     updateTokenGloss,
     segmentUndoRef,
   } = data;
-  const activeTimelineUnitId = isUnitTimelineUnit(selectedTimelineUnit)
+  /** 波形/时间轴当前行 id：含 segment 行（子分轨），否则纵向对照收不到 activeUnitId、无法滚到对应对照组 */
+  const activeTimelineUnitId = selectedTimelineUnit != null
+    && (isUnitTimelineUnit(selectedTimelineUnit) || isSegmentTimelineUnit(selectedTimelineUnit))
     ? selectedTimelineUnit.unitId
     : '';
 
@@ -451,7 +453,6 @@ function TranscriptionPageReadyWorkspace({
     toggleSnapEnabled,
     comparisonViewEnabled,
     setComparisonViewEnabled,
-    toggleComparisonViewEnabled,
   } = useTranscriptionWorkspaceLayoutController({
     layers,
     selectedTimelineOwnerUnitId: selectedTimelineOwnerUnit?.id,
@@ -459,6 +460,14 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const comparisonViewActive = comparisonViewEnabled && translationLayers.length > 0;
+
+  const onSelectWorkspaceHorizontalLayout = useCallback(() => {
+    setComparisonViewEnabled(false);
+  }, [setComparisonViewEnabled]);
+
+  const onSelectWorkspaceVerticalLayout = useCallback(() => {
+    setComparisonViewEnabled(true);
+  }, [setComparisonViewEnabled]);
 
   useEffect(() => {
     if (translationLayers.length === 0 && comparisonViewEnabled) {
@@ -1633,6 +1642,8 @@ function TranscriptionPageReadyWorkspace({
       tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
+      handleNoteClick,
+      resolveNoteIndicatorTarget,
       startTimelineResizeDrag,
       timingDragPreview: dragPreview,
       navigateUnitFromInput,
@@ -1733,26 +1744,12 @@ function TranscriptionPageReadyWorkspace({
   const toolbarPropsWithCollaboration = {
     ...toolbarProps,
     leftToolbarExtras: (
-      <>
-        <button
-          type="button"
-          className="toolbar-confidence-badge toolbar-confidence-badge-button toolbar-confidence-badge-summary"
-          aria-pressed={comparisonViewActive}
-          title={translationLayers.length === 0
-            ? t(locale, 'transcription.toolbar.comparisonRequiresTranslationLayer')
-            : t(locale, comparisonViewActive ? 'transcription.toolbar.switchToTimelineView' : 'transcription.toolbar.switchToComparisonView')}
-          disabled={translationLayers.length === 0}
-          onClick={toggleComparisonViewEnabled}
-        >
-          {t(locale, comparisonViewActive ? 'transcription.toolbar.timelineView' : 'transcription.toolbar.compareView')}
-        </button>
-        <CollaborationSyncBadge
-          locale={locale}
-          badge={collaborationSyncBadge}
-          presenceMembers={collaborationPresenceMembers}
-          currentUserId={collaborationPresenceCurrentUserId}
-        />
-      </>
+      <CollaborationSyncBadge
+        locale={locale}
+        badge={collaborationSyncBadge}
+        presenceMembers={collaborationPresenceMembers}
+        currentUserId={collaborationPresenceCurrentUserId}
+      />
     ),
   };
 
@@ -1928,6 +1925,11 @@ function TranscriptionPageReadyWorkspace({
     getUnitTextForLayer,
     onSelectTimelineUnit: selectTimelineUnit,
     onReorderLayers: reorderLayers,
+    locale,
+    comparisonViewActive,
+    translationLayerCount: translationLayers.length,
+    onSelectWorkspaceHorizontalLayout,
+    onSelectWorkspaceVerticalLayout,
   });
 
   const readyWorkspaceWaveformContentProps = buildReadyWorkspaceWaveformContentProps({

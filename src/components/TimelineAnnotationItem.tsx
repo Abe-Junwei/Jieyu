@@ -1,6 +1,7 @@
 import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { NoteDocumentIcon } from './NoteDocumentIcon';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
+import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import { t, tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
@@ -30,6 +31,8 @@ export interface TimelineAnnotationItemProps {
   content?: ReactNode;
   tools?: ReactNode;
   hasTrailingTools?: boolean;
+  saveStatus?: TimelineDraftSaveStatus;
+  onRetrySave?: () => void;
   onClick: (e: MouseEvent) => void;
   onContextMenu: (e: MouseEvent) => void;
   onDoubleClick: () => void;
@@ -70,6 +73,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   content,
   tools,
   hasTrailingTools,
+  saveStatus,
+  onRetrySave,
   onClick,
   onContextMenu,
   onDoubleClick,
@@ -85,6 +90,8 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
 }: TimelineAnnotationItemProps) {
   const locale = useLocale();
   const selfCertaintyAmbiguousTitle = t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
+
+  const rendersInlineEditor = !content && !skipProcessing && isActive;
 
   return (
     <div
@@ -143,24 +150,28 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       {content ? content : skipProcessing ? (
         <span className="timeline-annotation-skipped-label">{t(locale, 'transcription.action.skipProcessingMarked')}</span>
       ) : isActive ? (
-        <input
-          className="timeline-annotation-input"
+        <TimelineDraftEditorSurface
+          inputClassName="timeline-annotation-input"
           value={draft}
           autoFocus
-          placeholder={placeholder}
-          dir={contentDirection}
+          {...(placeholder !== undefined ? { placeholder } : {})}
+          {...(contentDirection !== undefined ? { dir: contentDirection } : {})}
+          {...(saveStatus !== undefined ? { saveStatus } : {})}
+          {...(onRetrySave !== undefined ? { onRetry: onRetrySave } : {})}
+          {...(tools ? { tools } : {})}
+          toolsClassName="timeline-annotation-tools"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
           onChange={onChange}
-          onFocus={onFocus}
+          {...(onFocus ? { onFocus } : {})}
           onBlur={onBlur}
           onKeyDown={onKeyDown}
         />
       ) : (
         <span>{draft || '\u00A0'}</span>
       )}
-      {tools ? <div className="timeline-annotation-tools">{tools}</div> : null}
+      {tools && !rendersInlineEditor ? <div className="timeline-annotation-tools">{tools}</div> : null}
       {selfCertainty && (
         <SelfCertaintyIcon
           certainty={selfCertainty}

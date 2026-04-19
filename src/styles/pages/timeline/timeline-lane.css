@@ -114,11 +114,18 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -4px;
   height: 8px;
   cursor: ns-resize;
   z-index: var(--z-overlay);
   touch-action: none;
+}
+
+.timeline-lane-resize-handle-top {
+  top: -4px;
+}
+
+.timeline-lane-resize-handle-bottom {
+  bottom: -4px;
 }
 
 .timeline-lane-resize-handle::after {
@@ -126,11 +133,18 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 3px;
   height: 2px;
   background: color-mix(in srgb, var(--text-tertiary) 4%, transparent);
   transition: background-color var(--duration-instant) ease;
   border-radius: 1px;
+}
+
+.timeline-lane-resize-handle-top::after {
+  top: 3px;
+}
+
+.timeline-lane-resize-handle-bottom::after {
+  bottom: 3px;
 }
 
 .timeline-lane:hover .timeline-lane-resize-handle::after,

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineMediaLanes as RawTranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
+import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 
 const NOW = new Date().toISOString();
 const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
@@ -747,6 +748,67 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
 
     expect(screen.getByTestId('ann-seg-view-1')).toBeTruthy();
     expect(screen.getByTestId('ann-seg-view-2')).toBeTruthy();
+  });
+
+  it('surfaces save error and retry callbacks for media translation rows', async () => {
+    const translationLayer = makeLayer('trl-save', 'translation');
+    const item = { ...makeUnit('u1', 0, 1, 's1'), layerId: translationLayer.id } as LayerUnitDocType;
+    const scheduleAutoSave = vi.fn();
+    const saveUnitLayerText = vi.fn()
+      .mockRejectedValueOnce(new Error('save failed'))
+      .mockResolvedValue(undefined);
+
+    render(
+      <TranscriptionTimelineMediaTranslationRow
+        item={item as never}
+        layer={translationLayer}
+        layerForDisplay={translationLayer}
+        baseLaneHeight={44}
+        usesOwnSegments={false}
+        unitById={new Map([[item.id, item]])}
+        segmentById={new Map()}
+        text="初始译文"
+        draft="草稿译文"
+        draftKey={`${translationLayer.id}-${item.id}`}
+        audioMedia={undefined}
+        recording={false}
+        recordingUnitId={null}
+        recordingLayerId={null}
+        startRecordingForUnit={undefined}
+        stopRecording={undefined}
+        deleteVoiceTranslation={undefined}
+        saveSegmentContentForLayer={undefined}
+        saveUnitLayerText={saveUnitLayerText}
+        scheduleAutoSave={scheduleAutoSave}
+        clearAutoSaveTimer={vi.fn()}
+        setTranslationDrafts={vi.fn()}
+        focusedTranslationDraftKeyRef={{ current: null }}
+        renderAnnotationItem={(_utt, _layer, draft, extra) => (
+          <div>
+            <div data-testid="media-save-status">{extra.saveStatus ?? 'none'}</div>
+            <input aria-label="media-draft" value={draft} onChange={extra.onChange as never} onBlur={extra.onBlur as never} />
+            <button type="button" onClick={() => extra.onRetrySave?.()}>retry</button>
+          </div>
+        )}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('media-draft'), { target: { value: '已改译文' } });
+    expect(screen.getByTestId('media-save-status').textContent).toBe('dirty');
+
+    const schCalls = scheduleAutoSave.mock.calls;
+    const scheduledTask = schCalls[schCalls.length - 1]?.[1] as (() => Promise<void>) | undefined;
+    expect(scheduledTask).toBeTypeOf('function');
+    await act(async () => {
+      await scheduledTask?.();
+    });
+
+    expect(screen.getByTestId('media-save-status').textContent).toBe('error');
+
+    const retryButton = screen.getByRole('button', { name: 'retry' });
+    expect(retryButton).toBeTruthy();
+    fireEvent.click(retryButton);
+    expect(saveUnitLayerText.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders recording controls for audio translation rows and starts recording', () => {

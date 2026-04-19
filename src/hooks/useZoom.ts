@@ -2,6 +2,28 @@ import { useCallback, useEffect, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLatest } from './useLatest';
 
+/**
+ * 输入框/局部滚动区内优先保留原生滚轮行为，避免时间轴劫持导致“有滚动条但滚不动” |
+ * Preserve native wheel scrolling inside editors/local scrollers so timeline pan does not hijack them.
+ */
+export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('textarea, input, select, [contenteditable="true"], [data-allow-native-scroll="true"]')) {
+    return true;
+  }
+
+  let node: HTMLElement | null = target instanceof HTMLElement ? target : target.parentElement;
+  while (node) {
+    const style = window.getComputedStyle(node);
+    const overflowY = style.overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+      return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
+
 interface UseZoomInput {
   waveCanvasRef: React.RefObject<HTMLDivElement | null>;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -229,6 +251,9 @@ export function useZoom(input: UseZoomInput) {
     const el = waveCanvasRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target)) {
+        return;
+      }
       const ws = playerInstanceRef.current;
       if (ws) {
         if (e.ctrlKey || e.metaKey) {
@@ -278,6 +303,9 @@ export function useZoom(input: UseZoomInput) {
     const el = tierContainerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey && shouldBypassTimelineWheel(e.target)) {
+        return;
+      }
       const ws = playerInstanceRef.current;
       if (ws) {
         if (e.ctrlKey || e.metaKey) {

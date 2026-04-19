@@ -242,6 +242,80 @@
 }
 
 /* ═══════════════════════════════════════
+   共用草稿输入表面 | Shared draft editor surface
+   ═══════════════════════════════════════ */
+
+.timeline-draft-editor-surface {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+}
+
+.timeline-draft-editor-surface-multiline {
+  flex-direction: column;
+  align-items: stretch;
+  height: auto;
+  overflow: visible;
+}
+
+.timeline-draft-editor-resize-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: var(--z-overlay);
+}
+
+.timeline-draft-editor-resize-handle-top {
+  top: -6px;
+}
+
+.timeline-draft-editor-resize-handle-bottom {
+  bottom: -6px;
+}
+
+.timeline-draft-editor-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text-tertiary) 8%, transparent);
+  transition: background-color var(--duration-instant) ease;
+}
+
+.timeline-draft-editor-resize-handle-top::after {
+  top: 3px;
+}
+
+.timeline-draft-editor-resize-handle-bottom::after {
+  bottom: 3px;
+}
+
+.timeline-draft-editor-surface-resizable:hover .timeline-draft-editor-resize-handle::after,
+.timeline-draft-editor-surface-resizable:focus-within .timeline-draft-editor-resize-handle::after,
+.timeline-comparison-view-resizing .timeline-draft-editor-resize-handle::after {
+  background: color-mix(in srgb, var(--state-info-solid) 65%, transparent);
+}
+
+.timeline-draft-editor-surface-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.timeline-draft-editor-surface-tools {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ═══════════════════════════════════════
    状态点（保存状态）
    ═══════════════════════════════════════ */
 

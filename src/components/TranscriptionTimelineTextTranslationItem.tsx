@@ -4,6 +4,7 @@ import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
+import { TimelineDraftEditorSurface } from './transcription/TimelineDraftEditorSurface';
 import { t, useLocale } from '../i18n';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -43,7 +44,7 @@ interface TranscriptionTimelineTextTranslationItemProps {
   runSaveWithStatus: (cellKey: string, saveTask: () => Promise<void>) => Promise<void>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   onFocusLayer: (layerId: string) => void;
-  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
   handleAnnotationClick: (
     uttId: string,
     uttStartTime: number,
@@ -147,33 +148,18 @@ export function TranscriptionTimelineTextTranslationItem({
       onClick={(e) => handleAnnotationClick(utt.id, utt.startTime, layer.id, e)}
       onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
     >
-      {!isAudioOnlyLayer && saveStatus === 'error' ? (
-        <button
-          type="button"
-          className="timeline-text-item-status-dot timeline-text-item-status-dot-error timeline-text-item-status-dot-action"
-          title={t(locale, 'transcription.timeline.save.retry')}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            retrySave();
-          }}
-        />
-      ) : !isAudioOnlyLayer && saveStatus ? (
-        <span
-          className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
-          title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
-        />
-      ) : null}
-      {showAudioTools && audioControls ? <div className="timeline-text-item-tools">{audioControls}</div> : null}
       {isAudioOnlyLayer && audioControls ? (
         <div className="timeline-translation-audio-card timeline-translation-audio-card-text">{audioControls}</div>
       ) : (
-        <input
-          type="text"
-          className="timeline-text-input"
-          placeholder={usesOwnSegments ? t(locale, 'transcription.timeline.placeholder.segment') : t(locale, 'transcription.timeline.placeholder.translation')}
+        <TimelineDraftEditorSurface
+          inputClassName="timeline-text-input"
           value={draft}
-          dir={dir}
+          {...(dir !== undefined ? { dir } : {})}
+          {...(!isAudioOnlyLayer ? { saveStatus } : {})}
+          onRetry={retrySave}
+          {...(showAudioTools && audioControls ? { tools: audioControls } : {})}
+          toolsClassName="timeline-text-item-tools"
+          placeholder={usesOwnSegments ? t(locale, 'transcription.timeline.placeholder.segment') : t(locale, 'transcription.timeline.placeholder.translation')}
           onContextMenu={(e) => handleAnnotationContextMenu?.(utt.id, utt, layer.id, e)}
           onFocus={() => {
             focusedTranslationDraftKeyRef.current = draftKey;

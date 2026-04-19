@@ -19,6 +19,11 @@
   scrollbar-color: color-mix(in srgb, var(--text-tertiary) 40%, transparent) transparent;
 }
 
+/* 纵向对照：内容宽锁在视口内，不启用时间轴壳层横向滚动 | Comparison fills scrollport width */
+.timeline-scroll:has(.timeline-comparison-view) {
+  overflow-x: hidden;
+}
+
 .timeline-scroll::-webkit-scrollbar {
   width: 6px;
   height: 6px;

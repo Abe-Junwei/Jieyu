@@ -17,7 +17,7 @@ import { useSidePaneSidebarConstraintRepair } from './SidePaneSidebar.constraint
 import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { SidePaneLayerProvider } from '../contexts/SidePaneContext';
-import { useLocale } from '../i18n';
+import { useLocale, type Locale } from '../i18n';
 import { getCollaborationCloudPanelMessages } from '../i18n/collaborationCloudPanelMessages';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { ModalPanel } from './ui';
@@ -50,6 +50,14 @@ interface SidePaneSidebarProps {
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
+  /** Transcription workspace: horizontal (multi-track) vs vertical (paired columns) layout. */
+  workspaceTimelineLayout?: {
+    locale: Locale;
+    comparisonViewActive: boolean;
+    translationLayerCount: number;
+    onSelectHorizontalMode: () => void;
+    onSelectVerticalMode: () => void;
+  };
 }
 
 export function SidePaneSidebar({
@@ -74,6 +82,7 @@ export function SidePaneSidebar({
   getUnitTextForLayer,
   onSelectTimelineUnit,
   onReorderLayers,
+  workspaceTimelineLayout,
 }: SidePaneSidebarProps) {
   const location = useLocation();
   const showLeftRailLayerActions = isTranscriptionWorkspacePathname(location.pathname);
@@ -391,6 +400,7 @@ export function SidePaneSidebar({
           disableCreateTranslationEntry={disableCreateTranslationEntry}
           onCreateTranscription={() => openCreateLayerPopover('create-transcription')}
           onCreateTranslation={() => openCreateLayerPopover('create-translation')}
+          {...(workspaceTimelineLayout !== undefined ? { workspaceTimelineLayout } : {})}
         />
       ) : null}
       {sidePaneHost ? null : sidePaneInlineFallbackNode}

@@ -49,6 +49,8 @@ interface TranscriptionTimelineMediaTranscriptionRowProps {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
 }

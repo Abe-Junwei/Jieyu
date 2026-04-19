@@ -157,6 +157,15 @@
   pointer-events: auto;
 }
 
+.timeline-annotation-has-tools .timeline-text-item-status-dot {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance)
+  );
+  inset-inline-end: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance)
+  );
+}
+
 .timeline-annotation-has-self-certainty .timeline-annotation-tools {
   right: calc(
     var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)

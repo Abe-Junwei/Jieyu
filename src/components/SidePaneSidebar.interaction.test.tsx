@@ -839,15 +839,15 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '新建转写层' }));
 
     await waitFor(() => {
-      expect(createLayer).toHaveBeenCalledWith(
-        'transcription',
-        expect.objectContaining({
-          languageId: 'eng',
-          orthographyId: 'orth_eng_default',
-        }),
-        undefined,
-      );
+      expect(createLayer.mock.calls.length).toBeGreaterThan(0);
     });
+    const firstCall = createLayer.mock.calls[0] as [string, Record<string, unknown>] | undefined;
+    expect(firstCall).toBeDefined();
+    expect(firstCall![0]).toBe('transcription');
+    expect(firstCall![1]).toEqual(expect.objectContaining({
+      languageId: 'eng',
+      orthographyId: 'orth_eng_default',
+    }));
   });
 
   it('allows switching transcription constraint back to dependent after choosing independent', async () => {

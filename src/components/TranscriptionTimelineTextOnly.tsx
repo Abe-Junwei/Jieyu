@@ -1,5 +1,5 @@
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, OrthographyDocType } from '../db';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
 import type { TextTimeMapping } from '../services/LinguisticService';
 import { computeTextOnlyZoomPxPerDocSec, documentTimeFromTextOnlyTrackX, trackXFromDocumentTime } from '../utils/textOnlyTimelineTimeMapping';
@@ -119,6 +119,13 @@ type TranscriptionTimelineTextOnlyProps = {
     layerId: string,
     e: React.MouseEvent,
   ) => void;
+  /** 与对照视图一致：由 TimelineContent 透传，纯文本轨自身可不实现 | Passed through for comparison shell */
+  handleNoteClick?: (unitId: string, layerId: string | undefined, event: MouseEvent) => void;
+  resolveNoteIndicatorTarget?: (
+    unitId: string,
+    layerId?: string,
+    scope?: 'timeline' | 'waveform',
+  ) => { count: number; layerId?: string } | null;
   // TimelineLaneHeader props
   allLayersOrdered: LayerDocType[];
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
@@ -126,7 +133,7 @@ type TranscriptionTimelineTextOnlyProps = {
   defaultLanguageId?: string;
   defaultOrthographyId?: string;
   onFocusLayer: (layerId: string) => void;
-  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
@@ -512,13 +519,41 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     return Math.max(mediaMaxEnd, segmentMaxEnd, 10);
   }, [logicalDurationSec, segmentsByLayer, unitsOnCurrentMedia]);
 
-  /** 与波形区同一 zoom：整轴像素宽 = 文献秒 × px/秒 */
+  /** 文献轴宽度随可见内容区变化，不与波形 zoom 联动（纵向对读/纯文本壳一致预期） */
+  const textOnlyTimelineContentRef = useRef<HTMLDivElement>(null);
+  const [documentTextAxisInnerWidthPx, setDocumentTextAxisInnerWidthPx] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    if (!useLogicTimelineLayout) {
+      setDocumentTextAxisInnerWidthPx(undefined);
+      return;
+    }
+    const root = textOnlyTimelineContentRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+
+    const readInnerWidth = () => {
+      const cs = globalThis.getComputedStyle(root);
+      const padL = Number.parseFloat(cs.paddingLeft) || 0;
+      const padR = Number.parseFloat(cs.paddingRight) || 0;
+      const inner = root.clientWidth - padL - padR;
+      setDocumentTextAxisInnerWidthPx(inner > 0 ? inner : undefined);
+    };
+
+    readInnerWidth();
+    const ro = new ResizeObserver(() => {
+      readInnerWidth();
+    });
+    ro.observe(root);
+    return () => {
+      ro.disconnect();
+    };
+  }, [useLogicTimelineLayout]);
+
   const textOnlyTimeAxisWidthPx = useMemo(() => {
     if (!useLogicTimelineLayout || !(resolvedLogicalDurationSec > 0)) return undefined;
-    const z = textTimelineZoomPxPerSec;
-    if (typeof z !== 'number' || !Number.isFinite(z) || z <= 0) return undefined;
-    return Math.max(resolvedLogicalDurationSec * z, 1);
-  }, [useLogicTimelineLayout, resolvedLogicalDurationSec, textTimelineZoomPxPerSec]);
+    const w = documentTextAxisInnerWidthPx;
+    if (typeof w !== 'number' || !Number.isFinite(w) || w <= 0) return undefined;
+    return Math.max(w, 1);
+  }, [useLogicTimelineLayout, resolvedLogicalDurationSec, documentTextAxisInnerWidthPx]);
 
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
     setSaveStatusByCellKey((prev) => {
@@ -633,7 +668,10 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   }, [canUseLogicTimelineDragCreate, clearTrackDragState, createUnitFromSelection, resolvedLogicalDurationSec, textOnlyDragState, textOnlyTimeMapping]);
 
   return (
-    <div className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}${acousticPending ? ' timeline-content-acoustic-pending' : ''}`}>
+    <div
+      ref={textOnlyTimelineContentRef}
+      className={`timeline-content timeline-content-text-only${editingCellKey ? ' timeline-content-editing' : ''}${acousticPending ? ' timeline-content-acoustic-pending' : ''}`}
+    >
       {allLayersOrdered.map((layer, idx) => {
         if (layer.layerType === 'transcription') {
         const isCollapsed = collapsedLayerIds.has(layer.id);
@@ -1007,12 +1045,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                         const mapW = (typeof layoutW === 'number' && layoutW > 0 && Number.isFinite(layoutW))
                           ? Math.min(trackRectW, layoutW)
                           : trackRectW;
-                        const resizeZoomPxPerSec = (useLogicTimelineLayout
-                          && typeof textTimelineZoomPxPerSec === 'number'
-                          && Number.isFinite(textTimelineZoomPxPerSec)
-                          && textTimelineZoomPxPerSec > 0)
-                          ? textTimelineZoomPxPerSec
-                          : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        const resizeZoomPxPerSec = useLogicTimelineLayout
+                          ? computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping)
+                          : ((typeof textTimelineZoomPxPerSec === 'number'
+                            && Number.isFinite(textTimelineZoomPxPerSec)
+                            && textTimelineZoomPxPerSec > 0)
+                            ? textTimelineZoomPxPerSec
+                            : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping));
                         if (resizeZoomPxPerSec === undefined) return;
                         e.preventDefault();
                         e.stopPropagation();
@@ -1041,12 +1080,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                         const mapW = (typeof layoutW === 'number' && layoutW > 0 && Number.isFinite(layoutW))
                           ? Math.min(trackRectW, layoutW)
                           : trackRectW;
-                        const resizeZoomPxPerSec = (useLogicTimelineLayout
-                          && typeof textTimelineZoomPxPerSec === 'number'
-                          && Number.isFinite(textTimelineZoomPxPerSec)
-                          && textTimelineZoomPxPerSec > 0)
-                          ? textTimelineZoomPxPerSec
-                          : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        const resizeZoomPxPerSec = useLogicTimelineLayout
+                          ? computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping)
+                          : ((typeof textTimelineZoomPxPerSec === 'number'
+                            && Number.isFinite(textTimelineZoomPxPerSec)
+                            && textTimelineZoomPxPerSec > 0)
+                            ? textTimelineZoomPxPerSec
+                            : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping));
                         if (resizeZoomPxPerSec === undefined) return;
                         e.preventDefault();
                         e.stopPropagation();
@@ -1089,12 +1129,20 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             );
           })}
           </div>}
-          {!isCollapsed && <div
-            className="timeline-lane-resize-handle"
-            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
-            role="separator"
-            aria-orientation="horizontal"
-          />}
+          {!isCollapsed && <>
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'top')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'bottom')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+          </>}
         </TimelineStyledContainer>
       );
         }
@@ -1279,12 +1327,20 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             );
           })}
           </div>}
-          {!isCollapsed && <div
-            className="timeline-lane-resize-handle"
-            onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT)}
-            role="separator"
-            aria-orientation="horizontal"
-          />}
+          {!isCollapsed && <>
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'top')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'bottom')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+          </>}
         </TimelineStyledContainer>
       );})}
 

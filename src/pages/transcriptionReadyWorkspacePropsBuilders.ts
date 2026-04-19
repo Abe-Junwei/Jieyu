@@ -8,6 +8,7 @@ import type { OrchestratorWaveformContentProps } from './OrchestratorWaveformCon
 import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePane';
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import type { Locale } from '../i18n';
 
 type MediaLanesProps = TranscriptionPageTimelineMediaLanesProps;
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
@@ -190,6 +191,11 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
+  locale: Locale;
+  comparisonViewActive: boolean;
+  translationLayerCount: number;
+  onSelectWorkspaceHorizontalLayout: () => void;
+  onSelectWorkspaceVerticalLayout: () => void;
 };
 
 export function buildReadyWorkspaceSidePaneProps(
@@ -251,6 +257,13 @@ export function buildReadyWorkspaceSidePaneProps(
       ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
       onReorderLayers: input.onReorderLayers,
+      workspaceTimelineLayout: {
+        locale: input.locale,
+        comparisonViewActive: input.comparisonViewActive,
+        translationLayerCount: input.translationLayerCount,
+        onSelectHorizontalMode: input.onSelectWorkspaceHorizontalLayout,
+        onSelectVerticalMode: input.onSelectWorkspaceVerticalLayout,
+      },
     }) as ReadyWorkspaceSidePaneSidebarProps,
   };
 }

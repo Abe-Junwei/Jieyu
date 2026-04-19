@@ -114,6 +114,8 @@ type TranscriptionTimelineMediaLanesProps = {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
   // TimelineLaneHeader props
@@ -718,12 +720,20 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
               />
             );
           })}
-          {!isCollapsed && <div
-            className="timeline-lane-resize-handle"
-            onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight)}
-            role="separator"
-            aria-orientation="horizontal"
-          />}
+          {!isCollapsed && <>
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'top')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+            <div
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
+              role="separator"
+              aria-orientation="horizontal"
+            />
+          </>}
         </TimelineStyledContainer>
       );})}
 

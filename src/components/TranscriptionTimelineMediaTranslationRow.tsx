@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
@@ -45,6 +46,8 @@ interface TranscriptionTimelineMediaTranslationRowProps {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
 }
@@ -76,6 +79,26 @@ export function TranscriptionTimelineMediaTranslationRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranslationRowProps) {
   const locale = useLocale();
+  const [saveStatus, setSaveStatus] = useState<'dirty' | 'saving' | 'error' | undefined>(undefined);
+  const latestDraftRef = useRef(draft);
+  const rowCellKey = `media-tr-${layer.id}-${item.id}`;
+  const setRowSaveStatus = useCallback((status?: 'dirty' | 'saving' | 'error') => {
+    setSaveStatus(status);
+  }, []);
+  const runSaveWithStatus = useCallback(async (saveTask: () => Promise<void>) => {
+    setRowSaveStatus('saving');
+    try {
+      await saveTask();
+      setRowSaveStatus(undefined);
+    } catch (err) {
+      console.error('[Jieyu] TranscriptionTimelineMediaTranslationRow: save failed', { cellKey: rowCellKey, err });
+      setRowSaveStatus('error');
+    }
+  }, [rowCellKey, setRowSaveStatus]);
+  useEffect(() => {
+    latestDraftRef.current = draft;
+  }, [draft]);
+
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
   const showAudioTools = layerSupportsAudio && !isAudioOnlyLayer;
@@ -100,6 +123,21 @@ export function TranscriptionTimelineMediaTranslationRow({
     />
   ) : undefined;
 
+  const retrySave = useCallback(() => {
+    const value = normalizeSingleLine(latestDraftRef.current);
+    if (value === text) {
+      setRowSaveStatus(undefined);
+      return;
+    }
+    void runSaveWithStatus(async () => {
+      if (usesOwnSegments && saveSegmentContentForLayer) {
+        await saveSegmentContentForLayer(item.id, layer.id, value);
+        return;
+      }
+      await saveUnitLayerText(item.id, value, layer.id);
+    });
+  }, [item.id, layer.id, runSaveWithStatus, saveSegmentContentForLayer, saveUnitLayerText, setRowSaveStatus, text, usesOwnSegments]);
+
   return (
     <TimelineStyledContainer
       className="timeline-annotation-subtrack"
@@ -119,25 +157,40 @@ export function TranscriptionTimelineMediaTranslationRow({
           ? t(locale, 'transcription.timeline.placeholder.segment')
           : t(locale, 'transcription.timeline.placeholder.translation'),
         ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),
+        ...(saveStatus ? { saveStatus } : {}),
+        onRetrySave: retrySave,
         onFocus: () => {
           focusedTranslationDraftKeyRef.current = draftKey;
         },
         onChange: (e) => {
           const value = normalizeSingleLine(e.target.value);
+          latestDraftRef.current = value;
           setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
           if (usesOwnSegments) {
             if (!saveSegmentContentForLayer) return;
-            scheduleAutoSave(`seg-${layer.id}-${item.id}`, async () => {
-              await saveSegmentContentForLayer(item.id, layer.id, value);
-            });
+            if (value !== text) {
+              setRowSaveStatus('dirty');
+              scheduleAutoSave(`seg-${layer.id}-${item.id}`, async () => {
+                await runSaveWithStatus(async () => {
+                  await saveSegmentContentForLayer(item.id, layer.id, value);
+                });
+              });
+            } else {
+              clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
+              setRowSaveStatus(undefined);
+            }
             return;
           }
           if (value.trim() && value !== text) {
+            setRowSaveStatus('dirty');
             scheduleAutoSave(`tr-${layer.id}-${item.id}`, async () => {
-              await saveUnitLayerText(item.id, value, layer.id);
+              await runSaveWithStatus(async () => {
+                await saveUnitLayerText(item.id, value, layer.id);
+              });
             });
           } else {
             clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
+            setRowSaveStatus(undefined);
           }
         },
         onBlur: (e) => {
@@ -146,13 +199,21 @@ export function TranscriptionTimelineMediaTranslationRow({
           if (usesOwnSegments) {
             clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
             if (saveSegmentContentForLayer && value !== text) {
-              fireAndForget(saveSegmentContentForLayer(item.id, layer.id, value));
+              fireAndForget(runSaveWithStatus(async () => {
+                await saveSegmentContentForLayer(item.id, layer.id, value);
+              }));
+            } else {
+              setRowSaveStatus(undefined);
             }
             return;
           }
           clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
           if (value !== text) {
-            fireAndForget(saveUnitLayerText(item.id, value, layer.id));
+            fireAndForget(runSaveWithStatus(async () => {
+              await saveUnitLayerText(item.id, value, layer.id);
+            }));
+          } else {
+            setRowSaveStatus(undefined);
           }
         },
       })}

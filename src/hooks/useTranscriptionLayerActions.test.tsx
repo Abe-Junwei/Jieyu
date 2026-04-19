@@ -552,8 +552,10 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
 
     expect(mockSaveUnit).toHaveBeenCalledWith(pendingUnit);
     expect(mockCreateSegment).toHaveBeenCalledTimes(1);
-    const createdLayer = (mockCreateLayer.mock.calls[0]?.[0] ?? {}) as { id: string; constraint?: string };
-    const seg = mockCreateSegment.mock.calls[0]?.[0] as {
+    const layerCalls = mockCreateLayer.mock.calls as unknown[][];
+    const createdLayer = (layerCalls[0]?.[0] ?? {}) as { id: string; constraint?: string };
+    const segCalls = mockCreateSegment.mock.calls as unknown[][];
+    const seg = segCalls[0]?.[0] as {
       layerId: string;
       unitId: string;
       mediaId: string;

@@ -111,6 +111,8 @@ export type SidePaneSidebarMessages = {
   presenceEntityLabel: (entityType: string) => string;
   presenceFocusLabel: (entityLabel: string, entityId: string) => string;
   layerCreateStripAria: string;
+  /** Workspace timeline layout (horizontal vs vertical reading) toggle in the left rail. */
+  workspaceLayoutModeStripAria: string;
   inlinePaneAria: string;
   paneTitle: string;
   paneSubtitle: string;
@@ -287,6 +289,7 @@ const zhCN: SidePaneSidebarMessages = {
   },
   presenceFocusLabel: (entityLabel, entityId) => `聚焦：${entityLabel} #${entityId}`,
   layerCreateStripAria: '\u65b0\u5efa\u8f6c\u5199\u4e0e\u7ffb\u8bd1\u5c42',
+  workspaceLayoutModeStripAria: '\u8f6c\u5199\u5de5\u4f5c\u533a\u5e03\u5c40\uff1a\u6a2a\u5411\u4e0e\u7eb5\u5411\u6a21\u5f0f',
   inlinePaneAria: '\u6587\u672c\u533a\u5c42\u6eda\u52a8\u680f',
   paneTitle: '\u6587\u672c\u5c42\u5de5\u4f5c\u53f0',
   paneSubtitle: '\u5c42\u5217\u8868\u3001\u5f53\u524d\u5c42\u8be6\u60c5\u4e0e\u5feb\u6377\u64cd\u4f5c',
@@ -463,6 +466,7 @@ const enUS: SidePaneSidebarMessages = {
   },
   presenceFocusLabel: (entityLabel, entityId) => `Focus: ${entityLabel} #${entityId}`,
   layerCreateStripAria: 'Create transcription and translation layers',
+  workspaceLayoutModeStripAria: 'Transcription workspace layout: horizontal and vertical modes',
   inlinePaneAria: 'Text-area layer rail',
   paneTitle: 'Text Layer Workspace',
   paneSubtitle: 'Layer list, current layer details and quick actions',

@@ -51,7 +51,7 @@ type UseTimelineAnnotationHelpersParams = {
   setCtxMenu: React.Dispatch<React.SetStateAction<ContextMenuState | null>>;
   /** 用于写入 ctxMenu.layerType | Resolve ctxMenu.layerType */
   timelineTextLayers: ReadonlyArray<Pick<LayerDocType, 'id' | 'layerType'>>;
-  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
   dragPreview: TimelineDragPreview;
   selectedUnitIds: Set<string>;
@@ -286,6 +286,8 @@ export function useTimelineAnnotationHelpers({
         content?: ReactNode;
         tools?: ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => {
     const {
