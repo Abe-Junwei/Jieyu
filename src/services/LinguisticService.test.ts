@@ -2048,7 +2048,10 @@ describe('LinguisticService smoke tests', () => {
     await expect(LinguisticService.deleteAudio('media_del_audio')).resolves.toBeUndefined();
 
     expect(await db.token_lexeme_links.where('id').anyOf(['link_del_audio_tok', 'link_del_audio_mor']).count()).toBe(2);
-    expect(await db.layer_units.get('utt_del_audio')).toBeTruthy();
+    await expect(db.layer_units.get('utt_del_audio')).resolves.toEqual(expect.objectContaining({
+      startTime: 1,
+      endTime: 2,
+    }));
     await expect(db.media_items.get('media_del_audio')).resolves.toEqual(expect.objectContaining({
       filename: 'document-placeholder.track',
       details: expect.objectContaining({
@@ -2188,8 +2191,16 @@ describe('LinguisticService smoke tests', () => {
 
     await LinguisticService.deleteAudio('media_doc_new');
 
-    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
-    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
+    await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_new',
+      startTime: 2,
+      endTime: 4,
+    }));
+    await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_new',
+      startTime: 10,
+      endTime: 12,
+    }));
     await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
     await expect(db.media_items.get('media_doc_new')).resolves.toEqual(expect.objectContaining({
       filename: 'document-placeholder.track',
@@ -2275,6 +2286,54 @@ describe('LinguisticService smoke tests', () => {
       filename: 'reimport.wav',
       duration: 30,
       details: expect.objectContaining({ audioBlob: blob2, timelineKind: 'acoustic' }),
+    }));
+  });
+
+  it('deleteAudio keeps unit times beyond deleted clip duration (logical axis grows, no rescaling)', async () => {
+    const now = new Date().toISOString();
+    await seedDefaultTranscriptionLayerForText('text_del_long_span', 'layer_trc_del_long', now);
+    await db.texts.put({
+      id: 'text_del_long_span',
+      title: { default: 'Long span' },
+      metadata: {
+        timelineMode: 'media',
+        logicalDurationSec: 8,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: 'media_del_short',
+      textId: 'text_del_long_span',
+      filename: 'short.wav',
+      duration: 8,
+      details: { audioBlob: new Blob(['x'], { type: 'audio/wav' }) },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_long_span',
+      textId: 'text_del_long_span',
+      mediaId: 'media_del_short',
+      startTime: 3.5,
+      endTime: 102.75,
+      annotationStatus: 'raw',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await LinguisticService.deleteAudio('media_del_short');
+
+    await expect(db.layer_units.get('utt_long_span')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_del_short',
+      startTime: 3.5,
+      endTime: 102.75,
+    }));
+    await expect(db.texts.get('text_del_long_span')).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({
+        logicalDurationSec: 102.75,
+      }),
     }));
   });
 

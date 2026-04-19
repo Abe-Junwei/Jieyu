@@ -5,7 +5,7 @@ import { importDatabaseFromJson } from '../db';
 
 vi.mock('../db', () => ({
   exportDatabaseAsJson: vi.fn(async () => ({
-    schemaVersion: 1,
+    schemaVersion: 4,
     exportedAt: '2026-04-01T00:00:00.000Z',
     dbName: 'jieyu-test',
     collections: {},
@@ -28,7 +28,7 @@ function createValidArchive(snapshot: unknown): Uint8Array {
   const manifest = {
     formatVersion: 1,
     kind: 'jym',
-    schemaVersion: 1,
+    schemaVersion: 4,
     exportedAt: '2026-04-01T00:00:00.000Z',
     dbName: 'jieyu-test',
   };
@@ -78,7 +78,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when any single entry exceeds size limit', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -95,7 +95,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when total expanded size exceeds limit before import', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -115,7 +115,7 @@ describe('JymService import hard guards', () => {
 
   it('rejects archive when snapshot json depth exceeds limit', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {
@@ -132,7 +132,7 @@ describe('JymService import hard guards', () => {
 
   it('imports valid archive and forwards strategy to database importer', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: '2026-04-01T00:00:00.000Z',
       dbName: 'jieyu-test',
       collections: {},

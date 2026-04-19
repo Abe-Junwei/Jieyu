@@ -185,7 +185,6 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(persistenceHookCode.includes('if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;')).toBe(true);
     expect(persistenceHookCode.includes('const next = upsertTrackEntityState(')).toBe(true);
-    expect(persistenceHookCode.includes('saveTrackEntityStateMap(next')).toBe(true);
     expect(persistenceHookCode.includes('saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!)')).toBe(true);
   });
 

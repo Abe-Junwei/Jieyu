@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { LayerUnitDocType } from '../db';
+import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
 import { unitToView } from '../hooks/timelineUnitView';
 import { AiAnalysisPanel } from './AiAnalysisPanel';
 import { ACOUSTIC_PROVIDER_STORAGE_KEYS } from '../services/acoustic/acousticProviderContract';
@@ -79,7 +80,7 @@ function makeContextValue(overrides: Partial<AiPanelContextValue> = {}): AiPanel
   const defaultDoc = makeUnit();
   return {
     ...DEFAULT_AI_PANEL_CONTEXT_VALUE,
-    dbName: 'jieyudb',
+    dbName: JIEYU_DEXIE_DB_NAME,
     unitCount: 1,
     translationLayerCount: 1,
     selectedUnit: unitToView(defaultDoc, 'layer-default'),

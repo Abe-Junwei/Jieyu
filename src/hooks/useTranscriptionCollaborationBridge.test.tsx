@@ -8,6 +8,7 @@ const {
   bridgeStop,
   bridgeEnqueue,
   bridgeListAssets,
+  bridgeRegisterAsset,
   bridgeCreateSnapshot,
   bridgeRestoreSnapshot,
   bridgeQueryTimeline,
@@ -24,6 +25,7 @@ const {
   const bridgeStop = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
   const bridgeEnqueue = vi.fn<(record: unknown) => void>();
   const bridgeListAssets = vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]);
+  const bridgeRegisterAsset = vi.fn<() => Promise<unknown>>().mockResolvedValue({ id: 'asset-1' });
   const bridgeCreateSnapshot = vi.fn<() => Promise<unknown>>().mockResolvedValue({ id: 'snap-1' });
   const bridgeRestoreSnapshot = vi.fn<() => Promise<unknown>>().mockResolvedValue({
     record: { id: 'snap-1' },
@@ -46,6 +48,7 @@ const {
     stop = bridgeStop;
     enqueueLocalChange = bridgeEnqueue;
     listProjectAssets = bridgeListAssets;
+    registerProjectAsset = bridgeRegisterAsset;
     createProjectSnapshot = bridgeCreateSnapshot;
     restoreProjectSnapshotById = bridgeRestoreSnapshot;
     queryProjectChangeTimeline = bridgeQueryTimeline;
@@ -74,6 +77,7 @@ const {
     bridgeStop,
     bridgeEnqueue,
     bridgeListAssets,
+    bridgeRegisterAsset,
     bridgeCreateSnapshot,
     bridgeRestoreSnapshot,
     bridgeQueryTimeline,
@@ -106,6 +110,7 @@ describe('useTranscriptionCollaborationBridge', () => {
     bridgeStop.mockClear();
     bridgeEnqueue.mockClear();
     bridgeListAssets.mockClear();
+    bridgeRegisterAsset.mockClear();
     bridgeCreateSnapshot.mockClear();
     bridgeRestoreSnapshot.mockClear();
     bridgeQueryTimeline.mockClear();
@@ -225,6 +230,58 @@ describe('useTranscriptionCollaborationBridge', () => {
     expect(bridgeCreateSnapshot).toHaveBeenCalledTimes(1);
     expect(bridgeRestoreSnapshot).toHaveBeenCalledWith('snap-1');
     expect(bridgeQueryTimeline).toHaveBeenCalledTimes(1);
+  });
+
+  it('createProjectSnapshot 使用会话用户覆盖 createdBy | overwrites createdBy with session Supabase uid', async () => {
+    getUserId.mockResolvedValue('session-uid');
+    const { result } = renderHook(() => useTranscriptionCollaborationBridge({
+      enabled: true,
+      projectId: 'project-1',
+    }));
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    await result.current.createProjectSnapshot({
+      version: 1,
+      payloadJson: '{"state":1}',
+      schemaVersion: 1,
+      createdBy: 'caller-wrong-uuid',
+      changeCursor: 0,
+    });
+
+    expect(bridgeCreateSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        createdBy: 'session-uid',
+      }),
+    );
+  });
+
+  it('registerProjectAsset 使用会话用户覆盖 uploadedBy | overwrites uploadedBy with session Supabase uid', async () => {
+    getUserId.mockResolvedValue('session-uid');
+    const { result } = renderHook(() => useTranscriptionCollaborationBridge({
+      enabled: true,
+      projectId: 'project-1',
+    }));
+
+    await waitFor(() => {
+      expect(bridgeStart).toHaveBeenCalledTimes(1);
+    });
+
+    await result.current.registerProjectAsset({
+      assetType: 'attachment',
+      fileName: 'a.bin',
+      data: new Uint8Array([1]),
+      mimeType: 'application/octet-stream',
+      uploadedBy: 'caller-wrong-uuid',
+    });
+
+    expect(bridgeRegisterAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uploadedBy: 'session-uid',
+      }),
+    );
   });
 
   it('启动前拉取 projects 行用于协议守卫 | loads projects row for protocol guard before bridge start', async () => {

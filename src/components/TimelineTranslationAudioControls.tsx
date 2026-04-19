@@ -22,6 +22,22 @@ function resolveMediaAudioBlob(mediaItem?: MediaItemDocType): Blob | null {
   return candidate instanceof Blob ? candidate : null;
 }
 
+/** Stable key so we do not recreate `blob:` URLs on every parent re-render (Safari: WebKitBlobResource error 1). */
+function buildTranslationAudioMaterializationKey(mediaItem?: MediaItemDocType): string {
+  if (!mediaItem?.id) {
+    return '∅';
+  }
+  const trimmedUrl = typeof mediaItem.url === 'string' ? mediaItem.url.trim() : '';
+  if (trimmedUrl.length > 0) {
+    return `url:${mediaItem.id}:${trimmedUrl}`;
+  }
+  const blob = resolveMediaAudioBlob(mediaItem);
+  if (blob) {
+    return `blob:${mediaItem.id}:${blob.size}:${blob.type}`;
+  }
+  return `empty:${mediaItem.id}`;
+}
+
 export const TimelineTranslationAudioControls = memo(function TimelineTranslationAudioControls({
   mediaItem,
   isRecording = false,
@@ -34,25 +50,24 @@ export const TimelineTranslationAudioControls = memo(function TimelineTranslatio
   const locale = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioBlob = resolveMediaAudioBlob(mediaItem);
+  const materializationKey = buildTranslationAudioMaterializationKey(mediaItem);
   const audioSrc = useMemo(() => {
-    if (typeof mediaItem?.url === 'string' && mediaItem.url.trim().length > 0) {
-      return mediaItem.url;
+    if (!mediaItem?.id) {
+      return null;
     }
-    if (audioBlob) {
-      return URL.createObjectURL(audioBlob);
+    const trimmedUrl = typeof mediaItem.url === 'string' ? mediaItem.url.trim() : '';
+    if (trimmedUrl.length > 0) {
+      return trimmedUrl;
     }
-    return null;
-  }, [audioBlob, mediaItem?.url]);
+    const blob = resolveMediaAudioBlob(mediaItem);
+    return blob ? URL.createObjectURL(blob) : null;
+  }, [materializationKey]);
 
-  useEffect(() => {
-    if (!audioSrc || mediaItem?.url || !audioBlob) {
-      return undefined;
-    }
-    return () => {
+  useEffect(() => () => {
+    if (audioSrc?.startsWith('blob:')) {
       URL.revokeObjectURL(audioSrc);
-    };
-  }, [audioBlob, audioSrc, mediaItem?.url]);
+    }
+  }, [audioSrc]);
 
   useEffect(() => {
     const audio = audioRef.current;

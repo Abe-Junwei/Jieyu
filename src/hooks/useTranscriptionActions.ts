@@ -103,6 +103,7 @@ export function useTranscriptionActions({
     defaultTranscriptionLayerId,
     layerById,
     selectedUnitMedia,
+    setSelectedMediaId,
     activeUnitId,
     translations,
     unitsRef,

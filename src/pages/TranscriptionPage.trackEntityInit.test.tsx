@@ -8,11 +8,9 @@ import { useTrackEntityStateController } from './useTrackEntityStateController';
 
 const {
   mockLoadTrackEntityStateMapFromDb,
-  mockSaveTrackEntityStateMap,
   mockSaveTrackEntityStateToDb,
 } = vi.hoisted(() => ({
   mockLoadTrackEntityStateMapFromDb: vi.fn(async () => ({})),
-  mockSaveTrackEntityStateMap: vi.fn(),
   mockSaveTrackEntityStateToDb: vi.fn(async () => undefined),
 }));
 
@@ -21,7 +19,6 @@ vi.mock('../services/TrackEntityStore', async () => {
   return {
     ...actual,
     loadTrackEntityStateMapFromDb: mockLoadTrackEntityStateMapFromDb,
-    saveTrackEntityStateMap: mockSaveTrackEntityStateMap,
     saveTrackEntityStateToDb: mockSaveTrackEntityStateToDb,
   };
 });
@@ -58,7 +55,6 @@ describe('TranscriptionPage track entity initialization', () => {
   beforeEach(() => {
     mockLoadTrackEntityStateMapFromDb.mockReset();
     mockLoadTrackEntityStateMapFromDb.mockResolvedValue({});
-    mockSaveTrackEntityStateMap.mockReset();
     mockSaveTrackEntityStateToDb.mockReset();
     mockSaveTrackEntityStateToDb.mockResolvedValue(undefined);
   });
@@ -71,7 +67,6 @@ describe('TranscriptionPage track entity initialization', () => {
     await waitFor(() => {
       expect(mockLoadTrackEntityStateMapFromDb).toHaveBeenCalledTimes(1);
       expect(mockLoadTrackEntityStateMapFromDb).toHaveBeenCalledWith('text-1');
-      expect(mockSaveTrackEntityStateMap).toHaveBeenCalledTimes(1);
       expect(mockSaveTrackEntityStateToDb).toHaveBeenCalledTimes(1);
       expect(mockSaveTrackEntityStateToDb).toHaveBeenCalledWith(
         'text-1',
@@ -85,7 +80,6 @@ describe('TranscriptionPage track entity initialization', () => {
 
     await waitFor(() => {
       expect(mockLoadTrackEntityStateMapFromDb).toHaveBeenCalledTimes(1);
-      expect(mockSaveTrackEntityStateMap).toHaveBeenCalledTimes(1);
       expect(mockSaveTrackEntityStateToDb).toHaveBeenCalledTimes(1);
     });
   });

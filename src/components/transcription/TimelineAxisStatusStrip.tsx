@@ -12,6 +12,8 @@ export type TimelineAxisStatusStripProps = {
   timelineMode?: string | null;
   /** 语段超出声学可播时：显式扩展逻辑轴（仅 metadata，不改句段时间） */
   expandLogical?: { busy: boolean; onPress: () => void };
+  /** 无声学可播时：触发隐藏 file input（与工具栏导入同一入口） */
+  importAcoustic?: { onPress: () => void };
 };
 
 export function TimelineAxisStatusStrip({
@@ -20,6 +22,7 @@ export function TimelineAxisStatusStrip({
   logicalDurationSec,
   timelineMode,
   expandLogical,
+  importAcoustic,
 }: TimelineAxisStatusStripProps) {
   if (hint.kind === 'hidden') return null;
 
@@ -40,14 +43,32 @@ export function TimelineAxisStatusStrip({
         );
       case 'no_playable_media':
         return (
-          <span className="timeline-axis-status-strip__item">
-            <MaterialSymbol
-              name={hint.sub === 'placeholder' ? 'schedule' : 'link_off'}
-              className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
-            />
-            {hint.sub === 'placeholder'
-              ? t(locale, 'transcription.timelineAxisStatus.placeholderAxis')
-              : t(locale, 'transcription.timelineAxisStatus.noAcousticBlob')}
+          <span className="timeline-axis-status-strip__item timeline-axis-status-strip__no-playable-media">
+            <span className="timeline-axis-status-strip__no-playable-media-main">
+              <MaterialSymbol
+                name={hint.sub === 'placeholder' ? 'schedule' : 'link_off'}
+                className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
+              />
+              {hint.sub === 'placeholder'
+                ? t(locale, 'transcription.timelineAxisStatus.placeholderAxis')
+                : t(locale, 'transcription.timelineAxisStatus.noAcousticBlob')}
+            </span>
+            {importAcoustic ? (
+              <>
+                <span className="timeline-axis-status-strip__timing-kept">
+                  {t(locale, 'transcription.timelineAxisStatus.noPlayableMediaTimingKept')}
+                </span>
+                <PanelButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="timeline-axis-status-strip__action"
+                  onClick={() => { importAcoustic.onPress(); }}
+                >
+                  {t(locale, 'transcription.timelineAxisStatus.chooseAcousticFileButton')}
+                </PanelButton>
+              </>
+            ) : null}
           </span>
         );
       case 'duration_short':

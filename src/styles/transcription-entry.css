@@ -4,6 +4,5 @@
 @import './foundation/media-controls.css';
 @import './panels/layer-list.css';
 @import './panels/collaboration-conflict-drawer.css';
-@import './timeline/timeline-axis-status.css';
 @import './pages/transcription-layout.css';
 @import './pages/transcription-waveform-shell.css';

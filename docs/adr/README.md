@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-04-19
 source_of_truth: decision-index
 ---
 
@@ -25,6 +25,7 @@ source_of_truth: decision-index
 - [0004-logical-timeline-acoustic-media-lifecycle.md](0004-logical-timeline-acoustic-media-lifecycle.md)（逻辑时间轴 / 声学媒体 / 阶段 0 行为规格）
 - [0005 — 转写层录音模态（SayMore careful speech 向）](转写层录音模态（SayMore careful speech 向）架构方案.md)（文件名含中文；与 README 中「0005」编号对应）
 - [0006-dexie-transaction-scope-layer-graph.md](0006-dexie-transaction-scope-layer-graph.md)（Dexie 事务作用域与转写层图访问：声明列全表为第一规范）
+- [0008-greenfield-indexeddb-export-collab-surface.md](0008-greenfield-indexeddb-export-collab-surface.md)（绿场库名、导出表面、轨道仅存 Dexie、协同 RLS 身份绑定）
 - [ADR-007 — `list_units` 大列表句柄分页（内存快照）](adr-ai-list-units-snapshot-handle.md)
 
 ## 建议格式

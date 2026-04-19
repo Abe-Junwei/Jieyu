@@ -130,7 +130,7 @@ describe('useTranscriptionShellController', () => {
 
     expect(mockGetMediaItemsByTextId).toHaveBeenCalledWith('text-existing');
     expect(mockEnsureDocumentTimeline).toHaveBeenCalledWith({ textId: 'text-existing' });
-    expect(mockCreatePlaceholderMedia).toHaveBeenCalledWith({ textId: 'text-existing' });
+    expect(mockCreatePlaceholderMedia).not.toHaveBeenCalled();
     expect(mockCreateLayer).toHaveBeenCalledWith('transcription', expect.objectContaining({
       textId: 'text-existing',
       languageId: 'eng',

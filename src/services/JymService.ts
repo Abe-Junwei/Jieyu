@@ -248,6 +248,9 @@ function sanitizeSnapshotForJyt(snapshot: Awaited<ReturnType<typeof exportDataba
       if (typeof details.audioDataUrl === 'string') {
         delete details.audioDataUrl;
       }
+      if (details.audioExportOmitted === true) {
+        delete details.audioExportOmitted;
+      }
     }
   }
 

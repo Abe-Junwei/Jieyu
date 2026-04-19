@@ -16,11 +16,14 @@ export * from './adapter';
 export {
   buildSegmentationV2BackfillRows,
   buildV28BackfillPlanForText,
+  JIEYU_DEXIE_DB_NAME,
   JieyuDexie,
   db,
   getDb,
 } from './engine';
 export type { JieyuDatabase } from './engine';
+
+export { trackEntityDocumentId } from './trackEntityIds';
 
 export {
   dexieStoresForAiTaskSnapshotsRw,

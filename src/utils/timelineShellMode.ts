@@ -1,6 +1,8 @@
 /**
  * Centralizes waveform vs text-only vs empty timeline shell (ADR-0004 phase 2).
  * Player readiness stays separate from text.metadata.timelineMode.
+ *
+ * 壳层只影响「是否显示波形/占位」；**语段起止时间**仍以库内坐标为准，不在此按索引或均分生成时间。
  */
 
 export type TimelineShellKind = 'waveform' | 'text-only' | 'empty';

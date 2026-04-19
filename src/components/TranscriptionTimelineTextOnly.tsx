@@ -232,6 +232,24 @@ function buildTextOnlyLaneLayoutItems(input: {
   };
 }
 
+function buildTextOnlyFallbackLaneMetrics(
+  usesSegmentTimeline: boolean,
+  layerUnits: TimelineUnitView[],
+  virtualItems: ReadonlyArray<{ index: number; size: number; start: number }>,
+  totalSize: number,
+): { fallbackLaneVirtualItems: TextOnlyLaneLayoutItem[]; fallbackLaneTotalSize: number } {
+  if (usesSegmentTimeline) {
+    return {
+      fallbackLaneVirtualItems: layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 })),
+      fallbackLaneTotalSize: layerUnits.length * 180,
+    };
+  }
+  return {
+    fallbackLaneVirtualItems: virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start })),
+    fallbackLaneTotalSize: totalSize,
+  };
+}
+
 export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimelineTextOnly(
   props: TranscriptionTimelineTextOnlyProps,
 ) {
@@ -583,10 +601,12 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
-        const fallbackLaneVirtualItems: TextOnlyLaneLayoutItem[] = usesSegmentTimeline
-          ? layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 }))
-          : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const fallbackLaneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const { fallbackLaneVirtualItems, fallbackLaneTotalSize } = buildTextOnlyFallbackLaneMetrics(
+          usesSegmentTimeline,
+          layerUnits,
+          virtualItems,
+          totalSize,
+        );
         const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
           units: layerUnits,
           fallbackItems: fallbackLaneVirtualItems,
@@ -997,10 +1017,12 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
-        const fallbackLaneVirtualItems: TextOnlyLaneLayoutItem[] = usesSegmentTimeline
-          ? layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 }))
-          : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const fallbackLaneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const { fallbackLaneVirtualItems, fallbackLaneTotalSize } = buildTextOnlyFallbackLaneMetrics(
+          usesSegmentTimeline,
+          layerUnits,
+          virtualItems,
+          totalSize,
+        );
         const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
           units: layerUnits,
           fallbackItems: fallbackLaneVirtualItems,

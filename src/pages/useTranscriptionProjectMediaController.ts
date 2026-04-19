@@ -170,15 +170,11 @@ export function useTranscriptionProjectMediaController(
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
     const result = await transcriptionAppService.createProject(projectInput);
-    const placeholderMedia = await transcriptionAppService.createPlaceholderMedia({
-      textId: result.textId,
-    });
-    addMediaItem(placeholderMedia);
     setActiveTextId(result.textId);
     setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }) });
     setShowAudioImport(false);
     await loadSnapshot();
-  }, [addMediaItem, loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService]);
+  }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService]);
 
   const handleAudioImport = useCallback(async (file: File, duration: number, options?: TranscriptionAudioImportOptions) => {
     let textId = activeTextId ?? (await getActiveTextId());

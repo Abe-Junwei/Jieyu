@@ -2,6 +2,7 @@
  * 数据库导入导出 | Database import/export
  *
  * JSON 格式快照的导出与导入，支持冲突策略与数据校验。
+ * 导出不包含离线 `audioBlob`（仅结构化 + `details` 中 `audioExportOmitted` 标记）；导入仍接受 `audioDataUrl` 以灌回 Blob。
  */
 import { z } from 'zod';
 import type { Table } from 'dexie';
@@ -9,16 +10,8 @@ import type { TextDocType, MediaItemDocType, UnitTokenDocType, UnitMorphemeDocTy
 import { isoDateSchema, validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { db, getDb } from './engine';
 
+/** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
 const SNAPSHOT_SCHEMA_VERSION = 4;
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error('Failed to read blob'));
-    reader.readAsDataURL(blob);
-  });
-}
 
 export async function exportDatabaseAsJson(): Promise<{
   schemaVersion: number;
@@ -37,17 +30,16 @@ export async function exportDatabaseAsJson(): Promise<{
 
   const collections = Object.fromEntries(entries) as Record<string, unknown[]>;
 
-  // Convert audio Blobs to portable data URLs for JSON export
+  // Omit offline audio blobs from JSON (keeps exports bounded); re-attach audio via app or `audioDataUrl` on import.
   const mediaItems = collections['media_items'] as Array<Record<string, unknown>> | undefined;
   if (mediaItems) {
     for (const item of mediaItems) {
       const details = item['details'] as Record<string, unknown> | undefined;
-      if (details?.['audioBlob'] instanceof Blob) {
-        const copy = { ...details };
-        copy['audioDataUrl'] = await blobToBase64(details['audioBlob'] as Blob);
-        delete copy['audioBlob'];
-        item['details'] = copy;
-      }
+      if (!details || !(details['audioBlob'] instanceof Blob)) continue;
+      const copy = { ...details };
+      delete copy['audioBlob'];
+      copy['audioExportOmitted'] = true;
+      item['details'] = copy;
     }
   }
 
@@ -78,7 +70,7 @@ export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
 }
 
 const databaseSnapshotSchema = z.object({
-  schemaVersion: z.number().int().positive().optional().default(1),
+  schemaVersion: z.number().int().positive(),
   exportedAt: isoDateSchema.optional(),
   dbName: z.string().optional(),
   collections: z.record(z.string(), z.array(z.unknown())),
@@ -242,24 +234,16 @@ function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown,
   if (!doc || typeof doc !== 'object') return doc;
 
   switch (collectionName) {
-    case 'unit_tokens': {
-      const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.unitId === 'string') {
-        throw new Error(
-          'Snapshot unit_tokens use legacy field "unitId"; use unitId (host layer_units.id) in current-format exports.',
-        );
-      }
-      return ensureImportProvenance(d as unknown as UnitTokenDocType, fallbackCreatedAt);
-    }
-    case 'unit_morphemes': {
-      const d = { ...(doc as Record<string, unknown>) };
-      if (typeof d.unitId === 'string') {
-        throw new Error(
-          'Snapshot unit_morphemes use legacy field "unitId"; use unitId (host layer_units.id) in current-format exports.',
-        );
-      }
-      return ensureImportProvenance(d as unknown as UnitMorphemeDocType, fallbackCreatedAt);
-    }
+    case 'unit_tokens':
+      return ensureImportProvenance(
+        { ...(doc as Record<string, unknown>) } as unknown as UnitTokenDocType,
+        fallbackCreatedAt,
+      );
+    case 'unit_morphemes':
+      return ensureImportProvenance(
+        { ...(doc as Record<string, unknown>) } as unknown as UnitMorphemeDocType,
+        fallbackCreatedAt,
+      );
     case 'layer_units':
       return ensureImportProvenance(doc as LayerUnitDocType, fallbackCreatedAt);
     case 'layer_unit_contents':
@@ -346,9 +330,9 @@ export async function importDatabaseFromJson(
   }
   const snapshot = databaseSnapshotSchema.parse(parsedRaw);
 
-  if (snapshot.schemaVersion > SNAPSHOT_SCHEMA_VERSION) {
+  if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
     throw new Error(
-      `Unsupported snapshot schemaVersion=${snapshot.schemaVersion}, current=${SNAPSHOT_SCHEMA_VERSION}`,
+      `Unsupported snapshot schemaVersion=${snapshot.schemaVersion}; only schemaVersion=${SNAPSHOT_SCHEMA_VERSION} (current app export) is accepted.`,
     );
   }
 

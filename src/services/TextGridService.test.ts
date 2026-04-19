@@ -200,4 +200,65 @@ item []:
       timebaseLabel: 'logical-second',
     });
   });
+
+  it('export→import preserves non-uniform interval times on the transcription tier (no acoustic)', () => {
+    const trc = makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      key: 'trc_default',
+      languageId: 'und',
+    });
+    const now = '2026-03-31T00:00:00.000Z';
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'u2',
+        textId: 'text_1',
+        mediaId: 'media_ph',
+        startTime: 9.5,
+        endTime: 11,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+      {
+        id: 'u0',
+        textId: 'text_1',
+        mediaId: 'media_ph',
+        startTime: 0.1,
+        endTime: 0.4,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+      {
+        id: 'u1',
+        textId: 'text_1',
+        mediaId: 'media_ph',
+        startTime: 4,
+        endTime: 4.75,
+        annotationStatus: 'raw',
+        createdAt: now,
+        updatedAt: now,
+      } as LayerUnitDocType,
+    ];
+
+    const textGrid = exportToTextGrid({
+      units,
+      layers: [trc],
+      translations: [
+        makeTranslation({ id: 't0', layerId: trc.id, unitId: 'u0', text: 'a' }),
+        makeTranslation({ id: 't1', layerId: trc.id, unitId: 'u1', text: 'b' }),
+        makeTranslation({ id: 't2', layerId: trc.id, unitId: 'u2', text: 'c' }),
+      ],
+      timelineMetadata: { timelineMode: 'document', logicalDurationSec: 15 },
+    });
+
+    const imported = importFromTextGrid(textGrid);
+    const got = [...imported.units].sort((a, b) => a.startTime - b.startTime);
+    expect(got.map((u) => [u.startTime, u.endTime, u.transcription])).toEqual([
+      [0.1, 0.4, 'a'],
+      [4, 4.75, 'b'],
+      [9.5, 11, 'c'],
+    ]);
+  });
 });

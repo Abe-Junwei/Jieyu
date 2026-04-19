@@ -1,5 +1,6 @@
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { dexieStoresForTrackEntitiesRw, getDb, type TrackEntityDocType } from '../db';
+import { trackEntityDocumentId } from '../db/trackEntityIds';
 
 export type TrackEntityState = {
   mode: TranscriptionTrackDisplayMode;
@@ -81,19 +82,12 @@ export function upsertTrackEntityState(
 
 /**
  * Load all track entities from DB for a given textId.
- * Returns a map keyed by mediaId.
- * Fallback: If no rows found for the textId, queries '__unknown__' (v26 migration placeholder).
- * 加载给定 textId 的所有 track entities | 回退：如无结果，查询 '__unknown__'（v26 迁移占位符）
+ * Map keys match persisted track keys (e.g. `textId::timelineMediaId`).
  */
 export async function loadTrackEntityStateMapFromDb(textId: string): Promise<TrackEntityStateMap> {
   const db = await getDb();
-  let rows = await db.dexie.track_entities.where('textId').equals(textId).toArray();
-  
-  // Fallback to '__unknown__' if no rows found (v26 migration compatibility) | 如无结果则回退到 '__unknown__'（v26 迁移兼容性）
-  if (rows.length === 0) {
-    rows = await db.dexie.track_entities.where('textId').equals('__unknown__').toArray();
-  }
-  
+  const rows = await db.dexie.track_entities.where('textId').equals(textId).toArray();
+
   const next: TrackEntityStateMap = {};
   for (const row of rows) {
     next[row.mediaId] = {
@@ -106,20 +100,20 @@ export async function loadTrackEntityStateMapFromDb(textId: string): Promise<Tra
 }
 
 /**
- * Persist a single media's track state to DB.
- * Updates existing row or inserts new one.
+ * Persist track display state for one track key under a text.
+ * @param trackKey Same key as in the in-memory map (e.g. `textId::timelineMediaId`).
  */
 export async function saveTrackEntityStateToDb(
   textId: string,
-  mediaId: string,
+  trackKey: string,
   state: TrackEntityState,
 ): Promise<void> {
   const db = await getDb();
-  const id = `track_${mediaId}`;
+  const id = trackEntityDocumentId(textId, trackKey);
   const doc: TrackEntityDocType = {
     id,
     textId,
-    mediaId,
+    mediaId: trackKey,
     mode: sanitizeMode(state.mode),
     laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
     updatedAt: state.updatedAt,
@@ -137,10 +131,10 @@ export async function saveTrackEntityStateMapToDb(
 ): Promise<void> {
   const db = await getDb();
   const now = new Date().toISOString();
-  const docs: TrackEntityDocType[] = Object.entries(stateMap).map(([mediaId, state]) => ({
-    id: `track_${mediaId}`,
+  const docs: TrackEntityDocType[] = Object.entries(stateMap).map(([trackKey, state]) => ({
+    id: trackEntityDocumentId(textId, trackKey),
     textId,
-    mediaId,
+    mediaId: trackKey,
     mode: sanitizeMode(state.mode),
     laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
     updatedAt: state.updatedAt || now,

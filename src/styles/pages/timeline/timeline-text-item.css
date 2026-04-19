@@ -395,6 +395,12 @@
   );
 }
 
+@container timeline-seg (max-width: 56px) {
+  .timeline-text-item-tools {
+    gap: 2px;
+  }
+}
+
 .timeline-text-item-audio-only {
   justify-content: center;
   padding-block: 0;

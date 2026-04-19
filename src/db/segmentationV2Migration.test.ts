@@ -340,7 +340,7 @@ describe('buildSegmentationV2BackfillRows', () => {
     ]);
 
     await importDatabaseFromJson({
-      schemaVersion: 2,
+      schemaVersion: 4,
       exportedAt: NOW,
       dbName: database.name,
       collections: {

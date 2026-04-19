@@ -245,10 +245,7 @@ export function useTranscriptionShellController(
     if (resolvedTextId) {
       const mediaItems = await LinguisticService.getMediaItemsByTextId(resolvedTextId);
       if (mediaItems.length === 0) {
-        await Promise.all([
-          LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId }),
-          LinguisticService.createPlaceholderMedia({ textId: resolvedTextId }),
-        ]);
+        await LinguisticService.ensureDocumentTimeline({ textId: resolvedTextId });
       }
     }
 

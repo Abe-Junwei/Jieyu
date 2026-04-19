@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, exportDatabaseAsJson, importDatabaseFromJson } from './index';
+import { db, exportDatabaseAsJson, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from './index';
 import type { LayerUnitDocType } from './types';
 import { mapUnitToLayerUnit } from './migrations/timelineUnitMapping';
 
@@ -141,9 +141,9 @@ describe('import/export round-trip idempotency', () => {
     });
 
     const invalidSnapshot = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         layer_units: [
           {
@@ -184,5 +184,32 @@ describe('import/export round-trip idempotency', () => {
 
     const texts = await db.texts.toArray();
     expect(texts.map((item) => item.id)).toEqual(['text_existing']);
+  });
+
+  it('export omits audioBlob and sets audioExportOmitted on media_items', async () => {
+    await db.texts.put({
+      id: 'text_audio_export',
+      title: { default: 'Audio export' },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.media_items.put({
+      id: 'media_audio_export',
+      textId: 'text_audio_export',
+      filename: 'clip.wav',
+      isOfflineCached: true,
+      details: {
+        mimeType: 'audio/wav',
+        audioBlob: new Blob(['abc'], { type: 'audio/wav' }),
+      },
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const snap = await exportDatabaseAsJson();
+    const row = (snap.collections.media_items as Record<string, unknown>[])[0];
+    const details = row?.details as Record<string, unknown> | undefined;
+    expect(details?.audioBlob).toBeUndefined();
+    expect(details?.audioExportOmitted).toBe(true);
   });
 });

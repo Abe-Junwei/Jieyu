@@ -11,8 +11,13 @@ import { validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUn
 import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridgeId, BRIDGE_TIER_PREFIX } from './adapter';
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
+import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
 
-const JIEYU_DB_NAME = 'jieyudb';
+/**
+ * IndexedDB 物理库名。绿场重置时抬升后缀，使旧库 `jieyudb` 留在磁盘但应用不再打开。
+ * Physical IndexedDB name. Bump suffix for greenfield resets so legacy DB files are abandoned in-place.
+ */
+export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
 
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
@@ -816,63 +821,9 @@ export class JieyuDexie extends Dexie {
     });
 
     // v26: track_entities — per-media track display state persisted to DB.
-    // Migration: read from LocalStorage (v1 PoC), write to DB, then clear LocalStorage.
+    // Intentional no-op: legacy LocalStorage (`jieyu:track-entity-state:v1`) → Dexie import removed (greenfield; ADR 0008).
     this.version(26).stores({
       track_entities: 'id, textId, mediaId, [textId+mediaId]',
-    }).upgrade(async (tx: Transaction) => {
-      const trackEntitiesTable = tx.table('track_entities');
-
-      // Read v1 LocalStorage data
-      const STORAGE_KEY = 'jieyu:track-entity-state:v1';
-      let localData: Record<string, unknown> = {};
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (raw) localData = JSON.parse(raw) as Record<string, unknown>;
-      } catch {
-        // ignore parse errors
-      }
-
-      if (Object.keys(localData).length === 0) return;
-
-      const now = new Date().toISOString();
-      const toInsert: TrackEntityDocType[] = [];
-
-      for (const [mediaId, value] of Object.entries(localData)) {
-        if (!value || typeof value !== 'object') continue;
-        const row = value as Record<string, unknown>;
-
-        // textId is unknown at this level — use '__unknown__' as placeholder;
-        // consumers that have a textId scope will filter accordingly.
-        const textId = '__unknown__';
-        const laneLockMap: Record<string, number> = {};
-        if (row.laneLockMap && typeof row.laneLockMap === 'object') {
-          for (const [k, v] of Object.entries(row.laneLockMap as Record<string, unknown>)) {
-            if (Number.isInteger(v) && (v as number) >= 0) {
-              laneLockMap[k] = v as number;
-            }
-          }
-        }
-
-        const mode = (row.mode === 'multi-auto' || row.mode === 'multi-locked' || row.mode === 'multi-speaker-fixed')
-          ? (row.mode as 'single' | 'multi-auto' | 'multi-locked' | 'multi-speaker-fixed')
-          : 'single';
-
-        toInsert.push({
-          id: `track_${mediaId}`,
-          textId,
-          mediaId,
-          mode,
-          laneLockMap,
-          updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : now,
-        });
-      }
-
-      if (toInsert.length > 0) {
-        await trackEntitiesTable.bulkPut(toInsert);
-      }
-
-      // Keep LocalStorage as fallback safety net; cleanup can be done by explicit maintenance task later.
-      // 保留 LocalStorage 作为兜底，避免迁移提交窗口崩溃导致“本地已删、DB未完成”丢失。
     });
 
     // v27: Plan B foundation — unified per-layer timeline units.
@@ -1055,6 +1006,14 @@ export class JieyuDexie extends Dexie {
       unit_texts: null,
     });
 
+    /*
+     * Historical chain v30–v40 (Dexie versions are monotonic; do not delete or reorder blocks):
+     * v30 introduced layer_units + layer_unit_contents + unit_relations; v31 removed legacy segmentation
+     * tables; v32 set layer_units to null (data loss window for DBs that had v30 data); v33–v36 added
+     * orthography / language catalog / units index churn; v37 M18 cutover; v38–v39 read-model tables;
+     * v40 restored canonical layer_units. New installs use `JIEYU_DEXIE_DB_NAME` (greenfield); treat v32
+     * as lineage-only when reasoning about empty historical stores.
+     */
     // v30: unified layer unit foundation tables.
     // 统一层单元基座表：为单实体多轴模型提供正式 schema，暂不回填旧数据。
     this.version(30).stores({
@@ -1071,8 +1030,7 @@ export class JieyuDexie extends Dexie {
       segment_links: null,
     });
 
-    // v32: remove abandoned layer_units table.
-    // 删除未落地消费者的 layer_units 死表，避免继续悬空存在。
+    // v32: layer_units null (see v30–v40 historical note above).
     this.version(32).stores({
       layer_units: null,
     });
@@ -1128,8 +1086,7 @@ export class JieyuDexie extends Dexie {
       ai_task_snapshots: 'id, taskId, taskType, status, targetId, updatedAt',
     });
 
-    // v40: restore canonical layer_units after the accidental v32 removal.
-    // 恢复正式 layer_units 真表，避免新版读取路径在历史数据库上崩溃。
+    // v40: restore layer_units store (see v30–v40 historical note above).
     this.version(40).stores({
       layer_units: 'id, textId, mediaId, layerId, unitType, parentUnitId, rootUnitId, speakerId, [layerId+mediaId], [layerId+startTime], [mediaId+startTime], [parentUnitId+startTime], [layerId+unitType], [textId+layerId]',
     });
@@ -1148,6 +1105,11 @@ export class JieyuDexie extends Dexie {
     this.version(41).stores({}).upgrade(async (tx) => {
       await upgradeM41SelfCertaintyHostDepollute(tx);
     });
+
+    // v42: track_entities — stable id `te:${textId}:${trackKey}` (replaces legacy `track_${...}` collisions).
+    this.version(42).stores({}).upgrade(async (tx) => {
+      await upgradeM42TrackEntityDocumentIds(tx);
+    });
   }
 }
 
@@ -1160,7 +1122,7 @@ const globalWithDb = globalThis as GlobalWithJieyuDb;
 
 function getOrCreateDexie(): JieyuDexie {
   if (!globalWithDb.__jieyuDexie__) {
-    globalWithDb.__jieyuDexie__ = new JieyuDexie(JIEYU_DB_NAME);
+    globalWithDb.__jieyuDexie__ = new JieyuDexie(JIEYU_DEXIE_DB_NAME);
   }
   return globalWithDb.__jieyuDexie__;
 }

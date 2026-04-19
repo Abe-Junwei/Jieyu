@@ -16,6 +16,7 @@
 @import './timeline/timeline-text-item.css';
 @import './timeline/timeline-segment-narrow.css';
 @import './timeline/timeline-translation-audio.css';
+@import './timeline/timeline-axis-status.css';
 @import './timeline/time-ruler.css';
 @import './timeline/timeline-a11y.css';
 

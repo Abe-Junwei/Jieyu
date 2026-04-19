@@ -7,7 +7,13 @@
  * main ready-workspace component for easier review and a smaller surface area.
  */
 
-import { useCallback, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from 'react';
 import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
 import { t, tf } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -36,6 +42,8 @@ type ReadyWorkspaceAxisStatusInput<TTimelineTopProps extends TimelineTopPropsBas
   locale: Parameters<typeof t>[0];
   loadSnapshot: () => Promise<void>;
   setSaveState: (state: { kind: 'done'; message: string } | { kind: 'error'; message: string }) => void;
+  /** 与工具栏共用：触发隐藏 `<input type="file">` 以导入声学 */
+  importFileRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTopPropsBase>(
@@ -69,6 +77,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     locale,
     loadSnapshot,
     setSaveState,
+    importFileRef,
   } = input;
 
   const [logicalExpandBusy, setLogicalExpandBusy] = useState(false);
@@ -155,6 +164,15 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
           ...(hint.kind === 'duration_short' && activeTextId
             ? { expandLogical: { busy: logicalExpandBusy, onPress: expandLogicalDurationFromAxisStatus } }
             : {}),
+          ...(hint.kind === 'no_playable_media' && importFileRef
+            ? {
+                importAcoustic: {
+                  onPress: () => {
+                    importFileRef.current?.click();
+                  },
+                },
+              }
+            : {}),
         };
       }
     }
@@ -164,6 +182,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     activeTextTimeMapping?.logicalDurationSec,
     activeTextTimelineMode,
     expandLogicalDurationFromAxisStatus,
+    importFileRef,
     handleWaveformResizeStart,
     isResizingWaveform,
     layersCount,

@@ -12,21 +12,11 @@
   container-name: timeline-seg;
 }
 
-/* 仅极窄：隐藏重叠轮次（装饰）；再窄时收紧工具间距、略缩小笔记图标 */
+/* 仅极窄：略缩小笔记图标；重叠徽标/工具间距规则已回收到 owner 文件。 */
 @container timeline-seg (max-width: 56px) {
-  .timeline-annotation-overlap-cycle-badge {
-    opacity: 0;
-    visibility: hidden;
-  }
-
   .timeline-annotation-note-icon {
     transform: scale(0.92);
     transform-origin: bottom right;
     transform-origin: bottom inline-end;
-  }
-
-  .timeline-text-item-tools,
-  .timeline-annotation-tools {
-    gap: 2px;
   }
 }

@@ -84,7 +84,7 @@ status: phase-7a-7b-done
 | `useWaveSurfer` `seekTo` | `Math.min(time, dur)` 为 **播放头** 截断，不写 `layer_units`。 |
 | `useTranscriptionTimelineInteractionController` 波形 split | split 落点按 **解码时长** clamp，属交互计算，经用户手势后才持久化。 |
 
-**回归测试**：`LinguisticService.test.ts` — `importAudio does not rescale existing layer_units when imported duration is shorter than segment span`（对齐 ADR-0004 决策 2 **B**，防静默全体缩放）。
+**回归测试**：`LinguisticService.test.ts` — `importAudio does not rescale existing layer_units when imported duration is shorter than segment span`（对齐 ADR-0004 决策 2 **B**，防静默全体缩放）。**后续加固（2026-04-19）**：同一文件补充删音后 **`startTime`/`endTime` 不变** 的断言，以及 **`deleteAudio keeps unit times beyond deleted clip duration`**（短声学文件 + 长语段跨度时 **`logicalDurationSec` 随 `maxEnd` 扩展、坐标不重算**）。
 
 ---
 
@@ -138,6 +138,8 @@ status: phase-7a-7b-done
 
 **阶段 6 边界**：Replace vs Add **产品 UI** 归阶段 **7B**，已于 **2026-04-18** 落地（见下「7B」）；当前仍保留迁移期双读兼容，但主读写路径已收敛到显式字段。
 
+**行为调整（2026-04-19）**：**新建项目向导**（`useTranscriptionProjectMediaController.handleProjectSetupSubmit`）**不再**在创建 `texts` 后立即 `createPlaceholderMedia`；**创建转写/翻译层**时仅 **`ensureDocumentTimeline`**，不再自动插入占位行。占位 **`document-placeholder.track`** 推迟到 **`useTranscriptionUnitActions`** 中**首次需要写时间轴**（如拖选建段、相邻建段且仍无 `media_items`）时再 **`createPlaceholderMedia`**；无导入且尚未触发上述写路径时侧栏不展示占位行。
+
 ---
 
 ## 阶段 7：行业对标补充（并入本计划）
@@ -153,8 +155,9 @@ status: phase-7a-7b-done
 
 - **`src/utils/timelineAxisStatus.ts`**：`resolveTimelineAxisStatus` + `maxUnitEndTimeSec`，复用 **`resolveTimelineShellMode`** 判定解码中；波形壳下比较 **`playerDuration`** 与当前媒体句段 **`max(endTime)`** 标「语段超出声学可播长度」；文本壳下区分占位轴 vs 无 blob。
 - **`TimelineAxisStatusStrip`**：时间轴顶栏（**`TranscriptionPage.TimelineTop`** 内、`TimeRuler` 之上）展示状态文案；**`timelineMode` 为 `document`/`media`** 且存在 **`logicalDurationSec`** 时追加「逻辑轴长度 …（metadata）」行。
+- **`useReadyWorkspaceAxisStatus`**（**`TranscriptionPage.ReadyWorkspace`**）：在 **`no_playable_media`** 下装配 **`importAcoustic.onPress`**，通过页面传入的 **`importFileRef.current.click()`** 打开与工具栏相同的隐藏文件选择（导入可播放媒体）；配套 i18n：`transcription.timelineAxisStatus.noPlayableMediaTimingKept`、`chooseAcousticFileButton`（键名历史兼容）。
 - **样式**：`src/styles/timeline/timeline-axis-status.css`，由 **`pages/transcription-timeline.css`** 聚合导入。
-- **测试**：`timelineAxisStatus.test.ts`。
+- **测试**：`timelineAxisStatus.test.ts`；**`TimelineAxisStatusStrip.test.tsx`**（含 `importAcoustic`）；**`useReadyWorkspaceAxisStatus.test.tsx`**（无媒体提示时接线 `importFileRef`，解码中不出现 `importAcoustic`）。
 
 ### 7B — 导入语义：替换 vs 新增（中高优先级）— **已完成（2026-04-18）**
 
@@ -181,6 +184,8 @@ status: phase-7a-7b-done
 ### 7D — 导出与互操作（中长期）
 
 - 强化 **无声学也可导出** 时间标注（与 ELAN/Audacity 标签导出心智一致），降低「必须理解占位 `mediaId`」的协作成本。
+
+**进展（2026-04-19，测试先行）**：`EafService.test.ts`、`TextGridService.test.ts` 增加 **无 `MEDIA_DESCRIPTOR` / 无本地声学** 条件下的 **export→import** 用例，断言 **非均匀** `startTime`/`endTime` 在 round-trip 后数值不被拉平或重排（排序仅来自导出端 `sort`，与 ELAN 交换格式一致）。
 
 ---
 

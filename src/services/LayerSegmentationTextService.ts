@@ -223,6 +223,11 @@ async function listV2UnitTextsByUnit(
   return rows;
 }
 
+/**
+ * Standalone entry: opens its own `layer_units` + `layer_unit_contents` + `unit_relations` rw txn.
+ * When already inside a parent Dexie rw txn that includes those stores (e.g. `LinguisticService.cleanup`),
+ * call `deleteLayerSegmentGraphByUnitIds(db, [unitId])` directly to avoid nested transactions on Safari.
+ */
 export async function removeUnitCascadeFromSegmentationV2(
   db: JieyuDatabase,
   unitId: string,

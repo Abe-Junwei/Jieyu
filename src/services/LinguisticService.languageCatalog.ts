@@ -2,7 +2,6 @@ import Dexie from 'dexie';
 import {
   dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
   dexieStoresForLanguageCatalogMutateRw,
-  dexieStoresForLanguageCatalogProjectionRead,
   getDb,
   type CustomFieldDefinitionDocType,
   type CustomFieldValueType,
@@ -845,59 +844,67 @@ function scheduleDeferredLanguageCatalogReadModelRefresh(): void {
   }, 0);
 }
 
-async function rebuildLanguageCatalogRuntimeCache(): Promise<void> {
-  // 仅两个 locale，顺序读取更稳妥，可避免 Promise 并发放大事务上下文泄漏
-  // | Only two locales are involved; sequential reads are safer and avoid Promise fan-out amplifying transaction-context leaks.
+/** Rebuild runtime cache using Dexie.Promise only (no native async) so PSD stays consistent on Safari. */
+function rebuildLanguageCatalogRuntimeCache(): Promise<void> {
+  const DP = Dexie.Promise;
   const projectedByLocale: Array<readonly [LanguageNameQueryLocale, LanguageCatalogEntry[]]> = [];
+
+  let chain: ReturnType<typeof DP.resolve> = DP.resolve();
   for (const locale of LANGUAGE_NAME_QUERY_LOCALES) {
-    projectedByLocale.push([locale, await readLanguageCatalogProjection(locale, true)] as const);
+    chain = chain.then(() =>
+      readLanguageCatalogProjection(locale, true).then((entries) => {
+        projectedByLocale.push([locale, entries] as const);
+      }),
+    );
   }
 
-  const entriesByLanguageId = new Map<string, Partial<Record<LanguageNameQueryLocale, LanguageCatalogEntry>>>();
-  projectedByLocale.forEach(([locale, entries]) => {
-    entries.forEach((entry) => {
-      const bucket = entriesByLanguageId.get(entry.id) ?? {};
-      bucket[locale] = entry;
-      entriesByLanguageId.set(entry.id, bucket);
+  return chain.then(() => {
+    const entriesByLanguageId = new Map<string, Partial<Record<LanguageNameQueryLocale, LanguageCatalogEntry>>>();
+    projectedByLocale.forEach(([locale, entries]) => {
+      entries.forEach((entry) => {
+        const bucket = entriesByLanguageId.get(entry.id) ?? {};
+        bucket[locale] = entry;
+        entriesByLanguageId.set(entry.id, bucket);
+      });
     });
-  });
 
-  const entries = Object.fromEntries(
-    Array.from(entriesByLanguageId.entries())
-      .map(([languageId, entryByLocale]) => [languageId, buildRuntimeCacheEntry(entryByLocale)] as const)
-      .filter((item): item is [string, LanguageCatalogRuntimeEntry] => Boolean(item[1])),
-  );
+    const entries = Object.fromEntries(
+      Array.from(entriesByLanguageId.entries())
+        .map(([languageId, entryByLocale]) => [languageId, buildRuntimeCacheEntry(entryByLocale)] as const)
+        .filter((item): item is [string, LanguageCatalogRuntimeEntry] => Boolean(item[1])),
+    );
 
-  const aliasToId = Object.fromEntries(
-    Object.entries(entries).flatMap(([languageId, entry]) => {
-      if (entry.visibility === 'hidden') {
-        return [] as Array<[string, string]>;
-      }
-      return (entry.aliases ?? [])
-        .map((alias) => [normalizeLanguageCatalogRuntimeLabelKey(alias), languageId] as const)
-        .filter(([alias]) => alias.length > 0);
-    }),
-  );
-  const lookupToId = Object.fromEntries(
-    Object.entries(entries).flatMap(([languageId, entry]) => {
-      const lookupKeys = dedupeStrings([
-        languageId,
-        entry.languageCode,
-        entry.canonicalTag,
-        entry.iso6391,
-        entry.iso6392B,
-        entry.iso6392T,
-        entry.iso6393,
-      ]);
-      return lookupKeys.map((lookupKey) => [normalizeLanguageCatalogRuntimeLookupKey(lookupKey), languageId] as const);
-    }),
-  );
+    const aliasToId = Object.fromEntries(
+      Object.entries(entries).flatMap(([languageId, entry]) => {
+        if (entry.visibility === 'hidden') {
+          return [] as Array<[string, string]>;
+        }
+        return (entry.aliases ?? [])
+          .map((alias) => [normalizeLanguageCatalogRuntimeLabelKey(alias), languageId] as const)
+          .filter(([alias]) => alias.length > 0);
+      }),
+    );
+    const lookupToId = Object.fromEntries(
+      Object.entries(entries).flatMap(([languageId, entry]) => {
+        const lookupKeys = dedupeStrings([
+          languageId,
+          entry.languageCode,
+          entry.canonicalTag,
+          entry.iso6391,
+          entry.iso6392B,
+          entry.iso6392T,
+          entry.iso6393,
+        ]);
+        return lookupKeys.map((lookupKey) => [normalizeLanguageCatalogRuntimeLookupKey(lookupKey), languageId] as const);
+      }),
+    );
 
-  writeLanguageCatalogRuntimeCache({
-    entries,
-    aliasToId,
-    lookupToId,
-    updatedAt: new Date().toISOString(),
+    writeLanguageCatalogRuntimeCache({
+      entries,
+      aliasToId,
+      lookupToId,
+      updatedAt: new Date().toISOString(),
+    });
   });
 }
 
@@ -913,16 +920,17 @@ export async function refreshLanguageCatalogReadModel(): Promise<void> {
   }
 
   if (!rebuildLanguageCatalogRuntimeCachePromise) {
-    rebuildLanguageCatalogRuntimeCachePromise = Dexie.ignoreTransaction(() =>
-      Dexie.Promise.resolve(rebuildLanguageCatalogRuntimeCache())
-        .catch((error) => {
-          // H5: Log, then rethrow so callers observe the failure; .finally clears the promise so a later refresh can retry.
-          console.error('Failed to rebuild language catalog runtime cache:', error);
-          throw error;
-        })
-        .finally(() => {
-          rebuildLanguageCatalogRuntimeCachePromise = null;
-        })) as Promise<void>;
+    // `waitFor` accepts a promise-like task; pass the Dexie.Promise returned from the rebuild so PSD stays
+    // on the Dexie chain without re-wrapping it in a native async continuation.
+    rebuildLanguageCatalogRuntimeCachePromise = Dexie.waitFor(rebuildLanguageCatalogRuntimeCache())
+      .catch((error) => {
+        // H5: Log, then rethrow so callers observe the failure; .finally clears the promise so a later refresh can retry.
+        console.error('Failed to rebuild language catalog runtime cache:', error);
+        throw error;
+      })
+      .finally(() => {
+        rebuildLanguageCatalogRuntimeCachePromise = null;
+      });
   }
   await rebuildLanguageCatalogRuntimeCachePromise;
 }
@@ -1100,21 +1108,21 @@ async function readLanguageCatalogProjection(
   // | Do not use async/await directly inside `ignoreTransaction`; use Dexie.Promise continuation instead.
   const DP = Dexie.Promise;
 
+  // No nested `db.dexie.transaction` here: Safari can mis-scope nested readonly txns vs `ignoreTransaction` / parent txns.
+  // | Plain table reads under Dexie.Promise + `ignoreTransaction` only.
   return Dexie.ignoreTransaction(() =>
     DP.resolve(getDb()).then((db) =>
-      db.dexie.transaction('r', [...dexieStoresForLanguageCatalogProjectionRead(db)], () => (
-        scopedLanguageIds
-          ? DP.all([
-            db.dexie.languages.bulkGet(scopedLanguageIds),
-            db.dexie.language_display_names.where('languageId').anyOf(scopedLanguageIds).toArray(),
-            db.dexie.language_aliases.where('languageId').anyOf(scopedLanguageIds).toArray(),
-          ])
-          : DP.all([
-            db.dexie.languages.toArray(),
-            db.dexie.language_display_names.toArray(),
-            db.dexie.language_aliases.toArray(),
-          ])
-      )),
+      scopedLanguageIds
+        ? DP.all([
+          db.dexie.languages.bulkGet(scopedLanguageIds),
+          db.dexie.language_display_names.where('languageId').anyOf(scopedLanguageIds).toArray(),
+          db.dexie.language_aliases.where('languageId').anyOf(scopedLanguageIds).toArray(),
+        ])
+        : DP.all([
+          db.dexie.languages.toArray(),
+          db.dexie.language_display_names.toArray(),
+          db.dexie.language_aliases.toArray(),
+        ]),
     ).then(([languages, displayNames, aliases]) => {
       const persistedLanguages = languages.filter((row): row is LanguageDocType => Boolean(row));
 

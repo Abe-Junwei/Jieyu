@@ -152,6 +152,17 @@
   );
 }
 
+@container timeline-seg (max-width: 56px) {
+  .timeline-annotation-tools {
+    gap: 2px;
+  }
+
+  .timeline-annotation-overlap-cycle-badge {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* speaker-badge 已迁至 divider-color 方案，保留类名但不再渲染独立元素 | speaker-badge migrated to divider-color, class kept for compat */
 
 .timeline-annotation-speaker-badge {

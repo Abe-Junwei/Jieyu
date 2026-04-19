@@ -1,3 +1,7 @@
+/**
+ * 像素 ↔ 文献秒换算（ADR-0004）。**主存时间**仅来自 `layer_units` / segment 的 `startTime`/`endTime` 与
+ * `texts.metadata.timeMapping`；本模块不做按索引均分或重排坐标。
+ */
 import { LinguisticService } from '../services/LinguisticService';
 import type { PreviewTextTimeMappingInput, TextTimeMapping } from '../services/LinguisticService';
 

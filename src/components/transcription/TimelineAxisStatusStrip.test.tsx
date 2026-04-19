@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { TimelineAxisStatusStrip } from './TimelineAxisStatusStrip';
 
@@ -73,5 +73,28 @@ describe('TimelineAxisStatusStrip', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: /Expand logical axis/i }));
     expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders choose-acoustic action for no_playable_media when importAcoustic is provided', () => {
+    const onPress = vi.fn();
+    render(
+      <TimelineAxisStatusStrip
+        locale="en-US"
+        hint={{ kind: 'no_playable_media', sub: 'placeholder' }}
+        importAcoustic={{ onPress }}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Choose media file/i }));
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render import button for no_playable_media without importAcoustic', () => {
+    const { container } = render(
+      <TimelineAxisStatusStrip
+        locale="en-US"
+        hint={{ kind: 'no_playable_media', sub: 'placeholder' }}
+      />,
+    );
+    expect(within(container).queryByRole('button', { name: /Choose media file/i })).toBeNull();
   });
 });

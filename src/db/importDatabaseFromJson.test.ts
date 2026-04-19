@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, importDatabaseFromJson } from './index';
+import { db, getDb, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from './index';
 
 const NOW = '2026-04-02T00:00:00.000Z';
 
@@ -27,9 +27,9 @@ describe('importDatabaseFromJson', () => {
     });
 
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         texts: [
           {
@@ -89,9 +89,9 @@ describe('importDatabaseFromJson', () => {
     });
 
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         media_items: [
           {
@@ -121,9 +121,9 @@ describe('importDatabaseFromJson', () => {
 
   it('ignores removed transformId compatibility fields during snapshot import', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         tier_definitions: [
           {
@@ -155,11 +155,28 @@ describe('importDatabaseFromJson', () => {
     expect(importedTiers.find((item) => item.id === 'layer_legacy')?.bridgeId).toBeUndefined();
   });
 
+  it('rejects snapshot when schemaVersion is not the current export version', async () => {
+    await expect(
+      importDatabaseFromJson(
+        {
+          schemaVersion: 3,
+          exportedAt: NOW,
+          dbName: JIEYU_DEXIE_DB_NAME,
+          collections: {
+            layer_units: [],
+            layer_unit_contents: [],
+          },
+        },
+        { strategy: 'replace-all' },
+      ),
+    ).rejects.toThrow(/Unsupported snapshot schemaVersion=3/);
+  });
+
   it('rejects snapshots that still include a non-empty legacy units collection', async () => {
     const snapshot = {
       schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         texts: [],
         tier_definitions: [],

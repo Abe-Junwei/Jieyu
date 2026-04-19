@@ -8,10 +8,10 @@ import {
 } from '../db';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import {
+  deleteLayerSegmentGraphByUnitIds,
   deleteResidualLayerUnitGraphByTextId,
   deleteUnitLayerUnitCascade,
 } from './LayerSegmentGraphService';
-import { removeUnitCascadeFromSegmentationV2 } from './LayerSegmentationTextService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import {
@@ -67,7 +67,7 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
         const tokens = await db.dexie.unit_tokens.where('unitId').equals(uttId).toArray();
         const tokenIds = tokens.map((t) => t.id);
         const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()).map((m) => m.id);
-        await removeUnitCascadeFromSegmentationV2(db, uttId);
+        await deleteLayerSegmentGraphByUnitIds(db, [uttId]);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
             ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -122,6 +122,7 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
   );
 }
 
+/** 删音保留语段时间与逻辑轴（ADR-0004 决策 3）；不在此重算或均分句段时间。 */
 export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void> {
   const db = await getDb();
   const now = new Date().toISOString();
@@ -217,7 +218,7 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
       const tokenIds = tokens.map((t) => t.id);
       const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
 
-      await removeUnitCascadeFromSegmentationV2(db, unitId);
+      await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
       if (tokenIds.length > 0 || morphemeIds.length > 0) {
         const targets: Array<[string, string]> = [
           ...tokenIds.map((id) => ['token', id] as [string, string]),
@@ -261,7 +262,7 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
         const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
         const tokenIds = tokens.map((t) => t.id);
         const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
-        await removeUnitCascadeFromSegmentationV2(db, unitId);
+        await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
         if (tokenIds.length > 0 || morphemeIds.length > 0) {
           const targets: Array<[string, string]> = [
             ...tokenIds.map((id) => ['token', id] as [string, string]),

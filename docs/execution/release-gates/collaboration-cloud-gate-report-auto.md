@@ -1,6 +1,6 @@
 # Collaboration Cloud Gate Report (Auto Generated)
 
-- Generated At: 2026/4/18 06:50:47
+- Generated At: 2026/4/19 11:39:18
 - Mode: enforce
 - Decision: go
 
@@ -9,8 +9,8 @@
 | Metric | Target | Current | Status |
 |---|---:|---:|---|
 | protocol_contract_pass_rate | 100% | 100.00% (46/46) | PASS |
-| cloud_service_contract_pass_rate | 100% | 100.00% (26/26) | PASS |
-| workspace_entry_contract_pass_rate | 100% | 100.00% (13/13) | PASS |
+| cloud_service_contract_pass_rate | 100% | 100.00% (29/29) | PASS |
+| workspace_entry_contract_pass_rate | 100% | 100.00% (20/20) | PASS |
 
 ## Findings By Severity
 

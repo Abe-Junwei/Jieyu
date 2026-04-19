@@ -79,6 +79,7 @@ export type TranscriptionUnitActionsParams = {
   defaultTranscriptionLayerId: string | undefined;
   layerById: Map<string, LayerDocType>;
   selectedUnitMedia?: MediaItemDocType | undefined;
+  setSelectedMediaId?: React.Dispatch<React.SetStateAction<string>>;
   activeUnitId: string;
   translations: LayerUnitContentDocType[];
   unitsRef: React.MutableRefObject<LayerUnitDocType[]>;
@@ -106,6 +107,7 @@ export function useTranscriptionUnitActions({
   defaultTranscriptionLayerId,
   layerById,
   selectedUnitMedia,
+  setSelectedMediaId,
   activeUnitId,
   translations,
   unitsRef,
@@ -160,6 +162,47 @@ export function useTranscriptionUnitActions({
     if (local) return local;
     return (await getUnitDocProjectionById(db, unitId)) ?? null;
   }, [unitsRef]);
+
+  const resolveTextIdForPlaceholder = useCallback((): string | undefined => {
+    if (defaultTranscriptionLayerId) {
+      const layer = layerById.get(defaultTranscriptionLayerId);
+      if (layer?.textId) return layer.textId;
+    }
+    for (const layer of layerById.values()) {
+      if (layer.layerType === 'transcription' || layer.layerType === 'translation') {
+        return layer.textId;
+      }
+    }
+    return undefined;
+  }, [defaultTranscriptionLayerId, layerById]);
+
+  /** 占位媒体仅在首次需要写时间轴（建段等）时创建，避免仅有空层时侧栏出现 `document-placeholder.track`。 */
+  const ensureTimelineMediaRowResolved = useCallback(async (): Promise<MediaItemDocType | null> => {
+    if (selectedUnitMedia) return selectedUnitMedia;
+    const textId = resolveTextIdForPlaceholder();
+    if (!textId) return null;
+
+    const rowsExisting = await LinguisticService.getMediaItemsByTextId(textId);
+    if (rowsExisting.length === 0) {
+      await LinguisticService.ensureDocumentTimeline({ textId });
+      const created = await LinguisticService.createPlaceholderMedia({ textId });
+      setMediaItems((prev) => (prev.some((m) => m.id === created.id) ? prev : [...prev, created]));
+      setSelectedMediaId?.(created.id);
+      return created;
+    }
+
+    const preferred = rowsExisting[0];
+    if (!preferred) return null;
+    setMediaItems((prev) => {
+      const byId = new Map<string, MediaItemDocType>(prev.map((m) => [m.id, m]));
+      for (const r of rowsExisting) {
+        byId.set(r.id, r);
+      }
+      return [...byId.values()];
+    });
+    setSelectedMediaId?.(preferred.id);
+    return preferred;
+  }, [resolveTextIdForPlaceholder, selectedUnitMedia, setMediaItems, setSelectedMediaId]);
 
   const { saveVoiceTranslation, deleteVoiceTranslation } = useTranscriptionVoiceTranslationActions({
     resolveUnitById,
@@ -412,11 +455,18 @@ export function useTranscriptionUnitActions({
   }, [layerById, locale, pushUndo, resolveUnitById, setSaveState, setTranslations]);
 
   const createAdjacentUnit = useCallback(async (base: LayerUnitDocType, playerDuration: number) => {
-    if (!assertTimelineMediaForMutation(selectedUnitMedia, { locale, setSaveState })) {
+    const db = await getDb();
+    const fromBase = base.mediaId
+      ? await db.collections.media_items.get(base.mediaId)
+      : undefined;
+    let media = selectedUnitMedia ?? fromBase ?? null;
+    if (!media) {
+      media = await ensureTimelineMediaRowResolved();
+    }
+    if (!assertTimelineMediaForMutation(media, { locale, setSaveState })) {
       return;
     }
     pushUndo(getUndoLabel(locale, 'createAdjacentUnit'));
-    const db = await getDb();
     const now = new Date().toISOString();
 
     const start = base.endTime;
@@ -453,7 +503,7 @@ export function useTranscriptionUnitActions({
         end: formatTime(finalEnd),
       }),
     });
-  }, [createAnchor, locale, pushUndo, selectUnitPrimary, selectedUnitMedia, setSaveState, setUnitDrafts, setUnits]);
+  }, [createAnchor, ensureTimelineMediaRowResolved, locale, pushUndo, selectUnitPrimary, selectedUnitMedia, setSaveState, setUnitDrafts, setUnits]);
 
   const createUnitFromSelection = useCallback(async (
     start: number,
@@ -463,7 +513,7 @@ export function useTranscriptionUnitActions({
     const perfDebugEnabled = isTranscriptionPerfDebugEnabled();
     const perfStartMs = perfDebugEnabled ? performance.now() : 0;
 
-    const media = selectedUnitMedia;
+    const media = await ensureTimelineMediaRowResolved();
     if (!assertTimelineMediaForMutation(media, { locale, setSaveState })) {
       return;
     }
@@ -597,7 +647,7 @@ export function useTranscriptionUnitActions({
       });
       scheduleCreatePerfPaintProbe(perfStartMs, context);
     }
-  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, locale, pushUndo, scheduleCreatePerfPaintProbe, selectedUnitMedia, selectUnitPrimary, setSaveState, setTranslations, setUnitDrafts, setUnits, unitsRef]);
+  }, [allowOverlapInTranscription, createAnchor, defaultTranscriptionLayerId, ensureTimelineMediaRowResolved, layerById, locale, pushUndo, scheduleCreatePerfPaintProbe, selectUnitPrimary, setSaveState, setTranslations, setUnitDrafts, setUnits, unitsRef]);
 
   const deleteUnit = useCallback(async (unitId: string) => {
     const target = unitsRef.current.find((u) => u.id === unitId);

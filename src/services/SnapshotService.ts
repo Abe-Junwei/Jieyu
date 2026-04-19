@@ -4,7 +4,7 @@ import type { LayerUnitDocType, LayerUnitContentDocType, LayerDocType } from '..
 // ---- Types ----
 
 interface RecoveryRow {
-  /** Primary key — the main database name (e.g. "jieyudb") */
+  /** Primary key — the main Dexie database name (see `JIEYU_DEXIE_DB_NAME` in `src/db/engine.ts`) */
   dbName: string;
   schemaVersion: number;
   timestamp: number;
@@ -22,6 +22,22 @@ export interface RecoveryData {
 }
 
 const RECOVERY_SCHEMA_VERSION = 1;
+
+/** Combined UTF-8 size of serialized units + translations + layers; larger payloads skip persist. */
+const DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES = 8 * 1024 * 1024;
+
+const utf8Encoder = new TextEncoder();
+
+function combinedSerializedUtf8Length(units: string, translations: string, layers: string): number {
+  return utf8Encoder.encode(units).byteLength
+    + utf8Encoder.encode(translations).byteLength
+    + utf8Encoder.encode(layers).byteLength;
+}
+
+export type SaveRecoverySnapshotOptions = {
+  /** Tests: lower ceiling to assert skip behavior without multi-megabyte fixtures. */
+  maxSerializedUtf8Bytes?: number;
+};
 
 // ---- Private Dexie DB (separate from main db) ----
 
@@ -62,15 +78,30 @@ export async function saveRecoverySnapshot(
     translations: LayerUnitContentDocType[];
     layers: LayerDocType[];
   },
+  options?: SaveRecoverySnapshotOptions,
 ): Promise<void> {
+  const units = serializeRecoveryArray(data.units);
+  const translations = serializeRecoveryArray(data.translations);
+  const layers = serializeRecoveryArray(data.layers);
+  const maxBytes = options?.maxSerializedUtf8Bytes ?? DEFAULT_RECOVERY_SNAPSHOT_MAX_SERIALIZED_UTF8_BYTES;
+  const total = combinedSerializedUtf8Length(units, translations, layers);
+  if (total > maxBytes) {
+    console.debug(
+      `[SnapshotService] saveRecoverySnapshot skipped: serialized UTF-8 size ${total} exceeds limit ${maxBytes}`,
+    );
+    // 超限时清掉旧快照，避免后续恢复到陈旧状态 | Clear any older snapshot to avoid stale crash recovery.
+    await clearRecoverySnapshot(dbName);
+    return;
+  }
+
   const db = getRecoveryDb();
   await db.snapshots.put({
     dbName,
     schemaVersion: RECOVERY_SCHEMA_VERSION,
     timestamp: Date.now(),
-    units: serializeRecoveryArray(data.units),
-    translations: serializeRecoveryArray(data.translations),
-    layers: serializeRecoveryArray(data.layers),
+    units,
+    translations,
+    layers,
   });
 }
 
