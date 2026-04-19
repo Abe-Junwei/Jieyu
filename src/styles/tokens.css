@@ -273,10 +273,11 @@
   --timeline-segment-annotation-input-pad-end-icon-only: 32px;
   /* 文本轨仅确信角标时的 input 行尾内边距 | Text lane: self-certainty only */
   --timeline-segment-text-input-pad-end-self-certainty-only: 30px;
-  /* 窄语段 @container(inline-size) 断点（与 timeline-segment-narrow 模块一致）| Narrow segment breakpoints */
+  /* 窄语段 @container 参考断点（timeline-segment-narrow 内用字面量）；仅「极窄」才动 UI | Ultra-narrow only */
   --timeline-seg-narrow-md: 120px;
   --timeline-seg-narrow-sm: 96px;
   --timeline-seg-narrow-xs: 72px;
+  --timeline-seg-narrow-ultra: 56px;
   /* 显示确信角标时，在「工具/input 已预留」之外再让出的宽度 | Extra when self-certainty badge */
   --timeline-segment-self-certainty-input-end-gutter: calc(
     var(--timeline-annotation-side-stack-size)

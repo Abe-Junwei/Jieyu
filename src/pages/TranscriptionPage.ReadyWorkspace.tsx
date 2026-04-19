@@ -9,8 +9,6 @@
 
 import '../styles/transcription-entry.css';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { EditEvent } from '../hooks/useEditEventBuffer';
-import { pushTimelineEditToRing, type PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -70,15 +68,14 @@ import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionP
 import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
 import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
+import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
+import { useReadyWorkspaceInteractionHelpers } from './useReadyWorkspaceInteractionHelpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
-import type { TimelineAxisStatusStripProps } from '../components/transcription/TimelineAxisStatusStrip';
-import { resolveTimelineAxisStatus, shouldShowLogicalAxisLengthOnAxisStrip } from '../utils/timelineAxisStatus';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
 import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
-import { getTranscriptionAppService } from '../app/index';
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
@@ -477,7 +474,6 @@ function TranscriptionPageReadyWorkspace({
 
   const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
-  const [logicalExpandBusy, setLogicalExpandBusy] = useState(false);
 
   const {
     recording,
@@ -556,29 +552,15 @@ function TranscriptionPageReadyWorkspace({
     });
   }, [setState, state.phase, timelineUnitViewIndex.totalCount]);
 
-  const [recentTimelineEditEvents, setRecentTimelineEditEvents] = useState<EditEvent[]>([]);
-  const recordTimelineEdit = useCallback((event: PushTimelineEditInput) => {
-    setRecentTimelineEditEvents((prev) => pushTimelineEditToRing(prev, event));
-  }, []);
-
-  const getUnitDocById = useCallback(
-    (id: string) => unitsOnCurrentMedia.find((u) => u.id === id),
-    [unitsOnCurrentMedia],
-  );
-
-  const findUnitDocContainingRange = useCallback(
-    (start: number, end: number) => unitsOnCurrentMedia.find(
-      (u) => u.startTime <= start + 0.01 && u.endTime >= end - 0.01,
-    ),
-    [unitsOnCurrentMedia],
-  );
-
-  const findOverlappingUnitDoc = useCallback(
-    (start: number, end: number) => unitsOnCurrentMedia.find(
-      (u) => u.startTime <= end - 0.01 && u.endTime >= start + 0.01,
-    ),
-    [unitsOnCurrentMedia],
-  );
+  const {
+    recentTimelineEditEvents,
+    recordTimelineEdit,
+    getUnitDocById,
+    findUnitDocContainingRange,
+    findOverlappingUnitDoc,
+  } = useReadyWorkspaceInteractionHelpers({
+    unitsOnCurrentMedia,
+  });
 
   const {
     splitRouted,
@@ -1717,108 +1699,23 @@ function TranscriptionPageReadyWorkspace({
     ),
   };
 
-  const expandLogicalDurationFromAxisStatus = useCallback(() => {
-    const hint = resolveTimelineAxisStatus({
-      layersCount: layers.length,
-      selectedMediaUrl,
-      playerIsReady: player.isReady,
-      playerDuration: player.duration,
-      selectedTimelineMedia: selectedTimelineMedia ?? null,
-      unitsOnCurrentMedia,
-    });
-    if (hint.kind !== 'duration_short' || !activeTextId) return;
-    const minSec = hint.maxUnitEndSec;
-    if (!Number.isFinite(minSec) || minSec <= 0) return;
-    fireAndForget((async () => {
-      setLogicalExpandBusy(true);
-      try {
-        await getTranscriptionAppService().expandTextLogicalDurationToAtLeast({
-          textId: activeTextId,
-          minLogicalDurationSec: minSec,
-        });
-        await loadSnapshot();
-        setSaveState({ kind: 'done', message: t(locale, 'transcription.timelineAxisStatus.expandLogicalSuccess') });
-      } catch (e) {
-        const detail = e instanceof Error ? e.message : String(e);
-        setSaveState({
-          kind: 'error',
-          message: tf(locale, 'transcription.timelineAxisStatus.expandLogicalError', { detail }),
-        });
-      } finally {
-        setLogicalExpandBusy(false);
-      }
-    })());
-  }, [
-    activeTextId,
-    layers.length,
-    loadSnapshot,
-    locale,
-    player.duration,
-    player.isReady,
-    selectedMediaUrl,
-    selectedTimelineMedia,
-    setSaveState,
-    unitsOnCurrentMedia,
-  ]);
-
-  const timelineTopPropsWithAxisStatus = useMemo(() => {
-    const withResize = {
-      ...timelineTopProps,
-      headerProps: {
-        ...timelineTopProps.headerProps,
-        ...(selectedMediaUrl ? { onWaveformResizeStart: handleWaveformResizeStart } : {}),
-        isResizingWaveform,
-      },
-    };
-    const hint = resolveTimelineAxisStatus({
-      layersCount: layers.length,
-      selectedMediaUrl,
-      playerIsReady: player.isReady,
-      playerDuration: player.duration,
-      selectedTimelineMedia: selectedTimelineMedia ?? null,
-      unitsOnCurrentMedia,
-    });
-    let axisStatus: TimelineAxisStatusStripProps | null = null;
-    if (hint.kind !== 'hidden') {
-      const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
-      const logicalOk = typeof logicalDurationSec === 'number'
-        && Number.isFinite(logicalDurationSec)
-        && logicalDurationSec > 0;
-      const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
-        ...(logicalOk ? { logicalDurationSec } : {}),
-        ...(activeTextTimelineMode !== undefined ? { timelineMode: activeTextTimelineMode } : {}),
-        hintKind: hint.kind,
-      });
-      if (hint.kind !== 'acoustic_ok' || showLogical) {
-        axisStatus = {
-          locale,
-          hint,
-          ...(logicalOk ? { logicalDurationSec } : {}),
-          ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
-          ...(hint.kind === 'duration_short' && activeTextId
-            ? { expandLogical: { busy: logicalExpandBusy, onPress: expandLogicalDurationFromAxisStatus } }
-            : {}),
-        };
-      }
-    }
-    return axisStatus ? { ...withResize, axisStatus } : withResize;
-  }, [
-    activeTextId,
-    activeTextTimeMapping?.logicalDurationSec,
-    activeTextTimelineMode,
-    expandLogicalDurationFromAxisStatus,
-    handleWaveformResizeStart,
-    isResizingWaveform,
-    layers.length,
-    locale,
-    logicalExpandBusy,
-    player.duration,
-    player.isReady,
-    selectedMediaUrl,
-    selectedTimelineMedia,
+  const { timelineTopPropsWithAxisStatus } = useReadyWorkspaceAxisStatus({
     timelineTopProps,
+    selectedMediaUrl,
+    isResizingWaveform,
+    handleWaveformResizeStart,
+    layersCount: layers.length,
+    playerIsReady: player.isReady,
+    playerDuration: player.duration,
+    selectedTimelineMedia: selectedTimelineMedia ?? null,
     unitsOnCurrentMedia,
-  ]);
+    activeTextId,
+    activeTextTimeMapping,
+    activeTextTimelineMode,
+    locale,
+    loadSnapshot,
+    setSaveState,
+  });
 
   const {
     shouldRenderAiSidebar,

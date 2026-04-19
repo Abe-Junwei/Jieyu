@@ -22,6 +22,31 @@ export {
 } from './engine';
 export type { JieyuDatabase } from './engine';
 
+export {
+  dexieStoresForAiTaskSnapshotsRw,
+  dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
+  dexieStoresForDeleteAudioKeepTimeline,
+  dexieStoresForDeleteProjectByTextIdCascadeRw,
+  dexieStoresForGetUnitLinguisticMemoryRead,
+  dexieStoresForLanguageAssetOverviewRw,
+  dexieStoresForLanguageCatalogMutateRw,
+  dexieStoresForLanguageCatalogProjectionRead,
+  dexieStoresForLayerSegmentGraphRw,
+  dexieStoresForLayerUnitsAndContentsRw,
+  dexieStoresForLayerUnitsAndUnitRelationsRw,
+  dexieStoresForLayerUnitsRw,
+  dexieStoresForLayerUnitsTableRead,
+  dexieStoresForOrthographyBridgeUpsertRw,
+  dexieStoresForRemoveUnitCascadeRw,
+  dexieStoresForSegmentMetaRebuildSourceRead,
+  dexieStoresForSegmentMetaRw,
+  dexieStoresForSegmentMetaSyncForUnitIdsRead,
+  dexieStoresForTierAnnotationAtomicRw,
+  dexieStoresForTrackEntitiesRw,
+  dexieStoresForUnitDocProjectionRead,
+  dexieStoresForWorkspaceSnapshotRebuildRw,
+} from './dexieTranscriptionGraphStores';
+
 // ── 导入 / 导出 | Import / export ──
 export {
   exportDatabaseAsJson,

@@ -1,5 +1,5 @@
 import { startTransition, useCallback, useMemo } from 'react';
-import { getDb } from '../db';
+import { dexieStoresForLayerUnitsTableRead, getDb } from '../db';
 import type {
   AnchorDocType,
   MediaItemDocType,
@@ -914,7 +914,7 @@ export function useTranscriptionUnitActions({
     const persistedTargets = unresolvedIds.length > 0
       ? await db.dexie.transaction(
           'r',
-          db.dexie.layer_units,
+          ...dexieStoresForLayerUnitsTableRead(db),
           async () => (await db.dexie.layer_units.bulkGet(unresolvedIds)).filter((row): row is LayerUnitDocType => Boolean(row)),
         )
       : [];

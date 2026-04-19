@@ -13,9 +13,13 @@ const mockSegmentMetaRebuildForLayerMedia = vi.fn();
 const mockWorkspaceReadModelRebuildForText = vi.fn();
 const mockWorkspaceReadModelGetScopeStats = vi.fn();
 const mockWorkspaceReadModelSummarizeQuality = vi.fn();
-vi.mock('../../db', () => ({
-  getDb: (...args: unknown[]) => mockGetDb(...args),
-}));
+vi.mock('../../db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db')>();
+  return {
+    ...actual,
+    getDb: (...args: unknown[]) => mockGetDb(...args),
+  };
+});
 vi.mock('../../services/LayerSegmentationTextService', () => ({
   listUnitTextsByUnit: (...args: unknown[]) => mockListUnitTextsByUnit(...args),
 }));
@@ -1067,6 +1071,13 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
             })),
           })),
         },
+        tier_definitions: {
+          where: vi.fn(() => ({
+            anyOf: vi.fn((ids: string[]) => ({
+              toArray: vi.fn(async () => layers.filter((row) => ids.includes(row.id))),
+            })),
+          })),
+        },
         user_notes: {
           where: vi.fn(() => ({
             equals: vi.fn((pair: [string, string]) => ({
@@ -1075,13 +1086,7 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
           })),
         },
       },
-      collections: {
-        layers: {
-          findByIndexAnyOf: vi.fn(async (_indexName: string, ids: string[]) => layers
-            .filter((row) => ids.includes(row.id))
-            .map((row) => ({ toJSON: () => row }))),
-        },
-      },
+      collections: {},
     };
 
     mockGetDb.mockResolvedValue(mockDb);
@@ -1146,6 +1151,59 @@ describe('executeLocalContextToolCall get_unit_linguistic_memory', () => {
     expect(payload.coverage.tokenWithPosCount).toBe(1);
     expect(payload.coverage.morphemeCount).toBe(1);
     expect(payload._readModel.unitIndexComplete).toBe(true);
+  });
+
+  it('reads linguistic memory via Dexie tables even when layer collection adapters are unavailable', async () => {
+    const ref = { current: 0 };
+    const context = { shortTerm: {}, longTerm: {} };
+    const mockDb = {
+      dexie: {
+        transaction: vi.fn(async (_mode: unknown, ...args: Array<unknown>) => {
+          const callback = args[args.length - 1];
+          if (typeof callback !== 'function') throw new Error('transaction callback missing');
+          return callback();
+        }),
+        layer_units: {
+          get: vi.fn(async () => ({ id: 'utt-safe', layerId: 'layer-tr', textId: 'text-1', mediaId: 'media-1', startTime: 0, endTime: 1, unitType: 'unit' })),
+        },
+        unit_tokens: {
+          where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
+        },
+        unit_morphemes: {
+          where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
+        },
+        tier_definitions: {
+          where: vi.fn(() => ({ anyOf: vi.fn(() => ({ toArray: vi.fn(async () => ([{ id: 'layer-tr', contentType: 'transcription' }])) })) })),
+        },
+        user_notes: {
+          where: vi.fn(() => ({ equals: vi.fn(() => ({ toArray: vi.fn(async () => []) })) })),
+        },
+      },
+      collections: {},
+    };
+
+    mockGetDb.mockResolvedValue(mockDb);
+    mockListUnitTextsByUnit.mockResolvedValue([
+      {
+        id: 'txt-safe',
+        unitId: 'utt-safe',
+        layerId: 'layer-tr',
+        modality: 'text',
+        text: 'safe read',
+        sourceType: 'human',
+        createdAt: '2026-04-15T00:00:00.000Z',
+        updatedAt: '2026-04-15T00:00:00.000Z',
+      },
+    ]);
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_unit_linguistic_memory', arguments: { unitId: 'utt-safe', includeNotes: true, includeMorphemes: true } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect((result.result as { unit: { id: string } }).unit.id).toBe('utt-safe');
   });
 });
 

@@ -1,6 +1,13 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { db, getDb, type LayerUnitDocType, type LayerUnitContentDocType } from '../db';
+import {
+  db,
+  dexieStoresForLayerUnitsAndContentsRw,
+  dexieStoresForSegmentMetaRw,
+  getDb,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+} from '../db';
 import { cleanupOrphanSegments, enforceTimeSubdivisionParentBounds, listUnitTextsFromSegmentation, getSegmentationV2Ids, listUnitTextsByUnits, removeUnitCascadeFromSegmentationV2, removeUnitTextFromSegmentationV2, syncUnitTextToSegmentationV2 } from './LayerSegmentationTextService';
 
 const NOW = '2026-03-25T00:00:00.000Z';
@@ -194,6 +201,47 @@ describe('LayerSegmentationTextService', () => {
     } finally {
       bulkPutSpy.mockRestore();
     }
+  });
+
+  it('syncs correctly when the parent transaction declares layer_units upfront', async () => {
+    const database = await getDb();
+    const unit: LayerUnitDocType = {
+      id: 'utt_txn_parent_scope',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      startTime: 4,
+      endTime: 5,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const translation: LayerUnitContentDocType = {
+      id: 'utr_txn_parent_scope',
+      unitId: 'utt_txn_parent_scope',
+      layerId: 'layer_trl_scope',
+      modality: 'text',
+      text: 'scope-safe',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+
+    await expect(database.dexie.transaction(
+      'rw',
+      [...dexieStoresForSegmentMetaRw(database), ...dexieStoresForLayerUnitsAndContentsRw(database)],
+      async () => {
+        await syncUnitTextToSegmentationV2(database, unit, translation);
+      },
+    )).resolves.toBeUndefined();
+
+    const ids = getSegmentationV2Ids(translation.layerId, unit.id, translation.id);
+    expect(await db.layer_units.get(ids.segmentId)).toEqual(expect.objectContaining({
+      parentUnitId: unit.id,
+      layerId: 'layer_trl_scope',
+    }));
+    expect(await db.layer_unit_contents.get(ids.segmentContentId)).toEqual(expect.objectContaining({
+      text: 'scope-safe',
+      unitId: ids.segmentId,
+    }));
   });
 
   it('validates layer_units.parentUnitId as non-empty string when provided', async () => {

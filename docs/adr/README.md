@@ -23,7 +23,8 @@ source_of_truth: decision-index
 - [0002-转写页作为唯一开放工作台.md](0002-%E8%BD%AC%E5%86%99%E9%A1%B5%E4%BD%9C%E4%B8%BA%E5%94%AF%E4%B8%80%E5%BC%80%E6%94%BE%E5%B7%A5%E4%BD%9C%E5%8F%B0.md)
 - [0003-execution-文档按角色分层.md](0003-execution-%E6%96%87%E6%A1%A3%E6%8C%89%E8%A7%92%E8%89%B2%E5%88%86%E5%B1%82.md)
 - [0004-logical-timeline-acoustic-media-lifecycle.md](0004-logical-timeline-acoustic-media-lifecycle.md)（逻辑时间轴 / 声学媒体 / 阶段 0 行为规格）
-- [0005-transcription-layer-recording-modality-saymore-careful-speech.md](0005-transcription-layer-recording-modality-saymore-careful-speech.md)（转写层录音模态 / SayMore careful speech 向）
+- [0005 — 转写层录音模态（SayMore careful speech 向）](转写层录音模态（SayMore careful speech 向）架构方案.md)（文件名含中文；与 README 中「0005」编号对应）
+- [0006-dexie-transaction-scope-layer-graph.md](0006-dexie-transaction-scope-layer-graph.md)（Dexie 事务作用域与转写层图访问：声明列全表为第一规范）
 - [ADR-007 — `list_units` 大列表句柄分页（内存快照）](adr-ai-list-units-snapshot-handle.md)
 
 ## 建议格式

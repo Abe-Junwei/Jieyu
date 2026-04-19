@@ -24,6 +24,22 @@ function buildPreviewInputForFullDocumentAxis(
  * 纯文本壳层：轨道 X → 文献秒（主存坐标）。无映射或默认 1:1 时与线性 `x/w*L` 一致。
  * Text-only shell: track X → document seconds (canonical). Matches linear x/w*L when mapping is identity.
  */
+export function trackXFromDocumentTime(
+  documentTime: number,
+  trackWidthPx: number,
+  logicalDurationSec: number,
+  timeMapping?: TextOnlyTimeMappingLike,
+): number {
+  const w = Math.max(trackWidthPx, 1e-9);
+  const preview = LinguisticService.previewTextTimeMapping(buildPreviewInputForFullDocumentAxis(logicalDurationSec, timeMapping));
+  const realSpan = Math.max(preview.realEndTime - preview.realStartTime, 1e-9);
+  const offsetSec = timeMapping?.offsetSec ?? 0;
+  const scale = timeMapping?.scale ?? 1;
+  const safeDocumentTime = Number.isFinite(documentTime) ? Math.max(0, documentTime) : 0;
+  const mappedRealTime = Math.max(0, offsetSec + scale * safeDocumentTime);
+  return Math.min(w, Math.max(0, ((mappedRealTime - preview.realStartTime) / realSpan) * w));
+}
+
 export function documentTimeFromTextOnlyTrackX(
   xInTrack: number,
   trackWidthPx: number,

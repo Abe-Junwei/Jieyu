@@ -42,7 +42,7 @@ export function TimelineAxisStatusStrip({
         return (
           <span className="timeline-axis-status-strip__item">
             <MaterialSymbol
-              name={hint.sub === 'placeholder' ? 'audio_file_off' : 'link_off'}
+              name={hint.sub === 'placeholder' ? 'schedule' : 'link_off'}
               className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`}
             />
             {hint.sub === 'placeholder'

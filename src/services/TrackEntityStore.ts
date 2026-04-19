@@ -1,6 +1,5 @@
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import type { TrackEntityDocType } from '../db';
-import { getDb } from '../db';
+import { dexieStoresForTrackEntitiesRw, getDb, type TrackEntityDocType } from '../db';
 
 export type TrackEntityState = {
   mode: TranscriptionTrackDisplayMode;
@@ -146,7 +145,7 @@ export async function saveTrackEntityStateMapToDb(
     laneLockMap: sanitizeLaneLockMap(state.laneLockMap),
     updatedAt: state.updatedAt || now,
   }));
-  await db.dexie.transaction('rw', db.dexie.track_entities, async () => {
+  await db.dexie.transaction('rw', [...dexieStoresForTrackEntitiesRw(db)], async () => {
     // Delete all existing entries for this textId, then insert new ones
     const existing = await db.dexie.track_entities.where('textId').equals(textId).primaryKeys();
     if (existing.length > 0) {

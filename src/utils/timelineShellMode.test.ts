@@ -8,7 +8,7 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: true,
       playerDuration: 12,
       layersCount: 2,
-    })).toEqual({ shell: 'waveform', acousticPending: false });
+    })).toEqual({ shell: 'waveform', acousticPending: false, playableAcoustic: true });
   });
 
   it('selects text-only with acousticPending when URL exists but player not ready', () => {
@@ -17,7 +17,7 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: false,
       playerDuration: 0,
       layersCount: 1,
-    })).toEqual({ shell: 'text-only', acousticPending: true });
+    })).toEqual({ shell: 'text-only', acousticPending: true, playableAcoustic: false });
   });
 
   it('selects text-only with acousticPending when duration not positive yet', () => {
@@ -26,7 +26,7 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: true,
       playerDuration: 0,
       layersCount: 3,
-    })).toEqual({ shell: 'text-only', acousticPending: true });
+    })).toEqual({ shell: 'text-only', acousticPending: true, playableAcoustic: false });
   });
 
   it('selects text-only without pending when no URL', () => {
@@ -35,7 +35,18 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: false,
       playerDuration: 0,
       layersCount: 2,
-    })).toEqual({ shell: 'text-only', acousticPending: false });
+    })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
+  });
+
+  it('keeps timed media lanes when media timeline has placeholder duration but no playable URL', () => {
+    expect(resolveTimelineShellMode({
+      selectedMediaUrl: null,
+      playerIsReady: false,
+      playerDuration: 0,
+      layersCount: 2,
+      timelineMode: 'media',
+      fallbackDurationSec: 18,
+    })).toEqual({ shell: 'waveform', acousticPending: false, playableAcoustic: false });
   });
 
   it('selects empty when no layers', () => {
@@ -44,7 +55,7 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: true,
       playerDuration: 10,
       layersCount: 0,
-    })).toEqual({ shell: 'empty', acousticPending: false });
+    })).toEqual({ shell: 'empty', acousticPending: false, playableAcoustic: false });
   });
 
   it('treats blank URL as no acoustic', () => {
@@ -53,6 +64,6 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: true,
       playerDuration: 10,
       layersCount: 1,
-    })).toEqual({ shell: 'text-only', acousticPending: false });
+    })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
   });
 });

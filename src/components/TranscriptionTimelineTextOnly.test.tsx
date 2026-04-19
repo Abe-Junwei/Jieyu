@@ -98,21 +98,59 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUnit(id: string, speakerId?: string, speaker?: string): LayerUnitDocType {
+function makeUnit(id: string, speakerId?: string, speaker?: string, startTime = 0, endTime = 1): LayerUnitDocType {
   return {
     id,
     textId: 't1',
     mediaId: 'm1',
     ...(speakerId ? { speakerId } : {}),
     ...(speaker ? { speaker } : {}),
-    startTime: 0,
-    endTime: 1,
+    startTime,
+    endTime,
     createdAt: NOW,
     updatedAt: NOW,
   } as LayerUnitDocType;
 }
 
 describe('TranscriptionTimelineTextOnly logical timing resize (phase 4)', () => {
+  it('positions pure-text items by stored time coordinates instead of equal spacing when logical timeline is active', () => {
+    const layer = makeLayer('trc-timed-layout');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        activeTextTimelineMode="media"
+        logicalDurationSec={100}
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[
+          makeUnit('u-early', undefined, undefined, 10, 15),
+          makeUnit('u-late', undefined, undefined, 80, 90),
+        ]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    const items = Array.from(container.querySelectorAll('.timeline-text-item')) as HTMLElement[];
+    expect(items).toHaveLength(2);
+    expect(items[0]?.style.transform).toContain('36px');
+    expect(items[0]?.style.width).toBe('18px');
+    expect(items[1]?.style.transform).toContain('288px');
+    expect(items[1]?.style.width).toBe('36px');
+  });
+
   it('renders start/end resize handles when startTimelineResizeDrag is provided', () => {
     const layer = makeLayer('trc-timing-handles');
     const scrollEl = document.createElement('div');

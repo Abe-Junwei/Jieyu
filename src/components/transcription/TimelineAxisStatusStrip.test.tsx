@@ -4,6 +4,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { TimelineAxisStatusStrip } from './TimelineAxisStatusStrip';
 
 describe('TimelineAxisStatusStrip', () => {
+  it('uses a valid placeholder timeline icon without leaking raw suffix text', () => {
+    const { container } = render(
+      <TimelineAxisStatusStrip
+        locale="zh-CN"
+        hint={{ kind: 'no_playable_media', sub: 'placeholder' }}
+      />,
+    );
+
+    expect(container.querySelector('.timeline-axis-status-strip__icon')?.textContent).toBe('schedule');
+    expect(screen.queryByText(/_OFF/i)).toBeNull();
+  });
+
   it('shows logical axis length in no_playable_media for document and media timelineMode', () => {
     const { rerender } = render(
       <TimelineAxisStatusStrip

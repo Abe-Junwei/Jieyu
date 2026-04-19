@@ -1,4 +1,24 @@
-import { getDb, type AiTaskSnapshotDocType, type LanguageAssetOverviewDocType, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type ScopeStatsSnapshotDocType, type ScopeStatsSnapshotScopeType, type SegmentMetaDocType, type SegmentQualityIssueKey, type SegmentQualitySeverity, type SegmentQualitySnapshotDocType, type SpeakerProfileSnapshotDocType, type TranslationSnapshotStatus, type TranslationStatusSnapshotDocType } from '../db';
+import {
+  dexieStoresForAiTaskSnapshotsRw,
+  dexieStoresForLanguageAssetOverviewRw,
+  dexieStoresForLayerUnitsAndContentsRw,
+  dexieStoresForWorkspaceSnapshotRebuildRw,
+  getDb,
+  type AiTaskSnapshotDocType,
+  type LanguageAssetOverviewDocType,
+  type LayerDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type ScopeStatsSnapshotDocType,
+  type ScopeStatsSnapshotScopeType,
+  type SegmentMetaDocType,
+  type SegmentQualityIssueKey,
+  type SegmentQualitySeverity,
+  type SegmentQualitySnapshotDocType,
+  type SpeakerProfileSnapshotDocType,
+  type TranslationSnapshotStatus,
+  type TranslationStatusSnapshotDocType,
+} from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 
 const LOW_AI_CONFIDENCE_THRESHOLD = 0.6;
@@ -283,8 +303,7 @@ export class WorkspaceReadModelService {
     const db = await getDb();
     const [unitRows, contentRows] = await db.dexie.transaction(
       'r',
-      db.dexie.layer_units,
-      db.dexie.layer_unit_contents,
+      [...dexieStoresForLayerUnitsAndContentsRw(db)],
       async () => Promise.all([
         db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
         db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
@@ -313,10 +332,7 @@ export class WorkspaceReadModelService {
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.segment_quality_snapshots,
-      db.dexie.scope_stats_snapshots,
-      db.dexie.speaker_profile_snapshots,
-      db.dexie.translation_status_snapshots,
+      [...dexieStoresForWorkspaceSnapshotRebuildRw(db)],
       async () => {
         await Promise.all([
           db.dexie.segment_quality_snapshots.where('textId').equals(normalizedTextId).delete(),
@@ -424,7 +440,7 @@ export class WorkspaceReadModelService {
       };
     });
 
-    await db.dexie.transaction('rw', db.dexie.language_asset_overviews, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLanguageAssetOverviewRw(db)], async () => {
       await db.dexie.language_asset_overviews.clear();
       if (docs.length > 0) {
         await db.dexie.language_asset_overviews.bulkPut(docs);
@@ -452,7 +468,7 @@ export class WorkspaceReadModelService {
       updatedAt: task.updatedAt,
     }));
 
-    await db.dexie.transaction('rw', db.dexie.ai_task_snapshots, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForAiTaskSnapshotsRw(db)], async () => {
       await db.dexie.ai_task_snapshots.clear();
       if (docs.length > 0) {
         await db.dexie.ai_task_snapshots.bulkPut(docs);

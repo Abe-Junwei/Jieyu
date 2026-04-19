@@ -1,4 +1,4 @@
-import { getDb, type MultiLangString, type OrthographyDocType, type OrthographyBridgeDocType } from '../db';
+import { dexieStoresForOrthographyBridgeUpsertRw, getDb, type MultiLangString, type OrthographyBridgeDocType, type OrthographyDocType } from '../db';
 import { getBuiltInOrthographyById, listBuiltInOrthographies, listBuiltInOrthographiesByIds, listAllBuiltInOrthographies } from '../data/builtInOrthographies';
 import { getLanguageCatalogEntry as getLanguageCatalogWorkspaceEntry } from './LinguisticService.languageCatalog';
 import { isKnownIso639_3Code } from '../utils/langMapping';
@@ -560,7 +560,7 @@ export async function createOrthographyBridgeRecord(
     updatedAt: now,
   };
 
-  await db.dexie.transaction('rw', db.dexie.orthography_bridges, db.dexie.orthographies, async () => {
+  await db.dexie.transaction('rw', [...dexieStoresForOrthographyBridgeUpsertRw(db)], async () => {
     await Promise.all([
       assertOrthographyExists(db.dexie.orthographies, sourceOrthographyId, 'sourceOrthographyId'),
       assertOrthographyExists(db.dexie.orthographies, targetOrthographyId, 'targetOrthographyId'),
@@ -667,7 +667,7 @@ export async function updateOrthographyBridgeRecord(
   }
 
   if (next.status === 'active') {
-    await db.dexie.transaction('rw', db.dexie.orthography_bridges, db.dexie.orthographies, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForOrthographyBridgeUpsertRw(db)], async () => {
       await Promise.all([
         assertOrthographyExists(db.dexie.orthographies, next.sourceOrthographyId, 'sourceOrthographyId'),
         assertOrthographyExists(db.dexie.orthographies, next.targetOrthographyId, 'targetOrthographyId'),

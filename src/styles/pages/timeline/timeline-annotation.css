@@ -34,6 +34,7 @@
 .timeline-annotation::before {
   content: '';
   position: absolute;
+  left: 0;
   inset-inline-start: 0;
   top: 0;
   bottom: 0;
@@ -124,6 +125,7 @@
 .timeline-annotation-tools {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top);
+  right: var(--timeline-annotation-side-stack-right);
   inset-inline-end: var(--timeline-annotation-side-stack-right);
   display: inline-flex;
   align-items: center;
@@ -133,12 +135,18 @@
 }
 
 .timeline-annotation-has-self-certainty .timeline-annotation-tools {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
   inset-inline-end: calc(
     var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
   );
 }
 
 .timeline-annotation-has-self-certainty .timeline-annotation-overlap-cycle-badge {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
   inset-inline-end: calc(
     var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
   );
@@ -160,6 +168,7 @@
 .timeline-annotation-overlap-cycle-badge {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top);
+  right: var(--timeline-annotation-side-stack-right);
   inset-inline-end: var(--timeline-annotation-side-stack-right);
   z-index: var(--z-timeline-seg-overlap);
   padding-block: 0;
@@ -230,6 +239,8 @@
 .timeline-annotation-confidence-low::after {
   content: '';
   position: absolute;
+  left: var(--timeline-confidence-underline-inset);
+  right: var(--timeline-confidence-underline-inset);
   inset-inline-start: var(--timeline-confidence-underline-inset);
   inset-inline-end: var(--timeline-confidence-underline-inset);
   bottom: 2px;
@@ -310,6 +321,7 @@
 .timeline-annotation-self-certainty {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top, 4px);
+  right: var(--timeline-annotation-side-stack-right, 6px);
   inset-inline-end: var(--timeline-annotation-side-stack-right, 6px);
   z-index: var(--z-timeline-seg-certainty);
   display: grid;

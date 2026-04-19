@@ -33,6 +33,12 @@ export function TranscriptionPageTimelineContent({
     playerIsReady,
     playerDuration,
     layersCount,
+    ...(textOnlyProps.activeTextTimelineMode !== undefined
+      ? { timelineMode: textOnlyProps.activeTextTimelineMode }
+      : {}),
+    ...(textOnlyProps.logicalDurationSec !== undefined
+      ? { fallbackDurationSec: textOnlyProps.logicalDurationSec }
+      : {}),
   });
 
   if (shell === 'waveform') {

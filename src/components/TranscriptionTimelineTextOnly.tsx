@@ -2,7 +2,7 @@ import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, LayerUnitCon
 import { memo, useCallback, useMemo, useState } from 'react';
 import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
 import type { TextTimeMapping } from '../services/LinguisticService';
-import { computeTextOnlyZoomPxPerDocSec, documentTimeFromTextOnlyTrackX } from '../utils/textOnlyTimelineTimeMapping';
+import { computeTextOnlyZoomPxPerDocSec, documentTimeFromTextOnlyTrackX, trackXFromDocumentTime } from '../utils/textOnlyTimelineTimeMapping';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
@@ -196,6 +196,41 @@ type TextOnlyDragState = {
   trackWidth: number;
   startedOnInput: boolean;
 };
+
+type TextOnlyLaneLayoutItem = {
+  index: number;
+  size: number;
+  start: number;
+};
+
+function buildTextOnlyLaneLayoutItems(input: {
+  units: TimelineUnitView[];
+  fallbackItems: TextOnlyLaneLayoutItem[];
+  fallbackTotalSize: number;
+  logicalDurationSec: number;
+  timeMapping: Pick<TextTimeMapping, 'offsetSec' | 'scale'> | null | undefined;
+  useStoredTimeLayout: boolean;
+}): { items: TextOnlyLaneLayoutItem[]; totalSize: number } {
+  const baseTotalSize = Math.max(input.fallbackTotalSize, input.units.length * 180, 1);
+  if (!input.useStoredTimeLayout || input.units.length === 0 || !(input.logicalDurationSec > 0)) {
+    return { items: input.fallbackItems, totalSize: baseTotalSize };
+  }
+
+  return {
+    totalSize: baseTotalSize,
+    items: input.units.map((unit, index) => {
+      const safeStart = Number.isFinite(unit.startTime) ? Math.max(0, unit.startTime) : 0;
+      const safeEnd = Number.isFinite(unit.endTime) ? Math.max(safeStart, unit.endTime) : safeStart;
+      const start = Number(trackXFromDocumentTime(safeStart, baseTotalSize, input.logicalDurationSec, input.timeMapping).toFixed(3));
+      const end = Number(trackXFromDocumentTime(safeEnd, baseTotalSize, input.logicalDurationSec, input.timeMapping).toFixed(3));
+      return {
+        index,
+        start,
+        size: Math.max(Number((end - start).toFixed(3)), 2),
+      };
+    }),
+  };
+}
 
 export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimelineTextOnly(
   props: TranscriptionTimelineTextOnlyProps,
@@ -548,10 +583,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
-        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
+        const fallbackLaneVirtualItems: TextOnlyLaneLayoutItem[] = usesSegmentTimeline
           ? layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const laneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const fallbackLaneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
+          units: layerUnits,
+          fallbackItems: fallbackLaneVirtualItems,
+          fallbackTotalSize: fallbackLaneTotalSize,
+          logicalDurationSec: resolvedLogicalDurationSec,
+          timeMapping: textOnlyTimeMapping,
+          useStoredTimeLayout: activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media',
+        });
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const layerIsSegmentBased = usesSegmentTimeline;
         const subTrackCount = layerIsSegmentBased && isMultiTrackMode
@@ -722,10 +765,12 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                   : {})}
               />
             ) : null;
+            const trcMixedOrAcceptsAudioTools = Boolean(trcAudioControls)
+              && (layer.modality === 'mixed' || (layer.modality === 'text' && Boolean(layer.acceptsAudio)));
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${trcMixedOrAcceptsAudioTools ? ' timeline-text-item-has-tools' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -761,6 +806,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     className={`timeline-text-item-status-dot timeline-text-item-status-dot-${saveStatus}`}
                     title={saveStatus === 'saving' ? t(locale, 'transcription.timeline.save.saving') : t(locale, 'transcription.timeline.save.unsaved')}
                   />
+                ) : null}
+                {trcMixedOrAcceptsAudioTools ? (
+                  <div className="timeline-text-item-tools">{trcAudioControls}</div>
                 ) : null}
                 {layer.modality !== 'audio' && (
                 <input
@@ -846,9 +894,6 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 )}
                 {layer.modality === 'audio' && trcAudioControls ? (
                   <div className="timeline-translation-audio-card">{trcAudioControls}</div>
-                ) : null}
-                {(layer.modality === 'mixed' || (layer.modality === 'text' && Boolean(layer.acceptsAudio))) && trcAudioControls ? (
-                  <div className="timeline-text-item-trc-audio-inline">{trcAudioControls}</div>
                 ) : null}
                 {startTimelineResizeDrag ? (
                   <>
@@ -952,10 +997,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
-        const laneVirtualItems: Array<{ index: number; size: number; start: number }> = usesSegmentTimeline
+        const fallbackLaneVirtualItems: TextOnlyLaneLayoutItem[] = usesSegmentTimeline
           ? layerUnits.map((_, index) => ({ index, size: 180, start: index * 180 }))
           : virtualItems.map((it) => ({ index: it.index, size: it.size, start: it.start }));
-        const laneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const fallbackLaneTotalSize = usesSegmentTimeline ? layerUnits.length * 180 : totalSize;
+        const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
+          units: layerUnits,
+          fallbackItems: fallbackLaneVirtualItems,
+          fallbackTotalSize: fallbackLaneTotalSize,
+          logicalDurationSec: resolvedLogicalDurationSec,
+          timeMapping: textOnlyTimeMapping,
+          useStoredTimeLayout: activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media',
+        });
         const previewFontSize = previewFontSizeByLayerId[layer.id];
         const displaySettingsForRender = previewFontSize == null
           ? layer.displaySettings

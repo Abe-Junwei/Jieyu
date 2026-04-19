@@ -43,6 +43,7 @@
 .timeline-text-item::before {
   content: '';
   position: absolute;
+  left: 0;
   inset-inline-start: 0;
   top: 15%;   /* 不贯穿上下，减少僵硬感 */
   bottom: 15%;
@@ -224,6 +225,7 @@
 .timeline-text-item-status-dot {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top);
+  right: var(--timeline-annotation-side-stack-right);
   inset-inline-end: var(--timeline-annotation-side-stack-right);
   width: var(--timeline-segment-save-status-dot-size);
   height: var(--timeline-segment-save-status-dot-size);
@@ -234,6 +236,9 @@
 }
 
 .timeline-text-item-has-tools .timeline-text-item-status-dot {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance)
+  );
   inset-inline-end: calc(
     var(--timeline-annotation-side-stack-right) + var(--timeline-segment-tools-clearance)
   );
@@ -290,6 +295,8 @@
   content: '';
   position: absolute;
   bottom: 2px;
+  left: var(--timeline-confidence-underline-inset);
+  right: var(--timeline-confidence-underline-inset);
   inset-inline-start: var(--timeline-confidence-underline-inset);
   inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 1px;
@@ -308,6 +315,8 @@
   content: '';
   position: absolute;
   bottom: 2px;
+  left: var(--timeline-confidence-underline-inset);
+  right: var(--timeline-confidence-underline-inset);
   inset-inline-start: var(--timeline-confidence-underline-inset);
   inset-inline-end: var(--timeline-confidence-underline-inset);
   height: 2px;
@@ -369,6 +378,7 @@
 .timeline-text-item-tools {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top);
+  right: var(--timeline-annotation-side-stack-right);
   inset-inline-end: var(--timeline-annotation-side-stack-right);
   display: inline-flex;
   align-items: center;
@@ -377,6 +387,9 @@
 }
 
 .timeline-text-item-has-self-certainty .timeline-text-item-tools {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
   inset-inline-end: calc(
     var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
   );
@@ -386,19 +399,6 @@
   justify-content: center;
   padding-block: 0;
   padding-inline: 10px;
-}
-
-/* TRC 混合轨内联音频控件容器 | Inline audio controls container for TRC mixed lanes */
-.timeline-text-item-trc-audio-inline {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  padding-block: 0;
-  padding-inline: 8px;
-  box-sizing: border-box;
 }
 
 /* 纯文本壳层拖边改时（与波形区共用 saveUnitTiming 路径）| Text-only shell edge timing (shared saveUnitTiming) */

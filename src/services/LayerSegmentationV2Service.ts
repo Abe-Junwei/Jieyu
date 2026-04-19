@@ -1,4 +1,14 @@
-import { getDb, type LayerSegmentViewDocType, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import {
+  dexieStoresForLayerSegmentGraphRw,
+  dexieStoresForLayerUnitsAndContentsRw,
+  dexieStoresForLayerUnitsAndUnitRelationsRw,
+  dexieStoresForLayerUnitsRw,
+  getDb,
+  type LayerSegmentViewDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type UnitRelationDocType,
+} from '../db';
 import { cleanupOrphanSegments as cleanupOrphanSegmentsBridge } from './LayerSegmentationTextService';
 import { bulkGetLayerUnits, buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphBySegmentIds } from './LayerSegmentGraphService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
@@ -41,7 +51,7 @@ export class LayerSegmentationV2Service {
   static async createSegment(segment: LayerUnitDocType): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
-    await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
     });
   }
@@ -55,7 +65,7 @@ export class LayerSegmentationV2Service {
   ): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
-    await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
       await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
     });
@@ -83,7 +93,7 @@ export class LayerSegmentationV2Service {
     }
     const db = await getDb();
     const now = new Date().toISOString();
-    await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.unit_relations, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndUnitRelationsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [clipped]);
       const link = {
         id: newId('sl'),
@@ -103,7 +113,7 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     const existing = (await LayerSegmentQueryService.listSegmentsByIds([id]))[0];
 
-    await db.dexie.transaction('rw', db.dexie.layer_units, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
       if (existing) {
         const nextRow: LayerUnitDocType = {
           ...existing,
@@ -124,16 +134,24 @@ export class LayerSegmentationV2Service {
 
   static async upsertSegmentContent(content: LayerUnitContentDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction('rw', db.dexie.layer_unit_contents, async () => {
-      await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
-    });
+    await db.dexie.transaction(
+      'rw',
+      [...dexieStoresForLayerSegmentGraphRw(db)],
+      async () => {
+        await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
+      },
+    );
   }
 
   static async deleteSegmentContent(contentId: string): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction('rw', db.dexie.layer_unit_contents, async () => {
-      await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, [contentId]);
-    });
+    await db.dexie.transaction(
+      'rw',
+      [...dexieStoresForLayerSegmentGraphRw(db)],
+      async () => {
+        await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, [contentId]);
+      },
+    );
   }
 
   static async listSegmentContents(segmentId: string): Promise<LayerUnitContentDocType[]> {
@@ -142,9 +160,13 @@ export class LayerSegmentationV2Service {
 
   static async createSegmentLink(link: UnitRelationDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction('rw', db.dexie.unit_relations, async () => {
-      await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
-    });
+    await db.dexie.transaction(
+      'rw',
+      [...dexieStoresForLayerSegmentGraphRw(db)],
+      async () => {
+        await LayerUnitSegmentWriteService.insertSegmentLinks(db, [link]);
+      },
+    );
   }
 
   static async deleteSegment(segmentId: string): Promise<void> {
@@ -152,11 +174,7 @@ export class LayerSegmentationV2Service {
 
     await db.dexie.transaction(
       'rw',
-      [
-        db.dexie.layer_units,
-        db.dexie.layer_unit_contents,
-        db.dexie.unit_relations,
-      ],
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await deleteLayerSegmentGraphBySegmentIds(db, [segmentId]);
       },
@@ -173,11 +191,7 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     await db.dexie.transaction(
       'rw',
-      [
-        db.dexie.layer_units,
-        db.dexie.layer_unit_contents,
-        db.dexie.unit_relations,
-      ],
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await deleteLayerSegmentGraphBySegmentIds(db, ids);
       },
@@ -227,11 +241,7 @@ export class LayerSegmentationV2Service {
 
     await db.dexie.transaction(
       'rw',
-      [
-        db.dexie.layer_units,
-        db.dexie.layer_unit_contents,
-        db.dexie.unit_relations,
-      ],
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await LayerUnitSegmentWriteService.upsertSegments(db, [first]);
         await LayerUnitSegmentWriteService.insertSegments(db, [second]);
@@ -297,11 +307,7 @@ export class LayerSegmentationV2Service {
     // 原子事务：更新保留段 + 级联删除移除段 | Atomic transaction: update kept + cascade-delete removed
     await db.dexie.transaction(
       'rw',
-      [
-        db.dexie.layer_units,
-        db.dexie.layer_unit_contents,
-        db.dexie.unit_relations,
-      ],
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await LayerUnitSegmentWriteService.upsertSegments(db, [mergedKeep]);
         await deleteLayerSegmentGraphBySegmentIds(db, [removeId]);

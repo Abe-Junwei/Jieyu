@@ -1,4 +1,11 @@
-import { getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import {
+  dexieStoresForLayerSegmentGraphRw,
+  dexieStoresForLayerUnitsAndContentsRw,
+  getDb,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type UnitRelationDocType,
+} from '../db';
 import { bulkUpsertLayerUnitContents, bulkUpsertLayerUnits, bulkUpsertUnitRelations, buildClonedLayerUnitGraphForSplit, deleteLayerUnitCascade, getLayerUnitById, listLayerUnitContentsByUnitId, listLayerUnitsByIds, listLayerUnitsByLayerMedia, putLayerUnit, putLayerUnitContent, putUnitRelation, updateLayerUnit } from './LayerUnitSegmentWritePrimitives';
 import { newId } from '../utils/transcriptionFormatters';
 
@@ -22,7 +29,7 @@ export class LayerUnitService {
       throw new Error('LayerUnitContent.unitId must match LayerUnit.id');
     }
     const db = await getDb();
-    await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
+    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
       await putLayerUnit(db, unit);
       await putLayerUnitContent(db, content);
     });
@@ -75,9 +82,7 @@ export class LayerUnitService {
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_units,
-      db.dexie.layer_unit_contents,
-      db.dexie.unit_relations,
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await deleteLayerUnitCascade(db, [unitId]);
       },
@@ -122,9 +127,7 @@ export class LayerUnitService {
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_units,
-      db.dexie.layer_unit_contents,
-      db.dexie.unit_relations,
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await updateLayerUnit(db, unitId, { endTime: splitFixed, updatedAt: now });
         await putLayerUnit(db, second);
@@ -173,9 +176,7 @@ export class LayerUnitService {
 
     await db.dexie.transaction(
       'rw',
-      db.dexie.layer_units,
-      db.dexie.layer_unit_contents,
-      db.dexie.unit_relations,
+      [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
         await updateLayerUnit(db, keepId, {
           startTime: mergedStart,

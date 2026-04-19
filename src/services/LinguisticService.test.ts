@@ -1914,7 +1914,7 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
   });
 
-  it('regression: deleting audio keeps the text rows; defaults text to document when no timelineMode', async () => {
+  it('regression: deleting audio keeps timed text rows editable even when timelineMode was previously unset', async () => {
     await db.texts.put({
       id: 'text_del',
       title: { default: 'Delete audio regression' },
@@ -2053,12 +2053,12 @@ describe('LinguisticService smoke tests', () => {
       filename: 'document-placeholder.track',
       details: expect.objectContaining({
         placeholder: true,
-        timelineMode: 'document',
+        timelineMode: 'media',
       }),
     }));
     await expect(db.texts.get('text_del')).resolves.toEqual(expect.objectContaining({
       metadata: expect.objectContaining({
-        timelineMode: 'document',
+        timelineMode: 'media',
         timebaseLabel: 'logical-second',
       }),
     }));
@@ -2191,6 +2191,19 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.layer_units.get('utt_doc_old')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
     await expect(db.layer_units.get('utt_doc_new')).resolves.toEqual(expect.objectContaining({ mediaId: 'media_doc_new' }));
     await expect(db.media_items.where('textId').equals('text_doc_merge').toArray()).resolves.toHaveLength(1);
+    await expect(db.media_items.get('media_doc_new')).resolves.toEqual(expect.objectContaining({
+      filename: 'document-placeholder.track',
+      details: expect.objectContaining({
+        placeholder: true,
+        timelineMode: 'media',
+      }),
+    }));
+    await expect(db.texts.get('text_doc_merge')).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({
+        timelineMode: 'media',
+        logicalDurationSec: 40,
+      }),
+    }));
   });
 
   it('deleteAudio preserves timelineMode media and importAudio keeps media metadata', async () => {
@@ -2820,6 +2833,43 @@ describe('LinguisticService smoke tests', () => {
 
     expect(getLanguageLocalDisplayNameFromCatalog('demo', 'zh-CN')).toBe('示例语言');
     expect(resolveLanguageQuery('示例别名')).toBe('demo');
+  });
+
+  it('regression: refreshLanguageCatalogReadModel stays isolated from active layer_units transactions', async () => {
+    await seedDefaultTranscriptionLayerForText('text_lang_cache_txn', 'layer_trc_lang_cache_txn', NOW);
+    await LinguisticService.saveUnit({
+      id: 'utt_lang_cache_txn',
+      textId: 'text_lang_cache_txn',
+      startTime: 0,
+      endTime: 1,
+      annotationStatus: 'raw',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await LinguisticService.upsertLanguageCatalogEntry({
+      id: 'user:txn-language',
+      languageCode: 'txn',
+      locale: 'zh-CN',
+      localName: '事务语言',
+      englishName: 'Transactional Language',
+      aliases: ['事务别名'],
+    });
+
+    clearLanguageCatalogRuntimeCache();
+
+    await expect(db.transaction('rw', db.layer_units, async () => {
+      const beforeRefresh = await db.layer_units.get('utt_lang_cache_txn');
+      expect(beforeRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
+
+      await LinguisticService.refreshLanguageCatalogReadModel();
+
+      const afterRefresh = await db.layer_units.get('utt_lang_cache_txn');
+      expect(afterRefresh).toEqual(expect.objectContaining({ id: 'utt_lang_cache_txn' }));
+    })).resolves.toBeUndefined();
+
+    await LinguisticService.refreshLanguageCatalogReadModel();
+    expect(getLanguageLocalDisplayNameFromCatalog('txn', 'zh-CN')).toBe('事务语言');
+    expect(resolveLanguageQuery('事务别名')).toBe('txn');
   });
 
   it('records detailed changed fields and reason in language catalog history', async () => {
@@ -3538,6 +3588,45 @@ describe('Validated single-item CRUD', () => {
     const childAnns = await LinguisticService.getTierAnnotations('td2');
     expect(rootAnns).toHaveLength(0);
     expect(childAnns).toHaveLength(0);
+  });
+
+  it('removeTierAnnotation rolls back all deletes when audit logging fails', async () => {
+    const root = makeTier({ id: 'td1', textId: 'text_1', key: 'utt', tierType: 'time-aligned' });
+    const sub = makeTier({ id: 'td2', textId: 'text_1', key: 'morph', tierType: 'symbolic-subdivision', parentTierId: 'td1' });
+    await LinguisticService.saveTierDefinition(root);
+    await LinguisticService.saveTierDefinition(sub);
+    await db.media_items.put({
+      id: 'media_remove_tx',
+      textId: 'text_1',
+      filename: 'remove.wav',
+      details: {},
+      isOfflineCached: true,
+      createdAt: NOW,
+    });
+
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'a1', tierId: 'td1', startTime: 0, endTime: 2 }),
+    );
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'm1', tierId: 'td2', parentAnnotationId: 'a1', ordinal: 0 }),
+    );
+
+    const originalPut = db.audit_logs.put.bind(db.audit_logs);
+    const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation((value: AuditLogDocType) => {
+      if (value.action === 'delete') {
+        throw new Error('audit delete boom');
+      }
+      return originalPut(value);
+    });
+
+    try {
+      await expect(LinguisticService.removeTierAnnotation('a1')).rejects.toThrow('audit delete boom');
+      expect(await LinguisticService.getTierAnnotations('td1')).toHaveLength(1);
+      expect(await LinguisticService.getTierAnnotations('td2')).toHaveLength(1);
+      expect(await db.anchors.toArray()).toHaveLength(2);
+    } finally {
+      putSpy.mockRestore();
+    }
   });
 
   // saveTierAnnotationsBatch returns warnings

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
-import { buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphByUnitIds, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, findOrphanSegmentIds, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from './LayerSegmentGraphService';
+import { db, dexieStoresForSegmentMetaRw, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
+import { buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphByUnitIds, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, findOrphanSegmentIds, getUnitDocProjectionById, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from './LayerSegmentGraphService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
@@ -23,6 +23,39 @@ describe('LayerSegmentGraphService', () => {
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
     ]);
+  });
+
+  it('reads unit projections safely even when an unrelated parent transaction is active', async () => {
+    const database = await getDb();
+
+    await db.layer_units.put({
+      id: 'utt_projection_scope_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_independent_1',
+      unitType: 'unit',
+      startTime: 1,
+      endTime: 2,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'cnt_projection_scope_1',
+      textId: 'text_1',
+      unitId: 'utt_projection_scope_1',
+      layerId: 'layer_independent_1',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'projection-safe',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    await expect(database.dexie.transaction('rw', [...dexieStoresForSegmentMetaRw(database)], async () => {
+      const projection = await getUnitDocProjectionById(database, 'utt_projection_scope_1');
+      expect(projection?.id).toBe('utt_projection_scope_1');
+    })).resolves.toBeUndefined();
   });
 
   it('snapshots canonical segment graph and exposes relation links as legacy-like links', async () => {

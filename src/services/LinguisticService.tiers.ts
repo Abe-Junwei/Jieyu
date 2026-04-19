@@ -1,4 +1,4 @@
-import { getDb, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
+import { dexieStoresForTierAnnotationAtomicRw, getDb, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { assertReviewProtection, assertStableId, normalizeTierAnnotationDocForStorage } from '../utils/camDataUtils';
 import { type ConstraintSeverity, type ConstraintViolation, type TierSaveResult, validateTierConstraints } from './LinguisticService.constraints';
@@ -29,12 +29,13 @@ async function writeAuditLog(
   action: AuditLogDocType['action'],
   source: AuditSource,
   changes?: Array<{ field: string; oldValue?: unknown; newValue?: unknown }>,
+  dbArg?: Awaited<ReturnType<typeof getDb>>,
 ): Promise<void> {
-  const db = await getDb();
+  const db = dbArg ?? await getDb();
   const timestamp = new Date().toISOString();
 
   if (action === 'create' || action === 'delete' || !changes || changes.length === 0) {
-    await db.collections.audit_logs.insert({
+    await db.dexie.audit_logs.put({
       id: generateAuditId(),
       collection,
       documentId,
@@ -46,7 +47,7 @@ async function writeAuditLog(
   }
 
   for (const change of changes) {
-    await db.collections.audit_logs.insert({
+    await db.dexie.audit_logs.put({
       id: generateAuditId(),
       collection,
       documentId,
@@ -86,17 +87,17 @@ export async function getTierDefinitions(textId: string): Promise<TierDefinition
 
 async function persistTierDefinition(data: TierDefinitionRecord, source: AuditSource): Promise<string> {
   const db = await getDb();
-  const existing = await db.collections.tier_definitions.findOne({ selector: { id: data.id } }).exec();
-  const doc = await db.collections.tier_definitions.insert(data);
+  const existing = await db.dexie.tier_definitions.get(data.id);
+  await db.dexie.tier_definitions.put(data);
   if (existing) {
-    const changes = diffTrackedFields('tier_definitions', existing.toJSON() as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
+    const changes = diffTrackedFields('tier_definitions', existing as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
     if (changes.length > 0) {
-      await writeAuditLog('tier_definitions', data.id, 'update', source, changes);
+      await writeAuditLog('tier_definitions', data.id, 'update', source, changes, db);
     }
   } else {
-    await writeAuditLog('tier_definitions', data.id, 'create', source);
+    await writeAuditLog('tier_definitions', data.id, 'create', source, undefined, db);
   }
-  return doc.primary;
+  return data.id;
 }
 
 export async function saveTierDefinition(data: TierDefinitionRecord, source: AuditSource = 'human'): Promise<TierSaveResult> {
@@ -178,27 +179,27 @@ async function persistTierAnnotation(data: TierAnnotationDocType, source: AuditS
     const endTime = normalizedData.endTime;
     if (!normalizedData.startAnchorId) {
       const startAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: startTime, createdAt: now };
-      await db.collections.anchors.insert(startAnchor);
+      await db.dexie.anchors.put(startAnchor);
       normalizedData = { ...normalizedData, startAnchorId: startAnchor.id };
     }
     if (!normalizedData.endAnchorId) {
       const endAnchor: AnchorDocType = { id: newId('anc'), mediaId, time: endTime, createdAt: now };
-      await db.collections.anchors.insert(endAnchor);
+      await db.dexie.anchors.put(endAnchor);
       normalizedData = { ...normalizedData, endAnchorId: endAnchor.id };
     }
   }
 
-  const existing = await db.collections.tier_annotations.findOne({ selector: { id: normalizedData.id } }).exec();
-  const doc = await db.collections.tier_annotations.insert(normalizedData);
+  const existing = await db.dexie.tier_annotations.get(normalizedData.id);
+  await db.dexie.tier_annotations.put(normalizedData);
   if (existing) {
-    const changes = diffTrackedFields('tier_annotations', existing.toJSON() as unknown as Record<string, unknown>, normalizedData as unknown as Record<string, unknown>);
+    const changes = diffTrackedFields('tier_annotations', existing as unknown as Record<string, unknown>, normalizedData as unknown as Record<string, unknown>);
     if (changes.length > 0) {
-      await writeAuditLog('tier_annotations', normalizedData.id, 'update', source, changes);
+      await writeAuditLog('tier_annotations', normalizedData.id, 'update', source, changes, db);
     }
   } else {
-    await writeAuditLog('tier_annotations', normalizedData.id, 'create', source);
+    await writeAuditLog('tier_annotations', normalizedData.id, 'create', source, undefined, db);
   }
-  return doc.primary;
+  return normalizedData.id;
 }
 
 async function persistTierAnnotationAtomic(
@@ -209,7 +210,7 @@ async function persistTierAnnotationAtomic(
   const db = await getDb();
   return db.dexie.transaction(
     'rw',
-    [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
+    [...dexieStoresForTierAnnotationAtomicRw(db)],
     async () => persistTierAnnotation(data, source, mediaId),
   );
 }
@@ -245,21 +246,39 @@ export async function saveTierAnnotation(data: TierAnnotationDocType, source: Au
 
 export async function removeTierAnnotation(id: string, source: AuditSource = 'human'): Promise<void> {
   const db = await getDb();
-  const childDocs = await db.collections.tier_annotations.findByIndex('parentAnnotationId', id);
-  const children = childDocs.map((doc) => doc.toJSON());
-  for (const child of children) {
-    await removeTierAnnotation(child.id, source);
-  }
+  await db.dexie.transaction(
+    'rw',
+    [...dexieStoresForTierAnnotationAtomicRw(db)],
+    async () => {
+      const orderedIds: string[] = [];
+      const stack = [id];
+      const seen = new Set<string>();
 
-  const annotationDoc = await db.collections.tier_annotations.findOne({ selector: { id } }).exec();
-  if (annotationDoc) {
-    const annotation = annotationDoc.toJSON();
-    if (annotation.startAnchorId) await db.collections.anchors.remove(annotation.startAnchorId);
-    if (annotation.endAnchorId) await db.collections.anchors.remove(annotation.endAnchorId);
-  }
+      while (stack.length > 0) {
+        const currentId = stack.pop()!;
+        if (seen.has(currentId)) continue;
+        seen.add(currentId);
+        orderedIds.push(currentId);
+        const children = await db.dexie.tier_annotations.where('parentAnnotationId').equals(currentId).toArray();
+        for (const child of children) {
+          if (!seen.has(child.id)) stack.push(child.id);
+        }
+      }
 
-  await db.collections.tier_annotations.remove(id);
-  await writeAuditLog('tier_annotations', id, 'delete', source);
+      const rows = (await db.dexie.tier_annotations.bulkGet(orderedIds)).filter((row): row is TierAnnotationDocType => Boolean(row));
+      const anchorIds = [...new Set(rows.flatMap((row) => [row.startAnchorId, row.endAnchorId].filter((value): value is string => Boolean(value))))];
+
+      if (anchorIds.length > 0) {
+        await db.dexie.anchors.bulkDelete(anchorIds);
+      }
+      if (orderedIds.length > 0) {
+        await db.dexie.tier_annotations.bulkDelete(orderedIds);
+      }
+      for (const annotationId of orderedIds) {
+        await writeAuditLog('tier_annotations', annotationId, 'delete', source, undefined, db);
+      }
+    },
+  );
 }
 
 export async function saveTierAnnotationsBatch(
@@ -284,7 +303,7 @@ export async function saveTierAnnotationsBatch(
 
   await db.dexie.transaction(
     'rw',
-    [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs],
+    [...dexieStoresForTierAnnotationAtomicRw(db)],
     async () => {
       for (const annotation of newAnnotations) {
         await persistTierAnnotation(annotation, 'human', mediaId);

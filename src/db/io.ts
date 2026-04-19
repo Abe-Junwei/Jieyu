@@ -439,6 +439,9 @@ export async function importDatabaseFromJson(
     });
   }
 
+  // ADR-0006: One `rw` Dexie transaction whose scope is the dynamic union of `tier_definitions` plus every
+  // Dexie `Table` in `tableByCollection`. The callback only touches stores in that list; `layers` uses
+  // RxDB (`dbInstance.collections.layers`), not additional IDB stores on this transaction.
   const txTables = [
     dbInstance.dexie.tier_definitions as Table<any, any>,
     ...Object.values(tableByCollection)
