@@ -26,6 +26,7 @@ export interface TimelineAnnotationItemProps {
   selfCertainty?: UnitSelfCertainty;
   selfCertaintyTitle?: string;
   selfCertaintyAmbiguous?: boolean;
+  skipProcessing?: boolean;
   content?: ReactNode;
   tools?: ReactNode;
   hasTrailingTools?: boolean;
@@ -65,6 +66,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   selfCertainty,
   selfCertaintyTitle,
   selfCertaintyAmbiguous,
+  skipProcessing,
   content,
   tools,
   hasTrailingTools,
@@ -98,6 +100,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
         typeof confidence === 'number' && confidence < 0.5 ? 'timeline-annotation-confidence-low' : '',
         typeof confidence === 'number' && confidence >= 0.5 && confidence < 0.75 ? 'timeline-annotation-confidence-mid' : '',
         selfCertainty || selfCertaintyAmbiguous ? 'timeline-annotation-has-self-certainty' : '',
+        skipProcessing ? 'timeline-annotation-skipped' : '',
       ].filter(Boolean).join(' ')}
       style={{
         left,
@@ -137,7 +140,9 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {overlapCycleIndicator.index}/{overlapCycleIndicator.total}
         </span>
       )}
-      {content ? content : isActive ? (
+      {content ? content : skipProcessing ? (
+        <span className="timeline-annotation-skipped-label">{t(locale, 'transcription.action.skipProcessingMarked')}</span>
+      ) : isActive ? (
         <input
           className="timeline-annotation-input"
           value={draft}

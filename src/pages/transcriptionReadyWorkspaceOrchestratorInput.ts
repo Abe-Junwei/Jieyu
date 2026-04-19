@@ -1,4 +1,5 @@
 import type { ChangeEvent, RefObject } from 'react';
+import type { TranscriptionComparisonViewFocusState } from './TranscriptionPage.UIState';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TextTimeMapping } from '../types/textTimeMapping';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
@@ -37,10 +38,15 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
   startTimelineResizeDrag?: TranscriptionPageTimelineTextOnlyProps['startTimelineResizeDrag'];
+  /** 纯文本轨拖边调时与 `useTimelineResize` 的 dragPreview 对齐 | Edge-resize live layout */
+  timingDragPreview?: TranscriptionPageTimelineTextOnlyProps['timingDragPreview'];
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
   resolveSelfCertaintyAmbiguityForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyAmbiguityForUnit'];
+  comparisonViewEnabled?: boolean;
+  comparisonFocus?: TranscriptionComparisonViewFocusState;
+  updateComparisonFocus?: (patch: Partial<TranscriptionComparisonViewFocusState>) => void;
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -156,6 +162,9 @@ export function buildOrchestratorViewModelsInput(
     speakerVisualByTimelineUnitId,
     resolveSelfCertaintyForUnit,
     resolveSelfCertaintyAmbiguityForUnit,
+    comparisonViewEnabled,
+    comparisonFocus,
+    updateComparisonFocus,
     selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
@@ -268,10 +277,17 @@ export function buildOrchestratorViewModelsInput(
       ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
       ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
       ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
+      ...(comparisonViewEnabled ? { comparisonViewEnabled: true } : {}),
+      ...(comparisonFocus ? { comparisonFocus } : {}),
+      ...(updateComparisonFocus ? { updateComparisonFocus } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
       ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
+      ...(input.timingDragPreview != null ? { timingDragPreview: input.timingDragPreview } : {}),
+      ...(typeof zoomPxPerSec === 'number' && Number.isFinite(zoomPxPerSec) && zoomPxPerSec > 0
+        ? { textTimelineZoomPxPerSec: zoomPxPerSec }
+        : {}),
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,

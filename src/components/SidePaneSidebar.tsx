@@ -153,17 +153,6 @@ export function SidePaneSidebar({
     setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
   }, [setLayerActionPanel]);
 
-  const openMetadataLayerPopover = useCallback((layerId: string) => {
-    if (!updateLayerMetadata) return;
-    const layer = sidePaneRows.find((candidate) => candidate.id === layerId);
-    if (!layer) return;
-    setLayerActionPanel(null);
-    setCreateLayerPopoverAction({
-      action: layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata',
-      layerId,
-    });
-  }, [setLayerActionPanel, sidePaneRows, updateLayerMetadata]);
-
   const sidePaneHost = useAppSidePaneHostOptional();
   const hasSidePaneHost = sidePaneHost !== null;
   const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
@@ -226,18 +215,12 @@ export function SidePaneSidebar({
   const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
     layerId: contextMenu?.layerId ?? null,
     messages,
-    allLayers: sidePaneRows,
     deletableLayers,
-    canOpenLayerMetadata: Boolean(updateLayerMetadata),
-    requestOpenLayerMetadata: openMetadataLayerPopover,
     requestDeleteLayer,
   }), [
     contextMenu?.layerId,
     deletableLayers,
     messages,
-    sidePaneRows,
-    updateLayerMetadata,
-    openMetadataLayerPopover,
     requestDeleteLayer,
   ]);
 

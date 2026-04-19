@@ -90,6 +90,7 @@ export function createVoiceDictationPipeline(input: CreateVoiceDictationPipeline
           existingText: targetPipelineLayer === 'transcription' ? (currentText || null) : null,
           existingTranslation: targetPipelineLayer === 'translation' ? (currentText || null) : null,
           existingGloss: null,
+          skipProcessing: unit.tags?.skipProcessing === true,
         };
       }),
       getCurrentSegmentId: () => input.selectedTimelineOwnerUnit?.id ?? null,

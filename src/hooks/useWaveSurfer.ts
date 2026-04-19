@@ -21,6 +21,7 @@ export interface WaveSurferRegion {
   id: string;
   start: number;
   end: number;
+  skipProcessing?: boolean;
 }
 
 export interface UseWaveSurferOptions {
@@ -374,6 +375,45 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const primaryRegionIdRef = useLatest(primaryRegionId);
   const draggingRegionRef = useRef<string | null>(null);
 
+  const applyRegionPresentation = useCallback((
+    handle: RegionHandle,
+    region: { id: string; skipProcessing?: boolean },
+  ) => {
+    const el = (handle as unknown as { element?: HTMLElement }).element;
+    if (!el) return;
+
+    const focused = waveformFocused !== false;
+    const isSkipped = region.skipProcessing === true;
+    const defaultBaseColor = region.id === primaryRegionIdRef.current
+      ? (focused
+          ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
+          : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)')
+      : activeRegionIdsRef.current?.has(region.id)
+        ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
+        : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
+    const baseColor = defaultBaseColor;
+
+    // WaveSurfer region DOM lives in an isolated internal tree; paint skipped stripes inline.
+    // WaveSurfer 的 region DOM 位于内部隔离树中；跳过纹理需直接以内联样式绘制。
+    el.style.backgroundColor = baseColor;
+    el.style.backgroundImage = isSkipped
+      ? 'repeating-linear-gradient(135deg, color-mix(in srgb, var(--header-accent) 28%, transparent) 0 3px, transparent 3px 6px)'
+      : 'none';
+    el.style.backgroundRepeat = isSkipped ? 'repeat' : 'no-repeat';
+    el.style.opacity = '1';
+    el.style.outline = 'none';
+    el.style.borderTop = isSkipped
+      ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
+      : 'none';
+    el.style.borderBottom = isSkipped
+      ? '1px dashed color-mix(in srgb, var(--header-accent) 38%, transparent)'
+      : 'none';
+    el.style.boxShadow = isSkipped
+      ? 'inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 10%, transparent)'
+      : 'none';
+    el.classList.toggle('jieyu-waveform-region-skipped', isSkipped);
+  }, [waveformFocused, activeRegionIdsRef, primaryRegionIdRef]);
+
   // Enable drag-selection region creation and notify external handler.
   useEffect(() => {
     const rp = regionsRef.current;
@@ -499,6 +539,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           cbRef.current.onRegionDblClick?.(r.id, handle.start, handle.end);
         }, { signal: sig });
       }
+      applyRegionPresentation(handle, r);
       return handle;
     };
 
@@ -509,12 +550,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       if (existing) {
         // Skip the region being dragged — never touch it during active drag
         if (draggingRegionRef.current === r.id) {
+          applyRegionPresentation(existing, r);
           nextHandles.set(r.id, existing);
         } else if (Math.abs(existing.start - r.start) > 0.0005 || Math.abs(existing.end - r.end) > 0.0005) {
           const el = (existing as unknown as { element?: HTMLElement }).element;
           const obj = existing as unknown as { setOptions?: (o: Record<string, unknown>) => void };
           if (obj.setOptions && el) {
             obj.setOptions({ start: r.start, end: r.end });
+            applyRegionPresentation(existing, r);
             nextHandles.set(r.id, existing);
           } else {
             // Element destroyed or no setOptions — remove + re-add
@@ -529,6 +572,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
             nextHandles.set(r.id, addRegionWithListeners(r));
           }
         } else {
+          applyRegionPresentation(existing, r);
           nextHandles.set(r.id, existing);
         }
       } else {
@@ -614,21 +658,15 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
   // Update region colors without rebuilding (avoids interrupting drag).
   useEffect(() => {
-    const focused = waveformFocused !== false;
     regionHandlesRef.current.forEach((handle, id) => {
       if (id === '__start_marker__' || id === '__sub_selection__') return;
-      const el = (handle as unknown as { element?: HTMLElement }).element;
-      if (el) {
-        el.style.backgroundColor = id === primaryRegionId
-          ? (focused
-              ? 'color-mix(in srgb, var(--state-warning-solid) 22%, transparent)'
-              : 'color-mix(in srgb, var(--state-success-solid) 18%, transparent)')
-          : activeRegionIds?.has(id)
-            ? 'color-mix(in srgb, var(--state-info-solid) 22%, transparent)'
-            : 'color-mix(in srgb, var(--state-info-solid) 6%, transparent)';
-      }
+      const regionRow = (regions ?? []).find((region) => region.id === id);
+      applyRegionPresentation(handle, {
+        id,
+        ...(regionRow?.skipProcessing === true ? { skipProcessing: true } : {}),
+      });
     });
-  }, [activeRegionIds, primaryRegionId, waveformFocused]);
+  }, [applyRegionPresentation, regions]);
 
   // Toggle cursor to hair-line on region elements when Alt is held.
   useEffect(() => {

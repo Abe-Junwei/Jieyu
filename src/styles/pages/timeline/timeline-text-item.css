@@ -39,6 +39,29 @@
   background: var(--timeline-neutral-empty-bg);
 }
 
+.timeline-text-item.timeline-text-item-skipped {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--state-warning-solid) 10%, transparent) 0 8px,
+      color-mix(in srgb, var(--surface-panel) 96%, transparent) 8px 16px
+    ) !important;
+  border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;
+}
+
+.timeline-text-item-skipped-label {
+  display: inline-flex;
+  align-items: center;
+  padding-inline: 8px;
+  color: var(--text-secondary);
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 左侧说话人指示器（局部，非全高 — 避免 ELAN 式僵硬网格感） */
 .timeline-text-item::before {
   content: '';

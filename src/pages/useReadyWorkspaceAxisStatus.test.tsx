@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
 
 const noop = () => {};
@@ -28,33 +28,14 @@ function baseInput(overrides: Partial<Parameters<typeof useReadyWorkspaceAxisSta
 }
 
 describe('useReadyWorkspaceAxisStatus', () => {
-  it('attaches importAcoustic when no_playable_media and importFileRef is provided', () => {
-    const click = vi.fn();
-    const importFileRef = { current: { click } as unknown as HTMLInputElement };
-
-    const { result } = renderHook(() => useReadyWorkspaceAxisStatus(baseInput({ importFileRef })));
-
-    const axis = result.current.timelineTopPropsWithAxisStatus.axisStatus;
-    expect(axis?.hint).toEqual({ kind: 'no_playable_media', sub: 'placeholder' });
-    expect(axis?.importAcoustic).toBeDefined();
-    axis?.importAcoustic?.onPress();
-    expect(click).toHaveBeenCalledTimes(1);
-  });
-
-  it('omits importAcoustic when importFileRef is absent', () => {
+  it('omits axis strip for placeholder logical-axis media row', () => {
     const { result } = renderHook(() => useReadyWorkspaceAxisStatus(baseInput()));
 
-    const axis = result.current.timelineTopPropsWithAxisStatus.axisStatus;
-    expect(axis?.hint.kind).toBe('no_playable_media');
-    expect(axis?.importAcoustic).toBeUndefined();
+    expect(result.current.timelineTopPropsWithAxisStatus.axisStatus).toBeUndefined();
   });
 
-  it('omits importAcoustic when hint is acoustic_decoding', () => {
-    const click = vi.fn();
-    const importFileRef = { current: { click } as unknown as HTMLInputElement };
-
+  it('still surfaces decoding state when acoustic URL is pending', () => {
     const { result } = renderHook(() => useReadyWorkspaceAxisStatus(baseInput({
-      importFileRef,
       selectedMediaUrl: 'blob:decoding',
       playerIsReady: false,
       playerDuration: 0,
@@ -66,6 +47,5 @@ describe('useReadyWorkspaceAxisStatus', () => {
 
     const axis = result.current.timelineTopPropsWithAxisStatus.axisStatus;
     expect(axis?.hint).toEqual({ kind: 'acoustic_decoding' });
-    expect(axis?.importAcoustic).toBeUndefined();
   });
 });

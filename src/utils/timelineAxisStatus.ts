@@ -67,6 +67,7 @@ export function resolveTimelineAxisStatus(input: ResolveTimelineAxisStatusInput)
 
   const row = input.selectedTimelineMedia;
   const isPlaceholder = !row || isMediaItemPlaceholderRow(row);
-  if (isPlaceholder) return { kind: 'no_playable_media', sub: 'placeholder' };
+  /** 占位媒体行不展示顶栏状态条（逻辑编辑在轨道内完成；导入由工具栏统一入口） */
+  if (isPlaceholder) return { kind: 'hidden' };
   return { kind: 'no_playable_media', sub: 'no_blob' };
 }

@@ -139,6 +139,7 @@ export function SidePaneSidebarOverview({
             focusedLayerRowId={focusedLayerRowId}
             messages={messages}
             layers={sidePaneRows}
+            showReviewPresets={false}
             {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
             {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
             {...(segmentContentByLayer !== undefined ? { segmentContentByLayer } : {})}

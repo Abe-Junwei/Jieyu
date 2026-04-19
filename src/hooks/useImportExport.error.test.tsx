@@ -7,6 +7,7 @@ import { useImportExport } from './useImportExport';
 
 const mockIngestTextFile = vi.hoisted(() => vi.fn());
 const mockImportJieyuArchiveFile = vi.hoisted(() => vi.fn());
+const mockDownloadJieyuArchive = vi.hoisted(() => vi.fn(async () => undefined));
 const mockUseOrthographies = vi.hoisted(() => vi.fn(() => []));
 
 vi.mock('./useClickOutside', () => ({
@@ -22,6 +23,7 @@ vi.mock('../services/JymService', async () => {
   return {
     ...actual,
     importJieyuArchiveFile: mockImportJieyuArchiveFile,
+    downloadJieyuArchive: mockDownloadJieyuArchive,
   };
 });
 
@@ -50,6 +52,7 @@ describe('useImportExport - import error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockImportJieyuArchiveFile.mockReset();
+    mockDownloadJieyuArchive.mockReset();
     mockUseOrthographies.mockReturnValue([]);
   });
 
@@ -139,5 +142,28 @@ describe('useImportExport - import error handling', () => {
         i18nKey: 'transcription.importExport.conflict',
       }),
     }));
+  });
+
+  it('should confirm archive export and pass optional encryption options to downloader', async () => {
+    const input = createInput();
+    vi.spyOn(window, 'confirm')
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true);
+    vi.spyOn(window, 'prompt')
+      .mockReturnValueOnce('secret-pass')
+      .mockReturnValueOnce('team-shared');
+
+    const { result } = renderHook(() => useImportExport(input), { wrapper: localeWrapper });
+
+    await act(async () => {
+      await result.current.handleExportJym();
+    });
+
+    expect(mockDownloadJieyuArchive).toHaveBeenCalledWith('jym', 'jieyu-project', {
+      encryption: {
+        password: 'secret-pass',
+        passwordHint: 'team-shared',
+      },
+    });
   });
 });

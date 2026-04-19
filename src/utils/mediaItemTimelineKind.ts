@@ -1,5 +1,8 @@
 import type { MediaItemDocType } from '../db';
 
+/** 文献/逻辑轴占位行在 `media_items.filename` 上的固定值（与 LinguisticService 写入一致）| Sentinel filename for logical-axis placeholder rows */
+export const DOCUMENT_PLACEHOLDER_TRACK_FILENAME = 'document-placeholder.track';
+
 /** 显式：逻辑轴占位行（无声学字节或删音后占位）| Explicit: logical-axis placeholder row */
 export const MEDIA_TIMELINE_KIND_PLACEHOLDER = 'placeholder' as const;
 /** 显式：承载声学时间线的媒体行（含 blob/url）| Explicit: row carrying acoustic timeline payload */
@@ -29,7 +32,7 @@ export function resolveMediaItemTimelineKind(row: MediaItemTimelineKindRow): Med
   if (hasPlayableMediaPayload(row)) {
     return MEDIA_TIMELINE_KIND_ACOUSTIC;
   }
-  if (details.placeholder === true || row.filename === 'document-placeholder.track') {
+  if (details.placeholder === true || row.filename === DOCUMENT_PLACEHOLDER_TRACK_FILENAME) {
     return MEDIA_TIMELINE_KIND_PLACEHOLDER;
   }
   if (details.timelineMode === 'document') {

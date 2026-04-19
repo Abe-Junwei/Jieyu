@@ -422,10 +422,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     ? actionMessages.createTranscriptionLayer
     : action === 'create-translation'
     ? actionMessages.createTranslationLayer
-    : action === 'edit-transcription-metadata'
-    ? actionMessages.editTranscriptionMetadata
-    : action === 'edit-translation-metadata'
-    ? actionMessages.editTranslationMetadata
+    : action === 'edit-transcription-metadata' || action === 'edit-translation-metadata'
+    ? actionMessages.editLayerMetadata
     : actionMessages.deleteLayer;
 
   const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;

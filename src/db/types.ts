@@ -686,6 +686,7 @@ export interface LayerUnitDocType {
   speaker?: string | undefined;
   language?: string | undefined;
   notes?: MultiLangString | undefined;
+  noteCategoryKeys?: NoteCategory[] | undefined;
   tags?: Record<string, boolean> | undefined;
   ai_metadata?: AiMetadata | undefined;
   aiMode?: 'AUTO' | 'SUGGEST' | undefined;

@@ -3,6 +3,10 @@ import type { VideoLayoutMode } from '../components/transcription/TranscriptionT
 export const WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY = 'jieyu:video-layout-mode';
 export const WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY = 'jieyu:video-preview-height';
 export const WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY = 'jieyu:video-right-panel-width';
+export const WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY = 'jieyu:workspace-default-zoom-mode';
+export const WORKSPACE_AUTO_SCROLL_STORAGE_KEY = 'jieyu:workspace-auto-scroll-enabled';
+export const WORKSPACE_SNAP_STORAGE_KEY = 'jieyu:workspace-snap-enabled';
+export const WORKSPACE_COMPARISON_VIEW_STORAGE_KEY = 'jieyu:workspace-comparison-view';
 
 const WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT = 'jieyu:workspace-layout-preference-changed';
 
@@ -56,6 +60,10 @@ export function subscribeWorkspaceLayoutPreferenceChanged(listener: () => void):
       event.key === WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY
       || event.key === WORKSPACE_VIDEO_PREVIEW_HEIGHT_STORAGE_KEY
       || event.key === WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY
+      || event.key === WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY
+      || event.key === WORKSPACE_AUTO_SCROLL_STORAGE_KEY
+      || event.key === WORKSPACE_SNAP_STORAGE_KEY
+      || event.key === WORKSPACE_COMPARISON_VIEW_STORAGE_KEY
     ) {
       listener();
     }

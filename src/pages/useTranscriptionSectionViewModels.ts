@@ -1,8 +1,14 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { TranscriptionPageTimelineTopProps } from './TranscriptionPage.TimelineTop';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import { useTranscriptionSidebarSectionsViewModel } from './useTranscriptionSidebarSectionsViewModel';
 import { createTranscriptionExportCallbacks } from './transcriptionExportCallbacks';
+import {
+  buildTranscriptionReviewItems,
+  countTranscriptionReviewPresets,
+  filterTranscriptionReviewQueue,
+  type TranscriptionReviewPreset,
+} from '../utils/transcriptionReviewQueue';
 import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';
 import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';
 import type { UseTranscriptionSectionViewModelsInput, UseTranscriptionSectionViewModelsResult } from './transcriptionSectionViewModelTypes';
@@ -81,9 +87,56 @@ export function useTranscriptionSectionViewModels(
     sidebarSectionsInput,
   } = input;
 
+  const [activeReviewPreset, setActiveReviewPreset] = useState<TranscriptionReviewPreset>('all');
+
   const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(
     (unit) => typeof unit.ai_metadata?.confidence === 'number' && unit.ai_metadata.confidence < 0.75,
   ).length, [unitsOnCurrentMedia]);
+
+  const reviewItems = useMemo(
+    () => buildTranscriptionReviewItems(unitsOnCurrentMedia),
+    [unitsOnCurrentMedia],
+  );
+
+  const reviewPresetCounts = useMemo(
+    () => countTranscriptionReviewPresets(reviewItems),
+    [reviewItems],
+  );
+
+  const reviewQueue = useMemo(
+    () => filterTranscriptionReviewQueue(reviewItems, activeReviewPreset),
+    [activeReviewPreset, reviewItems],
+  );
+
+  const focusReviewUnit = useCallback((unitId: string) => {
+    const target = unitsOnCurrentMedia.find((unit) => unit.id === unitId);
+    if (!target) return;
+    manualSelectTsRef.current = Date.now();
+    selectUnit(unitId);
+    player.seekTo(target.startTime);
+  }, [manualSelectTsRef, player, selectUnit, unitsOnCurrentMedia]);
+
+  const activeReviewIndex = useMemo(() => reviewQueue.findIndex((unit) => unit.id === selectedTimelineUnit?.unitId), [reviewQueue, selectedTimelineUnit?.unitId]);
+
+  const handleOpenReviewIssues = useCallback(() => {
+    const target = reviewQueue[activeReviewIndex >= 0 ? activeReviewIndex : 0];
+    if (target) focusReviewUnit(target.id);
+  }, [activeReviewIndex, focusReviewUnit, reviewQueue]);
+
+  const handleStepReviewIssue = useCallback((direction: -1 | 1) => {
+    if (reviewQueue.length === 0) return;
+    const currentIndex = activeReviewIndex >= 0 ? activeReviewIndex : 0;
+    const nextIndex = (currentIndex + direction + reviewQueue.length) % reviewQueue.length;
+    const next = reviewQueue[nextIndex];
+    if (!next) return;
+    focusReviewUnit(next.id);
+  }, [activeReviewIndex, focusReviewUnit, reviewQueue]);
+
+  const handleSelectReviewPreset = useCallback((preset: TranscriptionReviewPreset) => {
+    setActiveReviewPreset(preset);
+    const next = filterTranscriptionReviewQueue(reviewItems, preset)[0];
+    if (next) focusReviewUnit(next.id);
+  }, [focusReviewUnit, reviewItems]);
 
   const exportCallbacks = useMemo(() => createTranscriptionExportCallbacks({
     setShowExportMenu,
@@ -131,14 +184,21 @@ export function useTranscriptionSectionViewModels(
     toggleNotes,
     setUttOpsMenu,
     lowConfidenceCount,
+    reviewIssueCount: reviewPresetCounts.all,
+    reviewPresetCounts,
+    activeReviewPreset,
+    onSelectReviewPreset: handleSelectReviewPreset,
+    onOpenReviewIssues: handleOpenReviewIssues,
+    onReviewPrev: () => handleStepReviewIssue(-1),
+    onReviewNext: () => handleStepReviewIssue(1),
     selectedMediaUrl,
     handleAutoSegment,
     autoSegmentBusy,
   }), [
-    autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
-    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, hasActiveTextId,
+    activeReviewPreset, autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
+    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, handleOpenReviewIssues, handleSelectReviewPreset, handleStepReviewIssue, hasActiveTextId,
     hasSelectedTimelineMedia, importFileRef, loadSnapshot, locale, lowConfidenceCount,
-    notePopoverOpen, player, redo, selectedMediaUrl, selectedTimelineMediaFilename,
+    notePopoverOpen, player, redo, reviewPresetCounts, selectedMediaUrl, selectedTimelineMediaFilename,
     selectedTimelineUnit, setGlobalLoopPlayback, setShowAudioImport, setShowProjectSetup,
     setWaveformDisplayMode,
     setUttOpsMenu, setWaveformVisualStyle, setAcousticOverlayMode, showExportMenu, toggleNotes, undo, undoLabel,

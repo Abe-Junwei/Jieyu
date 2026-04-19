@@ -12,7 +12,6 @@ import type { TranscriptionPageReadyWorkspaceLayoutProps } from './Transcription
 type MediaLanesProps = TranscriptionPageTimelineMediaLanesProps;
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
-type ReadyWorkspaceLayerPopoverProps = NonNullable<TranscriptionPageReadyWorkspaceLayoutProps['layerPopoverProps']>;
 
 type SharedLaneFields = Pick<
   MediaLanesProps,
@@ -327,7 +326,8 @@ export function buildReadyWorkspaceOverlaysProps(
     ...(input.speakerFilterOptions ? { speakerFilterOptions: input.speakerFilterOptions } : {}),
     ...(input.onAssignSpeakerFromMenu ? { onAssignSpeakerFromMenu: input.onAssignSpeakerFromMenu } : {}),
     ...(input.onSetUnitSelfCertaintyFromMenu ? { onSetUnitSelfCertaintyFromMenu: input.onSetUnitSelfCertaintyFromMenu } : {}),
-    ...(input.onOpenLayerMetadataPanelFromMenu ? { onOpenLayerMetadataPanelFromMenu: input.onOpenLayerMetadataPanelFromMenu } : {}),
+    ...(input.onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu: input.onToggleSkipProcessingFromMenu } : {}),
+    ...(input.resolveSkipProcessingState ? { resolveSkipProcessingState: input.resolveSkipProcessingState } : {}),
     ...(input.onOpenSpeakerManagementPanelFromMenu ? { onOpenSpeakerManagementPanelFromMenu: input.onOpenSpeakerManagementPanelFromMenu } : {}),
     ...(input.displayStyleControl ? { displayStyleControl: input.displayStyleControl } : {}),
   };
@@ -363,34 +363,6 @@ export function buildReadyWorkspaceLayoutStyle(
       ? `${input.videoRightPanelWidth + 8}px`
       : '0px',
   } as CSSProperties;
-}
-
-export type BuildReadyWorkspaceLayerPopoverPropsInput = {
-  overlayMetadataLayer: { id: string; layerType: 'transcription' | 'translation' } | null;
-  deletableLayers: ReadyWorkspaceLayerPopoverProps['deletableLayers'];
-  createLayer: ReadyWorkspaceLayerPopoverProps['createLayer'];
-  updateLayerMetadata: ReadyWorkspaceLayerPopoverProps['updateLayerMetadata'];
-  deleteLayer: ReadyWorkspaceLayerPopoverProps['deleteLayer'];
-  deleteLayerWithoutConfirm: ReadyWorkspaceLayerPopoverProps['deleteLayerWithoutConfirm'];
-  checkLayerHasContent: ReadyWorkspaceLayerPopoverProps['checkLayerHasContent'];
-  onClose: ReadyWorkspaceLayerPopoverProps['onClose'];
-};
-
-export function buildReadyWorkspaceLayerPopoverProps(
-  input: BuildReadyWorkspaceLayerPopoverPropsInput,
-): TranscriptionPageReadyWorkspaceLayoutProps['layerPopoverProps'] {
-  if (!input.overlayMetadataLayer) return null;
-  return dropUndefinedKeys({
-    action: input.overlayMetadataLayer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata',
-    layerId: input.overlayMetadataLayer.id,
-    deletableLayers: input.deletableLayers,
-    createLayer: input.createLayer,
-    ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
-    ...(input.deleteLayer ? { deleteLayer: input.deleteLayer } : {}),
-    ...(input.deleteLayerWithoutConfirm ? { deleteLayerWithoutConfirm: input.deleteLayerWithoutConfirm } : {}),
-    checkLayerHasContent: input.checkLayerHasContent,
-    onClose: input.onClose,
-  }) as ReadyWorkspaceLayerPopoverProps;
 }
 
 export type BuildReadyWorkspaceStagePropsInput = {

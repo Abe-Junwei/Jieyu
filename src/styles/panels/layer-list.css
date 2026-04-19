@@ -1174,6 +1174,49 @@
   background: transparent;
 }
 
+.app-side-pane-segment-list-review-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.app-side-pane-segment-list-review-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--header-accent) 10%, transparent);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.app-side-pane-segment-list-review-preset.is-active {
+  background: color-mix(in srgb, var(--header-accent) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 26%, transparent);
+}
+
+.app-side-pane-segment-list-review-preset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.app-side-pane-segment-list-review-preset-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-panel) 72%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
 .app-side-pane-segment-list-search-shell {
   display: flex;
   align-items: center;
@@ -1610,6 +1653,11 @@
 
 .app-side-pane-segment-list-item-empty {
   opacity: 0.6;
+}
+
+.app-side-pane-segment-list-item.is-active-review-target {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 42%, transparent);
+  background: color-mix(in srgb, var(--state-warning-bg) 32%, transparent);
 }
 
 .app-side-pane-segment-list-item-time {

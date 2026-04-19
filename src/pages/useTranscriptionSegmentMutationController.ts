@@ -11,6 +11,7 @@ import { dispatchTimelineUnitMutation, dispatchTimelineUnitSelectionMutation } f
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { useTranscriptionSegmentBatchMerge } from './useTranscriptionSegmentBatchMerge';
 import { createMetricTags, recordDurationMetric } from '../observability/metrics';
+import { LayerUnitService } from '../services/LayerUnitService';
 
 interface UseTranscriptionSegmentMutationControllerInput {
   activeLayerIdForEdits: string;
@@ -39,6 +40,7 @@ interface UseTranscriptionSegmentMutationControllerResult {
   mergeSelectedSegmentsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
   deleteUnitRouted: (id: string, layerIdOverride?: string) => Promise<void>;
   deleteSelectedUnitsRouted: (ids: Set<string>, layerIdOverride?: string) => Promise<void>;
+  toggleSkipProcessingRouted: (id: string, layerIdOverride?: string) => Promise<void>;
 }
 
 function setSegmentMutationActionError(
@@ -363,6 +365,43 @@ export function useTranscriptionSegmentMutationController(
     });
   }, [activeLayerIdForEdits, deleteSelectedUnits, locale, pushUndo, recordTimelineEdit, refreshSegmentUndoSnapshot, reloadSegments, resolveSegmentRoutingForLayer, selectTimelineUnit, setSaveState, transcriptionAppService, unitById]);
 
+  const toggleSkipProcessingRouted = useCallback(async (id: string, layerIdOverride?: string) => {
+    const startedAtMs = performance.now();
+    const targetLayerId = layerIdOverride ?? activeLayerIdForEdits;
+    const selectedUnitView = unitById.get(id);
+    const currentTags = { ...(selectedUnitView?.tags ?? {}) };
+    const nextSkipProcessing = currentTags.skipProcessing !== true;
+    if (nextSkipProcessing) currentTags.skipProcessing = true;
+    else delete currentTags.skipProcessing;
+    const nextTags = Object.keys(currentTags).length > 0 ? currentTags : undefined;
+    const actionLabel = nextSkipProcessing
+      ? t(locale, 'transcription.unitAction.undo.markSkipProcessing')
+      : t(locale, 'transcription.unitAction.undo.clearSkipProcessing');
+    const successMessage = nextSkipProcessing
+      ? t(locale, 'transcription.action.skipProcessingMarked')
+      : t(locale, 'transcription.action.skipProcessingCleared');
+
+    pushUndo(actionLabel);
+    try {
+      await LayerUnitService.updateUnit(id, {
+        ...(nextTags !== undefined ? { tags: nextTags } : { tags: undefined }),
+        updatedAt: new Date().toISOString(),
+      });
+      await reloadSegments();
+      await refreshSegmentUndoSnapshot();
+      selectTimelineUnit(
+        selectedUnitView?.kind === 'unit'
+          ? { layerId: selectedUnitView.layerId, unitId: id, kind: 'unit' }
+          : createSegmentTarget(id, targetLayerId),
+      );
+      setSaveState({ kind: 'done', message: successMessage });
+      recordSegmentMutationLatency('toggle_skip_processing', 'success', startedAtMs);
+    } catch (error) {
+      setSegmentMutationActionError(setSaveState, actionLabel, 'transcription.error.action.segmentSkipProcessingFailed', error);
+      recordSegmentMutationLatency('toggle_skip_processing', 'error', startedAtMs);
+    }
+  }, [activeLayerIdForEdits, createSegmentTarget, locale, pushUndo, refreshSegmentUndoSnapshot, reloadSegments, selectTimelineUnit, setSaveState, unitById]);
+
   return {
     splitRouted,
     mergeWithPreviousRouted,
@@ -370,5 +409,6 @@ export function useTranscriptionSegmentMutationController(
     mergeSelectedSegmentsRouted,
     deleteUnitRouted: deleteUnitRouted,
     deleteSelectedUnitsRouted: deleteSelectedUnitsRouted,
+    toggleSkipProcessingRouted,
   };
 }

@@ -51,7 +51,7 @@ describe('timelineAxisStatus', () => {
     })).toEqual({ kind: 'acoustic_ok', acousticSec: 10 });
   });
 
-  it('returns placeholder axis when text-only shell and placeholder row', () => {
+  it('hides axis strip for placeholder logical-axis media row', () => {
     expect(resolveTimelineAxisStatus({
       layersCount: 1,
       selectedMediaUrl: null,
@@ -62,7 +62,7 @@ describe('timelineAxisStatus', () => {
         details: { placeholder: true, timelineMode: 'document' },
       },
       unitsOnCurrentMedia: [],
-    })).toEqual({ kind: 'no_playable_media', sub: 'placeholder' });
+    })).toEqual({ kind: 'hidden' });
   });
 
   describe('shouldShowLogicalAxisLengthOnAxisStrip', () => {

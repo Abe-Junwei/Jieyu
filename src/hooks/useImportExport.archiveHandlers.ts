@@ -9,6 +9,15 @@ import type { SaveState } from './useTranscriptionData';
 
 const log = createLogger('useImportExport');
 
+function isArchivePasswordError(error: unknown): boolean {
+  const message = toErrorMessage(error).toLowerCase();
+  return message.includes('password required') || message.includes('decrypt jieyu archive');
+}
+
+function getArchivePasswordCacheKey(file: File): string {
+  return `${file.name}:${file.size}:${file.lastModified}`;
+}
+
 interface CreateImportExportArchiveHandlersInput {
   activeTextId: string | null;
   loadSnapshot: () => Promise<void>;
@@ -18,9 +27,39 @@ interface CreateImportExportArchiveHandlersInput {
 
 export function createImportExportArchiveHandlers(input: CreateImportExportArchiveHandlersInput) {
   const { activeTextId, loadSnapshot, locale, setSaveState } = input;
+  const passwordCache = new Map<string, string>();
+
+  const withArchivePasswordRetry = async <T,>(
+    file: File,
+    operation: (password?: string) => Promise<T>,
+  ): Promise<T> => {
+    const cacheKey = getArchivePasswordCacheKey(file);
+    const cachedPassword = passwordCache.get(cacheKey);
+
+    try {
+      return await operation(cachedPassword);
+    } catch (error) {
+      if (!isArchivePasswordError(error) || typeof window === 'undefined') {
+        throw error;
+      }
+
+      const promptValue = window.prompt(t(locale, 'transcription.importExport.archivePasswordPrompt'));
+      if (promptValue == null) {
+        throw error;
+      }
+
+      const password = promptValue.trim();
+      if (!password) {
+        throw new Error(t(locale, 'transcription.importExport.archivePasswordRequired'));
+      }
+
+      passwordCache.set(cacheKey, password);
+      return operation(password);
+    }
+  };
 
   const previewProjectArchiveImport = async (file: File): Promise<JieyuArchiveImportPreview> => {
-    return previewJieyuArchiveFile(file);
+    return withArchivePasswordRetry(file, (password) => previewJieyuArchiveFile(file, password ? { password } : undefined));
   };
 
   const importProjectArchive = async (
@@ -30,7 +69,10 @@ export function createImportExportArchiveHandlers(input: CreateImportExportArchi
     let resolvedTextId: string | null = activeTextId;
 
     try {
-      const imported = await importJieyuArchiveFile(file, { strategy });
+      const imported = await withArchivePasswordRetry(file, (password) => importJieyuArchiveFile(file, {
+        strategy,
+        ...(password ? { password } : {}),
+      }));
       const totals = Object.values(imported.importResult.collections).reduce(
         (acc, c) => ({
           written: acc.written + (c?.written ?? 0),

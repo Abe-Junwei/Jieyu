@@ -20,6 +20,8 @@ const {
   mockLayerLinksToArray,
   mockUnitsWhereTextIdPrimaryKeys,
   mockListUnitTextsByUnits,
+  mockSaveUnit,
+  mockCreateSegment,
 } = vi.hoisted(() => ({
   mockCountSegmentContentsByLayerId: vi.fn(async () => 0),
   mockGetDb: vi.fn(),
@@ -39,6 +41,8 @@ const {
   mockLayerLinksToArray: vi.fn(async () => []),
   mockUnitsWhereTextIdPrimaryKeys: vi.fn<() => Promise<string[]>>(async () => []),
   mockListUnitTextsByUnits: vi.fn(async () => []),
+  mockSaveUnit: vi.fn(async () => 'utt_1'),
+  mockCreateSegment: vi.fn(async () => undefined),
 }));
 
 vi.mock('../db', async () => {
@@ -61,6 +65,13 @@ vi.mock('../services/LayerTierUnifiedService', () => ({
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     removeUnitsBatch: mockRemoveUnitsBatch,
+    saveUnit: mockSaveUnit,
+  },
+}));
+
+vi.mock('../services/LayerSegmentationV2Service', () => ({
+  LayerSegmentationV2Service: {
+    createSegment: mockCreateSegment,
   },
 }));
 
@@ -500,6 +511,102 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       ? createCalls[lastCallIndex]?.[0]
       : undefined) as { constraint?: string } | undefined;
     expect(created?.constraint).toBe('independent_boundary');
+    expect(mockSaveUnit).toHaveBeenCalledTimes(1);
+    expect(mockCreateSegment).not.toHaveBeenCalled();
+  });
+
+  it('when adding the first transcription layer, persists pending units and creates parent-linked segments for audio rows', async () => {
+    mockSaveUnit.mockResolvedValue('utt_pre');
+    const pendingUnit = {
+      id: 'utt_pre',
+      textId: 'text_1',
+      mediaId: 'media_wav',
+      startTime: 1.2,
+      endTime: 3.4,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: '',
+      unitsRef: { current: [pendingUnit as never] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.createLayer('transcription', { languageId: 'zho', textId: 'text_1' }, 'text');
+    });
+
+    expect(mockSaveUnit).toHaveBeenCalledWith(pendingUnit);
+    expect(mockCreateSegment).toHaveBeenCalledTimes(1);
+    const createdLayer = (mockCreateLayer.mock.calls[0]?.[0] ?? {}) as { id: string; constraint?: string };
+    const seg = mockCreateSegment.mock.calls[0]?.[0] as {
+      layerId: string;
+      unitId: string;
+      mediaId: string;
+      startTime: number;
+      endTime: number;
+    };
+    expect(createdLayer.constraint).toBe('independent_boundary');
+    expect(seg.layerId).toBe(createdLayer.id);
+    expect(seg.unitId).toBe('utt_pre');
+    expect(seg.mediaId).toBe('media_wav');
+    expect(seg.startTime).toBe(1.2);
+    expect(seg.endTime).toBe(3.4);
+  });
+
+  it('still updates React layer list when adopting pending units fails (DB layer already inserted)', async () => {
+    mockSaveUnit.mockRejectedValueOnce(new Error('simulated persist failure'));
+    const pendingUnit = {
+      id: 'utt_pre',
+      textId: 'text_1',
+      mediaId: 'media_wav',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const setLayers = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [],
+      layerLinks: [],
+      layerToDeleteId: '',
+      selectedLayerId: '',
+      unitsRef: { current: [pendingUnit as never] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers,
+      setLayerLinks: vi.fn(),
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      const ok = await result.current.createLayer('transcription', { languageId: 'zho', textId: 'text_1' }, 'text');
+      expect(ok).toBe(true);
+    });
+
+    expect(setLayers).toHaveBeenCalled();
+    expect(mockCreateSegment).not.toHaveBeenCalled();
   });
 
   it('canonicalizes sort order after creating a dependent translation layer', async () => {

@@ -98,17 +98,30 @@ function makeLayer(id: string): LayerDocType {
   } as LayerDocType;
 }
 
-function makeUnit(id: string, speakerId?: string, speaker?: string, startTime = 0, endTime = 1): LayerUnitDocType {
+function makeUnit(id: string, speakerId?: string, speaker?: string, startTime = 0, endTime = 1, tags?: Record<string, boolean>): LayerUnitDocType {
   return {
     id,
     textId: 't1',
     mediaId: 'm1',
     ...(speakerId ? { speakerId } : {}),
     ...(speaker ? { speaker } : {}),
+    ...(tags ? { tags } : {}),
     startTime,
     endTime,
     createdAt: NOW,
     updatedAt: NOW,
+  } as LayerUnitDocType;
+}
+
+/** Independent segment graph rows must carry `unitType: 'segment'` (matches Dexie); UI branches on this. */
+function makeSegmentRow(p: Partial<LayerUnitDocType> & Pick<LayerUnitDocType, 'id' | 'startTime' | 'endTime'>): LayerUnitDocType {
+  return {
+    textId: 't1',
+    mediaId: 'm1',
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...p,
+    unitType: 'segment',
   } as LayerUnitDocType;
 }
 
@@ -177,6 +190,36 @@ describe('TranscriptionTimelineTextOnly logical timing resize (phase 4)', () => 
       />,
     );
     expect(container.querySelectorAll('.timeline-text-item-timing-resize-handle')).toHaveLength(2);
+  });
+
+  it('leaves skipped segments blank in the text lane', () => {
+    const layer = makeLayer('trc-skipped');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[makeUnit('u-skipped', undefined, undefined, 0, 1, { skipProcessing: true })]}
+        selectedTimelineUnit={{ layerId: layer.id, unitId: 'u-skipped', kind: 'unit' }}
+        flashLayerRowId=""
+        focusedLayerRowId={layer.id}
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('.timeline-text-input')).toBeNull();
+    expect(container.querySelector('.timeline-text-item')).toBeNull();
+    expect(screen.queryByText(/已标记为跳过处理|Marked to skip processing\./)).toBeNull();
   });
 });
 
@@ -456,17 +499,15 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
           makeUnit('utt-host', 'spk-b'),
         ]}
         segmentsByLayer={new Map([
-          [layer.id, [{
-            id: 'seg-1',
-            textId: 't1',
-            mediaId: 'm1',
-            layerId: layer.id,
-            unitId: 'utt-host',
-            startTime: 4,
-            endTime: 6,
-            createdAt: NOW,
-            updatedAt: NOW,
-          }]],
+          [layer.id, [
+            makeSegmentRow({
+              id: 'seg-1',
+              layerId: layer.id,
+              unitId: 'utt-host',
+              startTime: 4,
+              endTime: 6,
+            }),
+          ]],
         ])}
         selectedTimelineUnit={null}
         flashLayerRowId=""
@@ -523,7 +564,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+            makeSegmentRow({ id: 'seg-1', layerId: parentLayer.id, startTime: 0, endTime: 1 }),
           ]],
         ])}
         selectedTimelineUnit={null}
@@ -574,8 +615,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+            makeSegmentRow({ id: 'seg-1', layerId: parentLayer.id, startTime: 0, endTime: 1 }),
+            makeSegmentRow({ id: 'seg-2', layerId: parentLayer.id, startTime: 1, endTime: 2 }),
           ]],
         ])}
         selectedTimelineUnit={null}
@@ -619,7 +660,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
 
     const initialSegments = new Map<string, LayerUnitDocType[]>([
       [parentLayer.id, [
-        { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+        makeSegmentRow({ id: 'seg-1', layerId: parentLayer.id, startTime: 0, endTime: 1 }),
       ]],
     ]);
     const initialContents = new Map<string, Map<string, LayerUnitContentDocType>>([
@@ -664,8 +705,8 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         unitsOnCurrentMedia={[makeUnit('u-main')]}
         segmentsByLayer={new Map([
           [parentLayer.id, [
-            { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
-            { id: 'seg-2', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 1, endTime: 2, createdAt: NOW, updatedAt: NOW },
+            makeSegmentRow({ id: 'seg-1', layerId: parentLayer.id, startTime: 0, endTime: 1 }),
+            makeSegmentRow({ id: 'seg-2', layerId: parentLayer.id, startTime: 1, endTime: 2 }),
           ]],
         ])}
         segmentContentByLayer={new Map([
@@ -757,6 +798,59 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     expect(createUnitFromSelection).toHaveBeenCalledWith(2, 12);
   });
 
+  it('defaults missing activeTextTimelineMode to document when drag-create is available (metadata gap)', () => {
+    const layer = makeLayer('trc-drag-no-mode-meta');
+    const scrollEl = document.createElement('div');
+    const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
+    const createUnitFromSelection = vi.fn(async () => undefined);
+
+    const { container } = render(
+      <TranscriptionTimelineTextOnly
+        transcriptionLayers={[layer]}
+        translationLayers={[]}
+        unitsOnCurrentMedia={[]}
+        selectedTimelineUnit={null}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={layer.id}
+        scrollContainerRef={scrollRef}
+        handleAnnotationClick={vi.fn()}
+        allLayersOrdered={[layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[layer]}
+        onFocusLayer={vi.fn()}
+        navigateUnitFromInput={vi.fn()}
+        laneHeights={{ [layer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        createUnitFromSelection={createUnitFromSelection}
+        logicalDurationSec={20}
+      />,
+    );
+
+    const track = container.querySelector('.timeline-lane-text-only-track') as HTMLDivElement | null;
+    expect(track).toBeTruthy();
+    if (!track) return;
+
+    vi.spyOn(track, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 200,
+      height: 44,
+      top: 0,
+      right: 200,
+      bottom: 44,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.pointerDown(track, { clientX: 20, clientY: 10, button: 0, pointerId: 77 });
+    fireEvent.pointerMove(track, { clientX: 120, clientY: 10, pointerId: 77 });
+    expect(container.querySelector('.timeline-text-only-drag-preview')).toBeTruthy();
+    fireEvent.pointerUp(track, { clientX: 120, clientY: 10, pointerId: 77 });
+
+    expect(createUnitFromSelection).toHaveBeenCalledWith(2, 12);
+  });
+
   it('allows pure-text drag creation from text-item chrome instead of only blank track background', () => {
     const layer = makeLayer('trc-drag-on-item');
     const scrollEl = document.createElement('div');
@@ -809,7 +903,10 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     fireEvent.pointerMove(track, { clientX: 140, clientY: 10, pointerId: 2 });
     fireEvent.pointerUp(track, { clientX: 140, clientY: 10, pointerId: 2 });
 
-    expect(createUnitFromSelection).toHaveBeenCalledWith(4, 14);
+    expect(createUnitFromSelection).toHaveBeenCalledWith(
+      Number((40 / 180 * 20).toFixed(3)),
+      Number((140 / 180 * 20).toFixed(3)),
+    );
   });
 
   it('does not create a segment when the drag starts from the text input itself', () => {
@@ -944,7 +1041,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const segmentsByLayer = new Map([
       [layer.id, [
-        { id: 'seg_text_1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+        makeSegmentRow({ id: 'seg_text_1', layerId: layer.id, startTime: 0, endTime: 1 }),
       ]],
     ]);
     const segmentContentByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
@@ -989,7 +1086,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const segmentsByLayer = new Map([
       [layer.id, [
-        { id: 'seg_ph_1', textId: 't1', mediaId: 'm1', layerId: layer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
+        makeSegmentRow({ id: 'seg_ph_1', layerId: layer.id, startTime: 0, endTime: 1 }),
       ]],
     ]);
 
@@ -1028,16 +1125,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const segmentsByLayer = new Map([
       [layer.id, [
-        {
-          id: 'seg_1',
-          textId: 't1',
-          mediaId: 'm1',
-          layerId: layer.id,
-          startTime: 0,
-          endTime: 1,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
+        makeSegmentRow({ id: 'seg_1', layerId: layer.id, startTime: 0, endTime: 1 }),
       ]],
     ]);
 
@@ -1076,17 +1164,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const segmentsByLayer = new Map([
       [layer.id, [
-        {
-          id: 'seg_1',
-          textId: 't1',
-          mediaId: 'm1',
-          layerId: layer.id,
-          speakerId: 's1',
-          startTime: 0,
-          endTime: 1,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
+        makeSegmentRow({ id: 'seg_1', layerId: layer.id, speakerId: 's1', startTime: 0, endTime: 1 }),
       ]],
     ]);
 
@@ -1125,17 +1203,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
     const segmentsByLayer = new Map([
       [layer.id, [
-        {
-          id: 'seg_badge_1',
-          textId: 't1',
-          mediaId: 'm1',
-          layerId: layer.id,
-          speakerId: 's1',
-          startTime: 0,
-          endTime: 1,
-          createdAt: NOW,
-          updatedAt: NOW,
-        },
+        makeSegmentRow({ id: 'seg_badge_1', layerId: layer.id, speakerId: 's1', startTime: 0, endTime: 1 }),
       ]],
     ]);
 

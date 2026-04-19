@@ -46,9 +46,17 @@ const ObserverStatus: FC<ObserverStatusProps> = ({
     onExecuteRecommendation(item);
   }, [onExecuteRecommendation]);
 
+  const toolbarRecommendations = recommendations.filter((item) => {
+    const normalizedId = item.id.trim().toLowerCase();
+    const normalizedLabel = (item.actionLabel ?? item.title ?? '').trim().toLowerCase();
+    return !normalizedId.includes('risk-review')
+      && normalizedLabel !== '风险复核'
+      && normalizedLabel !== 'risk review';
+  });
+
   const MAX_VISIBLE = 2;
-  const visibleRecs = recommendations.slice(0, MAX_VISIBLE);
-  const overflowCount = Math.max(0, recommendations.length - MAX_VISIBLE);
+  const visibleRecs = toolbarRecommendations.slice(0, MAX_VISIBLE);
+  const overflowCount = Math.max(0, toolbarRecommendations.length - MAX_VISIBLE);
 
   return (
     <>
@@ -56,7 +64,7 @@ const ObserverStatus: FC<ObserverStatusProps> = ({
         {t(locale, 'ai.observer.currentStage')}
         {getStageLabel(observerStage)}
       </span>
-      {recommendations.length > 0 && (
+      {toolbarRecommendations.length > 0 && (
         <div className="transcription-ai-observer-recs-inline">
           {visibleRecs.map((item) => (
             <button
@@ -72,7 +80,7 @@ const ObserverStatus: FC<ObserverStatusProps> = ({
           {overflowCount > 0 && (
             <span
               className="transcription-ai-observer-rec-overflow"
-              title={recommendations.slice(MAX_VISIBLE).map((i) => i.actionLabel ?? i.title).join('、')}
+              title={toolbarRecommendations.slice(MAX_VISIBLE).map((i) => i.actionLabel ?? i.title).join('、')}
             >
               +{overflowCount}
             </span>

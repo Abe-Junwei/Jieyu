@@ -674,6 +674,51 @@
   white-space: nowrap;
 }
 
+.toolbar-review-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar-review-nav-menu {
+  position: relative;
+}
+
+.toolbar-review-nav-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  max-width: min(320px, 70vw);
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--header-border) 92%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-panel) 98%, var(--surface-header));
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--shadow-color) 14%, transparent);
+  z-index: calc(var(--z-header) + 2);
+}
+
+.toolbar-review-nav-popover-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.toolbar-confidence-badge-button {
+  cursor: pointer;
+}
+
+.toolbar-confidence-badge-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.toolbar-confidence-badge-summary {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .toolbar-ai-progress {
   display: inline-flex;
   align-items: center;

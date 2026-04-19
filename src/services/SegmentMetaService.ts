@@ -73,13 +73,17 @@ function sortNoteCategories(categories: readonly NoteCategory[] | undefined): No
   return sorted.length > 0 ? sorted : undefined;
 }
 
-function expandNoteTargetIds(note: { targetType: string; targetId: string }): string[] {
+function expandNoteTargetIds(note: { targetType: string; targetId: string; parentTargetId?: string }): string[] {
   const normalizedTargetId = note.targetId.trim();
-  if (!normalizedTargetId) return [];
-  if (note.targetType !== 'tier_annotation') return [normalizedTargetId];
+  const normalizedParentTargetId = note.parentTargetId?.trim();
+  if (!normalizedTargetId && !normalizedParentTargetId) return [];
 
-  const baseUnitId = normalizedTargetId.split('::')[0]?.trim();
-  return [...new Set([normalizedTargetId, ...(baseUnitId ? [baseUnitId] : [])])];
+  if (note.targetType === 'tier_annotation') {
+    const baseUnitId = normalizedTargetId.split('::')[0]?.trim();
+    return [...new Set([normalizedTargetId, ...(baseUnitId ? [baseUnitId] : [])])];
+  }
+
+  return normalizedTargetId ? [normalizedTargetId] : [];
 }
 
 function resolveLatestIso(...values: Array<string | undefined>): string {

@@ -204,16 +204,23 @@ export function useTranscriptionTimelineInteractionController(
       }
     }
 
+    const timelineItem = input.waveformTimelineItems.find((item) => item.id === regionId);
+    const menuLayerIdFromItem = typeof timelineItem?.layerId === 'string' ? timelineItem.layerId.trim() : '';
+    const ctxMenuLayerId = menuLayerIdFromItem.length > 0 ? menuLayerIdFromItem : nextTarget.layerId;
+    const row = input.layers.find((layer) => layer.id === ctxMenuLayerId);
+    const layerType = row?.layerType === 'translation' ? 'translation' : 'transcription';
     input.setCtxMenu({
       x,
       y,
       unitId: regionId,
-      layerId: nextTarget.layerId,
+      layerId: ctxMenuLayerId,
       unitKind: nextTarget.kind,
       splitTime,
       source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType,
     });
-  }, [input.activeLayerIdForEdits, input.player, input.selectTimelineUnit, input.selectedUnitIds, input.setCtxMenu, input.useSegmentWaveformRegions]);
+  }, [input.activeLayerIdForEdits, input.layers, input.player, input.selectTimelineUnit, input.selectedUnitIds, input.setCtxMenu, input.useSegmentWaveformRegions, input.waveformTimelineItems]);
 
   const handleWaveformRegionAltPointerDown = useCallback((regionId: string, time: number, pointerId: number, _clientX: number) => {
     input.subSelectDragRef.current = { active: false, regionId, anchorTime: time, pointerId };

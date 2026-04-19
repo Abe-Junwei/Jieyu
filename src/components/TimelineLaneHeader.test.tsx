@@ -41,6 +41,8 @@ function renderHeader(trackModeControl?: {
     layerId: string,
   ) => void;
   displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
+  speakerQuickActions?: Parameters<typeof TimelineLaneHeader>[0]['speakerQuickActions'];
+  headerMenuPreset?: Parameters<typeof TimelineLaneHeader>[0]['headerMenuPreset'];
 }) {
   const layer = options?.layer ?? makeLayer('layer-1');
   return render(
@@ -56,6 +58,8 @@ function renderHeader(trackModeControl?: {
       onLayerAction={options?.onLayerAction ?? vi.fn()}
       onToggleCollapsed={vi.fn()}
       {...(options?.displayStyleControl ? { displayStyleControl: options.displayStyleControl } : {})}
+      {...(options?.speakerQuickActions ? { speakerQuickActions: options.speakerQuickActions } : {})}
+      {...(options?.headerMenuPreset ? { headerMenuPreset: options.headerMenuPreset } : {})}
       {...(trackModeControl ? { trackModeControl } : {})}
     />,
   );
@@ -88,7 +92,7 @@ describe('TimelineLaneHeader track mode menu', () => {
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
 
-    expect(await findMenuButton('编辑转写层元信息')).toBeTruthy();
+    expect(await findMenuButtonByPattern(/编辑该层元信息|Edit layer metadata/)).toBeTruthy();
     expect(await findMenuButton('新建转写层')).toBeTruthy();
     expect(await findMenuButton('新建翻译层')).toBeTruthy();
     expect(await findMenuButton('删除当前层')).toBeTruthy();
@@ -132,8 +136,8 @@ describe('TimelineLaneHeader track mode menu', () => {
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
-  fireEvent.mouseEnter(await findMenuButton('轨道'));
-  fireEvent.click(await findMenuButton('锁定选中说话人到轨道…（Alice、Bob）'));
+    fireEvent.mouseEnter(await findMenuButton('轨道'));
+    fireEvent.click(await findMenuButton('锁定选中说话人到轨道…（Alice、Bob）'));
 
     const dialog = await screen.findByRole('dialog', { name: '锁定说话人到轨道' });
     const closeButton = screen.getByRole('button', { name: '关闭锁定轨道面板' });
@@ -345,5 +349,109 @@ describe('TimelineLaneHeader track mode menu', () => {
     fireEvent.click(await findMenuButtonByPattern(/15px/));
 
     expect(onUpdate).toHaveBeenCalledWith('layer-1', { fontSize: 15 });
+  });
+});
+
+describe('TimelineLaneHeader track and speaker chrome', () => {
+  it('omits track and speaker categories when those props are not passed', async () => {
+    const parent = {
+      ...makeLayer('parent-1'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const translationLayer = {
+      ...makeLayer('tr-1'),
+      layerType: 'translation',
+      parentLayerId: parent.id,
+    } as LayerDocType;
+
+    render(
+      <TimelineLaneHeader
+        layer={translationLayer}
+        layerIndex={1}
+        activeTextTimelineMode={null}
+        allLayers={[parent, translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parent, translationLayer]}
+        onFocusLayer={vi.fn()}
+        renderLaneLabel={() => <span>Layer 1</span>}
+        onLayerAction={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+
+    expect(screen.queryAllByRole('menuitem', { name: /轨道/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /^说话人/ })).toHaveLength(0);
+  });
+
+  it('shows track and speaker categories when props are passed (caller opt-in)', async () => {
+    const translationLayer = {
+      ...makeLayer('tr-1'),
+      layerType: 'translation',
+    } as LayerDocType;
+
+    renderHeader(
+      {
+        mode: 'single',
+        onToggle: vi.fn(),
+      },
+      {
+        layer: translationLayer,
+        allLayers: [translationLayer],
+        headerMenuPreset: 'layer-chrome-plus-track',
+        speakerQuickActions: {
+          selectedCount: 0,
+          speakerOptions: [{ id: 's1', name: 'Alice' }],
+          onAssignToSelection: vi.fn(),
+          onClearSelection: vi.fn(),
+          onOpenCreateAndAssignPanel: vi.fn(),
+        },
+      },
+    );
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+
+    expect((await screen.findAllByRole('menuitem', { name: /轨道/ })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('menuitem', { name: /^说话人/ })).length).toBeGreaterThan(0);
+  });
+
+  it('suppresses track and speaker when preset is layer-chrome even if props are passed', async () => {
+    const translationLayer = {
+      ...makeLayer('tr-1'),
+      layerType: 'translation',
+    } as LayerDocType;
+
+    render(
+      <TimelineLaneHeader
+        layer={translationLayer}
+        layerIndex={1}
+        activeTextTimelineMode={null}
+        allLayers={[translationLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer]}
+        onFocusLayer={vi.fn()}
+        renderLaneLabel={() => <span>Layer 1</span>}
+        onLayerAction={vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        headerMenuPreset="layer-chrome"
+        trackModeControl={{
+          mode: 'single',
+          onToggle: vi.fn(),
+        }}
+        speakerQuickActions={{
+          selectedCount: 0,
+          speakerOptions: [{ id: 's1', name: 'Alice' }],
+          onAssignToSelection: vi.fn(),
+          onClearSelection: vi.fn(),
+          onOpenCreateAndAssignPanel: vi.fn(),
+        }}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText('Layer 1'));
+
+    expect(screen.queryAllByRole('menuitem', { name: /轨道/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /^说话人/ })).toHaveLength(0);
   });
 });

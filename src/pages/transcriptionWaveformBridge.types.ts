@@ -92,6 +92,8 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
+  /** 无声学解码时用于 fit/zoom 与刻度的文献秒跨度（与 `texts.metadata.logicalDurationSec` 一致） */
+  logicalTimelineDurationSec?: number;
   mediaId?: string;
   /** 已选媒体 Blob 字节数，传给 VAD 预热前置门控 | Selected media blob byte size for VAD pre-fetch gate */
   mediaBlobSize?: number;

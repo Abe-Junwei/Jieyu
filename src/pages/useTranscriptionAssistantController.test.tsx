@@ -39,7 +39,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
   } as LayerDocType;
 }
 
-function makeUnit(id: string): LayerUnitDocType {
+function makeUnit(id: string, overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -48,6 +48,7 @@ function makeUnit(id: string): LayerUnitDocType {
     endTime: 1,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...overrides,
   } as LayerUnitDocType;
 }
 
@@ -372,6 +373,30 @@ describe('useTranscriptionAssistantController', () => {
 
     result.current.voiceDictationPipeline?.callbacks.navigateTo('utt-2');
     expect(selectUnit).toHaveBeenCalledWith('utt-2');
+  });
+
+  it('does not write direct voice dictation into a skip-processing unit', async () => {
+    const skippedUnit = makeUnit('utt-skip', { tags: { skipProcessing: true } });
+    const saveUnitText = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
+      selectedTimelineOwnerUnit: skippedUnit,
+      unitsOnCurrentMedia: [skippedUnit],
+      saveUnitText,
+      setSaveState,
+      nextUnitIdForVoiceDictation: 'utt-next',
+    })));
+
+    act(() => {
+      result.current.handleVoiceDictation('should-not-write');
+    });
+
+    await waitFor(() => {
+      expect(saveUnitText).not.toHaveBeenCalled();
+      expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'error',
+      }));
+    });
   });
 
   it('skips LLM voice intent resolution when AI chat is disabled', async () => {

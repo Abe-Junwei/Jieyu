@@ -18,8 +18,6 @@ export type TranscriptionOverlaysMessages = {
   clearSpeaker: string;
   createSpeakerAndAssign: string;
   speakerManagement: string;
-  editTranscriptionLayerMetadata: string;
-  editTranslationLayerMetadata: string;
   layerDisplayStyle: string;
 };
 
@@ -41,8 +39,6 @@ const zhCN: TranscriptionOverlaysMessages = {
   clearSpeaker: '\u6e05\u7a7a\u8bf4\u8bdd\u4eba',
   createSpeakerAndAssign: '\u65b0\u5efa\u8bf4\u8bdd\u4eba\u5e76\u6307\u6d3e\u2026',
   speakerManagement: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
-  editTranscriptionLayerMetadata: '编辑转写层元信息',
-  editTranslationLayerMetadata: '编辑翻译层元信息',
   layerDisplayStyle: '\u672c\u5c42\u663e\u793a\u6837\u5f0f',
 };
 
@@ -64,8 +60,6 @@ const enUS: TranscriptionOverlaysMessages = {
   clearSpeaker: 'Clear Speaker',
   createSpeakerAndAssign: 'Create Speaker and Assign…',
   speakerManagement: 'Speaker Management',
-  editTranscriptionLayerMetadata: 'Edit transcription metadata',
-  editTranslationLayerMetadata: 'Edit translation metadata',
   layerDisplayStyle: 'Layer Display Style',
 };
 

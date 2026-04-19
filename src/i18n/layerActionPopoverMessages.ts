@@ -2,8 +2,8 @@ import type { Locale } from './index';
 import { getLayerActionLabels, type LayerActionLabels } from './layerActionLabels';
 
 export type LayerActionPopoverMessages = LayerActionLabels & {
-  editTranscriptionMetadata: string;
-  editTranslationMetadata: string;
+  /** 转写/翻译层编辑元数据共用标题 | Shared title for editing layer metadata */
+  editLayerMetadata: string;
   saveMetadata: string;
   createFailedPrefix: string;
   transcriptionCreateFallback: string;
@@ -62,8 +62,7 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
 
 const zhCN: LayerActionPopoverMessages = {
   ...getLayerActionLabels('zh-CN'),
-  editTranscriptionMetadata: '编辑转写层元信息',
-  editTranslationMetadata: '编辑翻译层元信息',
+  editLayerMetadata: '\u7f16\u8f91\u8be5\u5c42\u5143\u4fe1\u606f',
   saveMetadata: '保存',
   createFailedPrefix: '\u521b\u5efa\u5931\u8d25',
   transcriptionCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u8f6c\u5199\u5c42\uff1a\u8bf7\u68c0\u67e5\u8fb9\u754c\u6a21\u5f0f\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
@@ -121,8 +120,7 @@ const zhCN: LayerActionPopoverMessages = {
 
 const enUS: LayerActionPopoverMessages = {
   ...getLayerActionLabels('en-US'),
-  editTranscriptionMetadata: 'Edit Transcription Metadata',
-  editTranslationMetadata: 'Edit Translation Metadata',
+  editLayerMetadata: 'Edit layer metadata',
   saveMetadata: 'Save',
   createFailedPrefix: 'Create failed',
   transcriptionCreateFallback: 'Unable to create transcription layer. Check boundary mode, target language, and alias settings.',

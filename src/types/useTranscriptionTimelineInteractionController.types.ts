@@ -1,5 +1,6 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { TranscriptionCtxMenuLayerType, TranscriptionCtxMenuSurface } from '../pages/TranscriptionPage.UIState';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { SnapGuide } from '../hooks/useTranscriptionData';
 
@@ -10,6 +11,8 @@ export interface WaveformTimelineItemLike {
   startTime: number;
   endTime: number;
   mediaId?: string;
+  /** When present (segment-backed waveform), the row’s owning layer — use for context menu routing vs `activeLayerIdForEdits`. */
+  layerId?: string;
 }
 
 export interface WaveSurferInstanceLike {
@@ -34,6 +37,8 @@ export interface ContextMenuStateLike {
   unitKind: ContextMenuUnitKind;
   splitTime: number;
   source?: 'timeline' | 'waveform';
+  menuSurface: TranscriptionCtxMenuSurface;
+  layerType: TranscriptionCtxMenuLayerType;
 }
 
 export interface PdfPreviewOpenRequestInput {

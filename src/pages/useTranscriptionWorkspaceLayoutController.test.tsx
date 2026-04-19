@@ -42,6 +42,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '0');
     localStorage.setItem('jieyu:workspace-snap-enabled', '1');
     localStorage.setItem('jieyu:workspace-default-zoom-mode', 'custom');
+    localStorage.setItem('jieyu:workspace-comparison-view', '1');
 
     const scrollSpy = vi.fn();
     const unitRowRef = makeUnitRowRef(scrollSpy);
@@ -59,6 +60,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.autoScrollEnabled).toBe(false);
     expect(result.current.snapEnabled).toBe(true);
     expect(result.current.zoomMode).toBe('custom');
+    expect(result.current.comparisonViewEnabled).toBe(true);
 
     await waitFor(() => {
       expect(result.current.timelineLaneHeights).toEqual({ 'layer-a': 168 });
@@ -134,10 +136,14 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(document.body.style.cursor).toBe('');
   });
 
-  it('applies video layout defaults immediately after settings update event', () => {
+  it('applies workspace layout defaults immediately after settings update event', () => {
     localStorage.setItem('jieyu:video-preview-height', '220');
     localStorage.setItem('jieyu:video-right-panel-width', '360');
     localStorage.setItem('jieyu:video-layout-mode', 'top');
+    localStorage.setItem('jieyu:workspace-default-zoom-mode', 'fit-all');
+    localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '1');
+    localStorage.setItem('jieyu:workspace-snap-enabled', '0');
+    localStorage.setItem('jieyu:workspace-comparison-view', '0');
 
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
@@ -148,16 +154,28 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.videoPreviewHeight).toBe(220);
     expect(result.current.videoRightPanelWidth).toBe(360);
     expect(result.current.videoLayoutMode).toBe('top');
+    expect(result.current.zoomMode).toBe('fit-all');
+    expect(result.current.autoScrollEnabled).toBe(true);
+    expect(result.current.snapEnabled).toBe(false);
+    expect(result.current.comparisonViewEnabled).toBe(false);
 
     act(() => {
       localStorage.setItem('jieyu:video-preview-height', '420');
       localStorage.setItem('jieyu:video-right-panel-width', '520');
       localStorage.setItem('jieyu:video-layout-mode', 'left');
+      localStorage.setItem('jieyu:workspace-default-zoom-mode', 'fit-selection');
+      localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '0');
+      localStorage.setItem('jieyu:workspace-snap-enabled', '1');
+      localStorage.setItem('jieyu:workspace-comparison-view', '1');
       emitWorkspaceLayoutPreferenceChanged();
     });
 
     expect(result.current.videoPreviewHeight).toBe(420);
     expect(result.current.videoRightPanelWidth).toBe(520);
     expect(result.current.videoLayoutMode).toBe('left');
+    expect(result.current.zoomMode).toBe('fit-selection');
+    expect(result.current.autoScrollEnabled).toBe(false);
+    expect(result.current.snapEnabled).toBe(true);
+    expect(result.current.comparisonViewEnabled).toBe(true);
   });
 });

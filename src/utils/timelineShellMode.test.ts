@@ -49,6 +49,16 @@ describe('resolveTimelineShellMode', () => {
     })).toEqual({ shell: 'waveform', acousticPending: false, playableAcoustic: false });
   });
 
+  it('prefers text-only when comparison view is enabled', () => {
+    expect(resolveTimelineShellMode({
+      selectedMediaUrl: 'blob:x',
+      playerIsReady: true,
+      playerDuration: 10,
+      layersCount: 2,
+      comparisonViewEnabled: true,
+    })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
+  });
+
   it('selects empty when no layers', () => {
     expect(resolveTimelineShellMode({
       selectedMediaUrl: 'blob:x',

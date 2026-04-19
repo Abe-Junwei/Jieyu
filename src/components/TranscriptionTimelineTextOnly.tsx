@@ -1,5 +1,5 @@
 import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, OrthographyDocType } from '../db';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import type { TimelineResizeDragOptions } from '../hooks/useTimelineResize';
 import type { TextTimeMapping } from '../services/LinguisticService';
 import { computeTextOnlyZoomPxPerDocSec, documentTimeFromTextOnlyTrackX, trackXFromDocumentTime } from '../utils/textOnlyTimelineTimeMapping';
@@ -17,6 +17,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
+import type { TranscriptionComparisonViewFocusState } from '../pages/TranscriptionPage.UIState';
 import { unitToView, segmentToView, scopeTimelineUnitViewToLayer } from '../hooks/timelineUnitView';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
@@ -87,6 +88,9 @@ function getSegmentTimelineItems(
 
 type TranscriptionTimelineTextOnlyProps = {
   activeTextTimelineMode?: 'document' | 'media' | null;
+  comparisonViewEnabled?: boolean;
+  comparisonFocus?: TranscriptionComparisonViewFocusState;
+  updateComparisonFocus?: (patch: Partial<TranscriptionComparisonViewFocusState>) => void;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
@@ -179,6 +183,10 @@ type TranscriptionTimelineTextOnlyProps = {
   ) => void;
   /** 文献↔声学映射；拖建/改时按 `previewTextTimeMapping` 视口换算像素→文献秒 | Document↔real mapping for pointer→document time */
   textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'> | null;
+  /** 与 `useTimelineResize` 的 `dragPreview` 同步：拖边调起止时用于轨上实时重排 | Live layout during edge resize */
+  timingDragPreview?: { id: string; start: number; end: number } | null;
+  /** 与波形桥 `zoomPxPerSec` 一致：逻辑轴上像素/文献秒，驱动语块水平缩放与拖选换算 */
+  textTimelineZoomPxPerSec?: number;
 };
 
 type LayerActionType =
@@ -193,7 +201,8 @@ type TextOnlyDragState = {
   pointerId: number;
   anchorX: number;
   currentX: number;
-  trackWidth: number;
+  /** 与 `trackXFromDocumentTime` / 语块 `translateX` 一致的宽度；轨道 CSS `max(...,100%)` 变宽时仍按此换算文献秒 */
+  trackTimeMapWidth: number;
   startedOnInput: boolean;
 };
 
@@ -210,26 +219,33 @@ function buildTextOnlyLaneLayoutItems(input: {
   logicalDurationSec: number;
   timeMapping: Pick<TextTimeMapping, 'offsetSec' | 'scale'> | null | undefined;
   useStoredTimeLayout: boolean;
+  /** 与波形区一致的 `logicalDurationSec * zoomPxPerSec`；缺省则沿用虚拟列表推导宽度 */
+  timeAxisWidthPx?: number;
 }): { items: TextOnlyLaneLayoutItem[]; totalSize: number } {
   const baseTotalSize = Math.max(input.fallbackTotalSize, input.units.length * 180, 1);
   if (!input.useStoredTimeLayout || input.units.length === 0 || !(input.logicalDurationSec > 0)) {
     return { items: input.fallbackItems, totalSize: baseTotalSize };
   }
 
-  return {
-    totalSize: baseTotalSize,
-    items: input.units.map((unit, index) => {
-      const safeStart = Number.isFinite(unit.startTime) ? Math.max(0, unit.startTime) : 0;
-      const safeEnd = Number.isFinite(unit.endTime) ? Math.max(safeStart, unit.endTime) : safeStart;
-      const start = Number(trackXFromDocumentTime(safeStart, baseTotalSize, input.logicalDurationSec, input.timeMapping).toFixed(3));
-      const end = Number(trackXFromDocumentTime(safeEnd, baseTotalSize, input.logicalDurationSec, input.timeMapping).toFixed(3));
-      return {
-        index,
-        start,
-        size: Math.max(Number((end - start).toFixed(3)), 2),
-      };
-    }),
-  };
+  const timeMapW = (typeof input.timeAxisWidthPx === 'number' && Number.isFinite(input.timeAxisWidthPx) && input.timeAxisWidthPx > 0)
+    ? input.timeAxisWidthPx
+    : baseTotalSize;
+
+  const items = input.units.map((unit, index) => {
+    const safeStart = Number.isFinite(unit.startTime) ? Math.max(0, unit.startTime) : 0;
+    const safeEnd = Number.isFinite(unit.endTime) ? Math.max(safeStart, unit.endTime) : safeStart;
+    const start = Number(trackXFromDocumentTime(safeStart, timeMapW, input.logicalDurationSec, input.timeMapping).toFixed(3));
+    const end = Number(trackXFromDocumentTime(safeEnd, timeMapW, input.logicalDurationSec, input.timeMapping).toFixed(3));
+    return {
+      index,
+      start,
+      size: Math.max(Number((end - start).toFixed(3)), 2),
+    };
+  });
+  const rightEdge = items.reduce((m, it) => Math.max(m, it.start + it.size), 0);
+  const totalSize = Math.max(timeMapW, rightEdge, 1);
+
+  return { items, totalSize };
 }
 
 function buildTextOnlyFallbackLaneMetrics(
@@ -310,13 +326,35 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     acousticPending = false,
     startTimelineResizeDrag,
     textOnlyTimeMapping,
+    timingDragPreview,
+    textTimelineZoomPxPerSec,
   } = props;
   const locale = useLocale();
 
+  const primaryTranscriptionLaneId = useMemo(() => {
+    if (typeof defaultTranscriptionLayerId === 'string' && defaultTranscriptionLayerId.trim().length > 0) {
+      return defaultTranscriptionLayerId.trim();
+    }
+    return transcriptionLayers[0]?.id ?? '';
+  }, [defaultTranscriptionLayerId, transcriptionLayers]);
+
+  /**
+   * 文本壳层若 `texts.metadata.timelineMode` 尚未写入，`useDialogs` 会得到 null，但逻辑轴与拖建仍应可用
+   *（与 `LinguisticService.ensureDocumentTimeline` 默认 `document` 一致）。
+   */
+  const effectiveActiveTextTimelineMode = useMemo((): 'document' | 'media' | null => {
+    if (activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media') {
+      return activeTextTimelineMode;
+    }
+    return createUnitFromSelection ? 'document' : null;
+  }, [activeTextTimelineMode, createUnitFromSelection]);
+
+  const useLogicTimelineLayout = effectiveActiveTextTimelineMode === 'document'
+    || effectiveActiveTextTimelineMode === 'media';
+
   const canUseLogicTimelineDragCreate = useMemo(
-    () => Boolean(createUnitFromSelection)
-      && (activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media'),
-    [createUnitFromSelection, activeTextTimelineMode],
+    () => Boolean(createUnitFromSelection) && useLogicTimelineLayout,
+    [createUnitFromSelection, useLogicTimelineLayout],
   );
   const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
@@ -324,6 +362,8 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
   const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
   const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
   const [textOnlyDragState, setTextOnlyDragState] = useState<TextOnlyDragState | null>(null);
+  /** 各转写层「时间↔像素」换算宽度（`laneTotalSize`）；无时间对齐布局时为 null，拖拽改用视口轨道宽 */
+  const textOnlyLaneTimeMapWidthByIdRef = useRef<Map<string, number | null>>(new Map());
 
   const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
     if (!displayStyleControl) return;
@@ -472,6 +512,14 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     return Math.max(mediaMaxEnd, segmentMaxEnd, 10);
   }, [logicalDurationSec, segmentsByLayer, unitsOnCurrentMedia]);
 
+  /** 与波形区同一 zoom：整轴像素宽 = 文献秒 × px/秒 */
+  const textOnlyTimeAxisWidthPx = useMemo(() => {
+    if (!useLogicTimelineLayout || !(resolvedLogicalDurationSec > 0)) return undefined;
+    const z = textTimelineZoomPxPerSec;
+    if (typeof z !== 'number' || !Number.isFinite(z) || z <= 0) return undefined;
+    return Math.max(resolvedLogicalDurationSec * z, 1);
+  }, [useLogicTimelineLayout, resolvedLogicalDurationSec, textTimelineZoomPxPerSec]);
+
   const setCellSaveStatus = (cellKey: string, status?: 'dirty' | 'saving' | 'error') => {
     setSaveStatusByCellKey((prev) => {
       if (!status) {
@@ -505,14 +553,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     const startedOnInput = Boolean(target?.closest('input, textarea, [contenteditable="true"], .timeline-text-input'));
     if (startedOnInput) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const trackWidth = Math.max(rect.width, 1);
-    const anchorX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    const rectWidth = Math.max(rect.width, 1);
+    const layoutW = textOnlyLaneTimeMapWidthByIdRef.current.get(layerId);
+    const timeMapW = (typeof layoutW === 'number' && layoutW > 0 && Number.isFinite(layoutW))
+      ? Math.min(rectWidth, layoutW)
+      : rectWidth;
+    const anchorX = Math.min(Math.max(event.clientX - rect.left, 0), timeMapW);
     setTextOnlyDragState({
       layerId,
       pointerId: event.pointerId,
       anchorX,
       currentX: anchorX,
-      trackWidth,
+      trackTimeMapWidth: timeMapW,
       startedOnInput: false,
     });
     onFocusLayer(layerId);
@@ -531,12 +583,13 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
 
   const handleTrackPointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>, layerId: string) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const trackWidth = Math.max(rect.width, 1);
-    const currentX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    const rectWidth = Math.max(rect.width, 1);
     const pointerId = event.pointerId;
     setTextOnlyDragState((prev) => {
       if (!prev || prev.layerId !== layerId || prev.pointerId !== pointerId) return prev;
-      return { ...prev, currentX, trackWidth };
+      const mapW = prev.trackTimeMapWidth;
+      const currentX = Math.min(Math.max(event.clientX - rect.left, 0), Math.min(rectWidth, mapW));
+      return { ...prev, currentX };
     });
   }, []);
 
@@ -559,14 +612,15 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     const drag = textOnlyDragState;
     if (!drag || drag.layerId !== layerId || drag.pointerId !== event.pointerId) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const trackWidth = Math.max(rect.width, drag.trackWidth, 1);
-    const releaseX = Math.min(Math.max(event.clientX - rect.left, 0), trackWidth);
+    const rectWidth = Math.max(rect.width, 1);
+    const mapW = drag.trackTimeMapWidth;
+    const releaseX = Math.min(Math.max(event.clientX - rect.left, 0), Math.min(rectWidth, mapW));
     const startX = Math.min(drag.anchorX, releaseX);
     const endX = Math.max(drag.anchorX, releaseX);
     clearTrackDragState(event);
     if (Math.abs(endX - startX) < 3) return;
-    let start = Number(documentTimeFromTextOnlyTrackX(startX, trackWidth, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
-    let end = Number(documentTimeFromTextOnlyTrackX(endX, trackWidth, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
+    let start = Number(documentTimeFromTextOnlyTrackX(startX, mapW, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
+    let end = Number(documentTimeFromTextOnlyTrackX(endX, mapW, resolvedLogicalDurationSec, textOnlyTimeMapping).toFixed(3));
     if (end < start) {
       const swap = start;
       start = end;
@@ -596,25 +650,42 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 || resolveSpeakerFocusKeyFromSegment(segment, unitById) === normalizeSpeakerFocusKey(activeSpeakerFilterKey)
             ))
           : unitsOnCurrentMedia;
+        // 必须用 unitType 区分：canonical unit 读模型可能含 `layerId: undefined`，`'layerId' in row` 仍为 true，会误判为 segment 导致无法走 saveUnitText。
+        // | Must key off unitType: read-model units may carry `layerId: undefined`, which still makes `in` true and breaks editing.
         const layerUnits: TimelineUnitView[] = rawLayerItems.map((item) => (
-          'layerId' in item
+          item.unitType === 'segment'
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
+        const layerUnitsForLayout = timingDragPreview && layerUnits.some((u) => u.id === timingDragPreview.id)
+          ? layerUnits.map((u) => (
+              u.id === timingDragPreview.id
+                ? { ...u, startTime: timingDragPreview.start, endTime: timingDragPreview.end }
+                : u
+            ))
+          : layerUnits;
         const { fallbackLaneVirtualItems, fallbackLaneTotalSize } = buildTextOnlyFallbackLaneMetrics(
           usesSegmentTimeline,
-          layerUnits,
+          layerUnitsForLayout,
           virtualItems,
           totalSize,
         );
         const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
-          units: layerUnits,
+          units: layerUnitsForLayout,
           fallbackItems: fallbackLaneVirtualItems,
           fallbackTotalSize: fallbackLaneTotalSize,
           logicalDurationSec: resolvedLogicalDurationSec,
           timeMapping: textOnlyTimeMapping,
-          useStoredTimeLayout: activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media',
+          useStoredTimeLayout: useLogicTimelineLayout,
+          ...(textOnlyTimeAxisWidthPx !== undefined ? { timeAxisWidthPx: textOnlyTimeAxisWidthPx } : {}),
         });
+        const useTimeSyncedLaneLayout = useLogicTimelineLayout
+          && layerUnits.length > 0
+          && resolvedLogicalDurationSec > 0;
+        textOnlyLaneTimeMapWidthByIdRef.current.set(
+          layer.id,
+          useTimeSyncedLaneLayout ? laneTotalSize : null,
+        );
         const baseLaneHeight = laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT;
         const layerIsSegmentBased = usesSegmentTimeline;
         const subTrackCount = layerIsSegmentBased && isMultiTrackMode
@@ -634,6 +705,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
         const overlapCycleItemsByUnitId = isMultiTrackMode
           ? (activeLayout.overlapCycleItemsByGroupId.get('__all__') ?? EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID)
           : EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID;
+        const isPrimaryTranscriptionLane = primaryTranscriptionLaneId !== '' && layer.id === primaryTranscriptionLaneId;
         return (
         <TimelineStyledContainer
           key={`tl-${layer.id}`}
@@ -659,7 +731,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode ?? null}
+            activeTextTimelineMode={effectiveActiveTextTimelineMode}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -675,8 +747,9 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
-            {...(speakerQuickActions && { speakerQuickActions })}
-            {...(onToggleTrackDisplayMode && {
+            headerMenuPreset={isPrimaryTranscriptionLane ? 'layer-chrome-plus-track' : 'layer-chrome'}
+            {...(speakerQuickActions && isPrimaryTranscriptionLane ? { speakerQuickActions } : {})}
+            {...(onToggleTrackDisplayMode && isPrimaryTranscriptionLane ? {
               trackModeControl: {
                 mode: trackDisplayMode,
                 onToggle: onToggleTrackDisplayMode,
@@ -688,7 +761,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 ...(laneLockMap ? { lockedSpeakerCount: Object.keys(laneLockMap).length } : {}),
                 ...(activeLayout.lockConflictCount > 0 ? { lockConflictCount: activeLayout.lockConflictCount } : {}),
               },
-            })}
+            } : {})}
             isCollapsed={isCollapsed}
             onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}
@@ -724,6 +797,8 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const isEditing = editingCellKey === cellKey;
             const isDimmed = !!editingCellKey && !isEditing;
             const saveStatus = saveStatusByCellKey[cellKey];
+            const isSkippedProcessing = unit.tags?.skipProcessing === true;
+            if (isSkippedProcessing) return null;
             const retrySave = () => {
               if (draft === sourceText) {
                 setCellSaveStatus(cellKey);
@@ -790,7 +865,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${trcMixedOrAcceptsAudioTools ? ' timeline-text-item-has-tools' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${trcMixedOrAcceptsAudioTools ? ' timeline-text-item-has-tools' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}${isSkippedProcessing ? ' timeline-text-item-skipped' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -830,7 +905,11 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 {trcMixedOrAcceptsAudioTools ? (
                   <div className="timeline-text-item-tools">{trcAudioControls}</div>
                 ) : null}
-                {layer.modality !== 'audio' && (
+                {layer.modality !== 'audio' && (isSkippedProcessing ? (
+                  <div className="timeline-text-item-skipped-label">
+                    {t(locale, 'transcription.action.skipProcessingMarked')}
+                  </div>
+                ) : (
                 <input
                   type="text"
                   className="timeline-text-input"
@@ -911,7 +990,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     }
                   }}
                 />
-                )}
+                ))}
                 {layer.modality === 'audio' && trcAudioControls ? (
                   <div className="timeline-translation-audio-card">{trcAudioControls}</div>
                 ) : null}
@@ -923,9 +1002,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                       className="timeline-text-item-timing-resize-handle timeline-text-item-timing-resize-handle-start"
                       onPointerDown={(e) => {
                         const trackEl = (e.currentTarget as HTMLElement).closest('.timeline-lane-text-only-track') as HTMLElement | null;
-                        const trackW = trackEl?.getBoundingClientRect().width ?? 0;
-                        const zoomPxPerSec = computeTextOnlyZoomPxPerDocSec(trackW, resolvedLogicalDurationSec, textOnlyTimeMapping);
-                        if (zoomPxPerSec === undefined) return;
+                        const trackRectW = Math.max(trackEl?.getBoundingClientRect().width ?? 0, 1);
+                        const layoutW = textOnlyLaneTimeMapWidthByIdRef.current.get(layer.id);
+                        const mapW = (typeof layoutW === 'number' && layoutW > 0 && Number.isFinite(layoutW))
+                          ? Math.min(trackRectW, layoutW)
+                          : trackRectW;
+                        const resizeZoomPxPerSec = (useLogicTimelineLayout
+                          && typeof textTimelineZoomPxPerSec === 'number'
+                          && Number.isFinite(textTimelineZoomPxPerSec)
+                          && textTimelineZoomPxPerSec > 0)
+                          ? textTimelineZoomPxPerSec
+                          : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        if (resizeZoomPxPerSec === undefined) return;
                         e.preventDefault();
                         e.stopPropagation();
                         const segmentLookupLayerId = usesSegmentTimeline && segmentSourceLayerId
@@ -937,7 +1025,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                           segmentsByLayer,
                           unitById,
                         );
-                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec };
+                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec: resizeZoomPxPerSec };
                         if (segmentLookupLayerId) resizeOpts.segmentLookupLayerId = segmentLookupLayerId;
                         startTimelineResizeDrag(e, timingUnit, 'start', layer.id, resizeOpts);
                       }}
@@ -948,9 +1036,18 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                       className="timeline-text-item-timing-resize-handle timeline-text-item-timing-resize-handle-end"
                       onPointerDown={(e) => {
                         const trackEl = (e.currentTarget as HTMLElement).closest('.timeline-lane-text-only-track') as HTMLElement | null;
-                        const trackW = trackEl?.getBoundingClientRect().width ?? 0;
-                        const zoomPxPerSec = computeTextOnlyZoomPxPerDocSec(trackW, resolvedLogicalDurationSec, textOnlyTimeMapping);
-                        if (zoomPxPerSec === undefined) return;
+                        const trackRectW = Math.max(trackEl?.getBoundingClientRect().width ?? 0, 1);
+                        const layoutW = textOnlyLaneTimeMapWidthByIdRef.current.get(layer.id);
+                        const mapW = (typeof layoutW === 'number' && layoutW > 0 && Number.isFinite(layoutW))
+                          ? Math.min(trackRectW, layoutW)
+                          : trackRectW;
+                        const resizeZoomPxPerSec = (useLogicTimelineLayout
+                          && typeof textTimelineZoomPxPerSec === 'number'
+                          && Number.isFinite(textTimelineZoomPxPerSec)
+                          && textTimelineZoomPxPerSec > 0)
+                          ? textTimelineZoomPxPerSec
+                          : computeTextOnlyZoomPxPerDocSec(mapW, resolvedLogicalDurationSec, textOnlyTimeMapping);
+                        if (resizeZoomPxPerSec === undefined) return;
                         e.preventDefault();
                         e.stopPropagation();
                         const segmentLookupLayerId = usesSegmentTimeline && segmentSourceLayerId
@@ -962,7 +1059,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                           segmentsByLayer,
                           unitById,
                         );
-                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec };
+                        const resizeOpts: TimelineResizeDragOptions = { zoomPxPerSec: resizeZoomPxPerSec };
                         if (segmentLookupLayerId) resizeOpts.segmentLookupLayerId = segmentLookupLayerId;
                         startTimelineResizeDrag(e, timingUnit, 'end', layer.id, resizeOpts);
                       }}
@@ -1013,23 +1110,31 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
         );
         const usesSegmentTimeline = layerItems !== unitsOnCurrentMedia;
         const layerUnits: TimelineUnitView[] = layerItems.map((item) => (
-          'layerId' in item
+          item.unitType === 'segment'
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
+        const layerUnitsForLayoutTr = timingDragPreview && layerUnits.some((u) => u.id === timingDragPreview.id)
+          ? layerUnits.map((u) => (
+              u.id === timingDragPreview.id
+                ? { ...u, startTime: timingDragPreview.start, endTime: timingDragPreview.end }
+                : u
+            ))
+          : layerUnits;
         const { fallbackLaneVirtualItems, fallbackLaneTotalSize } = buildTextOnlyFallbackLaneMetrics(
           usesSegmentTimeline,
-          layerUnits,
+          layerUnitsForLayoutTr,
           virtualItems,
           totalSize,
         );
         const { items: laneVirtualItems, totalSize: laneTotalSize } = buildTextOnlyLaneLayoutItems({
-          units: layerUnits,
+          units: layerUnitsForLayoutTr,
           fallbackItems: fallbackLaneVirtualItems,
           fallbackTotalSize: fallbackLaneTotalSize,
           logicalDurationSec: resolvedLogicalDurationSec,
           timeMapping: textOnlyTimeMapping,
-          useStoredTimeLayout: activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media',
+          useStoredTimeLayout: useLogicTimelineLayout,
+          ...(textOnlyTimeAxisWidthPx !== undefined ? { timeAxisWidthPx: textOnlyTimeAxisWidthPx } : {}),
         });
         const previewFontSize = previewFontSizeByLayerId[layer.id];
         const displaySettingsForRender = previewFontSize == null
@@ -1060,7 +1165,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           <TimelineLaneHeader
             layer={layer}
             layerIndex={idx}
-            activeTextTimelineMode={activeTextTimelineMode ?? null}
+            activeTextTimelineMode={effectiveActiveTextTimelineMode}
             allLayers={allLayersOrdered}
             onReorderLayers={onReorderLayers}
             deletableLayers={deletableLayers}
@@ -1076,6 +1181,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
+            headerMenuPreset="layer-chrome"
             isCollapsed={isCollapsed}
             onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}

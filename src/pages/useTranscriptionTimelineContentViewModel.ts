@@ -22,7 +22,14 @@ export function useTranscriptionTimelineContentViewModel(
     ...input.mediaLanesPropsInput,
   }), [input.mediaLanesPropsInput, input.playerDuration]);
 
-  const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(() => input.textOnlyPropsInput, [input.textOnlyPropsInput]);
+  const comparisonViewToggleDep = 'comparisonViewEnabled' in input.textOnlyPropsInput
+    ? input.textOnlyPropsInput.comparisonViewEnabled
+    : undefined;
+
+  const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(
+    () => input.textOnlyPropsInput,
+    [input.textOnlyPropsInput, comparisonViewToggleDep],
+  );
 
   const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({
     locale: input.locale,

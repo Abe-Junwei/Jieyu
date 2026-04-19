@@ -6,8 +6,6 @@ export type SidePaneSidebarMessages = {
   constraintSymbolicAssociation: string;
   contextCreateTranscription: string;
   contextCreateTranslation: string;
-  contextEditTranscriptionMetadata: string;
-  contextEditTranslationMetadata: string;
   contextDeleteCurrentLayer: string;
   speakerManagementTitle: string;
   speakerEntityCount: (count: number) => string;
@@ -133,6 +131,15 @@ export type SidePaneSidebarMessages = {
   segmentListCertaintyFilterLabel: string;
   segmentListAnnotationStatusFilterLabel: string;
   segmentListSourceTypeFilterLabel: string;
+  segmentListReviewPresetAll: string;
+  segmentListReviewPresetTime: string;
+  segmentListReviewPresetContentConcern: string;
+  segmentListReviewPresetContentMissing: string;
+  segmentListReviewPresetManualAttention: string;
+  segmentListReviewPresetPendingReview: string;
+  segmentListReviewPrev: string;
+  segmentListReviewNext: string;
+  segmentListSpeakerPending: string;
   segmentListFilterReset: string;
   segmentListContentStateHasText: string;
   segmentListContentStateEmptyText: string;
@@ -165,8 +172,6 @@ const zhCN: SidePaneSidebarMessages = {
   constraintSymbolicAssociation: '\u7b26\u53f7\u5173\u8054',
   contextCreateTranscription: '\u65b0\u5efa\u8f6c\u5199\u5c42',
   contextCreateTranslation: '\u65b0\u5efa\u7ffb\u8bd1\u5c42',
-  contextEditTranscriptionMetadata: '编辑转写层元信息',
-  contextEditTranslationMetadata: '编辑翻译层元信息',
   contextDeleteCurrentLayer: '\u5220\u9664\u5f53\u524d\u5c42',
   speakerManagementTitle: '\u8bf4\u8bdd\u4eba\u7ba1\u7406',
   speakerEntityCount: (count) => `\u8bf4\u8bdd\u4eba\u5b9e\u4f53\uff1a${count}`,
@@ -302,6 +307,15 @@ const zhCN: SidePaneSidebarMessages = {
   segmentListCertaintyFilterLabel: '\u6309\u786e\u4fe1\u5ea6\u7b5b\u9009',
   segmentListAnnotationStatusFilterLabel: '\u6309\u6807\u6ce8\u72b6\u6001\u7b5b\u9009',
   segmentListSourceTypeFilterLabel: '\u6309\u6765\u6e90\u7b5b\u9009',
+  segmentListReviewPresetAll: '\u5168\u90e8\u95ee\u9898',
+  segmentListReviewPresetTime: '\u65f6\u95f4\u5f02\u5e38',
+  segmentListReviewPresetContentConcern: '\u5185\u5bb9\u5b58\u7591',
+  segmentListReviewPresetContentMissing: '\u5185\u5bb9\u7f3a\u5931',
+  segmentListReviewPresetManualAttention: '\u5f85\u4eba\u5de5\u5904\u7406',
+  segmentListReviewPresetPendingReview: '\u5f85\u590d\u6838',
+  segmentListReviewPrev: '\u4e0a\u4e00\u6761\u5f85\u590d\u6838',
+  segmentListReviewNext: '\u4e0b\u4e00\u6761\u5f85\u590d\u6838',
+  segmentListSpeakerPending: '\u5f85\u8865\u8bf4\u8bdd\u4eba',
   segmentListFilterReset: '\u6e05\u7a7a\u7b5b\u9009',
   segmentListContentStateHasText: '\u6709\u5185\u5bb9',
   segmentListContentStateEmptyText: '\u65e0\u5185\u5bb9',
@@ -334,8 +348,6 @@ const enUS: SidePaneSidebarMessages = {
   constraintSymbolicAssociation: 'Symbolic association',
   contextCreateTranscription: 'Create transcription layer',
   contextCreateTranslation: 'Create translation layer',
-  contextEditTranscriptionMetadata: 'Edit transcription metadata',
-  contextEditTranslationMetadata: 'Edit translation metadata',
   contextDeleteCurrentLayer: 'Delete current layer',
   speakerManagementTitle: 'Speaker management',
   speakerEntityCount: (count) => `Speaker entities: ${count}`,
@@ -471,6 +483,15 @@ const enUS: SidePaneSidebarMessages = {
   segmentListCertaintyFilterLabel: 'Filter by certainty',
   segmentListAnnotationStatusFilterLabel: 'Filter by annotation status',
   segmentListSourceTypeFilterLabel: 'Filter by source',
+  segmentListReviewPresetAll: 'All issues',
+  segmentListReviewPresetTime: 'Time issues',
+  segmentListReviewPresetContentConcern: 'Content concern',
+  segmentListReviewPresetContentMissing: 'Content missing',
+  segmentListReviewPresetManualAttention: 'Needs attention',
+  segmentListReviewPresetPendingReview: 'Pending review',
+  segmentListReviewPrev: 'Previous review item',
+  segmentListReviewNext: 'Next review item',
+  segmentListSpeakerPending: 'Speaker pending',
   segmentListFilterReset: 'Clear filters',
   segmentListContentStateHasText: 'Has content',
   segmentListContentStateEmptyText: 'Empty',

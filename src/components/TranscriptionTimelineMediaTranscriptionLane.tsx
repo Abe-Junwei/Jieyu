@@ -220,6 +220,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         layerLinks={layerLinks}
         showConnectors={showConnectors}
         onToggleConnectors={onToggleConnectors}
+        headerMenuPreset="layer-chrome-plus-track"
         {...(speakerQuickActions && { speakerQuickActions })}
         {...(onToggleTrackDisplayMode && {
           trackModeControl: {

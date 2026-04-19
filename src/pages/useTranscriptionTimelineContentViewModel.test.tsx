@@ -150,4 +150,124 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     result.current.emptyStateProps.onOpenImportFile();
     expect(click).toHaveBeenCalled();
   });
+
+  it('picks up comparisonViewEnabled when textOnlyPropsInput is reused and mutated in place', () => {
+    const click = vi.fn();
+    const setLayerActionPanel = vi.fn();
+    const importFileRef = { current: { click } as unknown as HTMLInputElement };
+    const speakerLayerLayout = createEmptySpeakerLayerLayout();
+
+    const textOnlyPropsInput = {
+      transcriptionLayers: [],
+      translationLayers: [],
+      unitsOnCurrentMedia: [],
+      segmentsByLayer: new Map(),
+      segmentContentByLayer: new Map(),
+      saveSegmentContentForLayer: vi.fn(),
+      selectedTimelineUnit: null,
+      flashLayerRowId: '',
+      focusedLayerRowId: '',
+      defaultTranscriptionLayerId: '',
+      scrollContainerRef: { current: null },
+      handleAnnotationClick: vi.fn(),
+      allLayersOrdered: [],
+      onReorderLayers: vi.fn(),
+      deletableLayers: [],
+      onFocusLayer: vi.fn(),
+      navigateUnitFromInput: vi.fn(),
+      layerLinks: [],
+      showConnectors: true,
+      onToggleConnectors: vi.fn(),
+      laneHeights: {},
+      onLaneHeightChange: vi.fn(),
+      trackDisplayMode: 'single' as const,
+      onToggleTrackDisplayMode: vi.fn(),
+      onSetTrackDisplayMode: vi.fn(),
+      laneLockMap: {},
+      onLockSelectedSpeakersToLane: vi.fn(),
+      onUnlockSelectedSpeakers: vi.fn(),
+      onResetTrackAutoLayout: vi.fn(),
+      selectedSpeakerNamesForLock: [],
+      speakerLayerLayout,
+      activeUnitId: '',
+      speakerVisualByUnitId: {},
+      onLaneLabelWidthResize: vi.fn(),
+      translationAudioByLayer: new Map(),
+      mediaItems: [],
+      recording: false,
+      recordingUnitId: null,
+      recordingLayerId: null,
+      startRecordingForUnit: vi.fn(),
+      stopRecording: vi.fn(),
+      deleteVoiceTranslation: vi.fn(),
+    };
+
+    const baseInput = {
+      selectedMediaUrl: 'blob:audio',
+      playerIsReady: true,
+      playerDuration: 42,
+      layersCount: 3,
+      locale: 'zh-CN' as const,
+      importFileRef,
+      layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
+      mediaLanesPropsInput: {
+        zoomPxPerSec: 100,
+        lassoRect: null,
+        transcriptionLayers: [],
+        translationLayers: [],
+        timelineUnitViewIndex: createEmptyTimelineUnitViewIndex(),
+        timelineRenderUnits: [],
+        flashLayerRowId: '',
+        focusedLayerRowId: '',
+        activeUnitId: '',
+        selectedTimelineUnit: null,
+        defaultTranscriptionLayerId: '',
+        renderAnnotationItem: () => null,
+        allLayersOrdered: [],
+        onReorderLayers: vi.fn(),
+        deletableLayers: [],
+        onFocusLayer: vi.fn(),
+        layerLinks: [],
+        showConnectors: true,
+        onToggleConnectors: vi.fn(),
+        laneHeights: {},
+        onLaneHeightChange: vi.fn(),
+        trackDisplayMode: 'single' as const,
+        onToggleTrackDisplayMode: vi.fn(),
+        onSetTrackDisplayMode: vi.fn(),
+        laneLockMap: {},
+        onLockSelectedSpeakersToLane: vi.fn(),
+        onUnlockSelectedSpeakers: vi.fn(),
+        onResetTrackAutoLayout: vi.fn(),
+        selectedSpeakerNamesForLock: [],
+        speakerSortKeyById: {},
+        speakerLayerLayout,
+        onLaneLabelWidthResize: vi.fn(),
+        segmentsByLayer: new Map(),
+        segmentContentByLayer: new Map(),
+        saveSegmentContentForLayer: vi.fn(),
+        translationAudioByLayer: new Map(),
+        mediaItems: [],
+        recording: false,
+        recordingUnitId: null,
+        recordingLayerId: null,
+        startRecordingForUnit: vi.fn(),
+        stopRecording: vi.fn(),
+        deleteVoiceTranslation: vi.fn(),
+      },
+      textOnlyPropsInput,
+    };
+
+    const { result, rerender } = renderHook(
+      (props: typeof baseInput) => useTranscriptionTimelineContentViewModel(props),
+      { initialProps: baseInput },
+    );
+
+    expect(result.current.textOnlyProps.comparisonViewEnabled).toBeUndefined();
+
+    Object.assign(textOnlyPropsInput, { comparisonViewEnabled: true as const });
+    rerender({ ...baseInput, textOnlyPropsInput });
+
+    expect(result.current.textOnlyProps.comparisonViewEnabled).toBe(true);
+  });
 });

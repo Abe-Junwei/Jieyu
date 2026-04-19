@@ -237,6 +237,9 @@ describe('useTranscriptionTimelineInteractionController', () => {
       layerId: 'layer-main',
       unitKind: 'segment',
       splitTime: 10,
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
     }));
   });
 
@@ -260,6 +263,38 @@ describe('useTranscriptionTimelineInteractionController', () => {
       unitId: 'seg-2',
       layerId: 'layer-dependent',
       unitKind: 'segment',
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
+    }));
+  });
+
+  it('uses waveform item owning layer for context menu when active edit layer is translation', () => {
+    const selectTimelineUnit = vi.fn();
+    const setCtxMenu = vi.fn();
+    const { result } = renderHook(() => useTranscriptionTimelineInteractionController(createBaseInput({
+      activeLayerIdForEdits: 'layer-tr',
+      useSegmentWaveformRegions: true,
+      waveformTimelineItems: [
+        { id: 'seg-1', startTime: 1, endTime: 2, mediaId: 'media-1', layerId: 'layer-main' },
+        { id: 'seg-2', startTime: 3, endTime: 4, mediaId: 'media-1', layerId: 'layer-main' },
+      ],
+      selectTimelineUnit,
+      setCtxMenu,
+    })));
+
+    act(() => {
+      result.current.handleWaveformRegionContextMenu('seg-1', 100, 24);
+    });
+
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-tr', unitId: 'seg-1', kind: 'segment' });
+    expect(setCtxMenu).toHaveBeenCalledWith(expect.objectContaining({
+      unitId: 'seg-1',
+      layerId: 'layer-main',
+      unitKind: 'segment',
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
     }));
   });
 

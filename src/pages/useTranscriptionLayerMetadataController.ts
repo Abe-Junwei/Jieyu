@@ -1,4 +1,4 @@
-import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import { getLayerMetadataAppService } from '../app/LayerMetadataAppService';
 import type { LayerDocType } from '../types/transcriptionDomain.types';
 
@@ -10,24 +10,12 @@ type UpdateLayerMetadataInput = {
 
 type UseTranscriptionLayerMetadataControllerInput = {
   layers: LayerDocType[];
-  overlayMetadataLayerId: string | null;
-  setOverlayMetadataLayerId: Dispatch<SetStateAction<string | null>>;
   setLayerCreateMessage: Dispatch<SetStateAction<string>>;
   setLayers: Dispatch<SetStateAction<LayerDocType[]>>;
 };
 
 export function useTranscriptionLayerMetadataController(input: UseTranscriptionLayerMetadataControllerInput) {
   const layerMetadataAppService = getLayerMetadataAppService();
-  const overlayMetadataLayer = useMemo(
-    () => (input.overlayMetadataLayerId
-      ? input.layers.find((layer) => layer.id === input.overlayMetadataLayerId) ?? null
-      : null),
-    [input.layers, input.overlayMetadataLayerId],
-  );
-
-  const handleOpenLayerMetadataFromOverlayMenu = useCallback((layerId: string) => {
-    input.setOverlayMetadataLayerId(layerId);
-  }, [input.setOverlayMetadataLayerId]);
 
   const updateLayerMetadata = useCallback(async (
     layerId: string,
@@ -73,8 +61,6 @@ export function useTranscriptionLayerMetadataController(input: UseTranscriptionL
   }, [input.layers, input.setLayerCreateMessage, input.setLayers, layerMetadataAppService]);
 
   return {
-    overlayMetadataLayer,
-    handleOpenLayerMetadataFromOverlayMenu,
     updateLayerMetadata,
   };
 }

@@ -71,7 +71,7 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
 import { useReadyWorkspaceInteractionHelpers } from './useReadyWorkspaceInteractionHelpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
-import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceLayerPopoverProps, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
+import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
@@ -328,7 +328,6 @@ function TranscriptionPageReadyWorkspace({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
   });
-  const [overlayMetadataLayerId, setOverlayMetadataLayerId] = useState<string | null>(null);
 
   const {
     layerById,
@@ -450,11 +449,22 @@ function TranscriptionPageReadyWorkspace({
     snapEnabled,
     setSnapEnabled,
     toggleSnapEnabled,
+    comparisonViewEnabled,
+    setComparisonViewEnabled,
+    toggleComparisonViewEnabled,
   } = useTranscriptionWorkspaceLayoutController({
     layers,
     selectedTimelineOwnerUnitId: selectedTimelineOwnerUnit?.id,
     unitRowRef,
   });
+
+  const comparisonViewActive = comparisonViewEnabled && translationLayers.length > 0;
+
+  useEffect(() => {
+    if (translationLayers.length === 0 && comparisonViewEnabled) {
+      setComparisonViewEnabled(false);
+    }
+  }, [comparisonViewEnabled, setComparisonViewEnabled, translationLayers.length]);
 
   const {
     displayStyleControl,
@@ -497,7 +507,16 @@ function TranscriptionPageReadyWorkspace({
     setUttOpsMenu,
     showBatchOperationPanel,
     setShowBatchOperationPanel,
+    comparisonFocus,
+    updateComparisonFocus,
+    resetComparisonFocus,
   } = useTranscriptionUIState();
+
+  useEffect(() => {
+    if (!comparisonViewActive) {
+      resetComparisonFocus();
+    }
+  }, [comparisonViewActive, resetComparisonFocus]);
 
   // ---- Notes (extracted hook) ----
   const {
@@ -569,6 +588,7 @@ function TranscriptionPageReadyWorkspace({
     mergeSelectedSegmentsRouted,
     deleteUnitRouted: deleteUnitRouted,
     deleteSelectedUnitsRouted: deleteSelectedUnitsRouted,
+    toggleSkipProcessingRouted,
   } = useTranscriptionSegmentMutationController({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
@@ -664,6 +684,20 @@ function TranscriptionPageReadyWorkspace({
     runSplitAtTime,
   });
 
+  /** 无声学壳层：缩放/刻度用文献秒跨度（metadata 缺省时用语段最大 end 兜底） */
+  const logicalTimelineDurationForZoom = useMemo(() => {
+    const meta = activeTextTimeMapping?.logicalDurationSec;
+    if (typeof meta === 'number' && Number.isFinite(meta) && meta > 0) {
+      return meta;
+    }
+    let maxEnd = 0;
+    for (const u of unitsOnCurrentMedia) {
+      maxEnd = Math.max(maxEnd, u.endTime ?? 0);
+    }
+    if (maxEnd > 0) return maxEnd;
+    return undefined;
+  }, [activeTextTimeMapping?.logicalDurationSec, unitsOnCurrentMedia]);
+
   const {
     waveformAreaRef,
     waveCanvasRef,
@@ -750,6 +784,11 @@ function TranscriptionPageReadyWorkspace({
     setUnitSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
+    ...(typeof logicalTimelineDurationForZoom === 'number'
+      && Number.isFinite(logicalTimelineDurationForZoom)
+      && logicalTimelineDurationForZoom > 0
+      ? { logicalTimelineDurationSec: logicalTimelineDurationForZoom }
+      : {}),
     ...(selectedTimelineMedia?.id !== undefined ? { mediaId: selectedTimelineMedia.id } : {}),
     ...(selectedMediaBlobSize !== undefined && { mediaBlobSize: selectedMediaBlobSize }),
   });
@@ -1384,14 +1423,8 @@ function TranscriptionPageReadyWorkspace({
     saveUnitSelfCertainty: (targets, value) => saveUnitSelfCertainty(targets.map((t) => t.id), value),
   });
 
-  const {
-    overlayMetadataLayer,
-    handleOpenLayerMetadataFromOverlayMenu,
-    updateLayerMetadata,
-  } = useTranscriptionLayerMetadataController({
+  const { updateLayerMetadata } = useTranscriptionLayerMetadataController({
     layers,
-    overlayMetadataLayerId,
-    setOverlayMetadataLayerId,
     setLayerCreateMessage,
     setLayers: data.setLayers,
   });
@@ -1405,6 +1438,11 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineMediaId: selectedTimelineMedia?.id ?? null,
     setTranscriptionTrackMode,
   });
+
+  const timelineTextLayersForContextMenu = useMemo(
+    () => [...transcriptionLayers, ...translationLayers],
+    [transcriptionLayers, translationLayers],
+  );
 
   const { handleAnnotationClick, handleAnnotationContextMenu, renderAnnotationItem, renderLaneLabel } = useTranscriptionAnnotationController({
     manualSelectTsRef,
@@ -1421,6 +1459,7 @@ function TranscriptionPageReadyWorkspace({
     tierContainerRef,
     zoomPxPerSec,
     setCtxMenu,
+    timelineTextLayers: timelineTextLayersForContextMenu,
     navigateUnitFromInput,
     waveformAreaRef,
     dragPreview,
@@ -1595,10 +1634,14 @@ function TranscriptionPageReadyWorkspace({
       handleAnnotationClick,
       handleAnnotationContextMenu,
       startTimelineResizeDrag,
+      timingDragPreview: dragPreview,
       navigateUnitFromInput,
       speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
       resolveSelfCertaintyAmbiguityForUnit,
+      comparisonViewEnabled: comparisonViewActive,
+      comparisonFocus,
+      updateComparisonFocus,
       selectedTimelineMedia,
       waveformDisplayMode,
       setWaveformDisplayMode,
@@ -1690,12 +1733,26 @@ function TranscriptionPageReadyWorkspace({
   const toolbarPropsWithCollaboration = {
     ...toolbarProps,
     leftToolbarExtras: (
-      <CollaborationSyncBadge
-        locale={locale}
-        badge={collaborationSyncBadge}
-        presenceMembers={collaborationPresenceMembers}
-        currentUserId={collaborationPresenceCurrentUserId}
-      />
+      <>
+        <button
+          type="button"
+          className="toolbar-confidence-badge toolbar-confidence-badge-button toolbar-confidence-badge-summary"
+          aria-pressed={comparisonViewActive}
+          title={translationLayers.length === 0
+            ? t(locale, 'transcription.toolbar.comparisonRequiresTranslationLayer')
+            : t(locale, comparisonViewActive ? 'transcription.toolbar.switchToTimelineView' : 'transcription.toolbar.switchToComparisonView')}
+          disabled={translationLayers.length === 0}
+          onClick={toggleComparisonViewEnabled}
+        >
+          {t(locale, comparisonViewActive ? 'transcription.toolbar.timelineView' : 'transcription.toolbar.compareView')}
+        </button>
+        <CollaborationSyncBadge
+          locale={locale}
+          badge={collaborationSyncBadge}
+          presenceMembers={collaborationPresenceMembers}
+          currentUserId={collaborationPresenceCurrentUserId}
+        />
+      </>
     ),
   };
 
@@ -1715,7 +1772,6 @@ function TranscriptionPageReadyWorkspace({
     locale,
     loadSnapshot,
     setSaveState,
-    importFileRef,
   });
 
   const {
@@ -1999,7 +2055,18 @@ function TranscriptionPageReadyWorkspace({
     speakerFilterOptions: speakerFilterOptionsForActions,
     onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu,
     onSetUnitSelfCertaintyFromMenu: handleSetUnitSelfCertaintyFromMenu,
-    onOpenLayerMetadataPanelFromMenu: handleOpenLayerMetadataFromOverlayMenu,
+    onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
+      if (kind !== 'segment') return;
+      void toggleSkipProcessingRouted(unitId, layerId);
+    },
+    resolveSkipProcessingState: (unitId, layerId, kind) => (
+      timelineUnitViewIndex.currentMediaUnits.some((unit) => (
+        unit.id === unitId
+        && unit.layerId === layerId
+        && unit.kind === kind
+        && unit.tags?.skipProcessing === true
+      ))
+    ),
     onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel,
     displayStyleControl,
   });
@@ -2017,17 +2084,6 @@ function TranscriptionPageReadyWorkspace({
     selectedMediaIsVideo,
     videoLayoutMode,
     videoRightPanelWidth,
-  });
-
-  const readyWorkspaceLayerPopoverProps = buildReadyWorkspaceLayerPopoverProps({
-    overlayMetadataLayer,
-    deletableLayers: layers,
-    createLayer: createLayerWithActiveContext,
-    updateLayerMetadata,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-    checkLayerHasContent,
-    onClose: () => setOverlayMetadataLayerId(null),
   });
 
   const readyWorkspaceStageProps = buildReadyWorkspaceStageProps({
@@ -2153,7 +2209,7 @@ function TranscriptionPageReadyWorkspace({
       layoutStyle={readyWorkspaceLayoutStyle}
       readyStageProps={readyWorkspaceStageProps}
       overlaysProps={readyWorkspaceOverlaysProps}
-      layerPopoverProps={readyWorkspaceLayerPopoverProps}
+      layerPopoverProps={null}
       conflictReviewDrawerProps={{
         tickets: collaborationConflictTickets,
         onApplyRemote: async (ticketId) => {

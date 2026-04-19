@@ -168,4 +168,5 @@ describe('useNotes canonical target resolution', () => {
       expect(rows[0]?.noteCategoryKeys).toEqual(['linguistic']);
     });
   });
+
 });

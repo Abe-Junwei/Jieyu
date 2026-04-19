@@ -1,6 +1,7 @@
 import '../styles/transcription-timeline.css';
 import type { ComponentProps } from 'react';
 import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
+import { TranscriptionTimelineComparison } from '../components/TranscriptionTimelineComparison';
 import { TranscriptionTimelineMediaLanes } from '../components/TranscriptionTimelineMediaLanes';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 import { resolveTimelineShellMode } from '../utils/timelineShellMode';
@@ -28,18 +29,32 @@ export function TranscriptionPageTimelineContent({
   textOnlyProps,
   emptyStateProps,
 }: TranscriptionPageTimelineContentProps) {
+  /** 与轨条 props 对齐，避免 layersCount 与 transcription/translation 列表短暂不一致时挡住对照视图 */
+  const effectiveLayersCount = Math.max(
+    layersCount,
+    textOnlyProps.transcriptionLayers?.length ?? 0,
+    textOnlyProps.translationLayers?.length ?? 0,
+  );
+
   const { shell, acousticPending } = resolveTimelineShellMode({
     selectedMediaUrl,
     playerIsReady,
     playerDuration,
-    layersCount,
+    layersCount: effectiveLayersCount,
     ...(textOnlyProps.activeTextTimelineMode !== undefined
       ? { timelineMode: textOnlyProps.activeTextTimelineMode }
       : {}),
     ...(textOnlyProps.logicalDurationSec !== undefined
       ? { fallbackDurationSec: textOnlyProps.logicalDurationSec }
       : {}),
+    ...(('comparisonViewEnabled' in textOnlyProps && typeof textOnlyProps.comparisonViewEnabled === 'boolean')
+      ? { comparisonViewEnabled: textOnlyProps.comparisonViewEnabled }
+      : {}),
   });
+
+  if (textOnlyProps.comparisonViewEnabled && effectiveLayersCount > 0) {
+    return <TranscriptionTimelineComparison {...textOnlyProps} />;
+  }
 
   if (shell === 'waveform') {
     return <TranscriptionTimelineMediaLanes {...mediaLanesProps} />;

@@ -15,6 +15,11 @@ import { bridgeVoiceDictationText, createVoiceDictationPipeline, persistVoiceDic
 import { buildTranscriptionAssistantContextValue } from './transcriptionAssistantContextValue';
 import type { UseTranscriptionAssistantControllerInput, UseTranscriptionAssistantControllerResult } from './transcriptionAssistantController.types';
 import { t, useLocale } from '../i18n';
+
+function isSkipProcessingUnit(unit: Pick<LayerUnitDocType, 'tags'> | null | undefined): boolean {
+  return unit?.tags?.skipProcessing === true;
+}
+
 export function useTranscriptionAssistantController(input: UseTranscriptionAssistantControllerInput): UseTranscriptionAssistantControllerResult {
   const locale = useLocale();
   const { pushUndo, setUnits, setSaveState } = input;
@@ -98,6 +103,11 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
   const handleVoiceDictation = useCallback((text: string) => {
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) {
       const selectedTimelineUnit = input.selectedTimelineUnit;
+      const selectedSegmentUnit = input.unitsOnCurrentMedia.find((unit) => unit.id === selectedTimelineUnit.unitId);
+      if (isSkipProcessingUnit(selectedSegmentUnit)) {
+        setSaveState({ kind: 'error', message: t(locale, 'transcription.action.skipProcessingMarked') });
+        return;
+      }
       fireAndForget((async () => {
         const transformedText = await bridgeVoiceDictationText({
           text,
@@ -110,6 +120,10 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       return;
     }
     const targetUnit = input.selectedTimelineOwnerUnit;
+    if (isSkipProcessingUnit(targetUnit)) {
+      setSaveState({ kind: 'error', message: t(locale, 'transcription.action.skipProcessingMarked') });
+      return;
+    }
     if (!targetUnit) {
       reportValidationError({
         message: '\u8bf7\u5148\u9009\u62e9\u8981\u586b\u5145\u7684\u53e5\u6bb5',
@@ -163,6 +177,8 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.selectedTimelineUnit,
     input.setSaveState,
     input.translationLayers,
+    input.unitsOnCurrentMedia,
+    locale,
   ]);
 
   const voiceDictationPipeline = useMemo<UseTranscriptionAssistantControllerResult['voiceDictationPipeline']>(() => {
@@ -218,6 +234,11 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
           i18nKey: 'transcription.error.validation.voiceAnalysisTargetMissing',
           setErrorState: ({ message: nextMessage, meta }) => setSaveState({ kind: 'error', message: nextMessage, errorMeta: meta }),
         });
+        return { ok: false, message };
+      }
+      if (isSkipProcessingUnit(doc)) {
+        const message = t(locale, 'transcription.action.skipProcessingMarked');
+        setSaveState({ kind: 'error', message });
         return { ok: false, message };
       }
       pushUndo(t(locale, 'transcription.assistant.undo.fillAnalysis'));

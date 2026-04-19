@@ -12,6 +12,9 @@ import { db, getDb } from './engine';
 
 /** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
 const SNAPSHOT_SCHEMA_VERSION = 4;
+const SNAPSHOT_IMPORT_MAX_JSON_BYTES = 32 * 1024 * 1024;
+const SNAPSHOT_IMPORT_MAX_JSON_DEPTH = 64;
+const SNAPSHOT_IMPORT_MAX_JSON_NODES = 500_000;
 
 export async function exportDatabaseAsJson(): Promise<{
   schemaVersion: number;
@@ -230,6 +233,48 @@ function ensureImportProvenance<T extends { provenance?: ProvenanceEnvelope | un
   };
 }
 
+function ensureSnapshotJsonSizeWithinLimit(raw: string): void {
+  const sizeBytes = new TextEncoder().encode(raw).byteLength;
+  if (sizeBytes > SNAPSHOT_IMPORT_MAX_JSON_BYTES) {
+    throw new Error(
+      `Snapshot JSON size exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_BYTES} bytes).`,
+    );
+  }
+}
+
+function validateSnapshotJsonStructure(value: unknown): void {
+  const stack: Array<{ value: unknown; depth: number }> = [{ value, depth: 1 }];
+  let nodeCount = 0;
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current) continue;
+    const { value: node, depth } = current;
+
+    if (depth > SNAPSHOT_IMPORT_MAX_JSON_DEPTH) {
+      throw new Error(`Snapshot JSON depth exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_DEPTH}).`);
+    }
+    if (node === null || typeof node !== 'object') continue;
+
+    nodeCount += 1;
+    if (nodeCount > SNAPSHOT_IMPORT_MAX_JSON_NODES) {
+      throw new Error(`Snapshot JSON node count exceeds limit (${SNAPSHOT_IMPORT_MAX_JSON_NODES}).`);
+    }
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        stack.push({ value: item, depth: depth + 1 });
+      }
+      continue;
+    }
+
+    for (const key of Object.keys(node)) {
+      const record = node as Record<string, unknown>;
+      stack.push({ value: record[key], depth: depth + 1 });
+    }
+  }
+}
+
 function normalizeImportedDoc(collectionName: KnownCollectionName, doc: unknown, fallbackCreatedAt: string): unknown {
   if (!doc || typeof doc !== 'object') return doc;
 
@@ -324,10 +369,21 @@ export async function importDatabaseFromJson(
   const strategy = options?.strategy ?? 'upsert';
   let parsedRaw: unknown;
   try {
-    parsedRaw = typeof input === 'string' ? JSON.parse(input) : input;
+    if (typeof input === 'string') {
+      ensureSnapshotJsonSizeWithinLimit(input);
+      parsedRaw = JSON.parse(input);
+    } else {
+      const serialized = JSON.stringify(input);
+      ensureSnapshotJsonSizeWithinLimit(serialized);
+      parsedRaw = input;
+    }
   } catch (e) {
+    if (e instanceof Error && /Snapshot JSON (size|depth|node count) exceeds limit/i.test(e.message)) {
+      throw e;
+    }
     throw new Error(`Invalid JSON input: ${e instanceof Error ? e.message : 'unknown parse error'}`);
   }
+  validateSnapshotJsonStructure(parsedRaw);
   const snapshot = databaseSnapshotSchema.parse(parsedRaw);
 
   if (snapshot.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {

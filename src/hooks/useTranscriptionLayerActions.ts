@@ -12,8 +12,12 @@ import { listUnitTextsByUnits } from '../services/LayerSegmentationTextService';
 import { deleteLayerSegmentGraphByLayerId, listUnitUnitPrimaryKeysByTextId } from '../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { isKnownIso639_3Code } from '../utils/langMapping';
+import { createLogger } from '../observability/logger';
 import { t, useLocale } from '../i18n';
+
+const log = createLogger('useTranscriptionLayerActions');
 
 export type TranscriptionLayerActionsParams = {
   layers: LayerDocType[];
@@ -269,6 +273,42 @@ export function useTranscriptionLayerActions({
         ? t(locale, 'transcription.layer.undo.createTranscription')
         : t(locale, 'transcription.layer.undo.createTranslation'));
       await LayerTierUnifiedService.createLayer(newLayer);
+
+      // 尚无转写层时在波形上创建的语段只存在于内存（saveUnit 无法写入 layer_units）。
+      // 首个转写层创建后补写 canonical unit，并在独立边界层下为每条有媒体绑定的语段建 segment，供时间轴与波形读取。
+      // | Units created on audio before any transcription layer existed were never persisted; after the first
+      // transcription layer is created, flush them to the graph and mirror segments for independent-boundary lanes.
+      if (layerType === 'transcription' && !hasExistingTranscriptionLayer) {
+        const pendingUnits = unitsRef.current.filter((u) => u.textId === textId);
+        for (const u of pendingUnits) {
+          try {
+            await LinguisticService.saveUnit(u);
+            if (newLayer.constraint === 'independent_boundary' && u.mediaId?.trim()) {
+              const seg: LayerUnitDocType = {
+                id: newId('seg'),
+                textId: u.textId,
+                mediaId: u.mediaId.trim(),
+                layerId: id,
+                startTime: u.startTime,
+                endTime: u.endTime,
+                unitId: u.id,
+                createdAt: u.createdAt ?? now,
+                updatedAt: u.updatedAt ?? now,
+                ...(u.speakerId ? { speakerId: u.speakerId } : {}),
+              };
+              await LayerSegmentationV2Service.createSegment(seg);
+            }
+          } catch (adoptErr) {
+            // 层已写入 DB；此处失败不得阻断 setLayers，否则会出现「库里有层、列表无层、同语言无法再建」。
+            // | Layer row is already persisted; failures here must not skip UI updates.
+            log.warn('Adopt pending units / mirror segments after first transcription layer failed', {
+              unitId: u.id,
+              textId: u.textId,
+              error: adoptErr instanceof Error ? adoptErr.message : String(adoptErr),
+            });
+          }
+        }
+      }
 
       let autoLink: LayerLinkDocType | undefined;
       if (layerType === 'translation') {

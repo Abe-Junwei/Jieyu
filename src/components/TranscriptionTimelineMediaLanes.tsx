@@ -645,7 +645,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
           defaultTranscriptionLayerId,
         );
         const iterationUnits: TimelineUnitView[] = iterationSource.map((item) => (
-          'layerId' in item
+          item.unitType === 'segment'
             ? scopeTimelineUnitViewToLayer(segmentToView(item, () => ''), layer.id)
             : unitToView(item, layer.id)
         ));
@@ -671,6 +671,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             layerLinks={layerLinks}
             showConnectors={showConnectors}
             onToggleConnectors={onToggleConnectors ?? (() => {})}
+            headerMenuPreset="layer-chrome"
             isCollapsed={isCollapsed}
             onToggleCollapsed={toggleLayerCollapsed}
             {...(onLaneLabelWidthResize && { onLaneLabelWidthResize })}

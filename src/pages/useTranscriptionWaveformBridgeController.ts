@@ -153,10 +153,17 @@ export function useTranscriptionWaveformBridgeController(
   });
 
   useEffect(() => {
-    if (player.duration > 0 && player.duration !== lastDurationRef.current) {
+    if (player.duration > 0) {
       lastDurationRef.current = player.duration;
+      return;
     }
-  }, [player.duration]);
+    const logical = input.logicalTimelineDurationSec;
+    if (typeof logical === 'number' && Number.isFinite(logical) && logical > 0) {
+      lastDurationRef.current = logical;
+      return;
+    }
+    lastDurationRef.current = 0;
+  }, [player.duration, input.logicalTimelineDurationSec]);
 
   useLayoutEffect(() => {
     const node = waveCanvasRef.current;
@@ -323,6 +330,12 @@ export function useTranscriptionWaveformBridgeController(
     fitPxPerSec,
     maxZoomPercent,
     zoomPxPerSec,
+    ...(typeof input.logicalTimelineDurationSec === 'number'
+      && Number.isFinite(input.logicalTimelineDurationSec)
+      && input.logicalTimelineDurationSec > 0
+      ? { logicalTimelineDurationSec: input.logicalTimelineDurationSec }
+      : {}),
+    onLogicalTimelineScrollSync: scheduleWaveformScrollLeft,
   });
 
   const handleWaveformAreaFocus = useCallback(() => {
@@ -450,21 +463,23 @@ export function useTranscriptionWaveformBridgeController(
       player.stop();
       return;
     }
+    if (selectedWaveformTimelineItem?.tags?.skipProcessing === true) return;
     const range = resolveSelectedPlaybackRange();
     if (!range) return;
     setSegmentLoopPlayback(true);
     player.playRegion(range.start, range.end, true);
-  }, [player, resolveSelectedPlaybackRange, segmentLoopPlayback]);
+  }, [player, resolveSelectedPlaybackRange, segmentLoopPlayback, selectedWaveformTimelineItem]);
 
   const handleToggleSelectedWaveformPlay = useCallback(() => {
     if (player.isPlaying) {
       player.stop();
       return;
     }
+    if (selectedWaveformTimelineItem?.tags?.skipProcessing === true) return;
     const range = resolveSelectedPlaybackRange();
     if (!range) return;
     player.playRegion(range.start, range.end, true);
-  }, [player, resolveSelectedPlaybackRange]);
+  }, [player, resolveSelectedPlaybackRange, selectedWaveformTimelineItem]);
 
   return {
     waveformAreaRef,

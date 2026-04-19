@@ -14,6 +14,7 @@ export interface TimelineShellModeInput {
   layersCount: number;
   timelineMode?: 'document' | 'media' | null;
   fallbackDurationSec?: number | null;
+  comparisonViewEnabled?: boolean;
 }
 
 export interface TimelineShellModeResult {
@@ -32,11 +33,15 @@ export function resolveTimelineShellMode(input: TimelineShellModeInput): Timelin
     : 0;
   const acousticPlayable = hasUrl && input.playerIsReady && input.playerDuration > 0;
   const acousticPending = Boolean(hasUrl && hasLayers && (!input.playerIsReady || input.playerDuration <= 0));
+  const comparisonViewEnabled = input.comparisonViewEnabled === true;
   const timedMediaWithoutUrl = !hasUrl
     && hasLayers
     && input.timelineMode === 'media'
     && Math.max(input.playerDuration, fallbackDurationSec) > 0;
 
+  if (comparisonViewEnabled && hasLayers) {
+    return { shell: 'text-only', acousticPending: false, playableAcoustic: false };
+  }
   if ((acousticPlayable || timedMediaWithoutUrl) && hasLayers) {
     return { shell: 'waveform', acousticPending: false, playableAcoustic: acousticPlayable };
   }

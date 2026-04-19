@@ -437,6 +437,82 @@ describe('SidePaneSidebarSegmentList', () => {
     expect(scoped.queryByText('第二句')).toBeNull();
   });
 
+  it('surfaces merged review presets and treats speaker gaps as content-missing only when the transcription layer is partially assigned', async () => {
+    const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association', layerType: 'transcription' });
+    const speakers = [makeSpeaker('speaker-a', 'Alice')];
+
+    await SegmentMetaService.upsertDocs([
+      {
+        segmentId: 'utt-1',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 0,
+        endTime: 1,
+        text: '甲',
+        effectiveSpeakerId: 'speaker-a',
+        effectiveSpeakerName: 'Alice',
+        annotationStatus: 'verified',
+        effectiveSelfCertainty: 'certain',
+      },
+      {
+        segmentId: 'utt-2',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 1,
+        endTime: 2,
+        text: '乙',
+        annotationStatus: 'raw',
+      },
+      {
+        segmentId: 'utt-3',
+        unitKind: 'unit',
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'plain',
+        startTime: 2,
+        endTime: 3,
+        text: '',
+        annotationStatus: 'raw',
+        effectiveSelfCertainty: 'uncertain',
+      },
+    ]);
+
+    const view = render(
+      <SidePaneSidebarSegmentList
+        focusedLayerRowId="plain"
+        messages={messages}
+        layers={[plainLayer]}
+        defaultTranscriptionLayerId="plain"
+        segmentsByLayer={new Map()}
+        speakers={speakers}
+        unitsOnCurrentMedia={[
+          { ...makeUnit('utt-1', 0, 1), speakerId: 'speaker-a', transcription: { default: '甲' } },
+          { ...makeUnit('utt-2', 1, 2), transcription: { default: '乙' } },
+          { ...makeUnit('utt-3', 2, 3), transcription: { default: '' }, selfCertainty: 'uncertain' as const },
+        ]}
+      />,
+    );
+
+    const scoped = within(view.container);
+    expect((await scoped.findByRole('button', { name: /全部问题/ })).textContent).toContain('2');
+    expect((await scoped.findByRole('button', { name: /时间异常/ })).textContent).toContain('0');
+    expect((await scoped.findByRole('button', { name: /内容存疑/ })).textContent).toContain('1');
+    expect((await scoped.findByRole('button', { name: /内容缺失/ })).textContent).toContain('2');
+    expect((await scoped.findByRole('button', { name: /待人工处理/ })).textContent).toContain('0');
+    expect((await scoped.findByRole('button', { name: /待复核/ })).textContent).toContain('2');
+    const contentMissingButton = await scoped.findByRole('button', { name: /内容缺失/ });
+    fireEvent.click(contentMissingButton);
+
+    expect(await scoped.findByText('乙')).toBeTruthy();
+    expect(scoped.getAllByText('待补说话人')).toHaveLength(2);
+    expect(scoped.getByText('无内容')).toBeTruthy();
+    expect(scoped.queryByText('甲')).toBeNull();
+  });
+
   it('matches the keyword field against actual segment text instead of derived status labels', async () => {
     const plainLayer = makeLayer({ id: 'plain', name: { 'en-US': 'Plain Layer' }, constraint: 'symbolic_association' });
 
