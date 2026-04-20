@@ -189,9 +189,72 @@ status: phase-7a-7b-done
 
 ---
 
+## 阶段 8：方案 2（双时间基）治理补充 — **待执行（本轮新增）**
+
+目标：在保持“主存坐标不重算（`layer_units.startTime/endTime`）+ 显式 `timeMapping` 校准”主线不变的前提下，补齐可观测性与一致性治理，减少 roundtrip 误判为“数据丢失/漂移”。
+
+### 8A — 映射绑定有效性门禁（P0）
+
+- **规则**：当 `metadata.timeMapping.sourceMediaId` 存在且与当前选中媒体不一致时，映射进入“可疑态（stale）”，不得静默继续按旧映射解释。
+- **交互**：时间轴顶栏与项目 hub 同时提示“映射来源媒体不一致”，提供：
+  1. 继续使用当前映射（一次性确认）；
+  2. 一键回滚到上一版（`timeMappingRollback`）；
+  3. 重置为恒等映射（`offset=0, scale=1`）。
+- **写路径约束**：`applyTextTimeMapping` 成功后必须刷新 `sourceMediaId`；导入/切换媒体不得隐式改 `offset/scale`。
+
+### 8B — 负 `offset` 策略收紧（P0）
+
+- **规则二选一（本期推荐 A）**：
+  - **A. 禁止负 offset 写入**：UI/服务层统一校验 `offsetSec >= 0`，避免 clamp 区间不可逆。
+  - B. 允许负 offset，但明确进入“非双射区间”并限制拖建/改时起点（需额外交互成本）。
+- **推荐执行**：采用 A，先把数学域收敛到可逆区间，后续如有刚需再扩展到 B。
+- **测试要求**：补 `offsetSec < 0` 的拒绝用例与错误文案快照，避免回归到“可输负值但语义不透明”。
+
+### 8C — 可见性与过滤解释（P1）
+
+- **规则**：`selectedMediaId` 过滤导致不可见时，必须显示“隐藏条数 + 原因（mediaId 不匹配）”，禁止仅凭列表空态误导为删除。
+- **交互**：提供“查看全部语段”与“切回映射来源媒体”快捷动作（若 `sourceMediaId` 可用）。
+- **审计日志（可选）**：记录过滤前后数量与当前媒体 id，便于排查“消失/回来”投诉。
+
+### 8D — 逻辑轴长度推导稳定化（P1）
+
+- **规则**：`logicalDurationSec` 优先级固定：
+  1. `texts.metadata.logicalDurationSec`（若有效）；
+  2. 全量语段最大 `endTime`（同文本范围，不受当前媒体过滤影响）；
+  3. 最小保底值。
+- **禁止**：仅基于 `unitsOnCurrentMedia` 推导逻辑轴长度，避免切媒体导致视觉尺度跳变。
+- **实现建议**：新增统一 helper，时间轴壳层与项目 hub 复用同一推导逻辑。
+
+### 8E — 交付门禁（新增）
+
+1. `check:architecture-guard` 绿灯。
+2. 新增 `timeMapping-governance` 测试组全绿，至少覆盖：
+   - sourceMediaId 不一致提示与动作分支；
+   - 负 offset 禁止写入（或 B 方案下的受限行为）；
+   - 过滤隐藏提示与计数正确；
+   - 逻辑轴长度在切媒体前后稳定。
+3. 手工验收新增 2 条：
+   - 导入媒体后切换不同媒体，界面提示 stale 映射且可一键回滚/重置；
+   - 切媒体不改变语段主存坐标，且轴长显示不抖动。
+
+### 8F — 目标文件（建议）
+
+- `src/hooks/useDialogs.ts`（`activeTextTimeMapping` 解析扩展：stale 判定输入）
+- `src/pages/TranscriptionPage.ReadyWorkspace.tsx`（映射 stale 状态下传、轴长统一推导接线）
+- `src/components/transcription/LeftRailProjectHub.tsx`（stale 提示与三动作入口；负 offset 校验）
+- `src/utils/timelineAxisStatus.ts` / `src/components/timeline/TimelineAxisStatusStrip.tsx`（过滤与 stale 状态可见性）
+- `src/hooks/useTranscriptionDerivedData.ts`（隐藏计数与解释数据）
+- `src/utils/textOnlyTimelineTimeMapping.ts`（按策略收敛边界）
+
+---
+
+---
+
 ## 验收原则（横切）
 
 - **删音 / 导音**前后，对同一批 `layer_units`（及 segment 行）抽样：**时间字段与 `mediaId` 复用行为**符合阶段 0。
+- **映射治理**：`sourceMediaId` 与当前媒体不一致时，提示与动作分支可见且可复验；不得静默吞并。
+- **轴长稳定**：切媒体前后同文本下 `logicalDurationSec` 口径一致，不因当前过滤集合抖动。
 - **静态检查**：涉及文档治理时执行 `npm run check:docs-governance`（新增/修改 `docs/execution/plans/` 下文件时）。
 
 ---
@@ -210,3 +273,4 @@ status: phase-7a-7b-done
 3. 阶段 4 — **体验对齐**。  
 4. 阶段 6 — **数据与多轨清晰度**。  
 5. 阶段 7A～7D — **按迭代穿插**（7A 可与阶段 2 并行；7B 与阶段 6 呼应；7C 依赖阶段 0 规则；7D 独立里程碑）。
+6. 阶段 8A～8D — **方案 2 治理收口**（8A/8B 先行，8C/8D 随后；8E 为放行门禁）。
