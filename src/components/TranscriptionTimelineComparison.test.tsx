@@ -16,7 +16,7 @@ vi.mock('../contexts/ToastContext', () => ({
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import { TranscriptionEditorContext, type TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import { LocaleProvider } from '../i18n';
 import { TranscriptionTimelineComparison } from './TranscriptionTimelineComparison';
@@ -65,6 +65,25 @@ function makeUnit(id: string, layerId: string, startTime: number, endTime: numbe
     createdAt: now,
     updatedAt: now,
   } as LayerUnitDocType;
+}
+
+function makeLayerLink(
+  id: string,
+  transcriptionLayerKey: string,
+  hostTranscriptionLayerId: string,
+  layerId: string,
+  isPreferred = true,
+): LayerLinkDocType {
+  const now = '2026-04-19T00:00:00.000Z';
+  return {
+    id,
+    transcriptionLayerKey,
+    hostTranscriptionLayerId,
+    layerId,
+    linkType: 'free',
+    isPreferred,
+    createdAt: now,
+  };
 }
 
 afterEach(() => {
@@ -174,6 +193,47 @@ describe('TranscriptionTimelineComparison', () => {
 
     expect(handleAnnotationClick).toHaveBeenCalledWith('u2', 1.02, 'tr-b', expect.any(Object));
     expect(onFocusLayer).toHaveBeenCalledWith('tr-b');
+  });
+
+  it('filters translation lanes by layer links when translation parent is empty', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-a', 'transcription', '转写A', 'independent_boundary'),
+      makeLayer('tr-b', 'transcription', '转写B', 'independent_boundary'),
+    ];
+    const translationLayers = [
+      makeLayer('tl-a', 'translation', '译文A', 'symbolic_association'),
+      makeLayer('tl-b', 'translation', '译文B', 'symbolic_association'),
+    ];
+    const layerLinks = [
+      makeLayerLink('link-a', 'tr-a', 'tr-a', 'tl-a'),
+      makeLayerLink('link-b', 'tr-b', 'tr-b', 'tl-b'),
+    ];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const contextValue = makeEditorContext();
+    contextValue.getUnitTextForLayer = () => '第一条原文';
+    contextValue.translationTextByLayer = new Map([
+      ['tl-a', new Map([['u1', { text: 'A译文' }]])],
+      ['tl-b', new Map([['u1', { text: 'B译文' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            layerLinks={layerLinks}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByDisplayValue('A译文')).toBeTruthy();
+    expect(screen.queryByDisplayValue('B译文')).toBeNull();
   });
 
   it('syncs the active comparison group when the selected unit changes outside the component', () => {
@@ -1235,6 +1295,111 @@ describe('TranscriptionTimelineComparison', () => {
     expect(view.getAttribute('data-compact-mode')).toBe('target');
   });
 
+  it('shows enabled recording action for mixed translation layers in comparison view', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [{
+      ...makeTranslationLayer('translation-mixed', 'tr-a'),
+      modality: 'mixed' as const,
+      acceptsAudio: true,
+    } as LayerDocType];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const startRecordingForUnit = vi.fn(async () => undefined);
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="translation-mixed"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            startRecordingForUnit={startRecordingForUnit}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const button = screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(button);
+
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'u1' }),
+      expect.objectContaining({ id: 'translation-mixed' }),
+    );
+  });
+
+  it('resolves comparison playback from fallback audio scope key', () => {
+    const transcriptionLayers = [makeLayer('tr-seg', 'transcription', '转写', 'independent_boundary')];
+    const translationLayers = [{
+      ...makeTranslationLayer('translation-seg', 'tr-seg', '译文', 'independent_boundary'),
+      modality: 'mixed' as const,
+      acceptsAudio: true,
+    } as LayerDocType];
+    const parent = makeUnit('u1', 'tr-seg', 0, 1);
+    const transcriptionSegment = {
+      ...makeUnit('seg-tr-1', 'tr-seg', 0, 1),
+      unitType: 'segment' as const,
+      parentUnitId: 'u1',
+    } as LayerUnitDocType;
+    const translationSegment = {
+      ...makeUnit('seg-tl-1', 'translation-seg', 0, 1),
+      unitType: 'segment' as const,
+      parentUnitId: 'u1',
+    } as LayerUnitDocType;
+    const translationAudioByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
+      ['translation-seg', new Map([
+        ['u1', {
+          id: 'aud-1',
+          textId: 'text-1',
+          unitId: 'u1',
+          layerId: 'translation-seg',
+          modality: 'audio',
+          translationAudioMediaId: 'media-aud-1',
+          sourceType: 'human',
+          createdAt: '2026-04-19T00:00:00.000Z',
+          updatedAt: '2026-04-19T00:00:01.000Z',
+        } as LayerUnitContentDocType],
+      ])],
+    ]);
+    const mediaItems: MediaItemDocType[] = [{
+      id: 'media-aud-1',
+      textId: 'text-1',
+      filename: 'audio.webm',
+      url: 'https://example.com/audio.webm',
+      details: { source: 'translation-recording', timelineKind: 'acoustic' },
+      isOfflineCached: false,
+      createdAt: '2026-04-19T00:00:00.000Z',
+    } as MediaItemDocType];
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={[parent]}
+            segmentParentUnitLookup={[parent]}
+            segmentsByLayer={new Map<string, LayerUnitDocType[]>([
+              ['tr-seg', [transcriptionSegment]],
+              ['translation-seg', [translationSegment]],
+            ])}
+            translationAudioByLayer={translationAudioByLayer}
+            mediaItems={mediaItems}
+            defaultTranscriptionLayerId="tr-seg"
+            focusedLayerRowId="translation-seg"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /播放录音翻译|Play recorded translation/i })).toBeTruthy();
+  });
+
   it('calls navigateUnitFromInput when Tab is pressed in comparison textareas', () => {
     const navigateUnitFromInput = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
@@ -1364,6 +1529,10 @@ describe('TranscriptionTimelineComparison', () => {
       makeTranslationLayer('tl-zh', 'tr-en', '中文译层'),
       makeTranslationLayer('tl-fr', 'tr-fr', '法文译层'),
     ];
+    const layerLinks = [
+      makeLayerLink('link-zh-en', 'tr-en', 'tr-en', 'tl-zh'),
+      makeLayerLink('link-fr-fr', 'tr-fr', 'tr-fr', 'tl-fr'),
+    ];
     const units = [
       makeUnit('u-en', 'tr-en', 0, 1),
       makeUnit('u-fr', 'tr-fr', 2, 3),
@@ -1381,6 +1550,7 @@ describe('TranscriptionTimelineComparison', () => {
           <TranscriptionTimelineComparison
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
+            layerLinks={layerLinks}
             unitsOnCurrentMedia={units}
             focusedLayerRowId="tr-en"
             onFocusLayer={vi.fn()}
