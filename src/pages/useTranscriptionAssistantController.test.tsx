@@ -25,7 +25,11 @@ vi.mock('../utils/orthographyRuntime', () => ({
   bridgeTextForLayerTarget: mockBridgeTextForLayerTarget,
 }));
 
-function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: LayerDocType['layerType'] = 'transcription',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
+): LayerDocType {
   return {
     id,
     textId: 'text-1',
@@ -36,6 +40,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...(extras ?? {}),
   } as LayerDocType;
 }
 
@@ -345,6 +350,41 @@ describe('useTranscriptionAssistantController', () => {
       expect(saveUnitText).toHaveBeenCalledWith('utt-1', 'translated text', 'layer-main');
       expect(selectUnit).toHaveBeenCalledWith('utt-2');
     });
+  });
+
+  it('persists dictation to host child translation layer when selected/default layers are not provided', async () => {
+    const saveUnitText = vi.fn(async () => undefined);
+    const saveUnitLayerText = vi.fn(async () => undefined);
+    const selectUnit = vi.fn();
+    const transcriptionMain = makeLayer('layer-main', 'transcription');
+    const transcriptionFr = makeLayer('layer-fr', 'transcription');
+    const translationEn = makeLayer('layer-tr-en', 'translation', { parentLayerId: 'layer-main' });
+    const translationFr = makeLayer('layer-tr-fr', 'translation', { parentLayerId: 'layer-fr' });
+    const {
+      defaultTranscriptionLayerId: _ignoreDefaultTranscriptionLayerId,
+      ...hookInputWithoutDefaultTranscription
+    } = createBaseInput({
+      selectedLayerId: null,
+      selectedTimelineUnit: { layerId: 'layer-fr', unitId: 'utt-1', kind: 'unit' },
+      layers: [transcriptionMain, transcriptionFr, translationEn, translationFr],
+      translationLayers: [translationEn, translationFr],
+      saveUnitText,
+      saveUnitLayerText,
+      selectUnit,
+    });
+    const { result } = renderHook(() => useTranscriptionAssistantController(hookInputWithoutDefaultTranscription));
+
+    act(() => {
+      result.current.handleVoiceDictation('bonjour');
+    });
+
+    await waitFor(() => {
+      expect(saveUnitLayerText).toHaveBeenCalledWith('utt-1', 'bonjour', 'layer-tr-fr');
+      expect(saveUnitText).not.toHaveBeenCalled();
+      expect(selectUnit).toHaveBeenCalledWith('utt-2');
+    });
+
+    expect(result.current.voiceDictationPipeline?.config?.targetLayer).toBe('translation');
   });
 
   it('builds a continuous dictation pipeline for unit-based voice dictation', async () => {

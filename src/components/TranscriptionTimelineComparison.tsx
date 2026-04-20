@@ -1,5 +1,12 @@
 import '../styles/pages/timeline/timeline-comparison.css';
-import type { LayerDisplaySettings, LayerDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, OrthographyDocType } from '../db';
+import type {
+  LayerDisplaySettings,
+  LayerDocType,
+  LayerUnitContentDocType,
+  LayerUnitDocType,
+  MediaItemDocType,
+  OrthographyDocType,
+} from '../db';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { unitToView } from '../hooks/timelineUnitView';
@@ -10,17 +17,18 @@ import { t, tf, useLocale, type Locale } from '../i18n';
 import type { TranscriptionComparisonViewFocusState } from '../pages/TranscriptionPage.UIState';
 import { DEFAULT_TRANSCRIPTION_COMPARISON_FOCUS } from '../pages/TranscriptionPage.UIState';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
-import { NoteDocumentIcon } from './NoteDocumentIcon';
-import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import { normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
 import {
   buildComparisonGroups,
-  listSegmentsOverlappingTimeRange,
+  buildComparisonTargetItemsFromRawText,
+  listTranslationSegmentsForComparisonSourceUnit,
   pickTranslationSegmentForPersist,
   type ComparisonGroup,
   type ComparisonTargetItem,
 } from '../utils/transcriptionComparisonGroups';
+import { buildLayerBundles } from '../services/LayerOrderingService';
+import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 import { buildLaneHeaderInlineDotSeparatedLabel, formatTime, normalizeSingleLine } from '../utils/transcriptionFormatters';
 import {
   BASE_FONT_SIZE,
@@ -31,6 +39,18 @@ import {
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
+import { LayerActionPopover } from './LayerActionPopover';
+import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
+import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
+import { buildLayerOperationMenuItems, type LayerOperationActionType } from './layerOperationMenuItems';
+import { TimelineBadges } from './TimelineBadges';
+import { buildTimelineSelfCertaintyTitle } from '../utils/timelineSelfCertainty';
+import {
+  isComparisonLayerCollapsed,
+  toggleComparisonCompactModeForLayer,
+  type ComparisonCompactMode,
+  type ComparisonLayerRole,
+} from '../hooks/useTimelineVisibilityState';
 
 /** 译文区点击/录音：优先用当前菜单锚点、再 global 选中，再回落主锚点 | Target-side UI anchor resolution */
 function resolveComparisonGroupAnchorForUi(
@@ -43,10 +63,22 @@ function resolveComparisonGroupAnchorForUi(
     const item = group.sourceItems.find((si) => si.unitId === id);
     return item ? { unitId: item.unitId, startTime: item.startTime } : undefined;
   };
+  const fromPrimaryAnchor = () => {
+    const id = typeof group.primaryAnchorUnitId === 'string' ? group.primaryAnchorUnitId.trim() : '';
+    if (id.length === 0) return undefined;
+    return { unitId: id, startTime: group.startTime };
+  };
+  const fromFirstSource = () => {
+    const first = group.sourceItems[0];
+    if (!first) return undefined;
+    return { unitId: first.unitId, startTime: first.startTime };
+  };
   return (
     fromId(contextMenuSourceUnitId)
     ?? fromId(activeUnitId)
-    ?? { unitId: group.sourceItems[0]?.unitId ?? '', startTime: group.sourceItems[0]?.startTime ?? group.startTime }
+    ?? fromFirstSource()
+    ?? fromPrimaryAnchor()
+    ?? { unitId: group.primaryAnchorUnitId, startTime: group.startTime }
   );
 }
 
@@ -90,70 +122,6 @@ function normalizeComparisonText(value: string): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-function buildComparisonSelfCertaintyTitle(locale: Locale, certainty: UnitSelfCertainty, laneLabel: string): string {
-  const label = certainty === 'certain'
-    ? t(locale, 'transcription.unit.selfCertainty.certain')
-    : certainty === 'uncertain'
-      ? t(locale, 'transcription.unit.selfCertainty.uncertain')
-      : t(locale, 'transcription.unit.selfCertainty.notUnderstood');
-  const dimension = t(locale, 'transcription.unit.selfCertainty.dimensionHint');
-  const resolvedLaneLabel = normalizeSingleLine(laneLabel).trim();
-  return `${resolvedLaneLabel || label}\n${dimension}`;
-}
-
-function renderComparisonSelfCertaintyBadge(input: {
-  locale: Locale;
-  certainty: UnitSelfCertainty | undefined;
-  ambiguous: boolean;
-  laneLabel: string;
-}): ReactNode {
-  if (input.certainty) {
-    const title = buildComparisonSelfCertaintyTitle(input.locale, input.certainty, input.laneLabel);
-    return (
-      <SelfCertaintyIcon
-        certainty={input.certainty}
-        className="timeline-annotation-self-certainty"
-        title={title}
-        ariaLabel={title}
-      />
-    );
-  }
-  if (!input.ambiguous) return null;
-  const ambiguousTitle = t(input.locale, 'transcription.unit.selfCertainty.ambiguousSource');
-  return (
-    <span
-      className="timeline-annotation-self-certainty timeline-annotation-self-certainty-ambiguous"
-      role="img"
-      aria-label={ambiguousTitle}
-      title={ambiguousTitle}
-    >
-      <span className="timeline-annotation-self-certainty-icon" aria-hidden>
-        !
-      </span>
-    </span>
-  );
-}
-
-function renderComparisonNoteBadge(input: {
-  locale: Locale;
-  noteCount: number;
-  onNoteClick?: (event: React.MouseEvent<SVGSVGElement>) => void;
-}): ReactNode {
-  if (!(input.noteCount > 0) || !input.onNoteClick) return null;
-  const label = tf(input.locale, 'transcription.notes.count', { count: input.noteCount });
-  return (
-    <NoteDocumentIcon
-      className="timeline-comparison-note-icon timeline-comparison-note-icon-active"
-      onClick={(event) => {
-        event.stopPropagation();
-        input.onNoteClick?.(event);
-      }}
-      ariaLabel={label}
-      title={label}
-    />
-  );
-}
-
 function renderComparisonOverlay(input: {
   locale: Locale;
   certainty: UnitSelfCertainty | undefined;
@@ -162,32 +130,270 @@ function renderComparisonOverlay(input: {
   noteCount: number;
   onNoteClick?: (event: React.MouseEvent<SVGSVGElement>) => void;
 }): ReactNode {
-  const certaintyBadge = renderComparisonSelfCertaintyBadge(input);
-  const noteBadge = renderComparisonNoteBadge({
-    locale: input.locale,
-    noteCount: input.noteCount,
-    ...(input.onNoteClick ? { onNoteClick: input.onNoteClick } : {}),
-  });
-  if (!certaintyBadge && !noteBadge) return null;
+  const certaintyTitle = input.certainty
+    ? buildTimelineSelfCertaintyTitle(input.locale, input.certainty, input.laneLabel)
+    : undefined;
   return (
-    <div className="timeline-comparison-surface-badges">
-      {certaintyBadge}
-      {noteBadge}
-    </div>
+    <TimelineBadges
+      locale={input.locale}
+      {...(input.certainty ? { selfCertainty: input.certainty } : {})}
+      {...(certaintyTitle ? { selfCertaintyTitle: certaintyTitle } : {})}
+      {...(input.ambiguous ? { selfCertaintyAmbiguous: true } : {})}
+      noteCount={input.noteCount}
+      noteClassName="timeline-comparison-note-icon timeline-comparison-note-icon-active"
+      wrapperClassName="timeline-comparison-surface-badges"
+      {...(input.onNoteClick ? { onNoteClick: input.onNoteClick } : {})}
+    />
   );
 }
 
 /** 首条语段顶相对层头再下移的余量（发丝线、subpixel、hover 外光）| clearance below dual-column header */
 const COMPARISON_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX = 12;
 
-/** 译文层按独立语段分项时，纵向对照为每段单独编辑面 | One editor row per translation segment */
-function comparisonUsesPerSegmentTargetEditors(group: ComparisonGroup): boolean {
-  return (
-    group.targetItems.length > 0
-    && group.targetItems.every(
-      (t) => typeof t.translationSegmentId === 'string' && t.translationSegmentId.trim().length > 0,
-    )
+/** 多目标译文时，纵向对照右列按子项逐行展示；segment 与换行拆分都适用 | Split target rows for one-to-many comparison groups */
+function comparisonUsesSplitTargetEditors(group: ComparisonGroup): boolean {
+  return group.editingTargetPolicy === 'multi-target-items' && group.targetItems.length > 1;
+}
+
+/** 对照组锚定到的原文层 id（用于对齐横向 `buildLayerBundles` 根块） | Source layer id for horizontal bundle mapping */
+function resolveComparisonGroupSourceAnchorLayerId(
+  group: ComparisonGroup,
+  fallbackSourceLayerId: string | undefined,
+): string | undefined {
+  for (const item of group.sourceItems) {
+    const lid = typeof item.layerId === 'string' ? item.layerId.trim() : '';
+    if (lid.length > 0) return lid;
+  }
+  const anchor = typeof group.primaryAnchorLayerId === 'string' ? group.primaryAnchorLayerId.trim() : '';
+  if (anchor.length > 0) return anchor;
+  const fb = typeof fallbackSourceLayerId === 'string' ? fallbackSourceLayerId.trim() : '';
+  return fb.length > 0 ? fb : undefined;
+}
+
+/** 与横向时间轴 `buildLayerBundles` 一致：每层 id → 其所属 bundle 根层 id | Same bundle roots as horizontal timeline */
+function buildLayerIdToHorizontalBundleRootIdMap(layers: readonly LayerDocType[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const bundle of buildLayerBundles([...layers])) {
+    const rootId = bundle.root.id;
+    map.set(bundle.root.id, rootId);
+    for (const child of bundle.transcriptionDependents) {
+      map.set(child.id, rootId);
+    }
+    for (const child of bundle.translationDependents) {
+      map.set(child.id, rootId);
+    }
+  }
+  return map;
+}
+
+/**
+ * 纵向「组块」= 横向 `buildLayerBundles` 的一条根 bundle（根层 id 为键）；无法映射时退回按对照组 id |
+ * Comparison bundle aligns with horizontal layer bundle root id
+ */
+function resolveComparisonHorizontalBundleKey(
+  group: ComparisonGroup,
+  layerIdToBundleRootId: ReadonlyMap<string, string>,
+  fallbackSourceLayerId: string | undefined,
+): string {
+  const anchorLayerId = resolveComparisonGroupSourceAnchorLayerId(group, fallbackSourceLayerId);
+  if (anchorLayerId) {
+    const root = layerIdToBundleRootId.get(anchorLayerId);
+    if (root) return root;
+  }
+  return `__cmp_group:${group.id}`;
+}
+
+/** 纵向对照菜单文案小助手 | Small locale helper for comparison menus */
+function comparisonMenuText(locale: Locale, zh: string, en: string): string {
+  return locale === 'zh-CN' ? zh : en;
+}
+
+type ComparisonLayerActionType =
+  Exclude<LayerOperationActionType, 'delete'>;
+
+function resolveComparisonTargetPlainTextForLayer(
+  unit: LayerUnitDocType,
+  tLayer: LayerDocType,
+  defaultTranscriptionLayerId: string | undefined,
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
+  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
+  translationTextByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>,
+  unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
+): string {
+  const targetUsesSegments = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId);
+  const translationSegmentsForTarget = segmentsByLayer?.get(tLayer.id);
+  const layerContent = segmentContentByLayer?.get(tLayer.id);
+  if (targetUsesSegments && layerContent) {
+    const overlapping = listTranslationSegmentsForComparisonSourceUnit(
+      unit,
+      translationSegmentsForTarget,
+      unitByIdForSpeaker,
+    );
+    if (overlapping.length === 0) {
+      return translationTextByLayer.get(tLayer.id)?.get(unit.id)?.text ?? '';
+    }
+    return overlapping
+      .map((s) => layerContent.get(s.id)?.text ?? '')
+      .filter((line) => line.length > 0)
+      .join('\n');
+  }
+  return translationTextByLayer.get(tLayer.id)?.get(unit.id)?.text ?? '';
+}
+
+function resolveComparisonExplicitTargetItemsForLayer(
+  unit: LayerUnitDocType,
+  tLayer: LayerDocType,
+  defaultTranscriptionLayerId: string | undefined,
+  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
+  segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
+  unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
+): ComparisonTargetItem[] | undefined {
+  const targetUsesSegments = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId);
+  const translationSegmentsForTarget = segmentsByLayer?.get(tLayer.id);
+  const layerContent = segmentContentByLayer?.get(tLayer.id);
+  if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length) return undefined;
+  const overlapping = listTranslationSegmentsForComparisonSourceUnit(
+    unit,
+    translationSegmentsForTarget,
+    unitByIdForSpeaker,
   );
+  if (overlapping.length === 0) return undefined;
+  return overlapping.map((s) => ({
+    id: `${unit.id}:target:seg:${s.id}`,
+    text: normalizeSingleLine(layerContent.get(s.id)?.text ?? ''),
+    anchorUnitIds: [unit.id],
+    translationSegmentId: s.id,
+  }));
+}
+
+/** 无 parent 的译文层在多转写项目中的回落宿主（默认转写或列表首层） */
+function resolveOrphanTranslationAttachTranscriptionLayerId(
+  transcriptionLayers: readonly LayerDocType[],
+  defaultTranscriptionLayerId: string | undefined,
+): string | undefined {
+  const d = defaultTranscriptionLayerId?.trim();
+  if (d && transcriptionLayers.some((l) => l.id === d)) return d;
+  return transcriptionLayers[0]?.id;
+}
+
+function translationLayerAppliesToComparisonSourceTranscriptionIds(
+  tl: LayerDocType,
+  sourceTranscriptionIds: ReadonlySet<string>,
+  transcriptionLayerCount: number,
+  orphanAttachLayerId: string | undefined,
+): boolean {
+  const parent = tl.parentLayerId?.trim() ?? '';
+  if (parent.length > 0) {
+    if (sourceTranscriptionIds.size === 0) return false;
+    return sourceTranscriptionIds.has(parent);
+  }
+  if (transcriptionLayerCount <= 1) return true;
+  if (!orphanAttachLayerId) return false;
+  return sourceTranscriptionIds.has(orphanAttachLayerId);
+}
+
+function collectComparisonGroupSourceTranscriptionLayerIds(
+  group: ComparisonGroup,
+  fallbackTranscriptionLayerId: string | undefined,
+): Set<string> {
+  const sourceIds = new Set<string>();
+  for (const si of group.sourceItems) {
+    const id = si.layerId?.trim();
+    if (id) sourceIds.add(id);
+  }
+  if (sourceIds.size === 0) {
+    const primary = group.primaryAnchorLayerId?.trim();
+    if (primary) sourceIds.add(primary);
+  }
+  if (sourceIds.size === 0 && fallbackTranscriptionLayerId?.trim()) {
+    sourceIds.add(fallbackTranscriptionLayerId.trim());
+  }
+  return sourceIds;
+}
+
+function filterTranslationLayersForComparisonGroup(
+  group: ComparisonGroup,
+  translationLayers: readonly LayerDocType[],
+  transcriptionLayers: readonly LayerDocType[],
+  defaultTranscriptionLayerId: string | undefined,
+  fallbackFocusedTranscriptionLayerId: string | undefined,
+): LayerDocType[] {
+  const transcriptionLayerCount = transcriptionLayers.length;
+  const orphanAttach = resolveOrphanTranslationAttachTranscriptionLayerId(
+    transcriptionLayers,
+    defaultTranscriptionLayerId,
+  );
+  const fb = fallbackFocusedTranscriptionLayerId?.trim()
+    ?? resolveOrphanTranslationAttachTranscriptionLayerId(transcriptionLayers, defaultTranscriptionLayerId);
+  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group, fb);
+  return translationLayers.filter((tl) => translationLayerAppliesToComparisonSourceTranscriptionIds(
+    tl,
+    sourceIds,
+    transcriptionLayerCount,
+    orphanAttach,
+  ));
+}
+
+function resolveComparisonGroupEmptyReason(
+  group: ComparisonGroup,
+  translationLayers: readonly LayerDocType[],
+  transcriptionLayers: readonly LayerDocType[],
+  defaultTranscriptionLayerId: string | undefined,
+  fallbackFocusedTranscriptionLayerId: string | undefined,
+): 'no-child' | 'orphan-needs-repair' {
+  if (translationLayers.length === 0) return 'no-child';
+  if (transcriptionLayers.length <= 1) return 'no-child';
+  const hasOrphanLayer = translationLayers.some((layer) => (layer.parentLayerId?.trim() ?? '').length === 0);
+  if (!hasOrphanLayer) return 'no-child';
+  const orphanAttachLayerId = resolveOrphanTranslationAttachTranscriptionLayerId(
+    transcriptionLayers,
+    defaultTranscriptionLayerId,
+  );
+  if (!orphanAttachLayerId) return 'no-child';
+  const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim()
+    ?? resolveOrphanTranslationAttachTranscriptionLayerId(transcriptionLayers, defaultTranscriptionLayerId);
+  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group, fallbackSourceLayerId);
+  return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';
+}
+
+function pickTranslationLayerForComparisonUnit(
+  unit: LayerUnitDocType,
+  allTranslationLayers: readonly LayerDocType[],
+  preferred: LayerDocType | undefined,
+  transcriptionLayers: readonly LayerDocType[],
+  defaultTranscriptionLayerId: string | undefined,
+): LayerDocType | undefined {
+  if (allTranslationLayers.length === 0) return undefined;
+  const transcriptionLayerCount = transcriptionLayers.length;
+  const unitSourceId = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
+  if (!unitSourceId && transcriptionLayerCount > 1) {
+    return preferred ?? allTranslationLayers[0];
+  }
+  const orphanAttach = resolveOrphanTranslationAttachTranscriptionLayerId(
+    transcriptionLayers,
+    defaultTranscriptionLayerId,
+  );
+  const sourceIds = new Set(unitSourceId ? [unitSourceId] : []);
+  const candidates = allTranslationLayers.filter((tl) => translationLayerAppliesToComparisonSourceTranscriptionIds(
+    tl,
+    sourceIds,
+    transcriptionLayerCount,
+    orphanAttach,
+  ));
+  if (candidates.length === 0) {
+    if (transcriptionLayerCount <= 1) return preferred ?? allTranslationLayers[0];
+    if (!unitSourceId) return preferred ?? allTranslationLayers[0];
+    return undefined;
+  }
+  const preferredTranslationId = preferred?.layerType === 'translation' ? preferred.id : undefined;
+  const resolvedId = resolveHostAwareTranslationLayerIdFromSnapshot({
+    selectedLayerId: preferredTranslationId,
+    selectedUnitLayerId: unitSourceId || null,
+    defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? null,
+    translationLayers: candidates,
+  });
+  if (!resolvedId) return candidates[0];
+  return candidates.find((c) => c.id === resolvedId) ?? candidates[0];
 }
 
 function accumulatedOffsetTopUntil(el: HTMLElement | null, ancestor: HTMLElement | null): number | null {
@@ -336,7 +542,8 @@ function resolveComparisonGroupSourceUnits(input: {
           const k = resolveSpeakerFocusKeyFromSegment(segment, unitByIdForSpeaker);
           if (k !== normalizeSpeakerFocusKey(speakerKey)) continue;
         }
-        push(segment);
+        const segLayerId = typeof segment.layerId === 'string' ? segment.layerId.trim() : '';
+        push(segLayerId.length > 0 ? segment : { ...segment, layerId: layer.id });
       }
     } else {
       for (const u of unitsOnCurrentMedia) {
@@ -361,6 +568,38 @@ function comparisonRowRailMark(fullLabel: string): string {
   if (trimmed.length === 0) return '·';
   const first = Array.from(trimmed)[0];
   return first ?? '·';
+}
+
+type ComparisonRailLaneLabelMode = 'full' | 'continuation';
+
+/** 与横向时间轴 `renderLaneLabel` 一致的多行层头；无层或回调空时回落单字标记 */
+function renderComparisonRailLaneBody(input: {
+  layer: LayerDocType | undefined;
+  renderLaneLabel: (layer: LayerDocType) => ReactNode;
+  fallbackTitle: string;
+  mode: ComparisonRailLaneLabelMode;
+}): ReactNode {
+  if (input.mode === 'continuation') {
+    return (
+      <span
+        className="timeline-comparison-row-rail-lane-label timeline-comparison-row-rail-lane-label-continuation"
+        aria-hidden
+      >
+        ·
+      </span>
+    );
+  }
+  if (input.layer) {
+    const body = input.renderLaneLabel(input.layer);
+    if (body != null && body !== false && body !== '') {
+      return <span className="timeline-comparison-row-rail-lane-label" aria-hidden>{body}</span>;
+    }
+  }
+  return (
+    <span className="timeline-comparison-row-rail-mark" aria-hidden>
+      {comparisonRowRailMark(input.fallbackTitle)}
+    </span>
+  );
 }
 
 function resolveComparisonLayerLabel(layer: LayerDocType | undefined, locale: Locale, fallback: string): string {
@@ -410,6 +649,9 @@ interface TranscriptionTimelineComparisonProps {
   segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
   segmentParentUnitLookup?: LayerUnitDocType[];
   allLayersOrdered?: LayerDocType[];
+  deletableLayers?: LayerDocType[];
+  defaultLanguageId?: string;
+  defaultOrthographyId?: string;
   defaultTranscriptionLayerId?: string;
   activeSpeakerFilterKey?: string;
   translationAudioByLayer?: Map<string, Map<string, LayerUnitContentDocType>>;
@@ -454,6 +696,9 @@ export function TranscriptionTimelineComparison({
   segmentsByLayer,
   segmentParentUnitLookup,
   allLayersOrdered,
+  deletableLayers,
+  defaultLanguageId,
+  defaultOrthographyId,
   defaultTranscriptionLayerId,
   activeSpeakerFilterKey,
   translationAudioByLayer,
@@ -498,8 +743,16 @@ export function TranscriptionTimelineComparison({
   const activeComparisonCellId = comparisonFocus.activeComparisonCellId;
   const comparisonTargetSide = comparisonFocus.comparisonTargetSide;
   const contextMenuSourceUnitId = comparisonFocus.contextMenuSourceUnitId;
-  const [compactMode, setCompactMode] = useState<'both' | 'source' | 'target'>('both');
-  const [layerStyleMenu, setLayerStyleMenu] = useState<{ x: number; y: number } | null>(null);
+  const [compactMode, setCompactMode] = useState<ComparisonCompactMode>('both');
+  /** 按语段 rootUnitId 对照组块筛选；与侧栏「层树 bundle」无关 | Filter comparison rows by unit bundle root id */
+  const [comparisonBundleFilterRootId, setComparisonBundleFilterRootId] = useState<string | null>(null);
+  const [layerContextMenu, setLayerContextMenu] = useState<{
+    x: number;
+    y: number;
+    items: ContextMenuItem[];
+    anchorOrigin?: 'top-left' | 'bottom-left';
+  } | null>(null);
+  const [layerAction, setLayerAction] = useState<{ action: ComparisonLayerActionType; layerId: string | undefined } | null>(null);
   const [comparisonLeftGrow, setComparisonLeftGrow] = useState(readStoredComparisonLeftGrow);
   const [comparisonEditorHeightByGroup, setComparisonEditorHeightByGroup] = useState<Record<string, number>>(readStoredComparisonEditorHeightMap);
   const [defaultComparisonEditorHeight] = useState(readStoredComparisonEditorHeight);
@@ -507,6 +760,8 @@ export function TranscriptionTimelineComparison({
   const comparisonSplitHostRef = useRef<HTMLDivElement | null>(null);
   const comparisonLeftGrowRef = useRef(comparisonLeftGrow);
   const comparisonSplitDragRef = useRef<{ pointerId: number } | null>(null);
+  const comparisonSplitPendingClientXRef = useRef<number | null>(null);
+  const comparisonSplitDragRafRef = useRef<number | null>(null);
   const comparisonSplitCleanupRef = useRef<(() => void) | null>(null);
   const [isComparisonColumnSplitDragging, setIsComparisonColumnSplitDragging] = useState(false);
 
@@ -585,6 +840,11 @@ export function TranscriptionTimelineComparison({
     comparisonSplitCleanupRef.current?.();
     comparisonSplitCleanupRef.current = null;
     comparisonSplitDragRef.current = null;
+    comparisonSplitPendingClientXRef.current = null;
+    if (comparisonSplitDragRafRef.current != null) {
+      cancelAnimationFrame(comparisonSplitDragRafRef.current);
+      comparisonSplitDragRafRef.current = null;
+    }
     document.body.style.userSelect = '';
   }, []);
 
@@ -623,7 +883,7 @@ export function TranscriptionTimelineComparison({
     const columnInset = 10;
     const colGap = 8;
 
-    const applyClientX = (clientX: number) => {
+    const applyComparisonSplitClientX = (clientX: number) => {
       measureComparisonSplitLayout();
       const m = comparisonSplitMeasureRef.current;
       const rect = host.getBoundingClientRect();
@@ -640,12 +900,36 @@ export function TranscriptionTimelineComparison({
         raw = ((clientX - pointerBase - colGap / 2) / track) * 100;
       }
       const next = Math.min(80, Math.max(20, Math.round(raw)));
+      comparisonLeftGrowRef.current = next;
       setComparisonLeftGrow(next);
+    };
+
+    const flushScheduledComparisonSplit = () => {
+      if (comparisonSplitDragRafRef.current != null) {
+        cancelAnimationFrame(comparisonSplitDragRafRef.current);
+        comparisonSplitDragRafRef.current = null;
+      }
+      const pending = comparisonSplitPendingClientXRef.current;
+      comparisonSplitPendingClientXRef.current = null;
+      if (pending != null) {
+        applyComparisonSplitClientX(pending);
+      }
+    };
+
+    const scheduleComparisonSplitClientX = (clientX: number) => {
+      comparisonSplitPendingClientXRef.current = clientX;
+      if (comparisonSplitDragRafRef.current != null) return;
+      comparisonSplitDragRafRef.current = requestAnimationFrame(() => {
+        comparisonSplitDragRafRef.current = null;
+        const pending = comparisonSplitPendingClientXRef.current;
+        if (pending == null) return;
+        applyComparisonSplitClientX(pending);
+      });
     };
 
     const onWindowPointerMove = (ev: PointerEvent) => {
       if (comparisonSplitDragRef.current?.pointerId !== ev.pointerId) return;
-      applyClientX(ev.clientX);
+      scheduleComparisonSplitClientX(ev.clientX);
     };
 
     const finish = (ev: PointerEvent) => {
@@ -655,6 +939,7 @@ export function TranscriptionTimelineComparison({
       window.removeEventListener('pointercancel', finish);
       comparisonSplitCleanupRef.current = null;
       comparisonSplitDragRef.current = null;
+      flushScheduledComparisonSplit();
       setIsComparisonColumnSplitDragging(false);
       document.body.style.userSelect = '';
       try {
@@ -668,6 +953,11 @@ export function TranscriptionTimelineComparison({
       window.removeEventListener('pointermove', onWindowPointerMove);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
+      if (comparisonSplitDragRafRef.current != null) {
+        cancelAnimationFrame(comparisonSplitDragRafRef.current);
+        comparisonSplitDragRafRef.current = null;
+      }
+      comparisonSplitPendingClientXRef.current = null;
     };
 
     window.addEventListener('pointermove', onWindowPointerMove);
@@ -675,7 +965,7 @@ export function TranscriptionTimelineComparison({
     window.addEventListener('pointercancel', finish);
     document.body.style.userSelect = 'none';
     setIsComparisonColumnSplitDragging(true);
-    applyClientX(event.clientX);
+    applyComparisonSplitClientX(event.clientX);
   }, [compactMode, isNarrowComparisonLayout, measureComparisonSplitLayout, resetComparisonColumnsToEqualWidth]);
 
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, NonNullable<TimelineDraftSaveStatus>>>({});
@@ -716,7 +1006,44 @@ export function TranscriptionTimelineComparison({
     saveUnitText,
     saveUnitLayerText,
     getUnitTextForLayer,
+    renderLaneLabel,
+    createLayer,
+    updateLayerMetadata,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+    checkLayerHasContent,
   } = useTranscriptionEditorContext();
+
+  const effectiveAllLayersOrdered = useMemo(
+    () => (allLayersOrdered && allLayersOrdered.length > 0
+      ? allLayersOrdered
+      : [...transcriptionLayers, ...translationLayers]),
+    [allLayersOrdered, transcriptionLayers, translationLayers],
+  );
+  const layerIdToHorizontalBundleRootId = useMemo(
+    () => buildLayerIdToHorizontalBundleRootIdMap(effectiveAllLayersOrdered),
+    [effectiveAllLayersOrdered],
+  );
+  const horizontalBundleRootIdsOrdered = useMemo(
+    () => buildLayerBundles([...effectiveAllLayersOrdered]).map((b) => b.root.id),
+    [effectiveAllLayersOrdered],
+  );
+  const effectiveDeletableLayers = deletableLayers ?? effectiveAllLayersOrdered;
+  const canOpenTranslationCreate = effectiveAllLayersOrdered.some((item) => item.layerType === 'transcription');
+
+  const {
+    deleteLayerConfirm,
+    deleteConfirmKeepUnits,
+    setDeleteConfirmKeepUnits,
+    requestDeleteLayer,
+    cancelDeleteLayerConfirm,
+    confirmDeleteLayer,
+  } = useLayerDeleteConfirm({
+    deletableLayers: effectiveDeletableLayers,
+    checkLayerHasContent,
+    deleteLayer,
+    deleteLayerWithoutConfirm,
+  });
 
   const targetLayer = useMemo(
     () => translationLayers.find((layer) => layer.id === focusedLayerRowId) ?? translationLayers[0],
@@ -758,62 +1085,71 @@ export function TranscriptionTimelineComparison({
     ],
   );
 
-  const unitById = unitByIdForSpeaker;
 
   const mediaItemById = useMemo(
     () => new Map(mediaItems.map((item) => [item.id, item] as const)),
     [mediaItems],
   );
 
+  /** 与媒体/文本时间轴一致：语段化转写下一语段一行译文，禁止按「相同译文」把相邻语段并成一组 */
+  const comparisonUsesSegmentSourceRows = useMemo(
+    () => transcriptionLayers.some(
+      (l) => layerUsesOwnSegments(l, defaultTranscriptionLayerId),
+    ),
+    [transcriptionLayers, defaultTranscriptionLayerId],
+  );
+
   const groups = useMemo(() => {
-    const targetUsesSegments = Boolean(
-      targetLayer && layerUsesOwnSegments(targetLayer, defaultTranscriptionLayerId),
-    );
-    const translationSegmentsForTarget = targetLayer ? segmentsByLayer?.get(targetLayer.id) : undefined;
-    const targetLayerId = targetLayer?.id ?? '';
-    const layerContent = targetLayerId && segmentContentByLayer
-      ? segmentContentByLayer.get(targetLayerId)
-      : undefined;
+    const disableMergeForGrouping = comparisonUsesSegmentSourceRows || translationLayers.length > 1;
     return buildComparisonGroups({
       units: comparisonGroupSourceUnits,
+      ...(disableMergeForGrouping ? { maxMergeGapSec: -1 } : {}),
       sourceLayerIds: transcriptionLayers.map((layer) => layer.id),
-      getSourceText: (unit) => getUnitTextForLayer(unit, sourceLayer?.id) || getUnitTextForLayer(unit) || '',
+      getSourceText: (unit) => {
+        const layerId = (typeof unit.layerId === 'string' && unit.layerId.trim()) || sourceLayer?.id;
+        return getUnitTextForLayer(unit, layerId) || getUnitTextForLayer(unit) || '';
+      },
       getTargetText: (unit) => {
-        if (!targetLayer) return '';
-        if (targetUsesSegments && layerContent) {
-          const overlapping = listSegmentsOverlappingTimeRange(
-            translationSegmentsForTarget,
-            unit.startTime,
-            unit.endTime,
-          );
-          if (overlapping.length === 0) {
-            return translationTextByLayer.get(targetLayer.id)?.get(unit.id)?.text ?? '';
-          }
-          return overlapping
-            .map((s) => layerContent.get(s.id)?.text ?? '')
-            .filter((line) => line.length > 0)
-            .join('\n');
-        }
-        return translationTextByLayer.get(targetLayer.id)?.get(unit.id)?.text ?? '';
+        const tPick = pickTranslationLayerForComparisonUnit(
+          unit,
+          translationLayers,
+          targetLayer,
+          transcriptionLayers,
+          defaultTranscriptionLayerId,
+        );
+        if (!tPick) return '';
+        return resolveComparisonTargetPlainTextForLayer(
+          unit,
+          tPick,
+          defaultTranscriptionLayerId,
+          segmentsByLayer,
+          segmentContentByLayer,
+          translationTextByLayer,
+          unitByIdForSpeaker,
+        );
       },
       getTargetItems: (unit) => {
-        if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length) return undefined;
-        const overlapping = listSegmentsOverlappingTimeRange(
-          translationSegmentsForTarget,
-          unit.startTime,
-          unit.endTime,
+        const tPick = pickTranslationLayerForComparisonUnit(
+          unit,
+          translationLayers,
+          targetLayer,
+          transcriptionLayers,
+          defaultTranscriptionLayerId,
         );
-        if (overlapping.length === 0) return undefined;
-        return overlapping.map((s) => ({
-          id: `${unit.id}:target:seg:${s.id}`,
-          text: normalizeSingleLine(layerContent.get(s.id)?.text ?? ''),
-          anchorUnitIds: [unit.id],
-          translationSegmentId: s.id,
-        }));
+        if (!tPick) return undefined;
+        return resolveComparisonExplicitTargetItemsForLayer(
+          unit,
+          tPick,
+          defaultTranscriptionLayerId,
+          segmentsByLayer,
+          segmentContentByLayer,
+          unitByIdForSpeaker,
+        );
       },
       getSpeakerLabel: (unit) => speakerVisualByUnitId[unit.id]?.name ?? '',
     });
   }, [
+    comparisonUsesSegmentSourceRows,
     comparisonGroupSourceUnits,
     defaultTranscriptionLayerId,
     getUnitTextForLayer,
@@ -823,7 +1159,9 @@ export function TranscriptionTimelineComparison({
     targetLayer,
     speakerVisualByUnitId,
     transcriptionLayers,
+    translationLayers,
     translationTextByLayer,
+    unitByIdForSpeaker,
   ]);
 
   useLayoutEffect(() => {
@@ -847,21 +1185,25 @@ export function TranscriptionTimelineComparison({
     };
   }, [groups.length, comparisonLeftGrow, measureComparisonSplitLayout, compactMode, isNarrowComparisonLayout]);
 
-  const persistGroupTranslation = useCallback(async (group: ComparisonGroup, anchorUnitIds: string[], value: string) => {
-    if (!targetLayer) return;
-    const usesSeg = layerUsesOwnSegments(targetLayer, defaultTranscriptionLayerId);
+  const persistGroupTranslation = useCallback(async (
+    persistLayer: LayerDocType,
+    group: ComparisonGroup,
+    anchorUnitIds: string[],
+    value: string,
+  ) => {
+    const usesSeg = layerUsesOwnSegments(persistLayer, defaultTranscriptionLayerId);
     if (usesSeg && saveSegmentContentForLayer) {
-      const trSegs = segmentsByLayer?.get(targetLayer.id) ?? [];
+      const trSegs = segmentsByLayer?.get(persistLayer.id) ?? [];
       const pick = pickTranslationSegmentForPersist(trSegs, group.startTime, group.endTime);
       if (pick?.id) {
-        await saveSegmentContentForLayer(pick.id, targetLayer.id, value);
+        await saveSegmentContentForLayer(pick.id, persistLayer.id, value);
         return;
       }
       const hint = t(locale, 'transcription.comparison.segmentMissingForSave');
       showToast(hint, 'error', 8000);
       throw new Error('COMPARISON_SEGMENT_PERSIST_BLOCKED');
     }
-    await Promise.all(anchorUnitIds.map((unitId) => saveUnitLayerText(unitId, value, targetLayer.id)));
+    await Promise.all(anchorUnitIds.map((unitId) => saveUnitLayerText(unitId, value, persistLayer.id)));
   }, [
     defaultTranscriptionLayerId,
     locale,
@@ -869,66 +1211,194 @@ export function TranscriptionTimelineComparison({
     saveUnitLayerText,
     segmentsByLayer,
     showToast,
-    targetLayer,
   ]);
 
   const persistComparisonTargetTranslation = useCallback(async (
+    persistLayer: LayerDocType,
     targetItem: ComparisonTargetItem,
     group: ComparisonGroup,
     anchorUnitIds: string[],
     value: string,
+    combinedValue?: string,
   ) => {
     const segId = typeof targetItem.translationSegmentId === 'string' ? targetItem.translationSegmentId.trim() : '';
-    if (segId.length > 0 && targetLayer && saveSegmentContentForLayer) {
-      await saveSegmentContentForLayer(segId, targetLayer.id, value);
+    if (segId.length > 0 && saveSegmentContentForLayer) {
+      await saveSegmentContentForLayer(segId, persistLayer.id, value);
       return;
     }
-    await persistGroupTranslation(group, anchorUnitIds, value);
-  }, [persistGroupTranslation, saveSegmentContentForLayer, targetLayer]);
+    await persistGroupTranslation(persistLayer, group, anchorUnitIds, combinedValue ?? value);
+  }, [persistGroupTranslation, saveSegmentContentForLayer]);
 
   const persistSourceText = useCallback(async (unitId: string, value: string, layerId?: string) => {
     await saveUnitText(unitId, value, layerId);
   }, [saveUnitText]);
 
-  const bundleOrderById = useMemo(() => {
+  const comparisonGroupHorizontalBundleKeysPresent = useMemo(() => {
+    const present = new Set<string>();
+    for (const g of groups) {
+      present.add(resolveComparisonHorizontalBundleKey(g, layerIdToHorizontalBundleRootId, sourceLayer?.id));
+    }
+    return present;
+  }, [groups, layerIdToHorizontalBundleRootId, sourceLayer?.id]);
+
+  const orderedDistinctBundleKeys = useMemo(() => {
+    const ordered = horizontalBundleRootIdsOrdered.filter((id) => comparisonGroupHorizontalBundleKeysPresent.has(id));
+    const orphan = [...comparisonGroupHorizontalBundleKeysPresent]
+      .filter((k) => k.startsWith('__cmp_group:'))
+      .filter((k) => !ordered.includes(k))
+      .sort();
+    return [...ordered, ...orphan];
+  }, [comparisonGroupHorizontalBundleKeysPresent, horizontalBundleRootIdsOrdered]);
+
+  const bundleOrdinalByKey = useMemo(() => {
     const map = new Map<string, number>();
     let nextIndex = 1;
-    for (const group of groups) {
-      if (!group.bundleRootId || map.has(group.bundleRootId)) continue;
-      map.set(group.bundleRootId, nextIndex);
+    for (const key of orderedDistinctBundleKeys) {
+      map.set(key, nextIndex);
       nextIndex += 1;
     }
     return map;
-  }, [groups]);
+  }, [orderedDistinctBundleKeys]);
+
+  const visibleGroups = useMemo(() => {
+    if (comparisonBundleFilterRootId == null) return groups;
+    return groups.filter(
+      (g) => resolveComparisonHorizontalBundleKey(g, layerIdToHorizontalBundleRootId, sourceLayer?.id)
+        === comparisonBundleFilterRootId,
+    );
+  }, [comparisonBundleFilterRootId, groups, layerIdToHorizontalBundleRootId, sourceLayer?.id]);
+
+  useEffect(() => {
+    if (orderedDistinctBundleKeys.length <= 1) {
+      setComparisonBundleFilterRootId(null);
+      return;
+    }
+    if (
+      comparisonBundleFilterRootId != null
+      && !orderedDistinctBundleKeys.includes(comparisonBundleFilterRootId)
+    ) {
+      setComparisonBundleFilterRootId(null);
+    }
+  }, [comparisonBundleFilterRootId, orderedDistinctBundleKeys]);
+
+  const bundleFilterMenuItems = useMemo((): ContextMenuItem[] => {
+    if (orderedDistinctBundleKeys.length <= 1) return [];
+    const bundleLabelText = t(locale, 'transcription.comparison.bundleLabel');
+    const items: ContextMenuItem[] = [
+      {
+        label: t(locale, 'transcription.comparison.bundleFilterAll'),
+        selectionState: comparisonBundleFilterRootId == null ? 'selected' : 'unselected',
+        selectionVariant: 'check',
+        onClick: () => setComparisonBundleFilterRootId(null),
+      },
+    ];
+    for (const bundleKey of orderedDistinctBundleKeys) {
+      const ord = bundleOrdinalByKey.get(bundleKey) ?? 0;
+      const rootLayer = bundleKey.startsWith('__cmp_group:')
+        ? undefined
+        : effectiveAllLayersOrdered.find((l) => l.id === bundleKey);
+      const name = rootLayer
+        ? resolveComparisonLayerLabel(
+            rootLayer,
+            locale,
+            `${bundleLabelText} ${ord}`,
+          )
+        : tf(locale, 'transcription.comparison.bundleFilterFallbackItem', { ordinal: ord });
+      items.push({
+        label: name,
+        selectionState: comparisonBundleFilterRootId === bundleKey ? 'selected' : 'unselected',
+        selectionVariant: 'check',
+        onClick: () => setComparisonBundleFilterRootId(bundleKey),
+      });
+    }
+    return items;
+  }, [bundleOrdinalByKey, comparisonBundleFilterRootId, effectiveAllLayersOrdered, locale, orderedDistinctBundleKeys]);
+
+  const bundleFilterButtonTitle = useMemo(() => {
+    if (orderedDistinctBundleKeys.length <= 1) return '';
+    if (comparisonBundleFilterRootId == null) {
+      return t(locale, 'transcription.comparison.bundleFilterTitleAll');
+    }
+    const ord = bundleOrdinalByKey.get(comparisonBundleFilterRootId) ?? 0;
+    const rootLayer = comparisonBundleFilterRootId.startsWith('__cmp_group:')
+      ? undefined
+      : effectiveAllLayersOrdered.find((l) => l.id === comparisonBundleFilterRootId);
+    const name = rootLayer
+      ? resolveComparisonLayerLabel(
+          rootLayer,
+          locale,
+          `${t(locale, 'transcription.comparison.bundleLabel')} ${ord}`,
+        )
+      : tf(locale, 'transcription.comparison.bundleFilterFallbackItem', { ordinal: ord });
+    return tf(locale, 'transcription.comparison.bundleFilterTitleOne', { name });
+  }, [bundleOrdinalByKey, comparisonBundleFilterRootId, effectiveAllLayersOrdered, locale, orderedDistinctBundleKeys]);
 
   const sourceHeaderLabel = useMemo(
     () => resolveComparisonLayerLabel(sourceLayer, locale, t(locale, 'transcription.comparison.sourceHeader')),
     [locale, sourceLayer],
   );
 
-  const targetHeaderLabel = useMemo(
-    () => resolveComparisonLayerLabel(targetLayer, locale, t(locale, 'transcription.comparison.translationHeader')),
-    [locale, targetLayer],
-  );
-
   const comparisonHeaderOrthographies = displayStyleControl?.orthographies ?? [];
 
-  const sourceHeaderContent = useMemo(() => {
-    if (!sourceLayer) return sourceHeaderLabel;
-    const inline = buildLaneHeaderInlineDotSeparatedLabel(sourceLayer, locale, comparisonHeaderOrthographies);
+  const resolveComparisonHeaderContentForLayer = useCallback((layer: LayerDocType | undefined, fallbackLabel: string): string => {
+    if (!layer) return fallbackLabel;
+    const inline = buildLaneHeaderInlineDotSeparatedLabel(layer, locale, comparisonHeaderOrthographies);
     const trimmed = inline.trim();
-    return trimmed.length > 0 ? trimmed : sourceHeaderLabel;
-  }, [comparisonHeaderOrthographies, locale, sourceHeaderLabel, sourceLayer]);
+    return trimmed.length > 0 ? trimmed : fallbackLabel;
+  }, [comparisonHeaderOrthographies, locale]);
 
-  const targetHeaderContent = useMemo(() => {
-    if (!targetLayer) return targetHeaderLabel;
-    const inline = buildLaneHeaderInlineDotSeparatedLabel(targetLayer, locale, comparisonHeaderOrthographies);
-    const trimmed = inline.trim();
-    return trimmed.length > 0 ? trimmed : targetHeaderLabel;
-  }, [comparisonHeaderOrthographies, locale, targetHeaderLabel, targetLayer]);
+  const sourceHeaderContent = useMemo(() => {
+    return resolveComparisonHeaderContentForLayer(sourceLayer, sourceHeaderLabel);
+  }, [resolveComparisonHeaderContentForLayer, sourceHeaderLabel, sourceLayer]);
+
+  const activeComparisonGroupForHeader = useMemo(() => {
+    if (groups.length === 0) return undefined;
+    if (activeComparisonGroupId) {
+      const exact = groups.find((g) => g.id === activeComparisonGroupId);
+      if (exact) return exact;
+    }
+    if (activeUnitId) {
+      const byUnit = groups.find((g) => (
+        g.sourceItems.some((item) => item.unitId === activeUnitId)
+        || g.targetItems.some((item) => item.anchorUnitIds.includes(activeUnitId))
+      ));
+      if (byUnit) return byUnit;
+    }
+    return groups[0];
+  }, [activeComparisonGroupId, activeUnitId, groups]);
+
+  const headerTargetLayers = useMemo(() => {
+    if (translationLayers.length === 0) return [] as LayerDocType[];
+    const fromGroup = activeComparisonGroupForHeader
+      ? filterTranslationLayersForComparisonGroup(
+          activeComparisonGroupForHeader,
+          translationLayers,
+          transcriptionLayers,
+          defaultTranscriptionLayerId,
+          sourceLayer?.id,
+        )
+      : [];
+    if (activeComparisonGroupForHeader && fromGroup.length === 0) {
+      return [];
+    }
+    const resolved = fromGroup.length > 0
+      ? fromGroup
+      : (targetLayer ? [targetLayer] : (translationLayers[0] ? [translationLayers[0]] : []));
+    if (!targetLayer) return resolved;
+    const preferred = resolved.find((l) => l.id === targetLayer.id);
+    if (!preferred) return resolved;
+    return [preferred, ...resolved.filter((l) => l.id !== preferred.id)];
+  }, [
+    activeComparisonGroupForHeader,
+    defaultTranscriptionLayerId,
+    sourceLayer?.id,
+    targetLayer,
+    transcriptionLayers,
+    translationLayers,
+  ]);
 
   const comparisonStyleMenuItems = useMemo((): ContextMenuItem[] => {
-    if (!displayStyleControl || !sourceLayer || !targetLayer) return [];
+    if (!displayStyleControl || !sourceLayer) return [];
     const sourceItems = buildLayerStyleMenuItems(
       sourceLayer.displaySettings,
       sourceLayer.id,
@@ -940,22 +1410,183 @@ export function TranscriptionTimelineComparison({
       displayStyleControl.localFonts,
       locale,
     );
-    const targetItems = buildLayerStyleMenuItems(
-      targetLayer.displaySettings,
-      targetLayer.id,
-      targetLayer.languageId,
-      targetLayer.orthographyId,
-      displayStyleControl.orthographies,
-      (patch) => displayStyleControl.onUpdate(targetLayer.id, patch),
-      () => displayStyleControl.onReset(targetLayer.id),
-      displayStyleControl.localFonts,
-      locale,
-    );
-    return [
+    const categories: ContextMenuItem[] = [
       { label: sourceHeaderLabel, variant: 'category', children: sourceItems },
-      { label: targetHeaderLabel, variant: 'category', children: targetItems },
     ];
-  }, [displayStyleControl, locale, sourceHeaderLabel, sourceLayer, targetHeaderLabel, targetLayer]);
+    for (const tl of headerTargetLayers) {
+      const tlLabel = resolveComparisonLayerLabel(
+        tl,
+        locale,
+        t(locale, 'transcription.comparison.translationHeader'),
+      );
+      const tlMenu = buildLayerStyleMenuItems(
+        tl.displaySettings,
+        tl.id,
+        tl.languageId,
+        tl.orthographyId,
+        displayStyleControl.orthographies,
+        (patch) => displayStyleControl.onUpdate(tl.id, patch),
+        () => displayStyleControl.onReset(tl.id),
+        displayStyleControl.localFonts,
+        locale,
+      );
+      categories.push({ label: tlLabel, variant: 'category', children: tlMenu });
+    }
+    return categories;
+  }, [displayStyleControl, headerTargetLayers, locale, sourceHeaderLabel, sourceLayer]);
+
+  const buildComparisonHeaderMenuItems = useCallback((layer: LayerDocType | undefined, headerLabel: string): ContextMenuItem[] => {
+    const horizontalOnlyMeta = comparisonMenuText(locale, '仅横向时间轴可用', 'Horizontal timeline only');
+
+    const isSourceHeaderLayer = layer?.id != null && layer.id === sourceLayer?.id;
+    const layerRole: ComparisonLayerRole = isSourceHeaderLayer ? 'source' : 'target';
+    const isLayerCollapsed = isComparisonLayerCollapsed(compactMode, layerRole);
+    const toggleLayerCollapsed = () => {
+      if (!layer?.id) return;
+      setCompactMode((prev) => toggleComparisonCompactModeForLayer(prev, layerRole));
+    };
+
+    const items: ContextMenuItem[] = [
+      {
+        label: tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: headerLabel }),
+        disabled: !layer?.id,
+        onClick: () => {
+          if (layer?.id) onFocusLayer(layer.id);
+        },
+      },
+      {
+        label: comparisonMenuText(locale, '视图', 'View'),
+        variant: 'category',
+        separatorBefore: true,
+        children: [
+          {
+            label: t(locale, 'transcription.comparison.allColumns'),
+            selectionState: compactMode === 'both' ? 'selected' : 'unselected',
+            selectionVariant: 'check',
+            onClick: () => setCompactMode('both'),
+          },
+          {
+            label: t(locale, 'transcription.comparison.sourceOnly'),
+            selectionState: compactMode === 'source' ? 'selected' : 'unselected',
+            selectionVariant: 'check',
+            onClick: () => setCompactMode('source'),
+          },
+          {
+            label: t(locale, 'transcription.comparison.translationOnly'),
+            selectionState: compactMode === 'target' ? 'selected' : 'unselected',
+            selectionVariant: 'check',
+            onClick: () => setCompactMode('target'),
+          },
+          {
+            label: comparisonMenuText(
+              locale,
+              isLayerCollapsed ? '展开该层' : '折叠该层',
+              isLayerCollapsed ? 'Expand layer' : 'Collapse layer',
+            ),
+            separatorBefore: true,
+            disabled: !layer?.id,
+            onClick: toggleLayerCollapsed,
+          },
+          {
+            label: comparisonMenuText(locale, '显示层级关系', 'Show layer links'),
+            meta: horizontalOnlyMeta,
+            disabled: true,
+          },
+        ],
+      },
+    ];
+
+    if (displayStyleControl && layer) {
+      items.push({
+        label: t(locale, 'transcription.comparison.layerDisplayStyles'),
+        variant: 'category',
+        children: buildLayerStyleMenuItems(
+          layer.displaySettings,
+          layer.id,
+          layer.languageId,
+          layer.orthographyId,
+          displayStyleControl.orthographies,
+          (patch) => displayStyleControl.onUpdate(layer.id, patch),
+          () => displayStyleControl.onReset(layer.id),
+          displayStyleControl.localFonts,
+          locale,
+        ),
+      });
+    }
+
+    items.push({
+      label: comparisonMenuText(locale, '层操作', 'Layer operations'),
+      variant: 'category',
+      children: buildLayerOperationMenuItems({
+        layer,
+        deletableLayers: effectiveDeletableLayers,
+        canOpenTranslationCreate,
+        labels: {
+          editLayerMetadata: comparisonMenuText(locale, '编辑该层元信息', 'Edit layer metadata'),
+          createTranscription: comparisonMenuText(locale, '新建转写层', 'Create transcription layer'),
+          createTranslation: comparisonMenuText(locale, '新建翻译层', 'Create translation layer'),
+          deleteCurrentLayer: comparisonMenuText(locale, '删除当前层', 'Delete current layer'),
+        },
+        onAction: (action, layerId) => {
+          if (action === 'delete') {
+            if (!layerId) return;
+            void requestDeleteLayer(layerId);
+            return;
+          }
+          setLayerAction({ action, layerId });
+        },
+      }),
+    });
+
+    return items;
+  }, [
+    canOpenTranslationCreate,
+    compactMode,
+    displayStyleControl,
+    effectiveDeletableLayers,
+    locale,
+    onFocusLayer,
+    requestDeleteLayer,
+    sourceLayer,
+  ]);
+
+  const comparisonHeaderMenuItems = useMemo(() => ({
+    source: buildComparisonHeaderMenuItems(sourceLayer, sourceHeaderContent),
+  }), [buildComparisonHeaderMenuItems, sourceHeaderContent, sourceLayer]);
+
+  const openComparisonMenuAtPointer = useCallback((event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
+    if (items.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setLayerContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      items,
+      anchorOrigin: 'top-left',
+    });
+  }, []);
+
+  const toggleComparisonMenuFromButton = useCallback((event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => {
+    if (items.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    setLayerContextMenu((prev) => {
+      const next = {
+        x: rect.left,
+        y: rect.bottom + 4,
+        items,
+        anchorOrigin: 'bottom-left' as const,
+      };
+      if (
+        prev
+        && prev.items === items
+        && Math.abs(prev.x - next.x) < 6
+        && Math.abs(prev.y - next.y) < 6
+      ) {
+        return null;
+      }
+      return next;
+    });
+  }, []);
 
   const [comparisonResizeFontPreviewByLayerId, setComparisonResizeFontPreviewByLayerId] = useState<Record<string, number>>({});
 
@@ -977,7 +1608,7 @@ export function TranscriptionTimelineComparison({
       }
       return next;
     });
-    if (!displayStyleControl || !targetLayer || !groupKey.startsWith('comparison-editor:')) return;
+    if (!displayStyleControl || !groupKey.startsWith('comparison-editor:')) return;
     const groupId = groupKey.slice('comparison-editor:'.length);
     const group = groups.find((g) => g.id === groupId);
     if (!group) return;
@@ -998,11 +1629,20 @@ export function TranscriptionTimelineComparison({
       const layer = transcriptionLayers.find((l) => l.id === lid);
       if (layer) applyFont(layer, finalHeight);
     }
-    applyFont(targetLayer, finalHeight);
-  }, [displayStyleControl, groups, sourceLayer, targetLayer, transcriptionLayers]);
+    const groupTranslationLayers = filterTranslationLayersForComparisonGroup(
+      group,
+      translationLayers,
+      transcriptionLayers,
+      defaultTranscriptionLayerId,
+      sourceLayer?.id,
+    );
+    for (const tl of groupTranslationLayers) {
+      applyFont(tl, finalHeight);
+    }
+  }, [defaultTranscriptionLayerId, displayStyleControl, groups, sourceLayer, transcriptionLayers, translationLayers]);
 
   const handleComparisonEditorResizePreview = useCallback((layerKey: string, previewHeight: number) => {
-    if (!displayStyleControl || !targetLayer) return;
+    if (!displayStyleControl) return;
     if (!layerKey.startsWith('comparison-editor:')) return;
     const groupId = layerKey.slice('comparison-editor:'.length);
     const group = groups.find((g) => g.id === groupId);
@@ -1019,8 +1659,17 @@ export function TranscriptionTimelineComparison({
       const pol = resolveOrthographyRenderPolicy(layer.languageId, orthographies, layer.orthographyId);
       next[lid] = computeFontSizeFromRenderPolicy(previewHeight, pol);
     }
-    const tgtPol = resolveOrthographyRenderPolicy(targetLayer.languageId, orthographies, targetLayer.orthographyId);
-    next[targetLayer.id] = computeFontSizeFromRenderPolicy(previewHeight, tgtPol);
+    const groupTranslationLayers = filterTranslationLayersForComparisonGroup(
+      group,
+      translationLayers,
+      transcriptionLayers,
+      defaultTranscriptionLayerId,
+      sourceLayer?.id,
+    );
+    for (const tl of groupTranslationLayers) {
+      const tgtPol = resolveOrthographyRenderPolicy(tl.languageId, orthographies, tl.orthographyId);
+      next[tl.id] = computeFontSizeFromRenderPolicy(previewHeight, tgtPol);
+    }
     setComparisonResizeFontPreviewByLayerId((prev) => {
       const prevKeys = Object.keys(prev);
       const nextKeys = Object.keys(next);
@@ -1036,7 +1685,7 @@ export function TranscriptionTimelineComparison({
       }
       return next;
     });
-  }, [displayStyleControl, groups, sourceLayer, targetLayer, transcriptionLayers]);
+  }, [defaultTranscriptionLayerId, displayStyleControl, groups, sourceLayer, transcriptionLayers, translationLayers]);
 
   const {
     resizingLayerId: resizingComparisonEditorId,
@@ -1047,8 +1696,9 @@ export function TranscriptionTimelineComparison({
     handleComparisonEditorResizePreview,
   );
 
-  const showBundleChips = bundleOrderById.size > 1;
-  const isTargetHeaderActive = comparisonTargetSide === 'target' || (comparisonTargetSide == null && targetLayer?.id === focusedLayerRowId);
+  const showBundleChips = orderedDistinctBundleKeys.length > 1 && comparisonBundleFilterRootId == null;
+  const isTargetHeaderActive = comparisonTargetSide === 'target'
+    || (comparisonTargetSide == null && translationLayers.some((l) => l.id === focusedLayerRowId));
   const isSourceHeaderActive = !isTargetHeaderActive;
   const handleComparisonEditorResizeStart = useCallback((
     event: ReactPointerEvent<HTMLDivElement>,
@@ -1090,11 +1740,16 @@ export function TranscriptionTimelineComparison({
       return;
     }
 
-    const syncedSide = targetLayer?.id === focusedLayerRowId ? 'target' : 'source';
-    const targetCellIdForSync = syncedSide === 'target'
-      ? (comparisonUsesPerSegmentTargetEditors(matchedGroup) && matchedGroup.targetItems[0]
-        ? `target:${matchedGroup.id}:${matchedGroup.targetItems[0].id}`
-        : `target:${matchedGroup.id}:editor`)
+    if (!visibleGroups.some((g) => g.id === matchedGroup.id)) return;
+
+    const syncedSide = translationLayers.some((l) => l.id === focusedLayerRowId) ? 'target' : 'source';
+    const syncTranslationLayer = translationLayers.find((l) => l.id === focusedLayerRowId) ?? targetLayer;
+    const targetCellIdForSync = syncedSide === 'target' && syncTranslationLayer
+      ? (comparisonUsesSplitTargetEditors(matchedGroup)
+        && syncTranslationLayer.id === targetLayer?.id
+        && matchedGroup.targetItems[0]
+        ? `target:${matchedGroup.id}:${syncTranslationLayer.id}:${matchedGroup.targetItems[0].id}`
+        : `target:${matchedGroup.id}:${syncTranslationLayer.id}:editor`)
       : `source:${activeUnitId}`;
     patchComparisonFocus({
       activeComparisonGroupId: matchedGroup.id,
@@ -1102,7 +1757,7 @@ export function TranscriptionTimelineComparison({
       comparisonTargetSide: syncedSide,
       contextMenuSourceUnitId: activeUnitId,
     });
-  }, [activeUnitId, focusedLayerRowId, groups, patchComparisonFocus, targetLayer?.id]);
+  }, [activeUnitId, focusedLayerRowId, groups, patchComparisonFocus, targetLayer?.id, translationLayers, visibleGroups]);
 
   /** 波形/全局选中语段时，把对应对照组滚入 split-host 视口（tier 的横向 scroll 与对照纵向列表无关） */
   useLayoutEffect(() => {
@@ -1117,6 +1772,8 @@ export function TranscriptionTimelineComparison({
     ));
     if (!matchedGroup) return;
 
+    if (!visibleGroups.some((g) => g.id === matchedGroup.id)) return;
+
     let targetEl: HTMLElement | null = null;
     for (const node of host.querySelectorAll('[data-comparison-group-id]')) {
       if (node instanceof HTMLElement && node.getAttribute('data-comparison-group-id') === matchedGroup.id) {
@@ -1130,7 +1787,7 @@ export function TranscriptionTimelineComparison({
       /* start：避免 block:nearest 在嵌套滚动里误判「已可见」而不滚 */
       targetEl.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'smooth' });
     }
-  }, [activeUnitId, groups]);
+  }, [activeUnitId, groups, visibleGroups]);
 
   if (groups.length === 0) {
     return (
@@ -1184,23 +1841,76 @@ export function TranscriptionTimelineComparison({
               {t(locale, 'transcription.comparison.translationOnly')}
             </button>
           </div>
+          {bundleFilterMenuItems.length > 0 ? (
+            <div
+              className="timeline-comparison-bundle-filter"
+              role="group"
+              aria-label={t(locale, 'transcription.comparison.bundleFilterGroupAria')}
+            >
+              <button
+                type="button"
+                className={`timeline-comparison-mode-btn timeline-comparison-bundle-filter-btn${comparisonBundleFilterRootId != null ? ' is-active' : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={layerContextMenu?.items === bundleFilterMenuItems}
+                title={bundleFilterButtonTitle}
+                aria-label={bundleFilterButtonTitle}
+                data-testid="comparison-bundle-filter-btn"
+                onClick={(event) => toggleComparisonMenuFromButton(event, bundleFilterMenuItems)}
+              >
+                {t(locale, 'transcription.comparison.bundleFilter')}
+              </button>
+            </div>
+          ) : null}
+          <div className="timeline-comparison-header-actions" role="group" aria-label={t(locale, 'transcription.comparison.columnMode')}>
+            {sourceLayer ? (
+              <button
+                type="button"
+                className={`timeline-comparison-mode-btn timeline-comparison-header-title-btn${focusedLayerRowId === sourceLayer.id ? ' is-active' : ''}`}
+                title={sourceHeaderContent}
+                aria-label={sourceHeaderContent}
+                data-testid="comparison-layer-header-source"
+                onClick={() => onFocusLayer(sourceLayer.id)}
+                onContextMenu={(event) => openComparisonMenuAtPointer(event, comparisonHeaderMenuItems.source)}
+              >
+                {sourceHeaderContent}
+              </button>
+            ) : null}
+            {headerTargetLayers.map((layer, index) => {
+              const layerHeaderLabel = resolveComparisonLayerLabel(
+                layer,
+                locale,
+                t(locale, 'transcription.comparison.translationHeader'),
+              );
+              const layerHeaderContent = resolveComparisonHeaderContentForLayer(layer, layerHeaderLabel);
+              const targetHeaderTestId = index === 0
+                ? 'comparison-layer-header-target'
+                : `comparison-layer-header-target-${layer.id}`;
+              return (
+                <button
+                  key={`comparison-target-header-${layer.id}`}
+                  type="button"
+                  className={`timeline-comparison-mode-btn timeline-comparison-header-title-btn${focusedLayerRowId === layer.id ? ' is-active' : ''}`}
+                  title={layerHeaderContent}
+                  aria-label={layerHeaderContent}
+                  data-testid={targetHeaderTestId}
+                  onClick={() => onFocusLayer(layer.id)}
+                  onContextMenu={(event) => openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(layer, layerHeaderContent))}
+                >
+                  {layerHeaderContent}
+                </button>
+              );
+            })}
+          </div>
           <div className="timeline-comparison-toolbar-spacer" aria-hidden />
           {comparisonStyleMenuItems.length > 0 ? (
             <button
               type="button"
               className="timeline-comparison-mode-btn timeline-comparison-layer-style-btn"
               aria-haspopup="menu"
-              aria-expanded={layerStyleMenu != null}
+              aria-expanded={layerContextMenu?.items === comparisonStyleMenuItems}
               title={t(locale, 'transcription.comparison.layerDisplayStyles')}
               aria-label={t(locale, 'transcription.comparison.layerDisplayStyles')}
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect();
-                setLayerStyleMenu((prev) => {
-                  const next = { x: r.left, y: r.bottom + 4 };
-                  if (prev && Math.abs(prev.x - next.x) < 6 && Math.abs(prev.y - next.y) < 6) return null;
-                  return next;
-                });
-              }}
+              onClick={(event) => toggleComparisonMenuFromButton(event, comparisonStyleMenuItems)}
             >
               {t(locale, 'transcription.comparison.layerDisplayStyles')}
             </button>
@@ -1208,81 +1918,88 @@ export function TranscriptionTimelineComparison({
         </div>
         <div ref={comparisonSplitHostRef} className="timeline-comparison-split-host">
           <div className="timeline-comparison-split-host-inner">
-        {groups.map((group, groupIndex) => {
-        const draftKey = targetLayer ? `cmp:${targetLayer.id}:${group.id}` : `cmp:none:${group.id}`;
-        const anchorUnitIds = Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
-        const initialTargetText = group.targetItems.map((item) => item.text).join('\n');
-        const perSegTargets = comparisonUsesPerSegmentTargetEditors(group);
-        const draft = translationDrafts[draftKey] ?? initialTargetText;
-        const targetCellKey = targetLayer ? `cmp-target:${targetLayer.id}:${group.id}` : `cmp-target:none:${group.id}`;
-        const targetSaveStatus = saveStatusByCellKey[targetCellKey];
-        const isTargetDraftEmpty = normalizeComparisonText(draft).trim().length === 0;
-        const comparisonEditorGroupKey = `comparison-editor:${group.id}`;
-        const comparisonEditorHeight = comparisonEditorHeightByGroup[comparisonEditorGroupKey] ?? defaultComparisonEditorHeight;
+        {visibleGroups.map((group, groupIndex) => {
+        const perSegTargetsPrimary = comparisonUsesSplitTargetEditors(group);
+        const persistAnchorUnitIds = group.isMultiAnchorGroup
+          ? group.sourceItems.map((s) => s.unitId)
+          : Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
+        const anchorUnitIds = persistAnchorUnitIds;
         const primaryUnitId = group.sourceItems[0]?.unitId ?? '';
-        const primarySourceUnit = primaryUnitId ? unitById.get(primaryUnitId) : undefined;
+        const primarySourceUnit = primaryUnitId ? unitByIdForSpeaker.get(primaryUnitId) : undefined;
+        const groupTranslationLayers = filterTranslationLayersForComparisonGroup(
+          group,
+          translationLayers,
+          transcriptionLayers,
+          defaultTranscriptionLayerId,
+          sourceLayer?.id,
+        );
+        const targetEmptyReason = groupTranslationLayers.length === 0
+          ? resolveComparisonGroupEmptyReason(
+              group,
+              translationLayers,
+              transcriptionLayers,
+              defaultTranscriptionLayerId,
+              sourceLayer?.id,
+            )
+          : null;
+        const groupPreferredTargetLayer = groupTranslationLayers.find((l) => l.id === targetLayer?.id)
+          ?? groupTranslationLayers[0];
         const anchorForUi = resolveComparisonGroupAnchorForUi(group, contextMenuSourceUnitId, activeUnitId);
-        const translationSegmentsForAudio = targetLayer ? segmentsByLayer?.get(targetLayer.id) ?? [] : [];
-        const audioAnchorSeg = targetLayer && layerUsesOwnSegments(targetLayer, defaultTranscriptionLayerId)
-          ? pickTranslationSegmentForPersist(translationSegmentsForAudio, group.startTime, group.endTime)
-          : undefined;
         const derivedActive = activeUnitId != null && group.sourceItems.some((item) => item.unitId === activeUnitId);
         const isGroupActive = activeComparisonGroupId === group.id || (activeComparisonGroupId == null && derivedActive);
         const isTargetColumnFocused = isGroupActive && comparisonTargetSide === 'target';
-        const audioScopeUnitId = resolveComparisonTranslationAudioScopeUnitId({
-          audioAnchorSeg,
-          anchorUnitIds,
-          contextMenuSourceUnitId,
-          activeUnitId,
-          primaryUnitId,
-          translationAudioByLayer,
-          targetLayerId: targetLayer?.id,
-        });
-        const audioScopeId = audioScopeUnitId;
-        const voiceSourceDoc = unitById.get(audioScopeUnitId) ?? primarySourceUnit;
-        const targetNoteIndicator = anchorForUi.unitId
-          ? resolveNoteIndicatorTarget?.(anchorForUi.unitId, targetLayer?.id) ?? null
-          : null;
-        const bundleOrdinal = group.bundleRootId ? bundleOrderById.get(group.bundleRootId) ?? null : null;
-        const startsNewBundle = groupIndex === 0 || group.bundleRootId !== groups[groupIndex - 1]?.bundleRootId;
-        const audioTranslation = targetLayer ? translationAudioByLayer?.get(targetLayer.id)?.get(audioScopeId) : undefined;
-        const audioMedia = audioTranslation?.translationAudioMediaId
-          ? mediaItemById.get(audioTranslation.translationAudioMediaId)
-          : undefined;
-        const isCurrentRecording = recording && recordingUnitId === audioScopeId && recordingLayerId === targetLayer?.id;
-        const shouldShowAudioControls = Boolean(audioMedia) || isCurrentRecording;
-        const audioControls = shouldShowAudioControls && targetLayer && voiceSourceDoc ? (
-          <TimelineTranslationAudioControls
-            {...(audioMedia ? { mediaItem: audioMedia } : {})}
-            isRecording={isCurrentRecording}
-            onStartRecording={() => {
-              void startRecordingForUnit?.(voiceSourceDoc, targetLayer);
-            }}
-            {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-            {...(audioMedia && deleteVoiceTranslation ? {
-              onDeleteRecording: () => deleteVoiceTranslation(voiceSourceDoc, targetLayer),
-            } : {})}
-          />
-        ) : null;
-
+        /** 同组内左/右行数关系（含多译文层堆叠） */
+        const comparisonLayoutMode: 'balanced' | 'one-to-many' | 'many-to-one' | 'many-to-many' = (() => {
+          const sourceCount = group.sourceItems.length;
+          const targetVisualRows = groupTranslationLayers.reduce((n, tl) => {
+            if (tl.id === groupPreferredTargetLayer?.id) {
+              return n + (perSegTargetsPrimary ? group.targetItems.length : 1);
+            }
+            if (!primarySourceUnit) return n + 1;
+            const ex = resolveComparisonExplicitTargetItemsForLayer(
+              primarySourceUnit,
+              tl,
+              defaultTranscriptionLayerId,
+              segmentsByLayer,
+              segmentContentByLayer,
+              unitByIdForSpeaker,
+            );
+            if (ex && ex.length > 1) return n + ex.length;
+            return n + 1;
+          }, 0);
+          if (targetVisualRows > 1 && sourceCount > 1) return 'many-to-many';
+          if (targetVisualRows > 1) return 'one-to-many';
+          if (sourceCount > 1) return 'many-to-one';
+          return 'balanced';
+        })();
+        const comparisonEditorGroupKey = `comparison-editor:${group.id}`;
+        const comparisonEditorHeight = comparisonEditorHeightByGroup[comparisonEditorGroupKey] ?? defaultComparisonEditorHeight;
+        const bundleKey = resolveComparisonHorizontalBundleKey(
+          group,
+          layerIdToHorizontalBundleRootId,
+          sourceLayer?.id,
+        );
+        const bundleOrdinal = bundleOrdinalByKey.get(bundleKey) ?? null;
+        const prevGroup = groupIndex > 0 ? visibleGroups[groupIndex - 1] : undefined;
+        const startsNewBundle = groupIndex === 0
+          || (prevGroup != null
+            && resolveComparisonHorizontalBundleKey(
+              group,
+              layerIdToHorizontalBundleRootId,
+              sourceLayer?.id,
+            ) !== resolveComparisonHorizontalBundleKey(
+              prevGroup,
+              layerIdToHorizontalBundleRootId,
+              sourceLayer?.id,
+            ));
         const orthographies = displayStyleControl?.orthographies ?? [];
         const comparisonEditorResizingThisGroup = resizingComparisonEditorId === comparisonEditorGroupKey;
-        const targetPreviewFont = comparisonEditorResizingThisGroup && targetLayer
-          ? comparisonResizeFontPreviewByLayerId[targetLayer.id]
-          : undefined;
-        const targetTypography = targetLayer
-          ? buildOrthographyPreviewTextProps(
-              resolveOrthographyRenderPolicy(targetLayer.languageId, orthographies, targetLayer.orthographyId),
-              targetPreviewFont != null
-                ? { ...targetLayer.displaySettings, fontSize: targetPreviewFont }
-                : targetLayer.displaySettings,
-            )
-          : buildOrthographyPreviewTextProps(undefined, undefined);
 
         return (
           <div
             key={group.id}
             data-comparison-group-id={group.id}
+            data-comparison-layout={comparisonLayoutMode}
             className={`timeline-comparison-group${isGroupActive ? ' timeline-comparison-group-active' : ''}${startsNewBundle ? ' timeline-comparison-group-bundle-start' : ''}`}
             style={{
               ...(comparisonDualGridStyle ?? {}),
@@ -1389,10 +2106,16 @@ export function TranscriptionTimelineComparison({
                         patchComparisonFocus({ comparisonTargetSide: 'source' });
                         if (sourceLayerId) onFocusLayer(sourceLayerId);
                       }}
+                      onContextMenu={(event) => {
+                        openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(sourceItemLayer, sourceRowTitle));
+                      }}
                     >
-                      <span className="timeline-comparison-row-rail-mark" aria-hidden>
-                        {comparisonRowRailMark(sourceRowTitle)}
-                      </span>
+                      {renderComparisonRailLaneBody({
+                        layer: sourceItemLayer,
+                        renderLaneLabel,
+                        fallbackTitle: sourceRowTitle,
+                        mode: 'full',
+                      })}
                     </button>
                     <TimelineDraftEditorSurface
                     multiline
@@ -1497,7 +2220,7 @@ export function TranscriptionTimelineComparison({
                     }}
                     onContextMenu={(event) => {
                       if (!handleAnnotationContextMenu || !sourceLayerId) return;
-                      const unitDoc = unitById.get(item.unitId);
+                      const unitDoc = unitByIdForSpeaker.get(item.unitId);
                       if (!unitDoc) return;
                       patchComparisonFocus({
                         activeComparisonGroupId: group.id,
@@ -1513,174 +2236,485 @@ export function TranscriptionTimelineComparison({
               })}
             </div>
 
-            <div className={`timeline-comparison-target-column${isTargetColumnFocused ? ' timeline-comparison-target-column-active' : ''}`}>
-              {perSegTargets
-                ? group.targetItems.map((targetItem, ti) => {
-                    const itemDraftKey = targetLayer ? `cmp:${targetLayer.id}:${group.id}:${targetItem.id}` : `cmp:none:${group.id}:${targetItem.id}`;
-                    const itemInitial = normalizeComparisonText(targetItem.text || '');
-                    const itemDraft = translationDrafts[itemDraftKey] ?? itemInitial;
-                    const itemCellKey = targetLayer
-                      ? `cmp-target:${targetLayer.id}:${group.id}:${targetItem.id}`
-                      : `cmp-target:none:${group.id}:${targetItem.id}`;
-                    const itemSaveStatus = saveStatusByCellKey[itemCellKey];
-                    const isItemDraftEmpty = normalizeComparisonText(itemDraft).trim().length === 0;
-                    const isThisTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
-                      && activeComparisonCellId === `target:${group.id}:${targetItem.id}`;
-                    const segAutoSaveKey = targetLayer
-                      ? `cmp-seg-${targetLayer.id}-${group.id}-${targetItem.id}`
-                      : `cmp-seg-none-${group.id}-${targetItem.id}`;
-                    return (
-                      <div key={targetItem.id} className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
-                <button
-                  type="button"
-                  className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
-                  aria-pressed={isTargetHeaderActive}
-                  aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: targetHeaderContent })}
-                  title={targetHeaderContent}
-                  data-testid={`comparison-target-rail-${group.id}`}
-                  onClick={() => {
-                    patchComparisonFocus({ comparisonTargetSide: 'target' });
-                    if (targetLayer?.id) onFocusLayer(targetLayer.id);
-                  }}
+            <div
+              className={`timeline-comparison-target-column${isTargetColumnFocused ? ' timeline-comparison-target-column-active' : ''}`}
+              data-comparison-translation-layer-count={groupTranslationLayers.length}
+            >
+              {groupTranslationLayers.length === 0 ? (
+                <div
+                  className="timeline-comparison-target-empty"
+                  data-testid={`comparison-target-empty-${group.id}`}
                 >
-                  <span className="timeline-comparison-row-rail-mark" aria-hidden>
-                    {comparisonRowRailMark(targetHeaderContent)}
-                  </span>
-                </button>
-                <TimelineDraftEditorSurface
-                multiline
-                wrapperClassName={[
-                  'timeline-comparison-target-surface',
-                  isTargetDraftEmpty ? 'timeline-comparison-target-surface-empty' : '',
-                  isTargetActive ? 'timeline-comparison-target-surface-active' : '',
-                  targetNoteIndicator ? 'timeline-comparison-target-surface-has-side-badges' : '',
-                ].filter(Boolean).join(' ')}
-                inputClassName={[
-                  'timeline-comparison-target-input',
-                  isTargetDraftEmpty ? 'timeline-comparison-target-input-empty' : '',
-                ].filter(Boolean).join(' ')}
-                value={draft}
-                rows={resolveComparisonEditorRows(draft)}
-                placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
-                {...(group.editingTargetPolicy === 'multi-target-items'
-                  ? { title: t(locale, 'transcription.comparison.multiTargetHint') }
-                  : {})}
-                disabled={!targetLayer}
-                {...(targetTypography.dir ? { dir: targetTypography.dir } : {})}
-                inputStyle={targetTypography.style}
-                {...(targetSaveStatus !== undefined ? { saveStatus: targetSaveStatus } : {})}
-                overlay={renderComparisonOverlay({
+                  <p className="timeline-comparison-target-empty-hint">
+                    {targetEmptyReason === 'orphan-needs-repair'
+                      ? t(locale, 'transcription.comparison.orphanTranslationLayerNeedsRepair')
+                      : t(locale, 'transcription.comparison.noChildTranslationLayers')}
+                  </p>
+                </div>
+              ) : (
+              groupTranslationLayers.map((tLayer) => {
+                const isPrimaryLayer = tLayer.id === groupPreferredTargetLayer?.id;
+                const layerTargetItems: ComparisonTargetItem[] = isPrimaryLayer
+                  ? group.targetItems
+                  : (() => {
+                    if (!primarySourceUnit) {
+                      return [{
+                        id: `${group.id}:${tLayer.id}:placeholder`,
+                        text: '',
+                        anchorUnitIds: primaryUnitId ? [primaryUnitId] : [],
+                      }];
+                    }
+                    const explicit = resolveComparisonExplicitTargetItemsForLayer(
+                      primarySourceUnit,
+                      tLayer,
+                      defaultTranscriptionLayerId,
+                      segmentsByLayer,
+                      segmentContentByLayer,
+                      unitByIdForSpeaker,
+                    );
+                    if (explicit != null && explicit.length > 0) return explicit;
+                    const plain = resolveComparisonTargetPlainTextForLayer(
+                      primarySourceUnit,
+                      tLayer,
+                      defaultTranscriptionLayerId,
+                      segmentsByLayer,
+                      segmentContentByLayer,
+                      translationTextByLayer,
+                      unitByIdForSpeaker,
+                    );
+                    return buildComparisonTargetItemsFromRawText(primarySourceUnit.id, plain);
+                  })();
+                const layerPerSeg = isPrimaryLayer ? perSegTargetsPrimary : layerTargetItems.length > 1;
+                const layerHeaderLabel = resolveComparisonLayerLabel(
+                  tLayer,
                   locale,
-                  certainty: undefined,
-                  ambiguous: false,
-                  laneLabel: targetHeaderLabel,
-                  noteCount: targetNoteIndicator?.count ?? 0,
-                  ...(targetNoteIndicator && anchorForUi.unitId && handleNoteClick
-                    ? {
-                        onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
-                          handleNoteClick(anchorForUi.unitId, targetNoteIndicator.layerId, event);
-                        },
-                      }
-                    : {}),
-                })}
-                onResizeHandlePointerDown={(event, edge) => {
-                  handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
-                }}
-                onRetry={() => {
-                  if (!targetLayer) return;
-                  void runComparisonSaveWithStatus(targetCellKey, async () => {
-                    await persistGroupTranslation(group, anchorUnitIds, normalizeComparisonText(draft));
-                  });
-                }}
-                {...(audioControls ? { tools: audioControls } : {})}
-                toolsClassName="timeline-comparison-target-tools"
-                onFocus={() => {
-                  patchComparisonFocus({
-                    activeComparisonGroupId: group.id,
-                    activeComparisonCellId: `target:${group.id}:editor`,
-                    comparisonTargetSide: 'target',
-                    contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
-                  });
-                  focusedTranslationDraftKeyRef.current = draftKey;
-                  if (targetLayer?.id) onFocusLayer(targetLayer.id);
-                }}
-                onChange={(event) => {
-                  const value = normalizeComparisonText(event.target.value);
-                  patchComparisonFocus({
-                    activeComparisonGroupId: group.id,
-                    activeComparisonCellId: `target:${group.id}:editor`,
-                    comparisonTargetSide: 'target',
-                  });
-                  setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                  if (!targetLayer) return;
-                  if (value !== initialTargetText) {
-                    setComparisonCellSaveStatus(targetCellKey, 'dirty');
-                    scheduleAutoSave(`cmp-${targetLayer.id}-${group.id}`, async () => {
-                      await runComparisonSaveWithStatus(targetCellKey, async () => {
-                        await persistGroupTranslation(group, anchorUnitIds, value);
-                      });
-                    });
-                  } else {
-                    clearAutoSaveTimer(`cmp-${targetLayer.id}-${group.id}`);
-                    setComparisonCellSaveStatus(targetCellKey);
-                  }
-                }}
-                onBlur={(event) => {
-                  focusedTranslationDraftKeyRef.current = null;
-                  if (!targetLayer) return;
-                  const value = normalizeComparisonText(event.target.value);
-                  clearAutoSaveTimer(`cmp-${targetLayer.id}-${group.id}`);
-                  if (value !== initialTargetText) {
-                    void runComparisonSaveWithStatus(targetCellKey, async () => {
-                      await persistGroupTranslation(group, anchorUnitIds, value);
-                    });
-                  } else {
-                    setComparisonCellSaveStatus(targetCellKey);
-                  }
-                }}
-                onKeyDown={(event) => {
-                  if (event.nativeEvent.isComposing) return;
-                  if (navigateUnitFromInput && event.key === 'Tab') {
-                    navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
-                    return;
-                  }
-                  if (event.key !== 'Escape') return;
-                  event.preventDefault();
-                  if (targetLayer?.id) {
-                    clearAutoSaveTimer(`cmp-${targetLayer.id}-${group.id}`);
-                  }
-                  setTranslationDrafts((prev) => ({ ...prev, [draftKey]: initialTargetText }));
-                  setComparisonCellSaveStatus(targetCellKey);
-                  focusedTranslationDraftKeyRef.current = null;
-                  event.currentTarget.blur();
-                }}
-                onClick={(event) => {
-                  if (!anchorForUi.unitId || !targetLayer?.id) return;
-                  patchComparisonFocus({
-                    activeComparisonGroupId: group.id,
-                    activeComparisonCellId: `target:${group.id}:editor`,
-                    comparisonTargetSide: 'target',
-                    contextMenuSourceUnitId: anchorForUi.unitId,
-                  });
-                  handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, targetLayer.id, event);
-                }}
-                onContextMenu={(event) => {
-                  if (!handleAnnotationContextMenu || !targetLayer?.id) return;
-                  const menuSourceId = contextMenuSourceUnitId != null
-                    && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
-                    ? contextMenuSourceUnitId
-                    : primaryUnitId;
-                  const menuUnitDoc = menuSourceId ? unitById.get(menuSourceId) : undefined;
-                  if (!menuUnitDoc) return;
-                  patchComparisonFocus({
-                    activeComparisonGroupId: group.id,
-                    activeComparisonCellId: `target:${group.id}:editor`,
-                    comparisonTargetSide: 'target',
-                  });
-                  handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, targetLayer.id), targetLayer.id, event);
-                }}
-              />
-              </div>
+                  t(locale, 'transcription.comparison.translationHeader'),
+                );
+                const layerHeaderContent = (() => {
+                  const inline = buildLaneHeaderInlineDotSeparatedLabel(
+                    tLayer,
+                    locale,
+                    comparisonHeaderOrthographies,
+                  ).trim();
+                  return inline.length > 0 ? inline : layerHeaderLabel;
+                })();
+                const translationSegmentsForAudio = segmentsByLayer?.get(tLayer.id) ?? [];
+                const audioAnchorSeg = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId)
+                  ? pickTranslationSegmentForPersist(translationSegmentsForAudio, group.startTime, group.endTime)
+                  : undefined;
+                const audioScopeUnitId = resolveComparisonTranslationAudioScopeUnitId({
+                  audioAnchorSeg,
+                  anchorUnitIds,
+                  contextMenuSourceUnitId,
+                  activeUnitId,
+                  primaryUnitId,
+                  translationAudioByLayer,
+                  targetLayerId: tLayer.id,
+                });
+                const voiceSourceDoc = unitByIdForSpeaker.get(audioScopeUnitId) ?? primarySourceUnit;
+                const layerNoteIndicator = anchorForUi.unitId
+                  ? resolveNoteIndicatorTarget?.(anchorForUi.unitId, tLayer.id) ?? null
+                  : null;
+                const audioTranslation = translationAudioByLayer?.get(tLayer.id)?.get(audioScopeUnitId);
+                const audioMedia = audioTranslation?.translationAudioMediaId
+                  ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+                  : undefined;
+                const isCurrentRecording = recording && recordingUnitId === audioScopeUnitId && recordingLayerId === tLayer.id;
+                const shouldShowLayerAudio = Boolean(audioMedia) || isCurrentRecording;
+                const layerAudioControls = shouldShowLayerAudio && voiceSourceDoc ? (
+                  <TimelineTranslationAudioControls
+                    {...(audioMedia ? { mediaItem: audioMedia } : {})}
+                    isRecording={isCurrentRecording}
+                    disabled={recording && !isCurrentRecording}
+                    compact
+                    onStartRecording={() => {
+                      void startRecordingForUnit?.(voiceSourceDoc, tLayer);
+                    }}
+                    {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+                    {...(audioMedia && deleteVoiceTranslation ? {
+                      onDeleteRecording: () => deleteVoiceTranslation(voiceSourceDoc, tLayer),
+                    } : {})}
+                  />
+                ) : null;
+                const layerPreviewFont = comparisonEditorResizingThisGroup
+                  ? comparisonResizeFontPreviewByLayerId[tLayer.id]
+                  : undefined;
+                const layerTypography = buildOrthographyPreviewTextProps(
+                  resolveOrthographyRenderPolicy(tLayer.languageId, orthographies, tLayer.orthographyId),
+                  layerPreviewFont != null
+                    ? { ...tLayer.displaySettings, fontSize: layerPreviewFont }
+                    : tLayer.displaySettings,
+                );
+                const layerDraftKeyBase = `cmp:${tLayer.id}:${group.id}`;
+                const layerCellKeyBase = `cmp-target:${tLayer.id}:${group.id}`;
+                const cmpAutoSaveKey = `cmp-${tLayer.id}-${group.id}`;
+
+                return (
+                  <div key={tLayer.id} className="timeline-comparison-target-layer-stack">
+                    {layerPerSeg
+                      ? layerTargetItems.map((targetItem, ti) => {
+                        const itemDraftKey = `${layerDraftKeyBase}:${targetItem.id}`;
+                        const itemInitial = normalizeComparisonText(targetItem.text || '');
+                        const itemDraft = translationDrafts[itemDraftKey] ?? itemInitial;
+                        const itemCellKey = `${layerCellKeyBase}:${targetItem.id}`;
+                        const itemSaveStatus = saveStatusByCellKey[itemCellKey];
+                        const isItemDraftEmpty = normalizeComparisonText(itemDraft).trim().length === 0;
+                        const isThisTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
+                          && activeComparisonCellId === `target:${group.id}:${tLayer.id}:${targetItem.id}`;
+                        const segAutoSaveKey = `cmp-seg-${tLayer.id}-${group.id}-${targetItem.id}`;
+                        const buildCombinedTargetValue = (nextValue: string): string => (
+                          layerTargetItems
+                            .map((item) => {
+                              if (item.id === targetItem.id) return normalizeComparisonText(nextValue);
+                              const otherDraftKey = `${layerDraftKeyBase}:${item.id}`;
+                              return normalizeComparisonText(translationDrafts[otherDraftKey] ?? item.text ?? '');
+                            })
+                            .join('\n')
+                        );
+                        return (
+                          <div key={`${tLayer.id}-${targetItem.id}`} className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
+                            <button
+                              type="button"
+                              className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
+                              aria-pressed={isTargetHeaderActive}
+                              aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: layerHeaderContent })}
+                              title={layerHeaderContent}
+                              data-testid={`comparison-target-rail-${group.id}-${tLayer.id}-${targetItem.id}`}
+                              onClick={() => {
+                                patchComparisonFocus({ comparisonTargetSide: 'target' });
+                                onFocusLayer(tLayer.id);
+                              }}
+                              onContextMenu={(event) => {
+                                openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(tLayer, layerHeaderContent));
+                              }}
+                            >
+                              {renderComparisonRailLaneBody({
+                                layer: tLayer,
+                                renderLaneLabel,
+                                fallbackTitle: layerHeaderContent,
+                                mode: layerPerSeg && ti > 0 ? 'continuation' : 'full',
+                              })}
+                            </button>
+                            <TimelineDraftEditorSurface
+                              multiline
+                              wrapperClassName={[
+                                'timeline-comparison-target-surface',
+                                isItemDraftEmpty ? 'timeline-comparison-target-surface-empty' : '',
+                                isThisTargetRowActive ? 'timeline-comparison-target-surface-active' : '',
+                                layerNoteIndicator ? 'timeline-comparison-target-surface-has-side-badges' : '',
+                              ].filter(Boolean).join(' ')}
+                              inputClassName={[
+                                'timeline-comparison-target-input',
+                                isItemDraftEmpty ? 'timeline-comparison-target-input-empty' : '',
+                              ].filter(Boolean).join(' ')}
+                              value={itemDraft}
+                              rows={resolveComparisonEditorRows(itemDraft)}
+                              placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
+                              {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
+                              inputStyle={layerTypography.style}
+                              {...(itemSaveStatus !== undefined ? { saveStatus: itemSaveStatus } : {})}
+                              overlay={renderComparisonOverlay({
+                                locale,
+                                certainty: undefined,
+                                ambiguous: false,
+                                laneLabel: layerHeaderLabel,
+                                noteCount: layerNoteIndicator?.count ?? 0,
+                                ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                                  ? {
+                                      onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                        handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                                      },
+                                    }
+                                  : {}),
+                              })}
+                              onResizeHandlePointerDown={(event, edge) => {
+                                handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
+                              }}
+                              onRetry={() => {
+                                void runComparisonSaveWithStatus(itemCellKey, async () => {
+                                  await persistComparisonTargetTranslation(
+                                    tLayer,
+                                    targetItem,
+                                    group,
+                                    persistAnchorUnitIds,
+                                    normalizeComparisonText(itemDraft),
+                                    buildCombinedTargetValue(itemDraft),
+                                  );
+                                });
+                              }}
+                              {...(ti === 0 && layerAudioControls ? { tools: layerAudioControls } : {})}
+                              toolsClassName="timeline-comparison-target-tools"
+                              onFocus={() => {
+                                patchComparisonFocus({
+                                  activeComparisonGroupId: group.id,
+                                  activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                  comparisonTargetSide: 'target',
+                                  contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
+                                });
+                                focusedTranslationDraftKeyRef.current = itemDraftKey;
+                                onFocusLayer(tLayer.id);
+                              }}
+                              onChange={(event) => {
+                                const value = normalizeComparisonText(event.target.value);
+                                patchComparisonFocus({
+                                  activeComparisonGroupId: group.id,
+                                  activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                  comparisonTargetSide: 'target',
+                                });
+                                setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: value }));
+                                if (value !== itemInitial) {
+                                  setComparisonCellSaveStatus(itemCellKey, 'dirty');
+                                  scheduleAutoSave(segAutoSaveKey, async () => {
+                                    await runComparisonSaveWithStatus(itemCellKey, async () => {
+                                      await persistComparisonTargetTranslation(
+                                        tLayer,
+                                        targetItem,
+                                        group,
+                                        persistAnchorUnitIds,
+                                        value,
+                                        buildCombinedTargetValue(value),
+                                      );
+                                    });
+                                  });
+                                } else {
+                                  clearAutoSaveTimer(segAutoSaveKey);
+                                  setComparisonCellSaveStatus(itemCellKey);
+                                }
+                              }}
+                              onBlur={(event) => {
+                                focusedTranslationDraftKeyRef.current = null;
+                                const value = normalizeComparisonText(event.target.value);
+                                clearAutoSaveTimer(segAutoSaveKey);
+                                if (value !== itemInitial) {
+                                  void runComparisonSaveWithStatus(itemCellKey, async () => {
+                                    await persistComparisonTargetTranslation(
+                                      tLayer,
+                                      targetItem,
+                                      group,
+                                      persistAnchorUnitIds,
+                                      value,
+                                      buildCombinedTargetValue(value),
+                                    );
+                                  });
+                                } else {
+                                  setComparisonCellSaveStatus(itemCellKey);
+                                }
+                              }}
+                              onKeyDown={(event) => {
+                                if (event.nativeEvent.isComposing) return;
+                                if (navigateUnitFromInput && event.key === 'Tab') {
+                                  navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
+                                  return;
+                                }
+                                if (event.key !== 'Escape') return;
+                                event.preventDefault();
+                                clearAutoSaveTimer(segAutoSaveKey);
+                                setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: itemInitial }));
+                                setComparisonCellSaveStatus(itemCellKey);
+                                focusedTranslationDraftKeyRef.current = null;
+                                event.currentTarget.blur();
+                              }}
+                              onClick={(event) => {
+                                if (!anchorForUi.unitId) return;
+                                patchComparisonFocus({
+                                  activeComparisonGroupId: group.id,
+                                  activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                  comparisonTargetSide: 'target',
+                                  contextMenuSourceUnitId: anchorForUi.unitId,
+                                });
+                                handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                              }}
+                              onContextMenu={(event) => {
+                                if (!handleAnnotationContextMenu) return;
+                                const menuSourceId = contextMenuSourceUnitId != null
+                                  && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                                  ? contextMenuSourceUnitId
+                                  : primaryUnitId;
+                                const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                                if (!menuUnitDoc) return;
+                                patchComparisonFocus({
+                                  activeComparisonGroupId: group.id,
+                                  activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                  comparisonTargetSide: 'target',
+                                });
+                                handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                              }}
+                            />
+                          </div>
+                        );
+                      })
+                      : (() => {
+                        const draftKey = layerDraftKeyBase;
+                        const initialTargetText = layerTargetItems.map((item) => item.text).join('\n');
+                        const draft = translationDrafts[draftKey] ?? initialTargetText;
+                        const targetCellKey = layerCellKeyBase;
+                        const targetSaveStatus = saveStatusByCellKey[targetCellKey];
+                        const isTargetDraftEmpty = normalizeComparisonText(draft).trim().length === 0;
+                        const isMergedTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
+                          && activeComparisonCellId === `target:${group.id}:${tLayer.id}:editor`;
+                        return (
+                  <div className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
+                    <button
+                      type="button"
+                      className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
+                      aria-pressed={isTargetHeaderActive}
+                      aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: layerHeaderContent })}
+                      title={layerHeaderContent}
+                      data-testid={`comparison-target-rail-${group.id}-${tLayer.id}`}
+                      onClick={() => {
+                        patchComparisonFocus({ comparisonTargetSide: 'target' });
+                        onFocusLayer(tLayer.id);
+                      }}
+                      onContextMenu={(event) => {
+                        openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(tLayer, layerHeaderContent));
+                      }}
+                    >
+                      {renderComparisonRailLaneBody({
+                        layer: tLayer,
+                        renderLaneLabel,
+                        fallbackTitle: layerHeaderContent,
+                        mode: 'full',
+                      })}
+                    </button>
+                    <TimelineDraftEditorSurface
+                      multiline
+                      wrapperClassName={[
+                        'timeline-comparison-target-surface',
+                        isTargetDraftEmpty ? 'timeline-comparison-target-surface-empty' : '',
+                        isMergedTargetRowActive ? 'timeline-comparison-target-surface-active' : '',
+                        layerNoteIndicator ? 'timeline-comparison-target-surface-has-side-badges' : '',
+                      ].filter(Boolean).join(' ')}
+                      inputClassName={[
+                        'timeline-comparison-target-input',
+                        isTargetDraftEmpty ? 'timeline-comparison-target-input-empty' : '',
+                      ].filter(Boolean).join(' ')}
+                      value={draft}
+                      rows={resolveComparisonEditorRows(draft)}
+                      placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
+                      {...(isPrimaryLayer && group.editingTargetPolicy === 'multi-target-items'
+                        ? { title: t(locale, 'transcription.comparison.multiTargetHint') }
+                        : {})}
+                      {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
+                      inputStyle={layerTypography.style}
+                      {...(targetSaveStatus !== undefined ? { saveStatus: targetSaveStatus } : {})}
+                      overlay={renderComparisonOverlay({
+                        locale,
+                        certainty: undefined,
+                        ambiguous: false,
+                        laneLabel: layerHeaderLabel,
+                        noteCount: layerNoteIndicator?.count ?? 0,
+                        ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                          ? {
+                              onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                              },
+                            }
+                          : {}),
+                      })}
+                      onResizeHandlePointerDown={(event, edge) => {
+                        handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
+                      }}
+                      onRetry={() => {
+                        void runComparisonSaveWithStatus(targetCellKey, async () => {
+                          await persistGroupTranslation(
+                            tLayer,
+                            group,
+                            persistAnchorUnitIds,
+                            normalizeComparisonText(draft),
+                          );
+                        });
+                      }}
+                      {...(layerAudioControls ? { tools: layerAudioControls } : {})}
+                      toolsClassName="timeline-comparison-target-tools"
+                      onFocus={() => {
+                        patchComparisonFocus({
+                          activeComparisonGroupId: group.id,
+                          activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
+                          comparisonTargetSide: 'target',
+                          contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
+                        });
+                        focusedTranslationDraftKeyRef.current = draftKey;
+                        onFocusLayer(tLayer.id);
+                      }}
+                      onChange={(event) => {
+                        const value = normalizeComparisonText(event.target.value);
+                        patchComparisonFocus({
+                          activeComparisonGroupId: group.id,
+                          activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
+                          comparisonTargetSide: 'target',
+                        });
+                        setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                        if (value !== initialTargetText) {
+                          setComparisonCellSaveStatus(targetCellKey, 'dirty');
+                          scheduleAutoSave(cmpAutoSaveKey, async () => {
+                            await runComparisonSaveWithStatus(targetCellKey, async () => {
+                              await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
+                            });
+                          });
+                        } else {
+                          clearAutoSaveTimer(cmpAutoSaveKey);
+                          setComparisonCellSaveStatus(targetCellKey);
+                        }
+                      }}
+                      onBlur={(event) => {
+                        focusedTranslationDraftKeyRef.current = null;
+                        const value = normalizeComparisonText(event.target.value);
+                        clearAutoSaveTimer(cmpAutoSaveKey);
+                        if (value !== initialTargetText) {
+                          void runComparisonSaveWithStatus(targetCellKey, async () => {
+                            await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
+                          });
+                        } else {
+                          setComparisonCellSaveStatus(targetCellKey);
+                        }
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.nativeEvent.isComposing) return;
+                        if (navigateUnitFromInput && event.key === 'Tab') {
+                          navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
+                          return;
+                        }
+                        if (event.key !== 'Escape') return;
+                        event.preventDefault();
+                        clearAutoSaveTimer(cmpAutoSaveKey);
+                        setTranslationDrafts((prev) => ({ ...prev, [draftKey]: initialTargetText }));
+                        setComparisonCellSaveStatus(targetCellKey);
+                        focusedTranslationDraftKeyRef.current = null;
+                        event.currentTarget.blur();
+                      }}
+                      onClick={(event) => {
+                        if (!anchorForUi.unitId) return;
+                        patchComparisonFocus({
+                          activeComparisonGroupId: group.id,
+                          activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
+                          comparisonTargetSide: 'target',
+                          contextMenuSourceUnitId: anchorForUi.unitId,
+                        });
+                        handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                      }}
+                      onContextMenu={(event) => {
+                        if (!handleAnnotationContextMenu) return;
+                        const menuSourceId = contextMenuSourceUnitId != null
+                          && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                          ? contextMenuSourceUnitId
+                          : primaryUnitId;
+                        const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                        if (!menuUnitDoc) return;
+                        patchComparisonFocus({
+                          activeComparisonGroupId: group.id,
+                          activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
+                          comparisonTargetSide: 'target',
+                        });
+                        handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                      }}
+                    />
+                  </div>
+                        );
+                      })()}
+                  </div>
+                );
+              })
+              )}
             </div>
           </div>
         );
@@ -1705,13 +2739,41 @@ export function TranscriptionTimelineComparison({
           </div>
         </div>
       </div>
-      {layerStyleMenu && comparisonStyleMenuItems.length > 0 ? (
+      {layerAction ? (
+        <LayerActionPopover
+          action={layerAction.action}
+          layerId={layerAction.layerId}
+          deletableLayers={effectiveDeletableLayers}
+          {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
+          {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
+          createLayer={createLayer}
+          {...(updateLayerMetadata !== undefined ? { updateLayerMetadata } : {})}
+          deleteLayer={deleteLayer}
+          {...(deleteLayerWithoutConfirm !== undefined ? { deleteLayerWithoutConfirm } : {})}
+          {...(checkLayerHasContent !== undefined ? { checkLayerHasContent } : {})}
+          onClose={() => setLayerAction(null)}
+        />
+      ) : null}
+      <DeleteLayerConfirmDialog
+        open={deleteLayerConfirm != null}
+        layerName={deleteLayerConfirm?.layerName ?? ''}
+        layerType={deleteLayerConfirm?.layerType ?? 'transcription'}
+        textCount={deleteLayerConfirm?.textCount ?? 0}
+        {...(deleteLayerConfirm?.warningMessage !== undefined ? { warningMessage: deleteLayerConfirm.warningMessage } : {})}
+        keepUnits={deleteConfirmKeepUnits}
+        onKeepUnitsChange={setDeleteConfirmKeepUnits}
+        onCancel={cancelDeleteLayerConfirm}
+        onConfirm={() => {
+          void confirmDeleteLayer();
+        }}
+      />
+      {layerContextMenu ? (
         <ContextMenu
-          x={layerStyleMenu.x}
-          y={layerStyleMenu.y}
-          anchorOrigin="bottom-left"
-          items={comparisonStyleMenuItems}
-          onClose={() => setLayerStyleMenu(null)}
+          x={layerContextMenu.x}
+          y={layerContextMenu.y}
+          anchorOrigin={layerContextMenu.anchorOrigin ?? 'bottom-left'}
+          items={layerContextMenu.items}
+          onClose={() => setLayerContextMenu(null)}
         />
       ) : null}
     </div>

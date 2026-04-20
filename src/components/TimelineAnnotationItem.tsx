@@ -1,9 +1,8 @@
 import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
-import { NoteDocumentIcon } from './NoteDocumentIcon';
-import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import { t, tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
+import { TimelineBadges } from './TimelineBadges';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -89,7 +88,6 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   contentDirection,
 }: TimelineAnnotationItemProps) {
   const locale = useLocale();
-  const selfCertaintyAmbiguousTitle = t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
 
   const rendersInlineEditor = !content && !skipProcessing && isActive;
 
@@ -171,34 +169,19 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       ) : (
         <span>{draft || '\u00A0'}</span>
       )}
-      {tools && !rendersInlineEditor ? <div className="timeline-annotation-tools">{tools}</div> : null}
-      {selfCertainty && (
-        <SelfCertaintyIcon
-          certainty={selfCertainty}
-          className="timeline-annotation-self-certainty"
-          {...(selfCertaintyTitle ? { title: selfCertaintyTitle, ariaLabel: selfCertaintyTitle } : {})}
-        />
-      )}
-      {!selfCertainty && selfCertaintyAmbiguous && (
-        <span
-          className="timeline-annotation-self-certainty timeline-annotation-self-certainty-ambiguous"
-          role="img"
-          aria-label={selfCertaintyAmbiguousTitle}
-          title={selfCertaintyAmbiguousTitle}
-        >
-          <span className="timeline-annotation-self-certainty-icon" aria-hidden>
-            !
-          </span>
-        </span>
-      )}
-      {noteCount != null && noteCount > 0 && onNoteClick && (
-        <NoteDocumentIcon
-          className="timeline-annotation-note-icon timeline-annotation-note-icon-active"
-          onClick={(e) => { e.stopPropagation(); onNoteClick?.(e); }}
-          ariaLabel={tf(locale, 'transcription.notes.count', { count: noteCount })}
-          title={tf(locale, 'transcription.notes.count', { count: noteCount })}
-        />
-      )}
+      {tools && !rendersInlineEditor && !content ? <div className="timeline-annotation-tools">{tools}</div> : null}
+      <TimelineBadges
+        locale={locale}
+        {...(selfCertainty ? { selfCertainty } : {})}
+        {...(selfCertaintyTitle ? { selfCertaintyTitle } : {})}
+        {...(selfCertaintyAmbiguous ? { selfCertaintyAmbiguous } : {})}
+        {...(noteCount != null ? { noteCount } : {})}
+        {...(onNoteClick ? {
+          onNoteClick: (event) => {
+            onNoteClick(event);
+          },
+        } : {})}
+      />
     </div>
   );
 });

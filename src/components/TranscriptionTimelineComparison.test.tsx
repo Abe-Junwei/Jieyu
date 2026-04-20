@@ -26,6 +26,7 @@ function makeLayer(
   layerType: 'transcription' | 'translation',
   displayName = id,
   constraint: LayerDocType['constraint'] = 'symbolic_association',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   const now = '2026-04-19T00:00:00.000Z';
   return {
@@ -39,7 +40,17 @@ function makeLayer(
     layerType,
     constraint,
     modality: 'text',
+    ...(extras ?? {}),
   };
+}
+
+function makeTranslationLayer(
+  id: string,
+  parentTranscriptionId: string,
+  displayName = id,
+  constraint: LayerDocType['constraint'] = 'symbolic_association',
+): LayerDocType {
+  return makeLayer(id, 'translation', displayName, constraint, { parentLayerId: parentTranscriptionId });
 }
 
 function makeUnit(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
@@ -79,7 +90,7 @@ function makeEditorContext(): TranscriptionEditorContextValue {
     saveUnitText: vi.fn(async () => undefined),
     saveUnitLayerText: vi.fn(async () => undefined),
     getUnitTextForLayer: (unit) => (unit.id === 'u1' ? '第一条原文' : '第二条原文'),
-    renderLaneLabel: () => null,
+    renderLaneLabel: (layer) => (typeof layer.name === 'string' ? layer.name : layer.name?.['zh-CN'] ?? layer.id),
     createLayer: vi.fn(async () => true),
     updateLayerMetadata: vi.fn(async () => true),
     deleteLayer: vi.fn(async () => undefined),
@@ -91,7 +102,7 @@ function makeEditorContext(): TranscriptionEditorContextValue {
 describe('TranscriptionTimelineComparison', () => {
   it('uses segment rows for independent-boundary transcription so comparison is not empty', () => {
     const transcriptionLayers = [makeLayer('tr-seg', 'transcription', '转写轨', 'independent_boundary')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-seg')];
     const parent = makeUnit('parent-1', 'tr-seg', 0, 5);
     const segment = {
       ...makeUnit('seg-1', 'tr-seg', 0, 1),
@@ -137,7 +148,7 @@ describe('TranscriptionTimelineComparison', () => {
       makeLayer('tr-a', 'transcription'),
       makeLayer('tr-b', 'transcription'),
     ];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [
       makeUnit('u1', 'tr-a', 0, 1),
       makeUnit('u2', 'tr-b', 1.02, 2),
@@ -169,7 +180,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [
       makeUnit('u1', 'tr-a', 0, 1),
       makeUnit('u2', 'tr-a', 2, 3),
@@ -223,7 +234,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -247,7 +258,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('shows self-certainty badges for comparison source segments just like horizontal mode', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -274,7 +285,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('shows note indicators for comparison source cards and routes clicks to the note popover handler', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const handleNoteClick = vi.fn();
 
@@ -304,9 +315,75 @@ describe('TranscriptionTimelineComparison', () => {
     expect(handleNoteClick).toHaveBeenCalledWith('u1', 'tr-a', expect.any(Object));
   });
 
+  it('keeps note click target stable with and without self-certainty badges', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const handleNoteClickWithoutCertainty = vi.fn();
+
+    const withoutCertaintyRender = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            handleNoteClick={handleNoteClickWithoutCertainty}
+            resolveNoteIndicatorTarget={(unitId: string, layerId?: string) => (
+              unitId === 'u1' && layerId === 'tr-a' ? { count: 1, layerId: 'tr-a' } : null
+            )}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const noteWithoutCertainty = withoutCertaintyRender.container.querySelector('.timeline-comparison-note-icon') as SVGElement | null;
+    expect(noteWithoutCertainty).toBeTruthy();
+    expect(withoutCertaintyRender.container.querySelector('.timeline-annotation-self-certainty')).toBeFalsy();
+
+    fireEvent.click(noteWithoutCertainty as SVGElement);
+    expect(handleNoteClickWithoutCertainty).toHaveBeenCalledWith('u1', 'tr-a', expect.any(Object));
+
+    cleanup();
+
+    const handleNoteClickWithCertainty = vi.fn();
+    const withCertaintyRender = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            handleNoteClick={handleNoteClickWithCertainty}
+            resolveSelfCertaintyForUnit={(unitId: string, layerId?: string) => (
+              unitId === 'u1' && layerId === 'tr-a' ? 'certain' : undefined
+            )}
+            resolveSelfCertaintyAmbiguityForUnit={() => false}
+            resolveNoteIndicatorTarget={(unitId: string, layerId?: string) => (
+              unitId === 'u1' && layerId === 'tr-a' ? { count: 1, layerId: 'tr-a' } : null
+            )}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const noteWithCertainty = withCertaintyRender.container.querySelector('.timeline-comparison-note-icon') as SVGElement | null;
+    expect(noteWithCertainty).toBeTruthy();
+    expect(withCertaintyRender.container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
+
+    fireEvent.click(noteWithCertainty as SVGElement);
+    expect(handleNoteClickWithCertainty).toHaveBeenCalledWith('u1', 'tr-a', expect.any(Object));
+  });
+
   it('keeps target-side save feedback on a separate slot when vertical cards also show note markers', async () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
     const saveUnitLayerText = vi.fn().mockRejectedValueOnce(new Error('save failed'));
@@ -348,7 +425,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('prefers the speaker display name over raw internal speaker ids in vertical mode', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [{
       ...makeUnit('u1', 'tr-a', 0, 1),
       speakerId: 'speaker_1776609229183_gqqm9y',
@@ -378,7 +455,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('keeps single-line comparison editors on the shared compact height baseline', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -419,7 +496,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('resizes only the current comparison group instead of all groups', async () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [
       makeUnit('u1', 'tr-a', 0, 1),
       makeUnit('u2', 'tr-a', 2, 3),
@@ -461,7 +538,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('keeps vertical-mode headers and segment blocks on one shared width splitter', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -496,7 +573,7 @@ describe('TranscriptionTimelineComparison', () => {
 
   it('resets comparison column widths to 1:1 when the splitter receives a second pointer down (double-click)', () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -536,7 +613,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription', '普通话转写')];
-    const translationLayers = [makeLayer('translation-1', 'translation', '英文翻译')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a', '英文翻译')];
     const units = [
       { ...makeUnit('u1', 'tr-a', 0, 1), speaker: 'Alice', rootUnitId: 'bundle-a' } as LayerUnitDocType,
     ];
@@ -558,7 +635,7 @@ describe('TranscriptionTimelineComparison', () => {
     );
 
     const sourceRail = screen.getByTestId('comparison-source-rail-cmp-u1-u1');
-    const targetRail = screen.getByTestId('comparison-target-rail-cmp-u1');
+    const targetRail = screen.getByTestId('comparison-target-rail-cmp-u1-translation-1');
     expect(sourceRail).toBeTruthy();
     expect(targetRail).toBeTruthy();
     expect(sourceRail.getAttribute('aria-pressed')).toBe('true');
@@ -570,15 +647,28 @@ describe('TranscriptionTimelineComparison', () => {
     expect(viewRender.container.querySelector('.timeline-comparison-chip-speaker')?.textContent).toContain('Alice');
     expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(0);
 
+    const trA = { ...makeLayer('tr-a', 'transcription', '甲转写', 'independent_boundary'), sortOrder: 0 } as LayerDocType;
+    const trB = { ...makeLayer('tr-b', 'transcription', '乙转写', 'independent_boundary'), sortOrder: 2 } as LayerDocType;
+    const tlA = { ...makeTranslationLayer('tl-a', 'tr-a'), sortOrder: 1 } as LayerDocType;
+    const tlB = { ...makeTranslationLayer('tl-b', 'tr-b'), sortOrder: 3 } as LayerDocType;
+    const allLayersOrdered = [trA, tlA, trB, tlB];
+    const contextTwoBundles = makeEditorContext();
+    contextTwoBundles.translationTextByLayer = new Map([
+      ['tl-a', new Map([['u1', { text: 'x' }]])],
+      ['tl-b', new Map([['u2', { text: 'y' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextTwoBundles.getUnitTextForLayer = () => 'src';
+
     viewRender.rerender(
       <LocaleProvider locale="zh-CN">
-        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+        <TranscriptionEditorContext.Provider value={contextTwoBundles}>
           <TranscriptionTimelineComparison
-            transcriptionLayers={transcriptionLayers}
-            translationLayers={translationLayers}
+            transcriptionLayers={[trA, trB]}
+            translationLayers={[tlA, tlB]}
+            allLayersOrdered={allLayersOrdered}
             unitsOnCurrentMedia={[
               { ...makeUnit('u1', 'tr-a', 0, 1), rootUnitId: 'bundle-a' } as LayerUnitDocType,
-              { ...makeUnit('u2', 'tr-a', 2, 3), rootUnitId: 'bundle-b' } as LayerUnitDocType,
+              { ...makeUnit('u2', 'tr-b', 2, 3), rootUnitId: 'bundle-b' } as LayerUnitDocType,
             ]}
             focusedLayerRowId="tr-a"
             onFocusLayer={onFocusLayer}
@@ -591,10 +681,92 @@ describe('TranscriptionTimelineComparison', () => {
     expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(2);
   });
 
+  it('offers bundle visibility menu aligned with horizontal layer bundles (two independent roots)', async () => {
+    const trA = { ...makeLayer('tr-a', 'transcription', '普通话转写', 'independent_boundary'), sortOrder: 0 } as LayerDocType;
+    const trB = { ...makeLayer('tr-b', 'transcription', '第二转写', 'independent_boundary'), sortOrder: 2 } as LayerDocType;
+    const tlA = { ...makeTranslationLayer('tl-a', 'tr-a', '译甲'), sortOrder: 1 } as LayerDocType;
+    const tlB = { ...makeTranslationLayer('tl-b', 'tr-b', '译乙'), sortOrder: 3 } as LayerDocType;
+    const allLayersOrdered = [trA, tlA, trB, tlB];
+    const units = [
+      makeUnit('u1', 'tr-a', 0, 1),
+      makeUnit('u2', 'tr-b', 2, 3),
+    ];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-a', new Map([['u1', { text: 'a' }]])],
+      ['tl-b', new Map([['u2', { text: 'b' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u1' ? '原文一' : '原文二');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={[trA, trB]}
+            translationLayers={[tlA, tlB]}
+            allLayersOrdered={allLayersOrdered}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId('comparison-bundle-filter-btn')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('comparison-bundle-filter-btn'));
+    expect(await screen.findByRole('menu')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: '全部组块' })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /普通话转写/ })).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /第二转写/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('menuitem', { name: /第二转写/ }));
+    expect(document.querySelectorAll('[data-comparison-group-id]')).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId('comparison-bundle-filter-btn'));
+    expect(await screen.findByRole('menu')).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: '全部组块' }));
+    expect(document.querySelectorAll('[data-comparison-group-id]')).toHaveLength(2);
+  });
+
+  it('shows bundle filter when two horizontal bundles each have comparison rows', () => {
+    const trA = { ...makeLayer('tr-a', 'transcription', '甲', 'independent_boundary'), sortOrder: 0 } as LayerDocType;
+    const trB = { ...makeLayer('tr-b', 'transcription', '乙', 'independent_boundary'), sortOrder: 2 } as LayerDocType;
+    const tlA = { ...makeTranslationLayer('tl-a', 'tr-a'), sortOrder: 1 } as LayerDocType;
+    const tlB = { ...makeTranslationLayer('tl-b', 'tr-b'), sortOrder: 3 } as LayerDocType;
+    const allLayersOrdered = [trA, tlA, trB, tlB];
+    const units = [makeUnit('u1', 'tr-a', 0, 1), makeUnit('u2', 'tr-b', 2, 3)];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-a', new Map([['u1', { text: 'a' }]])],
+      ['tl-b', new Map([['u2', { text: 'b' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u1' ? '一' : '二');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={[trA, trB]}
+            translationLayers={[tlA, tlB]}
+            allLayersOrdered={allLayersOrdered}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId('comparison-bundle-filter-btn')).toBeTruthy();
+  });
+
   it('renders one source rail per source row when a comparison group merges multiple anchors', () => {
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription', '合并转写')];
-    const translationLayers = [makeLayer('translation-1', 'translation', '合并译文')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a', '合并译文')];
     const units = [
       { ...makeUnit('u1', 'tr-a', 0, 1), rootUnitId: 'bundle-x' } as LayerUnitDocType,
       { ...makeUnit('u2', 'tr-a', 1.02, 2), rootUnitId: 'bundle-x' } as LayerUnitDocType,
@@ -626,11 +798,143 @@ describe('TranscriptionTimelineComparison', () => {
     expect(onFocusLayer).toHaveBeenCalledWith('tr-a');
   });
 
+
+  it('keeps one shared target editor when multiple source rows map to the same translation', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [
+      makeUnit('u1', 'tr-a', 0, 1),
+      makeUnit('u2', 'tr-a', 1.02, 2),
+    ];
+    const contextValue = makeEditorContext();
+    (contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>).set('u1', { text: '共享译文' });
+    (contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>).set('u2', { text: '共享译文' });
+
+    const viewRender = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(viewRender.container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(2);
+    expect(viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input')).toHaveLength(1);
+    expect(viewRender.container.querySelector('.timeline-comparison-chip-multi-anchor')).toBeTruthy();
+    expect(
+      viewRender.container.querySelector('[data-comparison-group-id]')?.getAttribute('data-comparison-layout'),
+    ).toBe('many-to-one');
+  });
+
+  it('renders one target row per translation line in one-to-many mode', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const contextValue = makeEditorContext();
+    (contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>).set('u1', { text: '译文一\n译文二' });
+
+    const viewRender = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const targetInputs = viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input');
+    expect(targetInputs).toHaveLength(2);
+    expect((targetInputs[0] as HTMLTextAreaElement | undefined)?.value).toBe('译文一');
+    expect((targetInputs[1] as HTMLTextAreaElement | undefined)?.value).toBe('译文二');
+  });
+
+  it('marks many-to-many and renders every source row plus split target rows in one merged group', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [
+      makeUnit('u1', 'tr-a', 0, 1),
+      makeUnit('u2', 'tr-a', 1.02, 2),
+    ];
+    const contextValue = makeEditorContext();
+    const tr = contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>;
+    tr.set('u1', { text: 'L1\nL2' });
+    tr.set('u2', { text: 'L1\nL2' });
+
+    const { container } = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const group = container.querySelector('[data-comparison-group-id]');
+    expect(group?.getAttribute('data-comparison-layout')).toBe('many-to-many');
+    expect(container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(2);
+    expect(container.querySelectorAll('textarea.timeline-comparison-target-input')).toHaveLength(2);
+  });
+
+  it('does not show bundle chips for multiple rootUnitIds on one horizontal layer bundle', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
+    const units = [
+      { ...makeUnit('u1', 'tr-a', 0, 1), rootUnitId: 'bundle-a' } as LayerUnitDocType,
+      { ...makeUnit('u2', 'tr-a', 2, 3), rootUnitId: 'bundle-b' } as LayerUnitDocType,
+      { ...makeUnit('u3', 'tr-a', 4, 5), rootUnitId: 'bundle-c' } as LayerUnitDocType,
+    ];
+    const contextValue = makeEditorContext();
+    contextValue.getUnitTextForLayer = (unit) => `src-${unit.id}`;
+    const tr = contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>;
+    tr.clear();
+    tr.set('u1', { text: 't1' });
+    tr.set('u2', { text: 't2' });
+    tr.set('u3', { text: 't3' });
+
+    const { container } = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(container.querySelectorAll('[data-comparison-group-id]')).toHaveLength(3);
+    expect(container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(3);
+    expect(container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(0);
+  });
+
   it('avoids rendering duplicated target preview lines above the editor', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
     (contextValue.translationTextByLayer.get('translation-1') as Map<string, { text: string }>).set('u1', { text: '第一行\n第二行' });
@@ -651,16 +955,17 @@ describe('TranscriptionTimelineComparison', () => {
     );
 
     expect(viewRender.container.querySelectorAll('.timeline-comparison-target-line')).toHaveLength(0);
-    const editor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement | null;
-    expect(editor).toBeTruthy();
-    expect(editor?.value).toBe('第一行\n第二行');
+    const editors = viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input');
+    expect(editors).toHaveLength(2);
+    expect((editors[0] as HTMLTextAreaElement | undefined)?.value).toBe('第一行');
+    expect((editors[1] as HTMLTextAreaElement | undefined)?.value).toBe('第二行');
   });
 
   it('keeps the transcription column directly editable', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
 
@@ -689,7 +994,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
 
@@ -754,7 +1059,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
     const contextValue = makeEditorContext();
     const saveUnitLayerText = vi.fn()
@@ -799,7 +1104,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [
       makeUnit('u1', 'tr-a', 0, 1),
       makeUnit('u2', 'tr-a', 1.02, 2),
@@ -834,7 +1139,7 @@ describe('TranscriptionTimelineComparison', () => {
     const onFocusLayer = vi.fn();
     mockShowToast.mockClear();
     const transcriptionLayers = [makeLayer('tr-seg', 'transcription', '转写', 'independent_boundary')];
-    const translationLayers = [makeLayer('translation-1', 'translation', '译文', 'independent_boundary')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-seg', '译文', 'independent_boundary')];
     const parent = makeUnit('parent-1', 'tr-seg', 0, 5);
     const segment = {
       ...makeUnit('seg-1', 'tr-seg', 0, 1),
@@ -899,7 +1204,7 @@ describe('TranscriptionTimelineComparison', () => {
     const handleAnnotationClick = vi.fn();
     const onFocusLayer = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const viewRender = render(
@@ -933,7 +1238,7 @@ describe('TranscriptionTimelineComparison', () => {
   it('calls navigateUnitFromInput when Tab is pressed in comparison textareas', () => {
     const navigateUnitFromInput = vi.fn();
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     const view = render(
@@ -963,9 +1268,140 @@ describe('TranscriptionTimelineComparison', () => {
     expect(navigateUnitFromInput).toHaveBeenCalledTimes(2);
   });
 
+  it('shows translation stacks only for transcription layers that own child translation layers', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-en', 'transcription', '英'),
+      makeLayer('tr-fr', 'transcription', '法'),
+    ];
+    const translationLayers = [
+      makeTranslationLayer('tl-zh', 'tr-en', '中'),
+      makeTranslationLayer('tl-wu', 'tr-en', '吴'),
+    ];
+    const units = [
+      makeUnit('u-en', 'tr-en', 0, 1),
+      makeUnit('u-fr', 'tr-fr', 0, 1.5),
+    ];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-zh', new Map([['u-en', { text: '中文译' }]])],
+      ['tl-wu', new Map([['u-en', { text: '吴语译' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit, layerId) => {
+      if (unit.id === 'u-en' && layerId === 'tr-en') return '英语段';
+      if (unit.id === 'u-fr' && layerId === 'tr-fr') return '法语段';
+      return '';
+    };
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-en"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByDisplayValue('英语段')).toBeTruthy();
+    expect(screen.getByDisplayValue('法语段')).toBeTruthy();
+    expect(screen.getByDisplayValue('中文译')).toBeTruthy();
+    expect(screen.getByDisplayValue('吴语译')).toBeTruthy();
+    expect(screen.getByTestId('comparison-target-empty-cmp-u-fr')).toBeTruthy();
+  });
+
+  it('shows orphan-repair hint when only unbound translation layers exist for another host group', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-en', 'transcription', '英'),
+      makeLayer('tr-fr', 'transcription', '法'),
+    ];
+    const translationLayers = [
+      makeLayer('tl-orphan', 'translation', '孤立译层'),
+    ];
+    const units = [
+      makeUnit('u-en', 'tr-en', 0, 1),
+      makeUnit('u-fr', 'tr-fr', 0, 1.5),
+    ];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-orphan', new Map([['u-en', { text: '孤立译文' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit, layerId) => {
+      if (unit.id === 'u-en' && layerId === 'tr-en') return '英语段';
+      if (unit.id === 'u-fr' && layerId === 'tr-fr') return '法语段';
+      return '';
+    };
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-en"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId('comparison-target-empty-cmp-u-fr')).toBeTruthy();
+    expect(screen.getByText('检测到未绑定宿主的译文层；请先在层元信息里修复父层关系。')).toBeTruthy();
+  });
+
+  it('switches target header layer with the active group host instead of pinning one translation layer', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-en', 'transcription', '英语层'),
+      makeLayer('tr-fr', 'transcription', '法语层'),
+    ];
+    const translationLayers = [
+      makeTranslationLayer('tl-zh', 'tr-en', '中文译层'),
+      makeTranslationLayer('tl-fr', 'tr-fr', '法文译层'),
+    ];
+    const units = [
+      makeUnit('u-en', 'tr-en', 0, 1),
+      makeUnit('u-fr', 'tr-fr', 2, 3),
+    ];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-zh', new Map([['u-en', { text: '中文译文' }]])],
+      ['tl-fr', new Map([['u-fr', { text: '法文译文' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u-en' ? '英语原文' : '法语原文');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-en"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId('comparison-layer-header-target').textContent ?? '').toContain('中文译层');
+    expect(screen.queryByTestId('comparison-layer-header-target-tl-fr')).toBeNull();
+
+    fireEvent.click(screen.getByDisplayValue('法语原文'));
+
+    expect(screen.getByTestId('comparison-layer-header-target').textContent ?? '').toContain('法文译层');
+    expect(screen.queryByTestId('comparison-layer-header-target-tl-zh')).toBeNull();
+  });
+
   it('opens the layer display styles menu when displayStyleControl is provided', async () => {
     const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
-    const translationLayers = [makeLayer('translation-1', 'translation')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a')];
     const units = [makeUnit('u1', 'tr-a', 0, 1)];
 
     render(
@@ -990,5 +1426,84 @@ describe('TranscriptionTimelineComparison', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '层显示样式' }));
     expect(await screen.findByRole('menu')).toBeTruthy();
+  });
+
+  it('opens layer menu from vertical row rail context menu', async () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription', '原文层')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a', '翻译层')];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+
+    const view = render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            deletableLayers={[...transcriptionLayers, ...translationLayers]}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const sourceRailButton = view.container.querySelector('.timeline-comparison-row-rail-source') as HTMLButtonElement | null;
+    expect(sourceRailButton).toBeTruthy();
+
+    fireEvent.contextMenu(sourceRailButton!);
+    expect(await screen.findByRole('menu')).toBeTruthy();
+    expect(screen.getByRole('menuitem', { name: /^层操作/ })).toBeTruthy();
+  });
+
+  it('opens the vertical layer header context menu and reuses shared layer action dialogs', async () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription', '原文层')];
+    const translationLayers = [makeTranslationLayer('translation-1', 'tr-a', '翻译层')];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-a"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            deletableLayers={[...transcriptionLayers, ...translationLayers]}
+            displayStyleControl={{
+              orthographies: [],
+              onUpdate: vi.fn(),
+              onReset: vi.fn(),
+            }}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    const comparisonView = screen.getByTestId('timeline-comparison-view');
+    fireEvent.contextMenu(screen.getByTestId('comparison-layer-header-source'));
+
+    expect(await screen.findByRole('menu')).toBeTruthy();
+
+    const viewCategory = screen.getByRole('menuitem', { name: /^视图/ });
+    fireEvent.mouseEnter(viewCategory);
+    const sourceOnlyItem = await screen.findByRole('menuitem', { name: '仅原文' });
+    fireEvent.click(sourceOnlyItem);
+    expect(comparisonView.getAttribute('data-compact-mode')).toBe('source');
+
+    fireEvent.contextMenu(screen.getByTestId('comparison-layer-header-source'));
+    const layerOpsCategory = await screen.findByRole('menuitem', { name: /^层操作/ });
+    fireEvent.click(layerOpsCategory);
+
+    const editLayerAction = await screen.findByRole('menuitem', { name: /编辑该层元信息/ });
+    const deleteLayerAction = await screen.findByRole('menuitem', { name: /删除当前层/ });
+    expect((editLayerAction as HTMLButtonElement).disabled).toBe(false);
+    expect((deleteLayerAction as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(editLayerAction);
+    expect(await screen.findByRole('dialog')).toBeTruthy();
   });
 });

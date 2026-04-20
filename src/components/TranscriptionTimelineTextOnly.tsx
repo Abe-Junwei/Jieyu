@@ -14,7 +14,7 @@ import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
-import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
+import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TranscriptionComparisonViewFocusState } from '../pages/TranscriptionPage.UIState';
@@ -28,24 +28,11 @@ import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EM
 import { t, tf, useLocale } from '../i18n';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
-
-function buildTextTimelineSelfCertaintyTitle(
-  locale: Parameters<typeof t>[0],
-  value: UnitSelfCertainty,
-): string {
-  const tier = value === 'certain'
-    ? t(locale, 'transcription.unit.selfCertainty.certain')
-    : value === 'uncertain'
-      ? t(locale, 'transcription.unit.selfCertainty.uncertain')
-      : t(locale, 'transcription.unit.selfCertainty.notUnderstood');
-  return `${tier}\n${t(locale, 'transcription.unit.selfCertainty.dimensionHint')}`;
-}
-
-function buildTextTimelineSelfCertaintyAmbiguousTitle(
-  locale: Parameters<typeof t>[0],
-): string {
-  return t(locale, 'transcription.unit.selfCertainty.ambiguousSource');
-}
+import type { LayerOperationActionType } from './layerOperationMenuItems';
+import { buildTimelineSelfCertaintyAmbiguousTitle, buildTimelineSelfCertaintyTitle } from '../utils/timelineSelfCertainty';
+import { useCollapsedLayerIds } from '../hooks/useTimelineVisibilityState';
+import { listSegmentTimelineUnitsForLayer } from '../utils/timelineLaneSegmentIteration';
+import { useTimelineLaneDisplayStyleResizePreview } from '../hooks/useTimelineLaneDisplayStyleResizePreview';
 
 function resolveTextOnlyResizeTimingUnit(
   unit: TimelineUnitView,
@@ -69,21 +56,6 @@ function resolveTextOnlyResizeTimingUnit(
   return typeof unit.mediaId === 'string' && unit.mediaId.length > 0
     ? { ...fallback, mediaId: unit.mediaId }
     : fallback;
-}
-
-function getSegmentTimelineItems(
-  layer: LayerDocType,
-  layerById: ReadonlyMap<string, LayerDocType>,
-  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
-  unitsOnCurrentMedia: LayerUnitDocType[],
-  defaultTranscriptionLayerId?: string,
-): ReadonlyArray<LayerUnitDocType | LayerUnitDocType> {
-  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
-  if (!sourceLayer) {
-    return unitsOnCurrentMedia;
-  }
-
-  return segmentsByLayer?.get(sourceLayer.id) ?? [];
 }
 
 type TranscriptionTimelineTextOnlyProps = {
@@ -195,13 +167,6 @@ type TranscriptionTimelineTextOnlyProps = {
   /** 与波形桥 `zoomPxPerSec` 一致：逻辑轴上像素/文献秒，驱动语块水平缩放与拖选换算 */
   textTimelineZoomPxPerSec?: number;
 };
-
-type LayerActionType =
-  | 'create-transcription'
-  | 'create-translation'
-  | 'edit-transcription-metadata'
-  | 'edit-translation-metadata'
-  | 'delete';
 
 type TextOnlyDragState = {
   layerId: string;
@@ -363,58 +328,23 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     () => Boolean(createUnitFromSelection) && useLogicTimelineLayout,
     [createUnitFromSelection, useLogicTimelineLayout],
   );
-  const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
+  const [layerAction, setLayerAction] = useState<{ action: LayerOperationActionType; layerId?: string } | null>(null);
   const [editingCellKey, setEditingCellKey] = useState<string | null>(null);
   const [saveStatusByCellKey, setSaveStatusByCellKey] = useState<Record<string, 'dirty' | 'saving' | 'error'>>({});
-  const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
-  const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
+  const { collapsedLayerIds, toggleLayerCollapsed } = useCollapsedLayerIds();
+  const { previewFontSizeByLayerId, handleResizePreview, handleResizeEnd } = useTimelineLaneDisplayStyleResizePreview(
+    allLayersOrdered,
+    displayStyleControl,
+  );
   const [textOnlyDragState, setTextOnlyDragState] = useState<TextOnlyDragState | null>(null);
   /** 各转写层「时间↔像素」换算宽度（`laneTotalSize`）；无时间对齐布局时为 null，拖拽改用视口轨道宽 */
   const textOnlyLaneTimeMapWidthByIdRef = useRef<Map<string, number | null>>(new Map());
-
-  const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
-    if (!displayStyleControl) return;
-    const layer = allLayersOrdered.find((candidate) => candidate.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
-    const previewFontSize = computeFontSizeFromRenderPolicy(previewHeight, renderPolicy);
-    setPreviewFontSizeByLayerId((prev) => (
-      prev[layerId] === previewFontSize ? prev : { ...prev, [layerId]: previewFontSize }
-    ));
-  }, [allLayersOrdered, displayStyleControl]);
-
-  // 拖拽结束时反推字号 | Sync font size from lane height on resize end
-  const handleResizeEnd = useCallback((layerId: string, finalHeight: number) => {
-    setPreviewFontSizeByLayerId((prev) => {
-      if (!(layerId in prev)) return prev;
-      const next = { ...prev };
-      delete next[layerId];
-      return next;
-    });
-    if (!displayStyleControl) return;
-    const layer = allLayersOrdered.find((l) => l.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
-    const newFontSize = computeFontSizeFromRenderPolicy(finalHeight, renderPolicy);
-    const oldFontSize = layer.displaySettings?.fontSize ?? BASE_FONT_SIZE;
-    if (Math.abs(newFontSize - oldFontSize) > 0.1) {
-      displayStyleControl.onUpdate(layerId, { fontSize: newFontSize });
-    }
-  }, [allLayersOrdered, displayStyleControl]);
 
   const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
     onLaneHeightChange,
     handleResizeEnd,
     handleResizePreview,
   );
-
-  const toggleLayerCollapsed = useCallback((layerId: string) => {
-    setCollapsedLayerIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
-      return next;
-    });
-  }, []);
 
   const {
     unitDrafts,
@@ -835,8 +765,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const isEditing = editingCellKey === cellKey;
             const isDimmed = !!editingCellKey && !isEditing;
             const saveStatus = saveStatusByCellKey[cellKey];
-            const isSkippedProcessing = unit.tags?.skipProcessing === true;
-            if (isSkippedProcessing) return null;
+            if (unit.tags?.skipProcessing === true) return null;
             const retrySave = () => {
               if (draft === sourceText) {
                 setCellSaveStatus(cellKey);
@@ -869,10 +798,10 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const cellSelfCertaintyAmbiguous = !cellSelfCertainty
               && resolveSelfCertaintyAmbiguityForUnit?.(unit.id, certaintyLookupLayerId) === true;
             const selfCertaintyTitle = cellSelfCertainty
-              ? buildTextTimelineSelfCertaintyTitle(locale, cellSelfCertainty)
+              ? buildTimelineSelfCertaintyTitle(locale, cellSelfCertainty)
               : undefined;
             const selfCertaintyAmbiguousTitle = cellSelfCertaintyAmbiguous
-              ? buildTextTimelineSelfCertaintyAmbiguousTitle(locale)
+              ? buildTimelineSelfCertaintyAmbiguousTitle(locale)
               : undefined;
             const trcAudioLayerSupports = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
             const trcAudioScopeId = recordingScopeUnitId(unit);
@@ -903,7 +832,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             return (
               <TimelineStyledContainer
                 key={unit.id}
-                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${trcMixedOrAcceptsAudioTools ? ' timeline-text-item-has-tools' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}${isSkippedProcessing ? ' timeline-text-item-skipped' : ''}`}
+                className={`timeline-text-item${isActive ? ' timeline-text-item-active' : ''}${isEditing ? ' timeline-text-item-editing' : ''}${isDimmed ? ' timeline-text-item-dimmed' : ''}${!draft.trim() && !isEditing && layer.modality !== 'audio' ? ' timeline-text-item-empty' : ''}${saveStatus ? ` timeline-text-item-${saveStatus}` : ''}${confidenceClass}${speakerVisual ? ' timeline-text-item-has-speaker' : ''}${cellSelfCertainty || cellSelfCertaintyAmbiguous ? ' timeline-text-item-has-self-certainty' : ''}${trcMixedOrAcceptsAudioTools ? ' timeline-text-item-has-tools' : ''}${startTimelineResizeDrag ? ' timeline-text-item-timing-editable' : ''}`}
                 layoutStyle={{
                   width: `${virtualItem.size}px`,
                   transform: `translateX(${virtualItem.start}px)`,
@@ -943,11 +872,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 {trcMixedOrAcceptsAudioTools ? (
                   <div className="timeline-text-item-tools">{trcAudioControls}</div>
                 ) : null}
-                {layer.modality !== 'audio' && (isSkippedProcessing ? (
-                  <div className="timeline-text-item-skipped-label">
-                    {t(locale, 'transcription.action.skipProcessingMarked')}
-                  </div>
-                ) : (
+                {layer.modality !== 'audio' && (
                 <input
                   type="text"
                   className="timeline-text-input"
@@ -1028,7 +953,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                     }
                   }}
                 />
-                ))}
+                )}
                 {layer.modality === 'audio' && trcAudioControls ? (
                   <div className="timeline-translation-audio-card">{trcAudioControls}</div>
                 ) : null}
@@ -1129,27 +1054,22 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             );
           })}
           </div>}
-          {!isCollapsed && <>
+          {!isCollapsed && (
             <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
-              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'top')}
-              role="separator"
-              aria-orientation="horizontal"
-            />
-            <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
               onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'bottom')}
               role="separator"
               aria-orientation="horizontal"
+              aria-label={t(locale, 'transcription.timeline.resizeLaneHeight')}
             />
-          </>}
+          )}
         </TimelineStyledContainer>
       );
         }
 
         const isCollapsed = collapsedLayerIds.has(layer.id);
         const usesOwnSegments = layerUsesOwnSegments(layer, defaultTranscriptionLayerId);
-        const layerItems = getSegmentTimelineItems(
+        const layerItems = listSegmentTimelineUnitsForLayer(
           layer,
           layerById,
           segmentsByLayer,
@@ -1267,10 +1187,10 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const trSelfCertaintyAmbiguous = !trSelfCertainty
               && resolveSelfCertaintyAmbiguityForUnit?.(unit.id, certaintyLookupLayerId) === true;
             const trSelfCertaintyTitle = trSelfCertainty
-              ? buildTextTimelineSelfCertaintyTitle(locale, trSelfCertainty)
+              ? buildTimelineSelfCertaintyTitle(locale, trSelfCertainty)
               : undefined;
             const trSelfCertaintyAmbiguousTitle = trSelfCertaintyAmbiguous
-              ? buildTextTimelineSelfCertaintyAmbiguousTitle(locale)
+              ? buildTimelineSelfCertaintyAmbiguousTitle(locale)
               : undefined;
             return (
               <TranscriptionTimelineTextTranslationItem
@@ -1327,20 +1247,15 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             );
           })}
           </div>}
-          {!isCollapsed && <>
+          {!isCollapsed && (
             <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
-              onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'top')}
-              role="separator"
-              aria-orientation="horizontal"
-            />
-            <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
               onPointerDown={(event) => startLaneHeightResize(event, layer.id, laneHeights[layer.id] ?? DEFAULT_TIMELINE_LANE_HEIGHT, 'bottom')}
               role="separator"
               aria-orientation="horizontal"
+              aria-label={t(locale, 'transcription.timeline.resizeLaneHeight')}
             />
-          </>}
+          )}
         </TimelineStyledContainer>
       );})}
 

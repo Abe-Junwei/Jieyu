@@ -1,9 +1,11 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
+import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 interface ResolveVoiceDictationTargetInput {
   selectedLayerId: string | null;
+  selectedUnitLayerId?: string | null;
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
@@ -34,11 +36,31 @@ interface CreateVoiceDictationPipelineInput extends ResolveVoiceDictationTargetI
 
 export function resolveVoiceDictationTarget(input: ResolveVoiceDictationTargetInput) {
   const normalizedSelectedLayerId = input.selectedLayerId?.trim();
-  const targetLayerId = normalizedSelectedLayerId || input.defaultTranscriptionLayerId || input.translationLayers[0]?.id;
-  if (!targetLayerId) return null;
-  const targetLayer = input.layers.find((layer) => layer.id === targetLayerId) ?? null;
-  if (!targetLayer) return null;
-  return { targetLayerId, targetLayer };
+  if (normalizedSelectedLayerId) {
+    const selectedLayer = input.layers.find((layer) => layer.id === normalizedSelectedLayerId) ?? null;
+    if (selectedLayer) {
+      return { targetLayerId: selectedLayer.id, targetLayer: selectedLayer };
+    }
+  }
+
+  const normalizedDefaultTranscriptionLayerId = input.defaultTranscriptionLayerId?.trim();
+  if (normalizedDefaultTranscriptionLayerId) {
+    const defaultLayer = input.layers.find((layer) => layer.id === normalizedDefaultTranscriptionLayerId) ?? null;
+    if (defaultLayer) {
+      return { targetLayerId: defaultLayer.id, targetLayer: defaultLayer };
+    }
+  }
+
+  const fallbackTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
+    selectedLayerId: input.selectedLayerId,
+    selectedUnitLayerId: input.selectedUnitLayerId,
+    defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
+    translationLayers: input.translationLayers,
+  });
+  if (!fallbackTranslationLayerId) return null;
+  const fallbackTranslationLayer = input.layers.find((layer) => layer.id === fallbackTranslationLayerId) ?? null;
+  if (!fallbackTranslationLayer) return null;
+  return { targetLayerId: fallbackTranslationLayer.id, targetLayer: fallbackTranslationLayer };
 }
 
 export async function bridgeVoiceDictationText(input: TransformVoiceDictationTextInput) {

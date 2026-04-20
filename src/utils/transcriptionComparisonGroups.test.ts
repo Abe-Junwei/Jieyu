@@ -3,6 +3,7 @@ import type { LayerUnitDocType } from '../db';
 import {
   buildComparisonGroups,
   listSegmentsOverlappingTimeRange,
+  listTranslationSegmentsForComparisonSourceUnit,
   pickTranslationSegmentForPersist,
 } from './transcriptionComparisonGroups';
 
@@ -40,6 +41,21 @@ describe('buildComparisonGroups', () => {
     expect(groups[1]?.sourceItems.map((item) => item.unitId)).toEqual(['u3']);
   });
 
+  it('does not merge adjacent units when maxMergeGapSec is negative (segment-row parity)', () => {
+    const units = [makeUnit('u1', 0, 1), makeUnit('u2', 1.02, 2)];
+
+    const groups = buildComparisonGroups({
+      units,
+      maxMergeGapSec: -1,
+      getSourceText: (unit) => `src-${unit.id}`,
+      getTargetText: () => 'identical-translation',
+    });
+
+    expect(groups).toHaveLength(2);
+    expect(groups[0]?.sourceItems).toHaveLength(1);
+    expect(groups[1]?.sourceItems).toHaveLength(1);
+  });
+
   it('falls back to one group per unit when translation text is empty', () => {
     const units = [makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)];
 
@@ -63,6 +79,22 @@ describe('buildComparisonGroups', () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0]?.targetItems.map((item) => item.text)).toEqual(['line-a', 'line-b']);
+  });
+
+  it('uses getTargetItems when it returns a non-empty list so segment-bound rows are modeled', () => {
+    const groups = buildComparisonGroups({
+      units: [makeUnit('u1', 0, 2)],
+      getSourceText: () => 'src',
+      getTargetText: () => 'ignored-when-items-returned',
+      getTargetItems: () => [
+        { id: 'u1:t1', text: 'a', anchorUnitIds: ['u1'], translationSegmentId: 'seg-a' },
+        { id: 'u1:t2', text: 'b', anchorUnitIds: ['u1'], translationSegmentId: 'seg-b' },
+      ],
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.targetItems).toHaveLength(2);
+    expect(groups[0]?.targetItems.map((t) => t.translationSegmentId)).toEqual(['seg-a', 'seg-b']);
   });
 
   it('ignores units marked to skip processing', () => {
@@ -155,6 +187,20 @@ describe('buildComparisonGroups', () => {
   it('lists segments overlapping a time window', () => {
     const segs = [makeUnit('a', 0, 1), makeUnit('b', 1, 2), makeUnit('c', 3, 4)];
     expect(listSegmentsOverlappingTimeRange(segs, 0.5, 1.5).map((s) => s.id)).toEqual(['a', 'b']);
+  });
+
+  it('lists all translation segments under a host parent when the source row is a child segment', () => {
+    const parent = { ...makeUnit('p1', 0, 10), layerId: 'tr' } as LayerUnitDocType;
+    const trChildA = { ...makeUnit('ta', 0, 4), parentUnitId: 'p1', layerId: 'tl' } as LayerUnitDocType;
+    const trChildB = { ...makeUnit('tb', 4, 10), parentUnitId: 'p1', layerId: 'tl' } as LayerUnitDocType;
+    const srcSeg = { ...makeUnit('s1', 0, 2), parentUnitId: 'p1', layerId: 'tr' } as LayerUnitDocType;
+    const unitById = new Map<string, LayerUnitDocType>([
+      ['p1', parent],
+      ['s1', srcSeg],
+    ]);
+    const trSegs = [trChildA, trChildB];
+    const got = listTranslationSegmentsForComparisonSourceUnit(srcSeg, trSegs, unitById).map((s) => s.id);
+    expect(got).toEqual(['ta', 'tb']);
   });
 
   it('picks the translation segment with the largest overlap for persistence', () => {

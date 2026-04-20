@@ -487,6 +487,7 @@ function TranscriptionPageReadyWorkspace({
     layerById,
     ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
     ...(selectedLayerId ? { selectedLayerId } : {}),
+    ...(selectedTimelineUnit?.layerId ? { selectedTimelineUnitLayerId: selectedTimelineUnit.layerId } : {}),
     setLayers: data.setLayers,
     handleTimelineLaneHeightChange,
   });

@@ -134,6 +134,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     }
     const resolvedTarget = resolveVoiceDictationTarget({
       selectedLayerId: input.selectedLayerId,
+      selectedUnitLayerId: input.selectedTimelineUnit?.layerId ?? null,
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
@@ -185,6 +186,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     if (isSegmentTimelineUnit(input.selectedTimelineUnit)) return undefined;
     return createVoiceDictationPipeline({
       selectedLayerId: input.selectedLayerId,
+      selectedUnitLayerId: input.selectedTimelineUnit?.layerId ?? null,
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,

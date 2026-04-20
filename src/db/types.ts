@@ -638,6 +638,11 @@ export interface LayerDocType {
   constraint?: LayerConstraint;
   /** 父层 ID（constraint 为 symbolic_association / time_subdivision 时必填）| Parent layer ID (required for symbolic_association / time_subdivision) */
   parentLayerId?: string;
+  /**
+   * 译文层多宿主：与 parentLayerId 共同表示全部独立转写宿主（有序；parentLayerId 须等于首项）。
+   * | Multi-host translation: full ordered independent-transcription host ids (parentLayerId mirrors [0]).
+   */
+  parentLayerIds?: string[];
   /** 层级显示样式 | Display style configuration */
   displaySettings?: LayerDisplaySettings;
   accessRights?: 'open' | 'restricted' | 'confidential';
@@ -786,6 +791,8 @@ export interface TierDefinitionDocType {
   name: MultiLangString;
   tierType: TierType;
   parentTierId?: string;
+  /** 译文层额外宿主（tier 主 parentTierId 为首选宿主）| Extra host transcription tier ids for multi-host translation */
+  extraParentTierIds?: string[];
   languageId?: string;
   orthographyId?: string;
   bridgeId?: string;

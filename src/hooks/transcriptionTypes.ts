@@ -64,18 +64,18 @@ export function createTimelineUnit(
   return { layerId, unitId, kind };
 }
 
-export function isTimelineUnitKind(
+export function isTimelineUnitKind<K extends TimelineUnitKind>(
   unit: TimelineUnit | null | undefined,
-  kind: TimelineUnitKind,
-): unit is TimelineUnit {
+  kind: K,
+): unit is TimelineUnit & { kind: K } {
   return unit?.kind === kind;
 }
 
-export function isUnitTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
+export function isUnitTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit & { kind: 'unit' } {
   return isTimelineUnitKind(unit, 'unit');
 }
 
-export function isSegmentTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
+export function isSegmentTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit & { kind: 'segment' } {
   return isTimelineUnitKind(unit, 'segment');
 }
 

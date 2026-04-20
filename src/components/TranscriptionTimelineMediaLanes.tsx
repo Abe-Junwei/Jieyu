@@ -9,8 +9,8 @@ import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { DEFAULT_TIMELINE_LANE_HEIGHT, useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
+import { t, useLocale } from '../i18n';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
-import { BASE_FONT_SIZE, computeFontSizeFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { buildSpeakerLayerLayoutWithOptions, type SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
@@ -20,6 +20,10 @@ import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelin
 import { TranscriptionTimelineMediaTranscriptionLane } from './TranscriptionTimelineMediaTranscriptionLane';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EMPTY_SPEAKER_LAYOUT, normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
+import type { LayerOperationActionType } from './layerOperationMenuItems';
+import { useCollapsedLayerIds } from '../hooks/useTimelineVisibilityState';
+import { listSegmentTimelineUnitsForLayer } from '../utils/timelineLaneSegmentIteration';
+import { useTimelineLaneDisplayStyleResizePreview } from '../hooks/useTimelineLaneDisplayStyleResizePreview';
 
 type LassoRect = {
   x: number;
@@ -27,6 +31,8 @@ type LassoRect = {
   w: number;
   h: number;
 };
+
+const noopToggleConnectors = () => {};
 
 function prioritizeOverlapCycleItems(
   itemsByUnitId: Map<string, Array<{ id: string; startTime: number }>>,
@@ -66,21 +72,6 @@ function buildSegmentsByOverlapGroup(
     }
   }
   return next;
-}
-
-function getSegmentTimelineIterationSource(
-  layer: LayerDocType,
-  layerById: ReadonlyMap<string, LayerDocType>,
-  segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
-  timelineRenderUnits: LayerUnitDocType[],
-  defaultTranscriptionLayerId?: string,
-): ReadonlyArray<LayerUnitDocType | LayerUnitDocType> {
-  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
-  if (!sourceLayer) {
-    return timelineRenderUnits;
-  }
-
-  return segmentsByLayer?.get(sourceLayer.id) ?? [];
 }
 
 type TranscriptionTimelineMediaLanesProps = {
@@ -173,13 +164,6 @@ type TranscriptionTimelineMediaLanesProps = {
   };
 };
 
-type LayerActionType =
-  | 'create-transcription'
-  | 'create-translation'
-  | 'edit-transcription-metadata'
-  | 'edit-translation-metadata'
-  | 'delete';
-
 export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimelineMediaLanes({
   activeTextTimelineMode,
   playerDuration,
@@ -238,41 +222,17 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   onFocusLayer: (layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
 }) {
-  const [layerAction, setLayerAction] = useState<{ action: LayerActionType; layerId?: string } | null>(null);
-  const [collapsedLayerIds, setCollapsedLayerIds] = useState<Set<string>>(new Set());
-  const [previewFontSizeByLayerId, setPreviewFontSizeByLayerId] = useState<Record<string, number>>({});
+  const locale = useLocale();
+  const laneHeightResizeLabel = t(locale, 'transcription.timeline.resizeLaneHeight');
+  const [layerAction, setLayerAction] = useState<{ action: LayerOperationActionType; layerId?: string } | null>(null);
+  const { collapsedLayerIds, toggleLayerCollapsed: toggleLayerCollapsedState } = useCollapsedLayerIds();
   const [tempExpandedGroupByLayer, setTempExpandedGroupByLayer] = useState<Record<string, string>>({});
   const tempExpandTimersRef = useRef<Map<string, number>>(new Map());
 
-  const handleResizePreview = useCallback((layerId: string, previewHeight: number) => {
-    if (!displayStyleControl) return;
-    const layer = allLayersOrdered.find((candidate) => candidate.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
-    const previewFontSize = computeFontSizeFromRenderPolicy(previewHeight, renderPolicy);
-    setPreviewFontSizeByLayerId((prev) => (
-      prev[layerId] === previewFontSize ? prev : { ...prev, [layerId]: previewFontSize }
-    ));
-  }, [allLayersOrdered, displayStyleControl]);
-
-  // 拖拽结束时反推字号 | Sync font size from lane height on resize end
-  const handleResizeEnd = useCallback((layerId: string, finalHeight: number) => {
-    setPreviewFontSizeByLayerId((prev) => {
-      if (!(layerId in prev)) return prev;
-      const next = { ...prev };
-      delete next[layerId];
-      return next;
-    });
-    if (!displayStyleControl) return;
-    const layer = allLayersOrdered.find((l) => l.id === layerId);
-    if (!layer) return;
-    const renderPolicy = resolveOrthographyRenderPolicy(layer.languageId, displayStyleControl.orthographies, layer.orthographyId);
-    const newFontSize = computeFontSizeFromRenderPolicy(finalHeight, renderPolicy);
-    const oldFontSize = layer.displaySettings?.fontSize ?? BASE_FONT_SIZE;
-    if (Math.abs(newFontSize - oldFontSize) > 0.1) {
-      displayStyleControl.onUpdate(layerId, { fontSize: newFontSize });
-    }
-  }, [allLayersOrdered, displayStyleControl]);
+  const { previewFontSizeByLayerId, handleResizePreview, handleResizeEnd } = useTimelineLaneDisplayStyleResizePreview(
+    allLayersOrdered,
+    displayStyleControl,
+  );
 
   const { resizingLayerId, startLaneHeightResize } = useTimelineLaneHeightResize(
     onLaneHeightChange,
@@ -377,11 +337,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   }, [activeUnitId, selectedTimelineUnit, speakerLayerLayout.overlapCycleItemsByGroupId]);
 
   const toggleLayerCollapsed = useCallback((layerId: string) => {
-    setCollapsedLayerIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(layerId)) next.delete(layerId); else next.add(layerId);
-      return next;
-    });
+    toggleLayerCollapsedState(layerId);
     setTempExpandedGroupByLayer((prev) => {
       if (!(layerId in prev)) return prev;
       const { [layerId]: _, ...rest } = prev;
@@ -392,7 +348,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
       window.clearTimeout(timerId);
       tempExpandTimersRef.current.delete(layerId);
     }
-  }, []);
+  }, [toggleLayerCollapsedState]);
 
   useEffect(() => () => {
     for (const timerId of tempExpandTimersRef.current.values()) {
@@ -452,7 +408,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   });
 
   // Stable callback for layer actions - avoids creating new function per layer per render
-  const handleLayerAction = useCallback((action: LayerActionType, layerId?: string) => {
+  const handleLayerAction = useCallback((action: LayerOperationActionType, layerId?: string) => {
     if (action === 'delete' && layerId) {
       fireAndForget(requestDeleteLayer(layerId));
       return;
@@ -565,7 +521,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             onFocusLayer={onFocusLayer}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
-            onToggleConnectors={onToggleConnectors ?? (() => {})}
+            onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
             trackDisplayMode={trackDisplayMode}
             {...(onToggleTrackDisplayMode ? { onToggleTrackDisplayMode } : {})}
             {...(onSetTrackDisplayMode ? { onSetTrackDisplayMode } : {})}
@@ -639,7 +595,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
                 fontSize: previewFontSize,
               },
             };
-        const iterationSource = getSegmentTimelineIterationSource(
+        const iterationSource = listSegmentTimelineUnitsForLayer(
           layer,
           layerById,
           segmentsByLayer,
@@ -672,7 +628,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
             onLayerAction={handleLayerAction}
             layerLinks={layerLinks}
             showConnectors={showConnectors}
-            onToggleConnectors={onToggleConnectors ?? (() => {})}
+            onToggleConnectors={onToggleConnectors ?? noopToggleConnectors}
             headerMenuPreset="layer-chrome"
             isCollapsed={isCollapsed}
             onToggleCollapsed={toggleLayerCollapsed}
@@ -720,20 +676,15 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
               />
             );
           })}
-          {!isCollapsed && <>
+          {!isCollapsed && (
             <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
-              onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'top')}
-              role="separator"
-              aria-orientation="horizontal"
-            />
-            <div
-              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+              className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
               onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
               role="separator"
               aria-orientation="horizontal"
+              aria-label={laneHeightResizeLabel}
             />
-          </>}
+          )}
         </TimelineStyledContainer>
       );})}
 

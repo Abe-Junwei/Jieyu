@@ -14,7 +14,8 @@ import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimelineMediaTranscriptionRow';
 import { TimelineStyledButton, TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
+import type { LayerOperationActionType } from './layerOperationMenuItems';
 
 const COLLAPSED_OVERLAP_HINT_TRACK_WIDTH = 48;
 
@@ -120,12 +121,7 @@ interface TranscriptionLaneProps {
   ) => void;
   // Callbacks
   handleLayerAction: (
-    action:
-      | 'create-transcription'
-      | 'create-translation'
-      | 'edit-transcription-metadata'
-      | 'edit-translation-metadata'
-      | 'delete',
+    action: LayerOperationActionType,
     layerId?: string,
   ) => void;
   onToggleCollapsed: (layerId: string) => void;
@@ -199,6 +195,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   onLanePointerDown,
 }: TranscriptionLaneProps) {
   const locale = useLocale();
+  const laneHeightResizeLabel = t(locale, 'transcription.timeline.resizeLaneHeight');
 
   return (
     <TimelineStyledContainer
@@ -260,7 +257,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             onActivateTemporaryExpand(layer.id, group.id);
           }}
         >
-          {group.speakerCount}人
+          {tf(locale, 'transcription.timeline.overlapCollapsedSpeakerBadge', { count: group.speakerCount })}
         </TimelineStyledButton>
       ))}
       {!effectiveCollapsed && visibleUnits.map((unit) => {
@@ -319,20 +316,15 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
           />
         );
       })}
-      {!effectiveCollapsed && <>
+      {!effectiveCollapsed && (
         <div
-          className="timeline-lane-resize-handle timeline-lane-resize-handle-top"
-          onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'top')}
-          role="separator"
-          aria-orientation="horizontal"
-        />
-        <div
-          className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom"
+          className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
           onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
           role="separator"
           aria-orientation="horizontal"
+          aria-label={laneHeightResizeLabel}
         />
-      </>}
+      )}
     </TimelineStyledContainer>
   );
 });

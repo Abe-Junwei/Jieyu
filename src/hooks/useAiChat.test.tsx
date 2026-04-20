@@ -3450,4 +3450,43 @@ describe('useAiChat abort and recovery', () => {
       }),
     );
   });
+
+  it('should still use host-aware selectedTranslationLayerId when selected layer is transcription', async () => {
+    const onToolCall = vi.fn().mockResolvedValue({ ok: true, message: 'done' });
+    const { result } = renderHook(() => useAiChat({
+      onToolCall,
+      getContext: () => ({
+        shortTerm: {
+          ...defaultSelectedSegmentShortTerm,
+          selectedLayerId: 'layer_transcription_host_fr',
+          selectedLayerType: 'transcription' as const,
+          selectedTranscriptionLayerId: 'layer_transcription_host_fr',
+          selectedTranslationLayerId: 'layer_translation_child_fr',
+          activeUnitId: 'utt_real_002',
+          activeSegmentUnitId: 'seg_real_002',
+        },
+      }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__TOOL_SET_TRANSLATION_HALLUCINATED_LAYER__');
+    });
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    // 选中层是转写层时，也必须沿用上下文中已解析出的宿主子译文层 | Even when selected layer is transcription, use host-aware child translation layer from context.
+    expect(onToolCall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arguments: expect.objectContaining({
+          layerId: 'layer_translation_child_fr',
+          segmentId: 'seg_real_002',
+        }),
+      }),
+    );
+  });
 });

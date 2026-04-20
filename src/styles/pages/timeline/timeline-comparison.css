@@ -42,7 +42,8 @@
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
-  padding: 4px var(--timeline-comparison-side-padding) 8px;
+  /* 与下方 split-host 少留缝，避免模式条与语段区像被「切开」 */
+  padding: 4px var(--timeline-comparison-side-padding) 4px;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -50,6 +51,31 @@
 .timeline-comparison-toolbar-spacer {
   flex: 1;
   min-width: 8px;
+}
+
+.timeline-comparison-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.timeline-comparison-bundle-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.timeline-comparison-header-title-btn {
+  max-width: min(42vw, 240px);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
 
 .timeline-comparison-mode-toggle {
@@ -348,12 +374,32 @@
   gap: 4px;
 }
 
+.timeline-comparison-target-empty {
+  flex: 1;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px dashed color-mix(in srgb, var(--border-soft) 55%, transparent);
+  border-radius: var(--radius-xs, 7px);
+  background: color-mix(in srgb, var(--surface-panel) 50%, transparent);
+}
+
+.timeline-comparison-target-empty-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
 /* 每条原文/译文编辑行左侧窄轨（层身份与列聚焦），与顶栏双列层头解耦 | Per-row layer rail */
 .timeline-comparison-editor-row {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 6px;
+  /* 与编辑区零缝衔接，避免层头与正文之间露出组底色形成「隔断」 */
+  gap: 0;
   min-width: 0;
 }
 
@@ -366,19 +412,19 @@
 .timeline-comparison-row-rail {
   flex: 0 0 auto;
   align-self: stretch;
-  width: 32px;
+  width: var(--lane-label-width, 64px);
+  min-width: var(--lane-label-width, 64px);
   min-height: var(--timeline-comparison-editor-min-height, 63px);
   box-sizing: border-box;
   margin: 0;
-  padding: 4px 2px;
+  padding: 4px 6px;
   border: 1px solid var(--timeline-comparison-column-rail);
-  border-radius: var(--radius-xs, 7px);
-  background: color-mix(in srgb, var(--surface-header) 52%, var(--surface-panel));
+  border-right: none;
+  border-radius: var(--radius-xs, 7px) 0 0 var(--radius-xs, 7px);
+  /* 与横向 `.timeline-lane-label` 同底与字色 | Match horizontal lane label chrome */
+  background: var(--surface-elevated);
   color: var(--text-secondary);
   font: inherit;
-  font-size: calc(0.75rem * var(--ui-font-scale, 1));
-  font-weight: 700;
-  line-height: 1.2;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -388,6 +434,31 @@
     border-color var(--shell-motion-fast, 140ms) ease;
 }
 
+/* 与横向层头正文一致：小号半粗、居中多行 | Typography aligned with timeline lane header label */
+.timeline-comparison-row-rail-lane-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.22;
+  color: inherit;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.timeline-comparison-row-rail-lane-label-continuation {
+  font-size: calc(1rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.5;
+}
+
 .timeline-comparison-row-rail-mark {
   display: block;
   max-width: 100%;
@@ -395,6 +466,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: isolate;
+  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.22;
 }
 
 .timeline-comparison-row-rail:hover {
@@ -410,7 +484,7 @@
 .timeline-comparison-row-rail.is-active {
   color: var(--header-accent);
   border-color: color-mix(in srgb, var(--header-accent) 42%, var(--timeline-comparison-column-rail));
-  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-elevated));
 }
 
 .timeline-comparison-view[data-compact-mode='both'] .timeline-comparison-source-column {
@@ -424,6 +498,13 @@
   border-radius: var(--radius-xs, 7px);
   box-shadow: none;
   transition: background-color var(--duration-fast, 120ms) ease;
+}
+
+/* 须写在通用 surface 规则之后，避免 border/shorthand 冲掉与行轨的零缝衔接 */
+.timeline-comparison-editor-row .timeline-comparison-source-surface,
+.timeline-comparison-editor-row .timeline-comparison-target-surface {
+  border-radius: 0 var(--radius-xs, 7px) var(--radius-xs, 7px) 0;
+  border-left: 1px solid var(--timeline-comparison-column-rail);
 }
 
 .timeline-comparison-source-surface-empty,
@@ -490,22 +571,29 @@
 
 .timeline-comparison-surface-badges {
   position: absolute;
-  top: 8px;
-  right: 10px;
-  bottom: 8px;
-  inset-inline-end: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: flex-end;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  inset-inline-end: 0;
   pointer-events: none;
   z-index: 2;
 }
 
 .timeline-comparison-surface-badges .timeline-annotation-self-certainty,
 .timeline-comparison-surface-badges .timeline-comparison-note-icon {
-  position: static;
+  position: absolute;
   inset: auto;
+  right: 10px;
+  inset-inline-end: 10px;
+}
+
+.timeline-comparison-surface-badges .timeline-annotation-self-certainty {
+  top: 8px;
+}
+
+.timeline-comparison-surface-badges .timeline-comparison-note-icon {
+  top: auto;
+  bottom: 8px;
 }
 
 .timeline-comparison-note-icon {
@@ -586,6 +674,82 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* 多译文层：每层一块栈，与媒体/文本时间轴「多翻译层」一致 */
+.timeline-comparison-target-layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/*
+ * 同组内允许「多对一 / 一对多 / 多对多」，两列是各自纵向堆叠，不是逐行表格对齐。
+ * 行数不等时让「较少行」的一侧在列内 flex 增高，使整块对照卡左右视觉重量更接近。
+ */
+.timeline-comparison-group[data-comparison-layout='many-to-one'] .timeline-comparison-target-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+/* 多对一：译文在 target-layer-stack 内；仅一层译文时让该行纵向铺满以与左列多行对齐 */
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  > .timeline-comparison-editor-row {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  .timeline-comparison-target-surface.timeline-draft-editor-surface-multiline {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  .timeline-comparison-target-surface.timeline-draft-editor-surface-multiline
+  .timeline-comparison-target-input {
+  flex: 1 1 auto;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+}
+
+/* 多对多：两列均为多行，避免子项被误 flex 撑满；列内自然堆叠 */
+.timeline-comparison-group[data-comparison-layout='many-to-many'] .timeline-comparison-source-column,
+.timeline-comparison-group[data-comparison-layout='many-to-many'] .timeline-comparison-target-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many'] .timeline-comparison-source-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many'] .timeline-comparison-source-column > .timeline-comparison-editor-row {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * 一对多：左列只有一条原文行，为对齐右列多行会被拉高；multiline 表面默认 height:auto 会按内容收缩，
+ * 造成高亮/底色只盖住输入区上半段，像「一行拆成两行」。此处强制表面与 textarea 在列高内铺满。
+ */
+.timeline-comparison-group[data-comparison-layout='one-to-many']
+  .timeline-comparison-source-surface.timeline-draft-editor-surface-multiline {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many']
+  .timeline-comparison-source-surface.timeline-draft-editor-surface-multiline
+  .timeline-comparison-source-input {
+  flex: 1 1 auto;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
 }
 
 .timeline-comparison-target-column-active .timeline-comparison-target-input {

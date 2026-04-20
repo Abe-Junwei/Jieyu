@@ -29,7 +29,11 @@ function segmentView(id: string, layerId: string, parentUnitId?: string): Timeli
   };
 }
 
-function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: LayerDocType['layerType'] = 'transcription',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
+): LayerDocType {
   return {
     id,
     textId: 'text-1',
@@ -40,6 +44,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...(extras ?? {}),
   } as LayerDocType;
 }
 
@@ -182,5 +187,27 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     expect(snapshot.selectedLayerType).toBe('transcription');
     expect(snapshot.selectedTranscriptionLayerId).toBe('layer-main');
     expect(snapshot.selectedTranslationLayerId).toBeUndefined();
+  });
+
+  it('derives selected translation layer from transcription host when available', () => {
+    const snapshot = buildTranscriptionSelectionSnapshot({
+      selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'unit' },
+      selectedTimelineSegment: null,
+      selectedTimelineOwnerUnit: makeUnit('utt-1'),
+      primaryUnitView: unitView('utt-1', 'layer-main'),
+      selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
+      selectedLayerId: 'layer-main',
+      layers: [
+        makeLayer('layer-main', 'transcription'),
+        makeLayer('layer-tr-en', 'translation', { parentLayerId: 'layer-main' }),
+      ],
+      segmentContentByLayer: new Map(),
+      getUnitTextForLayer: () => '转写文本',
+      formatTime: (seconds) => seconds.toFixed(1),
+    });
+
+    expect(snapshot.selectedLayerType).toBe('transcription');
+    expect(snapshot.selectedTranscriptionLayerId).toBe('layer-main');
+    expect(snapshot.selectedTranslationLayerId).toBe('layer-tr-en');
   });
 });

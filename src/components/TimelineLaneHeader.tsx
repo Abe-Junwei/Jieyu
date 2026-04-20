@@ -13,13 +13,7 @@ import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
 import { ModalPanel, PanelButton, PanelSection, PanelSummary } from './ui';
-
-type LayerActionType =
-  | 'create-transcription'
-  | 'create-translation'
-  | 'edit-transcription-metadata'
-  | 'edit-translation-metadata'
-  | 'delete';
+import { buildLayerOperationMenuItems, type LayerOperationActionType } from './layerOperationMenuItems';
 
 interface TimelineLaneHeaderProps {
   layer: LayerDocType;
@@ -30,7 +24,7 @@ interface TimelineLaneHeaderProps {
   deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
   renderLaneLabel: (layer: LayerDocType) => React.ReactNode;
-  onLayerAction: (action: LayerActionType, layerId: string) => void;
+  onLayerAction: (action: LayerOperationActionType, layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
@@ -281,35 +275,21 @@ export function TimelineLaneHeader({
     },
   ];
 
-  const layerOperationMenuItems: ContextMenuItem[] = [
-    {
-      label: messages.editLayerMetadata,
-      onClick: () => {
-        onLayerAction(layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata', layer.id);
-      },
+  const layerOperationMenuItems = buildLayerOperationMenuItems({
+    layer,
+    deletableLayers,
+    canOpenTranslationCreate,
+    labels: {
+      editLayerMetadata: messages.editLayerMetadata,
+      createTranscription: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
+      createTranslation: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
+      deleteCurrentLayer: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
     },
-    {
-      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
-      onClick: () => {
-        onLayerAction('create-transcription', layer.id);
-      },
+    onAction: (action, layerId) => {
+      if (!layerId) return;
+      onLayerAction(action, layerId);
     },
-    {
-      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
-      disabled: !canOpenTranslationCreate,
-      onClick: () => {
-        onLayerAction('create-translation', layer.id);
-      },
-    },
-    {
-      label: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
-      danger: true,
-      disabled: !deletableLayers.some((l) => l.id === layer.id),
-      onClick: () => {
-        onLayerAction('delete', layer.id);
-      },
-    },
-  ];
+  });
 
   const contextMenuItems: ContextMenuItem[] = [
     ...layerOperationMenuItems,

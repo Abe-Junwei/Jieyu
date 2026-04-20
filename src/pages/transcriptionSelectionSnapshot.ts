@@ -1,6 +1,7 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { isSegmentTimelineUnit, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
+import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 function activeUnitIdFromPrimaryView(
   primary: TimelineUnitView | null,
@@ -56,12 +57,23 @@ export function buildTranscriptionSelectionSnapshot(
   input: BuildTranscriptionSelectionSnapshotInput,
 ): TranscriptionSelectionSnapshot {
   const selectedLayer = input.layers.find((layer) => layer.id === input.selectedLayerId) ?? null;
+  const translationLayers = input.layers.filter((layer) => layer.layerType === 'translation');
   const selectedLayerType: 'transcription' | 'translation' | undefined = selectedLayer
     ? (selectedLayer.layerType === 'translation' ? 'translation' : 'transcription')
     : undefined;
+  const selectedUnitLayerId = input.primaryUnitView?.layerId
+    ?? input.selectedTimelineUnit?.layerId
+    ?? undefined;
+  const hostAwareTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
+    selectedLayerId: input.selectedLayerId,
+    selectedUnitLayerId,
+    defaultTranscriptionLayerId: selectedLayerType === 'transcription' ? selectedLayer?.id : null,
+    allowFirstTranslationFallback: false,
+    translationLayers,
+  });
   const selectedTranslationLayerId = selectedLayerType === 'translation'
     ? selectedLayer?.id
-    : undefined;
+    : hostAwareTranslationLayerId;
   const selectedTranscriptionLayerId = selectedLayerType === 'transcription'
     ? selectedLayer?.id
     : undefined;

@@ -47,6 +47,39 @@ export function listSegmentsOverlappingTimeRange(
 }
 
 /**
+ * 对照源行为子语段时，按宿主父句拉平译文子段（与横向轨「一父多译」行一致） |
+ * When the comparison source row is a child segment, list translation segments under the same parent host.
+ */
+export function listTranslationSegmentsForComparisonSourceUnit(
+  unit: LayerUnitDocType,
+  translationSegments: readonly LayerUnitDocType[] | undefined,
+  unitById: ReadonlyMap<string, LayerUnitDocType>,
+): LayerUnitDocType[] {
+  if (!translationSegments?.length) return [];
+  const parentId = typeof unit.parentUnitId === 'string' ? unit.parentUnitId.trim() : '';
+  const parent = parentId ? unitById.get(parentId) : undefined;
+  if (parent) {
+    const byParentField = translationSegments.filter((s) => {
+      const sid = typeof s.parentUnitId === 'string' ? s.parentUnitId.trim() : '';
+      return sid.length > 0 && sid === parent.id;
+    });
+    if (byParentField.length > 0) {
+      return [...byParentField].sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id));
+    }
+    return listSegmentsOverlappingTimeRange(
+      translationSegments,
+      parent.startTime,
+      parent.endTime,
+    );
+  }
+  return listSegmentsOverlappingTimeRange(
+    translationSegments,
+    unit.startTime,
+    unit.endTime,
+  );
+}
+
+/**
  * 在相交的翻译层 segment 中，选与区间重叠时长最大的一条用于持久化（避免多段时整段重复写入） |
  * Pick the translation segment with maximum overlap for persistence.
  */
@@ -89,6 +122,10 @@ interface BuildComparisonGroupsInput {
    */
   getTargetItems?: (unit: LayerUnitDocType) => ComparisonTargetItem[] | undefined;
   getSpeakerLabel?: (unit: LayerUnitDocType) => string;
+  /**
+   * 相邻源单位可合并的最大时间间隔（秒）。传入负数（如 -1）则永不按相邻规则合并，
+   * 用于语段化转写与媒体轨「一语段一译文行」对齐。
+   */
   maxMergeGapSec?: number;
 }
 
@@ -120,6 +157,11 @@ function buildComparisonSpeakerSummary(labels: string[]): string {
   if (uniqueLabels.length === 0) return '';
   if (uniqueLabels.length <= 2) return uniqueLabels.join(' · ');
   return `${uniqueLabels[0]} +${uniqueLabels.length - 1}`;
+}
+
+/** 与 buildComparisonGroups 内联逻辑一致：供对照视图按层从纯文本拆出多条译文编辑项 */
+export function buildComparisonTargetItemsFromRawText(unitId: string, rawText: string): ComparisonTargetItem[] {
+  return buildComparisonTargetItems(unitId, rawText);
 }
 
 function buildComparisonTargetItems(unitId: string, rawText: string): ComparisonTargetItem[] {
