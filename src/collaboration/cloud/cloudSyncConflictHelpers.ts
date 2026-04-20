@@ -107,8 +107,12 @@ export function extractConflictFields(input: ExtractConflictFieldsInput): Record
 	}
 
 	if (input.opType === 'upsert_relation') {
-		pushFieldIfPrimitive(fields, 'transcriptionLayerKey', input.payload?.transcriptionLayerKey);
-		pushFieldIfPrimitive(fields, 'layerId', input.payload?.layerId);
+		const [entityHostToken, entityLayerId] = input.entityId.split(':');
+		const hostTranscriptionLayerId = input.payload?.hostTranscriptionLayerId;
+		const transcriptionLayerKey = input.payload?.transcriptionLayerKey;
+		pushFieldIfPrimitive(fields, 'hostTranscriptionLayerId', hostTranscriptionLayerId ?? (transcriptionLayerKey ? undefined : entityHostToken));
+		pushFieldIfPrimitive(fields, 'transcriptionLayerKey', transcriptionLayerKey);
+		pushFieldIfPrimitive(fields, 'layerId', input.payload?.layerId ?? entityLayerId);
 		pushFieldIfPrimitive(fields, 'enabled', input.payload?.enabled);
 	}
 

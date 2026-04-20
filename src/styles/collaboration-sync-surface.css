@@ -114,7 +114,7 @@
 }
 
 .app-collaboration-sync-badge.is-syncing,
-.app-collaboration-sync-badge.is-offline_queue {
+.app-collaboration-sync-badge.is-offline-queue {
   border-color: color-mix(in srgb, var(--color-accent, var(--state-info-solid)) 45%, transparent);
   background: color-mix(in srgb, var(--color-accent, var(--state-info-solid)) 10%, transparent);
 }
