@@ -30,4 +30,11 @@ describe('textOnlyTimelineTimeMapping', () => {
     expect(documentTimeFromTextOnlyTrackX(0, w, L, mapping)).toBeCloseTo(0);
     expect(documentTimeFromTextOnlyTrackX(w, w, L, mapping)).toBeCloseTo(10);
   });
+
+  it('keeps legacy negative-offset mapping inversion deterministic at x=0', () => {
+    const w = 100;
+    const L = 10;
+    const mapping = { offsetSec: -3, scale: 1 };
+    expect(documentTimeFromTextOnlyTrackX(0, w, L, mapping)).toBeCloseTo(3);
+  });
 });

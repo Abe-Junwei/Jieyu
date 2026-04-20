@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { createEvent, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType } from '../db';
 import { TranscriptionTimelineTextOnly } from './TranscriptionTimelineTextOnly';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 
@@ -598,6 +598,9 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
       key: 'trl_fra_1',
       parentLayerId: parentLayer.id,
     } as LayerDocType;
+    const layerLinks = [
+      { id: 'link-1', layerId: translationLayer.id, transcriptionLayerKey: parentLayer.key!, hostTranscriptionLayerId: parentLayer.id, isPreferred: true, createdAt: NOW },
+    ] as LayerLinkDocType[];
     const scrollEl = document.createElement('div');
     const scrollRef = { current: scrollEl } as React.RefObject<HTMLDivElement | null>;
 
@@ -630,6 +633,7 @@ describe('TranscriptionTimelineTextOnly lane pointer handling', () => {
         deletableLayers={[parentLayer, translationLayer]}
         onFocusLayer={vi.fn()}
         navigateUnitFromInput={vi.fn()}
+        layerLinks={layerLinks}
         laneHeights={{ [translationLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
       />,

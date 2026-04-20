@@ -150,6 +150,7 @@ function AssistantVoiceRuntime({
     ...(voice.target.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId } : {}),
     translationLayers: voice.target.translationLayers,
     layers: voice.target.layers,
+    ...(voice.target.layerLinks !== undefined ? { layerLinks: voice.target.layerLinks } : {}),
     ...(voice.target.dictationPipeline !== undefined ? { dictationPipeline: voice.target.dictationPipeline } : {}),
     formatSidePaneLayerLabel: voice.target.formatSidePaneLayerLabel,
     formatTime: voice.target.formatTime,

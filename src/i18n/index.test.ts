@@ -65,6 +65,6 @@ describe('i18n runtime behavior', () => {
 
   it('interpolates placeholders via tf', () => {
     expect(tf('zh-CN', 'transcription.zoom.scale', { percent: 150 })).toBe('缩放：150%');
-    expect(tf('en-US', 'transcription.action.audioImported', { filename: 'demo.wav' })).toBe('Audio "demo.wav" imported successfully.');
+    expect(tf('en-US', 'transcription.action.audioImported', { filename: 'demo.wav' })).toBe('Media "demo.wav" imported successfully.');
   });
 });

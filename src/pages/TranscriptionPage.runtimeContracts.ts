@@ -1,7 +1,7 @@
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { AnalysisBottomTab } from '../components/AiAnalysisPanel';
 import type { AiChatContextValue } from '../contexts/AiChatContext';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { SaveState, TimelineUnitKind } from '../hooks/transcriptionTypes';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
@@ -63,6 +63,7 @@ export interface TranscriptionPageAssistantRuntimeVoiceTargetProps {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
   dictationPipeline?: {
     callbacks: DictationPipelineCallbacks;

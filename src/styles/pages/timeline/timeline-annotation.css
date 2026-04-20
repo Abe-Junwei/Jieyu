@@ -147,13 +147,15 @@
 
 .timeline-annotation-tools {
   position: absolute;
-  top: var(--timeline-annotation-side-stack-top);
+  /* 16px 确信度徽章 vs 24px 录音按钮：上移半个尺寸差以对齐视觉中心 | Align 16px certainty badge with 24px audio button centers */
+  top: calc(var(--timeline-annotation-side-stack-top) - 4px);
   right: var(--timeline-annotation-side-stack-right);
   inset-inline-end: var(--timeline-annotation-side-stack-right);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  z-index: var(--z-timeline-seg-tools);
+  /* 工具按钮点击优先于右侧拖边把手，避免 mic/play 命中被拦截 | Keep tool buttons above edge resize handle to preserve clickability */
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
   pointer-events: auto;
 }
 

@@ -174,7 +174,7 @@ describe('LeftRailProjectHub project import dialog', () => {
     const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
     fireEvent.mouseEnter(exportMenuButton);
 
-    const hintText = await screen.findByText('当前项目使用纯文本模式；导出时间戳不等于声学秒。');
+    const hintText = await screen.findByText('当前项目使用纯文本模式；导出时间戳与媒体解码时间轴上的秒不一定一一对应。');
     const hintButton = hintText.closest('button') as HTMLButtonElement;
     expect(hintButton.disabled).toBe(true);
     expect(await screen.findByText('时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）')).toBeTruthy();
@@ -314,5 +314,55 @@ describe('LeftRailProjectHub project import dialog', () => {
 
     expect((screen.getByLabelText('偏移秒数') as HTMLInputElement).value).toBe('0.5');
     expect((screen.getByLabelText('时间倍率') as HTMLInputElement).value).toBe('0.95');
+  });
+
+  it('shows source-media mismatch prompt and can reset to identity mapping', async () => {
+    const { onApplyTextTimeMapping } = renderHub({
+      selectedMediaId: 'media-current',
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 5,
+        scale: 1.5,
+        revision: 4,
+        sourceMediaId: 'media-source',
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
+
+    expect(await screen.findByText('映射来源媒体与当前媒体不一致（来源 media-source，当前 media-current）')).toBeTruthy();
+    fireEvent.click(await screen.findByText('重置为恒等映射（offset=0, scale=1）'));
+
+    await waitFor(() => {
+      expect(onApplyTextTimeMapping).toHaveBeenCalledWith({ offsetSec: 0, scale: 1 });
+    });
+  });
+
+  it('rejects negative offset in calibration dialog before applying', async () => {
+    const { onApplyTextTimeMapping } = renderHub({
+      activeTextTimelineMode: 'document',
+      activeTextTimeMapping: {
+        offsetSec: 1,
+        scale: 1.1,
+        revision: 3,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
+    fireEvent.click(await screen.findByText('校准时间映射…'));
+
+    await screen.findByRole('dialog', { name: '校准逻辑时间映射' });
+    fireEvent.change(screen.getByLabelText('偏移秒数'), { target: { value: '-1' } });
+    fireEvent.change(screen.getByLabelText('时间倍率'), { target: { value: '1.2' } });
+    fireEvent.click(screen.getByRole('button', { name: '应用映射' }));
+
+    await waitFor(() => {
+      expect(showToastMock).toHaveBeenCalledWith('请输入不小于 0 的偏移秒数与大于 0 的时间倍率。', 'error', 0);
+    });
+    expect(onApplyTextTimeMapping).not.toHaveBeenCalled();
   });
 });

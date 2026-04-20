@@ -480,7 +480,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  z-index: var(--z-timeline-seg-tools);
+  /* 工具按钮点击优先于右侧拖边把手，避免录音/播放按钮被拖拽把手吞掉 | Keep tools above end-resize handle for reliable audio control clicks */
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
 }
 
 .timeline-text-item-has-self-certainty .timeline-text-item-tools {

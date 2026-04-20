@@ -48,4 +48,14 @@ describe('useReadyWorkspaceAxisStatus', () => {
     const axis = result.current.timelineTopPropsWithAxisStatus.axisStatus;
     expect(axis?.hint).toEqual({ kind: 'acoustic_decoding' });
   });
+
+  it('surfaces hidden-by-filter count even when media hint is hidden', () => {
+    const { result } = renderHook(() => useReadyWorkspaceAxisStatus(baseInput({
+      hiddenByMediaFilterCount: 2,
+    })));
+
+    const axis = result.current.timelineTopPropsWithAxisStatus.axisStatus;
+    expect(axis?.hint).toEqual({ kind: 'hidden' });
+    expect(axis?.hiddenByMediaFilterCount).toBe(2);
+  });
 });

@@ -35,6 +35,7 @@ type ReadyWorkspaceAxisStatusInput<TTimelineTopProps extends TimelineTopPropsBas
   playerDuration: AxisStatusRuntimeInput['playerDuration'];
   selectedTimelineMedia: AxisStatusRuntimeInput['selectedTimelineMedia'];
   unitsOnCurrentMedia: AxisStatusRuntimeInput['unitsOnCurrentMedia'];
+  hiddenByMediaFilterCount?: number;
   activeTextId?: string | null;
   activeTextTimeMapping?: { logicalDurationSec?: number } | null;
   activeTextTimelineMode?: TimelineAxisStatusStripProps['timelineMode'];
@@ -68,6 +69,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     playerDuration,
     selectedTimelineMedia,
     unitsOnCurrentMedia,
+    hiddenByMediaFilterCount,
     activeTextId,
     activeTextTimeMapping,
     activeTextTimelineMode,
@@ -141,7 +143,12 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       unitsOnCurrentMedia,
     });
     let axisStatus: TimelineAxisStatusStripProps | null = null;
-    if (hint.kind !== 'hidden') {
+    const hiddenCount = typeof hiddenByMediaFilterCount === 'number'
+      && Number.isFinite(hiddenByMediaFilterCount)
+      && hiddenByMediaFilterCount > 0
+      ? Math.trunc(hiddenByMediaFilterCount)
+      : 0;
+    if (hint.kind !== 'hidden' || hiddenCount > 0) {
       const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
       const logicalOk = typeof logicalDurationSec === 'number'
         && Number.isFinite(logicalDurationSec)
@@ -156,6 +163,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
           locale,
           hint,
           ...(logicalOk ? { logicalDurationSec } : {}),
+          ...(hiddenCount > 0 ? { hiddenByMediaFilterCount: hiddenCount } : {}),
           ...(activeTextTimelineMode ? { timelineMode: activeTextTimelineMode } : {}),
           ...(hint.kind === 'duration_short' && activeTextId
             ? { expandLogical: { busy: logicalExpandBusy, onPress: expandLogicalDurationFromAxisStatus } }
@@ -179,6 +187,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     selectedMediaUrl,
     selectedTimelineMedia,
     timelineTopProps,
+    hiddenByMediaFilterCount,
     unitsOnCurrentMedia,
   ]);
 
