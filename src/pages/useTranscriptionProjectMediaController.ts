@@ -6,7 +6,11 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
-import { isMediaItemPlaceholderRow, withResolvedMediaItemTimelineKind } from '../utils/mediaItemTimelineKind';
+import {
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  withResolvedMediaItemTimelineKind,
+} from '../utils/mediaItemTimelineKind';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
 import type { UseTranscriptionProjectMediaControllerInput, UseTranscriptionProjectMediaControllerResult } from '../types/useTranscriptionProjectMediaController.types';
 import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
@@ -45,11 +49,14 @@ export function useTranscriptionProjectMediaController(
   const audioImportDisposition = useMemo(() => {
     if (!activeTextId) return { kind: 'simple' as const };
     const projectMedia = mediaItems.filter((m) => m.textId === activeTextId);
-    const hasAcoustic = projectMedia.some((m) => !isMediaItemPlaceholderRow(m));
+    const hasAcoustic = projectMedia.some((m) => (
+      !isMediaItemPlaceholderRow(m)
+      && !isAuxiliaryRecordingMediaRow(m)
+    ));
     if (!hasAcoustic) return { kind: 'simple' as const };
     const replaceTarget = (selectedTimelineMedia && projectMedia.some((m) => m.id === selectedTimelineMedia.id)
       ? selectedTimelineMedia
-      : projectMedia.find((m) => !isMediaItemPlaceholderRow(m))) ?? null;
+      : projectMedia.find((m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m))) ?? null;
     if (!replaceTarget) return { kind: 'simple' as const };
     return {
       kind: 'choose' as const,

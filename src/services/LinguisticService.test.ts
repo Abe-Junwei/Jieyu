@@ -310,6 +310,20 @@ describe('LinguisticService smoke tests', () => {
     ]);
   });
 
+  it('rejects updating text time mapping when offsetSec is negative', async () => {
+    const created = await LinguisticService.createProject({
+      primaryTitle: '负偏移映射校验',
+      englishFallbackTitle: 'Negative offset validation',
+      primaryLanguageId: 'eng',
+    });
+
+    await expect(LinguisticService.updateTextTimeMapping({
+      textId: created.textId,
+      offsetSec: -0.5,
+      scale: 1,
+    })).rejects.toThrow('offsetSec 不能小于 0');
+  });
+
   it('previews offset-scale mapping and can invert real time back to document time', () => {
     const preview = LinguisticService.previewTextTimeMapping({
       startTime: 10,
@@ -2125,6 +2139,88 @@ describe('LinguisticService smoke tests', () => {
     }));
     await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(expect.objectContaining({
       mediaId: 'media_doc_placeholder',
+    }));
+  });
+
+  it('promotes placeholder timeline media even when auxiliary recording rows exist', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_import_aux', 'layer_trc_doc_import_aux', now);
+    await db.texts.put({
+      id: 'text_doc_import_aux',
+      title: { default: 'Doc Import Aux' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 30,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.bulkPut([
+      {
+        id: 'media_doc_placeholder_aux',
+        textId: 'text_doc_import_aux',
+        filename: 'document-placeholder.track',
+        duration: 30,
+        details: {
+          placeholder: true,
+          timelineMode: 'document',
+          timelineKind: 'placeholder',
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+      {
+        id: 'media_translation_recording_aux',
+        textId: 'text_doc_import_aux',
+        filename: 'translation-audio.webm',
+        duration: 4,
+        details: {
+          source: 'translation-recording',
+          audioBlob: new Blob(['tr'], { type: 'audio/webm' }),
+          timelineKind: 'acoustic',
+        },
+        isOfflineCached: true,
+        createdAt: now,
+      },
+    ]);
+
+    await LinguisticService.saveUnit({
+      id: 'utt_doc_keep_aux',
+      textId: 'text_doc_import_aux',
+      mediaId: 'media_doc_placeholder_aux',
+      startTime: 1,
+      endTime: 3,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const blob = new Blob(['audio-data-aux'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId: 'text_doc_import_aux',
+      audioBlob: blob,
+      filename: 'imported-aux.wav',
+      duration: 18,
+    });
+
+    expect(result.mediaId).toBe('media_doc_placeholder_aux');
+    await expect(db.layer_units.get('utt_doc_keep_aux')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_placeholder_aux',
+    }));
+    await expect(db.media_items.get('media_doc_placeholder_aux')).resolves.toEqual(expect.objectContaining({
+      filename: 'imported-aux.wav',
+      duration: 18,
+      details: expect.objectContaining({
+        timelineKind: 'acoustic',
+      }),
+    }));
+    await expect(db.media_items.get('media_translation_recording_aux')).resolves.toEqual(expect.objectContaining({
+      filename: 'translation-audio.webm',
+      details: expect.objectContaining({
+        source: 'translation-recording',
+      }),
     }));
   });
 

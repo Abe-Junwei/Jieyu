@@ -14,6 +14,11 @@ export type MediaTimelineKind =
 
 type MediaItemTimelineKindRow = Pick<MediaItemDocType, 'filename' | 'details'> & Partial<Pick<MediaItemDocType, 'url'>>;
 
+const AUXILIARY_RECORDING_SOURCES = new Set([
+  'translation-recording',
+  'transcription-recording',
+]);
+
 function hasPlayableMediaPayload(row: MediaItemTimelineKindRow): boolean {
   const details = (row.details as Record<string, unknown> | undefined) ?? {};
   return details.audioBlob instanceof Blob
@@ -64,4 +69,13 @@ export function withResolvedMediaItemTimelineKind<T extends MediaItemTimelineKin
  */
 export function isMediaItemPlaceholderRow(row: MediaItemTimelineKindRow): boolean {
   return resolveMediaItemTimelineKind(row) === MEDIA_TIMELINE_KIND_PLACEHOLDER;
+}
+
+/**
+ * 判定媒体行是否是附属录音（用于译文/转写录音附挂），不应驱动主时间轴导入策略。
+ */
+export function isAuxiliaryRecordingMediaRow(row: MediaItemTimelineKindRow): boolean {
+  const details = (row.details as Record<string, unknown> | undefined) ?? {};
+  const source = typeof details.source === 'string' ? details.source.trim() : '';
+  return AUXILIARY_RECORDING_SOURCES.has(source);
 }

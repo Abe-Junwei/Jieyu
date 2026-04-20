@@ -37,6 +37,7 @@ import {
   removeUnitsBatchCascade,
 } from './LinguisticService.cleanup';
 import {
+  isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
   MEDIA_TIMELINE_KIND_ACOUSTIC,
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
@@ -1043,6 +1044,9 @@ export class LinguisticService {
     if (!Number.isFinite(nextOffsetSec)) {
       throw new Error('offsetSec 必须是有限数字');
     }
+    if (nextOffsetSec < 0) {
+      throw new Error('offsetSec 不能小于 0');
+    }
     if (!Number.isFinite(nextScale) || nextScale <= 0) {
       throw new Error('scale 必须是大于 0 的有限数字');
     }
@@ -1390,7 +1394,10 @@ export class LinguisticService {
     }
     const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
     const placeholderRows = mediaRows.filter((row) => isMediaItemPlaceholderRow(row));
-    const nonPlaceholderRows = mediaRows.filter((row) => !placeholderRows.some((candidate) => candidate.id === row.id));
+    const timelineAcousticRows = mediaRows.filter((row) => (
+      !placeholderRows.some((candidate) => candidate.id === row.id)
+      && !isAuxiliaryRecordingMediaRow(row)
+    ));
 
     const refreshMediaTimelineMetadata = async (mediaId: string) => {
       const textRow = await db.dexie.texts.get(input.textId);
@@ -1448,9 +1455,9 @@ export class LinguisticService {
 
     const shouldPromotePlaceholders = placeholderRows.length > 0
       && (
-        (mode === 'default' && nonPlaceholderRows.length === 0)
+        (mode === 'default' && timelineAcousticRows.length === 0)
         || (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed))
-        || (mode === 'add' && nonPlaceholderRows.length === 0)
+        || (mode === 'add' && timelineAcousticRows.length === 0)
       );
 
     let mediaId = newId('media');

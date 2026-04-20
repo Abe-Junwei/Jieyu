@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { MediaItemDocType } from '../db';
 import {
+  isAuxiliaryRecordingMediaRow,
   isMediaItemPlaceholderRow,
   MEDIA_TIMELINE_KIND_ACOUSTIC,
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
@@ -47,5 +48,27 @@ describe('isMediaItemPlaceholderRow', () => {
     expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { placeholder: true } }))).toBe(true);
     expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { timelineMode: 'document' } }))).toBe(true);
     expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { timelineMode: 'media' } }))).toBe(false);
+  });
+});
+
+describe('isAuxiliaryRecordingMediaRow', () => {
+  it('treats translation/transcription recordings as auxiliary media rows', () => {
+    expect(isAuxiliaryRecordingMediaRow(row({
+      filename: 'tr.webm',
+      details: { source: 'translation-recording' },
+    }))).toBe(true);
+    expect(isAuxiliaryRecordingMediaRow(row({
+      filename: 'trc.webm',
+      details: { source: 'transcription-recording' },
+    }))).toBe(true);
+  });
+
+  it('does not treat regular uploaded audio as auxiliary media rows', () => {
+    expect(isAuxiliaryRecordingMediaRow(row({
+      filename: 'speech.wav',
+      details: {
+        timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+      },
+    }))).toBe(false);
   });
 });
