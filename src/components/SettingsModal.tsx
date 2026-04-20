@@ -1,8 +1,8 @@
 /**
  * 设置面板 | Settings Modal
  *
- * 统一设置入口：外观、快捷键、AI、播放、数据管理、关于。
- * Unified settings: Appearance, Shortcuts, AI, Playback, Data, About.
+ * 统一设置入口：外观、快捷键、AI、播放、数据、扩展（Phase A）、关于。
+ * Unified settings: Appearance, Shortcuts, AI, Playback, Data, Extensions (Phase A), About.
  */
 import { useState, useCallback, useMemo, useEffect, useRef, memo, type ReactNode } from 'react';
 import { ModalPanel } from './ui';
@@ -23,6 +23,7 @@ import { WORKSPACE_VIDEO_LAYOUT_MODE_STORAGE_KEY, WORKSPACE_VIDEO_PREVIEW_HEIGHT
 import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeConfig, type AcousticProviderRoutingStrategy, type AcousticProviderRuntimeConfig } from '../services/acoustic/acousticProviderContract';
 import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
+import type { ExtensionCapabilityInvocationRecord, ExtensionListItem } from '../extensions/extensionRegistry';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -94,7 +95,13 @@ export interface SettingsModalProps {
   version?: string;
 }
 
-type SettingsTab = 'appearance' | 'language' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'about';
+type SettingsTab = 'appearance' | 'language' | 'shortcuts' | 'ai' | 'playback' | 'data' | 'extensions' | 'about';
+
+type ExtensionsPanelState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'ready'; hostVersion: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] }
+  | { kind: 'error'; hostVersion: string; message: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] };
 
 // ── 辅助函数 | Helpers ──────────────────────────────────────
 
@@ -349,6 +356,7 @@ export const SettingsModal = memo(function SettingsModal({
   version,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+  const [extensionsPanel, setExtensionsPanel] = useState<ExtensionsPanelState>({ kind: 'idle' });
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
   const settingsShellTextDirection = useMemo(
@@ -751,6 +759,53 @@ export const SettingsModal = memo(function SettingsModal({
     setAiContextDebugEnabled(readStoredBoolean(AI_CONTEXT_DEBUG_KEY, false));
   }, [isOpen]);
 
+  useEffect(() => {
+    if (activeTab !== 'extensions') return;
+    setExtensionsPanel({ kind: 'loading' });
+    let cancelled = false;
+    const setError = (
+      reason: unknown,
+      snapshot?: { hostVersion: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] },
+    ) => {
+      if (cancelled) return;
+      const errorText = reason instanceof Error ? reason.message : String(reason);
+      setExtensionsPanel({
+        kind: 'error',
+        hostVersion: snapshot?.hostVersion ?? version ?? '—',
+        message: errorText,
+        items: snapshot?.items ?? [],
+        audit: snapshot?.audit ?? [],
+      });
+    };
+    void import('../extensions/extensionRegistrySingleton')
+      .then(async (mod) => {
+        try {
+          await mod.ensureBuiltinExtensionsLoaded();
+          if (cancelled) return;
+          const reg = mod.getExtensionRegistry();
+          setExtensionsPanel({
+            kind: 'ready',
+            hostVersion: reg.getHostVersion(),
+            items: reg.list(),
+            audit: reg.getCapabilityAuditTail(12),
+          });
+        } catch (error) {
+          const reg = mod.getExtensionRegistry();
+          setError(error, {
+            hostVersion: reg.getHostVersion(),
+            items: reg.list(),
+            audit: reg.getCapabilityAuditTail(12),
+          });
+        }
+      })
+      .catch((error) => {
+        setError(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, version]);
+
   // ── Memos ──
 
   const tabs = useMemo(() => [
@@ -760,6 +815,7 @@ export const SettingsModal = memo(function SettingsModal({
     { id: 'ai' as const, label: msg.tabAi },
     { id: 'playback' as const, label: msg.tabPlayback },
     { id: 'data' as const, label: msg.tabData },
+    { id: 'extensions' as const, label: msg.tabExtensions },
     { id: 'about' as const, label: msg.tabAbout },
   ], [msg]);
 
@@ -1449,6 +1505,144 @@ export const SettingsModal = memo(function SettingsModal({
                     {msg.dataResetAll}
                   </button>
                 </div>
+              </SettingsSection>
+            </div>
+          )}
+
+          {/* ── 扩展 | Extensions (Phase A) ── */}
+          {activeTab === 'extensions' && (
+            <div className="settings-sections-stack">
+              <SettingsSection title={msg.extensionsHostTitle}>
+                <div className="settings-about-row">
+                  <strong>{msg.extensionsHostVersionLabel}</strong>
+                  <span>{extensionsPanel.kind === 'ready' || extensionsPanel.kind === 'error' ? extensionsPanel.hostVersion : (version ?? '—')}</span>
+                </div>
+                <p className="small-text settings-icon-effect-hint">{msg.extensionsBlurb}</p>
+              </SettingsSection>
+
+              <SettingsSection title={msg.tabExtensions}>
+                {extensionsPanel.kind === 'loading' ? (
+                  <p className="small-text">{msg.extensionsLoading}</p>
+                ) : extensionsPanel.kind === 'error' ? (
+                  <>
+                    <p className="small-text">{msg.extensionsLoadFailed}{extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}</p>
+                    {extensionsPanel.items.length === 0 ? (
+                      <p className="small-text">{msg.extensionsNone}</p>
+                    ) : (
+                      <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
+                        <thead>
+                          <tr>
+                            <th scope="col">{msg.extensionsColExtension}</th>
+                            <th scope="col">{msg.extensionsColVersion}</th>
+                            <th scope="col">{msg.extensionsColState}</th>
+                            <th scope="col">{msg.extensionsColCapabilities}</th>
+                            <th scope="col">{msg.extensionsColCompatible}</th>
+                            <th scope="col">{msg.extensionsColCompatNote}</th>
+                            <th scope="col">{msg.extensionsColEntry}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {extensionsPanel.items.map((row) => (
+                            <tr key={row.id}>
+                              <td>
+                                <span className="settings-data-value">{row.name}</span>
+                                <div className="small-text">{row.id}</div>
+                              </td>
+                              <td>{row.version}</td>
+                              <td><code>{row.state}</code></td>
+                              <td>{row.capabilities.join(', ')}</td>
+                              <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
+                              <td className="small-text">{row.compatibilityReason}</td>
+                              <td className="small-text"><code>{row.entryActivate}</code></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                ) : extensionsPanel.kind === 'ready' && extensionsPanel.items.length === 0 ? (
+                  <p className="small-text">{msg.extensionsNone}</p>
+                ) : extensionsPanel.kind === 'ready' ? (
+                  <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
+                    <thead>
+                      <tr>
+                        <th scope="col">{msg.extensionsColExtension}</th>
+                        <th scope="col">{msg.extensionsColVersion}</th>
+                        <th scope="col">{msg.extensionsColState}</th>
+                        <th scope="col">{msg.extensionsColCapabilities}</th>
+                        <th scope="col">{msg.extensionsColCompatible}</th>
+                        <th scope="col">{msg.extensionsColCompatNote}</th>
+                        <th scope="col">{msg.extensionsColEntry}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extensionsPanel.items.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <span className="settings-data-value">{row.name}</span>
+                            <div className="small-text">{row.id}</div>
+                          </td>
+                          <td>{row.version}</td>
+                          <td><code>{row.state}</code></td>
+                          <td>{row.capabilities.join(', ')}</td>
+                          <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
+                          <td className="small-text">{row.compatibilityReason}</td>
+                          <td className="small-text"><code>{row.entryActivate}</code></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="small-text">{msg.extensionsLoading}</p>
+                )}
+              </SettingsSection>
+
+              <SettingsSection title={msg.extensionsAuditTitle}>
+                {extensionsPanel.kind === 'error' ? (
+                  <>
+                    <p className="small-text">{msg.extensionsLoadFailed}{extensionsPanel.message ? `: ${extensionsPanel.message}` : ''}</p>
+                    {extensionsPanel.audit.length === 0 ? (
+                      <p className="small-text">{msg.extensionsAuditEmpty}</p>
+                    ) : (
+                      <ul className="small-text" style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem' }}>
+                        {extensionsPanel.audit.map((entry, idx) => (
+                          <li key={`${entry.at}-${idx}`} className="small-text">
+                            <code>{entry.extensionId}</code>
+                            {' · '}
+                            <code>{entry.capability}</code>
+                            {' · '}
+                            {entry.ok ? msg.extensionsYes : msg.extensionsNo}
+                            {' · '}
+                            {entry.durationMs}
+                            ms
+                            {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                ) : null}
+                {extensionsPanel.kind === 'ready' && extensionsPanel.audit.length === 0 ? (
+                  <p className="small-text">{msg.extensionsAuditEmpty}</p>
+                ) : extensionsPanel.kind === 'ready' ? (
+                  <ul className="small-text" style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem' }}>
+                    {extensionsPanel.audit.map((entry, idx) => (
+                      <li key={`${entry.at}-${idx}`} className="small-text">
+                        <code>{entry.extensionId}</code>
+                        {' · '}
+                        <code>{entry.capability}</code>
+                        {' · '}
+                        {entry.ok ? msg.extensionsYes : msg.extensionsNo}
+                        {' · '}
+                        {entry.durationMs}
+                        ms
+                        {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="small-text">{msg.extensionsAuditEmpty}</p>
+                )}
               </SettingsSection>
             </div>
           )}

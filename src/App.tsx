@@ -6,6 +6,7 @@ import { AiPanelProvider } from './contexts/AiPanelContext';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './contexts/AppSidePaneContext';
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { SettingsModal } from './components/SettingsModal';
+import { resolveHostVersion } from './config/hostVersion';
 import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type UiFontScaleMode } from './utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
@@ -720,6 +721,7 @@ export function App() {
               onFontScaleModeChange={handleFontScaleModeChange}
               iconEffect={iconEffect}
               onIconEffectChange={handleIconEffectChange}
+              version={resolveHostVersion()}
             />
           </div>
         </AppSidePaneProvider>

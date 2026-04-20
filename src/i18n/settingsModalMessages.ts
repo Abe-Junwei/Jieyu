@@ -9,6 +9,7 @@ export type SettingsModalMessages = {
   tabAi: string;
   tabPlayback: string;
   tabData: string;
+  tabExtensions: string;
   tabAbout: string;
   // 外观 | Appearance
   themeLabel: string;
@@ -125,6 +126,24 @@ export type SettingsModalMessages = {
   aboutVersion: string;
   aboutDescription: string;
   aboutRepo: string;
+  // 扩展 | Extensions (Phase A shell)
+  extensionsHostTitle: string;
+  extensionsHostVersionLabel: string;
+  extensionsBlurb: string;
+  extensionsLoading: string;
+  extensionsLoadFailed: string;
+  extensionsNone: string;
+  extensionsColExtension: string;
+  extensionsColVersion: string;
+  extensionsColState: string;
+  extensionsColCapabilities: string;
+  extensionsColCompatible: string;
+  extensionsColCompatNote: string;
+  extensionsColEntry: string;
+  extensionsYes: string;
+  extensionsNo: string;
+  extensionsAuditTitle: string;
+  extensionsAuditEmpty: string;
 };
 
 const zhCN: SettingsModalMessages = {
@@ -136,6 +155,7 @@ const zhCN: SettingsModalMessages = {
   tabAi: 'AI',
   tabPlayback: '播放',
   tabData: '数据',
+  tabExtensions: '扩展',
   tabAbout: '关于',
   themeLabel: '主题',
   themeLight: '浅色',
@@ -245,6 +265,24 @@ const zhCN: SettingsModalMessages = {
   aboutVersion: '版本',
   aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
   aboutRepo: '项目仓库',
+  extensionsHostTitle: '宿主与兼容',
+  extensionsHostVersionLabel: '宿主版本（semver）',
+  extensionsBlurb:
+    '当前为受控扩展框架 Phase A：仅展示已注册扩展、能力与兼容结果；不开放任意第三方安装。内置探针在首次打开本页时注册，用于验证运行时契约。',
+  extensionsLoading: '正在加载扩展信息…',
+  extensionsLoadFailed: '扩展信息加载失败',
+  extensionsNone: '暂无已注册扩展。',
+  extensionsColExtension: '扩展',
+  extensionsColVersion: '版本',
+  extensionsColState: '状态',
+  extensionsColCapabilities: '能力',
+  extensionsColCompatible: '兼容',
+  extensionsColCompatNote: '兼容说明',
+  extensionsColEntry: '入口声明',
+  extensionsYes: '是',
+  extensionsNo: '否',
+  extensionsAuditTitle: '最近能力调用（审计摘要）',
+  extensionsAuditEmpty: '尚无能力调用记录。',
 };
 
 const enUS: SettingsModalMessages = {
@@ -256,6 +294,7 @@ const enUS: SettingsModalMessages = {
   tabAi: 'AI',
   tabPlayback: 'Playback',
   tabData: 'Data',
+  tabExtensions: 'Extensions',
   tabAbout: 'About',
   themeLabel: 'Theme',
   themeLight: 'Light',
@@ -365,6 +404,24 @@ const enUS: SettingsModalMessages = {
   aboutVersion: 'Version',
   aboutDescription: 'Jieyu — Endangered Language Research Platform',
   aboutRepo: 'Repository',
+  extensionsHostTitle: 'Host & compatibility',
+  extensionsHostVersionLabel: 'Host version (semver)',
+  extensionsBlurb:
+    'Phase A host-governed extensions: lists registered extensions, capabilities, and compatibility only. Third-party install is not enabled. A built-in probe registers the first time you open this tab to validate runtime contracts.',
+  extensionsLoading: 'Loading extensions…',
+  extensionsLoadFailed: 'Failed to load extension details',
+  extensionsNone: 'No extensions registered.',
+  extensionsColExtension: 'Extension',
+  extensionsColVersion: 'Version',
+  extensionsColState: 'State',
+  extensionsColCapabilities: 'Capabilities',
+  extensionsColCompatible: 'Compatible',
+  extensionsColCompatNote: 'Compatibility note',
+  extensionsColEntry: 'Declared entry',
+  extensionsYes: 'Yes',
+  extensionsNo: 'No',
+  extensionsAuditTitle: 'Recent capability calls (audit)',
+  extensionsAuditEmpty: 'No capability invocations yet.',
 };
 
 export function getSettingsModalMessages(locale: Locale): SettingsModalMessages {

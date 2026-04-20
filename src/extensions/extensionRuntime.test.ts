@@ -61,7 +61,8 @@ describe('extension runtime contracts', () => {
     expect(result.ok).toBe(false);
     expect(result.degraded).toBe(true);
     expect(result.reason.includes('activate_failed')).toBe(true);
-    expect(host.getState()).toBe('disabled');
+    expect(host.getState()).toBe('error');
+    expect(host.getManifest()).toBeNull();
   });
 
   it('[compat] accepts host version within range', () => {
@@ -123,5 +124,47 @@ describe('extension runtime contracts', () => {
     expect(result.degraded).toBe(true);
     expect(result.reason.includes('compatibility_error')).toBe(true);
     expect(host.getState()).toBe('disabled');
+  });
+
+  it('[invoke] emits audit on success and failure', async () => {
+    const audits: Array<{ ok: boolean; capability: string }> = [];
+    const host = createExtensionHost({
+      hostVersion: '1.5.0',
+      capabilityHandlers: {
+        'read.transcription': async () => ({ ok: 1 }),
+        'invoke.ai': async () => {
+          throw new Error('handler boom');
+        },
+      },
+      onCapabilityAudit: (evt) => {
+        audits.push({ ok: evt.ok, capability: evt.capability });
+      },
+    });
+
+    await host.load(
+      buildManifest({ capabilities: ['read.transcription', 'invoke.ai'] }),
+      { activate: async () => {} },
+    );
+
+    await expect(host.invokeCapability('read.transcription', {})).resolves.toEqual({ ok: 1 });
+    await expect(host.invokeCapability('invoke.ai', {})).rejects.toThrow('handler boom');
+
+    expect(audits.filter((a) => a.capability === 'read.transcription' && a.ok).length).toBe(1);
+    expect(audits.some((a) => a.capability === 'invoke.ai' && !a.ok)).toBe(true);
+  });
+
+  it('[invoke] applies capability timeout when configured', async () => {
+    const host = createExtensionHost({
+      hostVersion: '1.5.0',
+      capabilityHandlers: {
+        'read.transcription': async () => new Promise((resolve) => {
+          setTimeout(() => resolve({ slow: true }), 50);
+        }),
+      },
+      capabilityInvocationTimeoutMs: 5,
+    });
+
+    await host.load(buildManifest(), { activate: async () => {} });
+    await expect(host.invokeCapability('read.transcription', {})).rejects.toThrow(/Extension lifecycle timeout/i);
   });
 });
