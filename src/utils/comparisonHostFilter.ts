@@ -75,7 +75,6 @@ export function translationLayerAppliesToComparisonSourceTranscriptionIds(
 
 export function collectComparisonGroupSourceTranscriptionLayerIds(
   group: ComparisonGroup,
-  fallbackTranscriptionLayerId: string | undefined,
 ): Set<string> {
   const sourceIds = new Set<string>();
   for (const si of group.sourceItems) {
@@ -85,9 +84,6 @@ export function collectComparisonGroupSourceTranscriptionLayerIds(
   if (sourceIds.size === 0) {
     const primary = group.primaryAnchorLayerId?.trim();
     if (primary) sourceIds.add(primary);
-  }
-  if (sourceIds.size === 0 && fallbackTranscriptionLayerId?.trim()) {
-    sourceIds.add(fallbackTranscriptionLayerId.trim());
   }
   return sourceIds;
 }
@@ -109,9 +105,10 @@ export function filterTranslationLayersForComparisonGroup(
     transcriptionLayers,
     defaultTranscriptionLayerId,
   );
-  const fb = fallbackFocusedTranscriptionLayerId?.trim()
-    ?? resolveOrphanTranslationAttachTranscriptionLayerId(transcriptionLayers, defaultTranscriptionLayerId);
-  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group, fb);
+  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group);
+  if (sourceIds.size === 0) {
+    return [...translationLayers];
+  }
   return translationLayers.filter((tl) => translationLayerAppliesToComparisonSourceTranscriptionIds(
     tl,
     sourceIds,
@@ -150,9 +147,12 @@ export function resolveComparisonGroupEmptyReason(
     defaultTranscriptionLayerId,
   );
   if (!orphanAttachLayerId) return 'no-child';
-  const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim()
-    ?? resolveOrphanTranslationAttachTranscriptionLayerId(transcriptionLayers, defaultTranscriptionLayerId);
-  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group, fallbackSourceLayerId);
+  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group);
+  if (sourceIds.size === 0) {
+    const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim();
+    if (fallbackSourceLayerId) sourceIds.add(fallbackSourceLayerId);
+  }
+  if (sourceIds.size === 0) return 'no-child';
   return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';
 }
 

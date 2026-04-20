@@ -1479,6 +1479,43 @@ describe('TranscriptionTimelineComparison', () => {
     expect(screen.getByTestId('comparison-target-empty-cmp-u-fr')).toBeTruthy();
   });
 
+  it('keeps translation editor visible when source unit layerId is missing in multi-transcription text-only mode', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-en', 'transcription', '英'),
+      makeLayer('tr-fr', 'transcription', '法'),
+    ];
+    const translationLayers = [
+      makeTranslationLayer('tl-en', 'tr-en', '英译'),
+    ];
+    const sourceWithLayer = makeUnit('u-en', 'tr-en', 0, 1);
+    const { layerId: _ignoredLayerId, ...sourceWithoutLayer } = sourceWithLayer;
+    const units = [sourceWithoutLayer as LayerUnitDocType];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-en', new Map([['u-en', { text: 'English translation text' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u-en' ? 'English source text' : '');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineComparison
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-fr"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByDisplayValue('English source text')).toBeTruthy();
+    expect(screen.getByDisplayValue('English translation text')).toBeTruthy();
+    expect(screen.queryByTestId('comparison-target-empty-cmp-u-en')).toBeNull();
+  });
+
   it('shows orphan-repair hint when only unbound translation layers exist for another host group', () => {
     const transcriptionLayers = [
       makeLayer('tr-en', 'transcription', '英'),
