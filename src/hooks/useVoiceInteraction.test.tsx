@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { useVoiceInteraction } from './useVoiceInteraction';
 
 const mockUseVoiceAgent = vi.hoisted(() => vi.fn());
@@ -30,6 +30,19 @@ function makeLayer(
     updatedAt: now,
     ...(extras ?? {}),
   } as LayerDocType;
+}
+
+function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLayerId: string, layerId: string): LayerLinkDocType {
+  const now = '2026-03-26T00:00:00.000Z';
+  return {
+    id,
+    transcriptionLayerKey,
+    hostTranscriptionLayerId,
+    layerId,
+    linkType: 'free',
+    isPreferred: true,
+    createdAt: now,
+  };
 }
 
 describe('useVoiceInteraction', () => {
@@ -101,8 +114,12 @@ describe('useVoiceInteraction', () => {
   it('falls back to host child translation layer instead of first translation layer when no layer is selected', () => {
     const trEn = makeLayer('tr-en', 'transcription');
     const trFr = makeLayer('tr-fr', 'transcription');
-    const tlZh = makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' });
-    const tlFr = makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' });
+    const tlZh = makeLayer('tl-zh', 'translation');
+    const tlFr = makeLayer('tl-fr', 'translation');
+    const layerLinks = [
+      makeLink('link-zh-en', 'tr-en', 'tr-en', 'tl-zh'),
+      makeLink('link-fr-fr', 'tr-fr', 'tr-fr', 'tl-fr'),
+    ];
 
     const { result } = renderHook(() => useVoiceInteraction({
       effectiveVoiceCorpusLang: 'zho',
@@ -121,6 +138,7 @@ describe('useVoiceInteraction', () => {
       },
       translationLayers: [tlZh, tlFr],
       layers: [trEn, trFr, tlZh, tlFr],
+      layerLinks,
       formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
       formatTime: (seconds) => seconds.toFixed(2),
       aiChatSend: vi.fn(async () => undefined),

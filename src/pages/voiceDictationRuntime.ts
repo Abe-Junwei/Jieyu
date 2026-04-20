@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
@@ -9,6 +9,7 @@ interface ResolveVoiceDictationTargetInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
 }
 
 interface TransformVoiceDictationTextInput {
@@ -56,6 +57,8 @@ export function resolveVoiceDictationTarget(input: ResolveVoiceDictationTargetIn
     selectedUnitLayerId: input.selectedUnitLayerId,
     defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
     translationLayers: input.translationLayers,
+    transcriptionLayers: input.layers.filter((layer) => layer.layerType === 'transcription'),
+    ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
   });
   if (!fallbackTranslationLayerId) return null;
   const fallbackTranslationLayer = input.layers.find((layer) => layer.id === fallbackTranslationLayerId) ?? null;

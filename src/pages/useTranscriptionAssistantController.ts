@@ -138,6 +138,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
+      ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
     });
     if (!resolvedTarget) {
       reportValidationError({
@@ -190,6 +191,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       translationLayers: input.translationLayers,
       layers: input.layers,
+      ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
       selectedTimelineOwnerUnit: input.selectedTimelineOwnerUnit,
       unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       getUnitTextForLayer: input.getUnitTextForLayer,
@@ -201,6 +203,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
     input.defaultTranscriptionLayerId,
     input.getUnitTextForLayer,
     input.layers,
+    input.layerLinks,
     input.saveUnitLayerText,
     input.saveUnitText,
     input.selectUnit,

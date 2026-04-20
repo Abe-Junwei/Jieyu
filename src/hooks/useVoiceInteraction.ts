@@ -15,7 +15,7 @@ import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfig
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
 import { getActiveSttProviderMetadata } from '../services/stt/providerMetadata';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useLocale } from '../i18n';
 import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
@@ -80,6 +80,7 @@ interface UseVoiceInteractionOptions {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   aiChatSend: (text: string) => Promise<unknown>;
@@ -134,6 +135,7 @@ export function useVoiceInteraction({
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
+  layerLinks,
   formatSidePaneLayerLabel,
   formatTime,
   aiChatSend,
@@ -251,6 +253,8 @@ export function useVoiceInteraction({
       selectedUnitLayerId: selection.selectedUnit?.layerId,
       defaultTranscriptionLayerId,
       translationLayers,
+      transcriptionLayers: layers.filter((layer) => layer.layerType === 'transcription'),
+      ...(layerLinks !== undefined ? { layerLinks } : {}),
     });
     const fallbackTranslationLayer = fallbackTranslationLayerId
       ? layers.find((layer) => layer.id === fallbackTranslationLayerId)
@@ -262,6 +266,7 @@ export function useVoiceInteraction({
     defaultTranscriptionLayerId,
     formatSidePaneLayerLabel,
     layers,
+    layerLinks,
     messages,
     selection,
     translationLayers,

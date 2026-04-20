@@ -360,6 +360,10 @@ describe('useTranscriptionAssistantController', () => {
     const transcriptionFr = makeLayer('layer-fr', 'transcription');
     const translationEn = makeLayer('layer-tr-en', 'translation', { parentLayerId: 'layer-main' });
     const translationFr = makeLayer('layer-tr-fr', 'translation', { parentLayerId: 'layer-fr' });
+    const layerLinks = [
+      { id: 'link-en', layerId: 'layer-tr-en', transcriptionLayerKey: 'layer-main', hostTranscriptionLayerId: 'layer-main', isPreferred: true, createdAt: '2026-03-30T00:00:00.000Z' },
+      { id: 'link-fr', layerId: 'layer-tr-fr', transcriptionLayerKey: 'layer-fr', hostTranscriptionLayerId: 'layer-fr', isPreferred: true, createdAt: '2026-03-30T00:00:00.000Z' },
+    ] as import('../db').LayerLinkDocType[];
     const {
       defaultTranscriptionLayerId: _ignoreDefaultTranscriptionLayerId,
       ...hookInputWithoutDefaultTranscription
@@ -368,6 +372,7 @@ describe('useTranscriptionAssistantController', () => {
       selectedTimelineUnit: { layerId: 'layer-fr', unitId: 'utt-1', kind: 'unit' },
       layers: [transcriptionMain, transcriptionFr, translationEn, translationFr],
       translationLayers: [translationEn, translationFr],
+      layerLinks,
       saveUnitText,
       saveUnitLayerText,
       selectUnit,

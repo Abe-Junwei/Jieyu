@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { resolveVoiceDictationTarget } from './voiceDictationRuntime';
 
 function makeLayer(
@@ -22,6 +22,19 @@ function makeLayer(
   } as LayerDocType;
 }
 
+function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLayerId: string, layerId: string): LayerLinkDocType {
+  const now = '2026-04-20T00:00:00.000Z';
+  return {
+    id,
+    transcriptionLayerKey,
+    hostTranscriptionLayerId,
+    layerId,
+    linkType: 'free',
+    isPreferred: true,
+    createdAt: now,
+  };
+}
+
 describe('resolveVoiceDictationTarget', () => {
   it('keeps default transcription layer precedence when selected layer is empty', () => {
     const trDefault = makeLayer('tr-default', 'transcription');
@@ -41,14 +54,19 @@ describe('resolveVoiceDictationTarget', () => {
   it('resolves host child translation instead of first translation fallback', () => {
     const trEn = makeLayer('tr-en', 'transcription');
     const trFr = makeLayer('tr-fr', 'transcription');
-    const tlZh = makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' });
-    const tlFr = makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' });
+    const tlZh = makeLayer('tl-zh', 'translation');
+    const tlFr = makeLayer('tl-fr', 'translation');
+    const layerLinks = [
+      makeLink('link-zh-en', 'tr-en', 'tr-en', 'tl-zh'),
+      makeLink('link-fr-fr', 'tr-fr', 'tr-fr', 'tl-fr'),
+    ];
 
     const resolved = resolveVoiceDictationTarget({
       selectedLayerId: '',
       selectedUnitLayerId: 'tr-fr',
       translationLayers: [tlZh, tlFr],
       layers: [trEn, trFr, tlZh, tlFr],
+      layerLinks,
     });
 
     expect(resolved?.targetLayerId).toBe('tl-fr');

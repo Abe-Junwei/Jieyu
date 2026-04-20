@@ -1,5 +1,5 @@
 import { useMemo, type MutableRefObject } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
 import type { SaveState } from '../hooks/transcriptionTypes';
@@ -33,6 +33,7 @@ interface UseTranscriptionAssistantRuntimePropsInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
   dictationPipeline?: {
     callbacks: DictationPipelineCallbacks;
@@ -64,6 +65,7 @@ export function useTranscriptionAssistantRuntimeProps(
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     translationLayers: input.translationLayers,
     layers: input.layers,
+    ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
     ...(input.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: input.dictationPreviewTextProps } : {}),
     ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
     formatSidePaneLayerLabel: input.formatSidePaneLayerLabel,
@@ -84,6 +86,7 @@ export function useTranscriptionAssistantRuntimeProps(
     input.handleVoiceAnalysisResult,
     input.handleVoiceDictation,
     input.layers,
+    input.layerLinks,
     input.lockConflictToast,
     input.overlapCycleToast,
     input.recording,
