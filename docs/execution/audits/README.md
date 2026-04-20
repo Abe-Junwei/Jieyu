@@ -3,7 +3,7 @@ title: execution/audits 文档索引
 doc_type: execution-audits-index
 status: active
 owner: repo
-last_reviewed: 2026-04-12
+last_reviewed: 2026-04-20
 source_of_truth: audit-index
 ---
 
@@ -12,6 +12,10 @@ source_of_truth: audit-index
 这里保存代码盘点、审计报告、扫描基线和专题验收清单。
 
 ## 当前文档
+
+- [多宿主译文层-方案A-对照审计-2026-04-20.md](%E5%A4%9A%E5%AE%BF%E4%B8%BB%E8%AF%91%E6%96%87%E5%B1%82-%E6%96%B9%E6%A1%88A-%E5%AF%B9%E7%85%A7%E5%AE%A1%E8%AE%A1-2026-04-20.md)
+
+- [整仓体检方案-2026-04-20.md](%E6%95%B4%E4%BB%93%E4%BD%93%E6%A3%80%E6%96%B9%E6%A1%88-2026-04-20.md)
 
 - [M1-行为快照对比样例-2026-04-12.md](M1-%E8%A1%8C%E4%B8%BA%E5%BF%AB%E7%85%A7%E5%AF%B9%E6%AF%94%E6%A0%B7%E4%BE%8B-2026-04-12.md)
 - [M2-主路径行为对比报告-自动生成.md](M2-%E4%B8%BB%E8%B7%AF%E5%BE%84%E8%A1%8C%E4%B8%BA%E5%AF%B9%E6%AF%94%E6%8A%A5%E5%91%8A-%E8%87%AA%E5%8A%A8%E7%94%9F%E6%88%90.md)

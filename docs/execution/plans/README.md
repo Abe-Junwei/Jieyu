@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-04-20
 source_of_truth: execution-plan-index
 ---
 
@@ -12,6 +12,10 @@ source_of_truth: execution-plan-index
 这里保存某个专题如何推进、如何验收、如何判断开放条件的执行方案。
 
 ## 当前文档
+
+- [多宿主译文层-方案A-执行方案-2026-04-20.md](%E5%A4%9A%E5%AE%BF%E4%B8%BB%E8%AF%91%E6%96%87%E5%B1%82-%E6%96%B9%E6%A1%88A-%E6%89%A7%E8%A1%8C%E6%96%B9%E6%A1%88-2026-04-20.md)（译文层绑定多个独立转写宿主；仓库内权威规格）
+
+- [Hermes-Agent模式借鉴-产品工程规划-2026-04-20.md](Hermes-Agent%E6%A8%A1%E5%BC%8F%E5%80%9F%E9%89%B4-%E4%BA%A7%E5%93%81%E5%B7%A5%E7%A8%8B%E8%A7%84%E5%88%92-2026-04-20.md)
 
 - [协作云桥接审查改进方案-2026-04-18.md](%E5%8D%8F%E4%BD%9C%E4%BA%91%E6%A1%A5%E6%8E%A5%E5%AE%A1%E6%9F%A5%E6%94%B9%E8%BF%9B%E6%96%B9%E6%A1%88-2026-04-18.md)
 
