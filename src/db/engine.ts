@@ -1110,6 +1110,37 @@ export class JieyuDexie extends Dexie {
     this.version(42).stores({}).upgrade(async (tx) => {
       await upgradeM42TrackEntityDocumentIds(tx);
     });
+
+    // v43: layer_links host id bridge index + one-shot backfill from transcriptionLayerKey.
+    this.version(43).stores({
+      layer_links: 'id, transcriptionLayerKey, hostTranscriptionLayerId, layerId, [layerId+hostTranscriptionLayerId]',
+    }).upgrade(async (tx) => {
+      const layerLinksTable = tx.table('layer_links');
+      const tiersTable = tx.table('tier_definitions');
+      const tiers = await tiersTable.toArray();
+      const transcriptionKeyToId = new Map<string, string>();
+
+      for (const tier of tiers as Array<Record<string, unknown>>) {
+        const key = typeof tier.key === 'string' ? tier.key.trim() : '';
+        const id = typeof tier.id === 'string' ? tier.id.trim() : '';
+        const contentType = typeof tier.contentType === 'string' ? tier.contentType : '';
+        if (!key || !id || contentType !== 'transcription') continue;
+        if (!transcriptionKeyToId.has(key)) {
+          transcriptionKeyToId.set(key, id);
+        }
+      }
+
+      await layerLinksTable.toCollection().modify((row: Record<string, unknown>) => {
+        if (typeof row.hostTranscriptionLayerId === 'string' && row.hostTranscriptionLayerId.trim().length > 0) {
+          return;
+        }
+        const key = typeof row.transcriptionLayerKey === 'string' ? row.transcriptionLayerKey.trim() : '';
+        if (!key) return;
+        const hostId = transcriptionKeyToId.get(key);
+        if (!hostId) return;
+        row.hostTranscriptionLayerId = hostId;
+      });
+    });
   }
 }
 

@@ -45,17 +45,12 @@ export function TranscriptionLeftRailLayerActions({
     const {
       locale,
       comparisonViewActive,
-      translationLayerCount,
       onSelectHorizontalMode,
       onSelectVerticalMode,
     } = workspaceTimelineLayout;
-    const verticalDisabled = translationLayerCount === 0;
-    const toggleDisabled = !comparisonViewActive && verticalDisabled;
-    const title = toggleDisabled
-      ? t(locale, 'transcription.toolbar.comparisonRequiresTranslationLayer')
-      : (comparisonViewActive
-        ? t(locale, 'transcription.toolbar.switchToTimelineView')
-        : t(locale, 'transcription.toolbar.switchToComparisonView'));
+    const title = comparisonViewActive
+      ? t(locale, 'transcription.toolbar.switchToTimelineView')
+      : t(locale, 'transcription.toolbar.switchToComparisonView');
     const modeLabel = comparisonViewActive
       ? t(locale, 'transcription.toolbar.compareView')
       : t(locale, 'transcription.toolbar.timelineView');
@@ -79,7 +74,6 @@ export function TranscriptionLeftRailLayerActions({
           aria-pressed={comparisonViewActive}
           title={title}
           aria-label={modeLabel}
-          disabled={toggleDisabled}
           onClick={handleToggleLayout}
         >
           {/* 必须带 jieyu-material：.app-left-rail .left-rail-btn > span:not(.jieyu-material) 会隐藏其它直接子 span */}

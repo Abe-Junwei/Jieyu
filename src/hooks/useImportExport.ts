@@ -339,17 +339,22 @@ export function useImportExport(input: UseImportExportInput) {
     const layerSegments = exportData.segmentsByLayer;
     const layerSegmentContents = exportData.segmentContents;
     const db = await getDb();
+    const layerLinks = typeof db.dexie.layer_links?.toArray === 'function'
+      ? await db.dexie.layer_links.toArray()
+      : [];
     const relevantSpeakerIds = resolveRelevantExportSpeakerIds(unitsOnCurrentMedia, layerSegments);
     const speakers = relevantSpeakerIds.size === 0
       ? []
       : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
     const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const timelineMetadata = await loadProjectTimelineMetadata();
+    const exportWarnings: Array<{ code: string }> = [];
     const xml = eafService.exportToEaf({
       ...(selectedUnitMedia ? { mediaItem: selectedUnitMedia } : {}),
       units: exportUnits,
       anchors,
       layers,
+      layerLinks,
       orthographies,
       translations,
       userNotes,
@@ -358,12 +363,19 @@ export function useImportExport(input: UseImportExportInput) {
       ...(layerSegmentContents ? { layerSegmentContents } : {}),
       ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
       speakers,
+      onWarning: (warning) => {
+        exportWarnings.push(warning);
+      },
     });
     const baseName = selectedUnitMedia
       ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     eafService.downloadEaf(xml, baseName);
-    setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
+    const multiHostWarningCount = exportWarnings.filter((warning) => warning.code === 'translation-multi-host-lossy').length;
+    const warningSuffix = multiHostWarningCount > 0
+      ? ` ${tf(locale, 'transcription.importExport.exportDone.eafMultiHostWarning', { count: multiHostWarningCount })}`
+      : '';
+    setSaveState({ kind: 'done', message: `${t(locale, 'transcription.importExport.exportDone.eaf')}${warningSuffix}`.trim() });
     setShowExportMenu(false);
     },
 

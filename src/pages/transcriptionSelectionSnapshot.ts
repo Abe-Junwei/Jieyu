@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { isSegmentTimelineUnit, type TimelineUnit, type TimelineUnitKind } from '../hooks/transcriptionTypes';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
@@ -32,6 +32,7 @@ export interface BuildTranscriptionSelectionSnapshotInput {
   selectedTimelineRowMeta: TranscriptionSelectionRowMeta | null;
   selectedLayerId: string | null;
   layers: LayerDocType[];
+  layerLinks: LayerLinkDocType[];
   segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, SegmentContentLike>>;
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   formatTime: (seconds: number) => string;
@@ -70,6 +71,8 @@ export function buildTranscriptionSelectionSnapshot(
     defaultTranscriptionLayerId: selectedLayerType === 'transcription' ? selectedLayer?.id : null,
     allowFirstTranslationFallback: false,
     translationLayers,
+    transcriptionLayers: input.layers.filter((layer) => layer.layerType === 'transcription'),
+    layerLinks: input.layerLinks,
   });
   const selectedTranslationLayerId = selectedLayerType === 'translation'
     ? selectedLayer?.id

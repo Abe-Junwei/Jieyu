@@ -116,10 +116,10 @@ export interface CloudSyncWrappedActions {
 export interface UseTranscriptionCloudSyncActionsParams {
 	phase: string;
 	units: ReadonlyArray<{ id: string; textId?: string }>;
-	layers: ReadonlyArray<{ id: string; textId?: string }>;
+	layers: ReadonlyArray<{ id: string; textId?: string; key?: string; layerType?: string }>;
 	unitsRef: { readonly current: ReadonlyArray<{ id: string }> };
-	layersRef: { readonly current: ReadonlyArray<{ id: string }> };
-	layerLinksRef: { readonly current: ReadonlyArray<{ transcriptionLayerKey: string; layerId: string }> };
+	layersRef: { readonly current: ReadonlyArray<{ id: string; key?: string; layerType?: string }> };
+	layerLinksRef: { readonly current: ReadonlyArray<{ transcriptionLayerKey: string; hostTranscriptionLayerId?: string; layerId: string }> };
 	rawActions: CloudSyncRawActions;
 	wrappedActions: CloudSyncWrappedActions;
 	runWithDbMutex: <T>(fn: () => Promise<T>) => Promise<T>;
@@ -261,11 +261,26 @@ export function useTranscriptionCloudSyncActions({
 		}
 
 		if (change.entityType === 'unit_relation') {
-			const [transcriptionLayerKey, layerId] = change.entityId.split(':');
+			const payload = asRecord(change.payload);
+			const [entityHostToken, entityLayerId] = change.entityId.split(':');
+			const layerId = asString(payload?.layerId) ?? asString(entityLayerId) ?? '';
+			const payloadHostId = asString(payload?.hostTranscriptionLayerId);
+			const payloadHostKey = asString(payload?.transcriptionLayerKey);
+			const hostLayer = layersRef.current.find((layer) => (
+				layer.id === payloadHostId
+				|| layer.key === payloadHostKey
+				|| layer.id === entityHostToken
+				|| layer.key === entityHostToken
+			));
+			const hostTranscriptionLayerId = payloadHostId ?? hostLayer?.id ?? undefined;
+			const transcriptionLayerKey = payloadHostKey ?? hostLayer?.key ?? undefined;
 			const exists = layerLinksRef.current.some((link) => (
-				link.transcriptionLayerKey === transcriptionLayerKey && link.layerId === layerId
+				link.layerId === layerId
+				&& ((hostTranscriptionLayerId && link.hostTranscriptionLayerId === hostTranscriptionLayerId)
+					|| (transcriptionLayerKey && link.transcriptionLayerKey === transcriptionLayerKey))
 			));
 			fields.exists = exists;
+			pushFieldIfPrimitive(fields, 'hostTranscriptionLayerId', hostTranscriptionLayerId);
 			pushFieldIfPrimitive(fields, 'transcriptionLayerKey', transcriptionLayerKey);
 			pushFieldIfPrimitive(fields, 'layerId', layerId);
 			fields.enabled = exists;
@@ -404,14 +419,26 @@ export function useTranscriptionCloudSyncActions({
 
 		if (change.opType === 'upsert_relation') {
 			const transcriptionLayerKey = asString(payload?.transcriptionLayerKey);
-			const layerId = asString(payload?.layerId);
+			const hostTranscriptionLayerId = asString(payload?.hostTranscriptionLayerId);
+			const [entityHostToken, entityLayerId] = change.entityId.split(':');
+			const hostLayer = layersRef.current.find((layer) => (
+				layer.id === hostTranscriptionLayerId
+				|| layer.key === transcriptionLayerKey
+				|| layer.id === entityHostToken
+				|| layer.key === entityHostToken
+			));
+			const resolvedHostId = hostTranscriptionLayerId ?? hostLayer?.id;
+			const resolvedHostKey = transcriptionLayerKey ?? hostLayer?.key;
+			const layerId = asString(payload?.layerId) ?? asString(entityLayerId);
 			const enabled = typeof payload?.enabled === 'boolean' ? payload.enabled : undefined;
-			if (transcriptionLayerKey && layerId && enabled !== undefined) {
+			if (resolvedHostKey && layerId && enabled !== undefined) {
 				const exists = layerLinksRef.current.some((link) => (
-					link.transcriptionLayerKey === transcriptionLayerKey && link.layerId === layerId
+					link.layerId === layerId
+					&& ((resolvedHostId && link.hostTranscriptionLayerId === resolvedHostId)
+						|| link.transcriptionLayerKey === resolvedHostKey)
 				));
 				if (exists !== enabled) {
-					await runWithDbMutex(() => rawActionsRef.current.toggleLayerLink(transcriptionLayerKey, layerId));
+					await runWithDbMutex(() => rawActionsRef.current.toggleLayerLink(resolvedHostKey, layerId));
 					mutated = true;
 				}
 			}
@@ -1155,10 +1182,13 @@ export function useTranscriptionCloudSyncActions({
 			const linkExisted = layerLinksRef.current.some((link) => (
 				link.transcriptionLayerKey === transcriptionLayerKey && link.layerId === layerId
 			));
+			const hostLayer = layersRef.current.find((layer) => layer.key === transcriptionLayerKey);
+			const hostTranscriptionLayerId = hostLayer?.id;
 			await wrappedActionsRef.current.toggleLayerLink(transcriptionLayerKey, layerId);
-			const entityId = `${transcriptionLayerKey}:${layerId}`;
+			const entityId = `${hostTranscriptionLayerId ?? transcriptionLayerKey}:${layerId}`;
 			const payload: Record<string, unknown> = {
 				transcriptionLayerKey,
+				...(hostTranscriptionLayerId ? { hostTranscriptionLayerId } : {}),
 				layerId,
 				enabled: !linkExisted,
 			};

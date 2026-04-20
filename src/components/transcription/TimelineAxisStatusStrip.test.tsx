@@ -84,4 +84,16 @@ describe('TimelineAxisStatusStrip', () => {
     );
     expect(within(container).queryByRole('button', { name: /Choose media file/i })).toBeNull();
   });
+
+  it('shows hidden count line when units are filtered by current media', () => {
+    render(
+      <TimelineAxisStatusStrip
+        locale="zh-CN"
+        hint={{ kind: 'hidden' }}
+        hiddenByMediaFilterCount={3}
+      />,
+    );
+
+    expect(screen.getByText('当前筛选隐藏 3 条（切到全部/对应媒体）')).toBeTruthy();
+  });
 });

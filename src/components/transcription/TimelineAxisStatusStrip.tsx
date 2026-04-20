@@ -10,6 +10,7 @@ export type TimelineAxisStatusStripProps = {
   hint: TimelineAxisMediaHint;
   logicalDurationSec?: number;
   timelineMode?: string | null;
+  hiddenByMediaFilterCount?: number;
   /** 语段超出声学可播时：显式扩展逻辑轴（仅 metadata，不改句段时间） */
   expandLogical?: { busy: boolean; onPress: () => void };
 };
@@ -19,9 +20,13 @@ export function TimelineAxisStatusStrip({
   hint,
   logicalDurationSec,
   timelineMode,
+  hiddenByMediaFilterCount,
   expandLogical,
 }: TimelineAxisStatusStripProps) {
-  if (hint.kind === 'hidden') return null;
+  const showHiddenByMediaFilter = typeof hiddenByMediaFilterCount === 'number'
+    && Number.isFinite(hiddenByMediaFilterCount)
+    && hiddenByMediaFilterCount > 0;
+  if (hint.kind === 'hidden' && !showHiddenByMediaFilter) return null;
 
   const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
     ...(typeof logicalDurationSec === 'number' ? { logicalDurationSec } : {}),
@@ -89,12 +94,22 @@ export function TimelineAxisStatusStrip({
     </span>
   ) : null;
 
-  if (!mediaLine && !logicalLine) return null;
+  const hiddenLine = showHiddenByMediaFilter ? (
+    <span className="timeline-axis-status-strip__item timeline-axis-status-strip--warn">
+      <MaterialSymbol name="visibility_off" className={`timeline-axis-status-strip__icon ${JIEYU_MATERIAL_PANEL}`} />
+      {tf(locale, 'transcription.timelineAxisStatus.hiddenByMediaFilter', {
+        count: String(hiddenByMediaFilterCount),
+      })}
+    </span>
+  ) : null;
+
+  if (!mediaLine && !logicalLine && !hiddenLine) return null;
 
   return (
     <div className="timeline-axis-status-strip" role="status" aria-live="polite">
       {mediaLine}
       {logicalLine}
+      {hiddenLine}
     </div>
   );
 }

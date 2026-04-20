@@ -7,9 +7,12 @@
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type LayerDocType, type LayerUnitDocType } from '../db';
+import { type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { useLatest } from './useLatest';
+
+export type SegmentTimelineHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
 /** 层编辑模式 | Layer edit mode
  * unit: 继承主层 unit 边界 | Inherits main-layer unit boundaries
@@ -53,10 +56,38 @@ export function resolveSegmentTimelineSourceLayer(
   layer: LayerDocType | undefined,
   layerById: ReadonlyMap<string, LayerDocType>,
   defaultTranscriptionLayerId?: string,
+  layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
 ): LayerDocType | undefined {
   if (!layer) return undefined;
   if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
     return layer;
+  }
+
+  if (layerLinks.length > 0) {
+    const links = layerLinks.filter((link) => link.layerId === layer.id);
+    if (links.length > 0) {
+      const preferred = links.find((link) => link.isPreferred) ?? links[0];
+      if (preferred) {
+        const transcriptionIdByKey = new Map<string, string>();
+        for (const item of layerById.values()) {
+          if (item.layerType !== 'transcription') continue;
+          const key = item.key?.trim() ?? '';
+          if (key.length === 0 || transcriptionIdByKey.has(key)) continue;
+          transcriptionIdByKey.set(key, item.id);
+        }
+        const preferredHostId = resolveLayerLinkHostTranscriptionLayerId(preferred, transcriptionIdByKey);
+        if (preferredHostId.length > 0) {
+          const preferredHostLayer = layerById.get(preferredHostId);
+          if (preferredHostLayer && layerUsesOwnSegments(preferredHostLayer, defaultTranscriptionLayerId)) {
+            return preferredHostLayer;
+          }
+        }
+      }
+    }
+  }
+
+  if (layer.layerType !== 'transcription') {
+    return undefined;
   }
 
   const parentLayerId = layer.parentLayerId?.trim() ?? '';
@@ -77,8 +108,9 @@ export function layerUsesSegmentTimeline(
   layer: LayerDocType | undefined,
   layerById: ReadonlyMap<string, LayerDocType>,
   defaultTranscriptionLayerId?: string,
+  layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
 ): boolean {
-  return Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId));
+  return Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks));
 }
 
 /**
@@ -91,6 +123,7 @@ export function useLayerSegments(
   layers: LayerDocType[],
   mediaId: string | undefined,
   defaultTranscriptionLayerId: string | undefined,
+  _layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
 ): {
   segmentsByLayer: Map<string, LayerUnitDocType[]>;
   segmentsLoadComplete: boolean;

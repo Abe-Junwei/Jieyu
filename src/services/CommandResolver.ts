@@ -317,6 +317,27 @@ const COMMAND_RULES: CommandRule[] = [
     priority: 75,
   },
 
+  // "新增宿主" / "add host"
+  {
+    pattern: /^(?:请?(?:帮我)?)?(?:新增|添加|加入|add)\s*(?:宿主|host)(?:\s*(?:到|to))?\s*(?:翻译层|translation\s*layer)?/i,
+    build: () => ({ name: 'add_host', arguments: {} }),
+    priority: 76,
+  },
+
+  // "移除宿主" / "remove host"
+  {
+    pattern: /^(?:请?(?:帮我)?)?(?:移除|删除|去掉|remove)\s*(?:宿主|host)(?:\s*(?:从|from))?\s*(?:翻译层|translation\s*layer)?/i,
+    build: () => ({ name: 'remove_host', arguments: {} }),
+    priority: 76,
+  },
+
+  // "切换主宿主" / "set preferred host"
+  {
+    pattern: /^(?:请?(?:帮我)?)?(?:(?:切换|设为|设置|改为|switch|set)\s*(?:主宿主|首选宿主|preferred\s*host)|switch\s*preferred\s*host)/i,
+    build: () => ({ name: 'switch_preferred_host', arguments: {} }),
+    priority: 76,
+  },
+
   // "解除关联" / "断开翻译层"
   {
     pattern: /^(?:请?(?:帮我)?)?(?:解除|断开|取消关联|unlink)\s*(?:翻译层|translation\s*layer)?/i,

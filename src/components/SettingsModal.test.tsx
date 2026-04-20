@@ -6,8 +6,8 @@ import { SettingsModal, type SettingsModalProps } from './SettingsModal';
 const extensionSingletonMocks = vi.hoisted(() => ({
   ensureBuiltinExtensionsLoaded: vi.fn(async () => {}),
   getExtensionRegistry: vi.fn(() => ({
-    getHostVersion: () => '1.0.0',
-    list: () => [],
+    getHostVersion: () => '1.0.0' as string,
+    list: () => [] as Array<{ id: string; name: string; version: string; capabilities: string[]; state: string; source: string; compatible: boolean; compatibilityReason: string; lastLoadReason: string; entryActivate: string }>,
     getCapabilityAuditTail: () => [],
   })),
 }));

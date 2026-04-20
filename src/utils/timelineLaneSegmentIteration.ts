@@ -1,5 +1,5 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
-import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
+import { resolveSegmentTimelineSourceLayer, type SegmentTimelineHostLink } from '../hooks/useLayerSegments';
 
 /**
  * 独立边界语段时间轴：解析当前层应对齐的 segment 宿主层，并返回该层上的 segment 行列表；
@@ -11,8 +11,9 @@ export function listSegmentTimelineUnitsForLayer(
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
   fallbackUnits: ReadonlyArray<LayerUnitDocType>,
   defaultTranscriptionLayerId?: string,
+  layerLinks: ReadonlyArray<SegmentTimelineHostLink> = [],
 ): ReadonlyArray<LayerUnitDocType> {
-  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+  const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
   if (!sourceLayer) {
     return fallbackUnits;
   }

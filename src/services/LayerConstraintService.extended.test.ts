@@ -30,6 +30,20 @@ function makeLayer(
   } as LayerDocType;
 }
 
+function makeLink(
+  overrides: Partial<LayerLinkDocType> & { id: string; transcriptionLayerKey: string; layerId: string; hostTranscriptionLayerId: string },
+): LayerLinkDocType {
+  return {
+    id: overrides.id,
+    transcriptionLayerKey: overrides.transcriptionLayerKey,
+    layerId: overrides.layerId,
+    linkType: overrides.linkType ?? 'free',
+    isPreferred: overrides.isPreferred ?? false,
+    createdAt: overrides.createdAt ?? '2026-03-25T00:00:00.000Z',
+    hostTranscriptionLayerId: overrides.hostTranscriptionLayerId,
+  };
+}
+
 // ── canCreateLayer ──────────────────────────────────────────────────────────
 
 describe('canCreateLayer', () => {
@@ -69,27 +83,35 @@ describe('canDeleteLayer', () => {
     expect(result.reason).toBeTruthy();
   });
 
-  it('翻译层删除始终允许 | allows deleting translation', () => {
+  it('翻译层删除返回关联 link 计数 | deleting translation reports affected links', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', parentLayerId: 't1' }),
+      makeLayer({ id: 'tl1', layerType: 'translation' }),
     ];
-    const result = canDeleteLayer(layers, 'tl1');
+    const links = [
+      makeLink({ id: 'link_1', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl1' }),
+    ];
+    const result = canDeleteLayer(layers, 'tl1', links);
     expect(result.allowed).toBe(true);
-    expect(result.affectedLinkCount).toBe(0);
+    expect(result.affectedLinkCount).toBe(1);
   });
 
   it('删除转写层时报告孤儿翻译 | reports orphaned translations on transcription delete', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 't2', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', parentLayerId: 't1' }),
-      makeLayer({ id: 'tl2', layerType: 'translation', parentLayerId: 't1' }),
+      makeLayer({ id: 'tl1', layerType: 'translation' }),
+      makeLayer({ id: 'tl2', layerType: 'translation' }),
     ];
-    const result = canDeleteLayer(layers, 't1');
+    const links = [
+      makeLink({ id: 'link_1', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl1' }),
+      makeLink({ id: 'link_2', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl2' }),
+    ];
+    const result = canDeleteLayer(layers, 't1', links);
     expect(result.allowed).toBe(true);
     expect(result.orphanedTranslationIds).toEqual(['tl1', 'tl2']);
     expect(result.relinkTargetKey).toBeTruthy();
+    expect(result.affectedLinkCount).toBe(2);
   });
 
   it('无关联翻译的转写层可直接删除 | allows deletion with no dependent translations', () => {
@@ -97,7 +119,7 @@ describe('canDeleteLayer', () => {
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 't2', layerType: 'transcription', constraint: 'independent_boundary' }),
     ];
-    const result = canDeleteLayer(layers, 't1');
+    const result = canDeleteLayer(layers, 't1', []);
     expect(result.allowed).toBe(true);
     expect(result.affectedLinkCount).toBe(0);
   });
@@ -106,40 +128,47 @@ describe('canDeleteLayer', () => {
 // ── getLinkedLayers ─────────────────────────────────────────────────────────
 
 describe('getLinkedLayers', () => {
-  const emptyLinks: LayerLinkDocType[] = [];
-
   it('转写层返回关联的翻译层 | transcription returns linked translations', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', parentLayerId: 't1' }),
-      makeLayer({ id: 'tl2', layerType: 'translation', parentLayerId: 't1' }),
-      makeLayer({ id: 'tl3', layerType: 'translation', parentLayerId: 'other' }),
+      makeLayer({ id: 'tl1', layerType: 'translation' }),
+      makeLayer({ id: 'tl2', layerType: 'translation' }),
+      makeLayer({ id: 'tl3', layerType: 'translation' }),
     ];
-    const linked = getLinkedLayers(emptyLinks, layers, 't1');
+    const links = [
+      makeLink({ id: 'link_1', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl1' }),
+      makeLink({ id: 'link_2', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl2' }),
+      makeLink({ id: 'link_3', transcriptionLayerKey: 'transcription_other', hostTranscriptionLayerId: 'other', layerId: 'tl3' }),
+    ];
+    const linked = getLinkedLayers(links, layers, 't1');
     expect(linked).toHaveLength(2);
     expect(linked.map((l) => l.id)).toEqual(['tl1', 'tl2']);
   });
 
-  it('翻译层返回父转写层 | translation returns parent transcription', () => {
+  it('翻译层返回宿主转写层 | translation returns host transcriptions', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', parentLayerId: 't1' }),
+      makeLayer({ id: 't2', layerType: 'transcription', constraint: 'independent_boundary' }),
+      makeLayer({ id: 'tl1', layerType: 'translation' }),
     ];
-    const linked = getLinkedLayers(emptyLinks, layers, 'tl1');
-    expect(linked).toHaveLength(1);
-    expect(linked[0]!.id).toBe('t1');
+    const links = [
+      makeLink({ id: 'link_1', transcriptionLayerKey: 'transcription_t2', hostTranscriptionLayerId: 't2', layerId: 'tl1' }),
+      makeLink({ id: 'link_2', transcriptionLayerKey: 'transcription_t1', hostTranscriptionLayerId: 't1', layerId: 'tl1' }),
+    ];
+    const linked = getLinkedLayers(links, layers, 'tl1');
+    expect(linked.map((layer) => layer.id).sort()).toEqual(['t1', 't2']);
   });
 
-  it('无 parentLayerId 的翻译层返回空 | translation without parent returns empty', () => {
+  it('无宿主 link 的翻译层返回空 | translation without host link returns empty', () => {
     const layers = [
       makeLayer({ id: 'tl1', layerType: 'translation' }),
     ];
-    const linked = getLinkedLayers(emptyLinks, layers, 'tl1');
+    const linked = getLinkedLayers([], layers, 'tl1');
     expect(linked).toEqual([]);
   });
 
   it('目标不存在时返回空 | returns empty for unknown layer', () => {
-    expect(getLinkedLayers(emptyLinks, [], 'xxx')).toEqual([]);
+    expect(getLinkedLayers([], [], 'xxx')).toEqual([]);
   });
 });
 

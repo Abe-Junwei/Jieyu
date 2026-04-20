@@ -55,7 +55,7 @@ import { useTranscriptionActionRefBindings } from './useTranscriptionActionRefBi
 import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';
 import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';
 import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';
-import { unitDocForSpeakerTargetFromUnitView } from './timelineUnitViewUnitHelpers';
+import { useReadyWorkspaceLayoutDerivations } from './useReadyWorkspaceLayoutDerivations';
 import { useTranscriptionDisplayStyleControl } from './useTranscriptionDisplayStyleControl';
 import { useTranscriptionAnnotationController } from './useTranscriptionAnnotationController';
 import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';
@@ -190,12 +190,14 @@ function TranscriptionPageReadyWorkspace({
     addMediaItem,
     saveVoiceTranslation,
     deleteVoiceTranslation,
+    transcribeVoiceTranslation,
     saveUnitText,
     saveUnitSelfCertainty,
     saveUnitTiming,
     saveUnitLayerText,
     createAdjacentUnit: _createAdjacentUnit,
     createUnitFromSelection,
+    ensureTimelineMediaRowResolved,
     deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
@@ -259,7 +261,7 @@ function TranscriptionPageReadyWorkspace({
     segmentsLoadComplete,
     reloadSegments,
     updateSegmentsLocally,
-  } = useLayerSegments(layers, selectedUnitMedia?.id, defaultTranscriptionLayerId);
+  } = useLayerSegments(layers, selectedUnitMedia?.id, defaultTranscriptionLayerId, layerLinks);
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
     selectedUnitMedia?.id,
@@ -459,7 +461,7 @@ function TranscriptionPageReadyWorkspace({
     unitRowRef,
   });
 
-  const comparisonViewActive = comparisonViewEnabled && translationLayers.length > 0;
+  const comparisonViewActive = comparisonViewEnabled;
 
   const onSelectWorkspaceHorizontalLayout = useCallback(() => {
     setComparisonViewEnabled(false);
@@ -468,12 +470,6 @@ function TranscriptionPageReadyWorkspace({
   const onSelectWorkspaceVerticalLayout = useCallback(() => {
     setComparisonViewEnabled(true);
   }, [setComparisonViewEnabled]);
-
-  useEffect(() => {
-    if (translationLayers.length === 0 && comparisonViewEnabled) {
-      setComparisonViewEnabled(false);
-    }
-  }, [comparisonViewEnabled, setComparisonViewEnabled, translationLayers.length]);
 
   const {
     displayStyleControl,
@@ -484,6 +480,7 @@ function TranscriptionPageReadyWorkspace({
     layers,
     transcriptionLayers,
     translationLayers,
+    layerLinks,
     layerById,
     ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
     ...(selectedLayerId ? { selectedLayerId } : {}),
@@ -623,6 +620,7 @@ function TranscriptionPageReadyWorkspace({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
+    ensureTimelineMediaRowResolved,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     getUnitDocById,
     findUnitDocContainingRange,
@@ -813,15 +811,11 @@ function TranscriptionPageReadyWorkspace({
     selectedTimelineRowMeta,
     selectedLayerId,
     layers,
+    layerLinks,
     segmentContentByLayer,
     getUnitTextForLayer,
     formatTime,
   });
-
-  const selectedUnitForAiPanelLogic = useMemo(
-    () => unitDocForSpeakerTargetFromUnitView(selectionSnapshot.selectedUnit, getUnitDocById),
-    [getUnitDocById, selectionSnapshot.selectedUnit],
-  );
 
   const setAiPanelContext = useAiPanelContextUpdater();
   const [aiPanelMode, setAiPanelMode] = useState<'auto' | 'all'>('auto');
@@ -835,6 +829,22 @@ function TranscriptionPageReadyWorkspace({
     handleDeferredAiRuntimeChange,
     flushDeferredAiRuntime,
   } = useDeferredAiRuntimeBridge();
+
+  const {
+    hiddenByMediaFilterCount,
+    selectedUnitForAiPanelLogic,
+    aiChatForSidebar,
+    playerInstanceGetWidth,
+  } = useReadyWorkspaceLayoutDerivations({
+    unitsOnCurrentMedia,
+    selectedTimelineMediaId: selectedTimelineMedia?.id,
+    unitsCount: units.length,
+    selectionSnapshotSelectedUnit: selectionSnapshot.selectedUnit,
+    getUnitDocById,
+    deferredAiRuntime,
+    deferredAiRuntimeForSidebar,
+    playerInstanceRef: player.instanceRef,
+  });
 
   const {
     lexemeMatches,
@@ -893,9 +903,6 @@ function TranscriptionPageReadyWorkspace({
     acousticProviderPreference,
     vadCacheStatus,
   });
-
-  // 稳定引用，防止 OrchestratorWaveformContent memo 失效 | Stable ref to avoid breaking OrchestratorWaveformContent React.memo
-  const playerInstanceGetWidth = useCallback(() => player.instanceRef.current?.getWidth() ?? 9999, [player.instanceRef]);
 
   const {
     handleSearchReplace,
@@ -1043,6 +1050,7 @@ function TranscriptionPageReadyWorkspace({
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     translationLayers,
     layers,
+    layerLinks,
     unitsOnCurrentMedia,
     getUnitTextForLayer,
     saveUnitText: saveUnitText,
@@ -1123,24 +1131,6 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformTimeUpdate,
   });
 
-  const aiChatForSidebar = useMemo(() => ({
-    ...deferredAiRuntimeForSidebar.aiChat,
-    providerLabel: deferredAiRuntime.aiChat.providerLabel,
-    settings: deferredAiRuntime.aiChat.settings,
-    connectionTestStatus: deferredAiRuntime.aiChat.connectionTestStatus,
-    connectionTestMessage: deferredAiRuntime.aiChat.connectionTestMessage,
-    updateSettings: deferredAiRuntime.aiChat.updateSettings,
-    testConnection: deferredAiRuntime.aiChat.testConnection,
-  }), [
-    deferredAiRuntime.aiChat.connectionTestMessage,
-    deferredAiRuntime.aiChat.connectionTestStatus,
-    deferredAiRuntime.aiChat.providerLabel,
-    deferredAiRuntime.aiChat.settings,
-    deferredAiRuntime.aiChat.testConnection,
-    deferredAiRuntime.aiChat.updateSettings,
-    deferredAiRuntimeForSidebar.aiChat,
-  ]);
-
   const assistantSidebarControllerInput = useTranscriptionAssistantSidebarControllerInput({
     locale,
     analysisTab,
@@ -1177,6 +1167,7 @@ function TranscriptionPageReadyWorkspace({
       ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
       translationLayers,
       layers,
+      layerLinks,
       ...(voiceDictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voiceDictationPreviewTextProps } : {}),
       ...(voiceDictationPipeline !== undefined ? { dictationPipeline: voiceDictationPipeline } : {}),
       formatSidePaneLayerLabel,
@@ -1612,6 +1603,7 @@ function TranscriptionPageReadyWorkspace({
       startRecordingForUnit: _startRecordingForUnit,
       stopRecording: _stopRecording,
       deleteVoiceTranslation,
+      transcribeVoiceTranslation,
       displayStyleControl,
     },
     orchestratorRawInput: {
@@ -1764,6 +1756,7 @@ function TranscriptionPageReadyWorkspace({
     playerDuration: player.duration,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
     unitsOnCurrentMedia,
+    hiddenByMediaFilterCount,
     activeTextId,
     activeTextTimeMapping,
     activeTextTimelineMode,
@@ -1896,6 +1889,7 @@ function TranscriptionPageReadyWorkspace({
     flashLayerRowId,
     onFocusLayer: handleFocusLayerRow,
     transcriptionLayers,
+    layerLinks,
     toggleLayerLink,
     deletableLayers,
     updateLayerMetadata,
@@ -2106,6 +2100,7 @@ function TranscriptionPageReadyWorkspace({
     acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
     vadCacheStatus,
     currentProjectLabel: toolbarProps.filename,
+    selectedMediaId: selectedTimelineMedia?.id ?? null,
     activeTextTimelineMode,
     activeTextTimeMapping,
     canDeleteProject: Boolean(activeTextId),

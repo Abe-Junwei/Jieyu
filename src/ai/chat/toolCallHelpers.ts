@@ -5,6 +5,7 @@ import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 import type { AiChatToolCall, AiChatToolName, AiClarifyCandidate, AiPromptContext, AiSessionMemory, AiToolDecisionMode, PreviewContract, UiChatMessage } from './chatDomain.types';
 import type { Locale } from '../../i18n';
 import { extractJsonCandidates, parseToolCallFromTextZod, validateToolArgumentsZod } from './toolCallSchemas';
+import { normalizeToolCallName } from './toolCallNameNormalize';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { resolveLanguageQuery } from '../../utils/langMapping';
 
@@ -81,61 +82,10 @@ export interface ToolDecisionAuditMetadata {
   durationMs?: number;
 }
 
-function normalizeToolCallName(rawName: string): AiChatToolName | null {
-  const name = rawName.trim().toLowerCase();
-  if (!name) return null;
-
-  if (name === 'create_transcription_segment') return name;
-  if (name === 'split_transcription_segment') return name;
-  if (name === 'merge_transcription_segments') return name;
-  if (name === 'delete_transcription_segment') return name;
-  if (name === 'clear_translation_segment') return name;
-  if (name === 'merge_prev') return name;
-  if (name === 'merge_next') return name;
-  if (['split_segment', 'split_transcription_row', 'split_row', 'split_unit', 'cut_segment', 'split_current_segment'].includes(name)) return 'split_transcription_segment';
-  if (['create_transcription_row', 'create_segment', 'new_segment', 'add_segment', 'new_transcription_row', 'add_transcription_row'].includes(name)) return 'create_transcription_segment';
-  if (['merge_segments', 'merge_segment_selection', 'merge_selected_segments', 'merge_selected_transcription_segments', 'merge_transcription_segment_selection'].includes(name)) return 'merge_transcription_segments';
-  if (['delete_transcription_row', 'remove_transcription_row', 'remove_unit', 'delete_unit', 'remove_row', 'delete_row', 'delete_segment', 'remove_segment'].includes(name)) return 'delete_transcription_segment';
-  if (['delete_translation_row', 'clear_translation_text', 'clear_translation', 'empty_translation', 'remove_translation_text', 'clear_segment_translation'].includes(name)) return 'clear_translation_segment';
-  if (name === 'set_transcription_text') return name;
-  if (name === 'set_translation_text') return name;
-  if (name === 'create_transcription_layer') return name;
-  if (name === 'create_translation_layer') return name;
-  if (name === 'delete_layer') return name;
-  if (name === 'link_translation_layer') return name;
-  if (name === 'unlink_translation_layer') return name;
-  if (name === 'auto_gloss_unit') return name;
-  if (name === 'set_token_pos') return name;
-  if (name === 'set_token_gloss') return name;
-  if (name === 'propose_changes') return name;
-
-  if (['auto_gloss', 'auto_gloss_selected', 'gloss_unit', 'auto_annotate'].includes(name)) {
-    return 'auto_gloss_unit';
-  }
-
-  if (['create_layer', 'new_layer', 'add_layer', 'new_transcription_layer', 'add_transcription_layer'].includes(name)) {
-    return 'create_transcription_layer';
-  }
-  if (['new_translation_layer', 'add_translation_layer'].includes(name)) {
-    return 'create_translation_layer';
-  }
-  if (['remove_layer', 'delete_translation_layer', 'delete_transcription_layer'].includes(name)) {
-    return 'delete_layer';
-  }
-  if (['link_layer', 'create_layer_link', 'add_layer_link', 'connect_layers', 'toggle_layer_link'].includes(name)) {
-    return 'link_translation_layer';
-  }
-  if (['unlink_layer', 'remove_layer_link', 'disconnect_layers'].includes(name)) {
-    return 'unlink_translation_layer';
-  }
-
-  return null;
-}
-
 export function parseToolCallFromText(rawText: string): AiChatToolCall | null {
-  const result = parseToolCallFromTextZod(rawText, normalizeToolCallName);
+  const result = parseToolCallFromTextZod(rawText);
   if (!result) return null;
-  return { name: result.name as AiChatToolName, arguments: result.arguments };
+  return { name: result.name, arguments: result.arguments };
 }
 
 export function parseLegacyNarratedToolCall(text: string): AiChatToolCall | null {
@@ -541,7 +491,7 @@ function validateArgLayerCreate(args: Record<string, unknown>, allowModality: bo
   if (allowModality && 'modality' in args) {
     const modality = args.modality;
     if (typeof modality !== 'string') return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f\\u5b57\\u7b26\\u4e32。');
-    if (!['text', 'audio', 'mixed'].includes((modality as string).trim().toLowerCase())) {
+    if (!['text', 'audio', 'mixed'].includes(modality.trim().toLowerCase())) {
       return decodeEscapedUnicode('modality \\u5fc5\\u987b\\u662f text/audio/mixed \\u4e4b\\u4e00。');
     }
   }
@@ -567,7 +517,7 @@ function validateDeleteLayerArgs(args: Record<string, unknown>): string | null {
 
 function validateLinkLayerArgs(args: Record<string, unknown>): string | null {
   if (!('transcriptionLayerId' in args) && !('transcriptionLayerKey' in args)) {
-    return decodeEscapedUnicode('\\u7f3a\\u5c11 transcriptionLayerId/transcriptionLayerKey。');
+    return decodeEscapedUnicode('\\u7f3a\\u5c11 transcriptionLayerId（\\u517c\\u5bb9\\u5b57\\u6bb5\\uff1atranscriptionLayerKey）。');
   }
   if (!('translationLayerId' in args) && !('layerId' in args)) {
     return decodeEscapedUnicode('\\u7f3a\\u5c11 translationLayerId/layerId。');
@@ -733,6 +683,21 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   },
   unlink_translation_layer: {
     label: '\\u89e3\\u9664\\u7ffb\\u8bd1\\u5c42\\u5173\\u8054',
+    contextFill: { linkBothLayers: true },
+    validateArgs: validateLinkLayerArgs,
+  },
+  add_host: {
+    label: 'add_host',
+    contextFill: { linkBothLayers: true },
+    validateArgs: validateLinkLayerArgs,
+  },
+  remove_host: {
+    label: 'remove_host',
+    contextFill: { linkBothLayers: true },
+    validateArgs: validateLinkLayerArgs,
+  },
+  switch_preferred_host: {
+    label: 'switch_preferred_host',
     contextFill: { linkBothLayers: true },
     validateArgs: validateLinkLayerArgs,
   },
@@ -1142,7 +1107,7 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
   if (callName === 'delete_layer') {
     return selectedLayerId.length > 0;
   }
-  if (['link_translation_layer', 'unlink_translation_layer'].includes(callName)) {
+  if (['link_translation_layer', 'unlink_translation_layer', 'add_host', 'remove_host', 'switch_preferred_host'].includes(callName)) {
     return selectedTranscriptionLayerId.length > 0 && selectedTranslationLayerId.length > 0;
   }
   return false;

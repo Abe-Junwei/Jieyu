@@ -1,11 +1,14 @@
 import { useMemo, type RefObject } from 'react';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
 import { FolderOpenIcon } from './SvgIcons';
+
+type SidebarHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
 type DragState = {
   draggedId: string;
@@ -33,6 +36,7 @@ interface SidePaneSidebarOverviewProps {
   bundleRootIds: Set<string>;
   bundleBoundaryIndexes: number[];
   layerLanguageNameById: Map<string, string>;
+  layerLinks?: SidebarHostLink[];
   resolveTargetBundleRange: (draggedId: string, dropIndex: number) => BundleRange | null;
   defaultTranscriptionLayerId?: string;
   segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
@@ -59,6 +63,7 @@ export function SidePaneSidebarOverview({
   bundleRootIds,
   bundleBoundaryIndexes,
   layerLanguageNameById,
+  layerLinks = [],
   resolveTargetBundleRange,
   defaultTranscriptionLayerId,
   segmentsByLayer,
@@ -81,6 +86,68 @@ export function SidePaneSidebarOverview({
     () => new Map(orthographies.map((orthography) => [orthography.id, orthography] as const)),
     [orthographies],
   );
+
+  const transcriptionIdByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const layer of sidePaneRows) {
+      if (layer.layerType !== 'transcription') continue;
+      const key = layer.key?.trim() ?? '';
+      if (key.length === 0 || map.has(key)) continue;
+      map.set(key, layer.id);
+    }
+    return map;
+  }, [sidePaneRows]);
+
+  const hostLinksByTranslationLayerId = useMemo(() => {
+    const map = new Map<string, SidebarHostLink[]>();
+    for (const link of layerLinks) {
+      const group = map.get(link.layerId) ?? [];
+      group.push(link);
+      map.set(link.layerId, group);
+    }
+    return map;
+  }, [layerLinks]);
+
+  const resolveTranslationHostLabel = useMemo(() => {
+    return (layerId: string): string => {
+      const links = hostLinksByTranslationLayerId.get(layerId) ?? [];
+      if (links.length === 0) return '';
+
+      let preferredHostId: string | undefined;
+      for (const link of links) {
+        if (!link.isPreferred) continue;
+        const hostId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+        if (hostId.length > 0) {
+          preferredHostId = hostId;
+          break;
+        }
+      }
+
+      const dedupedHostIds: string[] = [];
+      const seenHostIds = new Set<string>();
+      for (const link of links) {
+        const hostId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+        if (!hostId || seenHostIds.has(hostId)) continue;
+        seenHostIds.add(hostId);
+        dedupedHostIds.push(hostId);
+      }
+
+      if (dedupedHostIds.length === 0) return '';
+
+      const orderedHostIds = preferredHostId
+        ? [preferredHostId, ...dedupedHostIds.filter((id) => id !== preferredHostId)]
+        : dedupedHostIds;
+      const labels = orderedHostIds
+        .map((hostId) => {
+          const base = layerLanguageNameById.get(hostId) ?? '';
+          if (!base) return '';
+          return hostId === preferredHostId ? `${base}★` : base;
+        })
+        .filter((label) => label.length > 0);
+
+      return labels.join(' / ');
+    };
+  }, [hostLinksByTranslationLayerId, layerLanguageNameById, transcriptionIdByKey]);
 
   const renderSidePaneItems = () => {
     if (sidePaneRows.length === 0) {
@@ -111,7 +178,9 @@ export function SidePaneSidebarOverview({
         dropTargetIndex={dropTargetIndex}
         boundaryHighlight={bundleBoundaryHighlight?.index === index ? bundleBoundaryHighlight.position : null}
         bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
-        parentLabel={layer.parentLayerId ? (layerLanguageNameById.get(layer.parentLayerId) ?? '') : ''}
+        parentLabel={layer.layerType === 'translation'
+          ? resolveTranslationHostLabel(layer.id)
+          : (layer.parentLayerId ? (layerLanguageNameById.get(layer.parentLayerId) ?? '') : '')}
         orthographyById={orthographyById}
         messages={messages}
         onFocusLayer={onFocusLayer}

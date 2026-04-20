@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerDocType, MediaItemDocType, LayerUnitContentDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, MediaItemDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
@@ -585,7 +585,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }),
       );
 
-      const repairedResult = repairExistingLayerConstraints(layersAfterImport);
+      const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));
+      const importLayerLinks: LayerLinkDocType[] = (await db.dexie.layer_links.toArray()).filter((link) => (
+        layerIdSet.has(link.layerId)
+      ));
+
+      const repairedResult = repairExistingLayerConstraints(layersAfterImport, undefined, locale, importLayerLinks);
       const originalLayerById = new Map(layersAfterImport.map((layer) => [layer.id, layer] as const));
       const changedLayers = repairedResult.layers.filter((layer) => {
         const before = originalLayerById.get(layer.id);
@@ -600,7 +605,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           updatedAt: now,
         });
       }
-      const layerConstraintIssues = validateExistingLayerConstraints(repairedResult.layers);
+      const layerConstraintIssues = validateExistingLayerConstraints(repairedResult.layers, undefined, locale, importLayerLinks);
       if (layerConstraintIssues.length > 0) {
         console.warn('[Import] Layer constraint validation found issues', layerConstraintIssues);
       }
@@ -613,6 +618,12 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         : tf(locale, 'transcription.importExport.importDone.segments', {
           count: parsedUnits.length,
         });
+      const hostRecoveryWarningCount = eafResult
+        ? [...eafResult.tierConstraints.values()].filter((constraintInfo) => (
+          Boolean(constraintInfo.parentTierId)
+          && (constraintInfo.constraint === 'symbolic_association' || constraintInfo.constraint === 'time_subdivision')
+        )).length
+        : 0;
       setSaveState({
         kind: 'done',
         message: [
@@ -630,6 +641,11 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           ...(layerConstraintIssues.length > 0
             ? [tf(locale, 'transcription.importExport.importDone.constraintWarning', {
               count: layerConstraintIssues.length,
+            })]
+            : []),
+          ...(hostRecoveryWarningCount > 0
+            ? [tf(locale, 'transcription.importExport.importDone.hostRecoveryWarning', {
+              count: hostRecoveryWarningCount,
             })]
             : []),
         ].join(' '),

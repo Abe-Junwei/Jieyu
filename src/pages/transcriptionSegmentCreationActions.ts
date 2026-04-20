@@ -21,6 +21,7 @@ export interface UseTranscriptionSegmentCreationControllerInput {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;
   selectedTimelineMedia: MediaItemDocType | null;
+  ensureTimelineMediaRowResolved?: () => Promise<MediaItemDocType | null>;
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   /** Resolve full unit row for create-next / DB writes; must match unified view ids on current media. */
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
@@ -58,6 +59,12 @@ export function createTranscriptionSegmentCreationActions(
   input: UseTranscriptionSegmentCreationControllerInput,
   locale: Locale,
 ): UseTranscriptionSegmentCreationControllerResult {
+  const resolveTimelineMediaForMutation = async (): Promise<MediaItemDocType | null> => {
+    if (input.selectedTimelineMedia) return input.selectedTimelineMedia;
+    if (!input.ensureTimelineMediaRowResolved) return null;
+    return input.ensureTimelineMediaRowResolved();
+  };
+
   const resolveParentUnitForSegment = (segment: {
     parentUnitId?: string;
     startTime: number;
@@ -133,7 +140,7 @@ export function createTranscriptionSegmentCreationActions(
   const createNextSegmentRouted = async (targetId: string) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
-      const selectedMedia = input.selectedTimelineMedia;
+      const selectedMedia = await resolveTimelineMediaForMutation();
       if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
         return;
       }
@@ -217,7 +224,7 @@ export function createTranscriptionSegmentCreationActions(
   const createUnitFromSelectionRouted = async (start: number, end: number) => {
     const routing = input.resolveSegmentRoutingForLayer(input.activeLayerIdForEdits);
     if (routing.editMode === 'independent-segment' || routing.editMode === 'time-subdivision') {
-      const selectedMedia = input.selectedTimelineMedia;
+      const selectedMedia = await resolveTimelineMediaForMutation();
       if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
         return;
       }

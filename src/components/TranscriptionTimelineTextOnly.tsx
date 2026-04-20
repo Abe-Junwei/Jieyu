@@ -22,6 +22,7 @@ import { unitToView, segmentToView, scopeTimelineUnitViewToLayer } from '../hook
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { buildSegmentSpeakerLayoutMaps, EMPTY_OVERLAP_CYCLE_ITEMS_BY_UNIT_ID, EMPTY_SPEAKER_LAYOUT, normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
@@ -140,6 +141,11 @@ type TranscriptionTimelineTextOnlyProps = {
   startRecordingForUnit?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
   stopRecording?: () => void;
   deleteVoiceTranslation?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
+  transcribeVoiceTranslation?: (
+    unit: LayerUnitDocType,
+    layer: LayerDocType,
+    options?: { signal?: AbortSignal; audioBlob?: Blob },
+  ) => Promise<void>;
   /** 层显示样式控制 | Layer display style control */
   displayStyleControl?: {
     orthographies: OrthographyDocType[];
@@ -183,6 +189,8 @@ type TextOnlyLaneLayoutItem = {
   size: number;
   start: number;
 };
+
+const EMPTY_SPEAKER_VISUAL_BY_UNIT_ID = Object.freeze({}) as Record<string, { name: string; color: string }>;
 
 function buildTextOnlyLaneLayoutItems(input: {
   units: TimelineUnitView[];
@@ -283,7 +291,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     selectedSpeakerNamesForLock,
     speakerLayerLayout = EMPTY_SPEAKER_LAYOUT,
     activeSpeakerFilterKey = 'all',
-    speakerVisualByUnitId = {},
+    speakerVisualByUnitId,
     speakerQuickActions,
     onLaneLabelWidthResize,
     translationAudioByLayer,
@@ -294,6 +302,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     startRecordingForUnit,
     stopRecording,
     deleteVoiceTranslation,
+    transcribeVoiceTranslation,
     displayStyleControl,
     acousticPending = false,
     startTimelineResizeDrag,
@@ -301,6 +310,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
     timingDragPreview,
     textTimelineZoomPxPerSec,
   } = props;
+  const stableSpeakerVisualByUnitId = speakerVisualByUnitId ?? EMPTY_SPEAKER_VISUAL_BY_UNIT_ID;
   const locale = useLocale();
 
   const primaryTranscriptionLaneId = useMemo(() => {
@@ -755,7 +765,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const unit = layerUnits[virtualItem.index];
             if (!unit) return null;
             const realUtt = unitById.get(unit.id);
-            const speakerVisual = speakerVisualByUnitId[unit.id];
+            const speakerVisual = stableSpeakerVisualByUnitId[unit.id];
             const sourceText = unit.kind === 'segment'
               ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
               : (realUtt ? getUnitTextForLayer(realUtt, layer.id) : unit.text);
@@ -805,12 +815,20 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
               : undefined;
             const trcAudioLayerSupports = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
             const trcAudioScopeId = recordingScopeUnitId(unit);
-            const trcAudioTranslation = translationAudioByLayer?.get(layer.id)?.get(trcAudioScopeId);
+            const trcAudioEntries = translationAudioByLayer?.get(layer.id);
+            const trcAudioTranslation = trcAudioEntries?.get(trcAudioScopeId)
+              ?? (trcAudioScopeId !== unit.id ? trcAudioEntries?.get(unit.id) : undefined);
             const trcAudioMedia = trcAudioTranslation?.translationAudioMediaId
               ? mediaItemById.get(trcAudioTranslation.translationAudioMediaId)
               : undefined;
             const trcSourceUnit = resolveVoiceRecordingSourceUnit(unit, unitById, segmentById);
-            const trcIsCurrentRecording = recording && recordingUnitId === trcAudioScopeId && recordingLayerId === layer.id;
+            const trcRecordingScopeIds = (() => {
+              const ids = [trcAudioScopeId, trcSourceUnit?.id, unit.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+              return Array.from(new Set(ids));
+            })();
+            const trcIsCurrentRecording = recording
+              && recordingLayerId === layer.id
+              && trcRecordingScopeIds.includes((recordingUnitId ?? '').trim());
             const trcAudioActionDisabled = recording && !trcIsCurrentRecording;
             const trcAudioControls = trcAudioLayerSupports && trcSourceUnit ? (
               <TimelineTranslationAudioControls
@@ -824,6 +842,14 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 {...(stopRecording ? { onStopRecording: stopRecording } : {})}
                 {...(trcAudioMedia && deleteVoiceTranslation
                   ? { onDeleteRecording: () => deleteVoiceTranslation(trcSourceUnit, layer) }
+                  : {})}
+                {...(layer.modality === 'mixed' && transcribeVoiceTranslation && trcSourceUnit && trcAudioMedia
+                  ? {
+                    onTranscribeRecording: () => {
+                      const b = readNonEmptyAudioBlobFromMediaItem(trcAudioMedia);
+                      return transcribeVoiceTranslation(trcSourceUnit, layer, b ? { audioBlob: b } : undefined);
+                    },
+                  }
                   : {})}
               />
             ) : null;
@@ -1075,6 +1101,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
           segmentsByLayer,
           unitsOnCurrentMedia,
           defaultTranscriptionLayerId,
+          layerLinks,
         );
         const usesSegmentTimeline = layerItems !== unitsOnCurrentMedia;
         const layerUnits: TimelineUnitView[] = layerItems.map((item) => (
@@ -1162,7 +1189,10 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
             const text = usesOwnSegments
               ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
               : (translationTextByLayer.get(layer.id)?.get(unit.id)?.text ?? '');
-            const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(recordingScopeUnitId(unit));
+            const audioScopeId = recordingScopeUnitId(unit);
+            const translationAudioEntries = translationAudioByLayer?.get(layer.id);
+            const audioTranslation = translationAudioEntries?.get(audioScopeId)
+              ?? (audioScopeId !== unit.id ? translationAudioEntries?.get(unit.id) : undefined);
             const audioMedia = audioTranslation?.translationAudioMediaId
               ? mediaItemById.get(audioTranslation.translationAudioMediaId)
               : undefined;
@@ -1221,6 +1251,7 @@ export const TranscriptionTimelineTextOnly = memo(function TranscriptionTimeline
                 startRecordingForUnit={startRecordingForUnit}
                 stopRecording={stopRecording}
                 deleteVoiceTranslation={deleteVoiceTranslation}
+                {...(transcribeVoiceTranslation ? { transcribeVoiceTranslation } : {})}
                 saveSegmentContentForLayer={saveSegmentContentForLayer}
                 saveUnitLayerText={saveUnitLayerText}
                 scheduleAutoSave={scheduleAutoSave}

@@ -4,6 +4,8 @@
  */
 import { z } from 'zod';
 import { decodeEscapedUnicode } from '../../utils/decodeEscapedUnicode';
+import type { AiChatToolName } from './chatDomain.types';
+import { normalizeToolCallName } from './toolCallNameNormalize';
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -130,8 +132,9 @@ export const deleteLayerSchema = z.object({
   }
 });
 
-export const linkTranslationLayerSchema = z.object({
+const translationLayerHostLinkArgsSchema = z.object({
   transcriptionLayerId: IdString.optional(),
+  /** 兼容字段：仅入口兼容，执行层会优先归一化到 transcriptionLayerId | Compatibility-only field, normalized to transcriptionLayerId in execution paths. */
   transcriptionLayerKey: z.string().optional(),
   translationLayerId: IdString.optional(),
   layerId: IdString.optional(),
@@ -139,28 +142,19 @@ export const linkTranslationLayerSchema = z.object({
   const hasTranscription = Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
   const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
   if (!hasTranscription) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId/transcriptionLayerKey' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId（兼容：transcriptionLayerKey）' });
   }
   if (!hasTranslation) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 translationLayerId/layerId' });
   }
 });
 
-export const unlinkTranslationLayerSchema = z.object({
-  transcriptionLayerId: IdString.optional(),
-  transcriptionLayerKey: z.string().optional(),
-  translationLayerId: IdString.optional(),
-  layerId: IdString.optional(),
-}).superRefine((args, ctx) => {
-  const hasTranscription = Boolean(args.transcriptionLayerId) || Boolean(args.transcriptionLayerKey);
-  const hasTranslation = Boolean(args.translationLayerId) || Boolean(args.layerId);
-  if (!hasTranscription) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 transcriptionLayerId/transcriptionLayerKey' });
-  }
-  if (!hasTranslation) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: '\u7f3a\u5c11 translationLayerId/layerId' });
-  }
-});
+export const linkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
+export const unlinkTranslationLayerSchema = translationLayerHostLinkArgsSchema;
+
+export const addHostSchema = linkTranslationLayerSchema;
+export const removeHostSchema = unlinkTranslationLayerSchema;
+export const switchPreferredHostSchema = linkTranslationLayerSchema;
 
 export const autoGlossUnitSchema = z.object(SegmentTargetShape).superRefine(refineSegmentTarget);
 
@@ -241,6 +235,9 @@ export const toolArgumentSchemas = {
   delete_layer: deleteLayerSchema,
   link_translation_layer: linkTranslationLayerSchema,
   unlink_translation_layer: unlinkTranslationLayerSchema,
+  add_host: addHostSchema,
+  remove_host: removeHostSchema,
+  switch_preferred_host: switchPreferredHostSchema,
   auto_gloss_unit: autoGlossUnitSchema,
   set_token_pos: setTokenPosSchema,
   set_token_gloss: setTokenGlossSchema,
@@ -349,20 +346,56 @@ export function extractJsonCandidates(text: string): string[] {
 
 // ─── Top-level parse ─────────────────────────────────────────────────────────
 
+/**
+ * 与 `normalizeToolCallName` 输出一致；用于 `z.enum` 收紧类型，避免解析结果漂移。
+ * Must stay in sync with every non-null return of `normalizeToolCallName`.
+ */
+const AI_CHAT_TOOL_NAMES_FROM_PARSER = [
+  'create_transcription_segment',
+  'split_transcription_segment',
+  'merge_transcription_segments',
+  'delete_transcription_segment',
+  'clear_translation_segment',
+  'merge_prev',
+  'merge_next',
+  'set_transcription_text',
+  'set_translation_text',
+  'create_transcription_layer',
+  'create_translation_layer',
+  'delete_layer',
+  'link_translation_layer',
+  'unlink_translation_layer',
+  'add_host',
+  'remove_host',
+  'switch_preferred_host',
+  'auto_gloss_unit',
+  'set_token_pos',
+  'set_token_gloss',
+  'propose_changes',
+] as const satisfies readonly AiChatToolName[];
+
+const zParserToolNameEnum = z.enum(AI_CHAT_TOOL_NAMES_FROM_PARSER);
+
+/** `z.string().transform(normalize)` + `z.enum`：输出类型为 `AiChatToolName`，非法名解析失败 */
+export const parsedAiChatToolNameFieldSchema = z
+  .string()
+  .transform((raw) => normalizeToolCallName(raw.trim()))
+  .pipe(z.union([zParserToolNameEnum, z.null()]))
+  .refine((val) => val !== null, { message: 'Unknown tool name' });
+
 interface ToolCallParseResult {
-  name: string;
+  name: AiChatToolName;
   arguments: Record<string, unknown>;
 }
 
 export function parseToolCallFromTextZod(
   rawText: string,
-  normalizeNameFn: (name: string) => string | null,
-): { name: string; arguments: Record<string, unknown> } | null {
+): { name: AiChatToolName; arguments: Record<string, unknown> } | null {
   const candidates = extractJsonCandidates(rawText);
 
   for (const candidate of candidates) {
     // Try direct parse first (most common case: clean JSON without extra text)
-    const direct = tryParseCandidate(candidate, normalizeNameFn);
+    const direct = tryParseCandidate(candidate);
     if (direct) return direct;
   }
 
@@ -371,7 +404,6 @@ export function parseToolCallFromTextZod(
 
 function tryParseCandidate(
   candidate: string,
-  normalizeNameFn: (name: string) => string | null,
 ): ToolCallParseResult | null {
   let parsed: unknown;
   try {
@@ -398,8 +430,8 @@ function tryParseCandidate(
   const rawName = typeof obj.name === 'string' ? obj.name : null;
   if (!rawName) return null;
 
-  const normalizedName = normalizeNameFn(rawName);
-  if (!normalizedName) return null;
+  const nameResult = parsedAiChatToolNameFieldSchema.safeParse(rawName);
+  if (!nameResult.success) return null;
 
   const rawArgs = obj.arguments;
   const args: Record<string, unknown> =
@@ -407,7 +439,7 @@ function tryParseCandidate(
       ? rawArgs as Record<string, unknown>
       : {};
 
-  return { name: normalizedName, arguments: args };
+  return { name: nameResult.data, arguments: args };
 }
 
 /**

@@ -233,6 +233,7 @@ export async function importAdditionalTiers(input: {
         await input.db.collections.layer_links.insert({
           id: newId('link'),
           transcriptionLayerKey: transcriptionLayer.key,
+          hostTranscriptionLayerId: transcriptionLayer.id,
           layerId,
           linkType: 'free',
           isPreferred: false,

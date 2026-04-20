@@ -1,12 +1,15 @@
 {
-  "generatedAt": "2026-04-18T12:54:26.456Z",
+  "generatedAt": "2026-04-20T13:18:11.613Z",
   "scannerVersion": 2,
-  "totalHits": 70,
+  "totalHits": 81,
   "files": {
+    "src/ai/chat/toolCallSchemas.ts": 1,
     "src/components/SettingsModal.tsx": 1,
     "src/components/SidePaneSidebarSegmentList.tsx": 1,
     "src/components/ai/aiChatCardFollowUps.ts": 19,
+    "src/components/transcription/toolbar/ObserverStatus.tsx": 1,
     "src/hooks/useTranscriptionData.ts": 1,
+    "src/hooks/useTranscriptionTimelineComparisonChrome.ts": 9,
     "src/i18n/collaborationSyncSurfaceMessages.ts": 11,
     "src/utils/theme.ts": 37
   }

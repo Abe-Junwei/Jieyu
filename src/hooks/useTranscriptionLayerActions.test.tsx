@@ -11,6 +11,7 @@ const {
   mockDeleteLayer,
   mockInsertLayerLink,
   mockRemoveLayerLink,
+  mockUpdateLayerLink,
   mockUpdateLayer,
   mockUpdateLayerSortOrder,
   mockDeleteLayerSegmentGraphByLayerId,
@@ -29,6 +30,7 @@ const {
   mockDeleteLayer: vi.fn(async () => undefined),
   mockInsertLayerLink: vi.fn(async () => undefined),
   mockRemoveLayerLink: vi.fn(async () => undefined),
+  mockUpdateLayerLink: vi.fn(async () => undefined),
   mockUpdateLayer: vi.fn(async () => undefined),
   mockUpdateLayerSortOrder: vi.fn(async () => undefined),
   mockDeleteLayerSegmentGraphByLayerId: vi.fn(async () => ({
@@ -100,6 +102,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
           remove: mockRemoveLayerLink,
           removeBySelector: mockRemoveBySelectorLayerLinks,
           insert: mockInsertLayerLink,
+          update: mockUpdateLayerLink,
         },
       },
       dexie: {
@@ -251,7 +254,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(next[1]).toEqual(other);
   });
 
-  it('sets parentLayerId when creating a translation layer', async () => {
+  it('creates host link when creating a translation layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {
       id: 'layer_trc_1',
@@ -292,12 +295,10 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     });
 
     expect(mockCreateLayer).toHaveBeenCalled();
-    const createCalls = mockCreateLayer.mock.calls as unknown[][];
-    const lastCallIndex = createCalls.length - 1;
-    const created = (lastCallIndex >= 0
-      ? createCalls[lastCallIndex]?.[0]
-      : undefined) as { parentLayerId?: string } | undefined;
-    expect(created?.parentLayerId).toBe('layer_trc_1');
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptionLayerKey: 'trc_zh_1',
+      layerId: expect.any(String),
+    }));
   });
 
   it('passes through supported translation constraints that remain enabled', async () => {
@@ -468,16 +469,15 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.createLayer('translation', {
         languageId: 'fra',
         textId: 'text_1',
-        parentLayerId: 'layer_trc_b',
+        hostTranscriptionLayerIds: ['layer_trc_b'],
+        preferredHostTranscriptionLayerId: 'layer_trc_b',
       }, 'text');
     });
 
-    const createCalls = mockCreateLayer.mock.calls as unknown[][];
-    const lastCallIndex = createCalls.length - 1;
-    const created = (lastCallIndex >= 0
-      ? createCalls[lastCallIndex]?.[0]
-      : undefined) as { parentLayerId?: string } | undefined;
-    expect(created?.parentLayerId).toBe('layer_trc_b');
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptionLayerKey: 'trc_b',
+      layerId: expect.any(String),
+    }));
   });
 
   it('creates first transcription layer with explicit independent_boundary constraint', async () => {
@@ -666,7 +666,8 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.createLayer('translation', {
         languageId: 'fra',
         textId: 'text_1',
-        parentLayerId: rootA.id,
+        hostTranscriptionLayerIds: [rootA.id],
+        preferredHostTranscriptionLayerId: rootA.id,
       }, 'text');
     });
 
@@ -750,7 +751,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trl_a', 2, expect.anything());
   });
 
-  it('reparents a dependent translation layer when moved into another root bundle', async () => {
+  it('rewires host links when moving a dependent translation layer into another root bundle', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const rootA = {
       id: 'layer_trc_a',
@@ -840,11 +841,6 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.reorderLayers(translation.id, 3);
     });
 
-    expect(mockUpdateLayer).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'layer_trl_a',
-      parentLayerId: 'layer_trc_b',
-      sortOrder: 2,
-    }));
     expect(mockRemoveLayerLink).toHaveBeenCalledWith('link_old_parent');
     expect(mockRemoveLayerLink).toHaveBeenCalledWith('link_extra');
     expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
@@ -858,7 +854,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     }));
 
     const reordered = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
-    expect(reordered?.find((layer) => layer.id === 'layer_trl_a')?.parentLayerId).toBe('layer_trc_b');
+    expect(reordered?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trc_b', 'layer_trl_a']);
     const linkedLayers = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ transcriptionLayerKey: string; layerId: string }> | undefined;
     expect(linkedLayers).toEqual([
       expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
@@ -867,7 +863,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(linkedLayers?.some((link) => link.transcriptionLayerKey === 'trc_a')).toBe(false);
   });
 
-  it('re-canonicalizes sort order after toggling translation parent', async () => {
+  it('re-canonicalizes sort order after toggling translation host link', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const rootA = {
       id: 'layer_trc_a',
@@ -954,13 +950,15 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
 
     expect(mockUpdateLayer).toHaveBeenCalledWith(expect.objectContaining({
       id: 'layer_trl_a',
-      parentLayerId: 'layer_trc_b',
-      sortOrder: 2,
     }));
     expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_b', 1, expect.anything());
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      transcriptionLayerKey: 'trc_b',
+      layerId: 'layer_trl_a',
+    }));
 
     const nextLayers = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
-    expect(nextLayers?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trc_b', 'layer_trl_a', 'layer_trl_b']);
+    expect(nextLayers?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trc_b', 'layer_trl_b', 'layer_trl_a']);
     expect(nextLayers?.map((layer) => layer.sortOrder)).toEqual([0, 1, 2, 3]);
 
     const setLayerLinksUpdater = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as ((prev: Array<{ transcriptionLayerKey: string; layerId: string }>) => Array<{ transcriptionLayerKey: string; layerId: string }>) | undefined;
@@ -968,6 +966,200 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(linkedLayers).toEqual([
       expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
     ]);
+  });
+
+  it('toggleLayerLink appends a second host link without removing existing host links', async () => {
+    const now = '2026-04-20T12:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const linkToA = {
+      id: 'link_to_a',
+      transcriptionLayerKey: 'trc_a',
+      hostTranscriptionLayerId: 'layer_trc_a',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    };
+
+    const setLayers = vi.fn();
+    const setLayerLinks = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never, translationA as never],
+      layerLinks: [linkToA as never],
+      layerToDeleteId: '',
+      selectedLayerId: translationA.id,
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers,
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_b', translationA.id);
+    });
+
+    expect(mockRemoveLayerLink).not.toHaveBeenCalled();
+    expect(mockInsertLayerLink).toHaveBeenCalledTimes(1);
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      layerId: 'layer_trl_a',
+      hostTranscriptionLayerId: 'layer_trc_b',
+      isPreferred: false,
+    }));
+
+    const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ id: string; hostTranscriptionLayerId?: string }> | undefined;
+    expect(nextLinks).toHaveLength(2);
+    expect(nextLinks?.some((l) => l.id === 'link_to_a')).toBe(true);
+    expect(nextLinks?.map((l) => l.hostTranscriptionLayerId).sort()).toEqual(['layer_trc_a', 'layer_trc_b']);
+  });
+
+  it('toggleLayerLink switches preferred host when a host link already exists', async () => {
+    const now = '2026-04-20T12:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const linkToA = {
+      id: 'link_to_a',
+      transcriptionLayerKey: 'trc_a',
+      hostTranscriptionLayerId: 'layer_trc_a',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    };
+    const linkToB = {
+      id: 'link_to_b',
+      transcriptionLayerKey: 'trc_b',
+      hostTranscriptionLayerId: 'layer_trc_b',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: false,
+      createdAt: now,
+    };
+
+    const setLayerLinks = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never, translationA as never],
+      layerLinks: [linkToA as never, linkToB as never],
+      layerToDeleteId: '',
+      selectedLayerId: translationA.id,
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_b', translationA.id);
+    });
+
+    expect(mockRemoveLayerLink).not.toHaveBeenCalled();
+    expect(mockInsertLayerLink).not.toHaveBeenCalled();
+    expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_a', { isPreferred: false });
+    expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_b', { isPreferred: true });
+
+    const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ id: string; isPreferred?: boolean }> | undefined;
+    const prefB = nextLinks?.find((l) => l.id === 'link_to_b');
+    const prefA = nextLinks?.find((l) => l.id === 'link_to_a');
+    expect(prefB?.isPreferred).toBe(true);
+    expect(prefA?.isPreferred).toBe(false);
   });
 
   it('cascade-deletes dependent translation layers when deleting the last transcription layer', async () => {
@@ -1004,6 +1196,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       {
         id: 'link_1',
         transcriptionLayerKey: 'trc_zh_1',
+        hostTranscriptionLayerId: 'layer_trc_1',
         layerId: 'layer_trl_1',
         linkType: 'direct',
         isPreferred: true,
@@ -1014,7 +1207,16 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     const setLayerCreateMessage = vi.fn();
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [trcLayer as never, trlLayer as never],
-      layerLinks: [],
+      layerLinks: [{
+        id: 'link_1',
+        transcriptionLayerKey: 'trc_zh_1',
+        hostTranscriptionLayerId: 'layer_trc_1',
+        layerId: 'layer_trl_1',
+        linkType: 'direct',
+        isPreferred: true,
+        createdAt: now,
+        updatedAt: now,
+      } as never],
       layerToDeleteId: '',
       selectedLayerId: '',
       unitsRef: { current: [] },

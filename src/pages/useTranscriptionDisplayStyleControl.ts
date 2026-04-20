@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import type { LayerDisplaySettings, LayerDocType } from '../db';
+import type { LayerDisplaySettings, LayerDocType, LayerLinkDocType } from '../db';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useLocalFonts } from '../hooks/useLocalFonts';
@@ -14,6 +14,7 @@ interface UseTranscriptionDisplayStyleControlInput {
   layers: LayerDocType[];
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  layerLinks: LayerLinkDocType[];
   layerById: Map<string, LayerDocType>;
   defaultTranscriptionLayerId?: string;
   selectedLayerId?: string;
@@ -26,6 +27,7 @@ export function useTranscriptionDisplayStyleControl({
   layers,
   transcriptionLayers,
   translationLayers,
+  layerLinks,
   layerById,
   defaultTranscriptionLayerId,
   selectedLayerId,
@@ -131,6 +133,8 @@ export function useTranscriptionDisplayStyleControl({
       selectedUnitLayerId: selectedTimelineUnitLayerId,
       defaultTranscriptionLayerId,
       translationLayers,
+      transcriptionLayers,
+      layerLinks,
     });
     const fallbackTranslationLayer = fallbackTranslationLayerId
       ? layerById.get(fallbackTranslationLayerId)
@@ -154,6 +158,8 @@ export function useTranscriptionDisplayStyleControl({
     orthographies,
     selectedLayerId,
     selectedTimelineUnitLayerId,
+    layerLinks,
+    transcriptionLayers,
     translationLayers,
   ]);
 

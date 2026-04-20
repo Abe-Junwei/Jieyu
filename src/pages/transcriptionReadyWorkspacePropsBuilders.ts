@@ -40,6 +40,7 @@ type SharedLaneFields = Pick<
   | 'startRecordingForUnit'
   | 'stopRecording'
   | 'deleteVoiceTranslation'
+  | 'transcribeVoiceTranslation'
   | 'displayStyleControl'
 >;
 
@@ -131,6 +132,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     startRecordingForUnit: input.startRecordingForUnit,
     stopRecording: input.stopRecording,
     deleteVoiceTranslation: input.deleteVoiceTranslation,
+    transcribeVoiceTranslation: input.transcribeVoiceTranslation,
     displayStyleControl: input.displayStyleControl,
   }) as BuiltSharedLaneProps;
 }
@@ -177,6 +179,7 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   flashLayerRowId: ReadyWorkspaceSidePaneSidebarProps['flashLayerRowId'];
   onFocusLayer: ReadyWorkspaceSidePaneSidebarProps['onFocusLayer'];
   transcriptionLayers: ReadyWorkspaceSidePaneSidebarProps['transcriptionLayers'];
+  layerLinks?: ReadyWorkspaceSidePaneSidebarProps['layerLinks'];
   toggleLayerLink: ReadyWorkspaceSidePaneSidebarProps['toggleLayerLink'];
   deletableLayers: ReadyWorkspaceSidePaneSidebarProps['deletableLayers'];
   updateLayerMetadata: ReadyWorkspaceSidePaneSidebarProps['updateLayerMetadata'];
@@ -243,6 +246,7 @@ export function buildReadyWorkspaceSidePaneProps(
       flashLayerRowId: input.flashLayerRowId,
       onFocusLayer: input.onFocusLayer,
       transcriptionLayers: input.transcriptionLayers,
+      ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
       toggleLayerLink: input.toggleLayerLink,
       deletableLayers: input.deletableLayers,
       updateLayerMetadata: input.updateLayerMetadata,
@@ -394,6 +398,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   acousticRuntimeStatus: ReadyWorkspaceStageProps['acousticRuntimeStatus'];
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
   currentProjectLabel: ReadyWorkspaceStageProps['projectHubProps']['currentProjectLabel'];
+  selectedMediaId?: ReadyWorkspaceStageProps['projectHubProps']['selectedMediaId'];
   activeTextTimelineMode: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimelineMode'];
   activeTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimeMapping'];
   canDeleteProject: ReadyWorkspaceStageProps['projectHubProps']['canDeleteProject'];
@@ -527,6 +532,7 @@ export function buildReadyWorkspaceStageProps(
     vadCacheStatus: input.vadCacheStatus,
     projectHubProps: {
       currentProjectLabel: input.currentProjectLabel,
+      selectedMediaId: input.selectedMediaId ?? null,
       activeTextTimelineMode: input.activeTextTimelineMode ?? null,
       activeTextTimeMapping: input.activeTextTimeMapping ?? null,
       canDeleteProject: input.canDeleteProject,

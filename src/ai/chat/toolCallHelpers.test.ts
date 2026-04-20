@@ -175,4 +175,40 @@ describe('planToolCallTargets', () => {
     expect(planned.call.arguments.segmentIds).toEqual(['seg_real_007', 'seg_real_008']);
     expect(planned.call.arguments.unitIds).toBeUndefined();
   });
+
+  it('validates link_translation_layer with id-first wording when transcription target is missing', () => {
+    const error = validateToolCallArguments({
+      name: 'link_translation_layer',
+      arguments: { translationLayerId: 'trl_1' },
+    });
+
+    expect(error).toContain('transcriptionLayerId');
+  });
+
+  it('keeps transcriptionLayerKey as compatible input for link_translation_layer validation', () => {
+    const error = validateToolCallArguments({
+      name: 'link_translation_layer',
+      arguments: { transcriptionLayerKey: 'trc_key_1', translationLayerId: 'trl_1' },
+    });
+
+    expect(error).toBeNull();
+  });
+
+  it('validates add_host with the same host-target contract as link_translation_layer', () => {
+    const error = validateToolCallArguments({
+      name: 'add_host',
+      arguments: { transcriptionLayerId: 'trc_1' },
+    });
+
+    expect(error).toContain('translationLayerId');
+  });
+
+  it('accepts switch_preferred_host when both source and target ids exist', () => {
+    const error = validateToolCallArguments({
+      name: 'switch_preferred_host',
+      arguments: { transcriptionLayerId: 'trc_1', translationLayerId: 'trl_1' },
+    });
+
+    expect(error).toBeNull();
+  });
 });

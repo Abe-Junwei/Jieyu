@@ -35,6 +35,8 @@ async function clearTables(): Promise<void> {
   ]);
 }
 
+const coverageRelaxed = process.env.npm_lifecycle_event === 'test:coverage';
+
 describe('Embedding candidate-set performance baseline', () => {
   beforeEach(async () => {
     await db.open();
@@ -105,7 +107,9 @@ describe('Embedding candidate-set performance baseline', () => {
     expect(result.matches.length).toBeGreaterThan(0);
     // 全量测试并发下 IndexedDB + embedding query 会明显放大抖动，保留 8.25s 基线以监控真实退化
     // Under full-suite concurrency, IndexedDB + embedding query jitter grows significantly; keep an 8.25s baseline to catch real regressions.
-    expect(elapsedMs).toBeLessThan(8250);
+    // Instrumented coverage runs inflate IndexedDB + search time; tight budget only for `npm test` / `vitest run`.
+    const perfBudgetMs = coverageRelaxed ? 180_000 : 8_250;
+    expect(elapsedMs).toBeLessThan(perfBudgetMs);
     // eslint-disable-next-line no-console
     console.info('[Embedding Candidate Perf Baseline]', {
       elapsedMs: Number(elapsedMs.toFixed(3)),
@@ -113,5 +117,5 @@ describe('Embedding candidate-set performance baseline', () => {
       candidates: candidateIds.length,
       topK: result.matches.length,
     });
-  }, 15000);
+  }, coverageRelaxed ? 180_000 : 15_000);
 });

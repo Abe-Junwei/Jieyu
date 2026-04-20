@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import type { VoiceIntent, VoiceSession } from '../services/IntentRouter';
 import type { VoiceAgentMode } from '../hooks/useVoiceAgent';
@@ -34,6 +34,7 @@ interface CreateAssistantRuntimePropsInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   dictationPreviewTextProps?: OrthographyPreviewTextProps;
   dictationPipeline?: {
     callbacks: DictationPipelineCallbacks;
@@ -120,6 +121,7 @@ export function createAssistantRuntimeProps(input: CreateAssistantRuntimePropsIn
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     translationLayers: input.translationLayers,
     layers: input.layers,
+    ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
     ...(input.dictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: input.dictationPreviewTextProps } : {}),
     ...(input.dictationPipeline !== undefined ? { dictationPipeline: input.dictationPipeline } : {}),
     formatSidePaneLayerLabel: input.formatSidePaneLayerLabel,

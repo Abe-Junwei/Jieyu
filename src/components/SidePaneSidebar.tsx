@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -34,6 +34,7 @@ interface SidePaneSidebarProps {
   flashLayerRowId: string;
   onFocusLayer: (id: string) => void;
   transcriptionLayers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: LayerDocType[];
   updateLayerMetadata?: (layerId: string, input: { dialect?: string; vernacular?: string; alias?: string }) => Promise<boolean>;
@@ -66,6 +67,7 @@ export function SidePaneSidebar({
   flashLayerRowId,
   onFocusLayer,
   transcriptionLayers,
+  layerLinks,
   toggleLayerLink,
   deletableLayers,
   updateLayerMetadata,
@@ -219,6 +221,8 @@ export function SidePaneSidebar({
     messages,
     sidePaneRows,
     layerLabelById,
+    ...(layerLinks !== undefined ? { layerLinks } : {}),
+    locale,
   });
 
   const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
@@ -254,6 +258,7 @@ export function SidePaneSidebar({
       bundleRootIds={bundleRootIds}
       bundleBoundaryIndexes={bundleBoundaryIndexes}
       layerLanguageNameById={layerLanguageNameById}
+      {...(layerLinks !== undefined ? { layerLinks } : {})}
       resolveTargetBundleRange={resolveTargetBundleRange}
       {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
       {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
@@ -279,6 +284,7 @@ export function SidePaneSidebar({
     bundleRootIds,
     bundleBoundaryIndexes,
     layerLanguageNameById,
+    layerLinks,
     resolveTargetBundleRange,
     defaultTranscriptionLayerId,
     segmentsByLayer,
@@ -425,9 +431,17 @@ export function SidePaneSidebar({
           createLayer={async (layerType, input, modality) => createLayer(layerType, {
             languageId: input.languageId,
             ...(input.orthographyId !== undefined ? { orthographyId: input.orthographyId } : {}),
+            ...(input.dialect !== undefined ? { dialect: input.dialect } : {}),
+            ...(input.vernacular !== undefined ? { vernacular: input.vernacular } : {}),
             ...(input.alias !== undefined ? { alias: input.alias } : {}),
             ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
             ...(input.parentLayerId !== undefined ? { parentLayerId: input.parentLayerId } : {}),
+            ...(input.hostTranscriptionLayerIds !== undefined
+              ? { hostTranscriptionLayerIds: input.hostTranscriptionLayerIds }
+              : {}),
+            ...(input.preferredHostTranscriptionLayerId !== undefined
+              ? { preferredHostTranscriptionLayerId: input.preferredHostTranscriptionLayerId }
+              : {}),
           }, modality)}
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}

@@ -12,7 +12,17 @@ import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/conf
 import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
-import { THEME_ACCENTS, THEMES, getTheme, getThemeAccent, setAppearance, setThemeAccent, type ThemeAccentId, type ThemeId } from '../utils/theme';
+import {
+  THEME_ACCENTS,
+  THEMES,
+  getTheme,
+  getThemeAccent,
+  setAppearance,
+  setThemeAccent,
+  themeIdToPreviewClassSlug,
+  type ThemeAccentId,
+  type ThemeId,
+} from '../utils/theme';
 import { type IconEffect } from '../utils/iconEffect';
 import { ACOUSTIC_OVERLAY_MODE_STORAGE_KEY, WAVEFORM_AMPLITUDE_SCALE_STORAGE_KEY, WAVEFORM_DISPLAY_MODE_STORAGE_KEY, WAVEFORM_HEIGHT_STORAGE_KEY, WAVEFORM_VISUAL_STYLE_STORAGE_KEY, emitWaveformRuntimePreferenceChanged, readStoredAcousticOverlayModePreference, readStoredWaveformAmplitudeScalePreference, readStoredWaveformDisplayModePreference, readStoredWaveformHeightPreference, readStoredWaveformVisualStylePreference } from '../utils/waveformRuntimePreferenceSync';
 import { NEW_SEGMENT_SELECTION_BEHAVIOR_KEY, WAVEFORM_DOUBLE_CLICK_ACTION_KEY, readStoredNewSegmentSelectionBehavior, readStoredWaveformDoubleClickAction, type NewSegmentSelectionBehavior, type WaveformDoubleClickAction } from '../utils/transcriptionInteractionPreferences';
@@ -971,7 +981,7 @@ export const SettingsModal = memo(function SettingsModal({
                       className={`theme-card${activeTheme === theme.id ? ' theme-card-active' : ''}`}
                       onClick={() => handleThemeChange(theme.id)}
                     >
-                      <div className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${theme.id}`}>
+                      <div className={`theme-card-preview theme-card-preview-mode-${resolvedMode} theme-card-preview-theme-${themeIdToPreviewClassSlug(theme.id)}`}>
                         <span className="theme-card-swatch-accent" />
                         <span className="theme-card-swatch-bg" />
                       </div>

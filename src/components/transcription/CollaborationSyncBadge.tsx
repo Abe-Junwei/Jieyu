@@ -40,7 +40,7 @@ export function CollaborationSyncBadge({
     read_only: 'is-read-only',
     conflict: 'is-conflict',
     syncing: 'is-syncing',
-    offline_queue: 'is-offline_queue',
+    offline_queue: 'is-offline-queue',
     synced: 'is-synced',
   };
   const modifier = modifierByKind[badge.kind] ?? '';

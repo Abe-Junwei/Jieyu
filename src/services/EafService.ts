@@ -5,7 +5,7 @@
  * This service converts between Jieyu's data model and EAF 3.0.
  */
 
-import type { LayerUnitDocType, AnchorDocType, LayerDocType, LayerUnitContentDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, SpeakerDocType, OrthographyDocType } from '../db';
+import type { LayerUnitDocType, AnchorDocType, LayerDocType, LayerUnitContentDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, SpeakerDocType, OrthographyDocType, LayerLinkDocType } from '../db';
 import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
@@ -32,7 +32,18 @@ export interface EafExportInput {
   defaultTranscriptionLayerId?: string;
   /** Speaker entities for PARTICIPANT attribute export | 用于导出 PARTICIPANT 属性的说话人实体 */
   speakers?: SpeakerDocType[];
+  /** 译文宿主关系（layer_links 真相）| Translation host links from layer_links SSOT */
+  layerLinks?: LayerLinkDocType[];
+  /** 导出告警回调（如多宿主有损导出）| Export warning callback (e.g. lossy multi-host export) */
+  onWarning?: (warning: EafExportWarning) => void;
 }
+
+export type EafExportWarning = {
+  code: 'translation-multi-host-lossy';
+  layerId: string;
+  hostCount: number;
+  preferredHostTranscriptionLayerId?: string;
+};
 
 export interface EafImportResult {
   mediaFilename: string;
@@ -120,7 +131,21 @@ function extractTimelineMetadata(metadata?: OrthographyInteropMetadata): Timelin
 }
 
 export function exportToEaf(input: EafExportInput): string {
-  const { mediaItem, units, anchors, layers, orthographies, translations, userNotes, timelineMetadata, layerSegments, layerSegmentContents, speakers } = input;
+  const {
+    mediaItem,
+    units,
+    anchors,
+    layers,
+    orthographies,
+    translations,
+    userNotes,
+    timelineMetadata,
+    layerSegments,
+    layerSegmentContents,
+    speakers,
+    layerLinks,
+    onWarning,
+  } = input;
   const sorted = [...units].sort((a, b) => a.startTime - b.startTime);
   const unitById = new Map(units.map((unit) => [unit.id, unit] as const));
 
@@ -261,6 +286,21 @@ export function exportToEaf(input: EafExportInput): string {
     registerTierIdentityMetadata(tierName, layer);
   }
 
+  const transcriptionLayerIdByKey = new Map<string, string>();
+  for (const layer of transcriptionLayers) {
+    const key = layer.key?.trim() ?? '';
+    if (key.length > 0 && !transcriptionLayerIdByKey.has(key)) {
+      transcriptionLayerIdByKey.set(key, layer.id);
+    }
+  }
+
+  const hostLinksByTranslationLayerId = new Map<string, LayerLinkDocType[]>();
+  for (const link of layerLinks ?? []) {
+    const bucket = hostLinksByTranslationLayerId.get(link.layerId) ?? [];
+    bucket.push(link);
+    hostLinksByTranslationLayerId.set(link.layerId, bucket);
+  }
+
   // Transcription tier (default)
   const uttAnnotationIdMap = new Map<string, string>(); // uttId → annotationId（用于翻译层 REF_ANNOTATION）
   const transcriptionAnnotations = sorted.map((utt) => {
@@ -380,10 +420,44 @@ export function exportToEaf(input: EafExportInput): string {
         .filter(Boolean);
 
       if (annotations.length > 0) {
+        const translationHostLinks = hostLinksByTranslationLayerId.get(layer.id) ?? [];
+        const hostIds: string[] = [];
+        const seenHostIds = new Set<string>();
+        let preferredHostTranscriptionLayerId: string | undefined;
+
+        for (const link of translationHostLinks) {
+          const hostIdFromId = typeof link.hostTranscriptionLayerId === 'string'
+            ? link.hostTranscriptionLayerId.trim()
+            : '';
+          const resolvedHostId = hostIdFromId.length > 0
+            ? hostIdFromId
+            : (transcriptionLayerIdByKey.get(link.transcriptionLayerKey?.trim() ?? '') ?? '');
+          if (!resolvedHostId || seenHostIds.has(resolvedHostId)) continue;
+          seenHostIds.add(resolvedHostId);
+          hostIds.push(resolvedHostId);
+          if (!preferredHostTranscriptionLayerId && link.isPreferred) {
+            preferredHostTranscriptionLayerId = resolvedHostId;
+          }
+        }
+
+        const effectivePreferredHostTranscriptionLayerId = preferredHostTranscriptionLayerId ?? hostIds[0];
+        if (hostIds.length > 1) {
+          onWarning?.({
+            code: 'translation-multi-host-lossy',
+            layerId: layer.id,
+            hostCount: hostIds.length,
+            ...(effectivePreferredHostTranscriptionLayerId
+              ? { preferredHostTranscriptionLayerId: effectivePreferredHostTranscriptionLayerId }
+              : {}),
+          });
+        }
+
         const shouldIncludeParentRef = constraint !== 'independent_boundary';
-        const parentTierId = layer.parentLayerId
-          ? (tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)
-          : defaultTierId;
+        const parentTierId = effectivePreferredHostTranscriptionLayerId
+          ? (tierNameByLayerId.get(effectivePreferredHostTranscriptionLayerId) ?? defaultTierId)
+          : layer.parentLayerId
+            ? (tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)
+            : defaultTierId;
         const parentRefAttr = shouldIncludeParentRef
           ? ` PARENT_REF="${escapeXml(parentTierId)}"`
           : '';

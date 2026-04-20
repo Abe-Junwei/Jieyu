@@ -31,6 +31,10 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   dependentConstraint: string;
   independentConstraint: string;
   selectParentLayer: string;
+  /** 新建翻译层：多宿主转写勾选 | New translation: pick host transcription layers */
+  translationHostLayersLabel: string;
+  /** 新建翻译层：首选宿主（多选时）| Preferred host when multiple hosts */
+  translationPreferredHostLabel: string;
   autoLinkedParent: (label: string) => string;
   currentRestrictionTranslation: string;
   currentRestrictionTranscription: string;
@@ -90,6 +94,8 @@ const zhCN: LayerActionPopoverMessages = {
   dependentConstraint: '\u4f9d\u8d56\u8fb9\u754c\uff08\u8ddf\u968f\u4e3b\u8f6c\u5199\u5c42\uff09',
   independentConstraint: '\u72ec\u7acb\u8fb9\u754c\uff08\u81ea\u7531\u5b9a\u4e49\uff09',
   selectParentLayer: '\u9009\u62e9\u4f9d\u8d56\u8fb9\u754c\u5c42\u2026',
+  translationHostLayersLabel: '\u8bd1\u6587\u5bbf\u4e3b\u8f6c\u5199\u5c42\uff08\u53ef\u591a\u9009\uff09',
+  translationPreferredHostLabel: '\u9996\u9009\u5bbf\u4e3b\uff08\u8fb9\u754c\u4e0e\u9ed8\u8ba4\u5bf9\u9f50\u4f9d\u6b64\u5c42\uff09',
   autoLinkedParent: (label) => `\u5df2\u81ea\u52a8\u5173\u8054\u5230\u300c${label}\u300d\u3002`,
   currentRestrictionTranslation: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u7ffb\u8bd1\u3002',
   currentRestrictionTranscription: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199\u3002',
@@ -148,6 +154,8 @@ const enUS: LayerActionPopoverMessages = {
   dependentConstraint: 'Dependent boundary (follows parent transcription layer)',
   independentConstraint: 'Independent boundary (free-defined)',
   selectParentLayer: 'Select dependent boundary layer…',
+  translationHostLayersLabel: 'Host transcription layers (multi-select)',
+  translationPreferredHostLabel: 'Preferred host (boundary alignment defaults here)',
   autoLinkedParent: (label) => `Automatically linked to "${label}".`,
   currentRestrictionTranslation: 'Current restriction: cannot create translation. ',
   currentRestrictionTranscription: 'Current restriction: cannot create transcription. ',

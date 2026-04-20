@@ -242,6 +242,33 @@ describe('CommandResolver', () => {
     expect(result!.call.name).toBe('unlink_translation_layer');
   });
 
+  it.each([
+    '新增宿主',
+    'add host',
+  ])('should resolve "%s" to add_host', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('add_host');
+  });
+
+  it.each([
+    '移除宿主',
+    'remove host',
+  ])('should resolve "%s" to remove_host', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('remove_host');
+  });
+
+  it.each([
+    '切换主宿主',
+    'set preferred host',
+  ])('should resolve "%s" to switch_preferred_host', (text) => {
+    const result = resolveCommand(text);
+    expect(result).not.toBeNull();
+    expect(result!.call.name).toBe('switch_preferred_host');
+  });
+
   // ── 文本写入（带 text 参数）| Text write with text argument ──
 
   it('should resolve "转写改为你好" with text argument', () => {
