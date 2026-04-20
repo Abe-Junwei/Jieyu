@@ -101,19 +101,17 @@ export function TranscriptionTimelineMediaTranslationRow({
 
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const showAudioTools = layerSupportsAudio && !isAudioOnlyLayer;
   const recordingScopeId = recordingScopeUnitId(item);
   const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
   const sourceUnit = resolveVoiceRecordingSourceUnit(item, unitById, segmentById);
-  const audioControls = layerSupportsAudio ? (
+  const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
       onStartRecording={() => {
-        if (!sourceUnit) return;
         void startRecordingForUnit?.(sourceUnit, layer);
       }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
@@ -122,6 +120,7 @@ export function TranscriptionTimelineMediaTranslationRow({
         : {})}
     />
   ) : undefined;
+  const showAudioTools = Boolean(audioControls) && !isAudioOnlyLayer;
 
   const retrySave = useCallback(() => {
     const value = normalizeSingleLine(latestDraftRef.current);

@@ -108,19 +108,17 @@ export function TranscriptionTimelineTextTranslationItem({
   const locale = useLocale();
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const showAudioTools = layerSupportsAudio && !isAudioOnlyLayer;
   const recordingScopeId = recordingScopeUnitId(utt);
   const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
   const audioActionDisabled = recording && !isCurrentRecording;
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
-  const audioControls = layerSupportsAudio ? (
+  const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
       onStartRecording={() => {
-        if (!sourceUnit) return;
         void startRecordingForUnit?.(sourceUnit, layer);
       }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
@@ -129,6 +127,7 @@ export function TranscriptionTimelineTextTranslationItem({
         : {})}
     />
   ) : undefined;
+  const showAudioTools = Boolean(audioControls) && !isAudioOnlyLayer;
 
   const retrySave = () => {
     if (draft === text) {
