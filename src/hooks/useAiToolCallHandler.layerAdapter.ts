@@ -14,6 +14,9 @@ export const layerAdapter: ToolObjectAdapter = {
     'delete_layer',
     'link_translation_layer',
     'unlink_translation_layer',
+    'add_host',
+    'remove_host',
+    'switch_preferred_host',
   ],
   async execute(ctx) {
     const { call, compensationRef, COMPENSATION_TTL_MS, locale } = ctx;
@@ -168,7 +171,16 @@ export const layerAdapter: ToolObjectAdapter = {
       return { ok: true, message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }) };
     }
 
-    if (call.name === 'link_translation_layer' || call.name === 'unlink_translation_layer') {
+    if (
+      call.name === 'link_translation_layer'
+      || call.name === 'unlink_translation_layer'
+      || call.name === 'add_host'
+      || call.name === 'remove_host'
+      || call.name === 'switch_preferred_host'
+    ) {
+      const isAddHostAction = call.name === 'link_translation_layer' || call.name === 'add_host';
+      const isRemoveHostAction = call.name === 'unlink_translation_layer' || call.name === 'remove_host';
+      const isSwitchPreferredHostAction = call.name === 'switch_preferred_host';
       const requestedTranscriptionLayerId = String(call.arguments.transcriptionLayerId ?? '').trim();
       const requestedTranscriptionLayerKey = String(call.arguments.transcriptionLayerKey ?? '').trim();
       if (!requestedTranscriptionLayerId && !requestedTranscriptionLayerKey) {
@@ -217,10 +229,20 @@ export const layerAdapter: ToolObjectAdapter = {
         return { ok: false, message: t(locale, 'transcription.aiTool.layer.linkMissingTranslation') };
       }
 
-      const exists = trlLayer.parentLayerId === trcLayer.id;
-      const shouldLink = call.name === 'link_translation_layer';
+      const matchedLink = ctx.layerLinks.find((link) => {
+        if (link.layerId !== trlLayer.id) return false;
+        const hostTranscriptionLayerId = typeof link.hostTranscriptionLayerId === 'string'
+          ? link.hostTranscriptionLayerId.trim()
+          : '';
+        if (hostTranscriptionLayerId.length > 0) {
+          return hostTranscriptionLayerId === trcLayer.id;
+        }
+        return link.transcriptionLayerKey === trcLayer.key;
+      });
+      const exists = Boolean(matchedLink);
+      const alreadyPreferred = Boolean(matchedLink?.isPreferred);
 
-      if (!shouldLink && exists) {
+      if (isRemoveHostAction && exists) {
         const fallbackParent = ctx.transcriptionLayers.find(
           (layer) => layer.id !== trcLayer.id && (layer.constraint ?? 'independent_boundary') === 'independent_boundary',
         );
@@ -262,8 +284,31 @@ export const layerAdapter: ToolObjectAdapter = {
         };
       }
 
+      if (isAddHostAction && exists) {
+        compensationRef.current.delete(call.requestId ?? 'default');
+        const trcLabel = readAnyMultiLangLabel(trcLayer.name) ?? trcLayer.key;
+        const trlLabel = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.layer.linkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel }),
+        };
+      }
+
+      if (isSwitchPreferredHostAction && exists && alreadyPreferred) {
+        compensationRef.current.delete(call.requestId ?? 'default');
+        const trcLabel = readAnyMultiLangLabel(trcLayer.name) ?? trcLayer.key;
+        const trlLabel = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.layer.linkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel }),
+        };
+      }
+
       try {
-        if (exists !== shouldLink) {
+        const shouldToggle = isSwitchPreferredHostAction
+          ? !alreadyPreferred
+          : !exists;
+        if (shouldToggle) {
           await ctx.toggleLayerLink(trcLayer.key, trlLayer.id);
         }
       } catch (linkError) {
@@ -290,9 +335,9 @@ export const layerAdapter: ToolObjectAdapter = {
       const trlLabel = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
       return {
         ok: true,
-        message: shouldLink
-          ? tf(locale, 'transcription.aiTool.layer.linkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel })
-          : tf(locale, 'transcription.aiTool.layer.unlinkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel }),
+        message: isRemoveHostAction
+          ? tf(locale, 'transcription.aiTool.layer.unlinkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel })
+          : tf(locale, 'transcription.aiTool.layer.linkDone', { transcriptionLayer: trcLabel, translationLayer: trlLabel }),
       };
     }
 

@@ -79,6 +79,9 @@ Available tools:
 - delete_layer: Delete a layer
 - link_translation_layer: Link a translation layer
 - unlink_translation_layer: Unlink a translation layer
+- add_host: Add or ensure a translation host
+- remove_host: Remove a translation host
+- switch_preferred_host: Switch preferred translation host
 - auto_gloss_unit: Auto-generate gloss for a segment
 - set_token_pos: Set POS tag for a token
 - set_token_gloss: Set gloss for a token

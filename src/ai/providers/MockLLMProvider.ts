@@ -92,6 +92,27 @@ function buildMockFunctionCallingReply(source: string): string {
         arguments: {},
       },
     });
+  } else if (/(?:\u65b0\u589e|\u6dfb\u52a0|\u52a0\u5165|add).*(?:\u5bbf\u4e3b|host)/i.test(normalized)) {
+    return JSON.stringify({
+      tool_call: {
+        name: 'add_host',
+        arguments: {},
+      },
+    });
+  } else if (/(?:\u79fb\u9664|\u5220\u9664|\u53bb\u6389|remove).*(?:\u5bbf\u4e3b|host)/i.test(normalized)) {
+    return JSON.stringify({
+      tool_call: {
+        name: 'remove_host',
+        arguments: {},
+      },
+    });
+  } else if (/(?:\u5207\u6362|\u8bbe\u4e3a|\u8bbe\u7f6e|\u6539\u4e3a|switch|set).*(?:\u4e3b\u5bbf\u4e3b|\u9996\u9009\u5bbf\u4e3b|preferred\s*host)/i.test(normalized)) {
+    return JSON.stringify({
+      tool_call: {
+        name: 'switch_preferred_host',
+        arguments: {},
+      },
+    });
   } else if (/(?:\u53d6\u6d88\u94fe\u63a5|\u53d6\u6d88\u5173\u8054|\u65ad\u5f00).*(?:\u5c42)/.test(normalized)) {
     return JSON.stringify({
       tool_call: {

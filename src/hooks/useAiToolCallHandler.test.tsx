@@ -1151,6 +1151,18 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
     expect(response?.ok).toBe(false);
     expect(response?.message).toContain('缺少目标翻译层信息');
+
+    await act(async () => {
+      response = await result.current({ name: 'add_host', arguments: { translationLayerId: 'trl-1' } });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少目标转写层信息');
+
+    await act(async () => {
+      response = await result.current({ name: 'switch_preferred_host', arguments: { transcriptionLayerId: 'trc-1' } });
+    });
+    expect(response?.ok).toBe(false);
+    expect(response?.message).toContain('缺少目标翻译层信息');
     expect(toggleSpy).not.toHaveBeenCalled();
   });
 
@@ -1205,6 +1217,113 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
     expect(response?.ok).toBe(false);
     expect(response?.message).toContain('缺少目标翻译层信息');
+    expect(toggleSpy).not.toHaveBeenCalled();
+  });
+
+  it('links translation by host link semantics when parentLayerId is empty', async () => {
+    const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          transcriptionLayers: [{
+            id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层A' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
+          } as LayerDocType],
+          translationLayers: [makeTranslationLayer('trl-1', '翻译层A')],
+          layerLinks: [],
+          toggleLayerLink: toggleSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'link_translation_layer',
+        arguments: { transcriptionLayerId: 'trc-1', translationLayerId: 'trl-1' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(toggleSpy).toHaveBeenCalledWith('trc-key-1', 'trl-1');
+  });
+
+  it('unlinks translation by host link semantics when parentLayerId is empty', async () => {
+    const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          transcriptionLayers: [
+            {
+              id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层A' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
+            } as LayerDocType,
+            {
+              id: 'trc-2', textId: 't1', key: 'trc-key-2', name: { zho: '转写层B' }, layerType: 'transcription', languageId: 'eng', modality: 'text', createdAt: NOW, updatedAt: NOW,
+            } as LayerDocType,
+          ],
+          translationLayers: [makeTranslationLayer('trl-1', '翻译层A')],
+          layerLinks: [{
+            id: 'link-1',
+            transcriptionLayerKey: 'trc-key-1',
+            hostTranscriptionLayerId: 'trc-1',
+            layerId: 'trl-1',
+            linkType: 'free',
+            isPreferred: true,
+            createdAt: NOW,
+          }],
+          toggleLayerLink: toggleSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'unlink_translation_layer',
+        arguments: { transcriptionLayerId: 'trc-1', translationLayerId: 'trl-1' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(toggleSpy).toHaveBeenCalledWith('trc-key-2', 'trl-1');
+  });
+
+  it('switch_preferred_host is idempotent when target host is already preferred', async () => {
+    const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          transcriptionLayers: [
+            {
+              id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层A' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
+            } as LayerDocType,
+          ],
+          translationLayers: [makeTranslationLayer('trl-1', '翻译层A')],
+          layerLinks: [{
+            id: 'link-1',
+            transcriptionLayerKey: 'trc-key-1',
+            hostTranscriptionLayerId: 'trc-1',
+            layerId: 'trl-1',
+            linkType: 'free',
+            isPreferred: true,
+            createdAt: NOW,
+          }],
+          toggleLayerLink: toggleSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'switch_preferred_host',
+        arguments: { transcriptionLayerId: 'trc-1', translationLayerId: 'trl-1' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
     expect(toggleSpy).not.toHaveBeenCalled();
   });
 
