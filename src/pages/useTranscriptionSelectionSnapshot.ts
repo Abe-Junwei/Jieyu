@@ -5,6 +5,7 @@ export function useTranscriptionSelectionSnapshot(input: BuildTranscriptionSelec
   return useMemo(() => buildTranscriptionSelectionSnapshot(input), [
     input.formatTime,
     input.getUnitTextForLayer,
+    input.layerLinks,
     input.layers,
     input.segmentContentByLayer,
     input.selectedLayerId,

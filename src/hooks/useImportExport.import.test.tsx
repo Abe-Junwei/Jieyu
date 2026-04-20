@@ -833,4 +833,67 @@ describe('useImportExport - import success under stop-write', () => {
 
     warnSpy.mockRestore();
   });
+
+  it('import records host recovery warning when multi-host cannot be reconstructed', async () => {
+    const defaultLayer: LayerDocType = {
+      id: 'trc-default-host-warning',
+      textId: 'text-import',
+      key: 'trc_default_host_warning',
+      name: { zho: '默认转写层', eng: 'Default Transcription' },
+      layerType: 'transcription',
+      languageId: 'und',
+      modality: 'text',
+      isDefault: true,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    await seedProjectLayer(defaultLayer);
+
+    mockIngestTextFile.mockResolvedValueOnce({ text: `<?xml version="1.0" encoding="UTF-8"?>
+<ANNOTATION_DOCUMENT AUTHOR="Jieyu" DATE="${NOW}" FORMAT="3.0" VERSION="3.0">
+  <TIME_ORDER>
+    <TIME_SLOT TIME_SLOT_ID="ts1" TIME_VALUE="0" />
+    <TIME_SLOT TIME_SLOT_ID="ts2" TIME_VALUE="1000" />
+  </TIME_ORDER>
+  <TIER TIER_ID="TRC_MAIN" LINGUISTIC_TYPE_REF="default-lt">
+    <ANNOTATION>
+      <ALIGNABLE_ANNOTATION ANNOTATION_ID="a1" TIME_SLOT_REF1="ts1" TIME_SLOT_REF2="ts2">
+        <ANNOTATION_VALUE>hello</ANNOTATION_VALUE>
+      </ALIGNABLE_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <TIER TIER_ID="TRL_CHILD" LINGUISTIC_TYPE_REF="translation-lt" PARENT_REF="TRC_MAIN">
+    <ANNOTATION>
+      <REF_ANNOTATION ANNOTATION_ID="a2" ANNOTATION_REF="a1">
+        <ANNOTATION_VALUE>bonjour</ANNOTATION_VALUE>
+      </REF_ANNOTATION>
+    </ANNOTATION>
+  </TIER>
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="default-lt" TIME_ALIGNABLE="true" GRAPHIC_REFERENCES="false" />
+  <LINGUISTIC_TYPE LINGUISTIC_TYPE_ID="translation-lt" TIME_ALIGNABLE="false" CONSTRAINTS="Symbolic_Association" GRAPHIC_REFERENCES="false" />
+</ANNOTATION_DOCUMENT>`, detectedEncoding: 'utf-8', confidence: 'high' as const });
+
+    const setSaveState = vi.fn();
+    const { result } = renderHook(() => useImportExport({
+      activeTextId: 'text-import',
+      getActiveTextId: vi.fn(async () => 'text-import'),
+      selectedUnitMedia: undefined,
+      unitsOnCurrentMedia: [],
+      anchors: [],
+      layers: [defaultLayer],
+      translations: [],
+      defaultTranscriptionLayerId: defaultLayer.id,
+      loadSnapshot: vi.fn(async () => undefined),
+      setSaveState,
+    }));
+
+    await act(async () => {
+      await result.current.handleImportFile(new File(['x'], 'host-warning.eaf', { type: 'application/xml' }));
+    });
+
+    expect(setSaveState).toHaveBeenLastCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: expect.stringMatching(/恢复了单宿主链路|single-host links only/i),
+    }));
+  });
 });

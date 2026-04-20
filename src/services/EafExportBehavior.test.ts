@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { exportToEaf, importFromEaf } from './EafService';
-import type { LayerDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType, LayerUnitContentDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType, LayerUnitContentDocType, LayerLinkDocType } from '../db';
 
 function withEafKeyMeta(baseKey: string, meta?: string | { tierId?: string; langLabel?: string }): string {
   if (!meta) return baseKey;
@@ -79,6 +79,19 @@ function makeOrthography(overrides: Partial<OrthographyDocType> & { id: string; 
     updatedAt: now,
     ...restOverrides,
   } as OrthographyDocType;
+}
+
+function makeLayerLink(overrides: Partial<LayerLinkDocType> & { id: string; layerId: string; transcriptionLayerKey: string; hostTranscriptionLayerId: string }): LayerLinkDocType {
+  const now = '2026-03-25T00:00:00.000Z';
+  return {
+    id: overrides.id,
+    layerId: overrides.layerId,
+    transcriptionLayerKey: overrides.transcriptionLayerKey,
+    linkType: overrides.linkType ?? 'free',
+    isPreferred: overrides.isPreferred ?? false,
+    createdAt: overrides.createdAt ?? now,
+    hostTranscriptionLayerId: overrides.hostTranscriptionLayerId,
+  };
 }
 
 describe('EAF export behavior for constraint layers', () => {
@@ -290,6 +303,44 @@ describe('EAF export behavior for constraint layers', () => {
     const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
     expect(childTier).not.toBeNull();
     expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_CUSTOM');
+  });
+
+  it('exports only preferred host and emits multi-host warning', () => {
+    const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
+    const trcA = makeLayer({ id: 'trc_a', layerType: 'transcription', key: withEafKeyMeta('trc_a', 'TRC_A'), isDefault: false, sortOrder: 1 });
+    const trcB = makeLayer({ id: 'trc_b', layerType: 'transcription', key: withEafKeyMeta('trc_b', 'TRC_B'), isDefault: false, sortOrder: 2 });
+    const trl = makeLayer({
+      id: 'trl_child',
+      layerType: 'translation',
+      key: withEafKeyMeta('trl_child', 'TRL_CHILD'),
+      constraint: 'symbolic_association',
+    });
+    const warningSpy = vi.fn();
+
+    const xml = exportToEaf({
+      units: [makeUnit()],
+      layers: [defaultTrc, trcA, trcB, trl],
+      layerLinks: [
+        makeLayerLink({ id: 'link-a', layerId: trl.id, transcriptionLayerKey: trcA.key, hostTranscriptionLayerId: trcA.id, isPreferred: false }),
+        makeLayerLink({ id: 'link-b', layerId: trl.id, transcriptionLayerKey: trcB.key, hostTranscriptionLayerId: trcB.id, isPreferred: true }),
+      ],
+      translations: [
+        makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
+        makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child' }),
+      ],
+      onWarning: warningSpy,
+    });
+
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const childTier = doc.querySelector('TIER[TIER_ID="TRL_CHILD"]');
+    expect(childTier).not.toBeNull();
+    expect(childTier?.getAttribute('PARENT_REF')).toBe('TRC_B');
+    expect(warningSpy).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'translation-multi-host-lossy',
+      layerId: trl.id,
+      hostCount: 2,
+      preferredHostTranscriptionLayerId: trcB.id,
+    }));
   });
 
   it('keeps parent/constraint semantic on import after export (round-trip)', () => {

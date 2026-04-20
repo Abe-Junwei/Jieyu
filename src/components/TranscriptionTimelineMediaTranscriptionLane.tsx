@@ -279,7 +279,9 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         // Timeline rendering is TimelineUnitView-first; avoid doc-shape replacement by id.
         const uttForRender = unit;
         const scopeId = recordingScopeUnitId(uttForRender);
-        const audioTranslation = translationAudioByLayer?.get(layer.id)?.get(scopeId);
+        const translationAudioEntries = translationAudioByLayer?.get(layer.id);
+        const audioTranslation = translationAudioEntries?.get(scopeId)
+          ?? (scopeId !== unit.id ? translationAudioEntries?.get(unit.id) : undefined);
         const audioMedia = audioTranslation?.translationAudioMediaId
           ? mediaItemById.get(audioTranslation.translationAudioMediaId)
           : undefined;

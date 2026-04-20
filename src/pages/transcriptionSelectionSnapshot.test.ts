@@ -87,6 +87,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 2, start: 1, end: 3 },
       selectedLayerId: 'layer-tr',
       layers: [makeLayer('layer-main'), translationLayer],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: (_target, layerId) => (layerId === 'layer-tr' ? 'translated text' : '默认转写'),
       formatTime: (seconds) => seconds.toFixed(1),
@@ -110,6 +111,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 1, start: 1, end: 3 },
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
+      layerLinks: [],
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'segment text' }]])],
       ]),
@@ -133,6 +135,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: null,
       selectedLayerId: null,
       layers: [makeLayer('layer-main')],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: () => '',
       formatTime: (seconds) => seconds.toFixed(1),
@@ -158,6 +161,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: null,
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
+      layerLinks: [],
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'seg text' }]])],
       ]),
@@ -179,6 +183,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
       selectedLayerId: 'layer-main',
       layers: [makeLayer('layer-main', 'transcription')],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: () => '转写文本',
       formatTime: (seconds) => seconds.toFixed(1),
@@ -189,7 +194,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     expect(snapshot.selectedTranslationLayerId).toBeUndefined();
   });
 
-  it('derives selected translation layer from transcription host when available', () => {
+  it('derives selected translation layer from transcription host links when available', () => {
     const snapshot = buildTranscriptionSelectionSnapshot({
       selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'unit' },
       selectedTimelineSegment: null,
@@ -199,7 +204,18 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedLayerId: 'layer-main',
       layers: [
         makeLayer('layer-main', 'transcription'),
-        makeLayer('layer-tr-en', 'translation', { parentLayerId: 'layer-main' }),
+        makeLayer('layer-tr-en', 'translation'),
+      ],
+      layerLinks: [
+        {
+          id: 'link-1',
+          transcriptionLayerKey: 'layer-main',
+          hostTranscriptionLayerId: 'layer-main',
+          layerId: 'layer-tr-en',
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: '2026-03-30T00:00:00.000Z',
+        },
       ],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: () => '转写文本',

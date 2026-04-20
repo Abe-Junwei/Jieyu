@@ -87,10 +87,15 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   const locale = useLocale();
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const recordingScopeId = recordingScopeUnitId(utt);
-  const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
-  const audioActionDisabled = recording && !isCurrentRecording;
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
+  const recordingScopeIds = (() => {
+    const ids = [recordingScopeUnitId(utt), sourceUnit?.id, utt.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    return Array.from(new Set(ids));
+  })();
+  const isCurrentRecording = recording
+    && recordingLayerId === layer.id
+    && recordingScopeIds.includes((recordingUnitId ?? '').trim());
+  const audioActionDisabled = recording && !isCurrentRecording;
   const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
