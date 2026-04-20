@@ -1,12 +1,14 @@
 {
-  "generatedAt": "2026-04-15T06:06:55.772Z",
+  "generatedAt": "2026-04-20T13:14:39.385Z",
   "focusVisibleMin": 1,
   "allowedBadFocusBlocks": [],
   "allowedHoverWithoutFocus": [
+    "src/styles/foundation/control-primitives.css :: .btn-primary:hover",
     "src/styles/foundation/dialog-shell.css :: .language-iso-input-suggestion:hover,\n.language-iso-input-suggestion.is-active",
+    "src/styles/foundation/language-asset-section-contract.css :: .la-shell :is(.panel-button--ghost, .btn-ghost):is(:hover, :focus-visible):not(:disabled)",
+    "src/styles/foundation/language-asset-section-contract.css :: .la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):is(:hover, :focus-visible):not(:disabled)",
+    "src/styles/pages/timeline/timeline-layout.css :: .timeline-empty-actions-row:is(:hover, :focus-within) > button",
     "src/styles/pages/transcription-toolbar.css :: .transcription-wave-toolbar .icon-btn.icon-btn-active:hover:not(:disabled)",
-    "src/styles/pages/transcription-toolbar.css :: .transcription-wave-toolbar .icon-btn:hover:not(:disabled)",
-    "src/styles/pages/transcription-toolbar.css :: .transcription-wave-toolbar .play-btn:hover:not(:disabled)",
-    "src/styles/pages/transcription-toolbar.css :: .transcription-wave-toolbar .transcription-wave-toolbar-vad-btn:hover:not(:disabled)"
+    "src/styles/pages/transcription-toolbar.css :: .transcription-wave-toolbar .icon-btn:hover:not(:disabled)"
   ]
 }
