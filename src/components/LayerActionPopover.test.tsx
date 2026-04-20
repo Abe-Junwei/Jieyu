@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType } from '../db';
 import { LocaleProvider } from '../i18n';
@@ -326,6 +327,63 @@ describe('LayerActionPopover orthography creation', () => {
     await waitFor(() => {
       expect((screen.getByRole('textbox', { name: /语言代码|ISO 639-3/i }) as HTMLInputElement).value).toBe('eng');
       expect((screen.getByRole('combobox', { name: /正字法|Orthography/i }) as HTMLSelectElement).value).toBe('orth_eng_default');
+    });
+  });
+
+  it('passes selected translation host ids when creating a translation layer', async () => {
+    mockUseOrthographies.mockReturnValue([]);
+    const rootA = makeLayer({
+      id: 'layer-trc-a',
+      key: 'trc-a',
+      layerType: 'transcription',
+      languageId: 'zho',
+      constraint: 'independent_boundary',
+      name: { zho: '转写层甲' },
+    });
+    const rootB = makeLayer({
+      id: 'layer-trc-b',
+      key: 'trc-b',
+      layerType: 'transcription',
+      languageId: 'jpn',
+      constraint: 'independent_boundary',
+      name: { zho: '转写层乙' },
+    });
+    const createLayer = vi.fn(async () => true);
+
+    renderWithLocale(
+      <LayerActionPopover
+        action="create-translation"
+        layerId={undefined}
+        deletableLayers={[rootA, rootB]}
+        createLayer={createLayer}
+        deleteLayer={vi.fn(async () => undefined)}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const dialog = screen.getByRole('dialog', { name: '新建翻译层' });
+    const hostCheckbox = within(dialog).getByRole('checkbox', { name: /日语 jpn/ });
+    fireEvent.click(hostCheckbox);
+
+    const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|ISO 639-3/i });
+    fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
+    fireEvent.blur(languageCodeInput);
+
+    await waitFor(() => {
+      expect((within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled).toBe(false);
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
+
+    await waitFor(() => {
+      expect(createLayer).toHaveBeenCalledWith(
+        'translation',
+        expect.objectContaining({
+          languageId: 'fra',
+          hostTranscriptionLayerIds: [rootB.id],
+          preferredHostTranscriptionLayerId: rootB.id,
+        }),
+        'text',
+      );
     });
   });
 

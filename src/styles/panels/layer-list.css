@@ -1217,6 +1217,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.app-side-pane-segment-list-review-preset-label {
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
 .app-side-pane-segment-list-search-shell {
   display: flex;
   align-items: center;

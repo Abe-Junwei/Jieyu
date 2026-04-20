@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { getLayerEffectiveConstraint } from './SidePaneSidebar.shared';
 import { type ExistingLayerConstraintIssue, type ExistingLayerConstraintRepair, repairExistingLayerConstraints, validateExistingLayerConstraints } from '../services/LayerConstraintService';
+import type { Locale } from '../i18n';
 import { type LayerOrderIssue, type LayerOrderRepair, repairLayerOrder, validateLayerOrder } from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 
@@ -26,12 +27,16 @@ interface UseSidePaneSidebarConstraintRepairOptions {
   messages: SidePaneSidebarMessages;
   sidePaneRows: LayerDocType[];
   layerLabelById: Map<string, string>;
+  layerLinks?: readonly LayerLinkDocType[] | undefined;
+  locale: Locale;
 }
 
 export function useSidePaneSidebarConstraintRepair({
   messages,
   sidePaneRows,
   layerLabelById,
+  layerLinks = [],
+  locale,
 }: UseSidePaneSidebarConstraintRepairOptions) {
   const [constraintRepairBusy, setConstraintRepairBusy] = useState(false);
   const [constraintRepairMessage, setConstraintRepairMessage] = useState('');
@@ -80,7 +85,7 @@ export function useSidePaneSidebarConstraintRepair({
     setConstraintRepairDetailsCollapsed(false);
 
     try {
-      const constraintRepaired = repairExistingLayerConstraints(sidePaneRows);
+      const constraintRepaired = repairExistingLayerConstraints(sidePaneRows, undefined, locale, layerLinks);
       const orderRepaired = repairLayerOrder(constraintRepaired.layers);
       const layerById = new Map(sidePaneRows.map((layer) => [layer.id, layer] as const));
       const changedLayers = orderRepaired.layers.filter((layer) => {
@@ -106,7 +111,7 @@ export function useSidePaneSidebarConstraintRepair({
         await Promise.all(changedSortLayers.map((layer) => LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0)));
       }
 
-      const remainingIssues = validateExistingLayerConstraints(orderRepaired.layers);
+      const remainingIssues = validateExistingLayerConstraints(orderRepaired.layers, undefined, locale, layerLinks);
       const remainingOrderIssues = validateLayerOrder(orderRepaired.layers);
       setConstraintRepairDetails({
         repairs: constraintRepaired.repairs,
@@ -130,7 +135,7 @@ export function useSidePaneSidebarConstraintRepair({
     } finally {
       setConstraintRepairBusy(false);
     }
-  }, [messages, sidePaneRows]);
+  }, [layerLabelById, layerLinks, locale, messages, sidePaneRows]);
 
   return {
     constraintRepairBusy,

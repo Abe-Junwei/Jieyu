@@ -8,6 +8,7 @@ import type { LayerCreateInput, SaveState, TimelineUnit } from './transcriptionT
 import { canCreateLayer, canDeleteLayer, getLayerCreateGuard, listIndependentBoundaryTranscriptionLayers } from '../services/LayerConstraintService';
 import { computeCanonicalLayerOrder, resolveLayerDrop } from '../services/LayerOrderingService';
 import { createLayerLink } from '../services/LayerIdBridgeService';
+import { buildTranscriptionIdByKeyMap, resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { listUnitTextsByUnits } from '../services/LayerSegmentationTextService';
 import { deleteLayerSegmentGraphByLayerId, listUnitUnitPrimaryKeysByTextId } from '../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
@@ -77,37 +78,67 @@ export function useTranscriptionLayerActions({
   setUnits,
 }: TranscriptionLayerActionsParams) {
   const locale = useLocale();
-  const syncTranslationParentLinks = useCallback(async (
-    previousLayers: LayerDocType[],
+  const syncTranslationHostLinksByOrder = useCallback(async (
     nextLayers: LayerDocType[],
   ): Promise<LayerLinkDocType[] | null> => {
-    const previousById = new Map(previousLayers.map((layer) => [layer.id, layer] as const));
     const nextById = new Map(nextLayers.map((layer) => [layer.id, layer] as const));
+    const transcriptionIdByKeyForLinks = buildTranscriptionIdByKeyMap(nextLayers);
+    const getEffectiveConstraint = (layer: LayerDocType): NonNullable<LayerDocType['constraint']> => (
+      layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary')
+    );
+    const isIndependentTranscriptionRoot = (layer: LayerDocType): boolean => (
+      layer.layerType === 'transcription' && getEffectiveConstraint(layer) === 'independent_boundary'
+    );
+
+    // 按当前顺序推导“译文 -> 宿主根转写层”，避免依赖译文 parent 字段 | Derive translation host roots from current order, avoiding translation parent-field coupling.
+    const sorted = [...nextLayers].sort((a, b) => {
+      const sa = typeof a.sortOrder === 'number' ? a.sortOrder : Number.MAX_SAFE_INTEGER;
+      const sb = typeof b.sortOrder === 'number' ? b.sortOrder : Number.MAX_SAFE_INTEGER;
+      if (sa !== sb) return sa - sb;
+      return a.id.localeCompare(b.id);
+    });
+    const expectedHostByTranslationId = new Map<string, LayerDocType>();
+    let currentRoot: LayerDocType | null = null;
+    for (const layer of sorted) {
+      if (isIndependentTranscriptionRoot(layer)) {
+        currentRoot = layer;
+        continue;
+      }
+      if (layer.layerType === 'translation' && currentRoot) {
+        expectedHostByTranslationId.set(layer.id, currentRoot);
+      }
+    }
+
     let nextLayerLinks = [...layerLinks];
     let changed = false;
 
-    const reparentedTranslations = nextLayers.filter((layer) => {
-      if (layer.layerType !== 'translation') return false;
-      const previous = previousById.get(layer.id);
-      if (!previous) return false;
-      return (previous.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
-    });
-
-    if (reparentedTranslations.length === 0) {
-      return null;
+    const currentHostByTranslationId = new Map<string, string>();
+    for (const link of nextLayerLinks) {
+      const hostIdFromKey = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKeyForLinks);
+      if (!hostIdFromKey) continue;
+      const current = currentHostByTranslationId.get(link.layerId);
+      if (!current || link.isPreferred) {
+        currentHostByTranslationId.set(link.layerId, hostIdFromKey);
+      }
     }
+
+    const translationsToRewire = [...expectedHostByTranslationId.entries()]
+      .filter(([translationLayerId, expectedHost]) => currentHostByTranslationId.get(translationLayerId) !== expectedHost.id)
+      .map(([translationLayerId]) => translationLayerId);
+
+    if (translationsToRewire.length === 0) return null;
 
     const db = await getDb();
     const now = new Date().toISOString();
 
-    for (const layer of reparentedTranslations) {
-      const previous = previousById.get(layer.id);
-      if (!previous) continue;
+    for (const translationLayerId of translationsToRewire) {
+      const expectedHost = expectedHostByTranslationId.get(translationLayerId);
+      if (!expectedHost) continue;
 
-      const nextParent = layer.parentLayerId ? nextById.get(layer.parentLayerId) : undefined;
+      const nextParent = nextById.get(expectedHost.id);
       const nextParentKey = nextParent?.key;
 
-      const removableLinks = nextLayerLinks.filter((link) => link.layerId === layer.id);
+      const removableLinks = nextLayerLinks.filter((link) => link.layerId === translationLayerId);
       if (removableLinks.length > 0) {
         await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
         const removableIds = new Set(removableLinks.map((link) => link.id));
@@ -120,7 +151,7 @@ export function useTranscriptionLayerActions({
       }
 
       const alreadyLinked = nextLayerLinks.some(
-        (link) => link.layerId === layer.id && link.transcriptionLayerKey === nextParentKey,
+        (link) => link.layerId === translationLayerId && link.transcriptionLayerKey === nextParentKey,
       );
       if (alreadyLinked) {
         continue;
@@ -129,7 +160,8 @@ export function useTranscriptionLayerActions({
       const newLink = createLayerLink({
         id: newId('link'),
         transcriptionLayerKey: nextParentKey,
-        targetLayerId: layer.id,
+        hostTranscriptionLayerId: nextParent.id,
+        targetLayerId: translationLayerId,
         createdAt: now,
       });
       await db.collections.layer_links.insert(newLink);
@@ -198,14 +230,49 @@ export function useTranscriptionLayerActions({
     const resolvedConstraint = input.constraint
       ?? (layerType === 'transcription' && !hasExistingTranscriptionLayer ? 'independent_boundary' : undefined);
     const independentParentCandidates = listIndependentBoundaryTranscriptionLayers(layers);
-    const resolvedParent = resolvedConstraint !== 'independent_boundary'
-      ? (requestedParentLayerId
-        ? independentParentCandidates.find((layer) => layer.id === requestedParentLayerId)
-        : independentParentCandidates.length === 1
-          ? independentParentCandidates[0]
-          : undefined)
-      : undefined;
-    const resolvedParentLayerId = resolvedParent?.id ?? requestedParentLayerId;
+    const independentParentById = new Map(
+      independentParentCandidates.map((layer) => [layer.id, layer] as const),
+    );
+    const requestedHostTranscriptionLayerIds = [...new Set(
+      (input.hostTranscriptionLayerIds ?? [])
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    )];
+    const requestedPreferredHostTranscriptionLayerId = input.preferredHostTranscriptionLayerId?.trim() ?? '';
+
+    const resolvedTranslationHostTranscriptionLayerIds = layerType === 'translation'
+      ? (() => {
+        const explicitHostIds = requestedHostTranscriptionLayerIds.filter((id) => independentParentById.has(id));
+        if (explicitHostIds.length > 0) return explicitHostIds;
+
+        if (requestedParentLayerId && independentParentById.has(requestedParentLayerId)) {
+          return [requestedParentLayerId];
+        }
+        if (independentParentCandidates.length === 1) {
+          return [independentParentCandidates[0]!.id];
+        }
+        return [];
+      })()
+      : [];
+    const resolvedTranslationPreferredHostTranscriptionLayerId = layerType === 'translation'
+      ? (requestedPreferredHostTranscriptionLayerId
+        && resolvedTranslationHostTranscriptionLayerIds.includes(requestedPreferredHostTranscriptionLayerId)
+        ? requestedPreferredHostTranscriptionLayerId
+        : (resolvedTranslationHostTranscriptionLayerIds[0] ?? ''))
+      : '';
+
+    const resolvedParent = layerType === 'translation'
+      ? (resolvedTranslationPreferredHostTranscriptionLayerId
+        ? independentParentById.get(resolvedTranslationPreferredHostTranscriptionLayerId)
+        : undefined)
+      : (resolvedConstraint !== 'independent_boundary'
+        ? (requestedParentLayerId
+          ? independentParentCandidates.find((layer) => layer.id === requestedParentLayerId)
+          : independentParentCandidates.length === 1
+            ? independentParentCandidates[0]
+            : undefined)
+        : undefined);
+    const resolvedParentLayerId = resolvedParent?.id ?? (layerType === 'translation' ? '' : requestedParentLayerId);
 
     const effectiveModality = modality ?? 'text';
     const createGuard = getLayerCreateGuard(layers, layerType, {
@@ -213,7 +280,13 @@ export function useTranscriptionLayerActions({
       alias,
       modality: effectiveModality,
       ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
-      ...(resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
+      ...(layerType === 'transcription' && resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
+      ...(layerType === 'translation'
+        ? {
+          hostTranscriptionLayerIds: resolvedTranslationHostTranscriptionLayerIds,
+          preferredHostTranscriptionLayerId: resolvedTranslationPreferredHostTranscriptionLayerId,
+        }
+        : {}),
       hasSupportedParent: independentParentCandidates.length > 0,
     });
     if (!createGuard.allowed) {
@@ -264,7 +337,7 @@ export function useTranscriptionLayerActions({
         acceptsAudio: effectiveModality !== 'text',
         sortOrder: newSortOrder,
         ...(resolvedConstraint !== undefined ? { constraint: resolvedConstraint } : {}),
-        ...(resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
+        ...(layerType === 'transcription' && resolvedParentLayerId ? { parentLayerId: resolvedParentLayerId } : {}),
         createdAt: now,
         updatedAt: now,
       } as LayerDocType;
@@ -310,26 +383,39 @@ export function useTranscriptionLayerActions({
         }
       }
 
-      let autoLink: LayerLinkDocType | undefined;
+      let autoLinks: LayerLinkDocType[] = [];
       if (layerType === 'translation') {
-        if (resolvedParent) {
-          autoLink = createLayerLink({
+        const hostLayers = resolvedTranslationHostTranscriptionLayerIds
+          .map((hostId) => independentParentById.get(hostId))
+          .filter((layer): layer is LayerDocType => Boolean(layer));
+        autoLinks = hostLayers.map((hostLayer) => {
+          const link = createLayerLink({
             id: newId('link'),
-            transcriptionLayerKey: resolvedParent.key,
+            transcriptionLayerKey: hostLayer.key,
+            hostTranscriptionLayerId: hostLayer.id,
             targetLayerId: id,
             createdAt: now,
           });
-          await db.collections.layer_links.insert(autoLink);
+          if (hostLayer.id === resolvedTranslationPreferredHostTranscriptionLayerId) {
+            return { ...link, isPreferred: true };
+          }
+          return link;
+        });
+        if (autoLinks.length > 0) {
+          await Promise.all(autoLinks.map((link) => db.collections.layer_links.insert(link)));
         }
       }
 
-      const nextLayers = computeCanonicalLayerOrder([...layers, newLayer]);
+      const linksForOrdering = autoLinks.length > 0
+        ? [...layerLinks, ...autoLinks]
+        : layerLinks;
+      const nextLayers = computeCanonicalLayerOrder([...layers, newLayer], linksForOrdering);
       await persistLayerState([...layers, newLayer], nextLayers);
 
       setSelectedLayerId(id);
       setLayers(nextLayers);
-      if (autoLink) {
-        setLayerLinks((prev) => [...prev, autoLink]);
+      if (autoLinks.length > 0) {
+        setLayerLinks((prev) => [...prev, ...autoLinks]);
       }
 
       setLayerCreateMessage(`\u5df2\u521b\u5efa${typeLabel}\u5c42\uff1a${autoName}\uff08${languageId}\uff09`);
@@ -357,7 +443,7 @@ export function useTranscriptionLayerActions({
     }
 
     const db = await getDb();
-    const deleteCheck = canDeleteLayer(layers, effectiveLayerId);
+    const deleteCheck = canDeleteLayer(layers, effectiveLayerId, layerLinks);
     if (!deleteCheck.allowed) {
       if (!options?.silent) {
         setLayerCreateMessage(deleteCheck.reason ?? '\u5f53\u524d\u5c42\u65e0\u6cd5\u5220\u9664\u3002');
@@ -404,9 +490,9 @@ export function useTranscriptionLayerActions({
             const updatedTranslation: LayerDocType = {
               ...translationLayer,
               constraint: 'symbolic_association',
-              parentLayerId: relinkTargetLayer.id,
               updatedAt: now,
             };
+            delete updatedTranslation.parentLayerId;
             await LayerTierUnifiedService.updateLayer(updatedTranslation);
             reparentedLayerById.set(updatedTranslation.id, updatedTranslation);
 
@@ -420,6 +506,7 @@ export function useTranscriptionLayerActions({
             const relink = createLayerLink({
               id: newId('link'),
               transcriptionLayerKey: deleteCheck.relinkTargetKey,
+              hostTranscriptionLayerId: relinkTargetLayer.id,
               targetLayerId: trlId,
               createdAt: now,
             });
@@ -505,9 +592,20 @@ export function useTranscriptionLayerActions({
       const transcriptionLayers = layers.filter((item) => item.layerType === 'transcription');
       if (transcriptionLayers.length <= 1) {
         try {
-          const dependentTranslationIds = layers
-            .filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === targetLayer.id)
-            .map((layer) => layer.id);
+          const dependentTranslationIdsFromLinks = [...new Set(
+            layerLinks
+              .filter((link) => {
+                const hostId = typeof link.hostTranscriptionLayerId === 'string'
+                  ? link.hostTranscriptionLayerId.trim()
+                  : '';
+                if (hostId.length > 0) {
+                  return hostId === targetLayer.id;
+                }
+                return link.transcriptionLayerKey === targetLayer.key;
+              })
+              .map((link) => link.layerId),
+          )];
+          const dependentTranslationIds = dependentTranslationIdsFromLinks;
 
           for (const dependentTranslationId of dependentTranslationIds) {
             await performLayerDelete(dependentTranslationId, {
@@ -551,25 +649,76 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    if (translationLayer.parentLayerId === targetParent.id) {
+    const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+
+    const alreadyLinkedToTarget = layerLinks.some((link) => (
+      link.layerId === layerId && resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey) === targetParent.id
+    ));
+
+    const existingLinksForTranslation = layerLinks.filter((link) => link.layerId === layerId);
+
+    if (alreadyLinkedToTarget) {
+      const preferredOnTarget = existingLinksForTranslation.some(
+        (link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey) === targetParent.id && link.isPreferred,
+      );
+      if (preferredOnTarget) return;
+
+      pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
+      const db = await getDb();
+      const nextLayerLinks = layerLinks.map((link) => {
+        if (link.layerId !== layerId) return link;
+        const hid = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+        return { ...link, isPreferred: hid === targetParent.id };
+      });
+      for (let i = 0; i < layerLinks.length; i += 1) {
+        const prev = layerLinks[i]!;
+        const next = nextLayerLinks[i]!;
+        if (prev.isPreferred !== next.isPreferred) {
+          await db.collections.layer_links.update(prev.id, { isPreferred: next.isPreferred });
+        }
+      }
+      const nextLayers = computeCanonicalLayerOrder(layers, nextLayerLinks);
+      await persistLayerState(layers, nextLayers);
+      setLayers(nextLayers);
+      setLayerLinks(nextLayerLinks);
       return;
     }
 
     pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
     const now = new Date().toISOString();
+    const db = await getDb();
+
+    if (existingLinksForTranslation.length > 0) {
+      const hasPreferred = existingLinksForTranslation.some((link) => link.isPreferred);
+      const baseLink = createLayerLink({
+        id: newId('link'),
+        transcriptionLayerKey: targetParent.key,
+        hostTranscriptionLayerId: targetParent.id,
+        targetLayerId: layerId,
+        createdAt: now,
+      });
+      const newLink: LayerLinkDocType = !hasPreferred ? { ...baseLink, isPreferred: true } : baseLink;
+      await db.collections.layer_links.insert(newLink);
+      const extendedLinks = [...layerLinks, newLink];
+      const nextLayers = computeCanonicalLayerOrder(layers, extendedLinks);
+      await persistLayerState(layers, nextLayers);
+      setLayers(nextLayers);
+      setLayerLinks(extendedLinks);
+      return;
+    }
+
     const updatedTranslationBase: LayerDocType = {
       ...translationLayer,
       constraint: 'symbolic_association',
-      parentLayerId: targetParent.id,
       updatedAt: now,
     };
+    delete updatedTranslationBase.parentLayerId;
     const nextLayers = computeCanonicalLayerOrder(layers.map((layer) => (
       layer.id === layerId ? updatedTranslationBase : layer
     )));
     const updatedTranslation = nextLayers.find((layer) => layer.id === layerId) ?? updatedTranslationBase;
     const previousById = new Map(layers.map((layer) => [layer.id, layer] as const));
 
-    const db = await getDb();
     await LayerTierUnifiedService.updateLayer(updatedTranslation);
     const changedSortLayers = nextLayers.filter((layer) => {
       if (layer.id === updatedTranslation.id) return false;
@@ -581,14 +730,10 @@ export function useTranscriptionLayerActions({
       await Promise.all(changedSortLayers.map((layer) => LayerTierUnifiedService.updateLayerSortOrder(layer.id, layer.sortOrder ?? 0, db)));
     }
 
-    const removableLinks = layerLinks.filter((link) => link.layerId === layerId);
-    if (removableLinks.length > 0) {
-      await Promise.all(removableLinks.map((link) => db.collections.layer_links.remove(link.id)));
-    }
-
     const newLink = createLayerLink({
       id: newId('link'),
       transcriptionLayerKey: targetParent.key,
+      hostTranscriptionLayerId: targetParent.id,
       targetLayerId: layerId,
       createdAt: now,
     });
@@ -599,7 +744,7 @@ export function useTranscriptionLayerActions({
       ...prev.filter((link) => link.layerId !== layerId),
       newLink,
     ]);
-  }, [layerLinks, layers, locale, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
+  }, [layerLinks, layers, locale, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
 
   const addMediaItem = useCallback((item: MediaItemDocType) => {
     setMediaItems((prev) => {
@@ -616,7 +761,7 @@ export function useTranscriptionLayerActions({
   }, [clearTimelineSelection, setMediaItems, setSelectedMediaId]);
 
   const reorderLayers = useCallback(async (draggedLayerId: string, targetIndex: number) => {
-    const resolved = resolveLayerDrop(layers, draggedLayerId, targetIndex);
+    const resolved = resolveLayerDrop(layers, draggedLayerId, targetIndex, layerLinks);
     if (!resolved.changed) {
       if (resolved.message) {
         setLayerCreateMessage(resolved.message);
@@ -629,7 +774,7 @@ export function useTranscriptionLayerActions({
 
     try {
       await persistLayerState(layers, resolved.layers);
-      const nextLayerLinks = await syncTranslationParentLinks(layers, resolved.layers);
+      const nextLayerLinks = await syncTranslationHostLinksByOrder(resolved.layers);
       setLayers(resolved.layers);
       if (nextLayerLinks) {
         setLayerLinks(nextLayerLinks);
@@ -646,7 +791,7 @@ export function useTranscriptionLayerActions({
       setLayerCreateMessage(message);
       setSaveState?.({ kind: 'error', message });
     }
-  }, [layers, persistLayerState, setLayerCreateMessage, setLayerLinks, setLayers, setSaveState, syncTranslationParentLinks]);
+  }, [layers, persistLayerState, setLayerCreateMessage, setLayerLinks, setLayers, setSaveState, syncTranslationHostLinksByOrder]);
 
   return {
     createLayer,

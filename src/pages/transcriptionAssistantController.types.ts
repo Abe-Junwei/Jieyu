@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
@@ -72,6 +72,7 @@ export interface UseTranscriptionAssistantControllerInput {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
   getUnitTextForLayer: (unit: LayerUnitDocType, layerId?: string) => string;
   saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;

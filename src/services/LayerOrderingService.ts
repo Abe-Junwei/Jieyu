@@ -1,6 +1,7 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
+import { buildTranscriptionIdByKeyMap, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
 
 export type LayerOrderingMessageLevel = 'info' | 'warning' | 'error';
 
@@ -25,12 +26,23 @@ export interface LayerBundle {
   detached?: boolean;
 }
 
+/** 拖拽重排后需写入的 link 变更 | Link update produced by resolveLayerDrop */
+export interface LayerDropLinkUpdate {
+  layerId: string;
+  hostTranscriptionLayerId: string;
+  transcriptionLayerKey: string;
+}
+
 export interface ResolveLayerDropResult {
   layers: LayerDocType[];
   changed: boolean;
+  /** 译文层宿主变更指令（调用方据此更新 layer_links）| Translation host link updates for the caller */
+  linkUpdates?: LayerDropLinkUpdate[];
   message?: string;
   messageLevel?: LayerOrderingMessageLevel;
 }
+
+type LayerOrderLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
 function getEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
@@ -184,10 +196,37 @@ function sameFlattenedIds(left: LayerDocType[], right: LayerDocType[]): boolean 
   return left.every((layer, index) => layer.id === right[index]?.id);
 }
 
-export function buildLayerBundles(layers: LayerDocType[]): LayerBundle[] {
+function resolvePreferredHostTranscriptionLayerId(
+  translationLayerId: string,
+  linksByTranslationLayerId: Map<string, LayerOrderLink[]>,
+  transcriptionByKey: Map<string, LayerDocType>,
+): string | undefined {
+  const links = linksByTranslationLayerId.get(translationLayerId) ?? [];
+  const transcriptionIdByKey = buildTranscriptionIdByKeyMap([...transcriptionByKey.values()]);
+  return getPreferredHostTranscriptionLayerIdForTranslation(translationLayerId, links, transcriptionIdByKey);
+}
+
+export function buildLayerBundles(
+  layers: LayerDocType[],
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
+): LayerBundle[] {
   const sortedLayers = [...layers].sort(compareLayers);
   const rootBundles = new Map<string, LayerBundle>();
   const detachedBundles: LayerBundle[] = [];
+  const transcriptionByKey = new Map<string, LayerDocType>();
+  const linksByTranslationLayerId = new Map<string, LayerOrderLink[]>();
+
+  for (const layer of sortedLayers) {
+    if (layer.layerType === 'transcription') {
+      transcriptionByKey.set(layer.key, layer);
+    }
+  }
+
+  for (const link of layerLinks) {
+    const items = linksByTranslationLayerId.get(link.layerId) ?? [];
+    items.push(link);
+    linksByTranslationLayerId.set(link.layerId, items);
+  }
 
   for (const layer of sortedLayers) {
     if (isIndependentTranscriptionRoot(layer)) {
@@ -201,7 +240,12 @@ export function buildLayerBundles(layers: LayerDocType[]): LayerBundle[] {
 
   for (const layer of sortedLayers) {
     if (isIndependentTranscriptionRoot(layer)) continue;
-    const parentBundle = layer.parentLayerId ? rootBundles.get(layer.parentLayerId) : undefined;
+    const preferredHostTranscriptionLayerId = layer.layerType === 'translation'
+      ? resolvePreferredHostTranscriptionLayerId(layer.id, linksByTranslationLayerId, transcriptionByKey)
+      : undefined;
+    const parentBundle = preferredHostTranscriptionLayerId
+      ? rootBundles.get(preferredHostTranscriptionLayerId)
+      : (layer.parentLayerId ? rootBundles.get(layer.parentLayerId) : undefined);
     if (parentBundle && getEffectiveConstraint(layer) !== 'independent_boundary') {
       if (layer.layerType === 'translation') {
         parentBundle.translationDependents.push(layer);
@@ -231,8 +275,12 @@ export function flattenLayerBundles(bundles: LayerBundle[]): LayerDocType[] {
   return bundles.flatMap((bundle) => flattenBundle(bundle));
 }
 
-export function resolveLayerDragGroup(layers: LayerDocType[], draggedLayerId: string): string[] {
-  const bundles = buildLayerBundles(layers);
+export function resolveLayerDragGroup(
+  layers: LayerDocType[],
+  draggedLayerId: string,
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
+): string[] {
+  const bundles = buildLayerBundles(layers, layerLinks);
   const sourceBundleIndex = findBundleIndexContainingLayer(bundles, draggedLayerId);
   if (sourceBundleIndex < 0) {
     return [draggedLayerId];
@@ -250,13 +298,19 @@ export function resolveLayerDragGroup(layers: LayerDocType[], draggedLayerId: st
   return flattenBundle(sourceBundle).map((layer) => layer.id);
 }
 
-export function computeCanonicalLayerOrder(layers: LayerDocType[]): LayerDocType[] {
-  return canonicalizeFromBundles(buildLayerBundles(layers));
+export function computeCanonicalLayerOrder(
+  layers: LayerDocType[],
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
+): LayerDocType[] {
+  return canonicalizeFromBundles(buildLayerBundles(layers, layerLinks));
 }
 
-export function validateLayerOrder(layers: LayerDocType[]): LayerOrderIssue[] {
+export function validateLayerOrder(
+  layers: LayerDocType[],
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
+): LayerOrderIssue[] {
   const currentOrdered = [...layers].sort(compareLayers);
-  const canonicalOrdered = computeCanonicalLayerOrder(layers);
+  const canonicalOrdered = computeCanonicalLayerOrder(layers, layerLinks);
   const expectedIndexById = new Map(canonicalOrdered.map((layer, index) => [layer.id, index] as const));
 
   return currentOrdered.flatMap((layer, actualIndex) => {
@@ -272,9 +326,12 @@ export function validateLayerOrder(layers: LayerDocType[]): LayerOrderIssue[] {
   });
 }
 
-export function repairLayerOrder(layers: LayerDocType[]): { layers: LayerDocType[]; repairs: LayerOrderRepair[] } {
+export function repairLayerOrder(
+  layers: LayerDocType[],
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
+): { layers: LayerDocType[]; repairs: LayerOrderRepair[] } {
   const currentById = new Map(layers.map((layer) => [layer.id, layer] as const));
-  const repairedLayers = computeCanonicalLayerOrder(layers);
+  const repairedLayers = computeCanonicalLayerOrder(layers, layerLinks);
   const repairs = repairedLayers.flatMap((layer, index) => {
     const previous = currentById.get(layer.id);
     if (!previous || (previous.sortOrder ?? index) === index) {
@@ -297,10 +354,22 @@ export function resolveLayerDrop(
   layers: LayerDocType[],
   draggedLayerId: string,
   targetIndex: number,
+  layerLinks: ReadonlyArray<LayerOrderLink> = [],
 ): ResolveLayerDropResult {
-  const bundles = buildLayerBundles(layers);
+  const bundles = buildLayerBundles(layers, layerLinks);
   const flattened = flattenLayerBundles(bundles);
   const layerById = new Map(layers.map((layer) => [layer.id, layer] as const));
+  const transcriptionByKey = new Map(
+    layers
+      .filter((layer) => layer.layerType === 'transcription')
+      .map((layer) => [layer.key, layer] as const),
+  );
+  const linksByTranslationLayerId = new Map<string, LayerOrderLink[]>();
+  for (const link of layerLinks) {
+    const items = linksByTranslationLayerId.get(link.layerId) ?? [];
+    items.push(link);
+    linksByTranslationLayerId.set(link.layerId, items);
+  }
   const currentIndex = flattened.findIndex((layer) => layer.id === draggedLayerId);
   if (currentIndex < 0) {
     return { layers, changed: false };
@@ -372,11 +441,8 @@ export function resolveLayerDrop(
     Math.min(bundleProbeOrderedIndex, Math.max(flattened.length - 1, 0)),
   );
   const bundleAnchorLayer = flattened[clampedBundleProbeOrderedIndex];
-  const bundleAnchorRootId = bundleAnchorLayer
-    ? (isIndependentTranscriptionRoot(bundleAnchorLayer) ? bundleAnchorLayer.id : bundleAnchorLayer.parentLayerId)
-    : undefined;
-  const anchorBundleIndex = bundleAnchorRootId
-    ? filteredBundles.findIndex((bundle) => bundle.root.id === bundleAnchorRootId)
+  const anchorBundleIndex = bundleAnchorLayer
+    ? findBundleIndexContainingLayer(filteredBundles, bundleAnchorLayer.id)
     : -1;
   const targetBundleIndex = anchorBundleIndex >= 0
     ? anchorBundleIndex
@@ -392,8 +458,12 @@ export function resolveLayerDrop(
 
   const targetBundle = filteredBundles[targetBundleIndex]!;
   const nextParentLayerId = targetBundle.root.id;
-  const reparented = (draggedLayer.parentLayerId ?? '') !== nextParentLayerId;
-  const movedLayer = reparented
+  const previousHostTranscriptionLayerId = draggedLayer.layerType === 'translation'
+    ? (resolvePreferredHostTranscriptionLayerId(draggedLayer.id, linksByTranslationLayerId, transcriptionByKey) ?? draggedLayer.parentLayerId)
+    : draggedLayer.parentLayerId;
+  const reparented = (previousHostTranscriptionLayerId ?? '') !== nextParentLayerId;
+  // 译文层宿主关系由 layer_links 承载，不再写 parentLayerId | Translation host lives in layer_links, skip parentLayerId mutation
+  const movedLayer = reparented && draggedLayer.layerType !== 'translation'
     ? { ...draggedLayer, parentLayerId: nextParentLayerId }
     : draggedLayer;
 
@@ -411,10 +481,17 @@ export function resolveLayerDrop(
   }
 
   const nextLayers = canonicalizeFromBundles(filteredBundles);
-  const previousParent = draggedLayer.parentLayerId ? layerById.get(draggedLayer.parentLayerId) : undefined;
+  const previousParent = previousHostTranscriptionLayerId ? layerById.get(previousHostTranscriptionLayerId) : undefined;
+
+  // 译文层重新归属时返回 linkUpdates | Return linkUpdates when a translation layer is reparented
+  const linkUpdates: LayerDropLinkUpdate[] | undefined = reparented && draggedLayer.layerType === 'translation'
+    ? [{ layerId: draggedLayer.id, hostTranscriptionLayerId: nextParentLayerId, transcriptionLayerKey: targetBundle.root.key }]
+    : undefined;
+
   return {
     layers: nextLayers,
     changed: reparented || !sameFlattenedIds(nextLayers, flattened),
+    ...(linkUpdates ? { linkUpdates } : {}),
     ...(reparented
       ? {
           message: previousParent

@@ -13,6 +13,8 @@ export interface UseLayerActionPanelInput {
       alias?: string;
       constraint?: LayerConstraint;
       parentLayerId?: string;
+      hostTranscriptionLayerIds?: string[];
+      preferredHostTranscriptionLayerId?: string;
     },
     modality?: 'text' | 'audio' | 'mixed',
   ) => Promise<boolean>;

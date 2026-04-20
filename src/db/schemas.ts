@@ -595,7 +595,6 @@ const translationLayerDocSchema = z.object({
   sortOrder: z.number().int().optional(),
   constraint: layerConstraintSchema.optional(),
   parentLayerId: z.string().optional(),
-  parentLayerIds: z.array(z.string().min(1)).optional(),
   displaySettings: layerDisplaySettingsSchema,
   accessRights: accessRightsSchema.optional(),
   createdAt: isoDateSchema,
@@ -743,6 +742,7 @@ const auditLogDocSchema = z.object({
 const layerLinkDocSchema = z.object({
   id: z.string().min(1),
   transcriptionLayerKey: z.string().min(1),
+  hostTranscriptionLayerId: z.string().min(1),
   layerId: z.string().min(1),
   linkType: z.enum(['direct', 'free', 'literal', 'pedagogical']),
   isPreferred: z.boolean(),

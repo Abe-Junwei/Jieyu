@@ -9,6 +9,11 @@
 import { LAYER_SOFT_LIMITS, type LayerDocType, type LayerLinkDocType } from '../db';
 import type { Locale } from '../i18n';
 import { getLayerConstraintServiceMessages } from '../i18n/layerConstraintServiceMessages';
+import {
+  buildTranscriptionIdByKeyMap,
+  getHostTranscriptionLayerIdsForTranslation,
+  resolveLayerLinkHostTranscriptionLayerId,
+} from '../utils/translationHostLinkQuery';
 
 // Result types
 
@@ -92,6 +97,7 @@ export function validateExistingLayerConstraints(
   layers: LayerDocType[],
   runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>,
   locale: Locale = DEFAULT_LOCALE,
+  layerLinks: readonly LayerLinkDocType[] = [],
 ): ExistingLayerConstraintIssue[] {
   const msg = getLayerConstraintServiceMessages(locale);
   const issues: ExistingLayerConstraintIssue[] = [];
@@ -128,6 +134,25 @@ export function validateExistingLayerConstraints(
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
+      if (layer.layerType === 'translation' && layerLinks.length > 0) {
+        const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+        const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
+        if (hostIds.length > 0) {
+          for (const hostId of hostIds) {
+            const hostLayer = layerById.get(hostId);
+            if (!hostLayer || hostLayer.layerType !== 'transcription' || !independentTranscriptionLayerIds.has(hostLayer.id)) {
+              issues.push({
+                layerId: layer.id,
+                code: 'invalid-parent-layer-type',
+                message: msg.issueParentMustBeIndependentTranscription(layer.key),
+              });
+              break;
+            }
+          }
+          continue;
+        }
+      }
+
       if (!layer.parentLayerId) {
         issues.push({
           layerId: layer.id,
@@ -189,6 +214,7 @@ export function repairExistingLayerConstraints(
   layers: LayerDocType[],
   runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>,
   locale: Locale = DEFAULT_LOCALE,
+  layerLinks: readonly LayerLinkDocType[] = [],
 ): { layers: LayerDocType[]; repairs: ExistingLayerConstraintRepair[] } {
   const msg = getLayerConstraintServiceMessages(locale);
   const capabilities: ConstraintRuntimeCapabilities = {
@@ -223,6 +249,15 @@ export function repairExistingLayerConstraints(
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
+      if (layer.layerType === 'translation' && layerLinks.length > 0) {
+        const transcriptionIdByKey = buildTranscriptionIdByKeyMap(clonedLayers);
+        const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
+        if (hostIds.length > 0) {
+          delete layer.parentLayerId;
+          continue;
+        }
+      }
+
       const parent = layer.parentLayerId ? layerById.get(layer.parentLayerId) : undefined;
       if (!parent || parent.id === layer.id || !listIndependentBoundaryTranscriptionLayers(clonedLayers).some((candidate) => candidate.id === parent.id)) {
         const fallbackParent = findFallbackParent(layer.id);
@@ -318,6 +353,9 @@ export function getLayerCreateGuard(
     modality?: LayerDocType['modality'];
     constraint?: LayerDocType['constraint'];
     parentLayerId?: string;
+    /** Translation: explicit independent-boundary host transcription ids (layer_links targets). */
+    hostTranscriptionLayerIds?: string[];
+    preferredHostTranscriptionLayerId?: string;
     hasSupportedParent?: boolean;
     runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>;
   },
@@ -329,6 +367,13 @@ export function getLayerCreateGuard(
   const dependentParentCandidates = listIndependentBoundaryTranscriptionLayers(layers);
   const normalizedParentLayerId = (input.parentLayerId ?? '').trim();
   const hasExplicitParent = normalizedParentLayerId.length > 0;
+  const normalizedHostTranscriptionLayerIds = layerType === 'translation'
+    ? [...new Set((input.hostTranscriptionLayerIds ?? [])
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0))]
+    : [];
+  const translationHasExplicitHosts = layerType === 'translation' && normalizedHostTranscriptionLayerIds.length > 0;
+  const normalizedPreferredHostId = (input.preferredHostTranscriptionLayerId ?? '').trim();
   const runtimeCapabilities: ConstraintRuntimeCapabilities = {
     ...DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES,
     ...(input.runtimeCapabilities ?? {}),
@@ -369,9 +414,10 @@ export function getLayerCreateGuard(
     };
   }
 
+  const translationExplicitDependency = hasExplicitParent || translationHasExplicitHosts;
   if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
     && dependentParentCandidates.length > 1
-    && !hasExplicitParent) {
+    && (layerType === 'translation' ? !translationExplicitDependency : !hasExplicitParent)) {
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
@@ -391,9 +437,32 @@ export function getLayerCreateGuard(
     };
   }
 
+  if (translationHasExplicitHosts) {
+    const invalidHostId = normalizedHostTranscriptionLayerIds.find(
+      (hostId) => !dependentParentCandidates.some((layer) => layer.id === hostId),
+    );
+    if (invalidHostId) {
+      return {
+        allowed: false,
+        reasonCode: 'constraint-parent-required',
+        reason: msg.chooseValidDependentBoundary,
+        reasonShort: msg.chooseValidDependentBoundaryShort,
+      };
+    }
+    if (normalizedPreferredHostId
+      && !normalizedHostTranscriptionLayerIds.includes(normalizedPreferredHostId)) {
+      return {
+        allowed: false,
+        reasonCode: 'constraint-parent-required',
+        reason: msg.chooseValidDependentBoundary,
+        reasonShort: msg.chooseValidDependentBoundaryShort,
+      };
+    }
+  }
+
   if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
     && !inferredHasParent
-    && !hasExplicitParent) {
+    && (layerType === 'translation' ? !translationExplicitDependency : !hasExplicitParent)) {
     return {
       allowed: false,
       reasonCode: 'constraint-parent-required',
@@ -456,7 +525,13 @@ export function getLayerCreateGuard(
 /** Shared translation-create guard (UI + backend). */
 export function getTranslationCreateGuard(
   layers: LayerDocType[],
-  input: { languageId?: string; alias?: string; modality?: LayerDocType['modality'] },
+  input: {
+    languageId?: string;
+    alias?: string;
+    modality?: LayerDocType['modality'];
+    hostTranscriptionLayerIds?: string[];
+    preferredHostTranscriptionLayerId?: string;
+  },
   locale: Locale = DEFAULT_LOCALE,
 ): TranslationCreateGuardResult {
   return getLayerCreateGuard(layers, 'translation', input, locale);
@@ -497,6 +572,7 @@ export function canCreateLayer(
 export function canDeleteLayer(
   layers: LayerDocType[],
   targetLayerId: string,
+  layerLinks: LayerLinkDocType[] = [],
   locale: Locale = DEFAULT_LOCALE,
 ): CanDeleteResult {
   const msg = getLayerConstraintServiceMessages(locale);
@@ -507,10 +583,24 @@ export function canDeleteLayer(
 
   if (target.layerType === 'transcription') {
     const transcriptionLayers = listIndependentBoundaryTranscriptionLayers(layers);
-    const dependentTranslations = layers.filter(
-      (layer) => layer.layerType === 'translation' && layer.parentLayerId === target.id,
+    const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+    const translationById = new Map(
+      layers
+        .filter((layer) => layer.layerType === 'translation')
+        .map((layer) => [layer.id, layer] as const),
     );
-    const orphanedTranslationIds = dependentTranslations.map((layer) => layer.id);
+
+    const dependentLinks = layerLinks.filter((link) => {
+      const hostId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+      return hostId === target.id;
+    });
+
+    const orphanedTranslationIdsFromLinks = [...new Set(
+      dependentLinks
+        .map((link) => link.layerId)
+        .filter((id) => translationById.has(id)),
+    )];
+    const orphanedTranslationIds = orphanedTranslationIdsFromLinks;
 
     // Most recent remaining transcription layer (re-link target).
     const remainingTrc = transcriptionLayers
@@ -519,7 +609,7 @@ export function canDeleteLayer(
 
     const result: CanDeleteResult = {
       allowed: true,
-      affectedLinkCount: dependentTranslations.length,
+      affectedLinkCount: dependentLinks.length,
     };
     if (orphanedTranslationIds.length > 0) {
       result.orphanedTranslationIds = orphanedTranslationIds;
@@ -530,8 +620,8 @@ export function canDeleteLayer(
     return result;
   }
 
-  // Translation uses parent-layer relation as canonical model.
-  return { allowed: true, affectedLinkCount: 0 };
+  const affectedLinkCount = layerLinks.filter((link) => link.layerId === target.id).length;
+  return { allowed: true, affectedLinkCount };
 }
 
 // Link queries
@@ -540,22 +630,48 @@ export function canDeleteLayer(
  * Get all linked layer IDs for a given layer.
  */
 export function getLinkedLayers(
-  _layerLinks: LayerLinkDocType[],
+  layerLinks: LayerLinkDocType[],
   layers: LayerDocType[],
   layerId: string,
 ): LayerDocType[] {
   const target = layers.find((l) => l.id === layerId);
   if (!target) return [];
 
+  const transcriptionById = new Map(
+    layers
+      .filter((layer) => layer.layerType === 'transcription')
+      .map((layer) => [layer.id, layer] as const),
+  );
+  const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+
   if (target.layerType === 'transcription') {
-    // Transcription -> translations whose parentLayerId points to this layer.
-    return layers.filter((layer) => layer.layerType === 'translation' && layer.parentLayerId === target.id);
+    const linkedTranslationIds = [...new Set(
+      layerLinks
+        .filter((link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey) === target.id)
+        .map((link) => link.layerId),
+    )];
+    const translationById = new Map(
+      layers
+        .filter((layer) => layer.layerType === 'translation')
+        .map((layer) => [layer.id, layer] as const),
+    );
+    return linkedTranslationIds
+      .map((id) => translationById.get(id))
+      .filter((layer): layer is LayerDocType => Boolean(layer));
   }
 
-  // Translation -> resolve parent transcription.
-  if (!target.parentLayerId) return [];
-  const parent = layers.find((layer) => layer.id === target.parentLayerId && layer.layerType === 'transcription');
-  return parent ? [parent] : [];
+  const linkedHostIds = [...new Set(
+    layerLinks
+      .filter((link) => link.layerId === target.id)
+      .map((link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey))
+      .filter((id): id is string => id.length > 0),
+  )];
+  if (linkedHostIds.length > 0) {
+    return linkedHostIds
+      .map((id) => transcriptionById.get(id))
+      .filter((layer): layer is LayerDocType => Boolean(layer));
+  }
+  return [];
 }
 
 /**

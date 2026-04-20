@@ -5,6 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import type { SpeakerDocType } from '../db';
 import type { LayerDocType } from '../db';
+import type { LayerLinkDocType } from '../db';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './transcription/TranscriptionLeftRailLayerActions';
 import { SidePaneSidebar } from './SidePaneSidebar';
 import { SpeakerRailProvider } from '../contexts/SpeakerRailContext';
@@ -316,6 +317,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
   layerRows: LayerDocType[];
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   layerCreateMessage?: string;
   createLayer?: ReturnType<typeof vi.fn>;
   toggleLayerLink?: (transcriptionKey: string, translationId: string) => Promise<void>;
@@ -388,6 +390,7 @@ function renderSidebarForCreateContextMenuFlow(input: {
             flashLayerRowId=""
             onFocusLayer={vi.fn()}
             transcriptionLayers={input.transcriptionLayers}
+            {...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {})}
             toggleLayerLink={toggleLayerLink}
             deletableLayers={input.layerRows}
             layerCreateMessage={input.layerCreateMessage ?? ''}
@@ -942,13 +945,13 @@ describe('SidePaneSidebar speaker actions interaction', () => {
 
     await clickCreateAction('新建翻译层');
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
-    const selects = within(dialog)
-      .getAllByRole('combobox')
-      .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement);
-    const parentSelect = selects.find((select) => (
-      Array.from(select.options).some((option) => option.value === 'layer_trc_2')
-    ));
-    expect(parentSelect).toBeTruthy();
+    const hostListEl = dialog.querySelector('.layer-action-dialog-translation-host-list');
+    expect(hostListEl).toBeTruthy();
+    const hostCheckboxes = within(hostListEl as HTMLElement).getAllByRole('checkbox');
+    expect(hostCheckboxes.length).toBe(2);
+    for (const cb of hostCheckboxes) {
+      if ((cb as HTMLInputElement).checked) fireEvent.click(cb);
+    }
 
     const languageCodeInput = within(dialog).getByRole('textbox', { name: /语言代码|Source language code/i });
     fireEvent.change(languageCodeInput, { target: { value: 'fra' } });
@@ -957,18 +960,16 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(createLayer).not.toHaveBeenCalled();
     expect(within(dialog).getByText(/当前限制：无法新建翻译。请选择依赖层/)).toBeTruthy();
 
-    fireEvent.change(parentSelect as HTMLSelectElement, { target: { value: 'layer_trc_2' } });
+    const cbB = hostCheckboxes.find((el) => el.id.endsWith('layer_trc_2'));
+    expect(cbB).toBeTruthy();
+    fireEvent.click(cbB!);
     await waitFor(() => {
-      const latestParentSelect = within(dialog)
-        .getAllByRole('combobox')
-        .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement)
-        .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
-      expect(latestParentSelect?.value).toBe('layer_trc_2');
+      expect((cbB as HTMLInputElement).checked).toBe(true);
     });
     expect(createLayer).not.toHaveBeenCalled();
   });
 
-  it('submits translation layer creation with explicitly chosen parent transcription layer', async () => {
+  it('submits translation layer creation after selecting an explicit host transcription layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayerA = {
       id: 'layer_trc_1',
@@ -998,7 +999,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       createdAt: now,
       updatedAt: now,
     } as LayerDocType;
-    const createLayer = vi.fn(async () => true);
+    const createLayer = vi.fn<(...args: unknown[]) => Promise<boolean>>(async () => true);
 
     renderSidebarForCreateContextMenuFlow({
       layerRows: [trcLayerA, trcLayerB],
@@ -1010,28 +1011,41 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     await clickCreateAction('新建翻译层');
 
     const dialog = await screen.findByRole('dialog', { name: '新建翻译层' });
-    const parentSelect = within(dialog)
-      .getAllByRole('combobox')
-      .filter((select): select is HTMLSelectElement => select instanceof HTMLSelectElement)
-      .find((select) => Array.from(select.options).some((option) => option.value === 'layer_trc_2'));
-    expect(parentSelect).toBeTruthy();
-    fireEvent.change(parentSelect as HTMLSelectElement, { target: { value: 'layer_trc_2' } });
+    const hostListEl = dialog.querySelector('.layer-action-dialog-translation-host-list');
+    expect(hostListEl).toBeTruthy();
+    const hostCheckboxes = within(hostListEl as HTMLElement).getAllByRole('checkbox');
+    const cbB = hostCheckboxes.find((el) => el.id.endsWith('layer_trc_2'));
+    expect(cbB).toBeTruthy();
+    for (const cb of hostCheckboxes) {
+      const el = cb as HTMLInputElement;
+      if (el.checked && !el.id.endsWith('layer_trc_2')) fireEvent.click(cb);
+    }
+    if (!(cbB as HTMLInputElement).checked) fireEvent.click(cbB!);
+    await waitFor(() => {
+      expect((cbB as HTMLInputElement).checked).toBe(true);
+    });
 
-    fireEvent.change(within(dialog).getByRole('textbox', { name: '语言 ID（系统唯一标识）' }), { target: { value: 'fra' } });
+    const langInput = within(dialog).getByPlaceholderText(/ISO 639-3/i);
+    fireEvent.change(langInput, { target: { value: 'fra' } });
+    fireEvent.click(await within(dialog).findByRole('option', { name: /法语|fra/i }));
     await waitFor(() => {
       expect((within(dialog).getByRole('button', { name: '新建翻译层' }) as HTMLButtonElement).disabled).toBe(false);
     });
     fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
     await waitFor(() => {
+      expect(createLayer).toHaveBeenCalled();
       expect(createLayer).toHaveBeenCalledWith(
         'translation',
         expect.objectContaining({
           languageId: 'fra',
-          parentLayerId: 'layer_trc_2',
+          hostTranscriptionLayerIds: ['layer_trc_2'],
+          preferredHostTranscriptionLayerId: 'layer_trc_2',
         }),
         'text',
       );
+      const payload = createLayer.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
+      expect(payload?.parentLayerId).toBeUndefined();
     });
   });
 
@@ -1542,11 +1556,21 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       createdAt: now,
       updatedAt: now,
     } as LayerDocType;
+    const layerLinks = [{
+      id: 'link_meta_1',
+      transcriptionLayerKey: rootLayer.key,
+      hostTranscriptionLayerId: rootLayer.id,
+      layerId: translationLayer.id,
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }] as LayerLinkDocType[];
 
     const view = renderSidebarForCreateContextMenuFlow({
       layerRows: [rootLayer, translationLayer],
       transcriptionLayers: [rootLayer],
       translationLayers: [translationLayer],
+      layerLinks,
       focusedLayerRowId: 'missing-layer',
     });
 

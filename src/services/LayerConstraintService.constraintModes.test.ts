@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { getLayerCreateGuard, repairExistingLayerConstraints, validateExistingLayerConstraints } from './LayerConstraintService';
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
@@ -104,6 +104,40 @@ describe('LayerConstraintService constraint mode guards', () => {
     expect(guard.reasonCode).toBe('constraint-parent-required');
   });
 
+  it('allows translation creation with hostTranscriptionLayerIds when multiple independent transcription layers exist', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', languageId: 'zho', constraint: 'independent_boundary', sortOrder: 0 }),
+      makeLayer({ id: 'trc_2', layerType: 'transcription', languageId: 'eng', constraint: 'independent_boundary', sortOrder: 1 }),
+    ];
+
+    const guard = getLayerCreateGuard(layers, 'translation', {
+      languageId: 'fra',
+      constraint: 'symbolic_association',
+      hasSupportedParent: true,
+      hostTranscriptionLayerIds: ['trc_1', 'trc_2'],
+      preferredHostTranscriptionLayerId: 'trc_2',
+    });
+
+    expect(guard.allowed).toBe(true);
+  });
+
+  it('rejects translation host ids that are not independent-boundary transcription layers', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', languageId: 'zho', constraint: 'independent_boundary', sortOrder: 0 }),
+      makeLayer({ id: 'trc_2', layerType: 'transcription', languageId: 'eng', constraint: 'independent_boundary', sortOrder: 1 }),
+    ];
+
+    const guard = getLayerCreateGuard(layers, 'translation', {
+      languageId: 'fra',
+      constraint: 'symbolic_association',
+      hasSupportedParent: true,
+      hostTranscriptionLayerIds: ['trc_1', 'missing-host'],
+    });
+
+    expect(guard.allowed).toBe(false);
+    expect(guard.reasonCode).toBe('constraint-parent-required');
+  });
+
   it('reports legacy layers with missing parent for symbolic/time subdivision', () => {
     const layers: LayerDocType[] = [
       makeLayer({ id: 'trc_1', layerType: 'transcription', constraint: 'independent_boundary' }),
@@ -114,6 +148,46 @@ describe('LayerConstraintService constraint mode guards', () => {
     const issues = validateExistingLayerConstraints(layers);
     const missingParentIssues = issues.filter((issue) => issue.code === 'missing-parent-layer');
     expect(missingParentIssues).toHaveLength(2);
+  });
+
+  it('does not report missing parent for translation when layer_links supply a valid independent host', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', constraint: 'independent_boundary' }),
+      makeLayer({ id: 'trl_1', layerType: 'translation', constraint: 'symbolic_association' }),
+    ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-1',
+      layerId: 'trl_1',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
+    const issues = validateExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
+    expect(issues.filter((issue) => issue.code === 'missing-parent-layer')).toHaveLength(0);
+  });
+
+  it('does not inject parentLayerId when repairing translation that already has host links', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', constraint: 'independent_boundary' }),
+      makeLayer({ id: 'trl_1', layerType: 'translation', constraint: 'symbolic_association' }),
+    ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-1',
+      layerId: 'trl_1',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
+    const repaired = repairExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
+    const trl = repaired.layers.find((layer) => layer.id === 'trl_1');
+    expect(trl?.parentLayerId).toBeUndefined();
+    expect(repaired.repairs.some((item) => item.layerId === 'trl_1')).toBe(false);
   });
 
   it('reports non-independent transcription parents as invalid for dependent layers', () => {

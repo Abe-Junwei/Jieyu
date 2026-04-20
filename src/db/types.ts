@@ -636,13 +636,8 @@ export interface LayerDocType {
   sortOrder?: number;
   /** 边界约束类型（默认 'symbolic_association'）| Boundary constraint type (default 'symbolic_association') */
   constraint?: LayerConstraint;
-  /** 父层 ID（constraint 为 symbolic_association / time_subdivision 时必填）| Parent layer ID (required for symbolic_association / time_subdivision) */
+  /** 父层 ID（仅层树依赖；transcription 层使用）| Parent layer ID (tree dependency only; used by transcription layers) */
   parentLayerId?: string;
-  /**
-   * 译文层多宿主：与 parentLayerId 共同表示全部独立转写宿主（有序；parentLayerId 须等于首项）。
-   * | Multi-host translation: full ordered independent-transcription host ids (parentLayerId mirrors [0]).
-   */
-  parentLayerIds?: string[];
   /** 层级显示样式 | Display style configuration */
   displaySettings?: LayerDisplaySettings;
   accessRights?: 'open' | 'restricted' | 'confidential';
@@ -775,6 +770,8 @@ export type UnitRelationViewDocType = UnitRelationDocType & {
 export interface LayerLinkDocType {
   id: string;
   transcriptionLayerKey: string;
+  /** 宿主转写层 ID（已成为 SSOT）| Host transcription layer id (SSOT for host relationship). */
+  hostTranscriptionLayerId: string;
   layerId: string;
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
   isPreferred: boolean;
