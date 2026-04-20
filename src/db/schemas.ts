@@ -674,6 +674,7 @@ const tierDefinitionDocSchema = z.object({
   name: multiLangStringSchema,
   tierType: tierTypeSchema,
   parentTierId: z.string().min(1).optional(),
+  extraParentTierIds: z.array(z.string().min(1)).optional(),
   languageId: z.string().optional(),
   orthographyId: z.string().min(1).optional(),
   bridgeId: z.string().min(1).optional(),
@@ -741,6 +742,7 @@ const auditLogDocSchema = z.object({
 const layerLinkDocSchema = z.object({
   id: z.string().min(1),
   transcriptionLayerKey: z.string().min(1),
+  hostTranscriptionLayerId: z.string().min(1),
   layerId: z.string().min(1),
   linkType: z.enum(['direct', 'free', 'literal', 'pedagogical']),
   isPreferred: z.boolean(),

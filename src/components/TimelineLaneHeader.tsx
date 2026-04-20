@@ -13,13 +13,7 @@ import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
 import { useTimelineLaneHeaderDrag } from './useTimelineLaneHeaderDrag';
 import { ModalPanel, PanelButton, PanelSection, PanelSummary } from './ui';
-
-type LayerActionType =
-  | 'create-transcription'
-  | 'create-translation'
-  | 'edit-transcription-metadata'
-  | 'edit-translation-metadata'
-  | 'delete';
+import { buildLayerOperationMenuItems, type LayerOperationActionType } from './layerOperationMenuItems';
 
 interface TimelineLaneHeaderProps {
   layer: LayerDocType;
@@ -30,7 +24,7 @@ interface TimelineLaneHeaderProps {
   deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
   renderLaneLabel: (layer: LayerDocType) => React.ReactNode;
-  onLayerAction: (action: LayerActionType, layerId: string) => void;
+  onLayerAction: (action: LayerOperationActionType, layerId: string) => void;
   layerLinks?: LayerLinkDocType[];
   showConnectors?: boolean;
   onToggleConnectors?: () => void;
@@ -63,6 +57,13 @@ interface TimelineLaneHeaderProps {
     onReset: (layerId: string) => void;
     localFonts?: Parameters<typeof buildLayerStyleMenuItems>[7];
   };
+  /**
+   * 层头右键是否允许「轨道 / 说话人」整条时间轴级 chrome。
+   * `layer-chrome`：仅层操作、视图与显示样式，即使误传 track/speaker props 也不渲染。
+   * `layer-chrome-plus-track`：在提供对应 props 时可渲染轨道与说话人。
+   * 省略时等同于 `layer-chrome-plus-track`（与既有调用方兼容）。
+   */
+  headerMenuPreset?: 'layer-chrome' | 'layer-chrome-plus-track';
 }
 
 interface LaneLockDialogState {
@@ -143,6 +144,7 @@ export function TimelineLaneHeader({
   speakerQuickActions,
   trackModeControl,
   displayStyleControl,
+  headerMenuPreset,
 }: TimelineLaneHeaderProps) {
   const locale = useLocale();
   const { uiTextDirection, uiFontScale } = useUiFontScaleRuntime(locale);
@@ -161,6 +163,9 @@ export function TimelineLaneHeader({
     [locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const messages = getTimelineLaneHeaderMessages(locale);
+  const allowGlobalTimelineHeaderChrome = headerMenuPreset !== 'layer-chrome';
+  const resolvedSpeakerQuickActions = allowGlobalTimelineHeaderChrome ? speakerQuickActions : undefined;
+  const resolvedTrackModeControl = allowGlobalTimelineHeaderChrome ? trackModeControl : undefined;
   const connectorLayerLinks = useMemo(
     () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
     [layerLinks],
@@ -242,15 +247,15 @@ export function TimelineLaneHeader({
   }, []);
 
   const confirmLaneLockDialog = useCallback(() => {
-    if (!trackModeControl?.onLockSelectedToLane) return;
+    if (!resolvedTrackModeControl?.onLockSelectedToLane) return;
     const laneIndex = Number.parseInt(laneLockValue.trim(), 10);
     if (!Number.isFinite(laneIndex) || laneIndex < 1) {
       setLaneLockError(messages.laneLockErrorMin);
       return;
     }
-    trackModeControl.onLockSelectedToLane(laneIndex - 1);
+    resolvedTrackModeControl.onLockSelectedToLane(laneIndex - 1);
     closeLaneLockDialog();
-  }, [closeLaneLockDialog, laneLockValue, messages.laneLockErrorMin, trackModeControl]);
+  }, [closeLaneLockDialog, laneLockValue, messages.laneLockErrorMin, resolvedTrackModeControl]);
 
   const viewMenuItems: ContextMenuItem[] = [
     {
@@ -270,37 +275,21 @@ export function TimelineLaneHeader({
     },
   ];
 
-  const layerOperationMenuItems: ContextMenuItem[] = [
-    {
-      label: layer.layerType === 'translation'
-        ? decodeEscapedUnicode('\u7f16\u8f91\u7ffb\u8bd1\u5c42\u5143\u4fe1\u606f')
-        : decodeEscapedUnicode('\u7f16\u8f91\u8f6c\u5199\u5c42\u5143\u4fe1\u606f'),
-      onClick: () => {
-        onLayerAction(layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata', layer.id);
-      },
+  const layerOperationMenuItems = buildLayerOperationMenuItems({
+    layer,
+    deletableLayers,
+    canOpenTranslationCreate,
+    labels: {
+      editLayerMetadata: messages.editLayerMetadata,
+      createTranscription: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
+      createTranslation: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
+      deleteCurrentLayer: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
     },
-    {
-      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
-      onClick: () => {
-        onLayerAction('create-transcription', layer.id);
-      },
+    onAction: (action, layerId) => {
+      if (!layerId) return;
+      onLayerAction(action, layerId);
     },
-    {
-      label: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
-      disabled: !canOpenTranslationCreate,
-      onClick: () => {
-        onLayerAction('create-translation', layer.id);
-      },
-    },
-    {
-      label: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
-      danger: true,
-      disabled: !deletableLayers.some((l) => l.id === layer.id),
-      onClick: () => {
-        onLayerAction('delete', layer.id);
-      },
-    },
-  ];
+  });
 
   const contextMenuItems: ContextMenuItem[] = [
     ...layerOperationMenuItems,
@@ -333,8 +322,8 @@ export function TimelineLaneHeader({
     });
   }
 
-  if (speakerQuickActions) {
-    const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = speakerQuickActions;
+  if (resolvedSpeakerQuickActions) {
+    const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = resolvedSpeakerQuickActions;
     const topSpeakers = speakerOptions.slice(0, 3);
     const speakerMenuItems: ContextMenuItem[] = [{
       label: selectedCount > 0 ? decodeEscapedUnicode(`\\u6e05\\u7a7a ${selectedCount} \\u4e2a\\u9009\\u4e2d\\u53e5\\u6bb5\\u7684\\u8bf4\\u8bdd\\u4eba`) : decodeEscapedUnicode('\\u6e05\\u7a7a\\u9009\\u4e2d\\u53e5\\u6bb5\\u8bf4\\u8bdd\\u4eba'),
@@ -369,55 +358,55 @@ export function TimelineLaneHeader({
     });
   }
 
-  if (trackModeControl) {
-    const selectedSpeakerNames = trackModeControl.selectedSpeakerNames ?? [];
+  if (resolvedTrackModeControl) {
+    const selectedSpeakerNames = resolvedTrackModeControl.selectedSpeakerNames ?? [];
     const selectedSpeakerHint = selectedSpeakerNames.length > 0
       ? selectedSpeakerNames.join('、')
       : decodeEscapedUnicode('\\u5f53\\u524d\\u672a\\u9009\\u4e2d\\u5e26\\u8bf4\\u8bdd\\u4eba\\u7684\\u53e5\\u6bb5');
-    const lockConflictCount = trackModeControl.lockConflictCount ?? 0;
-    const hasExistingLaneLocks = (trackModeControl.lockedSpeakerCount ?? 0) > 0;
+    const lockConflictCount = resolvedTrackModeControl.lockConflictCount ?? 0;
+    const hasExistingLaneLocks = (resolvedTrackModeControl.lockedSpeakerCount ?? 0) > 0;
 
     const trackMenuItems: ContextMenuItem[] = [
       {
-        label: decodeEscapedUnicode(`\\u5f53\\u524d\\u6a21\\u5f0f：${formatTrackModeMenuLabel(trackModeControl.mode)}`),
+        label: decodeEscapedUnicode(`\\u5f53\\u524d\\u6a21\\u5f0f：${formatTrackModeMenuLabel(resolvedTrackModeControl.mode)}`),
         disabled: true,
       },
     ];
 
-    if (!trackModeControl.onSetMode) {
+    if (!resolvedTrackModeControl.onSetMode) {
       trackMenuItems.push({
-        label: trackModeControl.mode === 'single' ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u5355\\u8f68\\u6a21\\u5f0f'),
+        label: resolvedTrackModeControl.mode === 'single' ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u5355\\u8f68\\u6a21\\u5f0f'),
         onClick: () => {
-          trackModeControl.onToggle();
+          resolvedTrackModeControl.onToggle();
         },
       });
     }
 
-    if (trackModeControl.onSetMode) {
+    if (resolvedTrackModeControl.onSetMode) {
       trackMenuItems.push({
         label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）'),
-        disabled: trackModeControl.mode === 'multi-auto',
+        disabled: resolvedTrackModeControl.mode === 'multi-auto',
         onClick: () => {
-          trackModeControl.onSetMode?.('multi-auto');
+          resolvedTrackModeControl.onSetMode?.('multi-auto');
         },
       });
       trackMenuItems.push({
         label: hasExistingLaneLocks ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a，\\u9700\\u5148\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba）'),
-        disabled: trackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
+        disabled: resolvedTrackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
         onClick: () => {
-          trackModeControl.onSetMode?.('multi-locked');
+          resolvedTrackModeControl.onSetMode?.('multi-locked');
         },
       });
       trackMenuItems.push({
         label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u4e00\\u4eba\\u4e00\\u8f68）'),
-        disabled: trackModeControl.mode === 'multi-speaker-fixed',
+        disabled: resolvedTrackModeControl.mode === 'multi-speaker-fixed',
         onClick: () => {
-          trackModeControl.onSetMode?.('multi-speaker-fixed');
+          resolvedTrackModeControl.onSetMode?.('multi-speaker-fixed');
         },
       });
     }
 
-    if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onLockSelectedToLane) {
+    if (resolvedTrackModeControl.mode !== 'multi-speaker-fixed' && resolvedTrackModeControl.onLockSelectedToLane) {
       trackMenuItems.push({
         label: decodeEscapedUnicode(`\\u9501\\u5b9a\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053…（${selectedSpeakerHint}）`),
         disabled: selectedSpeakerNames.length === 0,
@@ -427,28 +416,28 @@ export function TimelineLaneHeader({
       });
     }
 
-    if (trackModeControl.mode !== 'multi-speaker-fixed' && trackModeControl.onUnlockSelected) {
+    if (resolvedTrackModeControl.mode !== 'multi-speaker-fixed' && resolvedTrackModeControl.onUnlockSelected) {
       trackMenuItems.push({
-        label: decodeEscapedUnicode(`\\u89e3\\u9501\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba（\\u5f53\\u524d\\u5df2\\u9501 ${trackModeControl.lockedSpeakerCount ?? 0}）`),
+        label: decodeEscapedUnicode(`\\u89e3\\u9501\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba（\\u5f53\\u524d\\u5df2\\u9501 ${resolvedTrackModeControl.lockedSpeakerCount ?? 0}）`),
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
-          trackModeControl.onUnlockSelected?.();
+          resolvedTrackModeControl.onUnlockSelected?.();
         },
       });
     }
 
-    if (trackModeControl.onResetAuto) {
+    if (resolvedTrackModeControl.onResetAuto) {
       trackMenuItems.push({
-        label: trackModeControl.mode === 'multi-speaker-fixed' ? decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u8f68\\u9053\\u6620\\u5c04') : decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u9501\\u5b9a'),
+        label: resolvedTrackModeControl.mode === 'multi-speaker-fixed' ? decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u8f68\\u9053\\u6620\\u5c04') : decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u9501\\u5b9a'),
         onClick: () => {
-          trackModeControl.onResetAuto?.();
+          resolvedTrackModeControl.onResetAuto?.();
         },
       });
     }
 
     if (lockConflictCount > 0) {
       trackMenuItems.push({
-        label: trackModeControl.mode === 'multi-speaker-fixed'
+        label: resolvedTrackModeControl.mode === 'multi-speaker-fixed'
           ? decodeEscapedUnicode(`\\u4e00\\u4eba\\u4e00\\u8f68\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u8bf7\\u4fee\\u6b63\\u5207\\u5206\\u6216\\u8bf4\\u8bdd\\u4eba\\u6807\\u6ce8）`)
           : decodeEscapedUnicode(`\\u9501\\u5b9a\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u5df2\\u56de\\u9000\\u81ea\\u52a8\\u5206\\u914d）`),
         disabled: true,
@@ -457,7 +446,7 @@ export function TimelineLaneHeader({
 
     contextMenuItems.push({
       label: decodeEscapedUnicode('\\u8f68\\u9053'),
-      meta: formatTrackModeMenuLabel(trackModeControl.mode),
+      meta: formatTrackModeMenuLabel(resolvedTrackModeControl.mode),
       variant: 'category',
       children: trackMenuItems,
     });

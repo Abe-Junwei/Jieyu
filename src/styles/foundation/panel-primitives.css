@@ -259,6 +259,109 @@
   color: var(--text-secondary);
 }
 
+/* ── 贴边导航模板 | Edge-attached navigation template ───────── */
+.panel-edge-nav {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+.panel-edge-nav--inline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.panel-edge-nav--inline .panel-edge-nav-row {
+  flex: 1 1 0;
+}
+
+.panel-edge-nav-row {
+  position: relative;
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  transition: background-color var(--shell-motion-fast, 140ms) ease;
+}
+
+.panel-edge-nav-btn {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px 10px 18px;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--shell-motion-fast, 140ms) ease, background-color var(--shell-motion-fast, 140ms) ease;
+}
+
+.panel-edge-nav-btn:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-header) 84%, transparent);
+}
+
+.panel-edge-nav-btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4, 56%), transparent);
+}
+
+.panel-edge-nav-row-active {
+  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-1, 8%), transparent);
+}
+
+.panel-edge-nav-row-active .panel-edge-nav-btn,
+.panel-edge-nav-btn[aria-selected="true"],
+.panel-edge-nav-btn[aria-current="page"] {
+  color: var(--state-info-solid);
+  background: color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-2, 16%), transparent);
+}
+
+.panel-edge-nav-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.panel-edge-nav-title {
+  width: 100%;
+  min-width: 0;
+  color: inherit;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-edge-nav-meta {
+  width: 100%;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-edge-nav-row-active .panel-edge-nav-meta,
+.panel-edge-nav-btn[aria-selected="true"] .panel-edge-nav-meta,
+.panel-edge-nav-btn[aria-current="page"] .panel-edge-nav-meta {
+  color: color-mix(in srgb, var(--state-info-solid) 76%, var(--text-secondary));
+}
+
 .dialog-field-hint {
   margin: 0;
   font-size: var(--font-size-sm);

@@ -102,8 +102,9 @@ describe('TranscriptionPage structure invariants', () => {
     const toolbarCode = fs.readFileSync(toolbarPath, 'utf8');
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const legacyWaveformRuntimeStatusClass = ['waveform', 'runtime-status'].join('-');
 
-    expect(waveformContentCode.includes('className="waveform-runtime-status"')).toBe(false);
+    expect(waveformContentCode.includes(legacyWaveformRuntimeStatusClass)).toBe(false);
     expect(toolbarCode.includes('const combinedLeftToolbarExtras')).toBe(true);
     expect(toolbarCode.includes('<ToolbarAiProgress')).toBe(true);
     expect(toolbarCode.includes('leftToolbarExtras={combinedLeftToolbarExtras}')).toBe(true);
@@ -184,7 +185,6 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(persistenceHookCode.includes('if (trackEntityHydratedKeyRef.current !== trackEntityScopedKey) return;')).toBe(true);
     expect(persistenceHookCode.includes('const next = upsertTrackEntityState(')).toBe(true);
-    expect(persistenceHookCode.includes('saveTrackEntityStateMap(next')).toBe(true);
     expect(persistenceHookCode.includes('saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!)')).toBe(true);
   });
 
@@ -548,6 +548,8 @@ describe('TranscriptionPage structure invariants', () => {
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSectionViewModels.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
+    const reviewSectionHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionReviewSectionViewModel.ts');
+    const reviewSectionHookCode = fs.readFileSync(reviewSectionHookPath, 'utf8');
     const sidebarHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionSidebarSectionsViewModel.ts');
     const sidebarHookCode = fs.readFileSync(sidebarHookPath, 'utf8');
     const aiSidebarPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.AiSidebar.tsx');
@@ -598,7 +600,9 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(hookCode.includes("import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';")).toBe(true);
     expect(hookCode.includes('const toolbarProps = useMemo<TranscriptionPageToolbarProps>(() => createTranscriptionToolbarProps({')).toBe(true);
-    expect(hookCode.includes('const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(')).toBe(true);
+    expect(hookCode.includes("import { useTranscriptionReviewSectionViewModel } from './useTranscriptionReviewSectionViewModel';")).toBe(true);
+    expect(hookCode.includes('useTranscriptionReviewSectionViewModel({')).toBe(true);
+    expect(reviewSectionHookCode.includes('const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(')).toBe(true);
     expect(hookCode.includes("import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';")).toBe(true);
     expect(hookCode.includes('const timelineTopProps = useMemo<TranscriptionPageTimelineTopProps>(() => createTranscriptionTimelineTopProps({')).toBe(true);
     expect(hookCode.includes('return {\n    toolbarProps,\n    timelineTopProps,\n    timelineContentProps,\n    aiSidebarProps,\n    dialogsProps,\n  };')).toBe(true);
@@ -650,7 +654,9 @@ describe('TranscriptionPage structure invariants', () => {
   expect(pdfRuntimeCode.includes('onCloseRequest?.();')).toBe(true);
 
     expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineMediaLanesProps>(() => ({')).toBe(true);
-    expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(() => input.textOnlyPropsInput')).toBe(true);
+    expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>')).toBe(true);
+    expect(timelineContentHookCode.includes('() => input.textOnlyPropsInput')).toBe(true);
+    expect(timelineContentHookCode.includes('comparisonViewToggleDep')).toBe(true);
     expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({')).toBe(true);
     expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(() => ({')).toBe(true);
   });

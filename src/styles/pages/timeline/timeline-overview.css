@@ -92,14 +92,7 @@
   border: 1px solid color-mix(in srgb, var(--header-accent) 16%, var(--border-soft) 84%);
   border-radius: 999px;
   background-color: color-mix(in srgb, var(--surface-panel) 90%, var(--header-accent) 10%);
-  background-image:
-    radial-gradient(circle at 5px 2px, color-mix(in srgb, var(--header-accent) 28%, var(--text-secondary) 72%) 0 1px, transparent 1.2px),
-    radial-gradient(circle at 10px 2px, color-mix(in srgb, var(--header-accent) 28%, var(--text-secondary) 72%) 0 1px, transparent 1.2px),
-    radial-gradient(circle at 15px 2px, color-mix(in srgb, var(--header-accent) 28%, var(--text-secondary) 72%) 0 1px, transparent 1.2px),
-    radial-gradient(circle at 5px 5px, color-mix(in srgb, var(--header-accent) 22%, var(--text-secondary) 78%) 0 1px, transparent 1.2px),
-    radial-gradient(circle at 10px 5px, color-mix(in srgb, var(--header-accent) 22%, var(--text-secondary) 78%) 0 1px, transparent 1.2px),
-    radial-gradient(circle at 15px 5px, color-mix(in srgb, var(--header-accent) 22%, var(--text-secondary) 78%) 0 1px, transparent 1.2px),
-    linear-gradient(180deg, color-mix(in srgb, white 24%, transparent), transparent 55%);
+  background-image: linear-gradient(180deg, color-mix(in srgb, white 24%, transparent), transparent 55%);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, white 34%, transparent),
     0 1px 4px color-mix(in srgb, var(--header-accent) 8%, transparent);

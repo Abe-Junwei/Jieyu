@@ -82,7 +82,7 @@ function toNaturalTargetResolutionPrompt(
   }
 
   if (
-    ['link_translation_layer', 'unlink_translation_layer'].includes(callName)
+    ['link_translation_layer', 'unlink_translation_layer', 'add_host', 'remove_host', 'switch_preferred_host'].includes(callName)
     && isMissingOrNotFound
     && (hasLinkLayerSignal || hasLayerSignal)
   ) {

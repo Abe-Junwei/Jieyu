@@ -1,3 +1,5 @@
+import { getDb } from '../db';
+
 export type CollaborationOperationType =
   | 'arbitration_requested'
   | 'arbitration_decided'
@@ -41,6 +43,12 @@ function hashString(input: string): string {
   return hash.toString(16).padStart(8, '0');
 }
 
+function isMissingIndexedDbApiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const detail = `${error.name}:${error.message}`;
+  return detail.includes('MissingAPIError') || detail.includes('IndexedDB API missing');
+}
+
 export function createCollaborationOperationLog(
   input: CreateCollaborationOperationLogInput,
 ): CollaborationOperationLog {
@@ -61,11 +69,12 @@ export function createCollaborationOperationLog(
   };
 }
 
-export function appendOperationLog(
-  logs: CollaborationOperationLog[],
-  incoming: CollaborationOperationLog,
-): CollaborationOperationLog[] {
-  const merged = [...logs, incoming];
+export function mergeOperationLogs(logs: CollaborationOperationLog[]): CollaborationOperationLog[] {
+  const deduped = new Map<string, CollaborationOperationLog>();
+  for (const log of logs) {
+    deduped.set(log.logId, log);
+  }
+  const merged = [...deduped.values()];
   merged.sort((left, right) => {
     if (left.at !== right.at) {
       return left.at - right.at;
@@ -73,4 +82,48 @@ export function appendOperationLog(
     return left.logId.localeCompare(right.logId);
   });
   return merged;
+}
+
+export function appendOperationLog(
+  logs: CollaborationOperationLog[],
+  incoming: CollaborationOperationLog,
+): CollaborationOperationLog[] {
+  return mergeOperationLogs([...logs, incoming]);
+}
+
+/**
+ * 持久化协同冲突操作日志到审计仓 | Persist collaboration operation logs into audit storage
+ */
+export async function persistCollaborationOperationLogs(logs: CollaborationOperationLog[]): Promise<void> {
+  const merged = mergeOperationLogs(logs);
+  if (merged.length === 0) return;
+
+  try {
+    const db = await getDb();
+    await db.dexie.audit_logs.bulkPut(merged.map((log) => ({
+      id: `collab_${log.logId}`,
+      collection: 'collaboration_conflicts',
+      documentId: log.entityId,
+      action: 'create' as const,
+      field: 'operation_log',
+      oldValue: '',
+      newValue: log.type,
+      source: 'system' as const,
+      timestamp: new Date(log.at).toISOString(),
+      requestId: log.logId,
+      metadataJson: JSON.stringify({
+        type: log.type,
+        entityId: log.entityId,
+        sessionId: log.sessionId,
+        payloadDigest: log.payloadDigest,
+        ...(log.strategy !== undefined ? { strategy: log.strategy } : {}),
+        ...(log.conflictCodes !== undefined ? { conflictCodes: log.conflictCodes } : {}),
+        ...(log.decisionId !== undefined ? { decisionId: log.decisionId } : {}),
+        ...(log.traceId !== undefined ? { traceId: log.traceId } : {}),
+      }),
+    })));
+  } catch (error) {
+    if (isMissingIndexedDbApiError(error)) return;
+    throw error;
+  }
 }

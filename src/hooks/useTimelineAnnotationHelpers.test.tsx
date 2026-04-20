@@ -49,6 +49,16 @@ function makeUnitDoc(id: string, startTime: number, endTime: number): LayerUnitD
   };
 }
 
+const TIMELINE_TEXT_LAYERS_FOR_TESTS = [
+  'layer-seg',
+  'layer-dependent',
+  'layer-input',
+  'layer-display',
+  'layer-source',
+  'layer-label',
+  'layer-tibetan',
+].map((id) => ({ id, layerType: 'transcription' as const }));
+
 function makeLayer(id: string): LayerDocType {
   const now = new Date().toISOString();
   return {
@@ -97,6 +107,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -133,6 +144,9 @@ describe('useTimelineAnnotationHelpers', () => {
       layerId: 'layer-seg',
       unitKind: 'segment',
       splitTime: 1.001,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     });
   });
 
@@ -157,6 +171,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -185,6 +200,9 @@ describe('useTimelineAnnotationHelpers', () => {
       unitId: 'seg-1',
       layerId: 'layer-dependent',
       unitKind: 'segment',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
+      source: 'timeline',
     }));
   });
 
@@ -209,6 +227,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu,
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -240,6 +259,9 @@ describe('useTimelineAnnotationHelpers', () => {
       splitTime: 1.001,
       x: 0,
       y: 0,
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
+      source: 'timeline',
     }));
   });
 
@@ -262,6 +284,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -307,6 +330,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -357,6 +381,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -408,6 +433,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -458,6 +484,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -518,6 +545,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -565,6 +593,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -612,6 +641,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -666,6 +696,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,
@@ -715,6 +746,7 @@ describe('useTimelineAnnotationHelpers', () => {
       tierContainerRef: { current: null },
       zoomPxPerSec: 100,
       setCtxMenu: vi.fn(),
+      timelineTextLayers: TIMELINE_TEXT_LAYERS_FOR_TESTS,
       navigateUnitFromInput: vi.fn(),
       waveformAreaRef: { current: null },
       dragPreview: null,

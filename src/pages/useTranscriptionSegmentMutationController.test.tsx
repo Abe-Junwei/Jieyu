@@ -12,11 +12,13 @@ const {
   mockMergeAdjacentSegments,
   mockDeleteSegment,
   mockDeleteSegmentsBatch,
+  mockUpdateUnit,
 } = vi.hoisted(() => ({
   mockSplitSegment: vi.fn<(segmentId: string, splitTime: number) => Promise<{ second: { id: string } }>>(async () => ({ second: { id: 'seg-right' } })),
   mockMergeAdjacentSegments: vi.fn<(leftId: string, rightId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegment: vi.fn<(segmentId: string) => Promise<void>>(async () => undefined),
   mockDeleteSegmentsBatch: vi.fn<(segmentIds: readonly string[]) => Promise<void>>(async () => undefined),
+  mockUpdateUnit: vi.fn<(id: string, changes: Partial<LayerUnitDocType>) => Promise<void>>(async () => undefined),
 }));
 
 vi.mock('../services/LayerSegmentationV2Service', () => ({
@@ -25,6 +27,12 @@ vi.mock('../services/LayerSegmentationV2Service', () => ({
     mergeAdjacentSegments: (leftId: string, rightId: string) => mockMergeAdjacentSegments(leftId, rightId),
     deleteSegment: (segmentId: string) => mockDeleteSegment(segmentId),
     deleteSegmentsBatch: (segmentIds: readonly string[]) => mockDeleteSegmentsBatch(segmentIds),
+  },
+}));
+
+vi.mock('../services/LayerUnitService', () => ({
+  LayerUnitService: {
+    updateUnit: (id: string, changes: Partial<LayerUnitDocType>) => mockUpdateUnit(id, changes),
   },
 }));
 
@@ -123,6 +131,7 @@ describe('useTranscriptionSegmentMutationController', () => {
     mockMergeAdjacentSegments.mockClear();
     mockDeleteSegment.mockClear();
     mockDeleteSegmentsBatch.mockClear();
+    mockUpdateUnit.mockClear();
   });
 
   afterEach(() => {
@@ -373,6 +382,34 @@ describe('useTranscriptionSegmentMutationController', () => {
         detail: 'delete failed',
       }),
     }));
+  });
+
+  it('toggles skip-processing on a segment and keeps selection anchored', async () => {
+    const pushUndo = vi.fn();
+    const reloadSegments = vi.fn(async () => undefined);
+    const refreshSegmentUndoSnapshot = vi.fn(async () => undefined);
+    const selectTimelineUnit = vi.fn();
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionSegmentMutationController(createBaseInput({
+      pushUndo,
+      reloadSegments,
+      refreshSegmentUndoSnapshot,
+      selectTimelineUnit,
+      setSaveState,
+    })));
+
+    await act(async () => {
+      await result.current.toggleSkipProcessingRouted('seg-2');
+    });
+
+    expect(pushUndo).toHaveBeenCalledWith('标记跳过处理');
+    expect(mockUpdateUnit).toHaveBeenCalledWith('seg-2', expect.objectContaining({
+      tags: expect.objectContaining({ skipProcessing: true }),
+    }));
+    expect(reloadSegments).toHaveBeenCalled();
+    expect(refreshSegmentUndoSnapshot).toHaveBeenCalled();
+    expect(selectTimelineUnit).toHaveBeenCalledWith({ layerId: 'layer-seg', unitId: 'seg-2', kind: 'segment' });
+    expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已标记为跳过处理' });
   });
 
   it('falls back to unit mutations when current layer does not use segment timeline', async () => {

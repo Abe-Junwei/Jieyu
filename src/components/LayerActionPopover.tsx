@@ -131,6 +131,8 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const [modality, setModality] = useState<'text' | 'audio' | 'mixed'>('text');
   const [constraint, setConstraint] = useState<LayerConstraint>('symbolic_association');
   const [selectedParentLayerId, setSelectedParentLayerId] = useState('');
+  const [translationHostIds, setTranslationHostIds] = useState<string[]>([]);
+  const [preferredTranslationHostId, setPreferredTranslationHostId] = useState('');
   const [deleteLayerId, setDeleteLayerId] = useState(layerId ?? '');
   const [isLoading, setIsLoading] = useState(false);
   const [createFailureMessage, setCreateFailureMessage] = useState('');
@@ -220,7 +222,23 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     setVernacular('');
     setAlias('');
     setModality('text');
-  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, formInitializationKey, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
+    if (action === 'create-translation') {
+      if (independentParentLayers.length === 1) {
+        const onlyId = independentParentLayers[0]!.id;
+        setTranslationHostIds([onlyId]);
+        setPreferredTranslationHostId(onlyId);
+      } else {
+        const seed = contextualParentLayerId && independentParentLayers.some((layer) => layer.id === contextualParentLayerId)
+          ? [contextualParentLayerId]
+          : [];
+        setTranslationHostIds(seed);
+        setPreferredTranslationHostId(seed[0] ?? '');
+      }
+    } else {
+      setTranslationHostIds([]);
+      setPreferredTranslationHostId('');
+    }
+  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, formInitializationKey, independentParentLayers, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
 
   useEffect(() => {
     const pendingDefaultOrthographyId = pendingDefaultOrthographyIdRef.current.trim();
@@ -251,23 +269,42 @@ export const LayerActionPopover = memo(function LayerActionPopover({
 
   // Keep refs synchronized with state to avoid stale closures | 保持 ref 与 state 同步，避免闭包过期
 
-  const needsDependentParent = action === 'create-translation'
-    || (action === 'create-transcription' && constraint === 'symbolic_association');
-  const autoParentLayer = needsDependentParent && independentParentLayers.length === 1
+  const needsTranscriptionDependentParent = action === 'create-transcription' && constraint === 'symbolic_association';
+  const autoTranscriptionParentLayer = needsTranscriptionDependentParent && independentParentLayers.length === 1
     ? independentParentLayers[0]
     : undefined;
-  const resolvedCreateParentLayerId = needsDependentParent
-    ? (autoParentLayer?.id ?? selectedParentLayerId)
+  const resolvedTranscriptionParentLayerId = needsTranscriptionDependentParent
+    ? (autoTranscriptionParentLayer?.id ?? selectedParentLayerId)
     : '';
+  const autoTranslationHostLayer = action === 'create-translation' && independentParentLayers.length === 1
+    ? independentParentLayers[0]
+    : undefined;
 
   useEffect(() => {
-    if (!needsDependentParent) {
+    if (action !== 'create-translation') return;
+    setPreferredTranslationHostId((pref) => {
+      if (translationHostIds.length === 0) return '';
+      if (pref && translationHostIds.includes(pref)) return pref;
+      return translationHostIds[0]!;
+    });
+  }, [action, translationHostIds]);
+
+  const toggleTranslationHost = useCallback((hostId: string, checked: boolean) => {
+    const order = independentParentLayers.map((layer) => layer.id);
+    setTranslationHostIds((prev) => {
+      const nextIds = new Set(checked ? [...prev, hostId] : prev.filter((id) => id !== hostId));
+      return order.filter((id) => nextIds.has(id));
+    });
+  }, [independentParentLayers]);
+
+  useEffect(() => {
+    if (!needsTranscriptionDependentParent) {
       if (selectedParentLayerId) setSelectedParentLayerId('');
       return;
     }
-    if (autoParentLayer) {
-      if (selectedParentLayerId !== autoParentLayer.id) {
-        setSelectedParentLayerId(autoParentLayer.id);
+    if (autoTranscriptionParentLayer) {
+      if (selectedParentLayerId !== autoTranscriptionParentLayer.id) {
+        setSelectedParentLayerId(autoTranscriptionParentLayer.id);
       }
       return;
     }
@@ -275,7 +312,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       return;
     }
     if (selectedParentLayerId) setSelectedParentLayerId('');
-  }, [autoParentLayer, independentParentLayers, needsDependentParent, selectedParentLayerId]);
+  }, [autoTranscriptionParentLayer, independentParentLayers, needsTranscriptionDependentParent, selectedParentLayerId]);
 
   const handleCreate = useCallback(async () => {
     const resolvedLang = resolvedLanguageId;
@@ -295,16 +332,38 @@ export const LayerActionPopover = memo(function LayerActionPopover({
       : (canConfigureTranscriptionConstraint ? constraint : undefined);
     const createLayerType = action === 'create-transcription' ? 'transcription' : 'translation';
     const hasSupportedParent = independentParentLayers.length > 0;
+    const preferredTranslationHostForPayload = preferredTranslationHostId && translationHostIds.includes(preferredTranslationHostId)
+      ? preferredTranslationHostId
+      : translationHostIds[0];
     const immediateGuard = getLayerCreateGuard(deletableLayers, createLayerType, {
       languageId: resolvedLang,
       alias,
+      modality,
       ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
-      ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
+      ...(createLayerType === 'transcription' && resolvedTranscriptionParentLayerId
+        ? { parentLayerId: resolvedTranscriptionParentLayerId }
+        : {}),
+      ...(createLayerType === 'translation' && translationHostIds.length > 0
+        ? {
+          hostTranscriptionLayerIds: translationHostIds,
+          ...(preferredTranslationHostForPayload
+            ? { preferredHostTranscriptionLayerId: preferredTranslationHostForPayload }
+            : {}),
+        }
+        : {}),
       hasSupportedParent,
     });
     setCreateFailureMessage('');
     setIsLoading(true);
     try {
+      const translationHostConfig = createLayerType === 'translation' && translationHostIds.length > 0
+        ? {
+          hostTranscriptionLayerIds: translationHostIds,
+          ...(preferredTranslationHostForPayload
+            ? { preferredHostTranscriptionLayerId: preferredTranslationHostForPayload }
+            : {}),
+        }
+        : {};
       const success = await createLayer(createLayerType, {
         languageId: resolvedLang,
         ...(orthographyId ? { orthographyId } : {}),
@@ -312,8 +371,9 @@ export const LayerActionPopover = memo(function LayerActionPopover({
         ...(vernacular.trim() ? { vernacular: vernacular.trim() } : {}),
         ...(alias.trim() ? { alias: alias.trim() } : {}),
         ...(resolvedConstraint ? { constraint: resolvedConstraint } : {}),
-        ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
-      }, action === 'create-translation' ? modality : undefined);
+        ...translationHostConfig,
+        ...(createLayerType === 'transcription' && resolvedTranscriptionParentLayerId ? { parentLayerId: resolvedTranscriptionParentLayerId } : {}),
+      }, (action === 'create-translation' || action === 'create-transcription') ? modality : undefined);
       if (success) {
         onClose();
         return;
@@ -334,7 +394,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     } finally {
       setIsLoading(false);
     }
-  }, [resolvedLanguageId, customLanguageError, orthographySelectionError, orthographyId, dialect, vernacular, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, resolvedCreateParentLayerId, actionMessages]);
+  }, [resolvedLanguageId, customLanguageError, orthographySelectionError, orthographyId, dialect, vernacular, alias, modality, constraint, action, createLayer, deletableLayers, independentParentLayers.length, layerCreateMessage, onClose, preferredTranslationHostId, resolvedTranscriptionParentLayerId, translationHostIds, actionMessages]);
 
   const handleDelete = useCallback(async () => {
     if (!deleteLayerId) return;
@@ -414,29 +474,54 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     setModality('text');
     setConstraint('symbolic_association');
     setSelectedParentLayerId(contextualParentLayerId);
+    if (action === 'create-translation') {
+      if (independentParentLayers.length === 1) {
+        const onlyId = independentParentLayers[0]!.id;
+        setTranslationHostIds([onlyId]);
+        setPreferredTranslationHostId(onlyId);
+      } else {
+        const seed = contextualParentLayerId && independentParentLayers.some((layer) => layer.id === contextualParentLayerId)
+          ? [contextualParentLayerId]
+          : [];
+        setTranslationHostIds(seed);
+        setPreferredTranslationHostId(seed[0] ?? '');
+      }
+    } else {
+      setTranslationHostIds([]);
+      setPreferredTranslationHostId('');
+    }
     setCreateFailureMessage('');
-  }, [contextualParentLayerId, defaultLanguageSeed, editingLayer, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
+  }, [action, contextualParentLayerId, defaultLanguageSeed, editingLayer, independentParentLayers, isEditMetadataAction, locale, normalizedDefaultOrthographyId]);
 
   const label = action === 'create-transcription'
     ? actionMessages.createTranscriptionLayer
     : action === 'create-translation'
     ? actionMessages.createTranslationLayer
-    : action === 'edit-transcription-metadata'
-    ? actionMessages.editTranscriptionMetadata
-    : action === 'edit-translation-metadata'
-    ? actionMessages.editTranslationMetadata
+    : action === 'edit-transcription-metadata' || action === 'edit-translation-metadata'
+    ? actionMessages.editLayerMetadata
     : actionMessages.deleteLayer;
 
   const existingTranscriptionCount = deletableLayers.filter((layer) => layer.layerType === 'transcription').length;
   const resolvedLangForGuard = resolvedLanguageId.trim();
   const hasValidLanguage = resolvedLangForGuard.length > 0;
   const showConstraintSelector = action === 'create-transcription' && existingTranscriptionCount > 0;
+  const preferredTranslationHostResolved = preferredTranslationHostId && translationHostIds.includes(preferredTranslationHostId)
+    ? preferredTranslationHostId
+    : translationHostIds[0];
   const translationGuard = action === 'create-translation'
     ? getLayerCreateGuard(deletableLayers, 'translation', {
       languageId: resolvedLangForGuard,
       alias,
+      modality,
       constraint: 'symbolic_association',
-      ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
+      ...(translationHostIds.length > 0
+        ? {
+          hostTranscriptionLayerIds: translationHostIds,
+          ...(preferredTranslationHostResolved
+            ? { preferredHostTranscriptionLayerId: preferredTranslationHostResolved }
+            : {}),
+        }
+        : {}),
       hasSupportedParent: independentParentLayers.length > 0,
     })
     : { allowed: true };
@@ -444,8 +529,9 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     ? getLayerCreateGuard(deletableLayers, 'transcription', {
       languageId: resolvedLangForGuard,
       alias,
+      modality,
       ...(showConstraintSelector ? { constraint } : {}),
-      ...(resolvedCreateParentLayerId ? { parentLayerId: resolvedCreateParentLayerId } : {}),
+      ...(resolvedTranscriptionParentLayerId ? { parentLayerId: resolvedTranscriptionParentLayerId } : {}),
       hasSupportedParent: independentParentLayers.length > 0,
     })
     : { allowed: true };
@@ -459,13 +545,14 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     if (action === 'delete') return { allowed: true };
     const optionParentLayerId = candidate === 'independent_boundary'
       ? undefined
-      : (resolvedCreateParentLayerId || independentParentLayers[0]?.id);
+      : (resolvedTranscriptionParentLayerId || independentParentLayers[0]?.id);
     return getLayerCreateGuard(
       deletableLayers,
       action === 'create-transcription' ? 'transcription' : 'translation',
       {
         languageId: resolvedLangForGuard,
         alias,
+        modality,
         constraint: candidate,
         ...(optionParentLayerId ? { parentLayerId: optionParentLayerId } : {}),
         hasSupportedParent: independentParentLayers.length > 0,
@@ -821,7 +908,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
               />
               <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
             </FormField>
-            {action === 'create-translation' && (
+            {(action === 'create-translation' || action === 'create-transcription') && (
               <div className="layer-action-dialog-field-group">
                 <FormField htmlFor={modalityFieldId} label={actionMessages.modalityLabel}>
                   <select
@@ -836,26 +923,59 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                   </select>
                 </FormField>
                 <PanelNote className="layer-action-dialog-meta-note">
-                  {actionMessages.translationBoundarySource}
+                  {action === 'create-translation'
+                    ? actionMessages.translationBoundarySource
+                    : actionMessages.transcriptionModalityHint}
                 </PanelNote>
-                {independentParentLayers.length > 1 && (
-                  <FormField htmlFor={translationParentLayerFieldId} label={actionMessages.selectParentLayer}>
-                    <select
-                      id={translationParentLayerFieldId}
-                      className="input panel-input layer-action-dialog-input"
-                      value={selectedParentLayerId}
-                      onChange={(e) => setSelectedParentLayerId(e.target.value)}
+                {action === 'create-translation' && independentParentLayers.length > 1 && (
+                  <div className="dialog-field">
+                    <div className="dialog-field-label" id={`${translationParentLayerFieldId}-legend`}>
+                      {actionMessages.translationHostLayersLabel}
+                    </div>
+                    <div
+                      className="layer-action-dialog-translation-host-list"
+                      role="group"
+                      aria-labelledby={`${translationParentLayerFieldId}-legend`}
                     >
-                      <option value="">{actionMessages.selectParentLayer}</option>
                       {independentParentLayers.map((layer) => (
-                        <option key={layer.id} value={layer.id}>{formatParentLayerOptionLabel(layer)}</option>
+                        <label key={layer.id} className="panel-checkbox layer-action-dialog-checkbox-option">
+                          <input
+                            id={`${translationParentLayerFieldId}-${layer.id}`}
+                            type="checkbox"
+                            checked={translationHostIds.includes(layer.id)}
+                            onChange={(event) => toggleTranslationHost(layer.id, event.target.checked)}
+                          />
+                          <span>{formatParentLayerOptionLabel(layer)}</span>
+                        </label>
                       ))}
-                    </select>
-                  </FormField>
+                    </div>
+                    {translationHostIds.length > 1 && (
+                      <fieldset className="panel-fieldset layer-action-dialog-fieldset layer-action-dialog-translation-preferred-hosts">
+                        <legend className="layer-action-dialog-fieldset-legend">
+                          {actionMessages.translationPreferredHostLabel}
+                        </legend>
+                        {translationHostIds.map((hostId) => {
+                          const layer = independentParentLayers.find((item) => item.id === hostId);
+                          if (!layer) return null;
+                          return (
+                            <label key={hostId} className="panel-radio layer-action-dialog-radio-option">
+                              <input
+                                type="radio"
+                                name={`${fieldIdPrefix}-trl-preferred-host`}
+                                checked={preferredTranslationHostId === hostId}
+                                onChange={() => setPreferredTranslationHostId(hostId)}
+                              />
+                              <span>{formatParentLayerOptionLabel(layer)}</span>
+                            </label>
+                          );
+                        })}
+                      </fieldset>
+                    )}
+                  </div>
                 )}
-                {autoParentLayer && (
+                {action === 'create-translation' && autoTranslationHostLayer && (
                   <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
-                    {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                    {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoTranslationHostLayer))}
                   </PanelNote>
                 )}
               </div>
@@ -902,9 +1022,9 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                     </select>
                   </FormField>
                 )}
-                {constraint === 'symbolic_association' && autoParentLayer && (
+                {constraint === 'symbolic_association' && autoTranscriptionParentLayer && (
                   <PanelNote className="layer-action-dialog-meta-note layer-action-dialog-auto-linked-hint">
-                    {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoParentLayer))}
+                    {actionMessages.autoLinkedParent(formatParentLayerOptionLabel(autoTranscriptionParentLayer))}
                   </PanelNote>
                 )}
               </div>

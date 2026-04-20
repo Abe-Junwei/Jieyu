@@ -1,15 +1,48 @@
-import { getDb, exportDatabaseAsJson, importDatabaseFromJson, type ImportConflictStrategy, type ImportResult, type LayerUnitDocType, type UnitTokenDocType, type UnitMorphemeDocType, type TokenLexemeLinkDocType, type TokenLexemeLinkTargetType, type LexemeDocType, type LayerDocType, type LayerUnitContentDocType, type TextDocType, type MediaItemDocType, type OrthographyDocType, type OrthographyBridgeDocType, type SpeakerDocType } from '../db';
+import Dexie from 'dexie';
+import {
+  exportDatabaseAsJson,
+  getDb,
+  importDatabaseFromJson,
+  type ImportConflictStrategy,
+  type ImportResult,
+  type LayerDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitDocType,
+  type LexemeDocType,
+  type MediaItemDocType,
+  type OrthographyBridgeDocType,
+  type OrthographyDocType,
+  type SpeakerDocType,
+  type TextDocType,
+  type TokenLexemeLinkDocType,
+  type TokenLexemeLinkTargetType,
+  type UnitMorphemeDocType,
+  type UnitTokenDocType,
+} from '../db';
 import { syncLayerToTier } from './TierBridgeService';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../../src/utils/transcriptionFormatters';
 import { normalizeUnitDocForStorage } from '../../src/utils/camDataUtils';
-import { enforceTimeSubdivisionParentBounds, listUnitTextsFromSegmentation, listUnitTextsByUnit, removeUnitCascadeFromSegmentationV2, syncUnitTextToSegmentationV2 } from './LayerSegmentationTextService';
+import { enforceTimeSubdivisionParentBounds, listUnitTextsFromSegmentation, listUnitTextsByUnit, syncUnitTextToSegmentationV2 } from './LayerSegmentationTextService';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import type { SpeakerReferenceStatsBundle } from '../hooks/speakerManagement/types';
 import { hasEmbeddedDefaultTextChanged, invalidateUnitEmbeddings, isDefaultTranscriptionLayerForUnitText } from '../ai/embeddings/EmbeddingInvalidationService';
-import { bulkUpsertUnitLayerUnits, deleteResidualLayerUnitGraphByTextId, deleteUnitLayerUnitCascade, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
+import { bulkUpsertUnitLayerUnits, getUnitDocProjectionById, listUnitDocsFromCanonicalLayerUnits, upsertUnitLayerUnit } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerSegmentQueryService } from './LayerSegmentQueryService';
+import {
+  deleteAudioPreserveTimeline,
+  deleteProjectCascade,
+  removeUnitCascade,
+  removeUnitsBatchCascade,
+} from './LinguisticService.cleanup';
+import {
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  MEDIA_TIMELINE_KIND_ACOUSTIC,
+  MEDIA_TIMELINE_KIND_PLACEHOLDER,
+  withResolvedMediaItemTimelineKind,
+} from '../utils/mediaItemTimelineKind';
 import { type ImportQualityReport } from './LinguisticService.constraints';
 import type { ApplyOrthographyBridgeInput, CloneOrthographyToLanguageInput, CreateOrthographyInput, CreateOrthographyBridgeInput, GetActiveOrthographyBridgeInput, ListOrthographyRecordsSelector, ListOrthographyBridgesSelector, PreviewOrthographyBridgeInput, UpdateOrthographyInput, UpdateOrthographyBridgeInput } from './LinguisticService.orthography';
 import type { LanguageCatalogEntry, UpsertLanguageCatalogEntryInput } from './LinguisticService.languageCatalog';
@@ -56,6 +89,8 @@ function loadOrthographyService() {
 function loadLanguageCatalogService() {
   return import('./LinguisticService.languageCatalog');
 }
+
+let deferredLanguageCatalogRefreshScheduled = false;
 
 export interface TextTimeMapping {
   offsetSec: number;
@@ -139,31 +174,6 @@ function mergeTextTimeMappingHistory(
 }
 
 export class LinguisticService {
-  private static async removeNotesForUnitIds(
-    db: Awaited<ReturnType<typeof getDb>>,
-    unitIds: readonly string[],
-  ): Promise<void> {
-    const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
-    if (ids.length === 0) return;
-
-    const [tokens, morphemes] = await Promise.all([
-      db.dexie.unit_tokens.where('unitId').anyOf(ids).toArray(),
-      db.dexie.unit_morphemes.where('unitId').anyOf(ids).toArray(),
-    ]);
-
-    const deleteByTarget = async (targetType: 'unit' | 'token' | 'morpheme', targetIds: readonly string[]) => {
-      if (targetIds.length === 0) return;
-      await db.dexie.user_notes
-        .where('[targetType+targetId]')
-        .anyOf(targetIds.map((targetId) => [targetType, targetId] as [string, string]))
-        .delete();
-    };
-
-    await deleteByTarget('unit', ids);
-    await deleteByTarget('token', tokens.map((token) => token.id));
-    await deleteByTarget('morpheme', morphemes.map((morpheme) => morpheme.id));
-  }
-
   static async generateImportQualityReport(textId?: string): Promise<ImportQualityReport> {
     const db = await getDb();
 
@@ -1034,6 +1044,9 @@ export class LinguisticService {
     if (!Number.isFinite(nextOffsetSec)) {
       throw new Error('offsetSec 必须是有限数字');
     }
+    if (nextOffsetSec < 0) {
+      throw new Error('offsetSec 不能小于 0');
+    }
     if (!Number.isFinite(nextScale) || nextScale <= 0) {
       throw new Error('scale 必须是大于 0 的有限数字');
     }
@@ -1115,12 +1128,18 @@ export class LinguisticService {
   static async getMediaItemsByTextId(textId: string): Promise<MediaItemDocType[]> {
     const db = await getDb();
     const docs = await db.collections.media_items.findByIndex('textId', textId);
-    return docs.map((doc) => doc.toJSON());
+    const rows = docs.map((doc) => doc.toJSON());
+    const normalizedRows = rows.map((row) => withResolvedMediaItemTimelineKind(row));
+    const changedRows = normalizedRows.filter((row, index) => row !== rows[index]);
+    if (changedRows.length > 0) {
+      await db.dexie.media_items.bulkPut(changedRows);
+    }
+    return normalizedRows;
   }
 
   static async saveMediaItem(data: MediaItemDocType): Promise<string> {
     const db = await getDb();
-    const doc = await db.collections.media_items.insert(data);
+    const doc = await db.collections.media_items.insert(withResolvedMediaItemTimelineKind(data));
     return doc.primary;
   }
 
@@ -1288,6 +1307,20 @@ export class LinguisticService {
   }
 
   static async refreshLanguageCatalogReadModel(): Promise<void> {
+    if (Dexie.currentTransaction) {
+      if (!deferredLanguageCatalogRefreshScheduled) {
+        deferredLanguageCatalogRefreshScheduled = true;
+        setTimeout(() => {
+          deferredLanguageCatalogRefreshScheduled = false;
+          void loadLanguageCatalogService()
+            .then((service) => service.refreshLanguageCatalogReadModel())
+            .catch((error) => {
+              console.error('Failed to refresh language catalog read model from deferred wrapper:', error);
+            });
+        }, 0);
+      }
+      return;
+    }
     return (await loadLanguageCatalogService()).refreshLanguageCatalogReadModel();
   }
 
@@ -1343,46 +1376,129 @@ export class LinguisticService {
     audioBlob: Blob;
     filename: string;
     duration: number;
+    /**
+     * `default`：与既有行为一致——仅占位行时晋升占位；已存在非占位声学则新建 `mediaId`。
+     * `replace`：覆盖 `replaceMediaId` 指向的行（声学就地换源，或显式晋升某条占位）。
+     * `add`：在已存在非占位声学时强制新建一条媒体轨；若当前仅有占位则与 `default` 相同（仍晋升占位）。
+     */
+    importMode?: 'default' | 'replace' | 'add';
+    /** `importMode === 'replace'` 时必填，且须属于 `textId`。 */
+    replaceMediaId?: string;
   }): Promise<{ mediaId: string }> {
     const db = await getDb();
     const now = new Date().toISOString();
+    const mode = input.importMode ?? 'default';
+    const replaceMediaIdTrimmed = typeof input.replaceMediaId === 'string' ? input.replaceMediaId.trim() : '';
+    if (mode === 'replace' && replaceMediaIdTrimmed.length === 0) {
+      throw new Error('importAudio: replaceMediaId is required when importMode is replace');
+    }
     const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
-    const placeholderRows = mediaRows.filter((row) => {
-      const details = (row.details as Record<string, unknown> | undefined) ?? {};
-      return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
-    });
-    const nonPlaceholderRows = mediaRows.filter((row) => !placeholderRows.some((candidate) => candidate.id === row.id));
+    const placeholderRows = mediaRows.filter((row) => isMediaItemPlaceholderRow(row));
+    const timelineAcousticRows = mediaRows.filter((row) => (
+      !placeholderRows.some((candidate) => candidate.id === row.id)
+      && !isAuxiliaryRecordingMediaRow(row)
+    ));
+
+    const refreshMediaTimelineMetadata = async (mediaId: string) => {
+      const textRow = await db.dexie.texts.get(input.textId);
+      if (!textRow) return;
+      const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+      if (rowMeta.timelineMode === 'media') {
+        const prevLogical = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+          ? rowMeta.logicalDurationSec
+          : 0;
+        const nextLogical = Math.max(prevLogical, input.duration);
+        await db.dexie.texts.put({
+          ...textRow,
+          metadata: {
+            ...rowMeta,
+            timelineMode: 'media',
+            ...(nextLogical > 0 ? { logicalDurationSec: nextLogical } : {}),
+          },
+          updatedAt: now,
+        });
+      }
+    };
+
+    if (mode === 'replace') {
+      const targetRow = mediaRows.find((r) => r.id === replaceMediaIdTrimmed);
+      if (!targetRow || targetRow.textId !== input.textId) {
+        throw new Error('importAudio: replaceMediaId must refer to a media item in this text');
+      }
+      if (!isMediaItemPlaceholderRow(targetRow)) {
+        const previousDetails = (targetRow.details as Record<string, unknown> | undefined) ?? {};
+        const {
+          placeholder: _placeholder,
+          timelineMode: _timelineMode,
+          timelineKind: _timelineKind,
+          audioBlob: _oldAudioBlob,
+          ...remainingDetails
+        } = previousDetails;
+        await db.dexie.media_items.put({
+          id: targetRow.id,
+          textId: input.textId,
+          filename: input.filename,
+          duration: input.duration,
+          details: {
+            ...remainingDetails,
+            audioBlob: input.audioBlob,
+            timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+          },
+          isOfflineCached: targetRow.isOfflineCached,
+          ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
+          createdAt: targetRow.createdAt,
+        });
+        await refreshMediaTimelineMetadata(targetRow.id);
+        return { mediaId: targetRow.id };
+      }
+    }
+
+    const shouldPromotePlaceholders = placeholderRows.length > 0
+      && (
+        (mode === 'default' && timelineAcousticRows.length === 0)
+        || (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed))
+        || (mode === 'add' && timelineAcousticRows.length === 0)
+      );
 
     let mediaId = newId('media');
     let createdAt = now;
     let mergedDetails: Record<string, unknown> = {};
     let accessRights: MediaItemDocType['accessRights'] | undefined;
+    let isOfflineCached = true;
 
-    if (placeholderRows.length > 0 && nonPlaceholderRows.length === 0) {
-      const placeholderCounts = await Promise.all(placeholderRows.map(async (row) => ({
-        row,
-        count: await db.dexie.layer_units.where('mediaId').equals(row.id).count(),
-      })));
-      placeholderCounts.sort((a, b) => b.count - a.count);
-      const primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
+    if (shouldPromotePlaceholders) {
+      let primaryPlaceholder: MediaItemDocType;
+      if (mode === 'replace' && placeholderRows.some((p) => p.id === replaceMediaIdTrimmed)) {
+        primaryPlaceholder = placeholderRows.find((p) => p.id === replaceMediaIdTrimmed)!;
+      } else {
+        const placeholderCounts = await Promise.all(placeholderRows.map(async (row) => ({
+          row,
+          count: await LayerSegmentQueryService.countUnitsByMediaId(row.id),
+        })));
+        placeholderCounts.sort((a, b) => b.count - a.count);
+        primaryPlaceholder = placeholderCounts[0]?.row ?? placeholderRows[0]!;
+      }
       mediaId = primaryPlaceholder.id;
       createdAt = primaryPlaceholder.createdAt;
       accessRights = primaryPlaceholder.accessRights;
+      isOfflineCached = primaryPlaceholder.isOfflineCached;
       const previousDetails = (primaryPlaceholder.details as Record<string, unknown> | undefined) ?? {};
-      const { placeholder: _placeholder, timelineMode: _timelineMode, audioBlob: _oldAudioBlob, ...remainingDetails } = previousDetails;
+      const {
+        placeholder: _placeholder,
+        timelineMode: _timelineMode,
+        timelineKind: _timelineKind,
+        audioBlob: _oldAudioBlob,
+        ...remainingDetails
+      } = previousDetails;
       mergedDetails = remainingDetails;
 
       const stalePlaceholderIds = placeholderRows
         .filter((row) => row.id !== mediaId)
         .map((row) => row.id);
       if (stalePlaceholderIds.length > 0) {
-        const staleUnits = await db.dexie.layer_units.where('mediaId').anyOf(stalePlaceholderIds).toArray();
+        const staleUnits = await LayerSegmentQueryService.listUnitsByMediaIds(stalePlaceholderIds);
         if (staleUnits.length > 0) {
-          await db.dexie.layer_units.bulkPut(staleUnits.map((unit) => ({
-            ...unit,
-            mediaId,
-            updatedAt: now,
-          })));
+          await LayerUnitSegmentWriteService.reassignUnitsToMediaId(db, staleUnits, mediaId, now);
         }
         await db.dexie.media_items.bulkDelete(stalePlaceholderIds);
       }
@@ -1396,11 +1512,14 @@ export class LinguisticService {
       details: {
         ...mergedDetails,
         audioBlob: input.audioBlob,
+        timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
       },
-      isOfflineCached: true,
+      isOfflineCached,
       ...(accessRights ? { accessRights } : {}),
       createdAt,
     });
+
+    await refreshMediaTimelineMetadata(mediaId);
 
     return { mediaId };
   }
@@ -1426,6 +1545,7 @@ export class LinguisticService {
       details: {
         placeholder: true,
         timelineMode: 'document',
+        timelineKind: MEDIA_TIMELINE_KIND_PLACEHOLDER,
       },
       isOfflineCached: true,
       createdAt: now,
@@ -1435,306 +1555,61 @@ export class LinguisticService {
     return mediaItem;
   }
 
+  /**
+   * 显式扩展 `texts.metadata.logicalDurationSec` 至不小于给定值（ADR-0004 决策 2 选项 C，7C 最小闭环）。
+   * **不**修改 `layer_units` 坐标；不缩放声学时间轴。
+   */
+  static async expandTextLogicalDurationToAtLeast(input: {
+    textId: string;
+    minLogicalDurationSec: number;
+  }): Promise<void> {
+    const db = await getDb();
+    const textRow = await db.dexie.texts.get(input.textId);
+    if (!textRow) return;
+    const minSec = Number.isFinite(input.minLogicalDurationSec) && input.minLogicalDurationSec > 0
+      ? input.minLogicalDurationSec
+      : 0;
+    if (minSec <= 0) return;
+    const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
+    const prev = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+      ? rowMeta.logicalDurationSec
+      : 0;
+    const next = Math.max(prev, minSec);
+    if (next <= prev) return;
+    const now = new Date().toISOString();
+    await db.dexie.texts.put({
+      ...textRow,
+      metadata: {
+        ...rowMeta,
+        logicalDurationSec: next,
+      },
+      updatedAt: now,
+    });
+  }
+
   /** Delete a project (text) and all associated data (cascade). */
   static async deleteProject(textId: string): Promise<void> {
-    const db = await getDb();
-
-    await db.dexie.transaction(
-      'rw',
-      [
-        db.dexie.embeddings,
-        db.dexie.layer_unit_contents,
-        db.dexie.layer_units,
-        db.dexie.unit_relations,
-        db.dexie.unit_tokens,
-        db.dexie.unit_morphemes,
-        db.dexie.token_lexeme_links,
-        db.dexie.user_notes,
-        db.dexie.tier_annotations,
-        db.dexie.tier_definitions,
-        db.dexie.media_items,
-        db.dexie.anchors,
-        db.dexie.ai_conversations,
-        db.dexie.ai_messages,
-        db.dexie.ai_tasks,
-        db.dexie.segment_meta,
-        db.dexie.segment_quality_snapshots,
-        db.dexie.scope_stats_snapshots,
-        db.dexie.speaker_profile_snapshots,
-        db.dexie.translation_status_snapshots,
-        db.dexie.ai_task_snapshots,
-        db.dexie.track_entities,
-        db.dexie.texts,
-      ],
-      async () => {
-        const allUtts = await db.dexie.layer_units.where('textId').equals(textId).filter((u) => u.unitType === 'unit').toArray();
-        const uttIds = allUtts.map((u) => u.id);
-
-        await this.removeNotesForUnitIds(db, uttIds);
-        await invalidateUnitEmbeddings(db, uttIds);
-
-        for (const uttId of uttIds) {
-          const tokens = await db.dexie.unit_tokens.where('unitId').equals(uttId).toArray();
-          const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(uttId).toArray()).map((m) => m.id);
-          await removeUnitCascadeFromSegmentationV2(db, uttId);
-          if (tokenIds.length > 0 || morphemeIds.length > 0) {
-            const targets: Array<[string, string]> = [
-              ...tokenIds.map((id) => ['token', id] as [string, string]),
-              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-            ];
-            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-          }
-          await db.dexie.unit_tokens.where('unitId').equals(uttId).delete();
-          await db.dexie.unit_morphemes.where('unitId').equals(uttId).delete();
-        }
-
-        await deleteResidualLayerUnitGraphByTextId(db, textId);
-
-        const tierDefs = await db.dexie.tier_definitions.where('textId').equals(textId).toArray();
-        for (const td of tierDefs) {
-          await db.dexie.tier_annotations.where('tierId').equals(td.id).delete();
-        }
-
-        await db.dexie.tier_definitions.where('textId').equals(textId).delete();
-
-        // Cascade: anchors belonging to media of this text
-        const mediaItems = await db.dexie.media_items.where('textId').equals(textId).toArray();
-        for (const m of mediaItems) {
-          await db.dexie.anchors.where('mediaId').equals(m.id).delete();
-        }
-
-        await db.dexie.media_items.where('textId').equals(textId).delete();
-
-        // 级联清理 AI 对话与消息 | Cascade: AI conversations and messages scoped to this text
-        const convos = await db.dexie.ai_conversations.where('textId').equals(textId).toArray();
-        const convoIds = convos.map((c) => c.id);
-        for (const convoId of convoIds) {
-          await db.dexie.ai_messages.where('conversationId').equals(convoId).delete();
-        }
-        if (convoIds.length > 0) {
-          await db.dexie.ai_conversations.bulkDelete(convoIds);
-        }
-
-        // 级联清理轨道实体 | Cascade: track entities scoped to this text
-        await db.dexie.track_entities.where('textId').equals(textId).delete();
-
-        // 级联清理统一读模型 / 快照表 | Cascade the derived read-model tables for this text
-        await Promise.all([
-          db.dexie.segment_meta.where('textId').equals(textId).delete(),
-          db.dexie.segment_quality_snapshots.where('textId').equals(textId).delete(),
-          db.dexie.scope_stats_snapshots.where('textId').equals(textId).delete(),
-          db.dexie.speaker_profile_snapshots.where('textId').equals(textId).delete(),
-          db.dexie.translation_status_snapshots.where('textId').equals(textId).delete(),
-        ]);
-
-        // 级联清理 AI 任务 | Cascade: AI tasks targeting this text
-        await db.dexie.ai_tasks.where('targetId').equals(textId).delete();
-        await db.dexie.ai_task_snapshots.where('targetId').equals(textId).delete();
-
-        await db.dexie.texts.delete(textId);
-      },
-    );
+    await deleteProjectCascade(textId);
   }
 
   /**
    * 删除声学音频，但保留文本时间线与语段行 | Remove the acoustic audio while preserving the text timeline and segment rows.
    */
   static async deleteAudio(mediaId: string): Promise<void> {
-    const db = await getDb();
-    const now = new Date().toISOString();
-
-    await db.dexie.transaction(
-      'rw',
-      [
-        db.dexie.media_items,
-        db.dexie.texts,
-        db.dexie.layer_units,
-      ],
-      async () => {
-        const media = await db.dexie.media_items.get(mediaId);
-        if (!media) return;
-
-        const text = await db.dexie.texts.get(media.textId);
-        const siblingRows = await db.dexie.media_items.where('textId').equals(media.textId).toArray();
-        const siblingPlaceholderIds = siblingRows
-          .filter((row) => row.id !== mediaId)
-          .filter((row) => {
-            const details = (row.details as Record<string, unknown> | undefined) ?? {};
-            return details.placeholder === true || details.timelineMode === 'document' || row.filename === 'document-placeholder.track';
-          })
-          .map((row) => row.id);
-        const relatedUnits = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
-        if (siblingPlaceholderIds.length > 0) {
-          const siblingUnits = await db.dexie.layer_units.where('mediaId').anyOf(siblingPlaceholderIds).toArray();
-          if (siblingUnits.length > 0) {
-            await db.dexie.layer_units.bulkPut(siblingUnits.map((unit) => ({
-              ...unit,
-              mediaId,
-              updatedAt: now,
-            })));
-            relatedUnits.push(...siblingUnits.map((unit) => ({ ...unit, mediaId })));
-          }
-          await db.dexie.media_items.bulkDelete(siblingPlaceholderIds);
-        }
-        const maxUnitEnd = relatedUnits.reduce((maxValue, unit) => {
-          const endTime = typeof unit.endTime === 'number' && Number.isFinite(unit.endTime) ? unit.endTime : 0;
-          return Math.max(maxValue, endTime);
-        }, 0);
-        const existingMetadata = text?.metadata as { logicalDurationSec?: unknown } | undefined;
-        const existingLogicalDurationSec = typeof existingMetadata?.logicalDurationSec === 'number'
-          && Number.isFinite(existingMetadata.logicalDurationSec)
-          ? existingMetadata.logicalDurationSec
-          : 0;
-        const logicalDurationSec = Math.max(media.duration ?? 0, maxUnitEnd, existingLogicalDurationSec, 1);
-        const previousDetails = (media.details as Record<string, unknown> | undefined) ?? {};
-        const { audioBlob: _audioBlob, ...remainingDetails } = previousDetails;
-
-        const placeholderMedia: MediaItemDocType = {
-          id: media.id,
-          textId: media.textId,
-          filename: 'document-placeholder.track',
-          ...(logicalDurationSec > 0 ? { duration: logicalDurationSec } : {}),
-          details: {
-            ...remainingDetails,
-            placeholder: true,
-            timelineMode: 'document',
-          },
-          isOfflineCached: true,
-          ...(media.accessRights ? { accessRights: media.accessRights } : {}),
-          createdAt: media.createdAt,
-        };
-
-        await db.dexie.media_items.put(placeholderMedia);
-
-        if (text) {
-          await db.dexie.texts.put({
-            ...text,
-            metadata: {
-              ...(text.metadata ?? {}),
-              timelineMode: 'document',
-              logicalDurationSec,
-              timebaseLabel: 'logical-second',
-            },
-            updatedAt: now,
-          });
-        }
-      },
-    );
+    await deleteAudioPreserveTimeline(mediaId);
   }
 
   /** Delete a single unit and cascade-delete its translations + lexicon links + anchors. */
   static async removeUnit(unitId: string): Promise<void> {
-    const db = await getDb();
-    await db.dexie.transaction(
-      'rw',
-      [
-        db.dexie.embeddings,
-        db.dexie.layer_unit_contents,
-        db.dexie.layer_units,
-        db.dexie.unit_relations,
-        db.dexie.unit_tokens,
-        db.dexie.unit_morphemes,
-        db.dexie.token_lexeme_links,
-        db.dexie.user_notes,
-        db.dexie.anchors,
-      ],
-      async () => {
-        await this.removeNotesForUnitIds(db, [unitId]);
-        await invalidateUnitEmbeddings(db, [unitId]);
-
-        const utt = await db.dexie.layer_units.get(unitId);
-        const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
-        const tokenIds = tokens.map((t) => t.id);
-        const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
-
-        await removeUnitCascadeFromSegmentationV2(db, unitId);
-        if (tokenIds.length > 0 || morphemeIds.length > 0) {
-          const targets: Array<[string, string]> = [
-            ...tokenIds.map((id) => ['token', id] as [string, string]),
-            ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-          ];
-          await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-        }
-        await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
-        await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
-        await deleteUnitLayerUnitCascade(db, [unitId]);
-
-        // Cleanup owned anchors
-        if (utt?.unitType === 'unit') {
-          if (utt.startAnchorId) await db.dexie.anchors.delete(utt.startAnchorId);
-          if (utt.endAnchorId) await db.dexie.anchors.delete(utt.endAnchorId);
-        }
-      },
-    );
-    void SegmentMetaService.syncForUnitIds([unitId]).catch(() => {
-      // SegmentMeta 为统一读模型，删除后的刷新失败不应阻塞主流程 | SegmentMeta is a shared read model; delete-sync failures must not block the primary flow.
-    });
+    await removeUnitCascade(unitId);
   }
 
   /**
    * Delete multiple units in one transaction with the same cascade semantics
-    * as removeUnit (V2 segments, token_lexeme_links, anchors).
+   * as removeUnit (V2 segments, token_lexeme_links, anchors).
    */
   static async removeUnitsBatch(unitIds: readonly string[]): Promise<void> {
-    const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
-    if (ids.length === 0) return;
-
-    const db = await getDb();
-    await db.dexie.transaction(
-      'rw',
-      [
-        db.dexie.embeddings,
-        db.dexie.layer_unit_contents,
-        db.dexie.layer_units,
-        db.dexie.unit_relations,
-        db.dexie.unit_tokens,
-        db.dexie.unit_morphemes,
-        db.dexie.token_lexeme_links,
-        db.dexie.user_notes,
-        db.dexie.anchors,
-      ],
-      async () => {
-        const bulkRows = await db.dexie.layer_units.bulkGet(ids);
-        const utts = bulkRows.filter((row): row is LayerUnitDocType & { unitType: 'unit' } => (
-          row != null && row.unitType === 'unit'
-        ));
-
-        await this.removeNotesForUnitIds(db, ids);
-        await invalidateUnitEmbeddings(db, ids);
-
-        for (const unitId of ids) {
-          const tokens = await db.dexie.unit_tokens.where('unitId').equals(unitId).toArray();
-          const tokenIds = tokens.map((t) => t.id);
-          const morphemeIds = (await db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()).map((m) => m.id);
-          await removeUnitCascadeFromSegmentationV2(db, unitId);
-          if (tokenIds.length > 0 || morphemeIds.length > 0) {
-            const targets: Array<[string, string]> = [
-              ...tokenIds.map((id) => ['token', id] as [string, string]),
-              ...morphemeIds.map((id) => ['morpheme', id] as [string, string]),
-            ];
-            await db.dexie.token_lexeme_links.where('[targetType+targetId]').anyOf(targets).delete();
-          }
-          await db.dexie.unit_tokens.where('unitId').equals(unitId).delete();
-          await db.dexie.unit_morphemes.where('unitId').equals(unitId).delete();
-        }
-
-        await deleteUnitLayerUnitCascade(db, ids);
-
-        const anchorIds = new Set<string>();
-        for (const utt of utts) {
-          if (utt.startAnchorId) anchorIds.add(utt.startAnchorId);
-          if (utt.endAnchorId) anchorIds.add(utt.endAnchorId);
-        }
-
-        if (anchorIds.size > 0) {
-          await db.dexie.anchors.bulkDelete([...anchorIds]);
-        }
-      },
-    );
-    void SegmentMetaService.syncForUnitIds(ids).catch(() => {
-      // SegmentMeta 为统一读模型，批量删除后的刷新失败不应阻塞主流程 | SegmentMeta is a shared read model; delete-sync failures must not block the primary flow.
-    });
+    await removeUnitsBatchCascade(unitIds);
   }
 
 }

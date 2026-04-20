@@ -245,6 +245,35 @@ export function getOrthographyHeaderLine(
     ?? '';
 }
 
+const ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH: Record<LanguageSearchLocale, 'zh-CN' | 'en-US'> = {
+  'zh-CN': 'zh-CN',
+  'en-US': 'en-US',
+  'fr-FR': 'zh-CN',
+  'es-ES': 'zh-CN',
+  'de-DE': 'zh-CN',
+};
+
+/**
+ * 与波形/纯文本层头信息一致，但压成单行并以「·」串联（用于纵向对照列标题等）| Same lane header facts as stacked headers, one line with middle dots
+ */
+export function buildLaneHeaderInlineDotSeparatedLabel(
+  layer: LayerDocType,
+  locale: LanguageSearchLocale,
+  orthographies: ReadonlyArray<{ id: string; name?: Record<string, string>; abbreviation?: string }>,
+): string {
+  const languageLine = getLayerHeaderLanguageLine(layer, locale);
+  const varietyOrAliasLine = getLayerHeaderVarietyOrAliasLine(layer);
+  const targetOrthography = layer.orthographyId
+    ? orthographies.find((o) => o.id === layer.orthographyId)
+    : undefined;
+  const orthographyLocale = ORTHOGRAPHY_HEADER_LOCALE_BY_SEARCH[locale] ?? 'zh-CN';
+  const orthographyLine = getOrthographyHeaderLine(targetOrthography, orthographyLocale);
+  const parts = [languageLine, varietyOrAliasLine, orthographyLine]
+    .map((line) => normalizeSingleLine(line).trim())
+    .filter((line) => line.length > 0);
+  return parts.join(' · ');
+}
+
 export function getLayerLabelParts(layer: LayerDocType, locale: LanguageSearchLocale = 'zh-CN'): { type: string; lang: string; alias: string } {
   const code = (layer.languageId ?? '').trim();
   const typeLabel = layer.layerType === 'translation' ? '\u7ffb\u8bd1' : '\u8f6c\u5199';

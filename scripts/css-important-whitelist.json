@@ -74,6 +74,56 @@
       "file": "src/styles/foundation/icon-effect-motion.css",
       "snippet": "--jieyu-material-fill: 0 !important;",
       "reason": "Icon motion: reset FILL axis under reduced motion"
+    },
+    {
+      "file": "src/styles/foundation/waveform-display.css",
+      "snippet": ") !important;",
+      "reason": "Skipped region stripe background must override nested fills on waveform canvas"
+    },
+    {
+      "file": "src/styles/foundation/waveform-display.css",
+      "snippet": "background-color: transparent !important;",
+      "reason": "Skipped region stripe: clear solid fill under repeating gradient"
+    },
+    {
+      "file": "src/styles/pages/app-shell-layout.css",
+      "snippet": "display: inline-flex !important;",
+      "reason": "Left rail workspace toggle icon alignment override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-annotation.css",
+      "snippet": ") !important;",
+      "reason": "Skipped annotation stripe background override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-annotation.css",
+      "snippet": "border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;",
+      "reason": "Skipped annotation dashed border override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-annotation.css",
+      "snippet": "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;",
+      "reason": "Skipped annotation inset ring override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-comparison.css",
+      "snippet": "background: transparent !important;",
+      "reason": "Comparison draft resize handle: suppress edge cue in vertical mode"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-text-item.css",
+      "snippet": ") !important;",
+      "reason": "Skipped text item stripe background override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-text-item.css",
+      "snippet": "border: 1px dashed color-mix(in srgb, var(--state-warning-solid) 36%, transparent) !important;",
+      "reason": "Skipped text item dashed border override"
+    },
+    {
+      "file": "src/styles/pages/timeline/timeline-text-item.css",
+      "snippet": "box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--state-warning-solid) 10%, transparent) !important;",
+      "reason": "Skipped text item inset ring override"
     }
   ]
 }

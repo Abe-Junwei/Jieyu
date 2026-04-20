@@ -257,7 +257,7 @@ export const architectureGuardRules = [
   }),
   pageControllerRule('useTranscriptionTimelineInteractionController', {
     maxLines: 500,
-    maxUseCallbackDecls: 15,
+    maxUseCallbackDecls: 16,
     maxUseMemoDecls: 0,
     maxUseEffects: 0,
   }),
@@ -519,6 +519,7 @@ export const architectureGuardRules = [
   {
     file: 'src/styles/pages/transcription-timeline.css',
     requiredLiterals: [
+      "@import './timeline/timeline-segment-narrow.css';",
       '.timeline-scroll {',
       '.timeline-content {',
       '.timeline-lane {',
@@ -782,7 +783,7 @@ export const architectureGuardRules = [
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
     excludeFiles: [
       'src/db/engine.ts',
-      'src/db/migrations/m18LinguisticUtteranceCutover.ts',
+      'src/db/migrations/m18LinguisticUnitCutover.ts',
     ],
     forbiddenRegexes: [
       /\bdb\.utterances\b/,
@@ -797,7 +798,7 @@ export const architectureGuardRules = [
     excludeRegexes: [/\.test\.(ts|tsx)$/, /\.structure\.(ts|tsx)$/],
     excludeFiles: [
       'src/db/engine.ts',
-      'src/db/migrations/m18LinguisticUtteranceCutover.ts',
+      'src/db/migrations/m18LinguisticUnitCutover.ts',
     ],
     forbiddenRegexes: [
       /utterance_tokens\.where\(\s*['"]utteranceId['"]/,

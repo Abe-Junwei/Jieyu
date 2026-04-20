@@ -6,8 +6,14 @@ import { t } from '../i18n';
 import { createLogger } from '../observability/logger';
 import { reportActionError } from '../utils/actionErrorReporter';
 import { fireAndForget } from '../utils/fireAndForget';
+import {
+  isAuxiliaryRecordingMediaRow,
+  isMediaItemPlaceholderRow,
+  withResolvedMediaItemTimelineKind,
+} from '../utils/mediaItemTimelineKind';
 import type { SearchableItem } from '../utils/searchReplaceUtils';
 import type { UseTranscriptionProjectMediaControllerInput, UseTranscriptionProjectMediaControllerResult } from '../types/useTranscriptionProjectMediaController.types';
+import type { TranscriptionAudioImportOptions } from './transcriptionAudioImportTypes';
 const log = createLogger('useTranscriptionProjectMediaController');
 
 export function useTranscriptionProjectMediaController(
@@ -16,6 +22,7 @@ export function useTranscriptionProjectMediaController(
   const transcriptionAppService = getTranscriptionAppService();
   const {
     activeTextId,
+    mediaItems,
     getActiveTextId,
     setActiveTextId,
     setShowAudioImport,
@@ -39,6 +46,25 @@ export function useTranscriptionProjectMediaController(
   const [projectDeleteConfirm, setProjectDeleteConfirm] = useState(false);
   const [autoSegmentBusy, setAutoSegmentBusy] = useState(false);
 
+  const audioImportDisposition = useMemo(() => {
+    if (!activeTextId) return { kind: 'simple' as const };
+    const projectMedia = mediaItems.filter((m) => m.textId === activeTextId);
+    const hasAcoustic = projectMedia.some((m) => (
+      !isMediaItemPlaceholderRow(m)
+      && !isAuxiliaryRecordingMediaRow(m)
+    ));
+    if (!hasAcoustic) return { kind: 'simple' as const };
+    const replaceTarget = (selectedTimelineMedia && projectMedia.some((m) => m.id === selectedTimelineMedia.id)
+      ? selectedTimelineMedia
+      : projectMedia.find((m) => !isMediaItemPlaceholderRow(m) && !isAuxiliaryRecordingMediaRow(m))) ?? null;
+    if (!replaceTarget) return { kind: 'simple' as const };
+    return {
+      kind: 'choose' as const,
+      replaceMediaId: replaceTarget.id,
+      replaceLabel: replaceTarget.filename,
+    };
+  }, [activeTextId, mediaItems, selectedTimelineMedia]);
+
   const { mediaFileInputRef, handleDirectMediaImport } = useMediaImport({
     activeTextId,
     getActiveTextId,
@@ -48,11 +74,9 @@ export function useTranscriptionProjectMediaController(
     tf: tfB,
   });
 
-  const selectedMediaBlobSize = useMemo(() => {
-    const details = selectedTimelineMedia?.details as Record<string, unknown> | undefined;
-    const blob = details?.audioBlob;
-    return blob instanceof Blob ? blob.size : undefined;
-  }, [selectedTimelineMedia]);
+  const selectedMediaDetails = selectedTimelineMedia?.details as Record<string, unknown> | undefined;
+  const selectedMediaBlob = selectedMediaDetails?.audioBlob;
+  const selectedMediaBlobSize = selectedMediaBlob instanceof Blob ? selectedMediaBlob.size : undefined;
 
   const handleAutoSegment = useCallback(() => {
     const mediaUrl = selectedMediaUrl;
@@ -153,17 +177,13 @@ export function useTranscriptionProjectMediaController(
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {
     const result = await transcriptionAppService.createProject(projectInput);
-    const placeholderMedia = await transcriptionAppService.createPlaceholderMedia({
-      textId: result.textId,
-    });
-    addMediaItem(placeholderMedia);
     setActiveTextId(result.textId);
     setSaveState({ kind: 'done', message: tfB('transcription.action.projectCreated', { title: projectInput.primaryTitle }) });
     setShowAudioImport(false);
     await loadSnapshot();
-  }, [addMediaItem, loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService]);
+  }, [loadSnapshot, setActiveTextId, setSaveState, setShowAudioImport, tfB, transcriptionAppService]);
 
-  const handleAudioImport = useCallback(async (file: File, duration: number) => {
+  const handleAudioImport = useCallback(async (file: File, duration: number, options?: TranscriptionAudioImportOptions) => {
     let textId = activeTextId ?? (await getActiveTextId());
     if (!textId) {
       const baseName = file.name.replace(/\.[^.]+$/, '');
@@ -176,13 +196,20 @@ export function useTranscriptionProjectMediaController(
       setActiveTextId(textId);
     }
     const blob: Blob = file.type ? file : new Blob([file], { type: file.type });
-    const { mediaId } = await transcriptionAppService.importAudio({
+    const choose = audioImportDisposition.kind === 'choose' ? audioImportDisposition : null;
+    const importPayload = {
       textId,
       audioBlob: blob,
       filename: file.name,
       duration,
-    });
-    addMediaItem({
+      ...(options?.mode === 'replace' && choose
+        ? { importMode: 'replace' as const, replaceMediaId: choose.replaceMediaId }
+        : options?.mode === 'add' && choose
+          ? { importMode: 'add' as const }
+          : {}),
+    };
+    const { mediaId } = await transcriptionAppService.importAudio(importPayload);
+    addMediaItem(withResolvedMediaItemTimelineKind({
       id: mediaId,
       textId,
       filename: file.name,
@@ -190,9 +217,9 @@ export function useTranscriptionProjectMediaController(
       details: { audioBlob: blob },
       isOfflineCached: true,
       createdAt: new Date().toISOString(),
-    } as MediaItemDocType);
+    } as MediaItemDocType));
     setSaveState({ kind: 'done', message: tfB('transcription.action.audioImported', { filename: file.name }) });
-  }, [activeTextId, addMediaItem, getActiveTextId, setActiveTextId, setSaveState, tfB, transcriptionAppService]);
+  }, [activeTextId, addMediaItem, audioImportDisposition, getActiveTextId, setActiveTextId, setSaveState, tfB, transcriptionAppService]);
 
   const searchableItems = useMemo<SearchableItem[]>(() => {
     const items: SearchableItem[] = [];
@@ -240,6 +267,7 @@ export function useTranscriptionProjectMediaController(
   }, [getUnitTextForLayer, transcriptionLayers, translationLayers, translationTextByLayer, unitsOnCurrentMedia]);
 
   return {
+    audioImportDisposition,
     mediaFileInputRef,
     handleDirectMediaImport,
     audioDeleteConfirm,

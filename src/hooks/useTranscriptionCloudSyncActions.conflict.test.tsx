@@ -11,6 +11,7 @@ const {
   mockWrappedSaveUnitText,
   mockRawSaveUnitText,
   mockEnqueueMutation,
+  mockGetDb,
 } = vi.hoisted(() => {
   const bridgeState: {
     onApplyRemoteChange: ((change: CollaborationProjectChangeRecord) => Promise<void>) | null;
@@ -24,6 +25,30 @@ const {
   const mockWrappedSaveUnitText = vi.fn(async () => undefined);
   const mockRawSaveUnitText = vi.fn(async () => undefined);
   const mockEnqueueMutation = vi.fn();
+  const mockAuditLogRows: Array<Record<string, unknown>> = [];
+  const mockGetDb = vi.fn(async () => ({
+    dexie: {
+      audit_logs: {
+        clear: vi.fn(async () => {
+          mockAuditLogRows.length = 0;
+        }),
+        toArray: vi.fn(async () => [...mockAuditLogRows]),
+        bulkPut: vi.fn(async (rows: Array<Record<string, unknown>>) => {
+          mockAuditLogRows.push(...rows);
+        }),
+        put: vi.fn(async (row: Record<string, unknown>) => {
+          mockAuditLogRows.push(row);
+        }),
+      },
+    },
+    collections: {
+      audit_logs: {
+        insert: vi.fn(async (row: Record<string, unknown>) => {
+          mockAuditLogRows.push(row);
+        }),
+      },
+    },
+  }));
 
   return {
     bridgeState,
@@ -32,6 +57,8 @@ const {
     mockWrappedSaveUnitText,
     mockRawSaveUnitText,
     mockEnqueueMutation,
+    mockAuditLogRows,
+    mockGetDb,
   };
 });
 
@@ -68,6 +95,10 @@ vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
   getSupabaseBrowserClient: () => ({ from: vi.fn() }),
   hasSupabaseBrowserClientConfig: mockHasSupabaseBrowserClientConfig,
   getSupabaseUserId: mockGetSupabaseUserId,
+}));
+
+vi.mock('../db', () => ({
+  getDb: mockGetDb,
 }));
 
 function buildParams(): UseTranscriptionCloudSyncActionsParams {
@@ -139,14 +170,20 @@ async function triggerRemote(change: CollaborationProjectChangeRecord): Promise<
   await bridgeState.onApplyRemoteChange(change);
 }
 
+async function clearAuditLogs(): Promise<void> {
+  const db = await mockGetDb();
+  await db.dexie.audit_logs.clear();
+}
+
 describe('useTranscriptionCloudSyncActions conflict governance', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     bridgeState.onApplyRemoteChange = null;
     mockHasSupabaseBrowserClientConfig.mockReturnValue(false);
     mockGetSupabaseUserId.mockClear();
     mockWrappedSaveUnitText.mockClear();
     mockRawSaveUnitText.mockClear();
     mockEnqueueMutation.mockClear();
+    await clearAuditLogs();
   });
 
   it('auto-resolves low risk conflicts and applies remote mutation', async () => {
@@ -194,6 +231,28 @@ describe('useTranscriptionCloudSyncActions conflict governance', () => {
     await waitFor(() => {
       expect(mockRawSaveUnitText).toHaveBeenCalledWith('u-1', 'remote-a', undefined);
       expect(result.current.conflictReviewTickets).toHaveLength(0);
+    });
+  });
+
+  it('persists conflict governance logs into audit storage', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.saveUnitText('u-1', 'local-persist');
+    });
+
+    await act(async () => {
+      await triggerRemote(createRemoteContentChange('remote-persist', new Date(Date.now() - 10_000).toISOString()));
+    });
+
+    await waitFor(async () => {
+      const db = await mockGetDb();
+      const auditRows = (await db.dexie.audit_logs.toArray()).filter(
+        (row) => row.collection === 'collaboration_conflicts' && row.field === 'operation_log',
+      );
+
+      expect(auditRows.some((row) => String(row.requestId ?? '').includes('log_'))).toBe(true);
+      expect(auditRows.some((row) => row.newValue === 'conflict_resolved')).toBe(true);
     });
   });
 

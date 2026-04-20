@@ -1,33 +1,41 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_HERO } from '../utils/jieyuMaterialIcon';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { ModalPanel, PanelButton, PanelFeedback } from './ui';
+import type { AudioImportDisposition, TranscriptionAudioImportOptions } from '../pages/transcriptionAudioImportTypes';
 
 type AudioImportDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  onImport: (file: File, duration: number) => Promise<void>;
+  disposition: AudioImportDisposition;
+  onImport: (file: File, duration: number, options?: TranscriptionAudioImportOptions) => Promise<void>;
 };
 
 const ACCEPTED_AUDIO_FORMATS = '.mp3,.wav,.ogg,.webm,.m4a,.flac,.aac';
 const ACCEPTED_VIDEO_FORMATS = '.mp4,.webm,.mov,.avi,.mkv';
 const ALL_ACCEPTED_FORMATS = `${ACCEPTED_AUDIO_FORMATS},${ACCEPTED_VIDEO_FORMATS}`;
 
-export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDialogProps) {
+export function AudioImportDialog({ isOpen, onClose, disposition, onImport }: AudioImportDialogProps) {
   const locale = useLocale();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [importModeChoice, setImportModeChoice] = useState<'replace' | 'add'>('replace');
+
+  useEffect(() => {
+    if (isOpen) setImportModeChoice('replace');
+  }, [isOpen]);
 
   const reset = () => {
     setSelectedFile(null);
     setDuration(null);
     setError('');
     setImporting(false);
+    setImportModeChoice('replace');
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -78,7 +86,11 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
     setImporting(true);
     setError('');
     try {
-      await onImport(selectedFile, duration);
+      if (disposition.kind === 'choose') {
+        await onImport(selectedFile, duration, { mode: importModeChoice });
+      } else {
+        await onImport(selectedFile, duration);
+      }
       handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t(locale, 'transcription.importDialog.importFailed'));
@@ -144,6 +156,42 @@ export function AudioImportDialog({ isOpen, onClose, onImport }: AudioImportDial
           />
 
           {error && <PanelFeedback level="error">{error}</PanelFeedback>}
+
+          {disposition.kind === 'choose' && (
+            <fieldset className="audio-import-disposition">
+              <legend className="audio-import-disposition-legend">
+                {t(locale, 'transcription.importDialog.importModeLegend')}
+              </legend>
+              <label className="audio-import-disposition-option">
+                <input
+                  type="radio"
+                  name="audio-import-mode"
+                  value="replace"
+                  checked={importModeChoice === 'replace'}
+                  onChange={() => setImportModeChoice('replace')}
+                />
+                <span>
+                  {tf(locale, 'transcription.importDialog.importModeReplace', { label: disposition.replaceLabel })}
+                </span>
+              </label>
+              <div className="audio-import-disposition-hint">
+                {t(locale, 'transcription.importDialog.importModeReplaceHint')}
+              </div>
+              <label className="audio-import-disposition-option">
+                <input
+                  type="radio"
+                  name="audio-import-mode"
+                  value="add"
+                  checked={importModeChoice === 'add'}
+                  onChange={() => setImportModeChoice('add')}
+                />
+                <span>{t(locale, 'transcription.importDialog.importModeAdd')}</span>
+              </label>
+              <div className="audio-import-disposition-hint">
+                {t(locale, 'transcription.importDialog.importModeAddHint')}
+              </div>
+            </fieldset>
+          )}
     </ModalPanel>
   );
 }

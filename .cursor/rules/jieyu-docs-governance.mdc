@@ -25,6 +25,7 @@ For root-level doc naming:
 
 Behavior rules:
 
+- **Product architecture decisions**（含层模态、录音语义、时间轴与媒体生命周期等）**必须**写入本仓库的 `docs/adr/` 或 `docs/architecture/`；**不要**把 Cursor 编辑器用户目录下的 plan 文件（例如 `~/.cursor/plans`）当作 Jieyu 的唯一或权威规格库。
 - Treat `docs/规划-*` as historical planning context, not the source of current truth.
 - Prefer `docs/architecture/` + code as source of truth when conflicts exist.
 - Keep docs in the correct execution subfolder; avoid flattening into `docs/execution/`.

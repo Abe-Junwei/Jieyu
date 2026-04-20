@@ -18,6 +18,7 @@ import '../../styles/collaboration-sync-surface.css';
 type CloudPanelTab = 'assets' | 'snapshots' | 'timeline' | 'directory';
 
 interface CollaborationCloudPanelProps {
+  hideHeader?: boolean;
   listProjectAssets: (input?: {
     assetType?: CollaborationAssetRecord['assetType'];
     limit?: number;
@@ -64,6 +65,7 @@ function normalizeErrorMessage(error: unknown): string {
 }
 
 export function CollaborationCloudPanel({
+  hideHeader = false,
   listProjectAssets,
   removeProjectAsset,
   getProjectAssetSignedUrl,
@@ -218,74 +220,88 @@ export function CollaborationCloudPanel({
     await refreshTimeline();
   }, [activeTab, refreshAssets, refreshDirectory, refreshSnapshots, refreshTimeline]);
 
-  return (
-    <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-collaboration-group" aria-label={messages.title}>
-      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-        <div className="app-side-pane-collaboration-title-wrap">
-          <span className="app-side-pane-section-title">{messages.title}</span>
-          <span className="app-side-pane-collaboration-subtitle">{messages.subtitle}</span>
+  const panelNode = (
+    <section
+      className={`app-side-pane-group app-side-pane-layer-group app-side-pane-collaboration-group${hideHeader ? ' app-side-pane-collaboration-group-settings' : ''}`}
+      aria-label={messages.title}
+    >
+      {hideHeader ? null : (
+        <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
+          <div className="app-side-pane-collaboration-title-wrap">
+            <span className="app-side-pane-section-title">{messages.title}</span>
+            <span className="app-side-pane-collaboration-subtitle">{messages.subtitle}</span>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="app-side-pane-nav app-side-pane-collaboration-wrap">
-        <div className="app-side-pane-collaboration-tabs" role="tablist" aria-label={messages.title}>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'assets'}
-            className={`app-side-pane-collaboration-tab ${activeTab === 'assets' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('assets')}
-          >
-            {messages.tabAssets}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'snapshots'}
-            className={`app-side-pane-collaboration-tab ${activeTab === 'snapshots' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('snapshots')}
-          >
-            {messages.tabSnapshots}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'timeline'}
-            className={`app-side-pane-collaboration-tab ${activeTab === 'timeline' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('timeline')}
-          >
-            {messages.tabTimeline}
-          </button>
-          {directory ? (
+      <div className={`app-side-pane-nav app-side-pane-collaboration-wrap${hideHeader ? ' app-side-pane-collaboration-wrap-settings settings-layout' : ''}`}>
+        <div className={`app-side-pane-collaboration-tabs panel-edge-nav${hideHeader ? ' app-side-pane-collaboration-tabs-settings settings-tab-bar' : ''}`} role="tablist" aria-label={messages.title}>
+          <div className={`panel-edge-nav-row ${activeTab === 'assets' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
             <button
               type="button"
               role="tab"
-              aria-selected={activeTab === 'directory'}
-              className={`app-side-pane-collaboration-tab ${activeTab === 'directory' ? 'is-active' : ''}`}
-              onClick={() => setActiveTab('directory')}
+              aria-selected={activeTab === 'assets'}
+              className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'assets' ? ' is-active' : ''}`}
+              onClick={() => setActiveTab('assets')}
             >
-              {messages.tabDirectory}
+              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabAssets}</strong></span>
             </button>
+          </div>
+          <div className={`panel-edge-nav-row ${activeTab === 'snapshots' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'snapshots'}
+              className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'snapshots' ? ' is-active' : ''}`}
+              onClick={() => setActiveTab('snapshots')}
+            >
+              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabSnapshots}</strong></span>
+            </button>
+          </div>
+          <div className={`panel-edge-nav-row ${activeTab === 'timeline' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'timeline'}
+              className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'timeline' ? ' is-active' : ''}`}
+              onClick={() => setActiveTab('timeline')}
+            >
+              <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabTimeline}</strong></span>
+            </button>
+          </div>
+          {directory ? (
+            <div className={`panel-edge-nav-row ${activeTab === 'directory' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'directory'}
+                className={`app-side-pane-collaboration-tab panel-edge-nav-btn${hideHeader ? ' settings-tab-btn' : ''}${activeTab === 'directory' ? ' is-active' : ''}`}
+                onClick={() => setActiveTab('directory')}
+              >
+                <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{messages.tabDirectory}</strong></span>
+              </button>
+            </div>
           ) : null}
         </div>
 
-        <div className="app-side-pane-collaboration-actions">
-          <button
-            type="button"
-            className="btn btn-ghost app-side-pane-collaboration-refresh"
-            disabled={isBusy}
-            onClick={() => {
-              void handleRefreshCurrentTab();
-            }}
-          >
-            {isBusy ? messages.loading : currentRefreshLabel}
-          </button>
-        </div>
+        <div className={`app-side-pane-collaboration-content${hideHeader ? ' app-side-pane-collaboration-content-settings' : ''}`}>
+          <div className="app-side-pane-collaboration-actions">
+            <button
+              type="button"
+              className="btn btn-ghost app-side-pane-collaboration-refresh"
+              disabled={isBusy}
+              onClick={() => {
+                void handleRefreshCurrentTab();
+              }}
+            >
+              {isBusy ? messages.loading : currentRefreshLabel}
+            </button>
+          </div>
 
-        {statusMessage ? <p className="app-side-pane-collaboration-status">{statusMessage}</p> : null}
-        {errorMessage ? <p className="app-side-pane-collaboration-error">{errorMessage}</p> : null}
+          {statusMessage ? <p className="app-side-pane-collaboration-status">{statusMessage}</p> : null}
+          {errorMessage ? <p className="app-side-pane-collaboration-error">{errorMessage}</p> : null}
 
-        {activeTab === 'assets' ? (
+          {activeTab === 'assets' ? (
           <ul className="app-side-pane-collaboration-list">
             {assets.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyAssets}</li> : null}
             {assets.map((asset) => (
@@ -362,41 +378,44 @@ export function CollaborationCloudPanel({
           </ul>
         ) : null}
 
-        {activeTab === 'directory' && directory ? (
-          <div className="app-side-pane-collaboration-directory">
-            <p className="app-side-pane-collaboration-directory-hint">{messages.directoryHint}</p>
-            <p className="app-side-pane-collaboration-directory-current">
-              {messages.currentProjectHeading(directory.workspaceProjectId)}
-            </p>
-            <h4 className="app-side-pane-collaboration-subheading">{messages.directoryProjectsHeading}</h4>
-            <ul className="app-side-pane-collaboration-list">
-              {cloudProjects.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyProjects}</li> : null}
-              {cloudProjects.map((project) => (
-                <li key={project.id} className="app-side-pane-collaboration-item">
-                  <div className="app-side-pane-collaboration-item-main">
-                    <strong>{messages.projectNameLabel(project.name || project.id)}</strong>
-                    <span>{messages.projectVisibilityLabel(project.visibility)}</span>
-                    <span>{messages.projectUpdatedLabel(formatDateTime(project.updatedAt))}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <h4 className="app-side-pane-collaboration-subheading">{messages.directoryMembersHeading}</h4>
-            <ul className="app-side-pane-collaboration-list">
-              {cloudMembers.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyMembers}</li> : null}
-              {cloudMembers.map((member) => (
-                <li key={`${member.userId}:${member.joinedAt}`} className="app-side-pane-collaboration-item">
-                  <div className="app-side-pane-collaboration-item-main">
-                    <strong>{messages.memberUserLabel(member.userId)}</strong>
-                    <span>{messages.memberRoleLabel(member.role)}</span>
-                    {member.disabledAt ? <span>{formatDateTime(member.disabledAt)}</span> : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
+          {activeTab === 'directory' && directory ? (
+            <div className="app-side-pane-collaboration-directory">
+              <p className="app-side-pane-collaboration-directory-hint">{messages.directoryHint}</p>
+              <p className="app-side-pane-collaboration-directory-current">
+                {messages.currentProjectHeading(directory.workspaceProjectId)}
+              </p>
+              <h4 className="app-side-pane-collaboration-subheading">{messages.directoryProjectsHeading}</h4>
+              <ul className="app-side-pane-collaboration-list">
+                {cloudProjects.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyProjects}</li> : null}
+                {cloudProjects.map((project) => (
+                  <li key={project.id} className="app-side-pane-collaboration-item">
+                    <div className="app-side-pane-collaboration-item-main">
+                      <strong>{messages.projectNameLabel(project.name || project.id)}</strong>
+                      <span>{messages.projectVisibilityLabel(project.visibility)}</span>
+                      <span>{messages.projectUpdatedLabel(formatDateTime(project.updatedAt))}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <h4 className="app-side-pane-collaboration-subheading">{messages.directoryMembersHeading}</h4>
+              <ul className="app-side-pane-collaboration-list">
+                {cloudMembers.length === 0 ? <li className="app-side-pane-collaboration-empty">{messages.emptyMembers}</li> : null}
+                {cloudMembers.map((member) => (
+                  <li key={`${member.userId}:${member.joinedAt}`} className="app-side-pane-collaboration-item">
+                    <div className="app-side-pane-collaboration-item-main">
+                      <strong>{messages.memberUserLabel(member.userId)}</strong>
+                      <span>{messages.memberRoleLabel(member.role)}</span>
+                      {member.disabledAt ? <span>{formatDateTime(member.disabledAt)}</span> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );
+
+  return panelNode;
 }

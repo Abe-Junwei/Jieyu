@@ -5,6 +5,7 @@ type TimeBoundUnitLike = {
   ai_metadata?: {
     confidence?: number;
   } | undefined;
+  tags?: Record<string, boolean> | undefined;
 };
 
 export interface WaveformLowConfidenceBand {
@@ -94,6 +95,7 @@ function minOfNumbers(values: number[]): number {
 
 function toSortedUnits(input: TimeBoundUnitLike[]): TimeBoundUnitLike[] {
   return input
+    .filter((item) => item.tags?.skipProcessing !== true)
     .filter((item) => Number.isFinite(item.startTime) && Number.isFinite(item.endTime) && item.endTime > item.startTime)
     .sort((left, right) => {
       if (left.startTime !== right.startTime) return left.startTime - right.startTime;

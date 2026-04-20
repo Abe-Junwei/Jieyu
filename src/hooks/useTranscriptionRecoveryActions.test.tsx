@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { RecoveryData } from '../services/SnapshotService';
 import type { LayerUnitDocType } from '../db';
+import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
 import { useTranscriptionRecoveryActions } from './useTranscriptionRecoveryActions';
 
 const {
@@ -100,7 +101,7 @@ describe('useTranscriptionRecoveryActions', () => {
       { ...currentUtt, updatedAt: '2026-03-23T20:01:00.000Z' },
     ]);
 
-    const dbNameRef = { current: 'jieyudb' };
+    const dbNameRef = { current: JIEYU_DEXIE_DB_NAME };
     const unitsRef = { current: [currentUtt] };
     const loadSnapshot = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
@@ -133,7 +134,7 @@ describe('useTranscriptionRecoveryActions', () => {
     const currentUtt = makeUnit('utt-1', '2026-03-23T20:00:00.000Z');
     mockListUnitDocsFromCanonicalLayerUnits.mockResolvedValueOnce([{ ...currentUtt }]);
 
-    const dbNameRef = { current: 'jieyudb' };
+    const dbNameRef = { current: JIEYU_DEXIE_DB_NAME };
     const unitsRef = { current: [currentUtt] };
     const loadSnapshot = vi.fn(async () => undefined);
     const setSaveState = vi.fn();
@@ -155,7 +156,7 @@ describe('useTranscriptionRecoveryActions', () => {
     expect(ok).toBe(true);
     expect(loadSnapshot).toHaveBeenCalledTimes(1);
     expect(setSaveState).toHaveBeenCalledWith({ kind: 'done', message: '已从崩溃恢复数据中还原' });
-    expect(mockClearRecoverySnapshot).toHaveBeenCalledWith('jieyudb');
+    expect(mockClearRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME);
     expect(mockSyncUnitTextToSegmentationV2).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ id: 'utt-1' }),

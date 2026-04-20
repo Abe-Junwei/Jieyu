@@ -8,6 +8,7 @@ type ResizeState = {
   layerId: string;
   startY: number;
   startHeight: number;
+  edge: 'top' | 'bottom';
 };
 
 function clampTimelineLaneHeight(value: number): number {
@@ -31,6 +32,7 @@ export function useTimelineLaneHeightResize(
     event: ReactPointerEvent<HTMLDivElement>,
     layerId: string,
     currentHeight: number,
+    edge: 'top' | 'bottom' = 'bottom',
   ) => {
     if (typeof window === 'undefined') return;
     event.preventDefault();
@@ -40,21 +42,25 @@ export function useTimelineLaneHeightResize(
       layerId,
       startY: event.clientY,
       startHeight: initialHeight,
+      edge,
     };
     lastHeightRef.current = initialHeight;
     onLaneHeightChange(layerId, initialHeight);
     onResizePreviewRef.current?.(layerId, initialHeight);
     setResizingLayerId(layerId);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ns-resize';
   }, [onLaneHeightChange]);
 
   useEffect(() => {
-    if (!resizingLayerId || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
 
     const handlePointerMove = (event: PointerEvent): void => {
       const drag = resizeStateRef.current;
       if (!drag) return;
       const delta = event.clientY - drag.startY;
-      const clamped = clampTimelineLaneHeight(drag.startHeight + delta);
+      const signedDelta = drag.edge === 'top' ? -delta : delta;
+      const clamped = clampTimelineLaneHeight(drag.startHeight + signedDelta);
       lastHeightRef.current = clamped;
       onLaneHeightChange(drag.layerId, clamped);
       onResizePreviewRef.current?.(drag.layerId, clamped);
@@ -63,18 +69,17 @@ export function useTimelineLaneHeightResize(
     const stopResize = (): void => {
       const drag = resizeStateRef.current;
       if (drag) {
-        // 触发 resize 结束回调（用于字号联动） | Fire resize-end callback (for font-size sync)
         onResizeEndRef.current?.(drag.layerId, lastHeightRef.current);
       }
       resizeStateRef.current = null;
       setResizingLayerId(null);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
     };
 
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', stopResize);
     window.addEventListener('pointercancel', stopResize);
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'ns-resize';
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove);
@@ -83,7 +88,7 @@ export function useTimelineLaneHeightResize(
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     };
-  }, [onLaneHeightChange, resizingLayerId]);
+  }, [onLaneHeightChange]);
 
   return {
     resizingLayerId,

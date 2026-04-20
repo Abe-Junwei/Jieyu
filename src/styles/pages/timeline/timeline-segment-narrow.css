@@ -1,0 +1,22 @@
+/* ── 窄语段：容器查询（仅极窄时微调，避免角标像「消失」）| @container tweaks only for ultra-narrow segments
+ *
+ * 不在此对确信/保存点做透明度过降级（易与未渲染混淆）；重叠徽标仅在极窄时隐藏。
+ * | No opacity fade on certainty/save markers; overlap badge hides only when segment is very tight.
+ *
+ * 断点字面量与 tokens 中 --timeline-seg-narrow-* 注释对齐；@container 内不用 var() 以保兼容。
+ */
+
+.timeline-text-item,
+.timeline-annotation {
+  container-type: inline-size;
+  container-name: timeline-seg;
+}
+
+/* 仅极窄：略缩小笔记图标；重叠徽标/工具间距规则已回收到 owner 文件。 */
+@container timeline-seg (max-width: 56px) {
+  .timeline-annotation-note-icon {
+    transform: scale(0.92);
+    transform-origin: bottom right;
+    transform-origin: bottom inline-end;
+  }
+}

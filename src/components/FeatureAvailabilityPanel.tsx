@@ -26,7 +26,7 @@ export function FeatureAvailabilityPanel({
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{t(locale, 'app.featureAvailability.currentStatus')}</span>
         </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
+        <div className="app-side-pane-nav app-side-pane-feature-nav feature-availability-side-pane-nav">
           <span className="app-side-pane-feature-badge">{t(locale, 'app.featureAvailability.badgePlanned')}</span>
           <p className="app-side-pane-feature-summary">{summary}</p>
           <p className="app-side-pane-feature-note">{t(locale, 'app.featureAvailability.sidePaneNote')}</p>
@@ -37,7 +37,7 @@ export function FeatureAvailabilityPanel({
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{t(locale, 'app.featureAvailability.planned')}</span>
         </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
+        <div className="app-side-pane-nav app-side-pane-feature-nav feature-availability-side-pane-nav">
           {scope.map((item) => (
             <div key={item} className="app-side-pane-feature-item">{item}</div>
           ))}
@@ -48,7 +48,7 @@ export function FeatureAvailabilityPanel({
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{t(locale, 'app.featureAvailability.quickAccess')}</span>
         </div>
-        <div className="app-side-pane-nav app-side-pane-feature-nav">
+        <div className="app-side-pane-nav app-side-pane-feature-nav feature-availability-side-pane-nav">
           <Link to="/transcription" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
         </div>
       </section>

@@ -19,23 +19,18 @@
  *        { type: 'error', id?: string, message: string }
  */
 
-export interface VadWorkerSegment {
-  /** 语音段起始时间（秒）| Speech segment start time in seconds */
-  start: number;
-  /** 语音段结束时间（秒）| Speech segment end time in seconds */
-  end: number;
-  /** VAD 置信度均值 [0, 1] | Mean VAD confidence score [0, 1] */
-  confidence: number;
-}
+import {
+  frameProbsToSegments,
+  resampleLinear,
+  type VadWorkerSegment,
+} from '../utils/vadWorkerInferenceUtils';
+
+export type { VadWorkerSegment } from '../utils/vadWorkerInferenceUtils';
 
 // ── Silero VAD 配置 | Silero VAD configuration ──────────────────────────────
 
 const SILERO_SAMPLE_RATE = 16_000; // Silero 仅支持 16kHz | Silero only supports 16 kHz
 const FRAME_SIZE = 512; // Silero 标准帧大小 | Standard Silero frame size
-const SPEECH_THRESHOLD = 0.5; // 判定为语音的概率阈值 | Probability threshold for speech
-const MERGE_GAP_SEC = 0.3; // 合并相邻段的间距上限（秒）| Max gap to merge adjacent segments
-const MIN_DURATION_SEC = 0.2; // 最短语段时长 | Minimum segment duration
-const MAX_DURATION_SEC = 30.0; // 最长语段时长 | Maximum segment duration
 
 // ── ONNX Runtime 运行时（动态导入）| ONNX Runtime (dynamic import) ─────────────
 
@@ -336,164 +331,4 @@ async function finalizeStream(id: string): Promise<void> {
   self.postMessage({ type: 'result', id, segments });
   cancelledRequestIds.delete(id);
   streamSession = null;
-}
-
-/**
- * 将帧概率序列转换为 WhisperX Cut & Merge 风格的语音段列表。
- * Converts frame probability sequence to speech segments using WhisperX Cut & Merge strategy.
- *
- * 策略 | Strategy:
- *   1. 按阈值标记语音帧
- *   2. 合并间距 ≤ MERGE_GAP_SEC 的相邻段（避免碎片化）
- *   3. 超 MAX_DURATION_SEC 的长段在相对最小概率点拆分
- *   4. 过滤 < MIN_DURATION_SEC 的短段
- */
-function frameProbsToSegments(
-  probs: number[],
-  frameSize: number,
-  sampleRate: number,
-): VadWorkerSegment[] {
-  const frameDuration = frameSize / sampleRate;
-
-  // 步骤 1：帧标记 | Step 1: label frames
-  const isSpeech = probs.map((p) => p >= SPEECH_THRESHOLD);
-
-  // 步骤 2：提取原始段 | Step 2: extract raw segments
-  const raw: { start: number; end: number; probs: number[] }[] = [];
-  let inSpeech = false;
-  let segStart = 0;
-  let segProbs: number[] = [];
-
-  for (let i = 0; i <= isSpeech.length; i++) {
-    const speaking = i < isSpeech.length ? isSpeech[i] : false;
-    if (!inSpeech && speaking) {
-      inSpeech = true;
-      segStart = i;
-      segProbs = [probs[i]!];
-    } else if (inSpeech) {
-      if (speaking) {
-        segProbs.push(probs[i]!);
-      } else {
-        inSpeech = false;
-        raw.push({
-          start: segStart * frameDuration,
-          end: i * frameDuration,
-          probs: segProbs,
-        });
-        segProbs = [];
-      }
-    }
-  }
-
-  // 步骤 3：合并靠近段 | Step 3: merge close segments
-  const merged: typeof raw = [];
-  for (const seg of raw) {
-    const last = merged[merged.length - 1];
-    if (last != null && seg.start - last.end <= MERGE_GAP_SEC) {
-      last.end = seg.end;
-      last.probs.push(...seg.probs);
-    } else {
-      merged.push({ ...seg, probs: [...seg.probs] });
-    }
-  }
-
-  // 步骤 4：超长拆分 + 最短过滤 + 转输出格式 | Step 4: split long, filter short, convert to output
-  const result: VadWorkerSegment[] = [];
-  for (const seg of merged) {
-    const dur = seg.end - seg.start;
-    if (dur < MIN_DURATION_SEC) continue;
-
-    const avgConf = seg.probs.reduce((a, b) => a + b, 0) / Math.max(seg.probs.length, 1);
-
-    if (dur <= MAX_DURATION_SEC) {
-      result.push({ start: seg.start, end: seg.end, confidence: avgConf });
-    } else {
-      // 在相对静音点拆分超长段（WhisperX 策略）| Split long segment at relative silence points
-      splitLongSegmentAtSilence(seg, probs, frameDuration, avgConf, result);
-    }
-  }
-
-  return result;
-}
-
-// ── 超长段静音点拆分 | Long segment silence-point splitting ──────────────────
-
-/**
- * 在相对最低概率点拆分超长语音段，避免在语音中间硬切。
- * Splits an oversized segment at relative silence points (lowest probability frames).
- *
- * 策略 | Strategy:
- *   1. 在 [MAX_DURATION_SEC × 0.7, MAX_DURATION_SEC] 范围内寻找概率最低帧
- *   2. 若找到 → 在该帧处切分
- *   3. 若未找到（全段高概率）→ 在 MAX_DURATION_SEC 处硬切
- */
-function splitLongSegmentAtSilence(
-  seg: { start: number; end: number; probs: number[] },
-  allProbs: number[],
-  frameDuration: number,
-  avgConf: number,
-  result: VadWorkerSegment[],
-): void {
-  let cursor = seg.start;
-
-  while (cursor < seg.end) {
-    const remaining = seg.end - cursor;
-    if (remaining <= MAX_DURATION_SEC) {
-      if (remaining >= MIN_DURATION_SEC) {
-        result.push({ start: cursor, end: seg.end, confidence: avgConf });
-      }
-      break;
-    }
-
-    // 在 [70%-100%] MAX_DURATION_SEC 窗口搜索最低概率帧 | Search for lowest-prob frame in [70%-100%] window
-    const searchStartSec = cursor + MAX_DURATION_SEC * 0.7;
-    const searchEndSec = cursor + MAX_DURATION_SEC;
-    const searchStartFrame = Math.floor(searchStartSec / frameDuration);
-    const searchEndFrame = Math.min(Math.floor(searchEndSec / frameDuration), allProbs.length - 1);
-
-    let bestFrame = -1;
-    let bestProb = Infinity;
-    for (let f = searchStartFrame; f <= searchEndFrame; f++) {
-      const p = allProbs[f] ?? 1;
-      if (p < bestProb) {
-        bestProb = p;
-        bestFrame = f;
-      }
-    }
-
-    const splitSec = bestFrame >= 0
-      ? bestFrame * frameDuration
-      : cursor + MAX_DURATION_SEC; // 兜底硬切 | Hard split fallback
-
-    const chunkEnd = Math.min(splitSec, seg.end);
-    if (chunkEnd - cursor >= MIN_DURATION_SEC) {
-      result.push({ start: cursor, end: chunkEnd, confidence: avgConf });
-    }
-    cursor = chunkEnd;
-  }
-}
-
-// ── 线性重采样 | Linear resampling ─────────────────────────────────────────────
-
-/**
- * 简单线性插值重采样。仅用于将音频降采样到 16kHz。
- * Simple linear interpolation resampler. Used to downsample audio to 16 kHz.
- */
-function resampleLinear(
-  pcm: Float32Array,
-  fromSr: number,
-  toSr: number,
-): Float32Array {
-  if (fromSr === toSr) return pcm;
-  const ratio = fromSr / toSr;
-  const outputLen = Math.floor(pcm.length / ratio);
-  const output = new Float32Array(outputLen);
-  for (let i = 0; i < outputLen; i++) {
-    const src = i * ratio;
-    const lo = Math.floor(src);
-    const hi = Math.min(lo + 1, pcm.length - 1);
-    const frac = src - lo;
-    output[i] = (pcm[lo]! * (1 - frac)) + (pcm[hi]! * frac);
-  }
-  return output;
 }

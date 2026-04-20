@@ -3,7 +3,7 @@ title: execution/plans 文档索引
 doc_type: execution-plans-index
 status: active
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-04-20
 source_of_truth: execution-plan-index
 ---
 
@@ -13,9 +13,15 @@ source_of_truth: execution-plan-index
 
 ## 当前文档
 
+- [多宿主译文层-方案A-执行方案-2026-04-20.md](%E5%A4%9A%E5%AE%BF%E4%B8%BB%E8%AF%91%E6%96%87%E5%B1%82-%E6%96%B9%E6%A1%88A-%E6%89%A7%E8%A1%8C%E6%96%B9%E6%A1%88-2026-04-20.md)（译文层绑定多个独立转写宿主；仓库内权威规格）
+
+- [Hermes-Agent模式借鉴-产品工程规划-2026-04-20.md](Hermes-Agent%E6%A8%A1%E5%BC%8F%E5%80%9F%E9%89%B4-%E4%BA%A7%E5%93%81%E5%B7%A5%E7%A8%8B%E8%A7%84%E5%88%92-2026-04-20.md)
+
 - [协作云桥接审查改进方案-2026-04-18.md](%E5%8D%8F%E4%BD%9C%E4%BA%91%E6%A1%A5%E6%8E%A5%E5%AE%A1%E6%9F%A5%E6%94%B9%E8%BF%9B%E6%96%B9%E6%A1%88-2026-04-18.md)
 
 - [文献项目伪时长一条轨互通执行方案-2026-04-17.md](%E6%96%87%E7%8C%AE%E9%A1%B9%E7%9B%AE%E4%BC%AA%E6%97%B6%E9%95%BF%E4%B8%80%E6%9D%A1%E8%BD%A8%E4%BA%92%E9%80%9A%E6%89%A7%E8%A1%8C%E6%96%B9%E6%A1%88-2026-04-17.md)
+
+- [逻辑时间轴与媒体生命周期 — 执行计划](logical_timeline_media_lifecycle.plan.md)（占位媒体、`timelineMode`、导音/删音对称、门控、时间坐标守恒审计与行业对标补充；**阶段 0 已冻结于** [`docs/adr/0004-logical-timeline-acoustic-media-lifecycle.md`](../../adr/0004-logical-timeline-acoustic-media-lifecycle.md)；**当前计划状态见该文件 YAML `status`**）
 
 - [OTel-Trace透传与ConflictResolved五阶段执行清单-2026-04-17.md](OTel-Trace%E9%80%8F%E4%BC%A0%E4%B8%8EConflictResolved%E4%BA%94%E9%98%B6%E6%AE%B5%E6%89%A7%E8%A1%8C%E6%B8%85%E5%8D%95-2026-04-17.md)
 

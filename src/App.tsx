@@ -6,10 +6,12 @@ import { AiPanelProvider } from './contexts/AiPanelContext';
 import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from './contexts/AppSidePaneContext';
 import { usePanelAutoCollapse } from './hooks/usePanelAutoCollapse';
 import { SettingsModal } from './components/SettingsModal';
+import { resolveHostVersion } from './config/hostVersion';
 import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type UiFontScaleMode } from './utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
+import { getCollaborationCloudPanelMessages } from './i18n/collaborationCloudPanelMessages';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';
@@ -189,6 +191,7 @@ export function App() {
   const [openAssetPanel, setOpenAssetPanel] = useState<LanguageAssetPanel>('none');
   const panelSearchRestoreRef = useRef<string | null>(null);
   const [locale, setLocale] = useState<Locale>(() => detectLocale());
+  const collaborationMessages = useMemo(() => getCollaborationCloudPanelMessages(locale), [locale]);
   const shellBodyRef = useRef<HTMLDivElement | null>(null);
   const shellDragCleanupRef = useRef<(() => void) | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>(readInitialThemeMode);
@@ -522,6 +525,10 @@ export function App() {
 
   const handleSettingsOpen = useCallback(() => setIsSettingsOpen(true), []);
   const handleSettingsClose = useCallback(() => setIsSettingsOpen(false), []);
+  const handleCollaborationEntryOpen = useCallback(() => {
+    if (!isTranscriptionRoute || typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('jieyu:open-collaboration-cloud-panel'));
+  }, [isTranscriptionRoute]);
 
   const shellStyle = useMemo(() => ({
     ['--side-pane-width' as '--side-pane-width']: isSidePaneCollapsed ? '0px' : `${sidePaneWidth}px`,
@@ -609,6 +616,18 @@ export function App() {
                   isItemActive={isAssetPanelActive}
                   onPick={handleAssetPanelToggle}
                 />
+                {isTranscriptionRoute ? (
+                  <button
+                    type="button"
+                    className="left-rail-btn left-rail-btn-utility"
+                    aria-label={collaborationMessages.title}
+                    title={collaborationMessages.title}
+                    onClick={handleCollaborationEntryOpen}
+                  >
+                    <MaterialSymbol name="cloud_sync" aria-hidden className={JIEYU_MATERIAL_NAV} />
+                    <span>{collaborationMessages.entryLabel}</span>
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="left-rail-btn left-rail-btn-utility"
@@ -702,6 +721,7 @@ export function App() {
               onFontScaleModeChange={handleFontScaleModeChange}
               iconEffect={iconEffect}
               onIconEffectChange={handleIconEffectChange}
+              version={resolveHostVersion()}
             />
           </div>
         </AppSidePaneProvider>

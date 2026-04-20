@@ -23,7 +23,7 @@ interface UseWaveformSelectionControllerResult {
   activeWaveformSegmentSourceLayer: LayerDocType | undefined;
   useSegmentWaveformRegions: boolean;
   waveformTimelineItems: WaveformTimelineItem[];
-  waveformRegions: Array<{ id: string; start: number; end: number }>;
+  waveformRegions: Array<{ id: string; start: number; end: number; skipProcessing?: boolean }>;
   selectedWaveformRegionId: string;
   waveformActiveRegionIds: Set<string>;
   selectedWaveformTimelineItem: WaveformTimelineItem | null;
@@ -71,6 +71,7 @@ export function useWaveformSelectionController({
       id: item.id,
       start: item.startTime,
       end: item.endTime,
+      ...(item.tags?.skipProcessing === true ? { skipProcessing: true } : {}),
     })),
   [waveformTimelineItems]);
 

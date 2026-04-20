@@ -360,7 +360,14 @@ export function useTranscriptionCollaborationBridge({
     input: RegisterProjectAssetInput,
   ): Promise<CollaborationAssetRecord> => {
     assertCloudWritesAllowed(writeGuardRef.current);
-    return requireBridgeInstance(bridgeRef.current).registerProjectAsset(input);
+    const uid = await getSupabaseUserId();
+    if (!uid) {
+      throw new Error('Collaboration asset registration requires an authenticated Supabase user');
+    }
+    return requireBridgeInstance(bridgeRef.current).registerProjectAsset({
+      ...input,
+      uploadedBy: uid,
+    });
   }, []);
 
   const listProjectAssets = useCallback(async (
@@ -385,7 +392,14 @@ export function useTranscriptionCollaborationBridge({
     input: CreateProjectSnapshotInput,
   ): Promise<CollaborationProjectSnapshotRecord> => {
     assertCloudWritesAllowed(writeGuardRef.current);
-    return requireBridgeInstance(bridgeRef.current).createProjectSnapshot(input);
+    const uid = await getSupabaseUserId();
+    if (!uid) {
+      throw new Error('Collaboration snapshot creation requires an authenticated Supabase user');
+    }
+    return requireBridgeInstance(bridgeRef.current).createProjectSnapshot({
+      ...input,
+      createdBy: uid,
+    });
   }, []);
 
   const listProjectSnapshots = useCallback(async (

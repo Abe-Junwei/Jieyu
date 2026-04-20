@@ -1,11 +1,13 @@
 import type { RefObject } from 'react';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { t, type Locale } from '../i18n';
+import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemTimelineKind';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
+import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
 
 interface CreateTranscriptionToolbarPropsInput {
   locale: string;
@@ -49,6 +51,13 @@ interface CreateTranscriptionToolbarPropsInput {
   toggleNotes: () => void;
   setUttOpsMenu: (state: UttOpsMenuState | null) => void;
   lowConfidenceCount: number;
+  reviewIssueCount: number;
+  reviewPresetCounts: Record<TranscriptionReviewPreset, number>;
+  activeReviewPreset: TranscriptionReviewPreset;
+  onSelectReviewPreset: (preset: TranscriptionReviewPreset) => void;
+  onOpenReviewIssues: () => void;
+  onReviewPrev: () => void;
+  onReviewNext: () => void;
   selectedMediaUrl: string | null;
   handleAutoSegment: () => void;
   autoSegmentBusy: boolean;
@@ -57,8 +66,16 @@ interface CreateTranscriptionToolbarPropsInput {
 export function createTranscriptionToolbarProps(
   input: CreateTranscriptionToolbarPropsInput,
 ): TranscriptionPageToolbarProps {
+  const locale = input.locale as Locale;
+  const rawFilename = input.selectedTimelineMediaFilename;
+  const toolbarFilename = rawFilename == null
+    ? t(locale, 'transcription.media.unbound')
+    : rawFilename === DOCUMENT_PLACEHOLDER_TRACK_FILENAME
+      ? t(locale, 'transcription.timelineAxisStatus.placeholderAxis')
+      : rawFilename;
+
   return {
-    filename: input.selectedTimelineMediaFilename ?? t(input.locale as Locale, 'transcription.media.unbound'),
+    filename: toolbarFilename,
     isReady: input.player.isReady,
     isPlaying: input.player.isPlaying,
     playbackRate: input.player.playbackRate,
@@ -97,6 +114,13 @@ export function createTranscriptionToolbarProps(
     onToggleNotes: input.toggleNotes,
     onOpenUttOpsMenu: (x, y) => input.setUttOpsMenu({ x, y }),
     lowConfidenceCount: input.lowConfidenceCount,
+    reviewIssueCount: input.reviewIssueCount,
+    reviewPresetCounts: input.reviewPresetCounts,
+    activeReviewPreset: input.activeReviewPreset,
+    onSelectReviewPreset: input.onSelectReviewPreset,
+    onOpenReviewIssues: input.onOpenReviewIssues,
+    onReviewPrev: input.onReviewPrev,
+    onReviewNext: input.onReviewNext,
     ...(input.selectedMediaUrl ? { onAutoSegment: input.handleAutoSegment } : {}),
     autoSegmentBusy: input.autoSegmentBusy,
   };

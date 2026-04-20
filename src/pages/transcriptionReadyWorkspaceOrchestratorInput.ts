@@ -1,5 +1,7 @@
 import type { ChangeEvent, RefObject } from 'react';
+import type { TranscriptionComparisonViewFocusState } from './TranscriptionPage.UIState';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
+import type { TextTimeMapping } from '../types/textTimeMapping';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
@@ -26,6 +28,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   timelineRenderUnits: TranscriptionPageTimelineMediaLanesProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TranscriptionPageTimelineMediaLanesProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
+  /** 纯文本轨拖建/改时：像素→文献秒 与 `previewTextTimeMapping` 视口一致 */
+  textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'>;
   createUnitFromSelectionRouted?: (start: number, end: number) => Promise<void>;
   renderAnnotationItem: TranscriptionPageTimelineMediaLanesProps['renderAnnotationItem'];
   speakerSortKeyById: TranscriptionPageTimelineMediaLanesProps['speakerSortKeyById'];
@@ -33,10 +37,18 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
   handleAnnotationContextMenu: TranscriptionPageTimelineTextOnlyProps['handleAnnotationContextMenu'];
+  handleNoteClick?: TranscriptionPageTimelineTextOnlyProps['handleNoteClick'];
+  resolveNoteIndicatorTarget?: TranscriptionPageTimelineTextOnlyProps['resolveNoteIndicatorTarget'];
+  startTimelineResizeDrag?: TranscriptionPageTimelineTextOnlyProps['startTimelineResizeDrag'];
+  /** 纯文本轨拖边调时与 `useTimelineResize` 的 dragPreview 对齐 | Edge-resize live layout */
+  timingDragPreview?: TranscriptionPageTimelineTextOnlyProps['timingDragPreview'];
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
   resolveSelfCertaintyAmbiguityForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyAmbiguityForUnit'];
+  comparisonViewEnabled?: boolean;
+  comparisonFocus?: TranscriptionComparisonViewFocusState;
+  updateComparisonFocus?: (patch: Partial<TranscriptionComparisonViewFocusState>) => void;
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -108,7 +120,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   showProjectSetup: boolean;
   handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   showAudioImport: boolean;
-  handleAudioImport: (file: File, duration: number) => Promise<void>;
+  handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
+  audioImportDisposition: TranscriptionPageDialogsProps['audioImportDisposition'];
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: ChangeEvent<HTMLInputElement>) => void;
   audioDeleteConfirm: { filename: string } | null;
@@ -139,6 +152,7 @@ export function buildOrchestratorViewModelsInput(
     timelineRenderUnits,
     defaultTranscriptionLayerId,
     textOnlyLogicalDurationSec,
+    textOnlyTimeMapping,
     createUnitFromSelectionRouted,
     renderAnnotationItem,
     speakerSortKeyById,
@@ -146,10 +160,15 @@ export function buildOrchestratorViewModelsInput(
     tierContainerRef,
     handleAnnotationClick,
     handleAnnotationContextMenu,
+    handleNoteClick,
+    resolveNoteIndicatorTarget,
     navigateUnitFromInput,
     speakerVisualByTimelineUnitId,
     resolveSelfCertaintyForUnit,
     resolveSelfCertaintyAmbiguityForUnit,
+    comparisonViewEnabled,
+    comparisonFocus,
+    updateComparisonFocus,
     selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
@@ -222,6 +241,7 @@ export function buildOrchestratorViewModelsInput(
     handleProjectSetupSubmit,
     showAudioImport,
     handleAudioImport,
+    audioImportDisposition,
     mediaFileInputRef,
     handleDirectMediaImport,
     audioDeleteConfirm,
@@ -256,12 +276,25 @@ export function buildOrchestratorViewModelsInput(
     textOnlyPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
       unitsOnCurrentMedia: filteredUnitsOnCurrentMedia,
+      segmentParentUnitLookup: unitsOnCurrentMedia,
       defaultTranscriptionLayerId: defaultTranscriptionLayerId ?? '',
       ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
+      ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
       ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
+      ...(comparisonViewEnabled ? { comparisonViewEnabled: true } : {}),
+      ...(comparisonFocus ? { comparisonFocus } : {}),
+      ...(updateComparisonFocus ? { updateComparisonFocus } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
+      ...(handleNoteClick ? { handleNoteClick } : {}),
+      ...(resolveNoteIndicatorTarget ? { resolveNoteIndicatorTarget } : {}),
+      ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
+      ...(input.timingDragPreview != null ? { timingDragPreview: input.timingDragPreview } : {}),
+      ...(typeof zoomPxPerSec === 'number' && Number.isFinite(zoomPxPerSec) && zoomPxPerSec > 0
+        && !comparisonViewEnabled
+        ? { textTimelineZoomPxPerSec: zoomPxPerSec }
+        : {}),
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
@@ -347,6 +380,7 @@ export function buildOrchestratorViewModelsInput(
       showAudioImport,
       setShowAudioImport,
       handleAudioImport,
+      audioImportDisposition,
       mediaFileInputRef,
       handleDirectMediaImport,
       audioDeleteConfirm,

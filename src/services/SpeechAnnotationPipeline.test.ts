@@ -38,6 +38,29 @@ function makeCallbacks(overrides: Partial<DictationPipelineCallbacks> = {}): Dic
 }
 
 describe('SpeechAnnotationPipeline', () => {
+  it('starts on the first non-skipped unannotated segment', async () => {
+    const navigateTo = vi.fn();
+    const pipeline = new SpeechAnnotationPipeline(makeCallbacks({
+      getSegments: () => [
+        makeSegment({ segmentId: 'seg-skip', index: 0, skipProcessing: true }),
+        makeSegment({ segmentId: 'seg-2', index: 1 }),
+      ],
+      getCurrentSegmentId: () => 'seg-skip',
+      navigateTo,
+    }), {
+      targetLayer: 'transcription',
+      autoAdvance: false,
+      silenceConfirmDelayMs: 0,
+      skipAlreadyAnnotated: true,
+    });
+
+    await pipeline.start();
+
+    expect(navigateTo).toHaveBeenCalledWith('seg-2');
+    expect(pipeline.state.currentSegment?.segmentId).toBe('seg-2');
+    expect(pipeline.state.progress.total).toBe(1);
+  });
+
   it('transforms text before filling the target segment', async () => {
     const fillSegment = vi.fn(async () => undefined);
     const transformTextForFill = vi.fn(async ({ text }: { text: string }) => `xf:${text}`);

@@ -1,8 +1,7 @@
 import { useEffect } from 'react';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
-import { loadTrackEntityStateMap, saveTrackEntityStateMap, saveTrackEntityStateToDb, upsertTrackEntityState } from '../services/TrackEntityStore';
-
-type TrackEntityStateMap = ReturnType<typeof loadTrackEntityStateMap>;
+import type { TrackEntityStateMap } from '../services/TrackEntityStore';
+import { saveTrackEntityStateToDb, upsertTrackEntityState } from '../services/TrackEntityStore';
 
 interface UseTrackEntityPersistenceControllerInput {
   activeTextId: string | null;
@@ -34,7 +33,6 @@ export function useTrackEntityPersistenceController(
       { mode: transcriptionTrackMode, laneLockMap: effectiveLaneLockMap },
     );
     trackEntityStateByMediaRef.current = next;
-    saveTrackEntityStateMap(next, typeof window !== 'undefined' ? window.localStorage : undefined);
     void saveTrackEntityStateToDb(activeTextId, trackEntityScopedKey, next[trackEntityScopedKey]!);
   }, [activeTextId, effectiveLaneLockMap, trackEntityHydratedKeyRef, trackEntityScopedKey, trackEntityStateByMediaRef, transcriptionTrackMode]);
 }

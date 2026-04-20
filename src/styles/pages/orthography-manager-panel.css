@@ -12,7 +12,6 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 0;
 }
 
 /* ── Panel shell ── */
@@ -20,15 +19,13 @@
 /* Shell + Header 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
 .om-body { display: grid; gap: 16px; min-height: 0; }
-.om-header { padding-right: 0; }
-.om-footer { display: flex; justify-content: flex-end; gap: 10px; }
-
-/* padding 已收入 .la-shell 合约层 | padding unified via .la-shell contract */
-
-.om-shell .dialog-footer {
+.om-footer {
   position: sticky;
   bottom: 0;
   z-index: var(--z-header, 20);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
   padding: 16px 20px;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
   background: color-mix(in srgb, var(--surface-header) 42%, var(--surface-panel));
@@ -36,11 +33,15 @@
 
 /* ── Embedded builder primitives ── */
 
+.om-shell .orthography-builder-panel,
+.om-shell .orthography-builder-panel-compact {
+  margin-top: 0;
+  padding: 0;
+}
+
 .om-shell .orthography-builder-panel {
   display: grid;
   gap: 14px;
-  margin-top: 0;
-  padding: 0;
   container-type: inline-size;
   font-family: var(--font-base);
   color: var(--text-primary);
@@ -48,8 +49,6 @@
 
 .om-shell .orthography-builder-panel-compact {
   gap: 18px;
-  margin-top: 0;
-  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -73,7 +72,9 @@
   padding-top: 10px;
 }
 
-.om-shell .orthography-builder-panel-compact .orthography-builder-group-title {
+.om-shell .orthography-builder-panel-compact .orthography-builder-group-title,
+.om-browser-title,
+.om-advanced-summary > .orthography-builder-group-title {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -88,7 +89,11 @@
 }
 
 .om-shell .orthography-builder-panel-compact .orthography-builder-group-title::before,
-.om-shell .orthography-builder-panel-compact .orthography-builder-group-title::after {
+.om-shell .orthography-builder-panel-compact .orthography-builder-group-title::after,
+.om-browser-title::before,
+.om-browser-title::after,
+.om-advanced-summary > .orthography-builder-group-title::before,
+.om-advanced-summary > .orthography-builder-group-title::after {
   content: '';
   flex: 1 1 auto;
   height: 1px;
@@ -170,7 +175,7 @@
 /* OM summary card 覆盖：取消默认阴影 | OM override: suppress summary card shadow */
 .om-shell .ws-summary-card { box-shadow: none; }
 
-.om-summary-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
+.om-summary-meta { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 
 /* ── Browser ── */
 
@@ -191,39 +196,14 @@
 }
 .om-browser-header { display: grid; gap: 4px; justify-items: center; text-align: center; }
 
-.om-browser-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  font-size: var(--la-unified-title-size);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.om-browser-title::before,
-.om-browser-title::after {
-  content: '';
-  flex: 1 1 auto;
-  height: 1px;
-  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
-}
 
 .om-toolbar { display: grid; gap: 10px; }
+
+.om-search { min-width: 0; }
+
 .om-search { width: 100%; }
 
-.om-search-combobox {
-  display: grid;
-  gap: 0;
-}
-
-.om-search-suggestions {
-  margin-top: 6px;
-}
+.om-list { min-height: 0; }
 
 .om-search-suggestion-label {
   flex: 1 1 auto;
@@ -231,13 +211,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.om-search-suggestion-code {
-  flex: 0 0 auto;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
 }
 
 .om-filter-toggle { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -259,13 +232,11 @@
 
 /* ── List ── */
 
-.om-list {
-  max-height: min(46vh, 500px);
-  min-height: 120px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
+.om-form-stack,
+.om-list,
+.om-search,
+.om-subsection,
+.om-subsection-title { min-width: 0; }
 
 /* List item base 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
@@ -276,6 +247,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.om-list-meta,
+.om-basic-grid dt {
   font-size: calc(11px * var(--ui-font-scale, 1));
   line-height: 1.45;
   color: var(--text-secondary);
@@ -287,7 +262,6 @@
 
 /* ── 6-column form grid ── */
 
-.om-form-stack { margin-top: 0; }
 
 .om-form-grid {
   display: grid;
@@ -296,9 +270,8 @@
   align-items: start;
 }
 
-.om-form-grid > * { min-width: 0; }
-.om-form-grid :is(.dialog-field, .language-iso-input .dialog-field) { min-width: 0; }
-.om-form-grid :is(.panel-input, input, select, textarea) { min-width: 0; }
+.om-form-grid > *,
+.om-form-grid :is(.dialog-field, .language-iso-input .dialog-field, .panel-input, input, select, textarea) { min-width: 0; }
 
 .om-form-span-2 { grid-column: 1 / -1; }
 .om-form-span-third { grid-column: span 2; }
@@ -311,9 +284,6 @@
   gap: 12px;
 }
 
-.om-subsection { display: block; }
-
-.om-subsection-title { display: block; }
 
 .om-checkbox-row { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 
@@ -339,10 +309,7 @@
 /* ── Advanced collapse ── */
 
 .om-advanced {
-  border: 0;
   border-top: 1px solid color-mix(in srgb, var(--border-soft) 44%, transparent);
-  border-radius: 0;
-  background: transparent;
 }
 
 .om-advanced-summary {
@@ -366,14 +333,12 @@
   content: '';
   position: absolute;
   top: 50%;
-  right: 8px;
-  width: 18px;
-  height: 18px;
-  transform: translateY(-50%);
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  background: var(--text-secondary);
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--text-secondary);
+  border-bottom: 1.5px solid var(--text-secondary);
+  transform: translateY(-70%) rotate(45deg);
   transition: transform 160ms ease;
 }
 
@@ -381,27 +346,6 @@
   transform: translateY(-50%) rotate(-90deg);
 }
 
-.om-advanced-summary > .orthography-builder-group-title {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  font-size: var(--la-unified-title-size);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.om-advanced-summary > .orthography-builder-group-title::before,
-.om-advanced-summary > .orthography-builder-group-title::after {
-  content: '';
-  flex: 1 1 auto;
-  height: 1px;
-  background: color-mix(in srgb, var(--border-soft) 92%, transparent);
-}
 
 .om-advanced-meta {
   font-size: calc(11px * var(--ui-font-scale, 1));
@@ -436,9 +380,6 @@
 
 .om-basic-grid dt {
   margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
-  line-height: 1.45;
-  color: var(--text-secondary);
 }
 
 .om-basic-grid dd {

@@ -78,6 +78,18 @@
   border-color: var(--btn-ghost-hover-border-color, var(--btn-ghost-border-color, var(--header-border)));
 }
 
+.btn-primary {
+  border-color: var(--btn-primary-border-color, var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent)));
+  background: var(--btn-primary-background, var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel))));
+  color: var(--btn-primary-color, var(--btn-color, var(--state-info-solid)));
+}
+
+.btn-primary:hover {
+  border-color: var(--btn-primary-hover-border-color, var(--btn-primary-border-color, var(--btn-border-color, color-mix(in srgb, var(--state-info-border) 92%, transparent))));
+  background: var(--btn-primary-hover-background, var(--btn-primary-background, var(--btn-background, color-mix(in srgb, var(--state-info-bg) 82%, var(--surface-panel)))));
+  color: var(--btn-primary-hover-color, var(--btn-primary-color, var(--btn-color, var(--state-info-solid))));
+}
+
 .btn-danger {
   border-color: var(--btn-danger-border-color, color-mix(in srgb, var(--state-danger-border) 92%, transparent));
   background: var(--btn-danger-background, color-mix(in srgb, var(--state-danger-bg) 84%, var(--surface-panel)));

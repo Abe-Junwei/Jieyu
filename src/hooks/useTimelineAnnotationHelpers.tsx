@@ -1,8 +1,10 @@
 import { Fragment, startTransition, useCallback, type MouseEvent, type ReactNode } from 'react';
+import type { TimelineResizeDragOptions } from './useTimelineResize';
 import { TimelineAnnotationItem, type TimelineAnnotationItemProps } from '../components/TimelineAnnotationItem';
 import type { LayerDocType, OrthographyDocType } from '../db';
+import type { ContextMenuState } from '../pages/TranscriptionPage.UIState';
 import { t, useLocale } from '../i18n';
-import { type TimelineUnit, type TimelineUnitKind } from './transcriptionTypes';
+import { type TimelineUnit } from './transcriptionTypes';
 import type { TimelineUnitView } from './timelineUnitView';
 import { formatTime, getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine } from '../utils/transcriptionFormatters';
 import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
@@ -16,15 +18,6 @@ type SpeakerVisual = {
   name: string;
   color: string;
 };
-
-type CtxMenuState = {
-  x: number;
-  y: number;
-  unitId: string;
-  layerId: string;
-  unitKind: TimelineUnitKind;
-  splitTime: number;
-} | null;
 
 type TimelineDragPreview = {
   id: string;
@@ -55,8 +48,10 @@ type UseTimelineAnnotationHelpersParams = {
   onFocusLayerRow: (id: string) => void;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
   zoomPxPerSec: number;
-  setCtxMenu: React.Dispatch<React.SetStateAction<CtxMenuState>>;
-  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement>, direction: -1 | 1) => void;
+  setCtxMenu: React.Dispatch<React.SetStateAction<ContextMenuState | null>>;
+  /** 用于写入 ctxMenu.layerType | Resolve ctxMenu.layerType */
+  timelineTextLayers: ReadonlyArray<Pick<LayerDocType, 'id' | 'layerType'>>;
+  navigateUnitFromInput: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
   waveformAreaRef: React.RefObject<HTMLDivElement | null>;
   dragPreview: TimelineDragPreview;
   selectedUnitIds: Set<string>;
@@ -67,6 +62,7 @@ type UseTimelineAnnotationHelpersParams = {
     row: TimelineAnnotationBoundDoc,
     edge: 'start' | 'end',
     layerId: string,
+    options?: TimelineResizeDragOptions,
   ) => void;
   handleNoteClick: (unitId: string, layerId: string | undefined, event: React.MouseEvent) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string) => { count: number; layerId?: string } | null;
@@ -95,6 +91,7 @@ export function useTimelineAnnotationHelpers({
   tierContainerRef,
   zoomPxPerSec,
   setCtxMenu,
+  timelineTextLayers,
   navigateUnitFromInput,
   waveformAreaRef,
   dragPreview,
@@ -235,6 +232,8 @@ export function useTimelineAnnotationHelpers({
     const min = utt.startTime + 0.001;
     const max = utt.endTime - 0.001;
     splitTime = Math.max(min, Math.min(max, splitTime));
+    const row = timelineTextLayers.find((layer) => layer.id === targetUnit.layerId);
+    const layerType = row?.layerType === 'translation' ? 'translation' : 'transcription';
     setCtxMenu({
       x: e.clientX,
       y: e.clientY,
@@ -242,6 +241,9 @@ export function useTimelineAnnotationHelpers({
       layerId: targetUnit.layerId,
       unitKind: targetUnit.kind,
       splitTime,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType,
     });
   }, [
     manualSelectTsRef,
@@ -255,6 +257,7 @@ export function useTimelineAnnotationHelpers({
     tierContainerRef,
     zoomPxPerSec,
     setCtxMenu,
+    timelineTextLayers,
   ]);
 
   const handleAnnotationKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -283,6 +286,8 @@ export function useTimelineAnnotationHelpers({
         content?: ReactNode;
         tools?: ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => {
     const {
@@ -315,6 +320,7 @@ export function useTimelineAnnotationHelpers({
     const selfCertaintyTitle = uttSelfCertainty && tierLabel
       ? `${tierLabel}\n${t(locale, 'transcription.unit.selfCertainty.dimensionHint')}`
       : undefined;
+    if (utt.tags?.skipProcessing === true) return null;
     const currentUnitId = selectedTimelineUnit?.unitId ?? currentTimelineUnitId;
     return (
       <TimelineAnnotationItem

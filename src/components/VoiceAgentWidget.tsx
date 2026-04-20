@@ -7,6 +7,7 @@
  */
 
 import { memo, useCallback, useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import '../styles/panels/voice-agent.css';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_VOICE_MIC, JIEYU_MATERIAL_WAVE_MD, jieyuMaterialClass } from '../utils/jieyuMaterialIcon';
 import type { VoiceAgentMode, VoiceAgentState, VoicePendingConfirm } from '../hooks/useVoiceAgent';
@@ -1041,25 +1042,31 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
 
             {showInsights && (
               <div className="voice-agent-disclosure-panel voice-agent-insights-panel">
-                <div className="voice-agent-insights-tabs" role="tablist" aria-label={t(locale, 'transcription.voiceWidget.insights.tablist')}>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={insightTab === 'history'}
-                    className={`voice-agent-insights-tab ${insightTab === 'history' ? 'is-active' : ''}`}
-                    onClick={() => setInsightTab('history')}
-                  >
-                    <MaterialSymbol name="history" className={JIEYU_MATERIAL_INLINE_TIGHT} /> {t(locale, 'transcription.voiceWidget.insights.historyTab')}
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={insightTab === 'learning'}
-                    className={`voice-agent-insights-tab ${insightTab === 'learning' ? 'is-active' : ''}`}
-                    onClick={() => setInsightTab('learning')}
-                  >
-                    <MaterialSymbol name="psychology" className={JIEYU_MATERIAL_INLINE_TIGHT} /> {t(locale, 'transcription.voiceWidget.insights.learningTab')}
-                  </button>
+                <div className="voice-agent-insights-tabs panel-edge-nav panel-edge-nav--inline" role="tablist" aria-label={t(locale, 'transcription.voiceWidget.insights.tablist')}>
+                  <div className={`panel-edge-nav-row ${insightTab === 'history' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={insightTab === 'history'}
+                      className={`voice-agent-insights-tab panel-edge-nav-btn ${insightTab === 'history' ? 'is-active' : ''}`}
+                      onClick={() => setInsightTab('history')}
+                    >
+                      <MaterialSymbol name="history" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                      <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{t(locale, 'transcription.voiceWidget.insights.historyTab')}</strong></span>
+                    </button>
+                  </div>
+                  <div className={`panel-edge-nav-row ${insightTab === 'learning' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={insightTab === 'learning'}
+                      className={`voice-agent-insights-tab panel-edge-nav-btn ${insightTab === 'learning' ? 'is-active' : ''}`}
+                      onClick={() => setInsightTab('learning')}
+                    >
+                      <MaterialSymbol name="psychology" className={JIEYU_MATERIAL_INLINE_TIGHT} />
+                      <span className="panel-edge-nav-label"><strong className="panel-edge-nav-title">{t(locale, 'transcription.voiceWidget.insights.learningTab')}</strong></span>
+                    </button>
+                  </div>
                 </div>
 
                 {insightTab === 'history' ? (

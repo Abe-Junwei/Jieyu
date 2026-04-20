@@ -1,4 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import '../styles/pages/ai-sidebar-shell.css';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
 import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE, VoiceAgentProvider } from '../contexts/VoiceAgentContext';
 import { AiChatProvider, type AiChatContextValue } from '../contexts/AiChatContext';
@@ -149,6 +150,7 @@ function AssistantVoiceRuntime({
     ...(voice.target.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: voice.target.defaultTranscriptionLayerId } : {}),
     translationLayers: voice.target.translationLayers,
     layers: voice.target.layers,
+    ...(voice.target.layerLinks !== undefined ? { layerLinks: voice.target.layerLinks } : {}),
     ...(voice.target.dictationPipeline !== undefined ? { dictationPipeline: voice.target.dictationPipeline } : {}),
     formatSidePaneLayerLabel: voice.target.formatSidePaneLayerLabel,
     formatTime: voice.target.formatTime,

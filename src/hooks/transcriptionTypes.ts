@@ -64,18 +64,18 @@ export function createTimelineUnit(
   return { layerId, unitId, kind };
 }
 
-export function isTimelineUnitKind(
+export function isTimelineUnitKind<K extends TimelineUnitKind>(
   unit: TimelineUnit | null | undefined,
-  kind: TimelineUnitKind,
-): unit is TimelineUnit {
+  kind: K,
+): unit is TimelineUnit & { kind: K } {
   return unit?.kind === kind;
 }
 
-export function isUnitTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
+export function isUnitTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit & { kind: 'unit' } {
   return isTimelineUnitKind(unit, 'unit');
 }
 
-export function isSegmentTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit {
+export function isSegmentTimelineUnit(unit: TimelineUnit | null | undefined): unit is TimelineUnit & { kind: 'segment' } {
   return isTimelineUnitKind(unit, 'segment');
 }
 
@@ -90,8 +90,12 @@ export type LayerCreateInput = {
   textId?: string | undefined;
   /** 边界约束类型 | Boundary constraint type */
   constraint?: LayerConstraint;
-  /** 依赖父层 ID（依赖边界时可选，多个独立层时必填）| Parent layer id for dependent constraints */
+  /** 转写层树依赖父层 ID（仅 transcription 层树语义）| Parent transcription-layer id for transcription tree constraints */
   parentLayerId?: string | undefined;
+  /** 译文宿主转写层集合（translation 使用）| Translation host transcription-layer ids */
+  hostTranscriptionLayerIds?: string[] | undefined;
+  /** 译文主宿主转写层 ID（translation 使用）| Preferred host transcription-layer id for translation */
+  preferredHostTranscriptionLayerId?: string | undefined;
 };
 
 export type SnapGuide = {

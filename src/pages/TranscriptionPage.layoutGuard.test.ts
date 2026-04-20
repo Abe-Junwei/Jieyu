@@ -296,6 +296,12 @@ describe('Transcription layout guard', () => {
   });
 
   it('keeps AI sidebar shell styles in dedicated sidebar shell css', () => {
+    const entryPath = path.resolve(process.cwd(), 'src/styles/ai-sidebar-entry.css');
+    const entryCode = fs.readFileSync(entryPath, 'utf8');
+    expect(entryCode).toContain("@import './pages/ai-sidebar-shell.css';");
+    expect(entryCode).toContain("@import './ai-hub.css';");
+    expect(entryCode).not.toContain("@import './panels/ai-chat-thread.css';");
+
     const cssPath = path.resolve(process.cwd(), 'src/styles/pages/ai-sidebar-shell.css');
     const cssCode = fs.readFileSync(cssPath, 'utf8');
 

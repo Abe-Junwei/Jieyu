@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { duplicateResolvedRecord, type CollaborationRecord, type ConflictDescriptor } from './collaborationConflictRuntime';
-import { appendOperationLog, createReconnectValidationLog, openArbitrationTicket, prioritizeConflicts, toArbitrationOperationLogs, validateReconnectConsistency } from './collaborationRulesRuntime';
+import { appendOperationLog, createReconnectValidationLog, mergeOperationLogs, openArbitrationTicket, prioritizeConflicts, toArbitrationOperationLogs, validateReconnectConsistency } from './collaborationRulesRuntime';
 
 function buildRecord(overrides?: Partial<CollaborationRecord>): CollaborationRecord {
   return {
@@ -94,6 +94,32 @@ describe('collaboration rules runtime', () => {
     });
 
     expect(merged.map((item) => item.logId)).toEqual(['log-early', 'log-late']);
+  });
+
+  it('[arbitration] mergeOperationLogs dedupes by logId and keeps order', () => {
+    const duplicated = {
+      logId: 'log-dup',
+      type: 'conflict_resolved' as const,
+      entityId: 'segment:001',
+      sessionId: 'session-A',
+      at: 12,
+      payloadDigest: 'dup',
+    };
+
+    const merged = mergeOperationLogs([
+      duplicated,
+      {
+        logId: 'log-early',
+        type: 'arbitration_requested' as const,
+        entityId: 'segment:001',
+        sessionId: 'session-A',
+        at: 10,
+        payloadDigest: 'early',
+      },
+      duplicated,
+    ]);
+
+    expect(merged.map((item) => item.logId)).toEqual(['log-early', 'log-dup']);
   });
 
   it('[reconnect] validates consistency after reconnect for structurally valid replicas', () => {

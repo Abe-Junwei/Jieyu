@@ -14,7 +14,9 @@
 @import './timeline/timeline-overview.css';
 @import './timeline/timeline-annotation.css';
 @import './timeline/timeline-text-item.css';
+@import './timeline/timeline-segment-narrow.css';
 @import './timeline/timeline-translation-audio.css';
+@import './timeline/timeline-axis-status.css';
 @import './timeline/time-ruler.css';
 @import './timeline/timeline-a11y.css';
 
@@ -34,6 +36,8 @@
  * .lane-label-resize-handle { }
  * .lane-link-stack { }
  * .waveform-overview-bar { }
+ * .timeline-axis-status-strip { }
+ * .timeline-segment-narrow { }
  * .timeline-lane-resize-handle { }
  * .timeline-lane-row-dragging { }
  */

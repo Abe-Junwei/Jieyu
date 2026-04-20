@@ -10,7 +10,7 @@ import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { resolveHostUnitStrictMedia } from '../utils/segmentHostResolution';
-import { ANNOTATION_STATUS_ORDER as SEGMENT_ANNOTATION_STATUS_ORDER, CERTAINTY_ORDER as SEGMENT_CERTAINTY_ORDER, NOTE_CATEGORY_ORDER as SEGMENT_NOTE_CATEGORY_ORDER, SOURCE_TYPE_ORDER as SEGMENT_SOURCE_TYPE_ORDER, getAnnotationStatusLabel as getSegmentAnnotationStatusLabel, getCertaintyLabel as getSegmentCertaintyLabel, getContentStateLabel as getSegmentContentStateLabel, getNoteCategoryLabel as getSegmentNoteCategoryLabel, getSourceTypeLabel as getSegmentSourceTypeLabel, resolveSpeakerLabel as resolveSegmentSpeakerLabel, type SegmentContentStateFilter } from './sidePaneSegmentListViewModel';
+import { ANNOTATION_STATUS_ORDER as SEGMENT_ANNOTATION_STATUS_ORDER, CERTAINTY_ORDER as SEGMENT_CERTAINTY_ORDER, NOTE_CATEGORY_ORDER as SEGMENT_NOTE_CATEGORY_ORDER, SOURCE_TYPE_ORDER as SEGMENT_SOURCE_TYPE_ORDER, computeSegmentReviewIssueFlags, getAnnotationStatusLabel as getSegmentAnnotationStatusLabel, getCertaintyLabel as getSegmentCertaintyLabel, getContentStateLabel as getSegmentContentStateLabel, getNoteCategoryLabel as getSegmentNoteCategoryLabel, getReviewPresetLabel as getSegmentReviewPresetLabel, getSourceTypeLabel as getSegmentSourceTypeLabel, matchesReviewPreset, resolveSpeakerLabel as resolveSegmentSpeakerLabel, type SegmentContentStateFilter, type SegmentReviewIssueFlags, type SegmentReviewPreset } from './sidePaneSegmentListViewModel';
 import { SegmentMetaService } from '../services/SegmentMetaService';
 
 interface SidePaneSidebarSegmentListProps {
@@ -24,6 +24,7 @@ interface SidePaneSidebarSegmentListProps {
   speakers?: SpeakerDocType[];
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
+  showReviewPresets?: boolean;
 }
 
 type SegmentSourceType = NonNullable<SegmentMetaDocType['sourceType']>;
@@ -44,6 +45,8 @@ type SegmentListItem = {
   sourceType?: SegmentSourceType | undefined;
   textSource?: 'meta' | 'live-layer' | 'unit-default' | 'none' | undefined;
   searchIndex: string;
+  skipProcessing?: boolean;
+  issueFlags?: SegmentReviewIssueFlags;
 };
 
 type FacetOption = {
@@ -53,6 +56,12 @@ type FacetOption = {
 };
 
 type FacetCategoryKey = 'contentState' | 'annotationStatus' | 'sourceType' | 'speaker' | 'noteCategory' | 'certainty';
+
+type ReviewPresetOption = {
+  value: SegmentReviewPreset | 'all';
+  label: string;
+  count: number;
+};
 
 export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProps) {
   const {
@@ -66,6 +75,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     speakers = [],
     getUnitTextForLayer,
     onSelectTimelineUnit,
+    showReviewPresets = true,
   } = props;
 
   const [filterText, setFilterText] = useState('');
@@ -77,6 +87,8 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const [sourceTypeFilters, setSourceTypeFilters] = useState<SegmentSourceType[]>([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [activeFacetCategory, setActiveFacetCategory] = useState<FacetCategoryKey | ''>('');
+  const [activeReviewPreset, setActiveReviewPreset] = useState<SegmentReviewPreset | 'all' | ''>('');
+  const [reviewCursor, setReviewCursor] = useState(0);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [segmentMetaRows, setSegmentMetaRows] = useState<SegmentMetaDocType[]>([]);
   const [segmentMetaLoading, setSegmentMetaLoading] = useState(false);
@@ -276,6 +288,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           ...(certainty ? { certainty } : {}),
           ...(annotationStatus ? { annotationStatus } : {}),
           searchIndex,
+          skipProcessing: linkedUnit?.tags?.skipProcessing === true,
         };
       });
     }
@@ -307,11 +320,12 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           ...(certainty ? { certainty } : {}),
           ...(annotationStatus ? { annotationStatus } : {}),
           searchIndex,
+          skipProcessing: unit.tags?.skipProcessing === true,
         };
       });
   }, [activeMediaId, displayLayerId, focusedLayerRowId, getUnitTextForLayer, mediaUnits, messages, segmentContentByLayer, sourceLayerId, sourceSegments, speakerById, unitById]);
 
-  const items = useMemo<SegmentListItem[]>(() => {
+  const rawItems = useMemo<SegmentListItem[]>(() => {
     const metaItems: SegmentListItem[] = segmentMetaRows.map((row): SegmentListItem => {
     const text = row.text.trim();
     const speakerKey = row.effectiveSpeakerId?.trim() ?? '';
@@ -345,6 +359,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         ...(sourceType ? { sourceType } : {}),
         textSource: 'meta',
         searchIndex,
+        skipProcessing: false,
       };
     });
 
@@ -381,6 +396,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       const mergedCertainty = liveItem.certainty ?? item.certainty;
       const mergedAnnotationStatus = liveItem.annotationStatus ?? item.annotationStatus;
       const mergedSourceType = item.sourceType ?? liveItem.sourceType;
+      const mergedSkipProcessing = liveItem.skipProcessing === true || item.skipProcessing === true;
 
       mergedByUnitKey.set(unitKey, {
         ...item,
@@ -396,6 +412,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
         ...(mergedCertainty ? { certainty: mergedCertainty } : {}),
         ...(mergedAnnotationStatus ? { annotationStatus: mergedAnnotationStatus } : {}),
         ...(mergedSourceType ? { sourceType: mergedSourceType } : {}),
+        skipProcessing: mergedSkipProcessing,
       });
     }
 
@@ -405,6 +422,63 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       return left.key.localeCompare(right.key);
     });
   }, [displayLayerId, fallbackItems, messages, segmentMetaRows, speakerById]);
+
+  const speakerConsistencyEnabled = useMemo(() => {
+    if (focusedLayer?.layerType !== 'transcription') return false;
+    const reviewableItems = rawItems.filter((item) => item.skipProcessing !== true);
+    const assignedCount = reviewableItems.filter((item) => item.speakerKeys.length > 0).length;
+    return reviewableItems.length > 0 && assignedCount > 0 && assignedCount < reviewableItems.length;
+  }, [focusedLayer?.layerType, rawItems]);
+
+  const items = useMemo<SegmentListItem[]>(() => rawItems.map((item, index, rows) => {
+    const previousItem = rows[index - 1];
+    const issueFlags = computeSegmentReviewIssueFlags({
+      empty: item.empty,
+      ...(item.certainty !== undefined ? { certainty: item.certainty } : {}),
+      noteCategories: item.noteCategories,
+      ...(item.annotationStatus !== undefined ? { annotationStatus: item.annotationStatus } : {}),
+      speakerKeys: item.speakerKeys,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      ...(item.skipProcessing === true ? { skipProcessing: true } : {}),
+    }, {
+      isTranscriptionLayer: focusedLayer?.layerType === 'transcription',
+      allowSpeakerPending: speakerConsistencyEnabled,
+      ...(previousItem !== undefined ? { previousEndTime: previousItem.endTime } : {}),
+    });
+
+    return {
+      ...item,
+      issueFlags,
+    };
+  }), [focusedLayer?.layerType, rawItems, speakerConsistencyEnabled]);
+
+  const reviewPresetOptions = useMemo<ReviewPresetOption[]>(() => {
+    const total = items.filter((item) => Object.values(item.issueFlags ?? {}).some(Boolean)).length;
+    if (total <= 0) return [];
+
+    const timeCount = items.filter((item) => item.issueFlags?.time).length;
+    const contentConcernCount = items.filter((item) => item.issueFlags?.contentConcern).length;
+    const contentMissingCount = items.filter((item) => matchesReviewPreset(item.issueFlags ?? {
+      time: false,
+      contentConcern: false,
+      contentMissing: false,
+      manualAttention: false,
+      pendingReview: false,
+      speakerPending: false,
+    }, 'content_missing')).length;
+    const manualAttentionCount = items.filter((item) => item.issueFlags?.manualAttention).length;
+    const pendingReviewCount = items.filter((item) => item.issueFlags?.pendingReview).length;
+
+    return [
+      { value: 'all', label: getSegmentReviewPresetLabel('all', messages), count: total },
+      { value: 'time', label: getSegmentReviewPresetLabel('time', messages), count: timeCount },
+      { value: 'content_concern', label: getSegmentReviewPresetLabel('content_concern', messages), count: contentConcernCount },
+      { value: 'content_missing', label: getSegmentReviewPresetLabel('content_missing', messages), count: contentMissingCount },
+      { value: 'manual_attention', label: getSegmentReviewPresetLabel('manual_attention', messages), count: manualAttentionCount },
+      { value: 'pending_review', label: getSegmentReviewPresetLabel('pending_review', messages), count: pendingReviewCount },
+    ];
+  }, [items, messages]);
 
   const contentStateOptions = useMemo<FacetOption[]>(() => {
     const withTextCount = items.filter((item) => item.hasText).length;
@@ -700,6 +774,16 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const filtered = useMemo(() => {
     const keyword = filterText.trim().toLowerCase();
     return items.filter((item) => {
+      if (activeReviewPreset && !matchesReviewPreset(item.issueFlags ?? {
+        time: false,
+        contentConcern: false,
+        contentMissing: false,
+        manualAttention: false,
+        pendingReview: false,
+        speakerPending: false,
+      }, activeReviewPreset)) {
+        return false;
+      }
       if (keyword && !item.searchIndex.includes(keyword)) return false;
       if (contentStateFilters.length > 0) {
         const matchedContentState = contentStateFilters.some((filter) => (filter === 'has_text' ? item.hasText : !item.hasText));
@@ -712,9 +796,30 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       if (sourceTypeFilters.length > 0 && !sourceTypeFilters.includes(item.sourceType as SegmentSourceType)) return false;
       return true;
     });
-  }, [annotationStatusFilters, certaintyFilters, contentStateFilters, filterText, items, noteCategoryFilters, sourceTypeFilters, speakerFilters]);
+  }, [activeReviewPreset, annotationStatusFilters, certaintyFilters, contentStateFilters, filterText, items, noteCategoryFilters, sourceTypeFilters, speakerFilters]);
 
-  const hasActiveFilters = filterText.trim().length > 0
+  useEffect(() => {
+    setReviewCursor((prev) => {
+      if (filtered.length === 0) return 0;
+      return Math.min(prev, filtered.length - 1);
+    });
+  }, [filtered.length]);
+
+  useEffect(() => {
+    setReviewCursor(0);
+  }, [activeReviewPreset]);
+
+  const goToReviewItem = (direction: -1 | 1) => {
+    if (filtered.length === 0) return;
+    const nextIndex = (reviewCursor + direction + filtered.length) % filtered.length;
+    setReviewCursor(nextIndex);
+    const row = filtered[nextIndex];
+    if (!row) return;
+    onSelectTimelineUnit?.(row.unit);
+  };
+
+  const hasActiveFilters = activeReviewPreset !== ''
+    || filterText.trim().length > 0
     || contentStateFilters.length > 0
     || speakerFilters.length > 0
     || noteCategoryFilters.length > 0
@@ -767,6 +872,51 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   return (
     <section className="app-side-pane-group app-side-pane-segment-list-group" aria-label={messages.segmentListAria}>
       <div className="app-side-pane-segment-list-filter">
+        {showReviewPresets && reviewPresetOptions.length > 0 ? (
+          <div className="app-side-pane-segment-list-review-presets" role="group" aria-label={messages.segmentListTitle}>
+            {reviewPresetOptions.map((option) => {
+              const selected = activeReviewPreset === option.value;
+              return (
+                <button
+                  key={`review-preset:${option.value}`}
+                  type="button"
+                  className={`app-side-pane-segment-list-review-preset${selected ? ' is-active' : ''}`}
+                  aria-pressed={selected}
+                  disabled={option.count === 0}
+                  onClick={() => {
+                    if (option.count === 0) return;
+                    setReviewCursor(0);
+                    setActiveReviewPreset((prev) => (prev === option.value ? '' : option.value));
+                  }}
+                >
+                  <span className="app-side-pane-segment-list-review-preset-label">{option.label}</span>
+                  <span className="app-side-pane-segment-list-review-preset-count">{option.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {showReviewPresets && activeReviewPreset && filtered.length > 0 ? (
+          <div className="app-side-pane-segment-list-review-presets" role="group" aria-label={messages.segmentListReviewPresetPendingReview}>
+            <button
+              type="button"
+              className="app-side-pane-segment-list-review-preset"
+              aria-label={messages.segmentListReviewPrev}
+              onClick={() => goToReviewItem(-1)}
+            >
+              ←
+            </button>
+            <span className="app-side-pane-segment-list-review-preset-count">{reviewCursor + 1}/{filtered.length}</span>
+            <button
+              type="button"
+              className="app-side-pane-segment-list-review-preset"
+              aria-label={messages.segmentListReviewNext}
+              onClick={() => goToReviewItem(1)}
+            >
+              →
+            </button>
+          </div>
+        ) : null}
         <div className="app-side-pane-segment-list-search-shell">
           <span className="app-side-pane-segment-list-search-icon" aria-hidden="true">
             <svg viewBox="0 0 20 20" className="app-side-pane-segment-list-search-icon-svg" focusable="false">
@@ -865,6 +1015,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                         type="button"
                         className="app-side-pane-segment-list-filter-reset"
                         onClick={() => {
+                          setActiveReviewPreset('');
                           setFilterText('');
                           setContentStateFilters([]);
                           setSpeakerFilters([]);
@@ -896,12 +1047,15 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           </div>
         ) : (
           <ul className="app-side-pane-segment-list">
-            {filtered.map((item) => (
-              <li key={item.key} className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}`}>
+            {filtered.map((item, index) => (
+              <li key={item.key} className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}${index === reviewCursor && activeReviewPreset ? ' is-active-review-target' : ''}`}>
                 <button
                   type="button"
                   className="app-side-pane-segment-list-item-btn"
-                  onClick={() => onSelectTimelineUnit?.(item.unit)}
+                  onClick={() => {
+                    setReviewCursor(index);
+                    onSelectTimelineUnit?.(item.unit);
+                  }}
                 >
                   <span className="app-side-pane-segment-list-item-time">
                     {messages.segmentListTimeRange(formatTime(item.startTime), formatTime(item.endTime))}
@@ -914,6 +1068,11 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                       {item.speakerLabels.map((label) => (
                         <span key={`${item.key}-speaker-${label}`} className="app-side-pane-segment-list-chip">{label}</span>
                       ))}
+                      {item.issueFlags?.speakerPending ? (
+                        <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
+                          {messages.segmentListSpeakerPending}
+                        </span>
+                      ) : null}
                       {item.certainty ? (
                         <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-certainty">
                           {getSegmentCertaintyLabel(item.certainty, messages)}

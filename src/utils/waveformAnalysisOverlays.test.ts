@@ -56,6 +56,18 @@ describe('waveformAnalysisOverlays', () => {
     ]);
   });
 
+  it('ignores skip-processing units in analysis summaries', () => {
+    const summary = buildWaveformAnalysisPromptSummary([
+      { id: 'u1', startTime: 0, endTime: 1, ai_metadata: { confidence: 0.4 }, tags: { skipProcessing: true } },
+      { id: 'u2', startTime: 1.2, endTime: 2.2, ai_metadata: { confidence: 0.95 } },
+      { id: 'u3', startTime: 3.5, endTime: 4.5, ai_metadata: { confidence: 0.96 } },
+    ]);
+
+    expect(summary.lowConfidenceCount).toBe(0);
+    expect(summary.overlapCount).toBe(0);
+    expect(summary.gapCount).toBe(1);
+  });
+
   describe('buildRiskHotZones', () => {
     it('clusters nearby signals into risk hot-zones', () => {
       const overlay = buildWaveformAnalysisOverlaySummary([

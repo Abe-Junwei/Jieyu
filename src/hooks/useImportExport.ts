@@ -3,7 +3,7 @@ import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type { AnchorDocType, LayerUnitDocType, MediaItemDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { useOrthographies } from './useOrthographies';
 
 type ExportSupportModules = {
@@ -105,6 +105,40 @@ export function useImportExport(input: UseImportExportInput) {
   const importFileRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const confirmArchiveExport = useCallback((kind: 'jyt' | 'jym') => {
+    if (typeof window === 'undefined') return {};
+
+    const confirmed = window.confirm(tf(locale, 'transcription.importExport.archiveExportConfirm', {
+      kind: kind.toUpperCase(),
+    }));
+    if (!confirmed) return null;
+
+    const wantsEncryption = window.confirm(t(locale, 'transcription.importExport.archiveExportEncryptPrompt'));
+    if (!wantsEncryption) return {};
+
+    const passwordInput = window.prompt(t(locale, 'transcription.importExport.archivePasswordPrompt'));
+    if (passwordInput == null) return null;
+
+    const password = passwordInput.trim();
+    if (!password) {
+      setSaveState({
+        kind: 'error',
+        message: t(locale, 'transcription.importExport.archivePasswordRequired'),
+      });
+      return null;
+    }
+
+    const hintInput = window.prompt(t(locale, 'transcription.importExport.archivePasswordHintPrompt'));
+    const hint = hintInput?.trim();
+
+    return {
+      encryption: {
+        password,
+        ...(hint ? { passwordHint: hint } : {}),
+      },
+    };
+  }, [locale, setSaveState]);
 
   const serviceLoaders = useMemo(() => ({
     loadEafService: () => loadCachedModule(eafServiceModuleRef, () => import('../services/EafService')),
@@ -305,17 +339,22 @@ export function useImportExport(input: UseImportExportInput) {
     const layerSegments = exportData.segmentsByLayer;
     const layerSegmentContents = exportData.segmentContents;
     const db = await getDb();
+    const layerLinks = typeof db.dexie.layer_links?.toArray === 'function'
+      ? await db.dexie.layer_links.toArray()
+      : [];
     const relevantSpeakerIds = resolveRelevantExportSpeakerIds(unitsOnCurrentMedia, layerSegments);
     const speakers = relevantSpeakerIds.size === 0
       ? []
       : (await db.dexie.speakers.toArray()).filter((speaker) => relevantSpeakerIds.has(speaker.id));
     const exportUnits = await buildOrthographyAwareExportUnits(unitsOnCurrentMedia, defaultTrcLayer);
     const timelineMetadata = await loadProjectTimelineMetadata();
+    const exportWarnings: Array<{ code: string }> = [];
     const xml = eafService.exportToEaf({
       ...(selectedUnitMedia ? { mediaItem: selectedUnitMedia } : {}),
       units: exportUnits,
       anchors,
       layers,
+      layerLinks,
       orthographies,
       translations,
       userNotes,
@@ -324,12 +363,19 @@ export function useImportExport(input: UseImportExportInput) {
       ...(layerSegmentContents ? { layerSegmentContents } : {}),
       ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
       speakers,
+      onWarning: (warning) => {
+        exportWarnings.push(warning);
+      },
     });
     const baseName = selectedUnitMedia
       ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'export';
     eafService.downloadEaf(xml, baseName);
-    setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.eaf') });
+    const multiHostWarningCount = exportWarnings.filter((warning) => warning.code === 'translation-multi-host-lossy').length;
+    const warningSuffix = multiHostWarningCount > 0
+      ? ` ${tf(locale, 'transcription.importExport.exportDone.eafMultiHostWarning', { count: multiHostWarningCount })}`
+      : '';
+    setSaveState({ kind: 'done', message: `${t(locale, 'transcription.importExport.exportDone.eaf')}${warningSuffix}`.trim() });
     setShowExportMenu(false);
     },
 
@@ -446,8 +492,18 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUnitMedia
       ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
-    await jymService.downloadJieyuArchive('jyt', baseName);
-    setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jyt') });
+    const exportOptions = confirmArchiveExport('jyt');
+    if (exportOptions === null) {
+      setShowExportMenu(false);
+      return;
+    }
+    await jymService.downloadJieyuArchive('jyt', baseName, exportOptions);
+    setSaveState({
+      kind: 'done',
+      message: exportOptions.encryption
+        ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', { kind: 'JYT' })
+        : t(locale, 'transcription.importExport.exportDone.jyt'),
+    });
     setShowExportMenu(false);
     },
 
@@ -456,13 +512,24 @@ export function useImportExport(input: UseImportExportInput) {
     const baseName = selectedUnitMedia
       ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
-    await jymService.downloadJieyuArchive('jym', baseName);
-    setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.jym') });
+    const exportOptions = confirmArchiveExport('jym');
+    if (exportOptions === null) {
+      setShowExportMenu(false);
+      return;
+    }
+    await jymService.downloadJieyuArchive('jym', baseName, exportOptions);
+    setSaveState({
+      kind: 'done',
+      message: exportOptions.encryption
+        ? tf(locale, 'transcription.importExport.exportDone.archiveEncrypted', { kind: 'JYM' })
+        : t(locale, 'transcription.importExport.exportDone.jym'),
+    });
     setShowExportMenu(false);
     },
   }), [
     anchors,
     buildOrthographyAwareExportUnits,
+    confirmArchiveExport,
     defaultTranscriptionLayerId,
     fetchUnitNotes,
     layers,

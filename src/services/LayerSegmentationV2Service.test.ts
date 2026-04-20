@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { db, getDb, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
 import { putTestUnitAsLayerUnit } from '../db/putTestUnitAsLayerUnit';
 import { LayerSegmentationV2Service } from './LayerSegmentationV2Service';
@@ -161,6 +161,32 @@ describe('LayerSegmentationV2Service', () => {
     expect(segments[0]?.id).toBe('seg_unit_only_1');
     expect(contents).toHaveLength(1);
     expect(contents[0]?.text).toBe('只存在于 LayerUnit');
+  });
+
+  it('keeps adjacent layer_units access valid while persisting segment content', async () => {
+    const segment = makeSegment({ id: 'seg_scope_guard_1' });
+    await LayerSegmentationV2Service.createSegment(segment);
+
+    const bulkPut = db.layer_unit_contents.bulkPut.bind(db.layer_unit_contents);
+    const bulkPutSpy = vi.spyOn(db.layer_unit_contents, 'bulkPut').mockImplementationOnce((...args) => (
+      db.layer_units.get(segment.id).then((liveSegment) => {
+        expect(liveSegment?.id).toBe(segment.id);
+        return bulkPut(...args as Parameters<typeof bulkPut>);
+      }) as ReturnType<typeof bulkPut>
+    ));
+
+    try {
+      await expect(LayerSegmentationV2Service.upsertSegmentContent(
+        makeContent({ id: 'cnt_scope_guard_1', segmentId: segment.id, text: 'scope guard' }),
+      )).resolves.toBeUndefined();
+    } finally {
+      bulkPutSpy.mockRestore();
+    }
+
+    expect(await db.layer_unit_contents.get('cnt_scope_guard_1')).toEqual(expect.objectContaining({
+      unitId: segment.id,
+      text: 'scope guard',
+    }));
   });
 
   it('deletes segment content from legacy and LayerUnit tables', async () => {

@@ -48,6 +48,8 @@ export interface DictationSegment {
   existingText: string | null;
   existingTranslation: string | null;
   existingGloss: Record<string, string> | null;
+  /** 标记为跳过处理的语段 | Segment explicitly marked to skip processing */
+  skipProcessing?: boolean;
 }
 
 export interface DictationPipelineState {
@@ -151,7 +153,7 @@ export class SpeechAnnotationPipeline {
       interimText: '',
       confirmedText: '',
       filledCount: 0,
-      progress: { done: 0, total: this._segments.length },
+      progress: { done: 0, total: this._countProcessableSegments() },
       lastUpdateAt: Date.now(),
     };
 
@@ -374,11 +376,16 @@ export class SpeechAnnotationPipeline {
     for (let i = fromIndex; i < this._segments.length; i++) {
       const seg = this._segments[i];
       if (!seg) continue;
+      if (seg.skipProcessing) continue;
       if (layer === 'transcription' && !seg.existingText) return i;
       if (layer === 'translation' && !seg.existingTranslation) return i;
       if (layer === 'gloss' && !seg.existingGloss) return i;
     }
     return -1;
+  }
+
+  private _countProcessableSegments(): number {
+    return this._segments.filter((segment) => segment && !segment.skipProcessing).length;
   }
 
   private _resetSilenceTimer(): void {

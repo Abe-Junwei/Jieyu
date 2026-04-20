@@ -65,10 +65,21 @@ export interface ExtensionLoadResult {
 
 export type CapabilityHandler = (payload: unknown, context: ExtensionInvocationContext) => Promise<unknown> | unknown;
 
+export type ExtensionCapabilityAuditPayload = {
+  extensionId: string;
+  capability: ExtensionCapability;
+  ok: boolean;
+  durationMs: number;
+  errorMessage?: string;
+};
+
 export interface ExtensionHostOptions {
   hostVersion: string;
   capabilityHandlers: Partial<Record<ExtensionCapability, CapabilityHandler>>;
   activationTimeoutMs?: number;
+  /** 单次能力调用超时（ms）；≤0 或未设置则不套超时 | Per-invocation timeout; omit or ≤0 to disable */
+  capabilityInvocationTimeoutMs?: number;
+  onCapabilityAudit?: (payload: ExtensionCapabilityAuditPayload) => void;
 }
 
 export class ExtensionCapabilityDeniedError extends Error {
@@ -271,6 +282,7 @@ export interface ExtensionHost {
 
 export function createExtensionHost(options: ExtensionHostOptions): ExtensionHost {
   const timeoutMs = options.activationTimeoutMs ?? 10_000;
+  const capabilityTimeoutMs = options.capabilityInvocationTimeoutMs ?? 0;
   let state: ExtensionLifecycleState = 'idle';
   let manifest: ExtensionManifestV1 | null = null;
   let hooks: ExtensionHooks | null = null;
@@ -346,7 +358,9 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
         reason: 'loaded',
       };
     } catch (error) {
-      state = 'disabled';
+      manifest = null;
+      hooks = null;
+      state = 'error';
       return {
         ok: false,
         degraded: true,
@@ -366,10 +380,38 @@ export function createExtensionHost(options: ExtensionHostOptions): ExtensionHos
     if (!handler) {
       throw new ExtensionCapabilityDeniedError(`Capability not allowed by host: ${capability}`);
     }
-    return handler(payload, {
+    const extensionId = manifest.id;
+    const started = typeof performance !== 'undefined' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now();
+    const emitAudit = (ok: boolean, errorMessage?: string): void => {
+      const end = typeof performance !== 'undefined' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now();
+      options.onCapabilityAudit?.({
+        extensionId,
+        capability,
+        ok,
+        durationMs: Math.round(end - started),
+        ...(typeof errorMessage === 'string' && errorMessage.length > 0 ? { errorMessage } : {}),
+      });
+    };
+    const context: ExtensionInvocationContext = {
       hostVersion: options.hostVersion,
       manifest,
-    });
+    };
+    try {
+      const result = await withTimeout(
+        Promise.resolve(handler(payload, context)),
+        capabilityTimeoutMs,
+      );
+      emitAudit(true);
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      emitAudit(false, message);
+      throw error;
+    }
   };
 
   return {

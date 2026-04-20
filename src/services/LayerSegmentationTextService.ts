@@ -1,4 +1,12 @@
-import { type JieyuDatabase, type LayerUnitDocType, type LayerUnitContentDocType, type LayerUnitContentViewDocType, type LayerSegmentViewDocType } from '../db';
+import {
+  dexieStoresForLayerSegmentGraphRw,
+  dexieStoresForLayerUnitsAndContentsRw,
+  type JieyuDatabase,
+  type LayerUnitDocType,
+  type LayerUnitContentDocType,
+  type LayerUnitContentViewDocType,
+  type LayerSegmentViewDocType,
+} from '../db';
 import { deleteLayerSegmentGraphBySegmentIds, deleteLayerSegmentGraphByUnitIds, findOrphanSegmentIds, listSegmentContentsByIds } from './LayerSegmentGraphService';
 import { LayerUnitSegmentWriteService } from './LayerUnitSegmentWriteService';
 import { LayerUnitRelationQueryService } from './LayerUnitRelationQueryService';
@@ -132,7 +140,7 @@ export async function syncUnitTextToSegmentationV2(
   };
 
   // 事务保护：删旧 content + 写 segment + 写 content 必须原子执行 | Transaction: stale delete + segment upsert + content upsert must be atomic
-  await db.dexie.transaction('rw', db.dexie.layer_units, db.dexie.layer_unit_contents, async () => {
+  await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
     const staleContentIds = getSegmentContentCandidateIds(translation.id)
       .filter((id) => id !== ids.segmentContentId);
     if (staleContentIds.length > 0) {
@@ -215,16 +223,17 @@ async function listV2UnitTextsByUnit(
   return rows;
 }
 
+/**
+ * Standalone entry: opens its own `layer_units` + `layer_unit_contents` + `unit_relations` rw txn.
+ * When already inside a parent Dexie rw txn that includes those stores (e.g. `LinguisticService.cleanup`),
+ * call `deleteLayerSegmentGraphByUnitIds(db, [unitId])` directly to avoid nested transactions on Safari.
+ */
 export async function removeUnitCascadeFromSegmentationV2(
   db: JieyuDatabase,
   unitId: string,
 ): Promise<void> {
   // 事务保护：级联删除 content → segment → links 必须原子执行 | Transaction: cascade delete must be atomic
-  await db.dexie.transaction('rw', [
-    db.dexie.layer_unit_contents,
-    db.dexie.layer_units,
-    db.dexie.unit_relations,
-  ], async () => {
+  await db.dexie.transaction('rw', [...dexieStoresForLayerSegmentGraphRw(db)], async () => {
     await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
   });
 }
@@ -268,11 +277,7 @@ export async function enforceTimeSubdivisionParentBounds(
       deletedCount += 1;
       await db.dexie.transaction(
         'rw',
-        [
-          db.dexie.layer_unit_contents,
-          db.dexie.layer_units,
-          db.dexie.unit_relations,
-        ],
+        [...dexieStoresForLayerSegmentGraphRw(db)],
         async () => {
           await deleteLayerSegmentGraphBySegmentIds(db, [segment.id]);
         },

@@ -38,6 +38,7 @@ function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
     handleProjectSetupSubmit: vi.fn(async () => undefined),
     showAudioImport: false,
     setShowAudioImport: vi.fn(),
+    audioImportDisposition: { kind: 'simple' },
     handleAudioImport: vi.fn(async () => undefined),
     mediaFileInputRef: { current: null },
     handleDirectMediaImport: vi.fn(),

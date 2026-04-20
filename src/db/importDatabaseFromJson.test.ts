@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, importDatabaseFromJson } from './index';
+import { db, getDb, importDatabaseFromJson, JIEYU_DEXIE_DB_NAME } from './index';
 
 const NOW = '2026-04-02T00:00:00.000Z';
 
@@ -27,9 +27,9 @@ describe('importDatabaseFromJson', () => {
     });
 
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         texts: [
           {
@@ -89,9 +89,9 @@ describe('importDatabaseFromJson', () => {
     });
 
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         media_items: [
           {
@@ -121,9 +121,9 @@ describe('importDatabaseFromJson', () => {
 
   it('ignores removed transformId compatibility fields during snapshot import', async () => {
     const snapshot = {
-      schemaVersion: 1,
+      schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         tier_definitions: [
           {
@@ -155,11 +155,28 @@ describe('importDatabaseFromJson', () => {
     expect(importedTiers.find((item) => item.id === 'layer_legacy')?.bridgeId).toBeUndefined();
   });
 
+  it('rejects snapshot when schemaVersion is not the current export version', async () => {
+    await expect(
+      importDatabaseFromJson(
+        {
+          schemaVersion: 3,
+          exportedAt: NOW,
+          dbName: JIEYU_DEXIE_DB_NAME,
+          collections: {
+            layer_units: [],
+            layer_unit_contents: [],
+          },
+        },
+        { strategy: 'replace-all' },
+      ),
+    ).rejects.toThrow(/Unsupported snapshot schemaVersion=3/);
+  });
+
   it('rejects snapshots that still include a non-empty legacy units collection', async () => {
     const snapshot = {
       schemaVersion: 4,
       exportedAt: NOW,
-      dbName: 'jieyudb',
+      dbName: JIEYU_DEXIE_DB_NAME,
       collections: {
         texts: [],
         tier_definitions: [],
@@ -171,6 +188,61 @@ describe('importDatabaseFromJson', () => {
 
     await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
       /Legacy snapshot key "units"/,
+    );
+  });
+
+  it('rejects raw JSON imports whose nesting depth exceeds the safety limit', async () => {
+    let nested: Record<string, unknown> = { leaf: 'value' };
+    for (let i = 0; i < 80; i += 1) {
+      nested = { child: nested };
+    }
+
+    const snapshot = {
+      schemaVersion: 4,
+      exportedAt: NOW,
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        texts: [
+          {
+            id: 'text_deep',
+            title: { default: 'Deep text' },
+            createdAt: NOW,
+            updatedAt: NOW,
+            metadata: nested,
+          },
+        ],
+        layer_units: [],
+        layer_unit_contents: [],
+      },
+    };
+
+    await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
+      /JSON depth exceeds limit/i,
+    );
+  });
+
+  it('rejects raw JSON string imports whose byte size exceeds the safety limit', async () => {
+    const oversizedTitle = 'x'.repeat(33 * 1024 * 1024);
+    const snapshot = JSON.stringify({
+      schemaVersion: 4,
+      exportedAt: NOW,
+      dbName: JIEYU_DEXIE_DB_NAME,
+      collections: {
+        texts: [
+          {
+            id: 'text_large',
+            title: { default: oversizedTitle },
+            createdAt: NOW,
+            updatedAt: NOW,
+          },
+        ],
+        layer_units: [],
+        layer_unit_contents: [],
+      },
+    });
+
+    await expect(importDatabaseFromJson(snapshot, { strategy: 'replace-all' })).rejects.toThrow(
+      /snapshot JSON size exceeds limit/i,
     );
   });
 });

@@ -636,7 +636,7 @@ export interface LayerDocType {
   sortOrder?: number;
   /** 边界约束类型（默认 'symbolic_association'）| Boundary constraint type (default 'symbolic_association') */
   constraint?: LayerConstraint;
-  /** 父层 ID（constraint 为 symbolic_association / time_subdivision 时必填）| Parent layer ID (required for symbolic_association / time_subdivision) */
+  /** 父层 ID（仅层树依赖；transcription 层使用）| Parent layer ID (tree dependency only; used by transcription layers) */
   parentLayerId?: string;
   /** 层级显示样式 | Display style configuration */
   displaySettings?: LayerDisplaySettings;
@@ -686,6 +686,7 @@ export interface LayerUnitDocType {
   speaker?: string | undefined;
   language?: string | undefined;
   notes?: MultiLangString | undefined;
+  noteCategoryKeys?: NoteCategory[] | undefined;
   tags?: Record<string, boolean> | undefined;
   ai_metadata?: AiMetadata | undefined;
   aiMode?: 'AUTO' | 'SUGGEST' | undefined;
@@ -769,6 +770,8 @@ export type UnitRelationViewDocType = UnitRelationDocType & {
 export interface LayerLinkDocType {
   id: string;
   transcriptionLayerKey: string;
+  /** 宿主转写层 ID（已成为 SSOT）| Host transcription layer id (SSOT for host relationship). */
+  hostTranscriptionLayerId: string;
   layerId: string;
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
   isPreferred: boolean;
@@ -785,6 +788,8 @@ export interface TierDefinitionDocType {
   name: MultiLangString;
   tierType: TierType;
   parentTierId?: string;
+  /** 译文层额外宿主（tier 主 parentTierId 为首选宿主）| Extra host transcription tier ids for multi-host translation */
+  extraParentTierIds?: string[];
   languageId?: string;
   orthographyId?: string;
   bridgeId?: string;

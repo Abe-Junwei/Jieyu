@@ -3,6 +3,15 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsModal, type SettingsModalProps } from './SettingsModal';
 
+const extensionSingletonMocks = vi.hoisted(() => ({
+  ensureBuiltinExtensionsLoaded: vi.fn(async () => {}),
+  getExtensionRegistry: vi.fn(() => ({
+    getHostVersion: () => '1.0.0' as string,
+    list: () => [] as Array<{ id: string; name: string; version: string; capabilities: string[]; state: string; source: string; compatible: boolean; compatibilityReason: string; lastLoadReason: string; entryActivate: string }>,
+    getCapabilityAuditTail: () => [],
+  })),
+}));
+
 // Mock ModalPanel / PanelSection — render children directly
 vi.mock('./ui', () => ({
   ModalPanel: ({ isOpen, children, title }: { isOpen: boolean; children: React.ReactNode; title?: string }) =>
@@ -52,6 +61,11 @@ vi.mock('../ai/providers/providerCatalog', () => ({
   })),
 }));
 
+vi.mock('../extensions/extensionRegistrySingleton', () => ({
+  ensureBuiltinExtensionsLoaded: extensionSingletonMocks.ensureBuiltinExtensionsLoaded,
+  getExtensionRegistry: extensionSingletonMocks.getExtensionRegistry,
+}));
+
 // Mock KeybindingService — keep minimal
 const mockOverrides = new Map<string, string>();
 vi.mock('../services/KeybindingService', () => ({
@@ -90,6 +104,14 @@ beforeEach(() => {
   mockOverrides.clear();
   localStorage.clear();
   document.documentElement.classList.remove('jieyu-reduced-motion', 'jieyu-high-contrast');
+  extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockReset();
+  extensionSingletonMocks.getExtensionRegistry.mockReset();
+  extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockResolvedValue(undefined);
+  extensionSingletonMocks.getExtensionRegistry.mockReturnValue({
+    getHostVersion: () => '1.0.0',
+    list: () => [],
+    getCapabilityAuditTail: () => [],
+  });
 });
 
 afterEach(cleanup);
@@ -395,12 +417,51 @@ describe('About tab', () => {
   });
 });
 
+describe('Extensions tab', () => {
+  it('loads extension registry rows when opening extensions tab', async () => {
+    extensionSingletonMocks.getExtensionRegistry.mockReturnValue({
+      getHostVersion: () => '1.2.3',
+      list: () => [{
+        id: 'ext.registry.test',
+        name: 'Registry Test',
+        version: '1.0.0',
+        capabilities: ['read.transcription'],
+        state: 'active',
+        source: 'official',
+        compatible: true,
+        compatibilityReason: 'ok',
+        lastLoadReason: 'activated',
+        entryActivate: 'test#activate',
+      }],
+      getCapabilityAuditTail: () => [],
+    });
+
+    renderModal();
+    fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
+
+    await waitFor(() => expect(screen.getByText('ext.registry.test')).toBeTruthy());
+    expect(screen.getByText('1.2.3')).toBeTruthy();
+  });
+
+  it('shows load error when builtin extension registration fails', async () => {
+    extensionSingletonMocks.ensureBuiltinExtensionsLoaded.mockRejectedValueOnce(
+      new Error('compatibility_denied: hostVersion 0.0.0 is lower than minHostVersion 1.0.0'),
+    );
+
+    renderModal({ version: '0.0.0' });
+    fireEvent.click(screen.getByRole('tab', { name: '扩展' }));
+
+    await waitFor(() => expect(screen.getAllByText(/扩展信息加载失败/).length).toBeGreaterThan(0));
+    expect(screen.getAllByText(/hostVersion 0.0.0 is lower than minHostVersion 1.0.0/).length).toBeGreaterThan(0);
+  });
+});
+
 // ── 标签切换 | Tab switching ───────────────────────────────
 
 describe('Tab switching', () => {
-  it('switches between all 7 tabs', () => {
+  it('switches between all 8 tabs', () => {
     renderModal();
-    const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '关于'];
+    const tabLabels = ['外观', '语言', '快捷键', 'AI', '播放', '数据', '扩展', '关于'];
     for (const label of tabLabels) {
       fireEvent.click(screen.getByRole('tab', { name: label }));
     }

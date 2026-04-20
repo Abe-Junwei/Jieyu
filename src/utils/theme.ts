@@ -21,6 +21,11 @@ export type ThemeId =
   | 'solarizedDark'
   | 'antigravity';
 
+/** Maps ThemeId to kebab-case for CSS preview class suffix (e.g. mogaoNarrative → mogao-narrative). */
+export function themeIdToPreviewClassSlug(id: ThemeId): string {
+  return id.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
+}
+
 export interface ThemeInfo {
   id: ThemeId;
   name: string;

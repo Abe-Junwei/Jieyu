@@ -91,12 +91,38 @@ describe('aiTrace', () => {
       expect(fallbackMetric).toBeDefined();
     });
 
+    test('llm-request span 暴露统一 gen_ai 语义属性 | exposes normalized gen_ai semantic attributes', () => {
+      const span = startAiTraceSpan({
+        kind: 'llm-request',
+        traceId: 'test-trace-3b',
+        provider: 'OpenAI',
+        model: 'gpt-4.1',
+      });
+
+      span.markFallback('Anthropic');
+      const result = span.endWithError('provider temporarily unavailable');
+
+      expect(result.attributes?.['gen_ai.system']).toBe('openai');
+      expect(result.attributes?.['gen_ai.request.model']).toBe('gpt-4.1');
+      expect(result.attributes?.['gen_ai.jieyu.used_fallback']).toBe(true);
+      expect(result.attributes?.['gen_ai.jieyu.fallback_system']).toBe('anthropic');
+      expect(result.attributes?.['otel.status_description']).toBe('provider temporarily unavailable');
+      expect(result.statusCode).toBe('ERROR');
+    });
+
     test('tool-execution span 记录延迟 | tool-execution records latency', () => {
       const span = startAiTraceSpan({
         kind: 'tool-execution',
         traceId: 'test-trace-4',
+        tags: {
+          toolName: 'Search Units',
+          step: 3,
+        },
       });
-      span.end();
+      const result = span.end();
+
+      expect(result.attributes?.['gen_ai.jieyu.tool_name']).toBe('search_units');
+      expect(result.attributes?.['gen_ai.jieyu.step']).toBe(3);
 
       const metric = collectedMetrics.find((m) => m.id === 'ai.trace.tool_execution_latency_ms');
       expect(metric).toBeDefined();

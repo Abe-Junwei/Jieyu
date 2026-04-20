@@ -3,6 +3,8 @@ import type { TranscriptionPageAiSidebarProps } from './TranscriptionPage.AiSide
 import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 
+type AudioImportDisposition = TranscriptionPageDialogsProps['audioImportDisposition'];
+
 export interface UseTranscriptionSidebarSectionsViewModelInput {
   locale: string;
   isAiPanelCollapsed: boolean;
@@ -24,7 +26,8 @@ export interface UseTranscriptionSidebarSectionsViewModelInput {
   handleProjectSetupSubmit: (input: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => Promise<void>;
   showAudioImport: boolean;
   setShowAudioImport: (value: boolean) => void;
-  handleAudioImport: (file: File, duration: number) => Promise<void>;
+  audioImportDisposition: AudioImportDisposition;
+  handleAudioImport: TranscriptionPageDialogsProps['onImportAudio'];
   mediaFileInputRef: React.RefObject<HTMLInputElement | null>;
   handleDirectMediaImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
   audioDeleteConfirm: { filename: string } | null;
@@ -80,6 +83,7 @@ export function useTranscriptionSidebarSectionsViewModel(
     handleProjectSetupSubmit,
     showAudioImport,
     setShowAudioImport,
+    audioImportDisposition,
     handleAudioImport,
     mediaFileInputRef,
     handleDirectMediaImport,
@@ -129,6 +133,7 @@ export function useTranscriptionSidebarSectionsViewModel(
     onSubmitProjectSetup: handleProjectSetupSubmit,
     showAudioImport,
     onCloseAudioImport: () => setShowAudioImport(false),
+    audioImportDisposition,
     onImportAudio: handleAudioImport,
     mediaFileInputRef,
     onDirectMediaImport: handleDirectMediaImport,
@@ -142,7 +147,7 @@ export function useTranscriptionSidebarSectionsViewModel(
     onCloseShortcuts: closeShortcuts,
     isFocusMode,
     onExitFocusMode: exitFocusMode,
-  }), [audioDeleteConfirm, closeShortcuts, closeSpeakerDialog, confirmSpeakerDialog, exitFocusMode, handleAudioImport, handleConfirmAudioDelete, handleConfirmProjectDelete, handleDirectMediaImport, handleProjectSetupSubmit, isFocusMode, locale, mediaFileInputRef, projectDeleteConfirm, setAudioDeleteConfirm, setProjectDeleteConfirm, setShowAudioImport, setShowProjectSetup, showAudioImport, showProjectSetup, showShortcuts, speakerDialogState, speakerSaving, updateSpeakerDialogDraftName, updateSpeakerDialogTargetKey]);
+  }), [audioDeleteConfirm, audioImportDisposition, closeShortcuts, closeSpeakerDialog, confirmSpeakerDialog, exitFocusMode, handleAudioImport, handleConfirmAudioDelete, handleConfirmProjectDelete, handleDirectMediaImport, handleProjectSetupSubmit, isFocusMode, locale, mediaFileInputRef, projectDeleteConfirm, setAudioDeleteConfirm, setProjectDeleteConfirm, setShowAudioImport, setShowProjectSetup, showAudioImport, showProjectSetup, showShortcuts, speakerDialogState, speakerSaving, updateSpeakerDialogDraftName, updateSpeakerDialogTargetKey]);
 
   return {
     aiSidebarProps,

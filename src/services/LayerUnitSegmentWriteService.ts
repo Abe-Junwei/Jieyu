@@ -23,6 +23,22 @@ export class LayerUnitSegmentWriteService {
     })));
   }
 
+  static async reassignUnitsToMediaId(
+    db: JieyuDatabase,
+    units: readonly LayerUnitDocType[],
+    mediaId: string,
+    updatedAt: string,
+  ): Promise<LayerUnitDocType[]> {
+    if (units.length === 0) return [];
+    const reassignedUnits = units.map((unit) => ({
+      ...unit,
+      mediaId,
+      updatedAt,
+    }));
+    await bulkUpsertLayerUnits(db, reassignedUnits);
+    return reassignedUnits;
+  }
+
   static async insertSegmentContents(db: JieyuDatabase, contents: readonly LayerUnitContentDocType[]): Promise<void> {
     if (contents.length === 0) return;
     await bulkUpsertLayerUnitContents(db, contents);

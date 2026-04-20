@@ -103,7 +103,7 @@ describe('ObserverStatus Component', () => {
       { id: 'r1', title: 'Default Title', actionLabel: 'Custom Label' },
       { id: 'r2', title: 'Only Title' },
     ];
-    
+
     const { container } = render(
       <ObserverStatus {...createMockProps({ recommendations: recs })} />
     );
@@ -111,6 +111,20 @@ describe('ObserverStatus Component', () => {
     const buttons = container.querySelectorAll('.transcription-ai-observer-rec-btn');
     expect(buttons[0]!.textContent).toBe('Custom Label');
     expect(buttons[1]!.textContent).toBe('Only Title');
+  });
+
+  it('hides risk-review recommendations from the toolbar buttons', () => {
+    const recs: AiObserverRecommendation[] = [
+      { id: 'transcribing-risk-review', title: '风险复核', actionLabel: '风险复核' },
+      { id: 'jump-1', title: '跳转处理', actionLabel: '跳转处理' },
+    ];
+
+    const { container } = render(
+      <ObserverStatus {...createMockProps({ recommendations: recs })} />
+    );
+
+    const buttons = Array.from(container.querySelectorAll('.transcription-ai-observer-rec-btn'));
+    expect(buttons.map((button) => button.textContent?.trim())).toEqual(['跳转处理']);
   });
 
   it('handles undefined observer stage gracefully', () => {

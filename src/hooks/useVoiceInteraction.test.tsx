@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { useVoiceInteraction } from './useVoiceInteraction';
 
 const mockUseVoiceAgent = vi.hoisted(() => vi.fn());
@@ -11,7 +11,11 @@ vi.mock('./useVoiceAgent', () => ({
   useVoiceAgent: (...args: unknown[]) => mockUseVoiceAgent(...args),
 }));
 
-function makeLayer(id: string, layerType: 'transcription' | 'translation'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: 'transcription' | 'translation',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
+): LayerDocType {
   const now = '2026-03-26T00:00:00.000Z';
   return {
     id,
@@ -24,7 +28,21 @@ function makeLayer(id: string, layerType: 'transcription' | 'translation'): Laye
     acceptsAudio: false,
     createdAt: now,
     updatedAt: now,
+    ...(extras ?? {}),
   } as LayerDocType;
+}
+
+function makeLink(id: string, transcriptionLayerKey: string, hostTranscriptionLayerId: string, layerId: string): LayerLinkDocType {
+  const now = '2026-03-26T00:00:00.000Z';
+  return {
+    id,
+    transcriptionLayerKey,
+    hostTranscriptionLayerId,
+    layerId,
+    linkType: 'free',
+    isPreferred: true,
+    createdAt: now,
+  };
 }
 
 describe('useVoiceInteraction', () => {
@@ -91,6 +109,52 @@ describe('useVoiceInteraction', () => {
     }));
 
     expect(result.current.voiceTargetSummary).toContain('L:trc-default');
+  });
+
+  it('falls back to host child translation layer instead of first translation layer when no layer is selected', () => {
+    const trEn = makeLayer('tr-en', 'transcription');
+    const trFr = makeLayer('tr-fr', 'transcription');
+    const tlZh = makeLayer('tl-zh', 'translation');
+    const tlFr = makeLayer('tl-fr', 'translation');
+    const layerLinks = [
+      makeLink('link-zh-en', 'tr-en', 'tr-en', 'tl-zh'),
+      makeLink('link-fr-fr', 'tr-fr', 'tr-fr', 'tl-fr'),
+    ];
+
+    const { result } = renderHook(() => useVoiceInteraction({
+      effectiveVoiceCorpusLang: 'zho',
+      voiceCorpusLangOverride: '__auto__',
+      executeAction: vi.fn(async () => undefined),
+      handleResolveVoiceIntentWithLlm: vi.fn(async () => null),
+      handleVoiceDictation: vi.fn(),
+      onVoiceAnalysisResult: vi.fn(),
+      selection: {
+        activeUnitId: 'utt-1',
+        selectedUnit: { id: 'utt-1', layerId: 'tr-fr', startTime: 0, endTime: 1 },
+        selectedRowMeta: null,
+        selectedLayerId: '',
+        selectedUnitKind: 'unit',
+        selectedTimeRangeLabel: '0.00 - 1.00',
+      },
+      translationLayers: [tlZh, tlFr],
+      layers: [trEn, trFr, tlZh, tlFr],
+      layerLinks,
+      formatSidePaneLayerLabel: (layer) => `L:${layer.id}`,
+      formatTime: (seconds) => seconds.toFixed(2),
+      aiChatSend: vi.fn(async () => undefined),
+      aiIsStreaming: false,
+      aiMessages: [],
+      localWhisperConfig: {},
+      commercialProviderKind: 'openai' as any,
+      commercialProviderConfig: {},
+      onCommercialConfigChange: vi.fn(),
+      setCommercialProviderKind: vi.fn(),
+      setCommercialProviderConfig: vi.fn(),
+      featureVoiceEnabled: true,
+      toggleVoiceRef: { current: undefined },
+    }));
+
+    expect(result.current.voiceTargetSummary).toContain('L:tl-fr');
   });
 
   it('passes continuous dictation pipeline wiring through to useVoiceAgent when provided', () => {

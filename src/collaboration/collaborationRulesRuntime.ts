@@ -4,7 +4,13 @@ import {
   type CollaborationOperationLog,
 } from './collaborationOpLog';
 
-export { appendOperationLog, type CollaborationOperationLog, type CollaborationOperationType } from './collaborationOpLog';
+export {
+  appendOperationLog,
+  mergeOperationLogs,
+  persistCollaborationOperationLogs,
+  type CollaborationOperationLog,
+  type CollaborationOperationType,
+} from './collaborationOpLog';
 
 export type ConflictPriority = 'critical' | 'high' | 'medium' | 'low';
 

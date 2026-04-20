@@ -1,0 +1,823 @@
+.timeline-comparison-view {
+  --timeline-comparison-block-gap: 8px;
+  --timeline-comparison-side-padding: 10px;
+  --timeline-comparison-left-grow: 50;
+  --timeline-comparison-right-grow: 50;
+  --timeline-comparison-separator-size: 10px;
+  --timeline-comparison-editor-min-height: 63px;
+  /* 与设置 `.settings-tab-bar` 右缘、主壳 `.app-side-pane-resizer` 中线同一套分隔语义 | Shared divider tokens */
+  --timeline-comparison-column-rail: color-mix(in srgb, var(--border-soft) 42%, transparent);
+  --timeline-comparison-resizer-stem: color-mix(in srgb, var(--text-tertiary) 32%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* 勿超过视口/滚动壳宽度：旧 1.5× 会撑开 timeline-scroll 横向滚动，双列在视口内被裁切后像「译列更宽」 */
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  padding: 6px 0 14px;
+}
+
+/* 占满滚动视口高度，正文在 split-host 内滚动，层头不随外层 timeline-scroll 上移 | Fill scrollport; groups scroll inside split-host */
+.timeline-comparison-view:not(.timeline-comparison-view-empty) {
+  height: 100%;
+  min-height: 100%;
+}
+
+/* 工具栏 + 可滚动对照区同一列 flex，避免层头与语段宽度/滚动条不一致 | Toolbar + scrollport share width (scrollbar) */
+.timeline-comparison-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  gap: 0;
+}
+
+.timeline-comparison-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-shrink: 0;
+  /* 与下方 split-host 少留缝，避免模式条与语段区像被「切开」 */
+  padding: 4px var(--timeline-comparison-side-padding) 4px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timeline-comparison-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.timeline-comparison-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.timeline-comparison-bundle-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.timeline-comparison-header-title-btn {
+  max-width: min(42vw, 240px);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.timeline-comparison-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.timeline-comparison-mode-btn {
+  border: 1px solid var(--border-soft);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.timeline-comparison-mode-btn:hover {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--border-soft) 72%, var(--accent-primary, #4f7cff));
+}
+
+.timeline-comparison-mode-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-primary, #4f7cff) 30%, transparent);
+  outline-offset: 1px;
+}
+
+.timeline-comparison-mode-btn.is-active {
+  color: var(--text-primary);
+  border-color: var(--accent-primary, #4f7cff);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, var(--accent-primary, #4f7cff) 18%);
+}
+
+.timeline-comparison-layer-style-btn {
+  max-width: 100%;
+}
+
+.timeline-comparison-view-empty {
+  min-height: 48px;
+  padding: 12px 16px 20px;
+}
+
+.timeline-comparison-empty-hint {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.timeline-comparison-split-host {
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 var(--timeline-comparison-side-padding);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* 内层随语段总高增高；全局分割条相对此层 top/bottom 才覆盖全长，避免相对滚动视口仅半截且压住下方语段 */
+.timeline-comparison-split-host-inner {
+  /* 首帧占位；JS 测量后写入；无吸顶层头时接近首组顶 | Initial splitter top until measured */
+  --timeline-comparison-global-splitter-line-top: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  box-sizing: border-box;
+  min-height: 100%;
+}
+
+.timeline-comparison-group {
+  /* 滚入视口时少量顶距（已无 split-host 内吸顶层头）| Light scroll inset without sticky column header */
+  scroll-margin-top: 12px;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns:
+    minmax(0, calc((100% - var(--timeline-comparison-block-gap)) * var(--timeline-comparison-left-grow) / 100))
+    minmax(0, calc((100% - var(--timeline-comparison-block-gap)) * var(--timeline-comparison-right-grow) / 100));
+  column-gap: var(--timeline-comparison-block-gap);
+  margin: 0;
+  padding: 8px var(--timeline-comparison-side-padding) 10px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-panel) 42%, transparent);
+  transition: background 160ms ease;
+}
+
+.timeline-comparison-group:hover {
+  background: color-mix(in srgb, var(--surface-panel) 72%, transparent);
+}
+
+.timeline-comparison-group-bundle-start {
+  margin-top: 2px;
+}
+
+.timeline-comparison-global-splitter {
+  position: absolute;
+  /* 命中区从双列层头底之下开始，本体不进层头；伪元素相对本盒从 0 起画 */
+  top: var(--timeline-comparison-global-splitter-line-top, 76px);
+  bottom: 0;
+  /* 100% = split-host-inner 宽；与表头/语段组双列缝对齐 | Align to dual-column seam */
+  left: calc(
+    var(--timeline-comparison-side-padding)
+    + var(--timeline-comparison-side-padding)
+    + (100%
+        - 4 * var(--timeline-comparison-side-padding)
+        - var(--timeline-comparison-block-gap))
+      * var(--timeline-comparison-left-grow) / 100
+    + var(--timeline-comparison-block-gap) / 2
+  );
+  z-index: 5;
+  /* 宽命中、窄笔画：主壳 `.app-side-pane-resizer` + AI 侧栏 `.transcription-ai-panel-resizer` 的握点槽 */
+  width: 22px;
+  margin-left: -11px;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+/* 竖向握点槽：分割条盒仅语段区高度，top:50% 不再进入层头 */
+.timeline-comparison-global-splitter::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: min(148px, 38%);
+  min-height: 48px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, var(--border-soft) 18%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 58%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text-tertiary) 8%, transparent);
+  opacity: 0;
+  transition:
+    opacity var(--shell-motion-fast, 140ms) ease,
+    background-color var(--shell-motion-fast, 140ms) ease,
+    box-shadow var(--shell-motion-fast, 140ms) ease;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .timeline-comparison-global-splitter:hover::before {
+    opacity: 0.92;
+    background: color-mix(in srgb, var(--surface-elevated) 72%, var(--header-accent) 14%);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in srgb, var(--header-accent) 28%, var(--border-soft)),
+      0 0 0 1px color-mix(in srgb, var(--header-accent) 12%, transparent);
+  }
+}
+
+.timeline-comparison-view-column-split-active .timeline-comparison-global-splitter::before {
+  opacity: 0.95;
+  background: color-mix(in srgb, var(--surface-elevated) 70%, var(--header-accent) 18%);
+}
+
+/* 中线：相对分割条盒从顶到底（盒顶已在层头下）；默认隐藏，悬停列间命中区或拖动时显 */
+.timeline-comparison-global-splitter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 10px;
+  left: 50%;
+  z-index: 1;
+  width: 1px;
+  transform: translateX(-50%);
+  border-radius: 1px;
+  background: var(--timeline-comparison-resizer-stem);
+  box-shadow: none;
+  opacity: 0;
+  transition:
+    opacity var(--shell-motion-fast, 140ms) ease,
+    background-color var(--shell-motion-fast, 140ms) ease,
+    box-shadow var(--shell-motion-fast, 140ms) ease;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .timeline-comparison-global-splitter:hover::after {
+    opacity: 1;
+    background: var(--focus-ring-strong);
+    box-shadow: 0 0 0 3px var(--focus-ring-glow);
+  }
+}
+
+.timeline-comparison-view-column-split-active .timeline-comparison-global-splitter::after {
+  opacity: 1;
+  background: var(--timeline-comparison-resizer-stem);
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .timeline-comparison-view-column-split-active .timeline-comparison-global-splitter:hover::after {
+    background: var(--focus-ring-strong);
+    box-shadow: 0 0 0 3px var(--focus-ring-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-comparison-global-splitter::before,
+  .timeline-comparison-global-splitter::after {
+    transition-duration: 0.01ms;
+  }
+}
+
+.timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-global-splitter,
+.timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-global-splitter {
+  display: none;
+}
+
+.timeline-comparison-group-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.timeline-comparison-group-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.timeline-comparison-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.timeline-comparison-chip-bundle {
+  color: var(--text-primary);
+}
+
+.timeline-comparison-chip-speaker {
+  color: var(--text-secondary);
+}
+
+.timeline-comparison-chip-multi-anchor {
+  color: var(--text-secondary);
+  border: 1px dashed color-mix(in srgb, var(--border-soft) 80%, var(--accent-primary, #4f7cff));
+}
+
+/* 紧凑列：任意视口下尊重 data-compact-mode（原规则仅在 max-width:960px 内，宽屏切换无效） */
+.timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-target-column,
+.timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-source-column {
+  display: none;
+}
+
+.timeline-comparison-view[data-compact-mode='source'] .timeline-comparison-group,
+.timeline-comparison-view[data-compact-mode='target'] .timeline-comparison-group {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.timeline-comparison-group-active {
+  --timeline-comparison-ring: color-mix(in srgb, var(--accent-primary, #4f7cff) 30%, transparent);
+  /* 活跃组不再额外铺背景高亮，保持与普通段块一致 | Active group uses the same fill as regular blocks */
+  background: color-mix(in srgb, var(--surface-panel) 42%, transparent);
+}
+
+.timeline-comparison-source-column,
+.timeline-comparison-target-column {
+  min-width: 0;
+}
+
+.timeline-comparison-time {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-bottom: 0;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.timeline-comparison-source-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.timeline-comparison-target-empty {
+  flex: 1;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border: 1px dashed color-mix(in srgb, var(--border-soft) 55%, transparent);
+  border-radius: var(--radius-xs, 7px);
+  background: color-mix(in srgb, var(--surface-panel) 50%, transparent);
+}
+
+.timeline-comparison-target-empty-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+
+/* 每条原文/译文编辑行左侧窄轨（层身份与列聚焦），与顶栏双列层头解耦 | Per-row layer rail */
+.timeline-comparison-editor-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  /* 与编辑区零缝衔接，避免层头与正文之间露出组底色形成「隔断」 */
+  gap: 0;
+  min-width: 0;
+}
+
+.timeline-comparison-editor-row-source,
+.timeline-comparison-editor-row-target {
+  min-width: 0;
+}
+
+.timeline-comparison-editor-row .timeline-comparison-source-surface,
+.timeline-comparison-editor-row .timeline-comparison-target-surface {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.timeline-comparison-row-rail {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: var(--lane-label-width, 64px);
+  min-width: var(--lane-label-width, 64px);
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--timeline-comparison-column-rail);
+  border-right: none;
+  border-radius: var(--radius-xs, 7px) 0 0 var(--radius-xs, 7px);
+  /* 与横向 `.timeline-lane-label` 同底与字色 | Match horizontal lane label chrome */
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--shell-motion-fast, 140ms) ease, background-color var(--shell-motion-fast, 140ms) ease,
+    border-color var(--shell-motion-fast, 140ms) ease;
+}
+
+/* 与横向层头正文一致：小号半粗、居中多行 | Typography aligned with timeline lane header label */
+.timeline-comparison-row-rail-lane-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.22;
+  color: inherit;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.timeline-comparison-row-rail-lane-label-continuation {
+  font-size: calc(1rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1;
+  opacity: 0.5;
+}
+
+.timeline-comparison-row-rail-mark {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  unicode-bidi: isolate;
+  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  line-height: 1.22;
+}
+
+.timeline-comparison-row-rail:hover {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--surface-panel) 78%, var(--header-accent) 8%);
+}
+
+.timeline-comparison-row-rail:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus-ring) 72%, transparent);
+}
+
+.timeline-comparison-row-rail.is-active {
+  color: var(--header-accent);
+  border-color: color-mix(in srgb, var(--header-accent) 42%, var(--timeline-comparison-column-rail));
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-elevated));
+}
+
+.timeline-comparison-view[data-compact-mode='both'] .timeline-comparison-source-column {
+  box-shadow: inset -1px 0 0 var(--timeline-comparison-column-rail);
+}
+
+.timeline-comparison-source-surface,
+.timeline-comparison-target-surface {
+  position: relative;
+  border: 0;
+  border-radius: var(--radius-xs, 7px);
+  box-shadow: none;
+  transition: background-color var(--duration-fast, 120ms) ease;
+}
+
+/* 须写在通用 surface 规则之后，避免 border/shorthand 冲掉与行轨的零缝衔接 */
+.timeline-comparison-editor-row .timeline-comparison-source-surface,
+.timeline-comparison-editor-row .timeline-comparison-target-surface {
+  border-radius: 0 var(--radius-xs, 7px) var(--radius-xs, 7px) 0;
+  border-left: 1px solid var(--timeline-comparison-column-rail);
+}
+
+.timeline-comparison-source-surface-empty,
+.timeline-comparison-target-surface-empty {
+  background: var(--timeline-neutral-empty-bg);
+}
+
+.timeline-comparison-target-surface-active {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+}
+
+.timeline-comparison-source-surface:hover,
+.timeline-comparison-target-surface:hover {
+  background: var(--timeline-neutral-hover-bg);
+}
+
+.timeline-comparison-source-surface:focus-within,
+.timeline-comparison-target-surface:focus-within {
+  background: var(--timeline-neutral-empty-bg);
+  box-shadow: none;
+}
+
+.timeline-comparison-source-surface .timeline-draft-editor-resize-handle,
+.timeline-comparison-target-surface .timeline-draft-editor-resize-handle {
+  display: block;
+  opacity: 1;
+}
+
+.timeline-comparison-source-surface .timeline-draft-editor-resize-handle::after,
+.timeline-comparison-target-surface .timeline-draft-editor-resize-handle::after {
+  /* 纵向模式彻底隐藏上下边线提示，避免 hover 时再次出现 | Fully suppress the edge cue lines in vertical mode */
+  content: none;
+  background: transparent !important;
+}
+
+.timeline-comparison-source-surface .timeline-text-item-status-dot,
+.timeline-comparison-target-surface .timeline-text-item-status-dot {
+  top: 8px;
+  right: 10px;
+  inset-inline-end: 10px;
+}
+
+
+
+.timeline-comparison-source-surface-has-self-certainty .timeline-text-item-status-dot,
+.timeline-comparison-target-surface-has-self-certainty .timeline-text-item-status-dot,
+.timeline-comparison-source-surface-has-side-badges .timeline-text-item-status-dot,
+.timeline-comparison-target-surface-has-side-badges .timeline-text-item-status-dot {
+  right: calc(10px + var(--timeline-segment-self-certainty-input-end-gutter));
+  inset-inline-end: calc(10px + var(--timeline-segment-self-certainty-input-end-gutter));
+}
+
+.timeline-comparison-source-surface.timeline-draft-editor-surface-has-tools .timeline-text-item-status-dot,
+.timeline-comparison-target-surface.timeline-draft-editor-surface-has-tools .timeline-text-item-status-dot {
+  right: calc(10px + var(--timeline-segment-tools-clearance));
+  inset-inline-end: calc(10px + var(--timeline-segment-tools-clearance));
+}
+
+.timeline-comparison-source-surface.timeline-draft-editor-surface-has-tools.timeline-comparison-source-surface-has-side-badges .timeline-text-item-status-dot,
+.timeline-comparison-target-surface.timeline-draft-editor-surface-has-tools.timeline-comparison-target-surface-has-side-badges .timeline-text-item-status-dot {
+  right: calc(10px + var(--timeline-segment-tools-clearance) + var(--timeline-segment-self-certainty-input-end-gutter));
+  inset-inline-end: calc(10px + var(--timeline-segment-tools-clearance) + var(--timeline-segment-self-certainty-input-end-gutter));
+}
+
+.timeline-comparison-surface-badges {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  inset-inline-end: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.timeline-comparison-surface-badges .timeline-annotation-self-certainty,
+.timeline-comparison-surface-badges .timeline-comparison-note-icon {
+  position: absolute;
+  inset: auto;
+  right: 10px;
+  inset-inline-end: 10px;
+}
+
+.timeline-comparison-surface-badges .timeline-annotation-self-certainty {
+  top: 8px;
+}
+
+.timeline-comparison-surface-badges .timeline-comparison-note-icon {
+  top: auto;
+  bottom: 8px;
+}
+
+.timeline-comparison-note-icon {
+  width: var(--timeline-annotation-side-stack-size, 16px);
+  height: var(--timeline-annotation-side-stack-size, 16px);
+  color: var(--state-info-solid);
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 1;
+  transition: color 0.15s, filter 0.15s;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--state-info-solid) 28%, transparent));
+}
+
+.timeline-comparison-note-icon-active {
+  color: var(--state-info-solid);
+}
+
+.timeline-comparison-note-icon:hover {
+  color: color-mix(in srgb, var(--state-info-solid) 80%, white 20%);
+}
+
+.timeline-comparison-source-card {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: var(--radius-xs, 7px);
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: none;
+  transition: background-color var(--duration-fast, 120ms) ease,
+              color var(--duration-fast, 120ms) ease;
+}
+
+.timeline-comparison-source-card-empty,
+.timeline-comparison-target-input-empty {
+  background: transparent;
+}
+
+.timeline-comparison-source-card:hover,
+.timeline-comparison-target-input:hover {
+  background: transparent;
+}
+
+.timeline-comparison-source-card:focus,
+.timeline-comparison-source-card:focus-visible,
+.timeline-comparison-target-input:focus,
+.timeline-comparison-target-input:focus-visible {
+  background: transparent;
+  outline: none;
+}
+
+.timeline-comparison-source-card-active,
+.timeline-comparison-group-active .timeline-comparison-target-input {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  box-shadow: none;
+}
+
+.timeline-comparison-source-input {
+  min-width: 0;
+  min-height: var(--timeline-comparison-editor-min-height);
+  font-size: 0.88rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  resize: none;
+  cursor: text;
+  padding: 8px 10px;
+  padding-inline-end: 28px;
+}
+
+.timeline-comparison-target-column {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 多译文层：每层一块栈，与媒体/文本时间轴「多翻译层」一致 */
+.timeline-comparison-target-layer-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/*
+ * 同组内允许「多对一 / 一对多 / 多对多」，两列是各自纵向堆叠，不是逐行表格对齐。
+ * 行数不等时让「较少行」的一侧在列内 flex 增高，使整块对照卡左右视觉重量更接近。
+ */
+.timeline-comparison-group[data-comparison-layout='many-to-one'] .timeline-comparison-target-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+/* 多对一：译文在 target-layer-stack 内；仅一层译文时让该行纵向铺满以与左列多行对齐 */
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  > .timeline-comparison-editor-row {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  .timeline-comparison-target-surface.timeline-draft-editor-surface-multiline {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.timeline-comparison-group[data-comparison-layout='many-to-one']
+  .timeline-comparison-target-layer-stack:only-child
+  .timeline-comparison-target-surface.timeline-draft-editor-surface-multiline
+  .timeline-comparison-target-input {
+  flex: 1 1 auto;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+}
+
+/* 多对多：两列均为多行，避免子项被误 flex 撑满；列内自然堆叠 */
+.timeline-comparison-group[data-comparison-layout='many-to-many'] .timeline-comparison-source-column,
+.timeline-comparison-group[data-comparison-layout='many-to-many'] .timeline-comparison-target-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many'] .timeline-comparison-source-column {
+  align-self: stretch;
+  min-height: 0;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many'] .timeline-comparison-source-column > .timeline-comparison-editor-row {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/*
+ * 一对多：左列只有一条原文行，为对齐右列多行会被拉高；multiline 表面默认 height:auto 会按内容收缩，
+ * 造成高亮/底色只盖住输入区上半段，像「一行拆成两行」。此处强制表面与 textarea 在列高内铺满。
+ */
+.timeline-comparison-group[data-comparison-layout='one-to-many']
+  .timeline-comparison-source-surface.timeline-draft-editor-surface-multiline {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.timeline-comparison-group[data-comparison-layout='one-to-many']
+  .timeline-comparison-source-surface.timeline-draft-editor-surface-multiline
+  .timeline-comparison-source-input {
+  flex: 1 1 auto;
+  min-height: var(--timeline-comparison-editor-min-height, 63px);
+}
+
+.timeline-comparison-target-column-active .timeline-comparison-target-input {
+  background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+  box-shadow: none;
+}
+
+
+.timeline-comparison-target-input {
+  /* 列宽由共享 split 变量统一控制，输入表面直接跟随列宽 | Shared split vars keep the editor surface aligned with the comparison columns */
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--timeline-comparison-editor-min-height);
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: var(--radius-xs, 7px);
+  padding: 8px 10px;
+  padding-inline-end: 28px;
+  resize: none;
+  box-shadow: none;
+  transition: background-color var(--duration-fast, 120ms) ease,
+              color var(--duration-fast, 120ms) ease;
+}
+
+.timeline-comparison-target-input:focus,
+.timeline-comparison-target-input:focus-visible {
+  outline: none;
+  background: var(--timeline-neutral-empty-bg);
+}
+
+.timeline-comparison-target-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 24px;
+}
+
+@media (max-width: 960px) {
+  .timeline-comparison-group {
+    grid-template-columns: 1fr;
+  }
+
+  .timeline-comparison-global-splitter {
+    display: none;
+  }
+
+  .timeline-comparison-source-column {
+    box-shadow: none;
+  }
+}

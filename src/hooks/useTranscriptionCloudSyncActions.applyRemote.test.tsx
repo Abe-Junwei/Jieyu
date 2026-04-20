@@ -10,8 +10,10 @@ const {
   mockGetSupabaseUserId,
   mockWrappedSaveUnitText,
   mockWrappedSaveUnitLayerFields,
+  mockWrappedToggleLayerLink,
   mockRawSaveUnitText,
   mockRawSaveUnitLayerFields,
+  mockRawToggleLayerLink,
   mockEnqueueMutation,
 } = vi.hoisted(() => {
   const bridgeState: {
@@ -25,8 +27,10 @@ const {
 
   const mockWrappedSaveUnitText = vi.fn(async () => undefined);
   const mockWrappedSaveUnitLayerFields = vi.fn(async () => undefined);
+  const mockWrappedToggleLayerLink = vi.fn(async () => undefined);
   const mockRawSaveUnitText = vi.fn(async () => undefined);
   const mockRawSaveUnitLayerFields = vi.fn(async () => undefined);
+  const mockRawToggleLayerLink = vi.fn(async () => undefined);
   const mockEnqueueMutation = vi.fn();
 
   return {
@@ -35,8 +39,10 @@ const {
     mockGetSupabaseUserId,
     mockWrappedSaveUnitText,
     mockWrappedSaveUnitLayerFields,
+    mockWrappedToggleLayerLink,
     mockRawSaveUnitText,
     mockRawSaveUnitLayerFields,
+    mockRawToggleLayerLink,
     mockEnqueueMutation,
   };
 });
@@ -76,14 +82,14 @@ vi.mock('../collaboration/cloud/collaborationSupabaseFacade', () => ({
   getSupabaseUserId: mockGetSupabaseUserId,
 }));
 
-function buildParams(): UseTranscriptionCloudSyncActionsParams {
+function buildParams(overrides?: Partial<UseTranscriptionCloudSyncActionsParams>): UseTranscriptionCloudSyncActionsParams {
   const noop = vi.fn(async () => undefined);
-  return {
+  const base: UseTranscriptionCloudSyncActionsParams = {
     phase: 'ready',
     units: [{ id: 'u-1', textId: 'project-1' }],
-    layers: [],
+    layers: [{ id: 'trc-1', key: 'trc_1', layerType: 'transcription', textId: 'project-1' }],
     unitsRef: { current: [{ id: 'u-1', text: 'local text' } as unknown as { id: string }] },
-    layersRef: { current: [] },
+    layersRef: { current: [{ id: 'trc-1', key: 'trc_1', layerType: 'transcription' }] },
     layerLinksRef: { current: [] },
     rawActions: {
       saveUnitText: mockRawSaveUnitText,
@@ -93,7 +99,7 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
       deleteUnit: noop,
       deleteSelectedUnits: noop,
       deleteLayer: noop,
-      toggleLayerLink: noop,
+      toggleLayerLink: mockRawToggleLayerLink,
     },
     wrappedActions: {
       saveUnitText: mockWrappedSaveUnitText,
@@ -106,10 +112,14 @@ function buildParams(): UseTranscriptionCloudSyncActionsParams {
       deleteSelectedUnits: noop,
       createLayer: vi.fn(async () => false),
       deleteLayer: noop,
-      toggleLayerLink: noop,
+      toggleLayerLink: mockWrappedToggleLayerLink,
     },
     runWithDbMutex: async (fn) => fn(),
     loadSnapshot: async () => undefined,
+  };
+  return {
+    ...base,
+    ...(overrides ?? {}),
   };
 }
 
@@ -138,6 +148,25 @@ function createRemoteContentChange(
   };
 }
 
+function createRemoteRelationChange(payload: Record<string, unknown>): CollaborationProjectChangeRecord {
+  return {
+    id: `change-relation-${Math.random().toString(36).slice(2, 8)}`,
+    projectId: 'project-1',
+    actorId: 'remote-user',
+    clientId: 'remote-client',
+    clientOpId: `op-relation-${Math.random().toString(36).slice(2, 8)}`,
+    protocolVersion: 1,
+    projectRevision: 21,
+    baseRevision: 20,
+    entityType: 'unit_relation',
+    entityId: 'trc-1:trl-1',
+    opType: 'upsert_relation',
+    payload,
+    sourceKind: 'user',
+    createdAt: new Date().toISOString(),
+  };
+}
+
 async function triggerRemote(change: CollaborationProjectChangeRecord): Promise<void> {
   if (!bridgeState.onApplyRemoteChange) {
     throw new Error('missing onApplyRemoteChange callback');
@@ -152,9 +181,48 @@ describe('useTranscriptionCloudSyncActions applyRemote + conflict audit chain', 
     mockGetSupabaseUserId.mockClear();
     mockWrappedSaveUnitText.mockClear();
     mockWrappedSaveUnitLayerFields.mockClear();
+    mockWrappedToggleLayerLink.mockClear();
     mockRawSaveUnitText.mockClear();
     mockRawSaveUnitLayerFields.mockClear();
+    mockRawToggleLayerLink.mockClear();
     mockEnqueueMutation.mockClear();
+  });
+
+  it('applies remote relation using hostTranscriptionLayerId payload without key', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+    expect(result.current).toBeTruthy();
+
+    await act(async () => {
+      await triggerRemote(createRemoteRelationChange({
+        hostTranscriptionLayerId: 'trc-1',
+        layerId: 'trl-1',
+        enabled: true,
+      }));
+    });
+
+    await waitFor(() => {
+      expect(mockRawToggleLayerLink).toHaveBeenCalledWith('trc_1', 'trl-1');
+    });
+  });
+
+  it('emits host-id-first relation payload when toggling layer link locally', async () => {
+    const { result } = renderHook(() => useTranscriptionCloudSyncActions(buildParams()));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_1', 'trl-1');
+    });
+
+    expect(mockWrappedToggleLayerLink).toHaveBeenCalledWith('trc_1', 'trl-1');
+    expect(mockEnqueueMutation).toHaveBeenCalledWith(expect.objectContaining({
+      entityType: 'unit_relation',
+      entityId: 'trc-1:trl-1',
+      opType: 'upsert_relation',
+      payload: expect.objectContaining({
+        transcriptionLayerKey: 'trc_1',
+        hostTranscriptionLayerId: 'trc-1',
+        layerId: 'trl-1',
+      }),
+    }));
   });
 
   it('enqueues explicit layer-fields batch patches for per-layer writes', async () => {

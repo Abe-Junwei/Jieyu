@@ -1,4 +1,7 @@
 import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import '../../styles/ai-hub.css';
+import '../../styles/panels/ai-chat-composer.css';
+import '../../styles/panels/ai-chat-thread.css';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_PANEL } from '../../utils/jieyuMaterialIcon';
 import { diffAiToolSnapshot, type AiToolGoldenSnapshot, type AiToolReplayBundle, type AiToolSnapshotDiff } from '../../ai/auditReplay';

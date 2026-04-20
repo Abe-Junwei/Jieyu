@@ -22,6 +22,7 @@ const {
     details: {
       placeholder: true,
       timelineMode: 'document',
+      timelineKind: 'placeholder',
     },
     isOfflineCached: true,
     createdAt: '2026-04-17T00:00:00.000Z',
@@ -51,7 +52,7 @@ vi.mock('../hooks/useMediaImport', () => ({
 }));
 
 describe('useTranscriptionProjectMediaController project setup placeholder flow', () => {
-  it('creates placeholder media after project setup and keeps audio import dialog closed', async () => {
+  it('does not create placeholder media on project setup; first layer creation adds placeholder via shell', async () => {
     const setActiveTextId = vi.fn();
     const setShowAudioImport = vi.fn();
     const addMediaItem = vi.fn();
@@ -60,6 +61,7 @@ describe('useTranscriptionProjectMediaController project setup placeholder flow'
 
     const { result } = renderHook(() => useTranscriptionProjectMediaController({
       activeTextId: null,
+      mediaItems: [],
       getActiveTextId: vi.fn(async () => null),
       setActiveTextId,
       setShowAudioImport,
@@ -92,14 +94,8 @@ describe('useTranscriptionProjectMediaController project setup placeholder flow'
       englishFallbackTitle: 'My Project',
       primaryLanguageId: 'eng',
     });
-    expect(mockCreatePlaceholderMedia).toHaveBeenCalledWith({
-      textId: 'text-new',
-    });
-    expect(addMediaItem).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'media-placeholder-1',
-      textId: 'text-new',
-      duration: 1800,
-    }));
+    expect(mockCreatePlaceholderMedia).not.toHaveBeenCalled();
+    expect(addMediaItem).not.toHaveBeenCalled();
     expect(setActiveTextId).toHaveBeenCalledWith('text-new');
     expect(setShowAudioImport).toHaveBeenCalledWith(false);
     expect(loadSnapshot).toHaveBeenCalledTimes(1);

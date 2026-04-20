@@ -2,10 +2,11 @@
 
 .dialog-card.pnl-settings-modal,
 .modal-panel-host.pnl-settings-modal {
-  /* 像素上限由 JS 写入 --settings-modal-fluid-width，随 UI 字号缩放 | Pixel cap from JS, scales with UI font */
-  width: min(var(--settings-modal-fluid-width, 600px), 94vw);
+  /* 固定壳层尺寸，仅随视口收缩 | Fixed shell size, only shrinks with viewport */
+  width: min(720px, 94vw);
   max-width: 94vw;
-  max-height: 80vh;
+  height: min(80vh, 680px);
+  max-height: min(80vh, 680px);
   border: 1px solid color-mix(in srgb, var(--border-soft) 94%, transparent);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--surface-panel) 99%, transparent);
@@ -119,52 +120,52 @@
   --theme-preview-bg: #1B1F3D;
 }
 
-.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-mogaoNarrative {
+.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-mogao-narrative {
   --theme-preview-accent: #1C2B4B;
   --theme-preview-bg: #FBF8F2;
 }
 
-.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-mogaoNarrative {
+.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-mogao-narrative {
   --theme-preview-accent: #E6E9ED;
   --theme-preview-bg: #0B1D33;
 }
 
-.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-palaceVermilion {
+.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-palace-vermilion {
   --theme-preview-accent: #923131;
   --theme-preview-bg: #EDE6DA;
 }
 
-.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-palaceVermilion {
+.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-palace-vermilion {
   --theme-preview-accent: #EDE6DA;
   --theme-preview-bg: #2C2C2C;
 }
 
-.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-jiangnanMist {
+.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-jiangnan-mist {
   --theme-preview-accent: #425066;
   --theme-preview-bg: #E8EEF3;
 }
 
-.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-jiangnanMist {
+.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-jiangnan-mist {
   --theme-preview-accent: #E8EEF3;
   --theme-preview-bg: #1E2833;
 }
 
-.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-googleLightModern {
+.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-google-light-modern {
   --theme-preview-accent: #1A73E8;
   --theme-preview-bg: #F8F9FA;
 }
 
-.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-googleLightModern {
+.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-google-light-modern {
   --theme-preview-accent: #60A5FA;
   --theme-preview-bg: #0F172A;
 }
 
-.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-solarizedDark {
+.theme-card-preview.theme-card-preview-mode-light.theme-card-preview-theme-solarized-dark {
   --theme-preview-accent: #268bd2;
   --theme-preview-bg: #002b36;
 }
 
-.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-solarizedDark {
+.theme-card-preview.theme-card-preview-mode-dark.theme-card-preview-theme-solarized-dark {
   --theme-preview-accent: #839496;
   --theme-preview-bg: #002b36;
 }
@@ -278,9 +279,15 @@
   min-height: 0;
 }
 
+.modal-panel-host.pnl-settings-modal .dialog-body.settings-modal-body,
+.dialog-card.pnl-settings-modal .dialog-body.settings-modal-body {
+  padding: 0;
+  gap: 0;
+}
+
 .settings-layout {
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
+  grid-template-columns: 132px minmax(0, 1fr);
   height: 100%;
   flex: 1 1 auto;
   min-height: 0;
@@ -289,45 +296,43 @@
 
 /* ── 标签页导航 | Tab bar ── */
 .settings-tab-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
   border-right: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
-  padding: 10px 8px;
+  padding: 0;
   background: color-mix(in srgb, var(--surface-header) 58%, var(--surface-panel));
   min-width: 0;
+  align-content: start;
 }
 
 .settings-tab-btn {
-  all: unset;
-  cursor: pointer;
-  padding: 7px 9px;
   font-size: calc(0.82rem * var(--ui-font-scale, 1));
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-left: 2px solid transparent;
-  border-radius: var(--radius-sm);
-  transition: color var(--shell-motion-fast, 140ms), border-color var(--shell-motion-fast, 140ms), background var(--shell-motion-fast, 140ms);
   line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-radius: 0;
 }
 
-.settings-tab-btn:hover {
-  color: var(--text-primary);
-  background: color-mix(in srgb, var(--surface-panel) 70%, var(--header-accent) 10%);
+.settings-tab-bar .panel-edge-nav-btn {
+  padding: 10px 12px 10px 18px;
 }
 
-.settings-tab-btn[aria-selected="true"] {
+.settings-tab-bar .panel-edge-nav-title {
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+}
+
+.settings-tab-bar .panel-edge-nav-row-active {
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-1, 8%), transparent);
+}
+
+.settings-tab-bar .panel-edge-nav-row-active .panel-edge-nav-btn,
+.settings-tab-bar .panel-edge-nav-btn[aria-selected="true"] {
   color: var(--header-accent);
-  border-left-color: var(--header-accent);
-  background: color-mix(in srgb, var(--header-accent) 12%, var(--surface-panel));
+  background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-panel));
 }
 
-.settings-tab-btn:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
+.settings-tab-bar .panel-edge-nav-btn:hover {
+  background: color-mix(in srgb, var(--surface-panel) 78%, var(--header-accent) 10%);
+}
+
+.settings-tab-bar .panel-edge-nav-btn:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--focus-ring) 72%, transparent);
 }
 
 /* ── 标签页内容 | Tab content ── */
@@ -773,8 +778,10 @@
 @media (max-width: 768px) {
   .dialog-card.pnl-settings-modal,
   .modal-panel-host.pnl-settings-modal {
-    width: min(var(--settings-modal-fluid-width, 600px), 96vw);
+    width: min(720px, 96vw);
     max-width: 96vw;
+    height: min(84vh, 680px);
+    max-height: min(84vh, 680px);
   }
 
   .settings-layout {
@@ -829,11 +836,11 @@
 
 @media (max-width: 640px) {
   .settings-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 108px 1fr;
   }
 
   .settings-tab-bar {
-    flex-direction: row;
+    display: flex;
     flex-wrap: wrap;
     gap: 6px;
     border-right: none;
@@ -841,13 +848,19 @@
     padding: 8px;
   }
 
-  .settings-tab-btn {
+  .settings-tab-bar .panel-edge-nav-row {
+    border-bottom: none;
+  }
+
+  .settings-tab-bar .panel-edge-nav-btn {
     border-left: none;
     border-bottom: 2px solid transparent;
     border-radius: var(--radius-sm);
+    padding: 7px 10px 7px 14px;
   }
 
-  .settings-tab-btn[aria-selected="true"] {
+  .settings-tab-bar .panel-edge-nav-row-active .panel-edge-nav-btn,
+  .settings-tab-bar .panel-edge-nav-btn[aria-selected="true"] {
     border-left-color: transparent;
     border-bottom-color: var(--header-accent);
   }

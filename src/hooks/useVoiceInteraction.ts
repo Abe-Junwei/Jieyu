@@ -15,10 +15,11 @@ import { applyVoiceCommercialConfigChange } from '../utils/voiceCommercialConfig
 import type { CommercialProviderKind, SttEngine } from '../services/VoiceInputService';
 import { getActiveSttProviderMetadata } from '../services/stt/providerMetadata';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useLocale } from '../i18n';
 import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
+import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 interface VoiceMessageLike {
   role?: string;
@@ -34,6 +35,7 @@ interface SelectedRowMetaLike {
 
 interface SelectedUnitLike {
   id: string;
+  layerId?: string;
   startTime: number;
   endTime: number;
 }
@@ -78,6 +80,7 @@ interface UseVoiceInteractionOptions {
   defaultTranscriptionLayerId?: string;
   translationLayers: LayerDocType[];
   layers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   formatSidePaneLayerLabel: (layer: LayerDocType) => string;
   formatTime: (seconds: number) => string;
   aiChatSend: (text: string) => Promise<unknown>;
@@ -132,6 +135,7 @@ export function useVoiceInteraction({
   defaultTranscriptionLayerId,
   translationLayers,
   layers,
+  layerLinks,
   formatSidePaneLayerLabel,
   formatTime,
   aiChatSend,
@@ -238,14 +242,31 @@ export function useVoiceInteraction({
 
     // \u89e3\u6790\u9996\u9009\u5c42 ID：selectedLayerId \u53ef\u80fd\u662f\u7a7a\u4e32，\u9700 trim \u540e\u5224\u65ad | resolve preferred layer ID with empty-string guard
     const normalizedSelected = selection.selectedLayerId?.trim();
-    const targetLayerId = normalizedSelected || defaultTranscriptionLayerId || translationLayers[0]?.id;
-    const targetLayer = targetLayerId ? layers.find((layer) => layer.id === targetLayerId) : undefined;
+    const selectedLayer = normalizedSelected
+      ? layers.find((layer) => layer.id === normalizedSelected)
+      : undefined;
+    const defaultLayer = defaultTranscriptionLayerId?.trim()
+      ? layers.find((layer) => layer.id === defaultTranscriptionLayerId.trim())
+      : undefined;
+    const fallbackTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
+      selectedLayerId: selection.selectedLayerId,
+      selectedUnitLayerId: selection.selectedUnit?.layerId,
+      defaultTranscriptionLayerId,
+      translationLayers,
+      transcriptionLayers: layers.filter((layer) => layer.layerType === 'transcription'),
+      ...(layerLinks !== undefined ? { layerLinks } : {}),
+    });
+    const fallbackTranslationLayer = fallbackTranslationLayerId
+      ? layers.find((layer) => layer.id === fallbackTranslationLayerId)
+      : undefined;
+    const targetLayer = selectedLayer ?? defaultLayer ?? fallbackTranslationLayer;
     const layerLabel = targetLayer ? formatSidePaneLayerLabel(targetLayer) : messages.noLayerSelected;
     return messages.targetSummary(layerLabel, rowLabel);
   }, [
     defaultTranscriptionLayerId,
     formatSidePaneLayerLabel,
     layers,
+    layerLinks,
     messages,
     selection,
     translationLayers,

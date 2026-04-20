@@ -8,11 +8,11 @@ import type { OrchestratorWaveformContentProps } from './OrchestratorWaveformCon
 import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePane';
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import type { Locale } from '../i18n';
 
 type MediaLanesProps = TranscriptionPageTimelineMediaLanesProps;
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
-type ReadyWorkspaceLayerPopoverProps = NonNullable<TranscriptionPageReadyWorkspaceLayoutProps['layerPopoverProps']>;
 
 type SharedLaneFields = Pick<
   MediaLanesProps,
@@ -20,6 +20,7 @@ type SharedLaneFields = Pick<
   | 'translationLayers'
   | 'activeTextTimelineMode'
   | 'timelineUnitViewIndex'
+  | 'segmentParentUnitLookup'
   | 'segmentsByLayer'
   | 'segmentContentByLayer'
   | 'saveSegmentContentForLayer'
@@ -39,6 +40,7 @@ type SharedLaneFields = Pick<
   | 'startRecordingForUnit'
   | 'stopRecording'
   | 'deleteVoiceTranslation'
+  | 'transcribeVoiceTranslation'
   | 'displayStyleControl'
 >;
 
@@ -93,6 +95,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     translationLayers: input.translationLayers,
     activeTextTimelineMode: input.activeTextTimelineMode ?? null,
     timelineUnitViewIndex: input.timelineUnitViewIndex,
+    ...(input.segmentParentUnitLookup !== undefined ? { segmentParentUnitLookup: input.segmentParentUnitLookup } : {}),
     segmentsByLayer: input.segmentsByLayer,
     segmentContentByLayer: input.segmentContentByLayer,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,
@@ -129,6 +132,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     startRecordingForUnit: input.startRecordingForUnit,
     stopRecording: input.stopRecording,
     deleteVoiceTranslation: input.deleteVoiceTranslation,
+    transcribeVoiceTranslation: input.transcribeVoiceTranslation,
     displayStyleControl: input.displayStyleControl,
   }) as BuiltSharedLaneProps;
 }
@@ -175,6 +179,7 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   flashLayerRowId: ReadyWorkspaceSidePaneSidebarProps['flashLayerRowId'];
   onFocusLayer: ReadyWorkspaceSidePaneSidebarProps['onFocusLayer'];
   transcriptionLayers: ReadyWorkspaceSidePaneSidebarProps['transcriptionLayers'];
+  layerLinks?: ReadyWorkspaceSidePaneSidebarProps['layerLinks'];
   toggleLayerLink: ReadyWorkspaceSidePaneSidebarProps['toggleLayerLink'];
   deletableLayers: ReadyWorkspaceSidePaneSidebarProps['deletableLayers'];
   updateLayerMetadata: ReadyWorkspaceSidePaneSidebarProps['updateLayerMetadata'];
@@ -185,12 +190,15 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   segmentContentByLayer: ReadyWorkspaceSidePaneSidebarProps['segmentContentByLayer'];
   unitsOnCurrentMedia: ReadyWorkspaceSidePaneSidebarProps['unitsOnCurrentMedia'];
   speakers: ReadyWorkspaceSidePaneSidebarProps['speakers'];
-  presenceMembers?: ReadyWorkspaceSidePaneSidebarProps['presenceMembers'];
-  presenceCurrentUserId?: ReadyWorkspaceSidePaneSidebarProps['presenceCurrentUserId'];
   collaborationCloudPanelProps?: ReadyWorkspaceSidePaneSidebarProps['collaborationCloudPanelProps'];
   getUnitTextForLayer?: ReadyWorkspaceSidePaneSidebarProps['getUnitTextForLayer'];
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
+  locale: Locale;
+  comparisonViewActive: boolean;
+  translationLayerCount: number;
+  onSelectWorkspaceHorizontalLayout: () => void;
+  onSelectWorkspaceVerticalLayout: () => void;
 };
 
 export function buildReadyWorkspaceSidePaneProps(
@@ -238,6 +246,7 @@ export function buildReadyWorkspaceSidePaneProps(
       flashLayerRowId: input.flashLayerRowId,
       onFocusLayer: input.onFocusLayer,
       transcriptionLayers: input.transcriptionLayers,
+      ...(input.layerLinks !== undefined ? { layerLinks: input.layerLinks } : {}),
       toggleLayerLink: input.toggleLayerLink,
       deletableLayers: input.deletableLayers,
       updateLayerMetadata: input.updateLayerMetadata,
@@ -248,12 +257,17 @@ export function buildReadyWorkspaceSidePaneProps(
       segmentContentByLayer: input.segmentContentByLayer,
       unitsOnCurrentMedia: input.unitsOnCurrentMedia,
       speakers: input.speakers,
-      ...(input.presenceMembers !== undefined ? { presenceMembers: input.presenceMembers } : {}),
-      ...(input.presenceCurrentUserId !== undefined ? { presenceCurrentUserId: input.presenceCurrentUserId } : {}),
       ...(input.collaborationCloudPanelProps !== undefined ? { collaborationCloudPanelProps: input.collaborationCloudPanelProps } : {}),
       ...(input.getUnitTextForLayer !== undefined ? { getUnitTextForLayer: input.getUnitTextForLayer } : {}),
       onSelectTimelineUnit: input.onSelectTimelineUnit,
       onReorderLayers: input.onReorderLayers,
+      workspaceTimelineLayout: {
+        locale: input.locale,
+        comparisonViewActive: input.comparisonViewActive,
+        translationLayerCount: input.translationLayerCount,
+        onSelectHorizontalMode: input.onSelectWorkspaceHorizontalLayout,
+        onSelectVerticalMode: input.onSelectWorkspaceVerticalLayout,
+      },
     }) as ReadyWorkspaceSidePaneSidebarProps,
   };
 }
@@ -329,7 +343,8 @@ export function buildReadyWorkspaceOverlaysProps(
     ...(input.speakerFilterOptions ? { speakerFilterOptions: input.speakerFilterOptions } : {}),
     ...(input.onAssignSpeakerFromMenu ? { onAssignSpeakerFromMenu: input.onAssignSpeakerFromMenu } : {}),
     ...(input.onSetUnitSelfCertaintyFromMenu ? { onSetUnitSelfCertaintyFromMenu: input.onSetUnitSelfCertaintyFromMenu } : {}),
-    ...(input.onOpenLayerMetadataPanelFromMenu ? { onOpenLayerMetadataPanelFromMenu: input.onOpenLayerMetadataPanelFromMenu } : {}),
+    ...(input.onToggleSkipProcessingFromMenu ? { onToggleSkipProcessingFromMenu: input.onToggleSkipProcessingFromMenu } : {}),
+    ...(input.resolveSkipProcessingState ? { resolveSkipProcessingState: input.resolveSkipProcessingState } : {}),
     ...(input.onOpenSpeakerManagementPanelFromMenu ? { onOpenSpeakerManagementPanelFromMenu: input.onOpenSpeakerManagementPanelFromMenu } : {}),
     ...(input.displayStyleControl ? { displayStyleControl: input.displayStyleControl } : {}),
   };
@@ -367,34 +382,6 @@ export function buildReadyWorkspaceLayoutStyle(
   } as CSSProperties;
 }
 
-export type BuildReadyWorkspaceLayerPopoverPropsInput = {
-  overlayMetadataLayer: { id: string; layerType: 'transcription' | 'translation' } | null;
-  deletableLayers: ReadyWorkspaceLayerPopoverProps['deletableLayers'];
-  createLayer: ReadyWorkspaceLayerPopoverProps['createLayer'];
-  updateLayerMetadata: ReadyWorkspaceLayerPopoverProps['updateLayerMetadata'];
-  deleteLayer: ReadyWorkspaceLayerPopoverProps['deleteLayer'];
-  deleteLayerWithoutConfirm: ReadyWorkspaceLayerPopoverProps['deleteLayerWithoutConfirm'];
-  checkLayerHasContent: ReadyWorkspaceLayerPopoverProps['checkLayerHasContent'];
-  onClose: ReadyWorkspaceLayerPopoverProps['onClose'];
-};
-
-export function buildReadyWorkspaceLayerPopoverProps(
-  input: BuildReadyWorkspaceLayerPopoverPropsInput,
-): TranscriptionPageReadyWorkspaceLayoutProps['layerPopoverProps'] {
-  if (!input.overlayMetadataLayer) return null;
-  return dropUndefinedKeys({
-    action: input.overlayMetadataLayer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata',
-    layerId: input.overlayMetadataLayer.id,
-    deletableLayers: input.deletableLayers,
-    createLayer: input.createLayer,
-    ...(input.updateLayerMetadata ? { updateLayerMetadata: input.updateLayerMetadata } : {}),
-    ...(input.deleteLayer ? { deleteLayer: input.deleteLayer } : {}),
-    ...(input.deleteLayerWithoutConfirm ? { deleteLayerWithoutConfirm: input.deleteLayerWithoutConfirm } : {}),
-    checkLayerHasContent: input.checkLayerHasContent,
-    onClose: input.onClose,
-  }) as ReadyWorkspaceLayerPopoverProps;
-}
-
 export type BuildReadyWorkspaceStagePropsInput = {
   assistantFrame: Pick<ReadyWorkspaceStageProps['toastProps'], 'saveState' | 'recording' | 'recordingUnitId' | 'recordingError' | 'tf'> &
     Partial<Pick<ReadyWorkspaceStageProps['toastProps'], 'overlapCycleToast' | 'lockConflictToast'>>;
@@ -411,6 +398,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   acousticRuntimeStatus: ReadyWorkspaceStageProps['acousticRuntimeStatus'];
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
   currentProjectLabel: ReadyWorkspaceStageProps['projectHubProps']['currentProjectLabel'];
+  selectedMediaId?: ReadyWorkspaceStageProps['projectHubProps']['selectedMediaId'];
   activeTextTimelineMode: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimelineMode'];
   activeTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimeMapping'];
   canDeleteProject: ReadyWorkspaceStageProps['projectHubProps']['canDeleteProject'];
@@ -544,6 +532,7 @@ export function buildReadyWorkspaceStageProps(
     vadCacheStatus: input.vadCacheStatus,
     projectHubProps: {
       currentProjectLabel: input.currentProjectLabel,
+      selectedMediaId: input.selectedMediaId ?? null,
       activeTextTimelineMode: input.activeTextTimelineMode ?? null,
       activeTextTimeMapping: input.activeTextTimeMapping ?? null,
       canDeleteProject: input.canDeleteProject,

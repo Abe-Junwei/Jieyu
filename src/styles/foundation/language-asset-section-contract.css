@@ -34,17 +34,16 @@
   z-index: var(--z-header, 20);
 }
 
-.la-panel-stack {
-  display: grid;
-  gap: var(--la-section-gap, 16px);
-  min-width: 0;
-  min-height: 0;
-  align-content: start;
-}
-
+.la-panel-stack,
 .la-panel-section {
   min-width: 0;
   min-height: 0;
+}
+
+.la-panel-stack {
+  display: grid;
+  gap: var(--la-section-gap, 16px);
+  align-content: start;
 }
 
 .la-list-section .panel-section__body {
@@ -95,16 +94,7 @@
   color: var(--surface-panel);
 }
 
-.la-shell .panel-button--primary:hover:not(:disabled),
-.la-shell .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active):hover:not(:disabled),
-.la-shell .btn-active:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
-  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
-}
-
-.la-shell .panel-button--primary:focus-visible:not(:disabled),
-.la-shell .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active):focus-visible:not(:disabled),
-.la-shell .btn-active:focus-visible:not(:disabled) {
+.la-shell :is(.panel-button--primary, .btn:not(.btn-ghost):not(.btn-danger):not(.btn-active), .btn-active):is(:hover, :focus-visible):not(:disabled) {
   background: color-mix(in srgb, var(--state-info-solid) 90%, var(--shadow-color) 10%);
   border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
 }
@@ -115,14 +105,7 @@
   color: var(--text-secondary);
 }
 
-.la-shell .panel-button--ghost:hover:not(:disabled),
-.la-shell .btn-ghost:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
-  color: var(--text-primary);
-}
-
-.la-shell .panel-button--ghost:focus-visible:not(:disabled),
-.la-shell .btn-ghost:focus-visible:not(:disabled) {
+.la-shell :is(.panel-button--ghost, .btn-ghost):is(:hover, :focus-visible):not(:disabled) {
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
 }

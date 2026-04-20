@@ -15,6 +15,7 @@ vi.mock('../../i18n', () => ({
       'transcription.wave.loopOff': '关闭循环',
       'transcription.wave.play': '播放',
       'transcription.wave.stop': '停止',
+      'transcription.action.skipProcessingMarked': '已标记为跳过处理',
     };
     return translations[key] ?? key;
   }),
@@ -42,6 +43,7 @@ describe('RegionActionOverlay', () => {
     isPlaying: false,
     segmentPlaybackRate: 1,
     segmentLoopPlayback: false,
+    skipProcessing: false,
     onPlaybackRateChange: vi.fn(),
     onToggleLoop: vi.fn(),
     onTogglePlay: vi.fn(),
@@ -63,15 +65,14 @@ describe('RegionActionOverlay', () => {
     const { container } = render(<RegionActionOverlay {...props} />);
 
     const overlay = container.querySelector('.region-action-overlay') as HTMLDivElement;
-    const buttons = container.querySelectorAll('.region-action-btn');
     const slider = container.querySelector('.segment-speed-slider') as HTMLInputElement;
 
     expect(overlay).toBeTruthy();
     expect(overlay.style.left).toBe('0px');
     expect(container.querySelector('.segment-speed-control')).toBeTruthy();
     expect(slider.value).toBe('1');
-    expect(buttons.length).toBe(2);
     expect(within(overlay).getByTitle('播放')).toBeTruthy();
+    expect(within(overlay).getByTitle('关闭循环')).toBeTruthy();
     expect(within(overlay).getByTitle(/播放速度 1\.00/)).toBeTruthy();
   });
 
@@ -132,9 +133,9 @@ describe('RegionActionOverlay', () => {
       zoomPxPerSec: 10,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
-    // Only play/stop button should be visible, loop button hidden
-    const buttons = container.querySelectorAll('.region-action-btn');
-    expect(buttons.length).toBe(1);
+    const overlay = container.querySelector('.region-action-overlay') as HTMLElement;
+    expect(within(overlay).getByTitle('播放')).toBeTruthy();
+    expect(within(overlay).queryByTitle('关闭循环')).toBeNull();
   });
 
   it('calls onToggleLoop when loop button is clicked', () => {
@@ -145,8 +146,9 @@ describe('RegionActionOverlay', () => {
       onToggleLoop,
     };
     const { container } = render(<RegionActionOverlay {...props} />);
-    const loopBtn = container.querySelector('.region-action-btn');
-    fireEvent.click(loopBtn!);
+    const overlay = container.querySelector('.region-action-overlay') as HTMLElement;
+    const loopBtn = within(overlay).getByTitle('关闭循环');
+    fireEvent.click(loopBtn);
     expect(onToggleLoop).toHaveBeenCalledTimes(1);
   });
 
@@ -209,5 +211,12 @@ describe('RegionActionOverlay', () => {
     };
     const { container } = render(<RegionActionOverlay {...props} />);
     expect(container.querySelector('.region-action-overlay')).toBeTruthy();
+  });
+
+  it('hides the overlay entirely for skipped regions and relies on striped segment styling', () => {
+    const { container } = render(<RegionActionOverlay {...defaultProps} skipProcessing />);
+    expect(container.querySelector('.region-action-overlay')).toBeNull();
+    expect(container.querySelector('.region-status-pill')).toBeNull();
+    expect(container.querySelectorAll('.region-action-btn')).toHaveLength(0);
   });
 });

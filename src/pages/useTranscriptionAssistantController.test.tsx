@@ -25,7 +25,11 @@ vi.mock('../utils/orthographyRuntime', () => ({
   bridgeTextForLayerTarget: mockBridgeTextForLayerTarget,
 }));
 
-function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: LayerDocType['layerType'] = 'transcription',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
+): LayerDocType {
   return {
     id,
     textId: 'text-1',
@@ -36,10 +40,11 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...(extras ?? {}),
   } as LayerDocType;
 }
 
-function makeUnit(id: string): LayerUnitDocType {
+function makeUnit(id: string, overrides: Partial<LayerUnitDocType> = {}): LayerUnitDocType {
   return {
     id,
     mediaId: 'media-1',
@@ -48,6 +53,7 @@ function makeUnit(id: string): LayerUnitDocType {
     endTime: 1,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...overrides,
   } as LayerUnitDocType;
 }
 
@@ -346,6 +352,46 @@ describe('useTranscriptionAssistantController', () => {
     });
   });
 
+  it('persists dictation to host child translation layer when selected/default layers are not provided', async () => {
+    const saveUnitText = vi.fn(async () => undefined);
+    const saveUnitLayerText = vi.fn(async () => undefined);
+    const selectUnit = vi.fn();
+    const transcriptionMain = makeLayer('layer-main', 'transcription');
+    const transcriptionFr = makeLayer('layer-fr', 'transcription');
+    const translationEn = makeLayer('layer-tr-en', 'translation', { parentLayerId: 'layer-main' });
+    const translationFr = makeLayer('layer-tr-fr', 'translation', { parentLayerId: 'layer-fr' });
+    const layerLinks = [
+      { id: 'link-en', layerId: 'layer-tr-en', transcriptionLayerKey: 'layer-main', hostTranscriptionLayerId: 'layer-main', isPreferred: true, createdAt: '2026-03-30T00:00:00.000Z' },
+      { id: 'link-fr', layerId: 'layer-tr-fr', transcriptionLayerKey: 'layer-fr', hostTranscriptionLayerId: 'layer-fr', isPreferred: true, createdAt: '2026-03-30T00:00:00.000Z' },
+    ] as import('../db').LayerLinkDocType[];
+    const {
+      defaultTranscriptionLayerId: _ignoreDefaultTranscriptionLayerId,
+      ...hookInputWithoutDefaultTranscription
+    } = createBaseInput({
+      selectedLayerId: null,
+      selectedTimelineUnit: { layerId: 'layer-fr', unitId: 'utt-1', kind: 'unit' },
+      layers: [transcriptionMain, transcriptionFr, translationEn, translationFr],
+      translationLayers: [translationEn, translationFr],
+      layerLinks,
+      saveUnitText,
+      saveUnitLayerText,
+      selectUnit,
+    });
+    const { result } = renderHook(() => useTranscriptionAssistantController(hookInputWithoutDefaultTranscription));
+
+    act(() => {
+      result.current.handleVoiceDictation('bonjour');
+    });
+
+    await waitFor(() => {
+      expect(saveUnitLayerText).toHaveBeenCalledWith('utt-1', 'bonjour', 'layer-tr-fr');
+      expect(saveUnitText).not.toHaveBeenCalled();
+      expect(selectUnit).toHaveBeenCalledWith('utt-2');
+    });
+
+    expect(result.current.voiceDictationPipeline?.config?.targetLayer).toBe('translation');
+  });
+
   it('builds a continuous dictation pipeline for unit-based voice dictation', async () => {
     const unit1 = makeUnit('utt-1');
     const unit2 = makeUnit('utt-2');
@@ -372,6 +418,30 @@ describe('useTranscriptionAssistantController', () => {
 
     result.current.voiceDictationPipeline?.callbacks.navigateTo('utt-2');
     expect(selectUnit).toHaveBeenCalledWith('utt-2');
+  });
+
+  it('does not write direct voice dictation into a skip-processing unit', async () => {
+    const skippedUnit = makeUnit('utt-skip', { tags: { skipProcessing: true } });
+    const saveUnitText = vi.fn(async () => undefined);
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const { result } = renderHook(() => useTranscriptionAssistantController(createBaseInput({
+      selectedTimelineOwnerUnit: skippedUnit,
+      unitsOnCurrentMedia: [skippedUnit],
+      saveUnitText,
+      setSaveState,
+      nextUnitIdForVoiceDictation: 'utt-next',
+    })));
+
+    act(() => {
+      result.current.handleVoiceDictation('should-not-write');
+    });
+
+    await waitFor(() => {
+      expect(saveUnitText).not.toHaveBeenCalled();
+      expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'error',
+      }));
+    });
   });
 
   it('skips LLM voice intent resolution when AI chat is disabled', async () => {

@@ -4,8 +4,14 @@ import path from 'node:path';
 const root = process.cwd();
 
 const requiredFiles = [
+  'src/config/hostVersion.ts',
   'src/extensions/extensionRuntime.ts',
   'src/extensions/extensionRuntime.test.ts',
+  'src/extensions/extensionRegistry.ts',
+  'src/extensions/extensionRegistry.test.ts',
+  'src/extensions/builtinHostContractsExtension.ts',
+  'src/extensions/extensionRegistrySingleton.ts',
+  'src/extensions/extensionRegistrySingleton.test.ts',
   'scripts/report-m7-extension-control-gate.mjs',
   'docs/execution/plans/M7-执行记录-2026-04-12.md',
   'docs/execution/release-gates/M7-扩展可控化门禁清单-2026-04-12.md',

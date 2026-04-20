@@ -2,6 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
+import { JIEYU_DEXIE_DB_NAME } from '../db/engine';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
 
 const mockSaveRecoverySnapshot = vi.hoisted(() => vi.fn());
@@ -66,14 +67,14 @@ describe('useTranscriptionRecoverySnapshotScheduler', () => {
     expect(mockSaveRecoverySnapshot).not.toHaveBeenCalled();
 
     result.current.dirtyRef.current = true;
-    result.current.dbNameRef.current = 'jieyudb';
+    result.current.dbNameRef.current = JIEYU_DEXIE_DB_NAME;
 
     await act(async () => {
       result.current.scheduleRecoverySave();
       vi.advanceTimersByTime(3100);
     });
 
-    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith('jieyudb', {
+    expect(mockSaveRecoverySnapshot).toHaveBeenCalledWith(JIEYU_DEXIE_DB_NAME, {
       units,
       translations,
       layers,

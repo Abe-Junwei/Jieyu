@@ -1,0 +1,70 @@
+/* ADR-0004 阶段 7A：时间轴顶栏媒体 / 逻辑轴状态提示 */
+
+.timeline-axis-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 6px 12px 8px;
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  line-height: 1.35;
+  color: var(--text-secondary);
+  background: var(--panel-design-subtle-bg);
+  border-bottom: 1px solid var(--panel-design-border-color);
+}
+
+.timeline-axis-status-strip__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.timeline-axis-status-strip__icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.timeline-axis-status-strip--warn {
+  color: var(--state-warning-text);
+  background: color-mix(in srgb, var(--state-warning-bg) 84%, var(--surface-panel));
+}
+
+.timeline-axis-status-strip--info {
+  color: var(--state-info-text);
+  background: color-mix(in srgb, var(--state-info-solid) 8%, transparent);
+}
+
+.timeline-axis-status-strip__duration-short {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.timeline-axis-status-strip__action {
+  flex-shrink: 0;
+  margin-inline-start: 6px;
+}
+
+.timeline-axis-status-strip__no-playable-media {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.timeline-axis-status-strip__no-playable-media-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.timeline-axis-status-strip__timing-kept {
+  display: block;
+  max-width: 42rem;
+  padding-inline-start: calc(1rem + 5px);
+  font-size: 0.92em;
+  line-height: 1.4;
+  opacity: 0.92;
+}

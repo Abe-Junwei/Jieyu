@@ -160,7 +160,7 @@ export interface OrchestratorWaveformContentProps {
   rulerView: { start: number; end: number } | null;
 
   // Region action overlay
-  selectedWaveformTimelineItem: { startTime: number; endTime: number } | null;
+  selectedWaveformTimelineItem: { id?: string; layerId?: string; startTime: number; endTime: number; tags?: Record<string, boolean> } | null;
   playerIsReady: boolean;
   playerIsPlaying: boolean;
   playerInstanceGetWidth: () => number;
@@ -610,6 +610,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                   isPlaying={playerIsPlaying}
                   segmentPlaybackRate={segmentPlaybackRate}
                   segmentLoopPlayback={segmentLoopPlayback}
+                  skipProcessing={selectedWaveformTimelineItem.tags?.skipProcessing === true}
                   onPlaybackRateChange={handleSegmentPlaybackRateChange}
                   onToggleLoop={handleToggleSelectedWaveformLoop}
                   onTogglePlay={handleToggleSelectedWaveformPlay}

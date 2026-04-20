@@ -6,6 +6,7 @@
  */
 
 import { memo, useId, useState } from 'react';
+import '../../styles/panels/grounding-context.css';
 import { MaterialSymbol } from '../../components/ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE_TIGHT, JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_MICRO_XS } from '../../utils/jieyuMaterialIcon';
 import type { GroundingContextData } from '../../services/VoiceAgentGroundingContext';

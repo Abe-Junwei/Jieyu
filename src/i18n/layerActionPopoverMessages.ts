@@ -2,8 +2,8 @@ import type { Locale } from './index';
 import { getLayerActionLabels, type LayerActionLabels } from './layerActionLabels';
 
 export type LayerActionPopoverMessages = LayerActionLabels & {
-  editTranscriptionMetadata: string;
-  editTranslationMetadata: string;
+  /** 转写/翻译层编辑元数据共用标题 | Shared title for editing layer metadata */
+  editLayerMetadata: string;
   saveMetadata: string;
   createFailedPrefix: string;
   transcriptionCreateFallback: string;
@@ -31,6 +31,10 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   dependentConstraint: string;
   independentConstraint: string;
   selectParentLayer: string;
+  /** 新建翻译层：多宿主转写勾选 | New translation: pick host transcription layers */
+  translationHostLayersLabel: string;
+  /** 新建翻译层：首选宿主（多选时）| Preferred host when multiple hosts */
+  translationPreferredHostLabel: string;
   autoLinkedParent: (label: string) => string;
   currentRestrictionTranslation: string;
   currentRestrictionTranscription: string;
@@ -44,6 +48,8 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
   modalityText: string;
   modalityAudio: string;
   modalityMixed: string;
+  /** 新建转写层时模态说明 | Note when choosing modality for new transcription layer */
+  transcriptionModalityHint: string;
   translationBoundarySource: string;
   languageNameLabel: string;
   languageAssetIdLabel: string;
@@ -60,8 +66,7 @@ export type LayerActionPopoverMessages = LayerActionLabels & {
 
 const zhCN: LayerActionPopoverMessages = {
   ...getLayerActionLabels('zh-CN'),
-  editTranscriptionMetadata: '编辑转写层元信息',
-  editTranslationMetadata: '编辑翻译层元信息',
+  editLayerMetadata: '\u7f16\u8f91\u8be5\u5c42\u5143\u4fe1\u606f',
   saveMetadata: '保存',
   createFailedPrefix: '\u521b\u5efa\u5931\u8d25',
   transcriptionCreateFallback: '\u65e0\u6cd5\u521b\u5efa\u8f6c\u5199\u5c42\uff1a\u8bf7\u68c0\u67e5\u8fb9\u754c\u6a21\u5f0f\u3001\u76ee\u6807\u8bed\u8a00\u4e0e\u522b\u540d\u8bbe\u7f6e\u3002',
@@ -89,6 +94,8 @@ const zhCN: LayerActionPopoverMessages = {
   dependentConstraint: '\u4f9d\u8d56\u8fb9\u754c\uff08\u8ddf\u968f\u4e3b\u8f6c\u5199\u5c42\uff09',
   independentConstraint: '\u72ec\u7acb\u8fb9\u754c\uff08\u81ea\u7531\u5b9a\u4e49\uff09',
   selectParentLayer: '\u9009\u62e9\u4f9d\u8d56\u8fb9\u754c\u5c42\u2026',
+  translationHostLayersLabel: '\u8bd1\u6587\u5bbf\u4e3b\u8f6c\u5199\u5c42\uff08\u53ef\u591a\u9009\uff09',
+  translationPreferredHostLabel: '\u9996\u9009\u5bbf\u4e3b\uff08\u8fb9\u754c\u4e0e\u9ed8\u8ba4\u5bf9\u9f50\u4f9d\u6b64\u5c42\uff09',
   autoLinkedParent: (label) => `\u5df2\u81ea\u52a8\u5173\u8054\u5230\u300c${label}\u300d\u3002`,
   currentRestrictionTranslation: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u7ffb\u8bd1\u3002',
   currentRestrictionTranscription: '\u5f53\u524d\u9650\u5236\uff1a\u65e0\u6cd5\u65b0\u5efa\u8f6c\u5199\u3002',
@@ -102,6 +109,7 @@ const zhCN: LayerActionPopoverMessages = {
   modalityText: '\u6587\u672c\uff08\u7eaf\u6587\u5b57\u7ffb\u8bd1\uff09',
   modalityAudio: '\u8bed\u97f3\uff08\u53e3\u8bd1\u5f55\u97f3\uff09',
   modalityMixed: '\u6df7\u5408\uff08\u6587\u5b57 + \u5f55\u97f3\uff09',
+  transcriptionModalityHint: '\u97f3\u9891/\u6df7\u5408\u8f6c\u5199\u5c42\u53ef\u5728\u65f6\u95f4\u8f74\u5f55\u5236\u4e0e\u64ad\u653e\uff08\u4e0e\u7ffb\u8bd1\u5c42\u5f55\u97f3\u4ea4\u4e92\u4e00\u81f4\uff09\u3002',
   translationBoundarySource: '\u8fb9\u754c\u6765\u6e90\uff1a\u7ffb\u8bd1\u5c42\u4f1a\u6cbf\u7528\u6240\u9009\u8f6c\u5199\u5c42\u7684\u8fb9\u754c\u8303\u56f4\u3002',
   languageNameLabel: '\u8bed\u8a00\u540d\u79f0',
   languageAssetIdLabel: '\u8bed\u8a00 ID\uff08\u7cfb\u7edf\u552f\u4e00\u6807\u8bc6\uff09',
@@ -118,8 +126,7 @@ const zhCN: LayerActionPopoverMessages = {
 
 const enUS: LayerActionPopoverMessages = {
   ...getLayerActionLabels('en-US'),
-  editTranscriptionMetadata: 'Edit Transcription Metadata',
-  editTranslationMetadata: 'Edit Translation Metadata',
+  editLayerMetadata: 'Edit layer metadata',
   saveMetadata: 'Save',
   createFailedPrefix: 'Create failed',
   transcriptionCreateFallback: 'Unable to create transcription layer. Check boundary mode, target language, and alias settings.',
@@ -147,6 +154,8 @@ const enUS: LayerActionPopoverMessages = {
   dependentConstraint: 'Dependent boundary (follows parent transcription layer)',
   independentConstraint: 'Independent boundary (free-defined)',
   selectParentLayer: 'Select dependent boundary layer…',
+  translationHostLayersLabel: 'Host transcription layers (multi-select)',
+  translationPreferredHostLabel: 'Preferred host (boundary alignment defaults here)',
   autoLinkedParent: (label) => `Automatically linked to "${label}".`,
   currentRestrictionTranslation: 'Current restriction: cannot create translation. ',
   currentRestrictionTranscription: 'Current restriction: cannot create transcription. ',
@@ -160,6 +169,7 @@ const enUS: LayerActionPopoverMessages = {
   modalityLabel: 'Modality',
   modalityAudio: 'Audio (interpreting recording)',
   modalityMixed: 'Mixed (text + recording)',
+  transcriptionModalityHint: 'Audio or mixed transcription layers support timeline recording and playback, same as translation recording.',
   translationBoundarySource: 'Boundary source: translation layers inherit the boundary range of the selected transcription layer.',
   languageNameLabel: 'Language Name',
   languageAssetIdLabel: 'Language ID (unique identifier)',

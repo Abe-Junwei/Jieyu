@@ -23,6 +23,7 @@ export interface TimelineUnitView {
   parentUnitId?: string;
   annotationStatus?: string;
   textId?: string;
+  tags?: Record<string, boolean>;
 }
 
 export interface BuildTimelineUnitViewIndexInput {
@@ -97,6 +98,7 @@ export function unitToView(u: LayerUnitDocType, defaultLayerId: string): Timelin
     ...(u.speakerId ? { speakerId: u.speakerId } : {}),
     ...(u.status ? { annotationStatus: u.status } : {}),
     ...(u.textId ? { textId: u.textId } : {}),
+    ...(u.tags ? { tags: u.tags } : {}),
   };
 }
 
@@ -137,6 +139,7 @@ export function segmentToView(
     text: resolveText(row.id),
     ...(row.speakerId ? { speakerId: row.speakerId } : {}),
     ...(ownerUnitId ? { parentUnitId: ownerUnitId } : {}),
+    ...(row.tags ? { tags: row.tags } : {}),
   };
 }
 

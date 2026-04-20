@@ -73,6 +73,8 @@ function makeBaseProps(): ComponentProps<typeof TranscriptionOverlays> {
     onAssignSpeakerFromMenu: vi.fn(),
     onSetUnitSelfCertaintyFromMenu: vi.fn(),
     onOpenSpeakerManagementPanelFromMenu: vi.fn(),
+    onToggleSkipProcessingFromMenu: vi.fn(),
+    resolveSkipProcessingState: vi.fn(() => false),
   };
 }
 
@@ -90,6 +92,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_default',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
 
     render(<TranscriptionOverlays {...props} />);
@@ -106,6 +111,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_default',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.resolveSelfCertaintyUnitIds = (ids) => ids
       .map((raw) => (raw === 'seg_ref_1' ? 'utt_1' : raw))
@@ -125,6 +133,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_default',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.resolveSelfCertaintyUnitIds = (ids) => ids
       .map((raw) => (raw === 'seg_ref_1' ? 'utt_1' : raw))
@@ -150,6 +161,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_default',
       unitKind: 'unit',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     delete props.resolveSelfCertaintyUnitIds;
 
@@ -177,6 +191,137 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect(props.runDeleteOne).toHaveBeenCalledWith('seg_1', 'segment', 'layer_default');
   });
 
+  it('toolbar utt ops menu omits merge actions on translation layer', async () => {
+    const props = makeBaseProps();
+    props.uttOpsMenu = { x: 100, y: 100 };
+    props.selectedTimelineUnit = { layerId: 'tr_layer', unitId: 'utt_1', kind: 'unit' };
+    props.translationLayers = [{ ...makeLayer('tr_layer'), layerType: 'translation' } as LayerDocType];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /向前合并|向后合并/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除句段/ })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('menuitem', { name: /拆分句段/ })).length).toBeGreaterThan(0);
+  });
+
+  it('toolbar utt ops menu keeps merge actions on transcription layer', async () => {
+    const props = makeBaseProps();
+    props.uttOpsMenu = { x: 100, y: 100 };
+    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'unit' };
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect((await screen.findAllByRole('menuitem', { name: /向前合并/ })).length).toBeGreaterThan(0);
+  });
+
+  it('toolbar utt ops menu omits batch merge for translation multi-select', async () => {
+    const props = makeBaseProps();
+    props.uttOpsMenu = { x: 100, y: 100 };
+    props.selectedTimelineUnit = { layerId: 'tr_layer', unitId: 'seg_2', kind: 'segment' };
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
+    props.translationLayers = [{ ...makeLayer('tr_layer'), layerType: 'translation' } as LayerDocType];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /合并 2 个句段/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除 2 个句段/ })).length).toBeGreaterThan(0);
+  });
+
+  it('toolbar utt ops menu omits merge and split for skip-processing transcription segment', async () => {
+    const props = makeBaseProps();
+    props.uttOpsMenu = { x: 100, y: 100 };
+    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'seg_1', kind: 'segment' };
+    props.resolveSkipProcessingState = vi.fn((uid) => uid === 'seg_1');
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /向前合并|向后合并/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /拆分句段/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除句段/ })).length).toBeGreaterThan(0);
+  });
+
+  it('toolbar utt ops menu omits batch merge when selection includes skip-processing', async () => {
+    const props = makeBaseProps();
+    props.uttOpsMenu = { x: 100, y: 100 };
+    props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'seg_2', kind: 'segment' };
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
+    props.resolveSkipProcessingState = vi.fn((uid) => uid === 'seg_1');
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /合并 2 个句段/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除 2 个句段/ })).length).toBeGreaterThan(0);
+  });
+
+  it('shows skip-processing action in the right-click menu for a segment and routes the toggle', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
+    };
+
+    render(<TranscriptionOverlays {...props} />);
+
+    const skipItem = await screen.findByRole('menuitem', { name: /标记为跳过处理/ });
+    fireEvent.click(skipItem);
+
+    expect(props.onToggleSkipProcessingFromMenu).toHaveBeenCalledWith('seg_1', 'segment', 'layer_default');
+  });
+
+  it('restricts skipped segments to unskip, delete, and notes while hiding merge, split, and speaker actions', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
+    };
+    props.resolveSkipProcessingState = vi.fn(() => true);
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(await screen.findByRole('menuitem', { name: /取消跳过处理/ })).toBeTruthy();
+    expect((await screen.findAllByRole('menuitem', { name: /添加备注/ })).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('menuitem', { name: /向前合并|向后合并/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /从当前位置拆分/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /说话人管理/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /确信程度/ })).toHaveLength(0);
+  });
+
+  it('hides batch merge when multi-select includes a skip-processing segment', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_2',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
+    };
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
+    props.resolveSkipProcessingState = vi.fn((uid) => uid === 'seg_1');
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /合并 2 个句段/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除 2 个句段/ })).length).toBeGreaterThan(0);
+  });
+
   it('shows batch merge action for multi-selected segment context and routes the selected ids', async () => {
     const props = makeBaseProps();
     props.ctxMenu = {
@@ -186,6 +331,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
@@ -211,6 +359,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
 
@@ -229,6 +380,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_dependent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.transcriptionLayers = [makeLayer('layer_dependent', 'symbolic_association')];
 
@@ -247,6 +401,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
@@ -271,6 +428,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
     props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
@@ -297,6 +457,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.selectedTimelineUnit = { layerId: 'layer_independent', unitId: 'seg_1', kind: 'segment' };
     props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
@@ -323,6 +486,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.selectedTimelineUnit = { layerId: 'layer_default', unitId: 'utt_1', kind: 'unit' };
     props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
@@ -349,6 +515,9 @@ describe('TranscriptionOverlays independent selection routing', () => {
       layerId: 'layer_independent',
       unitKind: 'segment',
       splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
     };
     props.transcriptionLayers = [makeLayer('layer_independent', 'independent_boundary')];
     props.speakerOptions = [{ id: 'spk_1', name: 'Alice' }];
@@ -404,5 +573,132 @@ describe('TranscriptionOverlays independent selection routing', () => {
     expect((preview as HTMLElement).style.direction).toBe('rtl');
     expect((preview as HTMLElement).style.unicodeBidi).toBe('isolate');
     expect((preview as HTMLElement).style.fontFamily).toContain('Scheherazade New');
+  });
+});
+
+describe('TranscriptionOverlays unit context menu surface policy', () => {
+  it('hides structural merge, speaker, self-certainty, range-select, and skip for translation layer', async () => {
+    const props = makeBaseProps();
+    const trLayer = { ...makeLayer('tr_layer'), layerType: 'translation' } as LayerDocType;
+    props.translationLayers = [trLayer];
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_1',
+      layerId: 'tr_layer',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'translation',
+    };
+    props.onSetUnitSelfCertaintyFromMenu = vi.fn();
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /向前合并/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /向后合并/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /说话人管理/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /确信程度/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /选中此句段及之前所有/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /选中此句段及之后所有/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /标记为跳过处理/ })).toHaveLength(0);
+
+    expect((await screen.findAllByRole('menuitem', { name: /删除句段/ })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('menuitem', { name: /添加备注/ })).length).toBeGreaterThan(0);
+  });
+
+  it('hides batch merge for multi-select on translation layer', async () => {
+    const props = makeBaseProps();
+    const trLayer = { ...makeLayer('tr_layer'), layerType: 'translation' } as LayerDocType;
+    props.translationLayers = [trLayer];
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_2',
+      layerId: 'tr_layer',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'translation',
+    };
+    props.selectedUnitIds = new Set(['seg_1', 'seg_2']);
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /合并 2 个句段/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /删除 2 个句段/ })).length).toBeGreaterThan(0);
+  });
+
+  it('does not show split-at-current from timeline segment context', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'timeline',
+      menuSurface: 'timeline-annotation',
+      layerType: 'transcription',
+    };
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /从当前位置拆分/ })).toHaveLength(0);
+  });
+
+  it('shows split-at-current on waveform segment surface and omits certainty and speaker', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'seg_1',
+      layerId: 'layer_default',
+      unitKind: 'segment',
+      splitTime: 0.5,
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
+    };
+    props.onSetUnitSelfCertaintyFromMenu = vi.fn();
+    props.speakerOptions = [{ id: 's1', name: 'Alice' }];
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect((await screen.findAllByRole('menuitem', { name: /从当前位置拆分/ })).length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('menuitem', { name: /确信程度/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /说话人管理/ })).toHaveLength(0);
+  });
+
+  it('hides range-select and layer display style on waveform region surface', async () => {
+    const props = makeBaseProps();
+    props.ctxMenu = {
+      x: 120,
+      y: 120,
+      unitId: 'utt_1',
+      layerId: 'layer_default',
+      unitKind: 'unit',
+      splitTime: 0.5,
+      source: 'waveform',
+      menuSurface: 'waveform-region',
+      layerType: 'transcription',
+    };
+    props.displayStyleControl = {
+      orthographies: [],
+      onUpdate: vi.fn(),
+      onReset: vi.fn(),
+    };
+
+    render(<TranscriptionOverlays {...props} />);
+
+    expect(screen.queryAllByRole('menuitem', { name: /选中此句段及之前所有/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /选中此句段及之后所有/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /本层显示样式/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /确信程度/ })).toHaveLength(0);
+    expect(screen.queryAllByRole('menuitem', { name: /说话人管理/ })).toHaveLength(0);
+    expect((await screen.findAllByRole('menuitem', { name: /向前合并/ })).length).toBeGreaterThan(0);
   });
 });

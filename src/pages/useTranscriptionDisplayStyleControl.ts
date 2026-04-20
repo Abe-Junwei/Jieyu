@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import type { LayerDisplaySettings, LayerDocType } from '../db';
+import type { LayerDisplaySettings, LayerDocType, LayerLinkDocType } from '../db';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { fireAndForget } from '../utils/fireAndForget';
 import { useLocalFonts } from '../hooks/useLocalFonts';
 import { useOrthographies } from '../hooks/useOrthographies';
 import { BASE_FONT_SIZE, buildOrthographyPreviewTextProps, computeLaneHeightFromRenderPolicy, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { DEFAULT_TIMELINE_LANE_HEIGHT } from '../hooks/useTimelineLaneHeightResize';
+import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 const SYSTEM_DEFAULT_FONT_KEY = '\u7cfb\u7edf\u9ed8\u8ba4';
 
@@ -13,9 +14,11 @@ interface UseTranscriptionDisplayStyleControlInput {
   layers: LayerDocType[];
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  layerLinks: LayerLinkDocType[];
   layerById: Map<string, LayerDocType>;
   defaultTranscriptionLayerId?: string;
   selectedLayerId?: string;
+  selectedTimelineUnitLayerId?: string;
   setLayers: React.Dispatch<React.SetStateAction<LayerDocType[]>>;
   handleTimelineLaneHeightChange: (layerId: string, nextHeight: number) => void;
 }
@@ -24,9 +27,11 @@ export function useTranscriptionDisplayStyleControl({
   layers,
   transcriptionLayers,
   translationLayers,
+  layerLinks,
   layerById,
   defaultTranscriptionLayerId,
   selectedLayerId,
+  selectedTimelineUnitLayerId,
   setLayers,
   handleTimelineLaneHeightChange,
 }: UseTranscriptionDisplayStyleControlInput) {
@@ -117,12 +122,28 @@ export function useTranscriptionDisplayStyleControl({
 
   const voiceDictationPreviewTextProps = useMemo(() => {
     const normalizedSelectedLayerId = selectedLayerId?.trim();
-    const targetLayerId = normalizedSelectedLayerId || defaultTranscriptionLayerId || translationLayers[0]?.id;
-    if (!targetLayerId) {
+    const selectedLayer = normalizedSelectedLayerId
+      ? layerById.get(normalizedSelectedLayerId)
+      : undefined;
+    const defaultLayer = defaultTranscriptionLayerId?.trim()
+      ? layerById.get(defaultTranscriptionLayerId.trim())
+      : undefined;
+    const fallbackTranslationLayerId = resolveHostAwareTranslationLayerIdFromSnapshot({
+      selectedLayerId,
+      selectedUnitLayerId: selectedTimelineUnitLayerId,
+      defaultTranscriptionLayerId,
+      translationLayers,
+      transcriptionLayers,
+      layerLinks,
+    });
+    const fallbackTranslationLayer = fallbackTranslationLayerId
+      ? layerById.get(fallbackTranslationLayerId)
+      : undefined;
+    const targetLayer = selectedLayer ?? defaultLayer ?? fallbackTranslationLayer;
+    if (!targetLayer) {
       return buildOrthographyPreviewTextProps();
     }
-    const targetLayer = layerById.get(targetLayerId);
-    if (!targetLayer?.languageId) {
+    if (!targetLayer.languageId) {
       return buildOrthographyPreviewTextProps();
     }
     const renderPolicy = resolveOrthographyRenderPolicy(
@@ -131,7 +152,16 @@ export function useTranscriptionDisplayStyleControl({
       targetLayer.orthographyId,
     );
     return buildOrthographyPreviewTextProps(renderPolicy, targetLayer.displaySettings);
-  }, [defaultTranscriptionLayerId, layerById, orthographies, selectedLayerId, translationLayers]);
+  }, [
+    defaultTranscriptionLayerId,
+    layerById,
+    orthographies,
+    selectedLayerId,
+    selectedTimelineUnitLayerId,
+    layerLinks,
+    transcriptionLayers,
+    translationLayers,
+  ]);
 
   useEffect(() => {
     const seen = new Set<string>();

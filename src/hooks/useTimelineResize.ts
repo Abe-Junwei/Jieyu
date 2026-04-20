@@ -22,7 +22,16 @@ type ResizeDragState = {
   initialEnd: number;
   latestStart: number;
   latestEnd: number;
+  /** 本次拖拽使用的 px/秒（波形或逻辑轴覆盖）| px/sec for this drag (waveform or logical-axis override) */
+  zoomPxPerSec: number;
 } | null;
+
+/** 可选：纯文本轨等场景下覆盖像素—时间换算，及 segment 查表用层 id | Optional logical-axis zoom + segment map key */
+export type TimelineResizeDragOptions = {
+  zoomPxPerSec?: number;
+  /** 在 `segmentsByLayer` 中解析 segment 时使用的层 id（可与聚焦用的 `layerId` 不同，如借层显示 + 源层存段） */
+  segmentLookupLayerId?: string;
+};
 
 type TimelineResizeUnit = {
   id: string;
@@ -83,9 +92,13 @@ export function useTimelineResize({
     unit: TimelineResizeUnit,
     edge: 'start' | 'end',
     layerId?: string,
+    options?: TimelineResizeDragOptions,
   ) => {
     if (event.button !== 0) return;
-    if (zoomPxPerSec <= 0) return;
+    const effectiveZoom = typeof options?.zoomPxPerSec === 'number' && Number.isFinite(options.zoomPxPerSec) && options.zoomPxPerSec > 0
+      ? options.zoomPxPerSec
+      : zoomPxPerSec;
+    if (effectiveZoom <= 0) return;
     event.preventDefault();
     event.stopPropagation();
 
@@ -93,7 +106,8 @@ export function useTimelineResize({
     if (player.isPlaying) {
       player.stop();
     }
-    const layerSegments = layerId && segmentsByLayer ? segmentsByLayer.get(layerId) : undefined;
+    const segmentMapKey = options?.segmentLookupLayerId ?? layerId;
+    const layerSegments = segmentMapKey && segmentsByLayer ? segmentsByLayer.get(segmentMapKey) : undefined;
     const resolvedSegmentId = layerSegments?.find((segment) => segment.id === unit.id)?.id;
     if (resolvedSegmentId && selectSegment) {
       selectSegment(unit.id);
@@ -118,6 +132,7 @@ export function useTimelineResize({
       initialEnd: unit.endTime,
       latestStart: unit.startTime,
       latestEnd: unit.endTime,
+      zoomPxPerSec: effectiveZoom,
     };
     setDragPreview({ id: unit.id, start: unit.startTime, end: unit.endTime });
     setTimelineResizeTooltip({
@@ -129,9 +144,9 @@ export function useTimelineResize({
 
     const onMove = (ev: PointerEvent) => {
       const drag = timelineResizeDragRef.current;
-      if (!drag || zoomPxPerSec <= 0) return;
+      if (!drag || drag.zoomPxPerSec <= 0) return;
 
-      const deltaSec = (ev.clientX - drag.startClientX) / zoomPxPerSec;
+      const deltaSec = (ev.clientX - drag.startClientX) / drag.zoomPxPerSec;
       const minSpan = 0.05;
       const bounds = getNeighborBounds(drag.segmentId ?? drag.unitId, drag.mediaId, drag.initialStart, drag.layerId);
       const rightBound = typeof bounds.right === 'number' ? bounds.right : Number.POSITIVE_INFINITY;

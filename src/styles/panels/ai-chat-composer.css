@@ -95,6 +95,10 @@
   transform: translateY(-1px);
 }
 
+.ai-chat-follow-up-chip {
+  max-width: 100%;
+}
+
 .ai-chat-composer-row {
   display: flex;
   align-items: center;

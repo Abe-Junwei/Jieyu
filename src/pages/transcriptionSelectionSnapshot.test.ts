@@ -29,7 +29,11 @@ function segmentView(id: string, layerId: string, parentUnitId?: string): Timeli
   };
 }
 
-function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcription'): LayerDocType {
+function makeLayer(
+  id: string,
+  layerType: LayerDocType['layerType'] = 'transcription',
+  extras?: Pick<LayerDocType, 'parentLayerId'>,
+): LayerDocType {
   return {
     id,
     textId: 'text-1',
@@ -40,6 +44,7 @@ function makeLayer(id: string, layerType: LayerDocType['layerType'] = 'transcrip
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
+    ...(extras ?? {}),
   } as LayerDocType;
 }
 
@@ -82,6 +87,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 2, start: 1, end: 3 },
       selectedLayerId: 'layer-tr',
       layers: [makeLayer('layer-main'), translationLayer],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: (_target, layerId) => (layerId === 'layer-tr' ? 'translated text' : '默认转写'),
       formatTime: (seconds) => seconds.toFixed(1),
@@ -105,6 +111,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 1, start: 1, end: 3 },
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
+      layerLinks: [],
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'segment text' }]])],
       ]),
@@ -128,6 +135,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: null,
       selectedLayerId: null,
       layers: [makeLayer('layer-main')],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: () => '',
       formatTime: (seconds) => seconds.toFixed(1),
@@ -153,6 +161,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: null,
       selectedLayerId: 'layer-seg',
       layers: [makeLayer('layer-seg')],
+      layerLinks: [],
       segmentContentByLayer: new Map([
         ['layer-seg', new Map([['seg-1', { text: 'seg text' }]])],
       ]),
@@ -174,6 +183,7 @@ describe('buildTranscriptionSelectionSnapshot', () => {
       selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
       selectedLayerId: 'layer-main',
       layers: [makeLayer('layer-main', 'transcription')],
+      layerLinks: [],
       segmentContentByLayer: new Map(),
       getUnitTextForLayer: () => '转写文本',
       formatTime: (seconds) => seconds.toFixed(1),
@@ -182,5 +192,38 @@ describe('buildTranscriptionSelectionSnapshot', () => {
     expect(snapshot.selectedLayerType).toBe('transcription');
     expect(snapshot.selectedTranscriptionLayerId).toBe('layer-main');
     expect(snapshot.selectedTranslationLayerId).toBeUndefined();
+  });
+
+  it('derives selected translation layer from transcription host links when available', () => {
+    const snapshot = buildTranscriptionSelectionSnapshot({
+      selectedTimelineUnit: { layerId: 'layer-main', unitId: 'utt-1', kind: 'unit' },
+      selectedTimelineSegment: null,
+      selectedTimelineOwnerUnit: makeUnit('utt-1'),
+      primaryUnitView: unitView('utt-1', 'layer-main'),
+      selectedTimelineRowMeta: { rowNumber: 1, start: 0, end: 2 },
+      selectedLayerId: 'layer-main',
+      layers: [
+        makeLayer('layer-main', 'transcription'),
+        makeLayer('layer-tr-en', 'translation'),
+      ],
+      layerLinks: [
+        {
+          id: 'link-1',
+          transcriptionLayerKey: 'layer-main',
+          hostTranscriptionLayerId: 'layer-main',
+          layerId: 'layer-tr-en',
+          linkType: 'free',
+          isPreferred: true,
+          createdAt: '2026-03-30T00:00:00.000Z',
+        },
+      ],
+      segmentContentByLayer: new Map(),
+      getUnitTextForLayer: () => '转写文本',
+      formatTime: (seconds) => seconds.toFixed(1),
+    });
+
+    expect(snapshot.selectedLayerType).toBe('transcription');
+    expect(snapshot.selectedTranscriptionLayerId).toBe('layer-main');
+    expect(snapshot.selectedTranslationLayerId).toBe('layer-tr-en');
   });
 });

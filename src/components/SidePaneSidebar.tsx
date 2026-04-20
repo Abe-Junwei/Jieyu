@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import type { LayerDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
-import type { CollaborationPresenceLiveMember } from '../collaboration/cloud/CollaborationPresenceService';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, SpeakerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { useLayerActionPanel } from '../hooks/useLayerActionPanel';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -18,8 +17,10 @@ import { useSidePaneSidebarConstraintRepair } from './SidePaneSidebar.constraint
 import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { SidePaneLayerProvider } from '../contexts/SidePaneContext';
-import { useLocale } from '../i18n';
+import { useLocale, type Locale } from '../i18n';
+import { getCollaborationCloudPanelMessages } from '../i18n/collaborationCloudPanelMessages';
 import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { ModalPanel } from './ui';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
 import { buildLayerBundles } from '../services/LayerOrderingService';
@@ -33,6 +34,7 @@ interface SidePaneSidebarProps {
   flashLayerRowId: string;
   onFocusLayer: (id: string) => void;
   transcriptionLayers: LayerDocType[];
+  layerLinks?: LayerLinkDocType[];
   toggleLayerLink: (transcriptionKey: string, translationId: string) => Promise<void>;
   deletableLayers: LayerDocType[];
   updateLayerMetadata?: (layerId: string, input: { dialect?: string; vernacular?: string; alias?: string }) => Promise<boolean>;
@@ -45,12 +47,18 @@ interface SidePaneSidebarProps {
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
   unitsOnCurrentMedia?: LayerUnitDocType[];
   speakers?: SpeakerDocType[];
-  presenceMembers?: CollaborationPresenceLiveMember[];
-  presenceCurrentUserId?: string;
   collaborationCloudPanelProps?: React.ComponentProps<typeof CollaborationCloudPanel>;
   getUnitTextForLayer?: (unit: LayerUnitDocType, layerId?: string) => string;
   onSelectTimelineUnit?: (unit: TimelineUnit) => void;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
+  /** Transcription workspace: horizontal (multi-track) vs vertical (paired columns) layout. */
+  workspaceTimelineLayout?: {
+    locale: Locale;
+    comparisonViewActive: boolean;
+    translationLayerCount: number;
+    onSelectHorizontalMode: () => void;
+    onSelectVerticalMode: () => void;
+  };
 }
 
 export function SidePaneSidebar({
@@ -59,6 +67,7 @@ export function SidePaneSidebar({
   flashLayerRowId,
   onFocusLayer,
   transcriptionLayers,
+  layerLinks,
   toggleLayerLink,
   deletableLayers,
   updateLayerMetadata,
@@ -71,17 +80,31 @@ export function SidePaneSidebar({
   segmentContentByLayer,
   unitsOnCurrentMedia,
   speakers,
-  presenceMembers,
-  presenceCurrentUserId,
   collaborationCloudPanelProps,
   getUnitTextForLayer,
   onSelectTimelineUnit,
   onReorderLayers,
+  workspaceTimelineLayout,
 }: SidePaneSidebarProps) {
   const location = useLocation();
   const showLeftRailLayerActions = isTranscriptionWorkspacePathname(location.pathname);
   const locale = useLocale();
   const messages = getSidePaneSidebarMessages(locale);
+  const collaborationMessages = useMemo(() => getCollaborationCloudPanelMessages(locale), [locale]);
+  const [isCollaborationPanelOpen, setIsCollaborationPanelOpen] = useState(false);
+
+  useEffect(() => {
+    if (!showLeftRailLayerActions) {
+      setIsCollaborationPanelOpen(false);
+    }
+  }, [showLeftRailLayerActions]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOpen = () => setIsCollaborationPanelOpen(true);
+    window.addEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
+    return () => window.removeEventListener('jieyu:open-collaboration-cloud-panel', handleOpen);
+  }, []);
 
   // ── Speaker management context ───────────────────────────────────────────────
   const speakerCtx = useSpeakerRailContext();
@@ -141,17 +164,6 @@ export function SidePaneSidebar({
     setCreateLayerPopoverAction({ action, ...(layerId ? { layerId } : {}) });
   }, [setLayerActionPanel]);
 
-  const openMetadataLayerPopover = useCallback((layerId: string) => {
-    if (!updateLayerMetadata) return;
-    const layer = sidePaneRows.find((candidate) => candidate.id === layerId);
-    if (!layer) return;
-    setLayerActionPanel(null);
-    setCreateLayerPopoverAction({
-      action: layer.layerType === 'translation' ? 'edit-translation-metadata' : 'edit-transcription-metadata',
-      layerId,
-    });
-  }, [setLayerActionPanel, sidePaneRows, updateLayerMetadata]);
-
   const sidePaneHost = useAppSidePaneHostOptional();
   const hasSidePaneHost = sidePaneHost !== null;
   const { bundleBoundaryIndexes, bundleRootIds, bundleRanges } = useMemo(() => {
@@ -209,23 +221,19 @@ export function SidePaneSidebar({
     messages,
     sidePaneRows,
     layerLabelById,
+    ...(layerLinks !== undefined ? { layerLinks } : {}),
+    locale,
   });
 
   const contextMenuItems = useMemo(() => buildSidePaneSidebarContextMenuItems({
     layerId: contextMenu?.layerId ?? null,
     messages,
-    allLayers: sidePaneRows,
     deletableLayers,
-    canOpenLayerMetadata: Boolean(updateLayerMetadata),
-    requestOpenLayerMetadata: openMetadataLayerPopover,
     requestDeleteLayer,
   }), [
     contextMenu?.layerId,
     deletableLayers,
     messages,
-    sidePaneRows,
-    updateLayerMetadata,
-    openMetadataLayerPopover,
     requestDeleteLayer,
   ]);
 
@@ -250,6 +258,7 @@ export function SidePaneSidebar({
       bundleRootIds={bundleRootIds}
       bundleBoundaryIndexes={bundleBoundaryIndexes}
       layerLanguageNameById={layerLanguageNameById}
+      {...(layerLinks !== undefined ? { layerLinks } : {})}
       resolveTargetBundleRange={resolveTargetBundleRange}
       {...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {})}
       {...(segmentsByLayer !== undefined ? { segmentsByLayer } : {})}
@@ -275,6 +284,7 @@ export function SidePaneSidebar({
     bundleRootIds,
     bundleBoundaryIndexes,
     layerLanguageNameById,
+    layerLinks,
     resolveTargetBundleRange,
     defaultTranscriptionLayerId,
     segmentsByLayer,
@@ -337,69 +347,28 @@ export function SidePaneSidebar({
     setConstraintRepairDetailsCollapsed,
   ]);
 
-  const visiblePresenceMembers = useMemo(() => {
-    const members = (presenceMembers ?? []).filter((member) => member.state !== 'offline');
-    return members.slice().sort((left, right) => {
-      const leftTimestamp = left.lastSeenAt ? Date.parse(left.lastSeenAt) : 0;
-      const rightTimestamp = right.lastSeenAt ? Date.parse(right.lastSeenAt) : 0;
-      if (rightTimestamp !== leftTimestamp) {
-        return rightTimestamp - leftTimestamp;
-      }
-      return left.userId.localeCompare(right.userId);
-    });
-  }, [presenceMembers]);
-
-  const sidePanePresenceNode = useMemo(() => (
-    <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-presence-group" aria-label={messages.presenceCardAria}>
-      <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
-        <span className="app-side-pane-section-title">{messages.presenceCardTitle}</span>
-      </div>
-      <div className="app-side-pane-nav app-side-pane-presence-wrap">
-        {visiblePresenceMembers.length === 0 ? (
-          <p className="transcription-side-pane-presence-empty">{messages.presenceEmpty}</p>
-        ) : (
-          <ul className="transcription-side-pane-presence-list">
-            {visiblePresenceMembers.map((member) => {
-              const displayName = member.displayName?.trim() || member.userId;
-              const isCurrentUser = Boolean(presenceCurrentUserId) && member.userId === presenceCurrentUserId;
-              const focusHint = member.focusedEntityType && member.focusedEntityId
-                ? messages.presenceFocusLabel(messages.presenceEntityLabel(member.focusedEntityType), member.focusedEntityId)
-                : '';
-
-              return (
-                <li key={member.userId} className="transcription-side-pane-presence-item">
-                  <div className="transcription-side-pane-presence-item-header">
-                    <span className="transcription-side-pane-presence-name">
-                      {displayName}
-                      {isCurrentUser ? ` ${messages.presenceSelfSuffix}` : ''}
-                    </span>
-                    <span className={`transcription-side-pane-presence-state transcription-side-pane-presence-state-${member.state}`}>
-                      {messages.presenceStateLabel(member.state)}
-                    </span>
-                  </div>
-                  {focusHint ? (
-                    <div className="transcription-side-pane-presence-focus">
-                      {focusHint}
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
-  ), [messages, presenceCurrentUserId, visiblePresenceMembers]);
-
-  const sidePaneCollaborationNode = useMemo(() => (
-    collaborationCloudPanelProps ? <CollaborationCloudPanel {...collaborationCloudPanelProps} /> : null
-  ), [collaborationCloudPanelProps]);
+  const collaborationCloudModalNode = useMemo(() => (
+    collaborationCloudPanelProps ? (
+      <ModalPanel
+        isOpen={isCollaborationPanelOpen}
+        onClose={() => setIsCollaborationPanelOpen(false)}
+        title={collaborationMessages.title}
+        ariaLabel={collaborationMessages.title}
+        className="pnl-settings-modal pnl-collaboration-cloud-modal"
+        bodyClassName="settings-modal-body collaboration-cloud-settings-body"
+        titleClassName="settings-modal-title"
+      >
+        <CollaborationCloudPanel
+          {...collaborationCloudPanelProps}
+          hideHeader
+        />
+      </ModalPanel>
+    ) : null
+  ), [collaborationCloudPanelProps, collaborationMessages.title, isCollaborationPanelOpen]);
 
   const sidePanePortaledNode = useMemo(() => (
     <div className="transcription-side-pane-portaled-stack" data-layer-pane-interactive="true">
       {sidePaneOverviewNode}
-      {sidePanePresenceNode}
-      {sidePaneCollaborationNode}
       <section className="app-side-pane-group app-side-pane-layer-group app-side-pane-layer-actions-group" aria-label={messages.quickActionsCardAria}>
         <div className="app-side-pane-group-toggle app-side-pane-group-toggle-static" role="presentation">
           <span className="app-side-pane-section-title">{messages.quickActionsCardTitle}</span>
@@ -409,7 +378,7 @@ export function SidePaneSidebar({
         </div>
       </section>
     </div>
-  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
+  ), [messages.quickActionsCardAria, messages.quickActionsCardTitle, sidePaneActionsNode, sidePaneOverviewNode]);
 
   const sidePaneInlineFallbackNode = useMemo(() => (
     <div
@@ -418,11 +387,9 @@ export function SidePaneSidebar({
       data-layer-pane-interactive="true"
     >
       {sidePaneOverviewNode}
-      {sidePanePresenceNode}
-      {sidePaneCollaborationNode}
       {sidePaneActionsNode}
     </div>
-  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneCollaborationNode, sidePaneOverviewNode, sidePanePresenceNode]);
+  ), [messages.inlinePaneAria, sidePaneActionsNode, sidePaneOverviewNode]);
 
   useRegisterAppSidePane({
     title: messages.paneTitle,
@@ -439,9 +406,11 @@ export function SidePaneSidebar({
           disableCreateTranslationEntry={disableCreateTranslationEntry}
           onCreateTranscription={() => openCreateLayerPopover('create-transcription')}
           onCreateTranslation={() => openCreateLayerPopover('create-translation')}
+          {...(workspaceTimelineLayout !== undefined ? { workspaceTimelineLayout } : {})}
         />
       ) : null}
       {sidePaneHost ? null : sidePaneInlineFallbackNode}
+      {collaborationCloudModalNode}
 
       {/* Context menu for right-click on layer items */}
       {contextMenu && (
@@ -462,9 +431,17 @@ export function SidePaneSidebar({
           createLayer={async (layerType, input, modality) => createLayer(layerType, {
             languageId: input.languageId,
             ...(input.orthographyId !== undefined ? { orthographyId: input.orthographyId } : {}),
+            ...(input.dialect !== undefined ? { dialect: input.dialect } : {}),
+            ...(input.vernacular !== undefined ? { vernacular: input.vernacular } : {}),
             ...(input.alias !== undefined ? { alias: input.alias } : {}),
             ...(input.constraint !== undefined ? { constraint: input.constraint } : {}),
             ...(input.parentLayerId !== undefined ? { parentLayerId: input.parentLayerId } : {}),
+            ...(input.hostTranscriptionLayerIds !== undefined
+              ? { hostTranscriptionLayerIds: input.hostTranscriptionLayerIds }
+              : {}),
+            ...(input.preferredHostTranscriptionLayerId !== undefined
+              ? { preferredHostTranscriptionLayerId: input.preferredHostTranscriptionLayerId }
+              : {}),
           }, modality)}
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}

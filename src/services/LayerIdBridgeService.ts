@@ -6,6 +6,7 @@ export type UnitTextWithoutLayerId = Omit<LayerUnitContentDocType, 'layerId'>;
 
 export interface LayerLinkEdge {
   transcriptionLayerKey: string;
+  hostTranscriptionLayerId: string;
   targetLayerId: string;
 }
 
@@ -30,9 +31,10 @@ export function createLayerLink(params: {
   return {
     id: params.id,
     transcriptionLayerKey: params.transcriptionLayerKey,
+    hostTranscriptionLayerId: params.hostTranscriptionLayerId,
     layerId: params.targetLayerId,
     linkType: 'free',
     isPreferred: false,
     createdAt: params.createdAt,
-  } as LayerLinkDocType;
+  };
 }

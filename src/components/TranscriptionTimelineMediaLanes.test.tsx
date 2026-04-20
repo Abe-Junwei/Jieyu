@@ -2,9 +2,10 @@
 import type { ComponentProps } from 'react';
 import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineMediaLanes as RawTranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
+import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 
 const NOW = new Date().toISOString();
 const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
@@ -421,6 +422,9 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       key: 'trl_fra_1',
       parentLayerId: parentLayer.id,
     } as LayerDocType;
+    const layerLinks = [
+      { id: 'link-1', layerId: translationLayer.id, transcriptionLayerKey: parentLayer.key!, hostTranscriptionLayerId: parentLayer.id, isPreferred: true, createdAt: NOW },
+    ] as LayerLinkDocType[];
 
     render(
       <TranscriptionTimelineMediaLanes
@@ -440,6 +444,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
         onFocusLayer={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        layerLinks={layerLinks}
         segmentsByLayer={new Map([
           [parentLayer.id, [
             { id: 'seg-1', textId: 't1', mediaId: 'm1', layerId: parentLayer.id, startTime: 0, endTime: 1, createdAt: NOW, updatedAt: NOW },
@@ -530,6 +535,76 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(within(childLane as HTMLElement).getByTestId('ann-seg-1')).toBeTruthy();
     expect(within(childLane as HTMLElement).getByTestId('ann-seg-2')).toBeTruthy();
     expect(within(childLane as HTMLElement).queryByTestId('ann-u-main')).toBeNull();
+  });
+
+  it('applies speaker filter consistently for parent and dependent lanes sharing one segment source', () => {
+    const parentLayer = {
+      ...makeLayer('trc-parent-filter'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
+    const childLayer = {
+      ...makeLayer('trc-child-filter'),
+      constraint: 'symbolic_association',
+      parentLayerId: parentLayer.id,
+    } as LayerDocType;
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[parentLayer, childLayer]}
+        translationLayers={[]}
+        timelineRenderUnits={[makeUnit('u-main', 0, 2, 's1')]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={parentLayer.id}
+        activeSpeakerFilterKey="s1"
+        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[parentLayer, childLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[parentLayer, childLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [parentLayer.id]: 44, [childLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        segmentsByLayer={new Map([
+          [parentLayer.id, [
+            {
+              id: 'seg-s1',
+              textId: 't1',
+              mediaId: 'm1',
+              layerId: parentLayer.id,
+              speakerId: 's1',
+              startTime: 0,
+              endTime: 1,
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
+            {
+              id: 'seg-s2',
+              textId: 't1',
+              mediaId: 'm1',
+              layerId: parentLayer.id,
+              speakerId: 's2',
+              startTime: 1,
+              endTime: 2,
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
+          ]],
+        ])}
+      />,
+    );
+
+    const parentLane = screen.getByTestId(`toggle-${parentLayer.id}`).closest('.timeline-lane');
+    const childLane = screen.getByTestId(`toggle-${childLayer.id}`).closest('.timeline-lane');
+    expect(parentLane).toBeTruthy();
+    expect(childLane).toBeTruthy();
+
+    expect(within(parentLane as HTMLElement).getByTestId('ann-seg-s1')).toBeTruthy();
+    expect(within(parentLane as HTMLElement).queryByTestId('ann-seg-s2')).toBeNull();
+    expect(within(childLane as HTMLElement).getByTestId('ann-seg-s1')).toBeTruthy();
+    expect(within(childLane as HTMLElement).queryByTestId('ann-seg-s2')).toBeNull();
   });
 
   it('renders overlapping units without speaker-focus dim or hide classes', () => {
@@ -749,6 +824,67 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(screen.getByTestId('ann-seg-view-2')).toBeTruthy();
   });
 
+  it('surfaces save error and retry callbacks for media translation rows', async () => {
+    const translationLayer = makeLayer('trl-save', 'translation');
+    const item = { ...makeUnit('u1', 0, 1, 's1'), layerId: translationLayer.id } as LayerUnitDocType;
+    const scheduleAutoSave = vi.fn();
+    const saveUnitLayerText = vi.fn()
+      .mockRejectedValueOnce(new Error('save failed'))
+      .mockResolvedValue(undefined);
+
+    render(
+      <TranscriptionTimelineMediaTranslationRow
+        item={item as never}
+        layer={translationLayer}
+        layerForDisplay={translationLayer}
+        baseLaneHeight={44}
+        usesOwnSegments={false}
+        unitById={new Map([[item.id, item]])}
+        segmentById={new Map()}
+        text="初始译文"
+        draft="草稿译文"
+        draftKey={`${translationLayer.id}-${item.id}`}
+        audioMedia={undefined}
+        recording={false}
+        recordingUnitId={null}
+        recordingLayerId={null}
+        startRecordingForUnit={undefined}
+        stopRecording={undefined}
+        deleteVoiceTranslation={undefined}
+        saveSegmentContentForLayer={undefined}
+        saveUnitLayerText={saveUnitLayerText}
+        scheduleAutoSave={scheduleAutoSave}
+        clearAutoSaveTimer={vi.fn()}
+        setTranslationDrafts={vi.fn()}
+        focusedTranslationDraftKeyRef={{ current: null }}
+        renderAnnotationItem={(_utt, _layer, draft, extra) => (
+          <div>
+            <div data-testid="media-save-status">{extra.saveStatus ?? 'none'}</div>
+            <input aria-label="media-draft" value={draft} onChange={extra.onChange as never} onBlur={extra.onBlur as never} />
+            <button type="button" onClick={() => extra.onRetrySave?.()}>retry</button>
+          </div>
+        )}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('media-draft'), { target: { value: '已改译文' } });
+    expect(screen.getByTestId('media-save-status').textContent).toBe('dirty');
+
+    const schCalls = scheduleAutoSave.mock.calls;
+    const scheduledTask = schCalls[schCalls.length - 1]?.[1] as (() => Promise<void>) | undefined;
+    expect(scheduledTask).toBeTypeOf('function');
+    await act(async () => {
+      await scheduledTask?.();
+    });
+
+    expect(screen.getByTestId('media-save-status').textContent).toBe('error');
+
+    const retryButton = screen.getByRole('button', { name: 'retry' });
+    expect(retryButton).toBeTruthy();
+    fireEvent.click(retryButton);
+    expect(saveUnitLayerText.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('renders recording controls for audio translation rows and starts recording', () => {
     const transcriptionLayer = makeLayer('trc-base');
     const translationLayer = {
@@ -795,5 +931,132 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
       expect.objectContaining({ id: translationLayer.id }),
     );
     expect(screen.getByText(/未录音|Not recorded/)).toBeTruthy();
+  });
+
+  it('renders enabled recording control for mixed translation rows in horizontal mode', () => {
+    const transcriptionLayer = makeLayer('trc-mixed-base');
+    const translationLayer = {
+      ...makeLayer('trl-mixed', 'translation'),
+      key: 'trl_mixed',
+      modality: 'mixed',
+      acceptsAudio: false,
+    } as LayerDocType;
+    const unit = makeUnit('u-mixed-1', 0, 1, 's1');
+    const startRecordingForUnit = vi.fn(async () => undefined);
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        timelineRenderUnits={[unit]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        renderAnnotationItem={(_utt, _layer, _draft, extra) => {
+          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
+          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+        }}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
+        mediaItems={[]}
+        startRecordingForUnit={startRecordingForUnit}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    const recordButton = screen.getByRole('button', { name: /开始录音翻译|Start recording translation/i });
+    expect(recordButton.hasAttribute('disabled')).toBe(false);
+    fireEvent.click(recordButton);
+
+    expect(startRecordingForUnit).toHaveBeenCalledWith(
+      expect.objectContaining({ id: unit.id }),
+      expect.objectContaining({ id: translationLayer.id }),
+    );
+  });
+
+  it('resolves horizontal playback by segment fallback key when scope key is parent unit id', () => {
+    const transcriptionLayer = makeLayer('trc-playback-base');
+    const translationLayer = {
+      ...makeLayer('trl-playback', 'translation'),
+      key: 'trl_playback',
+      modality: 'mixed',
+      acceptsAudio: true,
+    } as LayerDocType;
+    const parentUnit = makeUnit('u-parent-1', 0, 2, 's1');
+    const segmentItem = {
+      ...makeUnit('seg-playback-1', 0, 2, 's1'),
+      unitType: 'segment',
+      parentUnitId: parentUnit.id,
+      layerId: transcriptionLayer.id,
+    } as LayerUnitDocType;
+    const translationAudioByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
+      [
+        translationLayer.id,
+        new Map([
+          [
+            segmentItem.id,
+            {
+              id: 'tr-audio-1',
+              textId: 't1',
+              unitId: segmentItem.id,
+              layerId: translationLayer.id,
+              modality: 'audio',
+              sourceType: 'human',
+              translationAudioMediaId: 'media-audio-1',
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
+          ],
+        ]),
+      ],
+    ]);
+    const mediaItems: MediaItemDocType[] = [{
+      id: 'media-audio-1',
+      textId: 't1',
+      filename: 'playback.webm',
+      url: 'blob:horizontal-playback',
+      isOfflineCached: true,
+      details: { source: 'translation-recording', mimeType: 'audio/webm' },
+      createdAt: NOW,
+    }] as MediaItemDocType[];
+
+    render(
+      <TranscriptionTimelineMediaLanes
+        playerDuration={20}
+        zoomPxPerSec={100}
+        lassoRect={null}
+        transcriptionLayers={[transcriptionLayer]}
+        translationLayers={[translationLayer]}
+        timelineRenderUnits={[segmentItem]}
+        segmentParentUnitLookup={[parentUnit]}
+        flashLayerRowId=""
+        focusedLayerRowId=""
+        defaultTranscriptionLayerId={transcriptionLayer.id}
+        renderAnnotationItem={(_utt, _layer, _draft, extra) => {
+          const audioExtra = extra as typeof extra & { content?: React.ReactNode; tools?: React.ReactNode };
+          return <div>{audioExtra.content}{audioExtra.tools}</div>;
+        }}
+        allLayersOrdered={[translationLayer, transcriptionLayer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={[translationLayer, transcriptionLayer]}
+        onFocusLayer={vi.fn()}
+        laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
+        onLaneHeightChange={vi.fn()}
+        translationAudioByLayer={translationAudioByLayer}
+        mediaItems={mediaItems}
+        startRecordingForUnit={vi.fn(async () => undefined)}
+        stopRecording={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /播放录音翻译|播放已录音翻译|Play recorded translation/i })).toBeTruthy();
   });
 });

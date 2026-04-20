@@ -5,7 +5,7 @@
 
 import { memo } from 'react';
 import type React from 'react';
-import type { LayerDocType, LayerLinkDocType, LayerDisplaySettings, OrthographyDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerDisplaySettings, OrthographyDocType, LayerUnitDocType, LayerUnitContentDocType, MediaItemDocType } from '../db';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
@@ -13,7 +13,9 @@ import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 import { TranscriptionTimelineMediaTranscriptionRow } from './TranscriptionTimelineMediaTranscriptionRow';
 import { TimelineStyledButton, TimelineStyledContainer } from './transcription/TimelineStyledContainer';
-import { t, useLocale } from '../i18n';
+import { recordingScopeUnitId } from '../utils/recordingScopeUnitId';
+import { t, tf, useLocale } from '../i18n';
+import type { LayerOperationActionType } from './layerOperationMenuItems';
 
 const COLLAPSED_OVERLAP_HINT_TRACK_WIDTH = 48;
 
@@ -73,6 +75,7 @@ interface TranscriptionLaneProps {
   segmentSpeakerIdByLayer: Map<string, Map<string, string>>;
   segmentContentByLayer?: Map<string, Map<string, { text?: string }>>;
   unitById: Map<string, LayerUnitDocType>;
+  segmentById: Map<string, LayerUnitDocType>;
   activeOverlapGroupId?: string;
   // Editor bindings
   unitDrafts: Record<string, string>;
@@ -80,7 +83,16 @@ interface TranscriptionLaneProps {
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
   scheduleAutoSave: (key: string, saveFn: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
-  saveUnitText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
+  translationAudioByLayer?: Map<string, Map<string, LayerUnitContentDocType>>;
+  mediaItemById: Map<string, MediaItemDocType>;
+  recording: boolean;
+  recordingUnitId?: string | null;
+  recordingLayerId?: string | null;
+  startRecordingForUnit?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
+  stopRecording?: () => void;
+  deleteVoiceTranslation?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   renderAnnotationItem: (
     utt: TimelineUnitView,
@@ -95,19 +107,21 @@ interface TranscriptionLaneProps {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
   renderLaneLabel: (layer: LayerDocType) => React.ReactNode;
   // Resize
-  startLaneHeightResize: (event: React.PointerEvent<HTMLDivElement>, layerId: string, baseLaneHeight: number) => void;
+  startLaneHeightResize: (
+    event: React.PointerEvent<HTMLDivElement>,
+    layerId: string,
+    baseLaneHeight: number,
+    edge?: 'top' | 'bottom',
+  ) => void;
   // Callbacks
   handleLayerAction: (
-    action:
-      | 'create-transcription'
-      | 'create-translation'
-      | 'edit-transcription-metadata'
-      | 'edit-translation-metadata'
-      | 'delete',
+    action: LayerOperationActionType,
     layerId?: string,
   ) => void;
   onToggleCollapsed: (layerId: string) => void;
@@ -121,6 +135,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   zoomPxPerSec,
   flashLayerRowId,
   focusedLayerRowId,
+  defaultTranscriptionLayerId: _defaultTranscriptionLayerId,
   allLayersOrdered,
   onReorderLayers,
   deletableLayers,
@@ -154,12 +169,22 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   segmentSpeakerIdByLayer,
   segmentContentByLayer,
   unitById,
+  segmentById,
   unitDrafts,
   getUnitTextForLayer,
   saveSegmentContentForLayer,
   scheduleAutoSave,
   clearAutoSaveTimer,
-  saveUnitText,
+  saveUnitLayerText,
+  focusedTranslationDraftKeyRef,
+  translationAudioByLayer,
+  mediaItemById,
+  recording,
+  recordingUnitId,
+  recordingLayerId,
+  startRecordingForUnit,
+  stopRecording,
+  deleteVoiceTranslation,
   setUnitDrafts,
   renderAnnotationItem,
   renderLaneLabel,
@@ -170,6 +195,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
   onLanePointerDown,
 }: TranscriptionLaneProps) {
   const locale = useLocale();
+  const laneHeightResizeLabel = t(locale, 'transcription.timeline.resizeLaneHeight');
 
   return (
     <TimelineStyledContainer
@@ -198,6 +224,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         layerLinks={layerLinks}
         showConnectors={showConnectors}
         onToggleConnectors={onToggleConnectors}
+        headerMenuPreset="layer-chrome-plus-track"
         {...(speakerQuickActions && { speakerQuickActions })}
         {...(onToggleTrackDisplayMode && {
           trackModeControl: {
@@ -230,7 +257,7 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             onActivateTemporaryExpand(layer.id, group.id);
           }}
         >
-          {group.speakerCount}人
+          {tf(locale, 'transcription.timeline.overlapCollapsedSpeakerBadge', { count: group.speakerCount })}
         </TimelineStyledButton>
       ))}
       {!effectiveCollapsed && visibleUnits.map((unit) => {
@@ -251,6 +278,13 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
         const subTrackTop = (isMultiTrackMode ? (placement?.subTrackIndex ?? 0) : 0) * baseLaneHeight;
         // Timeline rendering is TimelineUnitView-first; avoid doc-shape replacement by id.
         const uttForRender = unit;
+        const scopeId = recordingScopeUnitId(uttForRender);
+        const translationAudioEntries = translationAudioByLayer?.get(layer.id);
+        const audioTranslation = translationAudioEntries?.get(scopeId)
+          ?? (scopeId !== unit.id ? translationAudioEntries?.get(unit.id) : undefined);
+        const audioMedia = audioTranslation?.translationAudioMediaId
+          ? mediaItemById.get(audioTranslation.translationAudioMediaId)
+          : undefined;
         return (
           <TranscriptionTimelineMediaTranscriptionRow
             key={`trc-sub-${layer.id}-${unit.id}`}
@@ -263,23 +297,36 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
             draftKey={draftKey}
             sourceText={sourceText}
             unitKind={unit.kind}
+            unitById={unitById}
+            segmentById={segmentById}
             {...(overlapCycleItems ? { overlapCycleItems } : {})}
             {...(overlapCycleStatus ? { overlapCycleStatus } : {})}
             saveSegmentContentForLayer={saveSegmentContentForLayer}
             scheduleAutoSave={scheduleAutoSave}
             clearAutoSaveTimer={clearAutoSaveTimer}
-            saveUnitText={saveUnitText}
+            saveUnitLayerText={saveUnitLayerText}
+            focusedTranslationDraftKeyRef={focusedTranslationDraftKeyRef}
+            {...(audioMedia ? { audioMedia } : {})}
+            recording={recording}
+            {...(recordingUnitId !== undefined && recordingUnitId !== null ? { recordingUnitId } : {})}
+            {...(recordingLayerId !== undefined && recordingLayerId !== null ? { recordingLayerId } : {})}
+            {...(startRecordingForUnit ? { startRecordingForUnit } : {})}
+            {...(stopRecording ? { stopRecording } : {})}
+            {...(deleteVoiceTranslation ? { deleteVoiceTranslation } : {})}
             setUnitDrafts={setUnitDrafts}
             renderAnnotationItem={renderAnnotationItem}
           />
         );
       })}
-      {!effectiveCollapsed && <div
-        className="timeline-lane-resize-handle"
-        onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight)}
-        role="separator"
-        aria-orientation="horizontal"
-      />}
+      {!effectiveCollapsed && (
+        <div
+          className="timeline-lane-resize-handle timeline-lane-resize-handle-bottom timeline-lane-layer-splitter"
+          onPointerDown={(event) => startLaneHeightResize(event, layer.id, baseLaneHeight, 'bottom')}
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={laneHeightResizeLabel}
+        />
+      )}
     </TimelineStyledContainer>
   );
 });

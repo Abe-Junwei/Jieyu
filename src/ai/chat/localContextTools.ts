@@ -2,7 +2,7 @@ import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 import type { AiLocalToolReadModelMeta, AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
 import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
-import { getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../../db';
+import { dexieStoresForGetUnitLinguisticMemoryRead, getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../../db';
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
 import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
@@ -1052,6 +1052,12 @@ interface LinguisticMemoryNoteView {
   updatedAt: string;
 }
 
+interface LinguisticMemoryLayerRow {
+  id: string;
+  layerType?: unknown;
+  contentType?: unknown;
+}
+
 function mapLayerType(value: unknown): 'transcription' | 'translation' | 'unknown' {
   if (value === 'transcription' || value === 'translation') return value;
   return 'unknown';
@@ -1124,25 +1130,89 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     };
   }
 
-  const [
+  const {
     layerUnit,
     unitTexts,
     tokenRowsRaw,
     morphemeRowsRaw,
-  ] = await db.dexie.transaction(
+    layerRows,
+    unitNotes,
+    translationNoteRows,
+    tokenNoteRows,
+    morphemeNoteRows,
+  } = await db.dexie.transaction(
     'r',
-    db.dexie.layer_units,
-    db.dexie.layer_unit_contents,
-    db.dexie.unit_tokens,
-    db.dexie.unit_morphemes,
-    async () => Promise.all([
-      db.dexie.layer_units.get(unitId),
-      listUnitTextsByUnit(db, unitId),
-      db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
-      includeMorphemes
-        ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
-        : Promise.resolve([]),
-    ]),
+    [...dexieStoresForGetUnitLinguisticMemoryRead(db)],
+    async () => {
+      const [
+        layerUnit,
+        unitTexts,
+        tokenRowsRaw,
+        morphemeRowsRaw,
+      ] = await Promise.all([
+        db.dexie.layer_units.get(unitId),
+        listUnitTextsByUnit(db, unitId),
+        db.dexie.unit_tokens.where('unitId').equals(unitId).toArray(),
+        includeMorphemes
+          ? db.dexie.unit_morphemes.where('unitId').equals(unitId).toArray()
+          : Promise.resolve([]),
+      ]);
+
+      const layerIds = [...new Set(
+        unitTexts
+          .map((row) => row.layerId)
+          .filter((id): id is string => typeof id === 'string' && id.length > 0),
+      )];
+
+      const [layerRows, unitNotes, translationNoteRows, tokenNoteRows, morphemeNoteRows]: [
+        LinguisticMemoryLayerRow[],
+        LinguisticMemoryNoteView[],
+        Array<{ textId: string; notes: LinguisticMemoryNoteView[] }>,
+        Array<{ tokenId: string; notes: LinguisticMemoryNoteView[] }>,
+        Array<{ morphemeId: string; notes: LinguisticMemoryNoteView[] }>,
+      ] = await Promise.all([
+        layerIds.length > 0
+          ? db.dexie.tier_definitions.where('id').anyOf(layerIds).toArray() as Promise<LinguisticMemoryLayerRow[]>
+          : Promise.resolve<LinguisticMemoryLayerRow[]>([]),
+        includeNotes ? listNotesByTarget(db, 'unit', unitId) : Promise.resolve<LinguisticMemoryNoteView[]>([]),
+        includeNotes
+          ? Promise.all(
+            unitTexts.map(async (row) => ({
+              textId: row.id,
+              notes: await listNotesByTarget(db, 'translation', row.id),
+            })),
+          )
+          : Promise.resolve<Array<{ textId: string; notes: LinguisticMemoryNoteView[] }>>([]),
+        includeNotes
+          ? Promise.all(
+            tokenRowsRaw.map(async (row) => ({
+              tokenId: row.id,
+              notes: await listNotesByTarget(db, 'token', row.id),
+            })),
+          )
+          : Promise.resolve<Array<{ tokenId: string; notes: LinguisticMemoryNoteView[] }>>([]),
+        includeNotes
+          ? Promise.all(
+            morphemeRowsRaw.map(async (row) => ({
+              morphemeId: row.id,
+              notes: await listNotesByTarget(db, 'morpheme', row.id),
+            })),
+          )
+          : Promise.resolve<Array<{ morphemeId: string; notes: LinguisticMemoryNoteView[] }>>([]),
+      ]);
+
+      return {
+        layerUnit,
+        unitTexts,
+        tokenRowsRaw,
+        morphemeRowsRaw,
+        layerRows,
+        unitNotes,
+        translationNoteRows,
+        tokenNoteRows,
+        morphemeNoteRows,
+      };
+    },
   );
 
   const hasAnyData = Boolean(
@@ -1167,53 +1237,21 @@ async function getUnitLinguisticMemory(args: Record<string, unknown>, context: A
     return a.tokenId.localeCompare(b.tokenId);
   });
 
-  const layerIds = [...new Set(
-    unitTexts
-      .map((row) => row.layerId)
-      .filter((id): id is string => typeof id === 'string' && id.length > 0),
-  )];
-  const layerRows = layerIds.length > 0
-    ? (await db.collections.layers.findByIndexAnyOf('id', layerIds)).map((doc) => doc.toJSON())
-    : [];
   const layerTypeById = new Map(
-    layerRows.map((layer) => [layer.id, mapLayerType(layer.layerType)]),
+    layerRows.map((layer) => [layer.id, mapLayerType(layer.layerType ?? layer.contentType)]),
   );
 
-  const unitNotes = includeNotes
-    ? await listNotesByTarget(db, 'unit', unitId)
-    : [];
-
-  const translationNoteRows = includeNotes
-    ? await Promise.all(
-      unitTexts.map(async (row) => ({
-        textId: row.id,
-        notes: await listNotesByTarget(db, 'translation', row.id),
-      })),
-    )
-    : [];
   const translationNotesByTextId = new Map(
     translationNoteRows.map((entry) => [entry.textId, entry.notes]),
   );
 
-  const tokenNoteRows = includeNotes
-    ? await Promise.all(
-      tokenRows.map(async (row) => ({
-        tokenId: row.id,
-        notes: await listNotesByTarget(db, 'token', row.id),
-      })),
-    )
-    : [];
-  const tokenNotesById = new Map(tokenNoteRows.map((entry) => [entry.tokenId, entry.notes]));
+  const tokenNotesById = new Map(
+    tokenNoteRows.map((entry) => [entry.tokenId, entry.notes]),
+  );
 
-  const morphemeNoteRows = includeNotes
-    ? await Promise.all(
-      morphemeRows.map(async (row) => ({
-        morphemeId: row.id,
-        notes: await listNotesByTarget(db, 'morpheme', row.id),
-      })),
-    )
-    : [];
-  const morphemeNotesById = new Map(morphemeNoteRows.map((entry) => [entry.morphemeId, entry.notes]));
+  const morphemeNotesById = new Map(
+    morphemeNoteRows.map((entry) => [entry.morphemeId, entry.notes]),
+  );
 
   const morphemesByTokenId = new Map<string, Array<Record<string, unknown>>>();
   if (includeMorphemes) {

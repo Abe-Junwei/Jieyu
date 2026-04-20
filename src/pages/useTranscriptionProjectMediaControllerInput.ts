@@ -6,6 +6,7 @@ export function useTranscriptionProjectMediaControllerInput(
 ): UseTranscriptionProjectMediaControllerInput {
   return useMemo(() => ({
     activeTextId: input.activeTextId,
+    mediaItems: input.mediaItems,
     getActiveTextId: input.getActiveTextId,
     setActiveTextId: input.setActiveTextId,
     setShowAudioImport: input.setShowAudioImport,
@@ -25,6 +26,7 @@ export function useTranscriptionProjectMediaControllerInput(
     getUnitTextForLayer: input.getUnitTextForLayer,
   }), [
     input.activeTextId,
+    input.mediaItems,
     input.addMediaItem,
     input.createUnitFromSelectionRouted,
     input.getActiveTextId,

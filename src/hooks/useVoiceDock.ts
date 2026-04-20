@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fireAndForget } from '../utils/fireAndForget';
 import { createLogger } from '../observability/logger';
 import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../services/stt';
+import { setCommercialSttRuntimeSnapshot } from '../services/stt/voiceCommercialSttRuntime';
 
 export type CommercialProviderKind = 'groq' | 'gemini' | 'openai-audio' | 'custom-http' | 'minimax' | 'volcengine';
 
@@ -203,6 +204,10 @@ export function useVoiceDock({
   }, [voiceDockDragging, voiceDockPos]);
 
   // Persist commercial STT config to localStorage when it changes
+  useEffect(() => {
+    setCommercialSttRuntimeSnapshot(commercialProviderKind, commercialProviderConfig);
+  }, [commercialProviderKind, commercialProviderConfig]);
+
   useEffect(() => {
     saveCommercialSttConfig(commercialProviderKind, commercialProviderConfig);
   }, [commercialProviderKind, commercialProviderConfig]);

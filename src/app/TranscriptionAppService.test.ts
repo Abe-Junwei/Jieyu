@@ -14,6 +14,7 @@ function createDeps(overrides: Partial<TranscriptionAppServiceDeps> = {}): Trans
       createdAt: '2026-04-17T00:00:00.000Z',
     })),
     importAudio: vi.fn(async () => ({ mediaId: 'media-1' })),
+    expandTextLogicalDurationToAtLeast: vi.fn(async () => undefined),
     deleteProject: vi.fn(async () => undefined),
     deleteAudio: vi.fn(async () => undefined),
     deleteSegments: vi.fn(async () => undefined),

@@ -24,6 +24,7 @@ export interface RegionActionOverlayProps {
   isPlaying: boolean;
   segmentPlaybackRate: number;
   segmentLoopPlayback: boolean;
+  skipProcessing: boolean;
 
   // 回调（父组件负责 player 交互） | Callbacks (parent owns player interaction)
   onPlaybackRateChange: (rate: number) => void;
@@ -40,6 +41,7 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   isPlaying,
   segmentPlaybackRate,
   segmentLoopPlayback,
+  skipProcessing,
   onPlaybackRateChange,
   onToggleLoop,
   onTogglePlay,
@@ -53,6 +55,10 @@ export const RegionActionOverlay: FC<RegionActionOverlayProps> = ({
   const showSpeedSlider = widthPx >= 160;
   const showLoopBtn = widthPx >= 72;
   const locale = useLocale();
+
+  if (skipProcessing) {
+    return null;
+  }
 
   return (
     <div

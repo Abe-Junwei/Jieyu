@@ -62,6 +62,7 @@ type HookInput = Parameters<typeof useTranscriptionProjectMediaController>[0];
 function createBaseInput(overrides: Partial<HookInput> = {}): HookInput {
   return {
     activeTextId: 'text-1',
+    mediaItems: [],
     getActiveTextId: vi.fn(async () => 'text-1'),
     setActiveTextId: vi.fn(),
     setShowAudioImport: vi.fn(),
@@ -224,5 +225,37 @@ describe('useTranscriptionProjectMediaController', () => {
     expect(createUnitFromSelectionRouted).not.toHaveBeenCalled();
     expect(mockLoadAudioBuffer).not.toHaveBeenCalled();
     expect(mockDetectVadSegments).not.toHaveBeenCalled();
+  });
+
+  it('treats auxiliary recording media rows as non-timeline for audio import disposition', () => {
+    const placeholderMedia = {
+      id: 'media-placeholder',
+      textId: 'text-1',
+      filename: 'document-placeholder.track',
+      duration: 30,
+      details: { placeholder: true, timelineMode: 'document', timelineKind: 'placeholder' },
+      isOfflineCached: true,
+      createdAt: '2026-04-08T00:00:00.000Z',
+    } as MediaItemDocType;
+    const translationRecordingMedia = {
+      id: 'media-translation-audio',
+      textId: 'text-1',
+      filename: 'translation-clip.webm',
+      duration: 4,
+      details: {
+        source: 'translation-recording',
+        audioBlob: new Blob(['tr'], { type: 'audio/webm' }),
+        timelineKind: 'acoustic',
+      },
+      isOfflineCached: true,
+      createdAt: '2026-04-08T00:00:00.000Z',
+    } as MediaItemDocType;
+
+    const { result } = renderHook(() => useTranscriptionProjectMediaController(createBaseInput({
+      mediaItems: [placeholderMedia, translationRecordingMedia],
+      selectedTimelineMedia: translationRecordingMedia,
+    })));
+
+    expect(result.current.audioImportDisposition).toEqual({ kind: 'simple' });
   });
 });

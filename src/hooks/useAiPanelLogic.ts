@@ -164,6 +164,11 @@ export function useAiPanelLogic({
     };
   }, [selectedUnit?.id, selectedUnitText]);
 
+  const processableUnits = useMemo(
+    () => units.filter((unit) => !(unit.tags?.skipProcessing)),
+    [units],
+  );
+
   const vadCacheEntry = useVadCacheEntry(mediaId);
   const vadWarmupStatus = useVadCacheWarmupStatus(mediaId);
   const vadSegments = vadCacheEntry?.segments;
@@ -203,15 +208,15 @@ export function useAiPanelLogic({
   // ── Project observer ──
   const observer = useMemo(() => new ProjectObserver(), []);
   const observerResult = useMemo(() => {
-    const total = units.length;
-    const transcribed = units.filter((u) => {
+    const total = processableUnits.length;
+    const transcribed = processableUnits.filter((u) => {
       if (u.annotationStatus === 'transcribed' || u.annotationStatus === 'translated' || u.annotationStatus === 'glossed' || u.annotationStatus === 'verified') {
         return true;
       }
       return typeof u.transcription?.default === 'string' && u.transcription.default.trim().length > 0;
     }).length;
-    const glossed = units.filter((u) => u.status === 'glossed' || u.status === 'verified').length;
-    const verified = units.filter((u) => u.status === 'verified').length;
+    const glossed = processableUnits.filter((u) => u.status === 'glossed' || u.status === 'verified').length;
+    const verified = processableUnits.filter((u) => u.status === 'verified').length;
 
     return observer.evaluate({
       unitRowCount: total,
@@ -225,28 +230,28 @@ export function useAiPanelLogic({
       maxGapSeconds: waveformAnalysisSummary.maxGapSeconds,
       ...(waveformAnalysisSummary.hotZones?.[0] ? { topHotZoneSeverity: waveformAnalysisSummary.hotZones[0].severity } : {}),
     }, locale);
-  }, [locale, observer, units, waveformAnalysisSummary]);
+  }, [locale, observer, processableUnits, waveformAnalysisSummary]);
 
   // ── Actionable recommendations ──
   const actionableObserverRecommendations = useMemo(() => {
-    const orderedUnits = [...units].sort((left, right) => {
+    const orderedUnits = [...processableUnits].sort((left, right) => {
       if (left.startTime !== right.startTime) return left.startTime - right.startTime;
       if (left.endTime !== right.endTime) return left.endTime - right.endTime;
       return left.id.localeCompare(right.id);
     });
-    const nextUntranscribed = units.find((u) => {
+    const nextUntranscribed = processableUnits.find((u) => {
       if (u.annotationStatus === 'transcribed' || u.annotationStatus === 'translated' || u.annotationStatus === 'glossed' || u.annotationStatus === 'verified') {
         return false;
       }
       return !(typeof u.transcription?.default === 'string' && u.transcription.default.trim().length > 0);
     });
-    const nextUntaggedPosUnit = units.find((u) => (
+    const nextUntaggedPosUnit = processableUnits.find((u) => (
       Array.isArray(u.words) && u.words.some((word) => (word.pos ?? '').trim().length === 0)
     ));
-    const nextUnglossed = units.find((u) => u.annotationStatus !== 'glossed' && u.annotationStatus !== 'verified');
-    const nextUnverified = units.find((u) => u.annotationStatus !== 'verified');
+    const nextUnglossed = processableUnits.find((u) => u.annotationStatus !== 'glossed' && u.annotationStatus !== 'verified');
+    const nextUnverified = processableUnits.find((u) => u.annotationStatus !== 'verified');
 
-    const riskCandidate = units
+    const riskCandidate = processableUnits
       .filter((u) => typeof u.ai_metadata?.confidence === 'number')
       .sort((a, b) => (a.ai_metadata?.confidence ?? 1) - (b.ai_metadata?.confidence ?? 1))[0];
 
@@ -275,7 +280,7 @@ export function useAiPanelLogic({
       : riskCandidate ?? overlapCandidate ?? gapCandidate;
 
     const batchPosCandidate = (() => {
-      for (const unit of units) {
+      for (const unit of processableUnits) {
         if (!Array.isArray(unit.words) || unit.words.length === 0) continue;
 
         const formStats = new Map<string, { form: string; taggedPos?: string; untaggedCount: number }>();

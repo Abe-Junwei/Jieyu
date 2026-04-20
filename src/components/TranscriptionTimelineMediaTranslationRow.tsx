@@ -1,10 +1,13 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptionTimelineMediaTranslationRowProps {
@@ -14,6 +17,7 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   baseLaneHeight: number;
   usesOwnSegments: boolean;
   unitById: Map<string, LayerUnitDocType>;
+  segmentById: Map<string, LayerUnitDocType>;
   text: string;
   draft: string;
   draftKey: string;
@@ -24,6 +28,11 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
   deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  transcribeVoiceTranslation?: (
+    unit: LayerUnitDocType,
+    layer: LayerDocType,
+    options?: { signal?: AbortSignal; audioBlob?: Blob },
+  ) => Promise<void>;
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
@@ -43,6 +52,8 @@ interface TranscriptionTimelineMediaTranslationRowProps {
         content?: React.ReactNode;
         tools?: React.ReactNode;
         hasTrailingTools?: boolean;
+        saveStatus?: 'dirty' | 'saving' | 'error';
+        onRetrySave?: () => void;
       },
   ) => React.ReactNode;
 }
@@ -54,6 +65,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   baseLaneHeight,
   usesOwnSegments,
   unitById,
+  segmentById,
   text,
   draft,
   draftKey,
@@ -64,6 +76,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   startRecordingForUnit,
   stopRecording,
   deleteVoiceTranslation,
+  transcribeVoiceTranslation,
   saveSegmentContentForLayer,
   saveUnitLayerText,
   scheduleAutoSave,
@@ -73,31 +86,76 @@ export function TranscriptionTimelineMediaTranslationRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranslationRowProps) {
   const locale = useLocale();
-  const layerSupportsAudio = !usesOwnSegments
-    && (layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio));
+  const [saveStatus, setSaveStatus] = useState<'dirty' | 'saving' | 'error' | undefined>(undefined);
+  const latestDraftRef = useRef(draft);
+  const rowCellKey = `media-tr-${layer.id}-${item.id}`;
+  const setRowSaveStatus = useCallback((status?: 'dirty' | 'saving' | 'error') => {
+    setSaveStatus(status);
+  }, []);
+  const runSaveWithStatus = useCallback(async (saveTask: () => Promise<void>) => {
+    setRowSaveStatus('saving');
+    try {
+      await saveTask();
+      setRowSaveStatus(undefined);
+    } catch (err) {
+      console.error('[Jieyu] TranscriptionTimelineMediaTranslationRow: save failed', { cellKey: rowCellKey, err });
+      setRowSaveStatus('error');
+    }
+  }, [rowCellKey, setRowSaveStatus]);
+  useEffect(() => {
+    latestDraftRef.current = draft;
+  }, [draft]);
+
+  const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const showAudioTools = layerSupportsAudio && layer.modality === 'mixed';
-  const isCurrentRecording = recording && recordingUnitId === item.id && recordingLayerId === layer.id;
+  const sourceUnit = resolveVoiceRecordingSourceUnit(item, unitById, segmentById);
+  const recordingScopeIds = (() => {
+    const ids = [recordingScopeUnitId(item), sourceUnit?.id, item.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    return Array.from(new Set(ids));
+  })();
+  const isCurrentRecording = recording
+    && recordingLayerId === layer.id
+    && recordingScopeIds.includes((recordingUnitId ?? '').trim());
   const audioActionDisabled = recording && !isCurrentRecording;
-  const sourceUnit = item.kind === 'segment'
-    ? (item.parentUnitId ? unitById.get(item.parentUnitId) : undefined)
-    : unitById.get(item.id);
-  const audioControls = layerSupportsAudio ? (
+  const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
       disabled={audioActionDisabled}
       compact={!isAudioOnlyLayer}
       {...(audioMedia ? { mediaItem: audioMedia } : {})}
       onStartRecording={() => {
-        if (!sourceUnit) return;
         void startRecordingForUnit?.(sourceUnit, layer);
       }}
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
       {...(audioMedia && deleteVoiceTranslation && sourceUnit
         ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
         : {})}
+      {...(layer.modality === 'mixed' && transcribeVoiceTranslation && sourceUnit && audioMedia
+        ? {
+          onTranscribeRecording: () => {
+            const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
+            return transcribeVoiceTranslation(sourceUnit, layer, b ? { audioBlob: b } : undefined);
+          },
+        }
+        : {})}
     />
   ) : undefined;
+  const showAudioTools = Boolean(audioControls) && !isAudioOnlyLayer;
+
+  const retrySave = useCallback(() => {
+    const value = normalizeSingleLine(latestDraftRef.current);
+    if (value === text) {
+      setRowSaveStatus(undefined);
+      return;
+    }
+    void runSaveWithStatus(async () => {
+      if (usesOwnSegments && saveSegmentContentForLayer) {
+        await saveSegmentContentForLayer(item.id, layer.id, value);
+        return;
+      }
+      await saveUnitLayerText(item.id, value, layer.id);
+    });
+  }, [item.id, layer.id, runSaveWithStatus, saveSegmentContentForLayer, saveUnitLayerText, setRowSaveStatus, text, usesOwnSegments]);
 
   return (
     <TimelineStyledContainer
@@ -118,25 +176,40 @@ export function TranscriptionTimelineMediaTranslationRow({
           ? t(locale, 'transcription.timeline.placeholder.segment')
           : t(locale, 'transcription.timeline.placeholder.translation'),
         ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),
+        ...(saveStatus ? { saveStatus } : {}),
+        onRetrySave: retrySave,
         onFocus: () => {
           focusedTranslationDraftKeyRef.current = draftKey;
         },
         onChange: (e) => {
           const value = normalizeSingleLine(e.target.value);
+          latestDraftRef.current = value;
           setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
           if (usesOwnSegments) {
             if (!saveSegmentContentForLayer) return;
-            scheduleAutoSave(`seg-${layer.id}-${item.id}`, async () => {
-              await saveSegmentContentForLayer(item.id, layer.id, value);
-            });
+            if (value !== text) {
+              setRowSaveStatus('dirty');
+              scheduleAutoSave(`seg-${layer.id}-${item.id}`, async () => {
+                await runSaveWithStatus(async () => {
+                  await saveSegmentContentForLayer(item.id, layer.id, value);
+                });
+              });
+            } else {
+              clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
+              setRowSaveStatus(undefined);
+            }
             return;
           }
           if (value.trim() && value !== text) {
+            setRowSaveStatus('dirty');
             scheduleAutoSave(`tr-${layer.id}-${item.id}`, async () => {
-              await saveUnitLayerText(item.id, value, layer.id);
+              await runSaveWithStatus(async () => {
+                await saveUnitLayerText(item.id, value, layer.id);
+              });
             });
           } else {
             clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
+            setRowSaveStatus(undefined);
           }
         },
         onBlur: (e) => {
@@ -145,13 +218,21 @@ export function TranscriptionTimelineMediaTranslationRow({
           if (usesOwnSegments) {
             clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
             if (saveSegmentContentForLayer && value !== text) {
-              fireAndForget(saveSegmentContentForLayer(item.id, layer.id, value));
+              fireAndForget(runSaveWithStatus(async () => {
+                await saveSegmentContentForLayer(item.id, layer.id, value);
+              }));
+            } else {
+              setRowSaveStatus(undefined);
             }
             return;
           }
           clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
           if (value !== text) {
-            fireAndForget(saveUnitLayerText(item.id, value, layer.id));
+            fireAndForget(runSaveWithStatus(async () => {
+              await saveUnitLayerText(item.id, value, layer.id);
+            }));
+          } else {
+            setRowSaveStatus(undefined);
           }
         },
       })}

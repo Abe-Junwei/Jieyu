@@ -9,6 +9,7 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']
 // 允许 tierId 出现的边界文件/目录（互操作、桥接、数据定义、测试）
 const ALLOWED_FILE_PATHS = new Set([
   'src/services/TierBridgeService.ts',
+  'src/services/LinguisticService.cleanup.ts',
   'src/services/LinguisticService.constraints.ts',
   'src/services/LinguisticService.tiers.ts',
   'src/services/LinguisticService.ts',

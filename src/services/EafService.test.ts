@@ -354,3 +354,78 @@ describe('EafService export', () => {
     });
   });
 });
+
+describe('EafService logical timeline round-trip', () => {
+  const layer: LayerDocType = {
+    id: 'layer_trc',
+    textId: 'text_1',
+    key: 'trc_default',
+    name: { eng: 'Transcription' },
+    layerType: 'transcription',
+    languageId: 'und',
+    modality: 'text',
+    acceptsAudio: false,
+    isDefault: true,
+    sortOrder: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  it('export→import preserves non-uniform segment times without local media (sorted export order)', () => {
+    const units: LayerUnitDocType[] = [
+      {
+        id: 'utt_mid',
+        textId: 'text_1',
+        mediaId: 'media_placeholder_only',
+        startTime: 10.25,
+        endTime: 12.5,
+        transcription: { default: 'mid' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utt_first',
+        textId: 'text_1',
+        mediaId: 'media_placeholder_only',
+        startTime: 0,
+        endTime: 0.333,
+        transcription: { default: 'first' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      {
+        id: 'utt_gap',
+        textId: 'text_1',
+        mediaId: 'media_placeholder_only',
+        startTime: 5,
+        endTime: 6.125,
+        transcription: { default: 'gap' },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+    ];
+
+    const translations: LayerUnitContentDocType[] = [
+      { id: 't1', unitId: 'utt_mid', layerId: 'layer_trc', modality: 'text', text: 'mid', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
+      { id: 't2', unitId: 'utt_first', layerId: 'layer_trc', modality: 'text', text: 'first', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
+      { id: 't3', unitId: 'utt_gap', layerId: 'layer_trc', modality: 'text', text: 'gap', sourceType: 'human', createdAt: NOW, updatedAt: NOW },
+    ];
+
+    const xml = exportToEaf({
+      units,
+      layers: [layer],
+      translations,
+      timelineMetadata: { timelineMode: 'document', logicalDurationSec: 20 },
+    });
+
+    expect(xml).not.toMatch(/MEDIA_DESCRIPTOR/);
+
+    const imported = importFromEaf(xml);
+    const got = [...imported.units].sort((a, b) => a.startTime - b.startTime);
+    expect(got.map((u) => [u.startTime, u.endTime, u.transcription])).toEqual([
+      [0, 0.333, 'first'],
+      [5, 6.125, 'gap'],
+      [10.25, 12.5, 'mid'],
+    ]);
+  });
+});

@@ -1,5 +1,5 @@
 import { createConflictResolutionLog, type CollaborationRecord, type ConflictDescriptor, type FieldValue } from './collaborationConflictRuntime';
-import { appendOperationLog, createReconnectValidationLog, openArbitrationTicket, toArbitrationOperationLogs, validateReconnectConsistency, type ArbitrationTicket, type CollaborationOperationLog } from './collaborationRulesRuntime';
+import { appendOperationLog, createReconnectValidationLog, mergeOperationLogs, openArbitrationTicket, toArbitrationOperationLogs, validateReconnectConsistency, type ArbitrationTicket, type CollaborationOperationLog } from './collaborationRulesRuntime';
 
 export interface LayerObjectState {
   layerId: string;
@@ -240,26 +240,13 @@ export function applyMultiLayerBatchEdits(
   };
 }
 
-function dedupeOperationLogs(logs: CollaborationOperationLog[]): CollaborationOperationLog[] {
-  const seen = new Set<string>();
-  const deduped: CollaborationOperationLog[] = [];
-  for (const log of logs) {
-    if (seen.has(log.logId)) {
-      continue;
-    }
-    seen.add(log.logId);
-    deduped.push(log);
-  }
-  return deduped;
-}
-
 export async function applyMultiLayerBatchEditsWithWriter(
   baseObjects: LayerObjectState[],
   operations: LayerEditOperation[],
   writeOperationLogs: CollaborationOperationLogWriter,
 ): Promise<MultiLayerBatchPersistResult> {
   const result = applyMultiLayerBatchEdits(baseObjects, operations);
-  const operationLogs = dedupeOperationLogs(result.operationLogs);
+  const operationLogs = mergeOperationLogs(result.operationLogs);
   if (operationLogs.length > 0) {
     await writeOperationLogs(operationLogs);
   }

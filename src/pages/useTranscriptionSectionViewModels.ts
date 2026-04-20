@@ -6,6 +6,7 @@ import { createTranscriptionExportCallbacks } from './transcriptionExportCallbac
 import { createTranscriptionTimelineTopProps } from './transcriptionTimelineTopProps';
 import { createTranscriptionToolbarProps } from './transcriptionToolbarProps';
 import type { UseTranscriptionSectionViewModelsInput, UseTranscriptionSectionViewModelsResult } from './transcriptionSectionViewModelTypes';
+import { useTranscriptionReviewSectionViewModel } from './useTranscriptionReviewSectionViewModel';
 
 interface UseTranscriptionSectionViewModelsResolvedResult extends UseTranscriptionSectionViewModelsResult {
   aiSidebarProps: ReturnType<typeof useTranscriptionSidebarSectionsViewModel>['aiSidebarProps'];
@@ -81,9 +82,20 @@ export function useTranscriptionSectionViewModels(
     sidebarSectionsInput,
   } = input;
 
-  const lowConfidenceCount = useMemo(() => unitsOnCurrentMedia.filter(
-    (unit) => typeof unit.ai_metadata?.confidence === 'number' && unit.ai_metadata.confidence < 0.75,
-  ).length, [unitsOnCurrentMedia]);
+  const {
+    lowConfidenceCount,
+    reviewPresetCounts,
+    activeReviewPreset,
+    handleSelectReviewPreset,
+    handleOpenReviewIssues,
+    handleStepReviewIssue,
+  } = useTranscriptionReviewSectionViewModel({
+    unitsOnCurrentMedia,
+    selectedTimelineUnit,
+    manualSelectTsRef,
+    selectUnit,
+    player,
+  });
 
   const exportCallbacks = useMemo(() => createTranscriptionExportCallbacks({
     setShowExportMenu,
@@ -131,14 +143,21 @@ export function useTranscriptionSectionViewModels(
     toggleNotes,
     setUttOpsMenu,
     lowConfidenceCount,
+    reviewIssueCount: reviewPresetCounts.all,
+    reviewPresetCounts,
+    activeReviewPreset,
+    onSelectReviewPreset: handleSelectReviewPreset,
+    onOpenReviewIssues: handleOpenReviewIssues,
+    onReviewPrev: () => handleStepReviewIssue(-1),
+    onReviewNext: () => handleStepReviewIssue(1),
     selectedMediaUrl,
     handleAutoSegment,
     autoSegmentBusy,
   }), [
-    autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
-    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, hasActiveTextId,
+    activeReviewPreset, autoSegmentBusy, canRedo, canUndo, exportCallbacks, exportMenuRef, globalLoopPlayback,
+    handleAutoSegment, handleDeleteCurrentAudio, handleDeleteCurrentProject, handleOpenReviewIssues, handleSelectReviewPreset, handleStepReviewIssue, hasActiveTextId,
     hasSelectedTimelineMedia, importFileRef, loadSnapshot, locale, lowConfidenceCount,
-    notePopoverOpen, player, redo, selectedMediaUrl, selectedTimelineMediaFilename,
+    notePopoverOpen, player, redo, reviewPresetCounts, selectedMediaUrl, selectedTimelineMediaFilename,
     selectedTimelineUnit, setGlobalLoopPlayback, setShowAudioImport, setShowProjectSetup,
     setWaveformDisplayMode,
     setUttOpsMenu, setWaveformVisualStyle, setAcousticOverlayMode, showExportMenu, toggleNotes, undo, undoLabel,
