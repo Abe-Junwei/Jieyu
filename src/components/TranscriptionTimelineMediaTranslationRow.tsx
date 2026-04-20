@@ -7,6 +7,7 @@ import { TimelineStyledContainer } from './transcription/TimelineStyledContainer
 import { fireAndForget } from '../utils/fireAndForget';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
 
 interface TranscriptionTimelineMediaTranslationRowProps {
@@ -27,6 +28,11 @@ interface TranscriptionTimelineMediaTranslationRowProps {
   startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
   deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  transcribeVoiceTranslation?: (
+    unit: LayerUnitDocType,
+    layer: LayerDocType,
+    options?: { signal?: AbortSignal; audioBlob?: Blob },
+  ) => Promise<void>;
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
@@ -70,6 +76,7 @@ export function TranscriptionTimelineMediaTranslationRow({
   startRecordingForUnit,
   stopRecording,
   deleteVoiceTranslation,
+  transcribeVoiceTranslation,
   saveSegmentContentForLayer,
   saveUnitLayerText,
   scheduleAutoSave,
@@ -101,10 +108,15 @@ export function TranscriptionTimelineMediaTranslationRow({
 
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const recordingScopeId = recordingScopeUnitId(item);
-  const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
-  const audioActionDisabled = recording && !isCurrentRecording;
   const sourceUnit = resolveVoiceRecordingSourceUnit(item, unitById, segmentById);
+  const recordingScopeIds = (() => {
+    const ids = [recordingScopeUnitId(item), sourceUnit?.id, item.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    return Array.from(new Set(ids));
+  })();
+  const isCurrentRecording = recording
+    && recordingLayerId === layer.id
+    && recordingScopeIds.includes((recordingUnitId ?? '').trim());
+  const audioActionDisabled = recording && !isCurrentRecording;
   const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
@@ -117,6 +129,14 @@ export function TranscriptionTimelineMediaTranslationRow({
       {...(stopRecording ? { onStopRecording: stopRecording } : {})}
       {...(audioMedia && deleteVoiceTranslation && sourceUnit
         ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
+        : {})}
+      {...(layer.modality === 'mixed' && transcribeVoiceTranslation && sourceUnit && audioMedia
+        ? {
+          onTranscribeRecording: () => {
+            const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
+            return transcribeVoiceTranslation(sourceUnit, layer, b ? { audioBlob: b } : undefined);
+          },
+        }
         : {})}
     />
   ) : undefined;

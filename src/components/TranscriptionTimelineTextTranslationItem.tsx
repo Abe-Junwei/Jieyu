@@ -3,6 +3,7 @@ import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
+import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
 import { TimelineDraftEditorSurface } from './transcription/TimelineDraftEditorSurface';
 import { t, useLocale } from '../i18n';
@@ -34,6 +35,11 @@ interface TranscriptionTimelineTextTranslationItemProps {
   startRecordingForUnit: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
   stopRecording: (() => void) | undefined;
   deleteVoiceTranslation: ((unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>) | undefined;
+  transcribeVoiceTranslation?: (
+    unit: LayerUnitDocType,
+    layer: LayerDocType,
+    options?: { signal?: AbortSignal; audioBlob?: Blob },
+  ) => Promise<void>;
   saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
   saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
@@ -87,6 +93,7 @@ export function TranscriptionTimelineTextTranslationItem({
   startRecordingForUnit,
   stopRecording,
   deleteVoiceTranslation,
+  transcribeVoiceTranslation,
   saveSegmentContentForLayer,
   saveUnitLayerText,
   scheduleAutoSave,
@@ -108,10 +115,15 @@ export function TranscriptionTimelineTextTranslationItem({
   const locale = useLocale();
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
-  const recordingScopeId = recordingScopeUnitId(utt);
-  const isCurrentRecording = recording && recordingUnitId === recordingScopeId && recordingLayerId === layer.id;
-  const audioActionDisabled = recording && !isCurrentRecording;
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
+  const recordingScopeIds = (() => {
+    const ids = [recordingScopeUnitId(utt), sourceUnit?.id, utt.id].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+    return Array.from(new Set(ids));
+  })();
+  const isCurrentRecording = recording
+    && recordingLayerId === layer.id
+    && recordingScopeIds.includes((recordingUnitId ?? '').trim());
+  const audioActionDisabled = recording && !isCurrentRecording;
   const audioControls = layerSupportsAudio && sourceUnit ? (
     <TimelineTranslationAudioControls
       isRecording={isCurrentRecording}
@@ -125,6 +137,14 @@ export function TranscriptionTimelineTextTranslationItem({
       {...(audioMedia && deleteVoiceTranslation && sourceUnit
         ? { onDeleteRecording: () => deleteVoiceTranslation(sourceUnit, layer) }
         : {})}
+      {...(layer.modality === 'mixed' && transcribeVoiceTranslation && sourceUnit && audioMedia
+        ? {
+          onTranscribeRecording: () => {
+            const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
+            return transcribeVoiceTranslation(sourceUnit, layer, b ? { audioBlob: b } : undefined);
+          },
+        }
+        : {})}
     />
   ) : undefined;
   const showAudioTools = Boolean(audioControls) && !isAudioOnlyLayer;
@@ -132,6 +152,16 @@ export function TranscriptionTimelineTextTranslationItem({
   const retrySave = () => {
     if (draft === text) {
       setCellSaveStatus(cellKey);
+      return;
+    }
+    if (usesOwnSegments) {
+      if (!saveSegmentContentForLayer) {
+        setCellSaveStatus(cellKey);
+        return;
+      }
+      void runSaveWithStatus(cellKey, async () => {
+        await saveSegmentContentForLayer(utt.id, layer.id, draft);
+      });
       return;
     }
     void runSaveWithStatus(cellKey, async () => {

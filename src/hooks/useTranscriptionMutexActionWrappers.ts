@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useMemo } from 'react';
 import type { LayerDocType, LayerUnitDocType } from '../db';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import type { LayerCreateInput } from './transcriptionTypes';
@@ -8,6 +8,11 @@ type Params = {
   runWithDbMutex: <T>(task: () => Promise<T>) => Promise<T>;
   saveVoiceTranslationRaw: (blob: Blob, targetUnit: LayerUnitDocType, targetLayer: LayerDocType) => Promise<void>;
   deleteVoiceTranslationRaw: (targetUnit: LayerUnitDocType, targetLayer: LayerDocType) => Promise<void>;
+  transcribeVoiceTranslationRaw: (
+    targetUnit: LayerUnitDocType,
+    targetLayer: LayerDocType,
+    options?: { signal?: AbortSignal; audioBlob?: Blob },
+  ) => Promise<void>;
   saveUnitTextRaw: (unitId: string, value: string, layerId?: string) => Promise<void>;
   saveUnitSelfCertaintyRaw: (unitIds: Iterable<string>, value: UnitSelfCertainty | undefined) => Promise<void>;
   saveUnitLayerFieldsRaw: (unitIds: Iterable<string>, patch: PerLayerRowFieldPatch) => Promise<void>;
@@ -33,6 +38,7 @@ export function useTranscriptionMutexActionWrappers({
   runWithDbMutex,
   saveVoiceTranslationRaw,
   deleteVoiceTranslationRaw,
+  transcribeVoiceTranslationRaw,
   saveUnitTextRaw,
   saveUnitSelfCertaintyRaw,
   saveUnitLayerFieldsRaw,
@@ -53,132 +59,58 @@ export function useTranscriptionMutexActionWrappers({
   deleteLayerRaw,
   toggleLayerLinkRaw,
 }: Params) {
-  const saveVoiceTranslation = useCallback((
-    blob: Blob,
-    targetUnit: LayerUnitDocType,
-    targetLayer: LayerDocType,
-  ) => runWithDbMutex(() => saveVoiceTranslationRaw(blob, targetUnit, targetLayer)), [runWithDbMutex, saveVoiceTranslationRaw]);
+  return useMemo(() => {
+    const wrapWithDbMutex = <Args extends unknown[], Result>(fn: (...args: Args) => Promise<Result>) => (
+      (...args: Args) => runWithDbMutex(() => fn(...args))
+    );
 
-  const deleteVoiceTranslation = useCallback((
-    targetUnit: LayerUnitDocType,
-    targetLayer: LayerDocType,
-  ) => runWithDbMutex(() => deleteVoiceTranslationRaw(targetUnit, targetLayer)), [deleteVoiceTranslationRaw, runWithDbMutex]);
-
-  const saveUnitText = useCallback((unitId: string, value: string, layerId?: string) => (
-    runWithDbMutex(() => saveUnitTextRaw(unitId, value, layerId))
-  ), [runWithDbMutex, saveUnitTextRaw]);
-
-  const saveUnitSelfCertainty = useCallback((
-    unitIds: Iterable<string>,
-    value: UnitSelfCertainty | undefined,
-  ) => runWithDbMutex(() => saveUnitSelfCertaintyRaw(unitIds, value)), [
-    runWithDbMutex,
-    saveUnitSelfCertaintyRaw,
-  ]);
-
-  const saveUnitLayerFields = useCallback((
-    unitIds: Iterable<string>,
-    patch: PerLayerRowFieldPatch,
-  ) => runWithDbMutex(() => saveUnitLayerFieldsRaw(unitIds, patch)), [
+    return {
+      saveVoiceTranslation: wrapWithDbMutex(saveVoiceTranslationRaw),
+      deleteVoiceTranslation: wrapWithDbMutex(deleteVoiceTranslationRaw),
+      transcribeVoiceTranslation: wrapWithDbMutex(transcribeVoiceTranslationRaw),
+      saveUnitText: wrapWithDbMutex(saveUnitTextRaw),
+      saveUnitSelfCertainty: wrapWithDbMutex(saveUnitSelfCertaintyRaw),
+      saveUnitLayerFields: wrapWithDbMutex(saveUnitLayerFieldsRaw),
+      saveUnitTiming: wrapWithDbMutex(saveUnitTimingRaw),
+      saveUnitLayerText: wrapWithDbMutex(saveUnitLayerTextRaw),
+      createAdjacentUnit: wrapWithDbMutex(createAdjacentUnitRaw),
+      createUnitFromSelection: wrapWithDbMutex(createUnitFromSelectionRaw),
+      deleteUnit: wrapWithDbMutex(deleteUnitRaw),
+      mergeWithPrevious: wrapWithDbMutex(mergeWithPreviousRaw),
+      mergeWithNext: wrapWithDbMutex(mergeWithNextRaw),
+      splitUnit: wrapWithDbMutex(splitUnitRaw),
+      deleteSelectedUnits: wrapWithDbMutex(deleteSelectedUnitsRaw),
+      offsetSelectedTimes: wrapWithDbMutex(offsetSelectedTimesRaw),
+      scaleSelectedTimes: wrapWithDbMutex(scaleSelectedTimesRaw),
+      splitByRegex: wrapWithDbMutex(splitByRegexRaw),
+      mergeSelectedUnits: wrapWithDbMutex(mergeSelectedUnitsRaw),
+      createLayer: wrapWithDbMutex(createLayerRaw),
+      deleteLayer: wrapWithDbMutex(deleteLayerRaw),
+      toggleLayerLink: wrapWithDbMutex(toggleLayerLinkRaw),
+    };
+  }, [
+    createAdjacentUnitRaw,
+    createLayerRaw,
+    createUnitFromSelectionRaw,
+    deleteLayerRaw,
+    deleteSelectedUnitsRaw,
+    deleteUnitRaw,
+    deleteVoiceTranslationRaw,
+    mergeSelectedUnitsRaw,
+    mergeWithNextRaw,
+    mergeWithPreviousRaw,
+    offsetSelectedTimesRaw,
     runWithDbMutex,
     saveUnitLayerFieldsRaw,
-  ]);
-
-  const saveUnitTiming = useCallback((unitId: string, startTime: number, endTime: number) => (
-    runWithDbMutex(() => saveUnitTimingRaw(unitId, startTime, endTime))
-  ), [runWithDbMutex, saveUnitTimingRaw]);
-
-  const saveUnitLayerText = useCallback((
-    unitId: string,
-    value: string,
-    layerId: string,
-  ) => runWithDbMutex(() => saveUnitLayerTextRaw(unitId, value, layerId)), [
-    runWithDbMutex,
     saveUnitLayerTextRaw,
+    saveUnitSelfCertaintyRaw,
+    saveUnitTextRaw,
+    saveUnitTimingRaw,
+    saveVoiceTranslationRaw,
+    scaleSelectedTimesRaw,
+    splitByRegexRaw,
+    splitUnitRaw,
+    toggleLayerLinkRaw,
+    transcribeVoiceTranslationRaw,
   ]);
-
-  const createAdjacentUnit = useCallback((base: LayerUnitDocType, playerDuration: number) => (
-    runWithDbMutex(() => createAdjacentUnitRaw(base, playerDuration))
-  ), [createAdjacentUnitRaw, runWithDbMutex]);
-
-  const createUnitFromSelection = useCallback((start: number, end: number, options?: { speakerId?: string; focusedLayerId?: string }) => (
-    runWithDbMutex(() => createUnitFromSelectionRaw(start, end, options))
-  ), [createUnitFromSelectionRaw, runWithDbMutex]);
-
-  const deleteUnit = useCallback((unitId: string) => (
-    runWithDbMutex(() => deleteUnitRaw(unitId))
-  ), [deleteUnitRaw, runWithDbMutex]);
-
-  const mergeWithPrevious = useCallback((unitId: string) => (
-    runWithDbMutex(() => mergeWithPreviousRaw(unitId))
-  ), [mergeWithPreviousRaw, runWithDbMutex]);
-
-  const mergeWithNext = useCallback((unitId: string) => (
-    runWithDbMutex(() => mergeWithNextRaw(unitId))
-  ), [mergeWithNextRaw, runWithDbMutex]);
-
-  const splitUnit = useCallback((unitId: string, splitTime: number) => (
-    runWithDbMutex(() => splitUnitRaw(unitId, splitTime))
-  ), [runWithDbMutex, splitUnitRaw]);
-
-  const deleteSelectedUnits = useCallback((ids: Set<string>) => (
-    runWithDbMutex(() => deleteSelectedUnitsRaw(ids))
-  ), [deleteSelectedUnitsRaw, runWithDbMutex]);
-
-  const offsetSelectedTimes = useCallback((ids: Set<string>, deltaSec: number) => (
-    runWithDbMutex(() => offsetSelectedTimesRaw(ids, deltaSec))
-  ), [offsetSelectedTimesRaw, runWithDbMutex]);
-
-  const scaleSelectedTimes = useCallback((ids: Set<string>, factor: number, anchorTime?: number) => (
-    runWithDbMutex(() => scaleSelectedTimesRaw(ids, factor, anchorTime))
-  ), [runWithDbMutex, scaleSelectedTimesRaw]);
-
-  const splitByRegex = useCallback((ids: Set<string>, pattern: string, flags?: string) => (
-    runWithDbMutex(() => splitByRegexRaw(ids, pattern, flags))
-  ), [runWithDbMutex, splitByRegexRaw]);
-
-  const mergeSelectedUnits = useCallback((ids: Set<string>) => (
-    runWithDbMutex(() => mergeSelectedUnitsRaw(ids))
-  ), [mergeSelectedUnitsRaw, runWithDbMutex]);
-
-  const createLayer = useCallback((
-    layerType: 'transcription' | 'translation',
-    input: LayerCreateInput,
-    modality?: 'text' | 'audio' | 'mixed',
-  ) => runWithDbMutex(() => createLayerRaw(layerType, input, modality)), [
-    createLayerRaw,
-    runWithDbMutex,
-  ]);
-
-  const deleteLayer = useCallback((targetLayerId?: string, options?: { keepUnits?: boolean }) => (
-    runWithDbMutex(() => deleteLayerRaw(targetLayerId, options))
-  ), [deleteLayerRaw, runWithDbMutex]);
-
-  const toggleLayerLink = useCallback((transcriptionLayerKey: string, layerId: string) => (
-    runWithDbMutex(() => toggleLayerLinkRaw(transcriptionLayerKey, layerId))
-  ), [runWithDbMutex, toggleLayerLinkRaw]);
-
-  return {
-    saveVoiceTranslation,
-    deleteVoiceTranslation,
-    saveUnitText,
-    saveUnitSelfCertainty,
-    saveUnitLayerFields,
-    saveUnitTiming,
-    saveUnitLayerText,
-    createAdjacentUnit,
-    createUnitFromSelection,
-    deleteUnit,
-    mergeWithPrevious,
-    mergeWithNext,
-    splitUnit,
-    deleteSelectedUnits,
-    offsetSelectedTimes,
-    scaleSelectedTimes,
-    splitByRegex,
-    mergeSelectedUnits,
-    createLayer,
-    deleteLayer,
-    toggleLayerLink,
-  };
 }

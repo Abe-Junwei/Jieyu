@@ -98,6 +98,7 @@ export type TranscriptionUnitActionsParams = {
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUnitIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
@@ -126,6 +127,7 @@ export function useTranscriptionUnitActions({
   setTranslations,
   setUnits,
   setUnitDrafts,
+  setTranslationDrafts,
   setSelectedUnitIds,
   setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
@@ -204,11 +206,12 @@ export function useTranscriptionUnitActions({
     return preferred;
   }, [resolveTextIdForPlaceholder, selectedUnitMedia, setMediaItems, setSelectedMediaId]);
 
-  const { saveVoiceTranslation, deleteVoiceTranslation } = useTranscriptionVoiceTranslationActions({
+  const { saveVoiceTranslation, deleteVoiceTranslation, transcribeVoiceTranslation } = useTranscriptionVoiceTranslationActions({
     resolveUnitById,
     setMediaItems,
     setSaveState,
     setTranslations,
+    setTranslationDrafts,
   });
 
   const saveUnitText = useCallback(async (unitId: string, value: string, layerId?: string) => {
@@ -1055,6 +1058,7 @@ export function useTranscriptionUnitActions({
   return {
     saveVoiceTranslation,
     deleteVoiceTranslation,
+    transcribeVoiceTranslation,
     saveUnitText: saveUnitText,
     saveUnitSelfCertainty: saveUnitSelfCertainty,
     saveUnitLayerFields: saveUnitLayerFields,
@@ -1062,6 +1066,7 @@ export function useTranscriptionUnitActions({
     saveUnitLayerText: saveUnitLayerText,
     createAdjacentUnit: createAdjacentUnit,
     createUnitFromSelection,
+    ensureTimelineMediaRowResolved,
     deleteUnit: deleteUnit,
     mergeWithPrevious,
     mergeWithNext,

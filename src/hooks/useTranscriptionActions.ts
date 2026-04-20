@@ -38,6 +38,7 @@ type Params = {
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnits: React.Dispatch<React.SetStateAction<LayerUnitDocType[]>>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  setTranslationDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   setSelectedUnitIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
   allowOverlapInTranscription?: boolean;
@@ -76,6 +77,7 @@ export function useTranscriptionActions({
   setTranslations,
   setUnits,
   setUnitDrafts,
+  setTranslationDrafts,
   setSelectedUnitIds,
   setSelectedTimelineUnit,
   allowOverlapInTranscription = false,
@@ -83,6 +85,7 @@ export function useTranscriptionActions({
   const {
     saveVoiceTranslation,
     deleteVoiceTranslation,
+    transcribeVoiceTranslation,
     saveUnitText,
     saveUnitSelfCertainty,
     saveUnitLayerFields,
@@ -90,6 +93,7 @@ export function useTranscriptionActions({
     saveUnitLayerText,
     createAdjacentUnit,
     createUnitFromSelection,
+    ensureTimelineMediaRowResolved,
     deleteUnit,
     mergeWithPrevious,
     mergeWithNext,
@@ -122,6 +126,7 @@ export function useTranscriptionActions({
     setTranslations,
     setUnits,
     setUnitDrafts,
+    setTranslationDrafts,
     setSelectedUnitIds,
     ...(setSelectedTimelineUnit ? { setSelectedTimelineUnit } : {}),
     allowOverlapInTranscription,
@@ -161,6 +166,7 @@ export function useTranscriptionActions({
   return {
     saveVoiceTranslation,
     deleteVoiceTranslation,
+    transcribeVoiceTranslation,
     saveUnitText,
     saveUnitSelfCertainty,
     saveUnitLayerFields,
@@ -168,6 +174,7 @@ export function useTranscriptionActions({
     saveUnitLayerText,
     createAdjacentUnit,
     createUnitFromSelection,
+    ensureTimelineMediaRowResolved,
     deleteUnit,
     mergeWithPrevious,
     mergeWithNext,

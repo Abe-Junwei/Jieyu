@@ -88,6 +88,28 @@
   color: var(--state-danger-text);
 }
 
+.timeline-translation-audio-btn-transcribe {
+  color: var(--text-secondary);
+}
+
+.timeline-translation-audio-btn-transcribe:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.timeline-translation-audio-btn-transcribe:focus-visible:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.timeline-translation-audio-transcribe-spin {
+  animation: timeline-translation-audio-transcribe-spin 0.85s linear infinite;
+}
+
+@keyframes timeline-translation-audio-transcribe-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .timeline-translation-audio-stop-glyph {
   width: 11px;
   height: 11px;

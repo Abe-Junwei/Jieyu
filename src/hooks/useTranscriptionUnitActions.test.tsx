@@ -24,6 +24,9 @@ vi.mock('../observability/logger', () => ({
   })),
 }));
 
+import { LocalWhisperSttProvider } from '../services/stt/LocalWhisperSttProvider';
+import * as sttModule from '../services/stt';
+import { resetCommercialSttRuntimeSnapshotForTests, setCommercialSttRuntimeSnapshot } from '../services/stt/voiceCommercialSttRuntime';
 import { useTranscriptionUnitActions } from './useTranscriptionUnitActions';
 
 function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
@@ -44,8 +47,6 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
   const now = new Date().toISOString();
   const { id, layerType, ...rest } = overrides;
   return {
-    ...rest,
-    id,
     textId: 't1',
     key: id,
     name: { zho: id, eng: id },
@@ -56,12 +57,15 @@ function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: '
     sortOrder: 0,
     createdAt: now,
     updatedAt: now,
+    ...rest,
+    id,
   } as LayerDocType;
 }
 
 describe('useTranscriptionUnitActions - batch operations', () => {
   beforeEach(async () => {
     window.localStorage.setItem(LOCALE_PREFERENCE_STORAGE_KEY, 'zh-CN');
+    resetCommercialSttRuntimeSnapshotForTests();
     await db.open();
     await Promise.all([
       db.embeddings.clear(),
@@ -69,6 +73,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       db.layer_units.clear(),
       db.layer_unit_contents.clear(),
       db.unit_relations.clear(),
+      db.media_items.clear(),
     ]);
     mockLogWarn.mockReset();
     mockLogError.mockReset();
@@ -76,6 +81,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
 
   afterEach(() => {
     cleanup();
+    resetCommercialSttRuntimeSnapshotForTests();
     window.localStorage.removeItem(LOCALE_PREFERENCE_STORAGE_KEY);
     vi.restoreAllMocks();
   });
@@ -113,6 +119,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -167,6 +174,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -211,6 +219,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -296,6 +305,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations,
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -362,6 +372,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -434,6 +445,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -486,6 +498,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations,
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -513,6 +526,179 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     expect(await db.media_items.count()).toBe(0);
     expect(await db.layer_unit_contents.where('layerId').equals(translationLayer.id).count()).toBe(0);
     expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done', message: '录音翻译已删除' }));
+  });
+
+  it('saveVoiceTranslation should not create projected child segment for standalone segment targets', async () => {
+    const translationLayer = makeLayer({
+      id: 'trl-segment-audio',
+      layerType: 'translation',
+      modality: 'audio',
+      acceptsAudio: true,
+      constraint: 'independent_boundary',
+    });
+    const now = new Date().toISOString();
+    const segment: LayerUnitDocType = {
+      id: 'seg-standalone-audio',
+      textId: 't1',
+      mediaId: 'm1',
+      layerId: translationLayer.id,
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.layer_units.put(segment);
+
+    let translationsState: LayerUnitContentDocType[] = [];
+    let mediaItemsState: MediaItemDocType[] = [];
+    const setTranslations = vi.fn((updater: LayerUnitContentDocType[] | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])) => {
+      translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+    });
+    const setMediaItems = vi.fn((updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
+      mediaItemsState = typeof updater === 'function' ? updater(mediaItemsState) : updater;
+    });
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([[translationLayer.id, translationLayer]]),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [segment] },
+      unitsOnCurrentMediaRef: { current: [segment] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems,
+      setTranslations,
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(new Blob(['audio'], { type: 'audio/webm' }), segment, translationLayer);
+    });
+
+    const projectedChildren = await LayerSegmentQueryService.listSegmentsByParentUnitIds([segment.id]);
+    expect(projectedChildren).toHaveLength(0);
+
+    const segmentRows = await db.layer_unit_contents.where('unitId').equals(segment.id).toArray();
+    expect(segmentRows).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        layerId: translationLayer.id,
+        unitId: segment.id,
+        modality: 'audio',
+      }),
+    ]));
+    expect(translationsState).toHaveLength(1);
+    expect(mediaItemsState).toHaveLength(1);
+
+    await act(async () => {
+      await result.current.deleteVoiceTranslation(segment, translationLayer);
+    });
+
+    expect(await db.layer_unit_contents.where('unitId').equals(segment.id).count()).toBe(0);
+    expect(await db.media_items.count()).toBe(0);
+    expect(translationsState).toHaveLength(0);
+    expect(mediaItemsState).toHaveLength(0);
+  });
+
+  it('saveVoiceTranslation upgrades existing standalone-segment text row in place', async () => {
+    const translationLayer = makeLayer({
+      id: 'trl-segment-mixed',
+      layerType: 'translation',
+      modality: 'mixed',
+      acceptsAudio: true,
+      constraint: 'independent_boundary',
+    });
+    const now = new Date().toISOString();
+    const segment: LayerUnitDocType = {
+      id: 'seg-standalone-upgrade',
+      textId: 't1',
+      mediaId: 'm1',
+      layerId: translationLayer.id,
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    await db.layer_units.put(segment);
+    await db.layer_unit_contents.put({
+      id: 'segc_existing_text',
+      textId: 't1',
+      unitId: segment.id,
+      layerId: translationLayer.id,
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: '已有文本',
+      sourceType: 'human',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitContentDocType);
+
+    let translationsState: LayerUnitContentDocType[] = [];
+    const setTranslations = vi.fn((updater: LayerUnitContentDocType[] | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])) => {
+      translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+    });
+    const setMediaItems = vi.fn();
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([[translationLayer.id, translationLayer]]),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [segment] },
+      unitsOnCurrentMediaRef: { current: [segment] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState: vi.fn(),
+      setSnapGuide: vi.fn(),
+      setMediaItems,
+      setTranslations,
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(new Blob(['audio'], { type: 'audio/webm' }), segment, translationLayer);
+    });
+
+    const segmentRows = await db.layer_unit_contents.where('unitId').equals(segment.id).toArray();
+    expect(segmentRows).toHaveLength(1);
+    expect(segmentRows[0]).toEqual(expect.objectContaining({
+      id: 'segc_existing_text',
+      layerId: translationLayer.id,
+      unitId: segment.id,
+      modality: 'mixed',
+      text: '已有文本',
+    }));
+    expect(segmentRows[0]?.translationAudioMediaId).toBeTruthy();
+    expect(translationsState).toHaveLength(1);
+    expect(translationsState[0]).toEqual(expect.objectContaining({
+      id: 'segc_existing_text',
+      modality: 'mixed',
+      text: '已有文本',
+    }));
   });
 
   it('saveUnitText should write translation text through canonical LayerUnit path', async () => {
@@ -566,6 +752,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -632,6 +819,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -690,6 +878,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -751,6 +940,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -813,6 +1003,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -873,6 +1064,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -938,6 +1130,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits,
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds,
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
@@ -992,6 +1185,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
       setSelectedTimelineUnit: setSelectedTimelineUnit as any,
@@ -1038,6 +1232,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -1099,6 +1294,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -1168,6 +1364,7 @@ describe('useTranscriptionUnitActions - batch operations', () => {
       setTranslations: vi.fn(),
       setUnits: vi.fn(),
       setUnitDrafts: vi.fn(),
+      setTranslationDrafts: vi.fn(),
       activeUnitId: '',
       setSelectedUnitIds: vi.fn(),
     }));
@@ -1187,5 +1384,207 @@ describe('useTranscriptionUnitActions - batch operations', () => {
     expect(dependentSegments).toHaveLength(1);
     expect(rootSegments[0]?.unitId).toBe(createdUnit.id);
     expect(dependentSegments[0]?.unitId).toBe(createdUnit.id);
+  });
+
+  it('transcribeVoiceTranslation merges text into existing audio row as mixed (no second text row)', async () => {
+    const unit = makeUnit('utt-stt-merge', 0, 1);
+    const translationLayer = makeLayer({
+      id: 'trl-stt-merge',
+      layerType: 'translation',
+      modality: 'mixed',
+      acceptsAudio: true,
+    });
+
+    await putTestUnitAsLayerUnit(db, unit, 'trc-seed');
+
+    let translationsState: LayerUnitContentDocType[] = [];
+    let mediaItemsState: MediaItemDocType[] = [];
+    const setTranslations = vi.fn((updater: LayerUnitContentDocType[] | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])) => {
+      translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+    });
+    const setMediaItems = vi.fn((updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
+      mediaItemsState = typeof updater === 'function' ? updater(mediaItemsState) : updater;
+    });
+    const setSaveState = vi.fn();
+    const setTranslationDrafts = vi.fn();
+
+    const whisperSpy = vi.spyOn(LocalWhisperSttProvider.prototype, 'transcribe').mockResolvedValue({
+      text: ' merged text ',
+      lang: 'en-US',
+      isFinal: true,
+      confidence: 0.9,
+      engine: 'whisper-local',
+    });
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([[translationLayer.id, translationLayer]]),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState,
+      setSnapGuide: vi.fn(),
+      setMediaItems,
+      setTranslations,
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      setTranslationDrafts,
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(new Blob(['a'], { type: 'audio/webm' }), unit, translationLayer);
+    });
+
+    expect(translationsState).toHaveLength(1);
+    const rowId = translationsState[0]!.id;
+    expect(translationsState[0]).toEqual(expect.objectContaining({ modality: 'audio' }));
+
+    const sttBlob = mediaItemsState.find((m) => m.id === translationsState[0]!.translationAudioMediaId);
+    const blobFromState = sttBlob?.details && typeof sttBlob.details === 'object'
+      && (sttBlob.details as { audioBlob?: unknown }).audioBlob instanceof Blob
+      ? (sttBlob.details as { audioBlob: Blob }).audioBlob
+      : new Blob(['a'], { type: 'audio/webm' });
+
+    await act(async () => {
+      await result.current.transcribeVoiceTranslation(unit, translationLayer, { audioBlob: blobFromState });
+    });
+
+    expect(whisperSpy).toHaveBeenCalled();
+    expect(translationsState).toHaveLength(1);
+    expect(translationsState[0]).toEqual(expect.objectContaining({
+      id: rowId,
+      modality: 'mixed',
+      text: 'merged text',
+    }));
+
+    const rows = await db.layer_unit_contents.where('layerId').equals(translationLayer.id).toArray();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toEqual(expect.objectContaining({
+      id: rowId,
+      modality: 'mixed',
+      text: 'merged text',
+    }));
+
+    expect(setTranslationDrafts).toHaveBeenCalled();
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '译文录音已转写并回填',
+    }));
+
+    whisperSpy.mockRestore();
+  });
+
+  it('transcribeVoiceTranslation uses runtime-injected commercial credentials after whisper fallback', async () => {
+    const unit = makeUnit('utt-stt-runtime-commercial', 0, 1);
+    const translationLayer = makeLayer({
+      id: 'trl-stt-runtime-commercial',
+      layerType: 'translation',
+      modality: 'mixed',
+      acceptsAudio: true,
+    });
+
+    window.localStorage.setItem('jieyu.voiceAgent.commercialStt', JSON.stringify({
+      kind: 'groq',
+      config: {
+        baseUrl: 'https://api.example.com',
+        model: 'whisper-large-v3',
+      },
+    }));
+
+    setCommercialSttRuntimeSnapshot('groq', {
+      apiKey: 'sk-runtime-secret',
+      baseUrl: 'https://api.example.com',
+      model: 'whisper-large-v3',
+    });
+
+    await putTestUnitAsLayerUnit(db, unit, 'trc-seed');
+
+    let translationsState: LayerUnitContentDocType[] = [];
+    let mediaItemsState: MediaItemDocType[] = [];
+    const setTranslations = vi.fn((updater: LayerUnitContentDocType[] | ((prev: LayerUnitContentDocType[]) => LayerUnitContentDocType[])) => {
+      translationsState = typeof updater === 'function' ? updater(translationsState) : updater;
+    });
+    const setMediaItems = vi.fn((updater: MediaItemDocType[] | ((prev: MediaItemDocType[]) => MediaItemDocType[])) => {
+      mediaItemsState = typeof updater === 'function' ? updater(mediaItemsState) : updater;
+    });
+    const setSaveState = vi.fn();
+    const setTranslationDrafts = vi.fn();
+
+    vi.spyOn(LocalWhisperSttProvider.prototype, 'transcribe').mockRejectedValue(new Error('whisper down'));
+    const commercialTranscribe = vi.fn().mockResolvedValue({
+      text: 'runtime commercial text',
+      lang: 'en-US',
+      isFinal: true,
+      confidence: 0.8,
+      engine: 'commercial',
+    });
+    const createCommercialProviderSpy = vi.spyOn(sttModule, 'createCommercialProvider').mockReturnValue({
+      isAvailable: vi.fn().mockResolvedValue(true),
+      transcribe: commercialTranscribe,
+    } as unknown as ReturnType<typeof sttModule.createCommercialProvider>);
+
+    const { result } = renderHook(() => useTranscriptionUnitActions({
+      defaultTranscriptionLayerId: undefined,
+      layerById: new Map([[translationLayer.id, translationLayer]]),
+      selectedUnitMedia: undefined,
+      translations: [],
+      unitsRef: { current: [unit] },
+      unitsOnCurrentMediaRef: { current: [unit] },
+      getUnitTextForLayer: () => '',
+      timingGestureRef: { current: { active: false, unitId: null } },
+      timingUndoRef: { current: null },
+      pushUndo: vi.fn(),
+      createAnchor: vi.fn(),
+      updateAnchorTime: vi.fn(),
+      pruneOrphanAnchors: vi.fn(),
+      setSaveState,
+      setSnapGuide: vi.fn(),
+      setMediaItems,
+      setTranslations,
+      setUnits: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      setTranslationDrafts,
+      activeUnitId: '',
+      setSelectedUnitIds: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.saveVoiceTranslation(new Blob(['a'], { type: 'audio/webm' }), unit, translationLayer);
+    });
+
+    const sttBlob = mediaItemsState.find((m) => m.id === translationsState[0]!.translationAudioMediaId);
+    const blobFromState = sttBlob?.details && typeof sttBlob.details === 'object'
+      && (sttBlob.details as { audioBlob?: unknown }).audioBlob instanceof Blob
+      ? (sttBlob.details as { audioBlob: Blob }).audioBlob
+      : new Blob(['a'], { type: 'audio/webm' });
+
+    await act(async () => {
+      await result.current.transcribeVoiceTranslation(unit, translationLayer, { audioBlob: blobFromState });
+    });
+
+    expect(createCommercialProviderSpy).toHaveBeenCalledWith('groq', expect.objectContaining({
+      apiKey: 'sk-runtime-secret',
+      baseUrl: 'https://api.example.com',
+      model: 'whisper-large-v3',
+    }));
+    expect(commercialTranscribe).toHaveBeenCalledTimes(1);
+    expect(translationsState[0]).toEqual(expect.objectContaining({
+      modality: 'mixed',
+      text: 'runtime commercial text',
+    }));
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'done',
+      message: '译文录音已转写并回填',
+    }));
   });
 });
