@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getDb, layerTranscriptionTreeParentId } from '../db';
+import { getDb, layerTranscriptionTreeParentId, stripForbiddenTranslationParentLayerId } from '../db';
 import type { LayerLinkDocType, MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { LinguisticService } from '../services/LinguisticService';
@@ -488,12 +488,11 @@ export function useTranscriptionLayerActions({
             );
             if (!translationLayer || !relinkTargetLayer) continue;
 
-            const updatedTranslation: LayerDocType = {
+            const updatedTranslation = stripForbiddenTranslationParentLayerId({
               ...translationLayer,
               constraint: 'symbolic_association',
               updatedAt: now,
-            };
-            delete updatedTranslation.parentLayerId;
+            } as LayerDocType);
             await LayerTierUnifiedService.updateLayer(updatedTranslation);
             reparentedLayerById.set(updatedTranslation.id, updatedTranslation);
 
@@ -708,12 +707,11 @@ export function useTranscriptionLayerActions({
       return;
     }
 
-    const updatedTranslationBase: LayerDocType = {
+    const updatedTranslationBase = stripForbiddenTranslationParentLayerId({
       ...translationLayer,
       constraint: 'symbolic_association',
       updatedAt: now,
-    };
-    delete updatedTranslationBase.parentLayerId;
+    } as LayerDocType);
     const nextLayers = computeCanonicalLayerOrder(layers.map((layer) => (
       layer.id === layerId ? updatedTranslationBase : layer
     )));
