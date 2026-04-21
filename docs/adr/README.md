@@ -26,6 +26,7 @@ source_of_truth: decision-index
 - [0005 — 转写层录音模态（SayMore careful speech 向）](转写层录音模态（SayMore careful speech 向）架构方案.md)（文件名含中文；与 README 中「0005」编号对应）
 - [0006-dexie-transaction-scope-layer-graph.md](0006-dexie-transaction-scope-layer-graph.md)（Dexie 事务作用域与转写层图访问：声明列全表为第一规范）
 - [0008-greenfield-indexeddb-export-collab-surface.md](0008-greenfield-indexeddb-export-collab-surface.md)（绿场库名、导出表面、轨道仅存 Dexie、协同 RLS 身份绑定）
+- [0009-greenfield-timeline-single-source-freeze.md](0009-greenfield-timeline-single-source-freeze.md)（绿场时间轴单一真相冻结；superseding ADR-0004 的运行态 mode 分叉）
 - [ADR-007 — `list_units` 大列表句柄分页（内存快照）](adr-ai-list-units-snapshot-handle.md)
 
 ## 建议格式

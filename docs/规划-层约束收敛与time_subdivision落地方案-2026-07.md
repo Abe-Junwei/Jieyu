@@ -89,7 +89,7 @@ switch (editMode) {
 | 文件 | 调用点数 | 改法 |
 |---|---|---|
 | `TranscriptionPage.Orchestrator.tsx` | ~10 | 统一为 `getLayerEditMode` switch |
-| `TranscriptionTimelineMediaLanes.tsx` | 2 | 换用 `getLayerEditMode` |
+| `TranscriptionTimelineHorizontalMediaLanes.tsx` | 2 | 换用 `getLayerEditMode` |
 | `TranscriptionTimelineTextOnly.tsx` | 2 | 换用 `getLayerEditMode` |
 | `useLayerSegmentContents.ts` (如有) | 1 | 换用 |
 | `EafConstraintParsing.test.ts` | 测试 | 保留 `isIndependentBoundaryLayer` 单测 + 新增 `getLayerEditMode` 单测 |
@@ -247,7 +247,7 @@ await LayerSegmentationV2Service.createSegmentLink({
 |---|---|
 | `src/hooks/useLayerSegments.ts` | 新增 `LayerEditMode` 类型 + `getLayerEditMode()` 函数 |
 | `src/pages/TranscriptionPage.Orchestrator.tsx` | 10 处 `isIndependentBoundaryLayer` → `getLayerEditMode` switch |
-| `src/components/TranscriptionTimelineMediaLanes.tsx` | 2 处换用 |
+| `src/components/TranscriptionTimelineHorizontalMediaLanes.tsx` | 2 处换用 |
 | `src/components/TranscriptionTimelineTextOnly.tsx` | 2 处换用 |
 | `src/services/EafConstraintParsing.test.ts` | 新增 `getLayerEditMode` 单测 |
 

@@ -344,9 +344,9 @@ In [src/pages/useTrackDisplayController.ts](src/pages/useTrackDisplayController.
 
 ## Phase 4: Timeline Rendering Migration
 
-### 4A. Update `TranscriptionTimelineMediaLanes`
+### 4A. Update `TranscriptionTimelineHorizontalMediaLanes`
 
-In [src/components/TranscriptionTimelineMediaLanes.tsx](src/components/TranscriptionTimelineMediaLanes.tsx):
+In [src/components/TranscriptionTimelineHorizontalMediaLanes.tsx](src/components/TranscriptionTimelineHorizontalMediaLanes.tsx):
 - `visibleUtterances` becomes `visibleUnits: TimelineUnitView[]`
 - Text resolution: use `unit.text` directly (already resolved by the view)
 - Speaker layout: use `unit.speakerId`
@@ -365,7 +365,7 @@ In [src/components/TranscriptionTimelineTextOnly.tsx](src/components/Transcripti
 
 ### 4D. Update timeline tests
 
-- [src/components/TranscriptionTimelineMediaLanes.test.tsx](src/components/TranscriptionTimelineMediaLanes.test.tsx)
+- [src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx](src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx)
 - [src/components/TranscriptionTimelineTextOnly.test.tsx](src/components/TranscriptionTimelineTextOnly.test.tsx)
 
 ---

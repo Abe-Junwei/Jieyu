@@ -325,7 +325,7 @@ source_of_truth: css-governance-execution-log
    - `npm run test:visual-css` 当前仍因混合工作树失败，快照漂移已扩展到 `media-controls.css`、`waveform-display.css`、`transcription-timeline.css`、`transcription-waveform.css`，以及并行主题中的 `app-shell-layout.css`、`language-metadata-workspace.css`、`orthography-bridge-workspace.css`、`orthography-manager-panel.css`、`analysis-panel.css`；另外还存在 `language-asset-workspace.css` 缺少 baseline 的并行改动。
    - 因为 visual 漂移范围明显超出本轮 CSS debt 收口主题，本轮未刷新整仓 visual baseline，避免把并行页面主题一并吞入当前基线。
 5. 下一轮动作：
-   - 若继续推进 CSS debt，优先处理 `TranscriptionPage.ReadyWorkspace`、`TimelineLaneHeader` 与 `TranscriptionTimelineMediaLanes` 这些仍位于 inline 高位的文件。
+   - 若继续推进 CSS debt，优先处理 `TranscriptionPage.ReadyWorkspace`、`TimelineLaneHeader` 与 `TranscriptionTimelineHorizontalMediaLanes` 这些仍位于 inline 高位的文件。
    - 待并行 CSS 主题范围稳定后，再统一刷新 visual baseline，并单独补齐 `language-asset-workspace.css` 的 baseline 初始登记。
 
 ## 2026-04-09 Layout Guard 与 Inline Debt 收口（八）
@@ -347,7 +347,7 @@ source_of_truth: css-governance-execution-log
    - `npm run test:visual-css` 仍被混合工作树阻断，当前快照漂移已包含 `ai-hub.css`、`media-controls.css`、`waveform-display.css`、`app-shell-layout.css`、`language-metadata-workspace.css`、`orthography-bridge-workspace.css`、`orthography-manager-panel.css`、`transcription-timeline.css`、`transcription-waveform.css`、`analysis-panel.css`，并且仍有 `language-asset-workspace.css` 未登记 baseline。
    - 因为 visual 失败范围继续明显超出本轮 ReadyWorkspace / TimelineLaneHeader 收口主题，本轮仍未刷新整仓 visual baseline。
 5. 下一轮动作：
-   - 若继续推进 CSS debt，优先处理 `TranscriptionTimelineMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `VoiceAgentWidget`，这三者已经成为新的 inline 高位组。
+   - 若继续推进 CSS debt，优先处理 `TranscriptionTimelineHorizontalMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `VoiceAgentWidget`，这三者已经成为新的 inline 高位组。
    - 等并行 CSS 主题范围稳定后，再统一刷新 visual baseline，并补齐 `language-asset-workspace.css` 的 baseline 初始登记。
 
 ## 2026-04-09 Layout Guard 与 Inline Debt 收口（九）
@@ -368,7 +368,7 @@ source_of_truth: css-governance-execution-log
 4. 发现问题：
    - `npm run test:visual-css` 仍被混合工作树阻断，当前漂移范围包括 `ai-hub.css`、`media-controls.css`、`waveform-display.css`、`app-shell-layout.css`、`language-metadata-workspace.css`、`orthography-bridge-workspace.css`、`orthography-manager-panel.css`、`transcription-timeline.css`、`transcription-waveform.css`、`analysis-panel.css`，并且仍有 `language-asset-workspace.css` 未登记 baseline。
 5. 下一轮动作：
-   - 若继续推进 CSS debt，优先处理 `TranscriptionTimelineMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `VoiceAgentWidget`，它们现在是新的高位组。
+   - 若继续推进 CSS debt，优先处理 `TranscriptionTimelineHorizontalMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `VoiceAgentWidget`，它们现在是新的高位组。
    - 待并行 CSS 主题范围稳定后，再统一刷新 visual baseline，并补齐 `language-asset-workspace.css` 的 baseline 初始登记。
 
 ## 2026-04-09 Layout Guard 与 Inline Debt 收口（十）
@@ -377,14 +377,14 @@ source_of_truth: css-governance-execution-log
 2. 执行命令：
    - `npm run check:css-inline-style`
    - `npm run check:css-unused-selectors`
-   - `npx vitest run src/components/TranscriptionTimelineMediaLanes.test.tsx src/components/VoiceAgentWidget.test.tsx`
+   - `npx vitest run src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx src/components/VoiceAgentWidget.test.tsx`
    - `npm run check:css-inline-style:write-baseline`
 3. 关键结果：
-   - 将 `TranscriptionTimelineMediaLanes` 的 lasso 框从绝对定位 HTML 盒子改为 SVG overlay，去掉一组只用于 `left/top/width/height` 的内联几何样式，同时保留现有拖选交互与命中区域。
+   - 将 `TranscriptionTimelineHorizontalMediaLanes` 的 lasso 框从绝对定位 HTML 盒子改为 SVG overlay，去掉一组只用于 `left/top/width/height` 的内联几何样式，同时保留现有拖选交互与命中区域。
    - 将 `TranscriptionTimelineMediaTranscriptionLane` 中只负责 `top` 偏移的额外包裹层移除，把子轨道纵向定位并入既有 `TranscriptionTimelineMediaTranscriptionRow` 宿主 style，避免新增新的动态宿主口。
    - 将 `VoiceAgentWidget` 的两条实时能量条改为 SVG meter，并把置信度文字颜色收口到 session-card 级 CSS 变量，文件内 inline debt 从 3 进一步降到 1。
-   - inline debt 从 40 继续收敛到 35，其中 `TranscriptionTimelineMediaLanes` 从 3 降到 2，`TranscriptionTimelineMediaTranscriptionLane` 从 3 降到 2，`VoiceAgentWidget` 从 3 降到 1；同步把 threshold 收紧到 `max=35 / target=33 / warnAt=35`，inline baseline 已刷新到 `total=35`。
-   - `TranscriptionTimelineMediaLanes.test.tsx` 与 `VoiceAgentWidget.test.tsx` 全绿，unused selector 继续维持 0，说明本轮 SVG 化与宿主收口没有破坏时间轴和语音组件行为。
+   - inline debt 从 40 继续收敛到 35，其中 `TranscriptionTimelineHorizontalMediaLanes` 从 3 降到 2，`TranscriptionTimelineMediaTranscriptionLane` 从 3 降到 2，`VoiceAgentWidget` 从 3 降到 1；同步把 threshold 收紧到 `max=35 / target=33 / warnAt=35`，inline baseline 已刷新到 `total=35`。
+   - `TranscriptionTimelineHorizontalMediaLanes.test.tsx` 与 `VoiceAgentWidget.test.tsx` 全绿，unused selector 继续维持 0，说明本轮 SVG 化与宿主收口没有破坏时间轴和语音组件行为。
 4. 发现问题：
    - `npm run test:visual-css` 本轮仍未刷新；混合工作树导致的并行样式漂移问题仍需等范围稳定后统一处理。
 5. 下一轮动作：
@@ -431,22 +431,22 @@ source_of_truth: css-governance-execution-log
    - 本轮中途一度出现 `TranscriptionTimelineTextOnly` 的 JSX 闭合错误，但已通过最小修补恢复，不涉及运行时语义回退。
    - `npm run test:visual-css` 仍未刷新；混合工作树下的并行样式漂移范围依旧需要后续统一收口。
 5. 下一轮动作：
-   - 若继续推进 CSS debt，优先处理仍处于高位的 `TranscriptionTimelineMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane`、`TranscriptionTimelineSections` 与 `OrchestratorWaveformContent` 剩余真实几何型 inline style。
+   - 若继续推进 CSS debt，优先处理仍处于高位的 `TranscriptionTimelineHorizontalMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane`、`TranscriptionTimelineSections` 与 `OrchestratorWaveformContent` 剩余真实几何型 inline style。
    - 待并行 CSS 主题范围稳定后，再统一刷新 visual baseline，避免把非本轮主题的样式漂移吞入基线。
 
 ## 2026-04-09 Layout Guard 与 Inline Debt 收口（十三）
 
 1. 执行人：GitHub Copilot + junwei
 2. 执行命令：
-   - `npx vitest run src/components/TranscriptionTimelineMediaLanes.test.tsx src/pages/TranscriptionPage.layoutGuard.test.ts src/pages/TranscriptionPage.structure.test.ts`
+   - `npx vitest run src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx src/pages/TranscriptionPage.layoutGuard.test.ts src/pages/TranscriptionPage.structure.test.ts`
    - `npm run check:css-inline-style`
    - `npm run check:css-inline-style:write-baseline`
    - `npm run check:css-debt-thresholds`
 3. 关键结果：
-   - 为 `TranscriptionTimelineMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `TranscriptionTimelineSections` 继续复用共享布局宿主 `TimelineStyledContainer`，把多处只承载 CSS 变量或容器宽度的动态布局壳层统一收口，不再在各文件散落重复的 `style={{ ... }}` 宿主。
+   - 为 `TranscriptionTimelineHorizontalMediaLanes`、`TranscriptionTimelineMediaTranscriptionLane` 与 `TranscriptionTimelineSections` 继续复用共享布局宿主 `TimelineStyledContainer`，把多处只承载 CSS 变量或容器宽度的动态布局壳层统一收口，不再在各文件散落重复的 `style={{ ... }}` 宿主。
    - 同时为 collapsed overlap hint 增加按钮版共享宿主 `TimelineStyledButton`，使重叠提示按钮和 lane 根容器沿用同一套布局承接方式。
    - inline debt 从 29 进一步收敛到 23，相关高位文件已经退出 debt 头部列表；同步把 threshold 收紧到 `max=23 / target=21 / warnAt=23`，inline baseline 已刷新到 `total=23`。
-   - `TranscriptionTimelineMediaLanes.test.tsx`、`TranscriptionPage.layoutGuard.test.ts` 与 `TranscriptionPage.structure.test.ts` 全绿，说明 lane 宿主收口和预览区变量宿主抽离没有破坏媒体时间轴和转写页布局守卫。
+   - `TranscriptionTimelineHorizontalMediaLanes.test.tsx`、`TranscriptionPage.layoutGuard.test.ts` 与 `TranscriptionPage.structure.test.ts` 全绿，说明 lane 宿主收口和预览区变量宿主抽离没有破坏媒体时间轴和转写页布局守卫。
 4. 发现问题：
    - 剩余 inline debt 已明显集中到 `OrchestratorWaveformContent`、`TranscriptionPage.ReadyWorkspace` 以及少量真正依赖运行时几何的面板组件，后续收益会更依赖针对性结构调整，而不是继续批量收宿主。
    - `npm run test:visual-css` 本轮仍未刷新；混合工作树中的并行样式漂移范围依旧需要后续统一收口。
@@ -458,7 +458,7 @@ source_of_truth: css-governance-execution-log
 
 1. 执行人：GitHub Copilot + junwei
 2. 执行命令：
-   - `npx vitest run src/pages/TranscriptionPage.layoutGuard.test.ts src/pages/TranscriptionPage.structure.test.ts src/components/TranscriptionTimelineMediaLanes.test.tsx src/components/TranscriptionTimelineTextOnly.test.tsx`
+   - `npx vitest run src/pages/TranscriptionPage.layoutGuard.test.ts src/pages/TranscriptionPage.structure.test.ts src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx src/components/TranscriptionTimelineTextOnly.test.tsx`
    - `npm run check:css-inline-style`
    - `npm run check:css-inline-style:write-baseline`
    - `npm run check:css-debt-thresholds`
@@ -466,7 +466,7 @@ source_of_truth: css-governance-execution-log
    - 为 `WaveformAreaSection` 增加 `layoutStyle` 宿主承接，让 `OrchestratorWaveformContent` 的 `--waveform-height` 变量从直接 `style={{ ... }}` 改为结构性布局属性传递；同时为时间轴/转写页共享宿主补充 `TimelineStyledSection`，把 `TranscriptionPage.ReadyWorkspace` 根节点上成组的 CSS 变量统一收口到共享 `section` 宿主。
    - 这样清除了两个高位文件中最后的“纯变量宿主” inline style，剩余债务几乎全部收敛为真正依赖运行时坐标的单点样式（如 tooltip / note indicator / annotation position）。
    - inline debt 从 23 进一步收敛到 21，并同步把 threshold 收紧到 `max=21 / target=19 / warnAt=21`，inline baseline 已刷新到 `total=21`。
-   - `TranscriptionPage.layoutGuard.test.ts`、`TranscriptionPage.structure.test.ts`、`TranscriptionTimelineMediaLanes.test.tsx` 与 `TranscriptionTimelineTextOnly.test.tsx` 全绿，说明这轮宿主抽离没有破坏波形区、时间轴和文本轨结构守卫。
+   - `TranscriptionPage.layoutGuard.test.ts`、`TranscriptionPage.structure.test.ts`、`TranscriptionTimelineHorizontalMediaLanes.test.tsx` 与 `TranscriptionTimelineTextOnly.test.tsx` 全绿，说明这轮宿主抽离没有破坏波形区、时间轴和文本轨结构守卫。
 4. 发现问题：
    - 当前剩余 inline debt 已不再有高位聚集文件，全部分散为单文件单处；继续下降时必须逐条判断是否为真实运行时几何需求，避免把指标优化退化成“换个 prop 名继续传 style”。
    - `npm run test:visual-css` 仍未刷新；混合工作树中的并行样式漂移范围依旧需要后续统一收口。
@@ -533,7 +533,7 @@ source_of_truth: css-governance-execution-log
 
 1. 执行人：GitHub Copilot + junwei
 2. 执行命令：
-   - `npx vitest run src/components/TranscriptionTimelineMediaLanes.test.tsx src/pages/TranscriptionPage.structure.test.ts`
+   - `npx vitest run src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx src/pages/TranscriptionPage.structure.test.ts`
    - `node scripts/check-css-inline-style.mjs`
    - `node scripts/check-css-inline-style.mjs --write-baseline`
    - `node scripts/check-css-debt-thresholds.mjs`
@@ -541,7 +541,7 @@ source_of_truth: css-governance-execution-log
    - 继续把 `TranscriptionTimelineMediaTranscriptionRow` 与 `TranscriptionTimelineMediaTranslationRow` 的子轨绝对定位壳层收口到共享 `TimelineStyledContainer`，再消除两处只承载 `top/height` 的 inline style，raw inline 从 12 进一步降到 10。
    - 在此基础上新增 `css-inline-style-whitelist.json` 与共享 governance helper，让 inline scanner 同时输出 raw、approved、governed 三个口径；剩余 10 处全部要求显式登记文件、数量与原因，且 stale whitelist 会直接失败。
    - `inlineStyleOccurrences` 阈值正式切到“未批准债务”口径：当前 raw=10、approved=10、governed=0，因此 threshold 已收紧到 `max=0 / target=0 / warnAt=0`，同时保留 raw 统计用于持续观察。
-   - `TranscriptionTimelineMediaLanes.test.tsx` 与 `TranscriptionPage.structure.test.ts` 共 49 个测试通过，确认 media row 子轨宿主收口没有破坏时间轴结构；新的 inline scanner 也能在白名单前提下继续阻止未登记 inline style 混入。
+   - `TranscriptionTimelineHorizontalMediaLanes.test.tsx` 与 `TranscriptionPage.structure.test.ts` 共 49 个测试通过，确认 media row 子轨宿主收口没有破坏时间轴结构；新的 inline scanner 也能在白名单前提下继续阻止未登记 inline style 混入。
 4. 发现问题：
    - 当前 whitelist 是按“文件级数量 + 理由”治理，而不是精确到具体 snippet；它已经足够阻止新增 inline style 混入，但若未来同文件内替换为另一处动态 style，仍需 reviewer 主动核对白名单理由是否仍成立。
    - 剩余 raw inline 已全部属于上下文菜单、tooltip、drag panel、annotation geometry、runtime preview typography 这类真实动态场景，后续继续降低 raw 数值的空间会明显变小。

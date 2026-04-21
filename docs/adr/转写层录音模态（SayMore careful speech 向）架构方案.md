@@ -59,7 +59,7 @@ SayMore（SIL）等田野工具强调：**主标注轨**可与**独立 careful s
 波形与纯文本轨在调用 `startRecordingForUnit` 前必须解析出 **`LayerUnitDocType` 目标**：
 
 1. **`unit` 行**：`unitById.get(utt.id)`。
-2. **有 `parentUnitId` 的语段**：优先 `unitById.get(parent)`；宿主可能不在标尺视窗内，故 `TranscriptionTimelineMediaLanes` 通过 **`segmentParentUnitLookup`**（当前媒体全部 unit）并入 `unitById` 构建。
+2. **有 `parentUnitId` 的语段**：优先 `unitById.get(parent)`；宿主可能不在标尺视窗内，故 `TranscriptionTimelineHorizontalMediaLanes` 通过 **`segmentParentUnitLookup`**（当前媒体全部 unit）并入 `unitById` 构建。
 3. **无 `parentUnitId` 的独立语段**：宿主解析不可用；从 **`segmentsByLayer` 扁平索引 `segmentById`** 取该语段文档作为 `targetUnit`。
 
 实现入口：`resolveVoiceRecordingSourceUnit`（与 `recordingScopeUnitId` 同文件）。
@@ -80,7 +80,7 @@ SayMore（SIL）等田野工具强调：**主标注轨**可与**独立 careful s
 |------|----------------|
 | 波形翻译行 | `TranscriptionTimelineMediaTranslationRow.tsx` |
 | 波形转写行 | `TranscriptionTimelineMediaTranscriptionRow.tsx` |
-| 波形 lane 组装 | `TranscriptionTimelineMediaLanes.tsx`、`TranscriptionTimelineMediaTranscriptionLane.tsx` |
+| 波形 lane 组装 | `TranscriptionTimelineHorizontalMediaLanes.tsx`、`TranscriptionTimelineMediaTranscriptionLane.tsx` |
 | 纯文本轨翻译格 | `TranscriptionTimelineTextTranslationItem.tsx` |
 | 纯文本轨转写格 | `TranscriptionTimelineTextOnly.tsx`（内联 `trcSourceUnit` 与控件） |
 | 录音状态机 | `hooks/useRecording.ts` |
