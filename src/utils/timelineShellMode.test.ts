@@ -55,7 +55,7 @@ describe('resolveTimelineShellMode', () => {
       playerIsReady: true,
       playerDuration: 10,
       layersCount: 2,
-      comparisonViewEnabled: true,
+      verticalViewEnabled: true,
     })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
   });
 

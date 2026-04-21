@@ -20,7 +20,7 @@
 }
 
 /* 纵向对照：内容宽锁在视口内，不启用时间轴壳层横向滚动 | Comparison fills scrollport width */
-.timeline-scroll:has(.timeline-comparison-view) {
+.timeline-scroll:has(.timeline-paired-reading-view) {
   overflow-x: hidden;
 }
 

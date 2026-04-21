@@ -17,7 +17,7 @@ import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { layerDisplaySettingsToStyle, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
-import type { TranscriptionComparisonViewFocusState } from '../pages/TranscriptionPage.UIState';
+import type { TranscriptionVerticalPaneFocusState } from '../pages/TranscriptionPage.UIState';
 import { unitToView, segmentToView, scopeTimelineUnitViewToLayer } from '../hooks/timelineUnitView';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
@@ -61,9 +61,9 @@ function resolveTextOnlyResizeTimingUnit(
 
 type TranscriptionTimelineTextOnlyProps = {
   activeTextTimelineMode?: 'document' | 'media' | null;
-  comparisonViewEnabled?: boolean;
-  comparisonFocus?: TranscriptionComparisonViewFocusState;
-  updateComparisonFocus?: (patch: Partial<TranscriptionComparisonViewFocusState>) => void;
+  verticalViewEnabled?: boolean;
+  verticalPaneFocus?: TranscriptionVerticalPaneFocusState;
+  updateVerticalPaneFocus?: (patch: Partial<TranscriptionVerticalPaneFocusState>) => void;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
@@ -92,7 +92,7 @@ type TranscriptionTimelineTextOnlyProps = {
     layerId: string,
     e: React.MouseEvent,
   ) => void;
-  /** 与对照视图一致：由 TimelineContent 透传，纯文本轨自身可不实现 | Passed through for comparison shell */
+  /** 与纵向对读壳一致：由 TimelineContent 透传，纯文本轨自身可不实现 | Passed through for vertical paired-reading shell */
   handleNoteClick?: (unitId: string, layerId: string | undefined, event: MouseEvent) => void;
   resolveNoteIndicatorTarget?: (
     unitId: string,

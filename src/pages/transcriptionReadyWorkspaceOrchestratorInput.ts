@@ -1,11 +1,11 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { TranscriptionComparisonViewFocusState } from './TranscriptionPage.UIState';
+import type { TranscriptionVerticalPaneFocusState } from './TranscriptionPage.UIState';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TextTimeMapping } from '../types/textTimeMapping';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
-import type { TranscriptionPageTimelineMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
 import type { TranscriptionPageAssistantRuntimeProps, TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
@@ -23,16 +23,16 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   importFileRef: RefObject<HTMLInputElement | null>;
   layerAction: LayerActionPanelHandle;
   sharedLaneProps: BuiltSharedLaneProps;
-  zoomPxPerSec: TranscriptionPageTimelineMediaLanesProps['zoomPxPerSec'];
-  lassoRect: TranscriptionPageTimelineMediaLanesProps['lassoRect'];
-  timelineRenderUnits: TranscriptionPageTimelineMediaLanesProps['timelineRenderUnits'];
-  defaultTranscriptionLayerId: TranscriptionPageTimelineMediaLanesProps['defaultTranscriptionLayerId'];
+  zoomPxPerSec: TranscriptionPageTimelineHorizontalMediaLanesProps['zoomPxPerSec'];
+  lassoRect: TranscriptionPageTimelineHorizontalMediaLanesProps['lassoRect'];
+  timelineRenderUnits: TranscriptionPageTimelineHorizontalMediaLanesProps['timelineRenderUnits'];
+  defaultTranscriptionLayerId: TranscriptionPageTimelineHorizontalMediaLanesProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
   /** 纯文本轨拖建/改时：像素→文献秒 与 `previewTextTimeMapping` 视口一致 */
   textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'>;
   createUnitFromSelectionRouted?: (start: number, end: number) => Promise<void>;
-  renderAnnotationItem: TranscriptionPageTimelineMediaLanesProps['renderAnnotationItem'];
-  speakerSortKeyById: TranscriptionPageTimelineMediaLanesProps['speakerSortKeyById'];
+  renderAnnotationItem: TranscriptionPageTimelineHorizontalMediaLanesProps['renderAnnotationItem'];
+  speakerSortKeyById: TranscriptionPageTimelineHorizontalMediaLanesProps['speakerSortKeyById'];
   filteredUnitsOnCurrentMedia: TranscriptionPageTimelineTextOnlyProps['unitsOnCurrentMedia'];
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
@@ -46,9 +46,9 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
   resolveSelfCertaintyAmbiguityForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyAmbiguityForUnit'];
-  comparisonViewEnabled?: boolean;
-  comparisonFocus?: TranscriptionComparisonViewFocusState;
-  updateComparisonFocus?: (patch: Partial<TranscriptionComparisonViewFocusState>) => void;
+  verticalViewEnabled?: boolean;
+  verticalPaneFocus?: TranscriptionVerticalPaneFocusState;
+  updateVerticalPaneFocus?: (patch: Partial<TranscriptionVerticalPaneFocusState>) => void;
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -94,7 +94,7 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   waveCanvasRef: UseTranscriptionSectionViewModelsInput['waveCanvasRef'];
   showSearch: UseTranscriptionSectionViewModelsInput['showSearch'];
   searchableItems: UseTranscriptionSectionViewModelsInput['searchableItems'];
-  displayStyleControl: NonNullable<TranscriptionPageTimelineMediaLanesProps['displayStyleControl']>;
+  displayStyleControl: NonNullable<TranscriptionPageTimelineHorizontalMediaLanesProps['displayStyleControl']>;
   activeLayerIdForEdits: UseTranscriptionSectionViewModelsInput['activeLayerIdForEdits'];
   activeTimelineUnitId: UseTranscriptionSectionViewModelsInput['activeTimelineUnitId'];
   searchOverlayRequest: UseTranscriptionSectionViewModelsInput['searchOverlayRequest'];
@@ -166,9 +166,9 @@ export function buildOrchestratorViewModelsInput(
     speakerVisualByTimelineUnitId,
     resolveSelfCertaintyForUnit,
     resolveSelfCertaintyAmbiguityForUnit,
-    comparisonViewEnabled,
-    comparisonFocus,
-    updateComparisonFocus,
+    verticalViewEnabled,
+    verticalPaneFocus,
+    updateVerticalPaneFocus,
     selectedTimelineMedia,
     waveformDisplayMode,
     setWaveformDisplayMode,
@@ -281,9 +281,9 @@ export function buildOrchestratorViewModelsInput(
       ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
       ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
       ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
-      ...(comparisonViewEnabled ? { comparisonViewEnabled: true } : {}),
-      ...(comparisonFocus ? { comparisonFocus } : {}),
-      ...(updateComparisonFocus ? { updateComparisonFocus } : {}),
+      ...(verticalViewEnabled ? { verticalViewEnabled: true } : {}),
+      ...(verticalPaneFocus ? { verticalPaneFocus } : {}),
+      ...(updateVerticalPaneFocus ? { updateVerticalPaneFocus } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
@@ -292,7 +292,7 @@ export function buildOrchestratorViewModelsInput(
       ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
       ...(input.timingDragPreview != null ? { timingDragPreview: input.timingDragPreview } : {}),
       ...(typeof zoomPxPerSec === 'number' && Number.isFinite(zoomPxPerSec) && zoomPxPerSec > 0
-        && !comparisonViewEnabled
+        && !verticalViewEnabled
         ? { textTimelineZoomPxPerSec: zoomPxPerSec }
         : {}),
       navigateUnitFromInput,

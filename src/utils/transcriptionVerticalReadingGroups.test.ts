@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerUnitDocType } from '../db';
 import {
-  buildComparisonGroups,
+  buildVerticalReadingGroups,
   listSegmentsOverlappingTimeRange,
-  listTranslationSegmentsForComparisonSourceUnit,
+  listTranslationSegmentsForVerticalReadingSourceUnit,
   pickTranslationSegmentForPersist,
-} from './transcriptionComparisonGroups';
+} from './transcriptionVerticalReadingGroups';
 
 function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocType {
   return {
@@ -19,7 +19,7 @@ function makeUnit(id: string, startTime: number, endTime: number): LayerUnitDocT
   } as LayerUnitDocType;
 }
 
-describe('buildComparisonGroups', () => {
+describe('buildVerticalReadingGroups', () => {
   it('merges adjacent source units that share the same translation text', () => {
     const units = [
       makeUnit('u1', 0, 1),
@@ -27,7 +27,7 @@ describe('buildComparisonGroups', () => {
       makeUnit('u3', 2.5, 3.5),
     ];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       getSourceText: (unit) => `src-${unit.id}`,
       getTargetText: (unit) => (unit.id === 'u3' ? 'target-b' : 'target-a'),
@@ -44,7 +44,7 @@ describe('buildComparisonGroups', () => {
   it('does not merge adjacent units when maxMergeGapSec is negative (segment-row parity)', () => {
     const units = [makeUnit('u1', 0, 1), makeUnit('u2', 1.02, 2)];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       maxMergeGapSec: -1,
       getSourceText: (unit) => `src-${unit.id}`,
@@ -59,7 +59,7 @@ describe('buildComparisonGroups', () => {
   it('falls back to one group per unit when translation text is empty', () => {
     const units = [makeUnit('u1', 0, 1), makeUnit('u2', 1.1, 2)];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       getSourceText: (unit) => `src-${unit.id}`,
       getTargetText: () => '',
@@ -71,7 +71,7 @@ describe('buildComparisonGroups', () => {
   });
 
   it('splits multi-line translations into multiple target items within one group', () => {
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units: [makeUnit('u1', 0, 1)],
       getSourceText: () => 'src-u1',
       getTargetText: () => 'line-a\nline-b',
@@ -82,7 +82,7 @@ describe('buildComparisonGroups', () => {
   });
 
   it('uses getTargetItems when it returns a non-empty list so segment-bound rows are modeled', () => {
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units: [makeUnit('u1', 0, 2)],
       getSourceText: () => 'src',
       getTargetText: () => 'ignored-when-items-returned',
@@ -104,7 +104,7 @@ describe('buildComparisonGroups', () => {
       makeUnit('u3', 2.1, 3),
     ];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       getSourceText: (unit) => `src-${unit.id}`,
       getTargetText: (unit) => `target-${unit.id}`,
@@ -122,7 +122,7 @@ describe('buildComparisonGroups', () => {
       { ...makeUnit('u2', 1.02, 2), layerId: 'translation-a' } as LayerUnitDocType,
     ];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       sourceLayerIds: ['source-a'],
       getSourceText: (unit) => `src-${unit.id}`,
@@ -136,7 +136,7 @@ describe('buildComparisonGroups', () => {
   it('keeps units with omitted layerId when sourceLayerIds are provided (canonical projection)', () => {
     const units = [makeUnit('u1', 0, 1), makeUnit('u2', 1.02, 2)];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       sourceLayerIds: ['tr-a'],
       getSourceText: (unit) => `src-${unit.id}`,
@@ -153,7 +153,7 @@ describe('buildComparisonGroups', () => {
       { ...makeUnit('u2', 1.02, 2), layerId: 'source-b', rootUnitId: 'bundle-a' } as LayerUnitDocType,
     ];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       sourceLayerIds: ['source-a', 'source-b'],
       getSourceText: (unit) => `src-${unit.id}`,
@@ -170,7 +170,7 @@ describe('buildComparisonGroups', () => {
       { ...makeUnit('u2', 1.02, 2), layerId: 'tr-b', speaker: 'Bob', speakerId: 'spk-b', rootUnitId: 'bundle-a' } as LayerUnitDocType,
     ];
 
-    const groups = buildComparisonGroups({
+    const groups = buildVerticalReadingGroups({
       units,
       getSourceText: (unit) => `src-${unit.id}`,
       getTargetText: () => 'shared-target',
@@ -199,7 +199,7 @@ describe('buildComparisonGroups', () => {
       ['s1', srcSeg],
     ]);
     const trSegs = [trChildA, trChildB];
-    const got = listTranslationSegmentsForComparisonSourceUnit(srcSeg, trSegs, unitById).map((s) => s.id);
+    const got = listTranslationSegmentsForVerticalReadingSourceUnit(srcSeg, trSegs, unitById).map((s) => s.id);
     expect(got).toEqual(['ta', 'tb']);
   });
 

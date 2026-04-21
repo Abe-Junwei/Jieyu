@@ -5,7 +5,6 @@
     "src/components/LayerActionPopover.tsx": 10,
     "src/components/SidePaneSidebar.tsx": 3,
     "src/components/SidePaneSidebarOverview.tsx": 2,
-    "src/components/TranscriptionTimelineComparison.tsx": 2,
     "src/db/adapter.ts": 6,
     "src/db/schemas.ts": 2,
     "src/db/types.ts": 5,
@@ -19,7 +18,7 @@
     "src/services/EafService.ts": 6,
     "src/services/LayerConstraintService.ts": 25,
     "src/services/LayerOrderingService.ts": 7,
-    "src/utils/comparisonHostFilter.ts": 1,
+    "src/utils/verticalReadingHostFilter.ts": 1,
     "src/utils/layerParentIds.ts": 33,
     "src/utils/translationLayerTargetResolver.ts": 1
   }

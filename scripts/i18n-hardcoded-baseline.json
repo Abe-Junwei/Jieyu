@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-20T13:18:11.613Z",
+  "generatedAt": "2026-04-21T03:01:30.344Z",
   "scannerVersion": 2,
   "totalHits": 81,
   "files": {
@@ -9,7 +9,7 @@
     "src/components/ai/aiChatCardFollowUps.ts": 19,
     "src/components/transcription/toolbar/ObserverStatus.tsx": 1,
     "src/hooks/useTranscriptionData.ts": 1,
-    "src/hooks/useTranscriptionTimelineComparisonChrome.ts": 9,
+    "src/hooks/useTranscriptionTimelineVerticalChrome.ts": 9,
     "src/i18n/collaborationSyncSurfaceMessages.ts": 11,
     "src/utils/theme.ts": 37
   }

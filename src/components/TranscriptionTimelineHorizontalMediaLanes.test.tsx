@@ -4,7 +4,7 @@ import { act, cleanup, createEvent, fireEvent, render, screen, within } from '@t
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
-import { TranscriptionTimelineMediaLanes as RawTranscriptionTimelineMediaLanes } from './TranscriptionTimelineMediaLanes';
+import { TranscriptionTimelineHorizontalMediaLanes as RawTranscriptionTimelineHorizontalMediaLanes } from './TranscriptionTimelineHorizontalMediaLanes';
 import { TranscriptionTimelineMediaTranslationRow } from './TranscriptionTimelineMediaTranslationRow';
 
 const NOW = new Date().toISOString();
@@ -22,10 +22,10 @@ const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
   isComplete: true,
 };
 
-function TranscriptionTimelineMediaLanes(
-  props: Omit<ComponentProps<typeof RawTranscriptionTimelineMediaLanes>, 'timelineUnitViewIndex'>,
+function TranscriptionTimelineHorizontalMediaLanes(
+  props: Omit<ComponentProps<typeof RawTranscriptionTimelineHorizontalMediaLanes>, 'timelineUnitViewIndex'>,
 ) {
-  return <RawTranscriptionTimelineMediaLanes timelineUnitViewIndex={EMPTY_TIMELINE_UNIT_VIEW_INDEX} {...props} />;
+  return <RawTranscriptionTimelineHorizontalMediaLanes timelineUnitViewIndex={EMPTY_TIMELINE_UNIT_VIEW_INDEX} {...props} />;
 }
 
 const editorContextValue = {
@@ -118,7 +118,7 @@ function makeUnit(id: string, startTime: number, endTime: number, speakerId?: st
   } as LayerUnitDocType;
 }
 
-describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
+describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -137,7 +137,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const translationLayer = makeLayer('trl-top', 'translation');
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -171,7 +171,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const renderAnnotationItem = vi.fn((utt: { id: string }) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>);
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -224,7 +224,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     const { container } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -282,7 +282,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     const { container } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -346,7 +346,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const units = [makeUnit('u1', 0, 5, 's1')];
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -382,7 +382,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     const { container } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -427,7 +427,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ] as LayerLinkDocType[];
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -473,7 +473,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     } as LayerDocType;
 
     const { rerender } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -504,7 +504,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(within(childLane as HTMLElement).queryByTestId('ann-seg-2')).toBeNull();
 
     rerender(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -549,7 +549,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     } as LayerDocType;
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -615,7 +615,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     const { container } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -663,7 +663,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ]);
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -696,7 +696,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -732,7 +732,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ];
 
     const { rerender } = render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -759,7 +759,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     expect(firstProps?.trackModeControl?.lockConflictCount).toBe(1);
 
     rerender(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -799,7 +799,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     ]);
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -897,7 +897,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const startRecordingForUnit = vi.fn(async () => undefined);
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -945,7 +945,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     const startRecordingForUnit = vi.fn(async () => undefined);
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
@@ -1029,7 +1029,7 @@ describe('TranscriptionTimelineMediaLanes overlap hint local expansion', () => {
     }] as MediaItemDocType[];
 
     render(
-      <TranscriptionTimelineMediaLanes
+      <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}

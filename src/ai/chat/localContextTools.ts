@@ -1404,6 +1404,17 @@ function finalizeLocalContextToolResult(context: AiPromptContext, out: LocalCont
   };
 }
 
+function buildAcousticUnavailablePayload(localeHint?: string): Record<string, unknown> {
+  const zh = isZhLocale(localeHint);
+  return {
+    ok: false,
+    reason: 'no_playable_media',
+    message: zh
+      ? '当前没有可播放媒体，无法提供声学分析结果。'
+      : 'No playable media is available, so acoustic analysis is unavailable.',
+  };
+}
+
 export async function executeLocalContextToolCall(
   call: LocalContextToolCall,
   context: AiPromptContext | null,
@@ -1466,12 +1477,24 @@ export async function executeLocalContextToolCall(
       case 'get_project_stats':
         out = await getProjectStats(context, call.arguments);
         break;
-      case 'get_waveform_analysis':
-        out = { ok: true, name: call.name, result: context.longTerm?.waveformAnalysis ?? null };
+      case 'get_waveform_analysis': {
+        const waveformAnalysis = context.longTerm?.waveformAnalysis;
+        out = {
+          ok: true,
+          name: call.name,
+          result: waveformAnalysis ?? buildAcousticUnavailablePayload(context.shortTerm?.locale),
+        };
         break;
-      case 'get_acoustic_summary':
-        out = { ok: true, name: call.name, result: context.longTerm?.acousticSummary ?? null };
+      }
+      case 'get_acoustic_summary': {
+        const acousticSummary = context.longTerm?.acousticSummary;
+        out = {
+          ok: true,
+          name: call.name,
+          result: acousticSummary ?? buildAcousticUnavailablePayload(context.shortTerm?.locale),
+        };
         break;
+      }
       case 'find_incomplete_units': {
         const snapshotIncomplete = await findIncompleteUnitsWithSnapshots(context, call.arguments);
         out = snapshotIncomplete ?? { ok: true, name: call.name, result: findIncompleteUnits(context, call.arguments) };
@@ -1881,10 +1904,24 @@ function summarizeLocalContextToolResult(
       return summarizeDetailResult(result, locale);
     case 'diagnose_quality':
       return summarizeDiagnoseQualityResult(body ?? {}, locale, userText);
-    case 'get_waveform_analysis':
+    case 'get_waveform_analysis': {
+      const unavailable = body?.ok === false && body?.reason === 'no_playable_media';
+      if (unavailable) {
+        return zh
+          ? '当前没有可播放媒体，暂时无法读取波形分析信息。'
+          : 'There is no playable media right now, so waveform analysis is unavailable.';
+      }
       return zh ? '我已读取当前音频的波形分析信息。' : 'I checked the waveform analysis for the current audio.';
-    case 'get_acoustic_summary':
+    }
+    case 'get_acoustic_summary': {
+      const unavailable = body?.ok === false && body?.reason === 'no_playable_media';
+      if (unavailable) {
+        return zh
+          ? '当前没有可播放媒体，暂时无法读取声学摘要。'
+          : 'There is no playable media right now, so the acoustic summary is unavailable.';
+      }
       return zh ? '我已读取当前选中范围的声学摘要。' : 'I checked the acoustic summary for the current selection.';
+    }
     default:
       return zh ? '我已完成这一步本地查询。' : 'I completed this local lookup.';
   }

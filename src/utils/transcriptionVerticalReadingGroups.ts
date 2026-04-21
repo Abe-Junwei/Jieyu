@@ -1,7 +1,7 @@
 import type { LayerUnitDocType } from '../db';
 import { normalizeSingleLine } from './transcriptionFormatters';
 
-export interface ComparisonSourceItem {
+export interface PairedReadingSourceItem {
   unitId: string;
   text: string;
   startTime: number;
@@ -9,20 +9,20 @@ export interface ComparisonSourceItem {
   layerId?: string;
 }
 
-export interface ComparisonTargetItem {
+export interface PairedReadingTargetItem {
   id: string;
   text: string;
   anchorUnitIds: string[];
-  /** 译文独立语段 id：有则纵向对照按语段分项编辑并写回该段 | Translation segment id for per-segment comparison rows */
+  /** 译文独立语段 id：有则纵向对读按语段分项编辑并写回该段 | Translation segment id for per-segment paired-reading rows */
   translationSegmentId?: string;
 }
 
-export interface ComparisonGroup {
+export interface VerticalReadingGroup {
   id: string;
   startTime: number;
   endTime: number;
-  sourceItems: ComparisonSourceItem[];
-  targetItems: ComparisonTargetItem[];
+  sourceItems: PairedReadingSourceItem[];
+  targetItems: PairedReadingTargetItem[];
   bundleRootId?: string;
   speakerSummary: string;
   primaryAnchorUnitId: string;
@@ -50,7 +50,7 @@ export function listSegmentsOverlappingTimeRange(
  * 对照源行为子语段时，按宿主父句拉平译文子段（与横向轨「一父多译」行一致） |
  * When the comparison source row is a child segment, list translation segments under the same parent host.
  */
-export function listTranslationSegmentsForComparisonSourceUnit(
+export function listTranslationSegmentsForVerticalReadingSourceUnit(
   unit: LayerUnitDocType,
   translationSegments: readonly LayerUnitDocType[] | undefined,
   unitById: ReadonlyMap<string, LayerUnitDocType>,
@@ -105,12 +105,12 @@ export function pickTranslationSegmentForPersist(
   return best;
 }
 
-type ComparisonGroupBuild = Omit<ComparisonGroup, 'isMultiAnchorGroup'> & {
+type VerticalReadingGroupBuild = Omit<VerticalReadingGroup, 'isMultiAnchorGroup'> & {
   targetSignature: string;
   speakerLabels: string[];
 };
 
-interface BuildComparisonGroupsInput {
+interface BuildVerticalReadingGroupsInput {
   units: LayerUnitDocType[];
   /** 可选：仅把这些层视为左列原文来源，避免把翻译层单位误并入原文列 */
   sourceLayerIds?: readonly string[];
@@ -120,7 +120,7 @@ interface BuildComparisonGroupsInput {
    * 若返回非空数组则替代 getTargetText 拆行结果（用于译文按 segment 分项） |
    * When non-empty, replaces newline-split target items (e.g. one row per translation segment).
    */
-  getTargetItems?: (unit: LayerUnitDocType) => ComparisonTargetItem[] | undefined;
+  getTargetItems?: (unit: LayerUnitDocType) => PairedReadingTargetItem[] | undefined;
   getSpeakerLabel?: (unit: LayerUnitDocType) => string;
   /**
    * 相邻源单位可合并的最大时间间隔（秒）。传入负数（如 -1）则永不按相邻规则合并，
@@ -129,14 +129,14 @@ interface BuildComparisonGroupsInput {
   maxMergeGapSec?: number;
 }
 
-function resolveComparisonBundleRootId(unit: LayerUnitDocType): string | undefined {
+function resolvePairedReadingBundleRootId(unit: LayerUnitDocType): string | undefined {
   const bundleRootId = typeof unit.rootUnitId === 'string' && unit.rootUnitId.trim().length > 0
     ? unit.rootUnitId.trim()
     : undefined;
   return bundleRootId;
 }
 
-function resolveComparisonSpeakerLabel(unit: LayerUnitDocType, preferredLabel?: string): string {
+function resolvePairedReadingSpeakerLabel(unit: LayerUnitDocType, preferredLabel?: string): string {
   const normalizedPreferred = normalizeSingleLine(preferredLabel ?? '');
   if (normalizedPreferred.length > 0) return normalizedPreferred;
 
@@ -152,19 +152,19 @@ function resolveComparisonSpeakerLabel(unit: LayerUnitDocType, preferredLabel?: 
   return normalizeSingleLine(speakerId);
 }
 
-function buildComparisonSpeakerSummary(labels: string[]): string {
+function buildPairedReadingSpeakerSummary(labels: string[]): string {
   const uniqueLabels = Array.from(new Set(labels.filter((label) => label.length > 0)));
   if (uniqueLabels.length === 0) return '';
   if (uniqueLabels.length <= 2) return uniqueLabels.join(' · ');
   return `${uniqueLabels[0]} +${uniqueLabels.length - 1}`;
 }
 
-/** 与 buildComparisonGroups 内联逻辑一致：供对照视图按层从纯文本拆出多条译文编辑项 */
-export function buildComparisonTargetItemsFromRawText(unitId: string, rawText: string): ComparisonTargetItem[] {
-  return buildComparisonTargetItems(unitId, rawText);
+/** 与 buildVerticalReadingGroups 内联逻辑一致：供纵向对读壳内按层从纯文本拆出多条译文编辑项 */
+export function buildVerticalReadingTargetItemsFromRawText(unitId: string, rawText: string): PairedReadingTargetItem[] {
+  return buildPairedReadingTargetItemsFromRawTextLines(unitId, rawText);
 }
 
-function buildComparisonTargetItems(unitId: string, rawText: string): ComparisonTargetItem[] {
+function buildPairedReadingTargetItemsFromRawTextLines(unitId: string, rawText: string): PairedReadingTargetItem[] {
   const normalizedLines = rawText
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -179,16 +179,16 @@ function buildComparisonTargetItems(unitId: string, rawText: string): Comparison
   }));
 }
 
-function buildComparisonTargetSignature(targetItems: ComparisonTargetItem[]): string {
+function buildPairedReadingTargetSignature(targetItems: PairedReadingTargetItem[]): string {
   return targetItems
     .map((item) => item.text.trim().toLocaleLowerCase())
     .join('\n');
 }
 
 /**
- * 构建左右对照分组 | Build lightweight side-by-side comparison groups
+ * 构建纵向对读分组 | Build lightweight paired-reading column groups
  */
-export function buildComparisonGroups(input: BuildComparisonGroupsInput): ComparisonGroup[] {
+export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInput): VerticalReadingGroup[] {
   const maxMergeGapSec = typeof input.maxMergeGapSec === 'number' ? input.maxMergeGapSec : 0.12;
   const sourceLayerIdSet = new Set(
     (input.sourceLayerIds ?? [])
@@ -207,17 +207,17 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
       return sourceLayerIdSet.has(layerId);
     })
     .sort((left, right) => left.startTime - right.startTime || left.endTime - right.endTime || left.id.localeCompare(right.id));
-  const groups: ComparisonGroupBuild[] = [];
+  const groups: VerticalReadingGroupBuild[] = [];
 
   for (const unit of orderedUnits) {
     const sourceText = normalizeSingleLine(input.getSourceText(unit) ?? '');
     const explicitTargetItems = input.getTargetItems?.(unit);
     const targetItems = explicitTargetItems != null && explicitTargetItems.length > 0
       ? explicitTargetItems
-      : buildComparisonTargetItems(unit.id, input.getTargetText(unit) ?? '');
-    const targetSignature = buildComparisonTargetSignature(targetItems);
-    const speakerLabel = resolveComparisonSpeakerLabel(unit, input.getSpeakerLabel?.(unit));
-    const bundleRootId = resolveComparisonBundleRootId(unit);
+      : buildPairedReadingTargetItemsFromRawTextLines(unit.id, input.getTargetText(unit) ?? '');
+    const targetSignature = buildPairedReadingTargetSignature(targetItems);
+    const speakerLabel = resolvePairedReadingSpeakerLabel(unit, input.getSpeakerLabel?.(unit));
+    const bundleRootId = resolvePairedReadingBundleRootId(unit);
     const previous = groups[groups.length - 1];
     const sameBundle = previous?.bundleRootId === bundleRootId;
     const sameResolvedTarget = previous?.targetSignature === targetSignature;
@@ -241,7 +241,7 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
       });
       if (speakerLabel.length > 0 && !previous.speakerLabels.includes(speakerLabel)) {
         previous.speakerLabels.push(speakerLabel);
-        previous.speakerSummary = buildComparisonSpeakerSummary(previous.speakerLabels);
+        previous.speakerSummary = buildPairedReadingSpeakerSummary(previous.speakerLabels);
       }
       for (const targetItem of previous.targetItems) {
         targetItem.anchorUnitIds.push(unit.id);
@@ -250,7 +250,7 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
     }
 
     groups.push({
-      id: `cmp-${unit.id}`,
+      id: `pr-${unit.id}`,
       startTime: unit.startTime,
       endTime: unit.endTime,
       sourceItems: [{
@@ -262,7 +262,7 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
       }],
       targetItems,
       ...(bundleRootId !== undefined ? { bundleRootId } : {}),
-      speakerSummary: buildComparisonSpeakerSummary(speakerLabel.length > 0 ? [speakerLabel] : []),
+      speakerSummary: buildPairedReadingSpeakerSummary(speakerLabel.length > 0 ? [speakerLabel] : []),
       primaryAnchorUnitId: unit.id,
       ...(typeof unit.layerId === 'string' && unit.layerId.length > 0 ? { primaryAnchorLayerId: unit.layerId } : {}),
       editingTargetPolicy: targetItems.length > 1 ? 'multi-target-items' : 'group-target',
@@ -271,7 +271,7 @@ export function buildComparisonGroups(input: BuildComparisonGroupsInput): Compar
     });
   }
 
-  return groups.map(({ targetSignature: _targetSignature, speakerLabels: _speakerLabels, ...group }): ComparisonGroup => ({
+  return groups.map(({ targetSignature: _targetSignature, speakerLabels: _speakerLabels, ...group }): VerticalReadingGroup => ({
     ...group,
     isMultiAnchorGroup: group.sourceItems.length > 1,
   }));

@@ -74,7 +74,7 @@ function buildSegmentsByOverlapGroup(
   return next;
 }
 
-type TranscriptionTimelineMediaLanesProps = {
+type TranscriptionTimelineHorizontalMediaLanesProps = {
   activeTextTimelineMode?: 'document' | 'media' | null;
   playerDuration: number;
   zoomPxPerSec: number;
@@ -169,7 +169,7 @@ type TranscriptionTimelineMediaLanesProps = {
   };
 };
 
-export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimelineMediaLanes({
+export const TranscriptionTimelineHorizontalMediaLanes = memo(function TranscriptionTimelineHorizontalMediaLanes({
   activeTextTimelineMode,
   playerDuration,
   zoomPxPerSec,
@@ -222,7 +222,7 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   deleteVoiceTranslation,
   transcribeVoiceTranslation,
   displayStyleControl,
-}: Omit<TranscriptionTimelineMediaLanesProps, 'allLayersOrdered'> & {
+}: Omit<TranscriptionTimelineHorizontalMediaLanesProps, 'allLayersOrdered'> & {
   allLayersOrdered: LayerDocType[];
   deletableLayers: LayerDocType[];
   onFocusLayer: (layerId: string) => void;
@@ -745,4 +745,4 @@ export const TranscriptionTimelineMediaLanes = memo(function TranscriptionTimeli
   );
 });
 
-TranscriptionTimelineMediaLanes.displayName = 'TranscriptionTimelineMediaLanes';
+TranscriptionTimelineHorizontalMediaLanes.displayName = 'TranscriptionTimelineHorizontalMediaLanes';

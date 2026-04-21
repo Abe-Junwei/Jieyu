@@ -1,14 +1,14 @@
 /**
- * 对照视图宿主过滤工具函数 | Comparison view host filtering utilities
+ * 纵向对读壳宿主过滤工具函数 | Vertical paired-reading shell host filtering utilities
  *
- * 从 TranscriptionTimelineComparison.tsx 提取的纯函数，
- * 用于多宿主译文层在对照视图中的过滤、匹配与选择。
- * Pure functions extracted from TranscriptionTimelineComparison.tsx
- * for multi-host translation layer filtering in comparison view.
+ * 从 TranscriptionTimelineVerticalView.tsx 提取的纯函数，
+ * 用于多宿主译文层在纵向对读壳内的过滤、匹配与选择。
+ * Pure functions extracted from TranscriptionTimelineVerticalView.tsx
+ * for multi-host translation layer filtering in the paired-reading shell.
  */
 
 import type { LayerDocType } from '../db';
-import type { ComparisonGroup } from './transcriptionComparisonGroups';
+import type { VerticalReadingGroup } from './transcriptionVerticalReadingGroups';
 import {
   buildTranscriptionIdByKeyMap,
   resolveLayerLinkHostTranscriptionLayerId,
@@ -16,7 +16,7 @@ import {
 } from './translationHostLinkQuery';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from './translationLayerTargetResolver';
 
-export type ComparisonHostLink = TranslationHostLink;
+export type VerticalReadingHostLink = TranslationHostLink;
 
 /** 无 parent 的译文层在多转写项目中的回落宿主（默认转写或列表首层） | Orphan fallback host for translation layers */
 export function resolveOrphanTranslationAttachTranscriptionLayerId(
@@ -28,16 +28,16 @@ export function resolveOrphanTranslationAttachTranscriptionLayerId(
   return transcriptionLayers[0]?.id;
 }
 
-export function buildComparisonHostLinkMaps(
+export function buildVerticalReadingHostLinkMaps(
   transcriptionLayers: readonly LayerDocType[],
-  layerLinks: readonly ComparisonHostLink[],
+  layerLinks: readonly VerticalReadingHostLink[],
 ): {
   transcriptionIdByKey: Map<string, string>;
-  linksByTranslationLayerId: Map<string, ComparisonHostLink[]>;
+  linksByTranslationLayerId: Map<string, VerticalReadingHostLink[]>;
 } {
   const transcriptionIdByKey = buildTranscriptionIdByKeyMap(transcriptionLayers);
 
-  const linksByTranslationLayerId = new Map<string, ComparisonHostLink[]>();
+  const linksByTranslationLayerId = new Map<string, VerticalReadingHostLink[]>();
   for (const link of layerLinks) {
     const items = linksByTranslationLayerId.get(link.layerId) ?? [];
     items.push(link);
@@ -47,12 +47,12 @@ export function buildComparisonHostLinkMaps(
   return { transcriptionIdByKey, linksByTranslationLayerId };
 }
 
-export function translationLayerAppliesToComparisonSourceTranscriptionIds(
+export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   tl: LayerDocType,
   sourceTranscriptionIds: ReadonlySet<string>,
   transcriptionLayerCount: number,
   orphanAttachLayerId: string | undefined,
-  linksByTranslationLayerId: ReadonlyMap<string, ComparisonHostLink[]>,
+  linksByTranslationLayerId: ReadonlyMap<string, VerticalReadingHostLink[]>,
   transcriptionIdByKey: ReadonlyMap<string, string>,
 ): boolean {
   const parent = tl.parentLayerId?.trim() ?? '';
@@ -73,8 +73,8 @@ export function translationLayerAppliesToComparisonSourceTranscriptionIds(
   return sourceTranscriptionIds.has(orphanAttachLayerId);
 }
 
-export function collectComparisonGroupSourceTranscriptionLayerIds(
-  group: ComparisonGroup,
+export function collectVerticalReadingGroupSourceTranscriptionLayerIds(
+  group: VerticalReadingGroup,
 ): Set<string> {
   const sourceIds = new Set<string>();
   for (const si of group.sourceItems) {
@@ -88,16 +88,16 @@ export function collectComparisonGroupSourceTranscriptionLayerIds(
   return sourceIds;
 }
 
-export function filterTranslationLayersForComparisonGroup(
-  group: ComparisonGroup,
+export function filterTranslationLayersForVerticalReadingGroup(
+  group: VerticalReadingGroup,
   translationLayers: readonly LayerDocType[],
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
   fallbackFocusedTranscriptionLayerId: string | undefined,
-  layerLinks: readonly ComparisonHostLink[] = [],
+  layerLinks: readonly VerticalReadingHostLink[] = [],
 ): LayerDocType[] {
   const transcriptionLayerCount = transcriptionLayers.length;
-  const { transcriptionIdByKey, linksByTranslationLayerId } = buildComparisonHostLinkMaps(
+  const { transcriptionIdByKey, linksByTranslationLayerId } = buildVerticalReadingHostLinkMaps(
     transcriptionLayers,
     layerLinks,
   );
@@ -105,11 +105,11 @@ export function filterTranslationLayersForComparisonGroup(
     transcriptionLayers,
     defaultTranscriptionLayerId,
   );
-  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group);
+  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group);
   if (sourceIds.size === 0) {
     return [...translationLayers];
   }
-  return translationLayers.filter((tl) => translationLayerAppliesToComparisonSourceTranscriptionIds(
+  return translationLayers.filter((tl) => translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
     tl,
     sourceIds,
     transcriptionLayerCount,
@@ -119,17 +119,17 @@ export function filterTranslationLayersForComparisonGroup(
   ));
 }
 
-export function resolveComparisonGroupEmptyReason(
-  group: ComparisonGroup,
+export function resolveVerticalReadingGroupEmptyReason(
+  group: VerticalReadingGroup,
   translationLayers: readonly LayerDocType[],
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
   fallbackFocusedTranscriptionLayerId: string | undefined,
-  layerLinks: readonly ComparisonHostLink[] = [],
+  layerLinks: readonly VerticalReadingHostLink[] = [],
 ): 'no-child' | 'orphan-needs-repair' {
   if (translationLayers.length === 0) return 'no-child';
   if (transcriptionLayers.length <= 1) return 'no-child';
-  const { transcriptionIdByKey, linksByTranslationLayerId } = buildComparisonHostLinkMaps(
+  const { transcriptionIdByKey, linksByTranslationLayerId } = buildVerticalReadingHostLinkMaps(
     transcriptionLayers,
     layerLinks,
   );
@@ -147,7 +147,7 @@ export function resolveComparisonGroupEmptyReason(
     defaultTranscriptionLayerId,
   );
   if (!orphanAttachLayerId) return 'no-child';
-  const sourceIds = collectComparisonGroupSourceTranscriptionLayerIds(group);
+  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group);
   if (sourceIds.size === 0) {
     const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim();
     if (fallbackSourceLayerId) sourceIds.add(fallbackSourceLayerId);
@@ -156,17 +156,17 @@ export function resolveComparisonGroupEmptyReason(
   return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';
 }
 
-export function pickTranslationLayerForComparisonUnit(
+export function pickTranslationLayerForVerticalReadingUnit(
   unit: { layerId?: string | undefined; id: string },
   allTranslationLayers: readonly LayerDocType[],
   preferred: LayerDocType | undefined,
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
-  layerLinks: readonly ComparisonHostLink[] = [],
+  layerLinks: readonly VerticalReadingHostLink[] = [],
 ): LayerDocType | undefined {
   if (allTranslationLayers.length === 0) return undefined;
   const transcriptionLayerCount = transcriptionLayers.length;
-  const { transcriptionIdByKey, linksByTranslationLayerId } = buildComparisonHostLinkMaps(
+  const { transcriptionIdByKey, linksByTranslationLayerId } = buildVerticalReadingHostLinkMaps(
     transcriptionLayers,
     layerLinks,
   );
@@ -179,7 +179,7 @@ export function pickTranslationLayerForComparisonUnit(
     defaultTranscriptionLayerId,
   );
   const sourceIds = new Set(unitSourceId ? [unitSourceId] : []);
-  const candidates = allTranslationLayers.filter((tl) => translationLayerAppliesToComparisonSourceTranscriptionIds(
+  const candidates = allTranslationLayers.filter((tl) => translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
     tl,
     sourceIds,
     transcriptionLayerCount,

@@ -10,7 +10,7 @@ const log = createLogger('TranscriptionWorkspaceLayout');
 const WORKSPACE_DEFAULT_ZOOM_MODE_KEY = 'jieyu:workspace-default-zoom-mode';
 const WORKSPACE_AUTO_SCROLL_KEY = 'jieyu:workspace-auto-scroll-enabled';
 const WORKSPACE_SNAP_KEY = 'jieyu:workspace-snap-enabled';
-const WORKSPACE_COMPARISON_VIEW_KEY = 'jieyu:workspace-comparison-view';
+const WORKSPACE_VERTICAL_VIEW_KEY = 'jieyu:workspace-vertical-view';
 
 type UseTranscriptionWorkspaceLayoutControllerInput = {
   layers: LayerDocType[];
@@ -46,9 +46,9 @@ type UseTranscriptionWorkspaceLayoutControllerResult = {
   snapEnabled: boolean;
   setSnapEnabled: Dispatch<SetStateAction<boolean>>;
   toggleSnapEnabled: () => void;
-  comparisonViewEnabled: boolean;
-  setComparisonViewEnabled: Dispatch<SetStateAction<boolean>>;
-  toggleComparisonViewEnabled: () => void;
+  verticalViewEnabled: boolean;
+  setVerticalViewEnabled: Dispatch<SetStateAction<boolean>>;
+  toggleVerticalViewEnabled: () => void;
 };
 
 function readStoredClampedNumber(key: string, min: number, max: number, fallback: number): number {
@@ -141,7 +141,7 @@ export function useTranscriptionWorkspaceLayoutController(
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_SNAP_KEY, false));
-  const [comparisonViewEnabled, setComparisonViewEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_COMPARISON_VIEW_KEY, false));
+  const [verticalViewEnabled, setVerticalViewEnabled] = useState<boolean>(() => readStoredBoolean(WORKSPACE_VERTICAL_VIEW_KEY, false));
 
   useEffect(() => {
     laneLabelWidthRef.current = laneLabelWidth;
@@ -172,8 +172,8 @@ export function useTranscriptionWorkspaceLayoutController(
       const next = readStoredBoolean(WORKSPACE_SNAP_KEY, false);
       return prev === next ? prev : next;
     });
-    setComparisonViewEnabled((prev) => {
-      const next = readStoredBoolean(WORKSPACE_COMPARISON_VIEW_KEY, false);
+    setVerticalViewEnabled((prev) => {
+      const next = readStoredBoolean(WORKSPACE_VERTICAL_VIEW_KEY, false);
       return prev === next ? prev : next;
     });
   }), []);
@@ -277,8 +277,8 @@ export function useTranscriptionWorkspaceLayoutController(
     });
   }, []);
 
-  const toggleComparisonViewEnabled = useCallback(() => {
-    setComparisonViewEnabled((prev) => !prev);
+  const toggleVerticalViewEnabled = useCallback(() => {
+    setVerticalViewEnabled((prev) => !prev);
   }, []);
 
   useEffect(() => {
@@ -388,7 +388,7 @@ export function useTranscriptionWorkspaceLayoutController(
       localStorage.setItem(WORKSPACE_DEFAULT_ZOOM_MODE_KEY, zoomMode);
       localStorage.setItem(WORKSPACE_AUTO_SCROLL_KEY, autoScrollEnabled ? '1' : '0');
       localStorage.setItem(WORKSPACE_SNAP_KEY, snapEnabled ? '1' : '0');
-      localStorage.setItem(WORKSPACE_COMPARISON_VIEW_KEY, comparisonViewEnabled ? '1' : '0');
+      localStorage.setItem(WORKSPACE_VERTICAL_VIEW_KEY, verticalViewEnabled ? '1' : '0');
     } catch (error) {
       log.warn('Failed to persist workspace layout preferences to localStorage', {
         storageKeys: [
@@ -398,7 +398,7 @@ export function useTranscriptionWorkspaceLayoutController(
           WORKSPACE_DEFAULT_ZOOM_MODE_KEY,
           WORKSPACE_AUTO_SCROLL_KEY,
           WORKSPACE_SNAP_KEY,
-          WORKSPACE_COMPARISON_VIEW_KEY,
+          WORKSPACE_VERTICAL_VIEW_KEY,
         ],
         values: {
           videoPreviewHeight,
@@ -407,14 +407,14 @@ export function useTranscriptionWorkspaceLayoutController(
           zoomMode,
           autoScrollEnabled,
           snapEnabled,
-          comparisonViewEnabled,
+          verticalViewEnabled,
         },
         error: error instanceof Error ? error.message : String(error),
       });
     }
   }, [
     autoScrollEnabled,
-    comparisonViewEnabled,
+    verticalViewEnabled,
     snapEnabled,
     videoLayoutMode,
     videoPreviewHeight,
@@ -462,8 +462,8 @@ export function useTranscriptionWorkspaceLayoutController(
     snapEnabled,
     setSnapEnabled,
     toggleSnapEnabled,
-    comparisonViewEnabled,
-    setComparisonViewEnabled,
-    toggleComparisonViewEnabled,
+    verticalViewEnabled,
+    setVerticalViewEnabled,
+    toggleVerticalViewEnabled,
   };
 }

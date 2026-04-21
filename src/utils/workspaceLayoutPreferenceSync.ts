@@ -6,7 +6,7 @@ export const WORKSPACE_VIDEO_RIGHT_PANEL_WIDTH_STORAGE_KEY = 'jieyu:video-right-
 export const WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY = 'jieyu:workspace-default-zoom-mode';
 export const WORKSPACE_AUTO_SCROLL_STORAGE_KEY = 'jieyu:workspace-auto-scroll-enabled';
 export const WORKSPACE_SNAP_STORAGE_KEY = 'jieyu:workspace-snap-enabled';
-export const WORKSPACE_COMPARISON_VIEW_STORAGE_KEY = 'jieyu:workspace-comparison-view';
+export const WORKSPACE_VERTICAL_VIEW_STORAGE_KEY = 'jieyu:workspace-vertical-view';
 
 const WORKSPACE_LAYOUT_PREFERENCE_CHANGED_EVENT = 'jieyu:workspace-layout-preference-changed';
 
@@ -63,7 +63,7 @@ export function subscribeWorkspaceLayoutPreferenceChanged(listener: () => void):
       || event.key === WORKSPACE_DEFAULT_ZOOM_MODE_STORAGE_KEY
       || event.key === WORKSPACE_AUTO_SCROLL_STORAGE_KEY
       || event.key === WORKSPACE_SNAP_STORAGE_KEY
-      || event.key === WORKSPACE_COMPARISON_VIEW_STORAGE_KEY
+      || event.key === WORKSPACE_VERTICAL_VIEW_STORAGE_KEY
     ) {
       listener();
     }

@@ -653,10 +653,10 @@ describe('TranscriptionPage structure invariants', () => {
   expect(pdfRuntimeCode.includes('const { request, onCloseRequest } = previewRequest;')).toBe(true);
   expect(pdfRuntimeCode.includes('onCloseRequest?.();')).toBe(true);
 
-    expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineMediaLanesProps>(() => ({')).toBe(true);
+    expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(() => ({')).toBe(true);
     expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>')).toBe(true);
     expect(timelineContentHookCode.includes('() => input.textOnlyPropsInput')).toBe(true);
-    expect(timelineContentHookCode.includes('comparisonViewToggleDep')).toBe(true);
+    expect(timelineContentHookCode.includes('verticalViewToggleDep')).toBe(true);
     expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({')).toBe(true);
     expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(() => ({')).toBe(true);
   });

@@ -58,7 +58,7 @@ function normalizeIntervalToken(interval: AlignmentInterval): string {
   return normalizeForEval(interval.text).replace(/\s+/g, '');
 }
 
-function intervalsToTranscript(intervals: readonly AlignmentInterval[]): string {
+function joinAlignmentIntervalTexts(intervals: readonly AlignmentInterval[]): string {
   return intervals.map((interval) => interval.text).join(' ');
 }
 
@@ -174,7 +174,7 @@ export function evaluateTimestampSample(sample: TimestampEvalSample): TimestampS
     hypothesisWordCount: sample.hypothesisWords.length,
     matchedWordCount: alignedPairs.length,
     hasPrediction: sample.hypothesisWords.length > 0,
-    textWer: wer(intervalsToTranscript(sample.referenceWords), intervalsToTranscript(sample.hypothesisWords)),
+    textWer: wer(joinAlignmentIntervalTexts(sample.referenceWords), joinAlignmentIntervalTexts(sample.hypothesisWords)),
     boundaryF1At25Ms: computeBoundaryF1(sample.referenceWords, sample.hypothesisWords, 25),
     boundaryF1At50Ms: computeBoundaryF1(sample.referenceWords, sample.hypothesisWords, 50),
     ...(startMaeMs !== undefined ? { startMaeMs } : {}),

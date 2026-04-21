@@ -10,7 +10,7 @@ export const LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID = 'left-rail-transcri
 
 type WorkspaceTimelineLayoutControl = {
   locale: Locale;
-  comparisonViewActive: boolean;
+  verticalViewActive: boolean;
   translationLayerCount: number;
   onSelectHorizontalMode: () => void;
   onSelectVerticalMode: () => void;
@@ -44,18 +44,18 @@ export function TranscriptionLeftRailLayerActions({
   if (workspaceTimelineLayout) {
     const {
       locale,
-      comparisonViewActive,
+      verticalViewActive,
       onSelectHorizontalMode,
       onSelectVerticalMode,
     } = workspaceTimelineLayout;
-    const title = comparisonViewActive
-      ? t(locale, 'transcription.toolbar.switchToTimelineView')
-      : t(locale, 'transcription.toolbar.switchToComparisonView');
-    const modeLabel = comparisonViewActive
-      ? t(locale, 'transcription.toolbar.compareView')
-      : t(locale, 'transcription.toolbar.timelineView');
+    const title = verticalViewActive
+      ? t(locale, 'transcription.toolbar.switchToHorizontalView')
+      : t(locale, 'transcription.toolbar.switchToVerticalView');
+    const modeLabel = verticalViewActive
+      ? t(locale, 'transcription.toolbar.verticalView')
+      : t(locale, 'transcription.toolbar.horizontalView');
     const handleToggleLayout = () => {
-      if (comparisonViewActive) {
+      if (verticalViewActive) {
         onSelectHorizontalMode();
       } else {
         onSelectVerticalMode();
@@ -71,14 +71,14 @@ export function TranscriptionLeftRailLayerActions({
           type="button"
           data-testid="left-rail-workspace-layout-toggle"
           className="left-rail-btn left-rail-workspace-layout-toggle-btn"
-          aria-pressed={comparisonViewActive}
+          aria-pressed={verticalViewActive}
           title={title}
           aria-label={modeLabel}
           onClick={handleToggleLayout}
         >
           {/* 必须带 jieyu-material：.app-left-rail .left-rail-btn > span:not(.jieyu-material) 会隐藏其它直接子 span */}
           <MaterialSymbol
-            name={comparisonViewActive ? 'view_agenda' : 'view_column_2'}
+            name={verticalViewActive ? 'view_agenda' : 'view_column_2'}
             aria-hidden
             className={`${JIEYU_MATERIAL_LEFT_RAIL_CTX} left-rail-workspace-layout-toggle-icon`}
           />

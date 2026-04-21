@@ -42,7 +42,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '0');
     localStorage.setItem('jieyu:workspace-snap-enabled', '1');
     localStorage.setItem('jieyu:workspace-default-zoom-mode', 'custom');
-    localStorage.setItem('jieyu:workspace-comparison-view', '1');
+    localStorage.setItem('jieyu:workspace-vertical-view', '1');
 
     const scrollSpy = vi.fn();
     const unitRowRef = makeUnitRowRef(scrollSpy);
@@ -60,7 +60,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.autoScrollEnabled).toBe(false);
     expect(result.current.snapEnabled).toBe(true);
     expect(result.current.zoomMode).toBe('custom');
-    expect(result.current.comparisonViewEnabled).toBe(true);
+    expect(result.current.verticalViewEnabled).toBe(true);
 
     await waitFor(() => {
       expect(result.current.timelineLaneHeights).toEqual({ 'layer-a': 168 });
@@ -143,7 +143,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     localStorage.setItem('jieyu:workspace-default-zoom-mode', 'fit-all');
     localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '1');
     localStorage.setItem('jieyu:workspace-snap-enabled', '0');
-    localStorage.setItem('jieyu:workspace-comparison-view', '0');
+    localStorage.setItem('jieyu:workspace-vertical-view', '0');
 
     const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
       layers: [makeLayer('layer-a')],
@@ -157,7 +157,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.zoomMode).toBe('fit-all');
     expect(result.current.autoScrollEnabled).toBe(true);
     expect(result.current.snapEnabled).toBe(false);
-    expect(result.current.comparisonViewEnabled).toBe(false);
+    expect(result.current.verticalViewEnabled).toBe(false);
 
     act(() => {
       localStorage.setItem('jieyu:video-preview-height', '420');
@@ -166,7 +166,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
       localStorage.setItem('jieyu:workspace-default-zoom-mode', 'fit-selection');
       localStorage.setItem('jieyu:workspace-auto-scroll-enabled', '0');
       localStorage.setItem('jieyu:workspace-snap-enabled', '1');
-      localStorage.setItem('jieyu:workspace-comparison-view', '1');
+      localStorage.setItem('jieyu:workspace-vertical-view', '1');
       emitWorkspaceLayoutPreferenceChanged();
     });
 
@@ -176,6 +176,6 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.zoomMode).toBe('fit-selection');
     expect(result.current.autoScrollEnabled).toBe(false);
     expect(result.current.snapEnabled).toBe(true);
-    expect(result.current.comparisonViewEnabled).toBe(true);
+    expect(result.current.verticalViewEnabled).toBe(true);
   });
 });

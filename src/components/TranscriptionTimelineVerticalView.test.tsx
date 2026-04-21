@@ -19,7 +19,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import { TranscriptionEditorContext, type TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import { LocaleProvider } from '../i18n';
-import { TranscriptionTimelineComparison } from './TranscriptionTimelineComparison';
+import { TranscriptionTimelineVerticalView } from './TranscriptionTimelineVerticalView';
 
 function makeLayer(
   id: string,
@@ -118,7 +118,7 @@ function makeEditorContext(): TranscriptionEditorContextValue {
   };
 }
 
-describe('TranscriptionTimelineComparison', () => {
+describe('TranscriptionTimelineVerticalView', () => {
   it('uses segment rows for independent-boundary transcription so comparison is not empty', () => {
     const transcriptionLayers = [makeLayer('tr-seg', 'transcription', '转写轨', 'independent_boundary')];
     const translationLayers = [makeTranslationLayer('translation-1', 'tr-seg')];
@@ -137,7 +137,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={[]}
@@ -154,9 +154,9 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('timeline-comparison-view')).toBeTruthy();
+    expect(screen.getByTestId('timeline-paired-reading-view')).toBeTruthy();
     expect(screen.getByDisplayValue('段内原文')).toBeTruthy();
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement | null;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement | null;
     expect(targetEditor?.value).toBe('段内译文');
   });
 
@@ -176,7 +176,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -219,7 +219,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             layerLinks={layerLinks}
@@ -251,7 +251,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -265,14 +265,14 @@ describe('TranscriptionTimelineComparison', () => {
 
     const scoped = within(viewRender.container);
     fireEvent.click(scoped.getByDisplayValue('第一条原文'));
-    let activeGroup = viewRender.container.querySelector('.timeline-comparison-group-active');
+    let activeGroup = viewRender.container.querySelector('.timeline-paired-reading-group-active');
     expect(activeGroup).toBeTruthy();
     expect(within(activeGroup as HTMLElement).getByDisplayValue('第一条原文')).toBeTruthy();
 
     viewRender.rerender(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -285,7 +285,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    activeGroup = viewRender.container.querySelector('.timeline-comparison-group-active');
+    activeGroup = viewRender.container.querySelector('.timeline-paired-reading-group-active');
     expect(activeGroup).toBeTruthy();
     expect(within(activeGroup as HTMLElement).getByDisplayValue('第二条原文')).toBeTruthy();
   });
@@ -300,7 +300,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -313,7 +313,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(viewRender.container.querySelector('.timeline-comparison-target-column-active')).toBeTruthy();
+    expect(viewRender.container.querySelector('.timeline-paired-reading-target-column-active')).toBeTruthy();
   });
 
   it('shows self-certainty badges for comparison source segments just like horizontal mode', () => {
@@ -324,7 +324,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -352,7 +352,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -368,7 +368,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const noteIcon = viewRender.container.querySelector('.timeline-comparison-note-icon') as SVGElement | null;
+    const noteIcon = viewRender.container.querySelector('.timeline-paired-reading-note-icon') as SVGElement | null;
     expect(noteIcon).toBeTruthy();
 
     fireEvent.click(noteIcon as SVGElement);
@@ -384,7 +384,7 @@ describe('TranscriptionTimelineComparison', () => {
     const withoutCertaintyRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -400,7 +400,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const noteWithoutCertainty = withoutCertaintyRender.container.querySelector('.timeline-comparison-note-icon') as SVGElement | null;
+    const noteWithoutCertainty = withoutCertaintyRender.container.querySelector('.timeline-paired-reading-note-icon') as SVGElement | null;
     expect(noteWithoutCertainty).toBeTruthy();
     expect(withoutCertaintyRender.container.querySelector('.timeline-annotation-self-certainty')).toBeFalsy();
 
@@ -413,7 +413,7 @@ describe('TranscriptionTimelineComparison', () => {
     const withCertaintyRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -433,7 +433,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const noteWithCertainty = withCertaintyRender.container.querySelector('.timeline-comparison-note-icon') as SVGElement | null;
+    const noteWithCertainty = withCertaintyRender.container.querySelector('.timeline-paired-reading-note-icon') as SVGElement | null;
     expect(noteWithCertainty).toBeTruthy();
     expect(withCertaintyRender.container.querySelector('.timeline-annotation-self-certainty--certain')).toBeTruthy();
 
@@ -452,7 +452,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -467,7 +467,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement;
     fireEvent.change(targetEditor, { target: { value: '新的译文' } });
 
     const saveCalls = (contextValue.scheduleAutoSave as ReturnType<typeof vi.fn>).mock.calls;
@@ -475,8 +475,8 @@ describe('TranscriptionTimelineComparison', () => {
     expect(scheduledTask).toBeTypeOf('function');
     await scheduledTask?.();
 
-    const targetSurface = viewRender.container.querySelector('.timeline-comparison-target-surface') as HTMLDivElement | null;
-    expect(targetSurface?.className.includes('timeline-comparison-target-surface-has-side-badges')).toBe(true);
+    const targetSurface = viewRender.container.querySelector('.timeline-paired-reading-target-surface') as HTMLDivElement | null;
+    expect(targetSurface?.className.includes('timeline-paired-reading-target-surface-has-side-badges')).toBe(true);
 
     await waitFor(() => {
       expect(viewRender.container.querySelector('.timeline-text-item-status-dot-error')).toBeTruthy();
@@ -494,7 +494,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -521,7 +521,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -533,23 +533,23 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceEditor = viewRender.container.querySelector('textarea.timeline-comparison-source-input') as HTMLTextAreaElement | null;
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement | null;
-    const comparisonView = within(viewRender.container).getByTestId('timeline-comparison-view');
-    const comparisonGroup = viewRender.container.querySelector('.timeline-comparison-group') as HTMLDivElement | null;
-    const resizeHandle = viewRender.container.querySelector('.timeline-comparison-target-column .timeline-draft-editor-resize-handle-bottom') as HTMLDivElement | null;
+    const sourceEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-source-input') as HTMLTextAreaElement | null;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement | null;
+    const comparisonView = within(viewRender.container).getByTestId('timeline-paired-reading-view');
+    const comparisonGroup = viewRender.container.querySelector('.timeline-paired-reading-group') as HTMLDivElement | null;
+    const resizeHandle = viewRender.container.querySelector('.timeline-paired-reading-target-column .timeline-draft-editor-resize-handle-bottom') as HTMLDivElement | null;
 
     expect(sourceEditor?.getAttribute('rows')).toBe('1');
     expect(targetEditor?.getAttribute('rows')).toBe('1');
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-editor-min-height')).toBe('63px');
-    expect(comparisonGroup?.style.getPropertyValue('--timeline-comparison-editor-min-height')).toBe('');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).toBe('63px');
+    expect(comparisonGroup?.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).toBe('');
     expect(resizeHandle).toBeTruthy();
 
     fireEvent.pointerDown(resizeHandle as HTMLDivElement, { clientY: 100 });
     fireEvent.pointerMove(window, { clientY: 118 });
 
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-editor-min-height')).toBe('63px');
-    expect(comparisonGroup?.style.getPropertyValue('--timeline-comparison-editor-min-height')).toBe('81px');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).toBe('63px');
+    expect(comparisonGroup?.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).toBe('81px');
 
     fireEvent.pointerUp(window);
   });
@@ -565,7 +565,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -577,7 +577,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const groups = Array.from(viewRender.container.querySelectorAll('.timeline-comparison-group')) as HTMLDivElement[];
+    const groups = Array.from(viewRender.container.querySelectorAll('.timeline-paired-reading-group')) as HTMLDivElement[];
     expect(groups.length).toBeGreaterThanOrEqual(2);
 
     const firstHandle = groups[0]?.querySelector('.timeline-draft-editor-resize-handle-bottom') as HTMLDivElement | null;
@@ -590,8 +590,8 @@ describe('TranscriptionTimelineComparison', () => {
       fireEvent.pointerMove(window, { clientY: 118 });
     });
 
-    expect(groups[0]?.style.getPropertyValue('--timeline-comparison-editor-min-height')).not.toBe('');
-    expect(groups[1]?.style.getPropertyValue('--timeline-comparison-editor-min-height')).toBe('');
+    expect(groups[0]?.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).not.toBe('');
+    expect(groups[1]?.style.getPropertyValue('--timeline-paired-reading-editor-min-height')).toBe('');
 
     fireEvent.pointerUp(window);
   });
@@ -604,7 +604,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -616,19 +616,19 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const comparisonView = within(viewRender.container).getByTestId('timeline-comparison-view');
-    const splitter = viewRender.container.querySelector('.timeline-comparison-global-splitter') as HTMLDivElement | null;
+    const comparisonView = within(viewRender.container).getByTestId('timeline-paired-reading-view');
+    const splitter = viewRender.container.querySelector('.timeline-paired-reading-global-splitter') as HTMLDivElement | null;
 
     expect(splitter).toBeTruthy();
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-left-grow')).toBe('50');
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-right-grow')).toBe('50');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-left-grow')).toBe('50');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-right-grow')).toBe('50');
 
     fireEvent.pointerDown(splitter as HTMLDivElement, { button: 0, clientX: 100, pointerId: 1 });
     fireEvent.pointerMove(window, { clientX: 180, pointerId: 1 });
     fireEvent.pointerUp(window, { pointerId: 1 });
 
-    expect(Number(comparisonView.style.getPropertyValue('--timeline-comparison-left-grow'))).toBeGreaterThan(50);
-    expect(Number(comparisonView.style.getPropertyValue('--timeline-comparison-right-grow'))).toBeLessThan(50);
+    expect(Number(comparisonView.style.getPropertyValue('--timeline-paired-reading-left-grow'))).toBeGreaterThan(50);
+    expect(Number(comparisonView.style.getPropertyValue('--timeline-paired-reading-right-grow'))).toBeLessThan(50);
   });
 
   it('resets comparison column widths to 1:1 when the splitter receives a second pointer down (double-click)', () => {
@@ -639,7 +639,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -651,8 +651,8 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const comparisonView = within(viewRender.container).getByTestId('timeline-comparison-view');
-    const splitter = viewRender.container.querySelector('.timeline-comparison-global-splitter') as HTMLDivElement | null;
+    const comparisonView = within(viewRender.container).getByTestId('timeline-paired-reading-view');
+    const splitter = viewRender.container.querySelector('.timeline-paired-reading-global-splitter') as HTMLDivElement | null;
 
     expect(splitter).toBeTruthy();
 
@@ -660,13 +660,13 @@ describe('TranscriptionTimelineComparison', () => {
     fireEvent.pointerMove(window, { clientX: 180, pointerId: 1 });
     fireEvent.pointerUp(window, { pointerId: 1 });
 
-    expect(Number(comparisonView.style.getPropertyValue('--timeline-comparison-left-grow'))).toBeGreaterThan(50);
+    expect(Number(comparisonView.style.getPropertyValue('--timeline-paired-reading-left-grow'))).toBeGreaterThan(50);
 
     fireEvent.pointerDown(splitter as HTMLDivElement, { button: 0, clientX: 100, pointerId: 2, detail: 2 });
 
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-left-grow')).toBe('50');
-    expect(comparisonView.style.getPropertyValue('--timeline-comparison-right-grow')).toBe('50');
-    expect(localStorage.getItem('jieyu:comparison-column-left-grow')).toBe('50');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-left-grow')).toBe('50');
+    expect(comparisonView.style.getPropertyValue('--timeline-paired-reading-right-grow')).toBe('50');
+    expect(localStorage.getItem('jieyu:paired-reading-column-left-grow')).toBe('50');
   });
 
   it('shows per-row layer rails, focuses layers from the rail, and only reveals bundle chips when multiple bundles exist', () => {
@@ -682,7 +682,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -694,8 +694,8 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceRail = screen.getByTestId('comparison-source-rail-cmp-u1-u1');
-    const targetRail = screen.getByTestId('comparison-target-rail-cmp-u1-translation-1');
+    const sourceRail = screen.getByTestId('paired-reading-source-rail-pr-u1-u1');
+    const targetRail = screen.getByTestId('paired-reading-target-rail-pr-u1-translation-1');
     expect(sourceRail).toBeTruthy();
     expect(targetRail).toBeTruthy();
     expect(sourceRail.getAttribute('aria-pressed')).toBe('true');
@@ -704,8 +704,8 @@ describe('TranscriptionTimelineComparison', () => {
     expect(onFocusLayer).toHaveBeenCalledWith('translation-1');
     expect(sourceRail.getAttribute('aria-pressed')).toBe('false');
     expect(targetRail.getAttribute('aria-pressed')).toBe('true');
-    expect(viewRender.container.querySelector('.timeline-comparison-chip-speaker')?.textContent).toContain('Alice');
-    expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(0);
+    expect(viewRender.container.querySelector('.timeline-paired-reading-chip-speaker')?.textContent).toContain('Alice');
+    expect(viewRender.container.querySelectorAll('.timeline-paired-reading-chip-bundle')).toHaveLength(0);
 
     const trA = { ...makeLayer('tr-a', 'transcription', '甲转写', 'independent_boundary'), sortOrder: 0 } as LayerDocType;
     const trB = { ...makeLayer('tr-b', 'transcription', '乙转写', 'independent_boundary'), sortOrder: 2 } as LayerDocType;
@@ -722,7 +722,7 @@ describe('TranscriptionTimelineComparison', () => {
     viewRender.rerender(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextTwoBundles}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={[trA, trB]}
             translationLayers={[tlA, tlB]}
             allLayersOrdered={allLayersOrdered}
@@ -738,7 +738,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(viewRender.container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(2);
+    expect(viewRender.container.querySelectorAll('.timeline-paired-reading-chip-bundle')).toHaveLength(2);
   });
 
   it('offers bundle visibility menu aligned with horizontal layer bundles (two independent roots)', async () => {
@@ -761,7 +761,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={[trA, trB]}
             translationLayers={[tlA, tlB]}
             allLayersOrdered={allLayersOrdered}
@@ -774,20 +774,20 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('comparison-bundle-filter-btn')).toBeTruthy();
-    fireEvent.click(screen.getByTestId('comparison-bundle-filter-btn'));
+    expect(screen.getByTestId('paired-reading-bundle-filter-btn')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('paired-reading-bundle-filter-btn'));
     expect(await screen.findByRole('menu')).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: '全部组块' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /普通话转写/ })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: /第二转写/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('menuitem', { name: /第二转写/ }));
-    expect(document.querySelectorAll('[data-comparison-group-id]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-paired-reading-group-id]')).toHaveLength(1);
 
-    fireEvent.click(screen.getByTestId('comparison-bundle-filter-btn'));
+    fireEvent.click(screen.getByTestId('paired-reading-bundle-filter-btn'));
     expect(await screen.findByRole('menu')).toBeTruthy();
     fireEvent.click(screen.getByRole('menuitem', { name: '全部组块' }));
-    expect(document.querySelectorAll('[data-comparison-group-id]')).toHaveLength(2);
+    expect(document.querySelectorAll('[data-paired-reading-group-id]')).toHaveLength(2);
   });
 
   it('shows bundle filter when two horizontal bundles each have comparison rows', () => {
@@ -807,7 +807,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={[trA, trB]}
             translationLayers={[tlA, tlB]}
             allLayersOrdered={allLayersOrdered}
@@ -820,7 +820,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('comparison-bundle-filter-btn')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-bundle-filter-btn')).toBeTruthy();
   });
 
   it('renders one source rail per source row when a comparison group merges multiple anchors', () => {
@@ -839,7 +839,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -851,10 +851,10 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('comparison-source-rail-cmp-u1-u1')).toBeTruthy();
-    expect(screen.getByTestId('comparison-source-rail-cmp-u1-u2')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-u1')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-u2')).toBeTruthy();
 
-    fireEvent.click(screen.getByTestId('comparison-source-rail-cmp-u1-u2'));
+    fireEvent.click(screen.getByTestId('paired-reading-source-rail-pr-u1-u2'));
     expect(onFocusLayer).toHaveBeenCalledWith('tr-a');
   });
 
@@ -873,7 +873,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -885,11 +885,11 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(viewRender.container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(2);
-    expect(viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input')).toHaveLength(1);
-    expect(viewRender.container.querySelector('.timeline-comparison-chip-multi-anchor')).toBeTruthy();
+    expect(viewRender.container.querySelectorAll('textarea.timeline-paired-reading-source-input')).toHaveLength(2);
+    expect(viewRender.container.querySelectorAll('textarea.timeline-paired-reading-target-input')).toHaveLength(1);
+    expect(viewRender.container.querySelector('.timeline-paired-reading-chip-multi-anchor')).toBeTruthy();
     expect(
-      viewRender.container.querySelector('[data-comparison-group-id]')?.getAttribute('data-comparison-layout'),
+      viewRender.container.querySelector('[data-paired-reading-group-id]')?.getAttribute('data-paired-reading-layout'),
     ).toBe('many-to-one');
   });
 
@@ -903,7 +903,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -915,7 +915,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const targetInputs = viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input');
+    const targetInputs = viewRender.container.querySelectorAll('textarea.timeline-paired-reading-target-input');
     expect(targetInputs).toHaveLength(2);
     expect((targetInputs[0] as HTMLTextAreaElement | undefined)?.value).toBe('译文一');
     expect((targetInputs[1] as HTMLTextAreaElement | undefined)?.value).toBe('译文二');
@@ -936,7 +936,7 @@ describe('TranscriptionTimelineComparison', () => {
     const { container } = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -948,10 +948,10 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const group = container.querySelector('[data-comparison-group-id]');
-    expect(group?.getAttribute('data-comparison-layout')).toBe('many-to-many');
-    expect(container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(2);
-    expect(container.querySelectorAll('textarea.timeline-comparison-target-input')).toHaveLength(2);
+    const group = container.querySelector('[data-paired-reading-group-id]');
+    expect(group?.getAttribute('data-paired-reading-layout')).toBe('many-to-many');
+    expect(container.querySelectorAll('textarea.timeline-paired-reading-source-input')).toHaveLength(2);
+    expect(container.querySelectorAll('textarea.timeline-paired-reading-target-input')).toHaveLength(2);
   });
 
   it('does not show bundle chips for multiple rootUnitIds on one horizontal layer bundle', () => {
@@ -973,7 +973,7 @@ describe('TranscriptionTimelineComparison', () => {
     const { container } = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -985,9 +985,9 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(container.querySelectorAll('[data-comparison-group-id]')).toHaveLength(3);
-    expect(container.querySelectorAll('textarea.timeline-comparison-source-input')).toHaveLength(3);
-    expect(container.querySelectorAll('.timeline-comparison-chip-bundle')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-paired-reading-group-id]')).toHaveLength(3);
+    expect(container.querySelectorAll('textarea.timeline-paired-reading-source-input')).toHaveLength(3);
+    expect(container.querySelectorAll('.timeline-paired-reading-chip-bundle')).toHaveLength(0);
   });
 
   it('avoids rendering duplicated target preview lines above the editor', () => {
@@ -1002,7 +1002,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1014,8 +1014,8 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(viewRender.container.querySelectorAll('.timeline-comparison-target-line')).toHaveLength(0);
-    const editors = viewRender.container.querySelectorAll('textarea.timeline-comparison-target-input');
+    expect(viewRender.container.querySelectorAll('.timeline-paired-reading-target-line')).toHaveLength(0);
+    const editors = viewRender.container.querySelectorAll('textarea.timeline-paired-reading-target-input');
     expect(editors).toHaveLength(2);
     expect((editors[0] as HTMLTextAreaElement | undefined)?.value).toBe('第一行');
     expect((editors[1] as HTMLTextAreaElement | undefined)?.value).toBe('第二行');
@@ -1032,7 +1032,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1044,7 +1044,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceEditor = viewRender.container.querySelector('.timeline-comparison-source-input') as HTMLTextAreaElement | null;
+    const sourceEditor = viewRender.container.querySelector('.timeline-paired-reading-source-input') as HTMLTextAreaElement | null;
     expect(sourceEditor).toBeTruthy();
     fireEvent.change(sourceEditor as HTMLTextAreaElement, { target: { value: '直接改写原文' } });
     expect(contextValue.setUnitDrafts).toHaveBeenCalled();
@@ -1061,7 +1061,7 @@ describe('TranscriptionTimelineComparison', () => {
     const filledRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1073,14 +1073,14 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const filledSource = filledRender.container.querySelector('.timeline-comparison-source-input') as HTMLTextAreaElement | null;
-    const filledTarget = filledRender.container.querySelector('.timeline-comparison-target-input') as HTMLTextAreaElement | null;
-    const filledTargetSurface = filledRender.container.querySelector('.timeline-comparison-target-surface') as HTMLDivElement | null;
-    expect(filledSource?.className.includes('timeline-comparison-source-card-empty')).toBe(false);
-    expect(filledTarget?.className.includes('timeline-comparison-target-input-empty')).toBe(false);
-    expect(filledTarget?.className.includes('timeline-comparison-target-input-filled')).toBe(false);
-    expect(filledTargetSurface?.className.includes('timeline-comparison-target-surface-filled')).toBe(false);
-    expect(filledTargetSurface?.className.includes('timeline-comparison-target-surface-empty')).toBe(false);
+    const filledSource = filledRender.container.querySelector('.timeline-paired-reading-source-input') as HTMLTextAreaElement | null;
+    const filledTarget = filledRender.container.querySelector('.timeline-paired-reading-target-input') as HTMLTextAreaElement | null;
+    const filledTargetSurface = filledRender.container.querySelector('.timeline-paired-reading-target-surface') as HTMLDivElement | null;
+    expect(filledSource?.className.includes('timeline-paired-reading-source-card-empty')).toBe(false);
+    expect(filledTarget?.className.includes('timeline-paired-reading-target-input-empty')).toBe(false);
+    expect(filledTarget?.className.includes('timeline-paired-reading-target-input-filled')).toBe(false);
+    expect(filledTargetSurface?.className.includes('timeline-paired-reading-target-surface-filled')).toBe(false);
+    expect(filledTargetSurface?.className.includes('timeline-paired-reading-target-surface-empty')).toBe(false);
 
     filledRender.unmount();
 
@@ -1093,7 +1093,7 @@ describe('TranscriptionTimelineComparison', () => {
     const emptyRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={emptyContext}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1105,14 +1105,14 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const emptySource = emptyRender.container.querySelector('.timeline-comparison-source-input') as HTMLTextAreaElement | null;
-    const emptyTarget = emptyRender.container.querySelector('.timeline-comparison-target-input') as HTMLTextAreaElement | null;
-    const emptyTargetSurface = emptyRender.container.querySelector('.timeline-comparison-target-surface') as HTMLDivElement | null;
-    expect(emptySource?.className.includes('timeline-comparison-source-card-empty')).toBe(true);
-    expect(emptyTarget?.className.includes('timeline-comparison-target-input-empty')).toBe(true);
-    expect(emptyTarget?.className.includes('timeline-comparison-target-input-filled')).toBe(false);
-    expect(emptyTargetSurface?.className.includes('timeline-comparison-target-surface-empty')).toBe(true);
-    expect(emptyTargetSurface?.className.includes('timeline-comparison-target-surface-active')).toBe(false);
+    const emptySource = emptyRender.container.querySelector('.timeline-paired-reading-source-input') as HTMLTextAreaElement | null;
+    const emptyTarget = emptyRender.container.querySelector('.timeline-paired-reading-target-input') as HTMLTextAreaElement | null;
+    const emptyTargetSurface = emptyRender.container.querySelector('.timeline-paired-reading-target-surface') as HTMLDivElement | null;
+    expect(emptySource?.className.includes('timeline-paired-reading-source-card-empty')).toBe(true);
+    expect(emptyTarget?.className.includes('timeline-paired-reading-target-input-empty')).toBe(true);
+    expect(emptyTarget?.className.includes('timeline-paired-reading-target-input-filled')).toBe(false);
+    expect(emptyTargetSurface?.className.includes('timeline-paired-reading-target-surface-empty')).toBe(true);
+    expect(emptyTargetSurface?.className.includes('timeline-paired-reading-target-surface-active')).toBe(false);
   });
 
   it('shows shared save feedback and retry affordance for comparison target saves', async () => {
@@ -1130,7 +1130,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1142,7 +1142,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement;
     fireEvent.change(targetEditor, { target: { value: '新的译文' } });
 
     const saveCalls = (contextValue.scheduleAutoSave as ReturnType<typeof vi.fn>).mock.calls;
@@ -1175,7 +1175,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1188,7 +1188,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement;
     expect(targetEditor).toBeTruthy();
     fireEvent.click(targetEditor);
     expect(handleAnnotationClick).toHaveBeenCalledWith('u2', 1.02, 'translation-1', expect.any(Object));
@@ -1219,7 +1219,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={[]}
@@ -1238,7 +1238,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const targetEditor = viewRender.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement;
+    const targetEditor = viewRender.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement;
     expect(targetEditor).toBeTruthy();
     fireEvent.change(targetEditor, { target: { value: '尝试保存的新译文' } });
 
@@ -1270,7 +1270,7 @@ describe('TranscriptionTimelineComparison', () => {
     const viewRender = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1283,7 +1283,7 @@ describe('TranscriptionTimelineComparison', () => {
     );
 
     const scoped = within(viewRender.container);
-    const view = scoped.getByTestId('timeline-comparison-view');
+    const view = scoped.getByTestId('timeline-paired-reading-view');
     expect(view.getAttribute('data-compact-mode')).toBe('both');
     expect(scoped.queryByRole('button', { name: /组备注/ })).toBeNull();
     expect(scoped.queryByRole('button', { name: /开始录音翻译|Start recording translation/i })).toBeNull();
@@ -1308,7 +1308,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1377,7 +1377,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={[parent]}
@@ -1409,7 +1409,7 @@ describe('TranscriptionTimelineComparison', () => {
     const view = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1422,12 +1422,12 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceEditor = view.container.querySelector('textarea.timeline-comparison-source-input') as HTMLTextAreaElement;
+    const sourceEditor = view.container.querySelector('textarea.timeline-paired-reading-source-input') as HTMLTextAreaElement;
     expect(sourceEditor).toBeTruthy();
     fireEvent.keyDown(sourceEditor, { key: 'Tab', shiftKey: false });
     expect(navigateUnitFromInput).toHaveBeenCalledTimes(1);
 
-    const targetEditor = view.container.querySelector('textarea.timeline-comparison-target-input') as HTMLTextAreaElement;
+    const targetEditor = view.container.querySelector('textarea.timeline-paired-reading-target-input') as HTMLTextAreaElement;
     expect(targetEditor).toBeTruthy();
     fireEvent.keyDown(targetEditor, { key: 'Tab', shiftKey: true });
     expect(navigateUnitFromInput).toHaveBeenCalledTimes(2);
@@ -1460,7 +1460,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1476,7 +1476,7 @@ describe('TranscriptionTimelineComparison', () => {
     expect(screen.getByDisplayValue('法语段')).toBeTruthy();
     expect(screen.getByDisplayValue('中文译')).toBeTruthy();
     expect(screen.getByDisplayValue('吴语译')).toBeTruthy();
-    expect(screen.getByTestId('comparison-target-empty-cmp-u-fr')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
   });
 
   it('keeps translation editor visible when source unit layerId is missing in multi-transcription text-only mode', () => {
@@ -1499,7 +1499,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1513,7 +1513,42 @@ describe('TranscriptionTimelineComparison', () => {
 
     expect(screen.getByDisplayValue('English source text')).toBeTruthy();
     expect(screen.getByDisplayValue('English translation text')).toBeTruthy();
-    expect(screen.queryByTestId('comparison-target-empty-cmp-u-en')).toBeNull();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-en')).toBeNull();
+  });
+
+  it('keeps translation editor visible when host binding mismatches but unit-linked translation text exists', () => {
+    const transcriptionLayers = [
+      makeLayer('tr-en', 'transcription', '英'),
+      makeLayer('tr-fr', 'transcription', '法'),
+    ];
+    const translationLayers = [
+      makeTranslationLayer('tl-en', 'tr-en', '英译'),
+    ];
+    const units = [makeUnit('u-fr', 'tr-fr', 0, 1)];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-en', new Map([['u-fr', { text: 'French unit fallback translation' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u-fr' ? 'French source text' : '');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineVerticalView
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-fr"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByDisplayValue('French source text')).toBeTruthy();
+    expect(screen.getByDisplayValue('French unit fallback translation')).toBeTruthy();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-fr')).toBeNull();
   });
 
   it('shows orphan-repair hint when only unbound translation layers exist for another host group', () => {
@@ -1541,7 +1576,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1553,7 +1588,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('comparison-target-empty-cmp-u-fr')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
     expect(screen.getByText('检测到未绑定宿主的译文层；请先在层元信息里修复父层关系。')).toBeTruthy();
   });
 
@@ -1584,7 +1619,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={contextValue}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             layerLinks={layerLinks}
@@ -1597,13 +1632,13 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('comparison-layer-header-target').textContent ?? '').toContain('中文译层');
-    expect(screen.queryByTestId('comparison-layer-header-target-tl-fr')).toBeNull();
+    expect(screen.getByTestId('paired-reading-layer-header-target').textContent ?? '').toContain('中文译层');
+    expect(screen.queryByTestId('paired-reading-layer-header-target-tl-fr')).toBeNull();
 
     fireEvent.click(screen.getByDisplayValue('法语原文'));
 
-    expect(screen.getByTestId('comparison-layer-header-target').textContent ?? '').toContain('法文译层');
-    expect(screen.queryByTestId('comparison-layer-header-target-tl-zh')).toBeNull();
+    expect(screen.getByTestId('paired-reading-layer-header-target').textContent ?? '').toContain('法文译层');
+    expect(screen.queryByTestId('paired-reading-layer-header-target-tl-zh')).toBeNull();
   });
 
   it('opens the layer display styles menu when displayStyleControl is provided', async () => {
@@ -1614,7 +1649,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1643,7 +1678,7 @@ describe('TranscriptionTimelineComparison', () => {
     const view = render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1656,7 +1691,7 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const sourceRailButton = view.container.querySelector('.timeline-comparison-row-rail-source') as HTMLButtonElement | null;
+    const sourceRailButton = view.container.querySelector('.timeline-paired-reading-row-rail-source') as HTMLButtonElement | null;
     expect(sourceRailButton).toBeTruthy();
 
     fireEvent.contextMenu(sourceRailButton!);
@@ -1672,7 +1707,7 @@ describe('TranscriptionTimelineComparison', () => {
     render(
       <LocaleProvider locale="zh-CN">
         <TranscriptionEditorContext.Provider value={makeEditorContext()}>
-          <TranscriptionTimelineComparison
+          <TranscriptionTimelineVerticalView
             transcriptionLayers={transcriptionLayers}
             translationLayers={translationLayers}
             unitsOnCurrentMedia={units}
@@ -1690,8 +1725,8 @@ describe('TranscriptionTimelineComparison', () => {
       </LocaleProvider>,
     );
 
-    const comparisonView = screen.getByTestId('timeline-comparison-view');
-    fireEvent.contextMenu(screen.getByTestId('comparison-layer-header-source'));
+    const comparisonView = screen.getByTestId('timeline-paired-reading-view');
+    fireEvent.contextMenu(screen.getByTestId('paired-reading-layer-header-source'));
 
     expect(await screen.findByRole('menu')).toBeTruthy();
 
@@ -1701,7 +1736,7 @@ describe('TranscriptionTimelineComparison', () => {
     fireEvent.click(sourceOnlyItem);
     expect(comparisonView.getAttribute('data-compact-mode')).toBe('source');
 
-    fireEvent.contextMenu(screen.getByTestId('comparison-layer-header-source'));
+    fireEvent.contextMenu(screen.getByTestId('paired-reading-layer-header-source'));
     const layerOpsCategory = await screen.findByRole('menuitem', { name: /^层操作/ });
     fireEvent.click(layerOpsCategory);
 

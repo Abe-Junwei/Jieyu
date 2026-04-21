@@ -33,7 +33,7 @@ describe('TranscriptionLeftRailLayerActions', () => {
         onCreateTranslation={vi.fn()}
         workspaceTimelineLayout={{
           locale: 'zh-CN',
-          comparisonViewActive: false,
+          verticalViewActive: false,
           translationLayerCount: 0,
           onSelectHorizontalMode: vi.fn(),
           onSelectVerticalMode,
@@ -60,7 +60,7 @@ describe('TranscriptionLeftRailLayerActions', () => {
         onCreateTranslation={vi.fn()}
         workspaceTimelineLayout={{
           locale: 'zh-CN',
-          comparisonViewActive: true,
+          verticalViewActive: true,
           translationLayerCount: 0,
           onSelectHorizontalMode,
           onSelectVerticalMode: vi.fn(),

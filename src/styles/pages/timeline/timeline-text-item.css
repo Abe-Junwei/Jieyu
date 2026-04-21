@@ -300,7 +300,7 @@
 
 .timeline-draft-editor-surface-resizable:hover .timeline-draft-editor-resize-handle::after,
 .timeline-draft-editor-surface-resizable:focus-within .timeline-draft-editor-resize-handle::after,
-.timeline-comparison-view-resizing .timeline-draft-editor-resize-handle::after {
+.timeline-paired-reading-view-resizing .timeline-draft-editor-resize-handle::after {
   background: color-mix(in srgb, var(--state-info-solid) 65%, transparent);
 }
 

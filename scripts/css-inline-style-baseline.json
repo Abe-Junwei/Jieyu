@@ -5,7 +5,7 @@
   "approvedTotal": 12,
   "files": {
     "src/components/SettingsModal.tsx": 3,
-    "src/components/TranscriptionTimelineComparisonGroupList.tsx": 1
+    "src/components/TranscriptionTimelineVerticalViewGroupList.tsx": 1
   },
   "approvedFiles": {
     "src/components/BatchOperationPanel.tsx": 1,

@@ -54,7 +54,7 @@ interface SidePaneSidebarProps {
   /** Transcription workspace: horizontal (multi-track) vs vertical (paired columns) layout. */
   workspaceTimelineLayout?: {
     locale: Locale;
-    comparisonViewActive: boolean;
+    verticalViewActive: boolean;
     translationLayerCount: number;
     onSelectHorizontalMode: () => void;
     onSelectVerticalMode: () => void;

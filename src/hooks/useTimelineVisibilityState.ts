@@ -1,17 +1,17 @@
 import { useCallback, useState } from 'react';
 
-export type ComparisonCompactMode = 'both' | 'source' | 'target';
-export type ComparisonLayerRole = 'source' | 'target';
+export type PairedReadingCompactMode = 'both' | 'source' | 'target';
+export type PairedReadingLayerRole = 'source' | 'target';
 
-export function isComparisonLayerCollapsed(mode: ComparisonCompactMode, role: ComparisonLayerRole): boolean {
+export function isPairedReadingLayerCollapsed(mode: PairedReadingCompactMode, role: PairedReadingLayerRole): boolean {
   if (role === 'source') return mode === 'target';
   return mode === 'source';
 }
 
-export function toggleComparisonCompactModeForLayer(
-  mode: ComparisonCompactMode,
-  role: ComparisonLayerRole,
-): ComparisonCompactMode {
+export function togglePairedReadingCompactModeForLayer(
+  mode: PairedReadingCompactMode,
+  role: PairedReadingLayerRole,
+): PairedReadingCompactMode {
   if (role === 'source') {
     return mode === 'target' ? 'both' : 'target';
   }

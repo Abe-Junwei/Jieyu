@@ -72,6 +72,7 @@ import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
 import { useReadyWorkspaceInteractionHelpers } from './useReadyWorkspaceInteractionHelpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
+import { useTimelineReadModel } from './timelineReadModel';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
@@ -453,23 +454,23 @@ function TranscriptionPageReadyWorkspace({
     snapEnabled,
     setSnapEnabled,
     toggleSnapEnabled,
-    comparisonViewEnabled,
-    setComparisonViewEnabled,
+    verticalViewEnabled,
+    setVerticalViewEnabled,
   } = useTranscriptionWorkspaceLayoutController({
     layers,
     selectedTimelineOwnerUnitId: selectedTimelineOwnerUnit?.id,
     unitRowRef,
   });
 
-  const comparisonViewActive = comparisonViewEnabled;
+  const verticalViewActive = verticalViewEnabled;
 
   const onSelectWorkspaceHorizontalLayout = useCallback(() => {
-    setComparisonViewEnabled(false);
-  }, [setComparisonViewEnabled]);
+    setVerticalViewEnabled(false);
+  }, [setVerticalViewEnabled]);
 
   const onSelectWorkspaceVerticalLayout = useCallback(() => {
-    setComparisonViewEnabled(true);
-  }, [setComparisonViewEnabled]);
+    setVerticalViewEnabled(true);
+  }, [setVerticalViewEnabled]);
 
   const {
     displayStyleControl,
@@ -514,16 +515,16 @@ function TranscriptionPageReadyWorkspace({
     setUttOpsMenu,
     showBatchOperationPanel,
     setShowBatchOperationPanel,
-    comparisonFocus,
-    updateComparisonFocus,
-    resetComparisonFocus,
+    verticalPaneFocus,
+    updateVerticalPaneFocus,
+    resetVerticalPaneFocus,
   } = useTranscriptionUIState();
 
   useEffect(() => {
-    if (!comparisonViewActive) {
-      resetComparisonFocus();
+    if (!verticalViewActive) {
+      resetVerticalPaneFocus();
     }
-  }, [comparisonViewActive, resetComparisonFocus]);
+  }, [verticalViewActive, resetVerticalPaneFocus]);
 
   // ---- Notes (extracted hook) ----
   const {
@@ -1131,11 +1132,30 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformTimeUpdate,
   });
 
+  const timelineReadModel = useTimelineReadModel({
+    unitIndex: timelineUnitViewIndex,
+    transcriptionLayerIds: transcriptionLayers.map((layer) => layer.id),
+    translationLayerIds: translationLayers.map((layer) => layer.id),
+    selectedTimelineUnit,
+    selectedUnitIds,
+    ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
+    ...(activeTextTimelineMode !== undefined ? { activeTextTimelineMode } : {}),
+    ...(logicalTimelineDurationForZoom !== undefined ? { logicalTimelineDurationSec: logicalTimelineDurationForZoom } : {}),
+    ...(zoomPxPerSec !== undefined ? { zoomPxPerSec } : {}),
+    ...(fitPxPerSec !== undefined ? { fitPxPerSec } : {}),
+    ...(waveformScrollLeft !== undefined ? { waveformScrollLeft } : {}),
+    ...(selectedTimelineMedia?.id !== undefined ? { selectedMediaId: selectedTimelineMedia.id } : {}),
+    selectedMediaUrl: selectedMediaUrl ?? null,
+    playerIsReady: player.isReady,
+    playerDuration: player.duration,
+    verticalViewEnabled: verticalViewActive,
+  });
+
   const assistantSidebarControllerInput = useTranscriptionAssistantSidebarControllerInput({
     locale,
     analysisTab,
     onAnalysisTabChange: setAnalysisTab,
-    timelineReadModelEpoch: timelineUnitViewIndex.epoch,
+    timelineReadModelEpoch: timelineReadModel.epoch,
     currentPage: 'transcription',
     selectedUnit: selectionSnapshot.selectedUnit,
     selectedRowMeta: selectedTimelineRowMeta,
@@ -1643,9 +1663,9 @@ function TranscriptionPageReadyWorkspace({
       speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,
       resolveSelfCertaintyAmbiguityForUnit,
-      comparisonViewEnabled: comparisonViewActive,
-      comparisonFocus,
-      updateComparisonFocus,
+      verticalViewEnabled: verticalViewActive,
+      verticalPaneFocus,
+      updateVerticalPaneFocus,
       selectedTimelineMedia,
       waveformDisplayMode,
       setWaveformDisplayMode,
@@ -1921,7 +1941,7 @@ function TranscriptionPageReadyWorkspace({
     onSelectTimelineUnit: selectTimelineUnit,
     onReorderLayers: reorderLayers,
     locale,
-    comparisonViewActive,
+    verticalViewActive,
     translationLayerCount: translationLayers.length,
     onSelectWorkspaceHorizontalLayout,
     onSelectWorkspaceVerticalLayout,

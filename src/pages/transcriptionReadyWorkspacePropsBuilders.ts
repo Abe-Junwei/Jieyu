@@ -3,19 +3,19 @@ import type { PushTimelineEditInput } from '../hooks/useEditEventBuffer';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { AnnotationImportBridgeStrategy } from '../hooks/useImportExport.annotationImport';
-import type { TranscriptionPageTimelineMediaLanesProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent';
 import type { OrchestratorWaveformContentProps } from './OrchestratorWaveformContent';
 import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePane';
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
 import type { Locale } from '../i18n';
 
-type MediaLanesProps = TranscriptionPageTimelineMediaLanesProps;
+type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesProps;
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
 
 type SharedLaneFields = Pick<
-  MediaLanesProps,
+  HorizontalMediaLanesProps,
   | 'transcriptionLayers'
   | 'translationLayers'
   | 'activeTextTimelineMode'
@@ -45,32 +45,32 @@ type SharedLaneFields = Pick<
 >;
 
 /**
- * ReadyWorkspace 侧字段名与 TranscriptionTimelineMediaLanes props 的对应关系
+ * ReadyWorkspace 侧字段名与 TranscriptionTimelineHorizontalMediaLanes props 的对应关系
  * （避免 any，并保持与 buildSharedLaneProps 映射一致）。
  * 新建层弹窗的语言/正字法默认留空，不再从项目主语言注入。
  */
 export type BuildSharedLanePropsInput = SharedLaneFields & {
   activeTimelineUnitId: string;
-  orderedLayers: MediaLanesProps['allLayersOrdered'];
-  reorderLayers: MediaLanesProps['onReorderLayers'];
-  handleFocusLayerRow: MediaLanesProps['onFocusLayer'];
+  orderedLayers: HorizontalMediaLanesProps['allLayersOrdered'];
+  reorderLayers: HorizontalMediaLanesProps['onReorderLayers'];
+  handleFocusLayerRow: HorizontalMediaLanesProps['onFocusLayer'];
   showAllLayerConnectors: boolean;
-  handleToggleAllLayerConnectors: MediaLanesProps['onToggleConnectors'];
-  timelineLaneHeights: MediaLanesProps['laneHeights'];
-  handleTimelineLaneHeightChange: MediaLanesProps['onLaneHeightChange'];
-  transcriptionTrackMode: MediaLanesProps['trackDisplayMode'];
-  handleToggleTrackDisplayMode: MediaLanesProps['onToggleTrackDisplayMode'];
-  setTrackDisplayMode: MediaLanesProps['onSetTrackDisplayMode'];
-  effectiveLaneLockMap: MediaLanesProps['laneLockMap'];
-  handleLockSelectedSpeakersToLane: MediaLanesProps['onLockSelectedSpeakersToLane'];
-  handleUnlockSelectedSpeakers: MediaLanesProps['onUnlockSelectedSpeakers'];
-  handleResetTrackAutoLayout: MediaLanesProps['onResetTrackAutoLayout'];
-  selectedSpeakerNamesForTrackLock: MediaLanesProps['selectedSpeakerNamesForLock'];
-  handleLaneLabelWidthResizeStart: MediaLanesProps['onLaneLabelWidthResize'];
+  handleToggleAllLayerConnectors: HorizontalMediaLanesProps['onToggleConnectors'];
+  timelineLaneHeights: HorizontalMediaLanesProps['laneHeights'];
+  handleTimelineLaneHeightChange: HorizontalMediaLanesProps['onLaneHeightChange'];
+  transcriptionTrackMode: HorizontalMediaLanesProps['trackDisplayMode'];
+  handleToggleTrackDisplayMode: HorizontalMediaLanesProps['onToggleTrackDisplayMode'];
+  setTrackDisplayMode: HorizontalMediaLanesProps['onSetTrackDisplayMode'];
+  effectiveLaneLockMap: HorizontalMediaLanesProps['laneLockMap'];
+  handleLockSelectedSpeakersToLane: HorizontalMediaLanesProps['onLockSelectedSpeakersToLane'];
+  handleUnlockSelectedSpeakers: HorizontalMediaLanesProps['onUnlockSelectedSpeakers'];
+  handleResetTrackAutoLayout: HorizontalMediaLanesProps['onResetTrackAutoLayout'];
+  selectedSpeakerNamesForTrackLock: HorizontalMediaLanesProps['selectedSpeakerNamesForLock'];
+  handleLaneLabelWidthResizeStart: HorizontalMediaLanesProps['onLaneLabelWidthResize'];
 };
 
 export type BuiltSharedLaneProps = Omit<
-  MediaLanesProps,
+  HorizontalMediaLanesProps,
   | 'playerDuration'
   | 'zoomPxPerSec'
   | 'lassoRect'
@@ -195,7 +195,7 @@ export type BuildReadyWorkspaceSidePanePropsInput = {
   onSelectTimelineUnit: ReadyWorkspaceSidePaneSidebarProps['onSelectTimelineUnit'];
   onReorderLayers: ReadyWorkspaceSidePaneSidebarProps['onReorderLayers'];
   locale: Locale;
-  comparisonViewActive: boolean;
+  verticalViewActive: boolean;
   translationLayerCount: number;
   onSelectWorkspaceHorizontalLayout: () => void;
   onSelectWorkspaceVerticalLayout: () => void;
@@ -263,7 +263,7 @@ export function buildReadyWorkspaceSidePaneProps(
       onReorderLayers: input.onReorderLayers,
       workspaceTimelineLayout: {
         locale: input.locale,
-        comparisonViewActive: input.comparisonViewActive,
+        verticalViewActive: input.verticalViewActive,
         translationLayerCount: input.translationLayerCount,
         onSelectHorizontalMode: input.onSelectWorkspaceHorizontalLayout,
         onSelectVerticalMode: input.onSelectWorkspaceVerticalLayout,

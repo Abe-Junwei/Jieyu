@@ -21,47 +21,47 @@ import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordin
 import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
 import type { ContextMenuItem } from './ContextMenu';
 import {
-  buildComparisonTargetItemsFromRawText,
+  buildVerticalReadingTargetItemsFromRawText,
   pickTranslationSegmentForPersist,
-  type ComparisonGroup,
-  type ComparisonTargetItem,
-} from '../utils/transcriptionComparisonGroups';
-import { filterTranslationLayersForComparisonGroup, resolveComparisonGroupEmptyReason } from '../utils/comparisonHostFilter';
+  type VerticalReadingGroup,
+  type PairedReadingTargetItem,
+} from '../utils/transcriptionVerticalReadingGroups';
+import { filterTranslationLayersForVerticalReadingGroup, resolveVerticalReadingGroupEmptyReason } from '../utils/verticalReadingHostFilter';
 import {
-  comparisonUsesSplitTargetEditors,
-  normalizeComparisonText,
-  renderComparisonOverlay,
-  renderComparisonRailLaneBody,
-  resolveComparisonEditorRows,
-  resolveComparisonExplicitTargetItemsForLayer,
-  resolveComparisonGroupAnchorForUi,
-  resolveComparisonHorizontalBundleKey,
-  resolveComparisonLayerLabel,
-  resolveComparisonTargetPlainTextForLayer,
-  resolveComparisonTranslationAudioScopeUnitId,
-} from './transcriptionTimelineComparisonHelpers';
+  verticalReadingUsesSplitTargetEditors,
+  normalizePairedReadingPlainText,
+  renderPairedReadingOverlay,
+  renderPairedReadingRailLaneBody,
+  resolvePairedReadingEditorRows,
+  resolvePairedReadingExplicitTargetItemsForLayer,
+  resolveVerticalReadingGroupAnchorForUi,
+  resolvePairedReadingHorizontalBundleKey,
+  resolvePairedReadingLayerLabel,
+  resolvePairedReadingTargetPlainTextForLayer,
+  resolvePairedReadingTranslationAudioScopeUnitId,
+} from './transcriptionTimelineVerticalViewHelpers';
 
-type ComparisonFocusPatch = {
-  activeComparisonGroupId?: string | null;
-  activeComparisonCellId?: string | null;
-  comparisonTargetSide?: 'source' | 'target' | null;
+type VerticalPaneFocusPatch = {
+  activeVerticalReadingGroupId?: string | null;
+  activeVerticalReadingCellId?: string | null;
+  pairedReadingTargetSide?: 'source' | 'target' | null;
   contextMenuSourceUnitId?: string | null;
 };
 
 type NoteIndicator = { count: number; layerId?: string } | null;
 
-interface TranscriptionTimelineComparisonGroupListProps {
+interface TranscriptionTimelineVerticalViewGroupListProps {
   locale: Locale;
-  visibleGroups: ComparisonGroup[];
-  activeComparisonGroupId: string | null;
-  activeComparisonCellId: string | null;
-  comparisonTargetSide: 'source' | 'target' | null;
+  visibleGroups: VerticalReadingGroup[];
+  activeVerticalReadingGroupId: string | null;
+  activeVerticalReadingCellId: string | null;
+  pairedReadingTargetSide: 'source' | 'target' | null;
   contextMenuSourceUnitId: string | null;
   focusedLayerRowId: string;
   activeUnitId?: string;
-  comparisonDualGridStyle?: CSSProperties | undefined;
-  comparisonEditorHeightByGroup: Record<string, number>;
-  defaultComparisonEditorHeight: number;
+  pairedReadingDualGridStyle?: CSSProperties | undefined;
+  pairedReadingEditorHeightByGroup: Record<string, number>;
+  defaultPairedReadingEditorMinHeight: number;
   layerIdToHorizontalBundleRootId: ReadonlyMap<string, string>;
   sourceLayer: LayerDocType | undefined;
   targetLayer: LayerDocType | undefined;
@@ -72,12 +72,12 @@ interface TranscriptionTimelineComparisonGroupListProps {
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>;
   renderLaneLabel: (layer: LayerDocType) => ReactNode;
   onFocusLayer: (layerId: string) => void;
-  patchComparisonFocus: (patch: ComparisonFocusPatch) => void;
+  patchVerticalPaneFocus: (patch: VerticalPaneFocusPatch) => void;
   bundleOrdinalByKey: ReadonlyMap<string, number>;
   showBundleChips: boolean;
-  comparisonHeaderOrthographies: OrthographyDocType[];
-  buildComparisonHeaderMenuItems: (layer: LayerDocType | undefined, label: string) => ContextMenuItem[];
-  openComparisonMenuAtPointer: (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => void;
+  pairedReadingHeaderOrthographies: OrthographyDocType[];
+  buildPairedReadingLayerHeaderMenuItems: (layer: LayerDocType | undefined, label: string) => ContextMenuItem[];
+  openPairedReadingMenuAtPointer: (event: React.MouseEvent<HTMLElement>, items: ContextMenuItem[]) => void;
   translationAudioByLayer?: Map<string, Map<string, LayerUnitContentDocType>> | undefined;
   mediaItemById: ReadonlyMap<string, MediaItemDocType>;
   recording: boolean;
@@ -92,9 +92,9 @@ interface TranscriptionTimelineComparisonGroupListProps {
     options?: { signal?: AbortSignal; audioBlob?: Blob },
   ) => Promise<void>) | undefined;
   orthographies: OrthographyDocType[];
-  resizingComparisonEditorId?: string | null | undefined;
-  comparisonResizeFontPreviewByLayerId: Record<string, number>;
-  handleComparisonEditorResizeStart: (
+  resizingPairedReadingEditorId?: string | null | undefined;
+  pairedReadingResizeFontPreviewByLayerId: Record<string, number>;
+  handlePairedReadingEditorResizeStart: (
     event: ReactPointerEvent<HTMLDivElement>,
     groupId: string,
     currentHeight: number,
@@ -107,20 +107,20 @@ interface TranscriptionTimelineComparisonGroupListProps {
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   focusedTranslationDraftKeyRef: React.MutableRefObject<string | null>;
   saveStatusByCellKey: Record<string, NonNullable<TimelineDraftSaveStatus>>;
-  setComparisonCellSaveStatus: (cellKey: string, status?: NonNullable<TimelineDraftSaveStatus>) => void;
-  runComparisonSaveWithStatus: (cellKey: string, saveTask: () => Promise<void>) => Promise<void>;
+  setPairedReadingCellSaveStatus: (cellKey: string, status?: NonNullable<TimelineDraftSaveStatus>) => void;
+  runPairedReadingSaveWithStatus: (cellKey: string, saveTask: () => Promise<void>) => Promise<void>;
   scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
   clearAutoSaveTimer: (key: string) => void;
   persistGroupTranslation: (
     persistLayer: LayerDocType,
-    group: ComparisonGroup,
+    group: VerticalReadingGroup,
     anchorUnitIds: string[],
     value: string,
   ) => Promise<void>;
-  persistComparisonTargetTranslation: (
+  persistPairedReadingTargetTranslation: (
     persistLayer: LayerDocType,
-    targetItem: ComparisonTargetItem,
-    group: ComparisonGroup,
+    targetItem: PairedReadingTargetItem,
+    group: VerticalReadingGroup,
     anchorUnitIds: string[],
     value: string,
     combinedValue?: string,
@@ -150,18 +150,18 @@ interface TranscriptionTimelineComparisonGroupListProps {
   speakerVisualByUnitId: Record<string, { name: string; color: string }>;
 }
 
-export function TranscriptionTimelineComparisonGroupList({
+export function TranscriptionTimelineVerticalViewGroupList({
   locale,
   visibleGroups,
-  activeComparisonGroupId,
-  activeComparisonCellId,
-  comparisonTargetSide,
+  activeVerticalReadingGroupId,
+  activeVerticalReadingCellId,
+  pairedReadingTargetSide,
   contextMenuSourceUnitId,
   focusedLayerRowId,
   activeUnitId,
-  comparisonDualGridStyle,
-  comparisonEditorHeightByGroup,
-  defaultComparisonEditorHeight,
+  pairedReadingDualGridStyle,
+  pairedReadingEditorHeightByGroup,
+  defaultPairedReadingEditorMinHeight,
   layerIdToHorizontalBundleRootId,
   sourceLayer,
   targetLayer,
@@ -172,12 +172,12 @@ export function TranscriptionTimelineComparisonGroupList({
   unitByIdForSpeaker,
   renderLaneLabel,
   onFocusLayer,
-  patchComparisonFocus,
+  patchVerticalPaneFocus,
   bundleOrdinalByKey,
   showBundleChips,
-  comparisonHeaderOrthographies,
-  buildComparisonHeaderMenuItems,
-  openComparisonMenuAtPointer,
+  pairedReadingHeaderOrthographies,
+  buildPairedReadingLayerHeaderMenuItems,
+  openPairedReadingMenuAtPointer,
   translationAudioByLayer,
   mediaItemById,
   recording,
@@ -188,9 +188,9 @@ export function TranscriptionTimelineComparisonGroupList({
   deleteVoiceTranslation,
   transcribeVoiceTranslation,
   orthographies,
-  resizingComparisonEditorId,
-  comparisonResizeFontPreviewByLayerId,
-  handleComparisonEditorResizeStart,
+  resizingPairedReadingEditorId,
+  pairedReadingResizeFontPreviewByLayerId,
+  handlePairedReadingEditorResizeStart,
   translationDrafts,
   setTranslationDrafts,
   translationTextByLayer,
@@ -198,12 +198,12 @@ export function TranscriptionTimelineComparisonGroupList({
   setUnitDrafts,
   focusedTranslationDraftKeyRef,
   saveStatusByCellKey,
-  setComparisonCellSaveStatus,
-  runComparisonSaveWithStatus,
+  setPairedReadingCellSaveStatus,
+  runPairedReadingSaveWithStatus,
   scheduleAutoSave,
   clearAutoSaveTimer,
   persistGroupTranslation,
-  persistComparisonTargetTranslation,
+  persistPairedReadingTargetTranslation,
   persistSourceText,
   getUnitTextForLayer,
   segmentContentByLayer,
@@ -216,18 +216,18 @@ export function TranscriptionTimelineComparisonGroupList({
   handleAnnotationContextMenu,
   navigateUnitFromInput,
   speakerVisualByUnitId,
-}: TranscriptionTimelineComparisonGroupListProps) {
+}: TranscriptionTimelineVerticalViewGroupListProps) {
   return (
     <>
       {visibleGroups.map((group, groupIndex) => {
-        const perSegTargetsPrimary = comparisonUsesSplitTargetEditors(group);
+        const perSegTargetsPrimary = verticalReadingUsesSplitTargetEditors(group);
         const persistAnchorUnitIds = group.isMultiAnchorGroup
           ? group.sourceItems.map((s) => s.unitId)
           : Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
         const anchorUnitIds = persistAnchorUnitIds;
         const primaryUnitId = group.sourceItems[0]?.unitId ?? '';
         const primarySourceUnit = primaryUnitId ? unitByIdForSpeaker.get(primaryUnitId) : undefined;
-        const groupTranslationLayers = filterTranslationLayersForComparisonGroup(
+        const hostMatchedTranslationLayers = filterTranslationLayersForVerticalReadingGroup(
           group,
           translationLayers,
           transcriptionLayers,
@@ -235,8 +235,23 @@ export function TranscriptionTimelineComparisonGroupList({
           sourceLayer?.id,
           layerLinks,
         );
+        const groupTranslationAnchorUnitIds = Array.from(new Set(group.targetItems.flatMap((item) => item.anchorUnitIds)));
+        const textBackedFallbackTranslationLayers = hostMatchedTranslationLayers.length === 0
+          ? translationLayers.filter((layer) => {
+              const layerTextMap = translationTextByLayer.get(layer.id);
+              if (!layerTextMap || layerTextMap.size === 0) return false;
+              return groupTranslationAnchorUnitIds.some((unitId) => {
+                const content = layerTextMap.get(unitId);
+                const text = normalizePairedReadingPlainText(content?.text ?? '');
+                return text.length > 0;
+              });
+            })
+          : [];
+        const groupTranslationLayers = hostMatchedTranslationLayers.length > 0
+          ? hostMatchedTranslationLayers
+          : textBackedFallbackTranslationLayers;
         const targetEmptyReason = groupTranslationLayers.length === 0
-          ? resolveComparisonGroupEmptyReason(
+          ? resolveVerticalReadingGroupEmptyReason(
               group,
               translationLayers,
               transcriptionLayers,
@@ -247,18 +262,18 @@ export function TranscriptionTimelineComparisonGroupList({
           : null;
         const groupPreferredTargetLayer = groupTranslationLayers.find((l) => l.id === targetLayer?.id)
           ?? groupTranslationLayers[0];
-        const anchorForUi = resolveComparisonGroupAnchorForUi(group, contextMenuSourceUnitId, activeUnitId);
+        const anchorForUi = resolveVerticalReadingGroupAnchorForUi(group, contextMenuSourceUnitId, activeUnitId);
         const derivedActive = activeUnitId != null && group.sourceItems.some((item) => item.unitId === activeUnitId);
-        const isGroupActive = activeComparisonGroupId === group.id || (activeComparisonGroupId == null && derivedActive);
-        const isTargetColumnFocused = isGroupActive && comparisonTargetSide === 'target';
-        const comparisonLayoutMode: 'balanced' | 'one-to-many' | 'many-to-one' | 'many-to-many' = (() => {
+        const isGroupActive = activeVerticalReadingGroupId === group.id || (activeVerticalReadingGroupId == null && derivedActive);
+        const isTargetColumnFocused = isGroupActive && pairedReadingTargetSide === 'target';
+        const pairedReadingLayoutMode: 'balanced' | 'one-to-many' | 'many-to-one' | 'many-to-many' = (() => {
           const sourceCount = group.sourceItems.length;
           const targetVisualRows = groupTranslationLayers.reduce((n, tl) => {
             if (tl.id === groupPreferredTargetLayer?.id) {
               return n + (perSegTargetsPrimary ? group.targetItems.length : 1);
             }
             if (!primarySourceUnit) return n + 1;
-            const ex = resolveComparisonExplicitTargetItemsForLayer(
+            const ex = resolvePairedReadingExplicitTargetItemsForLayer(
               primarySourceUnit,
               tl,
               defaultTranscriptionLayerId,
@@ -274,9 +289,9 @@ export function TranscriptionTimelineComparisonGroupList({
           if (sourceCount > 1) return 'many-to-one';
           return 'balanced';
         })();
-        const comparisonEditorGroupKey = `comparison-editor:${group.id}`;
-        const comparisonEditorHeight = comparisonEditorHeightByGroup[comparisonEditorGroupKey] ?? defaultComparisonEditorHeight;
-        const bundleKey = resolveComparisonHorizontalBundleKey(
+        const pairedReadingEditorGroupKey = `paired-reading-editor:${group.id}`;
+        const pairedReadingEditorHeight = pairedReadingEditorHeightByGroup[pairedReadingEditorGroupKey] ?? defaultPairedReadingEditorMinHeight;
+        const bundleKey = resolvePairedReadingHorizontalBundleKey(
           group,
           layerIdToHorizontalBundleRootId,
           sourceLayer?.id,
@@ -285,78 +300,78 @@ export function TranscriptionTimelineComparisonGroupList({
         const prevGroup = groupIndex > 0 ? visibleGroups[groupIndex - 1] : undefined;
         const startsNewBundle = groupIndex === 0
           || (prevGroup != null
-            && resolveComparisonHorizontalBundleKey(
+            && resolvePairedReadingHorizontalBundleKey(
               group,
               layerIdToHorizontalBundleRootId,
               sourceLayer?.id,
-            ) !== resolveComparisonHorizontalBundleKey(
+            ) !== resolvePairedReadingHorizontalBundleKey(
               prevGroup,
               layerIdToHorizontalBundleRootId,
               sourceLayer?.id,
             ));
-        const comparisonEditorResizingThisGroup = resizingComparisonEditorId === comparisonEditorGroupKey;
-        const isTargetHeaderActive = comparisonTargetSide === 'target'
-          || (comparisonTargetSide == null && translationLayers.some((l) => l.id === focusedLayerRowId));
+        const pairedReadingEditorResizingThisGroup = resizingPairedReadingEditorId === pairedReadingEditorGroupKey;
+        const isTargetHeaderActive = pairedReadingTargetSide === 'target'
+          || (pairedReadingTargetSide == null && translationLayers.some((l) => l.id === focusedLayerRowId));
         const isSourceHeaderActive = !isTargetHeaderActive;
 
         return (
           <div
             key={group.id}
-            data-comparison-group-id={group.id}
-            data-comparison-layout={comparisonLayoutMode}
-            className={`timeline-comparison-group${isGroupActive ? ' timeline-comparison-group-active' : ''}${startsNewBundle ? ' timeline-comparison-group-bundle-start' : ''}`}
+            data-paired-reading-group-id={group.id}
+            data-paired-reading-layout={pairedReadingLayoutMode}
+            className={`timeline-paired-reading-group${isGroupActive ? ' timeline-paired-reading-group-active' : ''}${startsNewBundle ? ' timeline-paired-reading-group-bundle-start' : ''}`}
             style={{
-              ...(comparisonDualGridStyle ?? {}),
-              ...(comparisonEditorGroupKey in comparisonEditorHeightByGroup
-                ? { '--timeline-comparison-editor-min-height': `${comparisonEditorHeight}px` }
+              ...(pairedReadingDualGridStyle ?? {}),
+              ...(pairedReadingEditorGroupKey in pairedReadingEditorHeightByGroup
+                ? { '--timeline-paired-reading-editor-min-height': `${pairedReadingEditorHeight}px` }
                 : {}),
             } as CSSProperties}
           >
-            <div className="timeline-comparison-group-meta">
-              <div className="timeline-comparison-group-meta-left">
-                <div className="timeline-comparison-time">
+            <div className="timeline-paired-reading-group-meta">
+              <div className="timeline-paired-reading-group-meta-left">
+                <div className="timeline-paired-reading-time">
                   {formatTime(group.startTime)} - {formatTime(group.endTime)}
                 </div>
                 {showBundleChips && startsNewBundle && bundleOrdinal ? (
-                  <span className="timeline-comparison-chip timeline-comparison-chip-bundle">
-                    {t(locale, 'transcription.comparison.bundleLabel')} {bundleOrdinal}
+                  <span className="timeline-paired-reading-chip timeline-paired-reading-chip-bundle">
+                    {t(locale, 'transcription.pairedReading.bundleLabel')} {bundleOrdinal}
                   </span>
                 ) : null}
                 {group.speakerSummary.trim().length > 0 ? (
-                  <span className="timeline-comparison-chip timeline-comparison-chip-speaker">
+                  <span className="timeline-paired-reading-chip timeline-paired-reading-chip-speaker">
                     {group.speakerSummary}
                   </span>
                 ) : null}
                 {group.isMultiAnchorGroup ? (
-                  <span className="timeline-comparison-chip timeline-comparison-chip-multi-anchor">
-                    {t(locale, 'transcription.comparison.multiAnchor')}
+                  <span className="timeline-paired-reading-chip timeline-paired-reading-chip-multi-anchor">
+                    {t(locale, 'transcription.pairedReading.multiAnchor')}
                   </span>
                 ) : null}
               </div>
             </div>
-            <div className="timeline-comparison-source-column">
+            <div className="timeline-paired-reading-source-column">
               {group.sourceItems.map((item) => {
-                const isSourceCardActive = item.unitId === activeUnitId || activeComparisonCellId === `source:${item.unitId}`;
+                const isSourceCardActive = item.unitId === activeUnitId || activeVerticalReadingCellId === `source:${item.unitId}`;
                 const sourceLayerId = item.layerId ?? sourceLayer?.id ?? '';
                 const sourceDraftKey = `trc-${sourceLayerId || 'none'}-${item.unitId}`;
-                const initialSourceText = normalizeComparisonText(item.text || '');
+                const initialSourceText = normalizePairedReadingPlainText(item.text || '');
                 const sourceDraft = unitDrafts[sourceDraftKey] ?? initialSourceText;
-                const sourceRows = resolveComparisonEditorRows(sourceDraft);
-                const sourceCellKey = `cmp-source:${sourceLayerId || 'none'}:${item.unitId}`;
+                const sourceRows = resolvePairedReadingEditorRows(sourceDraft);
+                const sourceCellKey = `pr-source:${sourceLayerId || 'none'}:${item.unitId}`;
                 const sourceSaveStatus = saveStatusByCellKey[sourceCellKey];
-                const isSourceDraftEmpty = normalizeComparisonText(sourceDraft).trim().length === 0;
+                const isSourceDraftEmpty = normalizePairedReadingPlainText(sourceDraft).trim().length === 0;
                 const sourceSelfCertainty = resolveSelfCertaintyForUnit?.(item.unitId, sourceLayerId || undefined);
                 const sourceSelfCertaintyAmbiguous = !sourceSelfCertainty
                   && resolveSelfCertaintyAmbiguityForUnit?.(item.unitId, sourceLayerId || undefined) === true;
                 const sourceNoteIndicator = resolveNoteIndicatorTarget?.(item.unitId, sourceLayerId || undefined) ?? null;
-                const sourceBadge = renderComparisonOverlay({
+                const sourceBadge = renderPairedReadingOverlay({
                   locale,
                   certainty: sourceSelfCertainty,
                   ambiguous: sourceSelfCertaintyAmbiguous,
-                  laneLabel: resolveComparisonLayerLabel(
+                  laneLabel: resolvePairedReadingLayerLabel(
                     transcriptionLayers.find((layer) => layer.id === sourceLayerId),
                     locale,
-                    t(locale, 'transcription.comparison.sourceHeader'),
+                    t(locale, 'transcription.pairedReading.sourceHeader'),
                   ),
                   noteCount: sourceNoteIndicator?.count ?? 0,
                   ...(sourceNoteIndicator && handleNoteClick
@@ -369,8 +384,8 @@ export function TranscriptionTimelineComparisonGroupList({
                 });
                 const hasSourceBadge = Boolean(sourceSelfCertainty || sourceSelfCertaintyAmbiguous || sourceNoteIndicator);
                 const sourceItemLayer = transcriptionLayers.find((layer) => layer.id === sourceLayerId);
-                const sourcePreviewFont = comparisonEditorResizingThisGroup && sourceLayerId
-                  ? comparisonResizeFontPreviewByLayerId[sourceLayerId]
+                const sourcePreviewFont = pairedReadingEditorResizingThisGroup && sourceLayerId
+                  ? pairedReadingResizeFontPreviewByLayerId[sourceLayerId]
                   : undefined;
                 const sourceTypography = sourceItemLayer
                   ? buildOrthographyPreviewTextProps(
@@ -385,36 +400,36 @@ export function TranscriptionTimelineComparisonGroupList({
                       const inline = buildLaneHeaderInlineDotSeparatedLabel(
                         sourceItemLayer,
                         locale,
-                        comparisonHeaderOrthographies,
+                        pairedReadingHeaderOrthographies,
                       ).trim();
                       return inline.length > 0
                         ? inline
-                        : resolveComparisonLayerLabel(
+                        : resolvePairedReadingLayerLabel(
                             sourceItemLayer,
                             locale,
-                            t(locale, 'transcription.comparison.sourceHeader'),
+                            t(locale, 'transcription.pairedReading.sourceHeader'),
                           );
                     })()
-                  : t(locale, 'transcription.comparison.sourceHeader');
-                const sourceRailAriaLabel = tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: sourceRowTitle });
+                  : t(locale, 'transcription.pairedReading.sourceHeader');
+                const sourceRailAriaLabel = tf(locale, 'transcription.pairedReading.rowRailFocusLayer', { layer: sourceRowTitle });
                 return (
-                  <div key={item.unitId} className="timeline-comparison-editor-row timeline-comparison-editor-row-source">
+                  <div key={item.unitId} className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-source">
                     <button
                       type="button"
-                      className={`timeline-comparison-row-rail timeline-comparison-row-rail-source${isSourceHeaderActive ? ' is-active' : ''}`}
+                      className={`timeline-paired-reading-row-rail timeline-paired-reading-row-rail-source${isSourceHeaderActive ? ' is-active' : ''}`}
                       aria-pressed={isSourceHeaderActive}
                       aria-label={sourceRailAriaLabel}
                       title={sourceRowTitle}
-                      data-testid={`comparison-source-rail-${group.id}-${item.unitId}`}
+                      data-testid={`paired-reading-source-rail-${group.id}-${item.unitId}`}
                       onClick={() => {
-                        patchComparisonFocus({ comparisonTargetSide: 'source' });
+                        patchVerticalPaneFocus({ pairedReadingTargetSide: 'source' });
                         if (sourceLayerId) onFocusLayer(sourceLayerId);
                       }}
                       onContextMenu={(event) => {
-                        openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(sourceItemLayer, sourceRowTitle));
+                        openPairedReadingMenuAtPointer(event, buildPairedReadingLayerHeaderMenuItems(sourceItemLayer, sourceRowTitle));
                       }}
                     >
-                      {renderComparisonRailLaneBody({
+                      {renderPairedReadingRailLaneBody({
                         layer: sourceItemLayer,
                         renderLaneLabel,
                         fallbackTitle: sourceRowTitle,
@@ -424,17 +439,17 @@ export function TranscriptionTimelineComparisonGroupList({
                     <TimelineDraftEditorSurface
                       multiline
                       wrapperClassName={[
-                        'timeline-comparison-source-surface',
-                        isSourceDraftEmpty ? 'timeline-comparison-source-surface-empty' : '',
-                        isSourceCardActive ? 'timeline-comparison-source-surface-active' : '',
-                        hasSourceBadge ? 'timeline-comparison-source-surface-has-self-certainty' : '',
-                        hasSourceBadge ? 'timeline-comparison-source-surface-has-side-badges' : '',
+                        'timeline-paired-reading-source-surface',
+                        isSourceDraftEmpty ? 'timeline-paired-reading-source-surface-empty' : '',
+                        isSourceCardActive ? 'timeline-paired-reading-source-surface-active' : '',
+                        hasSourceBadge ? 'timeline-paired-reading-source-surface-has-self-certainty' : '',
+                        hasSourceBadge ? 'timeline-paired-reading-source-surface-has-side-badges' : '',
                       ].filter(Boolean).join(' ')}
                       inputClassName={[
-                        'timeline-comparison-source-card',
-                        'timeline-comparison-source-input',
-                        isSourceCardActive ? 'timeline-comparison-source-card-active' : '',
-                        isSourceDraftEmpty ? 'timeline-comparison-source-card-empty' : '',
+                        'timeline-paired-reading-source-card',
+                        'timeline-paired-reading-source-input',
+                        isSourceCardActive ? 'timeline-paired-reading-source-card-active' : '',
+                        isSourceDraftEmpty ? 'timeline-paired-reading-source-card-empty' : '',
                       ].filter(Boolean).join(' ')}
                       value={sourceDraft}
                       rows={sourceRows}
@@ -446,54 +461,54 @@ export function TranscriptionTimelineComparisonGroupList({
                       overlay={sourceBadge}
                       onRetry={() => {
                         if (!sourceLayerId) return;
-                        void runComparisonSaveWithStatus(sourceCellKey, async () => {
+                        void runPairedReadingSaveWithStatus(sourceCellKey, async () => {
                           await persistSourceText(item.unitId, sourceDraft, sourceLayerId);
                         });
                       }}
                       onResizeHandlePointerDown={(event, edge) => {
-                        handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
+                        handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
                       }}
                       onFocus={() => {
-                        patchComparisonFocus({
-                          activeComparisonGroupId: group.id,
-                          activeComparisonCellId: `source:${item.unitId}`,
-                          comparisonTargetSide: 'source',
+                        patchVerticalPaneFocus({
+                          activeVerticalReadingGroupId: group.id,
+                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
                         focusedTranslationDraftKeyRef.current = null;
                         if (sourceLayerId) onFocusLayer(sourceLayerId);
                       }}
                       onChange={(event) => {
-                        const value = normalizeComparisonText(event.target.value);
-                        patchComparisonFocus({
-                          activeComparisonGroupId: group.id,
-                          activeComparisonCellId: `source:${item.unitId}`,
-                          comparisonTargetSide: 'source',
+                        const value = normalizePairedReadingPlainText(event.target.value);
+                        patchVerticalPaneFocus({
+                          activeVerticalReadingGroupId: group.id,
+                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          pairedReadingTargetSide: 'source',
                         });
                         setUnitDrafts((prev) => ({ ...prev, [sourceDraftKey]: value }));
                         if (!sourceLayerId) return;
                         if (value !== initialSourceText) {
-                          setComparisonCellSaveStatus(sourceCellKey, 'dirty');
-                          scheduleAutoSave(`cmp-src-${sourceLayerId}-${item.unitId}`, async () => {
-                            await runComparisonSaveWithStatus(sourceCellKey, async () => {
+                          setPairedReadingCellSaveStatus(sourceCellKey, 'dirty');
+                          scheduleAutoSave(`pr-src-${sourceLayerId}-${item.unitId}`, async () => {
+                            await runPairedReadingSaveWithStatus(sourceCellKey, async () => {
                               await persistSourceText(item.unitId, value, sourceLayerId);
                             });
                           });
                         } else {
-                          clearAutoSaveTimer(`cmp-src-${sourceLayerId}-${item.unitId}`);
-                          setComparisonCellSaveStatus(sourceCellKey);
+                          clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
+                          setPairedReadingCellSaveStatus(sourceCellKey);
                         }
                       }}
                       onBlur={(event) => {
-                        const value = normalizeComparisonText(event.target.value);
+                        const value = normalizePairedReadingPlainText(event.target.value);
                         if (!sourceLayerId) return;
-                        clearAutoSaveTimer(`cmp-src-${sourceLayerId}-${item.unitId}`);
+                        clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
                         if (value !== initialSourceText) {
-                          void runComparisonSaveWithStatus(sourceCellKey, async () => {
+                          void runPairedReadingSaveWithStatus(sourceCellKey, async () => {
                             await persistSourceText(item.unitId, value, sourceLayerId);
                           });
                         } else {
-                          setComparisonCellSaveStatus(sourceCellKey);
+                          setPairedReadingCellSaveStatus(sourceCellKey);
                         }
                       }}
                       onKeyDown={(event) => {
@@ -505,17 +520,17 @@ export function TranscriptionTimelineComparisonGroupList({
                         if (event.key !== 'Escape') return;
                         event.preventDefault();
                         if (sourceLayerId) {
-                          clearAutoSaveTimer(`cmp-src-${sourceLayerId}-${item.unitId}`);
+                          clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
                         }
                         setUnitDrafts((prev) => ({ ...prev, [sourceDraftKey]: initialSourceText }));
-                        setComparisonCellSaveStatus(sourceCellKey);
+                        setPairedReadingCellSaveStatus(sourceCellKey);
                         event.currentTarget.blur();
                       }}
                       onClick={(event) => {
-                        patchComparisonFocus({
-                          activeComparisonGroupId: group.id,
-                          activeComparisonCellId: `source:${item.unitId}`,
-                          comparisonTargetSide: 'source',
+                        patchVerticalPaneFocus({
+                          activeVerticalReadingGroupId: group.id,
+                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
                         if (!sourceLayerId) return;
@@ -526,10 +541,10 @@ export function TranscriptionTimelineComparisonGroupList({
                         if (!handleAnnotationContextMenu || !sourceLayerId) return;
                         const unitDoc = unitByIdForSpeaker.get(item.unitId);
                         if (!unitDoc) return;
-                        patchComparisonFocus({
-                          activeComparisonGroupId: group.id,
-                          activeComparisonCellId: `source:${item.unitId}`,
-                          comparisonTargetSide: 'source',
+                        patchVerticalPaneFocus({
+                          activeVerticalReadingGroupId: group.id,
+                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
                         handleAnnotationContextMenu(item.unitId, unitToView(unitDoc, sourceLayerId), sourceLayerId, event);
@@ -541,24 +556,29 @@ export function TranscriptionTimelineComparisonGroupList({
             </div>
 
             <div
-              className={`timeline-comparison-target-column${isTargetColumnFocused ? ' timeline-comparison-target-column-active' : ''}`}
-              data-comparison-translation-layer-count={groupTranslationLayers.length}
+              className={`timeline-paired-reading-target-column${isTargetColumnFocused ? ' timeline-paired-reading-target-column-active' : ''}`}
+              data-paired-reading-translation-layer-count={groupTranslationLayers.length}
             >
               {groupTranslationLayers.length === 0 ? (
                 <div
-                  className="timeline-comparison-target-empty"
-                  data-testid={`comparison-target-empty-${group.id}`}
+                  className="timeline-paired-reading-target-empty"
+                  data-testid={`paired-reading-target-empty-${group.id}`}
                 >
-                  <p className="timeline-comparison-target-empty-hint">
+                  <p className="timeline-paired-reading-target-empty-hint">
                     {targetEmptyReason === 'orphan-needs-repair'
-                      ? t(locale, 'transcription.comparison.orphanTranslationLayerNeedsRepair')
-                      : t(locale, 'transcription.comparison.noChildTranslationLayers')}
+                      ? t(locale, 'transcription.pairedReading.orphanTranslationLayerNeedsRepair')
+                      : t(locale, 'transcription.pairedReading.noChildTranslationLayers')}
                   </p>
                 </div>
               ) : (
                 groupTranslationLayers.map((tLayer) => {
                   const isPrimaryLayer = tLayer.id === groupPreferredTargetLayer?.id;
-                  const layerTargetItems: ComparisonTargetItem[] = isPrimaryLayer
+                  const shouldReuseGroupTargetItems = isPrimaryLayer
+                    && !(
+                      hostMatchedTranslationLayers.length === 0
+                      && group.targetItems.every((item) => normalizePairedReadingPlainText(item.text ?? '').length === 0)
+                    );
+                  const layerTargetItems: PairedReadingTargetItem[] = shouldReuseGroupTargetItems
                     ? group.targetItems
                     : (() => {
                         if (!primarySourceUnit) {
@@ -568,7 +588,7 @@ export function TranscriptionTimelineComparisonGroupList({
                             anchorUnitIds: primaryUnitId ? [primaryUnitId] : [],
                           }];
                         }
-                        const explicit = resolveComparisonExplicitTargetItemsForLayer(
+                        const explicit = resolvePairedReadingExplicitTargetItemsForLayer(
                           primarySourceUnit,
                           tLayer,
                           defaultTranscriptionLayerId,
@@ -577,7 +597,7 @@ export function TranscriptionTimelineComparisonGroupList({
                           unitByIdForSpeaker,
                         );
                         if (explicit != null && explicit.length > 0) return explicit;
-                        const plain = resolveComparisonTargetPlainTextForLayer(
+                        const plain = resolvePairedReadingTargetPlainTextForLayer(
                           primarySourceUnit,
                           tLayer,
                           defaultTranscriptionLayerId,
@@ -586,19 +606,19 @@ export function TranscriptionTimelineComparisonGroupList({
                           translationTextByLayer,
                           unitByIdForSpeaker,
                         );
-                        return buildComparisonTargetItemsFromRawText(primarySourceUnit.id, plain);
+                        return buildVerticalReadingTargetItemsFromRawText(primarySourceUnit.id, plain);
                       })();
                   const layerPerSeg = isPrimaryLayer ? perSegTargetsPrimary : layerTargetItems.length > 1;
-                  const layerHeaderLabel = resolveComparisonLayerLabel(
+                  const layerHeaderLabel = resolvePairedReadingLayerLabel(
                     tLayer,
                     locale,
-                    t(locale, 'transcription.comparison.translationHeader'),
+                    t(locale, 'transcription.pairedReading.translationHeader'),
                   );
                   const layerHeaderContent = (() => {
                     const inline = buildLaneHeaderInlineDotSeparatedLabel(
                       tLayer,
                       locale,
-                      comparisonHeaderOrthographies,
+                      pairedReadingHeaderOrthographies,
                     ).trim();
                     return inline.length > 0 ? inline : layerHeaderLabel;
                   })();
@@ -606,7 +626,7 @@ export function TranscriptionTimelineComparisonGroupList({
                   const audioAnchorSeg = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId)
                     ? pickTranslationSegmentForPersist(translationSegmentsForAudio, group.startTime, group.endTime)
                     : undefined;
-                  const audioScopeUnitId = resolveComparisonTranslationAudioScopeUnitId({
+                  const audioScopeUnitId = resolvePairedReadingTranslationAudioScopeUnitId({
                     audioAnchorSeg,
                     anchorUnitIds,
                     contextMenuSourceUnitId,
@@ -650,8 +670,8 @@ export function TranscriptionTimelineComparisonGroupList({
                         : {})}
                     />
                   ) : null;
-                  const layerPreviewFont = comparisonEditorResizingThisGroup
-                    ? comparisonResizeFontPreviewByLayerId[tLayer.id]
+                  const layerPreviewFont = pairedReadingEditorResizingThisGroup
+                    ? pairedReadingResizeFontPreviewByLayerId[tLayer.id]
                     : undefined;
                   const layerTypography = buildOrthographyPreviewTextProps(
                     resolveOrthographyRenderPolicy(tLayer.languageId, orthographies, tLayer.orthographyId),
@@ -660,49 +680,49 @@ export function TranscriptionTimelineComparisonGroupList({
                       : tLayer.displaySettings,
                   );
                   const layerDraftKeyBase = `cmp:${tLayer.id}:${group.id}`;
-                  const layerCellKeyBase = `cmp-target:${tLayer.id}:${group.id}`;
-                  const cmpAutoSaveKey = `cmp-${tLayer.id}-${group.id}`;
+                  const layerCellKeyBase = `pr-target:${tLayer.id}:${group.id}`;
+                  const pairedReadingAutoSaveKey = `pr-${tLayer.id}-${group.id}`;
 
                   return (
-                    <div key={tLayer.id} className="timeline-comparison-target-layer-stack">
+                    <div key={tLayer.id} className="timeline-paired-reading-target-layer-stack">
                       {layerPerSeg
                         ? layerTargetItems.map((targetItem, ti) => {
                             const itemDraftKey = `${layerDraftKeyBase}:${targetItem.id}`;
-                            const itemInitial = normalizeComparisonText(targetItem.text || '');
+                            const itemInitial = normalizePairedReadingPlainText(targetItem.text || '');
                             const itemDraft = translationDrafts[itemDraftKey] ?? itemInitial;
                             const itemCellKey = `${layerCellKeyBase}:${targetItem.id}`;
                             const itemSaveStatus = saveStatusByCellKey[itemCellKey];
-                            const isItemDraftEmpty = normalizeComparisonText(itemDraft).trim().length === 0;
-                            const isThisTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
-                              && activeComparisonCellId === `target:${group.id}:${tLayer.id}:${targetItem.id}`;
-                            const segAutoSaveKey = `cmp-seg-${tLayer.id}-${group.id}-${targetItem.id}`;
+                            const isItemDraftEmpty = normalizePairedReadingPlainText(itemDraft).trim().length === 0;
+                            const isThisTargetRowActive = isGroupActive && pairedReadingTargetSide === 'target'
+                              && activeVerticalReadingCellId === `target:${group.id}:${tLayer.id}:${targetItem.id}`;
+                            const segAutoSaveKey = `pr-seg-${tLayer.id}-${group.id}-${targetItem.id}`;
                             const buildCombinedTargetValue = (nextValue: string): string => (
                               layerTargetItems
                                 .map((item) => {
-                                  if (item.id === targetItem.id) return normalizeComparisonText(nextValue);
+                                  if (item.id === targetItem.id) return normalizePairedReadingPlainText(nextValue);
                                   const otherDraftKey = `${layerDraftKeyBase}:${item.id}`;
-                                  return normalizeComparisonText(translationDrafts[otherDraftKey] ?? item.text ?? '');
+                                  return normalizePairedReadingPlainText(translationDrafts[otherDraftKey] ?? item.text ?? '');
                                 })
                                 .join('\n')
                             );
                             return (
-                              <div key={`${tLayer.id}-${targetItem.id}`} className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
+                              <div key={`${tLayer.id}-${targetItem.id}`} className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-target">
                                 <button
                                   type="button"
-                                  className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
+                                  className={`timeline-paired-reading-row-rail timeline-paired-reading-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
                                   aria-pressed={isTargetHeaderActive}
-                                  aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: layerHeaderContent })}
+                                  aria-label={tf(locale, 'transcription.pairedReading.rowRailFocusLayer', { layer: layerHeaderContent })}
                                   title={layerHeaderContent}
-                                  data-testid={`comparison-target-rail-${group.id}-${tLayer.id}-${targetItem.id}`}
+                                  data-testid={`paired-reading-target-rail-${group.id}-${tLayer.id}-${targetItem.id}`}
                                   onClick={() => {
-                                    patchComparisonFocus({ comparisonTargetSide: 'target' });
+                                    patchVerticalPaneFocus({ pairedReadingTargetSide: 'target' });
                                     onFocusLayer(tLayer.id);
                                   }}
                                   onContextMenu={(event) => {
-                                    openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(tLayer, layerHeaderContent));
+                                    openPairedReadingMenuAtPointer(event, buildPairedReadingLayerHeaderMenuItems(tLayer, layerHeaderContent));
                                   }}
                                 >
-                                  {renderComparisonRailLaneBody({
+                                  {renderPairedReadingRailLaneBody({
                                     layer: tLayer,
                                     renderLaneLabel,
                                     fallbackTitle: layerHeaderContent,
@@ -712,22 +732,22 @@ export function TranscriptionTimelineComparisonGroupList({
                                 <TimelineDraftEditorSurface
                                   multiline
                                   wrapperClassName={[
-                                    'timeline-comparison-target-surface',
-                                    isItemDraftEmpty ? 'timeline-comparison-target-surface-empty' : '',
-                                    isThisTargetRowActive ? 'timeline-comparison-target-surface-active' : '',
-                                    layerNoteIndicator ? 'timeline-comparison-target-surface-has-side-badges' : '',
+                                    'timeline-paired-reading-target-surface',
+                                    isItemDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
+                                    isThisTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                    layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
                                   ].filter(Boolean).join(' ')}
                                   inputClassName={[
-                                    'timeline-comparison-target-input',
-                                    isItemDraftEmpty ? 'timeline-comparison-target-input-empty' : '',
+                                    'timeline-paired-reading-target-input',
+                                    isItemDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
                                   ].filter(Boolean).join(' ')}
                                   value={itemDraft}
-                                  rows={resolveComparisonEditorRows(itemDraft)}
+                                  rows={resolvePairedReadingEditorRows(itemDraft)}
                                   placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
                                   {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
                                   inputStyle={layerTypography.style}
                                   {...(itemSaveStatus !== undefined ? { saveStatus: itemSaveStatus } : {})}
-                                  overlay={renderComparisonOverlay({
+                                  overlay={renderPairedReadingOverlay({
                                     locale,
                                     certainty: undefined,
                                     ambiguous: false,
@@ -742,45 +762,45 @@ export function TranscriptionTimelineComparisonGroupList({
                                       : {}),
                                   })}
                                   onResizeHandlePointerDown={(event, edge) => {
-                                    handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
+                                    handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
                                   }}
                                   onRetry={() => {
-                                    void runComparisonSaveWithStatus(itemCellKey, async () => {
-                                      await persistComparisonTargetTranslation(
+                                    void runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                      await persistPairedReadingTargetTranslation(
                                         tLayer,
                                         targetItem,
                                         group,
                                         persistAnchorUnitIds,
-                                        normalizeComparisonText(itemDraft),
+                                        normalizePairedReadingPlainText(itemDraft),
                                         buildCombinedTargetValue(itemDraft),
                                       );
                                     });
                                   }}
                                   {...(ti === 0 && layerAudioControls ? { tools: layerAudioControls } : {})}
-                                  toolsClassName="timeline-comparison-target-tools"
+                                  toolsClassName="timeline-paired-reading-target-tools"
                                   onFocus={() => {
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                      pairedReadingTargetSide: 'target',
                                       contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
                                     });
                                     focusedTranslationDraftKeyRef.current = itemDraftKey;
                                     onFocusLayer(tLayer.id);
                                   }}
                                   onChange={(event) => {
-                                    const value = normalizeComparisonText(event.target.value);
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      comparisonTargetSide: 'target',
+                                    const value = normalizePairedReadingPlainText(event.target.value);
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                      pairedReadingTargetSide: 'target',
                                     });
                                     setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: value }));
                                     if (value !== itemInitial) {
-                                      setComparisonCellSaveStatus(itemCellKey, 'dirty');
+                                      setPairedReadingCellSaveStatus(itemCellKey, 'dirty');
                                       scheduleAutoSave(segAutoSaveKey, async () => {
-                                        await runComparisonSaveWithStatus(itemCellKey, async () => {
-                                          await persistComparisonTargetTranslation(
+                                        await runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                          await persistPairedReadingTargetTranslation(
                                             tLayer,
                                             targetItem,
                                             group,
@@ -792,16 +812,16 @@ export function TranscriptionTimelineComparisonGroupList({
                                       });
                                     } else {
                                       clearAutoSaveTimer(segAutoSaveKey);
-                                      setComparisonCellSaveStatus(itemCellKey);
+                                      setPairedReadingCellSaveStatus(itemCellKey);
                                     }
                                   }}
                                   onBlur={(event) => {
                                     focusedTranslationDraftKeyRef.current = null;
-                                    const value = normalizeComparisonText(event.target.value);
+                                    const value = normalizePairedReadingPlainText(event.target.value);
                                     clearAutoSaveTimer(segAutoSaveKey);
                                     if (value !== itemInitial) {
-                                      void runComparisonSaveWithStatus(itemCellKey, async () => {
-                                        await persistComparisonTargetTranslation(
+                                      void runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                        await persistPairedReadingTargetTranslation(
                                           tLayer,
                                           targetItem,
                                           group,
@@ -811,7 +831,7 @@ export function TranscriptionTimelineComparisonGroupList({
                                         );
                                       });
                                     } else {
-                                      setComparisonCellSaveStatus(itemCellKey);
+                                      setPairedReadingCellSaveStatus(itemCellKey);
                                     }
                                   }}
                                   onKeyDown={(event) => {
@@ -824,15 +844,15 @@ export function TranscriptionTimelineComparisonGroupList({
                                     event.preventDefault();
                                     clearAutoSaveTimer(segAutoSaveKey);
                                     setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: itemInitial }));
-                                    setComparisonCellSaveStatus(itemCellKey);
+                                    setPairedReadingCellSaveStatus(itemCellKey);
                                     event.currentTarget.blur();
                                   }}
                                   onClick={(event) => {
                                     if (!anchorForUi.unitId) return;
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                      pairedReadingTargetSide: 'target',
                                       contextMenuSourceUnitId: anchorForUi.unitId,
                                     });
                                     handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
@@ -845,10 +865,10 @@ export function TranscriptionTimelineComparisonGroupList({
                                       : primaryUnitId;
                                     const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
                                     if (!menuUnitDoc) return;
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                      pairedReadingTargetSide: 'target',
                                     });
                                     handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
                                   }}
@@ -862,27 +882,27 @@ export function TranscriptionTimelineComparisonGroupList({
                             const draft = translationDrafts[draftKey] ?? initialTargetText;
                             const targetCellKey = layerCellKeyBase;
                             const targetSaveStatus = saveStatusByCellKey[targetCellKey];
-                            const isTargetDraftEmpty = normalizeComparisonText(draft).trim().length === 0;
-                            const isMergedTargetRowActive = isGroupActive && comparisonTargetSide === 'target'
-                              && activeComparisonCellId === `target:${group.id}:${tLayer.id}:editor`;
+                            const isTargetDraftEmpty = normalizePairedReadingPlainText(draft).trim().length === 0;
+                            const isMergedTargetRowActive = isGroupActive && pairedReadingTargetSide === 'target'
+                              && activeVerticalReadingCellId === `target:${group.id}:${tLayer.id}:editor`;
                             return (
-                              <div className="timeline-comparison-editor-row timeline-comparison-editor-row-target">
+                              <div className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-target">
                                 <button
                                   type="button"
-                                  className={`timeline-comparison-row-rail timeline-comparison-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
+                                  className={`timeline-paired-reading-row-rail timeline-paired-reading-row-rail-target${isTargetHeaderActive ? ' is-active' : ''}`}
                                   aria-pressed={isTargetHeaderActive}
-                                  aria-label={tf(locale, 'transcription.comparison.rowRailFocusLayer', { layer: layerHeaderContent })}
+                                  aria-label={tf(locale, 'transcription.pairedReading.rowRailFocusLayer', { layer: layerHeaderContent })}
                                   title={layerHeaderContent}
-                                  data-testid={`comparison-target-rail-${group.id}-${tLayer.id}`}
+                                  data-testid={`paired-reading-target-rail-${group.id}-${tLayer.id}`}
                                   onClick={() => {
-                                    patchComparisonFocus({ comparisonTargetSide: 'target' });
+                                    patchVerticalPaneFocus({ pairedReadingTargetSide: 'target' });
                                     onFocusLayer(tLayer.id);
                                   }}
                                   onContextMenu={(event) => {
-                                    openComparisonMenuAtPointer(event, buildComparisonHeaderMenuItems(tLayer, layerHeaderContent));
+                                    openPairedReadingMenuAtPointer(event, buildPairedReadingLayerHeaderMenuItems(tLayer, layerHeaderContent));
                                   }}
                                 >
-                                  {renderComparisonRailLaneBody({
+                                  {renderPairedReadingRailLaneBody({
                                     layer: tLayer,
                                     renderLaneLabel,
                                     fallbackTitle: layerHeaderContent,
@@ -892,25 +912,25 @@ export function TranscriptionTimelineComparisonGroupList({
                                 <TimelineDraftEditorSurface
                                   multiline
                                   wrapperClassName={[
-                                    'timeline-comparison-target-surface',
-                                    isTargetDraftEmpty ? 'timeline-comparison-target-surface-empty' : '',
-                                    isMergedTargetRowActive ? 'timeline-comparison-target-surface-active' : '',
-                                    layerNoteIndicator ? 'timeline-comparison-target-surface-has-side-badges' : '',
+                                    'timeline-paired-reading-target-surface',
+                                    isTargetDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
+                                    isMergedTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                    layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
                                   ].filter(Boolean).join(' ')}
                                   inputClassName={[
-                                    'timeline-comparison-target-input',
-                                    isTargetDraftEmpty ? 'timeline-comparison-target-input-empty' : '',
+                                    'timeline-paired-reading-target-input',
+                                    isTargetDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
                                   ].filter(Boolean).join(' ')}
                                   value={draft}
-                                  rows={resolveComparisonEditorRows(draft)}
+                                  rows={resolvePairedReadingEditorRows(draft)}
                                   placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
                                   {...(isPrimaryLayer && group.editingTargetPolicy === 'multi-target-items'
-                                    ? { title: t(locale, 'transcription.comparison.multiTargetHint') }
+                                    ? { title: t(locale, 'transcription.pairedReading.multiTargetHint') }
                                     : {})}
                                   {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
                                   inputStyle={layerTypography.style}
                                   {...(targetSaveStatus !== undefined ? { saveStatus: targetSaveStatus } : {})}
-                                  overlay={renderComparisonOverlay({
+                                  overlay={renderPairedReadingOverlay({
                                     locale,
                                     certainty: undefined,
                                     ambiguous: false,
@@ -925,60 +945,60 @@ export function TranscriptionTimelineComparisonGroupList({
                                       : {}),
                                   })}
                                   onResizeHandlePointerDown={(event, edge) => {
-                                    handleComparisonEditorResizeStart(event, group.id, comparisonEditorHeight, edge);
+                                    handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
                                   }}
                                   onRetry={() => {
-                                    void runComparisonSaveWithStatus(targetCellKey, async () => {
+                                    void runPairedReadingSaveWithStatus(targetCellKey, async () => {
                                       await persistGroupTranslation(
                                         tLayer,
                                         group,
                                         persistAnchorUnitIds,
-                                        normalizeComparisonText(draft),
+                                        normalizePairedReadingPlainText(draft),
                                       );
                                     });
                                   }}
                                   {...(layerAudioControls ? { tools: layerAudioControls } : {})}
-                                  toolsClassName="timeline-comparison-target-tools"
+                                  toolsClassName="timeline-paired-reading-target-tools"
                                   onFocus={() => {
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                      pairedReadingTargetSide: 'target',
                                       contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
                                     });
                                     focusedTranslationDraftKeyRef.current = draftKey;
                                     onFocusLayer(tLayer.id);
                                   }}
                                   onChange={(event) => {
-                                    const value = normalizeComparisonText(event.target.value);
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      comparisonTargetSide: 'target',
+                                    const value = normalizePairedReadingPlainText(event.target.value);
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                      pairedReadingTargetSide: 'target',
                                     });
                                     setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
                                     if (value !== initialTargetText) {
-                                      setComparisonCellSaveStatus(targetCellKey, 'dirty');
-                                      scheduleAutoSave(cmpAutoSaveKey, async () => {
-                                        await runComparisonSaveWithStatus(targetCellKey, async () => {
+                                      setPairedReadingCellSaveStatus(targetCellKey, 'dirty');
+                                      scheduleAutoSave(pairedReadingAutoSaveKey, async () => {
+                                        await runPairedReadingSaveWithStatus(targetCellKey, async () => {
                                           await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
                                         });
                                       });
                                     } else {
-                                      clearAutoSaveTimer(cmpAutoSaveKey);
-                                      setComparisonCellSaveStatus(targetCellKey);
+                                      clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                      setPairedReadingCellSaveStatus(targetCellKey);
                                     }
                                   }}
                                   onBlur={(event) => {
                                     focusedTranslationDraftKeyRef.current = null;
-                                    const value = normalizeComparisonText(event.target.value);
-                                    clearAutoSaveTimer(cmpAutoSaveKey);
+                                    const value = normalizePairedReadingPlainText(event.target.value);
+                                    clearAutoSaveTimer(pairedReadingAutoSaveKey);
                                     if (value !== initialTargetText) {
-                                      void runComparisonSaveWithStatus(targetCellKey, async () => {
+                                      void runPairedReadingSaveWithStatus(targetCellKey, async () => {
                                         await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
                                       });
                                     } else {
-                                      setComparisonCellSaveStatus(targetCellKey);
+                                      setPairedReadingCellSaveStatus(targetCellKey);
                                     }
                                   }}
                                   onKeyDown={(event) => {
@@ -989,17 +1009,17 @@ export function TranscriptionTimelineComparisonGroupList({
                                     }
                                     if (event.key !== 'Escape') return;
                                     event.preventDefault();
-                                    clearAutoSaveTimer(cmpAutoSaveKey);
+                                    clearAutoSaveTimer(pairedReadingAutoSaveKey);
                                     setTranslationDrafts((prev) => ({ ...prev, [draftKey]: initialTargetText }));
-                                    setComparisonCellSaveStatus(targetCellKey);
+                                    setPairedReadingCellSaveStatus(targetCellKey);
                                     event.currentTarget.blur();
                                   }}
                                   onClick={(event) => {
                                     if (!anchorForUi.unitId) return;
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                      pairedReadingTargetSide: 'target',
                                       contextMenuSourceUnitId: anchorForUi.unitId,
                                     });
                                     handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
@@ -1012,10 +1032,10 @@ export function TranscriptionTimelineComparisonGroupList({
                                       : primaryUnitId;
                                     const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
                                     if (!menuUnitDoc) return;
-                                    patchComparisonFocus({
-                                      activeComparisonGroupId: group.id,
-                                      activeComparisonCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      comparisonTargetSide: 'target',
+                                    patchVerticalPaneFocus({
+                                      activeVerticalReadingGroupId: group.id,
+                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                      pairedReadingTargetSide: 'target',
                                     });
                                     handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
                                   }}

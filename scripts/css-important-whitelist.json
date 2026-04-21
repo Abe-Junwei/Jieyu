@@ -106,9 +106,9 @@
       "reason": "Skipped annotation inset ring override"
     },
     {
-      "file": "src/styles/pages/timeline/timeline-comparison.css",
+      "file": "src/styles/pages/timeline/timeline-paired-reading.css",
       "snippet": "background: transparent !important;",
-      "reason": "Comparison draft resize handle: suppress edge cue in vertical mode"
+      "reason": "Paired-reading column draft resize handle: suppress edge cue in vertical shell"
     },
     {
       "file": "src/styles/pages/timeline/timeline-text-item.css",

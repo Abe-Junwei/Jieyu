@@ -324,6 +324,46 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(mockGetDb).not.toHaveBeenCalled();
   });
 
+  it('returns structured unavailable payload for get_waveform_analysis when no playable media exists', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: { locale: 'zh-CN' },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_waveform_analysis', arguments: {} },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      ok: false,
+      reason: 'no_playable_media',
+    });
+  });
+
+  it('returns structured unavailable payload for get_acoustic_summary when no playable media exists', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: { locale: 'zh-CN' },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_acoustic_summary', arguments: {} },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      ok: false,
+      reason: 'no_playable_media',
+    });
+  });
+
   it('search_units prefers segment_meta for current_scope lookups and exposes the read-model source', async () => {
     const ref = { current: 0 };
     mockSegmentMetaSearchSegmentMeta.mockResolvedValue([
@@ -1406,6 +1446,21 @@ describe('local context tool result char budget', () => {
     expect(msg).not.toContain('```json');
     expect(msg).toContain('5');
     expect(msg).toContain('未转写');
+  });
+
+  it('uses unavailable wording for acoustic tools when playable media is missing', () => {
+    const msg = formatLocalContextToolResultMessage({
+      ok: true,
+      name: 'get_acoustic_summary',
+      result: {
+        ok: false,
+        reason: 'no_playable_media',
+        _readModel: { unitIndexComplete: true, capturedAtMs: 1 },
+      },
+    }, 'zh-CN');
+
+    expect(msg).toContain('当前没有可播放媒体');
+    expect(msg).toContain('无法读取声学摘要');
   });
 
   it('does not truncate or emit metric when JSON is under budget', () => {

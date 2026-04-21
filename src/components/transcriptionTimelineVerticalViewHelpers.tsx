@@ -11,19 +11,19 @@ import type { Locale } from '../i18n';
 import { TimelineBadges } from './TimelineBadges';
 import { normalizeSpeakerFocusKey, resolveSpeakerFocusKeyFromSegment } from './transcriptionTimelineSegmentSpeakerLayout';
 import {
-  listTranslationSegmentsForComparisonSourceUnit,
-  type ComparisonGroup,
-  type ComparisonTargetItem,
-} from '../utils/transcriptionComparisonGroups';
+  listTranslationSegmentsForVerticalReadingSourceUnit,
+  type VerticalReadingGroup,
+  type PairedReadingTargetItem,
+} from '../utils/transcriptionVerticalReadingGroups';
 import { buildLayerBundles } from '../services/LayerOrderingService';
-import type { ComparisonHostLink } from '../utils/comparisonHostFilter';
+import type { VerticalReadingHostLink } from '../utils/verticalReadingHostFilter';
 import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { buildTimelineSelfCertaintyTitle } from '../utils/timelineSelfCertainty';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 /** 译文区点击/录音：优先用当前菜单锚点、再 global 选中，再回落主锚点 | Target-side UI anchor resolution */
-export function resolveComparisonGroupAnchorForUi(
-  group: ComparisonGroup,
+export function resolveVerticalReadingGroupAnchorForUi(
+  group: VerticalReadingGroup,
   contextMenuSourceUnitId: string | null | undefined,
   activeUnitId: string | undefined,
 ): { unitId: string; startTime: number } {
@@ -52,7 +52,7 @@ export function resolveComparisonGroupAnchorForUi(
 }
 
 /** 在 segment 未命中时，按锚点顺序查找已有译音挂载的 unit/segment id | Resolve translation-audio row key for comparison group */
-export function resolveComparisonTranslationAudioScopeUnitId(input: {
+export function resolvePairedReadingTranslationAudioScopeUnitId(input: {
   audioAnchorSeg: LayerUnitDocType | undefined;
   anchorUnitIds: string[];
   contextMenuSourceUnitId: string | null | undefined;
@@ -87,7 +87,7 @@ export function resolveComparisonTranslationAudioScopeUnitId(input: {
   return segmentId ?? input.primaryUnitId;
 }
 
-export function normalizeComparisonText(value: string): string {
+export function normalizePairedReadingPlainText(value: string): string {
   return value
     .replace(/\r\n/g, '\n')
     .split('\n')
@@ -96,7 +96,7 @@ export function normalizeComparisonText(value: string): string {
     .replace(/\n{3,}/g, '\n\n');
 }
 
-export function renderComparisonOverlay(input: {
+export function renderPairedReadingOverlay(input: {
   locale: Locale;
   certainty: UnitSelfCertainty | undefined;
   ambiguous: boolean;
@@ -114,24 +114,24 @@ export function renderComparisonOverlay(input: {
       {...(certaintyTitle ? { selfCertaintyTitle: certaintyTitle } : {})}
       {...(input.ambiguous ? { selfCertaintyAmbiguous: true } : {})}
       noteCount={input.noteCount}
-      noteClassName="timeline-comparison-note-icon timeline-comparison-note-icon-active"
-      wrapperClassName="timeline-comparison-surface-badges"
+      noteClassName="timeline-paired-reading-note-icon timeline-paired-reading-note-icon-active"
+      wrapperClassName="timeline-paired-reading-surface-badges"
       {...(input.onNoteClick ? { onNoteClick: input.onNoteClick } : {})}
     />
   );
 }
 
 /** 首条语段顶相对层头再下移的余量（发丝线、subpixel、hover 外光）| clearance below dual-column header */
-export const COMPARISON_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX = 12;
+export const PAIRED_READING_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX = 12;
 
 /** 多目标译文时，纵向对照右列按子项逐行展示；segment 与换行拆分都适用 | Split target rows for one-to-many comparison groups */
-export function comparisonUsesSplitTargetEditors(group: ComparisonGroup): boolean {
+export function verticalReadingUsesSplitTargetEditors(group: VerticalReadingGroup): boolean {
   return group.editingTargetPolicy === 'multi-target-items' && group.targetItems.length > 1;
 }
 
 /** 对照组锚定到的原文层 id（用于对齐横向 buildLayerBundles 根块） | Source layer id for horizontal bundle mapping */
-export function resolveComparisonGroupSourceAnchorLayerId(
-  group: ComparisonGroup,
+export function resolveVerticalReadingGroupSourceAnchorLayerId(
+  group: VerticalReadingGroup,
   fallbackSourceLayerId: string | undefined,
 ): string | undefined {
   for (const item of group.sourceItems) {
@@ -147,7 +147,7 @@ export function resolveComparisonGroupSourceAnchorLayerId(
 /** 与横向时间轴 buildLayerBundles 一致：每层 id → 其所属 bundle 根层 id | Same bundle roots as horizontal timeline */
 export function buildLayerIdToHorizontalBundleRootIdMap(
   layers: readonly LayerDocType[],
-  layerLinks: readonly ComparisonHostLink[] = [],
+  layerLinks: readonly VerticalReadingHostLink[] = [],
 ): Map<string, string> {
   const map = new Map<string, string>();
   for (const bundle of buildLayerBundles([...layers], layerLinks)) {
@@ -165,14 +165,14 @@ export function buildLayerIdToHorizontalBundleRootIdMap(
 
 /**
  * 纵向“组块”= 横向 buildLayerBundles 的一条根 bundle（根层 id 为键）；无法映射时退回按对照组 id |
- * Comparison bundle aligns with horizontal layer bundle root id
+ * Paired-reading bundle aligns with horizontal layer bundle root id
  */
-export function resolveComparisonHorizontalBundleKey(
-  group: ComparisonGroup,
+export function resolvePairedReadingHorizontalBundleKey(
+  group: VerticalReadingGroup,
   layerIdToBundleRootId: ReadonlyMap<string, string>,
   fallbackSourceLayerId: string | undefined,
 ): string {
-  const anchorLayerId = resolveComparisonGroupSourceAnchorLayerId(group, fallbackSourceLayerId);
+  const anchorLayerId = resolveVerticalReadingGroupSourceAnchorLayerId(group, fallbackSourceLayerId);
   if (anchorLayerId) {
     const root = layerIdToBundleRootId.get(anchorLayerId);
     if (root) return root;
@@ -181,11 +181,11 @@ export function resolveComparisonHorizontalBundleKey(
 }
 
 /** 纵向对照菜单文案小助手 | Small locale helper for comparison menus */
-export function comparisonMenuText(locale: Locale, zh: string, en: string): string {
+export function pairedReadingMenuText(locale: Locale, zh: string, en: string): string {
   return locale === 'zh-CN' ? zh : en;
 }
 
-export function resolveComparisonTargetPlainTextForLayer(
+export function resolvePairedReadingTargetPlainTextForLayer(
   unit: LayerUnitDocType,
   tLayer: LayerDocType,
   defaultTranscriptionLayerId: string | undefined,
@@ -198,7 +198,7 @@ export function resolveComparisonTargetPlainTextForLayer(
   const translationSegmentsForTarget = segmentsByLayer?.get(tLayer.id);
   const layerContent = segmentContentByLayer?.get(tLayer.id);
   if (targetUsesSegments && layerContent) {
-    const overlapping = listTranslationSegmentsForComparisonSourceUnit(
+    const overlapping = listTranslationSegmentsForVerticalReadingSourceUnit(
       unit,
       translationSegmentsForTarget,
       unitByIdForSpeaker,
@@ -214,19 +214,19 @@ export function resolveComparisonTargetPlainTextForLayer(
   return translationTextByLayer.get(tLayer.id)?.get(unit.id)?.text ?? '';
 }
 
-export function resolveComparisonExplicitTargetItemsForLayer(
+export function resolvePairedReadingExplicitTargetItemsForLayer(
   unit: LayerUnitDocType,
   tLayer: LayerDocType,
   defaultTranscriptionLayerId: string | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
   segmentContentByLayer: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>> | undefined,
   unitByIdForSpeaker: ReadonlyMap<string, LayerUnitDocType>,
-): ComparisonTargetItem[] | undefined {
+): PairedReadingTargetItem[] | undefined {
   const targetUsesSegments = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId);
   const translationSegmentsForTarget = segmentsByLayer?.get(tLayer.id);
   const layerContent = segmentContentByLayer?.get(tLayer.id);
   if (!targetUsesSegments || !layerContent || !translationSegmentsForTarget?.length) return undefined;
-  const overlapping = listTranslationSegmentsForComparisonSourceUnit(
+  const overlapping = listTranslationSegmentsForVerticalReadingSourceUnit(
     unit,
     translationSegmentsForTarget,
     unitByIdForSpeaker,
@@ -251,18 +251,18 @@ export function accumulatedOffsetTopUntil(el: HTMLElement | null, ancestor: HTML
   return node === ancestor ? sum : null;
 }
 
-export const COMPARISON_COLUMN_LEFT_GROW_KEY = 'jieyu:comparison-column-left-grow';
-export const COMPARISON_EDITOR_HEIGHT_KEY = 'jieyu:comparison-editor-min-height';
+export const PAIRED_READING_COLUMN_LEFT_GROW_KEY = 'jieyu:paired-reading-column-left-grow';
+export const PAIRED_READING_EDITOR_HEIGHT_STORAGE_KEY = 'jieyu:paired-reading-editor-min-height';
 const LEGACY_SHARED_TIMELINE_EDITOR_MIN_HEIGHT = Math.max(42, DEFAULT_TIMELINE_LANE_HEIGHT - 12);
 const SHARED_TIMELINE_EDITOR_MIN_HEIGHT = Math.max(
   63,
   Math.round(LEGACY_SHARED_TIMELINE_EDITOR_MIN_HEIGHT * 1.5),
 );
 
-export function readStoredComparisonLeftGrow(): number {
+export function readStoredPairedReadingColumnLeftGrow(): number {
   if (typeof window === 'undefined') return 50;
   try {
-    const raw = localStorage.getItem(COMPARISON_COLUMN_LEFT_GROW_KEY);
+    const raw = localStorage.getItem(PAIRED_READING_COLUMN_LEFT_GROW_KEY);
     const n = Number(raw);
     if (Number.isFinite(n) && n >= 20 && n <= 80) return Math.round(n);
   } catch {
@@ -271,10 +271,10 @@ export function readStoredComparisonLeftGrow(): number {
   return 50;
 }
 
-export function readStoredComparisonEditorHeight(): number {
+export function readStoredPairedReadingEditorMinHeight(): number {
   if (typeof window === 'undefined') return SHARED_TIMELINE_EDITOR_MIN_HEIGHT;
   try {
-    const raw = localStorage.getItem(COMPARISON_EDITOR_HEIGHT_KEY);
+    const raw = localStorage.getItem(PAIRED_READING_EDITOR_HEIGHT_STORAGE_KEY);
     const n = Number(raw);
     if (Number.isFinite(n)) {
       const clamped = Math.min(MAX_TIMELINE_LANE_HEIGHT, Math.max(MIN_TIMELINE_LANE_HEIGHT, Math.round(n)));
@@ -288,10 +288,10 @@ export function readStoredComparisonEditorHeight(): number {
   return SHARED_TIMELINE_EDITOR_MIN_HEIGHT;
 }
 
-export function readStoredComparisonEditorHeightMap(): Record<string, number> {
+export function readStoredPairedReadingEditorHeightMap(): Record<string, number> {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(COMPARISON_EDITOR_HEIGHT_KEY);
+    const raw = localStorage.getItem(PAIRED_READING_EDITOR_HEIGHT_STORAGE_KEY);
     if (!raw || raw.trim().length === 0 || raw.trim().startsWith('{') === false) return {};
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const next: Record<string, number> = {};
@@ -307,7 +307,7 @@ export function readStoredComparisonEditorHeightMap(): Record<string, number> {
   return {};
 }
 
-export function mergeComparisonUnitById(
+export function mergePairedReadingTimelineUnitById(
   unitsOnCurrentMedia: LayerUnitDocType[],
   segmentParentUnitLookup: LayerUnitDocType[] | undefined,
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined,
@@ -329,7 +329,7 @@ export function mergeComparisonUnitById(
   return next;
 }
 
-export function resolveComparisonGroupSourceUnits(input: {
+export function resolveVerticalReadingGroupSourceUnits(input: {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
@@ -407,26 +407,26 @@ export function resolveComparisonGroupSourceUnits(input: {
 }
 
 /** 行左侧窄轨可见字符：取展示名首字素，避免整段层头塞进每一行 | One grapheme for row rail */
-function comparisonRowRailMark(fullLabel: string): string {
+function pairedReadingRowRailMark(fullLabel: string): string {
   const trimmed = normalizeSingleLine(fullLabel);
   if (trimmed.length === 0) return '·';
   const first = Array.from(trimmed)[0];
   return first ?? '·';
 }
 
-type ComparisonRailLaneLabelMode = 'full' | 'continuation';
+type PairedReadingRailLaneLabelMode = 'full' | 'continuation';
 
 /** 与横向时间轴 renderLaneLabel 一致的多行层头；无层或回调空时回落单字标记 */
-export function renderComparisonRailLaneBody(input: {
+export function renderPairedReadingRailLaneBody(input: {
   layer: LayerDocType | undefined;
   renderLaneLabel: (layer: LayerDocType) => ReactNode;
   fallbackTitle: string;
-  mode: ComparisonRailLaneLabelMode;
+  mode: PairedReadingRailLaneLabelMode;
 }): ReactNode {
   if (input.mode === 'continuation') {
     return (
       <span
-        className="timeline-comparison-row-rail-lane-label timeline-comparison-row-rail-lane-label-continuation"
+        className="timeline-paired-reading-row-rail-lane-label timeline-paired-reading-row-rail-lane-label-continuation"
         aria-hidden
       >
         ·
@@ -436,17 +436,17 @@ export function renderComparisonRailLaneBody(input: {
   if (input.layer) {
     const body = input.renderLaneLabel(input.layer);
     if (body != null && body !== false && body !== '') {
-      return <span className="timeline-comparison-row-rail-lane-label" aria-hidden>{body}</span>;
+      return <span className="timeline-paired-reading-row-rail-lane-label" aria-hidden>{body}</span>;
     }
   }
   return (
-    <span className="timeline-comparison-row-rail-mark" aria-hidden>
-      {comparisonRowRailMark(input.fallbackTitle)}
+    <span className="timeline-paired-reading-row-rail-mark" aria-hidden>
+      {pairedReadingRowRailMark(input.fallbackTitle)}
     </span>
   );
 }
 
-export function resolveComparisonLayerLabel(layer: LayerDocType | undefined, locale: Locale, fallback: string): string {
+export function resolvePairedReadingLayerLabel(layer: LayerDocType | undefined, locale: Locale, fallback: string): string {
   if (!layer) return fallback;
   const localizedName = typeof layer.name === 'string'
     ? layer.name
@@ -461,8 +461,8 @@ export function resolveComparisonLayerLabel(layer: LayerDocType | undefined, loc
   return fallback;
 }
 
-export function resolveComparisonEditorRows(value: string): number {
-  return Math.min(6, Math.max(1, normalizeComparisonText(value).split('\n').length));
+export function resolvePairedReadingEditorRows(value: string): number {
+  return Math.min(6, Math.max(1, normalizePairedReadingPlainText(value).split('\n').length));
 }
 
-export type ComparisonViewLayerLink = LayerLinkDocType;
+export type PairedReadingLayerLink = LayerLinkDocType;

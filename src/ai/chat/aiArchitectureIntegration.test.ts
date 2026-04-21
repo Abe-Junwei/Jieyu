@@ -232,6 +232,16 @@ describe('Local context tool execution chain', () => {
     expect((result.result as { f0Range: string }).f0Range).toContain('Hz');
   });
 
+  it('get_acoustic_summary returns unavailable payload when acoustic context is missing', async () => {
+    const call: LocalContextToolCall = { name: 'get_acoustic_summary', arguments: {} };
+    const result = await executeLocalContextToolCall(call, { shortTerm: {}, longTerm: {} }, { current: 0 });
+    expect(result.ok).toBe(true);
+    expect(result.result).toMatchObject({
+      ok: false,
+      reason: 'no_playable_media',
+    });
+  });
+
   it('respects rate limit of 20 calls', async () => {
     const counter = { current: 19 };
     const call: LocalContextToolCall = { name: 'get_project_stats', arguments: {} };

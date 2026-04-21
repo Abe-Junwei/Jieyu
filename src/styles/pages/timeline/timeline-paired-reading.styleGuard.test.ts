@@ -8,10 +8,10 @@ function readFile(relativePath: string): string {
 
 describe('timeline comparison side badge style guards', () => {
   it('pins self-certainty to top-right and note icon to bottom-right in comparison overlays', () => {
-    const css = readFile('src/styles/pages/timeline/timeline-comparison.css');
-    const sharedBadgeRule = css.match(/\.timeline-comparison-surface-badges \.timeline-annotation-self-certainty,\s*\n\.timeline-comparison-surface-badges \.timeline-comparison-note-icon\s*\{[^}]*\}/s)?.[0] ?? '';
-    const certaintyRules = [...css.matchAll(/\.timeline-comparison-surface-badges \.timeline-annotation-self-certainty\s*\{[^}]*\}/gs)].map((m) => m[0]);
-    const noteRules = [...css.matchAll(/\.timeline-comparison-surface-badges \.timeline-comparison-note-icon\s*\{[^}]*\}/gs)].map((m) => m[0]);
+    const css = readFile('src/styles/pages/timeline/timeline-paired-reading.css');
+    const sharedBadgeRule = css.match(/\.timeline-paired-reading-surface-badges \.timeline-annotation-self-certainty,\s*\n\.timeline-paired-reading-surface-badges \.timeline-paired-reading-note-icon\s*\{[^}]*\}/s)?.[0] ?? '';
+    const certaintyRules = [...css.matchAll(/\.timeline-paired-reading-surface-badges \.timeline-annotation-self-certainty\s*\{[^}]*\}/gs)].map((m) => m[0]);
+    const noteRules = [...css.matchAll(/\.timeline-paired-reading-surface-badges \.timeline-paired-reading-note-icon\s*\{[^}]*\}/gs)].map((m) => m[0]);
 
     expect(sharedBadgeRule.length).toBeGreaterThan(0);
     expect(sharedBadgeRule.includes('position: absolute;')).toBe(true);

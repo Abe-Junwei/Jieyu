@@ -140,9 +140,11 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       },
     }));
 
-    expect(result.current.playerDuration).toBe(42);
+    expect(result.current.workspaceShell).toBe('waveform');
+    expect(result.current.workspaceAcousticPending).toBe(false);
     expect(result.current.mediaLanesProps.playerDuration).toBe(42);
     expect(result.current.emptyStateProps.hasSelectedMedia).toBe(true);
+    expect(result.current.verticalComparisonEnabled).toBe(false);
 
     result.current.emptyStateProps.onCreateTranscriptionLayer();
     expect(setLayerActionPanel).toHaveBeenCalledWith('create-transcription');
@@ -151,7 +153,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(click).toHaveBeenCalled();
   });
 
-  it('picks up comparisonViewEnabled when textOnlyPropsInput is reused and mutated in place', () => {
+  it('picks up verticalViewEnabled when textOnlyPropsInput is reused and mutated in place', () => {
     const click = vi.fn();
     const setLayerActionPanel = vi.fn();
     const importFileRef = { current: { click } as unknown as HTMLInputElement };
@@ -263,11 +265,12 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       { initialProps: baseInput },
     );
 
-    expect(result.current.textOnlyProps.comparisonViewEnabled).toBeUndefined();
+    expect(result.current.textOnlyProps.verticalViewEnabled).toBeUndefined();
 
-    Object.assign(textOnlyPropsInput, { comparisonViewEnabled: true as const });
+    Object.assign(textOnlyPropsInput, { verticalViewEnabled: true as const });
     rerender({ ...baseInput, textOnlyPropsInput });
 
-    expect(result.current.textOnlyProps.comparisonViewEnabled).toBe(true);
+    expect(result.current.textOnlyProps.verticalViewEnabled).toBe(true);
+    expect(result.current.verticalComparisonEnabled).toBe(true);
   });
 });

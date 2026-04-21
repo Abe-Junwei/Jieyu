@@ -7,18 +7,18 @@ import { useCallback, useState } from 'react';
 import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
 
 /** 左右对照视图焦点（组 + 子项 + 译文侧菜单锚点），由 ReadyWorkspace 持有以便与波形/便签协同 */
-export interface TranscriptionComparisonViewFocusState {
-  activeComparisonGroupId: string | null;
-  activeComparisonCellId: string | null;
-  comparisonTargetSide: 'source' | 'target' | null;
+export interface TranscriptionVerticalPaneFocusState {
+  activeVerticalReadingGroupId: string | null;
+  activeVerticalReadingCellId: string | null;
+  pairedReadingTargetSide: 'source' | 'target' | null;
   /** 译文列右键菜单所锚定的左列单元；合并组内未点左列时为 null，回落 primary */
   contextMenuSourceUnitId: string | null;
 }
 
-export const DEFAULT_TRANSCRIPTION_COMPARISON_FOCUS: TranscriptionComparisonViewFocusState = {
-  activeComparisonGroupId: null,
-  activeComparisonCellId: null,
-  comparisonTargetSide: null,
+export const DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS: TranscriptionVerticalPaneFocusState = {
+  activeVerticalReadingGroupId: null,
+  activeVerticalReadingCellId: null,
+  pairedReadingTargetSide: null,
   contextMenuSourceUnitId: null,
 };
 
@@ -54,16 +54,16 @@ export function useTranscriptionUIState() {
   const [ctxMenu, setCtxMenu] = useState<ContextMenuState | null>(null);
   const [uttOpsMenu, setUttOpsMenu] = useState<UttOpsMenuState | null>(null);
   const [showBatchOperationPanel, setShowBatchOperationPanel] = useState(false);
-  const [comparisonFocus, setComparisonFocus] = useState<TranscriptionComparisonViewFocusState>(
-    () => ({ ...DEFAULT_TRANSCRIPTION_COMPARISON_FOCUS }),
+  const [verticalPaneFocus, setVerticalPaneFocusState] = useState<TranscriptionVerticalPaneFocusState>(
+    () => ({ ...DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS }),
   );
 
-  const updateComparisonFocus = useCallback((patch: Partial<TranscriptionComparisonViewFocusState>) => {
-    setComparisonFocus((prev) => ({ ...prev, ...patch }));
+  const updateVerticalPaneFocus = useCallback((patch: Partial<TranscriptionVerticalPaneFocusState>) => {
+    setVerticalPaneFocusState((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const resetComparisonFocus = useCallback(() => {
-    setComparisonFocus({ ...DEFAULT_TRANSCRIPTION_COMPARISON_FOCUS });
+  const resetVerticalPaneFocus = useCallback(() => {
+    setVerticalPaneFocusState({ ...DEFAULT_TRANSCRIPTION_VERTICAL_PANE_FOCUS });
   }, []);
 
   return {
@@ -73,8 +73,8 @@ export function useTranscriptionUIState() {
     setUttOpsMenu,
     showBatchOperationPanel,
     setShowBatchOperationPanel,
-    comparisonFocus,
-    updateComparisonFocus,
-    resetComparisonFocus,
+    verticalPaneFocus,
+    updateVerticalPaneFocus,
+    resetVerticalPaneFocus,
   };
 }
