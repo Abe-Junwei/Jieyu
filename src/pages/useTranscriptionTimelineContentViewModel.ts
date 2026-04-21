@@ -1,7 +1,14 @@
 import { useMemo, type RefObject } from 'react';
 import type { Locale } from '../i18n';
 import type { TranscriptionPageTimelineContentProps, TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
+import type {
+  TimelineVerticalProjectionProps,
+  TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical,
+} from './timelineHostProjectionTypes';
+import { dropUndefinedKeys } from './transcriptionReadyWorkspacePropsBuilders';
 import { resolveTimelineShellMode } from '../utils/timelineShellMode';
+
+const FALLBACK_VERTICAL_PROJECTION: TimelineVerticalProjectionProps = {};
 
 interface UseTranscriptionTimelineContentViewModelInput {
   selectedMediaUrl: string | null;
@@ -12,7 +19,10 @@ interface UseTranscriptionTimelineContentViewModelInput {
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
   mediaLanesPropsInput: Omit<TranscriptionPageTimelineHorizontalMediaLanesProps, 'playerDuration'>;
-  textOnlyPropsInput: TranscriptionPageTimelineTextOnlyProps;
+  /** 工作区 panel 合同，不含纵向投影字段（见 `verticalProjection`）。 */
+  textOnlyPropsInput: TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical;
+  /** 纵向布局投影；与 panel 其余字段并列进入 view-model 后再合并为宿主 `textOnlyProps`。 */
+  verticalProjection?: TimelineVerticalProjectionProps;
 }
 
 export function useTranscriptionTimelineContentViewModel(
@@ -23,13 +33,19 @@ export function useTranscriptionTimelineContentViewModel(
     ...input.mediaLanesPropsInput,
   }), [input.mediaLanesPropsInput, input.playerDuration]);
 
-  const verticalViewToggleDep = 'verticalViewEnabled' in input.textOnlyPropsInput
-    ? input.textOnlyPropsInput.verticalViewEnabled
-    : undefined;
+  const verticalProjection = input.verticalProjection ?? FALLBACK_VERTICAL_PROJECTION;
 
   const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>(
-    () => input.textOnlyPropsInput,
-    [input.textOnlyPropsInput, verticalViewToggleDep],
+    () => dropUndefinedKeys({
+      ...input.textOnlyPropsInput,
+      ...verticalProjection,
+    }) as TranscriptionPageTimelineTextOnlyProps,
+    [
+      input.textOnlyPropsInput,
+      verticalProjection.verticalViewEnabled,
+      verticalProjection.verticalPaneFocus,
+      verticalProjection.updateVerticalPaneFocus,
+    ],
   );
 
   const effectiveLayersCount = Math.max(
@@ -39,7 +55,7 @@ export function useTranscriptionTimelineContentViewModel(
   );
 
   const verticalComparisonEnabled = Boolean(
-    input.textOnlyPropsInput.verticalViewEnabled && effectiveLayersCount > 0,
+    verticalProjection.verticalViewEnabled && effectiveLayersCount > 0,
   );
 
   const { shell: workspaceShell, acousticPending: workspaceAcousticPending } = resolveTimelineShellMode({
@@ -47,14 +63,8 @@ export function useTranscriptionTimelineContentViewModel(
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
     layersCount: effectiveLayersCount,
-    ...(input.textOnlyPropsInput.activeTextTimelineMode !== undefined
-      ? { timelineMode: input.textOnlyPropsInput.activeTextTimelineMode }
-      : {}),
-    ...(input.textOnlyPropsInput.logicalDurationSec !== undefined
-      ? { fallbackDurationSec: input.textOnlyPropsInput.logicalDurationSec }
-      : {}),
-    ...(('verticalViewEnabled' in input.textOnlyPropsInput && typeof input.textOnlyPropsInput.verticalViewEnabled === 'boolean')
-      ? { verticalViewEnabled: input.textOnlyPropsInput.verticalViewEnabled }
+    ...(typeof verticalProjection.verticalViewEnabled === 'boolean'
+      ? { verticalViewEnabled: verticalProjection.verticalViewEnabled }
       : {}),
   });
 

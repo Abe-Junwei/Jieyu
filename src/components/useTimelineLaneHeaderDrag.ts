@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { resolveLayerDragGroup } from '../services/LayerOrderingService';
 import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -12,6 +12,8 @@ interface BundleRange {
   end: number;
 }
 
+type LaneHeaderHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+
 interface TimelineLaneHeaderDragOptions {
   layer: Pick<LayerDocType, 'id' | 'layerType'>;
   allLayers: LayerDocType[];
@@ -19,6 +21,7 @@ interface TimelineLaneHeaderDragOptions {
   bundleBoundaryIndexes: number[];
   bundleRootIds: Set<string>;
   bundleRanges: BundleRange[];
+  layerLinks?: ReadonlyArray<LaneHeaderHostLink>;
 }
 
 interface DragState {
@@ -37,6 +40,7 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
     bundleBoundaryIndexes,
     bundleRootIds,
     bundleRanges,
+    layerLinks = [],
   } = options;
 
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -308,7 +312,7 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
     }
 
     const idx = allLayers.findIndex((item) => item.id === layer.id);
-    const draggedLayerIds = resolveLayerDragGroup(allLayers, layer.id);
+    const draggedLayerIds = resolveLayerDragGroup(allLayers, layer.id, layerLinks);
     const sourceSpan = draggedLayerIds.length;
 
     const cancelPendingDragStart = () => {
@@ -343,7 +347,7 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
       document.removeEventListener('mouseup', cancelPendingDragStart);
     }, 500);
     document.addEventListener('mouseup', cancelPendingDragStart);
-  }, [allLayers, layer.id, layer.layerType, resolveDraggedLaneRows, updateBundleBoundaryHighlightVisual, updateLaneDragVisual]);
+  }, [allLayers, layer.id, layer.layerType, layerLinks, resolveDraggedLaneRows, updateBundleBoundaryHighlightVisual, updateLaneDragVisual]);
 
   useEffect(() => {
     dragStateRef.current = dragState;

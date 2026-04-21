@@ -43,10 +43,10 @@ describe('isMediaItemPlaceholderRow', () => {
     }))).toBe(false);
   });
 
-  it('falls back to legacy heuristics when timelineKind is absent', () => {
+  it('falls back to filename / placeholder flags when timelineKind is absent (not timelineMode)', () => {
     expect(isMediaItemPlaceholderRow(row({ filename: 'document-placeholder.track', details: {} }))).toBe(true);
     expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { placeholder: true } }))).toBe(true);
-    expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { timelineMode: 'document' } }))).toBe(true);
+    expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { timelineMode: 'document' } }))).toBe(false);
     expect(isMediaItemPlaceholderRow(row({ filename: 'a.wav', details: { timelineMode: 'media' } }))).toBe(false);
   });
 });

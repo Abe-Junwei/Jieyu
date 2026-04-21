@@ -58,6 +58,7 @@ export interface UseTranscriptionSectionViewModelsInput {
   toggleNotes: () => void;
   setUttOpsMenu: (state: UttOpsMenuState | null) => void;
   selectedMediaUrl: string | null;
+  playableAcoustic: boolean;
   handleAutoSegment: () => void;
   autoSegmentBusy: boolean;
   setShowExportMenu: Dispatch<SetStateAction<boolean>>;

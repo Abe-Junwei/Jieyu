@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, TranscriptionLayerDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { buildTranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
@@ -32,7 +32,7 @@ function segmentView(id: string, layerId: string, parentUnitId?: string): Timeli
 function makeLayer(
   id: string,
   layerType: LayerDocType['layerType'] = 'transcription',
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   return {
     id,
@@ -44,7 +44,7 @@ function makeLayer(
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-    ...(extras ?? {}),
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
   } as LayerDocType;
 }
 

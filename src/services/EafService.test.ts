@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerUnitDocType, OrthographyDocType, LayerUnitContentDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, OrthographyDocType, LayerUnitContentDocType } from '../db';
 import { exportToEaf, importFromEaf } from './EafService';
 
 const NOW = '2026-03-26T00:00:00.000Z';
@@ -45,12 +45,21 @@ describe('EafService export', () => {
         modality: 'text',
         acceptsAudio: false,
         constraint: 'independent_boundary',
-        parentLayerId: 'layer_trc',
         sortOrder: 1,
         createdAt: NOW,
         updatedAt: NOW,
       },
     ];
+
+    const layerLinksTrlInd: LayerLinkDocType[] = [{
+      id: 'link-trl-ind',
+      layerId: 'layer_trl_ind',
+      transcriptionLayerKey: 'trc_zh',
+      hostTranscriptionLayerId: 'layer_trc',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: NOW,
+    }];
 
     const translations: LayerUnitContentDocType[] = [
       {
@@ -117,6 +126,7 @@ describe('EafService export', () => {
       layers,
       translations,
       layerSegments,
+      layerLinks: layerLinksTrlInd,
     });
 
     const translationTierMatch = xml.match(/<TIER TIER_ID="翻译-独立边界"[\s\S]*?<\/TIER>/);
@@ -171,7 +181,6 @@ describe('EafService export', () => {
         orthographyId: 'ortho-en',
         modality: 'text',
         acceptsAudio: false,
-        parentLayerId: 'layer_trc',
         sortOrder: 1,
         createdAt: NOW,
         updatedAt: NOW,
@@ -225,6 +234,15 @@ describe('EafService export', () => {
       layers,
       orthographies,
       translations,
+      layerLinks: [{
+        id: 'link-trl-ortho',
+        layerId: 'layer_trl',
+        transcriptionLayerKey: 'trc_ar',
+        hostTranscriptionLayerId: 'layer_trc',
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: NOW,
+      }],
     });
 
     expect(xml).toContain('jieyu:layer-meta:default');
@@ -283,7 +301,6 @@ describe('EafService export', () => {
         languageId: 'eng',
         modality: 'text',
         acceptsAudio: false,
-        parentLayerId: 'layer_trc',
         sortOrder: 1,
         createdAt: NOW,
         updatedAt: NOW,
@@ -317,6 +334,15 @@ describe('EafService export', () => {
       units,
       layers,
       translations,
+      layerLinks: [{
+        id: 'link-trl-notes',
+        layerId: 'layer_trl',
+        transcriptionLayerKey: 'trc_zh',
+        hostTranscriptionLayerId: 'layer_trc',
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: NOW,
+      }],
     });
 
     expect(xml).toContain('TIER_ID="English Tier Name"');

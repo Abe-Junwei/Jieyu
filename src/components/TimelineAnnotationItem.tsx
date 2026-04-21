@@ -1,5 +1,6 @@
 import { memo, type CSSProperties, type ChangeEvent, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
-import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
+import type { TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
+import { TimelineLaneDraftEditorCell } from './transcription/TimelineLaneDraftEditorCell';
 import { t, tf, useLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { TimelineBadges } from './TimelineBadges';
@@ -148,7 +149,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       {content ? content : skipProcessing ? (
         <span className="timeline-annotation-skipped-label">{t(locale, 'transcription.action.skipProcessingMarked')}</span>
       ) : isActive ? (
-        <TimelineDraftEditorSurface
+        <TimelineLaneDraftEditorCell
           inputClassName="timeline-annotation-input"
           value={draft}
           autoFocus
@@ -158,9 +159,6 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
           {...(onRetrySave !== undefined ? { onRetry: onRetrySave } : {})}
           {...(tools ? { tools } : {})}
           toolsClassName="timeline-annotation-tools"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()}
           onChange={onChange}
           {...(onFocus ? { onFocus } : {})}
           onBlur={onBlur}

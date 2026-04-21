@@ -4,6 +4,8 @@ import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { fireAndForget } from '../utils/fireAndForget';
 import type { AnnotationImportBridgeStrategy } from '../hooks/useImportExport.annotationImport';
 import type { TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent';
+import type { TimelineHostSharedLaneProps } from './timelineHostProjectionTypes';
+import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { OrchestratorWaveformContentProps } from './OrchestratorWaveformContent';
 import type { TranscriptionPageSidePaneProps } from './TranscriptionPage.SidePane';
 import type { TranscriptionOverlaysProps } from '../components/TranscriptionOverlays';
@@ -14,42 +16,12 @@ type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesPr
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
 
-type SharedLaneFields = Pick<
-  HorizontalMediaLanesProps,
-  | 'transcriptionLayers'
-  | 'translationLayers'
-  | 'activeTextTimelineMode'
-  | 'timelineUnitViewIndex'
-  | 'segmentParentUnitLookup'
-  | 'segmentsByLayer'
-  | 'segmentContentByLayer'
-  | 'saveSegmentContentForLayer'
-  | 'selectedTimelineUnit'
-  | 'flashLayerRowId'
-  | 'focusedLayerRowId'
-  | 'deletableLayers'
-  | 'layerLinks'
-  | 'speakerLayerLayout'
-  | 'activeSpeakerFilterKey'
-  | 'speakerQuickActions'
-  | 'translationAudioByLayer'
-  | 'mediaItems'
-  | 'recording'
-  | 'recordingUnitId'
-  | 'recordingLayerId'
-  | 'startRecordingForUnit'
-  | 'stopRecording'
-  | 'deleteVoiceTranslation'
-  | 'transcribeVoiceTranslation'
-  | 'displayStyleControl'
->;
-
 /**
  * ReadyWorkspace 侧字段名与 TranscriptionTimelineHorizontalMediaLanes props 的对应关系
  * （避免 any，并保持与 buildSharedLaneProps 映射一致）。
  * 新建层弹窗的语言/正字法默认留空，不再从项目主语言注入。
  */
-export type BuildSharedLanePropsInput = SharedLaneFields & {
+export type BuildSharedLanePropsInput = TimelineHostSharedLaneProps & {
   activeTimelineUnitId: string;
   orderedLayers: HorizontalMediaLanesProps['allLayersOrdered'];
   reorderLayers: HorizontalMediaLanesProps['onReorderLayers'];
@@ -439,13 +411,11 @@ export type BuildReadyWorkspaceStagePropsInput = {
   onTimelineScroll: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onScroll'];
   timelineResizeTooltip: ReadyWorkspaceWorkspaceAreaProps['timelineResizeTooltip'];
   formatTime: ReadyWorkspaceWorkspaceAreaProps['formatTime'];
-  zoomPercent: number;
+  timelineViewportProjection: TimelineViewportProjection;
   snapEnabled: boolean;
   autoScrollEnabled: boolean;
   activeWaveformUnitId: string | null;
   waveformTimelineItems: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['unitsOnCurrentMedia'];
-  fitPxPerSec: number;
-  maxZoomPercent: number;
   onZoomToPercent: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onZoomToPercent'];
   onZoomToUnit: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onZoomToUnit'];
   onSnapEnabledChange: ReadyWorkspaceWorkspaceAreaProps['zoomControlsProps']['onSnapEnabledChange'];
@@ -582,13 +552,13 @@ export function buildReadyWorkspaceStageProps(
       timelineResizeTooltip: input.timelineResizeTooltip,
       formatTime: input.formatTime,
       zoomControlsProps: {
-        zoomPercent: input.zoomPercent,
+        zoomPercent: input.timelineViewportProjection.zoomPercent,
         snapEnabled: input.snapEnabled,
         autoScrollEnabled: input.autoScrollEnabled,
         activeUnitId: input.activeWaveformUnitId,
         unitsOnCurrentMedia: input.waveformTimelineItems,
-        fitPxPerSec: input.fitPxPerSec,
-        maxZoomPercent: input.maxZoomPercent,
+        fitPxPerSec: input.timelineViewportProjection.fitPxPerSec,
+        maxZoomPercent: input.timelineViewportProjection.maxZoomPercent,
         onZoomToPercent: input.onZoomToPercent,
         onZoomToUnit: input.onZoomToUnit,
         onSnapEnabledChange: input.onSnapEnabledChange,

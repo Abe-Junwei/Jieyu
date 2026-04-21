@@ -53,6 +53,7 @@ export function buildUnitTimelineDigest(units: UnitTimelineEntry[]): string {
 }
 
 interface BuildTranscriptionAiPromptContextParams {
+  locale?: string;
   selectionSnapshot: TranscriptionSelectionSnapshot;
   selectedUnitIds: string[];
   /** Total selected timeline units (may exceed `selectedUnitIds.length` when capped). */
@@ -86,6 +87,7 @@ interface BuildTranscriptionAiPromptContextParams {
 }
 
 export function buildTranscriptionAiPromptContext({
+  locale,
   selectionSnapshot,
   selectedUnitIds,
   selectedUnitCount,
@@ -150,6 +152,7 @@ export function buildTranscriptionAiPromptContext({
 
   return {
     shortTerm: {
+      ...(locale ? { locale } : {}),
       page: 'transcription',
       ...(selectionSnapshot.activeUnitId ? { activeUnitId: selectionSnapshot.activeUnitId } : {}),
       ...(selectionSnapshot.selectedUnitKind === 'segment' && selectionSnapshot.timelineUnit

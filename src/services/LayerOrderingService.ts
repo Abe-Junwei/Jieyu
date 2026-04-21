@@ -1,4 +1,5 @@
 import type { LayerDocType, LayerLinkDocType } from '../db';
+import { layerTranscriptionTreeParentId } from '../db';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { buildTranscriptionIdByKeyMap, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
@@ -243,9 +244,10 @@ export function buildLayerBundles(
     const preferredHostTranscriptionLayerId = layer.layerType === 'translation'
       ? resolvePreferredHostTranscriptionLayerId(layer.id, linksByTranslationLayerId, transcriptionByKey)
       : undefined;
-    const parentBundle = preferredHostTranscriptionLayerId
-      ? rootBundles.get(preferredHostTranscriptionLayerId)
-      : (layer.parentLayerId ? rootBundles.get(layer.parentLayerId) : undefined);
+    const treeParentId = layerTranscriptionTreeParentId(layer);
+    const parentBundle = layer.layerType === 'translation'
+      ? (preferredHostTranscriptionLayerId ? rootBundles.get(preferredHostTranscriptionLayerId) : undefined)
+      : (treeParentId ? rootBundles.get(treeParentId) : undefined);
     if (parentBundle && getEffectiveConstraint(layer) !== 'independent_boundary') {
       if (layer.layerType === 'translation') {
         parentBundle.translationDependents.push(layer);
@@ -459,8 +461,8 @@ export function resolveLayerDrop(
   const targetBundle = filteredBundles[targetBundleIndex]!;
   const nextParentLayerId = targetBundle.root.id;
   const previousHostTranscriptionLayerId = draggedLayer.layerType === 'translation'
-    ? (resolvePreferredHostTranscriptionLayerId(draggedLayer.id, linksByTranslationLayerId, transcriptionByKey) ?? draggedLayer.parentLayerId)
-    : draggedLayer.parentLayerId;
+    ? resolvePreferredHostTranscriptionLayerId(draggedLayer.id, linksByTranslationLayerId, transcriptionByKey)
+    : layerTranscriptionTreeParentId(draggedLayer);
   const reparented = (previousHostTranscriptionLayerId ?? '') !== nextParentLayerId;
   // 译文层宿主关系由 layer_links 承载，不再写 parentLayerId | Translation host lives in layer_links, skip parentLayerId mutation
   const movedLayer = reparented && draggedLayer.layerType !== 'translation'

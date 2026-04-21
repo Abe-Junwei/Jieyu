@@ -42,19 +42,22 @@ function makeLink(overrides: Partial<UnitRelationDocType> & { id: string; source
   };
 }
 
-function makeLayer(overrides: Partial<LayerDocType> & { id: string }): LayerDocType {
+function makeLayer(overrides: Partial<LayerDocType> & { id: string; parentLayerId?: string }): LayerDocType {
+  const { parentLayerId, ...rest } = overrides;
+  const layerType = rest.layerType ?? 'translation';
   return {
-    ...overrides,
-    textId: 'text_1',
-    key: `${overrides.id}_key`,
-    name: { eng: overrides.id, zho: overrides.id },
-    layerType: 'translation',
-    languageId: 'eng',
-    modality: 'text',
-    acceptsAudio: false,
-    createdAt: NOW,
-    updatedAt: NOW,
-    id: overrides.id,
+    ...rest,
+    textId: rest.textId ?? 'text_1',
+    key: rest.key ?? `${rest.id}_key`,
+    name: rest.name ?? { eng: rest.id, zho: rest.id },
+    layerType,
+    languageId: rest.languageId ?? 'eng',
+    modality: rest.modality ?? 'text',
+    acceptsAudio: rest.acceptsAudio ?? false,
+    createdAt: rest.createdAt ?? NOW,
+    updatedAt: rest.updatedAt ?? NOW,
+    id: rest.id,
+    ...(layerType === 'transcription' && parentLayerId !== undefined ? { parentLayerId } : {}),
   } as LayerDocType;
 }
 
@@ -744,7 +747,15 @@ describe('LayerSegmentationV2Service', () => {
   it('rejects generic createSegment on time_subdivision layers', async () => {
     const database = await getDb();
     await database.collections.layers.insert(makeLayer({
+      id: 'trc_default',
+      layerType: 'transcription',
+      languageId: 'zho',
+      constraint: 'independent_boundary',
+    }));
+    await database.collections.layers.insert(makeLayer({
       id: 'layer_subdivision_guard',
+      layerType: 'transcription',
+      languageId: 'zho',
       constraint: 'time_subdivision',
       parentLayerId: 'trc_default',
     }));
@@ -757,9 +768,17 @@ describe('LayerSegmentationV2Service', () => {
   it('rejects generic createSegmentWithContentAtomic on time_subdivision layers', async () => {
     const database = await getDb();
     await database.collections.layers.insert(makeLayer({
+      id: 'trc_default_atomic',
+      layerType: 'transcription',
+      languageId: 'zho',
+      constraint: 'independent_boundary',
+    }));
+    await database.collections.layers.insert(makeLayer({
       id: 'layer_subdivision_guard_atomic',
+      layerType: 'transcription',
+      languageId: 'zho',
       constraint: 'time_subdivision',
-      parentLayerId: 'trc_default',
+      parentLayerId: 'trc_default_atomic',
     }));
 
     await expect(

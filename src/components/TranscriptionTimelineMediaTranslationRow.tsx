@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
@@ -9,6 +9,7 @@ import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { t, useLocale } from '../i18n';
+import { timelineTranslationHostDraftAutoSaveKey } from '../utils/timelineDraftAutoSaveKeys';
 
 interface TranscriptionTimelineMediaTranslationRowProps {
   item: TimelineUnitView;
@@ -86,6 +87,10 @@ export function TranscriptionTimelineMediaTranslationRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranslationRowProps) {
   const locale = useLocale();
+  const draftDebounceKey = useMemo(
+    () => timelineTranslationHostDraftAutoSaveKey(usesOwnSegments, layer.id, item.id),
+    [usesOwnSegments, layer.id, item.id],
+  );
   const [saveStatus, setSaveStatus] = useState<'dirty' | 'saving' | 'error' | undefined>(undefined);
   const latestDraftRef = useRef(draft);
   const rowCellKey = `media-tr-${layer.id}-${item.id}`;
@@ -189,26 +194,26 @@ export function TranscriptionTimelineMediaTranslationRow({
             if (!saveSegmentContentForLayer) return;
             if (value !== text) {
               setRowSaveStatus('dirty');
-              scheduleAutoSave(`seg-${layer.id}-${item.id}`, async () => {
+              scheduleAutoSave(draftDebounceKey, async () => {
                 await runSaveWithStatus(async () => {
                   await saveSegmentContentForLayer(item.id, layer.id, value);
                 });
               });
             } else {
-              clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
+              clearAutoSaveTimer(draftDebounceKey);
               setRowSaveStatus(undefined);
             }
             return;
           }
           if (value.trim() && value !== text) {
             setRowSaveStatus('dirty');
-            scheduleAutoSave(`tr-${layer.id}-${item.id}`, async () => {
+            scheduleAutoSave(draftDebounceKey, async () => {
               await runSaveWithStatus(async () => {
                 await saveUnitLayerText(item.id, value, layer.id);
               });
             });
           } else {
-            clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
+            clearAutoSaveTimer(draftDebounceKey);
             setRowSaveStatus(undefined);
           }
         },
@@ -216,7 +221,7 @@ export function TranscriptionTimelineMediaTranslationRow({
           focusedTranslationDraftKeyRef.current = null;
           const value = normalizeSingleLine(e.target.value);
           if (usesOwnSegments) {
-            clearAutoSaveTimer(`seg-${layer.id}-${item.id}`);
+            clearAutoSaveTimer(draftDebounceKey);
             if (saveSegmentContentForLayer && value !== text) {
               fireAndForget(runSaveWithStatus(async () => {
                 await saveSegmentContentForLayer(item.id, layer.id, value);
@@ -226,7 +231,7 @@ export function TranscriptionTimelineMediaTranslationRow({
             }
             return;
           }
-          clearAutoSaveTimer(`tr-${layer.id}-${item.id}`);
+          clearAutoSaveTimer(draftDebounceKey);
           if (value !== text) {
             fireAndForget(runSaveWithStatus(async () => {
               await saveUnitLayerText(item.id, value, layer.id);

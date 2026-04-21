@@ -1,12 +1,12 @@
 import '../styles/transcription-timeline.css';
 import type { ComponentProps } from 'react';
-import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
-import { TranscriptionTimelineHorizontalMediaLanes } from '../components/TranscriptionTimelineHorizontalMediaLanes';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 import { TranscriptionTimelineWorkspaceHost, type TimelineWorkspaceHostShell } from './TranscriptionTimelineWorkspaceHost';
+import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
 
-export type TranscriptionPageTimelineHorizontalMediaLanesProps = ComponentProps<typeof TranscriptionTimelineHorizontalMediaLanes>;
-export type TranscriptionPageTimelineTextOnlyProps = ComponentProps<typeof TranscriptionTimelineTextOnly>;
+export type TranscriptionPageTimelineHorizontalMediaLanesProps = ComponentProps<typeof import('../components/TranscriptionTimelineHorizontalMediaLanes').TranscriptionTimelineHorizontalMediaLanes>;
+/** 纵向对读 / 编排透传；与 `TranscriptionTimelineWorkspacePanelProps` 同形 */
+export type TranscriptionPageTimelineTextOnlyProps = TranscriptionTimelineWorkspacePanelProps;
 export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<typeof TranscriptionPageTimelineEmptyState>;
 
 export interface TranscriptionPageTimelineContentProps {

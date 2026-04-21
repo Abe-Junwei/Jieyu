@@ -48,7 +48,8 @@ describe('TimelineAxisStatusStrip', () => {
       />,
     );
 
-    expect(screen.queryByText(/逻辑轴长度|Logical axis length/)).toBeNull();
+    // `timelineMode` 不再门控顶栏逻辑轴提示（与 `shouldShowLogicalAxisLengthOnAxisStrip` 一致）
+    expect(screen.getByText(/逻辑轴长度|Logical axis length/)).toBeTruthy();
 
     rerender(
       <TimelineAxisStatusStrip

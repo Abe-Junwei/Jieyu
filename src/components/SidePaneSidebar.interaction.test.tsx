@@ -958,7 +958,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: '新建翻译层' }));
 
     expect(createLayer).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/当前限制：无法新建翻译。请选择依赖层/)).toBeTruthy();
+    expect(within(dialog).getByText(/当前限制：无法新建翻译。请选择宿主转写/)).toBeTruthy();
 
     const cbB = hostCheckboxes.find((el) => el.id.endsWith('layer_trc_2'));
     expect(cbB).toBeTruthy();
@@ -1413,6 +1413,16 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       layerRows: [root, child, otherRoot],
       transcriptionLayers: [root, otherRoot],
       translationLayers: [child],
+      layerLinks: [{
+        id: 'link_trl_to_root',
+        layerId: child.id,
+        transcriptionLayerKey: root.key,
+        hostTranscriptionLayerId: root.id,
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: now,
+        updatedAt: now,
+      } as LayerLinkDocType],
       onReorderLayers: vi.fn(async () => undefined),
     });
 
@@ -1493,6 +1503,16 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       layerRows: [root, child, otherRoot],
       transcriptionLayers: [root, otherRoot],
       translationLayers: [child],
+      layerLinks: [{
+        id: 'link_trl_to_root_snap',
+        layerId: child.id,
+        transcriptionLayerKey: root.key,
+        hostTranscriptionLayerId: root.id,
+        linkType: 'free',
+        isPreferred: true,
+        createdAt: now,
+        updatedAt: now,
+      } as LayerLinkDocType],
       onReorderLayers,
     });
 
@@ -1551,7 +1571,6 @@ describe('SidePaneSidebar speaker actions interaction', () => {
       modality: 'text',
       acceptsAudio: false,
       constraint: 'symbolic_association',
-      parentLayerId: rootLayer.id,
       sortOrder: 1,
       createdAt: now,
       updatedAt: now,
@@ -1578,7 +1597,7 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     expect(rowButtons).toHaveLength(2);
     expect(within(rowButtons[0]!).getByText('独立边界')).toBeTruthy();
     expect(within(rowButtons[1]!).getByText('符号关联')).toBeTruthy();
-    expect(within(rowButtons[1]!).getByText(/依赖转写层/)).toBeTruthy();
+    expect(within(rowButtons[1]!).getByText(/宿主转写层/)).toBeTruthy();
   });
 
   it('shows repair detail panel after constraint repair action', async () => {
@@ -1622,10 +1641,11 @@ describe('SidePaneSidebar speaker actions interaction', () => {
     fireEvent.click(screen.getByRole('button', { name: '约束修复' }));
 
     await waitFor(() => {
-      expect(updateLayerSpy).toHaveBeenCalled();
-      expect(screen.getByLabelText('约束修复明细')).toBeTruthy();
-      expect(screen.getByText(/missing-parent-layer/)).toBeTruthy();
+      const panel = screen.getByLabelText('约束修复明细');
+      expect(within(panel).getAllByText(/missing-parent-layer/).length).toBeGreaterThanOrEqual(1);
     });
+    // 译文缺宿主时 repair 可能仅有不可落盘提示，不触发 LayerTierUnifiedService.updateLayer
+    expect(updateLayerSpy).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: '收起修复明细' }));
     expect(screen.queryByText(/missing-parent-layer/)).toBeNull();

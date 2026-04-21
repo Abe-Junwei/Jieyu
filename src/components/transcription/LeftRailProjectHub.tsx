@@ -10,6 +10,7 @@ import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, type AnnotationImportBridgeS
 import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
+import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
 import { ModalPanel } from '../ui/ModalPanel';
 import { PanelButton } from '../ui/PanelButton';
 import { PanelChip } from '../ui/PanelChip';
@@ -38,6 +39,10 @@ interface TimeMappingDialogState {
 interface LeftRailProjectHubProps {
   currentProjectLabel: string;
   selectedMediaId?: string | null;
+  /**
+   * Optional metadata from the shell; Project Hub time-mapping / export hints are **not**
+   * gated on this value when `onApplyTextTimeMapping` is provided (P3).
+   */
   activeTextTimelineMode?: 'document' | 'media' | null;
   activeTextTimeMapping?: {
     offsetSec: number;
@@ -96,7 +101,6 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   const {
     currentProjectLabel,
     selectedMediaId,
-    activeTextTimelineMode,
     activeTextTimeMapping,
     canDeleteProject,
     canDeleteAudio,
@@ -118,7 +122,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     onExportJym,
   } = props;
 
-  const usesLogicTimelineHubFeatures = activeTextTimelineMode === 'document' || activeTextTimelineMode === 'media';
+  const showProjectHubLogicalTimeExchange = typeof onApplyTextTimeMapping === 'function';
 
   const locale = useLocale();
   const sidePaneMessages = getSidePaneSidebarMessages(locale);
@@ -265,35 +269,35 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [projectImportState]);
 
   const timeMappingPreviewLabel = useMemo(() => {
-    if (!usesLogicTimelineHubFeatures) return null;
+    if (!showProjectHubLogicalTimeExchange) return null;
     const offsetSec = activeTextTimeMapping?.offsetSec ?? 0;
     const scale = activeTextTimeMapping?.scale ?? 1;
     const revision = activeTextTimeMapping?.revision ?? 0;
-    const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
-    const documentStart = 0;
-    const documentEnd = typeof logicalDurationSec === 'number' && Number.isFinite(logicalDurationSec) && logicalDurationSec > 0
-      ? logicalDurationSec
-      : 10;
-    const realStart = Math.max(0, offsetSec + scale * documentStart);
-    const realEnd = Math.max(realStart, offsetSec + scale * documentEnd);
+    const { docStart, docEnd, realStart, realEnd } = computeSemanticTimelineMappingPreview({
+      offsetSec,
+      scale,
+      ...(activeTextTimeMapping?.logicalDurationSec !== undefined && activeTextTimeMapping.logicalDurationSec !== null
+        ? { logicalDurationSec: activeTextTimeMapping.logicalDurationSec }
+        : {}),
+    });
     return tf(locale, 'transcription.projectHub.exchange.timeMappingPreview', {
-      docStart: documentStart.toFixed(1),
-      docEnd: documentEnd.toFixed(1),
+      docStart: docStart.toFixed(1),
+      docEnd: docEnd.toFixed(1),
       realStart: realStart.toFixed(1),
       realEnd: realEnd.toFixed(1),
       offset: offsetSec.toFixed(1),
       scale: scale.toFixed(2),
       revision: String(revision),
     });
-  }, [activeTextTimeMapping, locale, usesLogicTimelineHubFeatures]);
+  }, [activeTextTimeMapping, locale, showProjectHubLogicalTimeExchange]);
 
   const hasTimeMappingSourceMismatch = useMemo(() => {
-    if (!usesLogicTimelineHubFeatures) return false;
+    if (!showProjectHubLogicalTimeExchange) return false;
     const sourceMediaId = activeTextTimeMapping?.sourceMediaId?.trim();
     const currentMediaId = selectedMediaId?.trim();
     if (!sourceMediaId || !currentMediaId) return false;
     return sourceMediaId !== currentMediaId;
-  }, [activeTextTimeMapping?.sourceMediaId, selectedMediaId, usesLogicTimelineHubFeatures]);
+  }, [activeTextTimeMapping?.sourceMediaId, selectedMediaId, showProjectHubLogicalTimeExchange]);
 
   const timeMappingSourceMismatchLabel = useMemo(() => {
     if (!hasTimeMappingSourceMismatch) return null;
@@ -310,16 +314,16 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     if (!Number.isFinite(offsetSec) || !Number.isFinite(scale) || offsetSec < 0 || scale <= 0) {
       return t(locale, 'transcription.projectHub.timeMappingDialogInvalid');
     }
-    const logicalDurationSec = activeTextTimeMapping?.logicalDurationSec;
-    const documentStart = 0;
-    const documentEnd = typeof logicalDurationSec === 'number' && Number.isFinite(logicalDurationSec) && logicalDurationSec > 0
-      ? logicalDurationSec
-      : 10;
-    const realStart = Math.max(0, offsetSec + scale * documentStart);
-    const realEnd = Math.max(realStart, offsetSec + scale * documentEnd);
+    const { docStart, docEnd, realStart, realEnd } = computeSemanticTimelineMappingPreview({
+      offsetSec,
+      scale,
+      ...(activeTextTimeMapping?.logicalDurationSec !== undefined && activeTextTimeMapping.logicalDurationSec !== null
+        ? { logicalDurationSec: activeTextTimeMapping.logicalDurationSec }
+        : {}),
+    });
     return tf(locale, 'transcription.projectHub.timeMappingDialogPreview', {
-      docStart: documentStart.toFixed(1),
-      docEnd: documentEnd.toFixed(1),
+      docStart: docStart.toFixed(1),
+      docEnd: docEnd.toFixed(1),
       realStart: realStart.toFixed(1),
       realEnd: realEnd.toFixed(1),
       offset: offsetSec.toFixed(1),
@@ -328,7 +332,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
   }, [activeTextTimeMapping?.logicalDurationSec, locale, timeMappingDialogState]);
 
   const timeMappingHistoryItems = useMemo(() => {
-    if (!usesLogicTimelineHubFeatures || !activeTextTimeMapping) {
+    if (!showProjectHubLogicalTimeExchange || !activeTextTimeMapping) {
       return [] as Array<{ key: string; label: string; offsetSec: number; scale: number }>;
     }
 
@@ -374,7 +378,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     }
 
     return items;
-  }, [activeTextTimeMapping, locale, usesLogicTimelineHubFeatures]);
+  }, [activeTextTimeMapping, locale, showProjectHubLogicalTimeExchange]);
 
   const handleSelectTimeMappingHistoryItem = useCallback((offsetSec: number, scale: number) => {
     setTimeMappingDialogState((prev) => ({
@@ -451,7 +455,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       },
     ];
 
-    const logicalExportItems: ContextMenuItem[] = usesLogicTimelineHubFeatures
+    const logicalExportItems: ContextMenuItem[] = showProjectHubLogicalTimeExchange
       ? [
           {
             label: t(locale, 'transcription.projectHub.exchange.logicalTimelineHint'),
@@ -491,7 +495,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       ...logicalExportItems,
       {
         label: t(locale, 'transcription.toolbar.export.eaf'),
-        ...(usesLogicTimelineHubFeatures ? { separatorBefore: true } : {}),
+        ...(showProjectHubLogicalTimeExchange ? { separatorBefore: true } : {}),
         onClick: onExportEaf,
       },
       { label: t(locale, 'transcription.toolbar.export.textgrid'), onClick: onExportTextGrid },
@@ -557,7 +561,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     canDeleteProject,
     currentProjectLabel,
     activeTextTimeMapping,
-    usesLogicTimelineHubFeatures,
+    showProjectHubLogicalTimeExchange,
     locale,
     onDeleteCurrentAudio,
     onDeleteCurrentProject,

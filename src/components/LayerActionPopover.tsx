@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom';
 import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_PANEL, JIEYU_MATERIAL_PANEL_CLOSE_LG, JIEYU_MATERIAL_WAVE_MD } from '../utils/jieyuMaterialIcon';
 import type { LayerCreateInput } from '../hooks/transcriptionTypes';
-import type { LayerConstraint, LayerDocType } from '../db';
+import type { LayerConstraint, LayerDocType, LayerLinkDocType } from '../db';
+import { layerTranscriptionTreeParentId } from '../db';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { getLayerCreateGuard, listIndependentBoundaryTranscriptionLayers } from '../services/LayerConstraintService';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
@@ -22,6 +23,7 @@ import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelFee
 import { buildLanguageInputSeed, getDisplayedLanguageInputLabel, normalizeLanguageInputAssetId, normalizeLanguageInputCode } from '../utils/languageInputHostState';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { escapeRegExp } from '../utils/escapeRegExp';
+import { buildTranscriptionIdByKeyMap, getPreferredHostTranscriptionLayerIdForTranslation } from '../utils/translationHostLinkQuery';
 
 type LayerActionType =
   | 'create-transcription'
@@ -50,6 +52,8 @@ interface LayerActionPopoverProps {
   deleteLayer: (layerId: string) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
+  /** 译文宿主 link（用于从译文层推导「上下文独立转写根」；不读 translation.parentLayerId） */
+  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   onClose: () => void;
 }
 
@@ -93,6 +97,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   deleteLayer,
   deleteLayerWithoutConfirm,
   checkLayerHasContent,
+  layerLinks = [],
   onClose,
 }: LayerActionPopoverProps) {
   const locale = useLocale();
@@ -162,12 +167,22 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     if (independentParentLayers.some((layer) => layer.id === clickedLayer.id)) {
       return clickedLayer.id;
     }
-    const parentLayerId = clickedLayer.parentLayerId?.trim() ?? '';
+    if (clickedLayer.layerType === 'translation') {
+      if (layerLinks.length === 0) return '';
+      const transcriptionLayers = deletableLayers.filter((l) => l.layerType === 'transcription');
+      const tidByKey = buildTranscriptionIdByKeyMap(transcriptionLayers);
+      const preferredHostId = getPreferredHostTranscriptionLayerIdForTranslation(clickedLayer.id, layerLinks, tidByKey);
+      if (preferredHostId && independentParentLayers.some((layer) => layer.id === preferredHostId)) {
+        return preferredHostId;
+      }
+      return '';
+    }
+    const parentLayerId = layerTranscriptionTreeParentId(clickedLayer)?.trim() ?? '';
     if (parentLayerId && independentParentLayers.some((layer) => layer.id === parentLayerId)) {
       return parentLayerId;
     }
     return '';
-  }, [deletableLayers, independentParentLayers, layerId]);
+  }, [deletableLayers, independentParentLayers, layerId, layerLinks]);
   const formInitializationKey = useMemo(
     () => `${action}::${contextualParentLayerId}::${defaultLanguageId?.trim().toLowerCase() ?? ''}::${normalizedDefaultOrthographyId}`,
     [action, contextualParentLayerId, defaultLanguageId, normalizedDefaultOrthographyId],

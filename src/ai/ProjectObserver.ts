@@ -81,15 +81,28 @@ export function generateRecommendations(
   locale: Locale = 'zh-CN',
 ): Recommendation[] {
   const stage = inferStage(metrics);
+  const noWaveformRecommendation: Recommendation | null = waveformSignals
+    ? null
+    : {
+      id: 'acoustic-unavailable',
+      priority: 78,
+      title: t(locale, 'ai.observer.recommendation.acousticUnavailable.title'),
+      detail: t(locale, 'ai.observer.recommendation.acousticUnavailable.detail'),
+      actionLabel: t(locale, 'ai.observer.recommendation.acousticUnavailable.actionLabel'),
+    };
   const riskScore = waveformSignals ? computeMultiSignalRiskScore(waveformSignals, metrics.unitRowCount) : 0;
 
   if (stage === 'collecting') {
-    return [makeRecommendation(locale, 'collectingNext', 100)];
+    return [
+      makeRecommendation(locale, 'collectingNext', 100),
+      ...(noWaveformRecommendation ? [noWaveformRecommendation] : []),
+    ];
   }
   if (stage === 'transcribing') {
     const recs: Recommendation[] = [
       makeRecommendation(locale, 'transcribingJumpUntagged', 92),
       makeRecommendation(locale, 'transcribingBatchPos', 90),
+      ...(noWaveformRecommendation ? [noWaveformRecommendation] : []),
     ];
     // 重叠信号额外提醒 | Overlap signal warning
     if (waveformSignals && waveformSignals.overlapCount >= 3) {
@@ -117,6 +130,7 @@ export function generateRecommendations(
         actionLabel: t(locale, 'ai.observer.recommendation.glossingRiskReview.actionLabel'),
       },
       makeRecommendation(locale, 'glossingNext', 80),
+      ...(noWaveformRecommendation ? [noWaveformRecommendation] : []),
     ];
     // 大间隙提醒 | Large gap warning
     if (waveformSignals && waveformSignals.maxGapSeconds > 3) {
@@ -143,6 +157,7 @@ export function generateRecommendations(
       actionLabel: t(locale, 'ai.observer.recommendation.reviewingRiskReview.actionLabel'),
     },
     makeRecommendation(locale, 'reviewingNext', 70),
+    ...(noWaveformRecommendation ? [noWaveformRecommendation] : []),
   ];
   return reviewRecs;
 }

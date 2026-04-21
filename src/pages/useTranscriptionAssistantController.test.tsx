@@ -2,7 +2,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { Dispatch, SetStateAction } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType, TranscriptionLayerDocType } from '../db';
 import type { AiPanelContextValue } from '../contexts/AiPanelContext';
 import type { SaveState, TimelineUnit } from '../hooks/transcriptionTypes';
 import { unitToView } from '../hooks/timelineUnitView';
@@ -28,7 +28,7 @@ vi.mock('../utils/orthographyRuntime', () => ({
 function makeLayer(
   id: string,
   layerType: LayerDocType['layerType'] = 'transcription',
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   return {
     id,
@@ -40,7 +40,7 @@ function makeLayer(
     modality: 'text',
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
-    ...(extras ?? {}),
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
   } as LayerDocType;
 }
 

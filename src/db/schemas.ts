@@ -578,12 +578,11 @@ const layerDisplaySettingsSchema = z.object({
   color: z.string().optional(),
 }).optional();
 
-const translationLayerDocSchema = z.object({
+const layerDocBaseSchema = z.object({
   id: z.string().min(1),
   textId: z.string().min(1),
   key: z.string().min(1),
   name: multiLangStringSchema,
-  layerType: z.enum(['transcription', 'translation']),
   languageId: z.string().min(1),
   dialect: z.string().min(1).optional(),
   vernacular: z.string().min(1).optional(),
@@ -594,12 +593,25 @@ const translationLayerDocSchema = z.object({
   isDefault: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   constraint: layerConstraintSchema.optional(),
-  parentLayerId: z.string().optional(),
   displaySettings: layerDisplaySettingsSchema,
   accessRights: accessRightsSchema.optional(),
   createdAt: isoDateSchema,
   updatedAt: isoDateSchema,
 });
+
+const transcriptionLayerDocSchema = layerDocBaseSchema.extend({
+  layerType: z.literal('transcription'),
+  parentLayerId: z.string().min(1).optional(),
+});
+
+const translationLayerDocSchema = layerDocBaseSchema.extend({
+  layerType: z.literal('translation'),
+}).strict();
+
+const layerDocDiscriminatedSchema = z.discriminatedUnion('layerType', [
+  transcriptionLayerDocSchema,
+  translationLayerDocSchema,
+]);
 
 // 移除未使用的 unitTextDocSchema
 
@@ -1005,7 +1017,7 @@ export function validateTagDefinitionDoc(doc: TagDefinitionDocType): void {
 }
 
 export function validateLayerDoc(doc: LayerDocType): void {
-  translationLayerDocSchema.parse(doc);
+  layerDocDiscriminatedSchema.parse(doc);
 }
 
 export function validateLayerUnitDoc(doc: LayerUnitDocType): void {

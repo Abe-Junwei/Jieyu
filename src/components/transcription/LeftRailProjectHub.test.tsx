@@ -158,7 +158,7 @@ describe('LeftRailProjectHub project import dialog', () => {
     });
   });
 
-  it('shows logical timeline hint and mapping preview in export submenu when timeline mode is document', async () => {
+  it('shows logical timeline hint and mapping preview in export submenu when time mapping is present', async () => {
     renderHub({
       activeTextTimelineMode: 'document',
       activeTextTimeMapping: {
@@ -174,10 +174,30 @@ describe('LeftRailProjectHub project import dialog', () => {
     const exportMenuButton = exportText.closest('button') as HTMLButtonElement;
     fireEvent.mouseEnter(exportMenuButton);
 
-    const hintText = await screen.findByText('当前项目使用纯文本模式；导出时间戳与媒体解码时间轴上的秒不一定一一对应。');
+    const hintText = await screen.findByText('导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。');
     const hintButton = hintText.closest('button') as HTMLButtonElement;
     expect(hintButton.disabled).toBe(true);
     expect(await screen.findByText('时间映射预览：文档 0.0–1800.0s → 实际 3.0–2163.0s（偏移 3.0，倍率 ×1.20，版本 2）')).toBeTruthy();
+  });
+
+  it('shows time-mapping export actions when onApply is wired even if activeTextTimelineMode is null (P3)', async () => {
+    renderHub({
+      activeTextTimelineMode: null,
+      activeTextTimeMapping: {
+        offsetSec: 0,
+        scale: 1,
+        revision: 1,
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
+
+    expect(await screen.findByText('校准时间映射…')).toBeTruthy();
+    expect(
+      await screen.findByText('导出时间戳按项目逻辑时间轴（文献秒）标注；与解码媒体时间轴上的秒不一定一一对应。'),
+    ).toBeTruthy();
   });
 
   it('opens the time-mapping calibration dialog and saves the edited values', async () => {
@@ -364,5 +384,38 @@ describe('LeftRailProjectHub project import dialog', () => {
       expect(showToastMock).toHaveBeenCalledWith('请输入不小于 0 的偏移秒数与大于 0 的时间倍率。', 'error', 0);
     });
     expect(onApplyTextTimeMapping).not.toHaveBeenCalled();
+  });
+
+  it('hides logical time-mapping export block when onApplyTextTimeMapping is not provided', async () => {
+    render(
+      <LocaleProvider locale="zh-CN">
+        <LeftRailProjectHub
+          currentProjectLabel="项目 A"
+          canDeleteProject
+          canDeleteAudio
+          onOpenProjectSetup={vi.fn()}
+          onOpenAudioImport={vi.fn()}
+          onDeleteCurrentProject={vi.fn()}
+          onDeleteCurrentAudio={vi.fn()}
+          onOpenSpeakerManagementPanel={vi.fn()}
+          onImportAnnotationFile={vi.fn()}
+          onPreviewProjectArchiveImport={vi.fn(async () => makePreview())}
+          onImportProjectArchive={vi.fn(async () => true)}
+          onExportEaf={vi.fn()}
+          onExportTextGrid={vi.fn()}
+          onExportTrs={vi.fn()}
+          onExportFlextext={vi.fn()}
+          onExportToolbox={vi.fn()}
+          onExportJyt={vi.fn(async () => undefined)}
+          onExportJym={vi.fn(async () => undefined)}
+        />
+      </LocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '打开项目中心' }));
+    const exportText = await screen.findByText('导出');
+    fireEvent.mouseEnter(exportText.closest('button') as HTMLButtonElement);
+
+    expect(screen.queryByText('校准时间映射…')).toBeNull();
   });
 });

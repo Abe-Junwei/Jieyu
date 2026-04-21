@@ -5,15 +5,20 @@ import { buildTranscriptionAiPromptContext, buildUnitTimelineDigest } from './Tr
 import { buildPromptContextBlock } from '../ai/chat/promptContext';
 
 function makeTestLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>): LayerDocType {
+  const layerType = partial.layerType ?? 'transcription';
+  const treeParent =
+    layerType === 'transcription' && 'parentLayerId' in partial && partial.parentLayerId !== undefined
+      ? { parentLayerId: partial.parentLayerId }
+      : {};
   return {
     id: partial.id,
     textId: partial.textId ?? 'text-1',
     key: partial.key ?? partial.id,
-    layerType: partial.layerType ?? 'transcription',
+    layerType,
     name: partial.name,
     languageId: partial.languageId ?? 'eng',
     modality: partial.modality ?? 'text',
-    ...(partial.parentLayerId !== undefined ? { parentLayerId: partial.parentLayerId } : {}),
+    ...treeParent,
     ...(partial.constraint !== undefined ? { constraint: partial.constraint } : {}),
     createdAt: partial.createdAt ?? '2026-01-01T00:00:00.000Z',
     updatedAt: partial.updatedAt ?? '2026-01-01T00:00:00.000Z',

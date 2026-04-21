@@ -197,7 +197,7 @@ describe('listIndependentBoundaryTranscriptionLayers', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 't2', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: 't1' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', parentLayerId: 't1' }),
+      makeLayer({ id: 'tl1', layerType: 'translation' }),
     ];
     const result = listIndependentBoundaryTranscriptionLayers(layers);
     expect(result).toHaveLength(1);
@@ -231,7 +231,7 @@ describe('validateExistingLayerConstraints — cycle', () => {
   it('检测 parent-layer-not-found | detects missing parent', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', constraint: 'symbolic_association', parentLayerId: 'ghost' }),
+      makeLayer({ id: 't2', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: 'ghost' }),
     ];
     const issues = validateExistingLayerConstraints(layers);
     expect(issues.some((i) => i.code === 'parent-layer-not-found')).toBe(true);
@@ -257,11 +257,12 @@ describe('repairExistingLayerConstraints — edge paths', () => {
       makeLayer({ id: 'only', layerType: 'transcription', constraint: 'symbolic_association' }),
       makeLayer({ id: 'tl1', layerType: 'translation', constraint: 'symbolic_association' }),
     ];
-    const { layers: repaired } = repairExistingLayerConstraints(layers);
-    // 根层修成 independent，翻译层应绑定到该父层
+    const { layers: repaired, repairs } = repairExistingLayerConstraints(layers);
+    // 根层修成 independent；译文宿主由 layer_links 承载，repair 仅记录缺失宿主提示
     const tl = repaired.find((l) => l.id === 'tl1')!;
     expect(tl.constraint).toBe('symbolic_association');
-    expect(tl.parentLayerId).toBe('only');
+    expect(tl.layerType).toBe('translation');
+    expect(repairs.some((r) => r.layerId === 'tl1' && r.code === 'missing-parent-layer')).toBe(true);
   });
 
   it('修复 cycle 引用 | repairs cycle by rebinding or removing parent', () => {
@@ -279,9 +280,17 @@ describe('repairExistingLayerConstraints — edge paths', () => {
   it('time_subdivision 禁用时降级为 symbolic_association | downgrades time_subdivision to symbolic', () => {
     const layers = [
       makeLayer({ id: 't1', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'tl1', layerType: 'translation', constraint: 'time_subdivision', parentLayerId: 't1' }),
+      makeLayer({ id: 'tl1', layerType: 'translation', constraint: 'time_subdivision' }),
     ];
-    const { layers: repaired, repairs } = repairExistingLayerConstraints(layers, { time_subdivision: false });
+    const layerLinks = [
+      makeLink({
+        id: 'link-tl1',
+        transcriptionLayerKey: 'transcription_t1',
+        layerId: 'tl1',
+        hostTranscriptionLayerId: 't1',
+      }),
+    ];
+    const { layers: repaired, repairs } = repairExistingLayerConstraints(layers, { time_subdivision: false }, 'zh-CN', layerLinks);
     const tl = repaired.find((l) => l.id === 'tl1')!;
     expect(tl.constraint).toBe('symbolic_association');
     expect(repairs.some((r) => r.code === 'constraint-runtime-not-supported')).toBe(true);

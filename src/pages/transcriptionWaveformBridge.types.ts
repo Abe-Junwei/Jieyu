@@ -1,4 +1,5 @@
 import type { Dispatch, MouseEvent as ReactMouseEvent, MutableRefObject, SetStateAction, UIEvent as ReactUIEvent } from 'react';
+import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { SubSelectDrag } from '../hooks/useLasso';
 import type { useWaveSurfer } from '../hooks/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
@@ -83,8 +84,6 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   waveformDisplayMode: WaveformDisplayMode;
   waveformVisualStyle: WaveformVisualStyle;
   acousticOverlayMode: AcousticOverlayMode;
-  zoomPercent: number;
-  setZoomPercent: Dispatch<SetStateAction<number>>;
   zoomMode: 'fit-all' | 'fit-selection' | 'custom';
   setZoomMode: Dispatch<SetStateAction<'fit-all' | 'fit-selection' | 'custom'>>;
   clearUnitSelection: () => void;
@@ -141,6 +140,8 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   fitPxPerSec: number;
   zoomPxPerSec: number;
   maxZoomPercent: number;
+  /** Authoritative viewport snapshot for read model / orchestration (phase C). */
+  timelineViewportProjection: TimelineViewportProjection;
   rulerView: { start: number; end: number } | null;
   zoomToPercent: (percent: number, centerRatio?: number, mode?: 'fit-all' | 'fit-selection' | 'custom') => void;
   zoomToUnit: (startTime: number, endTime: number) => void;

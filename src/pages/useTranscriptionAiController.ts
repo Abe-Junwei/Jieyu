@@ -279,6 +279,7 @@ export function useTranscriptionAiController(
       });
     }
     return buildTranscriptionAiPromptContext({
+      locale,
       currentMediaUnits: effectiveUnitIndex.currentMediaUnits,
       ...(projectUnitsForTools ? { projectUnitsForTools } : {}),
       unitIndexComplete: effectiveUnitIndex.isComplete,

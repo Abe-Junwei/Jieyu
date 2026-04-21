@@ -38,15 +38,13 @@ describe('resolveTimelineShellMode', () => {
     })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
   });
 
-  it('keeps timed media lanes when media timeline has placeholder duration but no playable URL', () => {
+  it('keeps text-only when there is no playable URL', () => {
     expect(resolveTimelineShellMode({
       selectedMediaUrl: null,
       playerIsReady: false,
       playerDuration: 0,
       layersCount: 2,
-      timelineMode: 'media',
-      fallbackDurationSec: 18,
-    })).toEqual({ shell: 'waveform', acousticPending: false, playableAcoustic: false });
+    })).toEqual({ shell: 'text-only', acousticPending: false, playableAcoustic: false });
   });
 
   it('prefers text-only when comparison view is enabled', () => {

@@ -54,6 +54,13 @@ describe('computeMultiSignalRiskScore', () => {
 });
 
 describe('generateRecommendations with waveform signals', () => {
+  it('adds acoustic-unavailable recommendation when waveform signals are missing', () => {
+    const recs = generateRecommendations(glossingMetrics, undefined, 'zh-CN');
+    const unavailable = recs.find((r) => r.id === 'acoustic-unavailable');
+    expect(unavailable).toBeTruthy();
+    expect(unavailable?.detail).toContain('可用波形信号');
+  });
+
   it('adds overlap warning during transcribing when overlapCount >= 3', () => {
     const metrics: ObserverMetrics = { unitRowCount: 50, transcribedRate: 0.5, glossedRate: 0, verifiedRate: 0 };
     const recs = generateRecommendations(metrics, { lowConfidenceCount: 2, overlapCount: 5, gapCount: 0, maxGapSeconds: 0 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { resolveVerticalReorderTargetIndex, type VerticalDragDirection } from '../utils/dragReorder';
 import { buildLayerDropIntent, type LayerDropIntent } from '../utils/layerDragDropModel';
 import { resolveLayerDragGroup } from '../services/LayerOrderingService';
@@ -19,11 +19,14 @@ type BundleRange = {
   end: number;
 };
 
+type SidebarDragHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
+
 interface UseSidePaneSidebarDragInput {
   sidePaneRows: LayerDocType[];
   bundleBoundaryIndexes: number[];
   bundleRootIds: Set<string>;
   bundleRanges: BundleRange[];
+  layerLinks?: ReadonlyArray<SidebarDragHostLink>;
   onReorderLayers: (draggedLayerId: string, targetIndex: number) => Promise<void>;
 }
 
@@ -32,6 +35,7 @@ export function useSidePaneSidebarDrag({
   bundleBoundaryIndexes,
   bundleRootIds,
   bundleRanges,
+  layerLinks = [],
   onReorderLayers,
 }: UseSidePaneSidebarDragInput) {
   const sidePaneOverviewRef = useRef<HTMLDivElement | null>(null);
@@ -292,7 +296,7 @@ export function useSidePaneSidebarDrag({
     timer = setTimeout(() => {
       timer = null;
       const currentIndex = sidePaneRows.findIndex((candidateLayer) => candidateLayer.id === layer.id);
-      const draggedLayerIds = resolveLayerDragGroup(sidePaneRows, layer.id);
+      const draggedLayerIds = resolveLayerDragGroup(sidePaneRows, layer.id, layerLinks);
       const sourceSpan = draggedLayerIds.length;
       draggedRailRowsRef.current = getRailRows().slice(currentIndex, currentIndex + sourceSpan);
       dragStartClientYRef.current = event.clientY;
@@ -315,7 +319,7 @@ export function useSidePaneSidebarDrag({
     }, 200);
 
     document.addEventListener('mouseup', cancelPendingDragStart);
-  }, [getRailRows, sidePaneRows, updateRailBoundaryHighlightVisual]);
+  }, [getRailRows, layerLinks, sidePaneRows, updateRailBoundaryHighlightVisual]);
 
   useEffect(() => {
     if (!dragState) return undefined;

@@ -4,7 +4,11 @@ import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextService';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
 import { newId, humanizeTierName } from '../utils/transcriptionFormatters';
-import { withEafKeyMeta, writeImportLayerNameAudit } from './useImportExport.importHelpers';
+import {
+  resolvePreferredHostTranscriptionLayerIdForTranslationImport,
+  withEafKeyMeta,
+  writeImportLayerNameAudit,
+} from './useImportExport.importHelpers';
 
 type AdditionalTierAnnotation = {
   startTime: number;
@@ -50,7 +54,8 @@ export async function importAdditionalTiers(input: {
     layerType: LayerDocType['layerType'];
     keyPrefix: string;
     constraint?: LayerDocType['constraint'];
-    parentLayerId?: string;
+    transcriptionTreeParentId?: string;
+    preferredHostTranscriptionLayerId?: string;
     tierName?: string;
   }) => Promise<Array<{ layerId: string; text: string }>>;
   rememberLayer: (layer: LayerDocType) => void;
@@ -169,6 +174,15 @@ export async function importAdditionalTiers(input: {
     const existingMatch = existingTrlByName.get(tierName.toLocaleLowerCase('en'))
       ?? existingTrlByName.get(humanizedName.toLocaleLowerCase('en'))
       ?? (dbResolvedName ? existingTrlByName.get(dbResolvedName.toLocaleLowerCase('en')) : undefined);
+    const eafTierConstraint = input.eafResult?.tierConstraints?.get(tierName);
+    const importParentTierId = eafTierConstraint?.parentTierId;
+    const importMappedHostLayerId = importParentTierId ? input.tierNameToLayerId.get(importParentTierId) : undefined;
+    const importFallbackHostLayerId = eafTierConstraint
+      && eafTierConstraint.constraint !== 'independent_boundary'
+      ? (existingTrcLayers[existingTrcLayers.length - 1]?.id ?? input.effectiveTranscriptionLayerId)
+      : undefined;
+    const importPreferredHostTranscriptionLayerId = importMappedHostLayerId ?? importFallbackHostLayerId;
+
     let layerId: string;
     if (existingMatch) {
       layerId = existingMatch.id;
@@ -187,14 +201,6 @@ export async function importAdditionalTiers(input: {
           ...(eafTrlLangLabel ? { langLabel: eafTrlLangLabel } : {}),
         })
         : baseKey;
-      const eafTierConstraint = input.eafResult?.tierConstraints?.get(tierName);
-      const parentTierId = eafTierConstraint?.parentTierId;
-      const mappedParentLayerId = parentTierId ? input.tierNameToLayerId.get(parentTierId) : undefined;
-      const fallbackParentLayerId = eafTierConstraint
-        && eafTierConstraint.constraint !== 'independent_boundary'
-        ? (existingTrcLayers[existingTrcLayers.length - 1]?.id ?? input.effectiveTranscriptionLayerId)
-        : undefined;
-      const parentLayerId = mappedParentLayerId ?? fallbackParentLayerId;
 
       const newLayer: LayerDocType = {
         id: layerId,
@@ -211,7 +217,6 @@ export async function importAdditionalTiers(input: {
         acceptsAudio: false,
         sortOrder: tierCount + 1,
         ...(eafTierConstraint ? { constraint: eafTierConstraint.constraint } : {}),
-        ...(parentLayerId ? { parentLayerId } : {}),
         createdAt: input.now,
         updatedAt: input.now,
       };
@@ -230,13 +235,17 @@ export async function importAdditionalTiers(input: {
       });
 
       for (const transcriptionLayer of existingTrcLayers) {
+        const isPreferred = Boolean(
+          importPreferredHostTranscriptionLayerId
+          && transcriptionLayer.id === importPreferredHostTranscriptionLayerId,
+        );
         await input.db.collections.layer_links.insert({
           id: newId('link'),
           transcriptionLayerKey: transcriptionLayer.key,
           hostTranscriptionLayerId: transcriptionLayer.id,
           layerId,
           linkType: 'free',
-          isPreferred: false,
+          isPreferred,
           createdAt: input.now,
         });
       }
@@ -253,6 +262,12 @@ export async function importAdditionalTiers(input: {
         (unit) => Math.abs(unit.startTime - annStart) < 0.05 && Math.abs(unit.endTime - annEnd) < 0.05,
       );
       if (match && annotation.text.trim()) {
+        const preferredHostForWrites = existingMatch
+          ? (await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
+            input.db,
+            existingMatch.id,
+          )) ?? importPreferredHostTranscriptionLayerId
+          : importPreferredHostTranscriptionLayerId;
         const writes = await input.planImportedWrites({
           text: annotation.text,
           ...(importedTierMeta?.orthographyId !== undefined ? { sourceOrthographyId: importedTierMeta.orthographyId } : {}),
@@ -263,7 +278,7 @@ export async function importAdditionalTiers(input: {
           layerType: 'translation',
           keyPrefix: 'trl_import_source',
           ...(input.eafResult?.tierConstraints?.get(tierName)?.constraint ? { constraint: input.eafResult.tierConstraints.get(tierName)?.constraint } : {}),
-          ...(existingMatch?.parentLayerId ? { parentLayerId: existingMatch.parentLayerId } : {}),
+          ...(preferredHostForWrites ? { preferredHostTranscriptionLayerId: preferredHostForWrites } : {}),
           tierName,
         });
         for (const write of writes) {

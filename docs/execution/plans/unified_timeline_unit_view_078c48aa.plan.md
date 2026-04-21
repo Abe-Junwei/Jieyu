@@ -351,11 +351,9 @@ In [src/components/TranscriptionTimelineHorizontalMediaLanes.tsx](src/components
 - Text resolution: use `unit.text` directly (already resolved by the view)
 - Speaker layout: use `unit.speakerId`
 
-### 4B. Update `TranscriptionTimelineTextOnly`
+### 4B. ~~Update `TranscriptionTimelineTextOnly`~~（已合并，2026-04-22）
 
-In [src/components/TranscriptionTimelineTextOnly.tsx](src/components/TranscriptionTimelineTextOnly.tsx):
-- Same pattern: `layerItems` becomes `TimelineUnitView[]`
-- Edit handler branches on `unit.kind` for segment vs utterance save path
+原 `TranscriptionTimelineTextOnly` 已删除；`text-only` 与 `waveform` 壳均由 [src/components/TranscriptionTimelineHorizontalMediaLanes.tsx](../../../src/components/TranscriptionTimelineHorizontalMediaLanes.tsx) 承载，路由见 [src/pages/TranscriptionTimelineWorkspaceHost.tsx](../../../src/pages/TranscriptionTimelineWorkspaceHost.tsx) 与 [ADR-0005](../../../docs/adr/0005-unified-timeline-workspace-host.md)。本阶段迁移项改为：在同一组件内对 `shell==='text-only'` 分支沿用与 4A 相同的 `TimelineUnitView[]` 模式。
 
 ### 4C. Update timeline sub-components
 
@@ -366,7 +364,7 @@ In [src/components/TranscriptionTimelineTextOnly.tsx](src/components/Transcripti
 ### 4D. Update timeline tests
 
 - [src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx](src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx)
-- [src/components/TranscriptionTimelineTextOnly.test.tsx](src/components/TranscriptionTimelineTextOnly.test.tsx)
+- [src/pages/TranscriptionTimelineWorkspaceHost.test.tsx](../../../src/pages/TranscriptionTimelineWorkspaceHost.test.tsx)
 
 ---
 

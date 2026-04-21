@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { getDb } from '../db';
+import { getDb, layerTranscriptionTreeParentId } from '../db';
 import type { LayerLinkDocType, MediaItemDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import { LinguisticService } from '../services/LinguisticService';
@@ -180,7 +180,8 @@ export function useTranscriptionLayerActions({
       const previous = previousById.get(layer.id);
       if (!previous) continue;
 
-      const parentChanged = (previous.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+      const parentChanged = (layerTranscriptionTreeParentId(previous) ?? '')
+        !== (layerTranscriptionTreeParentId(layer) ?? '');
       const sortChanged = (previous.sortOrder ?? 0) !== (layer.sortOrder ?? 0);
       if (!parentChanged && !sortChanged) continue;
 
@@ -492,7 +493,6 @@ export function useTranscriptionLayerActions({
               constraint: 'symbolic_association',
               updatedAt: now,
             };
-            delete updatedTranslation.parentLayerId;
             await LayerTierUnifiedService.updateLayer(updatedTranslation);
             reparentedLayerById.set(updatedTranslation.id, updatedTranslation);
 
@@ -712,7 +712,6 @@ export function useTranscriptionLayerActions({
       constraint: 'symbolic_association',
       updatedAt: now,
     };
-    delete updatedTranslationBase.parentLayerId;
     const nextLayers = computeCanonicalLayerOrder(layers.map((layer) => (
       layer.id === layerId ? updatedTranslationBase : layer
     )));

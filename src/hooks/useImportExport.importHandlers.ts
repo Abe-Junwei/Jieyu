@@ -5,7 +5,11 @@ import { getDb } from '../db';
 import { LinguisticService } from '../services/LinguisticService';
 import { validateLayerTierConsistency } from '../services/TierBridgeService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
-import { repairExistingLayerConstraints, validateExistingLayerConstraints } from '../services/LayerConstraintService';
+import {
+  hasRepairPersistableLayerDiff,
+  repairExistingLayerConstraints,
+  validateExistingLayerConstraints,
+} from '../services/LayerConstraintService';
 import { importFromEaf, type EafImportResult } from '../services/EafService';
 import { ingestTextFile } from '../utils/textIngestion';
 import { importFromTextGrid, type TextGridImportResult } from '../services/TextGridService';
@@ -23,7 +27,15 @@ import { syncUnitTextToSegmentationV2 } from '../services/LayerSegmentationTextS
 import { loadOrthographyRuntime } from '../utils/loadOrthographyRuntime';
 import { importAdditionalTiers } from './useImportExport.additionalTierHandlers';
 import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, shouldWriteOriginalSourceText, shouldWriteBridgedTargetText, type AnnotationImportBridgeStrategy } from './useImportExport.annotationImport';
-import { buildImportLanguageNameMap, createImportLanguageResolvers, createImportSpeakerResolver, withEafKeyMeta, writeImportLayerNameAudit } from './useImportExport.importHelpers';
+import {
+  buildImportLanguageNameMap,
+  createImportLanguageResolvers,
+  createImportSpeakerResolver,
+  resolvePreferredHostTranscriptionLayerIdForTranslationImport,
+  withEafKeyMeta,
+  writeImportLayerNameAudit,
+} from './useImportExport.importHelpers';
+import { getLayerTreeParentLayerId, layerDocPatchWithTreeParent } from './useImportExport.layerTreeParentField';
 
 const log = createLogger('useImportExport');
 
@@ -206,7 +218,10 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         layerType: LayerDocType['layerType'];
         keyPrefix: string;
         constraint?: LayerDocType['constraint'];
-        parentLayerId?: string;
+        /** Transcription tree parent only (non-translation dedupe). */
+        transcriptionTreeParentId?: string;
+        /** Translation: preferred host transcription id (layer_links SSOT). */
+        preferredHostTranscriptionLayerId?: string;
         tierName?: string;
       }): Promise<string | undefined> {
         const sourceOrthographyId = inputData.sourceOrthographyId?.trim();
@@ -217,14 +232,26 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         }
 
         const desiredName = buildSourcePreservationLayerName(inputData.baseLabel);
-        const existingLayer = layersAfterImport.find((layer) => {
-          if (layer.layerType !== inputData.layerType) return false;
-          if ((layer.parentLayerId ?? '') !== (inputData.parentLayerId ?? '')) return false;
-          if ((layer.constraint ?? '') !== (inputData.constraint ?? '')) return false;
-          if (layer.languageId !== inputData.languageId) return false;
-          if ((layer.orthographyId?.trim() ?? '') !== sourceOrthographyId) return false;
-          return resolveLayerNameText(layer.name) === resolveLayerNameText(desiredName);
-        });
+        const desiredTranslationHost = (inputData.preferredHostTranscriptionLayerId ?? '').trim();
+        let existingLayer: LayerDocType | undefined;
+        for (const layer of layersAfterImport) {
+          if (layer.layerType !== inputData.layerType) continue;
+          if (layer.layerType === 'translation') {
+            const resolvedHost = await resolvePreferredHostTranscriptionLayerIdForTranslationImport(
+              db,
+              layer.id,
+            );
+            if ((resolvedHost ?? '') !== desiredTranslationHost) continue;
+          } else if ((getLayerTreeParentLayerId(layer) ?? '') !== (inputData.transcriptionTreeParentId ?? '')) {
+            continue;
+          }
+          if ((layer.constraint ?? '') !== (inputData.constraint ?? '')) continue;
+          if (layer.languageId !== inputData.languageId) continue;
+          if ((layer.orthographyId?.trim() ?? '') !== sourceOrthographyId) continue;
+          if (resolveLayerNameText(layer.name) !== resolveLayerNameText(desiredName)) continue;
+          existingLayer = layer;
+          break;
+        }
         if (existingLayer) return existingLayer.id;
 
         const layerId = newId('layer');
@@ -240,12 +267,28 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
           acceptsAudio: false,
           sortOrder: layersAfterImport.length + 1,
           ...(inputData.constraint ? { constraint: inputData.constraint } : {}),
-          ...(inputData.parentLayerId ? { parentLayerId: inputData.parentLayerId } : {}),
+          ...(inputData.layerType !== 'translation'
+            ? layerDocPatchWithTreeParent(inputData.transcriptionTreeParentId)
+            : {}),
           createdAt: now,
           updatedAt: now,
         };
         await LayerTierUnifiedService.createLayer(newLayer);
         rememberLayer(newLayer);
+        if (inputData.layerType === 'translation' && desiredTranslationHost) {
+          const hostLayer = layerById.get(desiredTranslationHost);
+          if (hostLayer?.key) {
+            await db.collections.layer_links.insert({
+              id: newId('link'),
+              transcriptionLayerKey: hostLayer.key,
+              hostTranscriptionLayerId: desiredTranslationHost,
+              layerId,
+              linkType: 'free',
+              isPreferred: true,
+              createdAt: now,
+            });
+          }
+        }
         await writeImportLayerNameAudit({
           db,
           now,
@@ -268,7 +311,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
         layerType: LayerDocType['layerType'];
         keyPrefix: string;
         constraint?: LayerDocType['constraint'];
-        parentLayerId?: string;
+        transcriptionTreeParentId?: string;
+        preferredHostTranscriptionLayerId?: string;
         tierName?: string;
       }): Promise<Array<{ layerId: string; text: string }>> {
         const targetLayerId = inputData.targetLayerId?.trim();
@@ -292,7 +336,10 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
               layerType: inputData.layerType,
               keyPrefix: inputData.keyPrefix,
               ...(inputData.constraint ? { constraint: inputData.constraint } : {}),
-              ...(inputData.parentLayerId ? { parentLayerId: inputData.parentLayerId } : {}),
+              ...layerDocPatchWithTreeParent(inputData.transcriptionTreeParentId),
+              ...(inputData.preferredHostTranscriptionLayerId
+                ? { preferredHostTranscriptionLayerId: inputData.preferredHostTranscriptionLayerId }
+                : {}),
               ...(inputData.tierName ? { tierName: inputData.tierName } : {}),
             })
             : targetLayerId;
@@ -595,9 +642,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       const changedLayers = repairedResult.layers.filter((layer) => {
         const before = originalLayerById.get(layer.id);
         if (!before) return false;
-        const beforeConstraint = before.constraint ?? (before.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
-        const afterConstraint = layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');
-        return beforeConstraint !== afterConstraint || (before.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+        return hasRepairPersistableLayerDiff(before, layer, layersAfterImport, importLayerLinks);
       });
       for (const changedLayer of changedLayers) {
         await LayerTierUnifiedService.updateLayer({

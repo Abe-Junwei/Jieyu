@@ -15,10 +15,16 @@ import {
   buildOrthographyPreviewTextProps,
   resolveOrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
+import {
+  timelinePairedReadingSourceDraftAutoSaveKey,
+  timelinePairedReadingTargetMergedDraftAutoSaveKey,
+  timelinePairedReadingTargetSegmentDraftAutoSaveKey,
+} from '../utils/timelineDraftAutoSaveKeys';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
-import { TimelineDraftEditorSurface, type TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
+import type { TimelineDraftSaveStatus } from './transcription/TimelineDraftEditorSurface';
+import { TimelineLaneDraftEditorCell } from './transcription/TimelineLaneDraftEditorCell';
 import type { ContextMenuItem } from './ContextMenu';
 import {
   buildVerticalReadingTargetItemsFromRawText,
@@ -436,7 +442,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         mode: 'full',
                       })}
                     </button>
-                    <TimelineDraftEditorSurface
+                    <TimelineLaneDraftEditorCell
                       multiline
                       wrapperClassName={[
                         'timeline-paired-reading-source-surface',
@@ -489,20 +495,20 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         if (!sourceLayerId) return;
                         if (value !== initialSourceText) {
                           setPairedReadingCellSaveStatus(sourceCellKey, 'dirty');
-                          scheduleAutoSave(`pr-src-${sourceLayerId}-${item.unitId}`, async () => {
+                          scheduleAutoSave(timelinePairedReadingSourceDraftAutoSaveKey(sourceLayerId, item.unitId), async () => {
                             await runPairedReadingSaveWithStatus(sourceCellKey, async () => {
                               await persistSourceText(item.unitId, value, sourceLayerId);
                             });
                           });
                         } else {
-                          clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
+                          clearAutoSaveTimer(timelinePairedReadingSourceDraftAutoSaveKey(sourceLayerId, item.unitId));
                           setPairedReadingCellSaveStatus(sourceCellKey);
                         }
                       }}
                       onBlur={(event) => {
                         const value = normalizePairedReadingPlainText(event.target.value);
                         if (!sourceLayerId) return;
-                        clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
+                        clearAutoSaveTimer(timelinePairedReadingSourceDraftAutoSaveKey(sourceLayerId, item.unitId));
                         if (value !== initialSourceText) {
                           void runPairedReadingSaveWithStatus(sourceCellKey, async () => {
                             await persistSourceText(item.unitId, value, sourceLayerId);
@@ -520,7 +526,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         if (event.key !== 'Escape') return;
                         event.preventDefault();
                         if (sourceLayerId) {
-                          clearAutoSaveTimer(`pr-src-${sourceLayerId}-${item.unitId}`);
+                          clearAutoSaveTimer(timelinePairedReadingSourceDraftAutoSaveKey(sourceLayerId, item.unitId));
                         }
                         setUnitDrafts((prev) => ({ ...prev, [sourceDraftKey]: initialSourceText }));
                         setPairedReadingCellSaveStatus(sourceCellKey);
@@ -681,7 +687,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                   );
                   const layerDraftKeyBase = `cmp:${tLayer.id}:${group.id}`;
                   const layerCellKeyBase = `pr-target:${tLayer.id}:${group.id}`;
-                  const pairedReadingAutoSaveKey = `pr-${tLayer.id}-${group.id}`;
+                  const pairedReadingAutoSaveKey = timelinePairedReadingTargetMergedDraftAutoSaveKey(tLayer.id, group.id);
 
                   return (
                     <div key={tLayer.id} className="timeline-paired-reading-target-layer-stack">
@@ -695,7 +701,11 @@ export function TranscriptionTimelineVerticalViewGroupList({
                             const isItemDraftEmpty = normalizePairedReadingPlainText(itemDraft).trim().length === 0;
                             const isThisTargetRowActive = isGroupActive && pairedReadingTargetSide === 'target'
                               && activeVerticalReadingCellId === `target:${group.id}:${tLayer.id}:${targetItem.id}`;
-                            const segAutoSaveKey = `pr-seg-${tLayer.id}-${group.id}-${targetItem.id}`;
+                            const segAutoSaveKey = timelinePairedReadingTargetSegmentDraftAutoSaveKey(
+                              tLayer.id,
+                              group.id,
+                              targetItem.id,
+                            );
                             const buildCombinedTargetValue = (nextValue: string): string => (
                               layerTargetItems
                                 .map((item) => {
@@ -729,7 +739,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                     mode: layerPerSeg && ti > 0 ? 'continuation' : 'full',
                                   })}
                                 </button>
-                                <TimelineDraftEditorSurface
+                                <TimelineLaneDraftEditorCell
                                   multiline
                                   wrapperClassName={[
                                     'timeline-paired-reading-target-surface',
@@ -909,7 +919,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                     mode: 'full',
                                   })}
                                 </button>
-                                <TimelineDraftEditorSurface
+                                <TimelineLaneDraftEditorCell
                                   multiline
                                   wrapperClassName={[
                                     'timeline-paired-reading-target-surface',

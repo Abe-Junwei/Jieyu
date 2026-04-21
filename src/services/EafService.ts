@@ -6,6 +6,7 @@
  */
 
 import type { LayerUnitDocType, AnchorDocType, LayerDocType, LayerUnitContentDocType, MediaItemDocType, UserNoteDocType, LayerConstraint, SpeakerDocType, OrthographyDocType, LayerLinkDocType } from '../db';
+import { layerTranscriptionTreeParentId } from '../db';
 import { ingestTextFile } from '../utils/textIngestion';
 import { buildOrthographyInteropMetadata, parseOrthographyInteropMetadata, type OrthographyInteropMetadata } from '../utils/orthographyInteropMetadata';
 import { readEnglishFallbackMultiLangLabel } from '../utils/multiLangLabels';
@@ -453,11 +454,10 @@ export function exportToEaf(input: EafExportInput): string {
         }
 
         const shouldIncludeParentRef = constraint !== 'independent_boundary';
+        // 译文宿主 tier 仅来自 layer_links（preferred / 首条）；不再回读 translation.parentLayerId | PARENT_REF from links only
         const parentTierId = effectivePreferredHostTranscriptionLayerId
           ? (tierNameByLayerId.get(effectivePreferredHostTranscriptionLayerId) ?? defaultTierId)
-          : layer.parentLayerId
-            ? (tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)
-            : defaultTierId;
+          : defaultTierId;
         const parentRefAttr = shouldIncludeParentRef
           ? ` PARENT_REF="${escapeXml(parentTierId)}"`
           : '';
@@ -522,8 +522,9 @@ ${annotations.join('\n')}
           const participantAttr = participantName
             ? ` PARTICIPANT="${escapeXml(participantName)}"`
             : '';
-          const parentRefAttr = isTimeSubdivisionTrc && layer.parentLayerId
-            ? ` PARENT_REF="${escapeXml(tierNameByLayerId.get(layer.parentLayerId) ?? defaultTierId)}"`
+          const trcTreeParentId = layerTranscriptionTreeParentId(layer);
+          const parentRefAttr = isTimeSubdivisionTrc && trcTreeParentId
+            ? ` PARENT_REF="${escapeXml(tierNameByLayerId.get(trcTreeParentId) ?? defaultTierId)}"`
             : '';
           const linguisticTypeRef = isTimeSubdivisionTrc ? 'translation-subdivision-lt' : 'default-lt';
           translationTierXml.push(`    <TIER TIER_ID="${escapeXml(tierName)}" LINGUISTIC_TYPE_REF="${linguisticTypeRef}"${parentRefAttr} DEFAULT_LOCALE="${escapeXml(layer.languageId ?? 'en')}"${participantAttr}>

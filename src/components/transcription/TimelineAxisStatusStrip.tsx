@@ -19,7 +19,7 @@ export function TimelineAxisStatusStrip({
   locale,
   hint,
   logicalDurationSec,
-  timelineMode,
+  timelineMode: _timelineMode,
   hiddenByMediaFilterCount,
   expandLogical,
 }: TimelineAxisStatusStripProps) {
@@ -30,7 +30,6 @@ export function TimelineAxisStatusStrip({
 
   const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
     ...(typeof logicalDurationSec === 'number' ? { logicalDurationSec } : {}),
-    ...(timelineMode !== undefined ? { timelineMode } : {}),
     hintKind: hint.kind,
   });
 

@@ -61,6 +61,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.snapEnabled).toBe(true);
     expect(result.current.zoomMode).toBe('custom');
     expect(result.current.verticalViewEnabled).toBe(true);
+    expect(localStorage.getItem('jieyu:workspace-layout-contract-version')).toBeNull();
 
     await waitFor(() => {
       expect(result.current.timelineLaneHeights).toEqual({ 'layer-a': 168 });
@@ -158,6 +159,7 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.autoScrollEnabled).toBe(true);
     expect(result.current.snapEnabled).toBe(false);
     expect(result.current.verticalViewEnabled).toBe(false);
+    expect(localStorage.getItem('jieyu:workspace-layout-contract-version')).toBeNull();
 
     act(() => {
       localStorage.setItem('jieyu:video-preview-height', '420');
@@ -177,5 +179,46 @@ describe('useTranscriptionWorkspaceLayoutController', () => {
     expect(result.current.autoScrollEnabled).toBe(false);
     expect(result.current.snapEnabled).toBe(true);
     expect(result.current.verticalViewEnabled).toBe(true);
+  });
+
+  it('keeps vertical false when stored vertical is already 0', () => {
+    localStorage.setItem('jieyu:workspace-vertical-view', '0');
+
+    const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
+      layers: [makeLayer('layer-a')],
+      selectedTimelineOwnerUnitId: undefined,
+      unitRowRef: makeUnitRowRef(),
+    }));
+
+    expect(result.current.verticalViewEnabled).toBe(false);
+    expect(localStorage.getItem('jieyu:workspace-vertical-view')).toBe('0');
+    expect(localStorage.getItem('jieyu:workspace-layout-contract-version')).toBeNull();
+  });
+
+  it('normalizes legacy true/false vertical strings to 1/0 while preserving enabled state', () => {
+    localStorage.setItem('jieyu:workspace-vertical-view', 'true');
+
+    const { result } = renderHook(() => useTranscriptionWorkspaceLayoutController({
+      layers: [makeLayer('layer-a')],
+      selectedTimelineOwnerUnitId: undefined,
+      unitRowRef: makeUnitRowRef(),
+    }));
+
+    expect(result.current.verticalViewEnabled).toBe(true);
+    expect(localStorage.getItem('jieyu:workspace-vertical-view')).toBe('1');
+    expect(localStorage.getItem('jieyu:workspace-layout-contract-version')).toBeNull();
+  });
+
+  it('removes stale layout-contract key from localStorage on hydrate', () => {
+    localStorage.setItem('jieyu:workspace-layout-contract-version', '2');
+    localStorage.setItem('jieyu:workspace-vertical-view', '0');
+
+    renderHook(() => useTranscriptionWorkspaceLayoutController({
+      layers: [makeLayer('layer-a')],
+      selectedTimelineOwnerUnitId: undefined,
+      unitRowRef: makeUnitRowRef(),
+    }));
+
+    expect(localStorage.getItem('jieyu:workspace-layout-contract-version')).toBeNull();
   });
 });

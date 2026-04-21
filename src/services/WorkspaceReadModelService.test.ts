@@ -1,25 +1,30 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db, getDb, type AiTaskDoc, type LanguageAliasDocType, type LanguageDisplayNameDocType, type LanguageDocType, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type OrthographyBridgeDocType, type OrthographyDocType, type SpeakerDocType, type UserNoteDocType } from '../db';
+import { db, getDb, type AiTaskDoc, type LanguageAliasDocType, type LanguageDisplayNameDocType, type LanguageDocType, type LayerDocType, type LayerLinkDocType, type LayerUnitContentDocType, type LayerUnitDocType, type OrthographyBridgeDocType, type OrthographyDocType, type SpeakerDocType, type UserNoteDocType } from '../db';
 import { SegmentMetaService } from './SegmentMetaService';
 import { WorkspaceReadModelService } from './WorkspaceReadModelService';
 
 const NOW = '2026-04-16T00:00:00.000Z';
 
 function makeLayer(overrides: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'layerType'>): LayerDocType {
+  const layerType = overrides.layerType;
+  const treeParent =
+    layerType === 'transcription' && overrides.parentLayerId
+      ? { parentLayerId: overrides.parentLayerId }
+      : {};
   return {
     id: overrides.id,
     textId: overrides.textId ?? 'text-1',
     key: overrides.key ?? overrides.id,
     name: overrides.name ?? { 'zh-CN': overrides.id },
-    layerType: overrides.layerType,
+    layerType,
     languageId: overrides.languageId ?? 'eng',
     modality: overrides.modality ?? 'text',
-    ...(overrides.parentLayerId ? { parentLayerId: overrides.parentLayerId } : {}),
+    ...treeParent,
     ...(overrides.constraint ? { constraint: overrides.constraint } : {}),
     createdAt: overrides.createdAt ?? NOW,
     updatedAt: overrides.updatedAt ?? NOW,
-  };
+  } as LayerDocType;
 }
 
 function makeUnit(overrides: Partial<LayerUnitDocType> & Pick<LayerUnitDocType, 'id' | 'layerId' | 'unitType' | 'startTime' | 'endTime'>): LayerUnitDocType {
@@ -169,6 +174,7 @@ describe('WorkspaceReadModelService', () => {
       db.orthographies.clear(),
       db.orthography_bridges.clear(),
       db.ai_tasks.clear(),
+      db.layer_links.clear(),
     ]);
   });
 
@@ -176,8 +182,18 @@ describe('WorkspaceReadModelService', () => {
     const rxDb = await getDb();
     await rxDb.collections.layers.bulkInsert([
       makeLayer({ id: 'layer-seg', layerType: 'transcription', constraint: 'independent_boundary' }),
-      makeLayer({ id: 'layer-trn', layerType: 'translation', parentLayerId: 'layer-seg', constraint: 'symbolic_association', languageId: 'zho' }),
+      makeLayer({ id: 'layer-trn', layerType: 'translation', constraint: 'symbolic_association', languageId: 'zho' }),
     ]);
+    const segLayerLink: LayerLinkDocType = {
+      id: 'link-trn-seg',
+      layerId: 'layer-trn',
+      transcriptionLayerKey: 'layer-seg',
+      hostTranscriptionLayerId: 'layer-seg',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: NOW,
+    };
+    await rxDb.collections.layer_links.bulkInsert([segLayerLink]);
 
     await db.speakers.put(makeSpeaker('spk-1', 'Alice'));
     await db.layer_units.bulkPut([

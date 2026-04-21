@@ -5,13 +5,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionTimelineWorkspaceHost } from './TranscriptionTimelineWorkspaceHost';
 
 vi.mock('../components/TranscriptionTimelineHorizontalMediaLanes', () => ({
-  TranscriptionTimelineHorizontalMediaLanes: () => <div data-testid="workspace-host-waveform">waveform</div>,
-}));
-
-vi.mock('../components/TranscriptionTimelineTextOnly', () => ({
-  TranscriptionTimelineTextOnly: (props: { acousticPending?: boolean }) => (
-    <div data-testid="workspace-host-text-only" data-acoustic-pending={props.acousticPending ? '1' : '0'}>
-      text-only
+  TranscriptionTimelineHorizontalMediaLanes: (props: { acousticShellPending?: boolean }) => (
+    <div
+      data-testid="workspace-host-waveform"
+      data-acoustic-shell-pending={props.acousticShellPending ? '1' : '0'}
+    >
+      waveform
     </div>
   ),
 }));
@@ -44,7 +43,23 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     expect(screen.getByTestId('workspace-host-waveform')).toBeTruthy();
   });
 
-  it('renders text-only shell with acoustic pending flag', () => {
+  it('routes text-only shell into unified host lanes', () => {
+    render(
+      <TranscriptionTimelineWorkspaceHost
+        verticalComparisonEnabled={false}
+        shell="text-only"
+        acousticPending={false}
+        mediaLanesProps={{} as never}
+        textOnlyProps={{} as never}
+        emptyStateProps={{} as never}
+      />,
+    );
+
+    expect(screen.getByTestId('workspace-host-waveform')).toBeTruthy();
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending')).toBe('0');
+  });
+
+  it('passes acousticShellPending when text-only shell and decode pending', () => {
     render(
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
@@ -56,8 +71,7 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       />,
     );
 
-    const node = screen.getByTestId('workspace-host-text-only');
-    expect(node.getAttribute('data-acoustic-pending')).toBe('1');
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending')).toBe('1');
   });
 
   it('renders empty shell fallback', () => {

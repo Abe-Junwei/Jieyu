@@ -6,12 +6,20 @@
  * - Do not delete the last transcription layer when translations still depend on it.
  * - Soft-limit overflow emits warnings without blocking.
  */
-import { LAYER_SOFT_LIMITS, type LayerDocType, type LayerLinkDocType } from '../db';
+import {
+  LAYER_SOFT_LIMITS,
+  type LayerDocType,
+  type LayerLinkDocType,
+  type TranscriptionLayerDocType,
+  type TranslationLayerDocType,
+  layerTranscriptionTreeParentId,
+} from '../db';
 import type { Locale } from '../i18n';
 import { getLayerConstraintServiceMessages } from '../i18n/layerConstraintServiceMessages';
 import {
   buildTranscriptionIdByKeyMap,
   getHostTranscriptionLayerIdsForTranslation,
+  getPreferredHostTranscriptionLayerIdForTranslation,
   resolveLayerLinkHostTranscriptionLayerId,
 } from '../utils/translationHostLinkQuery';
 
@@ -80,17 +88,67 @@ const DEFAULT_CONSTRAINT_RUNTIME_CAPABILITIES: ConstraintRuntimeCapabilities = {
 /** 默认 locale | Default locale for backward compatibility */
 const DEFAULT_LOCALE: Locale = 'zh-CN';
 
-function detectParentCycle(layerById: Map<string, LayerDocType>, startLayer: LayerDocType): boolean {
+type ParentCycleLinkContext = {
+  layerLinks: readonly LayerLinkDocType[];
+  layers: readonly LayerDocType[];
+};
+
+function translationHasResolvedLinkHosts(
+  layer: LayerDocType,
+  linkContext: ParentCycleLinkContext | undefined,
+): boolean {
+  if (layer.layerType !== 'translation' || !linkContext?.layerLinks.length) return false;
+  const transcriptionIdByKey = buildTranscriptionIdByKeyMap(linkContext.layers);
+  return getHostTranscriptionLayerIdsForTranslation(layer.id, linkContext.layerLinks, transcriptionIdByKey).length > 0;
+}
+
+/** Walk layer.parentLayerId only; skip tree parent for link-hosted translations (hosts are SSOT). */
+function detectParentCycle(
+  layerById: Map<string, LayerDocType>,
+  startLayer: LayerDocType,
+  linkContext?: ParentCycleLinkContext,
+): boolean {
   const visited = new Set<string>();
   let cursor: LayerDocType | undefined = startLayer;
   while (cursor) {
     if (visited.has(cursor.id)) return true;
     visited.add(cursor.id);
-    const parentId = cursor.parentLayerId;
+    const parentId = translationHasResolvedLinkHosts(cursor, linkContext)
+      ? undefined
+      : layerTranscriptionTreeParentId(cursor);
     if (!parentId) return false;
     cursor = layerById.get(parentId);
   }
   return false;
+}
+
+/** Stable signature for whether a repaired layer row should be persisted (constraint + tree parent or link hosts). */
+function constraintBindingSignature(
+  layer: LayerDocType,
+  layerLinks: readonly LayerLinkDocType[],
+  transcriptionIdByKey: ReadonlyMap<string, string>,
+): string {
+  const c = getEffectiveConstraint(layer);
+  if (layer.layerType === 'translation' && layerLinks.length > 0) {
+    const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
+    if (hostIds.length > 0) {
+      const pref = getPreferredHostTranscriptionLayerIdForTranslation(layer.id, layerLinks, transcriptionIdByKey) ?? '';
+      const sortedHosts = [...hostIds].sort().join('\u0001');
+      return `${c}\u0002links:${sortedHosts}\u0002pref:${pref}`;
+    }
+  }
+  return `${c}\u0002tree:${layerTranscriptionTreeParentId(layer) ?? ''}`;
+}
+
+export function hasRepairPersistableLayerDiff(
+  before: LayerDocType,
+  after: LayerDocType,
+  allLayers: readonly LayerDocType[],
+  layerLinks: readonly LayerLinkDocType[],
+): boolean {
+  const transcriptionIdByKey = buildTranscriptionIdByKeyMap(allLayers);
+  return constraintBindingSignature(before, layerLinks, transcriptionIdByKey)
+    !== constraintBindingSignature(after, layerLinks, transcriptionIdByKey);
 }
 
 export function validateExistingLayerConstraints(
@@ -134,26 +192,35 @@ export function validateExistingLayerConstraints(
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
-      if (layer.layerType === 'translation' && layerLinks.length > 0) {
-        const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
-        const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
-        if (hostIds.length > 0) {
-          for (const hostId of hostIds) {
-            const hostLayer = layerById.get(hostId);
-            if (!hostLayer || hostLayer.layerType !== 'transcription' || !independentTranscriptionLayerIds.has(hostLayer.id)) {
-              issues.push({
-                layerId: layer.id,
-                code: 'invalid-parent-layer-type',
-                message: msg.issueParentMustBeIndependentTranscription(layer.key),
-              });
-              break;
+      if (layer.layerType === 'translation') {
+        if (layerLinks.length > 0) {
+          const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+          const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
+          if (hostIds.length > 0) {
+            for (const hostId of hostIds) {
+              const hostLayer = layerById.get(hostId);
+              if (!hostLayer || hostLayer.layerType !== 'transcription' || !independentTranscriptionLayerIds.has(hostLayer.id)) {
+                issues.push({
+                  layerId: layer.id,
+                  code: 'invalid-parent-layer-type',
+                  message: msg.issueParentMustBeIndependentTranscription(layer.key),
+                });
+                break;
+              }
             }
+            continue;
           }
-          continue;
         }
+        issues.push({
+          layerId: layer.id,
+          code: 'missing-parent-layer',
+          message: msg.issueMissingTranslationHostLink(layer.key, constraint),
+        });
+        continue;
       }
 
-      if (!layer.parentLayerId) {
+      const treeParentId = layerTranscriptionTreeParentId(layer);
+      if (!treeParentId) {
         issues.push({
           layerId: layer.id,
           code: 'missing-parent-layer',
@@ -161,12 +228,12 @@ export function validateExistingLayerConstraints(
         });
         continue;
       }
-      const parent = layerById.get(layer.parentLayerId);
+      const parent = layerById.get(treeParentId);
       if (!parent) {
         issues.push({
           layerId: layer.id,
           code: 'parent-layer-not-found',
-          message: msg.issueParentNotFound(layer.key, layer.parentLayerId),
+          message: msg.issueParentNotFound(layer.key, treeParentId),
         });
         continue;
       }
@@ -179,7 +246,10 @@ export function validateExistingLayerConstraints(
       }
     }
 
-    if (detectParentCycle(layerById, layer)) {
+    const cycleCtx: ParentCycleLinkContext | undefined = layerLinks.length > 0
+      ? { layerLinks, layers }
+      : undefined;
+    if (detectParentCycle(layerById, layer, cycleCtx)) {
       issues.push({
         layerId: layer.id,
         code: 'parent-cycle-detected',
@@ -205,11 +275,6 @@ export function listIndependentBoundaryTranscriptionLayers(layers: LayerDocType[
     });
 }
 
-function hasSameConstraint(a: LayerDocType, b: LayerDocType): boolean {
-  return getEffectiveConstraint(a) === getEffectiveConstraint(b)
-    && (a.parentLayerId ?? '') === (b.parentLayerId ?? '');
-}
-
 export function repairExistingLayerConstraints(
   layers: LayerDocType[],
   runtimeCapabilities?: Partial<ConstraintRuntimeCapabilities>,
@@ -227,6 +292,10 @@ export function repairExistingLayerConstraints(
   const transcriptionLayers = clonedLayers.filter((layer) => layer.layerType === 'transcription');
   const rootTranscription = transcriptionLayers
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  const transcriptionIdByKeyForRepair = buildTranscriptionIdByKeyMap(clonedLayers);
+  const cycleLinkCtx: ParentCycleLinkContext | undefined = layerLinks.length > 0
+    ? { layerLinks, layers: clonedLayers }
+    : undefined;
 
   const findFallbackParent = (currentId: string): LayerDocType | undefined => {
     return listIndependentBoundaryTranscriptionLayers(clonedLayers)
@@ -249,26 +318,59 @@ export function repairExistingLayerConstraints(
     }
 
     if (constraint === 'symbolic_association' || constraint === 'time_subdivision') {
-      if (layer.layerType === 'translation' && layerLinks.length > 0) {
-        const transcriptionIdByKey = buildTranscriptionIdByKeyMap(clonedLayers);
-        const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKey);
-        if (hostIds.length > 0) {
-          delete layer.parentLayerId;
+      if (layer.layerType === 'translation') {
+        if (layerLinks.length > 0) {
+          const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKeyForRepair);
+          if (hostIds.length > 0) {
+            delete (layer as unknown as Record<string, unknown>).parentLayerId;
+            const independentIds = new Set(listIndependentBoundaryTranscriptionLayers(clonedLayers).map((l) => l.id));
+            const invalidHost = hostIds.some((hostId) => {
+              const hostLayer = layerById.get(hostId);
+              return !hostLayer || hostLayer.layerType !== 'transcription' || !independentIds.has(hostId);
+            });
+            if (invalidHost) {
+              pushRepair(layer.id, 'invalid-parent-layer-type', msg.issueParentMustBeIndependentTranscription(layer.key));
+            }
+            // 已解析宿主链接：不再走「缺父 / 树父重绑」分支，但仍需执行下方运行时能力降级等逻辑
+            // Resolved link hosts: skip missing-host / tree-parent repair, but still run capability downgrade below.
+          } else {
+            const fallbackParent = findFallbackParent(layer.id);
+            if (fallbackParent) {
+              pushRepair(layer.id, 'missing-parent-layer', msg.repairTranslationHostLinkHint(layer.key, fallbackParent.key));
+            } else {
+              layer.constraint = 'independent_boundary';
+              delete (layer as unknown as Record<string, unknown>).parentLayerId;
+              constraint = 'independent_boundary';
+              pushRepair(layer.id, 'missing-parent-layer', msg.repairDowngradeNoParent(layer.key));
+            }
+            continue;
+          }
+        } else {
+          const fallbackParent = findFallbackParent(layer.id);
+          if (fallbackParent) {
+            pushRepair(layer.id, 'missing-parent-layer', msg.repairTranslationHostLinkHint(layer.key, fallbackParent.key));
+          } else {
+            layer.constraint = 'independent_boundary';
+            delete (layer as unknown as Record<string, unknown>).parentLayerId;
+            constraint = 'independent_boundary';
+            pushRepair(layer.id, 'missing-parent-layer', msg.repairDowngradeNoParent(layer.key));
+          }
           continue;
         }
-      }
-
-      const parent = layer.parentLayerId ? layerById.get(layer.parentLayerId) : undefined;
-      if (!parent || parent.id === layer.id || !listIndependentBoundaryTranscriptionLayers(clonedLayers).some((candidate) => candidate.id === parent.id)) {
-        const fallbackParent = findFallbackParent(layer.id);
-        if (fallbackParent) {
-          layer.parentLayerId = fallbackParent.id;
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairBindFallbackParent(layer.key, fallbackParent.key));
-        } else {
-          layer.constraint = 'independent_boundary';
-          delete layer.parentLayerId;
-          constraint = 'independent_boundary';
-          pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairDowngradeNoParent(layer.key));
+      } else {
+        const treeParentId = layerTranscriptionTreeParentId(layer);
+        const parent = treeParentId ? layerById.get(treeParentId) : undefined;
+        if (!parent || parent.id === layer.id || !listIndependentBoundaryTranscriptionLayers(clonedLayers).some((candidate) => candidate.id === parent.id)) {
+          const fallbackParent = findFallbackParent(layer.id);
+          if (fallbackParent) {
+            layer.parentLayerId = fallbackParent.id;
+            pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairBindFallbackParent(layer.key, fallbackParent.key));
+          } else {
+            layer.constraint = 'independent_boundary';
+            delete layer.parentLayerId;
+            constraint = 'independent_boundary';
+            pushRepair(layer.id, !parent ? 'missing-parent-layer' : 'invalid-parent-layer-type', msg.repairDowngradeNoParent(layer.key));
+          }
         }
       }
     }
@@ -276,37 +378,66 @@ export function repairExistingLayerConstraints(
     constraint = getEffectiveConstraint(layer);
     if (!capabilities[constraint]) {
       if (constraint === 'time_subdivision') {
-        const fallbackParent = layer.parentLayerId ? layerById.get(layer.parentLayerId) : findFallbackParent(layer.id);
+        const treeId = layerTranscriptionTreeParentId(layer);
+        const fallbackParent = treeId ? layerById.get(treeId) : findFallbackParent(layer.id);
         if (capabilities.symbolic_association && fallbackParent && fallbackParent.layerType === 'transcription') {
           layer.constraint = 'symbolic_association';
-          layer.parentLayerId = fallbackParent.id;
+          if (layer.layerType === 'translation' && layerLinks.length > 0) {
+            const hostIds = getHostTranscriptionLayerIdsForTranslation(layer.id, layerLinks, transcriptionIdByKeyForRepair);
+            if (hostIds.length > 0) {
+              delete (layer as unknown as Record<string, unknown>).parentLayerId;
+            }
+          } else if (layer.layerType === 'transcription') {
+            layer.parentLayerId = fallbackParent.id;
+          }
           pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairTimeSubdivisionToDependent(layer.key));
         } else {
           layer.constraint = 'independent_boundary';
-          delete layer.parentLayerId;
+          if (layer.layerType === 'transcription') {
+            delete layer.parentLayerId;
+          } else {
+            delete (layer as unknown as Record<string, unknown>).parentLayerId;
+          }
           pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairTimeSubdivisionToIndependent(layer.key));
         }
       } else {
         layer.constraint = 'independent_boundary';
-        delete layer.parentLayerId;
+        if (layer.layerType === 'transcription') {
+          delete layer.parentLayerId;
+        } else {
+          delete (layer as unknown as Record<string, unknown>).parentLayerId;
+        }
         pushRepair(layer.id, 'constraint-runtime-not-supported', msg.repairConstraintToIndependent(layer.key));
       }
     }
 
-    if (!hasSameConstraint(before, layer) && !layer.updatedAt) {
+    if (constraintBindingSignature(before, layerLinks, transcriptionIdByKeyForRepair)
+      !== constraintBindingSignature(layer, layerLinks, transcriptionIdByKeyForRepair)
+      && !layer.updatedAt) {
       layer.updatedAt = new Date().toISOString();
     }
   }
 
   for (const layer of clonedLayers) {
-    if (!detectParentCycle(layerById, layer)) continue;
+    if (!detectParentCycle(layerById, layer, cycleLinkCtx)) continue;
     const fallbackParent = findFallbackParent(layer.id);
     if (fallbackParent && getEffectiveConstraint(layer) !== 'independent_boundary') {
-      layer.parentLayerId = fallbackParent.id;
-      pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleToFallbackParent(layer.key, fallbackParent.key));
+      if (layer.layerType === 'translation' && translationHasResolvedLinkHosts(layer, cycleLinkCtx)) {
+        delete (layer as unknown as Record<string, unknown>).parentLayerId;
+        pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleClearedTranslationTreeParent(layer.key));
+        continue;
+      }
+      if (layer.layerType === 'transcription') {
+        layer.parentLayerId = fallbackParent.id;
+        pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleToFallbackParent(layer.key, fallbackParent.key));
+      }
     } else {
       layer.constraint = 'independent_boundary';
-      delete layer.parentLayerId;
+      if (layer.layerType === 'transcription') {
+        delete layer.parentLayerId;
+      } else {
+        delete (layer as unknown as Record<string, unknown>).parentLayerId;
+      }
       pushRepair(layer.id, 'parent-cycle-detected', msg.repairCycleRemoved(layer.key));
     }
   }
@@ -414,7 +545,12 @@ export function getLayerCreateGuard(
     };
   }
 
-  const translationExplicitDependency = hasExplicitParent || translationHasExplicitHosts;
+  const translationHasPreferredHost = layerType === 'translation'
+    && normalizedPreferredHostId.length > 0
+    && dependentParentCandidates.some((candidate) => candidate.id === normalizedPreferredHostId);
+  const translationExplicitDependency = hasExplicitParent
+    || translationHasExplicitHosts
+    || translationHasPreferredHost;
   if ((effectiveConstraint === 'symbolic_association' || effectiveConstraint === 'time_subdivision')
     && dependentParentCandidates.length > 1
     && (layerType === 'translation' ? !translationExplicitDependency : !hasExplicitParent)) {
@@ -657,7 +793,7 @@ export function getLinkedLayers(
     );
     return linkedTranslationIds
       .map((id) => translationById.get(id))
-      .filter((layer): layer is LayerDocType => Boolean(layer));
+      .filter((layer): layer is TranslationLayerDocType => Boolean(layer));
   }
 
   const linkedHostIds = [...new Set(
@@ -669,7 +805,7 @@ export function getLinkedLayers(
   if (linkedHostIds.length > 0) {
     return linkedHostIds
       .map((id) => transcriptionById.get(id))
-      .filter((layer): layer is LayerDocType => Boolean(layer));
+      .filter((layer): layer is TranscriptionLayerDocType => Boolean(layer));
   }
   return [];
 }

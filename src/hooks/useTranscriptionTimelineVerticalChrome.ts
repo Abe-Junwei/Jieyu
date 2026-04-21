@@ -296,7 +296,6 @@ export function useTranscriptionTimelineVerticalChrome(
   }, [displayStyleControl, headerTargetLayers, locale, sourceHeaderLabel, sourceLayer]);
 
   const buildPairedReadingLayerHeaderMenuItems = useCallback((layer: LayerDocType | undefined, headerLabel: string): ContextMenuItem[] => {
-    const horizontalOnlyMeta = pairedReadingMenuText(locale, '仅横向时间轴可用', 'Horizontal timeline only');
     const isSourceHeaderLayer = layer?.id != null && layer.id === sourceLayer?.id;
     const layerRole: PairedReadingLayerRole = isSourceHeaderLayer ? 'source' : 'target';
     const isLayerCollapsed = isPairedReadingLayerCollapsed(compactMode, layerRole);
@@ -345,11 +344,6 @@ export function useTranscriptionTimelineVerticalChrome(
             separatorBefore: true,
             disabled: !layer?.id,
             onClick: toggleLayerCollapsed,
-          },
-          {
-            label: pairedReadingMenuText(locale, '显示层级关系', 'Show layer links'),
-            meta: horizontalOnlyMeta,
-            disabled: true,
           },
         ],
       },

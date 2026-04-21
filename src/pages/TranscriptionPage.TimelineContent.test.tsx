@@ -4,9 +4,8 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TranscriptionPageTimelineContent } from './TranscriptionPage.TimelineContent';
 
-const { mediaLanesSpy, textOnlySpy, comparisonSpy } = vi.hoisted(() => ({
+const { mediaLanesSpy, comparisonSpy } = vi.hoisted(() => ({
   mediaLanesSpy: vi.fn(),
-  textOnlySpy: vi.fn(),
   comparisonSpy: vi.fn(),
 }));
 
@@ -14,13 +13,6 @@ vi.mock('../components/TranscriptionTimelineHorizontalMediaLanes', () => ({
   TranscriptionTimelineHorizontalMediaLanes: (props: unknown) => {
     mediaLanesSpy(props);
     return <div data-testid="media-lanes">media lanes</div>;
-  },
-}));
-
-vi.mock('../components/TranscriptionTimelineTextOnly', () => ({
-  TranscriptionTimelineTextOnly: (props: unknown) => {
-    textOnlySpy(props);
-    return <div data-testid="text-only">text only</div>;
   },
 }));
 
@@ -50,7 +42,6 @@ describe('TranscriptionPageTimelineContent', () => {
 
     expect(screen.getByTestId('vertical-timeline-shell-mock')).toBeTruthy();
     expect(screen.queryByTestId('media-lanes')).toBeNull();
-    expect(screen.queryByTestId('text-only')).toBeNull();
   });
 
   it('enters comparison when layersCount is 0 but text-only props still carry transcription layers', () => {

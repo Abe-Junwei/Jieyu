@@ -75,6 +75,8 @@ function buildSegmentsByOverlapGroup(
 }
 
 type TranscriptionTimelineHorizontalMediaLanesProps = {
+  /** 有声学 URL 但解码未就绪、壳层仍为 text-only 时：与旧 TextOnly 壳一致的底边提示样式 | Decode-pending chrome when shell is text-only */
+  acousticShellPending?: boolean;
   activeTextTimelineMode?: 'document' | 'media' | null;
   playerDuration: number;
   zoomPxPerSec: number;
@@ -170,6 +172,7 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
 };
 
 export const TranscriptionTimelineHorizontalMediaLanes = memo(function TranscriptionTimelineHorizontalMediaLanes({
+  acousticShellPending = false,
   activeTextTimelineMode,
   playerDuration,
   zoomPxPerSec,
@@ -450,9 +453,14 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
     e.stopPropagation();
   }, [toggleLayerCollapsed]);
 
+  const timelineContentClassName = [
+    'timeline-content',
+    ...(acousticShellPending ? ['timeline-content-text-only', 'timeline-content-acoustic-pending'] : []),
+  ].join(' ');
+
   return (
     <TimelineStyledContainer
-      className="timeline-content"
+      className={timelineContentClassName}
       layoutStyle={{
         /* 时间轴像素宽 + 左侧 padding 同宽的 gutter，与 .timeline-content padding-left 一致，避免轨道内容区比标尺窄一列 | Timeline px + left gutter matches padding so lane area aligns with ruler */
         width: `calc(${playerDuration * zoomPxPerSec}px + var(--timeline-content-offset))`,
@@ -720,6 +728,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
           action={layerAction.action}
           layerId={layerAction.layerId}
           deletableLayers={deletableLayers}
+          layerLinks={layerLinks}
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}

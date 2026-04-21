@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEv
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useLatest } from '../hooks/useLatest';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
-import { useZoom } from '../hooks/useZoom';
+import { useTimelineViewport } from '../hooks/useTimelineViewport';
 import { useEnsureVadCache } from '../hooks/useEnsureVadCache';
 import { useVadCachedSegments } from '../hooks/useVadCachedSegments';
 import { useWaveformSelectionController } from './useWaveformSelectionController';
@@ -30,7 +30,8 @@ function readDefaultPlaybackRate(): number {
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
-  const { setZoomPercent, setZoomMode, setAmplitudeScale } = input;
+  const { setZoomMode, setAmplitudeScale } = input;
+  const [zoomPercent, setZoomPercent] = useState(100);
   useEnsureVadCache(input.mediaId, input.selectedMediaUrl, input.mediaBlobSize);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
@@ -88,7 +89,7 @@ export function useTranscriptionWaveformBridgeController(
   const containerWidth = waveCanvasClientWidth;
   const safeDur = lastDurationRef.current;
   const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
-  const zoomPxPerSec = fitPxPerSec * (input.zoomPercent / 100);
+  const zoomPxPerSec = fitPxPerSec * (zoomPercent / 100);
   const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
   const isFitZoomMode = input.zoomMode === 'fit-all' || input.zoomMode === 'fit-selection';
   const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
@@ -315,7 +316,7 @@ export function useTranscriptionWaveformBridgeController(
     subSelectDragRef,
   });
 
-  const { rulerView, zoomToPercent, zoomToUnit } = useZoom({
+  const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({
     waveCanvasRef,
     tierContainerRef: input.tierContainerRef,
     playerInstanceRef: player.instanceRef,
@@ -324,8 +325,8 @@ export function useTranscriptionWaveformBridgeController(
     playerCurrentTime: player.currentTime,
     playerIsPlaying: player.isPlaying,
     selectedMediaUrl: input.selectedMediaUrl,
-    zoomPercent: input.zoomPercent,
-    setZoomPercent: input.setZoomPercent,
+    zoomPercent,
+    setZoomPercent,
     setZoomMode: input.setZoomMode,
     fitPxPerSec,
     maxZoomPercent,
@@ -336,7 +337,9 @@ export function useTranscriptionWaveformBridgeController(
       ? { logicalTimelineDurationSec: input.logicalTimelineDurationSec }
       : {}),
     onLogicalTimelineScrollSync: scheduleWaveformScrollLeft,
+    waveformScrollLeft,
   });
+  const { rulerView } = timelineViewportProjection;
 
   const handleWaveformAreaFocus = useCallback(() => {
     setWaveformFocused(true);
@@ -516,6 +519,7 @@ export function useTranscriptionWaveformBridgeController(
     fitPxPerSec,
     zoomPxPerSec,
     maxZoomPercent,
+    timelineViewportProjection,
     rulerView,
     zoomToPercent,
     zoomToUnit,

@@ -3,11 +3,10 @@ import type { LayerLinkDocType, LayerDocType, LayerDisplaySettings, OrthographyD
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
-import { useLocale } from '../i18n';
+import { useLocale, t, tf, type Locale } from '../i18n';
 import { getTimelineLaneHeaderMessages } from '../i18n/timelineLaneHeaderMessages';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
-import { decodeEscapedUnicode } from '../utils/decodeEscapedUnicode';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';
@@ -110,16 +109,16 @@ function renderLaneLinkConnectorSvg(
   );
 }
 
-function formatTrackModeMenuLabel(mode: TranscriptionTrackDisplayMode): string {
+function formatTrackModeMenuLabel(locale: Locale, mode: TranscriptionTrackDisplayMode): string {
   switch (mode) {
     case 'single':
-      return decodeEscapedUnicode('\\u5355\\u8f68');
+      return t(locale, 'transcription.trackFocus.mode.single');
     case 'multi-auto':
-      return decodeEscapedUnicode('\\u591a\\u8f68·\\u81ea\\u52a8');
+      return t(locale, 'transcription.trackFocus.mode.multiAuto');
     case 'multi-locked':
-      return decodeEscapedUnicode('\\u591a\\u8f68·\\u9501\\u5b9a');
+      return t(locale, 'transcription.trackFocus.mode.multiLocked');
     case 'multi-speaker-fixed':
-      return decodeEscapedUnicode('\\u591a\\u8f68·\\u4e00\\u4eba\\u4e00\\u8f68');
+      return t(locale, 'transcription.trackFocus.mode.multiSpeakerFixed');
     default:
       return mode;
   }
@@ -166,13 +165,9 @@ export function TimelineLaneHeader({
   const allowGlobalTimelineHeaderChrome = headerMenuPreset !== 'layer-chrome';
   const resolvedSpeakerQuickActions = allowGlobalTimelineHeaderChrome ? speakerQuickActions : undefined;
   const resolvedTrackModeControl = allowGlobalTimelineHeaderChrome ? trackModeControl : undefined;
-  const connectorLayerLinks = useMemo(
-    () => layerLinks.map((link) => ({ transcriptionLayerKey: link.transcriptionLayerKey, targetLayerId: link.layerId })),
-    [layerLinks],
-  );
   const connectorLayout = useMemo(
-    () => buildLayerLinkConnectorLayout(allLayers, connectorLayerLinks),
-    [allLayers, connectorLayerLinks],
+    () => buildLayerLinkConnectorLayout(allLayers, layerLinks),
+    [allLayers, layerLinks],
   );
   const canOpenTranslationCreate = allLayers.some((item) => item.layerType === 'transcription');
   const rowSegments = connectorLayout.segmentsByLayerId[layer.id] ?? [];
@@ -184,7 +179,7 @@ export function TimelineLaneHeader({
     const ranges: Array<{ rootId: string; start: number; end: number }> = [];
     const roleByLayerId = new Map<string, 'bundle-root' | 'bundle-child-middle' | 'bundle-child-end' | 'bundle-detached-root'>();
     let cursor = 0;
-    for (const bundle of buildLayerBundles(allLayers)) {
+    for (const bundle of buildLayerBundles(allLayers, layerLinks)) {
       const start = cursor;
       boundaries.add(cursor);
       if (!bundle.detached) {
@@ -210,7 +205,7 @@ export function TimelineLaneHeader({
       bundleRanges: ranges,
       bundleRoleByLayerId: roleByLayerId,
     };
-  }, [allLayers]);
+  }, [allLayers, layerLinks]);
 
   // ── Context menu state ──
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -225,6 +220,7 @@ export function TimelineLaneHeader({
     bundleBoundaryIndexes,
     bundleRootIds,
     bundleRanges,
+    layerLinks,
   });
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -259,15 +255,19 @@ export function TimelineLaneHeader({
 
   const viewMenuItems: ContextMenuItem[] = [
     {
-      label: isCollapsed ? decodeEscapedUnicode('\\u5c55\\u5f00\\u8be5\\u5c42') : decodeEscapedUnicode('\\u6298\\u53e0\\u8be5\\u5c42'),
+      label: isCollapsed
+        ? t(locale, 'transcription.laneHeader.view.expandLayer')
+        : t(locale, 'transcription.laneHeader.view.collapseLayer'),
       onClick: () => {
         onToggleCollapsed?.(layer.id);
       },
     },
     {
       label: effectiveShowConnectors
-        ? decodeEscapedUnicode('\\u9690\\u85cf\\u5c42\\u7ea7\\u5173\\u7cfb')
-        : (hasResolvableConnectorData ? decodeEscapedUnicode('\\u663e\\u793a\\u5c42\\u7ea7\\u5173\\u7cfb') : decodeEscapedUnicode('\\u663e\\u793a\\u5c42\\u7ea7\\u5173\\u7cfb（\\u6682\\u65e0\\u53ef\\u7528\\u94fe\\u63a5）')),
+        ? t(locale, 'transcription.laneHeader.view.hideConnectors')
+        : (hasResolvableConnectorData
+          ? t(locale, 'transcription.laneHeader.view.showConnectors')
+          : t(locale, 'transcription.laneHeader.view.showConnectorsNoLinks')),
       disabled: !hasResolvableConnectorData,
       onClick: () => {
         onToggleConnectors?.();
@@ -281,9 +281,9 @@ export function TimelineLaneHeader({
     canOpenTranslationCreate,
     labels: {
       editLayerMetadata: messages.editLayerMetadata,
-      createTranscription: decodeEscapedUnicode('\\u65b0\\u5efa\\u8f6c\\u5199\\u5c42'),
-      createTranslation: decodeEscapedUnicode('\\u65b0\\u5efa\\u7ffb\\u8bd1\\u5c42'),
-      deleteCurrentLayer: decodeEscapedUnicode('\\u5220\\u9664\\u5f53\\u524d\\u5c42'),
+      createTranscription: t(locale, 'transcription.laneHeader.layer.createTranscription'),
+      createTranslation: t(locale, 'transcription.laneHeader.layer.createTranslation'),
+      deleteCurrentLayer: t(locale, 'transcription.laneHeader.layer.deleteCurrent'),
     },
     onAction: (action, layerId) => {
       if (!layerId) return;
@@ -294,8 +294,15 @@ export function TimelineLaneHeader({
   const contextMenuItems: ContextMenuItem[] = [
     ...layerOperationMenuItems,
     {
-      label: decodeEscapedUnicode('\\u89c6\\u56fe'),
-      meta: `${isCollapsed ? decodeEscapedUnicode('\\u6298\\u53e0') : decodeEscapedUnicode('\\u5c55\\u5f00')} · ${effectiveShowConnectors ? decodeEscapedUnicode('\\u8fde\\u7ebf') : decodeEscapedUnicode('\\u65e0\\u7ebf')}`,
+      label: t(locale, 'transcription.laneHeader.view.category'),
+      meta: tf(locale, 'transcription.laneHeader.view.categoryMeta', {
+        layerState: isCollapsed
+          ? t(locale, 'transcription.laneHeader.view.layerCollapsed')
+          : t(locale, 'transcription.laneHeader.view.layerExpanded'),
+        linkState: effectiveShowConnectors
+          ? t(locale, 'transcription.laneHeader.view.connectorsOn')
+          : t(locale, 'transcription.laneHeader.view.connectorsOff'),
+      }),
       variant: 'category',
       separatorBefore: true,
       children: viewMenuItems,
@@ -316,7 +323,7 @@ export function TimelineLaneHeader({
       locale,
     );
     contextMenuItems.push({
-      label: decodeEscapedUnicode('\\u663e\\u793a\\u6837\\u5f0f'),
+      label: t(locale, 'transcription.laneHeader.displayStyle.category'),
       variant: 'category',
       children: styleItems,
     });
@@ -326,7 +333,9 @@ export function TimelineLaneHeader({
     const { selectedCount, speakerOptions, onAssignToSelection, onClearSelection, onOpenCreateAndAssignPanel } = resolvedSpeakerQuickActions;
     const topSpeakers = speakerOptions.slice(0, 3);
     const speakerMenuItems: ContextMenuItem[] = [{
-      label: selectedCount > 0 ? decodeEscapedUnicode(`\\u6e05\\u7a7a ${selectedCount} \\u4e2a\\u9009\\u4e2d\\u53e5\\u6bb5\\u7684\\u8bf4\\u8bdd\\u4eba`) : decodeEscapedUnicode('\\u6e05\\u7a7a\\u9009\\u4e2d\\u53e5\\u6bb5\\u8bf4\\u8bdd\\u4eba'),
+      label: selectedCount > 0
+        ? tf(locale, 'transcription.laneHeader.speaker.clearWithCount', { count: String(selectedCount) })
+        : t(locale, 'transcription.laneHeader.speaker.clearSelection'),
       disabled: selectedCount === 0,
       onClick: () => {
         onClearSelection();
@@ -335,8 +344,11 @@ export function TimelineLaneHeader({
     for (const speaker of topSpeakers) {
       speakerMenuItems.push({
         label: selectedCount > 0
-          ? decodeEscapedUnicode(`\\u6307\\u6d3e ${selectedCount} \\u4e2a\\u9009\\u4e2d\\u53e5\\u6bb5 → ${speaker.name}`)
-          : decodeEscapedUnicode(`\\u6307\\u6d3e\\u9009\\u4e2d\\u53e5\\u6bb5 → ${speaker.name}`),
+          ? tf(locale, 'transcription.laneHeader.speaker.assignWithCount', {
+            count: String(selectedCount),
+            name: speaker.name,
+          })
+          : tf(locale, 'transcription.laneHeader.speaker.assignToSpeaker', { name: speaker.name }),
         disabled: selectedCount === 0,
         onClick: () => {
           onAssignToSelection(speaker.id);
@@ -344,15 +356,19 @@ export function TimelineLaneHeader({
       });
     }
     speakerMenuItems.push({
-      label: selectedCount > 0 ? decodeEscapedUnicode('\\u65b0\\u5efa\\u8bf4\\u8bdd\\u4eba\\u5e76\\u6307\\u6d3e\\u5230\\u9009\\u4e2d\\u53e5\\u6bb5…') : decodeEscapedUnicode('\\u65b0\\u5efa\\u8bf4\\u8bdd\\u4eba\\u5e76\\u6307\\u6d3e…'),
+      label: selectedCount > 0
+        ? t(locale, 'transcription.laneHeader.speaker.createAndAssignWithSelection')
+        : t(locale, 'transcription.laneHeader.speaker.createAndAssign'),
       disabled: selectedCount === 0,
       onClick: () => {
         onOpenCreateAndAssignPanel();
       },
     });
     contextMenuItems.push({
-      label: decodeEscapedUnicode('\\u8bf4\\u8bdd\\u4eba'),
-      meta: selectedCount > 0 ? decodeEscapedUnicode(`\\u5df2\\u9009 ${selectedCount}`) : decodeEscapedUnicode('\\u672a\\u9009'),
+      label: t(locale, 'transcription.laneHeader.speaker.category'),
+      meta: selectedCount > 0
+        ? tf(locale, 'transcription.laneHeader.speaker.metaSelected', { count: String(selectedCount) })
+        : t(locale, 'transcription.laneHeader.speaker.metaNone'),
       variant: 'category',
       children: speakerMenuItems,
     });
@@ -361,21 +377,25 @@ export function TimelineLaneHeader({
   if (resolvedTrackModeControl) {
     const selectedSpeakerNames = resolvedTrackModeControl.selectedSpeakerNames ?? [];
     const selectedSpeakerHint = selectedSpeakerNames.length > 0
-      ? selectedSpeakerNames.join('、')
-      : decodeEscapedUnicode('\\u5f53\\u524d\\u672a\\u9009\\u4e2d\\u5e26\\u8bf4\\u8bdd\\u4eba\\u7684\\u53e5\\u6bb5');
+      ? selectedSpeakerNames.join(locale === 'zh-CN' ? '、' : ', ')
+      : t(locale, 'transcription.laneHeader.track.noSpeakerInSelectionHint');
     const lockConflictCount = resolvedTrackModeControl.lockConflictCount ?? 0;
     const hasExistingLaneLocks = (resolvedTrackModeControl.lockedSpeakerCount ?? 0) > 0;
 
     const trackMenuItems: ContextMenuItem[] = [
       {
-        label: decodeEscapedUnicode(`\\u5f53\\u524d\\u6a21\\u5f0f：${formatTrackModeMenuLabel(resolvedTrackModeControl.mode)}`),
+        label: tf(locale, 'transcription.laneHeader.track.currentModeRow', {
+          mode: formatTrackModeMenuLabel(locale, resolvedTrackModeControl.mode),
+        }),
         disabled: true,
       },
     ];
 
     if (!resolvedTrackModeControl.onSetMode) {
       trackMenuItems.push({
-        label: resolvedTrackModeControl.mode === 'single' ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u5355\\u8f68\\u6a21\\u5f0f'),
+        label: resolvedTrackModeControl.mode === 'single'
+          ? t(locale, 'transcription.laneHeader.track.switchFromSingleToSplitAuto')
+          : t(locale, 'transcription.laneHeader.track.switchToSingle'),
         onClick: () => {
           resolvedTrackModeControl.onToggle();
         },
@@ -384,21 +404,23 @@ export function TimelineLaneHeader({
 
     if (resolvedTrackModeControl.onSetMode) {
       trackMenuItems.push({
-        label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u81ea\\u52a8）'),
+        label: t(locale, 'transcription.laneHeader.track.switchToSplitAuto'),
         disabled: resolvedTrackModeControl.mode === 'multi-auto',
         onClick: () => {
           resolvedTrackModeControl.onSetMode?.('multi-auto');
         },
       });
       trackMenuItems.push({
-        label: hasExistingLaneLocks ? decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a）') : decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u9501\\u5b9a，\\u9700\\u5148\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba）'),
+        label: hasExistingLaneLocks
+          ? t(locale, 'transcription.laneHeader.track.switchToSplitLocked')
+          : t(locale, 'transcription.laneHeader.track.switchToSplitLockedNeedLaneLocks'),
         disabled: resolvedTrackModeControl.mode === 'multi-locked' || !hasExistingLaneLocks,
         onClick: () => {
           resolvedTrackModeControl.onSetMode?.('multi-locked');
         },
       });
       trackMenuItems.push({
-        label: decodeEscapedUnicode('\\u5207\\u6362\\u5230\\u591a\\u8f68\\u6a21\\u5f0f（\\u4e00\\u4eba\\u4e00\\u8f68）'),
+        label: t(locale, 'transcription.laneHeader.track.switchToSplitOnePerSpeaker'),
         disabled: resolvedTrackModeControl.mode === 'multi-speaker-fixed',
         onClick: () => {
           resolvedTrackModeControl.onSetMode?.('multi-speaker-fixed');
@@ -408,7 +430,7 @@ export function TimelineLaneHeader({
 
     if (resolvedTrackModeControl.mode !== 'multi-speaker-fixed' && resolvedTrackModeControl.onLockSelectedToLane) {
       trackMenuItems.push({
-        label: decodeEscapedUnicode(`\\u9501\\u5b9a\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053…（${selectedSpeakerHint}）`),
+        label: tf(locale, 'transcription.laneHeader.track.lockSpeakersToLane', { hint: selectedSpeakerHint }),
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
           openLaneLockDialog(selectedSpeakerHint, 0);
@@ -418,7 +440,9 @@ export function TimelineLaneHeader({
 
     if (resolvedTrackModeControl.mode !== 'multi-speaker-fixed' && resolvedTrackModeControl.onUnlockSelected) {
       trackMenuItems.push({
-        label: decodeEscapedUnicode(`\\u89e3\\u9501\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba（\\u5f53\\u524d\\u5df2\\u9501 ${resolvedTrackModeControl.lockedSpeakerCount ?? 0}）`),
+        label: tf(locale, 'transcription.laneHeader.track.unlockSelectedSpeakers', {
+          count: String(resolvedTrackModeControl.lockedSpeakerCount ?? 0),
+        }),
         disabled: selectedSpeakerNames.length === 0,
         onClick: () => {
           resolvedTrackModeControl.onUnlockSelected?.();
@@ -428,7 +452,9 @@ export function TimelineLaneHeader({
 
     if (resolvedTrackModeControl.onResetAuto) {
       trackMenuItems.push({
-        label: resolvedTrackModeControl.mode === 'multi-speaker-fixed' ? decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u8f68\\u9053\\u6620\\u5c04') : decodeEscapedUnicode('\\u6062\\u590d\\u81ea\\u52a8\\u5206\\u8f68\\u5e76\\u6e05\\u7a7a\\u9501\\u5b9a'),
+        label: resolvedTrackModeControl.mode === 'multi-speaker-fixed'
+          ? t(locale, 'transcription.laneHeader.track.resetAutoClearLaneMapping')
+          : t(locale, 'transcription.laneHeader.track.resetAutoClearLocks'),
         onClick: () => {
           resolvedTrackModeControl.onResetAuto?.();
         },
@@ -438,15 +464,15 @@ export function TimelineLaneHeader({
     if (lockConflictCount > 0) {
       trackMenuItems.push({
         label: resolvedTrackModeControl.mode === 'multi-speaker-fixed'
-          ? decodeEscapedUnicode(`\\u4e00\\u4eba\\u4e00\\u8f68\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u8bf7\\u4fee\\u6b63\\u5207\\u5206\\u6216\\u8bf4\\u8bdd\\u4eba\\u6807\\u6ce8）`)
-          : decodeEscapedUnicode(`\\u9501\\u5b9a\\u51b2\\u7a81 ${lockConflictCount} \\u9879（\\u5df2\\u56de\\u9000\\u81ea\\u52a8\\u5206\\u914d）`),
+          ? tf(locale, 'transcription.laneHeader.track.conflictOnePerSpeaker', { count: String(lockConflictCount) })
+          : tf(locale, 'transcription.laneHeader.track.conflictLockedReverted', { count: String(lockConflictCount) }),
         disabled: true,
       });
     }
 
     contextMenuItems.push({
-      label: decodeEscapedUnicode('\\u8f68\\u9053'),
-      meta: formatTrackModeMenuLabel(resolvedTrackModeControl.mode),
+      label: t(locale, 'transcription.laneHeader.track.category'),
+      meta: formatTrackModeMenuLabel(locale, resolvedTrackModeControl.mode),
       variant: 'category',
       children: trackMenuItems,
     });
@@ -546,24 +572,26 @@ export function TimelineLaneHeader({
           onClose={closeLaneLockDialog}
           topmost
           className="timeline-lane-lock-dialog panel-design-match panel-design-match-dialog"
-          ariaLabel={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
-          title={decodeEscapedUnicode('\\u9501\\u5b9a\\u8bf4\\u8bdd\\u4eba\\u5230\\u8f68\\u9053')}
-          closeLabel={decodeEscapedUnicode('\\u5173\\u95ed\\u9501\\u5b9a\\u8f68\\u9053\\u9762\\u677f')}
+          ariaLabel={t(locale, 'transcription.laneHeader.laneLock.dialogAriaLabel')}
+          title={t(locale, 'transcription.laneHeader.laneLock.dialogTitle')}
+          closeLabel={t(locale, 'transcription.laneHeader.laneLock.closePanel')}
             layoutStyle={{ width: laneLockDialogWidth, maxWidth: 'calc(100vw - 32px)', height: 'auto' }}
           footer={(
             <>
-              <PanelButton variant="ghost" onClick={closeLaneLockDialog}>{decodeEscapedUnicode('\\u53d6\\u6d88')}</PanelButton>
-              <PanelButton variant="primary" onClick={confirmLaneLockDialog}>{decodeEscapedUnicode('\\u786e\\u8ba4\\u9501\\u5b9a')}</PanelButton>
+              <PanelButton variant="ghost" onClick={closeLaneLockDialog}>{t(locale, 'transcription.dialog.cancel')}</PanelButton>
+              <PanelButton variant="primary" onClick={confirmLaneLockDialog}>{t(locale, 'transcription.laneHeader.laneLock.confirm')}</PanelButton>
             </>
           )}
         >
             <div className="speaker-rail-batch-panel">
               <PanelSummary
                 className="speaker-rail-summary-card"
-                description={`${decodeEscapedUnicode('\\u9009\\u4e2d\\u8bf4\\u8bdd\\u4eba：')}${laneLockDialog.selectedSpeakerHint}`}
-                supportingText={decodeEscapedUnicode('\\u8f93\\u5165\\u4ece 1 \\u5f00\\u59cb\\u7684\\u8f68\\u9053\\u7f16\\u53f7，\\u786e\\u8ba4\\u540e\\u4f1a\\u540c\\u65f6\\u8fdb\\u5165\\u591a\\u8f68\\u9501\\u5b9a\\u6a21\\u5f0f。')}
+                description={tf(locale, 'transcription.laneHeader.laneLock.selectionSummary', {
+                  speakers: laneLockDialog.selectedSpeakerHint,
+                })}
+                supportingText={t(locale, 'transcription.laneHeader.laneLock.supportingText')}
               />
-              <PanelSection className="speaker-rail-form-section" title={decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}>
+              <PanelSection className="speaker-rail-form-section" title={t(locale, 'transcription.laneHeader.laneLock.targetLaneOrdinalTitle')}>
                 <label className="speaker-rail-form-field">
                   <input
                     autoFocus
@@ -571,7 +599,7 @@ export function TimelineLaneHeader({
                     type="number"
                     min={1}
                     step={1}
-                    aria-label={decodeEscapedUnicode('\\u76ee\\u6807\\u8f68\\u9053\\u5e8f\\u53f7')}
+                    aria-label={t(locale, 'transcription.laneHeader.laneLock.targetLaneOrdinalAria')}
                     value={laneLockValue}
                     onChange={(event) => {
                       setLaneLockValue(event.target.value);

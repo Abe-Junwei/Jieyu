@@ -69,47 +69,35 @@ describe('timelineAxisStatus', () => {
     it('is true for document|media + no_playable_media + positive finite logicalDurationSec', () => {
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: 120,
-        timelineMode: 'document',
         hintKind: 'no_playable_media',
       })).toBe(true);
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: 120,
-        timelineMode: 'media',
         hintKind: 'no_playable_media',
       })).toBe(true);
     });
 
-    it('is false for other timelineMode or hints other than no_playable_media', () => {
+    it('is false for hints other than no_playable_media', () => {
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: 120,
-        timelineMode: 'other',
-        hintKind: 'no_playable_media',
-      })).toBe(false);
-      expect(shouldShowLogicalAxisLengthOnAxisStrip({
-        logicalDurationSec: 120,
-        timelineMode: 'document',
         hintKind: 'acoustic_ok',
       })).toBe(false);
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: 120,
-        timelineMode: 'document',
         hintKind: 'duration_short',
       })).toBe(false);
     });
 
     it('is false when logical duration missing or non-positive', () => {
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
-        timelineMode: 'document',
         hintKind: 'no_playable_media',
       })).toBe(false);
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: 0,
-        timelineMode: 'document',
         hintKind: 'no_playable_media',
       })).toBe(false);
       expect(shouldShowLogicalAxisLengthOnAxisStrip({
         logicalDurationSec: Number.NaN,
-        timelineMode: 'document',
         hintKind: 'no_playable_media',
       })).toBe(false);
     });

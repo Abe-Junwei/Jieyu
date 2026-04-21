@@ -77,45 +77,15 @@ import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.Ready
 import { CollaborationCloudReadOnlyBanner } from '../components/transcription/CollaborationCloudReadOnlyBanner';
 import { CollaborationSyncBadge } from '../components/transcription/CollaborationSyncBadge';
 import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
+import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
+import { preserveReadyWorkspaceStructureMarkers } from './TranscriptionPage.ReadyWorkspace.structureMarkers';
+
+void preserveReadyWorkspaceStructureMarkers;
 interface TranscriptionPageReadyWorkspaceProps {
   data: ReturnType<typeof useTranscriptionData>;
   appSearchRequest?: AppShellOpenSearchDetail | null;
   onConsumeAppSearchRequest?: () => void;
 }
-
-// 架构守卫锚点 | Architecture guard anchors
-// 这些标记保留在编排壳中，帮助结构测试确认关键边界仍然存在。| These markers stay in the orchestration shell so structure tests can verify the intended boundaries.
-function preserveReadyWorkspaceStructureMarkers() {
-  return (
-    <section className="transcription-list-main" hidden aria-hidden="true">
-      <div className="transcription-timeline-top-suspense-fallback" aria-hidden="true" />
-      <div className="transcription-side-pane transcription-side-pane-placeholder" aria-hidden="true" />
-      <div className="timeline-scroll-suspense-fallback" aria-hidden="true">
-        <div className="timeline-scroll-suspense-fallback-row" />
-      </div>
-      {/* import { useOrchestratorViewModels } from './useOrchestratorViewModels'; */}
-      {/* useOrchestratorViewModels( */}
-      {/* <TranscriptionPageToolbar {...toolbarProps} acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus} vadCacheStatus={vadCacheStatus} /> */}
-      {/* <TranscriptionPageTimelineTop {...timelineTopProps} /> */}
-      {/* <TranscriptionPageTimelineContent {...timelineContentProps} /> */}
-      {/* const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed; */}
-      {/* const shouldRenderDialogs = Boolean( */}
-      {/* const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null; */}
-      {/* const shouldRenderBatchOps = showBatchOperationPanel; */}
-      {/* <TranscriptionPageAiSidebar shouldRenderRuntime={shouldRenderAiSidebar} /> */}
-      {/* <TranscriptionPageDialogs {...dialogsProps} /> */}
-      {/* OrchestratorWaveformContent selectedHotspotTimeSec={selectedHotspotTimeSec} */}
-      {/* onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu} */}
-      {/* onSetUnitSelfCertaintyFromMenu={handleSetUnitSelfCertaintyFromMenu} */}
-      {/* resolveSelfCertaintyUnitIds={resolveSelfCertaintyUnitIds} */}
-      {/* onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()} */}
-      {/* onApply={applyRecoveryBanner} */}
-      {/* onDismiss={dismissRecoveryBanner} */}
-      {/* aria-label={t(locale, 'transcription.importDialog.selectMedia')} */}
-    </section>
-  );
-}
-void preserveReadyWorkspaceStructureMarkers;
 
 function TranscriptionPageReadyWorkspace({
   data,
@@ -427,8 +397,6 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformResizeStart,
   } = useWaveformRuntimeController();
   const {
-    zoomPercent,
-    setZoomPercent,
     zoomMode,
     setZoomMode,
     isTimelineLaneHeaderCollapsed,
@@ -693,19 +661,10 @@ function TranscriptionPageReadyWorkspace({
     runSplitAtTime,
   });
 
-  /** 无声学壳层：缩放/刻度用文献秒跨度（metadata 缺省时用语段最大 end 兜底） */
-  const logicalTimelineDurationForZoom = useMemo(() => {
-    const meta = activeTextTimeMapping?.logicalDurationSec;
-    if (typeof meta === 'number' && Number.isFinite(meta) && meta > 0) {
-      return meta;
-    }
-    let maxEnd = 0;
-    for (const u of unitsOnCurrentMedia) {
-      maxEnd = Math.max(maxEnd, u.endTime ?? 0);
-    }
-    if (maxEnd > 0) return maxEnd;
-    return undefined;
-  }, [activeTextTimeMapping?.logicalDurationSec, unitsOnCurrentMedia]);
+  const logicalTimelineDurationForZoom = useMemo(
+    () => computeLogicalTimelineDurationForZoom(activeTextTimeMapping?.logicalDurationSec, unitsOnCurrentMedia),
+    [activeTextTimeMapping?.logicalDurationSec, unitsOnCurrentMedia],
+  );
 
   const {
     waveformAreaRef,
@@ -737,10 +696,7 @@ function TranscriptionPageReadyWorkspace({
     handleLassoPointerDown,
     handleLassoPointerMove,
     handleLassoPointerUp,
-    fitPxPerSec,
-    zoomPxPerSec,
-    maxZoomPercent,
-    rulerView,
+    timelineViewportProjection,
     zoomToPercent,
     zoomToUnit,
     hoverTime,
@@ -784,8 +740,6 @@ function TranscriptionPageReadyWorkspace({
     waveformDisplayMode,
     waveformVisualStyle,
     acousticOverlayMode,
-    zoomPercent,
-    setZoomPercent,
     zoomMode,
     setZoomMode,
     clearUnitSelection,
@@ -977,7 +931,7 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const { timelineResizeTooltip, startTimelineResizeDrag } = useTimelineResize({
-    zoomPxPerSec,
+    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     manualSelectTsRef,
     player,
     selectUnit,
@@ -1137,13 +1091,17 @@ function TranscriptionPageReadyWorkspace({
     transcriptionLayerIds: transcriptionLayers.map((layer) => layer.id),
     translationLayerIds: translationLayers.map((layer) => layer.id),
     selectedTimelineUnit,
-    selectedUnitIds,
+    selectedUnitIds: Array.from(selectedUnitIds),
     ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
     ...(activeTextTimelineMode !== undefined ? { activeTextTimelineMode } : {}),
-    ...(logicalTimelineDurationForZoom !== undefined ? { logicalTimelineDurationSec: logicalTimelineDurationForZoom } : {}),
-    ...(zoomPxPerSec !== undefined ? { zoomPxPerSec } : {}),
-    ...(fitPxPerSec !== undefined ? { fitPxPerSec } : {}),
-    ...(waveformScrollLeft !== undefined ? { waveformScrollLeft } : {}),
+    ...(timelineViewportProjection.logicalTimelineDurationSec > 0
+      ? { logicalTimelineDurationSec: timelineViewportProjection.logicalTimelineDurationSec }
+      : {}),
+    ...(timelineViewportProjection.zoomPxPerSec !== undefined ? { zoomPxPerSec: timelineViewportProjection.zoomPxPerSec } : {}),
+    ...(timelineViewportProjection.fitPxPerSec !== undefined ? { fitPxPerSec: timelineViewportProjection.fitPxPerSec } : {}),
+    ...(timelineViewportProjection.waveformScrollLeft !== undefined
+      ? { waveformScrollLeft: timelineViewportProjection.waveformScrollLeft }
+      : {}),
     ...(selectedTimelineMedia?.id !== undefined ? { selectedMediaId: selectedTimelineMedia.id } : {}),
     selectedMediaUrl: selectedMediaUrl ?? null,
     playerIsReady: player.isReady,
@@ -1478,7 +1436,7 @@ function TranscriptionPageReadyWorkspace({
     setSelectedLayerId,
     onFocusLayerRow: handleFocusLayerRow,
     tierContainerRef,
-    zoomPxPerSec,
+    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     setCtxMenu,
     timelineTextLayers: timelineTextLayersForContextMenu,
     navigateUnitFromInput,
@@ -1512,7 +1470,7 @@ function TranscriptionPageReadyWorkspace({
     activeSpeakerFilterKey,
     unitsOnCurrentMedia,
     getUnitSpeakerKey,
-    rulerView: rulerView ?? null,
+    rulerView: timelineViewportProjection.rulerView ?? null,
     playerDuration: player.duration,
     translations,
     selectedBatchUnits: selectedBatchUnitDocs,
@@ -1628,12 +1586,13 @@ function TranscriptionPageReadyWorkspace({
     },
     orchestratorRawInput: {
       selectedMediaUrl,
+      playableAcoustic: timelineReadModel.acoustic.state === 'playable',
       player,
       layers,
       locale,
       importFileRef,
       layerAction,
-      zoomPxPerSec,
+      timelineViewportProjection,
       lassoRect,
       timelineRenderUnits,
       defaultTranscriptionLayerId,
@@ -1705,7 +1664,6 @@ function TranscriptionPageReadyWorkspace({
       handleExportJym,
       handleImportFile,
       unitsOnCurrentMedia,
-      rulerView,
       isTimelineLaneHeaderCollapsed,
       toggleTimelineLaneHeader,
       waveCanvasRef,
@@ -1774,6 +1732,7 @@ function TranscriptionPageReadyWorkspace({
     layersCount: layers.length,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
+    acousticState: timelineReadModel.acoustic.state,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
     unitsOnCurrentMedia,
     hiddenByMediaFilterCount,
@@ -1965,7 +1924,7 @@ function TranscriptionPageReadyWorkspace({
     getUnitTextForLayer,
     waveformHoverPreviewProps,
     selectedMediaUrl,
-    zoomPercent,
+    zoomPercent: timelineViewportProjection.zoomPercent,
     snapEnabled,
     toggleSnapEnabled,
     playerPlaybackRate: player.playbackRate,
@@ -2021,18 +1980,19 @@ function TranscriptionPageReadyWorkspace({
     snapGuideRight: snapGuide.right,
     snapGuideNearSideValue: snapGuide.nearSide,
     playerDuration: player.duration,
-    rulerView,
+    rulerView: timelineViewportProjection.rulerView,
     selectedWaveformTimelineItem,
     playerIsReady: player.isReady,
     playerIsPlaying: player.isPlaying,
     playerInstanceGetWidth,
-    zoomPxPerSec,
+    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     waveformScrollLeft,
     segmentPlaybackRate,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
     mediaFileInputRef,
+    acousticStrip: { acoustic: timelineReadModel.acoustic, waveCanvasRef, tierContainerRef },
   });
 
   const readyWorkspaceOverlaysProps = buildReadyWorkspaceOverlaysProps({
@@ -2166,13 +2126,11 @@ function TranscriptionPageReadyWorkspace({
     onTimelineScroll: handleTimelineScroll,
     timelineResizeTooltip,
     formatTime,
-    zoomPercent,
+    timelineViewportProjection,
     snapEnabled,
     autoScrollEnabled,
     activeWaveformUnitId: selectedWaveformRegionId || null,
     waveformTimelineItems,
-    fitPxPerSec,
-    maxZoomPercent,
     onZoomToPercent: (percent, mode) => zoomToPercent(percent, undefined, mode),
     onZoomToUnit: zoomToUnit,
     onSnapEnabledChange: setSnapEnabled,

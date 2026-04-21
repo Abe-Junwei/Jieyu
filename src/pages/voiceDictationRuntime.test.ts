@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, TranscriptionLayerDocType } from '../db';
 import { resolveVoiceDictationTarget } from './voiceDictationRuntime';
 
 function makeLayer(
   id: string,
   layerType: 'transcription' | 'translation',
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   const now = '2026-04-20T00:00:00.000Z';
   return {
@@ -18,7 +18,7 @@ function makeLayer(
     modality: 'text',
     createdAt: now,
     updatedAt: now,
-    ...(extras ?? {}),
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
   } as LayerDocType;
 }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import type { TimelineViewportZoomBridge } from './timelineViewportTypes';
 import { useLatest } from './useLatest';
 
 /**
@@ -24,7 +25,7 @@ export function shouldBypassTimelineWheel(target: EventTarget | null): boolean {
   return false;
 }
 
-interface UseZoomInput {
+export interface UseZoomInput {
   waveCanvasRef: React.RefObject<HTMLDivElement | null>;
   tierContainerRef: React.RefObject<HTMLDivElement | null>;
   playerInstanceRef: React.RefObject<WaveSurfer | null>;
@@ -44,7 +45,7 @@ interface UseZoomInput {
   onLogicalTimelineScrollSync?: (scrollLeft: number) => void;
 }
 
-export function useZoom(input: UseZoomInput) {
+export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
   const {
     waveCanvasRef, tierContainerRef,
     playerInstanceRef, playerIsReady, playerDuration,

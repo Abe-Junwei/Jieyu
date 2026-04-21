@@ -1,5 +1,5 @@
-import type { TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
-import { TranscriptionTimelineTextOnly } from '../components/TranscriptionTimelineTextOnly';
+import type { TranscriptionPageTimelineEmptyStateProps, TranscriptionPageTimelineHorizontalMediaLanesProps } from './TranscriptionPage.TimelineContent';
+import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
 import { TranscriptionTimelineHorizontalMediaLanes } from '../components/TranscriptionTimelineHorizontalMediaLanes';
 import { TranscriptionTimelineVerticalView } from '../components/TranscriptionTimelineVerticalView';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
@@ -11,7 +11,7 @@ export interface TranscriptionTimelineWorkspaceHostProps {
   shell: TimelineWorkspaceHostShell;
   acousticPending: boolean;
   mediaLanesProps: TranscriptionPageTimelineHorizontalMediaLanesProps;
-  textOnlyProps: TranscriptionPageTimelineTextOnlyProps;
+  textOnlyProps: TranscriptionTimelineWorkspacePanelProps;
   emptyStateProps: TranscriptionPageTimelineEmptyStateProps;
 }
 
@@ -30,14 +30,11 @@ export function TranscriptionTimelineWorkspaceHost({
     return <TranscriptionTimelineVerticalView {...textOnlyProps} />;
   }
 
-  if (shell === 'waveform') {
-    return <TranscriptionTimelineHorizontalMediaLanes {...mediaLanesProps} />;
-  }
-  if (shell === 'text-only') {
+  if (shell === 'waveform' || shell === 'text-only') {
     return (
-      <TranscriptionTimelineTextOnly
-        {...textOnlyProps}
-        {...(acousticPending ? { acousticPending: true } : {})}
+      <TranscriptionTimelineHorizontalMediaLanes
+        {...mediaLanesProps}
+        acousticShellPending={shell === 'text-only' && acousticPending}
       />
     );
   }

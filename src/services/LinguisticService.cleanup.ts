@@ -164,8 +164,9 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
 
       const textMeta = (text?.metadata as Record<string, unknown> | undefined) ?? {};
       const hasTimedUnits = relatedUnits.length > 0;
-      const preservedTimelineMode = textMeta.timelineMode === 'media' || hasTimedUnits ? 'media' : 'document';
-      const placeholderDetailTimelineMode = preservedTimelineMode === 'media' ? 'media' : 'document';
+      /** 互操作标签：由「是否存在时间对齐语段」推断，不再读 `texts.metadata.timelineMode` 做运行时门控。 */
+      const preservedTimelineMode = hasTimedUnits ? 'media' : 'document';
+      const placeholderDetailTimelineMode = preservedTimelineMode;
       const preservedTimebaseLabel = typeof textMeta.timebaseLabel === 'string' && textMeta.timebaseLabel.trim().length > 0
         ? textMeta.timebaseLabel.trim()
         : 'logical-second';

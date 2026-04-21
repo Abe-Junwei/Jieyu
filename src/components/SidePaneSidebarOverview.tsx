@@ -1,5 +1,6 @@
 import { useMemo, type RefObject } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, OrthographyDocType, SpeakerDocType } from '../db';
+import { layerTranscriptionTreeParentId } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useOrthographies } from '../hooks/useOrthographies';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
@@ -180,7 +181,10 @@ export function SidePaneSidebarOverview({
         bundleTargetHighlighted={Boolean(targetBundleRange && index >= targetBundleRange.start && index < targetBundleRange.end)}
         parentLabel={layer.layerType === 'translation'
           ? resolveTranslationHostLabel(layer.id)
-          : (layer.parentLayerId ? (layerLanguageNameById.get(layer.parentLayerId) ?? '') : '')}
+          : (() => {
+            const pid = layerTranscriptionTreeParentId(layer);
+            return pid ? (layerLanguageNameById.get(pid) ?? '') : '';
+          })()}
         orthographyById={orthographyById}
         messages={messages}
         onFocusLayer={onFocusLayer}

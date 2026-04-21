@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, TranscriptionLayerDocType } from '../db';
 import {
   resolveHostAwareTranslationLayerId,
   resolveHostAwareTranslationLayerIdFromSnapshot,
@@ -8,7 +8,7 @@ import {
 function makeLayer(
   id: string,
   layerType: LayerDocType['layerType'],
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   const now = '2026-04-20T00:00:00.000Z';
   return {
@@ -21,7 +21,7 @@ function makeLayer(
     modality: 'text',
     createdAt: now,
     updatedAt: now,
-    ...(extras ?? {}),
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
   } as LayerDocType;
 }
 
@@ -47,8 +47,8 @@ function makeLink(
 describe('resolveHostAwareTranslationLayerId', () => {
   it('returns selected translation layer directly when selected layer is translation', () => {
     const translationLayers = [
-      makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' }),
-      makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' }),
+      makeLayer('tl-zh', 'translation'),
+      makeLayer('tl-fr', 'translation'),
     ];
 
     const resolved = resolveHostAwareTranslationLayerId({
@@ -89,8 +89,8 @@ describe('resolveHostAwareTranslationLayerId', () => {
 
   it('falls back to first translation layer when no host match exists', () => {
     const translationLayers = [
-      makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' }),
-      makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' }),
+      makeLayer('tl-zh', 'translation'),
+      makeLayer('tl-fr', 'translation'),
     ];
 
     const resolved = resolveHostAwareTranslationLayerId({
@@ -105,8 +105,8 @@ describe('resolveHostAwareTranslationLayerId', () => {
 
   it('returns undefined when no host match exists and first-layer fallback is disabled', () => {
     const translationLayers = [
-      makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' }),
-      makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' }),
+      makeLayer('tl-zh', 'translation'),
+      makeLayer('tl-fr', 'translation'),
     ];
 
     const resolved = resolveHostAwareTranslationLayerId({
@@ -242,8 +242,8 @@ describe('resolveHostAwareTranslationLayerId', () => {
 
   it('keeps allowFirstTranslationFallback=false behavior in snapshot helper', () => {
     const translationLayers = [
-      makeLayer('tl-zh', 'translation', { parentLayerId: 'tr-en' }),
-      makeLayer('tl-fr', 'translation', { parentLayerId: 'tr-fr' }),
+      makeLayer('tl-zh', 'translation'),
+      makeLayer('tl-fr', 'translation'),
     ];
 
     const resolved = resolveHostAwareTranslationLayerIdFromSnapshot({

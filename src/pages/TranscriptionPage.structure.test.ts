@@ -63,6 +63,13 @@ function findFirstJsxByClassName(sourceFile: ts.SourceFile, classNeedle: string)
   return found;
 }
 
+/** ReadyWorkspace 主体 + 结构锚点模块（架构守卫 JSX 已外提至 structureMarkers） */
+function readTranscriptionReadyWorkspaceAnchors(): string {
+  const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+  const markersPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.structureMarkers.tsx');
+  return `${fs.readFileSync(orchestratorPath, 'utf8')}\n${fs.readFileSync(markersPath, 'utf8')}`;
+}
+
 describe('TranscriptionPage structure invariants', () => {
   it('keeps transcription-list-main outside transcription-waveform-area', () => {
     // waveform-area JSX 已提取到 OrchestratorWaveformContent | waveform-area JSX now in OrchestratorWaveformContent
@@ -72,16 +79,16 @@ describe('TranscriptionPage structure invariants', () => {
     const waveformArea = findFirstJsxByClassName(waveformSourceFile, 'transcription-waveform-area');
     expect(waveformArea).not.toBeNull();
 
-    // list-main 仍在 Orchestrator | list-main still in Orchestrator
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
-    const orchestratorSourceFile = ts.createSourceFile(orchestratorPath, orchestratorCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    const listMain = findFirstJsxByClassName(orchestratorSourceFile, 'transcription-list-main');
+    // list-main 锚点外提至 structureMarkers，仍须可被 AST 找到 | list-main anchor lives in structureMarkers
+    const markersPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.structureMarkers.tsx');
+    const markersCode = fs.readFileSync(markersPath, 'utf8');
+    const markersSourceFile = ts.createSourceFile(markersPath, markersCode, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+    const listMain = findFirstJsxByClassName(markersSourceFile, 'transcription-list-main');
     expect(listMain).not.toBeNull();
 
-    // OrchestratorWaveformContent 在 Orchestrator 中的使用位置应在 list-main 之前
-    // OrchestratorWaveformContent usage in Orchestrator should precede list-main
-    expect(orchestratorCode.includes('OrchestratorWaveformContent')).toBe(true);
+    const layoutPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspaceLayout.tsx');
+    const layoutCode = fs.readFileSync(layoutPath, 'utf8');
+    expect(layoutCode.includes('OrchestratorWaveformContent')).toBe(true);
   });
 
   it('keeps waveform height resize handle on timeline overview header', () => {
@@ -100,23 +107,21 @@ describe('TranscriptionPage structure invariants', () => {
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
     const toolbarPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.Toolbar.tsx');
     const toolbarCode = fs.readFileSync(toolbarPath, 'utf8');
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorAnchors = readTranscriptionReadyWorkspaceAnchors();
     const legacyWaveformRuntimeStatusClass = ['waveform', 'runtime-status'].join('-');
 
     expect(waveformContentCode.includes(legacyWaveformRuntimeStatusClass)).toBe(false);
     expect(toolbarCode.includes('const combinedLeftToolbarExtras')).toBe(true);
     expect(toolbarCode.includes('<ToolbarAiProgress')).toBe(true);
     expect(toolbarCode.includes('leftToolbarExtras={combinedLeftToolbarExtras}')).toBe(true);
-    expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
-    expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+    expect(orchestratorAnchors.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
+    expect(orchestratorAnchors.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
   });
 
   it('keeps selected hotspot marker wiring between panel state and waveform overlay', () => {
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
-    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
-    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const orchestratorAnchors = readTranscriptionReadyWorkspaceAnchors();
     const markerIndex = waveformContentCode.indexOf('className="waveform-analysis-hotspot-line"');
     const waveformOverlayIndex = waveformContentCode.indexOf('waveformOverlay={({');
 
@@ -126,7 +131,7 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformContentCode.includes('className="waveform-guide-overlay"')).toBe(true);
     expect(waveformContentCode.includes('className="waveform-analysis-hotspot-line"')).toBe(true);
     expect(markerIndex).toBeGreaterThan(waveformOverlayIndex);
-    expect(orchestratorCode.includes('selectedHotspotTimeSec={selectedHotspotTimeSec}')).toBe(true);
+    expect(orchestratorAnchors.includes('selectedHotspotTimeSec={selectedHotspotTimeSec}')).toBe(true);
   });
 
   it('preserves hotspot selection during loading recompute and clears stale selection when summary is unavailable', () => {
@@ -263,7 +268,16 @@ describe('TranscriptionPage structure invariants', () => {
     expect(waveformBridgeHookCode.includes('} = useWaveformSelectionController({')).toBe(true);
     expect(waveformBridgeHookCode.includes('const player = useWaveSurfer({')).toBe(true);
     expect(waveformBridgeHookCode.includes('} = useLasso({')).toBe(true);
-    expect(waveformBridgeHookCode.includes('const { rulerView, zoomToPercent, zoomToUnit } = useZoom({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({')).toBe(true);
+    const orchestratorInputPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts');
+    const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
+    expect(orchestratorInputCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
+    expect(orchestratorInputCode.includes('const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec')).toBe(true);
+    const propsBuildersPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspacePropsBuilders.ts');
+    const propsBuildersCode = fs.readFileSync(propsBuildersPath, 'utf8');
+    expect(propsBuildersCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
+    expect(propsBuildersCode.includes('input.timelineViewportProjection.zoomPercent')).toBe(true);
+    expect(code.includes('buildReadyWorkspaceStageProps({') && code.includes('timelineViewportProjection,')).toBe(true);
     expect(hookCode.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(hookCode.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;')).toBe(true);
@@ -289,6 +303,8 @@ describe('TranscriptionPage structure invariants', () => {
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
     expect(waveformContentCode.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady')).toBe(true);
+    expect(waveformContentCode.includes('acousticStrip?: AcousticStripContract')).toBe(true);
+    expect(waveformContentCode.includes("acousticReadModelSlice?.state === 'pending_decode'")).toBe(true);
 
     // 批量入口已下沉到独立 controller，当前文件只保留调用边界
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
@@ -459,10 +475,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
-    expect(orchestratorCode.includes('onAssignSpeakerFromMenu={handleAssignSpeakerFromMenu}')).toBe(true);
-    expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu={handleSetUnitSelfCertaintyFromMenu}')).toBe(true);
-    expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds={resolveSelfCertaintyUnitIds}')).toBe(true);
-    expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu={() => handleOpenSpeakerManagementPanel()}')).toBe(true);
+    expect(orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu')).toBe(true);
+    expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu: handleSetUnitSelfCertaintyFromMenu')).toBe(true);
+    expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds: resolveSelfCertaintyUnitIds')).toBe(true);
+    expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel')).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
     expect(scopeHookCode.includes('selectedBatchSegmentsForSpeakerActions')).toBe(true);
@@ -566,31 +582,36 @@ describe('TranscriptionPage structure invariants', () => {
     const runtimeContractsCode = fs.readFileSync(runtimeContractsPath, 'utf8');
     const timelineContentHookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineContentViewModel.ts');
     const timelineContentHookCode = fs.readFileSync(timelineContentHookPath, 'utf8');
+    const readyVmPath = path.resolve(process.cwd(), 'src/pages/useReadyWorkspaceViewModels.ts');
+    const readyVmCode = fs.readFileSync(readyVmPath, 'utf8');
+    const orchestratorAnchors = readTranscriptionReadyWorkspaceAnchors();
 
-    expect(orchestratorCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
+    expect(orchestratorCode.includes("import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';")).toBe(true);
     expect(
       orchestratorCode.includes('sidebarSectionsInput: {')
       || orchestratorInputBuilderCode.includes('sidebarSectionsInput: {'),
     ).toBe(true);
-    expect(orchestratorCode.includes("useOrchestratorViewModels(")).toBe(true);
-    expect(orchestratorCode.includes('const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;')).toBe(true);
-    expect(orchestratorCode.includes('const shouldRenderDialogs = Boolean(')).toBe(true);
-    expect(orchestratorCode.includes('const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null;')).toBe(true);
-    expect(orchestratorCode.includes('const shouldRenderBatchOps = showBatchOperationPanel;')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageToolbar')).toBe(true);
-    expect(orchestratorCode.includes('{...toolbarProps}')).toBe(true);
-    expect(orchestratorCode.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
-    expect(orchestratorCode.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
-    expect(orchestratorCode.includes('className="transcription-timeline-top-suspense-fallback"')).toBe(true);
-    expect(orchestratorCode.includes('className="transcription-side-pane transcription-side-pane-placeholder"')).toBe(true);
-    expect(orchestratorCode.includes('className="timeline-scroll-suspense-fallback"')).toBe(true);
-    expect(orchestratorCode.includes('className="timeline-scroll-suspense-fallback-row"')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageAiSidebar')).toBe(true);
-    expect(orchestratorCode.includes('shouldRenderRuntime={shouldRenderAiSidebar}')).toBe(true);
-    expect(orchestratorCode.includes('<TranscriptionPageDialogs {...dialogsProps} />')).toBe(true);
-    expect(orchestratorCode.includes('aria-label={t(locale, \'transcription.importDialog.selectMedia\')}')).toBe(true);
+    expect(orchestratorCode.includes('} = useReadyWorkspaceViewModels({')).toBe(true);
+    expect(readyVmCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
+    expect(readyVmCode.includes('return useOrchestratorViewModels(')).toBe(true);
+    expect(orchestratorAnchors.includes('const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;')).toBe(true);
+    expect(orchestratorAnchors.includes('const shouldRenderDialogs = Boolean(')).toBe(true);
+    expect(orchestratorAnchors.includes('const shouldRenderPdfRuntime = pdfRuntimeProps.previewRequest.request !== null;')).toBe(true);
+    expect(orchestratorAnchors.includes('const shouldRenderBatchOps = showBatchOperationPanel;')).toBe(true);
+    expect(orchestratorAnchors.includes('<TranscriptionPageToolbar')).toBe(true);
+    expect(orchestratorAnchors.includes('{...toolbarProps}')).toBe(true);
+    expect(orchestratorAnchors.includes('acousticRuntimeStatus={deferredAiRuntime.acousticRuntimeStatus}')).toBe(true);
+    expect(orchestratorAnchors.includes('vadCacheStatus={vadCacheStatus}')).toBe(true);
+    expect(orchestratorAnchors.includes('className="transcription-timeline-top-suspense-fallback"')).toBe(true);
+    expect(orchestratorAnchors.includes('className="transcription-side-pane transcription-side-pane-placeholder"')).toBe(true);
+    expect(orchestratorAnchors.includes('className="timeline-scroll-suspense-fallback"')).toBe(true);
+    expect(orchestratorAnchors.includes('className="timeline-scroll-suspense-fallback-row"')).toBe(true);
+    expect(orchestratorAnchors.includes('<TranscriptionPageTimelineTop {...timelineTopProps} />')).toBe(true);
+    expect(orchestratorAnchors.includes('<TranscriptionPageTimelineContent {...timelineContentProps} />')).toBe(true);
+    expect(orchestratorAnchors.includes('<TranscriptionPageAiSidebar')).toBe(true);
+    expect(orchestratorAnchors.includes('shouldRenderRuntime={shouldRenderAiSidebar}')).toBe(true);
+    expect(orchestratorAnchors.includes('<TranscriptionPageDialogs {...dialogsProps} />')).toBe(true);
+    expect(orchestratorAnchors.includes('aria-label={t(locale, \'transcription.importDialog.selectMedia\')}')).toBe(true);
     expect(orchestratorCode.includes('lowConfidenceCount,')).toBe(false);
     expect(orchestratorCode.includes('aiChatContextValue,')).toBe(false);
     expect(orchestratorCode.includes('headerProps={{')).toBe(false);
@@ -655,8 +676,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(timelineContentHookCode.includes('const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(() => ({')).toBe(true);
     expect(timelineContentHookCode.includes('const textOnlyProps = useMemo<TranscriptionPageTimelineTextOnlyProps>')).toBe(true);
-    expect(timelineContentHookCode.includes('() => input.textOnlyPropsInput')).toBe(true);
-    expect(timelineContentHookCode.includes('verticalViewToggleDep')).toBe(true);
+    expect(timelineContentHookCode.includes('verticalProjection')).toBe(true);
+    expect(timelineContentHookCode.includes('dropUndefinedKeys')).toBe(true);
     expect(timelineContentHookCode.includes('const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({')).toBe(true);
     expect(timelineContentHookCode.includes('return useMemo<TranscriptionPageTimelineContentProps>(() => ({')).toBe(true);
   });
@@ -691,8 +712,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useRecoveryBanner } from '../hooks/useRecoveryBanner';")).toBe(true);
     expect(orchestratorCode.includes('} = useRecoveryBanner({')).toBe(true);
-    expect(orchestratorCode.includes('onApply={applyRecoveryBanner}')).toBe(true);
-    expect(orchestratorCode.includes('onDismiss={dismissRecoveryBanner}')).toBe(true);
+    expect(orchestratorCode.includes('onApplyRecoveryBanner: applyRecoveryBanner')).toBe(true);
+    expect(orchestratorCode.includes('onDismissRecoveryBanner: dismissRecoveryBanner')).toBe(true);
     expect(orchestratorCode.includes('recoveryDataRef')).toBe(false);
 
     expect(hookCode.includes('const applyRecoveryBanner = useCallback((): void => {')).toBe(true);

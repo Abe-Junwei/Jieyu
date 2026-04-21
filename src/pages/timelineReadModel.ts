@@ -69,8 +69,6 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
     layersCount: input.unitIndex.totalCount,
-    ...(input.activeTextTimelineMode !== undefined ? { timelineMode: input.activeTextTimelineMode } : {}),
-    ...(input.logicalTimelineDurationSec !== undefined ? { fallbackDurationSec: input.logicalTimelineDurationSec } : {}),
     ...(input.verticalViewEnabled !== undefined ? { verticalViewEnabled: input.verticalViewEnabled } : {}),
   });
 

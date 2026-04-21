@@ -2,9 +2,8 @@ import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineAnnotationItemProps } from './TimelineAnnotationItem';
 import type { TimelineUnitKind } from '../hooks/transcriptionTypes';
+import { useTranscriptionMediaLaneRowTextAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
-import { fireAndForget } from '../utils/fireAndForget';
-import { normalizeSingleLine } from '../utils/transcriptionFormatters';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { t, useLocale } from '../i18n';
@@ -85,6 +84,19 @@ export function TranscriptionTimelineMediaTranscriptionRow({
   renderAnnotationItem,
 }: TranscriptionTimelineMediaTranscriptionRowProps) {
   const locale = useLocale();
+  const { handleDraftFocus, handleDraftChange, handleDraftBlur } = useTranscriptionMediaLaneRowTextAutosave({
+    unitKind,
+    layerId: layer.id,
+    unitId: utt.id,
+    draftKey,
+    sourceText,
+    setUnitDrafts,
+    scheduleAutoSave,
+    clearAutoSaveTimer,
+    saveSegmentContentForLayer,
+    saveUnitLayerText,
+    focusedTranslationDraftKeyRef,
+  });
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
@@ -147,42 +159,9 @@ export function TranscriptionTimelineMediaTranscriptionRow({
         ...(overlapCycleStatus ? { overlapCycleStatus } : {}),
         ...(unitKind === 'segment' ? { placeholder: t(locale, 'transcription.timeline.placeholder.segment') } : {}),
         ...(audioControls ? { tools: audioControls, hasTrailingTools: showAudioTools } : {}),
-        onFocus: () => {
-          focusedTranslationDraftKeyRef.current = draftKey;
-        },
-        onChange: (e) => {
-          const value = normalizeSingleLine(e.target.value);
-          setUnitDrafts((prev) => ({ ...prev, [draftKey]: value }));
-          if (unitKind === 'segment') {
-            if (!saveSegmentContentForLayer) return;
-            scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
-              await saveSegmentContentForLayer(utt.id, layer.id, value);
-            });
-            return;
-          }
-          if (value.trim() && value !== sourceText) {
-            scheduleAutoSave(`utt-${layer.id}-${utt.id}`, async () => {
-              await saveUnitLayerText(utt.id, value, layer.id);
-            });
-          } else {
-            clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
-          }
-        },
-        onBlur: (e) => {
-          focusedTranslationDraftKeyRef.current = null;
-          const value = normalizeSingleLine(e.target.value);
-          if (unitKind === 'segment') {
-            clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
-            if (saveSegmentContentForLayer && value !== sourceText) {
-              fireAndForget(saveSegmentContentForLayer(utt.id, layer.id, value));
-            }
-            return;
-          }
-          clearAutoSaveTimer(`utt-${layer.id}-${utt.id}`);
-          if (value !== sourceText) {
-            fireAndForget(saveUnitLayerText(utt.id, value, layer.id));
-          }
-        },
+        onFocus: handleDraftFocus,
+        onChange: handleDraftChange,
+        onBlur: handleDraftBlur,
       })}
     </TimelineStyledContainer>
   );

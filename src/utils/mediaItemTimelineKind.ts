@@ -40,9 +40,6 @@ export function resolveMediaItemTimelineKind(row: MediaItemTimelineKindRow): Med
   if (details.placeholder === true || row.filename === DOCUMENT_PLACEHOLDER_TRACK_FILENAME) {
     return MEDIA_TIMELINE_KIND_PLACEHOLDER;
   }
-  if (details.timelineMode === 'document') {
-    return MEDIA_TIMELINE_KIND_PLACEHOLDER;
-  }
   return MEDIA_TIMELINE_KIND_ACOUSTIC;
 }
 

@@ -327,7 +327,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('returns structured unavailable payload for get_waveform_analysis when no playable media exists', async () => {
     const ref = { current: 0 };
     const context = {
-      shortTerm: { locale: 'zh-CN' },
+      shortTerm: {},
       longTerm: {},
     };
 
@@ -347,7 +347,7 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
   it('returns structured unavailable payload for get_acoustic_summary when no playable media exists', async () => {
     const ref = { current: 0 };
     const context = {
-      shortTerm: { locale: 'zh-CN' },
+      shortTerm: {},
       longTerm: {},
     };
 

@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import type { SpeakerLayerLayoutResult } from '../utils/speakerLayerLayout';
+import type { TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
 import { useTranscriptionTimelineContentViewModel } from './useTranscriptionTimelineContentViewModel';
 
 function createEmptySpeakerLayerLayout(): SpeakerLayerLayoutResult {
@@ -153,11 +154,13 @@ describe('useTranscriptionTimelineContentViewModel', () => {
     expect(click).toHaveBeenCalled();
   });
 
-  it('picks up verticalViewEnabled when textOnlyPropsInput is reused and mutated in place', () => {
+  it('picks up verticalViewEnabled when verticalProjection is reused and mutated in place', () => {
     const click = vi.fn();
     const setLayerActionPanel = vi.fn();
     const importFileRef = { current: { click } as unknown as HTMLInputElement };
     const speakerLayerLayout = createEmptySpeakerLayerLayout();
+
+    const verticalProjection: TimelineVerticalProjectionProps = {};
 
     const textOnlyPropsInput = {
       transcriptionLayers: [],
@@ -258,6 +261,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
         deleteVoiceTranslation: vi.fn(),
       },
       textOnlyPropsInput,
+      verticalProjection,
     };
 
     const { result, rerender } = renderHook(
@@ -267,8 +271,8 @@ describe('useTranscriptionTimelineContentViewModel', () => {
 
     expect(result.current.textOnlyProps.verticalViewEnabled).toBeUndefined();
 
-    Object.assign(textOnlyPropsInput, { verticalViewEnabled: true as const });
-    rerender({ ...baseInput, textOnlyPropsInput });
+    Object.assign(verticalProjection, { verticalViewEnabled: true as const });
+    rerender({ ...baseInput });
 
     expect(result.current.textOnlyProps.verticalViewEnabled).toBe(true);
     expect(result.current.verticalComparisonEnabled).toBe(true);

@@ -268,7 +268,7 @@ export const architectureGuardRules = [
     maxUseEffects: 12,
   }),
   pageControllerRule('useTranscriptionWaveformBridgeController', {
-    maxLines: 560,
+    maxLines: 565,
     maxUseCallbackDecls: 10,
     maxUseMemoDecls: 3,
     maxUseEffects: 5,

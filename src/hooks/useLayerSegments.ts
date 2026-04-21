@@ -7,7 +7,7 @@
  * for timeline rendering. Returns segments sorted by startTime.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { useLatest } from './useLatest';
@@ -90,7 +90,7 @@ export function resolveSegmentTimelineSourceLayer(
     return undefined;
   }
 
-  const parentLayerId = layer.parentLayerId?.trim() ?? '';
+  const parentLayerId = layerTranscriptionTreeParentId(layer)?.trim() ?? '';
   if (!parentLayerId) return undefined;
 
   const parentLayer = layerById.get(parentLayerId);

@@ -15,16 +15,21 @@ beforeEach(async () => {
 });
 
 function makeLayer(partial: Partial<LayerDocType> & Pick<LayerDocType, 'id' | 'name'>): LayerDocType {
+  const layerType = partial.layerType ?? 'transcription';
+  const treeParent =
+    layerType === 'transcription' && 'parentLayerId' in partial && partial.parentLayerId !== undefined
+      ? { parentLayerId: partial.parentLayerId }
+      : {};
   return {
     id: partial.id,
     textId: partial.textId ?? 'text-1',
     key: partial.key ?? partial.id,
-    layerType: partial.layerType ?? 'transcription',
+    layerType,
     name: partial.name,
     languageId: partial.languageId ?? 'eng',
     modality: partial.modality ?? 'text',
     ...(partial.orthographyId !== undefined ? { orthographyId: partial.orthographyId } : {}),
-    ...(partial.parentLayerId !== undefined ? { parentLayerId: partial.parentLayerId } : {}),
+    ...treeParent,
     ...(partial.constraint !== undefined ? { constraint: partial.constraint } : {}),
     ...(partial.sortOrder !== undefined ? { sortOrder: partial.sortOrder } : {}),
     createdAt: partial.createdAt ?? '2026-04-16T00:00:00.000Z',

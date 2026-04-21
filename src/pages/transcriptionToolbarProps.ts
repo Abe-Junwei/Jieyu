@@ -59,6 +59,7 @@ interface CreateTranscriptionToolbarPropsInput {
   onReviewPrev: () => void;
   onReviewNext: () => void;
   selectedMediaUrl: string | null;
+  playableAcoustic: boolean;
   handleAutoSegment: () => void;
   autoSegmentBusy: boolean;
 }
@@ -121,7 +122,7 @@ export function createTranscriptionToolbarProps(
     onOpenReviewIssues: input.onOpenReviewIssues,
     onReviewPrev: input.onReviewPrev,
     onReviewNext: input.onReviewNext,
-    ...(input.selectedMediaUrl ? { onAutoSegment: input.handleAutoSegment } : {}),
+    ...(input.playableAcoustic ? { onAutoSegment: input.handleAutoSegment } : {}),
     autoSegmentBusy: input.autoSegmentBusy,
   };
 }

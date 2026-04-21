@@ -55,11 +55,7 @@ export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   linksByTranslationLayerId: ReadonlyMap<string, VerticalReadingHostLink[]>,
   transcriptionIdByKey: ReadonlyMap<string, string>,
 ): boolean {
-  const parent = tl.parentLayerId?.trim() ?? '';
-  if (parent.length > 0) {
-    if (sourceTranscriptionIds.size === 0) return false;
-    return sourceTranscriptionIds.has(parent);
-  }
+  // 译文宿主仅以 layer_links 为准，不读取 translation.parentLayerId | Translation host is link-only
   const links = linksByTranslationLayerId.get(tl.id) ?? [];
   if (links.length > 0) {
     if (sourceTranscriptionIds.size === 0) return false;

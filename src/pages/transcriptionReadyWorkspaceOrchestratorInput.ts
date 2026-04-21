@@ -1,11 +1,12 @@
 import type { ChangeEvent, RefObject } from 'react';
-import type { TranscriptionVerticalPaneFocusState } from './TranscriptionPage.UIState';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TextTimeMapping } from '../types/textTimeMapping';
+import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { LayerActionPanelHandle } from '../hooks/useLayerActionPanel';
 import type { Locale } from '../i18n';
 import type { TranscriptionPageTimelineHorizontalMediaLanesProps, TranscriptionPageTimelineTextOnlyProps } from './TranscriptionPage.TimelineContent';
+import type { TimelineHorizontalProjectionLaneProps, TimelineVerticalProjectionProps } from './timelineHostProjectionTypes';
 import type { TranscriptionPageAssistantRuntimeProps, TranscriptionPageAnalysisRuntimeProps } from './TranscriptionPage.runtimeContracts';
 import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs';
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
@@ -17,22 +18,24 @@ import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels
  */
 export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   selectedMediaUrl: string | null | undefined;
+  playableAcoustic: boolean;
   player: UseTranscriptionSectionViewModelsInput['player'];
   layers: LayerDocType[];
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerAction: LayerActionPanelHandle;
   sharedLaneProps: BuiltSharedLaneProps;
-  zoomPxPerSec: TranscriptionPageTimelineHorizontalMediaLanesProps['zoomPxPerSec'];
-  lassoRect: TranscriptionPageTimelineHorizontalMediaLanesProps['lassoRect'];
-  timelineRenderUnits: TranscriptionPageTimelineHorizontalMediaLanesProps['timelineRenderUnits'];
-  defaultTranscriptionLayerId: TranscriptionPageTimelineHorizontalMediaLanesProps['defaultTranscriptionLayerId'];
+  /** Single source for zoom + ruler window (from `useTimelineViewport` via waveform bridge). */
+  timelineViewportProjection: TimelineViewportProjection;
+  lassoRect: TimelineHorizontalProjectionLaneProps['lassoRect'];
+  timelineRenderUnits: TimelineHorizontalProjectionLaneProps['timelineRenderUnits'];
+  defaultTranscriptionLayerId: TimelineHorizontalProjectionLaneProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
   /** 纯文本轨拖建/改时：像素→文献秒 与 `previewTextTimeMapping` 视口一致 */
   textOnlyTimeMapping?: Pick<TextTimeMapping, 'offsetSec' | 'scale'>;
   createUnitFromSelectionRouted?: (start: number, end: number) => Promise<void>;
-  renderAnnotationItem: TranscriptionPageTimelineHorizontalMediaLanesProps['renderAnnotationItem'];
-  speakerSortKeyById: TranscriptionPageTimelineHorizontalMediaLanesProps['speakerSortKeyById'];
+  renderAnnotationItem: TimelineHorizontalProjectionLaneProps['renderAnnotationItem'];
+  speakerSortKeyById: TimelineHorizontalProjectionLaneProps['speakerSortKeyById'];
   filteredUnitsOnCurrentMedia: TranscriptionPageTimelineTextOnlyProps['unitsOnCurrentMedia'];
   tierContainerRef: TranscriptionPageTimelineTextOnlyProps['scrollContainerRef'];
   handleAnnotationClick: TranscriptionPageTimelineTextOnlyProps['handleAnnotationClick'];
@@ -46,9 +49,9 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
   resolveSelfCertaintyAmbiguityForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyAmbiguityForUnit'];
-  verticalViewEnabled?: boolean;
-  verticalPaneFocus?: TranscriptionVerticalPaneFocusState;
-  updateVerticalPaneFocus?: (patch: Partial<TranscriptionVerticalPaneFocusState>) => void;
+  verticalViewEnabled?: TimelineVerticalProjectionProps['verticalViewEnabled'];
+  verticalPaneFocus?: TimelineVerticalProjectionProps['verticalPaneFocus'];
+  updateVerticalPaneFocus?: TimelineVerticalProjectionProps['updateVerticalPaneFocus'];
   selectedTimelineMedia: MediaItemDocType | undefined;
   waveformDisplayMode: UseTranscriptionSectionViewModelsInput['waveformDisplayMode'];
   setWaveformDisplayMode: UseTranscriptionSectionViewModelsInput['setWaveformDisplayMode'];
@@ -88,7 +91,6 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   handleExportJym: UseTranscriptionSectionViewModelsInput['handleExportJym'];
   handleImportFile: UseTranscriptionSectionViewModelsInput['handleImportFile'];
   unitsOnCurrentMedia: LayerUnitDocType[];
-  rulerView: UseTranscriptionSectionViewModelsInput['rulerView'];
   isTimelineLaneHeaderCollapsed: UseTranscriptionSectionViewModelsInput['isTimelineLaneHeaderCollapsed'];
   toggleTimelineLaneHeader: UseTranscriptionSectionViewModelsInput['toggleTimelineLaneHeader'];
   waveCanvasRef: UseTranscriptionSectionViewModelsInput['waveCanvasRef'];
@@ -141,13 +143,14 @@ export function buildOrchestratorViewModelsInput(
 ): UseOrchestratorViewModelsInput {
   const {
     selectedMediaUrl,
+    playableAcoustic,
     player,
     layers,
     locale,
     importFileRef,
     layerAction,
     sharedLaneProps,
-    zoomPxPerSec,
+    timelineViewportProjection,
     lassoRect,
     timelineRenderUnits,
     defaultTranscriptionLayerId,
@@ -208,7 +211,6 @@ export function buildOrchestratorViewModelsInput(
     handleExportJym,
     handleImportFile,
     unitsOnCurrentMedia,
-    rulerView,
     isTimelineLaneHeaderCollapsed,
     toggleTimelineLaneHeader,
     waveCanvasRef,
@@ -256,8 +258,12 @@ export function buildOrchestratorViewModelsInput(
     exitFocusMode,
   } = input;
 
+  const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec;
+  const rulerView = timelineViewportProjection.rulerView;
+
   return {
     selectedMediaUrl: selectedMediaUrl ?? null,
+    playableAcoustic,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
     layersCount: layers.length,
@@ -281,9 +287,6 @@ export function buildOrchestratorViewModelsInput(
       ...(textOnlyLogicalDurationSec !== undefined ? { logicalDurationSec: textOnlyLogicalDurationSec } : {}),
       ...(textOnlyTimeMapping ? { textOnlyTimeMapping } : {}),
       ...(createUnitFromSelectionRouted ? { createUnitFromSelection: createUnitFromSelectionRouted } : {}),
-      ...(verticalViewEnabled ? { verticalViewEnabled: true } : {}),
-      ...(verticalPaneFocus ? { verticalPaneFocus } : {}),
-      ...(updateVerticalPaneFocus ? { updateVerticalPaneFocus } : {}),
       scrollContainerRef: tierContainerRef,
       handleAnnotationClick,
       handleAnnotationContextMenu,
@@ -300,6 +303,11 @@ export function buildOrchestratorViewModelsInput(
       resolveSelfCertaintyForUnit,
       resolveSelfCertaintyAmbiguityForUnit,
     }) as UseOrchestratorViewModelsInput['textOnlyPropsInput'],
+    verticalProjection: dropUndefinedKeys({
+      ...(verticalViewEnabled ? { verticalViewEnabled: true } : {}),
+      ...(verticalPaneFocus ? { verticalPaneFocus } : {}),
+      ...(updateVerticalPaneFocus ? { updateVerticalPaneFocus } : {}),
+    }) as TimelineVerticalProjectionProps,
     selectedTimelineMediaFilename: selectedTimelineMedia?.filename ?? null,
     player,
     waveformDisplayMode,

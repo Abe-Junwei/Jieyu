@@ -1,10 +1,24 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
+import { LocaleProvider } from '../i18n';
 import { TimelineLaneHeader } from './TimelineLaneHeader';
 
 const NOW = new Date().toISOString();
+
+function makeTestHostLink(translationLayerId: string, host: LayerDocType): LayerLinkDocType {
+  return {
+    id: `link-${translationLayerId}`,
+    layerId: translationLayerId,
+    transcriptionLayerKey: host.key,
+    hostTranscriptionLayerId: host.id,
+    linkType: 'free',
+    isPreferred: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+  } as LayerLinkDocType;
+}
 
 function makeLayer(id: string): LayerDocType {
   return {
@@ -43,25 +57,29 @@ function renderHeader(trackModeControl?: {
   displayStyleControl?: Parameters<typeof TimelineLaneHeader>[0]['displayStyleControl'];
   speakerQuickActions?: Parameters<typeof TimelineLaneHeader>[0]['speakerQuickActions'];
   headerMenuPreset?: Parameters<typeof TimelineLaneHeader>[0]['headerMenuPreset'];
+  layerLinks?: LayerLinkDocType[];
 }) {
   const layer = options?.layer ?? makeLayer('layer-1');
   return render(
-    <TimelineLaneHeader
-      layer={layer}
-      layerIndex={0}
-      activeTextTimelineMode={options?.activeTextTimelineMode ?? null}
-      allLayers={options?.allLayers ?? [layer]}
-      onReorderLayers={vi.fn(async () => undefined)}
-      deletableLayers={options?.allLayers ?? [layer]}
-      onFocusLayer={vi.fn()}
-      renderLaneLabel={() => <span>Layer 1</span>}
-      onLayerAction={options?.onLayerAction ?? vi.fn()}
-      onToggleCollapsed={vi.fn()}
-      {...(options?.displayStyleControl ? { displayStyleControl: options.displayStyleControl } : {})}
-      {...(options?.speakerQuickActions ? { speakerQuickActions: options.speakerQuickActions } : {})}
-      {...(options?.headerMenuPreset ? { headerMenuPreset: options.headerMenuPreset } : {})}
-      {...(trackModeControl ? { trackModeControl } : {})}
-    />,
+    <LocaleProvider locale="zh-CN">
+      <TimelineLaneHeader
+        layer={layer}
+        layerIndex={0}
+        activeTextTimelineMode={options?.activeTextTimelineMode ?? null}
+        allLayers={options?.allLayers ?? [layer]}
+        onReorderLayers={vi.fn(async () => undefined)}
+        deletableLayers={options?.allLayers ?? [layer]}
+        onFocusLayer={vi.fn()}
+        renderLaneLabel={() => <span>Layer 1</span>}
+        onLayerAction={options?.onLayerAction ?? vi.fn()}
+        onToggleCollapsed={vi.fn()}
+        {...(options?.layerLinks !== undefined ? { layerLinks: options.layerLinks } : {})}
+        {...(options?.displayStyleControl ? { displayStyleControl: options.displayStyleControl } : {})}
+        {...(options?.speakerQuickActions ? { speakerQuickActions: options.speakerQuickActions } : {})}
+        {...(options?.headerMenuPreset ? { headerMenuPreset: options.headerMenuPreset } : {})}
+        {...(trackModeControl ? { trackModeControl } : {})}
+      />
+    </LocaleProvider>,
   );
 }
 
@@ -99,10 +117,10 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(await findMenuButton('视图')).toBeTruthy();
   });
 
-  it('renders a pure-text mode badge when timeline mode is document', () => {
+  it('renders a manuscript timebase badge when timeline mode is document', () => {
     renderHeader(undefined, { activeTextTimelineMode: 'document' });
 
-    const badge = screen.getByText(/纯文本模式|Text-only mode/);
+    const badge = screen.getByText(/文献时间基|Manuscript timebase/);
     expect(badge.className).toContain('timeline-lane-timebase-badge');
   });
 
@@ -119,7 +137,7 @@ describe('TimelineLaneHeader track mode menu', () => {
     fireEvent.contextMenu(screen.getByText('Layer 1'));
     fireEvent.mouseEnter(await findMenuButton('轨道'));
 
-    const lockedModeItem = await findMenuButton('切换到多轨模式（锁定，需先锁定说话人）');
+    const lockedModeItem = await findMenuButton('切换到分轨（锁定，需先锁定说话人）');
     expect(lockedModeItem.disabled).toBe(true);
   });
 
@@ -171,15 +189,15 @@ describe('TimelineLaneHeader track mode menu', () => {
       layerType: 'translation',
       key: 'trl_fra_1',
       languageId: 'fra',
-      parentLayerId: parentB.id,
       sortOrder: 2,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
     const onLayerAction = vi.fn();
 
     renderHeader(undefined, {
       layer: translationLayer,
       allLayers: [parentA, parentB, translationLayer],
       onLayerAction,
+      layerLinks: [makeTestHostLink(translationLayer.id, parentB)],
     });
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
@@ -201,13 +219,13 @@ describe('TimelineLaneHeader track mode menu', () => {
       layerType: 'translation',
       key: 'trl_eng_1',
       languageId: 'eng',
-      parentLayerId: root.id,
       sortOrder: 1,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
 
     const view = renderHeader(undefined, {
       layer: root,
       allLayers: [root, child],
+      layerLinks: [makeTestHostLink(child.id, root)],
     });
 
     expect(view.container.querySelector('.lane-link-connector-svg')).toBeTruthy();
@@ -218,17 +236,19 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(toggleItem.disabled).toBe(false);
 
     view.rerender(
-      <TimelineLaneHeader
-        layer={root}
-        layerIndex={0}
-        allLayers={[root]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[root]}
-        onFocusLayer={vi.fn()}
-        renderLaneLabel={() => <span>Layer 1</span>}
-        onLayerAction={vi.fn()}
-        onToggleCollapsed={vi.fn()}
-      />,
+      <LocaleProvider locale="zh-CN">
+        <TimelineLaneHeader
+          layer={root}
+          layerIndex={0}
+          allLayers={[root]}
+          onReorderLayers={vi.fn(async () => undefined)}
+          deletableLayers={[root]}
+          onFocusLayer={vi.fn()}
+          renderLaneLabel={() => <span>Layer 1</span>}
+          onLayerAction={vi.fn()}
+          onToggleCollapsed={vi.fn()}
+        />
+      </LocaleProvider>,
     );
 
     expect(view.container.querySelector('.lane-link-connector-svg')).toBeFalsy();
@@ -238,17 +258,20 @@ describe('TimelineLaneHeader track mode menu', () => {
     expect(toggleItem.disabled).toBe(true);
 
     view.rerender(
-      <TimelineLaneHeader
-        layer={root}
-        layerIndex={0}
-        allLayers={[root, child]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[root, child]}
-        onFocusLayer={vi.fn()}
-        renderLaneLabel={() => <span>Layer 1</span>}
-        onLayerAction={vi.fn()}
-        onToggleCollapsed={vi.fn()}
-      />,
+      <LocaleProvider locale="zh-CN">
+        <TimelineLaneHeader
+          layer={root}
+          layerIndex={0}
+          allLayers={[root, child]}
+          onReorderLayers={vi.fn(async () => undefined)}
+          deletableLayers={[root, child]}
+          onFocusLayer={vi.fn()}
+          renderLaneLabel={() => <span>Layer 1</span>}
+          onLayerAction={vi.fn()}
+          onToggleCollapsed={vi.fn()}
+          layerLinks={[makeTestHostLink(child.id, root)]}
+        />
+      </LocaleProvider>,
     );
 
     expect(view.container.querySelector('.lane-link-connector-svg')).toBeTruthy();
@@ -269,9 +292,8 @@ describe('TimelineLaneHeader track mode menu', () => {
       layerType: 'translation',
       key: 'trl_a',
       languageId: 'eng',
-      parentLayerId: rootA.id,
       sortOrder: 1,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
     const rootB = {
       ...makeLayer('root-b'),
       constraint: 'independent_boundary',
@@ -282,13 +304,13 @@ describe('TimelineLaneHeader track mode menu', () => {
       layerType: 'translation',
       key: 'trl_b',
       languageId: 'fra',
-      parentLayerId: rootB.id,
       sortOrder: 3,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
 
     const view = renderHeader(undefined, {
       layer: rootB,
       allLayers: [rootA, childA, rootB, childB],
+      layerLinks: [makeTestHostLink(childA.id, rootA), makeTestHostLink(childB.id, rootB)],
     });
 
     const _stack = view.container.querySelector('.lane-link-stack') as HTMLElement | null;
@@ -361,22 +383,24 @@ describe('TimelineLaneHeader track and speaker chrome', () => {
     const translationLayer = {
       ...makeLayer('tr-1'),
       layerType: 'translation',
-      parentLayerId: parent.id,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
 
     render(
-      <TimelineLaneHeader
-        layer={translationLayer}
-        layerIndex={1}
-        activeTextTimelineMode={null}
-        allLayers={[parent, translationLayer]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[parent, translationLayer]}
-        onFocusLayer={vi.fn()}
-        renderLaneLabel={() => <span>Layer 1</span>}
-        onLayerAction={vi.fn()}
-        onToggleCollapsed={vi.fn()}
-      />,
+      <LocaleProvider locale="zh-CN">
+        <TimelineLaneHeader
+          layer={translationLayer}
+          layerIndex={1}
+          activeTextTimelineMode={null}
+          allLayers={[parent, translationLayer]}
+          onReorderLayers={vi.fn(async () => undefined)}
+          deletableLayers={[parent, translationLayer]}
+          onFocusLayer={vi.fn()}
+          renderLaneLabel={() => <span>Layer 1</span>}
+          onLayerAction={vi.fn()}
+          onToggleCollapsed={vi.fn()}
+          layerLinks={[makeTestHostLink(translationLayer.id, parent)]}
+        />
+      </LocaleProvider>,
     );
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));
@@ -389,7 +413,7 @@ describe('TimelineLaneHeader track and speaker chrome', () => {
     const translationLayer = {
       ...makeLayer('tr-1'),
       layerType: 'translation',
-    } as LayerDocType;
+    } as unknown as LayerDocType;
 
     renderHeader(
       {
@@ -420,33 +444,35 @@ describe('TimelineLaneHeader track and speaker chrome', () => {
     const translationLayer = {
       ...makeLayer('tr-1'),
       layerType: 'translation',
-    } as LayerDocType;
+    } as unknown as LayerDocType;
 
     render(
-      <TimelineLaneHeader
-        layer={translationLayer}
-        layerIndex={1}
-        activeTextTimelineMode={null}
-        allLayers={[translationLayer]}
-        onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[translationLayer]}
-        onFocusLayer={vi.fn()}
-        renderLaneLabel={() => <span>Layer 1</span>}
-        onLayerAction={vi.fn()}
-        onToggleCollapsed={vi.fn()}
-        headerMenuPreset="layer-chrome"
-        trackModeControl={{
-          mode: 'single',
-          onToggle: vi.fn(),
-        }}
-        speakerQuickActions={{
-          selectedCount: 0,
-          speakerOptions: [{ id: 's1', name: 'Alice' }],
-          onAssignToSelection: vi.fn(),
-          onClearSelection: vi.fn(),
-          onOpenCreateAndAssignPanel: vi.fn(),
-        }}
-      />,
+      <LocaleProvider locale="zh-CN">
+        <TimelineLaneHeader
+          layer={translationLayer}
+          layerIndex={1}
+          activeTextTimelineMode={null}
+          allLayers={[translationLayer]}
+          onReorderLayers={vi.fn(async () => undefined)}
+          deletableLayers={[translationLayer]}
+          onFocusLayer={vi.fn()}
+          renderLaneLabel={() => <span>Layer 1</span>}
+          onLayerAction={vi.fn()}
+          onToggleCollapsed={vi.fn()}
+          headerMenuPreset="layer-chrome"
+          trackModeControl={{
+            mode: 'single',
+            onToggle: vi.fn(),
+          }}
+          speakerQuickActions={{
+            selectedCount: 0,
+            speakerOptions: [{ id: 's1', name: 'Alice' }],
+            onAssignToSelection: vi.fn(),
+            onClearSelection: vi.fn(),
+            onOpenCreateAndAssignPanel: vi.fn(),
+          }}
+        />
+      </LocaleProvider>,
     );
 
     fireEvent.contextMenu(screen.getByText('Layer 1'));

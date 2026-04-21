@@ -6,7 +6,17 @@
  * Bridge helpers: tier ↔ layer 双向转换工具
  */
 import type { Table } from 'dexie';
-import type { JieyuDoc, Selector, CollectionAdapter, LayerDocType, TierDefinitionDocType, TierType, LayerConstraint } from './types';
+import type {
+  JieyuDoc,
+  Selector,
+  CollectionAdapter,
+  LayerDocType,
+  TierDefinitionDocType,
+  TierType,
+  LayerConstraint,
+  TranscriptionLayerDocType,
+} from './types';
+import { layerTranscriptionTreeParentId } from './types';
 
 export function wrapDoc<T extends { id: string }>(value: T): JieyuDoc<T> {
   return {
@@ -186,7 +196,7 @@ export function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | n
     ...(tier.isDefault !== undefined && { isDefault: tier.isDefault }),
     ...(tier.sortOrder !== undefined && { sortOrder: tier.sortOrder }),
     ...(constraint !== undefined && { constraint }),
-    ...(tier.parentTierId !== undefined && { parentLayerId: tier.parentTierId }),
+    ...(tier.parentTierId !== undefined && tier.contentType === 'transcription' ? { parentLayerId: tier.parentTierId } : {}),
     ...(tier.accessRights !== undefined && { accessRights: tier.accessRights }),
     createdAt: tier.createdAt,
     updatedAt: tier.updatedAt,
@@ -195,7 +205,8 @@ export function bridgeTierToLayer(tier: TierDefinitionDocType): LayerDocType | n
 
 export function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
   const bridgeId = resolveBridgeId(layer);
-  return {
+  const treeParent = layerTranscriptionTreeParentId(layer);
+  const tier: TierDefinitionDocType = {
     id: layer.id,
     textId: layer.textId,
     key: `${BRIDGE_TIER_PREFIX}${layer.key}`,
@@ -210,10 +221,13 @@ export function layerToBridgeTier(layer: LayerDocType): TierDefinitionDocType {
     ...(layer.isDefault !== undefined && { isDefault: layer.isDefault }),
     ...(layer.accessRights !== undefined && { accessRights: layer.accessRights }),
     ...(layer.sortOrder !== undefined && { sortOrder: layer.sortOrder }),
-    ...(layer.parentLayerId !== undefined && { parentTierId: layer.parentLayerId }),
     createdAt: layer.createdAt,
     updatedAt: layer.updatedAt,
   };
+  if (treeParent !== undefined && treeParent.trim() !== '') {
+    tier.parentTierId = treeParent;
+  }
+  return tier;
 }
 
 export class TierBackedLayerCollectionAdapter implements CollectionAdapter<LayerDocType> {
@@ -343,9 +357,16 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
       ...(changes.sortOrder !== undefined ? { sortOrder: changes.sortOrder } : {}),
       ...(changes.accessRights !== undefined ? { accessRights: changes.accessRights } : {}),
       ...(changes.constraint !== undefined ? { tierType: constraintToTierType(changes.constraint) } : {}),
-      ...(changes.parentLayerId !== undefined ? { parentTierId: changes.parentLayerId } : {}),
       updatedAt: new Date().toISOString(),
     };
+    if (existingTier.contentType === 'transcription' && 'parentLayerId' in (changes as Partial<TranscriptionLayerDocType>)) {
+      const pid = (changes as Partial<TranscriptionLayerDocType>).parentLayerId;
+      if (pid === undefined) {
+        delete updatedTier.parentTierId;
+      } else {
+        updatedTier.parentTierId = pid;
+      }
+    }
     await this.tierTable.put(updatedTier);
   }
 }

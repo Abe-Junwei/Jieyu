@@ -1,20 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import type { LayerDocType, LayerLinkDocType } from '../db';
-import { getLayerCreateGuard, repairExistingLayerConstraints, validateExistingLayerConstraints } from './LayerConstraintService';
+import { layerTranscriptionTreeParentId } from '../db';
+import {
+  getLayerCreateGuard,
+  hasRepairPersistableLayerDiff,
+  repairExistingLayerConstraints,
+  validateExistingLayerConstraints,
+} from './LayerConstraintService';
 
 function makeLayer(overrides: Partial<LayerDocType> & { id: string; layerType: 'transcription' | 'translation' }): LayerDocType {
   const now = '2026-03-25T00:00:00.000Z';
+  const raw = { ...overrides } as Record<string, unknown>;
+  const treeParent = raw.layerType === 'transcription' ? raw.parentLayerId : undefined;
+  if (raw.layerType === 'translation') {
+    delete raw.parentLayerId;
+  }
   return {
-    ...overrides,
-    id: overrides.id,
     textId: 'text_1',
-    key: `${overrides.layerType}_${overrides.id}`,
-    name: { zho: overrides.id },
-    layerType: overrides.layerType,
+    key: `${raw.layerType}_${raw.id}`,
+    name: { zho: String(raw.id) },
     languageId: 'zho',
     modality: 'text',
     createdAt: now,
     updatedAt: now,
+    ...raw,
+    id: String(raw.id),
+    layerType: raw.layerType as 'transcription' | 'translation',
+    ...(raw.layerType === 'transcription' && typeof treeParent === 'string' && treeParent.length > 0
+      ? { parentLayerId: treeParent }
+      : {}),
   } as LayerDocType;
 }
 
@@ -121,6 +135,22 @@ describe('LayerConstraintService constraint mode guards', () => {
     expect(guard.allowed).toBe(true);
   });
 
+  it('allows translation creation with preferredHostTranscriptionLayerId only when multiple independent transcription layers exist', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', languageId: 'zho', constraint: 'independent_boundary', sortOrder: 0 }),
+      makeLayer({ id: 'trc_2', layerType: 'transcription', languageId: 'eng', constraint: 'independent_boundary', sortOrder: 1 }),
+    ];
+
+    const guard = getLayerCreateGuard(layers, 'translation', {
+      languageId: 'fra',
+      constraint: 'symbolic_association',
+      hasSupportedParent: true,
+      preferredHostTranscriptionLayerId: 'trc_2',
+    });
+
+    expect(guard.allowed).toBe(true);
+  });
+
   it('rejects translation host ids that are not independent-boundary transcription layers', () => {
     const layers: LayerDocType[] = [
       makeLayer({ id: 'trc_1', layerType: 'transcription', languageId: 'zho', constraint: 'independent_boundary', sortOrder: 0 }),
@@ -186,18 +216,48 @@ describe('LayerConstraintService constraint mode guards', () => {
     }];
     const repaired = repairExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
     const trl = repaired.layers.find((layer) => layer.id === 'trl_1');
-    expect(trl?.parentLayerId).toBeUndefined();
+    expect(layerTranscriptionTreeParentId(trl!)).toBeUndefined();
     expect(repaired.repairs.some((item) => item.layerId === 'trl_1')).toBe(false);
+  });
+
+  it('hasRepairPersistableLayerDiff ignores tree parent drift for link-hosted translation', () => {
+    const layers: LayerDocType[] = [
+      makeLayer({ id: 'trc_1', layerType: 'transcription', constraint: 'independent_boundary' }),
+      makeLayer({ id: 'trl_1', layerType: 'translation', constraint: 'symbolic_association' }),
+    ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-1',
+      layerId: 'trl_1',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
+    const before = { ...layers[1]!, parentLayerId: 'trc_1' } as unknown as LayerDocType;
+    const after = { ...before, parentLayerId: undefined } as unknown as LayerDocType;
+    expect(hasRepairPersistableLayerDiff(before, after, layers, layerLinks)).toBe(false);
   });
 
   it('reports non-independent transcription parents as invalid for dependent layers', () => {
     const layers: LayerDocType[] = [
       makeLayer({ id: 'trc_root', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 'trc_dep', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: 'trc_root' }),
-      makeLayer({ id: 'trl_bad_parent', layerType: 'translation', parentLayerId: 'trc_dep' }),
+      makeLayer({ id: 'trl_bad_parent', layerType: 'translation', constraint: 'symbolic_association' }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-bad',
+      layerId: 'trl_bad_parent',
+      transcriptionLayerKey: 'transcription_trc_dep',
+      hostTranscriptionLayerId: 'trc_dep',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const issues = validateExistingLayerConstraints(layers);
+    const issues = validateExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
     expect(issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ layerId: 'trl_bad_parent', code: 'invalid-parent-layer-type' }),
     ]));
@@ -210,11 +270,20 @@ describe('LayerConstraintService constraint mode guards', () => {
         id: 'trl_sub',
         layerType: 'translation',
         constraint: 'time_subdivision',
-        parentLayerId: 'trc_1',
       }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-ts',
+      layerId: 'trl_sub',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const issues = validateExistingLayerConstraints(layers);
+    const issues = validateExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
     expect(issues.some((issue) => issue.code === 'constraint-runtime-not-supported')).toBe(false);
   });
 
@@ -225,15 +294,24 @@ describe('LayerConstraintService constraint mode guards', () => {
         id: 'trl_sub',
         layerType: 'translation',
         constraint: 'time_subdivision',
-        parentLayerId: 'trc_1',
       }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-ts',
+      layerId: 'trl_sub',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const issues = validateExistingLayerConstraints(layers, { time_subdivision: false });
+    const issues = validateExistingLayerConstraints(layers, { time_subdivision: false }, 'zh-CN', layerLinks);
     expect(issues.some((issue) => issue.code === 'constraint-runtime-not-supported')).toBe(true);
   });
 
-  it('repairs missing parent by binding translation to transcription root', () => {
+  it('repairs missing translation hosts without fabricating tree parent', () => {
     const layers: LayerDocType[] = [
       makeLayer({ id: 'trc_1', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 'trl_1', layerType: 'translation', constraint: 'symbolic_association' }),
@@ -242,7 +320,7 @@ describe('LayerConstraintService constraint mode guards', () => {
     const repaired = repairExistingLayerConstraints(layers);
     const trl = repaired.layers.find((layer) => layer.id === 'trl_1');
 
-    expect(trl?.parentLayerId).toBe('trc_1');
+    expect(layerTranscriptionTreeParentId(trl!)).toBeUndefined();
     expect(repaired.repairs.some((item) => item.code === 'missing-parent-layer')).toBe(true);
   });
 
@@ -250,13 +328,23 @@ describe('LayerConstraintService constraint mode guards', () => {
     const layers: LayerDocType[] = [
       makeLayer({ id: 'trc_root', layerType: 'transcription', constraint: 'independent_boundary' }),
       makeLayer({ id: 'trc_dep', layerType: 'transcription', constraint: 'symbolic_association', parentLayerId: 'trc_root' }),
-      makeLayer({ id: 'trl_bad_parent', layerType: 'translation', parentLayerId: 'trc_dep' }),
+      makeLayer({ id: 'trl_bad_parent', layerType: 'translation', constraint: 'symbolic_association' }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-bad',
+      layerId: 'trl_bad_parent',
+      transcriptionLayerKey: 'transcription_trc_dep',
+      hostTranscriptionLayerId: 'trc_dep',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const repaired = repairExistingLayerConstraints(layers);
+    const repaired = repairExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
     const translation = repaired.layers.find((layer) => layer.id === 'trl_bad_parent');
 
-    expect(translation?.parentLayerId).toBe('trc_root');
+    expect(layerTranscriptionTreeParentId(translation!)).toBeUndefined();
     expect(repaired.repairs).toEqual(expect.arrayContaining([
       expect.objectContaining({ layerId: 'trl_bad_parent', code: 'invalid-parent-layer-type' }),
     ]));
@@ -269,15 +357,24 @@ describe('LayerConstraintService constraint mode guards', () => {
         id: 'trl_1',
         layerType: 'translation',
         constraint: 'time_subdivision',
-        parentLayerId: 'trc_1',
       }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-ts',
+      layerId: 'trl_1',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const repaired = repairExistingLayerConstraints(layers);
+    const repaired = repairExistingLayerConstraints(layers, undefined, 'zh-CN', layerLinks);
     const trl = repaired.layers.find((layer) => layer.id === 'trl_1');
 
     expect(trl?.constraint).toBe('time_subdivision');
-    expect(trl?.parentLayerId).toBe('trc_1');
+    expect(layerTranscriptionTreeParentId(trl!)).toBeUndefined();
     expect(repaired.repairs.some((item) => item.code === 'constraint-runtime-not-supported')).toBe(false);
   });
 
@@ -288,15 +385,24 @@ describe('LayerConstraintService constraint mode guards', () => {
         id: 'trl_1',
         layerType: 'translation',
         constraint: 'time_subdivision',
-        parentLayerId: 'trc_1',
       }),
     ];
+    const now = '2026-03-25T00:00:00.000Z';
+    const layerLinks: LayerLinkDocType[] = [{
+      id: 'link-ts',
+      layerId: 'trl_1',
+      transcriptionLayerKey: 'transcription_trc_1',
+      hostTranscriptionLayerId: 'trc_1',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    }];
 
-    const repaired = repairExistingLayerConstraints(layers, { time_subdivision: false });
+    const repaired = repairExistingLayerConstraints(layers, { time_subdivision: false }, 'zh-CN', layerLinks);
     const trl = repaired.layers.find((layer) => layer.id === 'trl_1');
 
     expect(trl?.constraint).toBe('symbolic_association');
-    expect(trl?.parentLayerId).toBe('trc_1');
+    expect(layerTranscriptionTreeParentId(trl!)).toBeUndefined();
     expect(repaired.repairs.some((item) => item.code === 'constraint-runtime-not-supported')).toBe(true);
   });
 

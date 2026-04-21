@@ -347,6 +347,7 @@ export interface AiToolRiskCheckResult {
 export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
 export interface AiShortTermContext {
+  locale?: string;
   page?: string;
   activeUnitId?: string;
   activeSegmentUnitId?: string;

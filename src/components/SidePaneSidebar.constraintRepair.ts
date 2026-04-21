@@ -1,8 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
-import { getLayerEffectiveConstraint } from './SidePaneSidebar.shared';
-import { type ExistingLayerConstraintIssue, type ExistingLayerConstraintRepair, repairExistingLayerConstraints, validateExistingLayerConstraints } from '../services/LayerConstraintService';
+import {
+  type ExistingLayerConstraintIssue,
+  type ExistingLayerConstraintRepair,
+  hasRepairPersistableLayerDiff,
+  repairExistingLayerConstraints,
+  validateExistingLayerConstraints,
+} from '../services/LayerConstraintService';
 import type { Locale } from '../i18n';
 import { type LayerOrderIssue, type LayerOrderRepair, repairLayerOrder, validateLayerOrder } from '../services/LayerOrderingService';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
@@ -91,8 +96,7 @@ export function useSidePaneSidebarConstraintRepair({
       const changedLayers = orderRepaired.layers.filter((layer) => {
         const before = layerById.get(layer.id);
         if (!before) return false;
-        return getLayerEffectiveConstraint(before) !== getLayerEffectiveConstraint(layer)
-          || (before.parentLayerId ?? '') !== (layer.parentLayerId ?? '');
+        return hasRepairPersistableLayerDiff(before, layer, sidePaneRows, layerLinks);
       });
       const changedSortLayers = orderRepaired.layers.filter((layer) => {
         const before = layerById.get(layer.id);

@@ -33,6 +33,7 @@ type ReadyWorkspaceAxisStatusInput<TTimelineTopProps extends TimelineTopPropsBas
   layersCount: AxisStatusRuntimeInput['layersCount'];
   playerIsReady: AxisStatusRuntimeInput['playerIsReady'];
   playerDuration: AxisStatusRuntimeInput['playerDuration'];
+  acousticState?: AxisStatusRuntimeInput['acousticState'];
   selectedTimelineMedia: AxisStatusRuntimeInput['selectedTimelineMedia'];
   unitsOnCurrentMedia: AxisStatusRuntimeInput['unitsOnCurrentMedia'];
   hiddenByMediaFilterCount?: number;
@@ -67,6 +68,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     layersCount,
     playerIsReady,
     playerDuration,
+    acousticState,
     selectedTimelineMedia,
     unitsOnCurrentMedia,
     hiddenByMediaFilterCount,
@@ -86,6 +88,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       selectedMediaUrl,
       playerIsReady,
       playerDuration,
+      ...(acousticState !== undefined ? { acousticState } : {}),
       selectedTimelineMedia: selectedTimelineMedia ?? null,
       unitsOnCurrentMedia,
     });
@@ -121,6 +124,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     playerIsReady,
     selectedMediaUrl,
     selectedTimelineMedia,
+    acousticState,
     setSaveState,
     unitsOnCurrentMedia,
   ]);
@@ -139,6 +143,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       selectedMediaUrl,
       playerIsReady,
       playerDuration,
+      ...(acousticState !== undefined ? { acousticState } : {}),
       selectedTimelineMedia: selectedTimelineMedia ?? null,
       unitsOnCurrentMedia,
     });
@@ -155,7 +160,6 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
         && logicalDurationSec > 0;
       const showLogical = shouldShowLogicalAxisLengthOnAxisStrip({
         ...(logicalOk ? { logicalDurationSec } : {}),
-        ...(activeTextTimelineMode !== undefined ? { timelineMode: activeTextTimelineMode } : {}),
         hintKind: hint.kind,
       });
       if (hint.kind !== 'acoustic_ok' || showLogical) {
@@ -186,6 +190,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
     playerIsReady,
     selectedMediaUrl,
     selectedTimelineMedia,
+    acousticState,
     timelineTopProps,
     hiddenByMediaFilterCount,
     unitsOnCurrentMedia,

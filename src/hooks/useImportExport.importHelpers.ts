@@ -117,6 +117,18 @@ export async function writeImportLayerNameAudit(input: {
   }
 }
 
+/** Effective host for a trl layer during import from `layer_links` only. */
+export async function resolvePreferredHostTranscriptionLayerIdForTranslationImport(
+  db: JieyuDatabase,
+  translationLayerId: string,
+): Promise<string | undefined> {
+  const links = await db.dexie.layer_links.where('layerId').equals(translationLayerId).toArray();
+  const preferred = links.find((l) => l.isPreferred);
+  if (preferred) return preferred.hostTranscriptionLayerId;
+  if (links.length > 0) return links[0]?.hostTranscriptionLayerId;
+  return undefined;
+}
+
 export async function createImportSpeakerResolver(input: {
   normalizeSpeakerLookupKey: (value: string | undefined) => string;
 }) {

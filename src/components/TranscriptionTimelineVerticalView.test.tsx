@@ -16,7 +16,7 @@ vi.mock('../contexts/ToastContext', () => ({
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnitDocType, MediaItemDocType, TranscriptionLayerDocType } from '../db';
 import { TranscriptionEditorContext, type TranscriptionEditorContextValue } from '../contexts/TranscriptionEditorContext';
 import { LocaleProvider } from '../i18n';
 import { TranscriptionTimelineVerticalView } from './TranscriptionTimelineVerticalView';
@@ -26,7 +26,7 @@ function makeLayer(
   layerType: 'transcription' | 'translation',
   displayName = id,
   constraint: LayerDocType['constraint'] = 'symbolic_association',
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   const now = '2026-04-19T00:00:00.000Z';
   return {
@@ -40,17 +40,17 @@ function makeLayer(
     layerType,
     constraint,
     modality: 'text',
-    ...(extras ?? {}),
-  };
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
+  } as LayerDocType;
 }
 
 function makeTranslationLayer(
   id: string,
-  parentTranscriptionId: string,
+  _parentTranscriptionId: string,
   displayName = id,
   constraint: LayerDocType['constraint'] = 'symbolic_association',
 ): LayerDocType {
-  return makeLayer(id, 'translation', displayName, constraint, { parentLayerId: parentTranscriptionId });
+  return makeLayer(id, 'translation', displayName, constraint);
 }
 
 function makeUnit(id: string, layerId: string, startTime: number, endTime: number): LayerUnitDocType {
@@ -1589,7 +1589,7 @@ describe('TranscriptionTimelineVerticalView', () => {
     );
 
     expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
-    expect(screen.getByText('检测到未绑定宿主的译文层；请先在层元信息里修复父层关系。')).toBeTruthy();
+    expect(screen.getByText('检测到未绑定宿主的译文层；请在层元信息中补充指向宿主转写的 layer_links（或调整首选宿主）。')).toBeTruthy();
   });
 
   it('switches target header layer with the active group host instead of pinning one translation layer', () => {

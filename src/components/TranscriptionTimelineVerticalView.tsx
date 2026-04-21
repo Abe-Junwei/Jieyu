@@ -481,12 +481,12 @@ export function TranscriptionTimelineVerticalView({
     [allLayersOrdered, transcriptionLayers, translationLayers],
   );
   const layerIdToHorizontalBundleRootId = useMemo(
-    () => buildLayerIdToHorizontalBundleRootIdMap(effectiveAllLayersOrdered),
-    [effectiveAllLayersOrdered],
+    () => buildLayerIdToHorizontalBundleRootIdMap(effectiveAllLayersOrdered, layerLinks),
+    [effectiveAllLayersOrdered, layerLinks],
   );
   const horizontalBundleRootIdsOrdered = useMemo(
-    () => buildLayerBundles([...effectiveAllLayersOrdered]).map((b) => b.root.id),
-    [effectiveAllLayersOrdered],
+    () => buildLayerBundles([...effectiveAllLayersOrdered], layerLinks).map((b) => b.root.id),
+    [effectiveAllLayersOrdered, layerLinks],
   );
   const effectiveDeletableLayers = deletableLayers ?? effectiveAllLayersOrdered;
   const canOpenTranslationCreate = effectiveAllLayersOrdered.some((item) => item.layerType === 'transcription');
@@ -1160,6 +1160,7 @@ export function TranscriptionTimelineVerticalView({
           action={layerAction.action}
           layerId={layerAction.layerId}
           deletableLayers={effectiveDeletableLayers}
+          layerLinks={layerLinks}
           {...(defaultLanguageId !== undefined ? { defaultLanguageId } : {})}
           {...(defaultOrthographyId !== undefined ? { defaultOrthographyId } : {})}
           createLayer={createLayer}

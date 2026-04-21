@@ -57,7 +57,7 @@ describe('LayerActionPopover orthography creation', () => {
       createdAt: NOW,
       updatedAt: NOW,
       ...overrides,
-    } as LayerDocType;
+    } as unknown as LayerDocType;
   }
 
   it('renders create-transcription path through DialogShell with panel footer actions', () => {

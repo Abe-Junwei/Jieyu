@@ -17,13 +17,10 @@ export type TimelineAxisMediaHint =
  */
 export function shouldShowLogicalAxisLengthOnAxisStrip(input: {
   logicalDurationSec?: number;
-  timelineMode?: string | null;
   hintKind: TimelineAxisMediaHint['kind'];
 }): boolean {
   const d = input.logicalDurationSec;
   if (!(typeof d === 'number' && Number.isFinite(d) && d > 0)) return false;
-  const m = input.timelineMode;
-  if (!(m === 'document' || m === 'media')) return false;
   return input.hintKind === 'no_playable_media';
 }
 
@@ -36,6 +33,7 @@ export interface ResolveTimelineAxisStatusInput {
   selectedMediaUrl: string | null | undefined;
   playerIsReady: boolean;
   playerDuration: number;
+  acousticState?: 'no_media' | 'pending_decode' | 'playable';
   selectedTimelineMedia: Pick<MediaItemDocType, 'filename' | 'details'> | null | undefined;
   unitsOnCurrentMedia: ReadonlyArray<Pick<LayerUnitDocType, 'endTime'>>;
 }
@@ -46,18 +44,24 @@ export interface ResolveTimelineAxisStatusInput {
 export function resolveTimelineAxisStatus(input: ResolveTimelineAxisStatusInput): TimelineAxisMediaHint {
   if (input.layersCount <= 0) return { kind: 'hidden' };
 
-  const { shell, acousticPending } = resolveTimelineShellMode({
+  const derived = resolveTimelineShellMode({
     selectedMediaUrl: input.selectedMediaUrl,
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
     layersCount: input.layersCount,
   });
+  const acousticPending = input.acousticState
+    ? input.acousticState === 'pending_decode'
+    : derived.acousticPending;
+  const playableAcoustic = input.acousticState
+    ? input.acousticState === 'playable'
+    : derived.playableAcoustic;
 
   if (acousticPending) return { kind: 'acoustic_decoding' };
 
   const maxEnd = maxUnitEndTimeSec(input.unitsOnCurrentMedia);
 
-  if (shell === 'waveform') {
+  if (playableAcoustic) {
     const d = input.playerDuration;
     if (d > 0 && maxEnd > d + 0.05) {
       return { kind: 'duration_short', acousticSec: d, maxUnitEndSec: maxEnd };

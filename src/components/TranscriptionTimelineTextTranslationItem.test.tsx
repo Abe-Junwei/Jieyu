@@ -6,8 +6,8 @@ import type { LayerDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { TranscriptionTimelineTextTranslationItem } from './TranscriptionTimelineTextTranslationItem';
 
-vi.mock('./transcription/TimelineDraftEditorSurface', () => ({
-  TimelineDraftEditorSurface: (props: { onRetry?: () => void }) => (
+vi.mock('./transcription/TimelineLaneDraftEditorCell', () => ({
+  TimelineLaneDraftEditorCell: (props: { onRetry?: () => void }) => (
     <button type="button" onClick={props.onRetry}>
       retry-save
     </button>

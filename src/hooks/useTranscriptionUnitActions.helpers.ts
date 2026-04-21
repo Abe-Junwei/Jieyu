@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerUnitContentDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType, type LayerUnitContentDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
 
 export const UNDO_LABEL_KEYS = {
@@ -62,7 +62,7 @@ export function resolveProjectionLayerIdsForNewUnit(
   if (!targetLayer) return [...resolved];
 
   if (targetLayer.layerType === 'transcription' && targetLayer.constraint === 'symbolic_association') {
-    const parentLayerId = targetLayer.parentLayerId?.trim() ?? '';
+    const parentLayerId = layerTranscriptionTreeParentId(targetLayer)?.trim() ?? '';
     const parentLayer = parentLayerId ? layerById.get(parentLayerId) : undefined;
     if (parentLayer && parentLayer.layerType === 'transcription' && parentLayer.constraint === 'independent_boundary') {
       resolved.add(parentLayer.id);

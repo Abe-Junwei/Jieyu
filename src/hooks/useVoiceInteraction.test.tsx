@@ -2,7 +2,7 @@
 import { renderHook } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LayerDocType, LayerLinkDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, TranscriptionLayerDocType } from '../db';
 import { useVoiceInteraction } from './useVoiceInteraction';
 
 const mockUseVoiceAgent = vi.hoisted(() => vi.fn());
@@ -14,7 +14,7 @@ vi.mock('./useVoiceAgent', () => ({
 function makeLayer(
   id: string,
   layerType: 'transcription' | 'translation',
-  extras?: Pick<LayerDocType, 'parentLayerId'>,
+  extras?: Pick<TranscriptionLayerDocType, 'parentLayerId'>,
 ): LayerDocType {
   const now = '2026-03-26T00:00:00.000Z';
   return {
@@ -28,7 +28,7 @@ function makeLayer(
     acceptsAudio: false,
     createdAt: now,
     updatedAt: now,
-    ...(extras ?? {}),
+    ...(layerType === 'transcription' ? (extras ?? {}) : {}),
   } as LayerDocType;
 }
 

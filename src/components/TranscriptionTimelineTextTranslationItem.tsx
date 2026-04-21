@@ -1,11 +1,11 @@
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType } from '../db';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { recordingScopeUnitId, resolveVoiceRecordingSourceUnit } from '../utils/recordingScopeUnitId';
-import { normalizeSingleLine } from '../utils/transcriptionFormatters';
+import { useTranslationSidebarTextDraftAutosave } from '../hooks/useTimelineLaneTextDraftAutosave';
 import { TimelineTranslationAudioControls } from './TimelineTranslationAudioControls';
 import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 import { TimelineStyledContainer } from './transcription/TimelineStyledContainer';
-import { TimelineDraftEditorSurface } from './transcription/TimelineDraftEditorSurface';
+import { TimelineLaneDraftEditorCell } from './transcription/TimelineLaneDraftEditorCell';
 import { t, useLocale } from '../i18n';
 import { SelfCertaintyIcon } from './SelfCertaintyIcon';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
@@ -113,6 +113,21 @@ export function TranscriptionTimelineTextTranslationItem({
   selfCertaintyAmbiguousTitle,
 }: TranscriptionTimelineTextTranslationItemProps) {
   const locale = useLocale();
+  const { handleDraftChange, handleDraftBlur, clearDraftDebounce } = useTranslationSidebarTextDraftAutosave({
+    usesOwnSegments,
+    layerId: layer.id,
+    unitId: utt.id,
+    draftKey,
+    cellKey,
+    text,
+    setTranslationDrafts,
+    setCellSaveStatus,
+    scheduleAutoSave,
+    clearAutoSaveTimer,
+    runSaveWithStatus,
+    saveSegmentContentForLayer,
+    saveUnitLayerText,
+  });
   const layerSupportsAudio = layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
   const isAudioOnlyLayer = layer.modality === 'audio';
   const sourceUnit = resolveVoiceRecordingSourceUnit(utt, unitById, segmentById);
@@ -180,7 +195,8 @@ export function TranscriptionTimelineTextTranslationItem({
       {isAudioOnlyLayer && audioControls ? (
         <div className="timeline-translation-audio-card timeline-translation-audio-card-text">{audioControls}</div>
       ) : (
-        <TimelineDraftEditorSurface
+        <TimelineLaneDraftEditorCell
+          bubbleClick
           inputClassName="timeline-text-input"
           value={draft}
           {...(dir !== undefined ? { dir } : {})}
@@ -195,31 +211,7 @@ export function TranscriptionTimelineTextTranslationItem({
             setEditingCellKey(cellKey);
             onFocusLayer(layer.id);
           }}
-          onChange={(e) => {
-            const value = normalizeSingleLine(e.target.value);
-            setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-            if (usesOwnSegments) {
-              if (!saveSegmentContentForLayer) return;
-              setCellSaveStatus(cellKey, 'dirty');
-              scheduleAutoSave(`seg-${layer.id}-${utt.id}`, async () => {
-                await runSaveWithStatus(cellKey, async () => {
-                  await saveSegmentContentForLayer(utt.id, layer.id, value);
-                });
-              });
-              return;
-            }
-            if (value.trim() && value !== text) {
-              setCellSaveStatus(cellKey, 'dirty');
-              scheduleAutoSave(`tr-${layer.id}-${utt.id}`, async () => {
-                await runSaveWithStatus(cellKey, async () => {
-                  await saveUnitLayerText(utt.id, value, layer.id);
-                });
-              });
-            } else {
-              clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-              setCellSaveStatus(cellKey);
-            }
-          }}
+          onChange={handleDraftChange}
           onKeyDown={(e) => {
             if (e.nativeEvent.isComposing) return;
             if (e.key === 'Tab') {
@@ -232,7 +224,7 @@ export function TranscriptionTimelineTextTranslationItem({
             }
             if (e.key === 'Escape') {
               e.preventDefault();
-              clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
+              clearDraftDebounce();
               setTranslationDrafts((prev) => ({ ...prev, [draftKey]: text }));
               setCellSaveStatus(cellKey);
               focusedTranslationDraftKeyRef.current = null;
@@ -241,26 +233,7 @@ export function TranscriptionTimelineTextTranslationItem({
           }}
           onBlur={(e) => {
             setEditingCellKey((prev) => (prev === cellKey ? null : prev));
-            const value = normalizeSingleLine(e.target.value);
-            if (usesOwnSegments) {
-              clearAutoSaveTimer(`seg-${layer.id}-${utt.id}`);
-              if (value !== text && saveSegmentContentForLayer) {
-                void runSaveWithStatus(cellKey, async () => {
-                  await saveSegmentContentForLayer(utt.id, layer.id, value);
-                });
-              } else {
-                setCellSaveStatus(cellKey);
-              }
-              return;
-            }
-            clearAutoSaveTimer(`tr-${layer.id}-${utt.id}`);
-            if (value !== text) {
-              void runSaveWithStatus(cellKey, async () => {
-                await saveUnitLayerText(utt.id, value, layer.id);
-              });
-            } else {
-              setCellSaveStatus(cellKey);
-            }
+            handleDraftBlur(e);
           }}
         />
       )}

@@ -86,7 +86,11 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 **实现记录（阶段 1，2026-04-18）**：`LinguisticService.deleteAudio` / `importAudio` 已按上表对齐；`timelineMode: 'media'` 项目在删音后保留 `media`，`importAudio` 在 `media` 文本上同步 `logicalDurationSec` 下界。
 
-**实现记录（阶段 2，2026-04-18）**：`resolveTimelineShellMode` + `TranscriptionPage.TimelineContent` 壳层；`TranscriptionTimelineTextOnly` 在 `document|media` 下允许逻辑拖建；`LeftRailProjectHub` 逻辑时间映射菜单对 `media` 开放；`acousticPending` 视觉提示。
+**实现记录（阶段 2，2026-04-18）**：`resolveTimelineShellMode` + `TranscriptionPage.TimelineContent` 壳层；原 `TranscriptionTimelineTextOnly` 在 `document|media` 下允许逻辑拖建；`LeftRailProjectHub` 逻辑时间映射菜单对 `media` 开放；`acousticPending` 视觉提示。
+
+**实现记录（横向壳合并，2026-04-22）**：见 [ADR-0005](0005-unified-timeline-workspace-host.md) — 横向 `waveform`/`text-only` 统一由 `TranscriptionTimelineWorkspaceHost` 挂载 `TranscriptionTimelineHorizontalMediaLanes`；`TranscriptionTimelineTextOnly` 实现已移除；解码中样式由 `acousticShellPending` 继承。
+
+**实现记录（决策 3 回归锁定，2026-04-22）**：`LinguisticService.cleanup.deleteAudioPreserveTimeline` 在删音后按「原 `media` 或已有计时语段」保留 `texts.metadata.timelineMode: 'media'`；占位行 `details.timelineMode` 与之一致。`importAudio` 经 `refreshMediaTimelineMetadata` 在 `media` 文本上维持 `timelineMode: 'media'` 并抬升 `logicalDurationSec` 下界。单测 **`deleteAudio preserves timelineMode media and importAudio keeps media metadata`**（`LinguisticService.test.ts`）为再导音对称性的门禁。
 
 **实现记录（阶段 3，2026-04-18）**：对导入/删音/选媒体/保存路径做静态审计；确认无「导入或删音触发的静默语段缩放」；`importAudio` 短于已有语段跨度时不改 `layer_units`（见 `LinguisticService.test.ts` 回归用例）。
 
@@ -135,7 +139,7 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 | 导入声学 | 允许 | 允许（Replace/Add 策略见执行计划 7B） | 允许 | 允许 | 允许 |
 | 删音（变占位） | 若存在 blob 则允许 | 允许 | 若存在则允许 | 允许 | 已无 blob 则 N/A |
 
-**说明**：主壳「波形轨 vs 纯文本轨」当前由 `selectedMediaUrl` + 播放器就绪 + `playerDuration&gt;0` 决定（见 `TranscriptionPage.TimelineContent`），**不**单独读取 `timelineMode`；阶段 2 应引入显式壳层模式以减少与上表不一致的闪烁。
+**说明**：主壳「波形轨 vs 纯文本轨」由 `resolveTimelineShellMode`（`selectedMediaUrl`、播放器就绪、`playerDuration`、纵向开关等）决定，经 `TranscriptionTimelineWorkspaceHost` 路由；**不**单独以 `timelineMode` 切换横向组件树（见 [ADR-0005](0005-unified-timeline-workspace-host.md)）。
 
 ---
 
@@ -156,4 +160,4 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 - `docs/execution/plans/logical_timeline_media_lifecycle.plan.md`
 - `src/services/LinguisticService.ts`（`previewTextTimeMapping`、`invertTextTimeMapping`、`importAudio`、`deleteAudio`）
 - `src/pages/TranscriptionPage.TimelineContent.tsx`
-- `src/components/TranscriptionTimelineTextOnly.tsx`（拖选门控）
+- [ADR-0005](0005-unified-timeline-workspace-host.md)（横向统一宿主；原纯文本壳逻辑并入 `TranscriptionTimelineHorizontalMediaLanes`）

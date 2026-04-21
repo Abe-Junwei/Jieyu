@@ -171,7 +171,7 @@ export function SidePaneSidebar({
     const rootIds = new Set<string>();
     const ranges: Array<{ rootId: string; start: number; end: number }> = [];
     let cursor = 0;
-    for (const bundle of buildLayerBundles(sidePaneRows)) {
+    for (const bundle of buildLayerBundles(sidePaneRows, layerLinks ?? [])) {
       const start = cursor;
       boundaries.add(cursor);
       if (!bundle.detached) {
@@ -186,7 +186,7 @@ export function SidePaneSidebar({
       bundleRootIds: rootIds,
       bundleRanges: ranges,
     };
-  }, [sidePaneRows]);
+  }, [layerLinks, sidePaneRows]);
   const {
     sidePaneOverviewRef,
     dragState,
@@ -198,6 +198,7 @@ export function SidePaneSidebar({
     bundleBoundaryIndexes,
     bundleRootIds,
     bundleRanges,
+    layerLinks: layerLinks ?? [],
     onReorderLayers,
   });
   const disableCreateTranslationEntry = transcriptionLayers.length === 0;
@@ -427,6 +428,7 @@ export function SidePaneSidebar({
           action={createLayerPopoverAction.action}
           layerId={createLayerPopoverAction.layerId}
           deletableLayers={deletableLayers}
+          {...(layerLinks !== undefined ? { layerLinks } : {})}
           layerCreateMessage={layerCreateMessage}
           createLayer={async (layerType, input, modality) => createLayer(layerType, {
             languageId: input.languageId,

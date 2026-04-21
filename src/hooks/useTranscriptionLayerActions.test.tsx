@@ -719,10 +719,20 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       updatedAt: now,
     };
 
+    const layerLinks = [{
+      id: 'link_trl_a_root_a',
+      layerId: translationA.id,
+      transcriptionLayerKey: rootA.key,
+      hostTranscriptionLayerId: rootA.id,
+      linkType: 'free' as const,
+      isPreferred: true,
+      createdAt: now,
+      updatedAt: now,
+    }];
     const setLayers = vi.fn();
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [rootA as never, translationA as never, rootB as never],
-      layerLinks: [],
+      layerLinks,
       layerToDeleteId: '',
       selectedLayerId: rootA.id,
       unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
@@ -922,11 +932,33 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       updatedAt: now,
     };
 
+    const initialLinks = [
+      {
+        id: 'link_trl_a_a',
+        layerId: translationA.id,
+        transcriptionLayerKey: rootA.key,
+        hostTranscriptionLayerId: rootA.id,
+        linkType: 'free' as const,
+        isPreferred: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'link_trl_b_b',
+        layerId: translationB.id,
+        transcriptionLayerKey: rootB.key,
+        hostTranscriptionLayerId: rootB.id,
+        linkType: 'free' as const,
+        isPreferred: true,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
     const setLayers = vi.fn();
     const setLayerLinks = vi.fn();
     const { result } = renderHook(() => useTranscriptionLayerActions({
       layers: [rootA as never, translationA as never, rootB as never, translationB as never],
-      layerLinks: [],
+      layerLinks: initialLinks,
       layerToDeleteId: '',
       selectedLayerId: translationA.id,
       unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
@@ -948,24 +980,27 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
       await result.current.toggleLayerLink('trc_b', translationA.id);
     });
 
-    expect(mockUpdateLayer).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'layer_trl_a',
-    }));
-    expect(mockUpdateLayerSortOrder).toHaveBeenCalledWith('layer_trc_b', 1, expect.anything());
     expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
       transcriptionLayerKey: 'trc_b',
       layerId: 'layer_trl_a',
     }));
 
     const nextLayers = setLayers.mock.calls[setLayers.mock.calls.length - 1]?.[0] as LayerDocType[] | undefined;
-    expect(nextLayers?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trc_b', 'layer_trl_b', 'layer_trl_a']);
+    // 主宿主仍在 trc_a 时 canonical 顺序保持译文紧邻首选根；link-only 下由 computeCanonicalLayerOrder 决定 |
+    expect(nextLayers?.map((layer) => layer.id)).toEqual(['layer_trc_a', 'layer_trl_a', 'layer_trc_b', 'layer_trl_b']);
     expect(nextLayers?.map((layer) => layer.sortOrder)).toEqual([0, 1, 2, 3]);
 
-    const setLayerLinksUpdater = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as ((prev: Array<{ transcriptionLayerKey: string; layerId: string }>) => Array<{ transcriptionLayerKey: string; layerId: string }>) | undefined;
-    const linkedLayers = setLayerLinksUpdater ? setLayerLinksUpdater([]) : undefined;
-    expect(linkedLayers).toEqual([
-      expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
-    ]);
+    const lastSetLayerLinksArg = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as
+      | Array<{ transcriptionLayerKey: string; layerId: string }>
+      | undefined;
+    expect(lastSetLayerLinksArg).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ transcriptionLayerKey: 'trc_a', layerId: 'layer_trl_a' }),
+        expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_a' }),
+        expect.objectContaining({ transcriptionLayerKey: 'trc_b', layerId: 'layer_trl_b' }),
+      ]),
+    );
+    expect(lastSetLayerLinksArg?.length).toBe(3);
   });
 
   it('toggleLayerLink appends a second host link without removing existing host links', async () => {

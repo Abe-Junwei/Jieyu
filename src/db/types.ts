@@ -615,12 +615,12 @@ export interface LayerDisplaySettings {
   color?: string;
 }
 
-export interface LayerDocType {
+/** 层文档公共字段（不含树父；树父仅属于转写层）| Shared layer fields (no tree parent). */
+export interface LayerDocBase {
   id: string;
   textId: string;
   key: string;
   name: MultiLangString;
-  layerType: 'transcription' | 'translation';
   languageId: string;
   /** 方言（可选）| Dialect label (optional) */
   dialect?: string;
@@ -636,13 +636,39 @@ export interface LayerDocType {
   sortOrder?: number;
   /** 边界约束类型（默认 'symbolic_association'）| Boundary constraint type (default 'symbolic_association') */
   constraint?: LayerConstraint;
-  /** 父层 ID（仅层树依赖；transcription 层使用）| Parent layer ID (tree dependency only; used by transcription layers) */
-  parentLayerId?: string;
   /** 层级显示样式 | Display style configuration */
   displaySettings?: LayerDisplaySettings;
   accessRights?: 'open' | 'restricted' | 'confidential';
   createdAt: string;
   updatedAt: string;
+}
+
+/** 转写层：可使用 parentLayerId 表示层树 / bundle 挂靠 | Transcription layer; tree parent id allowed */
+export interface TranscriptionLayerDocType extends LayerDocBase {
+  layerType: 'transcription';
+  parentLayerId?: string;
+}
+
+/** 译文层：宿主仅 `layer_links`；持久化不得含 parentLayerId | Translation layer; hosts are layer_links only */
+export interface TranslationLayerDocType extends LayerDocBase {
+  layerType: 'translation';
+}
+
+export type LayerDocType = TranscriptionLayerDocType | TranslationLayerDocType;
+
+/** 转写层树父 id；译文层恒为 undefined | Transcription tree parent only */
+export function layerTranscriptionTreeParentId(layer: LayerDocType): string | undefined {
+  return layer.layerType === 'transcription' ? layer.parentLayerId : undefined;
+}
+
+/** 持久化/合并时去掉译文层上的非法 `parentLayerId` 键（若存在）| Strip stale parent key on translation rows */
+export function stripForbiddenTranslationParentLayerId(layer: LayerDocType): LayerDocType {
+  if (layer.layerType !== 'translation') return layer;
+  if (!('parentLayerId' in layer) || (layer as Record<string, unknown>).parentLayerId === undefined) {
+    return layer;
+  }
+  const { parentLayerId: _removed, ...rest } = layer as TranslationLayerDocType & { parentLayerId?: string };
+  return rest as TranslationLayerDocType;
 }
 
 export type LayerUnitType = 'unit' | 'segment';

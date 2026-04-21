@@ -12,8 +12,6 @@ export interface TimelineShellModeInput {
   playerIsReady: boolean;
   playerDuration: number;
   layersCount: number;
-  timelineMode?: 'document' | 'media' | null;
-  fallbackDurationSec?: number | null;
   verticalViewEnabled?: boolean;
 }
 
@@ -28,21 +26,14 @@ export interface TimelineShellModeResult {
 export function resolveTimelineShellMode(input: TimelineShellModeInput): TimelineShellModeResult {
   const hasLayers = input.layersCount > 0;
   const hasUrl = typeof input.selectedMediaUrl === 'string' && input.selectedMediaUrl.trim().length > 0;
-  const fallbackDurationSec = typeof input.fallbackDurationSec === 'number' && Number.isFinite(input.fallbackDurationSec)
-    ? input.fallbackDurationSec
-    : 0;
   const acousticPlayable = hasUrl && input.playerIsReady && input.playerDuration > 0;
   const acousticPending = Boolean(hasUrl && hasLayers && (!input.playerIsReady || input.playerDuration <= 0));
   const verticalViewEnabled = input.verticalViewEnabled === true;
-  const timedMediaWithoutUrl = !hasUrl
-    && hasLayers
-    && input.timelineMode === 'media'
-    && Math.max(input.playerDuration, fallbackDurationSec) > 0;
 
   if (verticalViewEnabled && hasLayers) {
     return { shell: 'text-only', acousticPending: false, playableAcoustic: false };
   }
-  if ((acousticPlayable || timedMediaWithoutUrl) && hasLayers) {
+  if (acousticPlayable && hasLayers) {
     return { shell: 'waveform', acousticPending: false, playableAcoustic: acousticPlayable };
   }
   if (hasLayers) {

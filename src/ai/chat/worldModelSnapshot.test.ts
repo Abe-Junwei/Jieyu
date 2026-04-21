@@ -88,4 +88,26 @@ describe('worldModelSnapshot', () => {
   it('uses summary mode for large projects', () => {
     expect(resolveWorldModelDetailLevel(600)).toBe('summary');
   });
+
+  it('keeps current media bucket even when it has no units', () => {
+    const allUnits = [
+      unit({ id: 'u-1', kind: 'unit', mediaId: 'media-a', layerId: 'layer-transcription', startTime: 0, endTime: 3, text: '你好' }),
+    ];
+    const snapshot = buildWorldModelSnapshot({
+      allUnits,
+      currentMediaUnits: [],
+      layers,
+      mediaItems: [...mediaItems, {
+        id: 'media-placeholder',
+        textId: 'text-1',
+        filename: 'document-placeholder.track',
+        duration: 0,
+        isOfflineCached: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      }],
+      currentMediaId: 'media-placeholder',
+    });
+
+    expect(snapshot).toContain('media document-placeholder.track units=0 ← currentMedia');
+  });
 });

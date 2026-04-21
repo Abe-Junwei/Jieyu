@@ -43,10 +43,14 @@ vi.mock('../services/TierBridgeService', () => ({
   syncLayerToTier: mockSyncLayerToTier,
 }));
 
-vi.mock('../services/LayerConstraintService', () => ({
-  repairExistingLayerConstraints: mockRepairExistingLayerConstraints,
-  validateExistingLayerConstraints: mockValidateExistingLayerConstraints,
-}));
+vi.mock('../services/LayerConstraintService', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/LayerConstraintService')>();
+  return {
+    repairExistingLayerConstraints: mockRepairExistingLayerConstraints,
+    validateExistingLayerConstraints: mockValidateExistingLayerConstraints,
+    hasRepairPersistableLayerDiff: actual.hasRepairPersistableLayerDiff,
+  };
+});
 
 const NOW = '2026-03-27T00:00:00.000Z';
 

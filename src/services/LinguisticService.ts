@@ -1399,25 +1399,23 @@ export class LinguisticService {
       && !isAuxiliaryRecordingMediaRow(row)
     ));
 
-    const refreshMediaTimelineMetadata = async (mediaId: string) => {
+    const refreshMediaTimelineMetadata = async (_mediaId: string) => {
       const textRow = await db.dexie.texts.get(input.textId);
       if (!textRow) return;
       const rowMeta = (textRow.metadata as Record<string, unknown> | undefined) ?? {};
-      if (rowMeta.timelineMode === 'media') {
-        const prevLogical = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
-          ? rowMeta.logicalDurationSec
-          : 0;
-        const nextLogical = Math.max(prevLogical, input.duration);
-        await db.dexie.texts.put({
-          ...textRow,
-          metadata: {
-            ...rowMeta,
-            timelineMode: 'media',
-            ...(nextLogical > 0 ? { logicalDurationSec: nextLogical } : {}),
-          },
-          updatedAt: now,
-        });
-      }
+      const prevLogical = typeof rowMeta.logicalDurationSec === 'number' && Number.isFinite(rowMeta.logicalDurationSec)
+        ? rowMeta.logicalDurationSec
+        : 0;
+      const nextLogical = Math.max(prevLogical, input.duration);
+      await db.dexie.texts.put({
+        ...textRow,
+        metadata: {
+          ...rowMeta,
+          timelineMode: 'media',
+          ...(nextLogical > 0 ? { logicalDurationSec: nextLogical } : {}),
+        },
+        updatedAt: now,
+      });
     };
 
     if (mode === 'replace') {

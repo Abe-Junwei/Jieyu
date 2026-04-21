@@ -1,5 +1,7 @@
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { buildLayerBundles } from '../services/LayerOrderingService';
+
+type ConnectorHostLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
 export interface LayerLinkConnectorSegment {
   column: number;
@@ -58,14 +60,14 @@ export function getLayerLinkConnectorColors(colorIndex: number): { base: string;
 
 export function buildLayerLinkConnectorLayout(
   allLayers: LayerDocType[],
-  _layerLinks: ReadonlyArray<unknown>,
+  layerLinks: ReadonlyArray<ConnectorHostLink> = [],
 ): LayerLinkConnectorLayout {
   if (allLayers.length === 0) {
     return { maxColumns: 0, segmentsByLayerId: {} };
   }
 
   const segmentsByLayerId: Record<string, LayerLinkConnectorSegment[]> = {};
-  const orderedBundles = buildLayerBundles(allLayers)
+  const orderedBundles = buildLayerBundles(allLayers, layerLinks)
     .filter((bundle) => !bundle.detached)
     .map((bundle) => ({
       root: bundle.root,

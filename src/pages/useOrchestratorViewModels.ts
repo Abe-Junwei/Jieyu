@@ -20,6 +20,7 @@ import { useTranscriptionSectionViewModels } from './useTranscriptionSectionView
 export interface UseOrchestratorViewModelsInput {
   // ── TimelineContentViewModel deps ──
   selectedMediaUrl: string | null;
+  playableAcoustic: boolean;
   playerIsReady: boolean;
   playerDuration: number;
   layersCount: number;
@@ -28,6 +29,7 @@ export interface UseOrchestratorViewModelsInput {
   layerActionSetCreateTranscription: () => void;
   mediaLanesPropsInput: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['mediaLanesPropsInput'];
   textOnlyPropsInput: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['textOnlyPropsInput'];
+  verticalProjection?: Parameters<typeof useTranscriptionTimelineContentViewModel>[0]['verticalProjection'];
 
   // ── SectionViewModelsInput deps ──
   selectedTimelineMediaFilename: string | null;
@@ -115,6 +117,7 @@ export function useOrchestratorViewModels(
     layerActionSetCreateTranscription: input.layerActionSetCreateTranscription,
     mediaLanesPropsInput: input.mediaLanesPropsInput,
     textOnlyPropsInput: input.textOnlyPropsInput,
+    ...(input.verticalProjection !== undefined ? { verticalProjection: input.verticalProjection } : {}),
   });
 
   const sectionViewModelsInput = useTranscriptionSectionViewModelsInput({
@@ -150,6 +153,7 @@ export function useOrchestratorViewModels(
     toggleNotes: input.toggleNotes,
     setUttOpsMenu: input.setUttOpsMenu,
     selectedMediaUrl: input.selectedMediaUrl,
+    playableAcoustic: input.playableAcoustic,
     handleAutoSegment: input.handleAutoSegment,
     autoSegmentBusy: input.autoSegmentBusy,
     setShowExportMenu: input.setShowExportMenu,

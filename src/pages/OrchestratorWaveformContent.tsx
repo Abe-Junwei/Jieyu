@@ -24,6 +24,7 @@ import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcr
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
 import { t, tf, type Locale } from '../i18n';
+import type { AcousticStripContract } from '../hooks/timelineViewportTypes';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
@@ -174,6 +175,12 @@ export interface OrchestratorWaveformContentProps {
   // Empty state
   mediaFileInputRef: RefObject<HTMLInputElement | null>;
 
+  /**
+   * Acoustic strip plugin contract: read-model slice + tier/wave DOM refs.
+   * When omitted, `waveCanvasRef` above is the sole canvas ref; a11y shell attrs stay unset.
+   */
+  acousticStrip?: AcousticStripContract;
+
 }
 
 export const OrchestratorWaveformContent = React.memo(function OrchestratorWaveformContent(props: OrchestratorWaveformContentProps) {
@@ -259,7 +266,11 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
     mediaFileInputRef,
+    acousticStrip,
   } = props;
+
+  const effectiveWaveCanvasRef = acousticStrip?.waveCanvasRef ?? waveCanvasRef;
+  const acousticReadModelSlice = acousticStrip?.acoustic;
 
   // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
   const handleAmplitudeReset = React.useCallback(() => setAmplitudeScale(1), [setAmplitudeScale]);
@@ -360,6 +371,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
         className={`transcription-waveform-area ${snapEnabled && snapGuideNearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
         layoutStyle={{ '--waveform-height': `${waveformHeight}px` } as React.CSSProperties}
         tabIndex={0}
+        aria-busy={acousticReadModelSlice?.state === 'pending_decode' ? true : undefined}
+        data-timeline-acoustic-shell={acousticReadModelSlice?.shell}
         onKeyDown={handleWaveformKeyDown}
         onFocus={handleWaveformAreaFocus}
         onBlur={handleWaveformAreaBlur}
@@ -416,7 +429,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 onVideoRightPanelResizeStart={handleVideoRightPanelResizeStart}
                 waveformStripHeight={waveformHeight}
                 waveformDisplayMode={waveformDisplayMode}
-                waveCanvasRef={waveCanvasRef}
+                waveCanvasRef={effectiveWaveCanvasRef}
                 playerSpectrogramRef={playerSpectrogramRef}
                 playerWaveformRef={playerWaveformRef}
                 onSeek={playerSeekTo}

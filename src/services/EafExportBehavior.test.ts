@@ -103,13 +103,13 @@ describe('EAF export behavior for constraint layers', () => {
       key: 'trl_sub',
       name: { eng: 'SubTier', zho: 'SubTier' },
       constraint: 'time_subdivision',
-      parentLayerId: trc.id,
     });
 
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [trc, sub],
       translations: [makeTranslation({ id: 'utr_sub_1', layerId: sub.id, unitId: 'utt_1', text: 'sub-text' })],
+      layerLinks: [makeLayerLink({ id: 'link-sub', layerId: sub.id, transcriptionLayerKey: trc.key, hostTranscriptionLayerId: trc.id })],
     });
 
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -273,7 +273,7 @@ describe('EAF export behavior for constraint layers', () => {
     expect(tier?.getAttribute('PARTICIPANT')).toBe('Segment Speaker');
   });
 
-  it('prefers parentLayerId mapped tier as PARENT_REF during export', () => {
+  it('prefers preferred host link tier as PARENT_REF during export', () => {
     const defaultTrc = makeLayer({ id: 'trc_default', layerType: 'transcription', key: withEafKeyMeta('trc_default', 'TRC_DEFAULT') });
     const customParent = makeLayer({
       id: 'trc_custom',
@@ -287,12 +287,20 @@ describe('EAF export behavior for constraint layers', () => {
       layerType: 'translation',
       key: withEafKeyMeta('trl_child', 'TRL_CHILD'),
       constraint: 'symbolic_association',
-      parentLayerId: customParent.id,
     });
 
     const xml = exportToEaf({
       units: [makeUnit()],
       layers: [defaultTrc, customParent, trl],
+      layerLinks: [
+        makeLayerLink({
+          id: 'link-trl-custom',
+          layerId: trl.id,
+          transcriptionLayerKey: customParent.key,
+          hostTranscriptionLayerId: customParent.id,
+          isPreferred: true,
+        }),
+      ],
       translations: [
         makeTranslation({ id: 'utr_default', layerId: defaultTrc.id, unitId: 'utt_1', text: 'hello' }),
         makeTranslation({ id: 'utr_child', layerId: trl.id, unitId: 'utt_1', text: 'child' }),
@@ -350,7 +358,6 @@ describe('EAF export behavior for constraint layers', () => {
       layerType: 'translation',
       key: withEafKeyMeta('trl_sub', 'TRL_SUB'),
       constraint: 'time_subdivision',
-      parentLayerId: trc.id,
     });
 
     const xml = exportToEaf({
@@ -360,6 +367,7 @@ describe('EAF export behavior for constraint layers', () => {
         makeTranslation({ id: 'utr_main', layerId: trc.id, unitId: 'utt_1', text: 'main' }),
         makeTranslation({ id: 'utr_sub', layerId: trl.id, unitId: 'utt_1', text: 'sub' }),
       ],
+      layerLinks: [makeLayerLink({ id: 'link-roundtrip', layerId: trl.id, transcriptionLayerKey: trc.key, hostTranscriptionLayerId: trc.id })],
     });
 
     const imported = importFromEaf(xml);
