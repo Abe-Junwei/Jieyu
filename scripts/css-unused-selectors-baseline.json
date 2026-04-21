@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-21T09:49:24.723Z",
+  "generatedAt": "2026-04-21T10:34:41.063Z",
   "allowedUnused": [
     "ai-chat-provider-config-check-icon",
     "app-collaboration-cloud-status-strip",
@@ -18,15 +18,9 @@
     "panel-edge-nav-meta",
     "timeline-annotation-speaker-dot",
     "timeline-axis-status-strip__timing-kept",
-    "timeline-content-editing",
     "timeline-content-placeholder",
     "timeline-lane-resize-handle-top",
-    "timeline-lane-text-only",
-    "timeline-lane-text-only-track",
-    "timeline-lane-text-only-track-creatable",
-    "timeline-lane-text-only-track-marking",
     "timeline-paired-reading-target-surface-has-self-certainty",
-    "timeline-text-only-drag-preview",
     "timeline-top-placeholder",
     "toolbar-sep-compact-gap",
     "transcription-side-pane-inspector-chip",

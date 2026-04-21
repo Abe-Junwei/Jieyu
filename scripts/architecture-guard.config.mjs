@@ -693,7 +693,6 @@ export const architectureGuardRules = [
       /^\.timeline-lane-bundle-target\s*\{/m,
       /^\.timeline-annotation/m,
       /^\.timeline-content-text-only\s*\{/m,
-      /^\.timeline-lane-text-only/m,
       /^\.timeline-text-item/m,
       /^\.timeline-text-input\s*\{/m,
       /^@keyframes timeline-status-pulse/m,

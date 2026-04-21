@@ -105,6 +105,138 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
   return { handleDraftFocus, handleDraftChange, handleDraftBlur };
 }
 
+/**
+ * 多轨译文行 `TranscriptionTimelineMediaTranslationRow`：防抖 + blur。
+ * segment 模式：仅当草稿与已提交的 `text` 不同时排程防抖（与侧栏「每键 dirty」不同，避免无意义写）。
+ */
+export function useMediaTranslationLaneRowDraftAutosave(params: {
+  usesOwnSegments: boolean;
+  layerId: string;
+  unitId: string;
+  draftKey: string;
+  text: string;
+  setTranslationDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  scheduleAutoSave: (key: string, task: () => Promise<void>) => void;
+  clearAutoSaveTimer: (key: string) => void;
+  saveSegmentContentForLayer: ((segmentId: string, layerId: string, value: string) => Promise<void>) | undefined;
+  saveUnitLayerText: (unitId: string, value: string, layerId: string) => Promise<void>;
+  focusedTranslationDraftKeyRef: MutableRefObject<string | null>;
+  latestDraftRef: MutableRefObject<string>;
+  setRowSaveStatus: (status?: 'dirty' | 'saving' | 'error') => void;
+  runSaveWithStatus: (saveTask: () => Promise<void>) => Promise<void>;
+}) {
+  const {
+    usesOwnSegments,
+    layerId,
+    unitId,
+    draftKey,
+    text,
+    setTranslationDrafts,
+    scheduleAutoSave,
+    clearAutoSaveTimer,
+    saveSegmentContentForLayer,
+    saveUnitLayerText,
+    focusedTranslationDraftKeyRef,
+    latestDraftRef,
+    setRowSaveStatus,
+    runSaveWithStatus,
+  } = params;
+
+  const draftDebounceKey = useMemo(
+    () => timelineTranslationHostDraftAutoSaveKey(usesOwnSegments, layerId, unitId),
+    [usesOwnSegments, layerId, unitId],
+  );
+
+  const handleDraftFocus = useCallback(() => {
+    focusedTranslationDraftKeyRef.current = draftKey;
+  }, [draftKey, focusedTranslationDraftKeyRef]);
+
+  const handleDraftChange = useCallback<ChangeEventHandler<HTMLInputElement>>((e) => {
+    const value = normalizeSingleLine(e.target.value);
+    latestDraftRef.current = value;
+    setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+    if (usesOwnSegments) {
+      if (!saveSegmentContentForLayer) return;
+      if (value !== text) {
+        setRowSaveStatus('dirty');
+        scheduleAutoSave(draftDebounceKey, async () => {
+          await runSaveWithStatus(async () => {
+            await saveSegmentContentForLayer(unitId, layerId, value);
+          });
+        });
+      } else {
+        clearAutoSaveTimer(draftDebounceKey);
+        setRowSaveStatus(undefined);
+      }
+      return;
+    }
+    if (value.trim() && value !== text) {
+      setRowSaveStatus('dirty');
+      scheduleAutoSave(draftDebounceKey, async () => {
+        await runSaveWithStatus(async () => {
+          await saveUnitLayerText(unitId, value, layerId);
+        });
+      });
+    } else {
+      clearAutoSaveTimer(draftDebounceKey);
+      setRowSaveStatus(undefined);
+    }
+  }, [
+    usesOwnSegments,
+    layerId,
+    unitId,
+    draftKey,
+    text,
+    draftDebounceKey,
+    setTranslationDrafts,
+    scheduleAutoSave,
+    clearAutoSaveTimer,
+    saveSegmentContentForLayer,
+    saveUnitLayerText,
+    latestDraftRef,
+    setRowSaveStatus,
+    runSaveWithStatus,
+  ]);
+
+  const handleDraftBlur = useCallback<FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>>((e) => {
+    focusedTranslationDraftKeyRef.current = null;
+    const value = normalizeSingleLine(e.target.value);
+    if (usesOwnSegments) {
+      clearAutoSaveTimer(draftDebounceKey);
+      if (saveSegmentContentForLayer && value !== text) {
+        fireAndForget(runSaveWithStatus(async () => {
+          await saveSegmentContentForLayer(unitId, layerId, value);
+        }));
+      } else {
+        setRowSaveStatus(undefined);
+      }
+      return;
+    }
+    clearAutoSaveTimer(draftDebounceKey);
+    if (value !== text) {
+      fireAndForget(runSaveWithStatus(async () => {
+        await saveUnitLayerText(unitId, value, layerId);
+      }));
+    } else {
+      setRowSaveStatus(undefined);
+    }
+  }, [
+    usesOwnSegments,
+    layerId,
+    unitId,
+    text,
+    draftDebounceKey,
+    clearAutoSaveTimer,
+    saveSegmentContentForLayer,
+    saveUnitLayerText,
+    focusedTranslationDraftKeyRef,
+    setRowSaveStatus,
+    runSaveWithStatus,
+  ]);
+
+  return { handleDraftFocus, handleDraftChange, handleDraftBlur };
+}
+
 /** 侧栏 `TranscriptionTimelineTextTranslationItem`：`runSaveWithStatus` + cell 状态 */
 export function useTranslationSidebarTextDraftAutosave(params: {
   usesOwnSegments: boolean;

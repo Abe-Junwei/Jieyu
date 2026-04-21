@@ -242,13 +242,6 @@
   background: color-mix(in srgb, var(--border-soft) 20%, transparent);
 }
 
-.timeline-lane-collapsed.timeline-lane-text-only {
-  min-height: 14px;
-  height: 14px;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
 .timeline-lane-collapsed .timeline-lane-label {
   padding-top: 0;
   padding-bottom: 0;
@@ -315,77 +308,4 @@
   }
 }
 
-/* ═══════════════════════════════════════
-   文本-only 层 | Text-only lanes
-   ═══════════════════════════════════════ */
 
-.timeline-lane-text-only {
-  position: relative;
-  display: block;
-  min-height: var(--timeline-lane-height);
-  height: var(--timeline-lane-height);
-  --timeline-lane-separator-color: color-mix(in srgb, var(--text-tertiary) 58%, transparent);
-  border-bottom: none; /* 统一用 ::after */
-  /* timeline-content 已承担标签/视频偏移，text-only lane 不再二次偏移 | timeline-content already applies label/video offset; avoid double offset in text-only lanes */
-  padding-left: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-}
-
-.timeline-lane-text-only::after {
-  display: none;
-}
-
-.timeline-lane-text-only.timeline-lane-translation {
-  --timeline-lane-separator-color: color-mix(in srgb, var(--state-info-solid) 28%, transparent);
-}
-
-.timeline-lane-text-only-track {
-  position: relative;
-  height: 100%;
-  min-height: var(--timeline-lane-content-height, 42px);
-  /* 防止在无语段或过渡态时宽度塌为 0，导致看起来"错位悬空" | Keep lane track at least viewport width to avoid 0px collapse */
-  width: max(var(--timeline-lane-track-width, 0px), 100%);
-}
-
-.timeline-lane-text-only-track-creatable {
-  cursor: crosshair;
-}
-
-.timeline-lane-text-only-track-marking {
-  cursor: crosshair;
-}
-
-.timeline-text-only-drag-preview {
-  position: absolute;
-  top: 4px;
-  bottom: 4px;
-  border-radius: 10px;
-  border: 1px dashed color-mix(in srgb, var(--accent-primary, var(--state-info-solid)) 72%, white 12%);
-  background: color-mix(in srgb, var(--accent-primary, var(--state-info-solid)) 20%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-primary, var(--state-info-solid)) 36%, transparent);
-  pointer-events: none;
-  z-index: calc(var(--z-overlay) + 1);
-}
-
-.timeline-lane-text-only-track::after {
-  content: '';
-  position: absolute;
-  left: calc(-1 * var(--video-left-panel-width, 0px));
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--timeline-lane-separator-color);
-  /* 分割线绘制在条目之上，避免 100% 缩放时被首段覆盖 | Keep divider above items so 100% zoom doesn't hide the segment start */
-  z-index: var(--z-overlay);
-  pointer-events: none;
-}
-
-.timeline-lane-text-only > .timeline-lane-header-wrapper > .timeline-lane-label {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: var(--lane-label-width);
-  display: inline-flex;
-}

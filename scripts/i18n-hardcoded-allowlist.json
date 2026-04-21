@@ -88,6 +88,7 @@
     { "pathPrefix": "src/i18n/aiChatQuickPromptTemplates.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/languageInputMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/layerConstraintServiceMessages.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/i18n/settingsModalMessages.ts", "reason": "runtime-template-message" }
+    { "pathPrefix": "src/i18n/settingsModalMessages.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/timelineParityMatrixMessages.ts", "reason": "runtime-template-message" }
   ]
 }

@@ -104,15 +104,6 @@
    状态优先级链 | State priority chain
    ═══════════════════════════════════════ */
 
-/* 编辑态下其他 Item 淡化 */
-.timeline-content-text-only.timeline-content-editing .timeline-text-item {
-  opacity: 0.58;
-}
-
-.timeline-content-text-only.timeline-content-editing .timeline-text-item:focus-within {
-  opacity: 1;
-}
-
 /* 淡化/隐藏状态 */
 .timeline-text-item.timeline-text-item-dimmed {
   opacity: 0.58;

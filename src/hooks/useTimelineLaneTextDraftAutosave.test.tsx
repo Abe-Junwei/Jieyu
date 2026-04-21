@@ -5,6 +5,7 @@ import type { ChangeEvent, FocusEvent, MutableRefObject } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import * as fireAndForgetModule from '../utils/fireAndForget';
 import {
+  useMediaTranslationLaneRowDraftAutosave,
   useTranscriptionMediaLaneRowTextAutosave,
   useTranslationSidebarTextDraftAutosave,
 } from './useTimelineLaneTextDraftAutosave';
@@ -206,5 +207,84 @@ describe('useTranscriptionMediaLaneRowTextAutosave blur', () => {
     expect(fireAndForgetModule.fireAndForget).toHaveBeenCalled();
     expect(saveSegmentContentForLayer).toHaveBeenCalledWith('U1', 'L1', 'edited');
     vi.restoreAllMocks();
+  });
+});
+
+describe('useMediaTranslationLaneRowDraftAutosave', () => {
+  it('segment mode schedules save only when value differs from committed text', () => {
+    const scheduleAutoSave = vi.fn();
+    const clearAutoSaveTimer = vi.fn();
+    const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
+    const saveUnitLayerText = vi.fn().mockResolvedValue(undefined);
+    const setTranslationDrafts = vi.fn();
+    const latestDraftRef: MutableRefObject<string> = { current: '' };
+    const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
+    const runSaveWithStatus = vi.fn(async (task: () => Promise<void>) => {
+      await task();
+    });
+
+    const { result } = renderHook(() => useMediaTranslationLaneRowDraftAutosave({
+      usesOwnSegments: true,
+      layerId: 'L1',
+      unitId: 'S1',
+      draftKey: 'dk',
+      text: 'committed',
+      setTranslationDrafts,
+      scheduleAutoSave,
+      clearAutoSaveTimer,
+      saveSegmentContentForLayer,
+      saveUnitLayerText,
+      focusedTranslationDraftKeyRef,
+      latestDraftRef,
+      setRowSaveStatus: vi.fn(),
+      runSaveWithStatus,
+    }));
+
+    act(() => {
+      result.current.handleDraftChange({ target: { value: 'committed' } } as ChangeEvent<HTMLInputElement>);
+    });
+    expect(clearAutoSaveTimer).toHaveBeenCalledWith('seg-L1-S1');
+    expect(scheduleAutoSave).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.handleDraftChange({ target: { value: 'edited' } } as ChangeEvent<HTMLInputElement>);
+    });
+    expect(scheduleAutoSave).toHaveBeenCalledWith('seg-L1-S1', expect.any(Function));
+  });
+
+  it('unit mode clears timer when text is empty', () => {
+    const scheduleAutoSave = vi.fn();
+    const clearAutoSaveTimer = vi.fn();
+    const saveSegmentContentForLayer = vi.fn().mockResolvedValue(undefined);
+    const saveUnitLayerText = vi.fn().mockResolvedValue(undefined);
+    const setTranslationDrafts = vi.fn();
+    const latestDraftRef: MutableRefObject<string> = { current: '' };
+    const focusedTranslationDraftKeyRef: MutableRefObject<string | null> = { current: null };
+    const runSaveWithStatus = vi.fn(async (task: () => Promise<void>) => {
+      await task();
+    });
+
+    const { result } = renderHook(() => useMediaTranslationLaneRowDraftAutosave({
+      usesOwnSegments: false,
+      layerId: 'L1',
+      unitId: 'U1',
+      draftKey: 'dk',
+      text: 'same',
+      setTranslationDrafts,
+      scheduleAutoSave,
+      clearAutoSaveTimer,
+      saveSegmentContentForLayer,
+      saveUnitLayerText,
+      focusedTranslationDraftKeyRef,
+      latestDraftRef,
+      setRowSaveStatus: vi.fn(),
+      runSaveWithStatus,
+    }));
+
+    act(() => {
+      result.current.handleDraftChange({ target: { value: '   ' } } as ChangeEvent<HTMLInputElement>);
+    });
+    expect(clearAutoSaveTimer).toHaveBeenCalledWith('tr-L1-U1');
+    expect(scheduleAutoSave).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-21T09:49:57.788Z",
+  "generatedAt": "2026-04-21T10:41:05.337Z",
   "scannerVersion": 2,
-  "totalHits": 96,
+  "totalHits": 79,
   "files": {
     "src/ai/chat/toolCallSchemas.ts": 1,
     "src/components/SettingsModal.tsx": 1,
@@ -11,7 +11,6 @@
     "src/hooks/useTranscriptionData.ts": 1,
     "src/hooks/useTranscriptionTimelineVerticalChrome.ts": 7,
     "src/i18n/collaborationSyncSurfaceMessages.ts": 11,
-    "src/pages/timelineParityMatrix.ts": 17,
     "src/utils/theme.ts": 37
   }
 }
