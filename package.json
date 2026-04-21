@@ -78,7 +78,7 @@
     "audit:prod": "npm audit --omit=dev",
     "audit:prod:json": "npm audit --omit=dev --json",
     "test:acoustic-regression": "vitest run src/components/AiAnalysisPanel.test.tsx src/pages/useTranscriptionAiAcousticRuntime.test.tsx src/pages/TranscriptionPage.structure.test.ts scripts/evaluate-acoustic-calibration.test.ts",
-    "test:timeline-regression": "vitest run src/pages/TranscriptionPage.layoutGuard.test.ts src/components/TimelineLaneHeader.test.tsx src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx src/components/TranscriptionTimelineTextOnly.test.tsx",
+    "test:timeline-regression": "vitest run src/pages/TranscriptionPage.layoutGuard.test.ts src/components/TimelineLaneHeader.test.tsx src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx",
     "gate:timeline-phase1": "npm run check:architecture-guard && npm run test:timeline-regression && npm run build",
     "test:timeline-cqrs-phase9": "vitest run src/hooks/timelineUnitView.test.ts src/hooks/useTranscriptionSnapshotLoader.test.tsx src/pages/useWaveformSelectionController.test.tsx src/pages/TranscriptionPage.aiPromptContext.test.ts src/ai/chat/localContextTools.test.ts src/ai/chat/localToolSlotResolver.test.ts src/ai/chat/aiArchitectureIntegration.test.ts src/pages/transcriptionDataCaliberConsistency.test.tsx src/perf/TimelineUnitViewIndexPerformanceBaseline.test.ts",
     "test:timeline-cqrs-phase10-14": "vitest run src/ai/chat/worldModelSnapshot.test.ts src/hooks/useEditEventBuffer.test.tsx src/ai/chat/intentTools.test.ts src/ai/changeset/AiChangeSetProtocol.test.ts src/components/ai/AiChangeSetPreview.test.tsx src/ai/chat/contextBudget.test.ts src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/ai/chat/historyTrim.test.ts",

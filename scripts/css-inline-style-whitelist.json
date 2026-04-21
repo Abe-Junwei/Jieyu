@@ -121,18 +121,6 @@
       ]
     },
     {
-      "file": "src/components/TranscriptionTimelineTextOnly.tsx",
-      "reason": "The text-only drag preview follows live pointer geometry while marking a creation range.",
-      "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-18",
-      "snippets": [
-        {
-          "anchor": "left: `${Math.min(textOnlyDragState.anchorX, textOnlyDragState.currentX)}px`",
-          "reviewedSha256": "7272edd4fdddbd201d5f3b1e3fff6820eec9e5232486a18995ad7bcbd301e2dc"
-        }
-      ]
-    },
-    {
       "file": "src/pages/TranscriptionPage.ReadyWorkspaceLayout.tsx",
       "reason": "Timeline resize tooltip is positioned from live pointer geometry.",
       "reviewer": "GitHub Copilot + junwei",

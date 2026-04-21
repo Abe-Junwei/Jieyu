@@ -13,9 +13,10 @@
  * 版本 8：P3 Project Hub 时间映射与导出提示不再依赖 `activeTextTimelineMode`；预览公式 `timeMappingHubPreview`。
  * 版本 9：G3 `TimelineLaneDraftEditorCell` 共享壳（横向 `TimelineAnnotationItem` + 纵向对读草稿格）。
  * 版本 10：G3 草稿防抖 key 单点 `timelineDraftAutoSaveKeys`；侧栏译文行接入共享壳（`bubbleClick`）。
+ * 版本 11：`g3-draft-autosave-key-helpers` 增补 `TranscriptionTimelineHorizontalMediaLanes.test.tsx` 锚点（覆盖 `MediaTranslationRow` + `timelineTranslationHostDraftAutoSaveKey`）；草稿 hook / Escape 防抖 key 与 `usesOwnSegments` 对齐验收随矩阵升版。
  */
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 10 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 11 as const;
 
 export type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -136,6 +137,7 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     testAnchors: [
       'src/utils/timelineDraftAutoSaveKeys.test.ts',
       'src/hooks/useTimelineLaneTextDraftAutosave.test.tsx',
+      'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
       'src/components/TranscriptionTimelineTextTranslationItem.test.tsx',
       'src/components/TranscriptionTimelineVerticalView.test.tsx',
     ],

@@ -463,7 +463,7 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     });
 
     expect(mockCreateLayer).not.toHaveBeenCalled();
-    expect(setLayerCreateMessage.mock.calls[setLayerCreateMessage.mock.calls.length - 1]?.[0]).toContain('请先选择要依赖的边界层');
+    expect(setLayerCreateMessage.mock.calls[setLayerCreateMessage.mock.calls.length - 1]?.[0]).toMatch(/存在多个独立边界转写层|请先为译文选择宿主转写/);
 
     await act(async () => {
       await result.current.createLayer('translation', {

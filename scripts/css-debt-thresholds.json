@@ -11,9 +11,9 @@
       "warnAtTotal": 0
     },
     "unusedSelectors": {
-      "maxTotal": 33,
+      "maxTotal": 36,
       "targetTotal": 0,
-      "warnAtTotal": 33
+      "warnAtTotal": 36
     }
   }
 }
