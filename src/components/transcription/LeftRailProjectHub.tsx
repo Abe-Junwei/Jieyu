@@ -307,6 +307,22 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
     });
   }, [activeTextTimeMapping?.sourceMediaId, hasTimeMappingSourceMismatch, locale, selectedMediaId]);
 
+  const hasTimeMappingSourceMismatch = useMemo(() => {
+    if (!usesLogicTimelineHubFeatures) return false;
+    const sourceMediaId = activeTextTimeMapping?.sourceMediaId?.trim();
+    const currentMediaId = selectedMediaId?.trim();
+    if (!sourceMediaId || !currentMediaId) return false;
+    return sourceMediaId !== currentMediaId;
+  }, [activeTextTimeMapping?.sourceMediaId, selectedMediaId, usesLogicTimelineHubFeatures]);
+
+  const timeMappingSourceMismatchLabel = useMemo(() => {
+    if (!hasTimeMappingSourceMismatch) return null;
+    return tf(locale, 'transcription.projectHub.timeMappingSourceMismatch', {
+      sourceMediaId: activeTextTimeMapping?.sourceMediaId ?? '',
+      selectedMediaId: selectedMediaId ?? '',
+    });
+  }, [activeTextTimeMapping?.sourceMediaId, hasTimeMappingSourceMismatch, locale, selectedMediaId]);
+
   const timeMappingDialogPreview = useMemo(() => {
     if (!timeMappingDialogState) return null;
     const offsetSec = Number(timeMappingDialogState.offsetSecText);

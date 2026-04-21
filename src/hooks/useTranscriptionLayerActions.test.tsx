@@ -1197,6 +1197,200 @@ describe('useTranscriptionLayerActions v2 cleanup', () => {
     expect(prefA?.isPreferred).toBe(false);
   });
 
+  it('toggleLayerLink appends a second host link without removing existing host links', async () => {
+    const now = '2026-04-20T12:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const linkToA = {
+      id: 'link_to_a',
+      transcriptionLayerKey: 'trc_a',
+      hostTranscriptionLayerId: 'layer_trc_a',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    };
+
+    const setLayers = vi.fn();
+    const setLayerLinks = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never, translationA as never],
+      layerLinks: [linkToA as never],
+      layerToDeleteId: '',
+      selectedLayerId: translationA.id,
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers,
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_b', translationA.id);
+    });
+
+    expect(mockRemoveLayerLink).not.toHaveBeenCalled();
+    expect(mockInsertLayerLink).toHaveBeenCalledTimes(1);
+    expect(mockInsertLayerLink).toHaveBeenCalledWith(expect.objectContaining({
+      layerId: 'layer_trl_a',
+      hostTranscriptionLayerId: 'layer_trc_b',
+      isPreferred: false,
+    }));
+
+    const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ id: string; hostTranscriptionLayerId?: string }> | undefined;
+    expect(nextLinks).toHaveLength(2);
+    expect(nextLinks?.some((l) => l.id === 'link_to_a')).toBe(true);
+    expect(nextLinks?.map((l) => l.hostTranscriptionLayerId).sort()).toEqual(['layer_trc_a', 'layer_trc_b']);
+  });
+
+  it('toggleLayerLink switches preferred host when a host link already exists', async () => {
+    const now = '2026-04-20T12:00:00.000Z';
+    const rootA = {
+      id: 'layer_trc_a',
+      textId: 'text_1',
+      key: 'trc_a',
+      name: { zho: '转写层A' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const rootB = {
+      id: 'layer_trc_b',
+      textId: 'text_1',
+      key: 'trc_b',
+      name: { zho: '转写层B' },
+      layerType: 'transcription',
+      languageId: 'eng',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'independent_boundary',
+      sortOrder: 1,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const translationA = {
+      id: 'layer_trl_a',
+      textId: 'text_1',
+      key: 'trl_a',
+      name: { zho: '翻译层A' },
+      layerType: 'translation',
+      languageId: 'fra',
+      modality: 'text',
+      acceptsAudio: false,
+      parentLayerId: rootA.id,
+      sortOrder: 2,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const linkToA = {
+      id: 'link_to_a',
+      transcriptionLayerKey: 'trc_a',
+      hostTranscriptionLayerId: 'layer_trc_a',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: true,
+      createdAt: now,
+    };
+    const linkToB = {
+      id: 'link_to_b',
+      transcriptionLayerKey: 'trc_b',
+      hostTranscriptionLayerId: 'layer_trc_b',
+      layerId: 'layer_trl_a',
+      linkType: 'free',
+      isPreferred: false,
+      createdAt: now,
+    };
+
+    const setLayerLinks = vi.fn();
+    const { result } = renderHook(() => useTranscriptionLayerActions({
+      layers: [rootA as never, rootB as never, translationA as never],
+      layerLinks: [linkToA as never, linkToB as never],
+      layerToDeleteId: '',
+      selectedLayerId: translationA.id,
+      unitsRef: { current: [{ id: 'utt_1', textId: 'text_1' }] as never[] },
+      pushUndo: vi.fn(),
+      setLayerCreateMessage: vi.fn(),
+      setLayers: vi.fn(),
+      setLayerLinks,
+      setLayerToDeleteId: vi.fn(),
+      setShowLayerManager: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await act(async () => {
+      await result.current.toggleLayerLink('trc_b', translationA.id);
+    });
+
+    expect(mockRemoveLayerLink).not.toHaveBeenCalled();
+    expect(mockInsertLayerLink).not.toHaveBeenCalled();
+    expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_a', { isPreferred: false });
+    expect(mockUpdateLayerLink).toHaveBeenCalledWith('link_to_b', { isPreferred: true });
+
+    const nextLinks = setLayerLinks.mock.calls[setLayerLinks.mock.calls.length - 1]?.[0] as Array<{ id: string; isPreferred?: boolean }> | undefined;
+    const prefB = nextLinks?.find((l) => l.id === 'link_to_b');
+    const prefA = nextLinks?.find((l) => l.id === 'link_to_a');
+    expect(prefB?.isPreferred).toBe(true);
+    expect(prefA?.isPreferred).toBe(false);
+  });
+
   it('cascade-deletes dependent translation layers when deleting the last transcription layer', async () => {
     const now = '2026-03-25T00:00:00.000Z';
     const trcLayer = {

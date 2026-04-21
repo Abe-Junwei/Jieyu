@@ -493,6 +493,7 @@ export function useTranscriptionLayerActions({
               constraint: 'symbolic_association',
               updatedAt: now,
             };
+            delete updatedTranslation.parentLayerId;
             await LayerTierUnifiedService.updateLayer(updatedTranslation);
             reparentedLayerById.set(updatedTranslation.id, updatedTranslation);
 
@@ -712,6 +713,7 @@ export function useTranscriptionLayerActions({
       constraint: 'symbolic_association',
       updatedAt: now,
     };
+    delete updatedTranslationBase.parentLayerId;
     const nextLayers = computeCanonicalLayerOrder(layers.map((layer) => (
       layer.id === layerId ? updatedTranslationBase : layer
     )));
