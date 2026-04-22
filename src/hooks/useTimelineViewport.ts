@@ -31,6 +31,14 @@ export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelin
   const logicalTimelineDurationSec = resolveLogicalDurationSec(zoomInput);
 
   const projection = useMemo((): TimelineViewportProjection => ({
+    viewportFrame: {
+      scrollLeftPx: typeof waveformScrollLeft === 'number' && Number.isFinite(waveformScrollLeft)
+        ? waveformScrollLeft
+        : 0,
+      pxPerDocSec: zoomInput.zoomPxPerSec,
+      visibleStartSec: rulerView?.start ?? 0,
+      visibleEndSec: rulerView?.end ?? 0,
+    },
     rulerView,
     zoomPxPerSec: zoomInput.zoomPxPerSec,
     logicalTimelineDurationSec,

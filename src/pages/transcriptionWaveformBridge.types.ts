@@ -5,10 +5,11 @@ import type { useWaveSurfer } from '../hooks/useWaveSurfer';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
 
 export interface TimeRangeLike {
   startTime: number;
@@ -72,6 +73,7 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   activeLayerIdForEdits: string;
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   defaultTranscriptionLayerId?: string;
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
   selectedTimelineUnit: TimelineUnit | null;
@@ -91,6 +93,8 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   setUnitSelection: (primaryId: string, ids: Set<string>) => void;
   resolveNoteIndicatorTarget: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
+  /** 与纵向对读 `verticalComparisonEnabled` 同步：为真时禁用 tier 套索 / 空击清选链。 */
+  tierTimelineLassoSuppressed?: boolean;
   /** 无声学解码时用于 fit/zoom 与刻度的文献秒跨度（与 `texts.metadata.logicalDurationSec` 一致） */
   logicalTimelineDurationSec?: number;
   mediaId?: string;
@@ -134,6 +138,8 @@ export interface UseTranscriptionWaveformBridgeControllerResult {
   } | null;
   waveLassoHintCount: number;
   lassoRect: { x: number; y: number; w: number; h: number } | null;
+  /** 阶段 F·1：wave/tier/Regions 预览互斥读模型（与底层 state 同源派生）。 */
+  segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   handleLassoPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   handleLassoPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
   handleLassoPointerUp: (event: React.PointerEvent<HTMLDivElement>) => void;

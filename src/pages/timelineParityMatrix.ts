@@ -1,4 +1,8 @@
 /**
+ * @i18n-governance-exempt
+ * 本文件为工程治理与验收矩阵代码化，非用户可见 UI 文案。
+ * `labelZh` / `verticalGapZh` 字段与中文执行规划文档对齐，不进入 i18n 消息系统。
+ *
  * 统一宿主下「横向壳 vs 纵向投影」能力矩阵（第二条线：深共享 / 平级验收）。
  * 与执行规划 §5.7 对齐：docs/execution/plans/模式架构与平级评估-2026-04-21.md
  *
@@ -14,12 +18,19 @@
  * 版本 9：G3 `TimelineLaneDraftEditorCell` 共享壳（横向 `TimelineAnnotationItem` + 纵向对读草稿格）。
  * 版本 10：G3 草稿防抖 key 单点 `timelineDraftAutoSaveKeys`；侧栏译文行接入共享壳（`bubbleClick`）。
  * 版本 11：`g3-draft-autosave-key-helpers` 增补 `TranscriptionTimelineHorizontalMediaLanes.test.tsx` 锚点（覆盖 `MediaTranslationRow` + `timelineTranslationHostDraftAutoSaveKey`）；草稿 hook / Escape 防抖 key 与 `usesOwnSegments` 对齐验收随矩阵升版。
+ * 版本 12：阶段 F 契约行 **`segment-range-gesture-single-surface`**（单一拖建/单一反馈产品层；与声学壳解耦）；锚点 `segmentRangeGestureParity.test.ts`。
+ * 版本 13：前置硬化 §3.1 壳层 `layersCount` 单源矩阵行（read model 与 content VM 语义一致）。
+ * 版本 14：`segment-range-gesture-single-surface` 纵向说明与「禁 tier 套索链 + useLasso 回归」实现对齐（文案-only）。
+ * 版本 15：阶段 F·1 工程锚点行 **`phase-f-range-preview-ssot`**（预览状态 SSOT；parity 全 partial，见 `phaseFRangePreviewSsot.test.ts`）。
+ * 版本 16：`phase-f-range-preview-ssot` 读模型贯通编排（tier `lassoRect` / 文本 `timingDragPreview`）与 `OrchestratorWaveformContent` 主波形套索渲染。
+ * 版本 17：波形桥 `segmentRangeGestureWriterReducer` 单写者（lasso 预览抬升 + Regions `timeDrag` 同 reducer）；`segmentRangeGesturePreviewWriter.test.ts` 锚点。
+ * 版本 18：`useSegmentRangeGesturePreviewWriter` 抽离 hooks；ReadyWorkspace 编排 timeline/annotation 头外提 `buildOrchestratorRawTimelineAnnotationCluster`。
  */
 
 import type { TimelineParityMatrixRowId } from '../i18n/timelineParityMatrixMessages';
 import { timelineParityMatrixRowsZh } from '../i18n/timelineParityMatrixMessages';
 
-export const TIMELINE_PARITY_MATRIX_VERSION = 11 as const;
+export const TIMELINE_PARITY_MATRIX_VERSION = 18 as const;
 
 export type TimelineParityShell = 'waveform' | 'textOnly' | 'vertical';
 
@@ -48,6 +59,16 @@ function rowParts(id: TimelineParityMatrixRowId): Pick<TimelineParityRow, 'label
 
 export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
   {
+    id: 'timeline-shell-layers-count-single-source',
+    ...rowParts('timeline-shell-layers-count-single-source'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
+    testAnchors: [
+      'src/pages/timelineReadModel.test.ts',
+      'src/pages/useTranscriptionTimelineContentViewModel.test.tsx',
+      'src/pages/TranscriptionPage.structure.test.ts',
+    ],
+  },
+  {
     id: 'timeline-viewport-single-writer',
     ...rowParts('timeline-viewport-single-writer'),
     parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
@@ -71,6 +92,30 @@ export const TIMELINE_PARITY_MATRIX: readonly TimelineParityRow[] = [
     testAnchors: [
       'src/components/TranscriptionTimelineVerticalView.test.tsx',
       'src/components/TranscriptionTimelineHorizontalMediaLanes.test.tsx',
+    ],
+  },
+  {
+    id: 'segment-range-gesture-single-surface',
+    ...rowParts('segment-range-gesture-single-surface'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'partial' },
+    testAnchors: [
+      'src/pages/timelineParityMatrix.test.ts',
+      'src/pages/segmentRangeGestureParity.test.ts',
+      'src/pages/TranscriptionPage.structure.test.ts',
+      'src/hooks/useLasso.test.tsx',
+    ],
+  },
+  {
+    id: 'phase-f-range-preview-ssot',
+    ...rowParts('phase-f-range-preview-ssot'),
+    parity: { waveform: 'full', textOnly: 'full', vertical: 'full' },
+    testAnchors: [
+      'src/pages/phaseFRangePreviewSsot.test.ts',
+      'src/utils/segmentRangeGesturePreviewReadModel.test.ts',
+      'src/utils/segmentRangeGesturePreviewWriter.test.ts',
+      'src/hooks/useSegmentRangeGesturePreviewWriter.test.ts',
+      'src/pages/segmentRangeGestureParity.test.ts',
+      'src/pages/timelineParityMatrix.test.ts',
     ],
   },
   {

@@ -246,9 +246,10 @@ export function TimelineRailSection({ children }: TimelineRailSectionProps) {
   return <>{children}</>;
 }
 
-type TimelineScrollSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onScroll'> & {
+type TimelineScrollSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'children' | 'ref' | 'onPointerDownCapture' | 'onPointerMove' | 'onPointerUp' | 'onScroll'> & {
   containerRef: Ref<HTMLDivElement>;
-  onPointerDown: PointerEventHandler<HTMLDivElement>;
+  /** 捕获阶段：先于子节点内 `stopPropagation` 的 pointerdown，供轨间套索/拖建 | Capture phase so lasso runs before draft cells stopPropagation */
+  onPointerDownCapture: PointerEventHandler<HTMLDivElement>;
   onPointerMove: PointerEventHandler<HTMLDivElement>;
   onPointerUp: PointerEventHandler<HTMLDivElement>;
   onScroll: React.UIEventHandler<HTMLDivElement>;
@@ -257,7 +258,7 @@ type TimelineScrollSectionProps = Omit<ComponentPropsWithoutRef<'div'>, 'childre
 
 export function TimelineScrollSection({
   containerRef,
-  onPointerDown,
+  onPointerDownCapture,
   onPointerMove,
   onPointerUp,
   onScroll,
@@ -268,7 +269,7 @@ export function TimelineScrollSection({
     <div
       className="timeline-scroll"
       ref={containerRef}
-      onPointerDown={onPointerDown}
+      onPointerDownCapture={onPointerDownCapture}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onScroll={onScroll}

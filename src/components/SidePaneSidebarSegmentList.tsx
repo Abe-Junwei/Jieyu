@@ -3,7 +3,7 @@
  */
 import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { LayerDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
 import { createTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
@@ -17,6 +17,7 @@ interface SidePaneSidebarSegmentListProps {
   focusedLayerRowId: string;
   messages: SidePaneSidebarMessages;
   layers?: LayerDocType[];
+  layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   defaultTranscriptionLayerId?: string;
   segmentsByLayer?: ReadonlyMap<string, LayerSegmentViewDocType[]>;
   segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentViewDocType>>;
@@ -68,6 +69,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     focusedLayerRowId,
     messages,
     layers = [],
+    layerLinks = [],
     defaultTranscriptionLayerId,
     segmentsByLayer,
     segmentContentByLayer,
@@ -108,8 +110,8 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
     [focusedLayerRowId, layerById],
   );
   const sourceLayer = useMemo(
-    () => (focusedLayer ? resolveSegmentTimelineSourceLayer(focusedLayer, layerById, defaultTranscriptionLayerId) : undefined),
-    [defaultTranscriptionLayerId, focusedLayer, layerById],
+    () => (focusedLayer ? resolveSegmentTimelineSourceLayer(focusedLayer, layerById, defaultTranscriptionLayerId, layerLinks) : undefined),
+    [defaultTranscriptionLayerId, focusedLayer, layerById, layerLinks],
   );
 
   const activeMediaId = useMemo(() => {

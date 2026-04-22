@@ -1614,7 +1614,7 @@ export const SettingsModal = memo(function SettingsModal({
                     {extensionsPanel.audit.length === 0 ? (
                       <p className="small-text">{msg.extensionsAuditEmpty}</p>
                     ) : (
-                      <ul className="small-text" style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem' }}>
+                      <ul className="small-text settings-modal-list">
                         {extensionsPanel.audit.map((entry, idx) => (
                           <li key={`${entry.at}-${idx}`} className="small-text">
                             <code>{entry.extensionId}</code>
@@ -1635,7 +1635,7 @@ export const SettingsModal = memo(function SettingsModal({
                 {extensionsPanel.kind === 'ready' && extensionsPanel.audit.length === 0 ? (
                   <p className="small-text">{msg.extensionsAuditEmpty}</p>
                 ) : extensionsPanel.kind === 'ready' ? (
-                  <ul className="small-text" style={{ margin: '0.5rem 0 0', paddingInlineStart: '1.25rem' }}>
+                  <ul className="small-text settings-modal-list">
                     {extensionsPanel.audit.map((entry, idx) => (
                       <li key={`${entry.at}-${idx}`} className="small-text">
                         <code>{entry.extensionId}</code>

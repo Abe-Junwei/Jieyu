@@ -64,25 +64,28 @@ export function resolveSegmentTimelineSourceLayer(
   }
 
   if (layerLinks.length > 0) {
-    const links = layerLinks.filter((link) => link.layerId === layer.id);
-    if (links.length > 0) {
-      const preferred = links.find((link) => link.isPreferred) ?? links[0];
-      if (preferred) {
-        const transcriptionIdByKey = new Map<string, string>();
-        for (const item of layerById.values()) {
-          if (item.layerType !== 'transcription') continue;
-          const key = item.key?.trim() ?? '';
-          if (key.length === 0 || transcriptionIdByKey.has(key)) continue;
-          transcriptionIdByKey.set(key, item.id);
-        }
-        const preferredHostId = resolveLayerLinkHostTranscriptionLayerId(preferred, transcriptionIdByKey);
-        if (preferredHostId.length > 0) {
-          const preferredHostLayer = layerById.get(preferredHostId);
-          if (preferredHostLayer && layerUsesOwnSegments(preferredHostLayer, defaultTranscriptionLayerId)) {
-            return preferredHostLayer;
-          }
+    const inboundLinks = layerLinks.filter((link) => link.layerId === layer.id);
+    if (inboundLinks.length > 0) {
+      const transcriptionIdByKey = new Map<string, string>();
+      for (const item of layerById.values()) {
+        if (item.layerType !== 'transcription') continue;
+        const key = item.key?.trim() ?? '';
+        if (key.length === 0 || transcriptionIdByKey.has(key)) continue;
+        transcriptionIdByKey.set(key, item.id);
+      }
+      const orderedLinks = [
+        ...inboundLinks.filter((link) => link.isPreferred),
+        ...inboundLinks.filter((link) => !link.isPreferred),
+      ];
+      for (const link of orderedLinks) {
+        const hostLayerId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+        if (hostLayerId.length === 0) continue;
+        const hostLayer = layerById.get(hostLayerId);
+        if (hostLayer && layerUsesOwnSegments(hostLayer, defaultTranscriptionLayerId)) {
+          return hostLayer;
         }
       }
+      return undefined;
     }
   }
 
@@ -164,15 +167,13 @@ export function useLayerSegments(
       return;
     }
 
-    const result = new Map<string, LayerUnitDocType[]>();
-
-    for (const layer of independentLayers) {
+    const entries = await Promise.all(independentLayers.map(async (layer): Promise<[string, LayerUnitDocType[]]> => {
       const segments = await LayerSegmentQueryService.listSegmentsByLayerMedia(layer.id, mediaId);
-      result.set(layer.id, segments);
-    }
+      return [layer.id, segments];
+    }));
 
     if (loadSequenceRef.current !== loadSequence) return;
-    setSegmentsByLayer(result);
+    setSegmentsByLayer(new Map(entries));
     setSegmentsLoadComplete(true);
   }, [mediaId]);
 

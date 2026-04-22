@@ -3,6 +3,9 @@
  * 与 `check:i18n-hardcoded` 约定：避免在 `src/pages/` 内堆中文 label，集中在本文件便于 baseline 归类到 `src/i18n/`。
  */
 export const timelineParityMatrixRowsZh = {
+  'timeline-shell-layers-count-single-source': {
+    labelZh: '壳层 layersCount 单源（read model 与 timeline content VM 口径一致）',
+  },
   'timeline-viewport-single-writer': {
     labelZh: '视口投影单路径（useTimelineViewport → read model / orchestrator / stage）',
   },
@@ -11,6 +14,16 @@ export const timelineParityMatrixRowsZh = {
   },
   'segment-read-write': {
     labelZh: '语段读写（转写/翻译）',
+  },
+  'segment-range-gesture-single-surface': {
+    labelZh: '语段范围拖建单一反馈面（波形空区 / 轨面套索 / Regions 插件收敛到同一产品状态）',
+    verticalGapZh:
+      '纵向对读以编辑与导航为主；tier 内轨面套索链已禁（tierTimelineLassoSuppressed），对读子树点击与清选由 useLasso 排除列表与 useLasso.test.tsx 回归覆盖；与横向轨面拖建完全等价仍待阶段 F。',
+  },
+  'phase-f-range-preview-ssot': {
+    labelZh: '阶段 F·1：语段范围拖建预览状态单一读模型 + 波形桥单 reducer 写者',
+    verticalGapZh:
+      '`useTranscriptionWaveformBridgeController` 内 `segmentRangeGestureWriterReducer` 统一 lasso 抬升态与 Regions `timeDrag`；编排仍只读 `segmentRangeGesturePreviewReadModel`；`useLasso` 手势实现细节可继续瘦身但已不再与 `dragPreview` 双源并行。',
   },
   'layer-link-connector': {
     labelZh: '层连接器显示',

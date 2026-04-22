@@ -12,6 +12,11 @@ import type { TranscriptionPageDialogsProps } from './TranscriptionPage.Dialogs'
 import type { UseTranscriptionSectionViewModelsInput } from './transcriptionSectionViewModelTypes';
 import { dropUndefinedKeys, type BuiltSharedLaneProps } from './transcriptionReadyWorkspacePropsBuilders';
 import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels';
+import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
+import {
+  tierLassoRectFromSegmentRangeGesturePreview,
+  timeRangeDragPreviewFromSegmentRangeGesturePreview,
+} from '../utils/segmentRangeGesturePreviewReadModel';
 
 /**
  * TranscriptionPage.ReadyWorkspace 传入 buildOrchestratorViewModelsInput 的原始依赖包。
@@ -19,6 +24,8 @@ import type { UseOrchestratorViewModelsInput } from './useOrchestratorViewModels
 export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   selectedMediaUrl: string | null | undefined;
   playableAcoustic: boolean;
+  /** 与 `TimelineReadModel.timeline.extentSec` 一致 | Lane width / extent single source */
+  timelineExtentSec: number;
   player: UseTranscriptionSectionViewModelsInput['player'];
   layers: LayerDocType[];
   locale: Locale;
@@ -27,7 +34,8 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   sharedLaneProps: BuiltSharedLaneProps;
   /** Single source for zoom + ruler window (from `useTimelineViewport` via waveform bridge). */
   timelineViewportProjection: TimelineViewportProjection;
-  lassoRect: TimelineHorizontalProjectionLaneProps['lassoRect'];
+  /** 阶段 F·1：wave/tier/Regions 预览互斥读模型；编排层由此派生 `lassoRect` 与 `timingDragPreview`。 */
+  segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
   timelineRenderUnits: TimelineHorizontalProjectionLaneProps['timelineRenderUnits'];
   defaultTranscriptionLayerId: TimelineHorizontalProjectionLaneProps['defaultTranscriptionLayerId'];
   textOnlyLogicalDurationSec?: number;
@@ -43,8 +51,6 @@ export interface TranscriptionReadyWorkspaceOrchestratorRawInput {
   handleNoteClick?: TranscriptionPageTimelineTextOnlyProps['handleNoteClick'];
   resolveNoteIndicatorTarget?: TranscriptionPageTimelineTextOnlyProps['resolveNoteIndicatorTarget'];
   startTimelineResizeDrag?: TranscriptionPageTimelineTextOnlyProps['startTimelineResizeDrag'];
-  /** 纯文本轨拖边调时与 `useTimelineResize` 的 dragPreview 对齐 | Edge-resize live layout */
-  timingDragPreview?: TranscriptionPageTimelineTextOnlyProps['timingDragPreview'];
   navigateUnitFromInput: TranscriptionPageTimelineTextOnlyProps['navigateUnitFromInput'];
   speakerVisualByTimelineUnitId: TranscriptionPageTimelineTextOnlyProps['speakerVisualByUnitId'];
   resolveSelfCertaintyForUnit: TranscriptionPageTimelineTextOnlyProps['resolveSelfCertaintyForUnit'];
@@ -144,6 +150,7 @@ export function buildOrchestratorViewModelsInput(
   const {
     selectedMediaUrl,
     playableAcoustic,
+    timelineExtentSec,
     player,
     layers,
     locale,
@@ -151,7 +158,7 @@ export function buildOrchestratorViewModelsInput(
     layerAction,
     sharedLaneProps,
     timelineViewportProjection,
-    lassoRect,
+    segmentRangeGesturePreviewReadModel,
     timelineRenderUnits,
     defaultTranscriptionLayerId,
     textOnlyLogicalDurationSec,
@@ -260,12 +267,15 @@ export function buildOrchestratorViewModelsInput(
 
   const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec;
   const rulerView = timelineViewportProjection.rulerView;
+  const tierLassoRect = tierLassoRectFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
+  const timingDragPreview = timeRangeDragPreviewFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
 
   return {
     selectedMediaUrl: selectedMediaUrl ?? null,
     playableAcoustic,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
+    timelineExtentSec,
     layersCount: layers.length,
     locale,
     importFileRef,
@@ -273,7 +283,7 @@ export function buildOrchestratorViewModelsInput(
     mediaLanesPropsInput: dropUndefinedKeys({
       ...sharedLaneProps,
       zoomPxPerSec,
-      lassoRect,
+      lassoRect: tierLassoRect,
       timelineRenderUnits,
       defaultTranscriptionLayerId,
       renderAnnotationItem,
@@ -293,11 +303,7 @@ export function buildOrchestratorViewModelsInput(
       ...(handleNoteClick ? { handleNoteClick } : {}),
       ...(resolveNoteIndicatorTarget ? { resolveNoteIndicatorTarget } : {}),
       ...(input.startTimelineResizeDrag ? { startTimelineResizeDrag: input.startTimelineResizeDrag } : {}),
-      ...(input.timingDragPreview != null ? { timingDragPreview: input.timingDragPreview } : {}),
-      ...(typeof zoomPxPerSec === 'number' && Number.isFinite(zoomPxPerSec) && zoomPxPerSec > 0
-        && !verticalViewEnabled
-        ? { textTimelineZoomPxPerSec: zoomPxPerSec }
-        : {}),
+      ...(timingDragPreview != null ? { timingDragPreview } : {}),
       navigateUnitFromInput,
       speakerVisualByUnitId: speakerVisualByTimelineUnitId,
       resolveSelfCertaintyForUnit,

@@ -125,6 +125,7 @@ describe('TranscriptionPage structure invariants', () => {
     const markerIndex = waveformContentCode.indexOf('className="waveform-analysis-hotspot-line"');
     const waveformOverlayIndex = waveformContentCode.indexOf('waveformOverlay={({');
 
+    expect(waveformContentCode.includes('segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel')).toBe(true);
     expect(waveformContentCode.includes('selectedHotspotTimeSec?: number | null;')).toBe(true);
     expect(waveformContentCode.includes('const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === \'number\'' )).toBe(true);
     expect(waveformContentCode.includes("const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'")).toBe(true);
@@ -261,13 +262,15 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 独立层启用时，波形 region 来源应切到 layer_segments
     // When independent layer is active, waveform regions should come from layer_segments.
-    expect(code.includes("import { useTranscriptionWaveformBridgeController } from './useTranscriptionWaveformBridgeController';")).toBe(true);
-    expect(code.includes('} = useTranscriptionWaveformBridgeController({')).toBe(true);
+    expect(code.includes("import { useReadyWorkspaceWaveformBridgeController } from './useReadyWorkspaceWaveformBridgeController';")).toBe(true);
+    expect(code.includes('} = useReadyWorkspaceWaveformBridgeController({')).toBe(true);
     expect(code.includes("import { useWaveformSelectionController } from './useWaveformSelectionController';")).toBe(false);
     expect(waveformBridgeHookCode.includes("import { useWaveformSelectionController } from './useWaveformSelectionController';")).toBe(true);
     expect(waveformBridgeHookCode.includes('} = useWaveformSelectionController({')).toBe(true);
     expect(waveformBridgeHookCode.includes('const player = useWaveSurfer({')).toBe(true);
     expect(waveformBridgeHookCode.includes('} = useLasso({')).toBe(true);
+    expect(waveformBridgeHookCode.includes('useSegmentRangeGesturePreviewWriter')).toBe(true);
+    expect(waveformBridgeHookCode.includes('segmentRangeGesturePreviewReadModel')).toBe(true);
     expect(waveformBridgeHookCode.includes('const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({')).toBe(true);
     const orchestratorInputPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts');
     const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
@@ -278,6 +281,14 @@ describe('TranscriptionPage structure invariants', () => {
     expect(propsBuildersCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
     expect(propsBuildersCode.includes('input.timelineViewportProjection.zoomPercent')).toBe(true);
     expect(code.includes('buildReadyWorkspaceStageProps({') && code.includes('timelineViewportProjection,')).toBe(true);
+    expect(code.includes("import { buildReadyWorkspaceViewModelsInput } from './readyWorkspaceViewModelsInputBuilder';")).toBe(true);
+    expect(code.includes('buildReadyWorkspaceViewModelsInput(')).toBe(true);
+    const vmInputBuilderPath = path.resolve(process.cwd(), 'src/pages/readyWorkspaceViewModelsInputBuilder.ts');
+    const vmInputBuilderCode = fs.readFileSync(vmInputBuilderPath, 'utf8');
+    expect(vmInputBuilderCode.includes("import { mergeReadyWorkspaceOrchestratorRawInputSlices } from './readyWorkspaceOrchestratorRawInputSlices';")).toBe(true);
+    expect(vmInputBuilderCode.includes('mergeReadyWorkspaceOrchestratorRawInputSlices(')).toBe(true);
+    expect(vmInputBuilderCode.includes('buildOrchestratorRawTimelineAnnotationCluster')).toBe(true);
+    expect(vmInputBuilderCode.includes("import { packOrchestratorRawWorkspaceTailCluster } from './readyWorkspaceOrchestratorRawInputWorkspaceTail';")).toBe(true);
     expect(hookCode.includes('const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);')).toBe(true);
     expect(hookCode.includes('const waveformTimelineItems = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const unitRowsFromIndex = timelineUnitViewIndex.currentMediaUnits;')).toBe(true);
@@ -304,7 +315,8 @@ describe('TranscriptionPage structure invariants', () => {
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
     expect(waveformContentCode.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady')).toBe(true);
     expect(waveformContentCode.includes('acousticStrip?: AcousticStripContract')).toBe(true);
-    expect(waveformContentCode.includes("acousticReadModelSlice?.state === 'pending_decode'")).toBe(true);
+    expect(waveformContentCode.includes('mapAcousticToTimelineChrome({')).toBe(true);
+    expect(waveformContentCode.includes('aria-busy={acousticChrome?.waveformAreaAttrs.ariaBusy}')).toBe(true);
 
     // 批量入口已下沉到独立 controller，当前文件只保留调用边界
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
@@ -591,7 +603,8 @@ describe('TranscriptionPage structure invariants', () => {
       orchestratorCode.includes('sidebarSectionsInput: {')
       || orchestratorInputBuilderCode.includes('sidebarSectionsInput: {'),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useReadyWorkspaceViewModels({')).toBe(true);
+    expect(orchestratorCode.includes('} = useReadyWorkspaceViewModels(')).toBe(true);
+    expect(orchestratorCode.includes('buildReadyWorkspaceViewModelsInput(')).toBe(true);
     expect(readyVmCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
     expect(readyVmCode.includes('return useOrchestratorViewModels(')).toBe(true);
     expect(orchestratorAnchors.includes('const shouldRenderAiSidebar = hasActivatedAiSidebar || !isAiPanelCollapsed;')).toBe(true);
@@ -854,5 +867,43 @@ describe('TranscriptionPage structure invariants', () => {
     expect(hookCode.includes('const persistAndAdvance = async (persist: () => Promise<void>) => {')).toBe(true);
     expect(hookCode.includes('if (!input.nextUnitIdForVoiceDictation) return;')).toBe(true);
     expect(hookCode.includes('input.selectUnit(input.nextUnitIdForVoiceDictation);')).toBe(true);
+  });
+
+  it('anchors timeline parity matrix phase F and shell single-source contracts', () => {
+    const matrixPath = path.resolve(process.cwd(), 'src/pages/timelineParityMatrix.ts');
+    const matrixCode = fs.readFileSync(matrixPath, 'utf8');
+    expect(matrixCode.includes("id: 'timeline-shell-layers-count-single-source'")).toBe(true);
+    expect(matrixCode.includes("id: 'segment-range-gesture-single-surface'")).toBe(true);
+    expect(matrixCode.includes("id: 'phase-f-range-preview-ssot'")).toBe(true);
+    expect(matrixCode.includes('TIMELINE_PARITY_MATRIX_VERSION = 18')).toBe(true);
+  });
+
+  it('keeps orchestration playback facts bound to acoustic.globalState', () => {
+    const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
+    const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const vmInputBuilderPath = path.resolve(process.cwd(), 'src/pages/readyWorkspaceViewModelsInputBuilder.ts');
+    const vmInputBuilderCode = fs.readFileSync(vmInputBuilderPath, 'utf8');
+
+    expect(
+      orchestratorCode.includes("playableAcoustic: timelineReadModel.acoustic.globalState === 'playable'")
+      || vmInputBuilderCode.includes("playableAcoustic: timelineReadModel.acoustic.globalState === 'playable'"),
+    ).toBe(true);
+    expect(orchestratorCode.includes('acousticState: timelineReadModel.acoustic.globalState')).toBe(true);
+    expect(orchestratorCode.includes("playableAcoustic: timelineReadModel.acoustic.state === 'playable'")).toBe(false);
+    expect(orchestratorCode.includes('acousticState: timelineReadModel.acoustic.state')).toBe(false);
+  });
+
+  it('keeps vertical host payload narrowed and removes textTimelineZoomPxPerSec contract', () => {
+    const hostPath = path.resolve(process.cwd(), 'src/pages/TranscriptionTimelineWorkspaceHost.tsx');
+    const hostCode = fs.readFileSync(hostPath, 'utf8');
+    const orchestratorInputPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceOrchestratorInput.ts');
+    const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
+
+    expect(hostCode.includes('function buildVerticalViewInput(')).toBe(true);
+    expect(hostCode.includes('const verticalViewInput = buildVerticalViewInput(textOnlyProps);')).toBe(true);
+    expect(hostCode.includes('<TranscriptionTimelineVerticalView {...verticalViewInput} />')).toBe(true);
+    expect(hostCode.includes('<TranscriptionTimelineVerticalView {...textOnlyProps} />')).toBe(false);
+
+    expect(orchestratorInputCode.includes('textTimelineZoomPxPerSec')).toBe(false);
   });
 });

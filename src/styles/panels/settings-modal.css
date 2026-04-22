@@ -14,6 +14,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+.settings-modal-list {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.25rem;
+}
 }
 
 /* ── 配色方案网格 | Theme grid ── */

@@ -2224,6 +2224,66 @@ describe('LinguisticService smoke tests', () => {
     }));
   });
 
+  it('promotes payload-empty legacy timeline row in place so text-only created segments remain visible after import', async () => {
+    const now = new Date().toISOString();
+
+    await seedDefaultTranscriptionLayerForText('text_doc_legacy_payload_empty', 'layer_trc_doc_legacy_payload_empty', now);
+    await db.texts.put({
+      id: 'text_doc_legacy_payload_empty',
+      title: { default: 'Legacy payload empty row' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 30,
+        timebaseLabel: 'logical-second',
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await db.media_items.put({
+      id: 'media_doc_legacy_payload_empty',
+      textId: 'text_doc_legacy_payload_empty',
+      filename: 'legacy-doc-row.media',
+      duration: 30,
+      details: {},
+      isOfflineCached: true,
+      createdAt: now,
+    });
+
+    await db.layer_units.put({
+      id: 'seg_doc_keep_legacy_payload_empty',
+      textId: 'text_doc_legacy_payload_empty',
+      mediaId: 'media_doc_legacy_payload_empty',
+      layerId: 'layer_trc_doc_legacy_payload_empty',
+      unitType: 'segment',
+      startTime: 1,
+      endTime: 3,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const blob = new Blob(['audio-data-legacy-payload-empty'], { type: 'audio/wav' });
+    const result = await LinguisticService.importAudio({
+      textId: 'text_doc_legacy_payload_empty',
+      audioBlob: blob,
+      filename: 'imported-legacy.wav',
+      duration: 18,
+    });
+
+    expect(result.mediaId).toBe('media_doc_legacy_payload_empty');
+    await expect(db.media_items.where('textId').equals('text_doc_legacy_payload_empty').toArray()).resolves.toHaveLength(1);
+    await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
+      mediaId: 'media_doc_legacy_payload_empty',
+    }));
+    await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
+      filename: 'imported-legacy.wav',
+      duration: 18,
+      details: expect.objectContaining({
+        timelineKind: 'acoustic',
+      }),
+    }));
+  });
+
   it('keeps both pre-import and post-import segments on one placeholder timeline after deleting audio', async () => {
     const now = new Date().toISOString();
 

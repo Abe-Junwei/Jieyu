@@ -28,6 +28,9 @@ import type { AcousticStripContract } from '../hooks/timelineViewportTypes';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { formatTime } from '../utils/transcriptionFormatters';
+import { mapAcousticToTimelineChrome } from '../utils/mapAcousticToTimelineChrome';
+import type { SegmentRangeGesturePreviewReadModel } from '../utils/segmentRangeGesturePreviewReadModel';
+import { waveLassoOverlayFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 
 interface WaveformNoteIndicator {
   uttId: string;
@@ -128,9 +131,8 @@ export interface OrchestratorWaveformContentProps {
   playerSeekTo: (time: number) => void;
   playerPlayRegion: (start: number, end: number, resume?: boolean) => void;
 
-  // Lasso rect
-  waveLassoRect: { x: number; y: number; w: number; h: number; mode: string } | null;
-  waveLassoHintCount: number;
+  /** 阶段 F·1：主波形套索预览由读模型派生（与编排层 `lassoRect` / `timingDragPreview` 同源）。 */
+  segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel;
 
   // Note indicators
   waveformNoteIndicators: WaveformNoteIndicator[];
@@ -231,8 +233,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     playerWaveformRef,
     playerSeekTo,
     playerPlayRegion,
-    waveLassoRect,
-    waveLassoHintCount,
+    segmentRangeGesturePreviewReadModel,
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
     waveformOverlapOverlays,
@@ -269,8 +270,17 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     acousticStrip,
   } = props;
 
+  const waveLassoOverlay = waveLassoOverlayFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel);
+
   const effectiveWaveCanvasRef = acousticStrip?.waveCanvasRef ?? waveCanvasRef;
   const acousticReadModelSlice = acousticStrip?.acoustic;
+  /** 页顶波形区 chrome：`shell` 仍用宿主合同；`state` 用全局可播事实，避免纵向下合同态 `no_media` 盖住解码中 `aria-busy` 等反馈。 */
+  const acousticChrome = acousticReadModelSlice
+    ? mapAcousticToTimelineChrome({
+      shell: acousticReadModelSlice.shell,
+      state: acousticReadModelSlice.globalState,
+    })
+    : null;
 
   // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
   const handleAmplitudeReset = React.useCallback(() => setAmplitudeScale(1), [setAmplitudeScale]);
@@ -371,8 +381,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
         className={`transcription-waveform-area ${snapEnabled && snapGuideNearSide ? 'transcription-waveform-area-snapping' : ''} ${segMarkStart !== null ? 'transcription-waveform-area-marking' : ''} ${isResizingWaveform ? 'waveform-area-resizing' : ''}`}
         layoutStyle={{ '--waveform-height': `${waveformHeight}px` } as React.CSSProperties}
         tabIndex={0}
-        aria-busy={acousticReadModelSlice?.state === 'pending_decode' ? true : undefined}
-        data-timeline-acoustic-shell={acousticReadModelSlice?.shell}
+        aria-busy={acousticChrome?.waveformAreaAttrs.ariaBusy}
+        data-timeline-acoustic-shell={acousticChrome?.waveformAreaAttrs.dataTimelineAcousticShell}
         onKeyDown={handleWaveformKeyDown}
         onFocus={handleWaveformAreaFocus}
         onBlur={handleWaveformAreaBlur}
@@ -567,26 +577,26 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                         </div>
                       </div>
                     ) : null}
-                    {waveLassoRect ? (
+                    {waveLassoOverlay ? (
                       <svg className="wave-lasso-overlay" aria-hidden="true">
                         <rect
-                          className={`wave-lasso-rect ${waveLassoRect.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-                          x={waveLassoRect.x}
-                          y={waveLassoRect.y}
-                          width={Math.max(2, waveLassoRect.w)}
-                          height={Math.max(2, waveLassoRect.h)}
-                          rx={waveLassoRect.mode === 'create' ? 0 : 2}
-                          ry={waveLassoRect.mode === 'create' ? 0 : 2}
+                          className={`wave-lasso-rect ${waveLassoOverlay.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
+                          x={waveLassoOverlay.x}
+                          y={waveLassoOverlay.y}
+                          width={Math.max(2, waveLassoOverlay.w)}
+                          height={Math.max(2, waveLassoOverlay.h)}
+                          rx={waveLassoOverlay.mode === 'create' ? 0 : 2}
+                          ry={waveLassoOverlay.mode === 'create' ? 0 : 2}
                         />
-                        {waveLassoRect.mode === 'select' && (
+                        {waveLassoOverlay.mode === 'select' && (
                           <foreignObject
-                            x={waveLassoRect.x + 8}
-                            y={waveLassoRect.y + 8}
+                            x={waveLassoOverlay.x + 8}
+                            y={waveLassoOverlay.y + 8}
                             width={172}
                             height={28}
                           >
                             <div className="wave-lasso-hint">
-                              {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoHintCount })}
+                              {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoOverlay.hintCount })}
                             </div>
                           </foreignObject>
                         )}

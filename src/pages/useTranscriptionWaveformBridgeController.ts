@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type UIEvent as ReactUIEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type UIEvent as ReactUIEvent,
+} from 'react';
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
+import { useSegmentRangeGesturePreviewWriter } from '../hooks/useSegmentRangeGesturePreviewWriter';
 import { useLatest } from '../hooks/useLatest';
 import { useWaveSurfer } from '../hooks/useWaveSurfer';
 import { useTimelineViewport } from '../hooks/useTimelineViewport';
@@ -10,7 +19,6 @@ import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import type { UseTranscriptionWaveformBridgeControllerInput, UseTranscriptionWaveformBridgeControllerResult } from './transcriptionWaveformBridge.types';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
-
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
 
 const DEFAULT_PLAYBACK_RATE_KEY = 'jieyu:default-playback-rate';
@@ -45,7 +53,13 @@ export function useTranscriptionWaveformBridgeController(
   const pendingHoverTimeRef = useRef<{ time: number; x: number; y: number } | null | undefined>(undefined);
   const hoverTimeRafRef = useRef<number | null>(null);
   const [segMarkStart, setSegMarkStart] = useState<number | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; start: number; end: number } | null>(null);
+  const {
+    gestureWriter,
+    setLiftedLassoPreview,
+    setDragPreview,
+    dragPreview,
+    segmentRangeGesturePreviewReadModel,
+  } = useSegmentRangeGesturePreviewWriter();
   const [subSelectionRange, setSubSelectionRange] = useState<{ start: number; end: number } | null>(null);
   const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
   const pendingWaveformScrollLeftRef = useRef<number | null>(null);
@@ -79,6 +93,7 @@ export function useTranscriptionWaveformBridgeController(
     activeLayerIdForEdits: input.activeLayerIdForEdits,
     layers: input.layers,
     layerById: input.layerById,
+    layerLinks: input.layerLinks,
     ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
     timelineUnitViewIndex: input.timelineUnitViewIndex,
     selectedTimelineUnit: input.selectedTimelineUnit,
@@ -314,6 +329,9 @@ export function useTranscriptionWaveformBridgeController(
     subSelectionRange,
     setSubSelectionRange,
     subSelectDragRef,
+    ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
+    liftedLassoPreview: gestureWriter.lasso,
+    setLiftedLassoPreview,
   });
 
   const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({
@@ -513,6 +531,7 @@ export function useTranscriptionWaveformBridgeController(
     waveLassoRect,
     waveLassoHintCount,
     lassoRect,
+    segmentRangeGesturePreviewReadModel,
     handleLassoPointerDown,
     handleLassoPointerMove,
     handleLassoPointerUp,

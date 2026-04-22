@@ -33,7 +33,7 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
         shell="waveform"
-        acousticPending={false}
+        workspaceAcousticChromeState="playable"
         mediaLanesProps={{} as never}
         textOnlyProps={{} as never}
         emptyStateProps={{} as never}
@@ -48,7 +48,7 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
         shell="text-only"
-        acousticPending={false}
+        workspaceAcousticChromeState="no_media"
         mediaLanesProps={{} as never}
         textOnlyProps={{} as never}
         emptyStateProps={{} as never}
@@ -59,12 +59,12 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending')).toBe('0');
   });
 
-  it('passes acousticShellPending when text-only shell and decode pending', () => {
+  it('passes acousticShellPending when text-only shell and global chrome is pending_decode', () => {
     render(
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
         shell="text-only"
-        acousticPending
+        workspaceAcousticChromeState="pending_decode"
         mediaLanesProps={{} as never}
         textOnlyProps={{} as never}
         emptyStateProps={{} as never}
@@ -74,12 +74,27 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
     expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending')).toBe('1');
   });
 
+  it('text-only contract shell + global playable: no tier pending chrome', () => {
+    render(
+      <TranscriptionTimelineWorkspaceHost
+        verticalComparisonEnabled={false}
+        shell="text-only"
+        workspaceAcousticChromeState="playable"
+        mediaLanesProps={{} as never}
+        textOnlyProps={{} as never}
+        emptyStateProps={{} as never}
+      />,
+    );
+
+    expect(screen.getByTestId('workspace-host-waveform').getAttribute('data-acoustic-shell-pending')).toBe('0');
+  });
+
   it('renders empty shell fallback', () => {
     render(
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled={false}
         shell="empty"
-        acousticPending={false}
+        workspaceAcousticChromeState="no_media"
         mediaLanesProps={{} as never}
         textOnlyProps={{} as never}
         emptyStateProps={{} as never}
@@ -94,7 +109,7 @@ describe('TranscriptionTimelineWorkspaceHost', () => {
       <TranscriptionTimelineWorkspaceHost
         verticalComparisonEnabled
         shell="waveform"
-        acousticPending={false}
+        workspaceAcousticChromeState="playable"
         mediaLanesProps={{} as never}
         textOnlyProps={{} as never}
         emptyStateProps={{} as never}

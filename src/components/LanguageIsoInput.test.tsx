@@ -171,6 +171,19 @@ describe('LanguageIsoInput', () => {
     expect(languageCodeInput.value).toBe('cmn');
   });
 
+  it('commits suggestion on mousedown to avoid click suppression in real browsers', async () => {
+    const view = renderWithLocale(<StatefulLanguageIsoInputHarness />, 'en-US');
+    const scopedQueries = within(view.container);
+
+    const languageNameInput = scopedQueries.getByRole('combobox', { name: 'Language name' });
+    const languageCodeInput = scopedQueries.getByRole('textbox', { name: 'Language code' }) as HTMLInputElement;
+
+    fireEvent.change(languageNameInput, { target: { value: 'Chinese' } });
+    fireEvent.mouseDown((await waitFor(() => scopedQueries.getAllByRole('option')))[0]!);
+
+    expect(languageCodeInput.value).toBe('cmn');
+  });
+
   it('clears the previous code before resolving a newly typed language name', async () => {
     const view = renderWithLocale(<PrefilledLanguageIsoInputHarness />, 'en-US');
     const scopedQueries = within(view.container);

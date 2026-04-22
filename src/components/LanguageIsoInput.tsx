@@ -301,6 +301,13 @@ export function LanguageIsoInput({
     dispatch({ type: 'codeBlurred' });
   };
 
+  const commitSuggestionByClick = (index: number) => {
+    if (disabled) {
+      return;
+    }
+    dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
+  };
+
   return (
     <div className={`language-iso-input ${className}`.trim()}>
       <div className="language-iso-input-anchor">
@@ -371,13 +378,11 @@ export function LanguageIsoInput({
                 aria-disabled={disabled ? 'true' : undefined}
                 className={`language-iso-input-suggestion${model.activeSuggestionIndex === index ? ' is-active' : ''}`}
                 onMouseEnter={() => dispatch({ type: 'nameSuggestionHovered', index })}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  if (disabled) {
-                    return;
-                  }
-                  dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  commitSuggestionByClick(index);
                 }}
+                onClick={() => commitSuggestionByClick(index)}
               >
                 {formatLanguageCatalogMatch(match, locale)}
               </div>

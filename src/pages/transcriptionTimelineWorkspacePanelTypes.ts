@@ -125,5 +125,25 @@ export type TranscriptionTimelineWorkspacePanelProps = {
   ) => void;
   textOnlyTimeMapping?: WorkspacePanelTextTimeMappingLinear | null;
   timingDragPreview?: { id: string; start: number; end: number } | null;
-  textTimelineZoomPxPerSec?: number;
 };
+
+const TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS = [
+  'transcriptionLayers',
+  'translationLayers',
+  'unitsOnCurrentMedia',
+  'focusedLayerRowId',
+  'onFocusLayer',
+  'handleAnnotationClick',
+] as const satisfies readonly (keyof TranscriptionTimelineWorkspacePanelProps)[];
+
+type TranscriptionTimelineVerticalViewOptionalKeys = Exclude<
+  keyof TranscriptionTimelineWorkspacePanelProps,
+  (typeof TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS)[number]
+>;
+
+/**
+ * 纵向对读壳入参：核心字段必填，其余与 panel 对齐但可选（单测可最小装配；编排仍传完整 `textOnlyProps`）。
+ */
+export type TranscriptionTimelineVerticalViewInput =
+  Pick<TranscriptionTimelineWorkspacePanelProps, (typeof TRANSCRIPTION_TIMELINE_VERTICAL_VIEW_REQUIRED_KEYS)[number]> &
+  Partial<Pick<TranscriptionTimelineWorkspacePanelProps, TranscriptionTimelineVerticalViewOptionalKeys>>;

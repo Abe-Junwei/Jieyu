@@ -5,6 +5,7 @@ import { DOCUMENT_PLACEHOLDER_TRACK_FILENAME } from '../utils/mediaItemTimelineK
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import type { WaveformVisualStyle } from '../utils/waveformVisualStyle';
+import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
 import type { UttOpsMenuState } from './TranscriptionPage.UIState';
 import type { TranscriptionPageToolbarProps } from './TranscriptionPage.Toolbar';
 import type { TranscriptionReviewPreset } from '../utils/transcriptionReviewQueue';
@@ -96,7 +97,10 @@ export function createTranscriptionToolbarProps(
     canUndo: input.canUndo,
     canRedo: input.canRedo,
     undoLabel: input.undoLabel,
-    canDeleteAudio: input.hasSelectedTimelineMedia,
+    canDeleteAudio: canDeleteCurrentAudio({
+      hasSelectedTimelineMedia: input.hasSelectedTimelineMedia,
+      selectedMediaUrl: input.selectedMediaUrl,
+    }),
     canDeleteProject: input.hasActiveTextId,
     canToggleNotes: Boolean((input.selectedTimelineUnit?.kind === 'unit' && input.selectedTimelineUnit.unitId) || input.notePopoverOpen),
     canOpenUttOpsMenu: Boolean(input.selectedTimelineUnit?.unitId),

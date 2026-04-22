@@ -39,6 +39,12 @@ describe('useTimelineViewport', () => {
     expect(result.current.projection.maxZoomPercent).toBe(500);
     expect(result.current.projection.fitPxPerSec).toBe(40);
     expect(result.current.projection.waveformScrollLeft).toBe(12);
+    expect(result.current.projection.viewportFrame).toEqual({
+      scrollLeftPx: 12,
+      pxPerDocSec: 40,
+      visibleStartSec: result.current.projection.rulerView?.start ?? 0,
+      visibleEndSec: result.current.projection.rulerView?.end ?? 0,
+    });
     expect(typeof result.current.zoomToPercent).toBe('function');
     expect(typeof result.current.zoomToUnit).toBe('function');
   });

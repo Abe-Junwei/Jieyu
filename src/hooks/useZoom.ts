@@ -45,6 +45,11 @@ export interface UseZoomInput {
   onLogicalTimelineScrollSync?: (scrollLeft: number) => void;
 }
 
+/**
+ * 时间轴 zoom / 标尺窗口的底层实现。
+ * **架构约定**：页面与编排请通过 `useTimelineViewport` 的 `projection`（`TimelineViewportProjection`）消费视口，
+ * 勿在 `src/pages` 中直接调用本函数，以免与「视口单写者」分叉。
+ */
 export function useZoom(input: UseZoomInput): TimelineViewportZoomBridge {
   const {
     waveCanvasRef, tierContainerRef,

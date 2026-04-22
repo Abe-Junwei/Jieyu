@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType } from '../db';
 import { isSegmentTimelineUnit, isUnitTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
@@ -11,6 +11,7 @@ interface UseWaveformSelectionControllerInput {
   activeLayerIdForEdits: string;
   layers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   defaultTranscriptionLayerId?: string;
   /** Single read-model source for waveform regions (unit vs segment rows). */
   timelineUnitViewIndex: TimelineUnitViewIndexWithEpoch;
@@ -33,6 +34,7 @@ export function useWaveformSelectionController({
   activeLayerIdForEdits,
   layers,
   layerById,
+  layerLinks,
   defaultTranscriptionLayerId,
   timelineUnitViewIndex,
   selectedTimelineUnit,
@@ -44,8 +46,8 @@ export function useWaveformSelectionController({
   );
 
   const activeWaveformSegmentSourceLayer = useMemo(
-    () => resolveSegmentTimelineSourceLayer(activeWaveformLayer, layerById, defaultTranscriptionLayerId),
-    [activeWaveformLayer, defaultTranscriptionLayerId, layerById],
+    () => resolveSegmentTimelineSourceLayer(activeWaveformLayer, layerById, defaultTranscriptionLayerId, layerLinks),
+    [activeWaveformLayer, defaultTranscriptionLayerId, layerById, layerLinks],
   );
 
   const useSegmentWaveformRegions = Boolean(activeWaveformSegmentSourceLayer);

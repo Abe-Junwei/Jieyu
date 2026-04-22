@@ -72,7 +72,7 @@ interface WorkspaceAreaProps {
   editorContextValue: ContextType<typeof TranscriptionEditorContext>;
   aiPanelContextValue: ContextType<typeof AiPanelContext>;
   lassoHandlers: {
-    onPointerDown: React.PointerEventHandler<HTMLElement>;
+    onPointerDownCapture: React.PointerEventHandler<HTMLElement>;
     onPointerMove: React.PointerEventHandler<HTMLElement>;
     onPointerUp: React.PointerEventHandler<HTMLElement>;
     onScroll: React.UIEventHandler<HTMLElement>;
@@ -235,7 +235,7 @@ function ReadyStageContent({
 
               <TimelineScrollSection
                 containerRef={tierContainerRef}
-                onPointerDown={lassoHandlers.onPointerDown}
+                onPointerDownCapture={lassoHandlers.onPointerDownCapture}
                 onPointerMove={lassoHandlers.onPointerMove}
                 onPointerUp={lassoHandlers.onPointerUp}
                 onScroll={lassoHandlers.onScroll}

@@ -332,6 +332,7 @@ export function mergePairedReadingTimelineUnitById(
 export function resolveVerticalReadingGroupSourceUnits(input: {
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   unitsOnCurrentMedia: LayerUnitDocType[];
   segmentParentUnitLookup: LayerUnitDocType[] | undefined;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
@@ -343,6 +344,7 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
   const {
     transcriptionLayers,
     translationLayers,
+    layerLinks,
     unitsOnCurrentMedia,
     segmentParentUnitLookup: _segmentParentUnitLookup,
     segmentsByLayer,
@@ -378,7 +380,7 @@ export function resolveVerticalReadingGroupSourceUnits(input: {
 
   for (const layer of transcriptionLayers) {
     if (layerUsesOwnSegments(layer, defaultTranscriptionLayerId)) {
-      const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+      const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
       const segmentSourceLayerId = segmentSourceLayer?.id ?? '';
       const segs = segmentsByLayer?.get(segmentSourceLayerId) ?? [];
       for (const segment of segs) {

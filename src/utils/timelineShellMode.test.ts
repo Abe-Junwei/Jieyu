@@ -1,5 +1,44 @@
 import { describe, expect, it } from 'vitest';
-import { resolveTimelineShellMode } from './timelineShellMode';
+import {
+  computeEffectiveTimelineShellLayersCount,
+  resolveTimelineShellMode,
+  timelineShellModeResultToAcousticState,
+} from './timelineShellMode';
+
+describe('computeEffectiveTimelineShellLayersCount', () => {
+  it('returns the max of orchestrator vs transcription vs translation counts', () => {
+    expect(computeEffectiveTimelineShellLayersCount({
+      orchestratorLayersCount: 0,
+      transcriptionLayerCount: 2,
+      translationLayerCount: 1,
+    })).toBe(2);
+    expect(computeEffectiveTimelineShellLayersCount({
+      orchestratorLayersCount: 4,
+      transcriptionLayerCount: 1,
+      translationLayerCount: 1,
+    })).toBe(4);
+  });
+});
+
+describe('timelineShellModeResultToAcousticState', () => {
+  it('maps playable / pending / idle', () => {
+    expect(timelineShellModeResultToAcousticState({
+      shell: 'waveform',
+      acousticPending: false,
+      playableAcoustic: true,
+    })).toBe('playable');
+    expect(timelineShellModeResultToAcousticState({
+      shell: 'text-only',
+      acousticPending: true,
+      playableAcoustic: false,
+    })).toBe('pending_decode');
+    expect(timelineShellModeResultToAcousticState({
+      shell: 'text-only',
+      acousticPending: false,
+      playableAcoustic: false,
+    })).toBe('no_media');
+  });
+});
 
 describe('resolveTimelineShellMode', () => {
   it('selects waveform when URL, ready, positive duration, and layers exist', () => {

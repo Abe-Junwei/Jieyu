@@ -44,6 +44,7 @@ export type BuildSharedLanePropsInput = TimelineHostSharedLaneProps & {
 export type BuiltSharedLaneProps = Omit<
   HorizontalMediaLanesProps,
   | 'playerDuration'
+  | 'timelineExtentSec'
   | 'zoomPxPerSec'
   | 'lassoRect'
   | 'timelineRenderUnits'
@@ -405,7 +406,7 @@ export type BuildReadyWorkspaceStagePropsInput = {
   timelineContentProps: ReadyWorkspaceWorkspaceAreaProps['timelineContentProps'];
   editorContextValue: ReadyWorkspaceWorkspaceAreaProps['editorContextValue'];
   aiPanelContextValue: ReadyWorkspaceWorkspaceAreaProps['aiPanelContextValue'];
-  onLassoPointerDown: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onPointerDown'];
+  onLassoPointerDown: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onPointerDownCapture'];
   onLassoPointerMove: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onPointerMove'];
   onLassoPointerUp: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onPointerUp'];
   onTimelineScroll: ReadyWorkspaceWorkspaceAreaProps['lassoHandlers']['onScroll'];
@@ -544,7 +545,7 @@ export function buildReadyWorkspaceStageProps(
       editorContextValue: input.editorContextValue,
       aiPanelContextValue: input.aiPanelContextValue,
       lassoHandlers: {
-        onPointerDown: input.onLassoPointerDown,
+        onPointerDownCapture: input.onLassoPointerDown,
         onPointerMove: input.onLassoPointerMove,
         onPointerUp: input.onLassoPointerUp,
         onScroll: input.onTimelineScroll,

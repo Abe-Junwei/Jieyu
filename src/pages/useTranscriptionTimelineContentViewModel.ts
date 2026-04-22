@@ -6,7 +6,11 @@ import type {
   TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical,
 } from './timelineHostProjectionTypes';
 import { dropUndefinedKeys } from './transcriptionReadyWorkspacePropsBuilders';
-import { resolveTimelineShellMode } from '../utils/timelineShellMode';
+import {
+  computeEffectiveTimelineShellLayersCount,
+  resolveTimelineShellMode,
+  timelineShellModeResultToAcousticState,
+} from '../utils/timelineShellMode';
 
 const FALLBACK_VERTICAL_PROJECTION: TimelineVerticalProjectionProps = {};
 
@@ -14,11 +18,12 @@ interface UseTranscriptionTimelineContentViewModelInput {
   selectedMediaUrl: string | null;
   playerIsReady: boolean;
   playerDuration: number;
+  timelineExtentSec: number;
   layersCount: number;
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
   layerActionSetCreateTranscription: () => void;
-  mediaLanesPropsInput: Omit<TranscriptionPageTimelineHorizontalMediaLanesProps, 'playerDuration'>;
+  mediaLanesPropsInput: Omit<TranscriptionPageTimelineHorizontalMediaLanesProps, 'playerDuration' | 'timelineExtentSec'>;
   /** 工作区 panel 合同，不含纵向投影字段（见 `verticalProjection`）。 */
   textOnlyPropsInput: TranscriptionPageTimelineWorkspacePanelPropsWithoutVertical;
   /** 纵向布局投影；与 panel 其余字段并列进入 view-model 后再合并为宿主 `textOnlyProps`。 */
@@ -30,8 +35,9 @@ export function useTranscriptionTimelineContentViewModel(
 ): TranscriptionPageTimelineContentProps {
   const mediaLanesProps = useMemo<TranscriptionPageTimelineHorizontalMediaLanesProps>(() => ({
     playerDuration: input.playerDuration,
+    timelineExtentSec: input.timelineExtentSec,
     ...input.mediaLanesPropsInput,
-  }), [input.mediaLanesPropsInput, input.playerDuration]);
+  }), [input.mediaLanesPropsInput, input.playerDuration, input.timelineExtentSec]);
 
   const verticalProjection = input.verticalProjection ?? FALLBACK_VERTICAL_PROJECTION;
 
@@ -48,17 +54,17 @@ export function useTranscriptionTimelineContentViewModel(
     ],
   );
 
-  const effectiveLayersCount = Math.max(
-    input.layersCount,
-    input.textOnlyPropsInput.transcriptionLayers?.length ?? 0,
-    input.textOnlyPropsInput.translationLayers?.length ?? 0,
-  );
+  const effectiveLayersCount = computeEffectiveTimelineShellLayersCount({
+    orchestratorLayersCount: input.layersCount,
+    transcriptionLayerCount: input.textOnlyPropsInput.transcriptionLayers?.length ?? 0,
+    translationLayerCount: input.textOnlyPropsInput.translationLayers?.length ?? 0,
+  });
 
   const verticalComparisonEnabled = Boolean(
     verticalProjection.verticalViewEnabled && effectiveLayersCount > 0,
   );
 
-  const { shell: workspaceShell, acousticPending: workspaceAcousticPending } = resolveTimelineShellMode({
+  const contractShellMode = resolveTimelineShellMode({
     selectedMediaUrl: input.selectedMediaUrl,
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
@@ -67,6 +73,16 @@ export function useTranscriptionTimelineContentViewModel(
       ? { verticalViewEnabled: verticalProjection.verticalViewEnabled }
       : {}),
   });
+  /** 忽略纵向短路，与 `TimelineReadModel` 的 `globalShellMode` / `acoustic.globalState` 同源。 */
+  const globalShellMode = resolveTimelineShellMode({
+    selectedMediaUrl: input.selectedMediaUrl,
+    playerIsReady: input.playerIsReady,
+    playerDuration: input.playerDuration,
+    layersCount: effectiveLayersCount,
+  });
+
+  const { shell: workspaceShell, acousticPending: workspaceAcousticPending } = contractShellMode;
+  const workspaceAcousticChromeState = timelineShellModeResultToAcousticState(globalShellMode);
 
   const emptyStateProps = useMemo<TranscriptionPageTimelineEmptyStateProps>(() => ({
     locale: input.locale,
@@ -79,6 +95,7 @@ export function useTranscriptionTimelineContentViewModel(
   return useMemo<TranscriptionPageTimelineContentProps>(() => ({
     workspaceShell,
     workspaceAcousticPending,
+    workspaceAcousticChromeState,
     verticalComparisonEnabled,
     mediaLanesProps,
     textOnlyProps,
@@ -88,6 +105,7 @@ export function useTranscriptionTimelineContentViewModel(
     mediaLanesProps,
     textOnlyProps,
     verticalComparisonEnabled,
+    workspaceAcousticChromeState,
     workspaceAcousticPending,
     workspaceShell,
   ]);

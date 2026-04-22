@@ -33,6 +33,7 @@ describe('TranscriptionPageTimelineContent', () => {
       <TranscriptionPageTimelineContent
         workspaceShell="waveform"
         workspaceAcousticPending={false}
+        workspaceAcousticChromeState="playable"
         verticalComparisonEnabled
         mediaLanesProps={{} as never}
         textOnlyProps={{ verticalViewEnabled: true } as never}
@@ -49,6 +50,7 @@ describe('TranscriptionPageTimelineContent', () => {
       <TranscriptionPageTimelineContent
         workspaceShell="text-only"
         workspaceAcousticPending={false}
+        workspaceAcousticChromeState="playable"
         verticalComparisonEnabled
         mediaLanesProps={{} as never}
         textOnlyProps={{

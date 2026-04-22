@@ -59,6 +59,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [fallbackOwner, explicitOwner],
       unitsOnCurrentMedia: [fallbackOwner, explicitOwner],
@@ -81,6 +82,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result: narrowResult } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [wideContaining, narrowContaining],
       unitsOnCurrentMedia: [wideContaining, narrowContaining],
@@ -93,6 +95,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result: centerTieResult } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [equalSpanFartherCenter, equalSpanCloserCenter],
       unitsOnCurrentMedia: [equalSpanFartherCenter, equalSpanCloserCenter],
@@ -112,6 +115,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [wrongMediaContaining, correctMediaContaining],
       unitsOnCurrentMedia: [wrongMediaContaining, correctMediaContaining],
@@ -131,6 +135,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [fartherCenter, closerCenter],
       unitsOnCurrentMedia: [fartherCenter, closerCenter],
@@ -149,6 +154,7 @@ describe('useTranscriptionSelectionContextController', () => {
 
     const { result } = renderHook(() => useTranscriptionSelectionContextController({
       layers: [layer],
+      layerLinks: [],
       mediaItems: [],
       units: [nonOverlapping],
       unitsOnCurrentMedia: [nonOverlapping],

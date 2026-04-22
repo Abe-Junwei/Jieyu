@@ -1551,6 +1551,38 @@ describe('TranscriptionTimelineVerticalView', () => {
     expect(screen.queryByTestId('paired-reading-target-empty-pr-u-fr')).toBeNull();
   });
 
+  it('keeps translation editor visible in single-transcription mode when layer link host is unresolved', () => {
+    const transcriptionLayers = [makeLayer('tr-single', 'transcription', '单转写')];
+    const translationLayers = [makeTranslationLayer('tl-single', 'tr-single', '单译文')];
+    const layerLinks = [makeLayerLink('link-single-stale', 'missing-key', '', 'tl-single')];
+    const units = [makeUnit('u-single', 'tr-single', 0, 1)];
+    const contextValue = makeEditorContext();
+    contextValue.translationTextByLayer = new Map([
+      ['tl-single', new Map([['u-single', { text: 'Single host fallback translation' }]])],
+    ]) as unknown as TranscriptionEditorContextValue['translationTextByLayer'];
+    contextValue.getUnitTextForLayer = (unit) => (unit.id === 'u-single' ? 'Single host source text' : '');
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={contextValue}>
+          <TranscriptionTimelineVerticalView
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            layerLinks={layerLinks}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="tr-single"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByDisplayValue('Single host source text')).toBeTruthy();
+    expect(screen.getByDisplayValue('Single host fallback translation')).toBeTruthy();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-single')).toBeNull();
+  });
+
   it('shows orphan-repair hint when only unbound translation layers exist for another host group', () => {
     const transcriptionLayers = [
       makeLayer('tr-en', 'transcription', '英'),

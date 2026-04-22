@@ -23,6 +23,7 @@ export interface UseOrchestratorViewModelsInput {
   playableAcoustic: boolean;
   playerIsReady: boolean;
   playerDuration: number;
+  timelineExtentSec: number;
   layersCount: number;
   locale: Locale;
   importFileRef: RefObject<HTMLInputElement | null>;
@@ -111,6 +112,7 @@ export function useOrchestratorViewModels(
     selectedMediaUrl: input.selectedMediaUrl,
     playerIsReady: input.playerIsReady,
     playerDuration: input.playerDuration,
+    timelineExtentSec: input.timelineExtentSec,
     layersCount: input.layersCount,
     locale: input.locale,
     importFileRef: input.importFileRef,

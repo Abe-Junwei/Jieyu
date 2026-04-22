@@ -19,6 +19,13 @@ export interface TimelineViewportScalars {
   fitPxPerSec: number;
 }
 
+export interface TimelineViewportFrame {
+  scrollLeftPx: number;
+  pxPerDocSec: number;
+  visibleStartSec: number;
+  visibleEndSec: number;
+}
+
 /**
  * Read-only viewport snapshot: aligns with `TimelineReadModel.zoom` plus `useZoom` ruler output.
  * Phase C `useTimelineViewport` will own updates to these fields before read model recompute.
@@ -26,6 +33,7 @@ export interface TimelineViewportScalars {
 export interface TimelineViewportProjection extends TimelineViewportScalars {
   rulerView: TimelineRulerViewWindow | null;
   waveformScrollLeft?: number;
+  viewportFrame: TimelineViewportFrame;
 }
 
 /** Zoom/pan actions implemented by `useZoom` today; re-exported as the control surface of the future viewport hook. */
@@ -54,6 +62,7 @@ export type StripDomRef<T extends HTMLElement> = RefObject<T | null> | MutableRe
  * DOM refs stay explicit until WaveSurfer lifecycle is fully behind a plugin façade.
  */
 export interface AcousticStripContract {
+  /** 完整 read model 声学切片；页顶波形 chrome 映射 `mapAcousticToTimelineChrome` 时用 `shell`+`globalState`（见 `OrchestratorWaveformContent`），tier 宿主仍读合同态 `state`。 */
   acoustic: AcousticStripSnapshot;
   waveCanvasRef: StripDomRef<HTMLDivElement>;
   tierContainerRef: StripDomRef<HTMLDivElement>;

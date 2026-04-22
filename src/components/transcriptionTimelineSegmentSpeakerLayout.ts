@@ -1,4 +1,4 @@
-import type { LayerDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
 import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIState';
 import type { TimelineUnitView } from '../hooks/timelineUnitView';
 import { getUnitSpeakerKey } from '../hooks/speakerManagement/speakerUtils';
@@ -78,6 +78,7 @@ export function buildSegmentSpeakerIdMap(
 interface SegmentSpeakerLayoutMapsOptions {
   transcriptionLayers: LayerDocType[];
   layerById: ReadonlyMap<string, LayerDocType>;
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   unitById: ReadonlyMap<string, LayerUnitDocType>;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]> | undefined;
   defaultTranscriptionLayerId: string | undefined;
@@ -90,6 +91,7 @@ interface SegmentSpeakerLayoutMapsOptions {
 export function buildSegmentSpeakerLayoutMaps({
   transcriptionLayers,
   layerById,
+  layerLinks,
   unitById,
   segmentsByLayer,
   defaultTranscriptionLayerId,
@@ -105,7 +107,7 @@ export function buildSegmentSpeakerLayoutMaps({
   const segmentSpeakerIdByLayer = new Map<string, Map<string, string>>();
 
   for (const layer of transcriptionLayers) {
-    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId);
+    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, layerById, defaultTranscriptionLayerId, layerLinks);
     if (!sourceLayer) continue;
     const segments = (segmentsByLayer?.get(sourceLayer.id) ?? []).filter((segment) => (
       activeSpeakerFilterKey === 'all'

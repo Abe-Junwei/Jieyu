@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { LayerDocType, LayerUnitDocType, MediaItemDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType, MediaItemDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { isSegmentTimelineUnit } from '../hooks/transcriptionTypes';
 import { layerUsesOwnSegments, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
@@ -10,6 +10,7 @@ import { resolveSegmentOwnerUnit } from './transcriptionSelectionOwnerResolver';
 interface UseTranscriptionSelectionContextControllerInput {
   layers: LayerDocType[];
   defaultTranscriptionLayerId?: string;
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   mediaItems: MediaItemDocType[];
   units: LayerUnitDocType[];
   unitsOnCurrentMedia: LayerUnitDocType[];
@@ -90,9 +91,9 @@ export function useTranscriptionSelectionContextController(
 
   const segmentTimelineLayerIds = useMemo(() => new Set(
     input.layers
-      .filter((layer) => Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, input.defaultTranscriptionLayerId)))
+      .filter((layer) => Boolean(resolveSegmentTimelineSourceLayer(layer, layerById, input.defaultTranscriptionLayerId, input.layerLinks)))
       .map((layer) => layer.id),
-  ), [input.defaultTranscriptionLayerId, input.layers, layerById]);
+  ), [input.defaultTranscriptionLayerId, input.layerLinks, input.layers, layerById]);
 
   return {
     layerById,

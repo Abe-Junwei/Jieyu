@@ -36,6 +36,22 @@ describe('translationHostLinkQuery', () => {
     )).toBe('layer-a');
   });
 
+  it('resolves host when hostTranscriptionLayerId stores a transcription key', () => {
+    const map = new Map<string, string>([['trc_a', 'layer-a']]);
+    expect(resolveLayerLinkHostTranscriptionLayerId(
+      { transcriptionLayerKey: '', hostTranscriptionLayerId: 'trc_a' },
+      map,
+    )).toBe('layer-a');
+  });
+
+  it('resolves host when transcriptionLayerKey stores a transcription layer id', () => {
+    const map = new Map<string, string>([['trc_a', 'layer-a']]);
+    expect(resolveLayerLinkHostTranscriptionLayerId(
+      { transcriptionLayerKey: 'layer-a', hostTranscriptionLayerId: '' },
+      map,
+    )).toBe('layer-a');
+  });
+
   it('returns preferred host when a non-preferred link is listed first', () => {
     const map = new Map<string, string>();
     const links = [

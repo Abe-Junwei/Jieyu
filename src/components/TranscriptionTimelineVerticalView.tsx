@@ -1,16 +1,7 @@
 import '../styles/pages/timeline/timeline-paired-reading.css';
-import type {
-  LayerDisplaySettings,
-  LayerDocType,
-  LayerLinkDocType,
-  LayerUnitContentDocType,
-  LayerUnitDocType,
-  MediaItemDocType,
-  OrthographyDocType,
-} from '../db';
+import type { LayerDocType } from '../db';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
-import { unitToView } from '../hooks/timelineUnitView';
 import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
 import { layerUsesOwnSegments } from '../hooks/useLayerSegments';
 import { useToast } from '../contexts/ToastContext';
@@ -36,7 +27,6 @@ import {
   computeFontSizeFromRenderPolicy,
   resolveOrthographyRenderPolicy,
 } from '../utils/layerDisplayStyle';
-import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { LayerActionPopover } from './LayerActionPopover';
 import { DeleteLayerConfirmDialog } from './DeleteLayerConfirmDialog';
@@ -59,6 +49,7 @@ import {
   resolvePairedReadingTargetPlainTextForLayer,
 } from './transcriptionTimelineVerticalViewHelpers';
 import { type PairedReadingCompactMode } from '../hooks/useTimelineVisibilityState';
+import type { TranscriptionTimelineVerticalViewInput } from '../pages/transcriptionTimelineWorkspacePanelTypes';
 
 
 
@@ -71,68 +62,6 @@ const EMPTY_SPEAKER_VISUAL_BY_UNIT_ID = Object.freeze({}) as Record<string, { na
 
 
 
-
-interface TranscriptionTimelineVerticalViewProps {
-  transcriptionLayers: LayerDocType[];
-  translationLayers: LayerDocType[];
-  layerLinks?: LayerLinkDocType[];
-  unitsOnCurrentMedia: LayerUnitDocType[];
-  focusedLayerRowId: string;
-  activeUnitId?: string;
-  onFocusLayer: (layerId: string) => void;
-  verticalPaneFocus?: TranscriptionVerticalPaneFocusState;
-  updateVerticalPaneFocus?: (patch: Partial<TranscriptionVerticalPaneFocusState>) => void;
-  segmentContentByLayer?: ReadonlyMap<string, ReadonlyMap<string, LayerUnitContentDocType>>;
-  saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
-  handleAnnotationClick: (
-    uttId: string,
-    uttStartTime: number,
-    layerId: string,
-    e: React.MouseEvent,
-    overlapCycleItems?: Array<{ id: string; startTime: number }>,
-  ) => void;
-  handleAnnotationContextMenu?: (
-    uttId: string,
-    utt: ReturnType<typeof unitToView>,
-    layerId: string,
-    e: React.MouseEvent,
-  ) => void;
-  /** 与纯文本时间轴一致：语段轨时从 segmentsByLayer 取行，而非仅用宿主句列表 */
-  segmentsByLayer?: ReadonlyMap<string, LayerUnitDocType[]>;
-  segmentParentUnitLookup?: LayerUnitDocType[];
-  allLayersOrdered?: LayerDocType[];
-  deletableLayers?: LayerDocType[];
-  defaultLanguageId?: string;
-  defaultOrthographyId?: string;
-  defaultTranscriptionLayerId?: string;
-  activeSpeakerFilterKey?: string;
-  translationAudioByLayer?: Map<string, Map<string, LayerUnitContentDocType>>;
-  handleNoteClick?: (unitId: string, layerId: string | undefined, event: React.MouseEvent) => void;
-  resolveNoteIndicatorTarget?: (unitId: string, layerId?: string, scope?: 'timeline' | 'waveform') => { count: number; layerId?: string } | null;
-  resolveSelfCertaintyForUnit?: (unitId: string, layerId?: string) => UnitSelfCertainty | undefined;
-  resolveSelfCertaintyAmbiguityForUnit?: (unitId: string, layerId?: string) => boolean;
-  mediaItems?: MediaItemDocType[];
-  recording?: boolean;
-  recordingUnitId?: string | null;
-  recordingLayerId?: string | null;
-  startRecordingForUnit?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
-  stopRecording?: () => void;
-  deleteVoiceTranslation?: (unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
-  transcribeVoiceTranslation?: (
-    unit: LayerUnitDocType,
-    layer: LayerDocType,
-    options?: { signal?: AbortSignal; audioBlob?: Blob },
-  ) => Promise<void>;
-  displayStyleControl?: {
-    orthographies: OrthographyDocType[];
-    onUpdate: (layerId: string, patch: Partial<LayerDisplaySettings>) => void;
-    onReset: (layerId: string) => void;
-    localFonts?: Parameters<typeof import('./LayerStyleSubmenu').buildLayerStyleMenuItems>[7];
-  };
-  speakerVisualByUnitId?: Record<string, { name: string; color: string }>;
-  /** 与文本时间轴一致：Tab 在句间跳转选中（多行编辑器不占用 Enter） */
-  navigateUnitFromInput?: (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, direction: -1 | 1) => void;
-}
 
 /**
  * 纵向对读壳（双列组块，P0）| Vertical paired-reading shell (two-column groups, P0)
@@ -175,7 +104,7 @@ export function TranscriptionTimelineVerticalView({
   displayStyleControl,
   speakerVisualByUnitId,
   navigateUnitFromInput,
-}: TranscriptionTimelineVerticalViewProps) {
+}: TranscriptionTimelineVerticalViewInput) {
   const stableSpeakerVisualByUnitId = speakerVisualByUnitId ?? EMPTY_SPEAKER_VISUAL_BY_UNIT_ID;
   const locale = useLocale();
   const { showToast } = useToast();
@@ -524,6 +453,7 @@ export function TranscriptionTimelineVerticalView({
     () => resolveVerticalReadingGroupSourceUnits({
       transcriptionLayers,
       translationLayers,
+      layerLinks,
       unitsOnCurrentMedia,
       segmentParentUnitLookup,
       segmentsByLayer,
@@ -536,6 +466,7 @@ export function TranscriptionTimelineVerticalView({
       activeSpeakerFilterKey,
       allLayersOrdered,
       defaultTranscriptionLayerId,
+      layerLinks,
       segmentParentUnitLookup,
       segmentsByLayer,
       transcriptionLayers,

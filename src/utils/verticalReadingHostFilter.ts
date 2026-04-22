@@ -58,11 +58,19 @@ export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   // 译文宿主仅以 layer_links 为准，不读取 translation.parentLayerId | Translation host is link-only
   const links = linksByTranslationLayerId.get(tl.id) ?? [];
   if (links.length > 0) {
-    if (sourceTranscriptionIds.size === 0) return false;
-    return links.some((link) => {
+    if (sourceTranscriptionIds.size === 0) return transcriptionLayerCount <= 1;
+    const matched = links.some((link) => {
       const hostId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
       return hostId.length > 0 && sourceTranscriptionIds.has(hostId);
     });
+    if (matched) return true;
+    if (transcriptionLayerCount <= 1) {
+      const hasResolvableHost = links.some(
+        (link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey).length > 0,
+      );
+      if (!hasResolvableHost) return true;
+    }
+    return false;
   }
   if (transcriptionLayerCount <= 1) return true;
   if (!orphanAttachLayerId) return false;

@@ -1,5 +1,6 @@
 import '../styles/transcription-timeline.css';
 import type { ComponentProps } from 'react';
+import type { TimelineAcousticState } from '../utils/mapAcousticToTimelineChrome';
 import { TranscriptionPageTimelineEmptyState } from './TranscriptionPage.TimelineEmptyState';
 import { TranscriptionTimelineWorkspaceHost, type TimelineWorkspaceHostShell } from './TranscriptionTimelineWorkspaceHost';
 import type { TranscriptionTimelineWorkspacePanelProps } from './transcriptionTimelineWorkspacePanelTypes';
@@ -12,6 +13,8 @@ export type TranscriptionPageTimelineEmptyStateProps = ComponentProps<typeof Tra
 export interface TranscriptionPageTimelineContentProps {
   workspaceShell: TimelineWorkspaceHostShell;
   workspaceAcousticPending: boolean;
+  /** 与 read model `acoustic.globalState` 同源，供 tier `mapAcousticToTimelineChrome`；合同态仍见 `workspaceAcousticPending`。 */
+  workspaceAcousticChromeState: TimelineAcousticState;
   verticalComparisonEnabled: boolean;
   mediaLanesProps: TranscriptionPageTimelineHorizontalMediaLanesProps;
   textOnlyProps: TranscriptionPageTimelineTextOnlyProps;
@@ -20,7 +23,8 @@ export interface TranscriptionPageTimelineContentProps {
 
 export function TranscriptionPageTimelineContent({
   workspaceShell,
-  workspaceAcousticPending,
+  workspaceAcousticPending: _workspaceAcousticPending,
+  workspaceAcousticChromeState,
   verticalComparisonEnabled,
   mediaLanesProps,
   textOnlyProps,
@@ -30,7 +34,7 @@ export function TranscriptionPageTimelineContent({
     <TranscriptionTimelineWorkspaceHost
       verticalComparisonEnabled={verticalComparisonEnabled}
       shell={workspaceShell}
-      acousticPending={workspaceAcousticPending}
+      workspaceAcousticChromeState={workspaceAcousticChromeState}
       mediaLanesProps={mediaLanesProps}
       textOnlyProps={textOnlyProps}
       emptyStateProps={emptyStateProps}

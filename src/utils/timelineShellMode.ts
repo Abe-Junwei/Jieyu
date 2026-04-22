@@ -5,7 +5,24 @@
  * 壳层只影响「是否显示波形/占位」；**语段起止时间**仍以库内坐标为准，不在此按索引或均分生成时间。
  */
 
+import type { TimelineAcousticState } from './mapAcousticToTimelineChrome';
+
 export type TimelineShellKind = 'waveform' | 'text-only' | 'empty';
+
+/**
+ * 与 `useTranscriptionTimelineContentViewModel` 中 `effectiveLayersCount` 同构，保证 read model 与 timeline content 壳判定输入一致。
+ */
+export function computeEffectiveTimelineShellLayersCount(input: {
+  orchestratorLayersCount: number;
+  transcriptionLayerCount: number;
+  translationLayerCount: number;
+}): number {
+  return Math.max(
+    input.orchestratorLayersCount,
+    input.transcriptionLayerCount,
+    input.translationLayerCount,
+  );
+}
 
 export interface TimelineShellModeInput {
   selectedMediaUrl: string | null | undefined;
@@ -21,6 +38,15 @@ export interface TimelineShellModeResult {
   acousticPending: boolean;
   /** True only when a playable acoustic URL is decoded and ready. */
   playableAcoustic: boolean;
+}
+
+/**
+ * 与 `buildTimelineReadModel` 中 `resolveAcousticState` 同构：由壳层判定结果得到声学三态（供 `mapAcousticToTimelineChrome` 等消费）。
+ */
+export function timelineShellModeResultToAcousticState(result: TimelineShellModeResult): TimelineAcousticState {
+  if (result.playableAcoustic) return 'playable';
+  if (result.acousticPending) return 'pending_decode';
+  return 'no_media';
 }
 
 export function resolveTimelineShellMode(input: TimelineShellModeInput): TimelineShellModeResult {

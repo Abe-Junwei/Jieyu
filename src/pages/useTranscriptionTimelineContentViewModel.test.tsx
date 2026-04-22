@@ -46,6 +46,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       selectedMediaUrl: 'blob:audio',
       playerIsReady: true,
       playerDuration: 42,
+      timelineExtentSec: 42,
       layersCount: 3,
       locale: 'zh-CN',
       importFileRef,
@@ -143,7 +144,9 @@ describe('useTranscriptionTimelineContentViewModel', () => {
 
     expect(result.current.workspaceShell).toBe('waveform');
     expect(result.current.workspaceAcousticPending).toBe(false);
+    expect(result.current.workspaceAcousticChromeState).toBe('playable');
     expect(result.current.mediaLanesProps.playerDuration).toBe(42);
+    expect(result.current.mediaLanesProps.timelineExtentSec).toBe(42);
     expect(result.current.emptyStateProps.hasSelectedMedia).toBe(true);
     expect(result.current.verticalComparisonEnabled).toBe(false);
 
@@ -211,6 +214,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       selectedMediaUrl: 'blob:audio',
       playerIsReady: true,
       playerDuration: 42,
+      timelineExtentSec: 42,
       layersCount: 3,
       locale: 'zh-CN' as const,
       importFileRef,
@@ -276,5 +280,8 @@ describe('useTranscriptionTimelineContentViewModel', () => {
 
     expect(result.current.textOnlyProps.verticalViewEnabled).toBe(true);
     expect(result.current.verticalComparisonEnabled).toBe(true);
+    expect(result.current.workspaceShell).toBe('text-only');
+    expect(result.current.workspaceAcousticPending).toBe(false);
+    expect(result.current.workspaceAcousticChromeState).toBe('playable');
   });
 });

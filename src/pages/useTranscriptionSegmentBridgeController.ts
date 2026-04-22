@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { getDb, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
+import { getDb, type LayerDocType, type LayerLinkDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { getLayerEditMode, resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
 import { LayerSegmentationV2Service } from '../services/LayerSegmentationV2Service';
@@ -25,6 +25,7 @@ interface UseTranscriptionSegmentBridgeControllerInput {
   defaultTranscriptionLayerId?: string;
   firstTranscriptionLayerId?: string;
   layerById: ReadonlyMap<string, LayerDocType>;
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   independentLayerIds: ReadonlySet<string>;
   segmentsByLayer: ReadonlyMap<string, LayerUnitDocType[]>;
   segmentContentByLayer: ReadonlyMap<string, Map<string, LayerUnitContentDocType>>;
@@ -73,7 +74,7 @@ export function useTranscriptionSegmentBridgeController(
 
   const resolveSegmentRoutingForLayer = useCallback((layerId?: string): SegmentTimelineRoutingResult => {
     const layer = layerId ? input.layerById.get(layerId) : undefined;
-    const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId);
+    const segmentSourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId, input.layerLinks);
     return {
       layer,
       segmentSourceLayer,
@@ -81,7 +82,7 @@ export function useTranscriptionSegmentBridgeController(
       usesSegmentTimeline: Boolean(segmentSourceLayer),
       editMode: getLayerEditMode(segmentSourceLayer ?? layer, input.defaultTranscriptionLayerId),
     };
-  }, [input.defaultTranscriptionLayerId, input.layerById]);
+  }, [input.defaultTranscriptionLayerId, input.layerById, input.layerLinks]);
 
   const refreshSegmentUndoSnapshot = useCallback(async () => {
     const requestId = segmentUndoSnapshotRequestIdRef.current + 1;
@@ -131,7 +132,7 @@ export function useTranscriptionSegmentBridgeController(
     const startedAtMs = performance.now();
     const layer = input.layerById.get(layerId);
     if (!layer) return;
-    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId);
+    const sourceLayer = resolveSegmentTimelineSourceLayer(layer, input.layerById, input.defaultTranscriptionLayerId, input.layerLinks);
     if (!sourceLayer) return;
     const now = new Date().toISOString();
     const trimmed = value.trim();
@@ -173,7 +174,7 @@ export function useTranscriptionSegmentBridgeController(
       recordSegmentSaveLatency(layerId, 'error', startedAtMs);
       throw error;
     }
-  }, [input.defaultTranscriptionLayerId, input.layerById, input.reloadSegmentContents, input.segmentContentByLayer, input.segmentsByLayer, refreshSegmentUndoSnapshot]);
+  }, [input.defaultTranscriptionLayerId, input.layerById, input.layerLinks, input.reloadSegmentContents, input.segmentContentByLayer, input.segmentsByLayer, refreshSegmentUndoSnapshot]);
 
   return {
     activeLayerIdForEdits,

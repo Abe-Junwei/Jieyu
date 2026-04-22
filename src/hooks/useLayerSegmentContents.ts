@@ -2,7 +2,7 @@
  * 独立边界层 segment 内容加载 hook | Hook for loading segment contents of independent-boundary layers
  */
 import { useCallback, useEffect, useState } from 'react';
-import { type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
+import { type LayerDocType, type LayerLinkDocType, type LayerUnitContentDocType, type LayerUnitDocType } from '../db';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { useLatest } from './useLatest';
 import { resolveSegmentTimelineSourceLayer } from './useLayerSegments';
@@ -14,6 +14,7 @@ export function useLayerSegmentContents(
   mediaId: string | undefined,
   segmentsByLayer: Map<string, LayerUnitDocType[]>,
   defaultTranscriptionLayerId?: string,
+  layerLinks: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>> = [],
 ): {
   segmentContentByLayer: SegmentContentByLayer;
   reloadSegmentContents: () => Promise<void>;
@@ -33,7 +34,7 @@ export function useLayerSegmentContents(
     const segmentBackedLayers = layersRef.current
       .map((layer) => ({
         layer,
-        sourceLayer: resolveSegmentTimelineSourceLayer(layer, layerById, defaultLayerIdRef.current),
+        sourceLayer: resolveSegmentTimelineSourceLayer(layer, layerById, defaultLayerIdRef.current, layerLinks),
       }))
       .filter((item): item is { layer: LayerDocType; sourceLayer: LayerDocType } => Boolean(item.sourceLayer));
 
@@ -68,7 +69,7 @@ export function useLayerSegmentContents(
     }
 
     setSegmentContentByLayer(next);
-  }, [mediaId]);
+  }, [layerLinks, mediaId]);
 
   useEffect(() => {
     void loadSegmentContents();

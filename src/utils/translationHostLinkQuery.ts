@@ -36,11 +36,26 @@ export function resolveLayerLinkHostTranscriptionLayerId(
   link: Pick<LayerLinkDocType, 'transcriptionLayerKey' | 'hostTranscriptionLayerId'>,
   transcriptionIdByKey: ReadonlyMap<string, string>,
 ): string {
+  const resolveCandidate = (raw: string): string => {
+    const candidate = raw.trim();
+    if (candidate.length === 0) return '';
+    const mapped = transcriptionIdByKey.get(candidate);
+    if (mapped) return mapped;
+    for (const id of transcriptionIdByKey.values()) {
+      if (id === candidate) return id;
+    }
+    return '';
+  };
+
   const hostId = typeof link.hostTranscriptionLayerId === 'string' ? link.hostTranscriptionLayerId.trim() : '';
-  if (hostId.length > 0) return hostId;
-  const legacyKey = typeof link.transcriptionLayerKey === 'string' ? link.transcriptionLayerKey.trim() : '';
-  if (legacyKey.length === 0) return '';
-  return transcriptionIdByKey.get(legacyKey) ?? '';
+  if (hostId.length === 0) {
+    const legacyKey = typeof link.transcriptionLayerKey === 'string' ? link.transcriptionLayerKey : '';
+    return resolveCandidate(legacyKey);
+  }
+
+  const resolvedHost = resolveCandidate(hostId);
+  if (resolvedHost.length > 0) return resolvedHost;
+  return hostId;
 }
 
 /** 某译文层的全部宿主转写 id（去重，顺序为 link 表顺序）| Distinct host transcription ids for a translation layer */

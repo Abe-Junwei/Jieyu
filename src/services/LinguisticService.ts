@@ -1393,7 +1393,15 @@ export class LinguisticService {
       throw new Error('importAudio: replaceMediaId is required when importMode is replace');
     }
     const mediaRows = await db.dexie.media_items.where('textId').equals(input.textId).toArray();
-    const placeholderRows = mediaRows.filter((row) => isMediaItemPlaceholderRow(row));
+    const hasPlayablePayload = (row: MediaItemDocType): boolean => {
+      const details = (row.details as Record<string, unknown> | undefined) ?? {};
+      return details.audioBlob instanceof Blob
+        || (typeof row.url === 'string' && row.url.trim().length > 0);
+    };
+    const placeholderRows = mediaRows.filter((row) => (
+      isMediaItemPlaceholderRow(row)
+      || (!isAuxiliaryRecordingMediaRow(row) && !hasPlayablePayload(row))
+    ));
     const timelineAcousticRows = mediaRows.filter((row) => (
       !placeholderRows.some((candidate) => candidate.id === row.id)
       && !isAuxiliaryRecordingMediaRow(row)
