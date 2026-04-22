@@ -11,7 +11,7 @@ source_of_truth: decision-record
 
 ## Status
 
-Accepted。本 ADR 记录 **2026-04 起** 转写主时间轴在**横向**上的壳层合并决策，作为 [ADR-0004](0004-logical-timeline-acoustic-media-lifecycle.md) 的**实现阶段补充**（不推翻 0004 的主存坐标与媒体生命周期语义）。
+Accepted。本 ADR 记录 **2026-04 起** 转写主时间轴在**横向**上的壳层合并决策，作为 [ADR-0004](./0004-logical-timeline-acoustic-media-lifecycle.md) 的**实现阶段补充**（不推翻 0004 的主存坐标与媒体生命周期语义）。
 
 ## Context
 

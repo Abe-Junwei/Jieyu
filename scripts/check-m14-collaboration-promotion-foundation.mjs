@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationPromotionRuntime.test.ts',
   'scripts/report-m14-collaboration-promotion-gate.mjs',
   'docs/execution/plans/M14-协作生产放行治理-2026-04-14.md',
-  'docs/execution/plans/M14-执行记录-2026-04-14.md',
+  'docs/execution/archive/milestone-records/M14-执行记录-2026-04-14.md',
   'docs/execution/release-gates/M14-协作生产放行门禁清单-2026-04-14.md',
 ];
 

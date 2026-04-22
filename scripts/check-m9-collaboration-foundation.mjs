@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationRulesRuntime.test.ts',
   'scripts/report-m9-collaboration-recovery-gate.mjs',
   'docs/execution/plans/M9-协作规则与恢复机制-2026-04-13.md',
-  'docs/execution/plans/M9-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M9-执行记录-2026-04-13.md',
   'docs/execution/release-gates/M9-协作规则与恢复门禁清单-2026-04-13.md',
 ];
 

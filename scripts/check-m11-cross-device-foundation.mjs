@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationCrossDeviceRuntime.test.ts',
   'scripts/report-m11-cross-device-gate.mjs',
   'docs/execution/plans/M11-跨设备协作治理-2026-04-13.md',
-  'docs/execution/plans/M11-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M11-执行记录-2026-04-13.md',
   'docs/execution/release-gates/M11-跨设备协作门禁清单-2026-04-13.md',
 ];
 

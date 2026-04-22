@@ -22,13 +22,28 @@ const roleBannerRules = [
     expected: '文档角色：历史规划文档',
   },
   {
+    label: 'historical plan (archived root)',
+    pattern: /^docs\/execution\/archive\/historical-root-docs\/规划-.*\.md$/,
+    expected: '文档角色：历史规划文档',
+  },
+  {
     label: 'research',
     pattern: /^docs\/调研-.*\.md$/,
     expected: '文档角色：调研文档',
   },
   {
+    label: 'research (archived root)',
+    pattern: /^docs\/execution\/archive\/historical-root-docs\/调研-.*\.md$/,
+    expected: '文档角色：调研文档',
+  },
+  {
     label: 'release note',
     pattern: /^docs\/发布说明-.*\.md$/,
+    expected: '文档角色：发布说明文档',
+  },
+  {
+    label: 'release note (archived root)',
+    pattern: /^docs\/execution\/archive\/historical-root-docs\/发布说明-.*\.md$/,
     expected: '文档角色：发布说明文档',
   },
 ];

@@ -133,7 +133,7 @@ source_of_truth: css-governance-execution-log
    - `node scripts/test-visual-css-baseline.mjs --write-baseline`
 3. 关键结果：
    - 通过代码引用分析确认 `VoiceDockSection` 已无任何调用方，`transcription-voice-dock*` 不再是活跃双 owner，而是整套历史残留实现。
-   - 删除已废弃的 VoiceDockSection 历史浮层实现，并将保留能力收口到 [src/components/VoiceAgentWidget.tsx](src/components/VoiceAgentWidget.tsx)；同步清理 `voice-agent.css`、`media-controls.css`、`ai-hub.css` 中对应的废弃浮层样式，并移除未再使用的 i18n 文案键。
+   - 删除已废弃的 VoiceDockSection 历史浮层实现，并将保留能力收口到 [src/components/VoiceAgentWidget.tsx](./src/components/VoiceAgentWidget.tsx)；同步清理 `voice-agent.css`、`media-controls.css`、`ai-hub.css` 中对应的废弃浮层样式，并移除未再使用的 i18n 文案键。
    - 继续清理 `grounding-context.css` 中依赖 `transcription-voice-dock-idle` 的历史上下文规则，保证 unused debt 维持为 0。
    - duplicate debt 从 26 进一步收敛到 23，首次低于上一轮的 target 24，并已同步收紧阈值与 baseline。
 4. 发现问题：

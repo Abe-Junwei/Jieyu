@@ -3,7 +3,7 @@ title: ADR 0001 - 当前事实统一收口到 docs/architecture
 doc_type: adr
 status: accepted
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-04-21
 source_of_truth: decision-record
 ---
 
@@ -17,8 +17,8 @@ source_of_truth: decision-record
 
 1. README 只保留启动、测试、构建、主要入口和文档索引。
 2. 长期有效的当前事实统一进入 `docs/architecture/`。
-3. `docs/规划-*` 只保留方案、约束、取舍和历史阶段判断。
-4. `docs/发布说明-*` 只承载某轮实现的收口、影响面和回归结论。
+3. 历史规划类 Markdown（`规划-*` 等）统一放在 `docs/execution/archive/historical-root-docs/`，只保留方案、约束、取舍和历史阶段判断。
+4. 发布说明类 Markdown（`发布说明-*`）放在同一归档目录，承载某轮实现的收口、影响面和回归结论。
 
 ## 影响
 

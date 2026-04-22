@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationMultiReplicaRuntime.test.ts',
   'scripts/report-m12-multi-replica-gate.mjs',
   'docs/execution/plans/M12-多副本批量同步治理-2026-04-13.md',
-  'docs/execution/plans/M12-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M12-执行记录-2026-04-13.md',
   'docs/execution/release-gates/M12-多副本批量同步门禁清单-2026-04-13.md',
 ];
 

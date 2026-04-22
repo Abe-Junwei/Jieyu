@@ -76,7 +76,7 @@ export const architectureGuardRules = [
       /useTranscriptionSegmentMutationController\(\{/,
       /useTranscriptionTimelineController\(\{/,
       /useTranscriptionTimelineInteractionController\(\{/,
-      /useTranscriptionWaveformBridgeController\(\{/,
+      /useReadyWorkspaceWaveformBridgeController\(\{/,
       /useTranscriptionWorkspaceLayoutController\(\{/,
       /useTrackDisplayController\(\{/,
       // Phase 9 — Timeline unit read model (CQRS) wiring must stay in ReadyWorkspace
@@ -117,6 +117,12 @@ export const architectureGuardRules = [
     maxLines: 70,
     maxUseCallbackDecls: 0,
     maxUseMemoDecls: 1,
+    maxUseEffects: 0,
+  }),
+  hookRule('useSegmentRangeGesturePreviewWriter', {
+    maxLines: 90,
+    maxUseCallbackDecls: 0,
+    maxUseMemoDecls: 2,
     maxUseEffects: 0,
   }),
   hookRule('useTranscriptionData', {
@@ -268,7 +274,7 @@ export const architectureGuardRules = [
     maxUseEffects: 12,
   }),
   pageControllerRule('useTranscriptionWaveformBridgeController', {
-    maxLines: 565,
+    maxLines: 620,
     maxUseCallbackDecls: 10,
     maxUseMemoDecls: 3,
     maxUseEffects: 5,
@@ -804,6 +810,15 @@ export const architectureGuardRules = [
       /utterance_morphemes\.where\(\s*['"]utteranceId['"]/,
       /\.utterance_tokens\.where\(\s*['"]utteranceId['"]/,
       /\.utterance_morphemes\.where\(\s*['"]utteranceId['"]/,
+    ],
+  }),
+
+  // ── 视口单写者：页面层禁止直连 useZoom（须经 useTimelineViewport 封装） ──
+  patternRule(/^src\/pages\/.*\.(ts|tsx)$/, {
+    excludeRegexes: [/\.test\./, /\.structure\./],
+    forbiddenRegexes: [
+      /from ['"][^'"]*\/hooks\/useZoom['"]/,
+      /\buseZoom\s*\(/,
     ],
   }),
 

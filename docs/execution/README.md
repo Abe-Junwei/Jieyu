@@ -3,7 +3,7 @@ title: 执行与工程治理文档索引
 doc_type: execution-index
 status: active
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-04-21
 source_of_truth: governance-index
 ---
 
@@ -25,24 +25,28 @@ source_of_truth: governance-index
 
 ### 1. 治理规则
 
-- [governance/README.md](governance/README.md)
+- [governance/README.md](./governance/README.md)
 
 ### 2. 发布门禁
 
-- [release-gates/README.md](release-gates/README.md)
+- [release-gates/README.md](./release-gates/README.md)
 
 ### 3. 执行方案
 
-- [plans/README.md](plans/README.md)
+- [plans/README.md](./plans/README.md)
 
 ### 4. 审计与盘点
 
-- [audits/README.md](audits/README.md)
+- [audits/README.md](./audits/README.md)
 
-### 5. 历史验收归档
+### 5. 归档总览
 
-- [archive/manual-validation/README.md](archive/manual-validation/README.md)
-- [archive/manual-validation/evidence/](archive/manual-validation/evidence)
+- [archive/README.md](./archive/README.md)（历史规划 / 发布说明 / 调研、里程碑执行记录、Cursor plan、旧审计快照等）
+
+### 6. 历史验收归档
+
+- [archive/manual-validation/README.md](./archive/manual-validation/README.md)
+- [archive/manual-validation/evidence/](./archive/manual-validation/evidence)
 
 ## 阅读建议
 
@@ -50,4 +54,4 @@ source_of_truth: governance-index
 2. 想看文档治理、CI 守门与 branch protection 口径：先读 `governance/README.md` 与 `governance/GitHub分支保护配置清单.md`。
 3. 想追某轮能力是否具备上线条件：先读 `release-gates/`。
 4. 想看某个专题如何执行：先读 `plans/`。
-5. 想查一次代码盘点、扫描或审计：先读 `audits/`。
+5. 想查一次代码盘点、扫描或审计：先读 `audits/`；更早的快照见 `archive/audits-legacy/`。

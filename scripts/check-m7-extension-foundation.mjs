@@ -13,7 +13,7 @@ const requiredFiles = [
   'src/extensions/extensionRegistrySingleton.ts',
   'src/extensions/extensionRegistrySingleton.test.ts',
   'scripts/report-m7-extension-control-gate.mjs',
-  'docs/execution/plans/M7-执行记录-2026-04-12.md',
+  'docs/execution/archive/milestone-records/M7-执行记录-2026-04-12.md',
   'docs/execution/release-gates/M7-扩展可控化门禁清单-2026-04-12.md',
 ];
 

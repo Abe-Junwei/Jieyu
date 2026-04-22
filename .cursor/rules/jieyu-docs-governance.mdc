@@ -11,22 +11,25 @@ Follow this repository structure when creating or updating files:
 - Put executable checks and automation scripts under `scripts/`.
 - Use `docs/architecture/` for long-lived current-state facts.
 - Use `docs/adr/` for durable architecture decisions; add a new ADR when superseding.
-- Use `docs/execution/plans/` for execution plans and milestone records.
-- Use `docs/execution/audits/` for audits/baselines/reports.
-- Use `docs/execution/release-gates/` for go/no-go and release gate artifacts.
+- Use `docs/execution/plans/` for active execution plans; put closed milestone **执行记录**与合并总览 into `docs/execution/archive/milestone-records/`.
+- Use `docs/execution/audits/` for human-authored audits/baselines/reports.
+- Use `docs/execution/archive/audits-auto/` for **auto-generated** audit markdown (currently `M2-主路径行为对比报告-自动生成.md` from `scripts/generate-m2-behavior-report.mjs`).
+- Use `docs/execution/release-gates/` for go/no-go checklists, runbooks, and human-authored gate artifacts.
+- Use `docs/execution/archive/release-gates-auto/` for **auto-generated** gate markdown produced by `scripts/*gate*.mjs` / `evaluate-m6-release-gate.mjs`.
 - Use `docs/execution/governance/` for process/governance ledgers.
 - Use `docs/execution/archive/manual-validation/` for manual validation scripts and records.
+- Use `docs/execution/archive/historical-root-docs/` for historical **`规划-*` / `发布说明-*` / `调研-*` / `评估-*` / `架构迁移-*`** Markdown (formerly at `docs/` root).
 
-For root-level doc naming:
+For historical doc naming (under `docs/execution/archive/historical-root-docs/`):
 
-- Planning docs: `docs/规划-*.md`
-- Release notes: `docs/发布说明-*.md`
-- Research docs: `docs/调研-*.md`
+- Planning docs: `规划-*.md`
+- Release notes: `发布说明-*.md`
+- Research docs: `调研-*.md`
 
 Behavior rules:
 
 - **Product architecture decisions**（含层模态、录音语义、时间轴与媒体生命周期等）**必须**写入本仓库的 `docs/adr/` 或 `docs/architecture/`；**不要**把 Cursor 编辑器用户目录下的 plan 文件（例如 `~/.cursor/plans`）当作 Jieyu 的唯一或权威规格库。
-- Treat `docs/规划-*` as historical planning context, not the source of current truth.
+- Treat `docs/execution/archive/historical-root-docs/规划-*` as historical planning context, not the source of current truth.
 - Prefer `docs/architecture/` + code as source of truth when conflicts exist.
 - Keep docs in the correct execution subfolder; avoid flattening into `docs/execution/`.
 - When adding/modifying governed docs, run `npm run check:docs-governance`.

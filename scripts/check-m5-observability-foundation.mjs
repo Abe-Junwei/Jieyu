@@ -11,7 +11,7 @@ const requiredFiles = [
   'scripts/generate-m5-observability-trend-report.mjs',
   'scripts/run-m5-observability-gate.mjs',
   'docs/execution/audits/M5-观测指标事件流水-v1.ndjson',
-  'docs/execution/plans/M5-执行记录-2026-04-12.md',
+  'docs/execution/archive/milestone-records/M5-执行记录-2026-04-12.md',
   'docs/execution/release-gates/M5-观测门禁清单-2026-04-12.md',
   'docs/execution/release-gates/OTel-观测灰度与回滚-runbook-2026-04-17.md',
   'docs/execution/audits/M5-质量仪表盘-v1-数据定义-2026-04-12.md',

@@ -9,7 +9,8 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'release-gates',
+  'archive',
+  'release-gates-auto',
   'M10-协作可用化评审报告-自动生成.md',
 );
 

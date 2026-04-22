@@ -9,15 +9,16 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'release-gates',
+  'archive',
+  'release-gates-auto',
   'M14-协作生产放行评审报告-自动生成.md',
 );
 
 const phaseReports = [
-  { phaseId: 'm10', file: 'docs/execution/release-gates/M10-协作可用化评审报告-自动生成.md' },
-  { phaseId: 'm11', file: 'docs/execution/release-gates/M11-跨设备协作评审报告-自动生成.md' },
-  { phaseId: 'm12', file: 'docs/execution/release-gates/M12-多副本批量同步评审报告-自动生成.md' },
-  { phaseId: 'm13', file: 'docs/execution/release-gates/M13-跨实体事务同步评审报告-自动生成.md' },
+  { phaseId: 'm10', file: 'docs/execution/archive/release-gates-auto/M10-协作可用化评审报告-自动生成.md' },
+  { phaseId: 'm11', file: 'docs/execution/archive/release-gates-auto/M11-跨设备协作评审报告-自动生成.md' },
+  { phaseId: 'm12', file: 'docs/execution/archive/release-gates-auto/M12-多副本批量同步评审报告-自动生成.md' },
+  { phaseId: 'm13', file: 'docs/execution/archive/release-gates-auto/M13-跨实体事务同步评审报告-自动生成.md' },
 ];
 
 function parseModeArg() {

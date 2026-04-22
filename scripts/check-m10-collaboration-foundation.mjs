@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationBetaRuntime.test.ts',
   'scripts/report-m10-collaboration-beta-gate.mjs',
   'docs/execution/plans/M10-协作可用化-2026-04-13.md',
-  'docs/execution/plans/M10-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M10-执行记录-2026-04-13.md',
   'docs/execution/release-gates/M10-协作可用化门禁清单-2026-04-13.md',
 ];
 

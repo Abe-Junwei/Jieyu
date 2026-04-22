@@ -7,7 +7,7 @@ const requiredFiles = [
   'src/collaboration/collaborationConflictRuntime.ts',
   'src/collaboration/collaborationConflictRuntime.test.ts',
   'scripts/report-m8-collaboration-rc.mjs',
-  'docs/execution/plans/M8-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M8-执行记录-2026-04-13.md',
   'docs/execution/plans/M8-协作三段式演进图-2026-04-13.md',
   'docs/execution/release-gates/M8-协作演进RC门禁清单-2026-04-13.md',
 ];

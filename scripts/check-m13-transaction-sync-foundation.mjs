@@ -8,7 +8,7 @@ const requiredFiles = [
   'src/collaboration/collaborationTransactionSyncRuntime.test.ts',
   'scripts/report-m13-transaction-sync-gate.mjs',
   'docs/execution/plans/M13-跨实体事务同步治理-2026-04-13.md',
-  'docs/execution/plans/M13-执行记录-2026-04-13.md',
+  'docs/execution/archive/milestone-records/M13-执行记录-2026-04-13.md',
   'docs/execution/release-gates/M13-跨实体事务同步门禁清单-2026-04-13.md',
 ];
 

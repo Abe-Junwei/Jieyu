@@ -9,7 +9,7 @@ const reportsDir = path.join(workspaceRoot, '.tmp', 'm2');
 const rawReportPath = process.env.M2_BEHAVIOR_REPORT_PATH;
 const resolvedReportPath = rawReportPath
   ? path.resolve(rawReportPath)
-  : path.join(workspaceRoot, 'docs', 'execution', 'audits', 'M2-主路径行为对比报告-自动生成.md');
+  : path.join(workspaceRoot, 'docs', 'execution', 'archive', 'audits-auto', 'M2-主路径行为对比报告-自动生成.md');
 if (!resolvedReportPath.startsWith(workspaceRoot + path.sep) && resolvedReportPath !== workspaceRoot) {
   throw new Error(`M2_BEHAVIOR_REPORT_PATH must be within workspace root (${workspaceRoot}), got: ${resolvedReportPath}`);
 }

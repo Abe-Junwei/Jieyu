@@ -13,11 +13,11 @@ source_of_truth: governance-index
 
 ## 当前文件
 
-- [SERVICES_LAYERING.md](SERVICES_LAYERING.md)
+- [SERVICES_LAYERING.md](./SERVICES_LAYERING.md)
 
 ## 各文档用途
 
-### [SERVICES_LAYERING.md](SERVICES_LAYERING.md)
+### [SERVICES_LAYERING.md](./SERVICES_LAYERING.md)
 
 说明内容：
 

@@ -14,7 +14,8 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'release-gates',
+  'archive',
+  'release-gates-auto',
   'M6-发布门禁判定报告-自动生成.md',
 );
 

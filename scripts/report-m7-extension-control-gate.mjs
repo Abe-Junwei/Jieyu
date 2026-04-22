@@ -9,7 +9,8 @@ const reportOutputPath = path.join(
   workspaceRoot,
   'docs',
   'execution',
-  'release-gates',
+  'archive',
+  'release-gates-auto',
   'M7-扩展可控化门禁判定报告-自动生成.md',
 );
 
