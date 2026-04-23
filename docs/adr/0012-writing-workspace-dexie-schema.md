@@ -3,7 +3,7 @@ title: ADR 0012 - 写作工作台 Dexie 表与迁移
 doc_type: adr
 status: proposed
 owner: repo
-last_reviewed: 2026-04-23
+last_reviewed: 2026-04-21
 source_of_truth: decision-record
 ---
 
@@ -22,7 +22,9 @@ source_of_truth: decision-record
    - **Supabase 协同对象状态**（`project_changes` / `project_snapshots` / `project_presence`）为 **共享协同真源**；编辑器 mount 时先恢复 Dexie 本地快照，再按协议回放远端增量。
    - **Dexie** 持久化 **Markdown 纯文本快照**、front matter、`writing_*` 元数据、以及 **用于全文检索 / 首屏快速打开** 的派生列；**不以 Dexie 本地快照覆盖云端已确认版本**，除非显式「冲突解决 / 导入合并」流程（须单测）。
    - **禁止**在业务层同时「无协议地」双写长文本到 Dexie 与云端对象导致分歧；合并与回滚策略在本 ADR 正文展开。
+   - **写作载荷映射**：CM6 编辑事务 → `project_changes` **JSON 载荷**、与转写 **共表区分**、**`evaluateCollaborationProtocolGuard`** 对齐方式、章级快照触发等 **须在 [ADR 0016](./0016-writing-collab-object-mapping.md) 冻结**（本 ADR **不**替代 0016 的字段级规格）。
 5. **书级 `writing-project`（章节顺序 / 合并入口等）**：**协同真源**为 **Supabase 协同对象快照中的结构化字段**，**不得**将「整份 `writing-project.yaml` 文本」当作多人并发直接编辑面。**导出或落盘**时再 **序列化** 为人类可读 YAML；与路线图 [第四节 · 书级](../execution/plans/写作页开发路线图-2026-04-22.md) 一致。**防腐（强制）**：从协同对象投影为普通对象后，须 **`ManifestSchema.parse(data)`**（Zod，名称以代码为准）**再** `yaml.stringify(parsed)`；**解析失败则禁止写盘**，并返回可诊断错误（避免协同脏数据落成 **语法损坏的 YAML**）。
+6. **G4 分阶段（默认）**：**G4.0（协同一期）**——**章级 / 文档级** 快照、冲突合并与 `project_changes` / `project_snapshots` 回放；**不要求**首版即 **字符级 OT/CRDT** 与 CM6 全量实时。**G4.1（可选二期）**——字符级或更细粒度实时协同，**须**独立时间盒 + ADR 评审（成本、审计与现有云协作门禁对齐），**不作为** [ADR 0013](./0013-writing-lab-graduation-criteria.md) 写作开放的硬条件。
 
 ## 影响
 
@@ -33,3 +35,5 @@ source_of_truth: decision-record
 
 1. 首版迁移合并后 `accepted` 并锁定表清单。
 2. 若与 Grammar 或转写库发生 FK 级联，在 ADR 0011/Grammar 边界文档中交叉引用。
+3. G4.0 与 G4.1 边界若在实现中调整，回写路线图第五节 G4 行与本条决策 6。
+4. [ADR 0016](./0016-writing-collab-object-mapping.md) Open questions 收敛后，与本 ADR 决策 4 **交叉核对**（载荷 schema、回放序、禁写守卫）。

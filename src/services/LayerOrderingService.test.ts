@@ -129,7 +129,7 @@ describe('LayerOrderingService', () => {
 
     const moved = resolved.layers.find((layer) => layer.id === translation.id);
     expect(resolved.changed).toBe(true);
-    // 译文层不再写 parentLayerId，而是返回 linkUpdates | Translation layers return linkUpdates, not parentLayerId
+    // 翻译层不再写 parentLayerId，而是返回 linkUpdates | Translation layers return linkUpdates, not parentLayerId
     expect(moved?.layerType).toBe('translation');
     expect(resolved.linkUpdates).toEqual([{
       layerId: translation.id,

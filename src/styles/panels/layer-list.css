@@ -84,30 +84,6 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--state-info-solid) var(--theme-opacity-4), transparent);
 }
 
-/* — 类型 chip：写/译 小方块 | Type chip — */
-.transcription-side-pane-item-chip {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  font-weight: 700;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.transcription-side-pane-item-transcription .transcription-side-pane-item-chip {
-  background: var(--state-info-bg);
-  color: var(--state-info-solid);
-}
-
-.transcription-side-pane-item-translation .transcription-side-pane-item-chip {
-  background: var(--state-info-bg);
-  color: var(--state-info-solid);
-}
-
 /* — 依赖层缩进（翻译层 + 有parent的转写层）| Dependent row indent — */
 .transcription-side-pane-item-translation,
 .transcription-side-pane-item-dependent {
@@ -142,8 +118,7 @@
 }
 
 .transcription-side-pane-item-line-secondary,
-.transcription-side-pane-item-line-tertiary,
-.transcription-side-pane-item-line-quaternary {
+.transcription-side-pane-item-line-tertiary {
   color: var(--text-secondary);
   font-size: 0.6rem;
   line-height: 1.25;
@@ -168,10 +143,6 @@
   margin: 0 4px;
   color: inherit;
   opacity: 0.8;
-}
-
-.transcription-side-pane-item-alias {
-  color: var(--text-secondary);
 }
 
 .transcription-side-pane-item > span:not(.lane-link-stack):not(.transcription-side-pane-item-label):not(.transcription-side-pane-item-drag-handle) {
@@ -487,10 +458,6 @@
   padding-right: 0;
 }
 
-.transcription-side-pane-portaled-stack .app-side-pane-layer-inspector-wrap {
-  padding: 8px 6px;
-}
-
 .transcription-side-pane-portaled-stack .app-side-pane-segment-list-filter {
   padding: 0;
 }
@@ -517,10 +484,6 @@
   overflow-x: hidden;
   min-height: 0;
   max-height: min(32vh, 320px);
-}
-
-.transcription-side-pane-portaled-stack .app-side-pane-layer-inspector-wrap {
-  gap: 0;
 }
 
 .transcription-side-pane-portaled-stack .transcription-side-pane-item-row {
@@ -830,29 +793,6 @@
   min-width: 0;
 }
 
-.transcription-side-pane-inspector-chip {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.transcription-side-pane-inspector-chip[data-layer-type='transcription'] {
-  background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
-  color: var(--state-info-solid);
-}
-
-.transcription-side-pane-inspector-chip[data-layer-type='translation'] {
-  background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
-  color: var(--state-info-solid);
-}
-
 .transcription-side-pane-inspector-title {
   font-size: 0.62rem;
   font-weight: 500;
@@ -1133,40 +1073,6 @@
   min-height: 220px;
   display: flex;
   flex-direction: column;
-}
-
-.app-side-pane-segment-list-heading {
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.app-side-pane-segment-list-heading-copy {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.app-side-pane-segment-list-heading-subtitle {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
-.app-side-pane-segment-list-heading-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid color-mix(in srgb, var(--header-accent) 22%, var(--border-soft));
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--header-accent) 10%, var(--surface-panel));
-  color: var(--text-primary);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
 }
 
 .app-side-pane-segment-list-filter {
@@ -1553,30 +1459,6 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
-}
-
-.app-side-pane-segment-list-filter-select {
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 28px;
-  padding: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
-  border-radius: var(--radius-sm);
-  background: var(--surface-input, var(--surface-panel));
-  color: var(--text-primary);
-  font-size: 11px;
-  line-height: 1.35;
-  outline: none;
-  transition: border-color var(--shell-motion-fast) ease, background-color var(--shell-motion-fast) ease;
-}
-
-.app-side-pane-segment-list-filter-select:hover {
-  border-color: color-mix(in srgb, var(--header-accent) 28%, var(--border-soft));
-}
-
-.app-side-pane-segment-list-filter-select:focus {
-  border-color: var(--header-accent);
-  background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-input, transparent));
 }
 
 .app-side-pane-segment-list-filter-reset {

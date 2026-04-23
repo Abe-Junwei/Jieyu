@@ -332,6 +332,11 @@ export function useTranscriptionWaveformBridgeController(
     ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
     liftedLassoPreview: gestureWriter.lasso,
     setLiftedLassoPreview,
+    ...(typeof input.logicalTimelineDurationSec === 'number'
+      && Number.isFinite(input.logicalTimelineDurationSec)
+      && input.logicalTimelineDurationSec > 0
+      ? { waveformMappingDurationSec: input.logicalTimelineDurationSec }
+      : {}),
   });
 
   const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({

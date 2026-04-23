@@ -1621,7 +1621,7 @@ describe('TranscriptionTimelineVerticalView', () => {
     );
 
     expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
-    expect(screen.getByText('检测到未绑定宿主的译文层；请在层元信息中补充指向宿主转写的 layer_links（或调整首选宿主）。')).toBeTruthy();
+    expect(screen.getByText('检测到未绑定宿主的翻译层；请在层元信息中补充指向宿主转写的 layer_links（或调整首选宿主）。')).toBeTruthy();
   });
 
   it('switches target header layer with the active group host instead of pinning one translation layer', () => {

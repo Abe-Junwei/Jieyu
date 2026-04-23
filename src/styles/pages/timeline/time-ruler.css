@@ -19,10 +19,6 @@
   pointer-events: none;
 }
 
-.timeline-top-placeholder {
-  display: block;
-}
-
 /* 时间尺同位分隔线，保持上下视觉连续 | Matching separator on ruler for vertical continuity */
 .time-ruler::before {
   content: '';

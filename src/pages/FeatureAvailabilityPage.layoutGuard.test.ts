@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const PAGE_FILES = [
   'src/pages/AnnotationPage.tsx',
   'src/pages/AnalysisPage.tsx',
-  'src/pages/WritingPage.tsx',
+  'src/pages/CorpusLibraryPage.tsx',
 ];
 
 describe('Feature availability page layout guard', () => {

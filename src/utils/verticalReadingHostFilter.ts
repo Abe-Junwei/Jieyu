@@ -2,7 +2,7 @@
  * 纵向对读壳宿主过滤工具函数 | Vertical paired-reading shell host filtering utilities
  *
  * 从 TranscriptionTimelineVerticalView.tsx 提取的纯函数，
- * 用于多宿主译文层在纵向对读壳内的过滤、匹配与选择。
+ * 用于多宿主翻译层在纵向对读壳内的过滤、匹配与选择。
  * Pure functions extracted from TranscriptionTimelineVerticalView.tsx
  * for multi-host translation layer filtering in the paired-reading shell.
  */
@@ -18,7 +18,7 @@ import { resolveHostAwareTranslationLayerIdFromSnapshot } from './translationLay
 
 export type VerticalReadingHostLink = TranslationHostLink;
 
-/** 无 parent 的译文层在多转写项目中的回落宿主（默认转写或列表首层） | Orphan fallback host for translation layers */
+/** 无 parent 的翻译层在多转写项目中的回落宿主（默认转写或列表首层） | Orphan fallback host for translation layers */
 export function resolveOrphanTranslationAttachTranscriptionLayerId(
   transcriptionLayers: readonly LayerDocType[],
   defaultTranscriptionLayerId: string | undefined,
@@ -55,7 +55,7 @@ export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   linksByTranslationLayerId: ReadonlyMap<string, VerticalReadingHostLink[]>,
   transcriptionIdByKey: ReadonlyMap<string, string>,
 ): boolean {
-  // 译文宿主仅以 layer_links 为准，不读取 translation.parentLayerId | Translation host is link-only
+  // 翻译宿主仅以 layer_links 为准，不读取 translation.parentLayerId | Translation host is link-only
   const links = linksByTranslationLayerId.get(tl.id) ?? [];
   if (links.length > 0) {
     if (sourceTranscriptionIds.size === 0) return transcriptionLayerCount <= 1;

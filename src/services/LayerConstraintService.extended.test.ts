@@ -258,7 +258,7 @@ describe('repairExistingLayerConstraints — edge paths', () => {
       makeLayer({ id: 'tl1', layerType: 'translation', constraint: 'symbolic_association' }),
     ];
     const { layers: repaired, repairs } = repairExistingLayerConstraints(layers);
-    // 根层修成 independent；译文宿主由 layer_links 承载，repair 仅记录缺失宿主提示
+    // 根层修成 independent；翻译宿主由 layer_links 承载，repair 仅记录缺失宿主提示
     const tl = repaired.find((l) => l.id === 'tl1')!;
     expect(tl.constraint).toBe('symbolic_association');
     expect(tl.layerType).toBe('translation');

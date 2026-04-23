@@ -21,9 +21,11 @@ export interface LayerOrderRepair {
 }
 
 export interface LayerBundle {
+  /** 组根层 | Group root layer */
   root: LayerDocType;
   transcriptionDependents: LayerDocType[];
   translationDependents: LayerDocType[];
+  /** 游离组 | Detached group */
   detached?: boolean;
 }
 
@@ -37,7 +39,7 @@ export interface LayerDropLinkUpdate {
 export interface ResolveLayerDropResult {
   layers: LayerDocType[];
   changed: boolean;
-  /** 译文层宿主变更指令（调用方据此更新 layer_links）| Translation host link updates for the caller */
+  /** 翻译层宿主变更指令（调用方据此更新 layer_links）| Translation host link updates for the caller */
   linkUpdates?: LayerDropLinkUpdate[];
   message?: string;
   messageLevel?: LayerOrderingMessageLevel;
@@ -464,7 +466,7 @@ export function resolveLayerDrop(
     ? resolvePreferredHostTranscriptionLayerId(draggedLayer.id, linksByTranslationLayerId, transcriptionByKey)
     : layerTranscriptionTreeParentId(draggedLayer);
   const reparented = (previousHostTranscriptionLayerId ?? '') !== nextParentLayerId;
-  // 译文层宿主关系由 layer_links 承载，不再写 parentLayerId | Translation host lives in layer_links, skip parentLayerId mutation
+  // 翻译层宿主关系由 layer_links 承载，不再写 parentLayerId | Translation host lives in layer_links, skip parentLayerId mutation
   const movedLayer = reparented && draggedLayer.layerType !== 'translation'
     ? { ...draggedLayer, parentLayerId: nextParentLayerId }
     : draggedLayer;
@@ -485,7 +487,7 @@ export function resolveLayerDrop(
   const nextLayers = canonicalizeFromBundles(filteredBundles);
   const previousParent = previousHostTranscriptionLayerId ? layerById.get(previousHostTranscriptionLayerId) : undefined;
 
-  // 译文层重新归属时返回 linkUpdates | Return linkUpdates when a translation layer is reparented
+  // 翻译层重新归属时返回 linkUpdates | Return linkUpdates when a translation layer is reparented
   const linkUpdates: LayerDropLinkUpdate[] | undefined = reparented && draggedLayer.layerType === 'translation'
     ? [{ layerId: draggedLayer.id, hostTranscriptionLayerId: nextParentLayerId, transcriptionLayerKey: targetBundle.root.key }]
     : undefined;

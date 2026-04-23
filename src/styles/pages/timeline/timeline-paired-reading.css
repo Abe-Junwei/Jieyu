@@ -559,7 +559,6 @@
 
 
 .timeline-paired-reading-source-surface-has-self-certainty .timeline-text-item-status-dot,
-.timeline-paired-reading-target-surface-has-self-certainty .timeline-text-item-status-dot,
 .timeline-paired-reading-source-surface-has-side-badges .timeline-text-item-status-dot,
 .timeline-paired-reading-target-surface-has-side-badges .timeline-text-item-status-dot {
   right: calc(10px + var(--timeline-segment-self-certainty-input-end-gutter));
@@ -685,7 +684,7 @@
   gap: 4px;
 }
 
-/* 多译文层：每层一块栈，与媒体/文本时间轴「多翻译层」一致 */
+/* 多翻译层：每层一块栈，与媒体/文本时间轴「多翻译层」一致 */
 .timeline-paired-reading-target-layer-stack {
   display: flex;
   flex-direction: column;

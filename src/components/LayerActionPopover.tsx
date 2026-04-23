@@ -52,7 +52,7 @@ interface LayerActionPopoverProps {
   deleteLayer: (layerId: string) => Promise<void>;
   deleteLayerWithoutConfirm?: (layerId: string) => Promise<void>;
   checkLayerHasContent?: (layerId: string) => Promise<number>;
-  /** 译文宿主 link（用于从译文层推导「上下文独立转写根」；不读 translation.parentLayerId） */
+  /** 翻译宿主 link（用于从翻译层推导「上下文独立转写根层」；不读 translation.parentLayerId） */
   layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
   onClose: () => void;
 }

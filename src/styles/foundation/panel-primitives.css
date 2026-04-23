@@ -345,23 +345,6 @@
   text-overflow: ellipsis;
 }
 
-.panel-edge-nav-meta {
-  width: 100%;
-  min-width: 0;
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.panel-edge-nav-row-active .panel-edge-nav-meta,
-.panel-edge-nav-btn[aria-selected="true"] .panel-edge-nav-meta,
-.panel-edge-nav-btn[aria-current="page"] .panel-edge-nav-meta {
-  color: color-mix(in srgb, var(--state-info-solid) 76%, var(--text-secondary));
-}
-
 .dialog-field-hint {
   margin: 0;
   font-size: var(--font-size-sm);

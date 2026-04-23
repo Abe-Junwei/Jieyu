@@ -477,12 +477,6 @@
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
 }
 
-.waveform-view-options-select {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
 .waveform-view-options-hint {
   margin: 0 0 2px;
   font-size: 0.72rem;

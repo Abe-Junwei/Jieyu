@@ -13,6 +13,8 @@ export const featureFlags = {
   aiChatAgentLoopEnabled: true,
   /** 转写 AI 是否在构造 system 上下文前做 RAG 检索 | Whether transcription AI runs embedding RAG before system context */
   aiChatRagEnabled: true,
+  /** 语料库实验室壳开关 | Corpus library lab shell toggle */
+  corpusLibraryLabEnabled: false,
 } as const;
 
 export type FeatureFlags = typeof featureFlags;

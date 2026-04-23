@@ -17,7 +17,7 @@ vi.mock('./pages/TranscriptionPage', () => ({
 
 vi.mock('./pages/AnnotationPage', () => ({ AnnotationPage: () => <div>annotation-page</div> }));
 vi.mock('./pages/AnalysisPage', () => ({ AnalysisPage: () => <div>analysis-page</div> }));
-vi.mock('./pages/WritingPage', () => ({ WritingPage: () => <div>writing-page</div> }));
+vi.mock('./pages/CorpusLibraryPage', () => ({ CorpusLibraryPage: () => <div>corpus-library-page</div> }));
 vi.mock('./pages/LexiconPage', () => ({ LexiconPage: () => <div>lexicon-page</div> }));
 vi.mock('./pages/LanguageMetadataWorkspacePage', () => ({
   LanguageMetadataWorkspacePage: ({ onClose }: { onClose?: () => void }) => (
@@ -112,7 +112,7 @@ describe('App shell', () => {
     expect(transcriptionLinks.length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Analysis|分析/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('link', { name: /Writing|写作/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: /Corpus library|语料库/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Lexicon|词典/ }).length).toBeGreaterThan(0);
     fireEvent.click(getLeftRailResourcesButton());
     expect(screen.getByRole('menuitem', { name: /Language Metadata|语言元数据/ })).toBeTruthy();

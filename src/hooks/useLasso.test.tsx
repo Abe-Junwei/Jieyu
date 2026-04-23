@@ -4,7 +4,7 @@
  * @see docs/execution/plans/横纵时间轴宿主差异与整改清单-2026-04-21.md
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { useRef, type ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type WaveSurfer from 'wavesurfer.js';
 import { useLasso, type SubSelectDrag } from './useLasso';
@@ -54,6 +54,79 @@ function TierLassoHarness(props: {
     >
       <div ref={waveCanvasRef} data-testid="wave-canvas" style={{ width: 0, height: 0, overflow: 'hidden' }} />
       {props.children}
+    </div>
+  );
+}
+
+const rect800x100 = {
+  width: 800,
+  height: 100,
+  top: 0,
+  left: 0,
+  right: 800,
+  bottom: 100,
+  x: 0,
+  y: 0,
+  toJSON: () => {},
+} as DOMRect;
+
+/** 波形区套索：解码时长为 0 时依赖 `waveformMappingDurationSec` 与波形桥对齐。 */
+function WaveformLassoHarness(props: {
+  clearUnitSelection: () => void;
+  createUnitFromSelection?: (start: number, end: number) => Promise<void>;
+  waveformMappingDurationSec: number;
+}) {
+  const waveCanvasRef = useRef<HTMLDivElement>(null);
+  const tierRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<WaveSurfer | null>(null);
+  const skipSeekForIdRef = useRef<string | null>(null);
+  const subSelectDragRef = useRef<SubSelectDrag | null>(null);
+
+  const mockWs = useMemo((): WaveSurfer => {
+    const scrollParent = document.createElement('div');
+    Object.defineProperty(scrollParent, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    vi.spyOn(scrollParent, 'getBoundingClientRect').mockReturnValue(rect800x100);
+    const wrapper = document.createElement('div');
+    Object.defineProperty(wrapper, 'scrollWidth', { configurable: true, value: 800 });
+    scrollParent.appendChild(wrapper);
+    return {
+      getDuration: () => 0,
+      getWrapper: () => wrapper,
+    } as unknown as WaveSurfer;
+  }, []);
+
+  if (playerRef.current === null) {
+    playerRef.current = mockWs;
+  }
+
+  useLasso({
+    waveCanvasRef,
+    tierContainerRef: tierRef,
+    playerInstanceRef: playerRef,
+    playerIsReady: true,
+    selectedMediaUrl: undefined,
+    timelineItems: [],
+    selectedUnitIds: new Set(),
+    selectedUnitId: '',
+    zoomPxPerSec: 10,
+    skipSeekForIdRef,
+    clearUnitSelection: props.clearUnitSelection,
+    createUnitFromSelection: props.createUnitFromSelection ?? vi.fn(async () => {}),
+    setUnitSelection: vi.fn(),
+    playerSeekTo: vi.fn(),
+    subSelectionRange: null,
+    setSubSelectionRange: vi.fn(),
+    subSelectDragRef,
+    waveformMappingDurationSec: props.waveformMappingDurationSec,
+  });
+
+  return (
+    <div ref={tierRef} data-testid="timeline-scroll">
+      <div
+        ref={waveCanvasRef}
+        data-testid="wave-lasso-canvas"
+        style={{ width: 800, height: 100 }}
+      />
     </div>
   );
 }
@@ -290,5 +363,36 @@ describe('useLasso — tier 套索与对读排除（§6.2）', () => {
 
     expect(createUnitFromSelection).toHaveBeenCalledTimes(1);
     expect(createUnitFromSelection).toHaveBeenCalledWith(30, 35);
+  });
+});
+
+describe('useLasso — 波形映射与语义轴对齐', () => {
+  const clearUnitSelection = vi.fn();
+
+  beforeEach(() => {
+    clearUnitSelection.mockClear();
+  });
+
+  it('解码时长为 0 时用语义轴秒数仍可拖选建段', () => {
+    const createUnitFromSelection = vi.fn(async () => {});
+    render(
+      <WaveformLassoHarness
+        clearUnitSelection={clearUnitSelection}
+        createUnitFromSelection={createUnitFromSelection}
+        waveformMappingDurationSec={100}
+      />,
+    );
+    const wave = screen.getByTestId('wave-lasso-canvas');
+    vi.spyOn(wave, 'getBoundingClientRect').mockReturnValue(rect800x100);
+    wave.setPointerCapture = vi.fn();
+
+    fireEvent.pointerDown(wave, { clientX: 100, clientY: 50, button: 0, buttons: 1, pointerId: 70 });
+    fireEvent.pointerMove(wave, { clientX: 400, clientY: 80, button: 0, buttons: 1, pointerId: 70 });
+    fireEvent.pointerUp(wave, { clientX: 400, clientY: 80, button: 0, buttons: 0, pointerId: 70 });
+
+    expect(createUnitFromSelection).toHaveBeenCalledTimes(1);
+    const [start, end] = createUnitFromSelection.mock.calls[0] ?? [];
+    expect(start).toBeCloseTo(12.5, 5);
+    expect(end).toBeCloseTo(50, 5);
   });
 });

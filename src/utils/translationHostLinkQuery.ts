@@ -1,5 +1,5 @@
 /**
- * 译文层宿主 link 只读查询（layer_links 单源）| Read-only translation host queries from layer_links (SSOT)
+ * 翻译层宿主 link 只读查询（layer_links 单源）| Read-only translation host queries from layer_links (SSOT)
  *
  * 集中解析 hostTranscriptionLayerId / transcriptionLayerKey → 宿主转写层 id，
  * 避免各模块重复实现 filter + trim + key 回落。
@@ -58,7 +58,7 @@ export function resolveLayerLinkHostTranscriptionLayerId(
   return hostId;
 }
 
-/** 某译文层的全部宿主转写 id（去重，顺序为 link 表顺序）| Distinct host transcription ids for a translation layer */
+/** 某翻译层的全部宿主转写 id（去重，顺序为 link 表顺序）| Distinct host transcription ids for a translation layer */
 export function getHostTranscriptionLayerIdsForTranslation(
   translationLayerId: string,
   layerLinks: ReadonlyArray<TranslationHostLink>,
@@ -90,7 +90,7 @@ export function getPreferredHostTranscriptionLayerIdForTranslation(
   return id.length > 0 ? id : undefined;
 }
 
-/** 译文宿主集合是否与给定转写 id 集合相交 | Whether any host of the translation hits the id set */
+/** 翻译宿主集合是否与给定转写 id 集合相交 | Whether any host of the translation hits the id set */
 export function translationHostsIntersectTranscriptionIds(
   translationLayerId: string,
   transcriptionIdSet: ReadonlySet<string>,

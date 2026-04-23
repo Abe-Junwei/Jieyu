@@ -203,13 +203,6 @@
   display: none;
 }
 
-.timeline-annotation-speaker-dot {
-  width: 8px;
-  height: 8px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
 .timeline-annotation-overlap-cycle-badge {
   position: absolute;
   top: var(--timeline-annotation-side-stack-top);

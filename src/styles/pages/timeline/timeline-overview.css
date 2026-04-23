@@ -12,11 +12,6 @@
   user-select: none;
 }
 
-.waveform-overview-placeholder {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .waveform-overview-bar::before {
   content: '';
   position: absolute;

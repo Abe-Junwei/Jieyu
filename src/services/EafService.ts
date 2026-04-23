@@ -33,7 +33,7 @@ export interface EafExportInput {
   defaultTranscriptionLayerId?: string;
   /** Speaker entities for PARTICIPANT attribute export | 用于导出 PARTICIPANT 属性的说话人实体 */
   speakers?: SpeakerDocType[];
-  /** 译文宿主关系（layer_links 真相）| Translation host links from layer_links SSOT */
+  /** 翻译宿主关系（layer_links 真相）| Translation host links from layer_links SSOT */
   layerLinks?: LayerLinkDocType[];
   /** 导出告警回调（如多宿主有损导出）| Export warning callback (e.g. lossy multi-host export) */
   onWarning?: (warning: EafExportWarning) => void;
@@ -454,7 +454,7 @@ export function exportToEaf(input: EafExportInput): string {
         }
 
         const shouldIncludeParentRef = constraint !== 'independent_boundary';
-        // 译文宿主 tier 仅来自 layer_links（preferred / 首条）；不再回读 translation.parentLayerId | PARENT_REF from links only
+        // 翻译宿主 tier 仅来自 layer_links（preferred / 首条）；不再回读 translation.parentLayerId | PARENT_REF from links only
         const parentTierId = effectivePreferredHostTranscriptionLayerId
           ? (tierNameByLayerId.get(effectivePreferredHostTranscriptionLayerId) ?? defaultTierId)
           : defaultTierId;
