@@ -3,6 +3,7 @@ import type { Locale } from '../i18n';
 import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
 import { getDb } from '../db/engine';
 import { probeJieyuDatabaseIntegrity } from '../db/dbIntegrityProbe';
+import { resolveDbResilienceProbe, type DbResilienceProbeOutcome } from './resolveDbResilienceGate';
 import {
   readBackupReminderEnabled,
   recordBackupReminderToastShown,
@@ -17,9 +18,7 @@ import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 
 const BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
-export type DbIntegrityGateState =
-  | { kind: 'idle' }
-  | { kind: 'failed'; reason: string };
+export type DbIntegrityGateState = DbResilienceProbeOutcome;
 
 export type DbIntegrityOverlayHandlers = {
   onReload: () => void;
@@ -40,14 +39,8 @@ export function useAppDataResilienceEffects(locale: Locale): {
     if (import.meta.env.MODE === 'test') return;
     if (!readDbIntegrityProbeEnabled()) return;
     if (readDbIntegritySessionSkip()) return;
-    try {
-      const db = await getDb();
-      const result = await probeJieyuDatabaseIntegrity(db);
-      setDbGate(result.ok ? { kind: 'idle' } : { kind: 'failed', reason: result.reason });
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
-      setDbGate({ kind: 'failed', reason });
-    }
+    const next = await resolveDbResilienceProbe(getDb, probeJieyuDatabaseIntegrity);
+    setDbGate(next);
   }, []);
 
   useEffect(() => {

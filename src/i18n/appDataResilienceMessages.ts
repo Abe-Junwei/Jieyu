@@ -9,6 +9,9 @@ export type AppDataResilienceMessages = {
   dbIntegrityReload: string;
   dbIntegrityRetry: string;
   dbIntegrityContinue: string;
+  dbOpenTitle: string;
+  dbOpenIntro: string;
+  dbOpenRecovery: string;
   settingsBackupReminderLabel: string;
   settingsBackupReminderHint: string;
   settingsDbIntegrityProbeLabel: string;
@@ -24,6 +27,10 @@ const ZH: AppDataResilienceMessages = {
   dbIntegrityReload: '刷新页面',
   dbIntegrityRetry: '重新检测',
   dbIntegrityContinue: '仍继续使用（本次会话）',
+  dbOpenTitle: '本地数据库无法打开',
+  dbOpenIntro: '浏览器未能打开本应用的 IndexedDB。在未成功打开前，转写等依赖本地数据的功能可能无法使用。',
+  dbOpenRecovery:
+    '可尝试：在浏览器设置中为本站点清理存储/站点数据后重试；检查磁盘空间是否不足；在无痕窗口排除扩展干扰；或换用支持的桌面浏览器。若已导出过 .jym / .jyt，清理前请先备份到安全位置。',
   settingsBackupReminderLabel: '定期提醒导出全量备份',
   settingsBackupReminderHint: '开启后，若长期未导出 .jym/.jyt，将以 Toast 提示（每条约 24 小时最多一次）。',
   settingsDbIntegrityProbeLabel: '启动后自检本地数据库',
@@ -39,6 +46,11 @@ const EN: AppDataResilienceMessages = {
   dbIntegrityReload: 'Reload page',
   dbIntegrityRetry: 'Run check again',
   dbIntegrityContinue: 'Continue anyway (this session)',
+  dbOpenTitle: 'Local database could not be opened',
+  dbOpenIntro:
+    'The browser could not open this app’s IndexedDB. Transcription and other local-data features may not work until the database opens.',
+  dbOpenRecovery:
+    'Try: clear site data for this origin in browser settings, then reload; check free disk space; use a private window to rule out extensions; or use a supported desktop browser. If you rely on an exported .jym / .jyt, keep that backup in a safe place before clearing data.',
   settingsBackupReminderLabel: 'Periodic full backup reminder',
   settingsBackupReminderHint: 'When enabled, shows a toast if you have not exported a .jym/.jyt archive for a long time (at most about once per 24h while overdue).',
   settingsDbIntegrityProbeLabel: 'Run local database sanity check after startup',

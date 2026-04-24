@@ -70,6 +70,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Production dependency audit (advisory; does not block merge)
+        continue-on-error: true
+        run: npm run audit:prod
+
       - name: CSS backdrop-compat (per-file; fast fail before full test)
         run: npm run check:css-compat
 

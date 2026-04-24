@@ -726,6 +726,7 @@ export function App() {
             {dbGate.kind === 'failed' ? (
               <DbIntegrityBlockingOverlay
                 locale={locale}
+                failureKind={dbGate.failureKind}
                 reason={dbGate.reason}
                 onReload={dbOverlayHandlers.onReload}
                 onRetry={dbOverlayHandlers.onRetry}

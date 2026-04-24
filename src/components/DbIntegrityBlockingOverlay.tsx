@@ -1,9 +1,11 @@
 import type { ReactElement } from 'react';
 import type { Locale } from '../i18n';
 import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
+import type { DbResilienceFailureKind } from '../hooks/resolveDbResilienceGate';
 
 export type DbIntegrityBlockingOverlayProps = {
   locale: Locale;
+  failureKind: DbResilienceFailureKind;
   reason: string;
   onReload: () => void;
   onRetry: () => void;
@@ -16,6 +18,9 @@ export type DbIntegrityBlockingOverlayProps = {
  */
 export function DbIntegrityBlockingOverlay(props: DbIntegrityBlockingOverlayProps): ReactElement {
   const msg = getAppDataResilienceMessages(props.locale);
+  const isOpenFailure = props.failureKind === 'open';
+  const title = isOpenFailure ? msg.dbOpenTitle : msg.dbIntegrityTitle;
+  const intro = isOpenFailure ? msg.dbOpenIntro : msg.dbIntegrityIntro;
   return (
     <div
       className="db-integrity-overlay"
@@ -25,9 +30,12 @@ export function DbIntegrityBlockingOverlay(props: DbIntegrityBlockingOverlayProp
     >
       <div className="db-integrity-overlay-panel">
         <h2 id="db-integrity-overlay-title" className="db-integrity-overlay-title">
-          {msg.dbIntegrityTitle}
+          {title}
         </h2>
-        <p className="db-integrity-overlay-intro">{msg.dbIntegrityIntro}</p>
+        <p className="db-integrity-overlay-intro">{intro}</p>
+        {isOpenFailure ? (
+          <p className="db-integrity-overlay-intro">{msg.dbOpenRecovery}</p>
+        ) : null}
         <p className="db-integrity-overlay-reason">
           <strong>{msg.dbIntegrityReason}</strong>
           {' '}
@@ -40,9 +48,11 @@ export function DbIntegrityBlockingOverlay(props: DbIntegrityBlockingOverlayProp
           <button type="button" className="settings-link-btn" onClick={props.onRetry}>
             {msg.dbIntegrityRetry}
           </button>
-          <button type="button" className="settings-link-btn" onClick={props.onContinueSession}>
-            {msg.dbIntegrityContinue}
-          </button>
+          {isOpenFailure ? null : (
+            <button type="button" className="settings-link-btn" onClick={props.onContinueSession}>
+              {msg.dbIntegrityContinue}
+            </button>
+          )}
         </div>
       </div>
     </div>

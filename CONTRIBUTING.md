@@ -27,12 +27,13 @@ npm ci
 
 ## Git hooks（`husky`）
 
-`npm ci` / `npm install` 会通过 `prepare` 脚本安装 **`.husky/pre-commit`**。提交前会运行（均为 **changed-only**，通常数秒内结束）：
+`npm ci` / `npm install` 会通过 `prepare` 脚本安装 **`.husky/pre-commit`**。提交前会运行：
 
+- `lint-staged`（`[lint-staged.config.mjs](lint-staged.config.mjs)`：暂存 `src/styles/**/*.css` 时跑 `stylelint --fix`；暂存 `src/**/*.ts|tsx` 时跑**全量** `npm run typecheck`，与 CI `quality` 一致）
 - `npm run check:i18n-hardcoded:changed`
 - `npm run check:translation-host-link-ssot:changed`
 
-若需跳过（仅限应急）：`HUSKY=0 git commit …`。**`lint-staged` 未接入**（仓库无 ESLint/Prettier staged 管线）；后续若增加格式化工具可再接到同一 hook。
+若需跳过（仅限应急）：`HUSKY=0 git commit …`。仓库**无** ESLint / Prettier 的 staged 管道；`lint-staged` 以 Stylelint 与全量 `typecheck` 与 CI 互补，**不**替代 `npm test` 与 E2E。
 
 ## 分支与合并
 
