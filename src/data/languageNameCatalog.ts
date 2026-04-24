@@ -4,7 +4,7 @@
  * Baseline generated data is now lowered into the runtime cache layer as a
  * fallback seed, so callers no longer merge generated modules directly here.
  */
-import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache } from './languageCatalogRuntimeCache';
+import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache, type LanguageCatalogRuntimeEntry } from './languageCatalogRuntimeCache';
 import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale, type LanguageQueryLabelEntry, type LanguageQueryLabelKind } from './languageNameTypes';
 
 function normalizeLanguageCode(languageId: string | undefined): string {
@@ -60,6 +60,31 @@ function resolveCatalogLanguageCode(languageId: string | undefined): string | un
   return runtimeEntry?.languageCode?.trim().toLowerCase() || normalizedCode;
 }
 
+function runtimeRowToDisplayCore(languageId: string | undefined, runtimeEntry: LanguageCatalogRuntimeEntry): LanguageDisplayCoreEntry {
+  const byLocale = runtimeEntry.byLocale ?? {};
+  const english = runtimeEntry.english?.trim()
+    || byLocale['en-US']?.trim()
+    || runtimeEntry.native?.trim()
+    || normalizeLanguageCode(languageId);
+
+  const native = runtimeEntry.native?.trim() || undefined;
+
+  const latitude = typeof runtimeEntry.latitude === 'number' && Number.isFinite(runtimeEntry.latitude)
+    ? runtimeEntry.latitude
+    : undefined;
+  const longitude = typeof runtimeEntry.longitude === 'number' && Number.isFinite(runtimeEntry.longitude)
+    ? runtimeEntry.longitude
+    : undefined;
+
+  return {
+    english,
+    ...(native ? { native } : {}),
+    ...(Object.keys(byLocale).length > 0 ? { byLocale } : {}),
+    ...(latitude !== undefined ? { latitude } : {}),
+    ...(longitude !== undefined ? { longitude } : {}),
+  };
+}
+
 function readLanguageDisplayCoreEntry(
   languageId: string | undefined,
 ): LanguageDisplayCoreEntry | undefined {
@@ -71,19 +96,35 @@ function readLanguageDisplayCoreEntry(
     return undefined;
   }
 
-  const byLocale = runtimeEntry.byLocale ?? {};
-  const english = runtimeEntry.english?.trim()
-    || byLocale['en-US']?.trim()
-    || runtimeEntry.native?.trim()
-    || normalizeLanguageCode(languageId);
+  return runtimeRowToDisplayCore(languageId, runtimeEntry);
+}
 
-  const native = runtimeEntry.native?.trim() || undefined;
+/**
+ * 仅匹配 `entries` 的精确 id（无 `lookupToId` 跳转），对齐旧版 `GENERATED_LANGUAGE_*[languageId]` 的键语义。
+ * Exact `entries` key only (no lookupToId), matching legacy generated-module keying.
+ */
+export function getBaselineLanguageDisplayCoreEntryByExactId(languageId: string | undefined): LanguageDisplayCoreEntry | undefined {
+  const id = normalizeLanguageCode(languageId);
+  if (!id) {
+    return undefined;
+  }
+  const row = readLanguageCatalogRuntimeCache().entries[id];
+  if (!row || row.visibility === 'hidden') {
+    return undefined;
+  }
+  return runtimeRowToDisplayCore(id, row);
+}
 
-  return {
-    english,
-    ...(native ? { native } : {}),
-    ...(Object.keys(byLocale).length > 0 ? { byLocale } : {}),
-  };
+export function getBaselineLanguageAliasesForExactId(languageId: string | undefined): readonly string[] {
+  const id = normalizeLanguageCode(languageId);
+  if (!id) {
+    return [];
+  }
+  const row = readLanguageCatalogRuntimeCache().entries[id];
+  if (!row || row.visibility === 'hidden') {
+    return [];
+  }
+  return dedupeNames(row.aliases ?? []);
 }
 
 function dedupeQueryEntries(entries: Array<LanguageQueryLabelEntry | undefined>): LanguageQueryLabelEntry[] {

@@ -74,11 +74,11 @@ export function AudioImportDialog({ isOpen, onClose, disposition, onImport }: Au
         setError(t(locale, 'transcription.importDialog.unreadableDuration'));
       }
       URL.revokeObjectURL(objectUrl);
-    });
+    }, { once: true });
     media.addEventListener('error', () => {
       setError(t(locale, 'transcription.importDialog.unsupportedMedia'));
       URL.revokeObjectURL(objectUrl);
-    });
+    }, { once: true });
   };
 
   const handleImport = async () => {

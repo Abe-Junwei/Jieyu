@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import viteCompression from 'vite-plugin-compression';
 import { VitePWA } from 'vite-plugin-pwa';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
 import { copyFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -187,6 +188,9 @@ export default defineConfig({
           'favicon.svg',
           'fonts/**/*.css',
           'fonts/**/*.woff2',
+          'data/language-support/iso6393-seed-rows.json',
+          'data/language-support/language-display-names.core.json',
+          'data/language-support/language-query-aliases.json',
           'assets/zod-jitless-bootstrap.js',
           'assets/main-*.js',
           'assets/main-*.css',
@@ -260,6 +264,13 @@ export default defineConfig({
           sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
         })]
       : []),
+    // B-4：构建产物旁路写入 .br（`vite-plugin-compression` 多实例共享 mtimeCache，gzip+brotli 会导致后者全跳过，故仅启用 brotli）| .br siblings for static hosts; single algorithm due to plugin cache quirk
+    viteCompression({
+      algorithm: 'brotliCompress',
+      ext: '.br',
+      threshold: 2048,
+      filter: /\.(js|css|html|json|svg|txt|xml|webmanifest)$/,
+    }),
   ],
   server: {
     host: true,
@@ -274,6 +285,7 @@ export default defineConfig({
     },
   },
   build: {
+    reportCompressedSize: true,
     sourcemap: enableSentrySourceMaps ? 'hidden' : false,
     chunkSizeWarningLimit: 1400,
     rollupOptions: {
@@ -300,6 +312,13 @@ export default defineConfig({
           return 'assets/[name]-[hash].js';
         },
         manualChunks(id) {
+          // B-1：英文主词典独立 chunk，避免与入口主图合并（即使启动阶段会 preload）| Keep en-US dictionary out of the entry chunk
+          if (id.includes('/src/i18n/dictionaries/en-US.ts')) {
+            return 'i18n-en-US';
+          }
+          if (id.includes('/src/i18n/dictionaries/zh-CN.ts')) {
+            return 'i18n-zh-CN';
+          }
           // 保证 Zod 单实例，使 `globalConfig.jitless` 在异步 chunk（如 linguistic-core）中与入口一致 | Single Zod instance for shared globalConfig.jitless across async chunks
           if (id.includes('/node_modules/zod/')) {
             return 'zod-vendor';
@@ -319,11 +338,6 @@ export default defineConfig({
             return 'linguistic-core-runtime';
           }
           if (
-            id.includes('/src/data/generated/languageNameCatalog.generated.ts')
-          ) {
-            return 'language-name-baseline';
-          }
-          if (
             id.includes('/node_modules/language-subtag-registry/')
             || id.includes('/node_modules/language-tags/')
           ) {
@@ -331,7 +345,6 @@ export default defineConfig({
           }
           if (
             id.includes('/node_modules/iso-639-3/')
-            || id.includes('/src/data/generated/iso6393Seed.generated.ts')
             || id.includes('/src/data/iso6393Seed.ts')
           ) {
             return 'language-iso-database';
@@ -414,6 +427,8 @@ export default defineConfig({
       'src/zodJitlessBootstrap.ts',
       'src/test/vitestLocalStorageSetup.ts',
       'src/test/vitestJestDomSetup.ts',
+      'src/test/vitestLanguageGeodataSetup.ts',
+      'src/test/vitestI18nPreloadSetup.ts',
     ],
     coverage: {
       provider: 'v8',

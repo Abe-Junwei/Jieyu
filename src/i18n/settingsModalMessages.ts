@@ -97,6 +97,8 @@ export type SettingsModalMessages = {
   dataCacheVad: string;
   dataCacheLanguageCatalog: string;
   dataCacheEmbeddingProvider: string;
+  dataResilienceSectionTitle: string;
+  dataResilienceSnoozeBackup: string;
   dataWorkspaceIntegrationTitle: string;
   dataMapProviderLabel: string;
   dataMapStyleLabel: string;
@@ -241,6 +243,8 @@ const zhCN: SettingsModalMessages = {
   dataCacheVad: 'VAD 缓存',
   dataCacheLanguageCatalog: '语言目录缓存',
   dataCacheEmbeddingProvider: '嵌入模型配置',
+  dataResilienceSectionTitle: '备份与自检',
+  dataResilienceSnoozeBackup: '备份提醒：延后 7 天',
   dataWorkspaceIntegrationTitle: '工作台与集成',
   dataMapProviderLabel: '地图服务商默认值',
   dataMapStyleLabel: '地图样式默认值',
@@ -383,6 +387,8 @@ const enUS: SettingsModalMessages = {
   dataCacheVad: 'VAD cache',
   dataCacheLanguageCatalog: 'Language catalog cache',
   dataCacheEmbeddingProvider: 'Embedding provider config',
+  dataResilienceSectionTitle: 'Backup & checks',
+  dataResilienceSnoozeBackup: 'Snooze backup reminder 7 days',
   dataWorkspaceIntegrationTitle: 'Workspace Integrations',
   dataMapProviderLabel: 'Default map provider',
   dataMapStyleLabel: 'Default map style',

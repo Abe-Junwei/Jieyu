@@ -40,6 +40,7 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes('private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void>')).toBe(true);
     expect(code.includes('if (this._exclusiveStartPromise)')).toBe(true);
     expect(code.includes('this._exclusiveStartPromise = null;')).toBe(true);
+    expect(code.includes('await pendingExclusiveStart')).toBe(true);
   });
 
   it('keeps session restore and persistence lifecycle anchored in service boundaries', () => {
@@ -61,7 +62,7 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes('this._stopWakeWordDetector();')).toBe(true);
     expect(code.includes('this.removeAllListeners();')).toBe(true);
     expect(code.includes('if (_instance) {')).toBe(true);
-    expect(code.includes('_instance.dispose();')).toBe(true);
+    expect(code.includes('await _instance.dispose();')).toBe(true);
     expect(code.includes('_instance = new VoiceAgentService(options);')).toBe(true);
   });
 });

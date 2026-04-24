@@ -709,3 +709,59 @@
     display: none;
   }
 }
+
+/* Phase F-2：数据库自检失败遮罩 | DB integrity failure overlay */
+.db-integrity-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-topmost, 12000);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--shadow-color) 48%, var(--surface-base));
+}
+
+.db-integrity-overlay-panel {
+  width: 100%;
+  max-width: 520px;
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px 22px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--divider-base);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+}
+
+.db-integrity-overlay-title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+
+.db-integrity-overlay-intro {
+  margin: 0 0 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, inherit);
+}
+
+.db-integrity-overlay-reason {
+  margin: 0 0 18px;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.db-integrity-overlay-reason code {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+.db-integrity-overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.app-global-toast-host {
+  z-index: calc(var(--z-modal-topmost, 12000) - 1);
+}

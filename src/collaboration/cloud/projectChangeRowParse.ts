@@ -2,6 +2,7 @@
  * Shared validation + mapping for `project_changes` rows (Realtime INSERT payload.new
  * and PostgREST select rows). Keeps audit timeline replay aligned with inbound Realtime.
  */
+import { createLogger } from '../../observability/logger';
 import type {
   CollaborationProjectChangeRecord,
   ProjectChangeOperation,
@@ -9,6 +10,22 @@ import type {
   ProjectChangeSourceKind,
   ProjectEntityType,
 } from './syncTypes';
+
+const log = createLogger('projectChangeRowParse');
+
+function rowPreview(row: unknown): string {
+  try {
+    if (row && typeof row === 'object') return JSON.stringify(row).slice(0, 400);
+    return String(row).slice(0, 200);
+  } catch {
+    return '[unserializable]';
+  }
+}
+
+function invalidRow(reason: string, row: unknown): null {
+  log.warn('dropped invalid project_changes row', { reason, rowPreview: rowPreview(row) });
+  return null;
+}
 
 function toStringValue(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
@@ -41,7 +58,7 @@ const VALID_SOURCE_KINDS: ReadonlySet<string> = new Set<ProjectChangeSourceKind>
  * or enum values are invalid — callers should skip invalid rows instead of casting.
  */
 export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjectChangeRecord | null {
-  if (!row || typeof row !== 'object') return null;
+  if (!row || typeof row !== 'object') return invalidRow('not-a-record', row);
   const source = row as Record<string, unknown>;
 
   const id = toStringValue(source.id);
@@ -73,12 +90,12 @@ export function parsePostgresProjectChangeRow(row: unknown): CollaborationProjec
     || !sourceKind
     || !createdAt
   ) {
-    return null;
+    return invalidRow('missing-or-invalid-required-field', row);
   }
 
-  if (!VALID_ENTITY_TYPES.has(entityType)) return null;
-  if (!VALID_OP_TYPES.has(opType)) return null;
-  if (!VALID_SOURCE_KINDS.has(sourceKind)) return null;
+  if (!VALID_ENTITY_TYPES.has(entityType)) return invalidRow('invalid-entity-type', row);
+  if (!VALID_OP_TYPES.has(opType)) return invalidRow('invalid-op-type', row);
+  if (!VALID_SOURCE_KINDS.has(sourceKind)) return invalidRow('invalid-source-kind', row);
 
   const sessionId = toStringValue(source.session_id);
   const payloadRefPath = toStringValue(source.payload_ref_path);

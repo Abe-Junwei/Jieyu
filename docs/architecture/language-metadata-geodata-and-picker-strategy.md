@@ -21,7 +21,7 @@ source_of_truth: engineering-audit-phase-a
 
 ## A-6：`react-select`
 
-**结论：现阶段保留，调用点唯一。**
+**结论（2026-04-24 更新）：已移除 npm 依赖；语言元数据工作台国家多选改为自研轻量 UI。**
 
-- **唯一 UI 使用处**：[`LanguageMetadataAdministrativeDivisionPicker.tsx`](../../src/pages/LanguageMetadataAdministrativeDivisionPicker.tsx)（国家/行政区检索型下拉）。
-- **后续优化（非本次范围）**：若替换为原生 `<select>` 或自研列表，必须保持 **键盘操作、无障碍名称与当前检索体验** 不劣化，并保留 / 补充 E2E 或组件单测。
+- **原唯一 UI 使用处**：[`LanguageMetadataAdministrativeDivisionPicker.tsx`](../../src/pages/LanguageMetadataAdministrativeDivisionPicker.tsx) — 现为 **筛选输入 + 复选列表 + 已选芯片移除**，保留 `aria-labelledby` / `aria-controls` 与移除按钮的 `aria-label`（`tf` 模板）。
+- **回归**：[`LanguageMetadataWorkspacePage.test.tsx`](../../src/pages/LanguageMetadataWorkspacePage.test.tsx) 覆盖行政区检索与保存路径；国家筛选交互以手动 / E2E 补测为可选增强。

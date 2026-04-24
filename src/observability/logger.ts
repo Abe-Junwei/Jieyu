@@ -109,6 +109,11 @@ function scrubData(data: Record<string, unknown>): Record<string, unknown> {
   return scrubDataImpl(data, 0, new WeakSet());
 }
 
+/** 导出供 Sentry `beforeSend` 等与日志一致的深层脱敏。 | For Sentry beforeSend: same deep scrub as log context. */
+export function deepScrubPlainObjectForObservability(data: Record<string, unknown>): Record<string, unknown> {
+  return scrubData(data);
+}
+
 // ─── 核心 emit | Core emit ─────────────────────────────────
 
 function emit(level: LogLevel, module: string, message: string, data?: Record<string, unknown>): void {

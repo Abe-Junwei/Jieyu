@@ -3,8 +3,11 @@
  * **不**执行 IndexedDB 或其它持久化回滚；`rolled-back` / `rollbackAction` 仅描述合并结论，调用方勿当作已撤销写入。 |
  * In-memory merge orchestration only — `rolled-back` / `rollbackAction` are diagnostic labels, not DB rollbacks.
  */
+import { createLogger } from '../observability/logger';
 import { mergeReplicaBatch, type ReplicaBatchMergeResult } from './collaborationMultiReplicaRuntime';
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
+
+const collaborationTxLog = createLogger('collaborationTransactionSync');
 
 export interface TransactionEntitySyncInput {
   entityId: string;
@@ -49,6 +52,41 @@ export interface TransactionSyncResult {
   rollbackAction: 'none' | 'soft-rollback' | 'hard-rollback';
   conflicts: string[];
   digest: string;
+}
+
+function reportCollaborationReplicaMergeLogicalFailure(input: {
+  transactionId: string;
+  digest: string;
+  atomicity: TransactionAtomicityResult;
+  conflicts: string[];
+}): void {
+  collaborationTxLog.warn(
+    'Replica merge finished without full commit (diagnostic label only; no Dexie rollback was executed)',
+    {
+      transactionId: input.transactionId,
+      digest: input.digest,
+      blockingEntityIds: input.atomicity.blockingEntityIds,
+      rolledBackCount: input.atomicity.rolledBackCount,
+      conflicts: input.conflicts,
+    },
+  );
+  void import('@sentry/react')
+    .then((mod) => {
+      if (typeof mod.captureMessage === 'function') {
+        mod.captureMessage('Collaboration replica merge logical rolled-back (no Dexie rollback executed)', {
+          level: 'warning',
+          tags: { domain: 'collaboration', kind: 'replica_merge_incomplete' },
+          extra: {
+            transactionId: input.transactionId,
+            digest: input.digest,
+            blockingEntityIds: input.atomicity.blockingEntityIds,
+          },
+        });
+      }
+    })
+    .catch(() => {
+      /* Sentry optional at runtime */
+    });
 }
 
 function hashString(input: string): string {
@@ -97,7 +135,11 @@ export function evaluateTransactionAtomicity(
   };
 }
 
-export function createTransactionalRollbackPlan(
+/**
+ * 合并未全部达成仲裁时的**建议**清理档位；不执行任何存储回滚（CRITICAL-4）。 |
+ * Advisory cleanup tier when merge did not fully commit — does not run storage rollback.
+ */
+export function createBestEffortCleanupPlan(
   atomicity: TransactionAtomicityResult,
 ): 'none' | 'soft-rollback' | 'hard-rollback' {
   if (atomicity.allCommitted) {
@@ -108,6 +150,9 @@ export function createTransactionalRollbackPlan(
   }
   return 'soft-rollback';
 }
+
+/** @deprecated Use {@link createBestEffortCleanupPlan} — legacy name; still not a DB rollback. */
+export const createTransactionalRollbackPlan = createBestEffortCleanupPlan;
 
 export function executeTransactionalReplicaSync(input: TransactionSyncInput): TransactionSyncResult {
   const outcomes: TransactionEntityOutcome[] = [];
@@ -153,7 +198,7 @@ export function executeTransactionalReplicaSync(input: TransactionSyncInput): Tr
   }
 
   const atomicity = evaluateTransactionAtomicity(outcomes);
-  const rollbackAction = createTransactionalRollbackPlan(atomicity);
+  const rollbackAction = createBestEffortCleanupPlan(atomicity);
   const status: 'committed' | 'rolled-back' = atomicity.allCommitted ? 'committed' : 'rolled-back';
 
   const digest = hashString(JSON.stringify({
@@ -169,7 +214,7 @@ export function executeTransactionalReplicaSync(input: TransactionSyncInput): Tr
     conflicts: [...conflicts].sort(),
   }));
 
-  return {
+  const result: TransactionSyncResult = {
     transactionId: input.transactionId,
     status,
     outcomes,
@@ -178,4 +223,15 @@ export function executeTransactionalReplicaSync(input: TransactionSyncInput): Tr
     conflicts: [...conflicts],
     digest,
   };
+
+  if (status === 'rolled-back') {
+    reportCollaborationReplicaMergeLogicalFailure({
+      transactionId: input.transactionId,
+      digest,
+      atomicity,
+      conflicts: result.conflicts,
+    });
+  }
+
+  return result;
 }

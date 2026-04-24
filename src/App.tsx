@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { AppGlobalToastHost } from './components/AppGlobalToastHost';
+import { DbIntegrityBlockingOverlay } from './components/DbIntegrityBlockingOverlay';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { DevErrorAggregationPanel } from './components/DevErrorAggregationPanel';
 import { AiPanelProvider } from './contexts/AiPanelContext';
@@ -9,8 +11,9 @@ import { SettingsModal } from './components/SettingsModal';
 import { resolveHostVersion } from './config/hostVersion';
 import { persistUiFontScalePreference, readPersistedUiFontScalePreference, type UiFontScaleMode } from './utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
+import { useAppDataResilienceEffects } from './hooks/useAppDataResilienceEffects';
 import { usePanelResize } from './hooks/usePanelResize';
-import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, setStoredLocalePreference, t, type Locale } from './i18n';
+import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, preloadLocaleDictionary, setStoredLocalePreference, t, type Locale } from './i18n';
 import { getCollaborationCloudPanelMessages } from './i18n/collaborationCloudPanelMessages';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
@@ -199,6 +202,7 @@ export function App() {
   const [iconEffect, setIconEffectState] = useState<IconEffect>(() => getIconEffect());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { uiFontScale, uiFontScaleMode } = useUiFontScaleRuntime(locale);
+  const { dbGate, dbOverlayHandlers } = useAppDataResilienceEffects(locale);
 
   const handleIconEffectChange = useCallback((next: IconEffect) => {
     setIconEffect(next);
@@ -513,7 +517,8 @@ export function App() {
     setIsSidePaneCollapsed((prev) => !prev);
   }, []);
 
-  const handleLocaleChange = useCallback((nextLocale: Locale) => {
+  const handleLocaleChange = useCallback(async (nextLocale: Locale) => {
+    await preloadLocaleDictionary(nextLocale);
     setStoredLocalePreference(nextLocale);
     setLocale(nextLocale);
   }, []);
@@ -717,6 +722,16 @@ export function App() {
             </main>
             </div>
             {import.meta.env.DEV ? <DevErrorAggregationPanel /> : null}
+            <AppGlobalToastHost />
+            {dbGate.kind === 'failed' ? (
+              <DbIntegrityBlockingOverlay
+                locale={locale}
+                reason={dbGate.reason}
+                onReload={dbOverlayHandlers.onReload}
+                onRetry={dbOverlayHandlers.onRetry}
+                onContinueSession={dbOverlayHandlers.onContinueSession}
+              />
+            ) : null}
             <SettingsModal
               isOpen={isSettingsOpen}
               onClose={handleSettingsClose}

@@ -1,10 +1,30 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Select from 'react-select';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { forwardGeocode, type GeocodeSuggestion } from '../components/languageGeocoder';
 import { readMapProviderConfig } from '../components/languageMapEmbed.shared';
-import { t } from '../i18n';
+import { t, tf } from '../i18n';
 import { buildAdministrativeDivisionDisplayLine, type WorkspaceLocale } from './languageMetadataWorkspace.shared';
-import { buildCountryAliasTokens, getCountryOptions, normalizeCountryCodesForGeocoder, normalizeCountryToken, parseCountriesText, resolveCountryByToken, resolveCountryCodes, type CountryOption } from './languageMetadataWorkspace.country';
+import {
+  buildCountryAliasTokens,
+  getCountryOptions,
+  normalizeCountryCodesForGeocoder,
+  normalizeCountryToken,
+  parseCountriesText,
+  resolveCountryByToken,
+  resolveCountryCodes,
+  type CountryOption,
+} from './languageMetadataWorkspace.country';
+
+function countryOptionMatchesFilter(option: CountryOption, normalizedFilter: string): boolean {
+  if (!normalizedFilter) {
+    return true;
+  }
+  return (
+    normalizeCountryToken(option.label).includes(normalizedFilter)
+    || normalizeCountryToken(option.searchName).includes(normalizedFilter)
+    || normalizeCountryToken(option.value).includes(normalizedFilter)
+    || option.aliasTokens.some((token) => token.includes(normalizedFilter))
+  );
+}
 
 interface LanguageMetadataAdministrativeDivisionPickerProps {
   locale: WorkspaceLocale;
@@ -112,6 +132,9 @@ export function LanguageMetadataAdministrativeDivisionPicker({
   const searchAbortRef = useRef<AbortController | null>(null);
   const latestSearchRequestIdRef = useRef(0);
   const latestCountriesTextRef = useRef(countriesText);
+  const countriesLabelId = useId();
+  const countryOptionsListId = useId();
+  const [countryFilter, setCountryFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GeocodeSuggestion[]>([]);
   const [searchStatus, setSearchStatus] = useState<SearchStatus>('idle');
@@ -128,6 +151,11 @@ export function LanguageMetadataAdministrativeDivisionPicker({
     () => countryOptions.filter((option) => selectedCountryCodes.includes(option.value)),
     [countryOptions, selectedCountryCodes],
   );
+
+  const filteredCountryOptions = useMemo(() => {
+    const normalizedFilter = normalizeCountryToken(countryFilter);
+    return countryOptions.filter((option) => countryOptionMatchesFilter(option, normalizedFilter));
+  }, [countryFilter, countryOptions]);
 
   useEffect(() => {
     latestCountriesTextRef.current = countriesText;
@@ -348,21 +376,69 @@ export function LanguageMetadataAdministrativeDivisionPicker({
           </select>
         </label>
 
-        <label className="lm-field lm-admin-coverage-field">
-          <span>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
-          <Select
-            aria-label={t(locale, 'workspace.languageMetadata.countriesLabel')}
-            classNamePrefix="lm-select"
-            isMulti
-            options={countryOptions}
-            placeholder={t(locale, 'workspace.languageMetadata.countriesPlaceholder')}
-            value={selectedCountryOptions}
-            onChange={(nextValue) => {
-              const nextOptions = Array.isArray(nextValue) ? nextValue as CountryOption[] : [];
-              commitCountriesText(nextOptions.map((option) => option.value).join(', '));
-            }}
-          />
-        </label>
+        <div className="lm-field lm-admin-coverage-field">
+          <span id={countriesLabelId}>{t(locale, 'workspace.languageMetadata.countriesLabel')}</span>
+          <div className="lm-country-multi" role="group" aria-labelledby={countriesLabelId}>
+            <input
+              type="search"
+              className="input lm-admin-text-input"
+              value={countryFilter}
+              onChange={(event) => setCountryFilter(event.target.value)}
+              placeholder={t(locale, 'workspace.languageMetadata.countriesFilterPlaceholder')}
+              aria-label={t(locale, 'workspace.languageMetadata.countriesFilterPlaceholder')}
+              aria-controls={countryOptionsListId}
+              autoComplete="off"
+            />
+            {selectedCountryOptions.length > 0 ? (
+              <ul className="lm-country-multi__chips" aria-label={t(locale, 'workspace.languageMetadata.countriesSelectedListAria')}>
+                {selectedCountryOptions.map((option) => (
+                  <li key={option.value}>
+                    <button
+                      type="button"
+                      className="lm-country-multi__chip btn btn-ghost"
+                      onClick={() => {
+                        const next = selectedCountryCodes.filter((code) => code !== option.value);
+                        commitCountriesText(next.sort().join(', '));
+                      }}
+                      aria-label={tf(locale, 'workspace.languageMetadata.countriesMultiRemoveAria', { country: option.label })}
+                    >
+                      <span>{option.label}</span>
+                      <span className="lm-country-multi__chip-x" aria-hidden="true">
+                        ×
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <ul id={countryOptionsListId} className="lm-country-multi__list" aria-label={t(locale, 'workspace.languageMetadata.countriesOptionsListAria')}>
+              {filteredCountryOptions.map((option) => {
+                const checked = selectedCountryCodes.includes(option.value);
+                return (
+                  <li key={option.value}>
+                    <label className="lm-country-multi__option">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          const nextSet = new Set(selectedCountryCodes);
+                          if (event.target.checked) {
+                            nextSet.add(option.value);
+                          } else {
+                            nextSet.delete(option.value);
+                          }
+                          commitCountriesText([...nextSet].sort().join(', '));
+                        }}
+                      />
+                      <span className="lm-country-multi__option-label">{option.label}</span>
+                      <span className="lm-country-multi__iso">{option.value}</span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
       </div>
 
       <div className="lm-field">

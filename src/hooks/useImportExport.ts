@@ -4,6 +4,7 @@ import { useClickOutside } from './useClickOutside';
 import type { AnchorDocType, LayerUnitDocType, MediaItemDocType, LayerDocType, LayerUnitContentDocType } from '../db';
 import type { SaveState } from './useTranscriptionData';
 import { t, tf, useLocale } from '../i18n';
+import { recordFullProjectArchiveExportCompleted } from '../utils/backupExportReminderState';
 import { useOrthographies } from './useOrthographies';
 
 type ExportSupportModules = {
@@ -536,6 +537,7 @@ export function useImportExport(input: UseImportExportInput) {
       return;
     }
     await jymService.downloadJieyuArchive('jyt', baseName, exportOptions);
+    recordFullProjectArchiveExportCompleted();
     setSaveState({
       kind: 'done',
       message: exportOptions.encryption
@@ -556,6 +558,7 @@ export function useImportExport(input: UseImportExportInput) {
       return;
     }
     await jymService.downloadJieyuArchive('jym', baseName, exportOptions);
+    recordFullProjectArchiveExportCompleted();
     setSaveState({
       kind: 'done',
       message: exportOptions.encryption

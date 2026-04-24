@@ -136,6 +136,11 @@ describe('M18 linguistic unit cutover replay', () => {
     expect([...ids].sort()).toEqual(['a', 'c', 'seg-legacy']);
   });
 
+  it('collectM18SubgraphReferencedUnitIds reads legacy segmentId on morpheme-only rows', () => {
+    const ids = collectM18SubgraphReferencedUnitIds([], [{ segmentId: 'morph-seg-only' }]);
+    expect([...ids]).toEqual(['morph-seg-only']);
+  });
+
   it('assertM18SubgraphHostsResolve throws when host id has no unit layer unit', () => {
     expect(() => assertM18SubgraphHostsResolveToUnitLayerUnits({
       subgraphReferencedUnitIds: new Set(['ghost']),

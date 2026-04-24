@@ -16,10 +16,10 @@ import {
   type LanguageDocType,
   type MultiLangString,
 } from '../db';
-import { normalizeLanguageCatalogRuntimeLabelKey, normalizeLanguageCatalogRuntimeLookupKey, writeLanguageCatalogRuntimeCache, type LanguageCatalogRuntimeEntry } from '../data/languageCatalogRuntimeCache';
-import { GENERATED_LANGUAGE_ALIASES_BY_CODE, GENERATED_LANGUAGE_DISPLAY_NAME_CORE } from '../data/generated/languageNameCatalog.generated';
+import { getBaselineGeneratedLanguageIds, isPublicBaselineCatalogLanguageId, normalizeLanguageCatalogRuntimeLabelKey, normalizeLanguageCatalogRuntimeLookupKey, writeLanguageCatalogRuntimeCache, type LanguageCatalogRuntimeEntry } from '../data/languageCatalogRuntimeCache';
+import { getBaselineLanguageAliasesForExactId, getBaselineLanguageDisplayCoreEntryByExactId } from '../data/languageNameCatalog';
 import { loadIso6393CountryBaselines, type Iso6393CountryBaselinesPayload } from '../data/iso6393CountryBaselinesLoader';
-import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageNameQueryLocale } from '../data/languageNameTypes';
+import { LANGUAGE_NAME_QUERY_LOCALES, type LanguageDisplayCoreEntry, type LanguageNameQueryLocale } from '../data/languageNameTypes';
 import { t, tf, type Locale } from '../i18n';
 import { isKnownIso639_3Code } from '../utils/langMapping';
 import { newId } from '../utils/transcriptionFormatters';
@@ -387,7 +387,7 @@ function shouldProjectBeforeEntry(languageId: string, existing: LanguageDocType 
   if (existing || displayNames.length > 0 || aliases.length > 0) {
     return true;
   }
-  return Boolean(GENERATED_LANGUAGE_DISPLAY_NAME_CORE[languageId]) || isKnownIso639_3Code(languageId);
+  return isPublicBaselineCatalogLanguageId(languageId) || isKnownIso639_3Code(languageId);
 }
 
 function formatConflictEntryLabel(entry: LanguageCatalogEntry): string {
@@ -491,7 +491,7 @@ function sortLanguageCatalogDisplayNames(rows: readonly LanguageCatalogDisplayNa
 }
 
 function buildProjectedDisplayNames(input: {
-  generatedEntry?: typeof GENERATED_LANGUAGE_DISPLAY_NAME_CORE[string];
+  generatedEntry?: LanguageDisplayCoreEntry;
   languageDoc?: LanguageDocType;
   displayNames: readonly LanguageDisplayNameDocType[];
 }): LanguageCatalogDisplayNameEntry[] {
@@ -756,7 +756,7 @@ function pickDisplayName(
 }
 
 function buildBaselineCodes(): string[] {
-  return Object.keys(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).sort();
+  return [...getBaselineGeneratedLanguageIds()];
 }
 
 function normalizeRequestedLanguageIds(languageIds: readonly string[] | undefined): string[] | undefined {
@@ -975,8 +975,9 @@ function projectLanguageCatalogEntry(input: {
   countryBaselines?: Pick<Iso6393CountryBaselinesPayload, 'distributionByIso6393' | 'officialByIso6393'> | null;
 }): LanguageCatalogEntry {
   const isoRecord = lookupIso639_3Seed(input.languageId);
-  const generated = GENERATED_LANGUAGE_DISPLAY_NAME_CORE[input.languageId];
-  const builtInAliases = GENERATED_LANGUAGE_ALIASES_BY_CODE[input.languageId] ?? [];
+  const usePublicBaseline = isPublicBaselineCatalogLanguageId(input.languageId);
+  const generated = usePublicBaseline ? getBaselineLanguageDisplayCoreEntryByExactId(input.languageId) : undefined;
+  const builtInAliases = usePublicBaseline ? [...getBaselineLanguageAliasesForExactId(input.languageId)] : [];
   const languageDoc = input.languageDoc;
   const projectedDisplayNames = buildProjectedDisplayNames({
     ...(generated ? { generatedEntry: generated } : {}),

@@ -34,6 +34,7 @@ source_of_truth: release-gate-index
 - [转写页收尾门禁映射-2026-03-30.md](./%E8%BD%AC%E5%86%99%E9%A1%B5%E6%94%B6%E5%B0%BE%E9%97%A8%E7%A6%81%E6%98%A0%E5%B0%84-2026-03-30.md)
 - [OTel-观测灰度与回滚-runbook-2026-04-17.md](./OTel-%E8%A7%82%E6%B5%8B%E7%81%B0%E5%BA%A6%E4%B8%8E%E5%9B%9E%E6%BB%9A-runbook-2026-04-17.md)
 - [桌面浏览器抽样验收-2026-04-24.md](./桌面浏览器抽样验收-2026-04-24.md)（国内 360 / QQ / 搜狗极速模式手工冒烟；与 CI 三引擎互补）
+- [e2e-a11y-axe-policy-2026-04-24.md](./e2e-a11y-axe-policy-2026-04-24.md)（Playwright + Axe 扫描范围与 CI 严重级别门槛）
 
 ## 自动生成报告（脚本落盘）
 

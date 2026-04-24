@@ -15,6 +15,8 @@ const IGNORE_PATH_PATTERNS = [
   /\.spec\.[tj]sx?$/,
   /[\\/]__tests__[\\/]/,
   /[\\/]i18n[\\/]index\.ts$/,
+  /[\\/]i18n[\\/]dictKeys\.ts$/,
+  /[\\/]i18n[\\/]dictionaries[\\/]/,
 ];
 
 function toRel(filePath) {

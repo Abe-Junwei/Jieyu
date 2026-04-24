@@ -360,6 +360,11 @@ export class AcousticAnalysisService {
     const runtimeConfig = input.runtimeConfig;
     const providerState = input.providerState;
     const mono = downmixToMono(input.audioBuffer);
+    if (mono.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+      throw new Error(
+        `Local acoustic analysis payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`,
+      );
+    }
 
     if (providerState.effectiveProviderId !== LOCAL_ACOUSTIC_PROVIDER_DEFINITION.id) {
       try {

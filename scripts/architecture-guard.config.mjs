@@ -317,7 +317,7 @@ export const architectureGuardRules = [
     requiredRegexes: [
       /export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEventMap>/,
       /export function getVoiceAgentService\(\): VoiceAgentService \| null \{/,
-      /export function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): VoiceAgentService \{/,
+      /export async function createVoiceAgentService\(options: VoiceAgentServiceOptions = \{\}\): Promise<VoiceAgentService> \{/,
     ],
   },
   {

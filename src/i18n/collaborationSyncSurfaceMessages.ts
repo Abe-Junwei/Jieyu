@@ -6,6 +6,8 @@ export type CollaborationSyncSurfaceMessages = {
   readOnlyTitle: string;
   readOnlyBody: string;
   readOnlyReasonsPrefix: string;
+  /** HIGH-10：并发合并时同名字段以优胜方为准、另一方值被忽略时的提示 */
+  mergeLoserFieldsSuperseded: (count: number) => string;
 };
 
 const zhCN: CollaborationSyncSurfaceMessages = {
@@ -22,6 +24,7 @@ const zhCN: CollaborationSyncSurfaceMessages = {
   readOnlyTitle: '\u4e91\u7aef\u534f\u540c\u4e3a\u53ea\u8bfb\u6a21\u5f0f',
   readOnlyBody: '\u5f53\u524d\u5ba2\u6237\u7aef\u7248\u672c\u6216\u534f\u8bae\u4e0d\u6ee1\u8db3\u9879\u76ee\u8981\u6c42\uff0c\u5df2\u505c\u6b62\u5411\u4e91\u7aef\u5199\u5165\u7ed3\u6784\u5316\u53d8\u66f4\u4e0e\u5feb\u7167\u3002\u4ecd\u53ef\u672c\u5730\u7f16\u8f91\u5e76\u67e5\u770b\u5728\u7ebf\u6210\u5458\u3002',
   readOnlyReasonsPrefix: '\u539f\u56e0',
+  mergeLoserFieldsSuperseded: (count) => `\u534f\u540c\u5408\u5e76\uff1a${count} \u4e2a\u5b57\u6bb5\u4ee5\u5f53\u524d\u8bbe\u5907\u6216\u65f6\u949f\u4f18\u52bf\u65b9\u672c\u4e3a\u51c6\uff0c\u5bf9\u7aef\u4fee\u6539\u5df2\u5ffd\u7565\uff08\u4ec5\u5f15\u5bfc\uff0c\u4e0d\u5f71\u54cd\u5df2\u9009\u4e2d\u7684\u7ed3\u679c\uff09\u3002`,
 };
 
 const enUS: CollaborationSyncSurfaceMessages = {
@@ -38,6 +41,7 @@ const enUS: CollaborationSyncSurfaceMessages = {
   readOnlyTitle: 'Cloud collaboration is read-only',
   readOnlyBody: 'This client version or protocol no longer meets the project gate; structured writes and cloud snapshots are blocked. Local editing and presence still work.',
   readOnlyReasonsPrefix: 'Reasons',
+  mergeLoserFieldsSuperseded: (count) => `Sync merge: ${count} field(s) used the winning device’s values; conflicting edits on the other side were skipped.`,
 };
 
 export function getCollaborationSyncSurfaceMessages(locale: Locale): CollaborationSyncSurfaceMessages {

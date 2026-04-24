@@ -9,6 +9,7 @@ import { ModalPanel } from './ui';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay, loadUserOverrides, saveUserOverride, removeUserOverride, resetUserOverrides, type KeyCombo } from '../services/KeybindingService';
 import { aiChatProviderDefinitions, normalizeAiChatSettings, type AiChatSettings, type AiChatProviderKind } from '../ai/providers/providerCatalog';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
+import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
 import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
 import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
 import type { Locale } from '../i18n';
@@ -34,6 +35,12 @@ import { persistAcousticProviderRuntimeConfig, resolveAcousticProviderRuntimeCon
 import { loadEmbeddingProviderConfig, saveEmbeddingProviderConfig, type EmbeddingProviderConfig } from '../pages/TranscriptionPage.helpers';
 import type { EmbeddingProviderKind } from '../ai/embeddings/EmbeddingProvider';
 import type { ExtensionCapabilityInvocationRecord, ExtensionListItem } from '../extensions/extensionRegistry';
+import {
+  readBackupReminderEnabled,
+  snoozeBackupReminder,
+  writeBackupReminderEnabled,
+} from '../utils/backupExportReminderState';
+import { readDbIntegrityProbeEnabled, writeDbIntegrityProbeEnabled } from '../utils/dbIntegrityPreference';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -89,7 +96,7 @@ export interface SettingsModalProps {
   /** 主题切换回调 | Theme change handler */
   onThemeChange: (mode: ThemeMode) => void;
   /** 语言切换回调 | Locale change handler */
-  onLocaleChange: (locale: Locale) => void;
+  onLocaleChange: (locale: Locale) => void | Promise<void>;
   /** 当前字体缩放值 | Current UI font scale */
   fontScale: number;
   /** 字体缩放模式 | UI font scale mode */
@@ -369,10 +376,19 @@ export const SettingsModal = memo(function SettingsModal({
   const [extensionsPanel, setExtensionsPanel] = useState<ExtensionsPanelState>({ kind: 'idle' });
   const msg = getSettingsModalMessages(locale);
   const shortcutsMsg = getShortcutsPanelMessages(locale);
+  const resilienceMsg = useMemo(() => getAppDataResilienceMessages(locale), [locale]);
+  const [backupReminderEnabled, setBackupReminderEnabled] = useState(() => readBackupReminderEnabled());
+  const [dbIntegrityProbeEnabled, setDbIntegrityProbeEnabled] = useState(() => readDbIntegrityProbeEnabled());
   const settingsShellTextDirection = useMemo(
     () => resolveTextDirectionFromLocale(locale),
     [locale],
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setBackupReminderEnabled(readBackupReminderEnabled());
+    setDbIntegrityProbeEnabled(readDbIntegrityProbeEnabled());
+  }, [isOpen]);
 
   // ── 配色主题 | Appearance theme ──
   const [activeTheme, setActiveTheme] = useState<ThemeId>(() => getTheme());
@@ -1483,6 +1499,46 @@ export const SettingsModal = memo(function SettingsModal({
                   </button>
                 </div>
                 {voiceDockPositionResetAt ? <div className="settings-data-cleared">{msg.dataCleared}</div> : null}
+              </SettingsSection>
+
+              <SettingsSection title={msg.dataResilienceSectionTitle}>
+                <SettingRow label={resilienceMsg.settingsBackupReminderLabel}>
+                  <input
+                    type="checkbox"
+                    checked={backupReminderEnabled}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      writeBackupReminderEnabled(v);
+                      setBackupReminderEnabled(v);
+                    }}
+                    aria-label={resilienceMsg.settingsBackupReminderLabel}
+                  />
+                </SettingRow>
+                <p className="small-text settings-icon-effect-hint">{resilienceMsg.settingsBackupReminderHint}</p>
+                <SettingRow label={resilienceMsg.settingsDbIntegrityProbeLabel}>
+                  <input
+                    type="checkbox"
+                    checked={dbIntegrityProbeEnabled}
+                    onChange={(e) => {
+                      const v = e.target.checked;
+                      writeDbIntegrityProbeEnabled(v);
+                      setDbIntegrityProbeEnabled(v);
+                    }}
+                    aria-label={resilienceMsg.settingsDbIntegrityProbeLabel}
+                  />
+                </SettingRow>
+                <p className="small-text settings-icon-effect-hint">{resilienceMsg.settingsDbIntegrityProbeHint}</p>
+                <div className="settings-data-row">
+                  <button
+                    type="button"
+                    className="settings-link-btn"
+                    onClick={() => {
+                      snoozeBackupReminder();
+                    }}
+                  >
+                    {msg.dataResilienceSnoozeBackup}
+                  </button>
+                </div>
               </SettingsSection>
 
               <SettingsSection title={msg.tabData}>

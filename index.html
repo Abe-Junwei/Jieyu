@@ -17,8 +17,11 @@
       object-src  'none';
       base-uri    'self';
       form-action 'self';
-      frame-ancestors 'self';
+      frame-ancestors 'none';
     " />
+    <!-- B-2：同源 preload（不引入第三方、不放宽 CSP）。`preconnect href="/"` 会在 Vite 构建阶段被当成目录解析，故省略 | Same-origin preloads; omit root preconnect (Vite resolves "/" as FS dir) -->
+    <link rel="preload" href="/fonts/material-symbols.css" as="style" />
+    <link rel="preload" href="/fonts/MaterialSymbolsOutlined.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- 自托管图标字体，消除 Google Fonts 供应链风险 | Self-hosted icon font, eliminates Google Fonts supply-chain risk -->
     <link rel="stylesheet" href="/fonts/material-symbols.css" />

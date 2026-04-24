@@ -1,4 +1,10 @@
+import { createLogger } from '../observability/logger';
+import { normalizeLocale, type Locale } from '../i18n';
+import { getCollaborationSyncSurfaceMessages } from '../i18n/collaborationSyncSurfaceMessages';
+import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { type FieldValue } from './collaborationConflictRuntime';
+
+const crossDeviceLog = createLogger('collaborationCrossDevice');
 
 export type VectorClock = Record<string, number>;
 
@@ -43,6 +49,18 @@ export interface CrossDeviceConsistencyResult {
 
 export interface MergeCrossDeviceOptions {
   driftBudgetMs?: number;
+  /** 用于合并提示文案；不传则从 `document.documentElement.lang` 推断 */
+  surfaceLocale?: Locale;
+}
+
+function resolveCollaborationSurfaceLocale(options: MergeCrossDeviceOptions | undefined): Locale {
+  if (options?.surfaceLocale) {
+    return options.surfaceLocale;
+  }
+  if (typeof document !== 'undefined' && document.documentElement?.lang) {
+    return normalizeLocale(document.documentElement.lang) ?? 'en-US';
+  }
+  return 'en-US';
 }
 
 function stableStringify(value: unknown): string {
@@ -187,6 +205,30 @@ export function mergeCrossDeviceReplicas(
     if (!(key in mergedFields)) {
       mergedFields[key] = value;
     }
+  }
+
+  let concurrentFieldLoserDiscarded = 0;
+  for (const key of Object.keys(loser.fields)) {
+    if (key in winner.fields) {
+      if (stableStringify(winner.fields[key]) !== stableStringify(loser.fields[key])) {
+        concurrentFieldLoserDiscarded += 1;
+        crossDeviceLog.warn('mergeCrossDeviceReplicas: same-key field value differs; kept winner, discarded loser', {
+          entityId: local.entityId,
+          key,
+          winnerDeviceId: winner.deviceId,
+          loserDeviceId: loser.deviceId,
+        });
+      }
+    }
+  }
+  if (concurrentFieldLoserDiscarded > 0) {
+    const locale = resolveCollaborationSurfaceLocale(options);
+    const m = getCollaborationSyncSurfaceMessages(locale);
+    dispatchAppGlobalToast({
+      message: m.mergeLoserFieldsSuperseded(concurrentFieldLoserDiscarded),
+      variant: 'warning',
+      autoDismissMs: 9_000,
+    });
   }
 
   const merged: CrossDeviceReplica = {

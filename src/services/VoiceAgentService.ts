@@ -600,9 +600,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
     Earcon.playActivate();
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this._voiceActivateToken += 1;
+    const pendingExclusiveStart = this._exclusiveStartPromise;
     this._exclusiveStartPromise = null;
+    if (pendingExclusiveStart) {
+      try {
+        await pendingExclusiveStart;
+      } catch {
+        /* _runExclusiveStart may reject; continue to release the mic */
+      }
+    }
     this._dictationPipeline?.stop();
     this._dictationPipeline = null;
     this._speechQuality?.stop();
@@ -625,7 +633,7 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   async toggle(targetMode?: VoiceAgentMode): Promise<void> {
     if (this._listening) {
-      this.stop();
+      await this.stop();
     } else {
       await this.start(targetMode);
     }
@@ -1021,9 +1029,17 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   // ── Cleanup ────────────────────────────────────────────────────────────
 
-  dispose(): void {
+  async dispose(): Promise<void> {
     this._voiceActivateToken += 1;
+    const pendingExclusiveStart = this._exclusiveStartPromise;
     this._exclusiveStartPromise = null;
+    if (pendingExclusiveStart) {
+      try {
+        await pendingExclusiveStart;
+      } catch {
+        /* ignore */
+      }
+    }
     document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
     this._dictationPipeline?.stop();
@@ -1063,9 +1079,9 @@ export function getVoiceAgentService(): VoiceAgentService | null {
   return _instance;
 }
 
-export function createVoiceAgentService(options: VoiceAgentServiceOptions = {}): VoiceAgentService {
+export async function createVoiceAgentService(options: VoiceAgentServiceOptions = {}): Promise<VoiceAgentService> {
   if (_instance) {
-    _instance.dispose();
+    await _instance.dispose();
   }
   _instance = new VoiceAgentService(options);
   return _instance;

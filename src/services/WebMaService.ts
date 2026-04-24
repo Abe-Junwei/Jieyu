@@ -14,7 +14,7 @@
  *
  * CORS: BAS does not support direct browser requests. Set `corsProxyUrl` in
  * config to your own proxy (e.g., a Cloudflare Worker or Express relay).
- * The proxy must forward requests to the same host as {@link BAS_BASE_URL}.
+ * The proxy must forward requests to the same host as {@link getBasWebServicesBaseUrl}.
  * Official BAS Web Services are documented under `phonetik.uni-muenchen.de` (CLARIN);
  * this client targets the legacy G2Align CGI path — keep the base URL aligned with your deployment.
  *
@@ -80,9 +80,20 @@ const DEFAULT_CONFIG: Required<WebMaConfig> = {
   maxPollAttempts: 30,
 };
 
-const BAS_BASE_URL = 'https://webservice.bas.uni-muenchen.de';
-const SUBMIT_ENDPOINT = `${BAS_BASE_URL}/cgi-bin/G2Align/G2AlignSrv.exe`;
-const POLL_ENDPOINT = SUBMIT_ENDPOINT;
+const BAS_WEBSERVICES_DEFAULT = 'https://webservice.bas.uni-muenchen.de';
+
+/** BAS Web Services host (no trailing slash). Override with `VITE_BAS_WEBSERVICES_BASE_URL` (CRITICAL-6). */
+export function getBasWebServicesBaseUrl(): string {
+  const raw = import.meta.env?.VITE_BAS_WEBSERVICES_BASE_URL;
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    return raw.replace(/\/$/, '');
+  }
+  return BAS_WEBSERVICES_DEFAULT;
+}
+
+function basSubmitEndpoint(): string {
+  return `${getBasWebServicesBaseUrl()}/cgi-bin/G2Align/G2AlignSrv.exe`;
+}
 
 // ── WAV Encoding ─────────────────────────────────────────────────────────────
 
@@ -303,8 +314,8 @@ export class WebMaServiceClient {
     onProgress?.({ status: 'submitting', message: 'Submitting to WebMAUS…' });
 
     const submitUrl = corsProxyUrl
-      ? `${corsProxyUrl.replace(/\/$/, '')}/${encodeURIComponent(SUBMIT_ENDPOINT)}`
-      : SUBMIT_ENDPOINT;
+      ? `${corsProxyUrl.replace(/\/$/, '')}/${encodeURIComponent(basSubmitEndpoint())}`
+      : basSubmitEndpoint();
 
     let submitResp: Response;
     try {
@@ -335,11 +346,10 @@ export class WebMaServiceClient {
     for (let attempt = 0; attempt < maxPollAttempts; attempt++) {
       await sleep(pollIntervalMs);
 
+      const pollBase = `${basSubmitEndpoint()}?ANNOTATION=${service}&TASKID=${taskId}`;
       const pollUrl = corsProxyUrl
-        ? `${corsProxyUrl.replace(/\/$/, '')}/${encodeURIComponent(
-            `${POLL_ENDPOINT}?ANNOTATION=${service}&TASKID=${taskId}`,
-          )}`
-        : `${POLL_ENDPOINT}?ANNOTATION=${service}&TASKID=${taskId}`;
+        ? `${corsProxyUrl.replace(/\/$/, '')}/${encodeURIComponent(pollBase)}`
+        : pollBase;
 
       let pollResp: Response;
       try {

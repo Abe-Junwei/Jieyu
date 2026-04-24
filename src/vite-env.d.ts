@@ -26,6 +26,8 @@ interface ImportMetaEnv {
 	readonly VITE_OTEL_INJECT_TRACE_CONTEXT_HEADERS?: string;
 	readonly VITE_MAP_PROXY_BASE_URL?: string;
 	readonly VITE_MAP_PROXY_FALLBACK_ON_ERROR?: string;
+	/** BAS Web Services / WebMAUS host (no trailing slash), e.g. Munich BAS deployment */
+	readonly VITE_BAS_WEBSERVICES_BASE_URL?: string;
 	readonly VITE_SUPABASE_URL?: string;
 	readonly VITE_SUPABASE_ANON_KEY?: string;
 }

@@ -300,7 +300,9 @@ describe('App shell', () => {
     fireEvent.click(within(settingsDialog).getByRole('tab', { name: '语言' }));
     fireEvent.click(within(settingsDialog).getByRole('button', { name: /^English$/ }));
 
-    expect(window.localStorage.getItem('jieyu.locale')).toBe('en-US');
+    await waitFor(() => {
+      expect(window.localStorage.getItem('jieyu.locale')).toBe('en-US');
+    });
     expect(screen.getAllByRole('link', { name: 'Transcription' }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText('Feature panel content area').length).toBeGreaterThan(0);
 

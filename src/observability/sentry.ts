@@ -1,3 +1,5 @@
+import { deepScrubPlainObjectForObservability } from './logger';
+
 export interface SentryBootstrapEnv {
   PROD: boolean;
   MODE: string;
@@ -55,6 +57,18 @@ export async function initSentryForReleaseStage(): Promise<void> {
   await initSentryWithResolvedConfig(config);
 }
 
+function scrubUnknownForSentry(value: unknown): unknown {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => scrubUnknownForSentry(item));
+  }
+  if (typeof value === 'object' && !Array.isArray(value)) {
+    return deepScrubPlainObjectForObservability(value as Record<string, unknown>);
+  }
+  return value;
+}
+
 export async function initSentryWithResolvedConfig(
   config: ResolvedSentryBootstrapConfig,
   loadSentryRuntime: SentryRuntimeLoader = () => import('@sentry/react'),
@@ -70,24 +84,16 @@ export async function initSentryWithResolvedConfig(
       if ('user' in event) {
         delete event.user;
       }
-      // 清理面包屑和扩展数据中的敏感信息 | Scrub PII from breadcrumbs & extras
+      // 清理面包屑和扩展数据中的敏感信息 | Scrub PII from breadcrumbs & extras (deep, nested objects)
       if (event.breadcrumbs) {
         for (const bc of event.breadcrumbs) {
           if (bc.data) {
-            for (const key of Object.keys(bc.data)) {
-              if (/api.?key|token|password|secret|authorization/i.test(key)) {
-                bc.data[key] = '[REDACTED]';
-              }
-            }
+            bc.data = scrubUnknownForSentry(bc.data) as Record<string, unknown>;
           }
         }
       }
       if (event.extra) {
-        for (const key of Object.keys(event.extra)) {
-          if (/api.?key|token|password|secret|authorization/i.test(key)) {
-            event.extra[key] = '[REDACTED]';
-          }
-        }
+        event.extra = deepScrubPlainObjectForObservability(event.extra as Record<string, unknown>) as typeof event.extra;
       }
       return event;
     };

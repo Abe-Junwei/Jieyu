@@ -69,7 +69,15 @@ export function useVoiceAgentTransportControls({
 }: UseVoiceAgentTransportControlsOptions) {
   const stop = useCallback(async () => {
     voiceActivateGenerationRef.current += 1;
+    const pendingExclusiveStart = exclusiveStartPromiseRef.current;
     exclusiveStartPromiseRef.current = null;
+    if (pendingExclusiveStart) {
+      try {
+        await pendingExclusiveStart;
+      } catch {
+        /* start() may reject; still proceed to hard-stop the mic */
+      }
+    }
     stopDictationPipeline();
     serviceRef.current?.stop();
     clearRecordingDurationTimer(recordingDurationIntervalRef);

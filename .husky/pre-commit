@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+set -eu
+# D-4：与 CI 互补的轻量门禁（仅 changed；全量仍以 CI 为准）
+npm run check:i18n-hardcoded:changed
+npm run check:translation-host-link-ssot:changed

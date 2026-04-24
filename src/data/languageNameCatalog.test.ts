@@ -19,6 +19,8 @@ describe('languageNameCatalog', () => {
         'es-ES': 'francés',
         'de-DE': 'Französisch',
       },
+      latitude: 48,
+      longitude: 2,
     });
   });
 

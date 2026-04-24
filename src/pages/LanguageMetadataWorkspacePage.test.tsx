@@ -125,61 +125,6 @@ vi.mock('country-state-city', () => ({
   },
 }));
 
-vi.mock('react-select', () => ({
-  __esModule: true,
-  default: ({
-    options = [],
-    value,
-    onChange,
-    isMulti = false,
-    isDisabled = false,
-    placeholder,
-    'aria-label': ariaLabel,
-  }: {
-    options?: Array<{ value: string; label: string }>;
-    value?: { value: string; label: string } | Array<{ value: string; label: string }> | null;
-    onChange?: (nextValue: unknown) => void;
-    isMulti?: boolean;
-    isDisabled?: boolean;
-    placeholder?: string;
-    'aria-label'?: string;
-  }) => {
-    const currentValue = isMulti
-      ? Array.isArray(value)
-        ? value.map((item) => item.value)
-        : []
-      : !Array.isArray(value) && value
-        ? value.value
-        : '';
-
-    return (
-      <select
-        aria-label={ariaLabel}
-        disabled={isDisabled}
-        multiple={isMulti}
-        value={currentValue}
-        onChange={(event) => {
-          if (isMulti) {
-            const nextValue = Array.from(event.currentTarget.selectedOptions)
-              .map((option) => options.find((item) => item.value === option.value) ?? null)
-              .filter((item): item is { value: string; label: string } => item !== null);
-            onChange?.(nextValue);
-            return;
-          }
-
-          const nextValue = options.find((item) => item.value === event.currentTarget.value) ?? null;
-          onChange?.(nextValue);
-        }}
-      >
-        {!isMulti ? <option value="">{placeholder ?? ''}</option> : null}
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-    );
-  },
-}));
-
 vi.mock('../components/LanguageMapEmbed', () => ({
   LanguageMapEmbed: ({
     latitude,

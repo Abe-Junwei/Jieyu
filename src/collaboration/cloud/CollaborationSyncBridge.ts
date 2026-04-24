@@ -30,6 +30,8 @@ import type {
 } from './syncTypes';
 import { parsePostgresProjectChangeRow } from './projectChangeRowParse';
 
+const OUTBOUND_PENDING_SAVE_DEBOUNCE_MS = 500;
+
 export interface CollaborationSyncBridgeOptions {
   projectId: string;
   onApplyRemoteChange: (change: CollaborationProjectChangeRecord) => Promise<void>;
@@ -62,6 +64,8 @@ export class CollaborationSyncBridge {
   private readonly auditLogService = new CollaborationAuditLogService();
   private channel: RealtimeChannel | null = null;
   private started = false;
+  private outboundSaveDebounce: ReturnType<typeof setTimeout> | null = null;
+  private lastOutboundPendingSnapshot: CollaborationProjectChangeRecord[] = [];
 
   constructor(private readonly options: CollaborationSyncBridgeOptions) {
     this.inbound = new CollaborationInboundApplier({
@@ -69,12 +73,26 @@ export class CollaborationSyncBridge {
     });
     const initialPendingChanges = options.initialOutboundPending
       ?? loadProjectPendingOutboundChanges(options.projectId);
+    this.lastOutboundPendingSnapshot = initialPendingChanges.slice();
     this.outbound = new CollaborationOutboundQueue({
       sender: options.onSendLocalChanges,
       initialPending: initialPendingChanges,
       onPendingChanged: (pending) => {
-        saveProjectPendingOutboundChanges(options.projectId, pending);
+        this.lastOutboundPendingSnapshot = pending;
         options.onOutboundPendingSizeChanged?.(pending.length);
+        if (this.outboundSaveDebounce !== null) {
+          clearTimeout(this.outboundSaveDebounce);
+          this.outboundSaveDebounce = null;
+        }
+        // 空队列必须立刻落盘（flush 成功后的清空），避免 debounce 导致测试/崩溃前仍为旧值 |
+        if (pending.length === 0) {
+          saveProjectPendingOutboundChanges(options.projectId, this.lastOutboundPendingSnapshot);
+        } else {
+          this.outboundSaveDebounce = setTimeout(() => {
+            this.outboundSaveDebounce = null;
+            saveProjectPendingOutboundChanges(options.projectId, this.lastOutboundPendingSnapshot);
+          }, OUTBOUND_PENDING_SAVE_DEBOUNCE_MS);
+        }
       },
       ...(options.flushIntervalMs !== undefined ? { flushIntervalMs: options.flushIntervalMs } : {}),
       ...(options.maxBatchSize !== undefined ? { maxBatchSize: options.maxBatchSize } : {}),
@@ -117,6 +135,11 @@ export class CollaborationSyncBridge {
   }
 
   async stop(): Promise<void> {
+    if (this.outboundSaveDebounce !== null) {
+      clearTimeout(this.outboundSaveDebounce);
+      this.outboundSaveDebounce = null;
+      saveProjectPendingOutboundChanges(this.options.projectId, this.lastOutboundPendingSnapshot);
+    }
     this.outbound.stop();
     if (this.channel) {
       await this.channel.unsubscribe();

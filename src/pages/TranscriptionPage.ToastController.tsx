@@ -7,18 +7,12 @@ import { useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import type { SaveState } from '../hooks/transcriptionTypes';
 import { isDictKey } from '../i18n';
-import { FIRE_AND_FORGET_ERROR_EVENT, type FireAndForgetErrorDetail } from '../utils/fireAndForget';
+import {
+  useFireAndForgetErrorToast,
+  useToastControllerWindowEvents,
+} from '../components/transcription/useToastControllerWindowEffects';
 
 type VoiceToastMode = 'command' | 'dictation' | 'analysis';
-
-type TaskRecoveredDetail = { count: number };
-
-type WebllmWarmupDetail = {
-  status?: 'success' | 'error' | 'cancelled';
-  message?: string;
-};
-
-const WINDOW_TOAST_EVENTS = ['taskrunner:stale-recovered', 'ai:webllm-warmup'] as const;
 
 function resolveVoiceToastMode(mode: string): VoiceToastMode | null {
   if (mode === 'command' || mode === 'dictation' || mode === 'analysis') {
@@ -152,54 +146,17 @@ export function ToastController({
     }
   }, [shouldSyncVoice, voiceAgent.agentState, voiceAgent.isRecording, voiceAgent.listening, voiceAgent.mode, showVoiceState]);
 
-  // TaskRunner stale task recovery + WebLLM warmup events → toast
-  useEffect(() => {
-    if (!shouldSyncCore) return;
+  useToastControllerWindowEvents({
+    enabled: shouldSyncCore,
+    showToast,
+    tf,
+  });
 
-    const dispatchWindowToastEvent = (eventName: (typeof WINDOW_TOAST_EVENTS)[number], e: Event) => {
-      if (eventName === 'taskrunner:stale-recovered') {
-        const count = (e as CustomEvent<TaskRecoveredDetail>).detail?.count ?? 0;
-        if (count > 0) {
-          showToast(tf('transcription.toast.taskRecovered', { count }), 'info');
-        }
-        return;
-      }
-
-      const detail = (e as CustomEvent<WebllmWarmupDetail>).detail;
-      if (!detail?.message) return;
-      showToast(detail.message, detail.status === 'error' ? 'error' : 'info', 2000);
-    };
-
-    const listeners = WINDOW_TOAST_EVENTS.map((eventName) => {
-      const listener = (e: Event) => dispatchWindowToastEvent(eventName, e);
-      window.addEventListener(eventName, listener);
-      return { eventName, listener };
-    });
-
-    return () => {
-      listeners.forEach(({ eventName, listener }) => {
-        window.removeEventListener(eventName, listener);
-      });
-    };
-  }, [shouldSyncCore, showToast, tf]);
-
-  // 未处理的 fire-and-forget 错误转为可见 toast，避免仅落到控制台 | Surface unhandled fire-and-forget errors as visible toasts instead of console-only logs
-  useEffect(() => {
-    if (!shouldSyncCore) return;
-    const listener = (event: Event) => {
-      const detail = (event as CustomEvent<FireAndForgetErrorDetail>).detail;
-      const context = detail?.context?.trim() ?? '';
-      if (context.length > 0) {
-        showToast(tf('transcription.toast.asyncActionFailedWithContext', { context }), 'error');
-        return;
-      }
-      showToast(tf('transcription.toast.asyncActionFailed'), 'error');
-    };
-    window.addEventListener(FIRE_AND_FORGET_ERROR_EVENT, listener);
-    return () => {
-      window.removeEventListener(FIRE_AND_FORGET_ERROR_EVENT, listener);
-    };
-  }, [shouldSyncCore, showToast, tf]);
+  useFireAndForgetErrorToast({
+    enabled: shouldSyncCore,
+    showToast,
+    tf,
+  });
 
   // This component renders nothing — it only manages side-effects via the toast context.
   return null;

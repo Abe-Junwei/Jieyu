@@ -12,6 +12,7 @@ import { DexieCollectionAdapter, TierBackedLayerCollectionAdapter, resolveBridge
 import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitCutover';
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
+import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
 
 /**
  * IndexedDB 物理库名。绿场重置时抬升后缀，使旧库 `jieyudb` 留在磁盘但应用不再打开。
@@ -1198,9 +1199,29 @@ export type JieyuDatabase = {
   close: () => Promise<void>;
 };
 
+const BACKUP_REMINDER_HOOK_TABLES = ['layer_units', 'layer_unit_contents', 'tier_annotations'] as const;
+
+function registerIndexedDbMutationBackupHooks(dexie: JieyuDexie): void {
+  const tagged = dexie as unknown as { __jieyuBackupHooksRegistered?: boolean };
+  if (tagged.__jieyuBackupHooksRegistered) {
+    return;
+  }
+  tagged.__jieyuBackupHooksRegistered = true;
+  const onMutate = () => {
+    markBackupDirtySinceLastExport();
+  };
+  for (const tableName of BACKUP_REMINDER_HOOK_TABLES) {
+    const table = dexie.table(tableName);
+    table.hook('creating', onMutate);
+    table.hook('updating', onMutate);
+    table.hook('deleting', onMutate);
+  }
+}
+
 async function _createDb(): Promise<JieyuDatabase> {
   const dexie = getOrCreateDexie();
   await dexie.open();
+  registerIndexedDbMutationBackupHooks(dexie);
 
   const collections: JieyuCollections = {
     texts: new DexieCollectionAdapter(dexie.texts, validateTextDoc),

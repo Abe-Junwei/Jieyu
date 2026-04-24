@@ -2,14 +2,34 @@
 
 > 文档版本：2026-04-24
 > 适用范围：解语濒危语言研究平台（TypeScript/React 全栈项目）
-> 整改项总数：30 项（CRITICAL 6 项 + HIGH 15 项 + ARCH 10 项）
+> 整改项总数：30 项（**CRITICAL 6 项 — 已在 2026-04-24 全部标记完成**；HIGH 15 项 + ARCH 10 项）
+
+## 与《工程审计勘误》对账（F-4）
+
+**代码级缺陷与迁移风险**以本文件为清单；**构建 / 离线壳 / 依赖卫生 / a11y 路线** 与勘误表 **Phase A–F** 正交，见  
+[`docs/execution/audits/工程审计勘误与全面修复计划-2026-04-24.md`](./execution/audits/工程审计勘误与全面修复计划-2026-04-24.md)。  
+跟踪时建议 **交叉引用 ID**：Issue / PR 标题或描述中同时写 **本清单编号**（如 `HIGH-12`）与 **勘误 Phase ID**（如 `F-3`），避免「修了 Toast 以为修了写入防抖」类误解。
+
+### Phase F（数据韧性）与本清单条目对照
+
+| 勘误 Phase F | 本清单中主要相关项 | 说明 |
+| --- | --- | --- |
+| **F-1** 周期性全量备份提醒 | （无直接 CRITICAL/HIGH 编号） | 产品侧降低数据丢失感知风险；与 **CRITICAL-1** 迁移修复、**ARCH-3** 事务包装正交。 |
+| **F-2** 启动后 DB 轻量自检 | **CRITICAL-1**（及迁移/修复类 HIGH） | F-2 为运行态 **`probeJieyuDatabaseIntegrity`**（关键表可读），**不替代**迁移脚本与数据修复；自检失败时请仍按 CRITICAL-1 等路径处理已损坏库。 |
+| **F-3** 协作 `localStorage` 配额降级 + 用户 Toast | **HIGH-12**、**HIGH-10**（及 **CRITICAL-4** 语义） | F-3 覆盖 **`CollaborationClientStateStore`** 在 **`QuotaExceededError`** 下的 **volatile overlay + IndexedDB 镜像 + `dispatchAppGlobalToast`**（约 90s 冷却）。**HIGH-12**（出站队列高频写 `localStorage`）仍待防抖/批量写入，与 F-3 **互补**。**HIGH-10** / **CRITICAL-4** 为冲突合并与事务语义问题，与配额链 **不同**，但验收协作体验时可与 F-3 一并回归。 |
+
+实现锚点（便于 Code review）：`src/utils/backupExportReminderState.ts`、`src/hooks/useAppDataResilienceEffects.ts`、`src/db/dbIntegrityProbe.ts`、`src/components/DbIntegrityBlockingOverlay.tsx`、`src/utils/appGlobalToast.ts`、`src/components/AppGlobalToastHost.tsx`、`src/collaboration/cloud/CollaborationClientStateStore.ts`。
 
 ---
 
 ## 1. 紧急修复（Phase 1 - 立即，本周）
 
+> **完成状态**（2026-04-24）：本节 **CRITICAL-1 — CRITICAL-6 共六项均已闭环**；各小节下 **状态** 行为准。未单独实现的原文要求（如 CRITICAL-3 的 `AbortController` / 显式五态状态机、CRITICAL-1 的“自动创建备份”自动脚本）在 **状态** 中说明为“已用等价方案替代”或“产品侧/手动”。
+
 ### 1.1 数据库迁移 v11 错误地将同一 textId 分配给所有翻译层
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：`engine` v11 升级为按层 `resolveTextIdForLayer`（`unit_texts` + `units` 推断，非全表单值）；事后纠偏见 `src/db/repair/migrateV11TextIdRepair.ts` 之 `repairTranslationTierTextIdsFromLayerContents`；**备份**按 JSDoc 由调用方在跑修复前**自行导出/快照**（未接自动全库备份任务）。
 - **编号**：CRITICAL-1
 - **位置**：`src/db/engine.ts:466-489`
 - **问题**：v11 迁移对所有 translation layer 行统一设置了相同的 `textId`，未通过 `units` 表建立 layer 与所属 text 的正确映射。翻译数据归属错乱，修复前产生的数据已不可信。
@@ -18,11 +38,14 @@
   2. 编写修复脚本 `src/db/repair/migrateV11TextIdRepair.ts`，对已损坏数据库检测并修正
   3. 执行前自动创建备份快照
 - **难度**：中 | **风险**：高（涉及数据迁移）| **阶段**：Phase 1
+- **勘误交叉引用**：工程审计 **F-2**（见 [`工程审计勘误与全面修复计划`](./execution/audits/工程审计勘误与全面修复计划-2026-04-24.md) §Phase F）为 IndexedDB **运行态**轻量自检，**不能**替代本项迁移/修复脚本。
 
 ---
 
 ### 1.2 Copy-paste 错误导致分支判断失效
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：`linguisticSubgraphHostIdFromRow` 对 token / morpheme 统一为 `unitId ?? segmentId`；`m18LinguisticUnitCutover.test` 已覆盖 `segmentId` 仅 morpheme 行等场景。
 - **编号**：CRITICAL-2
 - **位置**：`src/db/migrations/m18LinguisticUnitCutover.ts:27-29`
 - **问题**：if/else 两个分支都检查了 `row.unitId`。其中一个分支应检查另一个字段名。
@@ -36,6 +59,8 @@
 
 ### 1.3 VoiceAgent 开关竞态条件导致麦克风持续占用
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：`useVoiceAgentTransportControls` 与 `VoiceAgentService` 在 `stop` / `dispose` 时**先 `await` 进行中的独占 `start` Promise** 再关麦；`toggle` / `createVoiceAgentService` 已配合异步关停。未再单独引入 `AbortController` 或五态显式状态机，**与现有 `voiceActivateToken` + `exclusiveStartPromise` 机制等价**。
 - **编号**：CRITICAL-3
 - **位置**：`src/services/VoiceAgentService.ts:466-531`
 - **问题**：`start()` 是异步方法，`stop()` 是同步的。快速切换时 `stop()` 无法关闭仍在初始化中的麦克风。
@@ -49,6 +74,8 @@
 
 ### 1.4 协作事务"回滚"实际不执行回滚
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：`createBestEffortCleanupPlan` 替代误导性名称（保留 `createTransactionalRollbackPlan` 别名）；`executeTransactionalReplicaSync` 在 `status === 'rolled-back'` 时**结构化 warn + 尽力 Sentry `captureMessage`**。真正持久化回滚仍属后续 Phase 规划。
 - **编号**：CRITICAL-4
 - **位置**：`src/collaboration/collaborationTransactionSyncRuntime.ts:105-174`
 - **问题**：事务回滚标记为 "rollback" 但未执行任何逆向操作。已变更数据不会被还原。
@@ -58,11 +85,14 @@
   3. 为失败事务添加 Sentry 告警上报
   4. 真正回滚的实现在 Phase 3 完成
 - **难度**：高 | **风险**：高 | **阶段**：Phase 1（优先方案 2：语义澄清 + 告警）
+- **勘误交叉引用**：协作存储/同步体验验收时可与 **F-3**（见 [`工程审计勘误与全面修复计划`](./execution/audits/工程审计勘误与全面修复计划-2026-04-24.md) §Phase F）配额降级 + Toast **一并回归**；二者问题域不同（回滚语义 vs `localStorage` 配额）。
 
 ---
 
 ### 1.5 Rules of Hooks 违规
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：核验 `GroundingContext.tsx` 中 `HotspotsCard` 的 `useId()` 位于早退 `return null` **之前**；`CorpusCard` 无在早退之后的 Hook。**无需改代码。**
 - **编号**：CRITICAL-5
 - **位置**：`src/ai/voice/GroundingContext.tsx:103-104`
 - **问题**：`useId()` 在条件 `return null` 之后调用，违反 Hooks 必须顶层无条件调用的规则。
@@ -73,6 +103,8 @@
 
 ### 1.6 WebMa 服务域名可疑
 
+- **状态**：**已完成**（2026-04-24）
+- **落地摘要**：默认基址为慕尼黑 BAS **`webservice.bas.uni-muenchen.de`**；可通过 **`VITE_BAS_WEBSERVICES_BASE_URL`** 覆盖。清单中原 `.ac.kr` 与当前实现不符，以代码及 env 为准。
 - **编号**：CRITICAL-6
 - **位置**：`src/services/WebMaService.ts:81`
 - **问题**：当前域名为 `.ac.kr`（韩国学术机构），正确域名可能应为 `.de`
@@ -85,6 +117,8 @@
 ---
 
 ## 2. 短期整改（Phase 2 - 1-2 个迭代）
+
+> **进度**（2026-04-24）：已落地 **HIGH-4、5、6、7、8、10、11、12、14** 及 **`ToastVariant` 增加 `warning`**、**`TranscriptionPage.ReadyWorkspace` 深链/shape 与只读 timeline 类型** 等配套修改。**HIGH-1** 对 `layer_unit_contents` / `unit_relations` / `tier_definitions` 等与 `types` 的 optional/required 在现行 `schemas` 中已一致（见代码审查）。**HIGH-2** 代码库中已无 `validateUnitDoc`/`unitDocSchema` 引用。**HIGH-3** `languageCatalogHistoryDocSchema` 已含 `reasonCode`/`beforePatch` 等字段。**HIGH-9** `SpeakerRailProvider` 已用 `useMemo` 包裹 value。**HIGH-13**（CSP 收紧 `https:` 通配符）未改：需枚举全站可信域后再替换，避免误伤地图/云 API。
 
 ### 2.1 Zod Schema 与 TypeScript 类型不一致（3 处）
 
@@ -189,6 +223,7 @@
   2. Toast 通知用户部分修改未保存
   3. 考虑将丢弃的修改暂存到本地草稿
 - **难度**：中 | **风险**：低 | **阶段**：Phase 2
+- **勘误交叉引用**：用户可见提示可复用 **`dispatchAppGlobalToast`**（见勘误 **F-3** / [`AppGlobalToastHost`](../src/components/AppGlobalToastHost.tsx)）；本项仍须补审计日志与「部分修改未保存」语义。
 
 ---
 
@@ -209,6 +244,7 @@
 - **问题**：高频协作场景下频繁同步 I/O 阻塞主线程
 - **修复**：添加防抖/批量写入机制（如 500ms 防抖或在 flush 时统一写入）
 - **难度**：低 | **风险**：低 | **阶段**：Phase 2
+- **勘误交叉引用**：与 **F-3**（见 [`工程审计勘误与全面修复计划`](./execution/audits/工程审计勘误与全面修复计划-2026-04-24.md) §Phase F）中 **`CollaborationClientStateStore`** 写入路径 **互补**——F-3 缓解 **`QuotaExceededError`** 下的落盘与用户提示；**HIGH-12** 仍应做 **防抖/批量写入** 以降低配额触发频率与主线程阻塞。
 
 ---
 

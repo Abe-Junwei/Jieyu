@@ -22,6 +22,11 @@ function readUseVoiceAgentStartControllerCode() {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function readUseVoiceAgentTransportControlsCode() {
+  const filePath = path.resolve(process.cwd(), 'src/hooks/useVoiceAgentTransportControls.ts');
+  return fs.readFileSync(filePath, 'utf8');
+}
+
 function countMatches(code: string, pattern: RegExp): number {
   return Array.from(code.matchAll(pattern)).length;
 }
@@ -57,11 +62,13 @@ describe('useVoiceAgent structure invariants', () => {
   it('keeps runtime cleanup centralized for both voice services', () => {
     const code = readUseVoiceAgentCode();
     const startControllerCode = readUseVoiceAgentStartControllerCode();
+    const transportCode = readUseVoiceAgentTransportControlsCode();
 
     expect(code.includes('const voiceActivateGenerationRef = useRef(0);')).toBe(true);
     expect(code.includes('const exclusiveStartPromiseRef = useRef<Promise<void> | null>(null);')).toBe(true);
     expect(startControllerCode.includes('function abortStaleMicStart(')).toBe(true);
     expect(startControllerCode.includes('exclusiveStartPromiseRef.current')).toBe(true);
+    expect(transportCode.includes('await pendingExclusiveStart')).toBe(true);
 
     expect(code.includes('serviceRef.current?.dispose();')).toBe(true);
     expect(code.includes('serviceRef.current = null;')).toBe(true);

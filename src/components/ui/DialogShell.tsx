@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react';
+import { useId } from 'react';
 import { joinClassNames } from './classNames';
 
 interface DialogShellProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
@@ -35,7 +36,19 @@ export function DialogShell({
   children,
   ...divProps
 }: DialogShellProps) {
+  const titleHeadingId = useId();
   const hasHeader = title !== undefined || actions !== undefined;
+  const {
+    role: roleProp,
+    'aria-modal': ariaModalProp,
+    'aria-labelledby': ariaLabelledByProp,
+    'aria-label': ariaLabelProp,
+    ...restDivProps
+  } = divProps;
+
+  /** E-2 / 勘误表：默认可聚焦对话框语义；无标题时由调用方传 `aria-label` 或 `aria-labelledby`。 */
+  const ariaLabelledBy =
+    ariaLabelledByProp ?? (title !== undefined ? titleHeadingId : undefined);
 
   return (
     <div
@@ -49,11 +62,21 @@ export function DialogShell({
         className,
       )}
       style={layoutStyle}
-      {...divProps}
+      role={roleProp ?? 'dialog'}
+      aria-modal={ariaModalProp ?? 'true'}
+      {...(ariaLabelProp !== undefined ? { 'aria-label': ariaLabelProp } : {})}
+      {...(ariaLabelledBy !== undefined ? { 'aria-labelledby': ariaLabelledBy } : {})}
+      {...restDivProps}
     >
       {hasHeader ? (
         <div className={joinClassNames('dialog-header', headerClassName)} {...headerProps}>
-          {title !== undefined ? <h3 className={joinClassNames('dialog-shell__title', titleClassName)}>{title}</h3> : <span />}
+          {title !== undefined ? (
+            <h3 id={titleHeadingId} className={joinClassNames('dialog-shell__title', titleClassName)}>
+              {title}
+            </h3>
+          ) : (
+            <span />
+          )}
           {actions ? <div className="dialog-header-actions">{actions}</div> : null}
         </div>
       ) : null}

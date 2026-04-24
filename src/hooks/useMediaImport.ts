@@ -54,11 +54,11 @@ export function useMediaImport({
         media.addEventListener('loadedmetadata', () => {
           URL.revokeObjectURL(objectUrl);
           resolve(Number.isFinite(media.duration) ? media.duration : 0);
-        });
+        }, { once: true });
         media.addEventListener('error', () => {
           URL.revokeObjectURL(objectUrl);
           resolve(0);
-        });
+        }, { once: true });
       });
 
       // Import using the same logic as AudioImportDialog

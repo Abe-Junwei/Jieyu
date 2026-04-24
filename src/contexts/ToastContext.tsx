@@ -9,6 +9,7 @@ export type ToastVariant =
   | 'info'
   | 'success'
   | 'error'
+  | 'warning'
   | 'recording'
   | 'listening'
   | 'routing'

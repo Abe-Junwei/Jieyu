@@ -168,7 +168,9 @@ export function detectVadSegments(
  * Fetches an audio URL and decodes it into an AudioBuffer via Web Audio API.
  */
 /** Hard cap for fetch-then-decode path to avoid unbounded RAM before decodeAudioData. */
-const MAX_AUDIO_FETCH_BYTES = 250 * 1024 * 1024;
+const MAX_AUDIO_FETCH_BYTES = 10 * 1024 * 1024;
+/** Prevents OOM from unbounded `chunks.push` count on pathological chunk sizes. */
+const MAX_AUDIO_STREAM_CHUNKS = 32_768;
 
 export async function loadAudioBuffer(
   url: string,
@@ -190,6 +192,11 @@ export async function loadAudioBuffer(
       throw new Error(`Audio download exceeds safe limit (${MAX_AUDIO_FETCH_BYTES} bytes)`);
     }
     chunks.push(value);
+    if (chunks.length > MAX_AUDIO_STREAM_CHUNKS) {
+      throw new Error(
+        `Audio download chunk count exceeded safe limit (${MAX_AUDIO_STREAM_CHUNKS} chunks)`,
+      );
+    }
     if (onProgress && contentLength > 0) {
       onProgress(Math.min(loaded / contentLength, 1));
     }

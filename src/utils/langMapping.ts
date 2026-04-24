@@ -8,7 +8,7 @@
  */
 
 import languageTags from 'language-tags';
-import { listIso639_3Seeds } from '../data/iso6393Seed';
+import { listIso639_3Seeds, registerIso6393DerivedInvalidator } from '../data/iso6393Seed';
 import { getLanguageAliasCodeFromCatalog, getLanguageAliasesForCodeFromCatalog, getLanguageEnglishDisplayNameFromCatalog, getLanguageLocalDisplayNameFromCatalog, getLanguageNativeDisplayNameFromCatalog, getLanguageQueryEntriesFromCatalog } from '../data/languageNameCatalog';
 import { normalizeLanguageCatalogRuntimeLookupKey, readLanguageCatalogRuntimeCache } from '../data/languageCatalogRuntimeCache';
 import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
@@ -159,33 +159,40 @@ export const ALL_VOICE_LANG_CODES: readonly string[] =
     .filter((l) => l.code !== '__auto__')
     .map((l) => l.code);
 
-const ISO639_3_SEEDS = listIso639_3Seeds();
+// ── ISO 639-3 数据库索引（B-3：种子 JSON 异步加载后再物化）| Materialize after async ISO seed hydration
 
-// ── ISO 639-3 数据库索引 | ISO 639-3 database indexes ──
+type Iso6393SeedIndexes = {
+  dbCodeSet: ReadonlySet<string>;
+  dbNameToCode: Readonly<Record<string, string>>;
+};
 
-const ISO639_3_DB_CODE_SET: ReadonlySet<string> = new Set(
-  ISO639_3_SEEDS
-    .map((entry) => entry.iso6393.toLowerCase())
-    .filter((code) => code.length > 0),
-);
+let iso6393SeedIndexes: Iso6393SeedIndexes | undefined;
 
-const ISO639_3_DB_NAME_TO_CODE: Readonly<Record<string, string>> = (() => {
-  const map: Record<string, string> = {};
-  for (const entry of ISO639_3_SEEDS) {
-    const code = entry.iso6393.toLowerCase();
-    if (!code) continue;
+function getIso6393SeedIndexes(): Iso6393SeedIndexes {
+  if (!iso6393SeedIndexes) {
+    const seeds = listIso639_3Seeds();
+    const dbCodeSet = new Set(
+      seeds
+        .map((entry) => entry.iso6393.toLowerCase())
+        .filter((code) => code.length > 0),
+    );
+    const dbNameToCode: Record<string, string> = {};
+    for (const entry of seeds) {
+      const code = entry.iso6393.toLowerCase();
+      if (!code) continue;
 
-    const refs = [entry.name, entry.invertedName]
-      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-      .map((v) => v.trim().toLowerCase());
+      const refs = [entry.name, entry.invertedName]
+        .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
+        .map((v) => v.trim().toLowerCase());
 
-    for (const refName of refs) {
-      // 若同名映射冲突，保留首次出现，保证行为稳定 | Keep first hit on conflicts for stable behavior.
-      if (!(refName in map)) map[refName] = code;
+      for (const refName of refs) {
+        if (!(refName in dbNameToCode)) dbNameToCode[refName] = code;
+      }
     }
+    iso6393SeedIndexes = { dbCodeSet, dbNameToCode };
   }
-  return map;
-})();
+  return iso6393SeedIndexes;
+}
 
 /**
  * 将 ISO 639-3 代码转换为 BCP-47 格式。
@@ -227,13 +234,13 @@ export function toIso639_3(bcp47: string): string | undefined {
 export function knownIso639_3Codes(): readonly string[] {
   return Array.from(new Set([
     ...Object.keys(ISO639_3_TO_BCP47),
-    ...ISO639_3_DB_CODE_SET,
+    ...getIso6393SeedIndexes().dbCodeSet,
   ])).sort();
 }
 
 export function isKnownIso639_3Code(value: string): boolean {
   const normalized = value.trim().toLowerCase();
-  return normalized.length === 3 && (ISO639_3_DB_CODE_SET.has(normalized) || normalized in ISO639_3_TO_BCP47);
+  return normalized.length === 3 && (getIso6393SeedIndexes().dbCodeSet.has(normalized) || normalized in ISO639_3_TO_BCP47);
 }
 
 /**
@@ -259,7 +266,7 @@ export function resolveLanguageQuery(query: string): string | undefined {
   if (directRuntimeCode && visibleCatalogByCode[directRuntimeCode]) {
     return directRuntimeCode;
   }
-  if ((ISO639_3_DB_CODE_SET.has(q) || q in ISO639_3_TO_BCP47) && visibleCatalogByCode[q]) return q;
+  if ((getIso6393SeedIndexes().dbCodeSet.has(q) || q in ISO639_3_TO_BCP47) && visibleCatalogByCode[q]) return q;
 
   // 歧义词必须进入澄清，不应静默落到某个具体语种 | Ambiguous queries must be clarified instead of silently resolving.
   if ((AMBIGUOUS_QUERY_PRESETS[q]?.length ?? 0) > 1) return undefined;
@@ -269,7 +276,7 @@ export function resolveLanguageQuery(query: string): string | undefined {
   if (alias) return alias;
 
   // 3. ISO 639-3 名称库（英文）精确匹配 | Exact match against ISO 639-3 name database
-  const dbExact = ISO639_3_DB_NAME_TO_CODE[q];
+  const dbExact = getIso6393SeedIndexes().dbNameToCode[q];
   if (dbExact && visibleCatalogByCode[dbExact]) return dbExact;
 
   // 4 & 5. 走统一语言目录检索，保证 runtime 资产与 hidden 语义一致 | Use unified catalog search so runtime assets and hidden visibility stay consistent.
@@ -386,66 +393,79 @@ const AMBIGUOUS_QUERY_PRESETS: Readonly<Record<string, readonly string[]>> = {
   '阿拉伯语': ['ara', 'arb'],
 };
 
-const ISO639_1_TO_3: Readonly<Record<string, string>> = (() => {
-  const map: Record<string, string> = {};
-  for (const entry of ISO639_3_SEEDS) {
-    const code = entry.iso6393.toLowerCase();
-    const iso6391 = entry.iso6391?.trim().toLowerCase();
-    if (code && iso6391 && !(iso6391 in map)) {
-      map[iso6391] = code;
-    }
-  }
-  return map;
-})();
+type Iso639IsoMaps = {
+  iso1To3: Readonly<Record<string, string>>;
+  iso2To3: Readonly<Record<string, string>>;
+  macroByCode: Readonly<Record<string, string>>;
+};
 
-const ISO639_2_TO_3: Readonly<Record<string, string>> = (() => {
-  const map: Record<string, string> = {};
-  for (const entry of ISO639_3_SEEDS) {
-    const code = entry.iso6393.toLowerCase();
-    const iso6392B = entry.iso6392B?.trim().toLowerCase();
-    const iso6392T = entry.iso6392T?.trim().toLowerCase();
-    if (code && iso6392B && !(iso6392B in map)) {
-      map[iso6392B] = code;
-    }
-    if (code && iso6392T && !(iso6392T in map)) {
-      map[iso6392T] = code;
-    }
-  }
-  return map;
-})();
+let iso639IsoMaps: Iso639IsoMaps | undefined;
 
-const MACROLANGUAGE_BY_CODE: Readonly<Record<string, string>> = (() => {
-  const map: Record<string, string> = {};
-  for (const entry of ISO639_3_SEEDS) {
-    const subtag = languageTags.language(entry.iso6393) ?? languageTags.type(entry.iso6393, 'extlang');
-    if (!subtag || subtag.scope() !== 'macrolanguage') continue;
-    const macroCode = entry.iso6393.toLowerCase();
-    try {
-      for (const member of languageTags.languages(macroCode)) {
-        const memberCode = member.format().toLowerCase();
-        if (!(memberCode in map)) {
-          map[memberCode] = macroCode;
-        }
+function getIso639IsoMaps(): Iso639IsoMaps {
+  if (!iso639IsoMaps) {
+    const seeds = listIso639_3Seeds();
+    const iso1To3: Record<string, string> = {};
+    for (const entry of seeds) {
+      const code = entry.iso6393.toLowerCase();
+      const iso6391 = entry.iso6391?.trim().toLowerCase();
+      if (code && iso6391 && !(iso6391 in iso1To3)) {
+        iso1To3[iso6391] = code;
       }
-    } catch {
-      // noop
     }
+    const iso2To3: Record<string, string> = {};
+    for (const entry of seeds) {
+      const code = entry.iso6393.toLowerCase();
+      const iso6392B = entry.iso6392B?.trim().toLowerCase();
+      const iso6392T = entry.iso6392T?.trim().toLowerCase();
+      if (code && iso6392B && !(iso6392B in iso2To3)) {
+        iso2To3[iso6392B] = code;
+      }
+      if (code && iso6392T && !(iso6392T in iso2To3)) {
+        iso2To3[iso6392T] = code;
+      }
+    }
+    const macroByCode: Record<string, string> = {};
+    for (const entry of seeds) {
+      const subtag = languageTags.language(entry.iso6393) ?? languageTags.type(entry.iso6393, 'extlang');
+      if (!subtag || subtag.scope() !== 'macrolanguage') continue;
+      const macroCode = entry.iso6393.toLowerCase();
+      try {
+        for (const member of languageTags.languages(macroCode)) {
+          const memberCode = member.format().toLowerCase();
+          if (!(memberCode in macroByCode)) {
+            macroByCode[memberCode] = macroCode;
+          }
+        }
+      } catch {
+        // noop
+      }
+    }
+    iso639IsoMaps = { iso1To3, iso2To3, macroByCode };
   }
-  return map;
-})();
+  return iso639IsoMaps;
+}
+
+function invalidateLangMappingIso639Caches(): void {
+  iso6393SeedIndexes = undefined;
+  iso639IsoMaps = undefined;
+  _languageCatalogByCode = undefined;
+}
+
+registerIso6393DerivedInvalidator(invalidateLangMappingIso639Caches);
 
 // 延迟构建语言目录映射，避免模块加载时同步遍历 7867 条 × readLanguageCatalogRuntimeCache | Lazy-init to avoid O(n²) blocking on module load
 let _languageCatalogByCode: Readonly<Record<string, LanguageCatalogEntry>> | undefined;
 function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntry>> {
   if (_languageCatalogByCode) return _languageCatalogByCode;
   const map: Record<string, LanguageCatalogEntry> = {};
-  for (const entry of ISO639_3_SEEDS) {
+  for (const entry of listIso639_3Seeds()) {
     const code = entry.iso6393.toLowerCase();
     if (!code) continue;
     const subtag = languageTags.language(code) ?? languageTags.type(code, 'extlang');
     const preferred = subtag?.preferred()?.format().toLowerCase();
+    const maps = getIso639IsoMaps();
     const preferredIso6393 = preferred
-      ? (ISO639_1_TO_3[preferred] ?? ISO639_2_TO_3[preferred] ?? (isKnownIso639_3Code(preferred) ? preferred : undefined))
+      ? (maps.iso1To3[preferred] ?? maps.iso2To3[preferred] ?? (isKnownIso639_3Code(preferred) ? preferred : undefined))
       : undefined;
     map[code] = {
       languageId: code,
@@ -467,7 +487,7 @@ function getLanguageCatalogByCode(): Readonly<Record<string, LanguageCatalogEntr
       deprecated: subtag?.deprecated() !== null,
       ...(preferredIso6393 && preferredIso6393 !== code ? { preferredIso6393 } : {}),
       ...(subtag?.script() ? { suppressScript: subtag.script()!.format() } : {}),
-      ...(MACROLANGUAGE_BY_CODE[code] ? { macrolanguage: MACROLANGUAGE_BY_CODE[code] } : {}),
+      ...(maps.macroByCode[code] ? { macrolanguage: maps.macroByCode[code] } : {}),
     };
   }
   _languageCatalogByCode = map;
@@ -968,11 +988,12 @@ function resolveAnyLanguageCode(input: string): { languageId?: string; matchSour
   if (normalized.length === 3 && mergedCatalog[normalized]) {
     return { languageId: mergedCatalog[normalized]!.languageId, matchSource: 'iso6393-exact' };
   }
-  if (normalized.length === 2 && ISO639_1_TO_3[normalized]) {
-    return { languageId: mergedCatalog[ISO639_1_TO_3[normalized]]?.languageId ?? ISO639_1_TO_3[normalized], matchSource: 'iso6391-exact' };
+  const maps = getIso639IsoMaps();
+  if (normalized.length === 2 && maps.iso1To3[normalized]) {
+    return { languageId: mergedCatalog[maps.iso1To3[normalized]]?.languageId ?? maps.iso1To3[normalized], matchSource: 'iso6391-exact' };
   }
-  if (normalized.length === 3 && ISO639_2_TO_3[normalized]) {
-    return { languageId: mergedCatalog[ISO639_2_TO_3[normalized]]?.languageId ?? ISO639_2_TO_3[normalized], matchSource: 'iso6392-exact' };
+  if (normalized.length === 3 && maps.iso2To3[normalized]) {
+    return { languageId: mergedCatalog[maps.iso2To3[normalized]]?.languageId ?? maps.iso2To3[normalized], matchSource: 'iso6392-exact' };
   }
   return {};
 }
@@ -985,9 +1006,10 @@ function rankLanguageCatalogEntry(entry: LanguageCatalogEntry): number {
 export function getLanguageCatalogEntry(languageId: string | undefined): LanguageCatalogEntry | undefined {
   const normalized = languageId?.trim().toLowerCase();
   if (!normalized) return undefined;
+  const isoMaps = getIso639IsoMaps();
   const resolvedCode = resolveRuntimeLanguageCode(normalized)
-    ?? (normalized.length === 2 ? ISO639_1_TO_3[normalized] : undefined)
-    ?? (normalized.length === 3 ? ISO639_2_TO_3[normalized] : undefined)
+    ?? (normalized.length === 2 ? isoMaps.iso1To3[normalized] : undefined)
+    ?? (normalized.length === 3 ? isoMaps.iso2To3[normalized] : undefined)
     ?? normalized;
   return getMergedLanguageCatalogByCode()[resolvedCode];
 }

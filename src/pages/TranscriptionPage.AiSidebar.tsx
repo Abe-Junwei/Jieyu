@@ -36,7 +36,10 @@ export function TranscriptionPageAiSidebar({
   const uiLocale = normalizeLocale(locale) ?? 'zh-CN';
 
   return (
-    <aside className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}>
+    <section
+      className={`transcription-ai-panel ${isAiPanelCollapsed ? 'transcription-ai-panel-collapsed' : ''}`}
+      aria-label={t(uiLocale, 'transcription.aiSidebar.panelRegion')}
+    >
       <div className="transcription-hub-sidebar-tabs panel-edge-nav panel-edge-nav--inline" role="tablist">
         <div className={`panel-edge-nav-row ${hubSidebarTab === 'assistant' ? 'panel-edge-nav-row-active' : ''}`.trim()}>
           <button
@@ -78,6 +81,6 @@ export function TranscriptionPageAiSidebar({
           </Suspense>
         )
       ) : null}
-    </aside>
+    </section>
   );
 }

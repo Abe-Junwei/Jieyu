@@ -6,6 +6,7 @@ const SRC_DIR = join(ROOT, 'src');
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 const ALLOWLIST = new Set([
   'src/App.tsx',
+  'src/main.tsx',
   'src/i18n/index.ts',
   'src/i18n/index.test.ts',
 ]);

@@ -16,10 +16,11 @@ import type { LayerUnitDocType } from '../db';
 import type { NotePopoverState } from '../hooks/useNoteHandlers';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { WaveformHoverTooltip } from '../components/transcription/WaveformHoverTooltip';
-import { WaveformReadoutCard } from '../components/transcription/WaveformReadoutCard';
+import { WaveformAnalysisBands } from '../components/transcription/WaveformAnalysisBands';
+import { WaveformOverlayDecorations } from '../components/transcription/WaveformOverlayDecorations';
+import { WaveformRegionActionLayer } from '../components/transcription/WaveformRegionActionLayer';
+import { WaveformShellOverlay } from '../components/transcription/WaveformShellOverlay';
 import { WaveformLeftStatusStrip } from '../components/transcription/WaveformLeftStatusStrip';
-import { RegionActionOverlay } from '../components/transcription/RegionActionOverlay';
-import { NoteDocumentIcon } from '../components/NoteDocumentIcon';
 import { VideoPreviewSection, type VideoLayoutMode } from '../components/transcription/TranscriptionTimelineSections';
 import { WaveformAreaSection } from '../components/transcription/TranscriptionLayoutSections';
 import type { WaveSurferRegion } from '../hooks/useWaveSurfer';
@@ -385,86 +386,17 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   const snapGuideRightPx = snapGuideWindowSec && snapGuideWindowSec > 0 && typeof snapGuideRight === 'number'
     ? ((snapGuideRight - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
     : null;
-  const waveformAnalysisBandNodes = React.useMemo(() => {
-    const renderWaveformAnalysisBand = (
-      bandType: 'confidence' | 'overlap' | 'gap',
-      clipKey: string,
-      leftPx: number,
-      widthPx: number,
-      title: string,
-      label: string | null,
-    ) => {
-      const bandWidth = Math.max(2, widthPx);
-      const clipPathId = `waveform-analysis-band-clip-${clipKey}`;
-      return (
-        <g key={clipKey}>
-          <title>{title}</title>
-          <clipPath id={clipPathId}>
-            <rect x={leftPx} y={4} width={bandWidth} height={92} rx={8} ry={8} />
-          </clipPath>
-          <rect
-            className={`waveform-analysis-band-shape waveform-analysis-band-${bandType}`}
-            x={leftPx}
-            y={4}
-            width={bandWidth}
-            height={92}
-            rx={8}
-            ry={8}
-          />
-          {label ? (
-            <text
-              className={`waveform-analysis-band-label waveform-analysis-band-label-${bandType}`}
-              x={leftPx + 8}
-              y={11}
-              clipPath={`url(#${clipPathId})`}
-            >
-              {label}
-            </text>
-          ) : null}
-        </g>
-      );
-    };
+  const waveformAnalysisBandNodes = React.useMemo(() => (
+    <WaveformAnalysisBands
+      locale={locale}
+      waveformLowConfidenceOverlays={waveformLowConfidenceOverlays}
+      waveformOverlapOverlays={waveformOverlapOverlays}
+    />
+  ), [locale, waveformLowConfidenceOverlays, waveformOverlapOverlays]);
 
-    return (
-      <>
-        {waveformLowConfidenceOverlays.map(({ id, leftPx, widthPx, confidence }, index) => renderWaveformAnalysisBand(
-          'confidence',
-          `confidence-${index}-${id}`,
-          leftPx,
-          widthPx,
-          tf(locale, 'transcription.wave.analysis.lowConfidenceTitle', { confidence: Math.round(confidence * 100) }),
-          widthPx >= 46 ? t(locale, 'transcription.wave.analysis.lowConfidence') : null,
-        ))}
-        {waveformOverlapOverlays.map(({ id, leftPx, widthPx, concurrentCount }, index) => renderWaveformAnalysisBand(
-          'overlap',
-          `overlap-${index}-${id}`,
-          leftPx,
-          widthPx,
-          tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount }),
-          widthPx >= 120 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
-        ))}
-      </>
-    );
-  }, [locale, waveformLowConfidenceOverlays, waveformOverlapOverlays]);
-
-  const waveformNoteIndicatorNodes = React.useMemo(() => waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
-    <div
-      key={`note-${uttId}`}
-      className="waveform-note-indicator-trigger"
-      style={{ left: leftPx + widthPx - 22 }}
-      onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-      onClick={(e) => {
-        e.stopPropagation();
-        setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}), scope: 'waveform' });
-      }}
-    >
-      <NoteDocumentIcon
-        className="waveform-note-indicator-icon"
-        ariaLabel={tf(locale, 'transcription.notes.count', { count })}
-        title={tf(locale, 'transcription.notes.count', { count })}
-      />
-    </div>
-  )), [locale, setNotePopover, waveformNoteIndicators]);
+  const handleWaveformNotePopoverOpen = React.useCallback((input: { x: number; y: number; uttId: string; layerId?: string }) => {
+    setNotePopover({ x: input.x, y: input.y, uttId: input.uttId, ...(input.layerId ? { layerId: input.layerId } : {}), scope: 'waveform' });
+  }, [setNotePopover]);
 
   const spectrogramOverlayNode = React.useMemo(() => (
     <div
@@ -477,153 +409,47 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   ), [handleSpectrogramClick, handleSpectrogramMouseLeave, handleSpectrogramMouseMove]);
 
   const waveformShellOverlayNode = React.useMemo(() => (
-    <div className="waveform-analysis-overlay" aria-hidden="true">
-      <svg
-        className="waveform-analysis-band-overlay"
-        viewBox={`0 0 ${waveformGuideOverlayWidth} 100`}
-        preserveAspectRatio="none"
-      >
-        <g transform={`translate(${waveformOverlayTranslateX} 0)`}>
-          {waveformAnalysisBandNodes}
-        </g>
-      </svg>
-      {activeReadout ? (
-        <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
-      ) : null}
-    </div>
+    <WaveformShellOverlay
+      waveformGuideOverlayWidth={waveformGuideOverlayWidth}
+      waveformOverlayTranslateX={waveformOverlayTranslateX}
+      waveformAnalysisBandNodes={waveformAnalysisBandNodes}
+      activeReadout={activeReadout}
+      formatTime={formatTime}
+    />
   ), [activeReadout, waveformAnalysisBandNodes, waveformGuideOverlayWidth, waveformOverlayTranslateX]);
 
   const waveformOverlayNode = React.useMemo(() => (
-    <>
-      {(shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null) ? (
-        <svg
-          className="waveform-guide-overlay"
-          viewBox={`0 0 ${waveformGuideOverlayWidth} ${waveformGuideOverlayHeight}`}
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          {shouldRenderSelectedHotspot ? (
-            <line
-              className="waveform-analysis-hotspot-line"
-              x1={selectedHotspotLeftPx as number}
-              x2={selectedHotspotLeftPx as number}
-              y1={waveformGuideHotspotTopY}
-              y2={waveformGuideHotspotBottomY}
-            />
-          ) : null}
-          {snapGuideLeftPx != null ? (
-            <g>
-              <line
-                className={`waveform-snap-guide-line waveform-snap-guide-line-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
-                x1={snapGuideLeftPx}
-                x2={snapGuideLeftPx}
-                y1={0}
-                y2={waveformGuideOverlayHeight}
-              />
-              <text
-                className={`waveform-snap-guide-label waveform-snap-guide-label-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
-                x={snapGuideLeftPx}
-                y={waveformGuideLabelY}
-                textAnchor="middle"
-              >
-                L
-              </text>
-            </g>
-          ) : null}
-          {snapGuideRightPx != null ? (
-            <g>
-              <line
-                className={`waveform-snap-guide-line waveform-snap-guide-line-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
-                x1={snapGuideRightPx}
-                x2={snapGuideRightPx}
-                y1={0}
-                y2={waveformGuideOverlayHeight}
-              />
-              <text
-                className={`waveform-snap-guide-label waveform-snap-guide-label-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
-                x={snapGuideRightPx}
-                y={waveformGuideLabelY}
-                textAnchor="middle"
-              >
-                R
-              </text>
-            </g>
-          ) : null}
-        </svg>
-      ) : null}
-      {acousticOverlayMode !== 'none' ? (
-        <div className="waveform-acoustic-overlay" aria-hidden="true">
-          <svg
-            viewBox={`0 0 ${Math.max(1, acousticOverlayViewportWidth)} 100`}
-            preserveAspectRatio="none"
-          >
-            {acousticOverlayIntensityPath ? (
-              <path className="waveform-acoustic-path waveform-acoustic-path-intensity" d={acousticOverlayIntensityPath} />
-            ) : null}
-            {acousticOverlayF0Path ? (
-              <path className="waveform-acoustic-path waveform-acoustic-path-f0" d={acousticOverlayF0Path} />
-            ) : null}
-          </svg>
-          <div className="waveform-acoustic-legend">
-            {acousticOverlayLoading ? (
-              <span className="waveform-acoustic-chip waveform-acoustic-chip-neutral">
-                {t(locale, 'transcription.wave.acoustic.loading')}
-              </span>
-            ) : null}
-            {!activeReadout && acousticOverlayMode !== 'intensity' ? (
-              <span className="waveform-acoustic-chip waveform-acoustic-chip-f0">
-                {t(locale, 'transcription.wave.acoustic.f0')}
-                {' '}
-                {acousticOverlayVisibleSummary?.f0MeanHz != null ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz` : '—'}
-              </span>
-            ) : null}
-            {!activeReadout && acousticOverlayMode !== 'f0' ? (
-              <span className="waveform-acoustic-chip waveform-acoustic-chip-intensity">
-                {t(locale, 'transcription.wave.acoustic.intensity')}
-                {' '}
-                {acousticOverlayVisibleSummary?.intensityPeakDb != null ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB` : '—'}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      {waveLassoOverlay ? (
-        <svg className="wave-lasso-overlay" aria-hidden="true">
-          <rect
-            className={`wave-lasso-rect ${waveLassoOverlay.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-            x={waveLassoOverlay.x}
-            y={waveLassoOverlay.y}
-            width={Math.max(2, waveLassoOverlay.w)}
-            height={Math.max(2, waveLassoOverlay.h)}
-            rx={waveLassoOverlay.mode === 'create' ? 0 : 2}
-            ry={waveLassoOverlay.mode === 'create' ? 0 : 2}
-          />
-          {waveLassoOverlay.mode === 'select' && (
-            <foreignObject
-              x={waveLassoOverlay.x + 8}
-              y={waveLassoOverlay.y + 8}
-              width={172}
-              height={28}
-            >
-              <div className="wave-lasso-hint">
-                {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoOverlay.hintCount })}
-              </div>
-            </foreignObject>
-          )}
-        </svg>
-      ) : null}
-      <div className="waveform-note-indicator-layer" style={{ transform: `translateX(${waveformOverlayTranslateX}px)` }}>
-        {waveformNoteIndicatorNodes}
-      </div>
-    </>
+    <WaveformOverlayDecorations
+      locale={locale}
+      waveformGuideOverlayWidth={waveformGuideOverlayWidth}
+      waveformGuideOverlayHeight={waveformGuideOverlayHeight}
+      waveformGuideLabelY={waveformGuideLabelY}
+      waveformGuideHotspotTopY={waveformGuideHotspotTopY}
+      waveformGuideHotspotBottomY={waveformGuideHotspotBottomY}
+      shouldRenderSelectedHotspot={shouldRenderSelectedHotspot}
+      selectedHotspotLeftPx={selectedHotspotLeftPx}
+      snapGuideLeftPx={snapGuideLeftPx}
+      snapGuideRightPx={snapGuideRightPx}
+      snapGuideNearSideValue={snapGuideNearSideValue}
+      acousticOverlayMode={acousticOverlayMode}
+      acousticOverlayViewportWidth={acousticOverlayViewportWidth}
+      acousticOverlayF0Path={acousticOverlayF0Path}
+      acousticOverlayIntensityPath={acousticOverlayIntensityPath}
+      acousticOverlayVisibleSummary={acousticOverlayVisibleSummary}
+      acousticOverlayLoading={acousticOverlayLoading}
+      hasActiveReadout={activeReadout != null}
+      waveLassoOverlay={waveLassoOverlay}
+      waveformOverlayTranslateX={waveformOverlayTranslateX}
+      waveformNoteIndicators={waveformNoteIndicators}
+      onOpenWaveformNotePopover={handleWaveformNotePopoverOpen}
+    />
   ), [
     acousticOverlayF0Path,
     acousticOverlayIntensityPath,
     acousticOverlayLoading,
     acousticOverlayMode,
     acousticOverlayViewportWidth,
-    acousticOverlayVisibleSummary?.f0MeanHz,
-    acousticOverlayVisibleSummary?.intensityPeakDb,
+    acousticOverlayVisibleSummary,
     activeReadout,
     locale,
     selectedHotspotLeftPx,
@@ -636,7 +462,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     waveformGuideLabelY,
     waveformGuideOverlayHeight,
     waveformGuideOverlayWidth,
-    waveformNoteIndicatorNodes,
+    waveformNoteIndicators,
+    handleWaveformNotePopoverOpen,
     waveformOverlayTranslateX,
     waveLassoOverlay,
   ]);
@@ -649,40 +476,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
       </div>
     );
   }, [locale, segMarkStart]);
-
-  const shouldRenderRegionActionOverlay = !selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady;
-
-  const regionActionOverlayNode = React.useMemo(() => {
-    if (!shouldRenderRegionActionOverlay) return null;
-    return (
-      <RegionActionOverlay
-        unitStartTime={selectedWaveformTimelineItem.startTime}
-        unitEndTime={selectedWaveformTimelineItem.endTime}
-        zoomPxPerSec={zoomPxPerSec}
-        scrollLeft={waveformScrollLeft}
-        waveAreaWidth={playerInstanceGetWidth()}
-        isPlaying={playerIsPlaying}
-        segmentPlaybackRate={segmentPlaybackRate}
-        segmentLoopPlayback={segmentLoopPlayback}
-        skipProcessing={selectedWaveformTimelineItem.tags?.skipProcessing === true}
-        onPlaybackRateChange={handleSegmentPlaybackRateChange}
-        onToggleLoop={handleToggleSelectedWaveformLoop}
-        onTogglePlay={handleToggleSelectedWaveformPlay}
-      />
-    );
-  }, [
-    handleSegmentPlaybackRateChange,
-    handleToggleSelectedWaveformLoop,
-    handleToggleSelectedWaveformPlay,
-    playerInstanceGetWidth,
-    playerIsPlaying,
-    segmentLoopPlayback,
-    segmentPlaybackRate,
-    selectedWaveformTimelineItem,
-    shouldRenderRegionActionOverlay,
-    waveformScrollLeft,
-    zoomPxPerSec,
-  ]);
 
   // Attach wheel handler natively with { passive: false } so preventDefault() works.
   // React 18 registers wheel as a passive listener, causing errors on preventDefault().
@@ -740,7 +533,20 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 waveformShellOverlay={waveformShellOverlayNode}
                 waveformOverlay={waveformOverlayNode}
               />
-              {regionActionOverlayNode}
+              <WaveformRegionActionLayer
+                selectedMediaIsVideo={selectedMediaIsVideo}
+                selectedWaveformTimelineItem={selectedWaveformTimelineItem}
+                playerIsReady={playerIsReady}
+                zoomPxPerSec={zoomPxPerSec}
+                waveformScrollLeft={waveformScrollLeft}
+                playerInstanceGetWidth={playerInstanceGetWidth}
+                playerIsPlaying={playerIsPlaying}
+                segmentPlaybackRate={segmentPlaybackRate}
+                segmentLoopPlayback={segmentLoopPlayback}
+                handleSegmentPlaybackRateChange={handleSegmentPlaybackRateChange}
+                handleToggleSelectedWaveformLoop={handleToggleSelectedWaveformLoop}
+                handleToggleSelectedWaveformPlay={handleToggleSelectedWaveformPlay}
+              />
             </>
           ) : (
             <>

@@ -18,6 +18,7 @@
     "data:language-seeds:validate-independent:whitelist": "LANGUAGE_SEEDS_INPUT=public/data/language-support/top500-language-orthography-seeds.publish-whitelist.json LANGUAGE_SEEDS_VALIDATION_REPORT=public/data/language-support/orthography-independent-validation-report.publish-whitelist.json node scripts/validate-language-orthography-independent.mjs",
     "data:language-seeds:publish-variant:map-to-mnk": "node scripts/build-publish-variant-map-to-mnk.mjs",
     "data:language-seeds:validate-independent:publish-variant:map-to-mnk": "LANGUAGE_SEEDS_INPUT=public/data/language-support/top500-language-orthography-seeds.publish-whitelist.map-to-mnk.json LANGUAGE_SEEDS_VALIDATION_REPORT=public/data/language-support/orthography-independent-validation-report.publish-whitelist.map-to-mnk.json node scripts/validate-language-orthography-independent.mjs",
+    "data:language-geodata-public": "node scripts/build-language-geodata-public.mjs",
     "data:language-catalog:baseline": "node scripts/generate-language-name-indexes.mjs",
     "data:language-name-indexes": "node scripts/generate-language-name-indexes.mjs",
     "data:iso6393-country-baselines": "node scripts/build-iso6393-country-baselines.mjs",
@@ -190,7 +191,8 @@
     "perf:timestamp-eval": "vitest run src/ai/perf/timestampEvalUtils.test.ts --reporter=verbose",
     "test:coverage": "vitest run --coverage",
     "data:download-distil-whisper": "bash scripts/download-distil-whisper.sh",
-    "scaffold:ui-surface": "node scripts/scaffold-ui-surface.mjs"
+    "scaffold:ui-surface": "node scripts/scaffold-ui-surface.mjs",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -238,19 +240,17 @@
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.73.1",
     "react-router-dom": "^7.14.2",
-    "react-select": "^5.10.2",
     "wavesurfer.js": "^7.12.6",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "iso-639-3": "^3.0.1",
-    "@types/language-tags": "^1.0.4",
     "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.59.1",
     "@sentry/vite-plugin": "^5.2.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@types/language-tags": "^1.0.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -258,10 +258,13 @@
     "@vitest/coverage-v8": "^4.1.5",
     "cross-env": "^10.1.0",
     "fake-indexeddb": "^6.2.5",
+    "husky": "^9.1.7",
+    "iso-639-3": "^3.0.1",
     "jsdom": "^29.0.2",
     "stylelint": "^17.9.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
+    "vite-plugin-compression": "^0.5.1",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.1.5"
   }

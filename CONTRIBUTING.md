@@ -25,6 +25,15 @@ npm ci
 
 门禁类脚本见 `package.json` 中 `gate:*`、`check:*`；合并前以 **CI `quality` job** 与分支保护为准。
 
+## Git hooks（`husky`）
+
+`npm ci` / `npm install` 会通过 `prepare` 脚本安装 **`.husky/pre-commit`**。提交前会运行（均为 **changed-only**，通常数秒内结束）：
+
+- `npm run check:i18n-hardcoded:changed`
+- `npm run check:translation-host-link-ssot:changed`
+
+若需跳过（仅限应急）：`HUSKY=0 git commit …`。**`lint-staged` 未接入**（仓库无 ESLint/Prettier staged 管线）；后续若增加格式化工具可再接到同一 hook。
+
 ## 分支与合并
 
 - 默认工作分支以团队约定为准（常见为 `main` / `dev`）。

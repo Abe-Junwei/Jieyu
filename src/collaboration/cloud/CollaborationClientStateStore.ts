@@ -1,8 +1,14 @@
 import { createLogger } from '../../observability/logger';
+import { detectLocale } from '../../i18n';
+import { getAppDataResilienceMessages } from '../../i18n/appDataResilienceMessages';
+import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
 import { loadCollabClientStateBlobFromIdb, saveCollabClientStateBlobToIdb } from './CollaborationClientStateStore.idb';
 
 const log = createLogger('CollaborationClientStateStore');
+
+let lastCollabQuotaToastAt = 0;
+const COLLAB_QUOTA_TOAST_COOLDOWN_MS = 90_000;
 
 const COLLAB_CLIENT_STATE_STORAGE_KEY = 'jieyu:collab-client-state:v1';
 
@@ -122,6 +128,12 @@ function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage):
     log.warn('collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror', {
       projectCount: Object.keys(stateMap).length,
     });
+    const now = Date.now();
+    if (now - lastCollabQuotaToastAt >= COLLAB_QUOTA_TOAST_COOLDOWN_MS) {
+      lastCollabQuotaToastAt = now;
+      const toastMsg = getAppDataResilienceMessages(detectLocale()).collabLocalStorageQuotaToast;
+      dispatchAppGlobalToast({ message: toastMsg, variant: 'error', autoDismissMs: 14_000 });
+    }
   }
 }
 

@@ -792,6 +792,85 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
 
 .lm-admin-coverage-field select option { background: var(--surface-panel); color: var(--text-primary); }
 
+.lm-country-multi {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lm-country-multi__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-country-multi__chips > li {
+  margin: 0;
+  padding: 0;
+}
+
+.lm-country-multi__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.lm-country-multi__chip-x {
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+.lm-country-multi__list {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  border: 1px solid color-mix(in srgb, var(--border-soft) 58%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
+}
+
+.lm-country-multi__list > li {
+  margin: 0;
+  padding: 0;
+}
+
+.lm-country-multi__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.lm-country-multi__option:hover {
+  background: color-mix(in srgb, var(--surface-header) 55%, transparent);
+}
+
+.lm-country-multi__option-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lm-country-multi__iso {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── History ── */
 
 .lm-history-list {

@@ -17,6 +17,7 @@ const requiredSnippets = [
   'evaluateTransactionAtomicity',
   'executeTransactionalReplicaSync',
   'createTransactionalRollbackPlan',
+  'createBestEffortCleanupPlan',
 ];
 
 const missingFiles = requiredFiles.filter((relativePath) => !existsSync(path.resolve(root, relativePath)));

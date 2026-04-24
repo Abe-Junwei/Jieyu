@@ -45,6 +45,23 @@ const OTEL_URL_SECRET_RE = /([?&](?:api.?key|token|password|secret|authorization
 let otelInitPromise: Promise<void> | null = null;
 let otelConsecutiveExportFailures = 0;
 let otelExportCircuitOpen = false;
+let otelCircuitResetTimer: ReturnType<typeof setTimeout> | null = null;
+const OTEL_CIRCUIT_RESET_COOLDOWN_MS = 30_000;
+
+function scheduleOtelCircuitHalfOpenProbe(): void {
+  if (otelCircuitResetTimer !== null) {
+    clearTimeout(otelCircuitResetTimer);
+    otelCircuitResetTimer = null;
+  }
+  otelCircuitResetTimer = setTimeout(() => {
+    otelCircuitResetTimer = null;
+    if (otelExportCircuitOpen) {
+      otelExportCircuitOpen = false;
+      otelConsecutiveExportFailures = 0;
+      console.info('[Jieyu] OTel exporter circuit: cooldown elapsed; re-enabling trace export attempts.');
+    }
+  }, OTEL_CIRCUIT_RESET_COOLDOWN_MS);
+}
 
 type OtelRuntimeModules = {
   sdkWeb: Record<string, unknown>;
@@ -123,6 +140,7 @@ function createCircuitBreakerSpanExporter(
             threshold: failureThreshold,
           });
           console.warn('[Jieyu] OTel exporter circuit opened after consecutive export failures.');
+          scheduleOtelCircuitHalfOpenProbe();
         }
 
         resultCallback(result);

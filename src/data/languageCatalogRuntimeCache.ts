@@ -6,10 +6,12 @@
  * consumers to read the same merged catalog semantics as the Service layer.
  */
 import type { LanguageCatalogVisibility, LanguageDocType } from '../db';
-import { GENERATED_LANGUAGE_ALIASES_BY_CODE, GENERATED_LANGUAGE_DISPLAY_NAME_CORE } from './generated/languageNameCatalog.generated';
+import type { LanguageDisplayCoreEntry } from './languageNameTypes';
 import { getLanguageDisplayNameOverride } from './languageNameOverrides';
 
 const LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY = 'jieyu.language-catalog.runtime-cache.v1';
+const LANGUAGE_DISPLAY_CORE_URL = '/data/language-support/language-display-names.core.json';
+const LANGUAGE_QUERY_ALIAS_URL = '/data/language-support/language-query-aliases.json';
 
 export type LanguageCatalogRuntimeEntry = {
   languageCode?: string;
@@ -32,6 +34,9 @@ export type LanguageCatalogRuntimeEntry = {
   baselineOfficialCountryCodes?: string[];
   /** User override for official countries (same shape as Dexie `countriesOfficial`) */
   countriesOfficial?: string[];
+  /** Glottolog baseline (from public display JSON when present) */
+  latitude?: number;
+  longitude?: number;
 };
 
 export type LanguageCatalogRuntimeCache = {
@@ -48,49 +53,125 @@ const EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE: LanguageCatalogRuntimeCache = {
   updatedAt: '',
 };
 
-function buildBaselineLanguageCatalogRuntimeCache(): LanguageCatalogRuntimeCache {
+export function buildBaselineLanguageCatalogRuntimeCacheFromPublicRecords(
+  languages: Readonly<Record<string, LanguageDisplayCoreEntry>>,
+  aliasToCode: Readonly<Record<string, string>>,
+  aliasesByCode: Readonly<Record<string, readonly string[]>>,
+): LanguageCatalogRuntimeCache {
   const entries = Object.fromEntries(
-    Object.entries(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).map(([languageId, entry]) => {
+    Object.entries(languages).map(([languageId, entry]) => {
       const zhOverride = getLanguageDisplayNameOverride(languageId, 'zh-CN');
       const byLocale = {
         ...(entry.byLocale ?? {}),
         ...(zhOverride ? { 'zh-CN': zhOverride } : {}),
       };
+      const aliases = aliasesByCode[languageId];
 
       return [languageId, {
         languageCode: languageId,
         english: entry.english,
         ...(entry.native ? { native: entry.native } : {}),
         ...(Object.keys(byLocale).length > 0 ? { byLocale } : {}),
-        ...(GENERATED_LANGUAGE_ALIASES_BY_CODE[languageId]?.length ? { aliases: [...GENERATED_LANGUAGE_ALIASES_BY_CODE[languageId]!] } : {}),
+        ...(aliases?.length ? { aliases: [...aliases] } : {}),
+        ...(typeof entry.latitude === 'number' && Number.isFinite(entry.latitude) ? { latitude: entry.latitude } : {}),
+        ...(typeof entry.longitude === 'number' && Number.isFinite(entry.longitude) ? { longitude: entry.longitude } : {}),
         visibility: 'visible' as const,
       }] as const;
     }),
   );
 
-  const aliasToId = Object.fromEntries(
-    Object.entries(GENERATED_LANGUAGE_ALIASES_BY_CODE).flatMap(([languageId, aliases]) =>
-      aliases
-        .map((alias) => [normalizeLanguageCatalogRuntimeLabelKey(alias), languageId] as const)
-        .filter(([alias]) => alias.length > 0),
-    ),
-  );
+  const aliasToId: Record<string, string> = {};
+  for (const [alias, languageId] of Object.entries(aliasToCode)) {
+    const key = normalizeLanguageCatalogRuntimeLabelKey(alias);
+    const id = languageId.trim().toLowerCase();
+    if (key.length > 0 && id.length > 0 && !(key in aliasToId)) {
+      aliasToId[key] = id;
+    }
+  }
+  for (const [languageId, aliases] of Object.entries(aliasesByCode)) {
+    for (const alias of aliases) {
+      const key = normalizeLanguageCatalogRuntimeLabelKey(alias);
+      if (key.length > 0 && !(key in aliasToId)) {
+        aliasToId[key] = languageId;
+      }
+    }
+  }
 
   const lookupToId = Object.fromEntries(
-    Object.keys(GENERATED_LANGUAGE_DISPLAY_NAME_CORE).map((languageId) => [normalizeLanguageCatalogRuntimeLookupKey(languageId), languageId] as const),
+    Object.keys(languages).map((languageId) => [normalizeLanguageCatalogRuntimeLookupKey(languageId), languageId] as const),
   );
 
   return {
     entries,
     aliasToId,
     lookupToId,
-    updatedAt: 'baseline-generated',
+    updatedAt: 'baseline-public-json',
   };
 }
 
-const BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE = buildBaselineLanguageCatalogRuntimeCache();
+/** Last successfully fetched / primed baseline (used by tests after `clearLanguageCatalogRuntimeCache`). */
+let sessionBaselineCache: LanguageCatalogRuntimeCache = EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE;
+let baselineGeneratedLanguageIds: readonly string[] = [];
+let baselineGeneratedLanguageIdSet: ReadonlySet<string> = new Set();
 
-let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
+/**
+ * Fetches public JSON baselines (B-3). Throws on hard network/parse failure — caller may catch and fall back to empty.
+ */
+export async function fetchLanguageCatalogBaselineRuntimeCache(): Promise<LanguageCatalogRuntimeCache> {
+  const [displayRes, aliasRes] = await Promise.all([
+    fetch(LANGUAGE_DISPLAY_CORE_URL, { cache: 'force-cache' }),
+    fetch(LANGUAGE_QUERY_ALIAS_URL, { cache: 'force-cache' }),
+  ]);
+  if (!displayRes.ok || !aliasRes.ok) {
+    throw new Error(`language baseline fetch failed (${displayRes.status} / ${aliasRes.status})`);
+  }
+  const displayPayload = await displayRes.json() as { languages?: Record<string, LanguageDisplayCoreEntry> };
+  const aliasPayload = await aliasRes.json() as {
+    aliasToCode?: Record<string, string>;
+    aliasesByCode?: Record<string, readonly string[]>;
+  };
+  const languages = displayPayload.languages ?? {};
+  const aliasToCode = aliasPayload.aliasToCode ?? {};
+  const aliasesByCode = aliasPayload.aliasesByCode ?? {};
+  return buildBaselineLanguageCatalogRuntimeCacheFromPublicRecords(languages, aliasToCode, aliasesByCode);
+}
+
+/**
+ * Boot-time: prefer Dexie/localStorage snapshot if present; otherwise install fetched baseline.
+ * Must run before first consumer `readLanguageCatalogRuntimeCache()` in production.
+ */
+export function primeLanguageCatalogRuntimeCacheForSession(fetchedBaseline: LanguageCatalogRuntimeCache): void {
+  const sanitized = sanitizeRuntimeCache(fetchedBaseline);
+  sessionBaselineCache = Object.freeze(sanitized) as LanguageCatalogRuntimeCache;
+  baselineGeneratedLanguageIds = Object.keys(sessionBaselineCache.entries).sort();
+  baselineGeneratedLanguageIdSet = new Set(baselineGeneratedLanguageIds);
+  try {
+    if (typeof window !== 'undefined') {
+      const raw = window.localStorage.getItem(LANGUAGE_CATALOG_RUNTIME_CACHE_STORAGE_KEY);
+      if (raw) {
+        inMemoryRuntimeCache = sanitizeRuntimeCache(JSON.parse(raw));
+        localStorageHydrated = true;
+        return;
+      }
+    }
+  } catch {
+    // fall through to baseline
+  }
+  inMemoryRuntimeCache = sessionBaselineCache;
+  localStorageHydrated = true;
+}
+
+export function getBaselineGeneratedLanguageIds(): readonly string[] {
+  return baselineGeneratedLanguageIds;
+}
+
+/** True iff `languageId` is a key from the last fetched public baseline (legacy `GENERATED_LANGUAGE_*[id]` scope). */
+export function isPublicBaselineCatalogLanguageId(languageId: string | undefined): boolean {
+  const id = languageId?.trim().toLowerCase() ?? '';
+  return id.length > 0 && baselineGeneratedLanguageIdSet.has(id);
+}
+
+let inMemoryRuntimeCache: LanguageCatalogRuntimeCache = EMPTY_LANGUAGE_CATALOG_RUNTIME_CACHE;
 // 标记是否已从 localStorage 水合过 | Whether the cache has been hydrated from localStorage
 let localStorageHydrated = false;
 
@@ -181,12 +262,15 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
       .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
       .map((item) => item.trim())
     : undefined;
+  const latitude = typeof record.latitude === 'number' && Number.isFinite(record.latitude) ? record.latitude : undefined;
+  const longitude = typeof record.longitude === 'number' && Number.isFinite(record.longitude) ? record.longitude : undefined;
 
   if (!languageCode && !canonicalTag && !iso6391 && !iso6392B && !iso6392T && !iso6393
     && !english && !native && !byLocale && (!aliases || aliases.length === 0)
     && !scope && !languageType && !macrolanguage && !visibility
     && !baselineDistributionCountryCodes && !baselineOfficialCountryCodes
-    && !(countriesOfficial && countriesOfficial.length > 0)) {
+    && !(countriesOfficial && countriesOfficial.length > 0)
+    && latitude === undefined && longitude === undefined) {
     return undefined;
   }
 
@@ -208,6 +292,8 @@ function sanitizeRuntimeEntry(value: unknown): LanguageCatalogRuntimeEntry | und
     ...(baselineDistributionCountryCodes?.length ? { baselineDistributionCountryCodes } : {}),
     ...(baselineOfficialCountryCodes?.length ? { baselineOfficialCountryCodes } : {}),
     ...(countriesOfficial && countriesOfficial.length > 0 ? { countriesOfficial } : {}),
+    ...(latitude !== undefined ? { latitude } : {}),
+    ...(longitude !== undefined ? { longitude } : {}),
   };
 }
 
@@ -308,7 +394,7 @@ function notifyLanguageCatalogCacheListeners(): void {
 }
 
 export function clearLanguageCatalogRuntimeCache(): void {
-  inMemoryRuntimeCache = BASELINE_LANGUAGE_CATALOG_RUNTIME_CACHE;
+  inMemoryRuntimeCache = sessionBaselineCache;
   localStorageHydrated = true; // 已显式重置，无需再水合 | Explicitly reset, no need to re-hydrate
   try {
     if (typeof window !== 'undefined') {

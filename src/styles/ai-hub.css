@@ -1397,6 +1397,12 @@ select.ai-cfg-input {
   border: 1px solid var(--state-danger-border);
 }
 
+.toast-warning {
+  background: var(--state-warning-bg);
+  color: var(--state-warning-text);
+  border: 1px solid var(--state-warning-border);
+}
+
 .toast-recording,
 .toast-ai-thinking {
   background: var(--state-warning-bg);

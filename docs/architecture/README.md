@@ -28,6 +28,9 @@ source_of_truth: current-state-index
 - [transcription-deep-link-query-contract.md](./transcription-deep-link-query-contract.md)
   - 用途：`/transcription` 深链 query、`sessionStorage` 返回提示与实现挂点（对齐三页联动 P0-1）。
 
+- [offline-pwa-first-visit-expectations.md](./offline-pwa-first-visit-expectations.md)
+  - 用途：PWA / Service Worker 与**首次访问、冷启动、precache 边界**的用户预期（勘误表 C-3）。
+
 - [术语表.md](./术语表.md)
   - 用途：统一 layer / tier / track / lane 等核心术语与边界。
 

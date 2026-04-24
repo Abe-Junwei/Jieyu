@@ -72,7 +72,7 @@ describe('VoiceAgentService dictation pipeline', () => {
       expect(fillSegment).toHaveBeenCalledWith('seg-1', 'translation', 'xf:translated text');
     });
 
-    service.dispose();
+    await service.dispose();
   });
 
   it('prefers the per-call transform hook when callbacks already provide one', async () => {
@@ -103,6 +103,6 @@ describe('VoiceAgentService dictation pipeline', () => {
       expect(fillSegment).toHaveBeenCalledWith('seg-1', 'translation', 'callback:translated text');
     });
 
-    service.dispose();
+    await service.dispose();
   });
 });
