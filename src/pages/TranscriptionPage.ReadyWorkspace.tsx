@@ -13,17 +13,15 @@ import { useSearchParams } from 'react-router-dom';
 import { useToast } from '../contexts/ToastContext';
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
-import { useRecording } from '../hooks/useRecording';
 import { useUnitOps } from '../hooks/useUnitOps';
 import { useJKLShuttle } from '../hooks/useJKLShuttle';
-import { useImportExport } from '../hooks/useImportExport';
 import { useAiPanelLogic } from '../hooks/useAiPanelLogic';
 import { useNoteHandlers } from '../hooks/useNoteHandlers';
 import { useTranscriptionUIState } from './TranscriptionPage.UIState';
 import { type AppShellOpenSearchDetail } from '../utils/appShellEvents';
-import { useTimelineResize } from '../hooks/useTimelineResize';
 import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
+import { useBackupReminder } from '../hooks/useBackupReminder';
 import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
@@ -35,7 +33,6 @@ import { useBatchOperationController } from './useBatchOperationController';
 import { useSpeakerActionScopeController } from './useSpeakerActionScopeController';
 import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';
 import { useTranscriptionSelectionContextController } from './useTranscriptionSelectionContextController';
-import { useTranscriptionProjectMediaController } from './useTranscriptionProjectMediaController';
 import { useTranscriptionOverlayActionRoutingController } from './useTranscriptionOverlayActionRoutingController';
 import { useTranscriptionSegmentCreationController } from './useTranscriptionSegmentCreationController';
 import { useTranscriptionSegmentBridgeController } from './useTranscriptionSegmentBridgeController';
@@ -43,8 +40,6 @@ import { useTranscriptionSegmentMutationController } from './useTranscriptionSeg
 import { useTranscriptionShellController } from './useTranscriptionShellController';
 import { useTrackEntityPersistenceController } from './useTrackEntityPersistenceController';
 import { useTrackEntityStateController } from './useTrackEntityStateController';
-import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';
-import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';
 import { useTrackDisplayController } from './useTrackDisplayController';
 import { useTranscriptionLayerMetadataController } from './useTranscriptionLayerMetadataController';
 import { useTranscriptionSelfCertaintyController } from './useTranscriptionSelfCertaintyController';
@@ -56,24 +51,30 @@ import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerCont
 import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';
 import { useReadyWorkspaceLayoutDerivations } from './useReadyWorkspaceLayoutDerivations';
 import { useTranscriptionDisplayStyleControl } from './useTranscriptionDisplayStyleControl';
-import { useTranscriptionAnnotationController } from './useTranscriptionAnnotationController';
 import { useTranscriptionRuntimeRefs } from './useTranscriptionRuntimeRefs';
 import { useTranscriptionWorkspacePanelEffects } from './useTranscriptionWorkspacePanelEffects';
 import { useTranscriptionPlaybackKeyboardController } from './useTranscriptionPlaybackKeyboardController';
 import { useTranscriptionAcousticPanelState } from './useTranscriptionAcousticPanelState';
 import { useTranscriptionAssistantSidebarControllerInput } from './useTranscriptionAssistantSidebarControllerInput';
-import { useTranscriptionImportExportInput } from './useTranscriptionImportExportInput';
-import { useTranscriptionProjectMediaControllerInput } from './useTranscriptionProjectMediaControllerInput';
 import { useReadyWorkspaceVerticalPaneFocusEffect } from './useReadyWorkspaceVerticalPaneFocusEffect';
 import { useReadyWorkspaceDeepLinkEffects } from './useReadyWorkspaceDeepLinkEffects';
 import { useDeferredAiRuntimeBridge } from './useDeferredAiRuntimeBridge';
 import { useReadyWorkspaceViewModels } from './useReadyWorkspaceViewModels';
+import { useReadyWorkspaceAudioCaptureController } from './useReadyWorkspaceAudioCaptureController';
+import { useReadyWorkspaceTextEditingController } from './useReadyWorkspaceTextEditingController';
+import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTimelineSyncController';
 import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
 import { useReadyWorkspaceInteractionHelpers } from './useReadyWorkspaceInteractionHelpers';
+import {
+  buildReadyWorkspaceAudioCaptureControllerInput,
+  buildReadyWorkspaceTimelineInteractionInput,
+  buildReadyWorkspaceTextEditingControllerInput,
+  buildReadyWorkspaceTimelineSyncControllerInput,
+} from './transcriptionReadyWorkspaceDomainInputBuilder';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
 import { buildReadyWorkspaceConflictReviewDrawerProps, buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
-import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
+import { buildReadyWorkspaceConflictReviewDrawerPropsInput, buildReadyWorkspaceLayoutStyleInput, buildReadyWorkspaceOverlaysPropsInput, buildReadyWorkspaceSidePanePropsInput, buildReadyWorkspaceStagePropsInput, buildReadyWorkspaceWaveformContentPropsInput } from './transcriptionReadyWorkspaceSurfaceInputBuilder';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 import { useTimelineReadModel } from './timelineReadModel';
 import { TranscriptionPageReadyWorkspaceLayout } from './TranscriptionPage.ReadyWorkspaceLayout';
@@ -417,6 +418,9 @@ function TranscriptionPageReadyWorkspace({
     dismissRecovery,
   });
 
+  // 定期检查备份提醒 | Periodic backup reminder
+  useBackupReminder(data.state.phase === 'ready');
+
   const {
     executeActionRef,
     openSearchRef,
@@ -530,20 +534,6 @@ function TranscriptionPageReadyWorkspace({
 
   const [overlapCycleToast, setOverlapCycleToast] = useState<{ index: number; total: number; nonce: number } | null>(null);
   const [lockConflictToast, setLockConflictToast] = useState<{ count: number; speakers: string[]; nonce: number } | null>(null);
-
-  const {
-    recording,
-    recordingUnitId,
-    recordingLayerId: _recordingLayerId,
-    recordingError,
-    startRecordingForUnit: _startRecordingForUnit,
-    stopRecording: _stopRecording,
-  } = useRecording({
-    saveVoiceTranslation,
-    setSaveState,
-    selectUnit,
-    manualSelectTsRef,
-  });
 
   // UI state (context menu, batch operations)
   const {
@@ -960,14 +950,71 @@ function TranscriptionPageReadyWorkspace({
     vadCacheStatus,
   });
 
+  const timelineInteractionInput = buildReadyWorkspaceTimelineInteractionInput({
+    readInput: {
+      layers,
+      units,
+      manualSelectTsRef,
+      player,
+      locale,
+      sidePaneRows,
+      activeTimelineUnitId,
+      waveformTimelineItems,
+      activeLayerIdForEdits,
+      useSegmentWaveformRegions,
+      selectedTimelineUnit,
+      subSelectDragRef,
+      waveCanvasRef,
+      resolveSegmentRoutingForLayer,
+      segmentsByLayer,
+      unitsOnCurrentMedia,
+      selectedUnitIds,
+      selectedWaveformRegionId,
+      snapEnabled,
+      creatingSegmentRef,
+      markingModeRef,
+    },
+    writeInput: {
+      saveUnitText: (unitId, text, layerId) => saveUnitText(unitId, text, layerId),
+      saveUnitLayerText,
+      selectUnit,
+      onSetNotePopover: setNotePopover,
+      onSetSidebarError: setAiSidebarError,
+      onOpenPdfPreviewRequest: openPdfPreviewRequest,
+      runSplitAtTime,
+      selectTimelineUnit,
+      toggleSegmentSelection,
+      selectSegmentRange,
+      toggleUnitSelection,
+      selectUnitRange,
+      setSubSelectionRange,
+      zoomToPercent,
+      zoomToUnit,
+      getNeighborBounds,
+      reloadSegments,
+      saveUnitTiming: saveUnitTiming,
+      setSaveState,
+      beginTimingGesture,
+      endTimingGesture,
+      makeSnapGuide,
+      setSnapGuide,
+      setDragPreview,
+      setCtxMenu,
+      createUnitFromSelection: createUnitFromSelectionRouted,
+    },
+    revealSchemaLayerHandlers: {
+      setSelectedLayerId,
+      setFocusedLayerRowId,
+      setFlashLayerRowId,
+    },
+  });
+
   const {
     handleSearchReplace,
     handleJumpToEmbeddingMatch,
     handleJumpToCitation,
     handleSplitAtTimeRequest,
     handleZoomToSegmentRequest,
-    getNeighborBoundsRouted,
-    saveTimingRouted,
     handleWaveformRegionContextMenu,
     handleWaveformRegionAltPointerDown,
     handleWaveformRegionClick,
@@ -976,79 +1023,16 @@ function TranscriptionPageReadyWorkspace({
     handleWaveformRegionUpdate,
     handleWaveformRegionUpdateEnd,
     handleWaveformTimeUpdate,
-  } = useTranscriptionTimelineInteractionController({
-    layers,
-    saveUnitText: (unitId, text, layerId) => saveUnitText(unitId, text, layerId),
-    saveUnitLayerText,
-    units,
-    selectUnit,
-    manualSelectTsRef,
-    player,
-    locale,
-    sidePaneRows,
-    activeTimelineUnitId,
-    onSetNotePopover: setNotePopover,
-    onSetSidebarError: setAiSidebarError,
-    onRevealSchemaLayer: (layerId) => {
-      setSelectedLayerId(layerId);
-      setFocusedLayerRowId(layerId);
-      setFlashLayerRowId(layerId);
+    timelineResizeController,
+  } = useReadyWorkspaceTimelineSyncController(buildReadyWorkspaceTimelineSyncControllerInput({
+    interactionInput: timelineInteractionInput,
+    resizeBridgeInput: {
+      timelineZoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
+      selectSegment,
+      setSelectedLayerId,
+      setFocusedLayerRowId,
     },
-    onOpenPdfPreviewRequest: openPdfPreviewRequest,
-    waveformTimelineItems,
-    runSplitAtTime,
-    activeLayerIdForEdits,
-    useSegmentWaveformRegions,
-    selectTimelineUnit,
-    selectedTimelineUnit,
-    toggleSegmentSelection,
-    selectSegmentRange,
-    toggleUnitSelection,
-    selectUnitRange,
-    setSubSelectionRange,
-    subSelectDragRef,
-    waveCanvasRef,
-    zoomToPercent,
-    zoomToUnit,
-    resolveSegmentRoutingForLayer,
-    segmentsByLayer,
-    unitsOnCurrentMedia,
-    getNeighborBounds,
-    reloadSegments,
-    saveUnitTiming: saveUnitTiming,
-    setSaveState,
-    selectedUnitIds,
-    selectedWaveformRegionId,
-    beginTimingGesture,
-    endTimingGesture,
-    makeSnapGuide,
-    snapEnabled,
-    setSnapGuide,
-    setDragPreview,
-    creatingSegmentRef,
-    markingModeRef,
-    setCtxMenu,
-    createUnitFromSelection: createUnitFromSelectionRouted,
-  });
-
-  const timelineResizeController = useTimelineResize({
-    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
-    manualSelectTsRef,
-    player,
-    selectUnit,
-    selectSegment,
-    setSelectedLayerId,
-    setFocusedLayerRowId,
-    beginTimingGesture,
-    endTimingGesture,
-    getNeighborBounds: getNeighborBoundsRouted,
-    makeSnapGuide,
-    snapEnabled,
-    setSnapGuide,
-    setDragPreview,
-    saveUnitTiming: saveTimingRouted,
-    segmentsByLayer,
-  });
+  }));
 
   const assistantController = useTranscriptionAssistantController({
     state,
@@ -1195,6 +1179,58 @@ function TranscriptionPageReadyWorkspace({
     orchestratorLayersCount: layers.length,
   });
 
+  const {
+    recording,
+    recordingUnitId,
+    recordingLayerId: _recordingLayerId,
+    recordingError,
+    startRecordingForUnit: _startRecordingForUnit,
+    stopRecording: _stopRecording,
+    importExportController,
+    projectMediaController,
+  } = useReadyWorkspaceAudioCaptureController(buildReadyWorkspaceAudioCaptureControllerInput({
+    recordingInput: {
+      saveVoiceTranslation,
+      setSaveState,
+      selectUnit,
+      manualSelectTsRef,
+    },
+    importExportInput: {
+      activeTextId,
+      getActiveTextId,
+      segmentScopeMediaId,
+      unitsOnCurrentMedia,
+      anchors,
+      layers,
+      translations,
+      defaultTranscriptionLayerId,
+      loadSnapshot,
+      setSaveState,
+    },
+    selectedTimelineMedia,
+    segmentScopeMediaItem,
+    projectMediaInput: {
+      activeTextId,
+      mediaItems: _mediaItems,
+      getActiveTextId,
+      setActiveTextId,
+      setShowAudioImport,
+      addMediaItem,
+      setSaveState,
+      unitsOnCurrentMedia,
+      createUnitFromSelectionRouted,
+      loadSnapshot,
+      selectTimelineUnit,
+      locale,
+      tfB,
+      transcriptionLayers,
+      translationLayers,
+      translationTextByLayer,
+      getUnitTextForLayer,
+    },
+    selectedMediaUrl,
+  }));
+
   const assistantSidebarControllerInput = useTranscriptionAssistantSidebarControllerInput({
     locale,
     analysisTab,
@@ -1268,49 +1304,6 @@ function TranscriptionPageReadyWorkspace({
     screenRef,
     setShowBatchOperationPanel,
   });
-
-  // ── Import / Export (extracted hook) ──
-
-  const importExportInput = useTranscriptionImportExportInput({
-    activeTextId,
-    getActiveTextId,
-    selectedUnitMedia: selectedTimelineMedia,
-    activeTimelineMediaItem: segmentScopeMediaItem ?? selectedTimelineMedia,
-    segmentScopeMediaId,
-    unitsOnCurrentMedia,
-    anchors,
-    layers,
-    translations,
-    defaultTranscriptionLayerId,
-    loadSnapshot,
-    setSaveState,
-  });
-
-  const importExportController = useImportExport(importExportInput);
-
-  const projectMediaControllerInput = useTranscriptionProjectMediaControllerInput({
-    activeTextId,
-    mediaItems: _mediaItems,
-    getActiveTextId,
-    setActiveTextId,
-    setShowAudioImport,
-    addMediaItem,
-    setSaveState,
-    selectedMediaUrl: selectedMediaUrl ?? null,
-    selectedTimelineMedia: selectedTimelineMedia ?? null,
-    unitsOnCurrentMedia,
-    createUnitFromSelectionRouted,
-    loadSnapshot,
-    selectTimelineUnit,
-    locale,
-    tfB,
-    transcriptionLayers,
-    translationLayers,
-    translationTextByLayer,
-    getUnitTextForLayer,
-  });
-
-  const projectMediaController = useTranscriptionProjectMediaController({ ...projectMediaControllerInput });
 
   const speakerActionScopeController = useSpeakerActionScopeController({
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
@@ -1404,73 +1397,68 @@ function TranscriptionPageReadyWorkspace({
     setTranscriptionTrackMode,
   });
 
-  const timelineTextLayersForContextMenu = useMemo(
-    () => [...transcriptionLayers, ...translationLayers],
-    [transcriptionLayers, translationLayers],
-  );
-
-  const annotationController = useTranscriptionAnnotationController({
-    manualSelectTsRef,
-    player,
-    selectedTimelineUnit,
-    currentTimelineUnitId: activeTimelineUnitId,
-    selectUnitRange,
-    toggleUnitSelection,
-    selectTimelineUnit,
-    selectUnit,
-    selectSegment,
-    setSelectedLayerId,
-    onFocusLayerRow: handleFocusLayerRow,
-    tierContainerRef,
-    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
-    setCtxMenu,
-    timelineTextLayers: timelineTextLayersForContextMenu,
-    navigateUnitFromInput: playbackKeyboardController.navigateUnitFromInput,
-    waveformAreaRef,
-    dragPreview: timeRangeDragPreviewFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel),
-    selectedUnitIds,
-    focusedLayerRowId,
-    zoomToUnit,
-    startTimelineResizeDrag: timelineResizeController.startTimelineResizeDrag,
-    handleNoteClick,
-    resolveNoteIndicatorTarget,
+  const { annotationController, timelineController } = useReadyWorkspaceTextEditingController(buildReadyWorkspaceTextEditingControllerInput({
+    transcriptionLayers,
+    translationLayers,
+    annotationInput: {
+      manualSelectTsRef,
+      player,
+      selectedTimelineUnit,
+      currentTimelineUnitId: activeTimelineUnitId,
+      selectUnitRange,
+      toggleUnitSelection,
+      selectTimelineUnit,
+      selectUnit,
+      selectSegment,
+      setSelectedLayerId,
+      onFocusLayerRow: handleFocusLayerRow,
+      tierContainerRef,
+      zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
+      setCtxMenu,
+      navigateUnitFromInput: playbackKeyboardController.navigateUnitFromInput,
+      waveformAreaRef,
+      dragPreview: timeRangeDragPreviewFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel),
+      selectedUnitIds,
+      focusedLayerRowId,
+      zoomToUnit,
+      startTimelineResizeDrag: timelineResizeController.startTimelineResizeDrag,
+      handleNoteClick,
+      resolveNoteIndicatorTarget,
+      setOverlapCycleToast,
+      overlapCycleTelemetryRef,
+    },
     speakerVisualByUnitId: speakerActionScopeController.speakerVisualByTimelineUnitId,
     independentLayerIds: segmentTimelineLayerIds,
     orthographies: displayStyleControl.orthographies,
     resolveSelfCertaintyForUnit: selfCertaintyController.resolveSelfCertaintyForUnit,
     resolveSelfCertaintyAmbiguityForUnit: selfCertaintyController.resolveSelfCertaintyAmbiguityForUnit,
-    setOverlapCycleToast,
-    overlapCycleTelemetryRef,
-  });
-
-  const timelineController = useTranscriptionTimelineController({
-    activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
-    unitsOnCurrentMedia,
-    getUnitSpeakerKey,
-    rulerView: timelineViewportProjection.rulerView ?? null,
-    playerDuration: player.duration,
-    translations,
-    selectedBatchUnits: batchOperationController.selectedBatchUnits,
-    transcriptionLayers,
-    selectedLayerId: selectedLayerId ?? null,
-    getUnitTextForLayer,
-    unitDrafts,
-    setUnitDrafts,
-    translationDrafts,
-    setTranslationDrafts,
-    translationTextByLayer,
-    focusedTranslationDraftKeyRef,
-    scheduleAutoSave,
-    clearAutoSaveTimer,
-    saveUnitText,
-    saveUnitLayerText,
-    renderLaneLabel: annotationController.renderLaneLabel,
-    createLayer: createLayerWithActiveContext,
-    updateLayerMetadata,
-    deleteLayer,
-    deleteLayerWithoutConfirm,
-    checkLayerHasContent,
-  });
+    timelineInput: {
+      activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
+      unitsOnCurrentMedia,
+      getUnitSpeakerKey,
+      rulerView: timelineViewportProjection.rulerView ?? null,
+      playerDuration: player.duration,
+      translations,
+      selectedBatchUnits: batchOperationController.selectedBatchUnits,
+      selectedLayerId: selectedLayerId ?? null,
+      getUnitTextForLayer,
+      unitDrafts,
+      setUnitDrafts,
+      translationDrafts,
+      setTranslationDrafts,
+      translationTextByLayer,
+      focusedTranslationDraftKeyRef,
+      scheduleAutoSave,
+      clearAutoSaveTimer,
+      saveUnitText,
+      saveUnitLayerText,
+      createLayer: createLayerWithActiveContext,
+      updateLayerMetadata,
+      deleteLayer,
+      deleteLayerWithoutConfirm,
+      checkLayerHasContent,
+    },
+  }));
 
   const trackDisplayController = useTrackDisplayController({
     unitsOnCurrentMedia,
@@ -1782,40 +1770,9 @@ function TranscriptionPageReadyWorkspace({
     state,
   });
 
-  const readyWorkspaceSidePaneProps = buildReadyWorkspaceSidePaneProps({
-    selectedUnitIds: speakerActionScopeController.selectedSpeakerUnitIdsForActionsSet,
-    handleAssignSpeakerToSelectedRouted: speakerController.handleAssignSpeakerToSelectedRouted,
-    handleClearSpeakerOnSelectedRouted: speakerController.handleClearSpeakerOnSelectedRouted,
-    speakerOptions: speakerController.speakerOptions,
-    speakerDraftName: speakerController.speakerDraftName,
-    setSpeakerDraftName: speakerController.setSpeakerDraftName,
-    batchSpeakerId: speakerController.batchSpeakerId,
-    setBatchSpeakerId: speakerController.setBatchSpeakerId,
-    speakerSaving: speakerController.speakerSavingRouted,
-    activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
-    setActiveSpeakerFilterKey: speakerController.setActiveSpeakerFilterKey,
-    speakerDialogState: speakerController.speakerDialogStateRouted,
-    speakerVisualByUnitId: speakerActionScopeController.speakerVisualByTimelineUnitId,
-    speakerFilterOptions: speakerActionScopeController.speakerFilterOptionsForActions,
-    speakerReferenceStats: speakerController.speakerReferenceStats,
-    speakerReferenceUnassignedStats: speakerController.speakerReferenceUnassignedStats,
-    speakerReferenceStatsMediaScoped: speakerController.speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady: speakerController.speakerReferenceStatsReady,
-    selectedSpeakerSummary: speakerController.selectedSpeakerSummaryForActions,
-    handleSelectSpeakerUnits: speakerController.handleSelectSpeakerUnitsRouted,
-    handleClearSpeakerAssignments: speakerController.handleClearSpeakerAssignmentsRouted,
-    handleExportSpeakerSegments: speakerController.handleExportSpeakerSegmentsRouted,
-    handleRenameSpeaker: speakerController.handleRenameSpeaker,
-    handleMergeSpeaker: speakerController.handleMergeSpeaker,
-    handleDeleteSpeaker: speakerController.handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers: speakerController.handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToSelected: speakerController.handleAssignSpeakerToSelectedRouted,
-    handleCreateSpeakerAndAssign: speakerController.handleCreateSpeakerAndAssignRouted,
-    handleCreateSpeakerOnly: speakerController.handleCreateSpeakerOnly,
-    closeSpeakerDialog: speakerController.closeSpeakerDialogRouted,
-    updateSpeakerDialogDraftName: speakerController.updateSpeakerDialogDraftNameRouted,
-    updateSpeakerDialogTargetKey: speakerController.updateSpeakerDialogTargetKeyRouted,
-    confirmSpeakerDialog: speakerController.confirmSpeakerDialogRouted,
+  const readyWorkspaceSidePaneProps = buildReadyWorkspaceSidePaneProps(buildReadyWorkspaceSidePanePropsInput({
+    speakerActionScopeController,
+    speakerController,
     sidePaneRows: orderedLayers,
     focusedLayerRowId,
     flashLayerRowId,
@@ -1832,23 +1789,16 @@ function TranscriptionPageReadyWorkspace({
     segmentContentByLayer,
     unitsOnCurrentMedia,
     speakers,
-    collaborationCloudPanelProps: {
-      listProjectAssets,
-      removeProjectAsset,
-      getProjectAssetSignedUrl,
-      listProjectSnapshots,
-      restoreProjectSnapshotToLocalById,
-      queryProjectChangeTimeline,
-      ...(hasSupabaseBrowserClientConfig() && activeTextId
-        ? {
-          directory: {
-            workspaceProjectId: activeTextId,
-            listAccessibleProjects: listAccessibleCloudProjects,
-            listProjectMembers: listCloudProjectMembers,
-          },
-        }
-        : {}),
-    },
+    listProjectAssets,
+    removeProjectAsset,
+    getProjectAssetSignedUrl,
+    listProjectSnapshots,
+    restoreProjectSnapshotToLocalById,
+    queryProjectChangeTimeline,
+    supabaseConfigured: hasSupabaseBrowserClientConfig(),
+    activeTextId,
+    listAccessibleCloudProjects,
+    listCloudProjectMembers,
     getUnitTextForLayer,
     onSelectTimelineUnit: selectTimelineUnit,
     onReorderLayers: reorderLayers,
@@ -1857,9 +1807,9 @@ function TranscriptionPageReadyWorkspace({
     translationLayerCount: translationLayers.length,
     onSelectWorkspaceHorizontalLayout,
     onSelectWorkspaceVerticalLayout,
-  });
+  }));
 
-  const readyWorkspaceWaveformContentProps = buildReadyWorkspaceWaveformContentProps({
+  const readyWorkspaceWaveformContentProps = buildReadyWorkspaceWaveformContentProps(buildReadyWorkspaceWaveformContentPropsInput({
     locale,
     waveformAreaRef,
     snapGuideNearSide: snapGuide.nearSide,
@@ -1881,9 +1831,6 @@ function TranscriptionPageReadyWorkspace({
     snapEnabled,
     toggleSnapEnabled,
     playerPlaybackRate: player.playbackRate,
-    selectedUnitDuration: selectedTimelineUnitForTime
-      ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
-      : null,
     amplitudeScale,
     setAmplitudeScale,
     selectedMediaIsVideo,
@@ -1904,10 +1851,6 @@ function TranscriptionPageReadyWorkspace({
     waveformDisplayMode,
     waveCanvasRef,
     waveformStripWheelShellRef,
-    playerSpectrogramRef: player.spectrogramRef,
-    playerWaveformRef: player.waveformRef,
-    playerSeekTo: player.seekTo,
-    playerPlayRegion: player.playRegion,
     segmentRangeGesturePreviewReadModel,
     waveformNoteIndicators,
     waveformLowConfidenceOverlays,
@@ -1918,8 +1861,6 @@ function TranscriptionPageReadyWorkspace({
     acousticOverlayIntensityPath,
     acousticOverlayVisibleSummary,
     acousticOverlayLoading,
-    acousticRuntimeStatus: waveformAcousticRuntimeStatus,
-    vadCacheStatus: waveformVadCacheStatus,
     waveformHoverReadout,
     spectrogramHoverReadout,
     selectedHotspotTimeSec,
@@ -1927,31 +1868,46 @@ function TranscriptionPageReadyWorkspace({
     handleSpectrogramMouseLeave,
     handleSpectrogramClick,
     setNotePopover,
-    snapGuideVisible: snapGuide.visible,
-    snapGuideLeft: snapGuide.left,
-    snapGuideRight: snapGuide.right,
-    snapGuideNearSideValue: snapGuide.nearSide,
-    playerDuration: player.duration,
-    rulerView: timelineViewportProjection.rulerView,
     selectedWaveformTimelineItem,
-    playerIsReady: player.isReady,
-    playerIsPlaying: player.isPlaying,
     playerInstanceGetWidth,
-    zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     waveformScrollLeft,
     segmentPlaybackRate,
     handleSegmentPlaybackRateChange,
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
+    selectedTimelineUnitForTime,
+    runtimeStatus: {
+      acousticRuntimeStatus: waveformAcousticRuntimeStatus,
+      vadCacheStatus: waveformVadCacheStatus,
+    },
+    snapGuide: {
+      visible: snapGuide.visible,
+      left: snapGuide.left,
+      right: snapGuide.right,
+      nearSide: snapGuide.nearSide,
+    },
+    playerBridge: {
+      spectrogramRef: player.spectrogramRef,
+      waveformRef: player.waveformRef,
+      seekTo: player.seekTo,
+      playRegion: player.playRegion,
+      duration: player.duration,
+      isReady: player.isReady,
+      isPlaying: player.isPlaying,
+    },
+    timelineViewportProjection: {
+      rulerView: timelineViewportProjection.rulerView,
+      zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
+    },
     mediaFileInputRef: projectMediaController.mediaFileInputRef,
     acousticStrip: { acoustic: timelineReadModel.acoustic, waveCanvasRef, tierContainerRef },
-  });
+  }));
 
-  const readyWorkspaceOverlaysProps = buildReadyWorkspaceOverlaysProps({
+  const readyWorkspaceOverlaysProps = buildReadyWorkspaceOverlaysProps(buildReadyWorkspaceOverlaysPropsInput({
     ctxMenu,
-    onCloseCtxMenu: () => setCtxMenu(null),
+    setCtxMenu,
     uttOpsMenu,
-    onCloseUttOpsMenu: () => setUttOpsMenu(null),
+    setUttOpsMenu,
     selectedTimelineUnit: selectedTimelineUnit ?? null,
     selectedUnitIds,
     runDeleteSelection: runOverlayDeleteSelection,
@@ -1971,7 +1927,6 @@ function TranscriptionPageReadyWorkspace({
     confirmDeleteFromDialog,
     notePopover,
     currentNotes,
-    onCloseNotePopover: () => setNotePopover(null),
     addNote,
     updateNote,
     deleteNote,
@@ -1984,23 +1939,13 @@ function TranscriptionPageReadyWorkspace({
     speakerFilterOptions: speakerActionScopeController.speakerFilterOptionsForActions,
     onAssignSpeakerFromMenu: speakerController.handleAssignSpeakerFromMenu,
     onSetUnitSelfCertaintyFromMenu: selfCertaintyController.handleSetUnitSelfCertaintyFromMenu,
-    onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
-      if (kind !== 'segment') return;
-      void toggleSkipProcessingRouted(unitId, layerId);
-    },
-    resolveSkipProcessingState: (unitId, layerId, kind) => (
-      timelineUnitViewIndex.currentMediaUnits.some((unit) => (
-        unit.id === unitId
-        && unit.layerId === layerId
-        && unit.kind === kind
-        && unit.tags?.skipProcessing === true
-      ))
-    ),
+    timelineUnitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
+    toggleSkipProcessingRouted,
     onOpenSpeakerManagementPanelFromMenu: speakerController.handleOpenSpeakerManagementPanel,
     displayStyleControl,
-  });
+  }));
 
-  const readyWorkspaceLayoutStyle = buildReadyWorkspaceLayoutStyle({
+  const readyWorkspaceLayoutStyle = buildReadyWorkspaceLayoutStyle(buildReadyWorkspaceLayoutStyleInput({
     uiFontScale,
     adaptiveDialogWidth,
     adaptiveDialogCompactWidth,
@@ -2013,9 +1958,9 @@ function TranscriptionPageReadyWorkspace({
     selectedMediaIsVideo,
     videoLayoutMode,
     videoRightPanelWidth,
-  });
+  }));
 
-  const readyWorkspaceStageProps = buildReadyWorkspaceStageProps({
+  const readyWorkspaceStageProps = buildReadyWorkspaceStageProps(buildReadyWorkspaceStagePropsInput({
     assistantFrame: assistantSidebarController.assistantRuntimeProps.frame,
     shouldRenderRecoveryBanner: readyWorkspaceRenderController.shouldRenderRecoveryBanner,
     recoveryAvailable,
@@ -2032,37 +1977,18 @@ function TranscriptionPageReadyWorkspace({
     acousticRuntimeStatus: deferredAiRuntime.acousticRuntimeStatus,
     vadCacheStatus,
     currentProjectLabel: readyWorkspaceViewModels.toolbarProps.filename,
-    selectedMediaId: selectedTimelineMedia?.id ?? null,
+    ...(selectedTimelineMedia !== undefined ? { selectedTimelineMedia } : {}),
     activeTextTimelineMode,
     activeTextTimeMapping,
     canDeleteProject: Boolean(activeTextId),
-    canDeleteAudio: canDeleteCurrentAudio({
-      hasSelectedTimelineMedia: Boolean(selectedTimelineMedia),
-      selectedMediaUrl,
-    }),
-    onOpenProjectSetup: () => setShowProjectSetup(true),
-    onOpenAudioImport: () => setShowAudioImport(true),
-    onOpenSpeakerManagementPanel: speakerController.handleOpenSpeakerManagementPanel,
-    onDeleteCurrentProject: projectMediaController.handleDeleteCurrentProject,
-    onDeleteCurrentAudio: projectMediaController.handleDeleteCurrentAudio,
-    handleImportFile: importExportController.handleImportFile,
-    onPreviewProjectArchiveImport: importExportController.previewProjectArchiveImport,
-    onImportProjectArchive: importExportController.importProjectArchive,
-    onApplyTextTimeMapping: async (input) => {
-      await applyTextTimeMapping({
-        ...input,
-        ...(segmentScopeMediaId ? { sourceMediaId: segmentScopeMediaId } : {}),
-      });
-    },
-    onExportEaf: importExportController.handleExportEaf,
-    onExportTextGrid: importExportController.handleExportTextGrid,
-    onExportTrs: importExportController.handleExportTrs,
-    onExportFlextext: importExportController.handleExportFlextext,
-    onExportToolbox: importExportController.handleExportToolbox,
-    onExportJyt: importExportController.handleExportJyt,
-    onExportJym: importExportController.handleExportJym,
-    mediaFileInputRef: projectMediaController.mediaFileInputRef,
-    onDirectMediaImport: projectMediaController.handleDirectMediaImport,
+    ...(selectedMediaUrl !== undefined ? { selectedMediaUrl } : {}),
+    setShowProjectSetup,
+    setShowAudioImport,
+    speakerController,
+    projectMediaController,
+    importExportController,
+    applyTextTimeMapping,
+    ...(segmentScopeMediaId ? { segmentScopeMediaId } : {}),
     waveformSectionRef,
     workspaceRef,
     listMainRef,
@@ -2084,7 +2010,7 @@ function TranscriptionPageReadyWorkspace({
     timelineViewportProjection,
     snapEnabled,
     autoScrollEnabled,
-    activeWaveformUnitId: selectedWaveformRegionId || null,
+    activeWaveformRegionId: selectedWaveformRegionId,
     waveformTimelineItems,
     onZoomToPercent: (percent, mode) => zoomToPercent(percent, undefined, mode),
     onZoomToUnit: zoomToUnit,
@@ -2129,7 +2055,7 @@ function TranscriptionPageReadyWorkspace({
     onBatchSplitByRegex: batchOperationController.handleBatchSplitByRegex,
     onBatchMerge: batchOperationController.handleBatchMerge,
     onBatchJumpToUnit: selectUnit,
-  });
+  }));
 
   return (
     <TranscriptionPageReadyWorkspaceLayout
@@ -2141,12 +2067,12 @@ function TranscriptionPageReadyWorkspace({
       readyStageProps={readyWorkspaceStageProps}
       overlaysProps={readyWorkspaceOverlaysProps}
       layerPopoverProps={null}
-      conflictReviewDrawerProps={buildReadyWorkspaceConflictReviewDrawerProps({
+      conflictReviewDrawerProps={buildReadyWorkspaceConflictReviewDrawerProps(buildReadyWorkspaceConflictReviewDrawerPropsInput({
         tickets: collaborationConflictTickets,
-        onApplyRemoteConflictTicket: applyRemoteConflictTicket,
-        onKeepLocalConflictTicket: keepLocalConflictTicket,
-        onPostponeConflictTicket: postponeConflictTicket,
-      })}
+        applyRemoteConflictTicket,
+        keepLocalConflictTicket,
+        postponeConflictTicket,
+      }))}
       {...(state.phase === 'error' ? { errorMessage: state.message } : {})}
     />
   );

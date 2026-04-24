@@ -287,11 +287,11 @@ describe('TranscriptionPage structure invariants', () => {
     const orchestratorInputCode = fs.readFileSync(orchestratorInputPath, 'utf8');
     expect(orchestratorInputCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
     expect(orchestratorInputCode.includes('const zoomPxPerSec = timelineViewportProjection.zoomPxPerSec')).toBe(true);
-    const propsBuildersPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspacePropsBuilders.ts');
-    const propsBuildersCode = fs.readFileSync(propsBuildersPath, 'utf8');
-    expect(propsBuildersCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
-    expect(propsBuildersCode.includes('input.timelineViewportProjection.zoomPercent')).toBe(true);
-    expect(code.includes('buildReadyWorkspaceStageProps({') && code.includes('timelineViewportProjection,')).toBe(true);
+    const stageBuilderPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceStagePropsBuilder.ts');
+    const stageBuilderCode = fs.readFileSync(stageBuilderPath, 'utf8');
+    expect(stageBuilderCode.includes('timelineViewportProjection: TimelineViewportProjection')).toBe(true);
+    expect(stageBuilderCode.includes('input.timelineViewportProjection.zoomPercent')).toBe(true);
+    expect(code.includes('buildReadyWorkspaceStageProps(buildReadyWorkspaceStagePropsInput({') && code.includes('timelineViewportProjection,')).toBe(true);
     expect(code.includes("import { buildReadyWorkspaceViewModelsInput } from './readyWorkspaceViewModelsInputBuilder';")).toBe(true);
     expect(code.includes('buildReadyWorkspaceViewModelsInput(')).toBe(true);
     const vmInputBuilderPath = path.resolve(process.cwd(), 'src/pages/readyWorkspaceViewModelsInputBuilder.ts');
@@ -318,7 +318,8 @@ describe('TranscriptionPage structure invariants', () => {
 
     // 拖拽更新结束应在独立层更新 segment 而非 unit
     // Region update end must update segment on independent layers.
-    expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
+    expect(code.includes("import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTimelineSyncController';")).toBe(true);
+    expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(false);
     expect(code.includes('useTranscriptionActionRefBindings({')).toBe(true);
     expect(interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
     // RegionAction 条件在 WaveformRegionActionLayer（与旧内联 `!a && b && c` 等价）| Region gating lives in layer component
@@ -503,9 +504,14 @@ describe('TranscriptionPage structure invariants', () => {
     ).toBe(true);
     expect(orchestratorCode.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
+    const surfaceInputBuilderPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceSurfaceInputBuilder.ts');
+    const surfaceInputBuilderCode = fs.readFileSync(surfaceInputBuilderPath, 'utf8');
+    const sidePaneInputBuilderPath = path.resolve(process.cwd(), 'src/pages/transcriptionReadyWorkspaceSidePaneInputBuilder.ts');
+    const sidePaneInputBuilderCode = fs.readFileSync(sidePaneInputBuilderPath, 'utf8');
+    expect(orchestratorCode.includes('buildReadyWorkspaceSidePaneProps(buildReadyWorkspaceSidePanePropsInput({')).toBe(true);
     expect(
-      orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')
-      || orchestratorCode.includes('handleAssignSpeakerToSelected: speakerController.handleAssignSpeakerToSelectedRouted,'),
+      surfaceInputBuilderCode.includes('handleAssignSpeakerToSelected: input.speakerController.handleAssignSpeakerToSelectedRouted,')
+      || sidePaneInputBuilderCode.includes('handleAssignSpeakerToSelected: input.speakerController.handleAssignSpeakerToSelectedRouted,'),
     ).toBe(true);
     expect(
       orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu')
@@ -769,19 +775,24 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps timeline filtering and editor context composition extracted into dedicated hook', () => {
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const aggregateHookPath = path.resolve(process.cwd(), 'src/pages/useReadyWorkspaceTextEditingController.ts');
+    const aggregateHookCode = fs.readFileSync(aggregateHookPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
-    expect(orchestratorCode.includes("import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';")).toBe(true);
+    expect(orchestratorCode.includes("import { useReadyWorkspaceTextEditingController } from './useReadyWorkspaceTextEditingController';")).toBe(true);
+    expect(orchestratorCode.includes("import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';")).toBe(false);
     expect(
-      orchestratorCode.includes('} = useTranscriptionTimelineController({')
-      || orchestratorCode.includes('const timelineController = useTranscriptionTimelineController({'),
+      orchestratorCode.includes('} = useReadyWorkspaceTextEditingController(buildReadyWorkspaceTextEditingControllerInput({')
+      || orchestratorCode.includes('const { annotationController, timelineController } = useReadyWorkspaceTextEditingController('),
     ).toBe(true);
     expect(orchestratorCode.includes('const filteredUnitsOnCurrentMedia = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const timelineRenderUnits = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const editorContextValue = useMemo(() => ({')).toBe(false);
 
+    expect(aggregateHookCode.includes("import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';")).toBe(true);
+    expect(aggregateHookCode.includes('const timelineController = useTranscriptionTimelineController({')).toBe(true);
     expect(hookCode.includes('const filteredUnitsOnCurrentMedia = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const timelineRenderUnits = useMemo(() => {')).toBe(true);
     expect(hookCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(true);
@@ -793,11 +804,14 @@ describe('TranscriptionPage structure invariants', () => {
   it('keeps timeline interaction routing extracted into dedicated hook', () => {
     const orchestratorPath = path.resolve(process.cwd(), 'src/pages/TranscriptionPage.ReadyWorkspace.tsx');
     const orchestratorCode = fs.readFileSync(orchestratorPath, 'utf8');
+    const aggregateHookPath = path.resolve(process.cwd(), 'src/pages/useReadyWorkspaceTimelineSyncController.ts');
+    const aggregateHookCode = fs.readFileSync(aggregateHookPath, 'utf8');
     const hookPath = path.resolve(process.cwd(), 'src/pages/useTranscriptionTimelineInteractionController.ts');
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
-    expect(orchestratorCode.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionTimelineInteractionController({')).toBe(true);
+    expect(orchestratorCode.includes("import { useReadyWorkspaceTimelineSyncController } from './useReadyWorkspaceTimelineSyncController';")).toBe(true);
+    expect(orchestratorCode.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(false);
+    expect(orchestratorCode.includes('} = useReadyWorkspaceTimelineSyncController(buildReadyWorkspaceTimelineSyncControllerInput({')).toBe(true);
     expect(orchestratorCode.includes('const handleJumpToEmbeddingMatch = useCallback((unitId: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const handleJumpToCitation = useCallback(async (')).toBe(false);
     expect(orchestratorCode.includes('const handleSearchReplace = useCallback(')).toBe(false);
@@ -813,6 +827,9 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const arr = waveformTimelineItems;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionClickRef.current = handleWaveformRegionClick;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionDoubleClickRef.current = handleWaveformRegionDoubleClick;')).toBe(false);
+
+    expect(aggregateHookCode.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
+    expect(aggregateHookCode.includes('const interactionController = useTranscriptionTimelineInteractionController(')).toBe(true);
     expect(orchestratorCode.includes('handleWaveformRegionCreateRef.current = handleWaveformRegionCreate;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionUpdateRef.current = handleWaveformRegionUpdate;')).toBe(false);
     expect(orchestratorCode.includes('handleWaveformRegionUpdateEndRef.current = handleWaveformRegionUpdateEnd;')).toBe(false);
