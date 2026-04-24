@@ -102,7 +102,7 @@ export function useTranscriptionSegmentBridgeController(
   useEffect(() => {
     fireAndForget(refreshSegmentUndoSnapshot(), {
       context: 'src/pages/useTranscriptionSegmentBridgeController.ts:L103',
-      policy: 'background',
+      policy: 'background-quiet',
     });
 
     return () => {

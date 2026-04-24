@@ -331,7 +331,7 @@ export function useTranscriptionAiController(
   });
 
   useEffect(() => {
-    fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background' });
+    fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background-quiet' });
   }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
 
   const {

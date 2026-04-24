@@ -22,7 +22,7 @@ const PAGES_BACKGROUND_ALLOWLIST = new Set([
   'src/pages/useTranscriptionSegmentBridgeController.ts',
 ]);
 
-const VALID_POLICIES = new Set(['user-visible', 'background']);
+const VALID_POLICIES = new Set(['user-visible', 'background', 'background-quiet']);
 const CONTEXT_LITERAL_RE = /context\s*:\s*(['"`])([^'"`]+)\1/s;
 const POLICY_LITERAL_RE = /policy\s*:\s*(['"`])([^'"`]+)\1/s;
 const CONTEXT_FORMAT_RE = /^src\/.+\.(ts|tsx):L\d+$/;
@@ -102,15 +102,19 @@ function scanCalls(text) {
   return calls;
 }
 
+function isBackgroundPolicy(policy) {
+  return policy === 'background' || policy === 'background-quiet';
+}
+
 function isPolicyAllowedByPath(filePath, policy) {
   if (filePath.startsWith('src/hooks/')) {
-    if (policy === 'background') return true;
+    if (isBackgroundPolicy(policy)) return true;
     return policy === 'user-visible' && HOOKS_USER_VISIBLE_ALLOWLIST.has(filePath);
   }
 
   if (filePath.startsWith('src/pages/')) {
     if (policy === 'user-visible') return true;
-    return policy === 'background' && PAGES_BACKGROUND_ALLOWLIST.has(filePath);
+    return isBackgroundPolicy(policy) && PAGES_BACKGROUND_ALLOWLIST.has(filePath);
   }
 
   if (filePath.startsWith('src/components/')) {
@@ -206,7 +210,7 @@ function run() {
     }
 
     if (invalidPolicyLiteral.length > 0) {
-      console.error('[fireAndForget-governance] Invalid policy literal (allowed: user-visible/background) at:');
+      console.error('[fireAndForget-governance] Invalid policy literal (allowed: user-visible/background/background-quiet) at:');
       for (const v of invalidPolicyLiteral) {
         console.error(`- ${v}`);
       }
