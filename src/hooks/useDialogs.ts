@@ -130,6 +130,7 @@ export function useDialogs(units: DialogUnit[]) {
   const [activeTextPrimaryOrthographyId, setActiveTextPrimaryOrthographyId] = useState<string | null>(null);
   const [activeTextTimelineMode, setActiveTextTimelineMode] = useState<TextTimelineMode | null>(null);
   const [activeTextTimeMapping, setActiveTextTimeMapping] = useState<TextTimeMappingSummary | null>(null);
+  const firstUnitTextId = units[0]?.textId;
 
   const getActiveTextId = useCallback(async (): Promise<string | null> => {
     if (activeTextId) return activeTextId;
@@ -178,31 +179,35 @@ export function useDialogs(units: DialogUnit[]) {
     return timelineMode;
   }, [activeTextId, activeTextTimelineMode]);
 
+  /**
+   * 刷新后首几帧常出现：activeTextId 刚由 units[0] 推入、但 getAllTexts 尚未返回 → activeTextTimeMapping 为 null，
+   * 桥里 compute 退到 1800s、zoom 比稳定后小约 9×。用单条 getTextById 且 targetId=activeTextId ?? units[0].textId，尽早取 metadata。 |
+   * After F5, avoid falling back to DEFAULT 1800 document span while text mapping is still null.
+   */
   useEffect(() => {
-    if (activeTextId) return;
-    const firstTextId = units[0]?.textId;
-    if (firstTextId) setActiveTextId(firstTextId);
-  }, [units, activeTextId]);
-
-  useEffect(() => {
-    if (!activeTextId) {
+    if (!activeTextId && !firstUnitTextId) {
       setActiveTextPrimaryLanguageId(null);
       setActiveTextPrimaryOrthographyId(null);
       setActiveTextTimelineMode(null);
       setActiveTextTimeMapping(null);
       return;
     }
+    if (!activeTextId && firstUnitTextId) {
+      setActiveTextId(firstUnitTextId);
+    }
+    const targetId = activeTextId ?? firstUnitTextId;
+    if (!targetId) return;
     let cancelled = false;
-    void LinguisticService.getAllTexts().then((texts) => {
-      if (cancelled) return;
-      const activeText = texts.find((text) => text.id === activeTextId);
-      setActiveTextPrimaryLanguageId(activeText ? resolvePrimaryLanguageId(activeText) : null);
-      setActiveTextPrimaryOrthographyId(activeText ? resolvePrimaryOrthographyId(activeText) : null);
-      setActiveTextTimelineMode(activeText ? resolveTimelineMode(activeText) : null);
-      setActiveTextTimeMapping(activeText ? resolveTextTimeMapping(activeText) : null);
+    void LinguisticService.getTextById(targetId).then((activeText) => {
+      if (cancelled || !activeText) return;
+      if (activeText.id !== targetId) return;
+      setActiveTextPrimaryLanguageId(resolvePrimaryLanguageId(activeText));
+      setActiveTextPrimaryOrthographyId(resolvePrimaryOrthographyId(activeText));
+      setActiveTextTimelineMode(resolveTimelineMode(activeText));
+      setActiveTextTimeMapping(resolveTextTimeMapping(activeText));
     });
     return () => { cancelled = true; };
-  }, [activeTextId, unitTextIdSignature]);
+  }, [activeTextId, firstUnitTextId, unitTextIdSignature]);
 
   return {
     showProjectSetup,

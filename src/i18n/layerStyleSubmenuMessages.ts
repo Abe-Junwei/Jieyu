@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type LayerStyleSubmenuMessages = {
   defaultFontSizeOption: (value: number) => string;
@@ -79,5 +79,5 @@ const enUS: LayerStyleSubmenuMessages = {
 };
 
 export function getLayerStyleSubmenuMessages(locale: Locale): LayerStyleSubmenuMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

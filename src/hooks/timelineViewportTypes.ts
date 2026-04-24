@@ -13,7 +13,7 @@ export interface TimelineRulerViewWindow {
 /** Authoritative zoom scalars (today split between orchestrator input and `useZoom` input; phase C collapses to one writer). */
 export interface TimelineViewportScalars {
   zoomPxPerSec: number;
-  logicalTimelineDurationSec: number;
+  documentSpanSec: number;
   zoomPercent: number;
   maxZoomPercent: number;
   fitPxPerSec: number;

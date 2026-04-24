@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type OrthographyBridgeManagerMessages = {
   toggleOpen: string;
@@ -136,5 +136,5 @@ const enUS: OrthographyBridgeManagerMessages = {
 };
 
 export function getOrthographyBridgeManagerMessages(locale: Locale): OrthographyBridgeManagerMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

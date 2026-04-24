@@ -38,6 +38,8 @@ export interface TimelineAnnotationItemProps {
   onDoubleClick: () => void;
   onResizeStartPointerDown: (e: PointerEvent<HTMLSpanElement>) => void;
   onResizeEndPointerDown: (e: PointerEvent<HTMLSpanElement>) => void;
+  /** 平移语段时间范围（与波形上拖动区域一致）| Move segment time range, like waveform region drag */
+  onBodyMovePointerDown?: (e: PointerEvent<HTMLDivElement>) => void;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
   onBlur: (e: FocusEvent<HTMLInputElement>) => void;
@@ -80,6 +82,7 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
   onDoubleClick,
   onResizeStartPointerDown,
   onResizeEndPointerDown,
+  onBodyMovePointerDown,
   onChange,
   onFocus,
   onBlur,
@@ -120,6 +123,14 @@ export const TimelineAnnotationItem = memo(function TimelineAnnotationItem({
       title={title}
       onDoubleClick={onDoubleClick}
     >
+      {onBodyMovePointerDown && !isActive && !skipProcessing && !content ? (
+        <div
+          className="timeline-annotation-body-move"
+          title={t(locale, 'transcription.timeline.annotation.bodyMove')}
+          aria-label={t(locale, 'transcription.timeline.annotation.bodyMove')}
+          onPointerDown={onBodyMovePointerDown}
+        />
+      ) : null}
       <span
         className="timeline-annotation-resize-handle timeline-annotation-resize-handle-start"
         onPointerDown={onResizeStartPointerDown}

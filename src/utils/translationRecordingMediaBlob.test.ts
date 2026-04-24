@@ -1,8 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import type { MediaItemDocType } from '../db';
-import { readAudioBlobFromDetails, readNonEmptyAudioBlobFromMediaItem } from './translationRecordingMediaBlob';
+import {
+  fileExtensionForRecordedVoiceBlob,
+  readAudioBlobFromDetails,
+  readNonEmptyAudioBlobFromMediaItem,
+} from './translationRecordingMediaBlob';
 
 describe('translationRecordingMediaBlob', () => {
+  describe('fileExtensionForRecordedVoiceBlob', () => {
+    it('maps common recorder mime types to stable extensions', () => {
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: 'audio/webm;codecs=opus' }))).toBe('webm');
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: 'audio/webm' }))).toBe('webm');
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: 'audio/mp4' }))).toBe('m4a');
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: 'audio/ogg' }))).toBe('ogg');
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: 'audio/mpeg' }))).toBe('mp3');
+      expect(fileExtensionForRecordedVoiceBlob(new Blob([], { type: '' }))).toBe('webm');
+    });
+  });
+
   describe('readAudioBlobFromDetails', () => {
     it('returns null for non-object details', () => {
       expect(readAudioBlobFromDetails(null)).toBeNull();

@@ -176,16 +176,32 @@ export function scrubOtelSpanAttributes(attributes: Record<string, unknown> | un
   }
 }
 
-function createAttributeScrubSpanProcessor() {
+/** 与 BatchSpanProcessor 相同的生命周期，在 onEnd 时脱敏后再交给下游 | Scrub attributes then forward to delegate (e.g. BatchSpanProcessor) */
+type SpanProcessorDelegate = {
+  onStart: (span: unknown, parentContext: unknown) => void;
+  onEnd: (span: { attributes?: Record<string, unknown> }) => void;
+  forceFlush: () => Promise<void>;
+  shutdown: () => Promise<void>;
+  onEnding?: (span: unknown) => void;
+};
+
+function createScrubbingBatchSpanProcessor(delegate: SpanProcessorDelegate): SpanProcessorDelegate {
   return {
-    onStart() {
-      // noop — 起始阶段无需处理 | No-op on start
+    onStart(span, parentContext) {
+      delegate.onStart(span, parentContext);
     },
-    onEnd(span: { attributes?: Record<string, unknown> }) {
-      scrubOtelSpanAttributes(span.attributes);
+    onEnding(span) {
+      delegate.onEnding?.(span);
     },
-    forceFlush: async () => undefined,
-    shutdown: async () => undefined,
+    onEnd(span) {
+      const attrs = span.attributes;
+      if (attrs && typeof attrs === 'object') {
+        scrubOtelSpanAttributes(attrs as Record<string, unknown>);
+      }
+      delegate.onEnd(span);
+    },
+    forceFlush: () => delegate.forceFlush(),
+    shutdown: () => delegate.shutdown(),
   };
 }
 
@@ -293,13 +309,13 @@ export async function initOtelWithResolvedConfig(
       maxExportBatchSize: Math.min(maxExportBatchSize, maxQueueSize),
       scheduledDelayMillis,
       exportTimeoutMillis,
-    });
+    }) as SpanProcessorDelegate;
 
     const providerConfig = {
       sampler: new ParentBasedSampler({
         root: new TraceIdRatioBasedSampler(config.tracesSampleRate),
       }),
-      spanProcessors: [createAttributeScrubSpanProcessor(), spanProcessor],
+      spanProcessors: [createScrubbingBatchSpanProcessor(spanProcessor)],
       ...(resource ? { resource } : {}),
     };
 

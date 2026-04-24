@@ -22,6 +22,7 @@ import { isTranscriptionWorkspacePathname } from './utils/transcriptionWorkspace
 import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMaterialIcon';
 
 // 路由级代码分割，各页面按需加载 | Route-level code splitting, pages loaded on demand
+const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
 const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ default: m.AnnotationPage })));
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
@@ -315,8 +316,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    // 首屏路由是转写页时，预热关键模块请求，避免懒加载链延后触发 | Prewarm transcription modules on first-route hit to avoid delayed lazy-chain fetches
-    if (location.pathname !== '/' && !location.pathname.startsWith('/transcription')) {
+    // 仅转写路由预热重模块；首页不拉转写包 | Prewarm transcription chunks only on transcription routes
+    if (!location.pathname.startsWith('/transcription')) {
       return;
     }
     prewarmLanguageAssetChunk(import('./pages/TranscriptionPage'));
@@ -367,6 +368,12 @@ export function App() {
       id: 'workspace-core',
       title: t(locale, 'app.navGroup.core'),
       items: [
+        {
+          to: '/',
+          label: t(locale, 'app.nav.home'),
+          icon: 'local_library',
+          summary: t(locale, 'app.nav.summary.home'),
+        },
         {
           to: '/transcription',
           label: t(locale, 'app.nav.transcription'),
@@ -575,6 +582,7 @@ export function App() {
                     <NavLink
                       key={item.to}
                       to={item.to}
+                      end={item.to === '/'}
                       className={({ isActive }) =>
                         isActive ? 'left-rail-btn left-rail-btn-active' : 'left-rail-btn'
                       }
@@ -656,7 +664,7 @@ export function App() {
                 <AssetPanelProvider value={assetPanelCtx}>
                 <Suspense fallback={<div className="app-route-loading" aria-busy="true" />}>
                   <Routes location={location}>
-                    <Route path="/" element={<Navigate to="/transcription" replace />} />
+                    <Route path="/" element={<HomePage />} />
                     <Route
                       path="/transcription"
                       element={<TranscriptionPage />}

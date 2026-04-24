@@ -6,7 +6,12 @@ import { mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
 import { listUnitTextsFromSegmentation } from '../services/LayerSegmentationTextService';
 import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { listUnitDocsFromCanonicalLayerUnits } from '../services/LayerSegmentGraphService';
+import { LinguisticService } from '../services/LinguisticService';
 import { createTimelineUnit, type DbState, type TimelineUnit } from './transcriptionTypes';
+import {
+  assertTranscriptionDependencyLayerInvariant,
+  scopeLayerLinksToLayerIdSet,
+} from '../utils/transcriptionLayerDependencyInvariant';
 
 type Params = {
   dbNameRef: React.MutableRefObject<string | undefined>;
@@ -18,6 +23,8 @@ type Params = {
   setSelectedLayerId: React.Dispatch<React.SetStateAction<string>>;
   setSelectedUnitIds?: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSelectedTimelineUnit?: React.Dispatch<React.SetStateAction<TimelineUnit | null>>;
+  /** 与 `useTranscriptionMediaSelection` 对齐：快照恢复后若未选时间轴媒体，则同步到当前文本下的首条可用媒体。 */
+  setSelectedMediaId?: React.Dispatch<React.SetStateAction<string>>;
   setState: React.Dispatch<React.SetStateAction<DbState>>;
   setTranslations: React.Dispatch<React.SetStateAction<LayerUnitContentDocType[]>>;
   setUnitDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
@@ -34,6 +41,7 @@ export function useTranscriptionSnapshotLoader({
   setSelectedLayerId,
   setSelectedUnitIds,
   setSelectedTimelineUnit,
+  setSelectedMediaId,
   setState,
   setTranslations,
   setUnitDrafts,
@@ -71,6 +79,13 @@ export function useTranscriptionSnapshotLoader({
       ? allLayerRows.filter((l) => l.textId === activeTextId)
       : allLayerRows;
 
+    const projectLayerIds = new Set(layerRows.map((l) => l.id));
+    const scopedLinksForInvariant = scopeLayerLinksToLayerIdSet(linkRows, projectLayerIds);
+    assertTranscriptionDependencyLayerInvariant({
+      layers: layerRows,
+      layerLinks: scopedLinksForInvariant,
+    });
+
     setUnits(unitRows);
     setAnchors(anchorRows);
     setLayers(layerRows);
@@ -78,6 +93,24 @@ export function useTranscriptionSnapshotLoader({
     setMediaItems(mediaRows);
     setSpeakers(speakerRows);
     setLayerLinks(linkRows);
+
+    if (setSelectedMediaId) {
+      const textId = activeTextId ?? '';
+      const projectMedia = textId
+        ? mediaRows.filter((m) => m.textId === textId)
+        : mediaRows;
+      const fromUnit = unitRows
+        .map((u) => u.mediaId?.trim())
+        .find((id): id is string => Boolean(id && projectMedia.some((m) => m.id === id)));
+      const initialMediaId = fromUnit ?? projectMedia[0]?.id;
+      if (initialMediaId) {
+        setSelectedMediaId((prev) => {
+          const p = typeof prev === 'string' ? prev.trim() : '';
+          return p.length > 0 ? prev : initialMediaId;
+        });
+      }
+    }
+
     setUnitDrafts(() => {
       const next: Record<string, string> = {};
       unitRows.forEach((row) => {
@@ -115,12 +148,20 @@ export function useTranscriptionSnapshotLoader({
     const projectTextId = unitRows[0]?.textId ?? layerRows[0]?.textId ?? '';
     const unitCount = unitRows.length;
     let unifiedUnitCount = unitCount;
+    let textLogicalDurationSecFromSnapshot: number | undefined;
     if (projectTextId.trim()) {
-      const projectSegments = await LayerSegmentQueryService.listSegmentsByTextId(projectTextId);
+      const [projectSegments, textDoc] = await Promise.all([
+        LayerSegmentQueryService.listSegmentsByTextId(projectTextId),
+        LinguisticService.getTextById(projectTextId),
+      ]);
       unifiedUnitCount = mergedTimelineUnitSemanticKeyCount({
         unitIds: unitRows.map((row) => row.id),
         segments: projectSegments,
       });
+      const m = textDoc?.metadata as { logicalDurationSec?: unknown } | undefined;
+      if (typeof m?.logicalDurationSec === 'number' && Number.isFinite(m.logicalDurationSec) && m.logicalDurationSec > 0) {
+        textLogicalDurationSecFromSnapshot = m.logicalDurationSec;
+      }
     }
 
     setState({
@@ -128,6 +169,7 @@ export function useTranscriptionSnapshotLoader({
       dbName: db.name,
       unitCount,
       unifiedUnitCount,
+      ...(textLogicalDurationSecFromSnapshot !== undefined ? { textLogicalDurationSecFromSnapshot } : {}),
       translationLayerCount: translationLayerRows.length,
       translationRecordCount: translationRows.length,
     });
@@ -142,6 +184,7 @@ export function useTranscriptionSnapshotLoader({
     setSelectedUnitIds,
     setSelectedTimelineUnit,
     setState,
+    setSelectedMediaId,
     setTranslations,
     setUnitDrafts,
     setUnits,

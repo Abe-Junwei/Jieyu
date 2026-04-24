@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type BatchOperationPanelMessages = {
   overlapAdjacent: string;
@@ -223,5 +223,5 @@ const enUS: BatchOperationPanelMessages = {
 };
 
 export function getBatchOperationPanelMessages(locale: Locale): BatchOperationPanelMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

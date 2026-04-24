@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import { useTranscriptionPlaybackClock } from '../hooks/transcriptionPlaybackClock';
 import { t, useLocale } from '../i18n';
 
 interface TimeRulerProps {
   duration: number;
-  currentTime: number;
+  /** 省略时由 `transcriptionPlaybackClock` 驱动游标（与无 `currentTime` state 的波形栈对齐） */
+  currentTime?: number;
   rulerView: { start: number; end: number };
   zoomPxPerSec: number;
   isLaneHeaderCollapsed: boolean;
@@ -25,6 +27,31 @@ const RULER_MAJOR_TICK_Y2_PX = 8;
 const RULER_LABEL_Y_PX = 16;
 const RULER_CURSOR_TOP_OFFSET_PX = 8;
 const RULER_CURSOR_JOIN_OVERLAP_PX = 2;
+
+function TimeRulerCursorLine(props: {
+  currentTime?: number;
+  start: number;
+  windowSec: number;
+  waveCanvasRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { currentTime, start, windowSec, waveCanvasRef } = props;
+  const clockTime = useTranscriptionPlaybackClock();
+  const playheadTime = currentTime !== undefined ? currentTime : clockTime;
+  const cursorLineTopY = -Math.max(
+    RULER_CURSOR_TOP_OFFSET_PX,
+    Math.max(0, waveCanvasRef.current?.clientHeight ?? 0) + RULER_CURSOR_JOIN_OVERLAP_PX,
+  );
+
+  return (
+    <line
+      className="time-ruler-cursor-line"
+      x1={`${((playheadTime - start) / windowSec) * 100}%`}
+      x2={`${((playheadTime - start) / windowSec) * 100}%`}
+      y1={cursorLineTopY}
+      y2={RULER_HEIGHT_PX}
+    />
+  );
+}
 
 export function TimeRuler({
   duration,
@@ -70,41 +97,76 @@ export function TimeRuler({
 
   if (windowSec <= 0) return null;
 
-  const approxPxPerSec = Math.max(zoomPxPerSec, 1);
-  const majorStep = NICE_STEPS.find((s) => s * approxPxPerSec >= 120) ?? 600;
-  const subDiv = SUB_DIVS.find((d) => (majorStep / d) * approxPxPerSec >= 28) ?? 1;
-  const minorStep = majorStep / subDiv;
+  const { majorStep, minorStep, fmtLabel } = useMemo(() => {
+    const approxPxPerSec = Math.max(zoomPxPerSec, 1);
+    const nextMajorStep = NICE_STEPS.find((s) => s * approxPxPerSec >= 120) ?? 600;
+    const subDiv = SUB_DIVS.find((d) => (nextMajorStep / d) * approxPxPerSec >= 28) ?? 1;
+    const nextMinorStep = nextMajorStep / subDiv;
+    const showMs = nextMajorStep < 1;
+    const showHour = dur >= 3600;
+    const formatter = (t: number) => {
+      const h = Math.floor(t / 3600);
+      const m = Math.floor((t % 3600) / 60);
+      const sRaw = t % 60;
+      if (showMs) {
+        const sStr = sRaw.toFixed(1).padStart(4, '0');
+        return showHour ? `${h}:${String(m).padStart(2, '0')}:${sStr}` : `${m}:${sStr}`;
+      }
+      let sInt = Math.round(sRaw);
+      let mAdj = m;
+      let hAdj = h;
+      if (sInt >= 60) { sInt = 0; mAdj += 1; }
+      if (mAdj >= 60) { mAdj = 0; hAdj += 1; }
+      const ss = String(sInt).padStart(2, '0');
+      return showHour
+        ? `${hAdj}:${String(mAdj).padStart(2, '0')}:${ss}`
+        : `${mAdj}:${ss}`;
+    };
+    return {
+      majorStep: nextMajorStep,
+      minorStep: nextMinorStep,
+      fmtLabel: formatter,
+    };
+  }, [dur, zoomPxPerSec]);
 
-  const showMs = majorStep < 1;
-  const showHour = dur >= 3600;
-  const fmtLabel = (t: number) => {
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const sRaw = t % 60;
-    if (showMs) {
-      const sStr = sRaw.toFixed(1).padStart(4, '0');
-      return showHour ? `${h}:${String(m).padStart(2, '0')}:${sStr}` : `${m}:${sStr}`;
+  const ticks = useMemo(() => {
+    const nextTicks: Array<{ time: number; kind: 'major' | 'minor' }> = [];
+    const t0 = Math.max(0, Math.floor(start / minorStep) * minorStep);
+    for (let t = t0; t <= Math.min(end, dur) + 1e-9; t += minorStep) {
+      const rounded = Math.round(t * 1e6) / 1e6;
+      if (rounded > dur) break;
+      const ratio = rounded / majorStep;
+      const isMajor = Math.abs(ratio - Math.round(ratio)) < 1e-6;
+      nextTicks.push({ time: rounded, kind: isMajor ? 'major' : 'minor' });
     }
-    let sInt = Math.round(sRaw);
-    let mAdj = m;
-    let hAdj = h;
-    if (sInt >= 60) { sInt = 0; mAdj += 1; }
-    if (mAdj >= 60) { mAdj = 0; hAdj += 1; }
-    const ss = String(sInt).padStart(2, '0');
-    return showHour
-      ? `${hAdj}:${String(mAdj).padStart(2, '0')}:${ss}`
-      : `${mAdj}:${ss}`;
-  };
+    return nextTicks;
+  }, [dur, end, majorStep, minorStep, start]);
 
-  const ticks: Array<{ time: number; kind: 'major' | 'minor' }> = [];
-  const t0 = Math.max(0, Math.floor(start / minorStep) * minorStep);
-  for (let t = t0; t <= Math.min(end, dur) + 1e-9; t += minorStep) {
-    const rounded = Math.round(t * 1e6) / 1e6;
-    if (rounded > dur) break;
-    const ratio = rounded / majorStep;
-    const isMajor = Math.abs(ratio - Math.round(ratio)) < 1e-6;
-    ticks.push({ time: rounded, kind: isMajor ? 'major' : 'minor' });
-  }
+  const tickMarks = useMemo(() => ticks.map((tk) => {
+    const leftPct = ((tk.time - start) / windowSec) * 100;
+    const left = `${leftPct}%`;
+    return (
+      <g key={`tk-${tk.time}`}>
+        <line
+          className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
+          x1={left}
+          x2={left}
+          y1={0}
+          y2={tk.kind === 'major' ? RULER_MAJOR_TICK_Y2_PX : RULER_MINOR_TICK_Y2_PX}
+        />
+        {tk.kind === 'major' ? (
+          <text
+            className="time-ruler-label-text"
+            x={left}
+            y={RULER_LABEL_Y_PX}
+            dx={2}
+          >
+            {fmtLabel(tk.time)}
+          </text>
+        ) : null}
+      </g>
+    );
+  }), [fmtLabel, start, ticks, windowSec]);
 
   const seekFromOverview = useCallback((clientX: number, element: HTMLDivElement) => {
     const rect = element.getBoundingClientRect();
@@ -114,10 +176,6 @@ export function TimeRuler({
 
   const overviewViewportLeft = `${(Math.max(0, start) / dur) * 100}%`;
   const overviewViewportWidth = `${Math.max(0.8, ((Math.min(dur, end) - Math.max(0, start)) / dur) * 100)}%`;
-  const cursorLineTopY = -Math.max(
-    RULER_CURSOR_TOP_OFFSET_PX,
-    Math.max(0, waveCanvasRef.current?.clientHeight ?? 0) + RULER_CURSOR_JOIN_OVERLAP_PX,
-  );
 
   return (
     <div className="time-ruler">
@@ -174,37 +232,12 @@ export function TimeRuler({
         }}
       >
         <svg className="time-ruler-overlay" aria-hidden="true">
-          {ticks.map((tk) => {
-            const leftPct = ((tk.time - start) / windowSec) * 100;
-            const left = `${leftPct}%`;
-            return (
-              <g key={`tk-${tk.time}`}>
-                <line
-                  className={`time-ruler-tick-line ${tk.kind === 'major' ? 'time-ruler-tick-line-major' : ''}`}
-                  x1={left}
-                  x2={left}
-                  y1={0}
-                  y2={tk.kind === 'major' ? RULER_MAJOR_TICK_Y2_PX : RULER_MINOR_TICK_Y2_PX}
-                />
-                {tk.kind === 'major' ? (
-                  <text
-                    className="time-ruler-label-text"
-                    x={left}
-                    y={RULER_LABEL_Y_PX}
-                    dx={2}
-                  >
-                    {fmtLabel(tk.time)}
-                  </text>
-                ) : null}
-              </g>
-            );
-          })}
-          <line
-            className="time-ruler-cursor-line"
-            x1={`${((currentTime - start) / windowSec) * 100}%`}
-            x2={`${((currentTime - start) / windowSec) * 100}%`}
-            y1={cursorLineTopY}
-            y2={RULER_HEIGHT_PX}
+          {tickMarks}
+          <TimeRulerCursorLine
+            {...(currentTime !== undefined ? { currentTime } : {})}
+            start={start}
+            windowSec={windowSec}
+            waveCanvasRef={waveCanvasRef}
           />
         </svg>
         <div

@@ -61,7 +61,7 @@ describe('buildPromptContextBlock tiered assembly (Phase 14)', () => {
 
   it('adds active-tool subset guidance into the system prompt', () => {
     const prompt = buildAiSystemPrompt('transcription', '', 'detailed', ['get_project_stats', 'diagnose_quality']);
-    expect(prompt).toContain('Active query tools for this turn');
+    expect(prompt).toContain('prefer these local reads inside tool_call JSON only');
     expect(prompt).toContain('get_project_stats');
     expect(prompt).toContain('diagnose_quality');
   });

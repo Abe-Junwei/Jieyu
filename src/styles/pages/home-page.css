@@ -1,0 +1,175 @@
+/* 首页：项目与声文稿进度 | Home — project & transcription record progress */
+
+.home-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+.home-page-hero {
+  margin-bottom: 1.75rem;
+}
+
+.home-page-hero-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.home-page-hero-tagline {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+  opacity: 0.82;
+}
+
+.home-page-hero h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.home-page-hero p {
+  margin: 0 0 1rem;
+  opacity: 0.85;
+  font-size: 0.95rem;
+}
+
+.home-page-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.home-page-link-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface-elevated, #fff) 92%, transparent);
+  color: inherit;
+}
+
+.home-page-link-btn:hover {
+  border-color: var(--color-accent, #3b82f6);
+}
+
+.home-project-card {
+  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 70%, transparent);
+  border-radius: 0.65rem;
+  padding: 0.85rem 1rem 1rem;
+  margin-bottom: 1rem;
+  background: color-mix(in srgb, var(--color-surface, #fafafa) 96%, transparent);
+}
+
+.home-project-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.home-project-card-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.home-project-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.home-project-title-link:hover {
+  text-decoration: underline;
+}
+
+.home-project-card-meta {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.home-triple {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.home-triple-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 2.75rem;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.home-triple-label {
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+.home-triple-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.home-progress-track {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border, #ccc) 35%, transparent);
+  overflow: hidden;
+}
+
+.home-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent, #2563eb) 88%, #0000);
+  transition: width 0.2s ease-out;
+}
+
+.home-progress-fill--translation {
+  background: color-mix(in srgb, var(--color-accent-secondary, #7c3aed) 85%, #0000);
+}
+
+.home-progress-fill--annotation {
+  background: color-mix(in srgb, var(--color-success, #059669) 85%, #0000);
+}
+
+.home-record-block {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed color-mix(in srgb, var(--color-border, #ccc) 50%, transparent);
+}
+
+.home-record-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+  opacity: 0.88;
+}
+
+.home-page-loading,
+.home-page-error {
+  padding: 1rem 0;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.home-page-empty {
+  padding: 1.25rem 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+@media (max-width: 520px) {
+  .home-triple-row {
+    grid-template-columns: 4.5rem 1fr 2.5rem;
+    font-size: 0.75rem;
+  }
+}

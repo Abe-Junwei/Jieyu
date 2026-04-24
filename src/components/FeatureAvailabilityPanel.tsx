@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import { t, useLocale } from '../i18n';
+import { buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 
 interface FeatureAvailabilityPanelProps {
   title: string;
@@ -49,7 +50,7 @@ export function FeatureAvailabilityPanel({
           <span className="app-side-pane-section-title">{t(locale, 'app.featureAvailability.quickAccess')}</span>
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav feature-availability-side-pane-nav">
-          <Link to="/transcription" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
+          <Link to={buildTranscriptionWorkspaceReturnHref()} className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
         </div>
       </section>
     </div>
@@ -79,7 +80,7 @@ export function FeatureAvailabilityPanel({
         </ul>
       </div>
       <div className="feature-availability-actions">
-        <Link to="/transcription" className="feature-availability-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
+        <Link to={buildTranscriptionWorkspaceReturnHref()} className="feature-availability-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
       </div>
     </section>
   );

@@ -38,6 +38,10 @@ export interface BuildTranscriptionSelectionSnapshotInput {
   formatTime: (seconds: number) => string;
 }
 
+/**
+ * 三页深链 / AI 上下文应与 `unitId` + **显式层 id** 一致（联评 R6）：`selectedLayerId`、
+ * `selectedTranscriptionLayerId` / `selectedTranslationLayerId` 由当前聚焦轨与宿主解析导出，勿与未 stamp 的 canonical `layerId` 混读。
+ */
 export interface TranscriptionSelectionSnapshot {
   timelineUnit: TimelineUnit | null;
   selectedUnitKind: TimelineUnitKind | null;

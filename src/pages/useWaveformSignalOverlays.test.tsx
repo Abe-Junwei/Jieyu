@@ -15,7 +15,6 @@ describe('useWaveformSignalOverlays', () => {
       ],
       activeLayerIdForEdits: 'layer-1',
       resolveNoteIndicatorTarget: vi.fn(() => null),
-      waveformScrollLeft: 0,
       zoomPxPerSec: 100,
     }));
 

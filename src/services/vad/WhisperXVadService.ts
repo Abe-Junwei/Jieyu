@@ -87,7 +87,9 @@ export class WhisperXVadService {
     return new Promise((resolve, reject) => {
       const timeoutMs = this.options.initTimeoutMs ?? 10_000;
       const timer = setTimeout(() => {
-        reject(new Error(`WhisperXVadService: Worker init timed out after ${timeoutMs}ms`));
+        const error = new Error(`WhisperXVadService: Worker init timed out after ${timeoutMs}ms`);
+        this.resetWorker(error);
+        reject(error);
       }, timeoutMs);
 
       try {
@@ -136,7 +138,11 @@ export class WhisperXVadService {
             this.pendingRequests.reject(msg.id, new Error(msg.message ?? 'VAD worker error'));
           } else if (!this.ready) {
             clearTimeout(timer);
-            reject(new Error(msg.message ?? 'VAD worker error'));
+            const error = new Error(msg.message ?? 'VAD worker error');
+            this.resetWorker(error);
+            reject(error);
+          } else {
+            this.resetWorker(new Error(msg.message ?? 'VAD worker error'));
           }
         }
       };
@@ -144,7 +150,16 @@ export class WhisperXVadService {
       this.worker.onerror = (err) => {
         log.warn('VAD Worker onerror', { message: err.message });
         clearTimeout(timer);
-        if (!this.ready) reject(new Error(`VAD Worker error: ${err.message}`));
+        const error = new Error(`VAD Worker error: ${err.message}`);
+        this.resetWorker(error);
+        if (!this.ready) reject(error);
+      };
+
+      this.worker.onmessageerror = () => {
+        clearTimeout(timer);
+        const error = new Error('VAD Worker message decode error');
+        this.resetWorker(error);
+        if (!this.ready) reject(error);
       };
 
       this.worker.postMessage({
@@ -181,16 +196,31 @@ export class WhisperXVadService {
     };
     options.signal?.addEventListener('abort', abortListener, { once: true });
 
-    return this.pendingRequests.track(id, () => {
-      this.worker!.postMessage(
-        { type: 'detect', id, pcm, sampleRate: buffer.sampleRate },
-        [pcm.buffer],
-      );
-    }, {
-      ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
-    }).finally(() => {
+    try {
+      return await this.pendingRequests.track(id, () => {
+        this.worker!.postMessage(
+          { type: 'detect', id, pcm, sampleRate: buffer.sampleRate },
+          [pcm.buffer],
+        );
+      }, {
+        ...(options.onProgress !== undefined ? { onProgress: options.onProgress } : {}),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw error;
+      }
+      const workerUnavailable = !this.ready || !this.worker;
+      if (!workerUnavailable) {
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+      log.warn('VAD Worker detect failed, falling back to energy-based VAD', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.resetWorker();
+      return detectVadSegments(buffer).map((s) => ({ start: s.start, end: s.end }));
+    } finally {
       options.signal?.removeEventListener('abort', abortListener);
-    });
+    }
   }
 
   /** 返回当前实际运行引擎 | Report the currently active runtime engine */
@@ -277,10 +307,21 @@ export class WhisperXVadService {
 
   /** 销毁 Worker | Terminate the Worker */
   dispose(): void {
-    this.worker?.terminate();
-    this.worker = null;
+    this.resetWorker(new Error('WhisperXVadService disposed'));
+  }
+
+  private resetWorker(error?: Error): void {
+    if (this.worker) {
+      this.worker.onmessage = null;
+      this.worker.onerror = null;
+      this.worker.onmessageerror = null;
+      this.worker.terminate();
+      this.worker = null;
+    }
     this.ready = false;
-    this.pendingRequests.rejectAll(new Error('WhisperXVadService disposed'));
+    if (error) {
+      this.pendingRequests.rejectAll(error);
+    }
   }
 }
 

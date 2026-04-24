@@ -13,7 +13,7 @@ import type { CommercialProviderKind } from '../services/VoiceInputService';
 import { getCommercialSttRuntimeSnapshot } from '../services/stt/voiceCommercialSttRuntime';
 import { toBcp47 } from '../utils/langMapping';
 import { stripSpeakerAssociationFromTranslationText } from './useTranscriptionUnitActions.helpers';
-import { readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
+import { fileExtensionForRecordedVoiceBlob, readNonEmptyAudioBlobFromMediaItem } from '../utils/translationRecordingMediaBlob';
 
 /** 与 `useVoiceDock` 一致，避免 action 依赖 UI hook | Mirrors useVoiceDock keys */
 const VOICE_COMMERCIAL_STT_STORAGE_KEY = 'jieyu.voiceAgent.commercialStt';
@@ -213,12 +213,14 @@ export function useTranscriptionVoiceTranslationActions({
 
     const mediaId = newId('media');
     const recordingSource = targetLayer.layerType === 'transcription' ? 'transcription-recording' : 'translation-recording';
+    const ext = fileExtensionForRecordedVoiceBlob(blob);
+    const fallbackMime = ext === 'm4a' ? 'audio/mp4' : 'audio/webm';
     const newMedia = withResolvedMediaItemTimelineKind({
       id: mediaId,
       textId: targetUnit.textId,
-      filename: `${targetLayer.key}-${mediaId}.webm`,
+      filename: `${targetLayer.key}-${mediaId}.${ext}`,
       isOfflineCached: true,
-      details: { source: recordingSource, mimeType: blob.type || 'audio/webm', audioBlob: blob },
+      details: { source: recordingSource, mimeType: blob.type || fallbackMime, audioBlob: blob },
       createdAt: now,
     } as MediaItemDocType);
     await db.collections.media_items.insert(newMedia);
@@ -365,7 +367,7 @@ export function useTranscriptionVoiceTranslationActions({
     if (!targetUnit || !targetLayer) {
       throw new Error(t(locale, 'transcription.error.validation.voiceTranslationTargetRequired'));
     }
-    if (targetLayer.layerType !== 'translation' || targetLayer.modality !== 'mixed') {
+    if (targetLayer.layerType !== 'translation' || (targetLayer.modality !== 'mixed' && targetLayer.modality !== 'audio')) {
       setSaveState({
         kind: 'error',
         message: t(locale, 'transcription.voiceTranslation.error.transcribeMixedLayerOnly'),

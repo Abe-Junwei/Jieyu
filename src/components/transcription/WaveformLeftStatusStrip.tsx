@@ -5,9 +5,29 @@
  * Displays zoom%, snap toggle, playback rate, current time, segment duration, and gain slider
  */
 
-import { memo, type FC, type PointerEvent as ReactPointerEvent } from 'react';
+import { memo, useEffect, useRef, type FC, type PointerEvent as ReactPointerEvent } from 'react';
 import { t, tf, useLocale } from '../../i18n';
+import {
+  getTranscriptionPlaybackClockSnapshot,
+  subscribeTranscriptionPlaybackClock,
+} from '../../hooks/transcriptionPlaybackClock';
 import type { VideoLayoutMode } from './TranscriptionTimelineSections';
+
+const PlaybackClockTimeValue: FC<{ formatTime: (seconds: number) => string }> = memo(function PlaybackClockTimeValue({
+  formatTime,
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const paint = () => {
+      el.textContent = formatTime(getTranscriptionPlaybackClockSnapshot());
+    };
+    paint();
+    return subscribeTranscriptionPlaybackClock(paint);
+  }, [formatTime]);
+  return <span ref={ref} className="waveform-left-status-value" aria-live="off" />;
+});
 
 export interface WaveformLeftStatusStripProps {
   // 缩放与交互状态 | Zoom and interaction state
@@ -17,7 +37,11 @@ export interface WaveformLeftStatusStripProps {
 
   // 播放状态 | Playback state
   playbackRate: number;
-  currentTime: number;
+  /**
+   * 显式秒数：走 React 渲染（单测等）。
+   * 省略时由 `transcriptionPlaybackClock` + DOM 更新当前时间，避免父级高频重渲染带动本条。
+   */
+  currentTime?: number;
 
   // 选段信息 | Selection info
   /** null 表示无选中语段 | null when no unit is selected */
@@ -56,6 +80,7 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
   formatTime,
 }) {
   const locale = useLocale();
+  const useClockForCurrentTime = currentTime === undefined;
   return (
     <div className="waveform-left-status-strip">
       <div className="waveform-left-status-item">
@@ -83,7 +108,9 @@ export const WaveformLeftStatusStrip: FC<WaveformLeftStatusStripProps> = memo(fu
       </div>
       <div className="waveform-left-status-item">
         <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.current')}</span>
-        <span className="waveform-left-status-value">{formatTime(currentTime)}</span>
+        {useClockForCurrentTime
+          ? <PlaybackClockTimeValue formatTime={formatTime} />
+          : <span className="waveform-left-status-value">{formatTime(currentTime)}</span>}
       </div>
       <div className="waveform-left-status-item">
         <span className="waveform-left-status-label">{t(locale, 'transcription.statusStrip.selection')}</span>

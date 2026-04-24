@@ -14,6 +14,8 @@ interface RefLike<T> {
 interface UseVoiceAgentTransportControlsOptions {
   locale: Locale;
   listening: boolean;
+  voiceActivateGenerationRef: RefLike<number>;
+  exclusiveStartPromiseRef: RefLike<Promise<void> | null>;
   start: (targetMode?: 'command' | 'dictation' | 'analysis') => Promise<void>;
   stopDictationPipeline: () => void;
   clearInteractionPrompts: () => void;
@@ -45,6 +47,8 @@ function clearRecordingDurationTimer(
 export function useVoiceAgentTransportControls({
   locale,
   listening,
+  voiceActivateGenerationRef,
+  exclusiveStartPromiseRef,
   start,
   stopDictationPipeline,
   clearInteractionPrompts,
@@ -64,6 +68,8 @@ export function useVoiceAgentTransportControls({
   setEngine,
 }: UseVoiceAgentTransportControlsOptions) {
   const stop = useCallback(async () => {
+    voiceActivateGenerationRef.current += 1;
+    exclusiveStartPromiseRef.current = null;
     stopDictationPipeline();
     serviceRef.current?.stop();
     clearRecordingDurationTimer(recordingDurationIntervalRef);
@@ -89,6 +95,7 @@ export function useVoiceAgentTransportControls({
     Earcon.playDeactivate();
   }, [
     clearInteractionPrompts,
+    exclusiveStartPromiseRef,
     loadVoiceSessionStoreRuntime,
     pendingAiResponseCountRef,
     serviceRef,
@@ -100,6 +107,7 @@ export function useVoiceAgentTransportControls({
     setRecordingDuration,
     setSpeechActive,
     stopDictationPipeline,
+    voiceActivateGenerationRef,
   ]);
 
   const startRecording = useCallback(async () => {

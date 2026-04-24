@@ -16,7 +16,7 @@ type ResizeDragState = {
   segmentId?: string;
   mediaId: string;
   layerId?: string;
-  edge: 'start' | 'end';
+  edge: 'start' | 'end' | 'body';
   startClientX: number;
   initialStart: number;
   initialEnd: number;
@@ -90,7 +90,7 @@ export function useTimelineResize({
   const startTimelineResizeDrag = useCallback((
     event: React.PointerEvent<HTMLElement>,
     unit: TimelineResizeUnit,
-    edge: 'start' | 'end',
+    edge: 'start' | 'end' | 'body',
     layerId?: string,
     options?: TimelineResizeDragOptions,
   ) => {
@@ -162,7 +162,7 @@ export function useTimelineResize({
           const rawStart = drag.initialStart + deltaSec;
           nextStart = Math.max(lower, Math.min(upper, rawStart));
         }
-      } else {
+      } else if (drag.edge === 'end') {
         const lower = Math.max(drag.initialStart + minSpan, bounds.left + minSpan);
         const upper = rightBound;
         if (upper <= lower) {
@@ -170,6 +170,25 @@ export function useTimelineResize({
         } else {
           const rawEnd = drag.initialEnd + deltaSec;
           nextEnd = Math.max(lower, Math.min(upper, rawEnd));
+        }
+      } else {
+        const span = drag.initialEnd - drag.initialStart;
+        if (span < minSpan) {
+          nextStart = drag.initialStart;
+          nextEnd = drag.initialEnd;
+        } else {
+          const rawStart = drag.initialStart + deltaSec;
+          const maxStart = rightBound - span;
+          nextStart = Math.max(bounds.left, Math.min(maxStart, rawStart));
+          nextEnd = nextStart + span;
+          if (Number.isFinite(rightBound) && nextEnd > rightBound) {
+            nextEnd = rightBound;
+            nextStart = nextEnd - span;
+            if (nextStart < bounds.left) {
+              nextStart = bounds.left;
+              nextEnd = Math.min(rightBound, nextStart + span);
+            }
+          }
         }
       }
 

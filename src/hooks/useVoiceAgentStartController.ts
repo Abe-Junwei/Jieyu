@@ -17,6 +17,23 @@ interface RefLike<T> {
   current: T;
 }
 
+/** After `stop()` bumps the generation ref, in-flight mic start tails call `stop`, reset UI, and return. */
+function abortStaleMicStart(
+  gen: number,
+  generationRef: RefLike<number>,
+  serviceRef: RefLike<VoiceInputServiceType | null>,
+  resetUi: () => void,
+): boolean {
+  if (gen === generationRef.current) return false;
+  try {
+    serviceRef.current?.stop();
+  } catch {
+    /* ignore */
+  }
+  resetUi();
+  return true;
+}
+
 type VoiceAgentMode = 'command' | 'dictation' | 'analysis';
 
 interface UseVoiceAgentStartControllerOptions {
@@ -54,6 +71,8 @@ interface UseVoiceAgentStartControllerOptions {
   setListening: (value: boolean) => void;
   setSpeechActive: (value: boolean) => void;
   setEnergyLevel: (value: number) => void;
+  voiceActivateGenerationRef: RefLike<number>;
+  exclusiveStartPromiseRef: RefLike<Promise<void> | null>;
 }
 
 function resolveEffectiveLang(
@@ -143,94 +162,125 @@ export function useVoiceAgentStartController({
   setListening,
   setSpeechActive,
   setEnergyLevel,
+  voiceActivateGenerationRef,
+  exclusiveStartPromiseRef,
 }: UseVoiceAgentStartControllerOptions) {
   return useCallback(async (targetMode?: VoiceAgentMode) => {
     if (listening) return;
-
-    const nextMode = targetMode ?? modeRef.current;
-    const effectiveLang = resolveEffectiveLang(langOverrideRef.current, corpusLang);
-    if (targetMode) setMode(targetMode);
-    setError(null);
-    clearInteractionPrompts();
-    setSession(createVoiceSessionState());
-    pendingAiResponseCountRef.current = 0;
-    setAgentState('listening');
-
-    aliasMapRef.current = await loadAliasMap(loadIntentRouterRuntime, loadVoiceIntentRefineRuntime);
-
-    const service = await ensureVoiceInputService(serviceRef, loadVoiceInputRuntime);
-    bindVoiceInputService({
-      service,
-      unsubscribesRef: svcUnsubscribesRef,
-      handleSttResult,
-      setError,
-      setListening,
-      setSpeechActive,
-      setEnergyLevel,
-      energyLevelRef,
-      onErrorSound: Earcon.playError,
-    });
-
-    const [batteryLevel, region, { chooseSttEngine }] = await Promise.all([
-      resolveBatteryLevel(),
-      detectRegion(),
-      loadSttStrategyRuntime(),
-    ]);
-    const runtimeEngine = chooseSttEngine({
-      preferred: engineRef.current,
-      online: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      noiseLevel: energyLevelRef.current,
-      ...(batteryLevel !== undefined ? { batteryLevel } : {}),
-      regionHint: region,
-    });
-
-    const startConfig: Parameters<typeof service.start>[0] = {
-      lang: effectiveLang,
-      continuous: true,
-      interimResults: true,
-      preferredEngine: runtimeEngine,
-      region,
-      maxAlternatives: 3,
-    };
-    if (runtimeEngine === 'whisper-local') {
-      startConfig.whisperServerUrl = whisperServerUrl;
-      startConfig.whisperServerModel = whisperServerModel;
+    if (exclusiveStartPromiseRef.current) {
+      return exclusiveStartPromiseRef.current;
     }
-    if ((runtimeEngine === 'commercial' && commercialProviderConfigRef.current) || sttEnhancementKindRef.current !== 'none') {
-      const { createCommercialProvider, createSttEnhancementProvider } = await loadSttRuntime();
-      if (sttEnhancementKindRef.current !== 'none') {
-        startConfig.sttEnhancement = createSttEnhancementProvider(sttEnhancementKindRef.current);
-        if (sttEnhancementConfigRef.current) {
-          startConfig.sttEnhancementConfig = sttEnhancementConfigRef.current;
+
+    const p = (async (): Promise<void> => {
+      const gen = ++voiceActivateGenerationRef.current;
+      const resetStartUi = (): void => {
+        setListening(false);
+        setSpeechActive(false);
+        setAgentState('idle');
+      };
+
+      const nextMode = targetMode ?? modeRef.current;
+      const effectiveLang = resolveEffectiveLang(langOverrideRef.current, corpusLang);
+      if (targetMode) setMode(targetMode);
+      setError(null);
+      clearInteractionPrompts();
+      setSession(createVoiceSessionState());
+      pendingAiResponseCountRef.current = 0;
+      setAgentState('listening');
+
+      aliasMapRef.current = await loadAliasMap(loadIntentRouterRuntime, loadVoiceIntentRefineRuntime);
+      if (abortStaleMicStart(gen, voiceActivateGenerationRef, serviceRef, resetStartUi)) return;
+
+      const service = await ensureVoiceInputService(serviceRef, loadVoiceInputRuntime);
+      if (abortStaleMicStart(gen, voiceActivateGenerationRef, serviceRef, resetStartUi)) return;
+
+      bindVoiceInputService({
+        service,
+        unsubscribesRef: svcUnsubscribesRef,
+        handleSttResult,
+        setError,
+        setListening,
+        setSpeechActive,
+        setEnergyLevel,
+        energyLevelRef,
+        onErrorSound: Earcon.playError,
+      });
+
+      const [batteryLevel, region, { chooseSttEngine }] = await Promise.all([
+        resolveBatteryLevel(),
+        detectRegion(),
+        loadSttStrategyRuntime(),
+      ]);
+      if (abortStaleMicStart(gen, voiceActivateGenerationRef, serviceRef, resetStartUi)) return;
+
+      const runtimeEngine = chooseSttEngine({
+        preferred: engineRef.current,
+        online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+        noiseLevel: energyLevelRef.current,
+        ...(batteryLevel !== undefined ? { batteryLevel } : {}),
+        regionHint: region,
+      });
+
+      const startConfig: Parameters<typeof service.start>[0] = {
+        lang: effectiveLang,
+        continuous: true,
+        interimResults: true,
+        preferredEngine: runtimeEngine,
+        region,
+        maxAlternatives: 3,
+      };
+      if (runtimeEngine === 'whisper-local') {
+        startConfig.whisperServerUrl = whisperServerUrl;
+        startConfig.whisperServerModel = whisperServerModel;
+      }
+      if ((runtimeEngine === 'commercial' && commercialProviderConfigRef.current) || sttEnhancementKindRef.current !== 'none') {
+        const { createCommercialProvider, createSttEnhancementProvider } = await loadSttRuntime();
+        if (abortStaleMicStart(gen, voiceActivateGenerationRef, serviceRef, resetStartUi)) return;
+
+        if (sttEnhancementKindRef.current !== 'none') {
+          startConfig.sttEnhancement = createSttEnhancementProvider(sttEnhancementKindRef.current);
+          if (sttEnhancementConfigRef.current) {
+            startConfig.sttEnhancementConfig = sttEnhancementConfigRef.current;
+          }
+        }
+        if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
+          startConfig.commercialFallback = createCommercialProvider(
+            commercialProviderKindRef.current,
+            commercialProviderConfigRef.current,
+          );
         }
       }
-      if (runtimeEngine === 'commercial' && commercialProviderConfigRef.current) {
-      startConfig.commercialFallback = createCommercialProvider(
-        commercialProviderKindRef.current,
-        commercialProviderConfigRef.current,
-      );
+
+      try {
+        await service.start(startConfig);
+      } catch (err) {
+        setListening(false);
+        setSpeechActive(false);
+        setAgentState('idle');
+        setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.startFailed'));
+        Earcon.playError();
+        return;
       }
-    }
 
-    try {
-      await service.start(startConfig);
-    } catch (err) {
-      setListening(false);
-      setSpeechActive(false);
-      setAgentState('idle');
-      setError(err instanceof Error ? err.message : t(locale, 'transcription.voice.error.startFailed'));
-      Earcon.playError();
-      return;
-    }
+      if (abortStaleMicStart(gen, voiceActivateGenerationRef, serviceRef, resetStartUi)) return;
 
-    setAgentState(runtimeEngine === 'web-speech' ? 'listening' : 'idle');
-    if (nextMode === 'dictation' && dictationPipeline) {
-      startDictationPipeline();
-    } else {
-      stopDictationPipeline();
-    }
-    void unlockAudio();
-    Earcon.playActivate();
+      setAgentState(runtimeEngine === 'web-speech' ? 'listening' : 'idle');
+      if (nextMode === 'dictation' && dictationPipeline) {
+        startDictationPipeline();
+      } else {
+        stopDictationPipeline();
+      }
+      void unlockAudio();
+      Earcon.playActivate();
+    })();
+
+    exclusiveStartPromiseRef.current = p;
+    void p.finally(() => {
+      if (exclusiveStartPromiseRef.current === p) {
+        exclusiveStartPromiseRef.current = null;
+      }
+    });
+    return p;
   }, [
     aliasMapRef,
     clearInteractionPrompts,
@@ -239,6 +289,7 @@ export function useVoiceAgentStartController({
     corpusLang,
     dictationPipeline,
     energyLevelRef,
+    exclusiveStartPromiseRef,
     engineRef,
     handleSttResult,
     langOverrideRef,
@@ -264,6 +315,7 @@ export function useVoiceAgentStartController({
     startDictationPipeline,
     stopDictationPipeline,
     svcUnsubscribesRef,
+    voiceActivateGenerationRef,
     whisperServerModel,
     whisperServerUrl,
   ]);

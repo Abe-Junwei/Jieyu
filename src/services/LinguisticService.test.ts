@@ -2139,6 +2139,8 @@ describe('LinguisticService smoke tests', () => {
     }));
     await expect(db.layer_units.get('utt_doc_keep')).resolves.toEqual(expect.objectContaining({
       mediaId: 'media_doc_placeholder',
+      startTime: 0,
+      endTime: 1.2,
     }));
   });
 
@@ -2208,6 +2210,8 @@ describe('LinguisticService smoke tests', () => {
     expect(result.mediaId).toBe('media_doc_placeholder_aux');
     await expect(db.layer_units.get('utt_doc_keep_aux')).resolves.toEqual(expect.objectContaining({
       mediaId: 'media_doc_placeholder_aux',
+      startTime: 0,
+      endTime: 1.2,
     }));
     await expect(db.media_items.get('media_doc_placeholder_aux')).resolves.toEqual(expect.objectContaining({
       filename: 'imported-aux.wav',
@@ -2274,6 +2278,8 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.media_items.where('textId').equals('text_doc_legacy_payload_empty').toArray()).resolves.toHaveLength(1);
     await expect(db.layer_units.get('seg_doc_keep_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
       mediaId: 'media_doc_legacy_payload_empty',
+      startTime: 0,
+      endTime: 1.2,
     }));
     await expect(db.media_items.get('media_doc_legacy_payload_empty')).resolves.toEqual(expect.objectContaining({
       filename: 'imported-legacy.wav',
@@ -2435,8 +2441,12 @@ describe('LinguisticService smoke tests', () => {
     await expect(db.texts.get('text_media_roundtrip')).resolves.toEqual(expect.objectContaining({
       metadata: expect.objectContaining({
         timelineMode: 'media',
-        logicalDurationSec: 60,
+        logicalDurationSec: 30,
       }),
+    }));
+    await expect(db.layer_units.get('utt_media_rt')).resolves.toEqual(expect.objectContaining({
+      startTime: 0,
+      endTime: 2.5,
     }));
     await expect(db.media_items.get('media_media_rt')).resolves.toEqual(expect.objectContaining({
       filename: 'reimport.wav',
@@ -2588,7 +2598,7 @@ describe('LinguisticService smoke tests', () => {
     }));
   });
 
-  it('importAudio does not rescale existing layer_units when imported duration is shorter than segment span', async () => {
+  it('importAudio rescales layer_units when first acoustic bind span exceeds file duration', async () => {
     const now = new Date().toISOString();
     const textId = 'text_import_no_rescale';
     const layerId = 'layer_trc_import_no_rescale';
@@ -2631,7 +2641,10 @@ describe('LinguisticService smoke tests', () => {
     });
 
     const unit = await db.layer_units.get('utt_import_no_rescale');
-    expect(unit).toMatchObject({ startTime: 10, endTime: 320, mediaId });
+    expect(unit).toMatchObject({ startTime: 0, endTime: 9.3, mediaId });
+    await expect(db.texts.get(textId)).resolves.toEqual(expect.objectContaining({
+      metadata: expect.objectContaining({ logicalDurationSec: 12 }),
+    }));
     await expect(db.media_items.get(mediaId)).resolves.toEqual(expect.objectContaining({
       filename: 'short.wav',
       duration: 12,

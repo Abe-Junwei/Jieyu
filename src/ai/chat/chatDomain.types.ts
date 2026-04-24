@@ -382,6 +382,11 @@ export interface AiShortTermContext {
   /** Full-project unit snapshot for local list/search/detail tools (not serialized into prompt text). */
   localUnitIndex?: ReadonlyArray<TimelineUnitView>;
   /**
+   * Per-layer timeline rows (ADR 0020 enrich); used for `current_scope` tools when canonical units omit `layerId`.
+   * Not serialized into prompt text; strip alongside `localUnitIndex` when exposing shortTerm.
+   */
+  timelineUnitsByLayerId?: ReadonlyMap<string, ReadonlyArray<TimelineUnitView>>;
+  /**
    * Dexie `segment_meta` / segment rows are keyed by **storage** `layerId` (independent boundary source).
    * When the UI focus is a dependent lane, this is the resolved source layer id — use for `SegmentMetaService`
    * scoped tools so AI reads align with the timeline (avoids cross-layer empty/wrong meta).

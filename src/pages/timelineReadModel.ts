@@ -27,7 +27,7 @@ export interface TimelineReadModel {
     zoomPxPerSec?: number;
     fitPxPerSec?: number;
     waveformScrollLeft?: number;
-    logicalTimelineDurationSec?: number;
+    documentSpanSec?: number;
   };
   timeline: {
     extentSec: number;
@@ -57,7 +57,7 @@ export interface BuildTimelineReadModelInput {
   selectedUnitIds: string[];
   activeLayerIdForEdits?: string;
   activeTextTimelineMode?: 'document' | 'media' | null;
-  logicalTimelineDurationSec?: number;
+  documentSpanSec?: number;
   zoomPxPerSec?: number;
   fitPxPerSec?: number;
   waveformScrollLeft?: number;
@@ -94,8 +94,8 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
     selectedMediaUrl: input.selectedMediaUrl ?? null,
     globalPlaybackReady: globalShellMode.playableAcoustic,
     playerDuration: input.playerDuration,
-    ...(input.logicalTimelineDurationSec !== undefined
-      ? { logicalTimelineDurationSec: input.logicalTimelineDurationSec }
+    ...(input.documentSpanSec !== undefined
+      ? { documentSpanSec: input.documentSpanSec }
       : {}),
   });
 
@@ -116,7 +116,7 @@ export function buildTimelineReadModel(input: BuildTimelineReadModelInput): Time
       ...(input.zoomPxPerSec !== undefined ? { zoomPxPerSec: input.zoomPxPerSec } : {}),
       ...(input.fitPxPerSec !== undefined ? { fitPxPerSec: input.fitPxPerSec } : {}),
       ...(input.waveformScrollLeft !== undefined ? { waveformScrollLeft: input.waveformScrollLeft } : {}),
-      ...(input.logicalTimelineDurationSec !== undefined ? { logicalTimelineDurationSec: input.logicalTimelineDurationSec } : {}),
+      ...(input.documentSpanSec !== undefined ? { documentSpanSec: input.documentSpanSec } : {}),
     },
     timeline: {
       extentSec: timelineExtentSec,
@@ -144,7 +144,7 @@ export function useTimelineReadModel(input: BuildTimelineReadModelInput): Timeli
       input.selectedUnitIds,
       input.activeLayerIdForEdits,
       input.activeTextTimelineMode,
-      input.logicalTimelineDurationSec,
+      input.documentSpanSec,
       input.zoomPxPerSec,
       input.fitPxPerSec,
       input.waveformScrollLeft,

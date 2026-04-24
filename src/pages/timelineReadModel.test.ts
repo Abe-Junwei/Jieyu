@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineUnitViewIndexWithEpoch } from '../hooks/useTimelineUnitViewIndex';
+import { DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC } from '../utils/timelineExtent';
 import { buildTimelineReadModel } from './timelineReadModel';
 
 function createEmptyIndex(epoch = 1): TimelineUnitViewIndexWithEpoch {
@@ -31,7 +32,7 @@ describe('buildTimelineReadModel', () => {
     });
 
     expect(model.epoch).toBe(7);
-    expect(model.timeline.extentSec).toBe(0);
+    expect(model.timeline.extentSec).toBe(DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC);
     expect(model.acoustic.state).toBe('no_media');
     expect(model.acoustic.globalState).toBe('no_media');
     expect(model.acoustic.shell).toBe('text-only');
@@ -53,6 +54,7 @@ describe('buildTimelineReadModel', () => {
     expect(model.acoustic.state).toBe('pending_decode');
     expect(model.acoustic.globalState).toBe('pending_decode');
     expect(model.acoustic.shell).toBe('text-only');
+    expect(model.timeline.extentSec).toBe(DEFAULT_DOCUMENT_TIMELINE_EXTENT_FALLBACK_SEC);
   });
 
   it('builds playable acoustic state when media is ready and duration is positive', () => {
@@ -70,16 +72,16 @@ describe('buildTimelineReadModel', () => {
       zoomPxPerSec: 120,
       fitPxPerSec: 60,
       waveformScrollLeft: 33,
-      logicalTimelineDurationSec: 90,
+      documentSpanSec: 90,
     });
 
     expect(model.acoustic.state).toBe('playable');
     expect(model.acoustic.globalState).toBe('playable');
     expect(model.acoustic.shell).toBe('waveform');
-    expect(model.timeline.extentSec).toBe(88);
+    expect(model.timeline.extentSec).toBe(90);
     expect(model.selection.selectedUnitIds).toEqual(['u-1']);
     expect(model.zoom.zoomPxPerSec).toBe(120);
-    expect(model.zoom.logicalTimelineDurationSec).toBe(90);
+    expect(model.zoom.documentSpanSec).toBe(90);
   });
 
   it('uses orchestratorLayersCount with transcription/translation lengths for shell parity', () => {
@@ -129,7 +131,7 @@ describe('buildTimelineReadModel', () => {
       translationLayerIds: ['tl-1'],
       selectedTimelineUnit: null,
       selectedUnitIds: [],
-      logicalTimelineDurationSec: 27,
+      documentSpanSec: 27,
       playerIsReady: false,
       playerDuration: 0,
     });

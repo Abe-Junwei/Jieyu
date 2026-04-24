@@ -1,6 +1,7 @@
 /**
  * 选中层的语段列表 | Segment list for the focused layer
  */
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { liveQuery } from 'dexie';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
@@ -64,6 +65,11 @@ type ReviewPresetOption = {
   count: number;
 };
 
+/** 长列表启用虚拟滚动；低于阈值时保持原生列表 | Virtualize only above threshold */
+const SEGMENT_LIST_VIRTUAL_THRESHOLD = 48;
+/** 与 CSS 两行正文 + meta 区大致匹配；`measureElement` 会校正 | Matches ~2-line clamp + meta; measureElement refines */
+const SEGMENT_ROW_ESTIMATE_PX = 74;
+
 export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProps) {
   const {
     focusedLayerRowId,
@@ -92,6 +98,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
   const [activeReviewPreset, setActiveReviewPreset] = useState<SegmentReviewPreset | 'all' | ''>('');
   const [reviewCursor, setReviewCursor] = useState(0);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
+  const segmentScrollRef = useRef<HTMLDivElement | null>(null);
   const [segmentMetaRows, setSegmentMetaRows] = useState<SegmentMetaDocType[]>([]);
   const [segmentMetaLoading, setSegmentMetaLoading] = useState(false);
   const [segmentMetaHydrated, setSegmentMetaHydrated] = useState(false);
@@ -764,7 +771,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
 
   const formatFacetCategoryMenuLabel = (label: string) => {
     const normalized = label.trim();
-    if (normalized.startsWith('按') && normalized.endsWith('筛选')) {
+    if (normalized.startsWith('\u6309') && normalized.endsWith('\u7b5b\u9009')) {
       return normalized.slice(1, -2).trim();
     }
     if (/^filter by\s+/i.test(normalized)) {
@@ -799,6 +806,24 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
       return true;
     });
   }, [activeReviewPreset, annotationStatusFilters, certaintyFilters, contentStateFilters, filterText, items, noteCategoryFilters, sourceTypeFilters, speakerFilters]);
+
+  const useSegmentVirtualization = filtered.length >= SEGMENT_LIST_VIRTUAL_THRESHOLD;
+
+  const segmentVirtualizer = useVirtualizer({
+    count: useSegmentVirtualization ? filtered.length : 0,
+    getScrollElement: () => segmentScrollRef.current,
+    estimateSize: () => SEGMENT_ROW_ESTIMATE_PX,
+    overscan: 10,
+    getItemKey: (index) => filtered[index]?.key ?? String(index),
+  });
+
+  const segmentVirtualizerRef = useRef(segmentVirtualizer);
+  segmentVirtualizerRef.current = segmentVirtualizer;
+
+  useEffect(() => {
+    if (!useSegmentVirtualization || filtered.length === 0) return;
+    segmentVirtualizerRef.current.scrollToIndex(reviewCursor, { align: 'auto' });
+  }, [reviewCursor, filtered.length, useSegmentVirtualization]);
 
   useEffect(() => {
     setReviewCursor((prev) => {
@@ -1038,7 +1063,7 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
           ) : null}
         </div>
       </div>
-      <div className="app-side-pane-segment-list-scroll">
+      <div ref={segmentScrollRef} className="app-side-pane-segment-list-scroll">
         {filtered.length === 0 ? (
           <div className="app-side-pane-segment-list-empty">
             {segmentListLoading || segmentMetaLoading
@@ -1047,6 +1072,83 @@ export function SidePaneSidebarSegmentList(props: SidePaneSidebarSegmentListProp
                 ? messages.segmentListNoSegments
                 : messages.segmentListNoMatches}
           </div>
+        ) : useSegmentVirtualization ? (
+          <ul
+            className="app-side-pane-segment-list app-side-pane-segment-list--virtual"
+            style={{
+              height: `${segmentVirtualizer.getTotalSize()}px`,
+              position: 'relative',
+            }}
+          >
+            {segmentVirtualizer.getVirtualItems().map((virtualRow) => {
+              const item = filtered[virtualRow.index];
+              if (!item) return null;
+              const index = virtualRow.index;
+              return (
+                <li
+                  key={item.key}
+                  data-index={virtualRow.index}
+                  ref={segmentVirtualizer.measureElement}
+                  className={`app-side-pane-segment-list-item${item.empty ? ' app-side-pane-segment-list-item-empty' : ''}${index === reviewCursor && activeReviewPreset ? ' is-active-review-target' : ''}`}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="app-side-pane-segment-list-item-btn"
+                    onClick={() => {
+                      setReviewCursor(index);
+                      onSelectTimelineUnit?.(item.unit);
+                    }}
+                  >
+                    <span className="app-side-pane-segment-list-item-time">
+                      {messages.segmentListTimeRange(formatTime(item.startTime), formatTime(item.endTime))}
+                    </span>
+                    {item.empty
+                      ? <span className="app-side-pane-segment-list-item-text app-side-pane-segment-list-item-text-empty">{messages.segmentListEmpty}</span>
+                      : <span className="app-side-pane-segment-list-item-text">{item.text}</span>}
+                    {(item.speakerLabels.length > 0 || item.noteCategories.length > 0 || item.certainty || item.annotationStatus || item.sourceType) ? (
+                      <span className="app-side-pane-segment-list-item-meta">
+                        {item.speakerLabels.map((label) => (
+                          <span key={`${item.key}-speaker-${label}`} className="app-side-pane-segment-list-chip">{label}</span>
+                        ))}
+                        {item.issueFlags?.speakerPending ? (
+                          <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
+                            {messages.segmentListSpeakerPending}
+                          </span>
+                        ) : null}
+                        {item.certainty ? (
+                          <span className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-certainty">
+                            {getSegmentCertaintyLabel(item.certainty, messages)}
+                          </span>
+                        ) : null}
+                        {item.annotationStatus ? (
+                          <span className="app-side-pane-segment-list-chip">
+                            {getSegmentAnnotationStatusLabel(item.annotationStatus, messages)}
+                          </span>
+                        ) : null}
+                        {item.sourceType ? (
+                          <span className="app-side-pane-segment-list-chip">
+                            {getSegmentSourceTypeLabel(item.sourceType, messages)}
+                          </span>
+                        ) : null}
+                        {item.noteCategories.map((category) => (
+                          <span key={`${item.key}-note-${category}`} className="app-side-pane-segment-list-chip app-side-pane-segment-list-chip-note">
+                            {getSegmentNoteCategoryLabel(category, messages)}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         ) : (
           <ul className="app-side-pane-segment-list">
             {filtered.map((item, index) => (

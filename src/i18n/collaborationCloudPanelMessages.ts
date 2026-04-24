@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 import type { CollaborationAssetRecord, CollaborationProjectSnapshotRecord, ProjectEntityType, ProjectChangeOperation } from '../collaboration/cloud/syncTypes';
 
 export type CollaborationCloudPanelMessages = {
@@ -159,5 +159,5 @@ const enUS: CollaborationCloudPanelMessages = {
 };
 
 export function getCollaborationCloudPanelMessages(locale: Locale): CollaborationCloudPanelMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

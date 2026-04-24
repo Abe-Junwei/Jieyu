@@ -100,8 +100,8 @@ const UserProfileCard = memo(function UserProfileCard({ profile }: { profile: Gr
 });
 
 const HotspotsCard = memo(function HotspotsCard({ hotspots }: { hotspots: GroundingContextData['attentionHotspots'] }) {
-  if (hotspots.length === 0) return null;
   const hotspotGradientIdPrefix = useId().replace(/:/g, '-');
+  if (hotspots.length === 0) return null;
 
   return (
     <div className="gc-card gc-hotspots-card">

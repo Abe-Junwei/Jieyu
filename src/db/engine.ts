@@ -471,20 +471,51 @@ export class JieyuDexie extends Dexie {
       const allLayers = (await layersTable.toArray()) as LayerDocType[];
       if (allLayers.length === 0) return;
 
-      // Find textId from units or texts
       const unitsTable = tx.table('units');
-      const firstUtt = await unitsTable.toCollection().first();
-      let textId = firstUtt?.textId;
+      const textsTable = tx.table('texts');
+      const unitTextsTable = tx.table('unit_texts');
+      const allUnits = (await unitsTable.toArray()) as LayerUnitDocType[];
+      const distinctTextIds = [
+        ...new Set(
+          allUnits
+            .map((u) => u.textId)
+            .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
+        ),
+      ];
+      const firstText = (await textsTable.toCollection().first()) as { id: string } | undefined;
+      const fallbackTextId = distinctTextIds[0] ?? firstText?.id;
+      if (!fallbackTextId) return; // No text in DB — layers will need manual fix
 
-      if (!textId) {
-        const textsTable = tx.table('texts');
-        const firstText = await textsTable.toCollection().first();
-        textId = firstText?.id;
+      type UnitTextRow = { unitId?: string; translationLayerId?: string };
+      const resolveTextIdForLayer = async (layer: LayerDocType): Promise<string> => {
+        if (distinctTextIds.length <= 1) {
+          return fallbackTextId;
+        }
+        try {
+          const rows = (await unitTextsTable
+            .filter((row: UnitTextRow) => row.translationLayerId === layer.key)
+            .toArray()) as UnitTextRow[];
+          const counts = new Map<string, number>();
+          for (const row of rows) {
+            const unit = allUnits.find((u) => u.id === row.unitId);
+            const tid = unit?.textId;
+            if (typeof tid === 'string' && tid.trim().length > 0) {
+              counts.set(tid, (counts.get(tid) ?? 0) + 1);
+            }
+          }
+          const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+          if (ranked.length > 0) return ranked[0]![0];
+        } catch {
+          // unit_texts 异常时退回单值 | Unusual DB order: fall back
+        }
+        return fallbackTextId;
+      };
+
+      const updated: LayerDocType[] = [];
+      for (const layer of allLayers) {
+        const textId = await resolveTextIdForLayer(layer);
+        updated.push({ ...layer, textId });
       }
-
-      if (!textId) return; // No text in DB — layers will need manual fix
-
-      const updated = allLayers.map((layer) => ({ ...layer, textId }));
       await layersTable.bulkPut(updated);
     });
 

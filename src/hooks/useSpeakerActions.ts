@@ -728,7 +728,7 @@ export function useSpeakerActions({
     }
   }, [activeSpeakerFilterKey, applySpeakerLocally, data, getUnitIdsForSpeakerKey, refreshSpeakerReferenceStats, setSaveState, setSpeakers, setUnits, speakerById, speakerDialogState, speakerSaving, t, tf]);
 
-  return {
+  return useMemo((): UseSpeakerActionsReturn => ({
     speakerOptions,
     speakerDraftName,
     setSpeakerDraftName,
@@ -763,5 +763,39 @@ export function useSpeakerActions({
     updateSpeakerDialogDraftName,
     updateSpeakerDialogTargetKey,
     confirmSpeakerDialog,
-  };
+  }), [
+    activeSpeakerFilterKey,
+    batchSpeakerId,
+    closeSpeakerDialog,
+    confirmSpeakerDialog,
+    handleAssignSpeakerToSelected,
+    handleAssignSpeakerToUnits,
+    handleClearSpeakerAssignments,
+    handleCreateSpeakerAndAssign,
+    handleCreateSpeakerAndAssignToUnits,
+    handleCreateSpeakerOnly,
+    handleDeleteSpeaker,
+    handleDeleteUnusedSpeakers,
+    handleExportSpeakerSegments,
+    handleMergeSpeaker,
+    handleRenameSpeaker,
+    handleSelectSpeakerUnits,
+    refreshSpeakerReferenceStats,
+    refreshSpeakers,
+    selectedSpeakerSummary,
+    setActiveSpeakerFilterKey,
+    setBatchSpeakerId,
+    setSpeakerDraftName,
+    speakerDialogState,
+    speakerFilterOptions,
+    speakerOptions,
+    speakerReferenceStats,
+    speakerReferenceStatsMediaScoped,
+    speakerReferenceStatsReady,
+    speakerReferenceUnassignedStats,
+    speakerSaving,
+    speakerVisualByUnitId,
+    updateSpeakerDialogDraftName,
+    updateSpeakerDialogTargetKey,
+  ]);
 }

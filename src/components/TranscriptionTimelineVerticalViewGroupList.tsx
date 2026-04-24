@@ -30,6 +30,7 @@ import {
   buildVerticalReadingTargetItemsFromRawText,
   pickTranslationSegmentForPersist,
   type VerticalReadingGroup,
+  type PairedReadingSourceItem,
   type PairedReadingTargetItem,
 } from '../utils/transcriptionVerticalReadingGroups';
 import { filterTranslationLayersForVerticalReadingGroup, resolveVerticalReadingGroupEmptyReason } from '../utils/verticalReadingHostFilter';
@@ -45,6 +46,9 @@ import {
   resolvePairedReadingLayerLabel,
   resolvePairedReadingTargetPlainTextForLayer,
   resolvePairedReadingTranslationAudioScopeUnitId,
+  partitionPairedReadingSourceItemsForDualTranscriptionColumns,
+  partitionSecondarySourceItemsUnderPrimaryItems,
+  transcriptionLayersOrderedForVerticalReadingSourceWalk,
 } from './transcriptionTimelineVerticalViewHelpers';
 
 type VerticalPaneFocusPatch = {
@@ -233,6 +237,21 @@ export function TranscriptionTimelineVerticalViewGroupList({
         const anchorUnitIds = persistAnchorUnitIds;
         const primaryUnitId = group.sourceItems[0]?.unitId ?? '';
         const primarySourceUnit = primaryUnitId ? unitByIdForSpeaker.get(primaryUnitId) : undefined;
+        const orderedTranscriptionLanes = transcriptionLayersOrderedForVerticalReadingSourceWalk({
+          transcriptionLayers,
+          translationLayers,
+          allLayersOrdered: undefined,
+          layerLinks,
+        });
+        const { primaryColumnItems, secondaryColumnItems } = partitionPairedReadingSourceItemsForDualTranscriptionColumns({
+          sourceItems: group.sourceItems,
+          translationLayers,
+          orderedTranscriptionLanes,
+        });
+        const usesSecondaryTranscriptionColumn = secondaryColumnItems.length > 0;
+        const secondaryTranscriptionBuckets = usesSecondaryTranscriptionColumn
+          ? partitionSecondarySourceItemsUnderPrimaryItems(primaryColumnItems, secondaryColumnItems)
+          : [];
         const hostMatchedTranslationLayers = filterTranslationLayersForVerticalReadingGroup(
           group,
           translationLayers,
@@ -256,7 +275,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
         const groupTranslationLayers = hostMatchedTranslationLayers.length > 0
           ? hostMatchedTranslationLayers
           : textBackedFallbackTranslationLayers;
-        const targetEmptyReason = groupTranslationLayers.length === 0
+        const targetEmptyReason = groupTranslationLayers.length === 0 && !usesSecondaryTranscriptionColumn
           ? resolveVerticalReadingGroupEmptyReason(
               group,
               translationLayers,
@@ -268,15 +287,71 @@ export function TranscriptionTimelineVerticalViewGroupList({
           : null;
         const groupPreferredTargetLayer = groupTranslationLayers.find((l) => l.id === targetLayer?.id)
           ?? groupTranslationLayers[0];
+        /** 多译文层时 `group.targetItems` 只对 `pickTranslationLayer` 一层建模，主列勿复用以免少行 | Multi-layer: re-resolve per layer */
+        const baseReuseGroupTargetItems = !(
+          hostMatchedTranslationLayers.length === 0
+          && group.targetItems.every((item) => normalizePairedReadingPlainText(item.text ?? '').length === 0)
+        );
         const anchorForUi = resolveVerticalReadingGroupAnchorForUi(group, contextMenuSourceUnitId, activeUnitId);
         const derivedActive = activeUnitId != null && group.sourceItems.some((item) => item.unitId === activeUnitId);
         const isGroupActive = activeVerticalReadingGroupId === group.id || (activeVerticalReadingGroupId == null && derivedActive);
         const isTargetColumnFocused = isGroupActive && pairedReadingTargetSide === 'target';
         const pairedReadingLayoutMode: 'balanced' | 'one-to-many' | 'many-to-one' | 'many-to-many' = (() => {
+          if (usesSecondaryTranscriptionColumn) {
+            const stackedSourceRows = primaryColumnItems.length + secondaryColumnItems.length;
+            const targetVisualRows = groupTranslationLayers.length === 0
+              ? 1
+              : groupTranslationLayers.reduce((n, tl) => {
+                if (tl.id === groupPreferredTargetLayer?.id) {
+                  if (translationLayers.length <= 1 && baseReuseGroupTargetItems) {
+                    return n + (perSegTargetsPrimary ? group.targetItems.length : 1);
+                  }
+                  if (!primarySourceUnit) return n + 1;
+                  const exPreferred = resolvePairedReadingExplicitTargetItemsForLayer(
+                    primarySourceUnit,
+                    tl,
+                    defaultTranscriptionLayerId,
+                    segmentsByLayer,
+                    segmentContentByLayer,
+                    unitByIdForSpeaker,
+                  );
+                  if (exPreferred && exPreferred.length > 1) return n + exPreferred.length;
+                  return n + 1;
+                }
+                if (!primarySourceUnit) return n + 1;
+                const ex = resolvePairedReadingExplicitTargetItemsForLayer(
+                  primarySourceUnit,
+                  tl,
+                  defaultTranscriptionLayerId,
+                  segmentsByLayer,
+                  segmentContentByLayer,
+                  unitByIdForSpeaker,
+                );
+                if (ex && ex.length > 1) return n + ex.length;
+                return n + 1;
+              }, 0);
+            if (targetVisualRows > 1 && stackedSourceRows > 1) return 'many-to-many';
+            if (targetVisualRows > 1) return 'one-to-many';
+            if (stackedSourceRows > 1) return 'many-to-one';
+            return 'balanced';
+          }
           const sourceCount = group.sourceItems.length;
           const targetVisualRows = groupTranslationLayers.reduce((n, tl) => {
             if (tl.id === groupPreferredTargetLayer?.id) {
-              return n + (perSegTargetsPrimary ? group.targetItems.length : 1);
+              if (translationLayers.length <= 1 && baseReuseGroupTargetItems) {
+                return n + (perSegTargetsPrimary ? group.targetItems.length : 1);
+              }
+              if (!primarySourceUnit) return n + 1;
+              const exPreferred = resolvePairedReadingExplicitTargetItemsForLayer(
+                primarySourceUnit,
+                tl,
+                defaultTranscriptionLayerId,
+                segmentsByLayer,
+                segmentContentByLayer,
+                unitByIdForSpeaker,
+              );
+              if (exPreferred && exPreferred.length > 1) return n + exPreferred.length;
+              return n + 1;
             }
             if (!primarySourceUnit) return n + 1;
             const ex = resolvePairedReadingExplicitTargetItemsForLayer(
@@ -335,6 +410,18 @@ export function TranscriptionTimelineVerticalViewGroupList({
           >
             <div className="timeline-paired-reading-group-meta">
               <div className="timeline-paired-reading-group-meta-left">
+                <span
+                  className="timeline-paired-reading-chip timeline-paired-reading-chip-group-ordinal"
+                  title={tf(locale, 'transcription.pairedReading.groupOrdinalTitle', {
+                    index: groupIndex + 1,
+                    total: visibleGroups.length,
+                  })}
+                >
+                  {tf(locale, 'transcription.pairedReading.groupOrdinalChip', {
+                    index: groupIndex + 1,
+                    total: visibleGroups.length,
+                  })}
+                </span>
                 <div className="timeline-paired-reading-time">
                   {formatTime(group.startTime)} - {formatTime(group.endTime)}
                 </div>
@@ -356,9 +443,14 @@ export function TranscriptionTimelineVerticalViewGroupList({
               </div>
             </div>
             <div className="timeline-paired-reading-source-column">
-              {group.sourceItems.map((item) => {
-                const isSourceCardActive = item.unitId === activeUnitId || activeVerticalReadingCellId === `source:${item.unitId}`;
-                const sourceLayerId = item.layerId ?? sourceLayer?.id ?? '';
+              {primaryColumnItems.map((pItem, pi) => {
+                const dependentRows = secondaryTranscriptionBuckets[pi] ?? [];
+                const renderOne = (item: PairedReadingSourceItem, rowKind: 'primary' | 'dependent') => {
+                  const sourceLayerId = item.layerId ?? sourceLayer?.id ?? '';
+                  const focusCellId = rowKind === 'dependent'
+                    ? `sec-trc:${(sourceLayerId || 'none').trim()}:${item.unitId}`
+                    : `source:${item.unitId}`;
+                  const isSourceCardActive = item.unitId === activeUnitId || activeVerticalReadingCellId === focusCellId;
                 const sourceDraftKey = `trc-${sourceLayerId || 'none'}-${item.unitId}`;
                 const initialSourceText = normalizePairedReadingPlainText(item.text || '');
                 const sourceDraft = unitDrafts[sourceDraftKey] ?? initialSourceText;
@@ -419,14 +511,19 @@ export function TranscriptionTimelineVerticalViewGroupList({
                   : t(locale, 'transcription.pairedReading.sourceHeader');
                 const sourceRailAriaLabel = tf(locale, 'transcription.pairedReading.rowRailFocusLayer', { layer: sourceRowTitle });
                 return (
-                  <div key={item.unitId} className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-source">
+                  <div
+                    key={focusCellId}
+                    className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-source"
+                  >
                     <button
                       type="button"
                       className={`timeline-paired-reading-row-rail timeline-paired-reading-row-rail-source${isSourceHeaderActive ? ' is-active' : ''}`}
                       aria-pressed={isSourceHeaderActive}
                       aria-label={sourceRailAriaLabel}
                       title={sourceRowTitle}
-                      data-testid={`paired-reading-source-rail-${group.id}-${item.unitId}`}
+                      data-testid={rowKind === 'dependent'
+                        ? `paired-reading-secondary-trc-rail-${group.id}-${sourceLayerId}-${item.unitId}`
+                        : `paired-reading-source-rail-${group.id}-${item.unitId}`}
                       onClick={() => {
                         patchVerticalPaneFocus({ pairedReadingTargetSide: 'source' });
                         if (sourceLayerId) onFocusLayer(sourceLayerId);
@@ -477,7 +574,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                       onFocus={() => {
                         patchVerticalPaneFocus({
                           activeVerticalReadingGroupId: group.id,
-                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          activeVerticalReadingCellId: focusCellId,
                           pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
@@ -488,7 +585,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         const value = normalizePairedReadingPlainText(event.target.value);
                         patchVerticalPaneFocus({
                           activeVerticalReadingGroupId: group.id,
-                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          activeVerticalReadingCellId: focusCellId,
                           pairedReadingTargetSide: 'source',
                         });
                         setUnitDrafts((prev) => ({ ...prev, [sourceDraftKey]: value }));
@@ -535,7 +632,7 @@ export function TranscriptionTimelineVerticalViewGroupList({
                       onClick={(event) => {
                         patchVerticalPaneFocus({
                           activeVerticalReadingGroupId: group.id,
-                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          activeVerticalReadingCellId: focusCellId,
                           pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
@@ -549,13 +646,26 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         if (!unitDoc) return;
                         patchVerticalPaneFocus({
                           activeVerticalReadingGroupId: group.id,
-                          activeVerticalReadingCellId: `source:${item.unitId}`,
+                          activeVerticalReadingCellId: focusCellId,
                           pairedReadingTargetSide: 'source',
                           contextMenuSourceUnitId: item.unitId,
                         });
                         handleAnnotationContextMenu(item.unitId, unitToView(unitDoc, sourceLayerId), sourceLayerId, event);
                       }}
                     />
+                  </div>
+                  );
+                };
+                if (dependentRows.length === 0) {
+                  return renderOne(pItem, 'primary');
+                }
+                return (
+                  <div
+                    key={`trc-stack-${pItem.unitId}-${pi}`}
+                    className="timeline-paired-reading-source-transcription-stack"
+                  >
+                    {renderOne(pItem, 'primary')}
+                    {dependentRows.map((dep) => renderOne(dep, 'dependent'))}
                   </div>
                 );
               })}
@@ -566,24 +676,22 @@ export function TranscriptionTimelineVerticalViewGroupList({
               data-paired-reading-translation-layer-count={groupTranslationLayers.length}
             >
               {groupTranslationLayers.length === 0 ? (
-                <div
-                  className="timeline-paired-reading-target-empty"
-                  data-testid={`paired-reading-target-empty-${group.id}`}
-                >
-                  <p className="timeline-paired-reading-target-empty-hint">
-                    {targetEmptyReason === 'orphan-needs-repair'
-                      ? t(locale, 'transcription.pairedReading.orphanTranslationLayerNeedsRepair')
-                      : t(locale, 'transcription.pairedReading.noChildTranslationLayers')}
-                  </p>
-                </div>
-              ) : (
+                  <div
+                    className="timeline-paired-reading-target-empty"
+                    data-testid={`paired-reading-target-empty-${group.id}`}
+                  >
+                    <p className="timeline-paired-reading-target-empty-hint">
+                      {targetEmptyReason === 'orphan-needs-repair'
+                        ? t(locale, 'transcription.pairedReading.orphanTranslationLayerNeedsRepair')
+                        : t(locale, 'transcription.pairedReading.noChildTranslationLayers')}
+                    </p>
+                  </div>
+                ) : (
                 groupTranslationLayers.map((tLayer) => {
                   const isPrimaryLayer = tLayer.id === groupPreferredTargetLayer?.id;
                   const shouldReuseGroupTargetItems = isPrimaryLayer
-                    && !(
-                      hostMatchedTranslationLayers.length === 0
-                      && group.targetItems.every((item) => normalizePairedReadingPlainText(item.text ?? '').length === 0)
-                    );
+                    && translationLayers.length <= 1
+                    && baseReuseGroupTargetItems;
                   const layerTargetItems: PairedReadingTargetItem[] = shouldReuseGroupTargetItems
                     ? group.targetItems
                     : (() => {
@@ -614,7 +722,11 @@ export function TranscriptionTimelineVerticalViewGroupList({
                         );
                         return buildVerticalReadingTargetItemsFromRawText(primarySourceUnit.id, plain);
                       })();
-                  const layerPerSeg = isPrimaryLayer ? perSegTargetsPrimary : layerTargetItems.length > 1;
+                  const layerPerSeg = isPrimaryLayer
+                    ? (translationLayers.length <= 1
+                      ? perSegTargetsPrimary
+                      : layerTargetItems.length > 1)
+                    : layerTargetItems.length > 1;
                   const layerHeaderLabel = resolvePairedReadingLayerLabel(
                     tLayer,
                     locale,
@@ -632,50 +744,57 @@ export function TranscriptionTimelineVerticalViewGroupList({
                   const audioAnchorSeg = layerUsesOwnSegments(tLayer, defaultTranscriptionLayerId)
                     ? pickTranslationSegmentForPersist(translationSegmentsForAudio, group.startTime, group.endTime)
                     : undefined;
-                  const audioScopeUnitId = resolvePairedReadingTranslationAudioScopeUnitId({
-                    audioAnchorSeg,
-                    anchorUnitIds,
-                    contextMenuSourceUnitId,
-                    activeUnitId,
-                    primaryUnitId,
-                    translationAudioByLayer,
-                    targetLayerId: tLayer.id,
-                  });
-                  const voiceSourceDoc = unitByIdForSpeaker.get(audioScopeUnitId) ?? primarySourceUnit;
                   const layerNoteIndicator = anchorForUi.unitId
                     ? resolveNoteIndicatorTarget?.(anchorForUi.unitId, tLayer.id) ?? null
                     : null;
-                  const audioTranslation = translationAudioByLayer?.get(tLayer.id)?.get(audioScopeUnitId);
-                  const audioMedia = audioTranslation?.translationAudioMediaId
-                    ? mediaItemById.get(audioTranslation.translationAudioMediaId)
-                    : undefined;
-                  const isCurrentRecording = recording && recordingUnitId === audioScopeUnitId && recordingLayerId === tLayer.id;
                   const canRecordLayerAudio = Boolean(startRecordingForUnit)
-                    && (tLayer.acceptsAudio === true || tLayer.modality === 'mixed');
-                  const shouldShowLayerAudio = Boolean(audioMedia) || isCurrentRecording || canRecordLayerAudio;
-                  const layerAudioControls = shouldShowLayerAudio && voiceSourceDoc ? (
-                    <TimelineTranslationAudioControls
-                      {...(audioMedia ? { mediaItem: audioMedia } : {})}
-                      isRecording={isCurrentRecording}
-                      disabled={recording && !isCurrentRecording}
-                      compact
-                      onStartRecording={() => {
-                        void startRecordingForUnit?.(voiceSourceDoc, tLayer);
-                      }}
-                      {...(stopRecording ? { onStopRecording: stopRecording } : {})}
-                      {...(audioMedia && deleteVoiceTranslation ? {
-                        onDeleteRecording: () => deleteVoiceTranslation(voiceSourceDoc, tLayer),
-                      } : {})}
-                      {...(tLayer.modality === 'mixed' && transcribeVoiceTranslation && audioMedia
-                        ? {
-                            onTranscribeRecording: () => {
-                              const b = readNonEmptyAudioBlobFromMediaItem(audioMedia);
-                              return transcribeVoiceTranslation(voiceSourceDoc, tLayer, b ? { audioBlob: b } : undefined);
-                            },
-                          }
-                        : {})}
-                    />
-                  ) : null;
+                    && (tLayer.acceptsAudio === true || tLayer.modality === 'mixed' || tLayer.modality === 'audio');
+                  const isAudioOnlyTranslationLayer = tLayer.modality === 'audio';
+                  const buildTranslationAudioControlsForAnchor = (
+                    anchorSegForScope: LayerUnitDocType | undefined,
+                  ): ReactNode => {
+                    const audioScopeId = resolvePairedReadingTranslationAudioScopeUnitId({
+                      audioAnchorSeg: anchorSegForScope,
+                      anchorUnitIds,
+                      contextMenuSourceUnitId,
+                      activeUnitId,
+                      primaryUnitId,
+                      translationAudioByLayer,
+                      targetLayerId: tLayer.id,
+                    });
+                    const voiceDoc = unitByIdForSpeaker.get(audioScopeId) ?? primarySourceUnit;
+                    const audioRow = translationAudioByLayer?.get(tLayer.id)?.get(audioScopeId);
+                    const media = audioRow?.translationAudioMediaId
+                      ? mediaItemById.get(audioRow.translationAudioMediaId)
+                      : undefined;
+                    const isRowRecording = recording && recordingUnitId === audioScopeId && recordingLayerId === tLayer.id;
+                    const showRow = Boolean(media) || isRowRecording || canRecordLayerAudio;
+                    if (!showRow || !voiceDoc) return null;
+                    return (
+                      <TimelineTranslationAudioControls
+                        {...(media ? { mediaItem: media } : {})}
+                        isRecording={isRowRecording}
+                        disabled={recording && !isRowRecording}
+                        compact={!isAudioOnlyTranslationLayer}
+                        onStartRecording={() => {
+                          void startRecordingForUnit?.(voiceDoc, tLayer);
+                        }}
+                        {...(stopRecording ? { onStopRecording: stopRecording } : {})}
+                        {...(media && deleteVoiceTranslation ? {
+                          onDeleteRecording: () => deleteVoiceTranslation(voiceDoc, tLayer),
+                        } : {})}
+                        {...(tLayer.modality === 'mixed' && transcribeVoiceTranslation && media
+                          ? {
+                              onTranscribeRecording: () => {
+                                const b = readNonEmptyAudioBlobFromMediaItem(media);
+                                return transcribeVoiceTranslation(voiceDoc, tLayer, b ? { audioBlob: b } : undefined);
+                              },
+                            }
+                          : {})}
+                      />
+                    );
+                  };
+                  const layerAudioControls = buildTranslationAudioControlsForAnchor(audioAnchorSeg);
                   const layerPreviewFont = pairedReadingEditorResizingThisGroup
                     ? pairedReadingResizeFontPreviewByLayerId[tLayer.id]
                     : undefined;
@@ -715,6 +834,10 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                 })
                                 .join('\n')
                             );
+                            const rowSegmentId = targetItem.translationSegmentId?.trim();
+                            const rowAnchorSegForAudio = rowSegmentId
+                              ? translationSegmentsForAudio.find((s) => s.id === rowSegmentId) ?? audioAnchorSeg
+                              : audioAnchorSeg;
                             return (
                               <div key={`${tLayer.id}-${targetItem.id}`} className="timeline-paired-reading-editor-row timeline-paired-reading-editor-row-target">
                                 <button
@@ -739,77 +862,154 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                     mode: layerPerSeg && ti > 0 ? 'continuation' : 'full',
                                   })}
                                 </button>
-                                <TimelineLaneDraftEditorCell
-                                  multiline
-                                  wrapperClassName={[
-                                    'timeline-paired-reading-target-surface',
-                                    isItemDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
-                                    isThisTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
-                                    layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
-                                  ].filter(Boolean).join(' ')}
-                                  inputClassName={[
-                                    'timeline-paired-reading-target-input',
-                                    isItemDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
-                                  ].filter(Boolean).join(' ')}
-                                  value={itemDraft}
-                                  rows={resolvePairedReadingEditorRows(itemDraft)}
-                                  placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
-                                  {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
-                                  inputStyle={layerTypography.style}
-                                  {...(itemSaveStatus !== undefined ? { saveStatus: itemSaveStatus } : {})}
-                                  overlay={renderPairedReadingOverlay({
-                                    locale,
-                                    certainty: undefined,
-                                    ambiguous: false,
-                                    laneLabel: layerHeaderLabel,
-                                    noteCount: layerNoteIndicator?.count ?? 0,
-                                    ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
-                                      ? {
-                                          onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
-                                            handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
-                                          },
-                                        }
-                                      : {}),
-                                  })}
-                                  onResizeHandlePointerDown={(event, edge) => {
-                                    handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
-                                  }}
-                                  onRetry={() => {
-                                    void runPairedReadingSaveWithStatus(itemCellKey, async () => {
-                                      await persistPairedReadingTargetTranslation(
-                                        tLayer,
-                                        targetItem,
-                                        group,
-                                        persistAnchorUnitIds,
-                                        normalizePairedReadingPlainText(itemDraft),
-                                        buildCombinedTargetValue(itemDraft),
-                                      );
-                                    });
-                                  }}
-                                  {...(ti === 0 && layerAudioControls ? { tools: layerAudioControls } : {})}
-                                  toolsClassName="timeline-paired-reading-target-tools"
-                                  onFocus={() => {
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      pairedReadingTargetSide: 'target',
-                                      contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
-                                    });
-                                    focusedTranslationDraftKeyRef.current = itemDraftKey;
-                                    onFocusLayer(tLayer.id);
-                                  }}
-                                  onChange={(event) => {
-                                    const value = normalizePairedReadingPlainText(event.target.value);
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      pairedReadingTargetSide: 'target',
-                                    });
-                                    setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: value }));
-                                    if (value !== itemInitial) {
-                                      setPairedReadingCellSaveStatus(itemCellKey, 'dirty');
-                                      scheduleAutoSave(segAutoSaveKey, async () => {
-                                        await runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                {isAudioOnlyTranslationLayer ? (
+                                  <div
+                                    className={[
+                                      'timeline-paired-reading-target-surface',
+                                      'timeline-paired-reading-target-surface-audio-only',
+                                      isThisTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                      layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(event) => {
+                                      if (!anchorForUi.unitId) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                      });
+                                      handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                                    }}
+                                    onContextMenu={(event) => {
+                                      if (!handleAnnotationContextMenu) return;
+                                      const menuSourceId = contextMenuSourceUnitId != null
+                                        && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                                        ? contextMenuSourceUnitId
+                                        : primaryUnitId;
+                                      const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                                      if (!menuUnitDoc) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                                    }}
+                                  >
+                                    <div className="timeline-draft-editor-surface-overlay">
+                                      {renderPairedReadingOverlay({
+                                        locale,
+                                        certainty: undefined,
+                                        ambiguous: false,
+                                        laneLabel: layerHeaderLabel,
+                                        noteCount: layerNoteIndicator?.count ?? 0,
+                                        ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                                          ? {
+                                              onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                                handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                                              },
+                                            }
+                                          : {}),
+                                      })}
+                                    </div>
+                                    <div className="timeline-translation-audio-card timeline-paired-reading-target-audio-only-inner">
+                                      {buildTranslationAudioControlsForAnchor(rowAnchorSegForAudio ?? audioAnchorSeg)}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <TimelineLaneDraftEditorCell
+                                    multiline
+                                    wrapperClassName={[
+                                      'timeline-paired-reading-target-surface',
+                                      isItemDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
+                                      isThisTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                      layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    inputClassName={[
+                                      'timeline-paired-reading-target-input',
+                                      isItemDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    value={itemDraft}
+                                    rows={resolvePairedReadingEditorRows(itemDraft)}
+                                    placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
+                                    {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
+                                    inputStyle={layerTypography.style}
+                                    {...(itemSaveStatus !== undefined ? { saveStatus: itemSaveStatus } : {})}
+                                    overlay={renderPairedReadingOverlay({
+                                      locale,
+                                      certainty: undefined,
+                                      ambiguous: false,
+                                      laneLabel: layerHeaderLabel,
+                                      noteCount: layerNoteIndicator?.count ?? 0,
+                                      ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                                        ? {
+                                            onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                              handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                                            },
+                                          }
+                                        : {}),
+                                    })}
+                                    onResizeHandlePointerDown={(event, edge) => {
+                                      handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
+                                    }}
+                                    onRetry={() => {
+                                      void runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                        await persistPairedReadingTargetTranslation(
+                                          tLayer,
+                                          targetItem,
+                                          group,
+                                          persistAnchorUnitIds,
+                                          normalizePairedReadingPlainText(itemDraft),
+                                          buildCombinedTargetValue(itemDraft),
+                                        );
+                                      });
+                                    }}
+                                    {...(ti === 0 && layerAudioControls ? { tools: layerAudioControls } : {})}
+                                    toolsClassName="timeline-paired-reading-target-tools"
+                                    onFocus={() => {
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
+                                      });
+                                      focusedTranslationDraftKeyRef.current = itemDraftKey;
+                                      onFocusLayer(tLayer.id);
+                                    }}
+                                    onChange={(event) => {
+                                      const value = normalizePairedReadingPlainText(event.target.value);
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: value }));
+                                      if (value !== itemInitial) {
+                                        setPairedReadingCellSaveStatus(itemCellKey, 'dirty');
+                                        scheduleAutoSave(segAutoSaveKey, async () => {
+                                          await runPairedReadingSaveWithStatus(itemCellKey, async () => {
+                                            await persistPairedReadingTargetTranslation(
+                                              tLayer,
+                                              targetItem,
+                                              group,
+                                              persistAnchorUnitIds,
+                                              value,
+                                              buildCombinedTargetValue(value),
+                                            );
+                                          });
+                                        });
+                                      } else {
+                                        clearAutoSaveTimer(segAutoSaveKey);
+                                        setPairedReadingCellSaveStatus(itemCellKey);
+                                      }
+                                    }}
+                                    onBlur={(event) => {
+                                      focusedTranslationDraftKeyRef.current = null;
+                                      const value = normalizePairedReadingPlainText(event.target.value);
+                                      clearAutoSaveTimer(segAutoSaveKey);
+                                      if (value !== itemInitial) {
+                                        void runPairedReadingSaveWithStatus(itemCellKey, async () => {
                                           await persistPairedReadingTargetTranslation(
                                             tLayer,
                                             targetItem,
@@ -819,70 +1019,50 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                             buildCombinedTargetValue(value),
                                           );
                                         });
-                                      });
-                                    } else {
+                                      } else {
+                                        setPairedReadingCellSaveStatus(itemCellKey);
+                                      }
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.nativeEvent.isComposing) return;
+                                      if (navigateUnitFromInput && event.key === 'Tab') {
+                                        navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
+                                        return;
+                                      }
+                                      if (event.key !== 'Escape') return;
+                                      event.preventDefault();
                                       clearAutoSaveTimer(segAutoSaveKey);
+                                      setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: itemInitial }));
                                       setPairedReadingCellSaveStatus(itemCellKey);
-                                    }
-                                  }}
-                                  onBlur={(event) => {
-                                    focusedTranslationDraftKeyRef.current = null;
-                                    const value = normalizePairedReadingPlainText(event.target.value);
-                                    clearAutoSaveTimer(segAutoSaveKey);
-                                    if (value !== itemInitial) {
-                                      void runPairedReadingSaveWithStatus(itemCellKey, async () => {
-                                        await persistPairedReadingTargetTranslation(
-                                          tLayer,
-                                          targetItem,
-                                          group,
-                                          persistAnchorUnitIds,
-                                          value,
-                                          buildCombinedTargetValue(value),
-                                        );
+                                      event.currentTarget.blur();
+                                    }}
+                                    onClick={(event) => {
+                                      if (!anchorForUi.unitId) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
                                       });
-                                    } else {
-                                      setPairedReadingCellSaveStatus(itemCellKey);
-                                    }
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.nativeEvent.isComposing) return;
-                                    if (navigateUnitFromInput && event.key === 'Tab') {
-                                      navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
-                                      return;
-                                    }
-                                    if (event.key !== 'Escape') return;
-                                    event.preventDefault();
-                                    clearAutoSaveTimer(segAutoSaveKey);
-                                    setTranslationDrafts((prev) => ({ ...prev, [itemDraftKey]: itemInitial }));
-                                    setPairedReadingCellSaveStatus(itemCellKey);
-                                    event.currentTarget.blur();
-                                  }}
-                                  onClick={(event) => {
-                                    if (!anchorForUi.unitId) return;
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      pairedReadingTargetSide: 'target',
-                                      contextMenuSourceUnitId: anchorForUi.unitId,
-                                    });
-                                    handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
-                                  }}
-                                  onContextMenu={(event) => {
-                                    if (!handleAnnotationContextMenu) return;
-                                    const menuSourceId = contextMenuSourceUnitId != null
-                                      && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
-                                      ? contextMenuSourceUnitId
-                                      : primaryUnitId;
-                                    const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
-                                    if (!menuUnitDoc) return;
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
-                                      pairedReadingTargetSide: 'target',
-                                    });
-                                    handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
-                                  }}
-                                />
+                                      handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                                    }}
+                                    onContextMenu={(event) => {
+                                      if (!handleAnnotationContextMenu) return;
+                                      const menuSourceId = contextMenuSourceUnitId != null
+                                        && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                                        ? contextMenuSourceUnitId
+                                        : primaryUnitId;
+                                      const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                                      if (!menuUnitDoc) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:${targetItem.id}`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                                    }}
+                                  />
+                                )}
                               </div>
                             );
                           })
@@ -919,137 +1099,194 @@ export function TranscriptionTimelineVerticalViewGroupList({
                                     mode: 'full',
                                   })}
                                 </button>
-                                <TimelineLaneDraftEditorCell
-                                  multiline
-                                  wrapperClassName={[
-                                    'timeline-paired-reading-target-surface',
-                                    isTargetDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
-                                    isMergedTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
-                                    layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
-                                  ].filter(Boolean).join(' ')}
-                                  inputClassName={[
-                                    'timeline-paired-reading-target-input',
-                                    isTargetDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
-                                  ].filter(Boolean).join(' ')}
-                                  value={draft}
-                                  rows={resolvePairedReadingEditorRows(draft)}
-                                  placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
-                                  {...(isPrimaryLayer && group.editingTargetPolicy === 'multi-target-items'
-                                    ? { title: t(locale, 'transcription.pairedReading.multiTargetHint') }
-                                    : {})}
-                                  {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
-                                  inputStyle={layerTypography.style}
-                                  {...(targetSaveStatus !== undefined ? { saveStatus: targetSaveStatus } : {})}
-                                  overlay={renderPairedReadingOverlay({
-                                    locale,
-                                    certainty: undefined,
-                                    ambiguous: false,
-                                    laneLabel: layerHeaderLabel,
-                                    noteCount: layerNoteIndicator?.count ?? 0,
-                                    ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
-                                      ? {
-                                          onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
-                                            handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
-                                          },
-                                        }
-                                      : {}),
-                                  })}
-                                  onResizeHandlePointerDown={(event, edge) => {
-                                    handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
-                                  }}
-                                  onRetry={() => {
-                                    void runPairedReadingSaveWithStatus(targetCellKey, async () => {
-                                      await persistGroupTranslation(
-                                        tLayer,
-                                        group,
-                                        persistAnchorUnitIds,
-                                        normalizePairedReadingPlainText(draft),
-                                      );
-                                    });
-                                  }}
-                                  {...(layerAudioControls ? { tools: layerAudioControls } : {})}
-                                  toolsClassName="timeline-paired-reading-target-tools"
-                                  onFocus={() => {
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      pairedReadingTargetSide: 'target',
-                                      contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
-                                    });
-                                    focusedTranslationDraftKeyRef.current = draftKey;
-                                    onFocusLayer(tLayer.id);
-                                  }}
-                                  onChange={(event) => {
-                                    const value = normalizePairedReadingPlainText(event.target.value);
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      pairedReadingTargetSide: 'target',
-                                    });
-                                    setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
-                                    if (value !== initialTargetText) {
-                                      setPairedReadingCellSaveStatus(targetCellKey, 'dirty');
-                                      scheduleAutoSave(pairedReadingAutoSaveKey, async () => {
-                                        await runPairedReadingSaveWithStatus(targetCellKey, async () => {
+                                {isAudioOnlyTranslationLayer ? (
+                                  <div
+                                    className={[
+                                      'timeline-paired-reading-target-surface',
+                                      'timeline-paired-reading-target-surface-audio-only',
+                                      isMergedTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                      layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onClick={(event) => {
+                                      if (!anchorForUi.unitId) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
+                                      });
+                                      handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                                    }}
+                                    onContextMenu={(event) => {
+                                      if (!handleAnnotationContextMenu) return;
+                                      const menuSourceId = contextMenuSourceUnitId != null
+                                        && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                                        ? contextMenuSourceUnitId
+                                        : primaryUnitId;
+                                      const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                                      if (!menuUnitDoc) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                                    }}
+                                  >
+                                    <div className="timeline-draft-editor-surface-overlay">
+                                      {renderPairedReadingOverlay({
+                                        locale,
+                                        certainty: undefined,
+                                        ambiguous: false,
+                                        laneLabel: layerHeaderLabel,
+                                        noteCount: layerNoteIndicator?.count ?? 0,
+                                        ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                                          ? {
+                                              onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                                handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                                              },
+                                            }
+                                          : {}),
+                                      })}
+                                    </div>
+                                    <div className="timeline-translation-audio-card timeline-paired-reading-target-audio-only-inner">
+                                      {buildTranslationAudioControlsForAnchor(audioAnchorSeg)}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <TimelineLaneDraftEditorCell
+                                    multiline
+                                    wrapperClassName={[
+                                      'timeline-paired-reading-target-surface',
+                                      isTargetDraftEmpty ? 'timeline-paired-reading-target-surface-empty' : '',
+                                      isMergedTargetRowActive ? 'timeline-paired-reading-target-surface-active' : '',
+                                      layerNoteIndicator ? 'timeline-paired-reading-target-surface-has-side-badges' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    inputClassName={[
+                                      'timeline-paired-reading-target-input',
+                                      isTargetDraftEmpty ? 'timeline-paired-reading-target-input-empty' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    value={draft}
+                                    rows={resolvePairedReadingEditorRows(draft)}
+                                    placeholder={t(locale, 'transcription.timeline.placeholder.translation')}
+                                    {...(isPrimaryLayer && group.editingTargetPolicy === 'multi-target-items'
+                                      ? { title: t(locale, 'transcription.pairedReading.multiTargetHint') }
+                                      : {})}
+                                    {...(layerTypography.dir ? { dir: layerTypography.dir } : {})}
+                                    inputStyle={layerTypography.style}
+                                    {...(targetSaveStatus !== undefined ? { saveStatus: targetSaveStatus } : {})}
+                                    overlay={renderPairedReadingOverlay({
+                                      locale,
+                                      certainty: undefined,
+                                      ambiguous: false,
+                                      laneLabel: layerHeaderLabel,
+                                      noteCount: layerNoteIndicator?.count ?? 0,
+                                      ...(layerNoteIndicator && anchorForUi.unitId && handleNoteClick
+                                        ? {
+                                            onNoteClick: (event: React.MouseEvent<SVGSVGElement>) => {
+                                              handleNoteClick(anchorForUi.unitId, layerNoteIndicator.layerId, event);
+                                            },
+                                          }
+                                        : {}),
+                                    })}
+                                    onResizeHandlePointerDown={(event, edge) => {
+                                      handlePairedReadingEditorResizeStart(event, group.id, pairedReadingEditorHeight, edge);
+                                    }}
+                                    onRetry={() => {
+                                      void runPairedReadingSaveWithStatus(targetCellKey, async () => {
+                                        await persistGroupTranslation(
+                                          tLayer,
+                                          group,
+                                          persistAnchorUnitIds,
+                                          normalizePairedReadingPlainText(draft),
+                                        );
+                                      });
+                                    }}
+                                    {...(layerAudioControls ? { tools: layerAudioControls } : {})}
+                                    toolsClassName="timeline-paired-reading-target-tools"
+                                    onFocus={() => {
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId || primaryUnitId || null,
+                                      });
+                                      focusedTranslationDraftKeyRef.current = draftKey;
+                                      onFocusLayer(tLayer.id);
+                                    }}
+                                    onChange={(event) => {
+                                      const value = normalizePairedReadingPlainText(event.target.value);
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      setTranslationDrafts((prev) => ({ ...prev, [draftKey]: value }));
+                                      if (value !== initialTargetText) {
+                                        setPairedReadingCellSaveStatus(targetCellKey, 'dirty');
+                                        scheduleAutoSave(pairedReadingAutoSaveKey, async () => {
+                                          await runPairedReadingSaveWithStatus(targetCellKey, async () => {
+                                            await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
+                                          });
+                                        });
+                                      } else {
+                                        clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                        setPairedReadingCellSaveStatus(targetCellKey);
+                                      }
+                                    }}
+                                    onBlur={(event) => {
+                                      focusedTranslationDraftKeyRef.current = null;
+                                      const value = normalizePairedReadingPlainText(event.target.value);
+                                      clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                      if (value !== initialTargetText) {
+                                        void runPairedReadingSaveWithStatus(targetCellKey, async () => {
                                           await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
                                         });
-                                      });
-                                    } else {
+                                      } else {
+                                        setPairedReadingCellSaveStatus(targetCellKey);
+                                      }
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.nativeEvent.isComposing) return;
+                                      if (navigateUnitFromInput && event.key === 'Tab') {
+                                        navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
+                                        return;
+                                      }
+                                      if (event.key !== 'Escape') return;
+                                      event.preventDefault();
                                       clearAutoSaveTimer(pairedReadingAutoSaveKey);
+                                      setTranslationDrafts((prev) => ({ ...prev, [draftKey]: initialTargetText }));
                                       setPairedReadingCellSaveStatus(targetCellKey);
-                                    }
-                                  }}
-                                  onBlur={(event) => {
-                                    focusedTranslationDraftKeyRef.current = null;
-                                    const value = normalizePairedReadingPlainText(event.target.value);
-                                    clearAutoSaveTimer(pairedReadingAutoSaveKey);
-                                    if (value !== initialTargetText) {
-                                      void runPairedReadingSaveWithStatus(targetCellKey, async () => {
-                                        await persistGroupTranslation(tLayer, group, persistAnchorUnitIds, value);
+                                      event.currentTarget.blur();
+                                    }}
+                                    onClick={(event) => {
+                                      if (!anchorForUi.unitId) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                        contextMenuSourceUnitId: anchorForUi.unitId,
                                       });
-                                    } else {
-                                      setPairedReadingCellSaveStatus(targetCellKey);
-                                    }
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.nativeEvent.isComposing) return;
-                                    if (navigateUnitFromInput && event.key === 'Tab') {
-                                      navigateUnitFromInput(event, event.shiftKey ? -1 : 1);
-                                      return;
-                                    }
-                                    if (event.key !== 'Escape') return;
-                                    event.preventDefault();
-                                    clearAutoSaveTimer(pairedReadingAutoSaveKey);
-                                    setTranslationDrafts((prev) => ({ ...prev, [draftKey]: initialTargetText }));
-                                    setPairedReadingCellSaveStatus(targetCellKey);
-                                    event.currentTarget.blur();
-                                  }}
-                                  onClick={(event) => {
-                                    if (!anchorForUi.unitId) return;
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      pairedReadingTargetSide: 'target',
-                                      contextMenuSourceUnitId: anchorForUi.unitId,
-                                    });
-                                    handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
-                                  }}
-                                  onContextMenu={(event) => {
-                                    if (!handleAnnotationContextMenu) return;
-                                    const menuSourceId = contextMenuSourceUnitId != null
-                                      && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
-                                      ? contextMenuSourceUnitId
-                                      : primaryUnitId;
-                                    const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
-                                    if (!menuUnitDoc) return;
-                                    patchVerticalPaneFocus({
-                                      activeVerticalReadingGroupId: group.id,
-                                      activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
-                                      pairedReadingTargetSide: 'target',
-                                    });
-                                    handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
-                                  }}
-                                />
+                                      handleAnnotationClick(anchorForUi.unitId, anchorForUi.startTime, tLayer.id, event);
+                                    }}
+                                    onContextMenu={(event) => {
+                                      if (!handleAnnotationContextMenu) return;
+                                      const menuSourceId = contextMenuSourceUnitId != null
+                                        && group.sourceItems.some((si) => si.unitId === contextMenuSourceUnitId)
+                                        ? contextMenuSourceUnitId
+                                        : primaryUnitId;
+                                      const menuUnitDoc = menuSourceId ? unitByIdForSpeaker.get(menuSourceId) : undefined;
+                                      if (!menuUnitDoc) return;
+                                      patchVerticalPaneFocus({
+                                        activeVerticalReadingGroupId: group.id,
+                                        activeVerticalReadingCellId: `target:${group.id}:${tLayer.id}:editor`,
+                                        pairedReadingTargetSide: 'target',
+                                      });
+                                      handleAnnotationContextMenu(menuSourceId, unitToView(menuUnitDoc, tLayer.id), tLayer.id, event);
+                                    }}
+                                  />
+                                )}
                               </div>
                             );
                           })()}

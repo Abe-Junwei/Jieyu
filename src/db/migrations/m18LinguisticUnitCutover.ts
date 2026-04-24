@@ -20,15 +20,10 @@ function pickDefaultTranscriptionTierId(
   return [...candidates].sort((a, b) => (a.sortOrder ?? MAX) - (b.sortOrder ?? MAX))[0]?.id;
 }
 
-/** Host id for a token/morpheme row before or after M18 field rename (v36: unitId; post: unitId). */
+/** Host id for a token/morpheme row: canonical `unitId`, or legacy `segmentId` before M18. */
 function linguisticSubgraphHostIdFromRow(row: Record<string, unknown>): string | undefined {
-  if (typeof row.unitId === 'string' && row.unitId.trim().length > 0) {
-    return row.unitId;
-  }
-  if (typeof row.unitId === 'string' && row.unitId.trim().length > 0) {
-    return row.unitId;
-  }
-  return undefined;
+  const pick = (v: unknown) => (typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined);
+  return pick(row.unitId) ?? pick(row.segmentId);
 }
 
 /**
@@ -114,18 +109,18 @@ export async function upgradeM18LinguisticUnitCutover(tx: Transaction): Promise<
 
   for (const raw of tokenRows) {
     const row = raw as Record<string, unknown>;
-    const legacyId = row.unitId;
-    if (typeof legacyId !== 'string') continue;
-    const { unitId: _u, ...rest } = row;
+    const legacyId = linguisticSubgraphHostIdFromRow(row);
+    if (!legacyId) continue;
+    const { unitId: _u, segmentId: _s, ...rest } = row;
     const next = { ...rest, unitId: legacyId } as UnitTokenDocType;
     await tokensTable.put(next);
   }
 
   for (const raw of morphRows) {
     const row = raw as Record<string, unknown>;
-    const legacyId = row.unitId;
-    if (typeof legacyId !== 'string') continue;
-    const { unitId: _u, ...rest } = row;
+    const legacyId = linguisticSubgraphHostIdFromRow(row);
+    if (!legacyId) continue;
+    const { unitId: _u, segmentId: _s, ...rest } = row;
     const next = { ...rest, unitId: legacyId } as UnitMorphemeDocType;
     await morphemesTable.put(next);
   }

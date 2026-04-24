@@ -13,6 +13,8 @@
 
 .timeline-lane {
   position: relative;
+  /* WebKit：块级轨在部分 flex/滚动组合下缺省宽偶发不铺满 `.timeline-content`，语段子轨 `left/right:0` 变窄 | Stretch lane to content width */
+  width: 100%;
   height: var(--timeline-lane-height);
   --timeline-lane-separator-color: color-mix(in srgb, var(--text-tertiary) 58%, transparent);
   border-bottom: none; /* 改进：移除硬边界，统一用 ::after 弱分隔 */

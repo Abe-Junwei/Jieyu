@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type TimelineLaneHeaderMessages = {
   editLayerMetadata: string;
@@ -22,5 +22,5 @@ const enUS: TimelineLaneHeaderMessages = {
 };
 
 export function getTimelineLaneHeaderMessages(locale: Locale): TimelineLaneHeaderMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

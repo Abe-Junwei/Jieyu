@@ -364,6 +364,47 @@ describe('useLasso — tier 套索与对读排除（§6.2）', () => {
     expect(createUnitFromSelection).toHaveBeenCalledTimes(1);
     expect(createUnitFromSelection).toHaveBeenCalledWith(30, 35);
   });
+
+  it('timeline-content 左 gutter：像素换算减去标签槽与时间轴对齐', () => {
+    const createUnitFromSelection = vi.fn(async () => {});
+    render(
+      <TierLassoHarness
+        clearUnitSelection={clearUnitSelection}
+        createUnitFromSelection={createUnitFromSelection}
+        timelineItems={[]}
+        zoomPxPerSec={10}
+      >
+        <div
+          className="timeline-content"
+          style={{ boxSizing: 'border-box', paddingLeft: '100px', borderLeftWidth: 0 }}
+        />
+      </TierLassoHarness>,
+    );
+    const tier = screen.getByTestId('timeline-scroll');
+    stubTierGeometry(tier);
+    Object.defineProperty(tier, 'scrollLeft', { value: 0, writable: true, configurable: true });
+    tier.setPointerCapture = vi.fn();
+
+    const tc = tier.querySelector('.timeline-content') as HTMLElement;
+    vi.spyOn(tc, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 800,
+      bottom: 400,
+      width: 800,
+      height: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    } as DOMRect);
+
+    fireEvent.pointerDown(tier, { clientX: 100, clientY: 60, button: 0, buttons: 1, pointerId: 64 });
+    fireEvent.pointerMove(tier, { clientX: 350, clientY: 90, button: 0, buttons: 1, pointerId: 64 });
+    fireEvent.pointerUp(tier, { clientX: 350, clientY: 90, button: 0, buttons: 0, pointerId: 64 });
+
+    expect(createUnitFromSelection).toHaveBeenCalledTimes(1);
+    expect(createUnitFromSelection).toHaveBeenCalledWith(0, 25);
+  });
 });
 
 describe('useLasso — 波形映射与语义轴对齐', () => {
@@ -374,7 +415,7 @@ describe('useLasso — 波形映射与语义轴对齐', () => {
   });
 
   it('解码时长为 0 时用语义轴秒数仍可拖选建段', () => {
-    const createUnitFromSelection = vi.fn(async () => {});
+    const createUnitFromSelection = vi.fn(async (_startSec: number, _endSec: number) => {});
     render(
       <WaveformLassoHarness
         clearUnitSelection={clearUnitSelection}

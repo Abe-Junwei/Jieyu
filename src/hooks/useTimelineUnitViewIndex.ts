@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react';
-import type { LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerLinkDocType, LayerUnitDocType } from '../db';
 import { buildTimelineUnitViewIndex, type TimelineUnitViewIndex } from './timelineUnitView';
 
 export interface UseTimelineUnitViewIndexInput {
@@ -12,6 +12,11 @@ export interface UseTimelineUnitViewIndexInput {
   defaultTranscriptionLayerId: string | undefined;
   segmentsLoadComplete?: boolean;
   existingIndex?: TimelineUnitViewIndex;
+  transcriptionLaneReadScope?: Readonly<{
+    transcriptionLayers: readonly LayerDocType[];
+    allLayersOrdered: readonly LayerDocType[];
+    layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  }>;
 }
 
 export type TimelineUnitViewIndexWithEpoch = TimelineUnitViewIndex;
@@ -37,6 +42,7 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
       defaultTranscriptionLayerId: input.defaultTranscriptionLayerId,
       epoch: epochRef.current,
       ...(input.segmentsLoadComplete !== undefined ? { segmentsLoadComplete: input.segmentsLoadComplete } : {}),
+      ...(input.transcriptionLaneReadScope ? { transcriptionLaneReadScope: input.transcriptionLaneReadScope } : {}),
     });
   }, [
     input.existingIndex,
@@ -48,5 +54,6 @@ export function useTimelineUnitViewIndex(input: UseTimelineUnitViewIndexInput): 
     input.activeLayerIdForEdits,
     input.defaultTranscriptionLayerId,
     input.segmentsLoadComplete,
+    input.transcriptionLaneReadScope,
   ]);
 }

@@ -2,7 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { LayerDocType, MediaItemDocType, LayerUnitDocType, LayerUnitContentDocType } from '../db';
-import { useImportExport } from './useImportExport';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
+import { useImportExport, type UseImportExportInput } from './useImportExport';
 
 const mockExportToEaf = vi.hoisted(() => vi.fn(() => '<ANNOTATION_DOCUMENT/>'));
 const mockDownloadEaf = vi.hoisted(() => vi.fn());
@@ -200,7 +201,7 @@ function buildMockDb(options?: { preferLayerUnits?: boolean }) {
   };
 }
 
-function makeInput() {
+function makeInput(overrides: Partial<UseImportExportInput> = {}): UseImportExportInput {
   const media = {
     id: 'media-1',
     textId: 'text-1',
@@ -303,6 +304,7 @@ function makeInput() {
     defaultTranscriptionLayerId: 'trc-1',
     loadSnapshot: vi.fn(async () => undefined),
     setSaveState: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -370,6 +372,22 @@ describe('useImportExport - export eaf behavior', () => {
     };
     expect(callArg?.layerSegments?.get('trl-ind')?.[0]?.id).toBe('seg-trl-ind');
     expect(callArg?.layerSegmentContents?.get('trl-ind')?.get('seg-trl-ind')?.text).toBe('layer-unit-trl-ind');
+  });
+
+  it('queries segment rows with segmentScopeMediaId when it differs from unitsOnCurrentMedia host media', async () => {
+    const spy = vi.spyOn(LayerSegmentQueryService, 'listSegmentsByLayerMedia');
+    const input = makeInput({ segmentScopeMediaId: 'media-2' });
+    const { result } = renderHook(() => useImportExport(input));
+
+    await act(async () => {
+      await result.current.handleExportEaf();
+    });
+
+    expect(spy.mock.calls.length).toBeGreaterThan(0);
+    for (const call of spy.mock.calls) {
+      expect(call[1]).toBe('media-2');
+    }
+    spy.mockRestore();
   });
 });
 

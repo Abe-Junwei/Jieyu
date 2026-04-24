@@ -1,12 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LayerUnitDocType, LayerDocType } from '../db';
+import type { DictKey } from '../i18n';
 import type { SaveState } from './useTranscriptionData';
+
+/** Maps getUserMedia / recorder failures to i18n keys consumed by ToastController. */
+export function recordingStartFailureDictKey(error: unknown): DictKey {
+  if (error instanceof DOMException) {
+    if (error.name === 'NotAllowedError') {
+      return 'transcription.timeline.audio.error.micPermissionDenied';
+    }
+    if (error.name === 'NotFoundError') {
+      return 'transcription.timeline.audio.error.micNotFound';
+    }
+    if (error.name === 'NotReadableError') {
+      return 'transcription.timeline.audio.error.micBusy';
+    }
+  }
+  return 'transcription.timeline.audio.error.startFailed';
+}
 
 interface UseRecordingOptions {
   saveVoiceTranslation: (blob: Blob, unit: LayerUnitDocType, layer: LayerDocType) => Promise<void>;
   setSaveState: (state: SaveState) => void;
   selectUnit: (id: string) => void;
   manualSelectTsRef: React.MutableRefObject<number>;
+}
+
+/** 与 `VoiceInputService.recording` 对齐：优先 webm/opus，其次常见跨浏览器 mime。 */
+function pickVoiceTranslationRecorderOptions(): MediaRecorderOptions | undefined {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return undefined;
+  }
+  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+    return { mimeType: 'audio/webm;codecs=opus' };
+  }
+  if (MediaRecorder.isTypeSupported('audio/webm')) {
+    return { mimeType: 'audio/webm' };
+  }
+  if (MediaRecorder.isTypeSupported('audio/mp4')) {
+    return { mimeType: 'audio/mp4' };
+  }
+  return undefined;
 }
 
 export function useRecording({
@@ -32,7 +66,7 @@ export function useRecording({
       const layerSupportsAudio =
         layer.modality === 'audio' || layer.modality === 'mixed' || Boolean(layer.acceptsAudio);
       if (!layerSupportsAudio) {
-        setRecordingError('\u5f53\u524d\u5c42\u4e0d\u652f\u6301\u5f55\u97f3\uff08\u9700\u97f3\u9891/\u6df7\u5408\u6a21\u6001\u6216 acceptsAudio\uff09\u3002');
+        setRecordingError('transcription.timeline.audio.error.layerUnsupported');
         return;
       }
 
@@ -47,7 +81,10 @@ export function useRecording({
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
 
-        const recorder = new MediaRecorder(stream);
+        const recorderOptions = pickVoiceTranslationRecorderOptions();
+        const recorder = recorderOptions
+          ? new MediaRecorder(stream, recorderOptions)
+          : new MediaRecorder(stream);
         recorderRef.current = recorder;
         chunksRef.current = [];
 
@@ -83,7 +120,7 @@ export function useRecording({
         setRecording(false);
         setRecordingUnitId(null);
         setRecordingLayerId(null);
-        setRecordingError(error instanceof Error ? error.message : '\u65e0\u6cd5\u542f\u52a8\u5f55\u97f3\uff0c\u8bf7\u68c0\u67e5\u9ea6\u514b\u98ce\u6743\u9650');
+        setRecordingError(recordingStartFailureDictKey(error));
       }
     },
     [saveVoiceTranslation, setSaveState, selectUnit, manualSelectTsRef],

@@ -14,8 +14,8 @@ export interface UseTimelineViewportResult {
   zoomToUnit: TimelineViewportZoomControls['zoomToUnit'];
 }
 
-function resolveLogicalDurationSec(input: UseZoomInput): number {
-  const v = input.logicalTimelineDurationSec;
+function resolveDocumentSpanSec(input: UseZoomInput): number {
+  const v = input.documentSpanSec;
   if (typeof v === 'number' && Number.isFinite(v)) return Math.max(0, v);
   return 0;
 }
@@ -28,7 +28,7 @@ export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelin
   const { waveformScrollLeft, ...zoomInput } = input;
   const { rulerView, zoomToPercent, zoomToUnit } = useZoom(zoomInput);
 
-  const logicalTimelineDurationSec = resolveLogicalDurationSec(zoomInput);
+  const documentSpanSec = resolveDocumentSpanSec(zoomInput);
 
   const projection = useMemo((): TimelineViewportProjection => ({
     viewportFrame: {
@@ -41,7 +41,7 @@ export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelin
     },
     rulerView,
     zoomPxPerSec: zoomInput.zoomPxPerSec,
-    logicalTimelineDurationSec,
+    documentSpanSec,
     zoomPercent: zoomInput.zoomPercent,
     maxZoomPercent: zoomInput.maxZoomPercent,
     fitPxPerSec: zoomInput.fitPxPerSec,
@@ -51,7 +51,7 @@ export function useTimelineViewport(input: UseTimelineViewportInput): UseTimelin
   }), [
     rulerView,
     zoomInput.zoomPxPerSec,
-    logicalTimelineDurationSec,
+    documentSpanSec,
     zoomInput.zoomPercent,
     zoomInput.maxZoomPercent,
     zoomInput.fitPxPerSec,

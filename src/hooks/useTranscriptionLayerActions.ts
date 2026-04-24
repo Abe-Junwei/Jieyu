@@ -9,6 +9,10 @@ import { canCreateLayer, canDeleteLayer, getLayerCreateGuard, listIndependentBou
 import { computeCanonicalLayerOrder, resolveLayerDrop } from '../services/LayerOrderingService';
 import { createLayerLink } from '../services/LayerIdBridgeService';
 import { buildTranscriptionIdByKeyMap, resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
+import {
+  assertTranscriptionDependencyLayerInvariant,
+  scopeLayerLinksToLayerIdSet,
+} from '../utils/transcriptionLayerDependencyInvariant';
 import { listUnitTextsByUnits } from '../services/LayerSegmentationTextService';
 import { deleteLayerSegmentGraphByLayerId, listUnitUnitPrimaryKeysByTextId } from '../services/LayerSegmentGraphService';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
@@ -342,6 +346,16 @@ export function useTranscriptionLayerActions({
         createdAt: now,
         updatedAt: now,
       } as LayerDocType;
+
+      if (layerType === 'transcription') {
+        const prospectiveLayers = [...layers, newLayer].filter((l) => l.textId === textId);
+        const idSet = new Set(prospectiveLayers.map((l) => l.id));
+        const prospectiveLinks = scopeLayerLinksToLayerIdSet(layerLinks, idSet);
+        assertTranscriptionDependencyLayerInvariant({
+          layers: prospectiveLayers,
+          layerLinks: prospectiveLinks,
+        });
+      }
 
       pushUndo(layerType === 'transcription'
         ? t(locale, 'transcription.layer.undo.createTranscription')

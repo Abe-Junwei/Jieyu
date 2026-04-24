@@ -1,4 +1,4 @@
-import type { ComponentPropsWithoutRef, CSSProperties, MutableRefObject, PointerEventHandler, ReactNode, Ref, RefObject } from 'react';
+import { memo, type ComponentPropsWithoutRef, type CSSProperties, type MutableRefObject, type PointerEventHandler, type ReactNode, type Ref, type RefObject } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import type { LayerUnitDocType } from '../../db';
 import { VideoPlayer } from '../VideoPlayer';
@@ -28,6 +28,7 @@ type VideoPreviewSectionProps = {
   waveformStripHeight: number;
   waveformDisplayMode: WaveformDisplayMode;
   waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
+  waveformStripWheelShellRef: MutableRefObject<HTMLDivElement | null>;
   playerSpectrogramRef: MutableRefObject<HTMLDivElement | null>;
   playerWaveformRef: MutableRefObject<HTMLDivElement | null>;
   onSeek: (time: number) => void;
@@ -37,7 +38,7 @@ type VideoPreviewSectionProps = {
   spectrogramOverlay?: ReactNode;
 };
 
-export function VideoPreviewSection({
+export const VideoPreviewSection = memo(function VideoPreviewSection({
   selectedMediaIsVideo,
   selectedMediaUrl,
   videoLayoutMode,
@@ -55,6 +56,7 @@ export function VideoPreviewSection({
   waveformStripHeight,
   waveformDisplayMode,
   waveCanvasRef,
+  waveformStripWheelShellRef,
   playerSpectrogramRef,
   playerWaveformRef,
   onSeek,
@@ -67,6 +69,7 @@ export function VideoPreviewSection({
   const { waveformPrimaryHeight, spectrogramHeight } = getWaveformDisplayHeights(waveformStripHeight, waveformDisplayMode);
   const renderWaveDisplay = () => (
     <TimelineStyledContainer
+      ref={waveformStripWheelShellRef}
       className={`waveform-display-shell waveform-display-shell-${waveformDisplayMode}`}
       layoutStyle={{
         '--waveform-height': `${waveformPrimaryHeight}px`,
@@ -178,7 +181,7 @@ export function VideoPreviewSection({
       </div>
     </TimelineStyledContainer>
   );
-}
+});
 
 type TimelineHeaderSectionProps = {
   duration: number;
@@ -186,7 +189,8 @@ type TimelineHeaderSectionProps = {
   rulerView: { start: number; end: number } | null;
   onSeek: (time: number) => void;
   isReady: boolean;
-  currentTime: number;
+  /** 省略时 TimeRuler 订阅 `transcriptionPlaybackClock` */
+  currentTime?: number;
   zoomPxPerSec: number;
   isLaneHeaderCollapsed: boolean;
   onToggleLaneHeader: () => void;
@@ -221,7 +225,7 @@ export function TimelineHeaderSection({
   return canRenderTimeRuler && rulerView ? (
     <TimeRuler
       duration={duration}
-      currentTime={currentTime}
+      {...(typeof currentTime === 'number' ? { currentTime } : {})}
       rulerView={rulerView}
       zoomPxPerSec={zoomPxPerSec}
       isLaneHeaderCollapsed={isLaneHeaderCollapsed}

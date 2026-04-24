@@ -78,16 +78,35 @@ const SENSITIVE_KEYS = new Set([
   'password', 'secret', 'authorization',
 ]);
 
-function scrubData(data: Record<string, unknown>): Record<string, unknown> {
+const SCRUB_MAX_DEPTH = 10;
+
+function scrubValue(value: unknown, depth: number, seen: WeakSet<object>): unknown {
+  if (depth > SCRUB_MAX_DEPTH) return '[scrub depth exceeded]';
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof Date) return value;
+  if (Array.isArray(value)) {
+    return value.map((item) => scrubValue(item, depth + 1, seen));
+  }
+  if (seen.has(value)) return '[circular]';
+  seen.add(value);
+  return scrubDataImpl(value as Record<string, unknown>, depth + 1, seen);
+}
+
+function scrubDataImpl(data: Record<string, unknown>, depth: number, seen: WeakSet<object>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
-    if (SENSITIVE_KEYS.has(key.toLowerCase()) && typeof value === 'string' && value.length > 0) {
+    const lower = key.toLowerCase();
+    if (SENSITIVE_KEYS.has(lower) && typeof value === 'string' && value.length > 0) {
       result[key] = `***${value.slice(-4)}`;
     } else {
-      result[key] = value;
+      result[key] = scrubValue(value, depth, seen);
     }
   }
   return result;
+}
+
+function scrubData(data: Record<string, unknown>): Record<string, unknown> {
+  return scrubDataImpl(data, 0, new WeakSet());
 }
 
 // ─── 核心 emit | Core emit ─────────────────────────────────

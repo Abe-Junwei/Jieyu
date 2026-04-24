@@ -65,6 +65,7 @@ export function useTranscriptionTimelineController(
     );
   }, [input.activeSpeakerFilterKey, input.getUnitSpeakerKey, input.unitsOnCurrentMedia]);
 
+  /** 视窗裁剪：减少轨上单元数量；长列表 DOM 级虚拟化见 `@tanstack/react-virtual` 路线图（TranscriptionTimelineHorizontalMediaLanes）。 */
   const timelineRenderUnits = useMemo(() => {
     if (!input.rulerView || input.playerDuration <= 0) {
       return filteredUnitsOnCurrentMedia;

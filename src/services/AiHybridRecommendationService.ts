@@ -418,6 +418,8 @@ export class AiHybridRecommendationService {
         'label 和 prompt 都必须是简体中文。',
         '建议要具体、可执行，避免空泛表述。',
         '优先贴合当前上下文，不要脱离当前页面和选区。',
+        'label 与 prompt 中不得出现内部工具名、API 名或 snake_case；用用户会点的自然说法。',
+        '避免公文腔与空洞开场；像真人会发的一行问句，短而具体。',
       ].join('\n');
     }
 
@@ -429,6 +431,8 @@ export class AiHybridRecommendationService {
       'Format: {"suggestions":[{"label":"...","prompt":"..."}]}.',
       'All labels and prompts must be in English.',
       'Keep the suggestion concrete and actionable.',
+      'Do not put internal tool names, API identifiers, or snake_case in label or prompt — write what a human would tap to send.',
+      'Avoid corporate filler and empty openers; one short, concrete line a real user would send.',
     ].join('\n');
   }
 

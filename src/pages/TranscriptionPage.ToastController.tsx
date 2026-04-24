@@ -3,9 +3,11 @@
  * 桥接 TranscriptionPage 状态到 ToastProvider
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
 import type { SaveState } from '../hooks/transcriptionTypes';
+import { isDictKey } from '../i18n';
+import { FIRE_AND_FORGET_ERROR_EVENT, type FireAndForgetErrorDetail } from '../utils/fireAndForget';
 
 type VoiceToastMode = 'command' | 'dictation' | 'analysis';
 
@@ -74,6 +76,8 @@ export function ToastController({
   const { showToast, showSaveState, showVoiceState } = useToast();
   const shouldSyncCore = mode !== 'voice-only';
   const shouldSyncVoice = mode !== 'core-only';
+  /** Same `recordingError` must only enqueue one toast — `tf`/`showToast` identities often change each parent render. */
+  const recordingErrorToastShownForRef = useRef<string | null>(null);
 
   // SaveState changes → toast
   useEffect(() => {
@@ -81,13 +85,20 @@ export function ToastController({
     showSaveState(saveState);
   }, [saveState, shouldSyncCore, showSaveState]);
 
-  // Recording error → error toast
+  // Recording error → error toast (auto-dismiss like other errors; do not pass 0)
   useEffect(() => {
     if (!shouldSyncCore) return;
-    if (recordingError) {
-      showToast(recordingError, 'error', 0);
+    if (!recordingError) {
+      recordingErrorToastShownForRef.current = null;
+      return;
     }
-  }, [recordingError, shouldSyncCore, showToast]);
+    if (recordingErrorToastShownForRef.current === recordingError) {
+      return;
+    }
+    recordingErrorToastShownForRef.current = recordingError;
+    const message = isDictKey(recordingError) ? tf(recordingError) : recordingError;
+    showToast(message, 'error');
+  }, [recordingError, shouldSyncCore, showToast, tf]);
 
   // Voice agent error (including wake-word startup failures) → error toast
   useEffect(() => {
@@ -169,6 +180,24 @@ export function ToastController({
       listeners.forEach(({ eventName, listener }) => {
         window.removeEventListener(eventName, listener);
       });
+    };
+  }, [shouldSyncCore, showToast, tf]);
+
+  // 未处理的 fire-and-forget 错误转为可见 toast，避免仅落到控制台 | Surface unhandled fire-and-forget errors as visible toasts instead of console-only logs
+  useEffect(() => {
+    if (!shouldSyncCore) return;
+    const listener = (event: Event) => {
+      const detail = (event as CustomEvent<FireAndForgetErrorDetail>).detail;
+      const context = detail?.context?.trim() ?? '';
+      if (context.length > 0) {
+        showToast(tf('transcription.toast.asyncActionFailedWithContext', { context }), 'error');
+        return;
+      }
+      showToast(tf('transcription.toast.asyncActionFailed'), 'error');
+    };
+    window.addEventListener(FIRE_AND_FORGET_ERROR_EVENT, listener);
+    return () => {
+      window.removeEventListener(FIRE_AND_FORGET_ERROR_EVENT, listener);
     };
   }, [shouldSyncCore, showToast, tf]);
 

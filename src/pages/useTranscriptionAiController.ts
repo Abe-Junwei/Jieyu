@@ -19,27 +19,19 @@ import { buildWaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOve
 import { vadCache } from '../services/vad/VadCacheService';
 import { formatRecentActions } from '../hooks/useEditEventBuffer';
 import { createMetricTags, recordMetric } from '../observability/metrics';
-import type { LayerUnitDocType } from '../db';
 import { buildOwnerUnitCandidates, resolveExplicitOwnerUnitForAi, resolveOwnerUnitForAi, resolveWritableAiTargetId } from './transcriptionAiSelectionResolver';
 import type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
 import { useTranscriptionAiAcousticRuntime } from './useTranscriptionAiAcousticRuntime';
+import { TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX, toSyntheticUnitDoc } from '../utils/transcriptionAiControllerHelpers';
+import {
+  getTranscriptionPlaybackClockSnapshot,
+  subscribeTranscriptionPlaybackClock,
+} from '../hooks/transcriptionPlaybackClock';
 export type { UseTranscriptionAiControllerInput, UseTranscriptionAiControllerResult } from './transcriptionAiController.types';
-const TOOL_DECISION_LOG_REFRESH_ERROR_PREFIX = '\u5237\u65b0 AI \u5de5\u5177\u5ba1\u8ba1\u65e5\u5fd7\u5931\u8d25\uff1a';
 
 export function useTranscriptionAiController(
   input: UseTranscriptionAiControllerInput,
 ): UseTranscriptionAiControllerResult {
-  const toSyntheticUnit = useCallback((unit: { id: string; mediaId: string; textId?: string; startTime: number; endTime: number; speakerId?: string; tags?: Record<string, boolean> }): LayerUnitDocType => ({
-    id: unit.id,
-    mediaId: unit.mediaId,
-    textId: unit.textId ?? '',
-    startTime: unit.startTime,
-    endTime: unit.endTime,
-    ...(unit.speakerId ? { speakerId: unit.speakerId } : {}),
-    ...(unit.tags ? { tags: unit.tags } : {}),
-    createdAt: '',
-    updatedAt: '',
-  }), []);
   const {
     transcriptionLayers,
     translationLayers,
@@ -63,11 +55,12 @@ export function useTranscriptionAiController(
     [embeddingProviderConfig],
   );
   const effectiveUnitIndex = input.timelineUnitViewIndex;
+  const scopeMediaItemForAi = input.scopeMediaItemForAi ?? input.selectedTimelineMedia;
   const ownerUnitCandidatesForAi = useMemo(() => buildOwnerUnitCandidates(
     effectiveUnitIndex.allUnits,
     input.getUnitDocById,
-    toSyntheticUnit,
-  ), [effectiveUnitIndex.allUnits, input.getUnitDocById, toSyntheticUnit]);
+    toSyntheticUnitDoc,
+  ), [effectiveUnitIndex.allUnits, input.getUnitDocById]);
   const explicitOwnerUnitForAi = resolveExplicitOwnerUnitForAi({
     selectedUnit: input.selectionSnapshot.selectedUnit,
     getUnitDocById: input.getUnitDocById,
@@ -85,16 +78,16 @@ export function useTranscriptionAiController(
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
   const setAiSidebarError = input.setAiSidebarError ?? setInternalAiSidebarError;
   const allUnitsAsUnits = useMemo(
-    () => effectiveUnitIndex.allUnits.map((unit) => toSyntheticUnit(unit)),
-    [effectiveUnitIndex.allUnits, toSyntheticUnit],
+    () => effectiveUnitIndex.allUnits.map((unit) => toSyntheticUnitDoc(unit)),
+    [effectiveUnitIndex.allUnits],
   );
   const currentMediaUnitsAsUnits = useMemo(
-    () => effectiveUnitIndex.currentMediaUnits.map((unit) => toSyntheticUnit(unit)),
-    [effectiveUnitIndex.currentMediaUnits, toSyntheticUnit],
+    () => effectiveUnitIndex.currentMediaUnits.map((unit) => toSyntheticUnitDoc(unit)),
+    [effectiveUnitIndex.currentMediaUnits],
   );
   const acousticBatchSelectionRanges = useMemo(() => {
     const selectedUnits = new Map<string, (typeof effectiveUnitIndex.currentMediaUnits)[number]>();
-    const selectedMediaId = input.selectedTimelineMedia?.id;
+    const selectedMediaId = scopeMediaItemForAi?.id;
     for (const selectedId of input.selectedUnitIds) {
       const directHit = effectiveUnitIndex.resolveBySemanticId(selectedId);
       if (directHit && (!selectedMediaId || directHit.mediaId === selectedMediaId)) {
@@ -114,7 +107,7 @@ export function useTranscriptionAiController(
         selectionStartSec: unit.startTime,
         selectionEndSec: unit.endTime,
       }));
-  }, [effectiveUnitIndex, input.selectedTimelineMedia?.id, input.selectedUnitIds]);
+  }, [effectiveUnitIndex, scopeMediaItemForAi?.id, input.selectedUnitIds]);
 
   const {
     acousticRuntimeStatus,
@@ -130,7 +123,7 @@ export function useTranscriptionAiController(
   } = useTranscriptionAiAcousticRuntime({
     batchSelectionRanges: acousticBatchSelectionRanges,
     ...(input.selectedMediaUrl !== undefined ? { selectedMediaUrl: input.selectedMediaUrl } : {}),
-    ...(input.selectedTimelineMedia?.id !== undefined ? { selectedTimelineMediaId: input.selectedTimelineMedia.id } : {}),
+    ...(scopeMediaItemForAi?.id !== undefined ? { selectedTimelineMediaId: scopeMediaItemForAi.id } : {}),
     ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartSec: input.selectionSnapshot.selectedUnitStartSec } : {}),
     ...(input.selectionSnapshot.selectedUnitEndSec !== undefined ? { selectionEndSec: input.selectionSnapshot.selectedUnitEndSec } : {}),
     seekToTimeRef: input.seekToTimeRef,
@@ -152,7 +145,7 @@ export function useTranscriptionAiController(
   const segmentTargetScopeUnits = resolveAiSegmentTargetScopeUnits({
     units: allUnitsAsUnits,
     unitsOnCurrentMedia: currentMediaUnitsAsUnits,
-    ...(input.selectedTimelineMedia ? { selectedTimelineMedia: input.selectedTimelineMedia } : {}),
+    ...(scopeMediaItemForAi ? { selectedTimelineMedia: scopeMediaItemForAi } : {}),
   });
 
   const segmentTargetDescriptors = buildAiSegmentTargetDescriptors({
@@ -208,7 +201,7 @@ export function useTranscriptionAiController(
   const aiToolCallHandler = useAiToolCallHandler({
     units: segmentTargetScopeUnits,
     selectedUnit: resolvedOwnerUnitForAi ?? undefined,
-    selectedUnitMedia: input.selectedTimelineMedia,
+    selectedUnitMedia: scopeMediaItemForAi,
     selectedLayerId: input.selectedLayerId,
     transcriptionLayers: input.transcriptionLayers,
     translationLayers: input.translationLayers,
@@ -243,13 +236,11 @@ export function useTranscriptionAiController(
     bridgeTextForLayerWrite,
   });
 
-  const handleAiToolCall = useCallback(async (call: Parameters<typeof aiToolCallHandler>[0]) => {
-    const preparedCall = materializeAiToolCall(call);
-    return aiToolCallHandler(preparedCall);
-  }, [aiToolCallHandler, materializeAiToolCall]);
+  const handleAiToolCall = useCallback(async (call: Parameters<typeof aiToolCallHandler>[0]) =>
+    aiToolCallHandler(materializeAiToolCall(call)), [aiToolCallHandler, materializeAiToolCall]);
 
   const buildAiPromptContext = useCallback(() => {
-    const currentMediaId = input.selectedTimelineMedia?.id;
+    const currentMediaId = scopeMediaItemForAi?.id;
     const cachedVad = currentMediaId ? vadCache.get(currentMediaId) : null;
     const waveformRows = timelineUnitsToWaveformAnalysisRows(effectiveUnitIndex.currentMediaUnits);
     const projectUnitsForTools = effectiveUnitIndex.isComplete || effectiveUnitIndex.allUnits.length > 0
@@ -282,6 +273,7 @@ export function useTranscriptionAiController(
       locale,
       currentMediaUnits: effectiveUnitIndex.currentMediaUnits,
       ...(projectUnitsForTools ? { projectUnitsForTools } : {}),
+      timelineUnitViewIndex: { byLayer: effectiveUnitIndex.byLayer },
       unitIndexComplete: effectiveUnitIndex.isComplete,
       waveformAnalysis: buildWaveformAnalysisPromptSummary(waveformRows, {
         ...(input.selectionSnapshot.selectedUnitStartSec !== undefined ? { selectionStartTime: input.selectionSnapshot.selectedUnitStartSec } : {}),
@@ -303,13 +295,13 @@ export function useTranscriptionAiController(
       audioTimeSec: aiAudioTimeRef.current,
       layers: input.layers,
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
-      ...(input.selectedTimelineMedia ? { mediaItems: [input.selectedTimelineMedia] } : {}),
+      ...(scopeMediaItemForAi ? { mediaItems: [scopeMediaItemForAi] } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
       ...(input.activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits: input.activeLayerIdForEdits } : {}),
       recentActions: formatRecentActions(input.recentTimelineEditEvents),
       timelineReadModelEpoch: effectiveUnitIndex.epoch,
     });
-  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layers, input.recentTimelineEditEvents, input.selectedTimelineMedia, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
+  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layers, input.recentTimelineEditEvents, scopeMediaItemForAi, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,
@@ -365,10 +357,21 @@ export function useTranscriptionAiController(
     aiPanelMode,
     selectUnit: input.selectUnit,
     setSaveState: input.setSaveState,
-    ...(input.selectedTimelineMedia?.id !== undefined ? { mediaId: input.selectedTimelineMedia.id } : {}),
+    ...(scopeMediaItemForAi?.id !== undefined ? { mediaId: scopeMediaItemForAi.id } : {}),
   });
 
-  aiAudioTimeRef.current = input.playerCurrentTime;
+  useEffect(() => {
+    aiAudioTimeRef.current = getTranscriptionPlaybackClockSnapshot();
+    return subscribeTranscriptionPlaybackClock(() => {
+      aiAudioTimeRef.current = getTranscriptionPlaybackClockSnapshot();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (input.playerCurrentTime === undefined) return;
+    aiAudioTimeRef.current = input.playerCurrentTime;
+  }, [input.playerCurrentTime]);
+
   aiObserverStageRef.current = observerResult.stage;
   aiRecommendationRef.current = actionableObserverRecommendations
     .slice(0, 4)
