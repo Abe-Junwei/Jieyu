@@ -1,3 +1,4 @@
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson, serializeAcousticPanelBatchDetailJsonResearch, serializeAcousticPanelDetailCsv, serializeAcousticPanelDetailJson, serializeAcousticPanelDetailJsonResearch, serializeAcousticPitchTierText, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../../utils/acousticPanelDetail';
 import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../../utils/acousticAnalysisPresets';
 import { type AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
@@ -172,22 +173,41 @@ export async function serializeAcousticExportWithWorker(
   return new Promise<string | null>((resolve, reject) => {
     const worker = new Worker(new URL('../../workers/acousticExport.worker.ts', import.meta.url), { type: 'module' });
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const releaseTrack = trackBrowserWorkerLifecycle(worker, {
+      id: `acousticExport-${requestId}`,
+      source: 'serializeAcousticExportWithWorker',
+    });
     let settled = false;
+    let timeoutId: number | undefined;
     const rejectAndCleanup = (error: Error) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(timeoutId);
-      worker.terminate();
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+      try {
+        worker.terminate();
+      } finally {
+        releaseTrack();
+      }
       reject(error);
     };
     const resolveAndCleanup = (content: string) => {
       if (settled) return;
       settled = true;
-      window.clearTimeout(timeoutId);
-      worker.terminate();
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+      try {
+        worker.terminate();
+      } finally {
+        releaseTrack();
+      }
       resolve(content);
     };
-    const timeoutId = window.setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       rejectAndCleanup(new Error('Acoustic export serialization timed out'));
     }, 30_000);
 

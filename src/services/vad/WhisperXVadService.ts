@@ -17,6 +17,8 @@
 import { detectVadSegments } from '../VadService';
 import type { VadWorkerSegment } from '../../workers/vadWorker';
 import { createLogger } from '../../observability/logger';
+import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
 
 const log = createLogger('WhisperXVadService');
@@ -72,6 +74,7 @@ function createAbortError(): Error {
 
 export class WhisperXVadService {
   private worker: Worker | null = null;
+  private vadWorkerTrackingRelease: (() => void) | null = null;
   private ready = false;
   private readonly pendingRequests = new PendingWorkerRequestStore<SpeechSegment[], WhisperXVadProgress>();
 
@@ -97,6 +100,11 @@ export class WhisperXVadService {
           new URL('../../workers/vadWorker.ts', import.meta.url),
           { type: 'module' },
         );
+        this.vadWorkerTrackingRelease?.();
+        this.vadWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker, {
+          id: nextPhysicalWorkerId('vadWhisperX'),
+          source: 'WhisperXVadService',
+        });
       } catch (err) {
         clearTimeout(timer);
         reject(new Error(`WhisperXVadService: Failed to create Worker — ${err instanceof Error ? err.message : String(err)}`));
@@ -312,6 +320,8 @@ export class WhisperXVadService {
 
   private resetWorker(error?: Error): void {
     if (this.worker) {
+      this.vadWorkerTrackingRelease?.();
+      this.vadWorkerTrackingRelease = null;
       this.worker.onmessage = null;
       this.worker.onerror = null;
       this.worker.onmessageerror = null;

@@ -1,3 +1,5 @@
+import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { PendingWorkerRequestStore } from '../../services/PendingWorkerRequestStore';
 
 export type EmbeddingProgressStage = 'loading' | 'embedding' | 'ready';
@@ -75,6 +77,8 @@ function normalizeRetries(retries: number | undefined): number {
 
 export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   private worker: Worker | null = null;
+
+  private workerTrackingRelease: (() => void) | null = null;
 
   private terminated = false;
 
@@ -160,7 +164,13 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   }
 
   private createWorker(): Worker {
+    this.workerTrackingRelease?.();
+    this.workerTrackingRelease = null;
     const worker = new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
+    this.workerTrackingRelease = trackBrowserWorkerLifecycle(worker, {
+      id: nextPhysicalWorkerId('embedding'),
+      source: 'WorkerEmbeddingRuntime',
+    });
     worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
       const payload = event.data;
       if (!this.pending.get(payload.requestId)) return;
@@ -205,6 +215,8 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
 
   private teardownWorker(): void {
     if (!this.worker) return;
+    this.workerTrackingRelease?.();
+    this.workerTrackingRelease = null;
     this.worker.onmessage = null;
     this.worker.onerror = null;
     this.worker.onmessageerror = null;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 import { buildAiStateWorkerFingerprint, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from '../ai/workers/aiStateWorkerProtocol';
 import { buildAiStateWorkerSlice, createInitialDeferredAiRuntimeState } from './TranscriptionPage.ReadyWorkspace.runtime';
+import { trackBrowserWorkerLifecycle } from '../observability/trackBrowserWorkerLifecycle';
 
 export interface DeferredAiRuntimeBridgeResult {
   deferredAiRuntime: DeferredTranscriptionAiRuntimeState;
@@ -17,6 +18,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const deferredAiRuntimeForSidebar = deferredAiRuntime;
 
   const aiStateWorkerRef = useRef<Worker | null>(null);
+  const aiStateWorkerTrackReleaseRef = useRef<(() => void) | null>(null);
   const latestBridgeRuntimeRef = useRef<DeferredTranscriptionAiRuntimeState>(deferredAiRuntime);
   const latestRuntimeSliceRef = useRef<AiStateWorkerSlice>(buildAiStateWorkerSlice(deferredAiRuntime));
   const fallbackFingerprintRef = useRef<string>(buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current));
@@ -25,6 +27,8 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const recoverToMainThreadFingerprint = useCallback(() => {
     const worker = aiStateWorkerRef.current;
     if (worker) {
+      aiStateWorkerTrackReleaseRef.current?.();
+      aiStateWorkerTrackReleaseRef.current = null;
       worker.onmessage = null;
       worker.onerror = null;
       worker.onmessageerror = null;
@@ -41,6 +45,11 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
       return;
     }
     const worker = new Worker(new URL('../ai/workers/aiStateWorker.ts', import.meta.url), { type: 'module' });
+    aiStateWorkerTrackReleaseRef.current?.();
+    aiStateWorkerTrackReleaseRef.current = trackBrowserWorkerLifecycle(worker, {
+      id: 'aiStateWorker:deferred-bridge',
+      source: 'useDeferredAiRuntimeBridge',
+    });
     aiStateWorkerRef.current = worker;
     worker.onmessage = (event: MessageEvent<AiStateWorkerResponse>) => {
       if (event.data?.type !== 'fingerprint-updated') {
@@ -56,6 +65,8 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
       recoverToMainThreadFingerprint();
     };
     return () => {
+      aiStateWorkerTrackReleaseRef.current?.();
+      aiStateWorkerTrackReleaseRef.current = null;
       worker.onmessage = null;
       worker.onerror = null;
       worker.onmessageerror = null;

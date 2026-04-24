@@ -1,5 +1,7 @@
 import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
 import { createLogger } from '../../observability/logger';
+import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
+import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
 import { buildAcousticCacheKey, DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type AcousticAnalysisProgress, type AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
 import { isAllowedExternalProviderEndpoint, type AcousticProviderAnalyzeInput, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderConfig, LOCAL_ACOUSTIC_PROVIDER_DEFINITION, resolveAcousticProviderRuntimeConfig, resolveAcousticProviderState, type ResolvedAcousticProviderState } from './acousticProviderContract';
@@ -232,6 +234,7 @@ export class AcousticAnalysisService {
   private readonly externalProviderAnalyzeImpl: NonNullable<AcousticAnalysisServiceOptions['externalProviderAnalyze']>;
   private readonly now: NonNullable<AcousticAnalysisServiceOptions['now']>;
   private worker: WorkerLike | null = null;
+  private acousticWorkerTrackingRelease: (() => void) | null = null;
   private readonly pendingWorkerRequests = new PendingWorkerRequestStore<AcousticFeatureResult, AcousticAnalysisProgress>();
 
   constructor(options: AcousticAnalysisServiceOptions = {}) {
@@ -520,6 +523,12 @@ export class AcousticAnalysisService {
   private ensureWorker(): WorkerLike {
     if (!this.worker) {
       this.worker = this.workerFactory?.() ?? (new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike);
+      if (this.worker instanceof Worker) {
+        this.acousticWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker, {
+          id: nextPhysicalWorkerId('acousticAnalysis'),
+          source: 'AcousticAnalysisService',
+        });
+      }
       this.worker.onmessage = (event: MessageEvent<AcousticWorkerResponse>) => {
         const payload = event.data;
         if (!payload?.requestId) {
@@ -561,6 +570,8 @@ export class AcousticAnalysisService {
 
   private resetWorker(): void {
     if (!this.worker) return;
+    this.acousticWorkerTrackingRelease?.();
+    this.acousticWorkerTrackingRelease = null;
     this.worker.onmessage = null;
     this.worker.onerror = null;
     this.worker.onmessageerror = null;
