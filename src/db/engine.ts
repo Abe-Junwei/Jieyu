@@ -21,6 +21,12 @@ import { isDexieIndexedQueryFallbackError, reportUnexpectedDexieQueryError } fro
  */
 export const JIEYU_DEXIE_DB_NAME = 'jieyudb_v2' as const;
 
+/**
+ * 须与 `JieyuDexie` 构造器内**最高**的 `this.version(…)` 号一致，供健康检查 / 迁移回放测试（ARCH-5）。
+ * Must match the highest `this.version(…)` in `JieyuDexie` — health + migration-replay (ARCH-5).
+ */
+export const JIEYU_DEXIE_TARGET_SCHEMA_VERSION = 43;
+
 export function buildSegmentationV2BackfillRows(input: {
   units: LayerUnitDocType[];
   unitTexts: LayerUnitContentDocType[];
@@ -1148,6 +1154,7 @@ export class JieyuDexie extends Dexie {
     });
 
     // v43: layer_links host id bridge index + one-shot backfill from transcriptionLayerKey.
+    // New schema bump: 同步更新本文件 `JIEYU_DEXIE_TARGET_SCHEMA_VERSION` 与 `src/db/migrations/jieyuDexieOpenReplay.test.ts`。
     this.version(43).stores({
       layer_links: 'id, transcriptionLayerKey, hostTranscriptionLayerId, layerId, [layerId+hostTranscriptionLayerId]',
     }).upgrade(async (tx) => {
@@ -1315,6 +1322,30 @@ export function getDb(): Promise<JieyuDatabase> {
     });
   }
   return globalWithDb.__jieyuDbPromise__;
+}
+
+/**
+ * 测试 / 开发场景：关闭 `getDb()` 缓存的 `JieyuDatabase` 与底层 Dexie，并清空单例 Promise。下一次 `getDb()` 会重新 `_createDb()`；`import { db } from '…/db'` 仍指向同一 Dexie 单例，测试里通常应再 `await db.open()`。生产路径勿调用。
+ * Tests/dev: clear `getDb` memo + close underlying Dexie. Next `getDb()` rebuilds `JieyuDatabase`; the `db` import remains the same Dexie instance; call `await db.open()` in tests as needed. Do not use in production.
+ */
+export async function resetJieyuDatabaseSingletonForTests(): Promise<void> {
+  if (globalWithDb.__jieyuDbPromise__) {
+    try {
+      const jieyu = await globalWithDb.__jieyuDbPromise__;
+      await jieyu.close();
+    } catch {
+      // ignore: rejected init or double-close
+    }
+    delete globalWithDb.__jieyuDbPromise__;
+  }
+  const dexie = getOrCreateDexie();
+  if (dexie.isOpen()) {
+    try {
+      dexie.close();
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export const db = getOrCreateDexie();

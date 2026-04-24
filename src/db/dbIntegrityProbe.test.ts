@@ -1,5 +1,6 @@
+import 'fake-indexeddb/auto';
 import { describe, expect, it } from 'vitest';
-import { probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
+import { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
 import type { JieyuDatabase } from './engine';
 
 describe('probeJieyuDatabaseIntegrity', () => {
@@ -23,5 +24,11 @@ describe('probeJieyuDatabaseIntegrity', () => {
       },
     } as unknown as JieyuDatabase;
     await expect(probeJieyuDatabaseIntegrity(db)).resolves.toEqual({ ok: false, reason: 'boom' });
+  });
+});
+
+describe('jieyuDatabaseSingletonHealthCheck', () => {
+  it('delegates to probe on the live getDb() singleton', async () => {
+    await expect(jieyuDatabaseSingletonHealthCheck()).resolves.toEqual({ ok: true });
   });
 });

@@ -23,9 +23,11 @@ export {
   buildSegmentationV2BackfillRows,
   buildV28BackfillPlanForText,
   JIEYU_DEXIE_DB_NAME,
+  JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
   JieyuDexie,
   db,
   getDb,
+  resetJieyuDatabaseSingletonForTests,
 } from './engine';
 export type { JieyuDatabase } from './engine';
 
@@ -69,3 +71,7 @@ export {
   withTransaction,
   withWriteTransaction,
 } from './withTransaction';
+
+// ── 库完整性 / 单例健康（F-2, ARCH-4）| DB integrity & singleton health ──
+export { jieyuDatabaseSingletonHealthCheck, probeJieyuDatabaseIntegrity } from './dbIntegrityProbe';
+export type { DbIntegrityProbeResult } from './dbIntegrityProbe';

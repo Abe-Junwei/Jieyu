@@ -1,4 +1,4 @@
-import type { JieyuDatabase } from './engine';
+import { getDb, type JieyuDatabase } from './engine';
 
 export type DbIntegrityProbeResult = { ok: true } | { ok: false; reason: string };
 
@@ -22,4 +22,9 @@ export async function probeJieyuDatabaseIntegrity(database: JieyuDatabase): Prom
   } catch (error) {
     return { ok: false, reason: toReason(error) };
   }
+}
+
+/** `getDb()` 单例上的轻量健康读（F-2 / ARCH-4）| Lightweight read health on the `getDb()` singleton. */
+export async function jieyuDatabaseSingletonHealthCheck(): Promise<DbIntegrityProbeResult> {
+  return probeJieyuDatabaseIntegrity(await getDb());
 }
