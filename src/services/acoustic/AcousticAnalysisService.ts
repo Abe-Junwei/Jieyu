@@ -186,6 +186,43 @@ export class AcousticAnalysisService {
     return AcousticAnalysisService.instance;
   }
 
+  /**
+   * 测试/开发：与 `dispose()` 等效并保证 `getInstance()` 可重新创建（ARCH-4）。生产路径勿在热循环中调用。
+   * Tests/dev: same as disposes; ensures a fresh `getInstance()` afterward.
+   */
+  static resetSingletonForTests(): void {
+    if (AcousticAnalysisService.instance) {
+      AcousticAnalysisService.instance.dispose();
+    }
+  }
+
+  /** 轻量资源快照，供调试 / 遥测，不做网络 I/O。 */
+  getResourceHealthSnapshot(): { memoryCacheSize: number; hasWorker: boolean; pendingDeduplicationKeys: number } {
+    return {
+      memoryCacheSize: this.cache.size,
+      hasWorker: this.worker != null,
+      pendingDeduplicationKeys: this.pending.size,
+    };
+  }
+
+  static getHealthSnapshot(): { ok: true; initialized: boolean; memoryCacheSize: number; hasWorker: boolean; pendingDeduplicationKeys: number } {
+    if (!AcousticAnalysisService.instance) {
+      return {
+        ok: true,
+        initialized: false,
+        memoryCacheSize: 0,
+        hasWorker: false,
+        pendingDeduplicationKeys: 0,
+      };
+    }
+    const s = AcousticAnalysisService.instance.getResourceHealthSnapshot();
+    return {
+      ok: true,
+      initialized: true,
+      ...s,
+    };
+  }
+
   private readonly cache = new Map<string, CacheEntry>();
   private readonly pending = new Map<string, Promise<AcousticFeatureResult>>();
   private readonly fetchImpl: AcousticAnalysisServiceOptions['fetchImpl'];
@@ -586,5 +623,8 @@ export class AcousticAnalysisService {
     this.resetWorker();
     this.pending.clear();
     this.cache.clear();
+    if (AcousticAnalysisService.instance === this) {
+      AcousticAnalysisService.instance = null;
+    }
   }
 }

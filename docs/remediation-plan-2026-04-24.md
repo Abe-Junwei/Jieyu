@@ -320,6 +320,12 @@
 
 ### 3.4 单例滥用
 
+- **状态**：**部分完成**（2026-04-24）— 核心单例有释放与轻量健康面
+- **落地摘要**（未引入 DI 容器，保留增量空间）：
+  1. **Dexie / `getDb()`**：`resetJieyuDatabaseSingletonForTests`（`src/db/engine.ts`，导出自 `src/db/index.ts`）— 释放 `JieyuDatabase` Promise、关闭 `__jieyuDexie__`；`import { db }` 仍指向同 Dexie 单例，测试侧通常再 `await db.open()`。健康：`jieyuDatabaseSingletonHealthCheck`（`src/db/dbIntegrityProbe.ts`）= `getDb()` + `probeJieyuDatabaseIntegrity`。
+  2. **Supabase 浏览器单例**：`getSupabaseBrowserClientHealth`（无网络、仅配置 + 是否已缓存 client）、`resetSupabaseBrowserClientForTests`（同既有 `…ForTest`），`src/integrations/supabase/client.ts`；`collaborationSupabaseFacade` 统一再导出，协作层仍不直接 `import` `integrations/…`。
+  3. **AcousticAnalysisService**：已有 `dispose()` 现会清空静态单例，保证后续 `getInstance()` 为全新实例；`resetSingletonForTests`（`dispose` 的测试别名）、`getHealthSnapshot` / `getResourceHealthSnapshot` 轻量资源计数；子 Worker 由 `dispose`/`resetWorker` 路径终止（仍无远程「ping」式健康，符合本地/Worker 定位）。
+- **后续**：`Worker` 其它直建实例的收敛、可观测里聚合 `getHealthSnapshot` 上报、**不在此清单内** 的全量依赖注入，可按模块增量评估。
 - **编号**：ARCH-4 | **范围**：DB、Supabase Client、AcousticAnalysisService、Workers
 - **问题**：核心服务无生命周期管理、无健康检查、测试中难以隔离
 - **修复**：
@@ -333,6 +339,11 @@
 
 ### 3.5 数据库迁移缺乏备份保护
 
+- **状态**：**部分完成**（2026-04-24）— 文档 + CI 回放；浏览器内「升级前静默全量自动备份」不可行（IndexedDB 连接/事务限制），已如实说明
+- **落地摘要**：
+  1. **文档化降级 / 备份策略**：[`docs/execution/migration-safety-ARCH-5.md`](./execution/migration-safety-ARCH-5.md)（大版本前 JSON 导出、`importDatabaseFromJson` 恢复、为何无法嵌套自动备份）。
+  2. **CI 迁移回放**：`src/db/migrations/jieyuDexieOpenReplay.test.ts` 在独立库名上 `new JieyuDexie(…).open()`，断言 `verno === JIEYU_DEXIE_TARGET_SCHEMA_VERSION`（`src/db/engine.ts` 导出常量，**加新版本时须同步 bump**）。
+  3. **未做 / 后续**：迁移前「静默」自动快照、用户可见迁移进度条 — 需另立产品项；技术说明见上文 execution 文档。
 - **编号**：ARCH-5 | **范围**：全局
 - **问题**：34 个迁移版本，执行前无自动备份，失败后无法恢复
 - **修复**：
@@ -346,6 +357,11 @@
 
 ### 3.6 协作 Phase 复杂性
 
+- **状态**：**部分完成**（2026-04-24）— 文档 + 同步徽章门控谓词
+- **落地摘要**：
+  1. **流程图**：[`docs/execution/collaboration-phase-surface-ARCH-6.md`](./execution/collaboration-phase-surface-ARCH-6.md) — Mermaid 描述 `deriveCollaborationSyncBadge` 优先序、`evaluateCollaborationProtocolGuard` 顺序、与 `collaborationPromotionRuntime` 的**交叉引用**（不与 UI 徽章硬耦合）。
+  2. **命名谓词**：`src/collaboration/cloud/collaborationSyncSurfaceGates.ts`（`collaborationSyncSurfaceIsIdle` 等），`deriveCollaborationSyncBadge` 仅编排调用；行为由既有 `collaborationSyncDerived.test.ts` 锁定。
+  3. **未做**：`useTranscriptionCollaborationBridge` 长 `useEffect` 整段展平、全协作目录 pipeline 化 — 需更大重构窗口。
 - **编号**：ARCH-6 | **范围**：`collaboration/`*
 - **问题**：14 个 Phase 深层嵌套门控串联，代码极难理解和调试
 - **修复**：

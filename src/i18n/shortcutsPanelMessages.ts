@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from './index';
+import { normalizeLocale, t, type Locale } from './index';
 
 export type ShortcutsPanelMessages = {
   categoryPlayback: string;
@@ -13,32 +13,18 @@ export type ShortcutsPanelMessages = {
   scopeGlobal: string;
 };
 
-const zhCN: ShortcutsPanelMessages = {
-  categoryPlayback: '\u64ad\u653e\u63a7\u5236',
-  categoryEditing: '\u7f16\u8f91\u64cd\u4f5c',
-  categoryNavigation: '\u5bfc\u822a',
-  categoryView: '\u89c6\u56fe',
-  categoryVoice: '\u8bed\u97f3\u667a\u80fd\u4f53',
-  panelAriaLabel: '\u952e\u76d8\u5feb\u6377\u952e',
-  panelTitle: '\u2328 \u952e\u76d8\u5feb\u6377\u952e',
-  closePanelAriaLabel: '\u5173\u95ed\u5feb\u6377\u952e\u9762\u677f',
-  scopeWaveform: '\u6ce2\u5f62\u533a',
-  scopeGlobal: '\u5168\u5c40',
-};
-
-const enUS: ShortcutsPanelMessages = {
-  categoryPlayback: 'Playback',
-  categoryEditing: 'Editing',
-  categoryNavigation: 'Navigation',
-  categoryView: 'View',
-  categoryVoice: 'Voice Agent',
-  panelAriaLabel: 'Keyboard shortcuts',
-  panelTitle: '\u2328 Keyboard Shortcuts',
-  closePanelAriaLabel: 'Close shortcuts panel',
-  scopeWaveform: 'Waveform',
-  scopeGlobal: 'Global',
-};
-
 export function getShortcutsPanelMessages(locale: Locale): ShortcutsPanelMessages {
-  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
+  const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
+  return {
+    categoryPlayback: t(normalizedLocale, 'shortcuts.category.playback'),
+    categoryEditing: t(normalizedLocale, 'shortcuts.category.editing'),
+    categoryNavigation: t(normalizedLocale, 'shortcuts.category.navigation'),
+    categoryView: t(normalizedLocale, 'shortcuts.category.view'),
+    categoryVoice: t(normalizedLocale, 'shortcuts.category.voice'),
+    panelAriaLabel: t(normalizedLocale, 'shortcuts.panel.ariaLabel'),
+    panelTitle: t(normalizedLocale, 'shortcuts.panel.title'),
+    closePanelAriaLabel: t(normalizedLocale, 'shortcuts.panel.closeAriaLabel'),
+    scopeWaveform: t(normalizedLocale, 'shortcuts.scope.waveform'),
+    scopeGlobal: t(normalizedLocale, 'shortcuts.scope.global'),
+  };
 }

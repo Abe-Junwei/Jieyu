@@ -1,6 +1,16 @@
 /**
  * 协同同步 UI 派生状态 | Derived collaboration sync surface state for UI
+ *
+ * 门控谓词见 `collaborationSyncSurfaceGates.ts` 与 `docs/execution/collaboration-phase-surface-ARCH-6.md`。
  */
+import {
+  collaborationSyncSurfaceIsConflict,
+  collaborationSyncSurfaceIsConnecting,
+  collaborationSyncSurfaceIsIdle,
+  collaborationSyncSurfaceIsOfflineQueue,
+  collaborationSyncSurfaceIsReadOnly,
+  collaborationSyncSurfaceIsSyncing,
+} from './collaborationSyncSurfaceGates';
 
 export type CollaborationSyncBadgeKind =
   | 'idle'
@@ -43,22 +53,22 @@ export function deriveCollaborationSyncBadge(input: {
   browserOnline: boolean;
 }): CollaborationSyncBadgeState {
   const pending = Math.max(0, Math.floor(input.pendingOutboundCount));
-  if (!input.supabaseConfigured || !input.collaborationProjectId) {
+  if (collaborationSyncSurfaceIsIdle(input)) {
     return { kind: 'idle', pendingOutboundCount: pending };
   }
-  if (!input.isBridgeReady) {
+  if (collaborationSyncSurfaceIsConnecting(input)) {
     return { kind: 'connecting', pendingOutboundCount: pending };
   }
-  if (input.protocolWritesDisabled) {
+  if (collaborationSyncSurfaceIsReadOnly(input)) {
     return { kind: 'read_only', pendingOutboundCount: pending };
   }
-  if (input.conflictTicketCount > 0) {
+  if (collaborationSyncSurfaceIsConflict(input)) {
     return { kind: 'conflict', pendingOutboundCount: pending };
   }
-  if (!input.browserOnline && pending > 0) {
+  if (collaborationSyncSurfaceIsOfflineQueue(input)) {
     return { kind: 'offline_queue', pendingOutboundCount: pending };
   }
-  if (pending > 0) {
+  if (collaborationSyncSurfaceIsSyncing(input)) {
     return { kind: 'syncing', pendingOutboundCount: pending };
   }
   return { kind: 'synced', pendingOutboundCount: 0 };

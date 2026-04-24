@@ -1,4 +1,4 @@
-import { normalizeLocale, type Locale } from './index';
+import { normalizeLocale, t, tf, type Locale } from './index';
 
 export type PdfPreviewSectionMessages = {
   panelAriaLabel: string;
@@ -11,28 +11,16 @@ export type PdfPreviewSectionMessages = {
   loadingPdf: string;
 };
 
-const zhCN: PdfPreviewSectionMessages = {
-  panelAriaLabel: '\u6587\u6863\u9884\u89c8\u9762\u677f',
-  pageTag: (page) => `\u7b2c ${page} \u9875`,
-  prevPage: '\u4e0a\u4e00\u9875',
-  nextPage: '\u4e0b\u4e00\u9875',
-  enhancedHighlight: '\u589e\u5f3a\u9ad8\u4eae',
-  openExternal: '\u65b0\u7a97\u53e3\u6253\u5f00',
-  closePreviewAriaLabel: '\u5173\u95ed\u6587\u6863\u9884\u89c8',
-  loadingPdf: '\u6587\u6863\u52a0\u8f7d\u4e2d...',
-};
-
-const enUS: PdfPreviewSectionMessages = {
-  panelAriaLabel: 'PDF preview panel',
-  pageTag: (page) => `Page ${page}`,
-  prevPage: 'Prev',
-  nextPage: 'Next',
-  enhancedHighlight: 'Enhanced Highlight',
-  openExternal: 'Open',
-  closePreviewAriaLabel: 'Close PDF preview',
-  loadingPdf: 'Loading PDF...',
-};
-
 export function getPdfPreviewSectionMessages(locale: Locale): PdfPreviewSectionMessages {
-  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
+  const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
+  return {
+    panelAriaLabel: t(normalizedLocale, 'pdf.preview.section.panelAriaLabel'),
+    pageTag: (page) => tf(normalizedLocale, 'pdf.preview.section.pageTag', { page }),
+    prevPage: t(normalizedLocale, 'pdf.preview.section.prevPage'),
+    nextPage: t(normalizedLocale, 'pdf.preview.section.nextPage'),
+    enhancedHighlight: t(normalizedLocale, 'pdf.preview.section.enhancedHighlight'),
+    openExternal: t(normalizedLocale, 'pdf.preview.section.openExternal'),
+    closePreviewAriaLabel: t(normalizedLocale, 'pdf.preview.section.closePreviewAriaLabel'),
+    loadingPdf: t(normalizedLocale, 'pdf.preview.section.loadingPdf'),
+  };
 }

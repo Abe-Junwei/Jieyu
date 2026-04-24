@@ -41,3 +41,22 @@ export function getSupabaseBrowserClient(): SupabaseClient {
 export function resetSupabaseBrowserClientForTest(): void {
   cachedClient = null;
 }
+
+/** 与 `resetSupabaseBrowserClientForTest` 相同；测试名对齐 ARCH-4。 */
+export function resetSupabaseBrowserClientForTests(): void {
+  resetSupabaseBrowserClientForTest();
+}
+
+export type SupabaseBrowserClientHealth =
+  | { ok: true; kind: 'not_configured' }
+  | { ok: true; kind: 'client_ready'; hasCachedClient: boolean };
+
+/** 轻量、无网络，用于 UI / 调试 / 集成诊断（ARCH-4）。| Non-network, for UI and diagnostics. */
+export function getSupabaseBrowserClientHealth(
+  env: ImportMetaEnv = import.meta.env,
+): SupabaseBrowserClientHealth {
+  if (!hasSupabaseBrowserClientConfig(env)) {
+    return { ok: true, kind: 'not_configured' };
+  }
+  return { ok: true, kind: 'client_ready', hasCachedClient: cachedClient != null };
+}

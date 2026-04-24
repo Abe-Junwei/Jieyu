@@ -82,11 +82,23 @@ function createMockWorker(counter: { count: number }) {
 
 describe('AcousticAnalysisService', () => {
   beforeEach(async () => {
+    AcousticAnalysisService.resetSingletonForTests();
     await acousticAnalysisCacheDB.clear();
   });
 
   afterEach(async () => {
     await acousticAnalysisCacheDB.clear();
+    AcousticAnalysisService.resetSingletonForTests();
+  });
+
+  it('ARCH-4: resetSingletonForTests clears static singleton; getInstance returns a fresh one', () => {
+    expect(AcousticAnalysisService.getHealthSnapshot().initialized).toBe(false);
+    const a = AcousticAnalysisService.getInstance();
+    expect(AcousticAnalysisService.getHealthSnapshot().initialized).toBe(true);
+    AcousticAnalysisService.resetSingletonForTests();
+    expect(AcousticAnalysisService.getHealthSnapshot().initialized).toBe(false);
+    const b = AcousticAnalysisService.getInstance();
+    expect(a).not.toBe(b);
   });
 
   it('reuses persisted IndexedDB analysis across service instances', async () => {

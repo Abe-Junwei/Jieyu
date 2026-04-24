@@ -15,6 +15,7 @@ import type { Locale } from '../i18n';
 type HorizontalMediaLanesProps = TranscriptionPageTimelineHorizontalMediaLanesProps;
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
+type ReadyWorkspaceConflictReviewDrawerProps = NonNullable<TranscriptionPageReadyWorkspaceLayoutProps['conflictReviewDrawerProps']>;
 
 /**
  * ReadyWorkspace 侧字段名与 TranscriptionTimelineHorizontalMediaLanes props 的对应关系
@@ -633,5 +634,27 @@ export function buildReadyWorkspaceStageProps(
         onBatchJumpToUnit: input.onBatchJumpToUnit,
       },
     },
+  };
+}
+
+export type BuildReadyWorkspaceConflictReviewDrawerPropsInput = {
+  tickets: ReadyWorkspaceConflictReviewDrawerProps['tickets'];
+  onApplyRemoteConflictTicket: (ticketId: string) => void | Promise<void | boolean>;
+  onKeepLocalConflictTicket: (ticketId: string) => void;
+  onPostponeConflictTicket: (ticketId: string) => void;
+};
+
+export function buildReadyWorkspaceConflictReviewDrawerProps(
+  input: BuildReadyWorkspaceConflictReviewDrawerPropsInput,
+): ReadyWorkspaceConflictReviewDrawerProps {
+  return {
+    tickets: input.tickets,
+    onApplyRemote: async (ticketId) => {
+      await input.onApplyRemoteConflictTicket(ticketId);
+    },
+    onKeepLocal: (ticketId) => {
+      input.onKeepLocalConflictTicket(ticketId);
+    },
+    onPostpone: input.onPostponeConflictTicket,
   };
 }

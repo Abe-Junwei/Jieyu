@@ -1,18 +1,14 @@
+import { t, type Locale } from './index';
+
 export type AiChatCandidateChipsMessages = {
   demoCandidate1: string;
   demoCandidate2: string;
 };
 
-const zhCN: AiChatCandidateChipsMessages = {
-  demoCandidate1: '\u793a\u4f8b\u5019\u9009 1',
-  demoCandidate2: '\u793a\u4f8b\u5019\u9009 2',
-};
-
-const enUS: AiChatCandidateChipsMessages = {
-  demoCandidate1: 'Sample candidate 1',
-  demoCandidate2: 'Sample candidate 2',
-};
-
 export function getAiChatCandidateChipsMessages(isZh: boolean): AiChatCandidateChipsMessages {
-  return isZh ? zhCN : enUS;
+  const locale: Locale = isZh ? 'zh-CN' : 'en-US';
+  return {
+    demoCandidate1: t(locale, 'ai.chat.candidateChip.demo1'),
+    demoCandidate2: t(locale, 'ai.chat.candidateChip.demo2'),
+  };
 }

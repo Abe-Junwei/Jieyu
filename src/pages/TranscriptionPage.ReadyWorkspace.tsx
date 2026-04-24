@@ -72,7 +72,7 @@ import { loadEmbeddingProviderConfig } from './TranscriptionPage.helpers';
 import { useReadyWorkspaceAxisStatus } from './useReadyWorkspaceAxisStatus';
 import { useReadyWorkspaceInteractionHelpers } from './useReadyWorkspaceInteractionHelpers';
 import { buildReadyWorkspaceAssistantBridgeInput } from './transcriptionReadyWorkspaceAssistantBridgeInput';
-import { buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
+import { buildReadyWorkspaceConflictReviewDrawerProps, buildReadyWorkspaceLayoutStyle, buildReadyWorkspaceOverlaysProps, buildReadyWorkspaceSidePaneProps, buildReadyWorkspaceStageProps, buildReadyWorkspaceWaveformContentProps } from './transcriptionReadyWorkspacePropsBuilders';
 import { canDeleteCurrentAudio } from './transcriptionMediaGuards';
 import { timeRangeDragPreviewFromSegmentRangeGesturePreview } from '../utils/segmentRangeGesturePreviewReadModel';
 import { useTimelineReadModel } from './timelineReadModel';
@@ -1253,9 +1253,7 @@ function TranscriptionPageReadyWorkspace({
     },
   });
 
-  const assistantSidebarController = useTranscriptionAssistantSidebarController({
-    ...assistantSidebarControllerInput,
-  });
+  const assistantSidebarController = useTranscriptionAssistantSidebarController({ ...assistantSidebarControllerInput });
 
   const workspacePanelEffectsController = useTranscriptionWorkspacePanelEffects({
     isAiPanelCollapsed,
@@ -1312,9 +1310,7 @@ function TranscriptionPageReadyWorkspace({
     getUnitTextForLayer,
   });
 
-  const projectMediaController = useTranscriptionProjectMediaController({
-    ...projectMediaControllerInput,
-  });
+  const projectMediaController = useTranscriptionProjectMediaController({ ...projectMediaControllerInput });
 
   const speakerActionScopeController = useSpeakerActionScopeController({
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
@@ -2145,16 +2141,12 @@ function TranscriptionPageReadyWorkspace({
       readyStageProps={readyWorkspaceStageProps}
       overlaysProps={readyWorkspaceOverlaysProps}
       layerPopoverProps={null}
-      conflictReviewDrawerProps={{
+      conflictReviewDrawerProps={buildReadyWorkspaceConflictReviewDrawerProps({
         tickets: collaborationConflictTickets,
-        onApplyRemote: async (ticketId) => {
-          await applyRemoteConflictTicket(ticketId);
-        },
-        onKeepLocal: (ticketId) => {
-          keepLocalConflictTicket(ticketId);
-        },
-        onPostpone: postponeConflictTicket,
-      }}
+        onApplyRemoteConflictTicket: applyRemoteConflictTicket,
+        onKeepLocalConflictTicket: keepLocalConflictTicket,
+        onPostponeConflictTicket: postponeConflictTicket,
+      })}
       {...(state.phase === 'error' ? { errorMessage: state.message } : {})}
     />
   );
