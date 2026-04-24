@@ -21,7 +21,7 @@ describe('ShortcutsPanel', () => {
   it('renders through DialogShell with keyboard groups', () => {
     renderPanel();
 
-    const dialog = screen.getByRole('dialog', { name: '键盘快捷键' });
+    const dialog = screen.getByRole('dialog', { name: /键盘快捷键/ });
     const closeButton = screen.getByRole('button', { name: '关闭快捷键面板' });
     const keycaps = document.querySelectorAll('kbd');
 
@@ -36,7 +36,7 @@ describe('ShortcutsPanel', () => {
   it('closes from overlay click and close button', () => {
     const onClose = renderPanel();
 
-    const dialog = screen.getByRole('dialog', { name: '键盘快捷键' });
+    const dialog = screen.getByRole('dialog', { name: /键盘快捷键/ });
     fireEvent.click(screen.getByRole('button', { name: '关闭快捷键面板' }));
     fireEvent.click(dialog.parentElement as HTMLDivElement);
 

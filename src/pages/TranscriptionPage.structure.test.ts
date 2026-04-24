@@ -120,18 +120,23 @@ describe('TranscriptionPage structure invariants', () => {
 
   it('keeps selected hotspot marker wiring between panel state and waveform overlay', () => {
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
+    const decorationsPath = path.resolve(process.cwd(), 'src/components/transcription/WaveformOverlayDecorations.tsx');
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
+    const decorationsCode = fs.readFileSync(decorationsPath, 'utf8');
     const orchestratorAnchors = readTranscriptionReadyWorkspaceAnchors();
-    const markerIndex = waveformContentCode.indexOf('className="waveform-analysis-hotspot-line"');
-    const waveformOverlayIndex = waveformContentCode.indexOf('waveformOverlay={({');
+    const guideIndex = decorationsCode.indexOf('className="waveform-guide-overlay"');
+    const markerIndex = decorationsCode.indexOf('className="waveform-analysis-hotspot-line"');
+    const waveformOverlayIndex = waveformContentCode.indexOf('waveformOverlay={waveformOverlayNode}');
 
     expect(waveformContentCode.includes('segmentRangeGesturePreviewReadModel: SegmentRangeGesturePreviewReadModel')).toBe(true);
     expect(waveformContentCode.includes('selectedHotspotTimeSec?: number | null;')).toBe(true);
     expect(waveformContentCode.includes('const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === \'number\'' )).toBe(true);
     expect(waveformContentCode.includes("const shouldRenderSelectedHotspot = waveformDisplayMode === 'waveform'")).toBe(true);
-    expect(waveformContentCode.includes('className="waveform-guide-overlay"')).toBe(true);
-    expect(waveformContentCode.includes('className="waveform-analysis-hotspot-line"')).toBe(true);
-    expect(markerIndex).toBeGreaterThan(waveformOverlayIndex);
+    expect(decorationsCode.includes('className="waveform-guide-overlay"')).toBe(true);
+    expect(decorationsCode.includes('className="waveform-analysis-hotspot-line"')).toBe(true);
+    expect(guideIndex).toBeGreaterThan(-1);
+    expect(markerIndex).toBeGreaterThan(guideIndex);
+    expect(waveformOverlayIndex).toBeGreaterThan(-1);
     expect(orchestratorAnchors.includes('selectedHotspotTimeSec={selectedHotspotTimeSec}')).toBe(true);
   });
 
@@ -177,10 +182,10 @@ describe('TranscriptionPage structure invariants', () => {
 
     expect(orchestratorCode.includes("import { useTrackEntityStateController } from './useTrackEntityStateController';")).toBe(true);
     expect(orchestratorCode.includes("import { useTrackEntityPersistenceController } from './useTrackEntityPersistenceController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTrackEntityStateController({')).toBe(true);
+    expect(orchestratorCode.includes('= useTrackEntityStateController({')).toBe(true);
     expect(orchestratorCode.includes('useTrackEntityPersistenceController({')).toBe(true);
-    expect(orchestratorCode.includes('trackEntityPersistenceContext.trackEntityStateByMediaRef')).toBe(true);
-    expect(orchestratorCode.includes('trackEntityPersistenceContext.trackEntityHydratedKeyRef')).toBe(true);
+    expect(orchestratorCode.includes('trackEntityStateController.persistenceContext.trackEntityStateByMediaRef')).toBe(true);
+    expect(orchestratorCode.includes('trackEntityStateController.persistenceContext.trackEntityHydratedKeyRef')).toBe(true);
 
     expect(stateHookCode.includes('const { activeTextId, selectedTimelineMediaId, setTranscriptionTrackMode } = input;')).toBe(true);
     expect(stateHookCode.includes("const trackEntityProjectKey = activeTextId?.trim() || '__no-project__';")).toBe(true);
@@ -310,10 +315,13 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes("import { useTranscriptionTimelineInteractionController } from './useTranscriptionTimelineInteractionController';")).toBe(true);
     expect(code.includes('useTranscriptionActionRefBindings({')).toBe(true);
     expect(interactionHookCode.includes('await LayerSegmentationV2Service.updateSegment(regionId, {')).toBe(true);
-    // RegionActionOverlay 条件已提取到 OrchestratorWaveformContent | RegionActionOverlay condition now in waveform component
+    // RegionAction 条件在 WaveformRegionActionLayer（与旧内联 `!a && b && c` 等价）| Region gating lives in layer component
+    const regionActionPath = path.resolve(process.cwd(), 'src/components/transcription/WaveformRegionActionLayer.tsx');
+    const regionActionCode = fs.readFileSync(regionActionPath, 'utf8');
+    expect(regionActionCode.includes('if (selectedMediaIsVideo || !selectedWaveformTimelineItem || !playerIsReady) {')).toBe(true);
     const waveformContentPath = path.resolve(process.cwd(), 'src/pages/OrchestratorWaveformContent.tsx');
     const waveformContentCode = fs.readFileSync(waveformContentPath, 'utf8');
-    expect(waveformContentCode.includes('!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady')).toBe(true);
+    expect(waveformContentCode.includes('<WaveformRegionActionLayer')).toBe(true);
     expect(waveformContentCode.includes('acousticStrip?: AcousticStripContract')).toBe(true);
     expect(waveformContentCode.includes('mapAcousticToTimelineChrome({')).toBe(true);
     expect(waveformContentCode.includes('aria-busy={acousticChrome?.waveformAreaAttrs.ariaBusy}')).toBe(true);
@@ -321,7 +329,7 @@ describe('TranscriptionPage structure invariants', () => {
     // 批量入口已下沉到独立 controller，当前文件只保留调用边界
     // Batch mapping/error surfacing now lives in a dedicated controller hook.
     expect(code.includes("import { useBatchOperationController } from './useBatchOperationController';")).toBe(true);
-    expect(code.includes('} = useBatchOperationController({')).toBe(true);
+    expect(code.includes('= useBatchOperationController({')).toBe(true);
   });
 
   it('keeps workspace layout state behind a dedicated controller boundary', () => {
@@ -482,14 +490,14 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes("import { useSpeakerActionScopeController } from './useSpeakerActionScopeController';")).toBe(true);
     expect(orchestratorCode.includes("import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';")).toBe(true);
     expect(orchestratorCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(false);
-    expect(orchestratorCode.includes('} = useSpeakerActionScopeController({')).toBe(true);
+    expect(orchestratorCode.includes('= useSpeakerActionScopeController({')).toBe(true);
     expect(orchestratorCode.includes('} = useTranscriptionSpeakerController({')).toBe(true);
     expect(orchestratorCode.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
     expect(orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
     expect(orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu')).toBe(true);
-    expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu: handleSetUnitSelfCertaintyFromMenu')).toBe(true);
-    expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds: resolveSelfCertaintyUnitIds')).toBe(true);
+    expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu: selfCertaintyController.handleSetUnitSelfCertaintyFromMenu')).toBe(true);
+    expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds: selfCertaintyController.resolveSelfCertaintyUnitIds')).toBe(true);
     expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel')).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
@@ -603,7 +611,7 @@ describe('TranscriptionPage structure invariants', () => {
       orchestratorCode.includes('sidebarSectionsInput: {')
       || orchestratorInputBuilderCode.includes('sidebarSectionsInput: {'),
     ).toBe(true);
-    expect(orchestratorCode.includes('} = useReadyWorkspaceViewModels(')).toBe(true);
+    expect(orchestratorCode.includes('= useReadyWorkspaceViewModels(')).toBe(true);
     expect(orchestratorCode.includes('buildReadyWorkspaceViewModelsInput(')).toBe(true);
     expect(readyVmCode.includes("import { useOrchestratorViewModels } from './useOrchestratorViewModels';")).toBe(true);
     expect(readyVmCode.includes('return useOrchestratorViewModels(')).toBe(true);
@@ -807,7 +815,7 @@ describe('TranscriptionPage structure invariants', () => {
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useBatchOperationController } from './useBatchOperationController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useBatchOperationController({')).toBe(true);
+    expect(orchestratorCode.includes('= useBatchOperationController({')).toBe(true);
     expect(orchestratorCode.includes('const resolveBatchUnitTargetIds = useCallback(() => {')).toBe(false);
     expect(orchestratorCode.includes('const handleBatchOffset = useCallback(async (deltaSec: number) => {')).toBe(false);
 
@@ -827,7 +835,7 @@ describe('TranscriptionPage structure invariants', () => {
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTrackDisplayController } from './useTrackDisplayController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTrackDisplayController({')).toBe(true);
+    expect(orchestratorCode.includes('= useTrackDisplayController({')).toBe(true);
     expect(orchestratorCode.includes('const hasOverlappingUnitsOnCurrentMedia = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleResetTrackAutoLayout = useCallback(() => {')).toBe(false);
 

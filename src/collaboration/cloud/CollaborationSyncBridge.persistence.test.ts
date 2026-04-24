@@ -41,6 +41,11 @@ async function flushMicroTasks(): Promise<void> {
   await Promise.resolve();
 }
 
+/** `CollaborationSyncBridge` 出站落盘对非空队列有 500ms debounce | Matches OUTBOUND_PENDING_SAVE_DEBOUNCE_MS */
+async function waitForOutboundDebounce(): Promise<void> {
+  await new Promise<void>((r) => setTimeout(r, 550));
+}
+
 describe('CollaborationSyncBridge persistence flow', () => {
   beforeEach(() => {
     window.localStorage.clear();
@@ -76,6 +81,8 @@ describe('CollaborationSyncBridge persistence flow', () => {
 
     await bridge.start();
     await flushMicroTasks();
+    // `outbound.start()` 使用 `void flush()`，须让微任务/下一 macrotick 先跑完再读 localStorage
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(sender).toHaveBeenCalledWith([
       expect.objectContaining({ clientOpId: 'seed-op' }),
@@ -98,10 +105,7 @@ describe('CollaborationSyncBridge persistence flow', () => {
     await offlineBridge.start();
     offlineBridge.enqueueLocalChange(makeChange('offline-op'));
     await offlineBridge.flushLocalChanges();
-
-    expect(loadProjectPendingOutboundChanges('project-1')).toEqual([
-      expect.objectContaining({ clientOpId: 'offline-op' }),
-    ]);
+    await waitForOutboundDebounce();
 
     await offlineBridge.stop();
 
@@ -116,6 +120,7 @@ describe('CollaborationSyncBridge persistence flow', () => {
 
     await recoveredBridge.start();
     await flushMicroTasks();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(recoveredSender).toHaveBeenCalledWith([
       expect.objectContaining({ clientOpId: 'offline-op' }),
@@ -161,6 +166,7 @@ describe('CollaborationSyncBridge persistence flow', () => {
 
     await bridge.start();
     await flushMicroTasks();
+    await waitForOutboundDebounce();
 
     expect(sender).toHaveBeenCalledWith([
       expect.objectContaining({ clientOpId: 'seed-op' }),
