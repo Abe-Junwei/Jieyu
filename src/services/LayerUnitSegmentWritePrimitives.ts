@@ -1,4 +1,13 @@
-import type { JieyuDatabase, LayerUnitContentDocType, LayerUnitContentViewDocType, LayerUnitDocType, UnitRelationDocType, UnitRelationViewDocType } from '../db';
+import {
+  dexieStoresForLayerSegmentGraphRw,
+  withTransaction,
+  type JieyuDatabase,
+  type LayerUnitContentDocType,
+  type LayerUnitContentViewDocType,
+  type LayerUnitDocType,
+  type UnitRelationDocType,
+  type UnitRelationViewDocType,
+} from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 
 const UNKNOWN_MEDIA_ID = '__unknown_media__';
@@ -155,6 +164,38 @@ export async function bulkUpsertUnitRelations(
   await db.dexie.unit_relations.bulkPut(relations.map(normalizeUnitRelationForStorage));
 }
 
+/** 同一写事务内 upsert 多层 segment 图三表，供无外层 `withTransaction` 的调用方使用。 */
+export type LayerSegmentGraphUpsert = {
+  units?: readonly LayerUnitDocType[];
+  contents?: readonly LayerUnitContentDocType[];
+  relations?: readonly UnitRelationDocType[];
+};
+
+export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: LayerSegmentGraphUpsert): Promise<void> {
+  const units = graph.units ?? [];
+  const contents = graph.contents ?? [];
+  const relations = graph.relations ?? [];
+  if (units.length === 0 && contents.length === 0 && relations.length === 0) return;
+
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (units.length > 0) {
+        await db.dexie.layer_units.bulkPut(units.map(normalizeLayerUnitForStorage));
+      }
+      if (contents.length > 0) {
+        await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
+      }
+      if (relations.length > 0) {
+        await db.dexie.unit_relations.bulkPut(relations.map(normalizeUnitRelationForStorage));
+      }
+    },
+    { label: 'bulkUpsertLayerSegmentGraph' },
+  );
+}
+
 export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
   await db.dexie.unit_relations.put(normalizeUnitRelationForStorage(link));
 }
@@ -241,21 +282,37 @@ export async function deleteLayerUnitGraphByRecordIds(
   const deletedContentIds = [...new Set((graph.contentIds ?? []).filter((id) => id.trim().length > 0))];
   const deletedRelationIds = [...new Set((graph.relationIds ?? []).filter((id) => id.trim().length > 0))];
 
-  if (deletedContentIds.length > 0) {
-    await db.dexie.layer_unit_contents.bulkDelete(deletedContentIds);
-  }
-  if (deletedRelationIds.length > 0) {
-    await db.dexie.unit_relations.bulkDelete(deletedRelationIds);
-  }
-  if (deletedUnitIds.length > 0) {
-    await db.dexie.layer_units.bulkDelete(deletedUnitIds);
+  if (deletedContentIds.length === 0 && deletedRelationIds.length === 0 && deletedUnitIds.length === 0) {
+    return {
+      deletedUnitIds,
+      deletedContentIds,
+      deletedRelationIds,
+    };
   }
 
-  return {
-    deletedUnitIds,
-    deletedContentIds,
-    deletedRelationIds,
-  };
+  return withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (deletedContentIds.length > 0) {
+        await db.dexie.layer_unit_contents.bulkDelete(deletedContentIds);
+      }
+      if (deletedRelationIds.length > 0) {
+        await db.dexie.unit_relations.bulkDelete(deletedRelationIds);
+      }
+      if (deletedUnitIds.length > 0) {
+        await db.dexie.layer_units.bulkDelete(deletedUnitIds);
+      }
+
+      return {
+        deletedUnitIds,
+        deletedContentIds,
+        deletedRelationIds,
+      };
+    },
+    { label: 'deleteLayerUnitGraphByRecordIds' },
+  );
 }
 
 export async function deleteLayerUnitGraphByIds(

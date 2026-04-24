@@ -4,6 +4,7 @@ import {
   dexieStoresForLayerUnitsAndContentsRw,
   dexieStoresForWorkspaceSnapshotRebuildRw,
   getDb,
+  withTransaction,
   type AiTaskSnapshotDocType,
   type LanguageAssetOverviewDocType,
   type LayerDocType,
@@ -301,13 +302,15 @@ export class WorkspaceReadModelService {
     }
 
     const db = await getDb();
-    const [unitRows, contentRows] = await db.dexie.transaction(
+    const [unitRows, contentRows] = await withTransaction(
+      db,
       'r',
       [...dexieStoresForLayerUnitsAndContentsRw(db)],
       async () => Promise.all([
         db.dexie.layer_units.where('textId').equals(normalizedTextId).toArray(),
         db.dexie.layer_unit_contents.where('textId').equals(normalizedTextId).toArray(),
       ]),
+      { label: 'WorkspaceReadModelService.rebuildForText.sourceRead' },
     );
     const layerDocsWrapped = await db.collections.layers.find().exec();
 
@@ -330,7 +333,8 @@ export class WorkspaceReadModelService {
     const speakerProfileDocs = buildSpeakerProfileDocs(segmentMetaRows, normalizedTextId);
     const translationStatusDocs = buildTranslationStatusDocs(unitRows, contentRows, layers);
 
-    await db.dexie.transaction(
+    await withTransaction(
+      db,
       'rw',
       [...dexieStoresForWorkspaceSnapshotRebuildRw(db)],
       async () => {
@@ -346,6 +350,7 @@ export class WorkspaceReadModelService {
         if (speakerProfileDocs.length > 0) await db.dexie.speaker_profile_snapshots.bulkPut(speakerProfileDocs);
         if (translationStatusDocs.length > 0) await db.dexie.translation_status_snapshots.bulkPut(translationStatusDocs);
       },
+      { label: 'WorkspaceReadModelService.rebuildForText.write' },
     );
 
     return {
@@ -440,12 +445,12 @@ export class WorkspaceReadModelService {
       };
     });
 
-    await db.dexie.transaction('rw', [...dexieStoresForLanguageAssetOverviewRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLanguageAssetOverviewRw(db)], async () => {
       await db.dexie.language_asset_overviews.clear();
       if (docs.length > 0) {
         await db.dexie.language_asset_overviews.bulkPut(docs);
       }
-    });
+    }, { label: 'WorkspaceReadModelService.rebuildLanguageAssetOverview' });
 
     return docs;
   }
@@ -468,12 +473,12 @@ export class WorkspaceReadModelService {
       updatedAt: task.updatedAt,
     }));
 
-    await db.dexie.transaction('rw', [...dexieStoresForAiTaskSnapshotsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForAiTaskSnapshotsRw(db)], async () => {
       await db.dexie.ai_task_snapshots.clear();
       if (docs.length > 0) {
         await db.dexie.ai_task_snapshots.bulkPut(docs);
       }
-    });
+    }, { label: 'WorkspaceReadModelService.rebuildAiTaskSnapshots' });
 
     return docs;
   }

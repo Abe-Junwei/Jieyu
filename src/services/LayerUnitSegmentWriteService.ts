@@ -1,5 +1,13 @@
 import type { JieyuDatabase, LayerUnitContentDocType, LayerUnitDocType, UnitRelationDocType } from '../db';
-import { bulkDeleteLayerUnitContentsByIds, bulkUpsertLayerUnitContents, bulkUpsertLayerUnits, bulkUpsertUnitRelations, deleteSegmentLayerUnitCascade } from './LayerUnitSegmentWritePrimitives';
+import {
+  bulkDeleteLayerUnitContentsByIds,
+  bulkUpsertLayerSegmentGraph,
+  bulkUpsertLayerUnitContents,
+  bulkUpsertLayerUnits,
+  bulkUpsertUnitRelations,
+  deleteSegmentLayerUnitCascade,
+  type LayerSegmentGraphUpsert,
+} from './LayerUnitSegmentWritePrimitives';
 
 /**
  * Canonical persistence for timeline units (Dexie v31+).
@@ -75,6 +83,33 @@ export class LayerUnitSegmentWriteService {
     const ids = [...new Set(segmentIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return;
     await deleteSegmentLayerUnitCascade(db, ids);
+  }
+
+  /**
+   * 无外层事务时，将 segment 图三表 `bulkPut` 收束为一次 rw 事务（与 `insertSegments`+`insertSegmentContents`+`insertSegmentLinks` 连调等价，且原子）。
+   */
+  static async upsertSegmentGraph(
+    db: JieyuDatabase,
+    args: {
+      segments?: readonly LayerUnitDocType[];
+      contents?: readonly LayerUnitContentDocType[];
+      links?: readonly UnitRelationDocType[];
+    },
+  ): Promise<void> {
+    const graph: LayerSegmentGraphUpsert = {};
+    if (args.segments !== undefined && args.segments.length > 0) {
+      graph.units = args.segments.map((segment) => ({
+        ...segment,
+        unitType: 'segment' as const,
+      }));
+    }
+    if (args.contents !== undefined && args.contents.length > 0) {
+      graph.contents = args.contents;
+    }
+    if (args.links !== undefined && args.links.length > 0) {
+      graph.relations = args.links;
+    }
+    return bulkUpsertLayerSegmentGraph(db, graph);
   }
 
   static async updateSegmentPatch(

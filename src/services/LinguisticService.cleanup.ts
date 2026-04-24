@@ -3,6 +3,7 @@ import {
   dexieStoresForDeleteProjectByTextIdCascadeRw,
   dexieStoresForRemoveUnitCascadeRw,
   getDb,
+  withTransaction,
   type LayerUnitDocType,
   type MediaItemDocType,
 } from '../db';
@@ -53,7 +54,8 @@ async function removeNotesForUnitIds(
 export async function deleteProjectCascade(textId: string): Promise<void> {
   const db = await getDb();
 
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForDeleteProjectByTextIdCascadeRw(db)],
     async () => {
@@ -119,6 +121,7 @@ export async function deleteProjectCascade(textId: string): Promise<void> {
 
       await db.dexie.texts.delete(textId);
     },
+    { label: 'LinguisticService.cleanup.deleteProjectCascade' },
   );
 }
 
@@ -127,7 +130,8 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
   const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForDeleteAudioKeepTimeline(db)],
     async () => {
@@ -202,12 +206,14 @@ export async function deleteAudioPreserveTimeline(mediaId: string): Promise<void
         });
       }
     },
+    { label: 'LinguisticService.cleanup.deleteAudioPreserveTimeline' },
   );
 }
 
 export async function removeUnitCascade(unitId: string): Promise<void> {
   const db = await getDb();
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForRemoveUnitCascadeRw(db)],
     async () => {
@@ -236,6 +242,7 @@ export async function removeUnitCascade(unitId: string): Promise<void> {
         if (utt.endAnchorId) await db.dexie.anchors.delete(utt.endAnchorId);
       }
     },
+    { label: 'LinguisticService.cleanup.removeUnitCascade' },
   );
   void SegmentMetaService.syncForUnitIds([unitId]).catch(() => {
     // SegmentMeta 为统一读模型，删除后的刷新失败不应阻塞主流程 | SegmentMeta refresh failures must not block the main flow.
@@ -247,7 +254,8 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
   if (ids.length === 0) return;
 
   const db = await getDb();
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForRemoveUnitCascadeRw(db)],
     async () => {
@@ -287,6 +295,7 @@ export async function removeUnitsBatchCascade(unitIds: readonly string[]): Promi
         await db.dexie.anchors.bulkDelete([...anchorIds]);
       }
     },
+    { label: 'LinguisticService.cleanup.removeUnitsBatchCascade' },
   );
   void SegmentMetaService.syncForUnitIds(ids).catch(() => {
     // SegmentMeta 为统一读模型，批量删除后的刷新失败不应阻塞主流程 | SegmentMeta refresh failures must not block the main flow.

@@ -2,6 +2,7 @@ import {
   dexieStoresForLayerSegmentGraphRw,
   dexieStoresForLayerUnitsAndContentsRw,
   getDb,
+  withTransaction,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
   type UnitRelationDocType,
@@ -29,7 +30,7 @@ export class LayerUnitService {
       throw new Error('LayerUnitContent.unitId must match LayerUnit.id');
     }
     const db = await getDb();
-    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
       await putLayerUnit(db, unit);
       await putLayerUnitContent(db, content);
     });
@@ -80,7 +81,7 @@ export class LayerUnitService {
   static async deleteUnit(unitId: string): Promise<void> {
     const db = await getDb();
 
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -125,7 +126,7 @@ export class LayerUnitService {
       now,
     );
 
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -174,7 +175,7 @@ export class LayerUnitService {
     const mergedStart = Math.min(keep.startTime, remove.startTime);
     const mergedEnd = Math.max(keep.endTime, remove.endTime);
 
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {

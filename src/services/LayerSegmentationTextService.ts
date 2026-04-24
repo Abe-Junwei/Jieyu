@@ -1,6 +1,7 @@
 import {
   dexieStoresForLayerSegmentGraphRw,
   dexieStoresForLayerUnitsAndContentsRw,
+  withTransaction,
   type JieyuDatabase,
   type LayerUnitDocType,
   type LayerUnitContentDocType,
@@ -80,6 +81,32 @@ function chunkArray<T>(items: readonly T[], chunkSize: number): T[][] {
   return chunks;
 }
 
+/**
+ * 若从库中移除 `contentIdsToRemove` 后，这些 segment 的 `unitId` 下将无剩余 content，则视为删后孤儿（与删毕再 `findOrphanSegmentIds` 在 candidate 集上等价）。
+ */
+async function listSegmentIdsOrphanedAfterRemovingContents(
+  db: JieyuDatabase,
+  candidateSegmentIds: readonly string[],
+  contentIdsToRemove: readonly string[],
+): Promise<string[]> {
+  const remove = new Set(contentIdsToRemove.filter((id) => id.trim().length > 0));
+  const uniqueSeg = uniqueIds(candidateSegmentIds);
+  if (uniqueSeg.length === 0) return [];
+
+  const orphan: string[] = [];
+  for (const segId of uniqueSeg) {
+    const allIds = (await db.dexie.layer_unit_contents.where('unitId').equals(segId).primaryKeys()) as string[];
+    if (allIds.length === 0) {
+      orphan.push(segId);
+      continue;
+    }
+    if (allIds.every((id) => remove.has(id))) {
+      orphan.push(segId);
+    }
+  }
+  return orphan;
+}
+
 export function getSegmentationV2Ids(layerId: string | undefined, unitId: string, translationId: string): {
   segmentId: string;
   segmentContentId: string;
@@ -140,7 +167,7 @@ export async function syncUnitTextToSegmentationV2(
   };
 
   // 事务保护：删旧 content + 写 segment + 写 content 必须原子执行 | Transaction: stale delete + segment upsert + content upsert must be atomic
-  await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
+  await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
     const staleContentIds = getSegmentContentCandidateIds(translation.id)
       .filter((id) => id !== ids.segmentContentId);
     if (staleContentIds.length > 0) {
@@ -149,7 +176,7 @@ export async function syncUnitTextToSegmentationV2(
 
     await LayerUnitSegmentWriteService.upsertSegments(db, [segmentDoc]);
     await LayerUnitSegmentWriteService.upsertSegmentContents(db, [contentDoc]);
-  });
+  }, { label: 'LayerSegmentationTextService.syncUnitTextToSegmentationV2' });
 
   try {
     await SegmentMetaService.syncForUnitIds([unit.id, ids.segmentId]);
@@ -170,8 +197,28 @@ export async function removeUnitTextFromSegmentationV2(
       .filter((id): id is string => typeof id === 'string' && id.trim().length > 0),
   );
 
-  await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, candidateContentIds);
-  await cleanupOrphanSegments(db, affectedSegmentIds);
+  const orphanSegmentIds = await listSegmentIdsOrphanedAfterRemovingContents(
+    db,
+    affectedSegmentIds,
+    candidateContentIds,
+  );
+
+  if (candidateContentIds.length > 0 || orphanSegmentIds.length > 0) {
+    await withTransaction(
+      db,
+      'rw',
+      [...dexieStoresForLayerSegmentGraphRw(db)],
+      async () => {
+        if (candidateContentIds.length > 0) {
+          await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, candidateContentIds);
+        }
+        if (orphanSegmentIds.length > 0) {
+          await deleteLayerSegmentGraphBySegmentIds(db, orphanSegmentIds);
+        }
+      },
+      { label: 'removeUnitTextFromSegmentationV2' },
+    );
+  }
 
   if (affectedSegmentIds.length > 0) {
     try {
@@ -233,9 +280,9 @@ export async function removeUnitCascadeFromSegmentationV2(
   unitId: string,
 ): Promise<void> {
   // 事务保护：级联删除 content → segment → links 必须原子执行 | Transaction: cascade delete must be atomic
-  await db.dexie.transaction('rw', [...dexieStoresForLayerSegmentGraphRw(db)], async () => {
+  await withTransaction(db, 'rw', [...dexieStoresForLayerSegmentGraphRw(db)], async () => {
     await deleteLayerSegmentGraphByUnitIds(db, [unitId]);
-  });
+  }, { label: 'LayerSegmentationTextService.removeUnitCascadeFromSegmentationV2' });
 }
 
 /**
@@ -275,12 +322,14 @@ export async function enforceTimeSubdivisionParentBounds(
     const nextEnd = Number(Math.min(segment.endTime, parentEndTime).toFixed(3));
     if (nextEnd - nextStart < minSpan) {
       deletedCount += 1;
-      await db.dexie.transaction(
+      await withTransaction(
+        db,
         'rw',
         [...dexieStoresForLayerSegmentGraphRw(db)],
         async () => {
           await deleteLayerSegmentGraphBySegmentIds(db, [segment.id]);
         },
+        { label: 'LayerSegmentationTextService.enforceTimeSubdivisionParentBounds' },
       );
       continue;
     }

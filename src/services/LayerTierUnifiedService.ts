@@ -1,4 +1,4 @@
-import { getDb, type LayerDocType } from '../db';
+import { getDb, withTransaction, type LayerDocType } from '../db';
 import { removeLayerTierBridge, syncLayerToTier } from './TierBridgeService';
 
 /**
@@ -8,7 +8,7 @@ import { removeLayerTierBridge, syncLayerToTier } from './TierBridgeService';
 export class LayerTierUnifiedService {
   static async createLayer(layer: LayerDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [db.dexie.tier_definitions, db.dexie.layer_links],
       async () => {
@@ -20,7 +20,7 @@ export class LayerTierUnifiedService {
 
   static async updateLayer(layer: LayerDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [db.dexie.tier_definitions, db.dexie.layer_links],
       async () => {
@@ -32,7 +32,7 @@ export class LayerTierUnifiedService {
 
   static async deleteLayer(layer: Pick<LayerDocType, 'id' | 'textId' | 'key'>): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [db.dexie.tier_definitions, db.dexie.layer_links],
       async () => {
@@ -46,7 +46,7 @@ export class LayerTierUnifiedService {
 
   static async updateLayerSortOrder(layerId: string, sortOrder: number, existingDb?: Awaited<ReturnType<typeof getDb>>): Promise<void> {
     const db = existingDb ?? await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [db.dexie.tier_definitions, db.dexie.layer_links],
       async () => {

@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { reportIfUnexpectedDexieDegradation, runDexieIndexedQueryOrElse } from '../../db/adapterDexieQueryErrors';
 import type { AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
 
 const ACOUSTIC_CACHE_DB_NAME = 'jieyu-acoustic-analysis';
@@ -67,7 +68,12 @@ export class AcousticAnalysisCacheDB {
       if (!row) return null;
       await this.db.entries.update(cacheKey, { lastAccessedAt: now });
       return row.result;
-    } catch {
+    } catch (err) {
+      reportIfUnexpectedDexieDegradation(
+        'AcousticAnalysisCacheDB.get',
+        err,
+        '[AcousticAnalysisCacheDB] get failed, returning null:',
+      );
       return null;
     }
   }
@@ -101,34 +107,44 @@ export class AcousticAnalysisCacheDB {
 
         await this.pruneWithinTransaction(mediaKey, cacheKey);
       });
-    } catch {
-      // IndexedDB 不可用时静默降级，不阻断分析主路径。
+    } catch (err) {
+      reportIfUnexpectedDexieDegradation(
+        'AcousticAnalysisCacheDB.put',
+        err,
+        '[AcousticAnalysisCacheDB] put failed, skipped:',
+      );
     }
   }
 
   async listEntriesForMedia(mediaKey: string): Promise<AcousticAnalysisCacheEntrySummary[]> {
-    try {
-      const rows = await this.db.entries.where('mediaKey').equals(mediaKey).toArray();
-      return rows
-        .sort((left, right) => compareEvictionPriority(left, right))
-        .map((row) => ({
-          cacheKey: row.cacheKey,
-          mediaKey: row.mediaKey,
-          status: row.status,
-          byteSize: row.byteSize,
-          createdAt: row.createdAt,
-          lastAccessedAt: row.lastAccessedAt,
-        }));
-    } catch {
-      return [];
-    }
+    return runDexieIndexedQueryOrElse(
+      'AcousticAnalysisCacheDB.listEntriesForMedia',
+      async () => {
+        const rows = await this.db.entries.where('mediaKey').equals(mediaKey).toArray();
+        return rows
+          .sort((left, right) => compareEvictionPriority(left, right))
+          .map((row) => ({
+            cacheKey: row.cacheKey,
+            mediaKey: row.mediaKey,
+            status: row.status,
+            byteSize: row.byteSize,
+            createdAt: row.createdAt,
+            lastAccessedAt: row.lastAccessedAt,
+          }));
+      },
+      async () => [],
+    );
   }
 
   async clear(): Promise<void> {
     try {
       await this.db.entries.clear();
-    } catch {
-      // ignore
+    } catch (err) {
+      reportIfUnexpectedDexieDegradation(
+        'AcousticAnalysisCacheDB.clear',
+        err,
+        '[AcousticAnalysisCacheDB] clear failed, skipped:',
+      );
     }
   }
 

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db, dexieStoresForSegmentMetaRw, getDb, type LayerUnitContentDocType, type LayerUnitDocType, type UnitRelationDocType } from '../db';
-import { buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphByUnitIds, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, findOrphanSegmentIds, getUnitDocProjectionById, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from './LayerSegmentGraphService';
+import { buildClonedSegmentGraphForSplit, deleteLayerSegmentGraphBySegmentIds, deleteLayerSegmentGraphByUnitIds, deleteResidualLayerUnitGraphByMediaId, deleteResidualLayerUnitGraphByTextId, findOrphanSegmentIds, getUnitDocProjectionById, restoreLayerSegmentGraphSnapshot, snapshotLayerSegmentGraphByLayerIds } from './LayerSegmentGraphService';
 
 const NOW = '2026-03-27T00:00:00.000Z';
 
@@ -212,6 +212,48 @@ describe('LayerSegmentGraphService', () => {
     expect(await db.layer_units.get('seg_restore_1')).toBeTruthy();
     expect(await db.layer_unit_contents.get('cnt_restore_1')).toBeTruthy();
     expect(await db.unit_relations.get('lnk_restore_1')).toBeTruthy();
+  });
+
+  it('deleteLayerSegmentGraphBySegmentIds removes contents, links, and units atomically (ARCH-3)', async () => {
+    const database = await getDb();
+    await db.layer_units.put({
+      id: 'dl_seg_1',
+      textId: 'text_1',
+      mediaId: 'media_1',
+      layerId: 'layer_independent_1',
+      unitType: 'segment',
+      startTime: 0,
+      endTime: 1,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.layer_unit_contents.put({
+      id: 'dl_cnt_1',
+      textId: 'text_1',
+      unitId: 'dl_seg_1',
+      layerId: 'layer_independent_1',
+      contentRole: 'primary_text',
+      modality: 'text',
+      text: 'x',
+      sourceType: 'human',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    await db.unit_relations.put({
+      id: 'dl_rel_1',
+      textId: 'text_1',
+      sourceUnitId: 'dl_seg_1',
+      targetUnitId: 'utt_x',
+      relationType: 'derived_from',
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+
+    const result = await deleteLayerSegmentGraphBySegmentIds(database, ['dl_seg_1']);
+    expect(result.deletedSegmentIds).toContain('dl_seg_1');
+    expect(await db.layer_units.get('dl_seg_1')).toBeUndefined();
+    expect(await db.layer_unit_contents.get('dl_cnt_1')).toBeUndefined();
+    expect(await db.unit_relations.get('dl_rel_1')).toBeUndefined();
   });
 
   it('deletes direct and time-subdivision segments for unit cascade', async () => {

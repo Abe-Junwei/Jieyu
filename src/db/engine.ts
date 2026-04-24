@@ -13,6 +13,7 @@ import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitC
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
 import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
+import { isDexieIndexedQueryFallbackError, reportUnexpectedDexieQueryError } from './adapterDexieQueryErrors';
 
 /**
  * IndexedDB 物理库名。绿场重置时抬升后缀，使旧库 `jieyudb` 留在磁盘但应用不再打开。
@@ -506,8 +507,11 @@ export class JieyuDexie extends Dexie {
           }
           const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
           if (ranked.length > 0) return ranked[0]![0];
-        } catch {
-          // unit_texts 异常时退回单值 | Unusual DB order: fall back
+        } catch (err) {
+          if (!isDexieIndexedQueryFallbackError(err)) {
+            reportUnexpectedDexieQueryError('migrations:v11:resolveTextIdForLayer:unit_texts', err);
+          }
+          // unit_texts 读失败时仍退回单值 textId，保证迁移能完成 | Fall back so migration can finish
         }
         return fallbackTextId;
       };

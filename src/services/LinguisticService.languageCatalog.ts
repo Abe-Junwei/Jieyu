@@ -3,6 +3,7 @@ import {
   dexieStoresForCustomFieldDefinitionDeleteCascadeRw,
   dexieStoresForLanguageCatalogMutateRw,
   getDb,
+  withTransaction,
   type CustomFieldDefinitionDocType,
   type CustomFieldValueType,
   type LanguageAliasDocType,
@@ -1431,7 +1432,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
     ?? t(locale, existing ? 'service.languageCatalog.historyReasonUpdateDefault' : 'service.languageCatalog.historyReasonCreateDefault');
 
   // 将当前行读取和历史 diff 计算移入事务内，避免 before 快照过时 | Move current row reads and history diff inside transaction to prevent stale before-snapshot
-  await db.dexie.transaction('rw', [...dexieStoresForLanguageCatalogMutateRw(db)], async () => {
+  await withTransaction(db, 'rw', [...dexieStoresForLanguageCatalogMutateRw(db)], async () => {
     const [currentDisplayRows, currentAliasRows] = await Promise.all([
       db.dexie.language_display_names.where('languageId').equals(languageId).toArray(),
       db.dexie.language_aliases.where('languageId').equals(languageId).toArray(),
@@ -1480,7 +1481,7 @@ export async function upsertLanguageCatalogEntry(input: UpsertLanguageCatalogEnt
         aliases: aliasRows,
       },
     }));
-  });
+  }, { label: 'LinguisticService.languageCatalog.upsertLanguageCatalogEntry' });
 
   // C4: 添加错误处理，避免 rebuild 失败导致缓存/DB 永久脱节 | Add error handling to prevent permanent cache/DB desync on rebuild failure
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
@@ -1506,7 +1507,7 @@ export async function deleteLanguageCatalogEntry(input: {
       : 'service.languageCatalog.historyReasonDeleteOverrideDefault');
 
   // 将 beforeEntry 投影和 historyDiff 移入事务内，避免并发写入导致快照过时 | Move beforeEntry projection and historyDiff inside transaction to prevent stale snapshot from concurrent writes
-  await db.dexie.transaction('rw', [...dexieStoresForLanguageCatalogMutateRw(db)], async () => {
+  await withTransaction(db, 'rw', [...dexieStoresForLanguageCatalogMutateRw(db)], async () => {
     const [currentDisplayRows, currentAliasRows] = await Promise.all([
       db.dexie.language_display_names.where('languageId').equals(input.languageId).toArray(),
       db.dexie.language_aliases.where('languageId').equals(input.languageId).toArray(),
@@ -1535,7 +1536,7 @@ export async function deleteLanguageCatalogEntry(input: {
       sourceRef: 'workspace.language-metadata',
       snapshot: { language: existing },
     }));
-  });
+  }, { label: 'LinguisticService.languageCatalog.deleteLanguageCatalogEntry' });
 
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
     console.error('Failed to refresh language catalog read model after delete:', refreshError);
@@ -1606,7 +1607,7 @@ export async function upsertCustomFieldDefinition(input: {
 
 export async function deleteCustomFieldDefinition(id: string): Promise<void> {
   const db = await getDb();
-  await db.dexie.transaction('rw', [...dexieStoresForCustomFieldDefinitionDeleteCascadeRw(db)], async () => {
+  await withTransaction(db, 'rw', [...dexieStoresForCustomFieldDefinitionDeleteCascadeRw(db)], async () => {
     await db.dexie.custom_field_definitions.delete(id);
 
     const languages = await db.dexie.languages.toArray();
@@ -1628,7 +1629,7 @@ export async function deleteCustomFieldDefinition(id: string): Promise<void> {
     if (updates.length > 0) {
       await db.dexie.languages.bulkPut(updates);
     }
-  });
+  }, { label: 'LinguisticService.languageCatalog.deleteCustomFieldDefinition' });
 
   await refreshLanguageCatalogReadModel().catch((refreshError) => {
     console.error('Failed to refresh language catalog read model after custom field definition delete:', refreshError);

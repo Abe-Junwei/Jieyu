@@ -1,4 +1,4 @@
-import { dexieStoresForTierAnnotationAtomicRw, getDb, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
+import { dexieStoresForTierAnnotationAtomicRw, getDb, withTransaction, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { assertReviewProtection, assertStableId, normalizeTierAnnotationDocForStorage } from '../utils/camDataUtils';
 import { type ConstraintSeverity, type ConstraintViolation, type TierSaveResult, validateTierConstraints } from './LinguisticService.constraints';
@@ -208,10 +208,12 @@ async function persistTierAnnotationAtomic(
   mediaId?: string,
 ): Promise<string> {
   const db = await getDb();
-  return db.dexie.transaction(
+  return withTransaction(
+    db,
     'rw',
     [...dexieStoresForTierAnnotationAtomicRw(db)],
     async () => persistTierAnnotation(data, source, mediaId),
+    { label: 'LinguisticService.persistTierAnnotationAtomic' },
   );
 }
 
@@ -246,7 +248,8 @@ export async function saveTierAnnotation(data: TierAnnotationDocType, source: Au
 
 export async function removeTierAnnotation(id: string, source: AuditSource = 'human'): Promise<void> {
   const db = await getDb();
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForTierAnnotationAtomicRw(db)],
     async () => {
@@ -278,6 +281,7 @@ export async function removeTierAnnotation(id: string, source: AuditSource = 'hu
         await writeAuditLog('tier_annotations', annotationId, 'delete', source, undefined, db);
       }
     },
+    { label: 'LinguisticService.removeTierAnnotation' },
   );
 }
 
@@ -301,7 +305,8 @@ export async function saveTierAnnotationsBatch(
     return { violations: errors, warnings: [] };
   }
 
-  await db.dexie.transaction(
+  await withTransaction(
+    db,
     'rw',
     [...dexieStoresForTierAnnotationAtomicRw(db)],
     async () => {
@@ -309,6 +314,7 @@ export async function saveTierAnnotationsBatch(
         await persistTierAnnotation(annotation, 'human', mediaId);
       }
     },
+    { label: 'LinguisticService.saveTierAnnotationsBatch' },
   );
 
   const warnings = allViolations.filter((violation) => violation.severity === 'warning');

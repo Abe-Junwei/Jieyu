@@ -6,6 +6,7 @@
  * Bridge helpers: tier ↔ layer 双向转换工具
  */
 import type { Table } from 'dexie';
+import { isDexieIndexedQueryFallbackError, reportUnexpectedDexieQueryError } from './adapterDexieQueryErrors';
 import type {
   JieyuDoc,
   Selector,
@@ -50,7 +51,10 @@ export class DexieCollectionAdapter<T extends { id: string }> {
           try {
             const indexed = await this.table.where(String(key)).equals(expected as string | number).first();
             return indexed ? wrapDoc(indexed) : null;
-          } catch {
+          } catch (err) {
+            if (!isDexieIndexedQueryFallbackError(err)) {
+              reportUnexpectedDexieQueryError('findOne:where', err);
+            }
             // Fall through to generic filter path for non-indexed fields.
           }
         }
@@ -119,7 +123,10 @@ export class DexieCollectionAdapter<T extends { id: string }> {
             .filter((row) => entries.every(([entryKey, entryExpected]) => row[entryKey] === entryExpected))
             .map((row) => row.id);
         }
-      } catch {
+      } catch (err) {
+        if (!isDexieIndexedQueryFallbackError(err)) {
+          reportUnexpectedDexieQueryError('removeBySelector:indexed', err);
+        }
         // 非索引或不支持 equals 的字段，回退 filter 扫描 | Fall back to filter scan for unsupported selectors.
       }
     }
@@ -264,36 +271,29 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
   }
 
   async findByIndex(indexName: string, value: string | number): Promise<Array<JieyuDoc<LayerDocType>>> {
-    if (indexName === 'textId') {
-      const rows = await this.tierTable.where('textId').equals(String(value)).toArray();
-      return rows
+    const mapRows = (raw: TierDefinitionDocType[]) =>
+      raw
         .map((row) => bridgeTierToLayer(row))
         .filter((row): row is LayerDocType => Boolean(row))
         .map((row) => wrapDoc(row));
-    }
 
-    if (indexName === 'key') {
-      const rows = await this.tierTable.where('key').equals(`${BRIDGE_TIER_PREFIX}${String(value)}`).toArray();
-      return rows
-        .map((row) => bridgeTierToLayer(row))
-        .filter((row): row is LayerDocType => Boolean(row))
-        .map((row) => wrapDoc(row));
-    }
-
-    if (indexName === 'parentLayerId') {
-      const rows = await this.tierTable.where('parentTierId').equals(String(value)).toArray();
-      return rows
-        .map((row) => bridgeTierToLayer(row))
-        .filter((row): row is LayerDocType => Boolean(row))
-        .map((row) => wrapDoc(row));
-    }
-
-    if (indexName === 'layerType') {
-      const rows = await this.tierTable.where('contentType').equals(String(value)).toArray();
-      return rows
-        .map((row) => bridgeTierToLayer(row))
-        .filter((row): row is LayerDocType => Boolean(row))
-        .map((row) => wrapDoc(row));
+    if (indexName === 'textId' || indexName === 'key' || indexName === 'parentLayerId' || indexName === 'layerType') {
+      try {
+        if (indexName === 'textId') {
+          return mapRows(await this.tierTable.where('textId').equals(String(value)).toArray());
+        }
+        if (indexName === 'key') {
+          return mapRows(await this.tierTable.where('key').equals(`${BRIDGE_TIER_PREFIX}${String(value)}`).toArray());
+        }
+        if (indexName === 'parentLayerId') {
+          return mapRows(await this.tierTable.where('parentTierId').equals(String(value)).toArray());
+        }
+        return mapRows(await this.tierTable.where('contentType').equals(String(value)).toArray());
+      } catch (err) {
+        if (!isDexieIndexedQueryFallbackError(err)) {
+          reportUnexpectedDexieQueryError('TierBackedLayerCollectionAdapter:findByIndex', err);
+        }
+      }
     }
 
     const rows = await this.loadLayers();

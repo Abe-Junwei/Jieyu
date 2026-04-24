@@ -4,6 +4,7 @@ import {
   dexieStoresForSegmentMetaRw,
   dexieStoresForSegmentMetaSyncForUnitIdsRead,
   getDb,
+  withTransaction,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
   type LayerUnitStatus,
@@ -150,12 +151,12 @@ export class SegmentMetaService {
       seeds.filter((seed) => seed.layerId === normalizedLayerId && seed.mediaId === normalizedMediaId),
     );
     const db = await getDb();
-    await db.dexie.transaction('rw', [...dexieStoresForSegmentMetaRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForSegmentMetaRw(db)], async () => {
       await db.dexie.segment_meta.where('[layerId+mediaId]').equals([normalizedLayerId, normalizedMediaId]).delete();
       if (docs.length > 0) {
         await db.dexie.segment_meta.bulkPut(docs);
       }
-    });
+    }, { label: 'SegmentMetaService.replaceDocsForLayerMedia' });
     return docs;
   }
 
@@ -211,7 +212,8 @@ export class SegmentMetaService {
     if (ids.length === 0) return;
 
     const db = await getDb();
-    const [units, staleRowsById, staleRowsByHostId] = await db.dexie.transaction(
+    const [units, staleRowsById, staleRowsByHostId] = await withTransaction(
+      db,
       'r',
       [...dexieStoresForSegmentMetaSyncForUnitIdsRead(db)],
       async () => Promise.all([
@@ -219,6 +221,7 @@ export class SegmentMetaService {
         db.dexie.segment_meta.where('segmentId').anyOf(ids).toArray(),
         db.dexie.segment_meta.where('hostUnitId').anyOf(ids).toArray(),
       ]),
+      { label: 'SegmentMetaService.syncForUnitIds.initialRead' },
     );
     const staleRows = [...new Map(
       [...staleRowsById, ...staleRowsByHostId].map((row) => [row.id, row] as const),
@@ -233,15 +236,18 @@ export class SegmentMetaService {
       return hostIds;
     }))];
     const relatedHosts = relatedHostIds.length > 0
-      ? await db.dexie.transaction(
+      ? await withTransaction(
+          db,
           'r',
           [...dexieStoresForLayerUnitsTableRead(db)],
           async () => (await db.dexie.layer_units.bulkGet(relatedHostIds)).filter((row): row is LayerUnitDocType => Boolean(row)),
+          { label: 'SegmentMetaService.syncForUnitIds.relatedHosts' },
         )
       : [];
 
     const referencingUnits = relatedHostIds.length > 0
-      ? await db.dexie.transaction(
+      ? await withTransaction(
+          db,
           'r',
           [...dexieStoresForLayerUnitsTableRead(db)],
           async () => Promise.all([
@@ -254,6 +260,7 @@ export class SegmentMetaService {
             }
             return [...byId.values()];
           }),
+          { label: 'SegmentMetaService.syncForUnitIds.referencingUnits' },
         )
       : [];
 
@@ -311,7 +318,8 @@ export class SegmentMetaService {
     if (!normalizedLayerId || !normalizedMediaId) return [];
 
     const db = await getDb();
-    const [unitRows, contentRows, noteRows, speakerRows] = await db.dexie.transaction(
+    const [unitRows, contentRows, noteRows, speakerRows] = await withTransaction(
+      db,
       'r',
       [...dexieStoresForSegmentMetaRebuildSourceRead(db)],
       async () => Promise.all([
@@ -320,6 +328,7 @@ export class SegmentMetaService {
         db.dexie.user_notes.toArray(),
         db.dexie.speakers.toArray(),
       ]),
+      { label: 'SegmentMetaService.rebuildForLayerMedia.sourceRead' },
     );
 
     const metaRows = unitRows.filter((row) => row.unitType === 'segment' || row.unitType === 'unit');
@@ -330,10 +339,12 @@ export class SegmentMetaService {
       if (row.rootUnitId?.trim()) ids.push(row.rootUnitId.trim());
       return ids;
     }))];
-    const hostRows = await db.dexie.transaction(
+    const hostRows = await withTransaction(
+      db,
       'r',
       [...dexieStoresForLayerUnitsTableRead(db)],
       async () => db.dexie.layer_units.bulkGet(hostIds),
+      { label: 'SegmentMetaService.rebuildForLayerMedia.hostRead' },
     );
     const hostById = new Map(hostRows.filter((row): row is LayerUnitDocType => Boolean(row)).map((row) => [row.id, row] as const));
 
@@ -405,12 +416,12 @@ export class SegmentMetaService {
 
     // Intentional split (ADR-0006 P2): build derived `docs` outside any `segment_meta` write txn, then replace
     // rows in a narrow rw transaction — avoids coupling long reads to the derived-table write scope.
-    await db.dexie.transaction('rw', [...dexieStoresForSegmentMetaRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForSegmentMetaRw(db)], async () => {
       await db.dexie.segment_meta.where('[layerId+mediaId]').equals([normalizedLayerId, normalizedMediaId]).delete();
       if (docs.length > 0) {
         await db.dexie.segment_meta.bulkPut(docs);
       }
-    });
+    }, { label: 'SegmentMetaService.rebuildForLayerMedia.write' });
 
     return docs;
   }

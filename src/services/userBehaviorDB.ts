@@ -10,6 +10,7 @@
  */
 
 import Dexie, { type Table } from 'dexie';
+import { reportIfUnexpectedDexieDegradation } from '../db/adapterDexieQueryErrors';
 import type { ActionId } from './IntentRouter';
 
 // ── Document Types ─────────────────────────────────────────────────────────
@@ -128,8 +129,11 @@ export async function recordActionToDB(record: Omit<ActionRecordDoc, 'id'>): Pro
   try {
     await userBehaviorDB.actionRecords.add(record as ActionRecordDoc);
   } catch (err) {
-    console.debug('[UserBehaviorDB] recordActionToDB failed, skipped:', err);
-    // IndexedDB 不可用时静默跳过 | Silently skip when IndexedDB is unavailable
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.recordActionToDB',
+      err,
+      '[UserBehaviorDB] recordActionToDB failed, skipped:',
+    );
   }
 }
 
@@ -140,7 +144,11 @@ export async function loadBehaviorProfile(): Promise<UserBehaviorProfileDoc | un
   try {
     return await userBehaviorDB.userBehaviorProfiles.get('current');
   } catch (err) {
-    console.debug('[UserBehaviorDB] loadBehaviorProfile failed:', err);
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.loadBehaviorProfile',
+      err,
+      '[UserBehaviorDB] loadBehaviorProfile failed:',
+    );
     return undefined;
   }
 }
@@ -152,8 +160,11 @@ export async function saveBehaviorProfile(profile: UserBehaviorProfileDoc): Prom
   try {
     await userBehaviorDB.userBehaviorProfiles.put({ ...profile, updatedAt: Date.now() });
   } catch (err) {
-    console.debug('[UserBehaviorDB] saveBehaviorProfile failed, skipped:', err);
-    // IndexedDB unavailable — silently skip
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.saveBehaviorProfile',
+      err,
+      '[UserBehaviorDB] saveBehaviorProfile failed, skipped:',
+    );
   }
 }
 
@@ -182,8 +193,11 @@ export async function pruneOldRecords(): Promise<void> {
         .delete();
     }
   } catch (err) {
-    console.debug('[UserBehaviorDB] pruneOldRecords failed, skipped:', err);
-    // 静默跳过 | Silently skip
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.pruneOldRecords',
+      err,
+      '[UserBehaviorDB] pruneOldRecords failed, skipped:',
+    );
   }
 }
 
@@ -200,7 +214,11 @@ export async function getActionRecordsInRange(
       .between(startMs, endMs)
       .toArray();
   } catch (err) {
-    console.debug('[UserBehaviorDB] getActionRecordsInRange failed, returning empty:', err);
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.getActionRecordsInRange',
+      err,
+      '[UserBehaviorDB] getActionRecordsInRange failed, returning empty:',
+    );
     return [];
   }
 }
@@ -212,8 +230,11 @@ export async function recordTaskPhase(record: Omit<TaskPhaseRecordDoc, 'id'>): P
   try {
     await userBehaviorDB.taskPhaseRecords.add(record as TaskPhaseRecordDoc);
   } catch (err) {
-    console.debug('[UserBehaviorDB] recordTaskPhase failed, skipped:', err);
-    // Silently skip
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.recordTaskPhase',
+      err,
+      '[UserBehaviorDB] recordTaskPhase failed, skipped:',
+    );
   }
 }
 
@@ -224,8 +245,11 @@ export async function recordDifficultSegment(record: Omit<DifficultSegmentDoc, '
   try {
     await userBehaviorDB.difficultSegments.add(record as DifficultSegmentDoc);
   } catch (err) {
-    console.debug('[UserBehaviorDB] recordDifficultSegment failed, skipped:', err);
-    // Silently skip
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.recordDifficultSegment',
+      err,
+      '[UserBehaviorDB] recordDifficultSegment failed, skipped:',
+    );
   }
 }
 
@@ -242,7 +266,11 @@ export async function getTaskPhaseRecordsInRange(
       .between(startMs, endMs)
       .toArray();
   } catch (err) {
-    console.debug('[UserBehaviorDB] getTaskPhaseRecordsInRange failed, returning empty:', err);
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.getTaskPhaseRecordsInRange',
+      err,
+      '[UserBehaviorDB] getTaskPhaseRecordsInRange failed, returning empty:',
+    );
     return [];
   }
 }
@@ -260,7 +288,11 @@ export async function getDifficultSegmentsInRange(
       .between(startMs, endMs)
       .toArray();
   } catch (err) {
-    console.debug('[UserBehaviorDB] getDifficultSegmentsInRange failed, returning empty:', err);
+    reportIfUnexpectedDexieDegradation(
+      'userBehaviorDB.getDifficultSegmentsInRange',
+      err,
+      '[UserBehaviorDB] getDifficultSegmentsInRange failed, returning empty:',
+    );
     return [];
   }
 }

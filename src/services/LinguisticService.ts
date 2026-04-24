@@ -3,6 +3,7 @@ import {
   exportDatabaseAsJson,
   getDb,
   importDatabaseFromJson,
+  runDexieIndexedQueryOrElse,
   type ImportConflictStrategy,
   type ImportResult,
   type LayerDocType,
@@ -861,13 +862,14 @@ export class LinguisticService {
     if (!id) return [];
 
     const db = await getDb();
-    let links: TokenLexemeLinkDocType[] = [];
-    try {
-      links = await db.dexie.token_lexeme_links.where('lexemeId').equals(id).toArray();
-    } catch {
-      const all = await db.dexie.token_lexeme_links.toArray();
-      links = all.filter((row) => (row.lexemeId ?? '').trim() === id);
-    }
+    const links = await runDexieIndexedQueryOrElse(
+      'LinguisticService.listLexemeTranscriptionJumpTargets:token_lexeme_links',
+      () => db.dexie.token_lexeme_links.where('lexemeId').equals(id).toArray(),
+      async () => {
+        const all = await db.dexie.token_lexeme_links.toArray();
+        return all.filter((row) => (row.lexemeId ?? '').trim() === id);
+      },
+    );
     links.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
     const seen = new Set<string>();

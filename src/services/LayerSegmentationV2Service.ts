@@ -4,6 +4,7 @@ import {
   dexieStoresForLayerUnitsAndUnitRelationsRw,
   dexieStoresForLayerUnitsRw,
   getDb,
+  withTransaction,
   type LayerSegmentViewDocType,
   type LayerUnitContentDocType,
   type LayerUnitDocType,
@@ -51,7 +52,7 @@ export class LayerSegmentationV2Service {
   static async createSegment(segment: LayerUnitDocType): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
-    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
     });
   }
@@ -65,7 +66,7 @@ export class LayerSegmentationV2Service {
   ): Promise<void> {
     const db = await getDb();
     await assertGenericSegmentCreateAllowed(db, segment);
-    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsAndContentsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [segment]);
       await LayerUnitSegmentWriteService.insertSegmentContents(db, [content]);
     });
@@ -93,7 +94,7 @@ export class LayerSegmentationV2Service {
     }
     const db = await getDb();
     const now = new Date().toISOString();
-    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsAndUnitRelationsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsAndUnitRelationsRw(db)], async () => {
       await LayerUnitSegmentWriteService.insertSegments(db, [clipped]);
       const link = {
         id: newId('sl'),
@@ -113,7 +114,7 @@ export class LayerSegmentationV2Service {
     const db = await getDb();
     const existing = (await LayerSegmentQueryService.listSegmentsByIds([id]))[0];
 
-    await db.dexie.transaction('rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
+    await withTransaction(db, 'rw', [...dexieStoresForLayerUnitsRw(db)], async () => {
       if (existing) {
         const nextRow: LayerUnitDocType = {
           ...existing,
@@ -134,7 +135,7 @@ export class LayerSegmentationV2Service {
 
   static async upsertSegmentContent(content: LayerUnitContentDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -145,7 +146,7 @@ export class LayerSegmentationV2Service {
 
   static async deleteSegmentContent(contentId: string): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -160,7 +161,7 @@ export class LayerSegmentationV2Service {
 
   static async createSegmentLink(link: UnitRelationDocType): Promise<void> {
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -172,7 +173,7 @@ export class LayerSegmentationV2Service {
   static async deleteSegment(segmentId: string): Promise<void> {
     const db = await getDb();
 
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -189,7 +190,7 @@ export class LayerSegmentationV2Service {
     if (ids.length === 0) return;
 
     const db = await getDb();
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -239,7 +240,7 @@ export class LayerSegmentationV2Service {
       now,
     );
 
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {
@@ -305,7 +306,7 @@ export class LayerSegmentationV2Service {
     };
 
     // 原子事务：更新保留段 + 级联删除移除段 | Atomic transaction: update kept + cascade-delete removed
-    await db.dexie.transaction(
+    await withTransaction(db,
       'rw',
       [...dexieStoresForLayerSegmentGraphRw(db)],
       async () => {

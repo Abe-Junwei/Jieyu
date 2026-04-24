@@ -1,5 +1,6 @@
 import {
   dexieStoresForLayerSegmentGraphRw,
+  withTransaction,
   type JieyuDatabase,
   type LayerUnitContentDocType,
   type LayerUnitContentViewDocType,
@@ -283,17 +284,23 @@ export async function deleteLayerSegmentGraphBySegmentIds(
   const contents = await LayerSegmentQueryService.listSegmentContentsBySegmentIds(deletedSegmentIds);
   const deletedContentIds = uniqueIds(contents.map((content) => content.id));
 
-  if (deletedContentIds.length > 0) {
-    await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, deletedContentIds);
-  }
-  await deleteSegmentLinksBySegmentIds(db, deletedSegmentIds);
-  await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, deletedSegmentIds);
-
-  return {
+  return withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
+      if (deletedContentIds.length > 0) {
+        await LayerUnitSegmentWriteService.deleteSegmentContentsByIds(db, deletedContentIds);
+      }
+      await deleteSegmentLinksBySegmentIds(db, deletedSegmentIds);
+      await LayerUnitSegmentWriteService.deleteSegmentsByIds(db, deletedSegmentIds);
+    },
+    { label: 'deleteLayerSegmentGraphBySegmentIds' },
+  ).then(() => ({
     affectedUnitIds,
     deletedSegmentIds,
     deletedContentIds,
-  };
+  }));
 }
 
 export async function deleteLayerSegmentGraphByUnitIds(
@@ -387,7 +394,11 @@ export async function restoreLayerSegmentGraphSnapshot(
   ]);
   if (targetLayerIds.length === 0) return;
 
-  await db.dexie.transaction('rw', [...dexieStoresForLayerSegmentGraphRw(db)], async () => {
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerSegmentGraphRw(db)],
+    async () => {
     const existingSegments = (await Promise.all(
       targetLayerIds.map((layerId) => LayerSegmentQueryService.listSegmentsByLayerId(layerId)),
     )).flat();
@@ -415,7 +426,9 @@ export async function restoreLayerSegmentGraphSnapshot(
     if (snapshot.links.length > 0) {
       await LayerUnitSegmentWriteService.upsertSegmentLinks(db, snapshot.links);
     }
-  });
+    },
+    { label: 'LayerSegmentGraphService.restoreLayerSegmentGraphSnapshot' },
+  );
 }
 
 export async function deleteLayerSegmentGraphByLayerId(
