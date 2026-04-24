@@ -210,7 +210,8 @@
   "overrides": {
     "vite-plugin-pwa": {
       "vite": "$vite"
-    }
+    },
+    "uuid": "^14.0.0"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
@@ -228,7 +229,6 @@
     "country-state-city": "^3.2.1",
     "dexie": "^4.4.2",
     "fflate": "^0.8.2",
-    "iso-639-3": "^3.0.1",
     "language-tags": "^2.1.0",
     "maplibre-gl": "^5.24.0",
     "minisearch": "^7.2.0",
@@ -243,6 +243,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "iso-639-3": "^3.0.1",
     "@types/language-tags": "^1.0.4",
     "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.59.1",
