@@ -70,6 +70,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: CSS backdrop-compat (per-file; fast fail before full test)
+        run: npm run check:css-compat
+
       - name: Type check
         run: npm run typecheck
 
@@ -391,9 +394,10 @@ jobs:
       - name: Build guard
         run: npm run build:guard
 
-  e2e-critical-paths:
+  e2e-critical-paths-pr:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -404,6 +408,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
@@ -413,5 +423,37 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run E2E critical path tests
+      - name: Run E2E (Chromium only on PR)
+        run: npm run test:e2e:chromium
+
+  e2e-critical-paths-full:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Build
+        run: npm run build
+
+      - name: Run E2E (Chromium + Firefox + WebKit)
         run: npm run test:e2e

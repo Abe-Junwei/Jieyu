@@ -66,6 +66,12 @@ function findMatchingExpressionEnd(content, startIndex) {
     }
 
     if (state === 'template') {
+      if (current === '$' && next === '{') {
+        const nestedEnd = findMatchingExpressionEnd(content, index + 1);
+        if (nestedEnd < 0) return -1;
+        index = nestedEnd;
+        continue;
+      }
       if (current === '`' && previous !== '\\') state = 'normal';
       continue;
     }

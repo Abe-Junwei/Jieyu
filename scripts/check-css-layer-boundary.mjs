@@ -125,26 +125,36 @@ function main() {
     }
   }
 
-  const transcriptionEntry = fs.readFileSync(path.join(ROOT, TRANSCRIPTION_ENTRY_REL), 'utf8');
-  for (const imported of collectImportTargets(transcriptionEntry)) {
-    const allowed = imported === './panel-blocks.css'
-      || imported === './ai-sidebar-entry.css'
-      || imported.startsWith('./foundation/')
-      || imported.startsWith('./panels/')
-      || imported.startsWith('./pages/');
-    if (!allowed) {
-      failures.push(`${TRANSCRIPTION_ENTRY_REL}: invalid import target ${imported}`);
+  const transcriptionEntryPath = path.join(ROOT, TRANSCRIPTION_ENTRY_REL);
+  if (fs.existsSync(transcriptionEntryPath)) {
+    const transcriptionEntry = fs.readFileSync(transcriptionEntryPath, 'utf8');
+    for (const imported of collectImportTargets(transcriptionEntry)) {
+      const allowed = imported === './panel-blocks.css'
+        || imported === './ai-sidebar-entry.css'
+        || imported.startsWith('./foundation/')
+        || imported.startsWith('./panels/')
+        || imported.startsWith('./pages/');
+      if (!allowed) {
+        failures.push(`${TRANSCRIPTION_ENTRY_REL}: invalid import target ${imported}`);
+      }
     }
+  } else {
+    failures.push(`${TRANSCRIPTION_ENTRY_REL}: file missing (cannot validate @import graph)`);
   }
 
-  const appFoundation = fs.readFileSync(path.join(ROOT, APP_FOUNDATION_REL), 'utf8');
-  for (const imported of collectImportTargets(appFoundation)) {
-    const allowed = imported === './global.css'
-      || imported.startsWith('./foundation/')
-      || imported === './pages/app-shell-layout.css';
-    if (!allowed) {
-      failures.push(`${APP_FOUNDATION_REL}: invalid import target ${imported}`);
+  const appFoundationPath = path.join(ROOT, APP_FOUNDATION_REL);
+  if (fs.existsSync(appFoundationPath)) {
+    const appFoundation = fs.readFileSync(appFoundationPath, 'utf8');
+    for (const imported of collectImportTargets(appFoundation)) {
+      const allowed = imported === './global.css'
+        || imported.startsWith('./foundation/')
+        || imported === './pages/app-shell-layout.css';
+      if (!allowed) {
+        failures.push(`${APP_FOUNDATION_REL}: invalid import target ${imported}`);
+      }
     }
+  } else {
+    failures.push(`${APP_FOUNDATION_REL}: file missing (cannot validate @import graph)`);
   }
 
   if (failures.length === 0) {

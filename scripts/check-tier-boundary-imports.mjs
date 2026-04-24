@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import ts from 'typescript';
 
 const ROOT = process.cwd();
@@ -91,7 +91,7 @@ function main() {
   const TEST_FILE_SUFFIXES = ['.test.ts', '.test.tsx', '.spec.ts', '.spec.tsx'];
 
   for (const file of files) {
-    const rel = relative(ROOT, file).replaceAll('\\\\', '/');
+    const rel = relative(ROOT, file).split(sep).join('/');
     if (TEST_FILE_SUFFIXES.some((suffix) => rel.endsWith(suffix))) continue;
     if (isAllowedImportFile(rel)) continue;
 
