@@ -11,6 +11,12 @@ export * from './schemas';
 
 // ── 集合适配器与桥接 | Collection adapters & bridge helpers ──
 export * from './adapter';
+export {
+  isDexieIndexedQueryFallbackError,
+  reportIfUnexpectedDexieDegradation,
+  reportUnexpectedDexieQueryError,
+  runDexieIndexedQueryOrElse,
+} from './adapterDexieQueryErrors';
 
 // ── Dexie 引擎、迁移与实例 | Dexie engine, migrations & instance ──
 export {
@@ -56,3 +62,10 @@ export {
   downloadDatabaseAsJson,
   importDatabaseFromJson,
 } from './io';
+
+// ── 事务门面 | Transaction facade ──
+export {
+  withReadTransaction,
+  withTransaction,
+  withWriteTransaction,
+} from './withTransaction';
