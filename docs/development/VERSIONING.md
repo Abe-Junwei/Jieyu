@@ -25,6 +25,16 @@ Meaningful user- or operator-facing changes belong in `CHANGELOG.md` under the
 matching version. Internal-only refactors may be omitted or summarized as
 “Maintenance”.
 
+## Git tags
+
+When you cut a documented release (version bumped in `package.json` and section
+added in `CHANGELOG.md`), create an **annotated** tag on the default branch:
+
+`git tag -a v1.2.3 -m "Release 1.2.3"` then `git push origin v1.2.3`.
+
+The tag name should match `package.json` with a `v` prefix (e.g. `1.1.0` → `v1.1.0`).
+
+
 ## Sentry and build metadata
 
 - `VITE_APP_VERSION` is set at build time from `package.json` (`vite.config.ts`).

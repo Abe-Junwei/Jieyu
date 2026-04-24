@@ -29,7 +29,23 @@ Until `vite-plugin-pwa` lists `vite@^8` in `peerDependencies`, this repo uses np
 (see root `package.json`). Expect `npm install` to log
 `ERESOLVE overriding peer dependency` for that edge; CI uses `npm ci` with the lockfile.
 
+## `uuid` and `@maptiler/sdk` (prod `npm audit`)
+
+`@maptiler/sdk` currently depends on `uuid` in a range that can resolve below **14.0.0**,
+which is flagged by **GHSA-w5hq-g745-h8pq** (patched in `uuid@14.0.0+`). To keep
+`npm audit --omit=dev` green in **`npm run build:guard`**, the root `package.json` uses:
+
+```json
+"overrides": { "uuid": "^14.0.0" }
+```
+
+When upgrading **`@maptiler/sdk`**, re-check `npm audit --omit=dev` and whether this
+override is still needed (upstream may bump `uuid` to ≥14 and make the override redundant).
+
 ## After merge
 
 - Record the upgrade under `CHANGELOG.md`.
 - If behavior is user-visible, bump **MINOR** or **PATCH** per `docs/development/VERSIONING.md`.
+- When `package.json` / `CHANGELOG.md` carry a new **release version**, add a matching
+  **annotated Git tag** `v<version>` on the default branch (e.g. `v1.1.0`) so builds and
+  Sentry can align on the same string as `VITE_APP_VERSION` (see `VERSIONING.md`).
