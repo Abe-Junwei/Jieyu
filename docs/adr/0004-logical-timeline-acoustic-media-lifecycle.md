@@ -71,6 +71,8 @@ Accepted（阶段 0：冻结产品语义与后续实现门禁；阶段 1+ 实现
 
 **冻结结论**：阶段 1 起，导入路径**不得**在未经用户确认的情况下对全体语段做 **D 类缩放**；若实现 **A**，须在 UI 与 i18n 中说明原因。
 
+**更新（ADR-0019）**：占位行**首次**晋升为可播放声学轨（`importAudio` 占位合并路径）且 `L > 文件时长` 时，允许对该 `mediaId` 上坐标做自动线性缩放 + 平移；见 [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)。
+
 ---
 
 ## 决策 3：`timelineMode` 与删音 / 再导音（元数据对称目标）

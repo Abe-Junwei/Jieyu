@@ -3,7 +3,7 @@ title: Architecture 文档索引
 doc_type: architecture-index
 status: active
 owner: repo
-last_reviewed: 2026-04-18
+last_reviewed: 2026-04-24
 source_of_truth: current-state-index
 ---
 
@@ -25,6 +25,9 @@ source_of_truth: current-state-index
 - [转写工作区声学分析现状.md](./转写工作区声学分析现状.md)
   - 用途：转写工作区声学分析能力的当前实现边界、代码挂点与未完成项。
 
+- [transcription-deep-link-query-contract.md](./transcription-deep-link-query-contract.md)
+  - 用途：`/transcription` 深链 query、`sessionStorage` 返回提示与实现挂点（对齐三页联动 P0-1）。
+
 - [术语表.md](./术语表.md)
   - 用途：统一 layer / tier / track / lane 等核心术语与边界。
 
@@ -36,6 +39,9 @@ source_of_truth: current-state-index
 
 - [CSS浏览器兼容矩阵.md](./CSS浏览器兼容矩阵.md)
   - 用途：CSS 现代特性兼容策略、降级规则与 CI 校验入口。
+
+- [桌面端浏览器支持策略.md](./桌面端浏览器支持策略.md)
+  - 用途：产品对外兼容边界（桌面端 Chrome / Edge / Firefox / Safari 及国内双核浏览器的极速模式）；与 CSS 矩阵分工明确。
 
 - [CSS治理执行记录.md](./CSS治理执行记录.md)
   - 用途：记录季度治理执行证据（预算复盘、兼容复核、视觉基线与废弃窗口推进）。

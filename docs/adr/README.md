@@ -3,7 +3,7 @@ title: ADR 目录说明
 doc_type: adr-index
 status: active
 owner: repo
-last_reviewed: 2026-04-22
+last_reviewed: 2026-04-24
 source_of_truth: decision-index
 ---
 
@@ -36,6 +36,10 @@ source_of_truth: decision-index
 - [0015-writing-diagram-offline-supply.md](./0015-writing-diagram-offline-supply.md)（图码与离线供应链；`proposed` 占位）
 - [0016-writing-collab-object-mapping.md](./0016-writing-collab-object-mapping.md)（写作 · `project_changes` 等协同对象映射；`proposed` 骨架）
 - [0017-jieyu-core-workbench-architecture-adaptation.md](./0017-jieyu-core-workbench-architecture-adaptation.md)（核心工作台架构蓝图采纳与适配：Adopt/Adapt/Reject + 迁移风险清单）
+- [0018-transcription-segment-scope-media-ssot.md](./0018-transcription-segment-scope-media-ssot.md)（转写页 segment 作用域媒体 SSOT：图加载后精化 + AI/导出对齐）
+- [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)（占位晋升首绑声学：`L > duration` 时线性压缩 + 平移；删音仍保留坐标）
+- [0020-unscoped-canonical-unit-transcription-lane-read-scope.md](./0020-unscoped-canonical-unit-transcription-lane-read-scope.md)（unscoped canonical unit 的转写轨读作用域：单一 resolve 入口与读写边界）
+- [0021-zod-jitless-strict-csp.md](./0021-zod-jitless-strict-csp.md)（Zod `jitless` 与严格 `script-src`：禁止 `unsafe-eval` 前提下消除 JIT 探测 CSP 噪声）
 
 ## 建议格式
 
