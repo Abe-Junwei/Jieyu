@@ -72,4 +72,54 @@ test.describe('关键路径 | Critical paths', () => {
     // 依赖先于 main 的 `zod-jitless-bootstrap` 入口（Vite rollup + `transformIndexHtml` post 注入）关闭 Zod JIT，避免 `Function` 构造器探测触发严格 CSP。
     expect(cspViolations).toHaveLength(0);
   });
+
+  test('ARCH-9：创建语言层与翻译层并导出 Toolbox | ARCH-9: create language layer + translation and export Toolbox', async ({ page }) => {
+    await page.goto('/transcription');
+    await expect(page.getByTestId('transcription-workspace-screen')).toBeVisible({ timeout: 25_000 });
+
+    // 左轨：先建转写层（含语言代码），再建翻译层
+    const leftRailActions = page.locator('.left-rail-layer-actions-root');
+    const createTranscriptionEntry = leftRailActions.getByRole('button', { name: /新建转写层|Create transcription layer/i });
+    const createTranslationButton = leftRailActions.getByRole('button', { name: /新建翻译层|Create translation layer/i });
+    await expect(createTranslationButton).toBeDisabled();
+
+    await createTranscriptionEntry.click();
+    const createTranscriptionDialog = page.getByRole('dialog', { name: /新建转写层|Create transcription layer|New Transcription Layer/i });
+    await expect(createTranscriptionDialog).toBeVisible();
+    await createTranscriptionDialog.getByRole('combobox', { name: /语言名称|Language Name/i }).fill('Chinese');
+    await createTranscriptionDialog.getByRole('option', { name: /Chinese|中文|汉语|zho/i }).first().click();
+    await createTranscriptionDialog.getByPlaceholder(/ISO 639-3/i).fill('zho');
+    const createTranscriptionSubmit = createTranscriptionDialog.getByRole('button', {
+      name: /^(新建转写层|Create transcription layer|New Transcription Layer)$/i,
+    });
+    await expect(createTranscriptionSubmit).toBeEnabled();
+    await createTranscriptionSubmit.click();
+    await expect(createTranscriptionDialog).toBeHidden({ timeout: 15_000 });
+
+    await expect(createTranslationButton).toBeEnabled();
+    await createTranslationButton.click();
+    const createTranslationDialog = page.getByRole('dialog', { name: /新建翻译层|Create translation layer|New Translation Layer/i });
+    await expect(createTranslationDialog).toBeVisible();
+    await createTranslationDialog.getByRole('combobox', { name: /语言名称|Language Name/i }).fill('French');
+    await createTranslationDialog.getByRole('option', { name: /French|法语|fra/i }).first().click();
+    await createTranslationDialog.getByPlaceholder(/ISO 639-3/i).fill('fra');
+    const createTranslationSubmit = createTranslationDialog.getByRole('button', {
+      name: /^(新建翻译层|Create translation layer|New Translation Layer)$/i,
+    });
+    await expect(createTranslationSubmit).toBeEnabled();
+    await createTranslationSubmit.click();
+    await expect(createTranslationDialog).toBeHidden({ timeout: 15_000 });
+
+    // 项目中心：导出 Toolbox，确认下载动作可达
+    await page.locator('.left-rail-project-hub-btn').click();
+    const exportMenuEntry = page.getByRole('menuitem', { name: /导出|Export/ });
+    await exportMenuEntry.hover();
+    const toolboxExportEntry = page
+      .locator('.context-menu-submenu-export')
+      .getByRole('menuitem', { name: /Toolbox/i });
+    await expect(toolboxExportEntry).toBeVisible();
+    await toolboxExportEntry.click();
+    // 导出触发后菜单应关闭，证明动作已被消费 | Export action should close the menu, proving the click is consumed
+    await expect(page.locator('.context-menu-submenu-export')).toBeHidden({ timeout: 10_000 });
+  });
 });

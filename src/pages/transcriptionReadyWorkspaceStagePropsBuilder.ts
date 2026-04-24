@@ -1,54 +1,76 @@
 import type { ReactNode } from 'react';
-import type { AnnotationImportBridgeStrategy } from '../hooks/useImportExport.annotationImport';
 import type { TimelineViewportProjection } from '../hooks/timelineViewportTypes';
 import type { TranscriptionPageReadyWorkspaceLayoutProps } from './TranscriptionPage.ReadyWorkspaceLayout';
+import {
+  buildReadyWorkspaceBatchOpsSection,
+  type BuildReadyWorkspaceBatchOpsSectionInput,
+} from './transcriptionReadyWorkspaceBatchOpsSectionBuilder';
 import {
   buildReadyWorkspaceHistoryControlsProps,
   type BuildReadyWorkspaceHistoryControlsInput,
 } from './transcriptionReadyWorkspaceHistoryControlsBuilder';
+import {
+  buildReadyWorkspaceProjectHubProps,
+  type BuildReadyWorkspaceProjectHubPropsInput,
+} from './transcriptionReadyWorkspaceProjectHubPropsBuilder';
+import {
+  buildReadyWorkspaceRecoveryBannerProps,
+  type BuildReadyWorkspaceRecoveryBannerPropsInput,
+} from './transcriptionReadyWorkspaceRecoveryBannerPropsBuilder';
+import {
+  buildReadyWorkspaceObserverProps,
+  type BuildReadyWorkspaceObserverPropsInput,
+} from './transcriptionReadyWorkspaceObserverPropsBuilder';
+import {
+  buildReadyWorkspaceMediaInputProps,
+  type BuildReadyWorkspaceMediaInputPropsInput,
+} from './transcriptionReadyWorkspaceMediaInputPropsBuilder';
+import {
+  buildReadyWorkspaceToastProps,
+  type BuildReadyWorkspaceToastPropsInput,
+} from './transcriptionReadyWorkspaceToastPropsBuilder';
 
 type ReadyWorkspaceStageProps = TranscriptionPageReadyWorkspaceLayoutProps['readyStageProps'];
 type ReadyWorkspaceWorkspaceAreaProps = ReadyWorkspaceStageProps['workspaceAreaProps'];
 
 export type BuildReadyWorkspaceStagePropsInput = {
-  assistantFrame: Pick<ReadyWorkspaceStageProps['toastProps'], 'saveState' | 'recording' | 'recordingUnitId' | 'recordingError' | 'tf'> &
-    Partial<Pick<ReadyWorkspaceStageProps['toastProps'], 'overlapCycleToast' | 'lockConflictToast'>>;
-  shouldRenderRecoveryBanner: boolean;
-  recoveryAvailable: ReadyWorkspaceStageProps['recoveryBannerProps']['recoveryAvailable'];
-  recoveryDiffSummary: ReadyWorkspaceStageProps['recoveryBannerProps']['recoveryDiffSummary'];
-  onApplyRecoveryBanner: ReadyWorkspaceStageProps['recoveryBannerProps']['onApply'];
-  onDismissRecoveryBanner: ReadyWorkspaceStageProps['recoveryBannerProps']['onDismiss'];
+  assistantFrame: BuildReadyWorkspaceToastPropsInput['assistantFrame'];
+  shouldRenderRecoveryBanner: BuildReadyWorkspaceRecoveryBannerPropsInput['shouldRender'];
+  recoveryAvailable: BuildReadyWorkspaceRecoveryBannerPropsInput['recoveryAvailable'];
+  recoveryDiffSummary: BuildReadyWorkspaceRecoveryBannerPropsInput['recoveryDiffSummary'];
+  onApplyRecoveryBanner: BuildReadyWorkspaceRecoveryBannerPropsInput['onApply'];
+  onDismissRecoveryBanner: BuildReadyWorkspaceRecoveryBannerPropsInput['onDismiss'];
   collaborationCloudStatusSlot?: ReactNode;
   toolbarProps: ReadyWorkspaceStageProps['toolbarProps'];
-  observerStage: ReadyWorkspaceStageProps['observerProps']['observerStage'];
-  recommendations: ReadyWorkspaceStageProps['observerProps']['recommendations'];
-  onExecuteRecommendation: ReadyWorkspaceStageProps['observerProps']['onExecuteRecommendation'];
+  observerStage: BuildReadyWorkspaceObserverPropsInput['observerStage'];
+  recommendations: BuildReadyWorkspaceObserverPropsInput['recommendations'];
+  onExecuteRecommendation: BuildReadyWorkspaceObserverPropsInput['onExecuteRecommendation'];
   acousticRuntimeStatus: ReadyWorkspaceStageProps['acousticRuntimeStatus'];
   vadCacheStatus: ReadyWorkspaceStageProps['vadCacheStatus'];
-  currentProjectLabel: ReadyWorkspaceStageProps['projectHubProps']['currentProjectLabel'];
-  selectedMediaId?: ReadyWorkspaceStageProps['projectHubProps']['selectedMediaId'];
-  activeTextTimelineMode: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimelineMode'];
-  activeTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['activeTextTimeMapping'];
-  canDeleteProject: ReadyWorkspaceStageProps['projectHubProps']['canDeleteProject'];
-  canDeleteAudio: ReadyWorkspaceStageProps['projectHubProps']['canDeleteAudio'];
-  onOpenProjectSetup: ReadyWorkspaceStageProps['projectHubProps']['onOpenProjectSetup'];
-  onOpenAudioImport: ReadyWorkspaceStageProps['projectHubProps']['onOpenAudioImport'];
-  onOpenSpeakerManagementPanel: ReadyWorkspaceStageProps['projectHubProps']['onOpenSpeakerManagementPanel'];
-  onDeleteCurrentProject: ReadyWorkspaceStageProps['projectHubProps']['onDeleteCurrentProject'];
-  onDeleteCurrentAudio: ReadyWorkspaceStageProps['projectHubProps']['onDeleteCurrentAudio'];
-  handleImportFile: (file: File, strategy: AnnotationImportBridgeStrategy) => Promise<void>;
-  onPreviewProjectArchiveImport: ReadyWorkspaceStageProps['projectHubProps']['onPreviewProjectArchiveImport'];
-  onImportProjectArchive: ReadyWorkspaceStageProps['projectHubProps']['onImportProjectArchive'];
-  onApplyTextTimeMapping: ReadyWorkspaceStageProps['projectHubProps']['onApplyTextTimeMapping'];
-  onExportEaf: ReadyWorkspaceStageProps['projectHubProps']['onExportEaf'];
-  onExportTextGrid: ReadyWorkspaceStageProps['projectHubProps']['onExportTextGrid'];
-  onExportTrs: ReadyWorkspaceStageProps['projectHubProps']['onExportTrs'];
-  onExportFlextext: ReadyWorkspaceStageProps['projectHubProps']['onExportFlextext'];
-  onExportToolbox: ReadyWorkspaceStageProps['projectHubProps']['onExportToolbox'];
-  onExportJyt: ReadyWorkspaceStageProps['projectHubProps']['onExportJyt'];
-  onExportJym: ReadyWorkspaceStageProps['projectHubProps']['onExportJym'];
-  mediaFileInputRef: ReadyWorkspaceStageProps['mediaInputProps']['ref'];
-  onDirectMediaImport: ReadyWorkspaceStageProps['mediaInputProps']['onChange'];
+  currentProjectLabel: BuildReadyWorkspaceProjectHubPropsInput['currentProjectLabel'];
+  selectedMediaId?: BuildReadyWorkspaceProjectHubPropsInput['selectedMediaId'];
+  activeTextTimelineMode: BuildReadyWorkspaceProjectHubPropsInput['activeTextTimelineMode'];
+  activeTextTimeMapping: BuildReadyWorkspaceProjectHubPropsInput['activeTextTimeMapping'];
+  canDeleteProject: BuildReadyWorkspaceProjectHubPropsInput['canDeleteProject'];
+  canDeleteAudio: BuildReadyWorkspaceProjectHubPropsInput['canDeleteAudio'];
+  onOpenProjectSetup: BuildReadyWorkspaceProjectHubPropsInput['onOpenProjectSetup'];
+  onOpenAudioImport: BuildReadyWorkspaceProjectHubPropsInput['onOpenAudioImport'];
+  onOpenSpeakerManagementPanel: BuildReadyWorkspaceProjectHubPropsInput['onOpenSpeakerManagementPanel'];
+  onDeleteCurrentProject: BuildReadyWorkspaceProjectHubPropsInput['onDeleteCurrentProject'];
+  onDeleteCurrentAudio: BuildReadyWorkspaceProjectHubPropsInput['onDeleteCurrentAudio'];
+  handleImportFile: BuildReadyWorkspaceProjectHubPropsInput['handleImportFile'];
+  onPreviewProjectArchiveImport: BuildReadyWorkspaceProjectHubPropsInput['onPreviewProjectArchiveImport'];
+  onImportProjectArchive: BuildReadyWorkspaceProjectHubPropsInput['onImportProjectArchive'];
+  onApplyTextTimeMapping: BuildReadyWorkspaceProjectHubPropsInput['onApplyTextTimeMapping'];
+  onExportEaf: BuildReadyWorkspaceProjectHubPropsInput['onExportEaf'];
+  onExportTextGrid: BuildReadyWorkspaceProjectHubPropsInput['onExportTextGrid'];
+  onExportTrs: BuildReadyWorkspaceProjectHubPropsInput['onExportTrs'];
+  onExportFlextext: BuildReadyWorkspaceProjectHubPropsInput['onExportFlextext'];
+  onExportToolbox: BuildReadyWorkspaceProjectHubPropsInput['onExportToolbox'];
+  onExportJyt: BuildReadyWorkspaceProjectHubPropsInput['onExportJyt'];
+  onExportJym: BuildReadyWorkspaceProjectHubPropsInput['onExportJym'];
+  mediaFileInputRef: BuildReadyWorkspaceMediaInputPropsInput['mediaFileInputRef'];
+  onDirectMediaImport: BuildReadyWorkspaceMediaInputPropsInput['onDirectMediaImport'];
   waveformSectionRef: ReadyWorkspaceWorkspaceAreaProps['waveformSectionRef'];
   workspaceRef: ReadyWorkspaceWorkspaceAreaProps['workspaceRef'];
   listMainRef: ReadyWorkspaceWorkspaceAreaProps['listMainRef'];
@@ -99,68 +121,93 @@ export type BuildReadyWorkspaceStagePropsInput = {
   shouldRenderDialogs: boolean;
   pdfRuntimeProps: ReadyWorkspaceWorkspaceAreaProps['pdfRuntimeProps'];
   shouldRenderPdfRuntime: boolean;
-  shouldRenderBatchOps: boolean;
-  showBatchOperationPanel: ReadyWorkspaceStageProps['batchOpsSection']['props']['showBatchOperationPanel'];
-  selectedUnitIds: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedUnitIds'];
-  selectedBatchUnits: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUnits'];
-  unitsOnCurrentMedia: ReadyWorkspaceStageProps['batchOpsSection']['props']['unitsOnCurrentMedia'];
-  selectedBatchUnitTextById: ReadyWorkspaceStageProps['batchOpsSection']['props']['selectedBatchUnitTextById'];
-  batchPreviewLayerOptions: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewLayerOptions'];
-  batchPreviewTextByLayerId: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewTextByLayerId'];
-  batchPreviewTextPropsByLayerId: ReadyWorkspaceStageProps['batchOpsSection']['props']['batchPreviewTextPropsByLayerId'];
-  defaultBatchPreviewLayerId: ReadyWorkspaceStageProps['batchOpsSection']['props']['defaultBatchPreviewLayerId'];
-  onCloseBatchOps: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchClose'];
-  onBatchOffset: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchOffset'];
-  onBatchScale: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchScale'];
-  onBatchSplitByRegex: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchSplitByRegex'];
-  onBatchMerge: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchMerge'];
-  onBatchJumpToUnit: ReadyWorkspaceStageProps['batchOpsSection']['props']['onBatchJumpToUnit'];
+  shouldRenderBatchOps: BuildReadyWorkspaceBatchOpsSectionInput['shouldRenderBatchOps'];
+  showBatchOperationPanel: BuildReadyWorkspaceBatchOpsSectionInput['showBatchOperationPanel'];
+  selectedUnitIds: BuildReadyWorkspaceBatchOpsSectionInput['selectedUnitIds'];
+  selectedBatchUnits: BuildReadyWorkspaceBatchOpsSectionInput['selectedBatchUnits'];
+  unitsOnCurrentMedia: BuildReadyWorkspaceBatchOpsSectionInput['unitsOnCurrentMedia'];
+  selectedBatchUnitTextById: BuildReadyWorkspaceBatchOpsSectionInput['selectedBatchUnitTextById'];
+  batchPreviewLayerOptions: BuildReadyWorkspaceBatchOpsSectionInput['batchPreviewLayerOptions'];
+  batchPreviewTextByLayerId: BuildReadyWorkspaceBatchOpsSectionInput['batchPreviewTextByLayerId'];
+  batchPreviewTextPropsByLayerId: BuildReadyWorkspaceBatchOpsSectionInput['batchPreviewTextPropsByLayerId'];
+  defaultBatchPreviewLayerId: BuildReadyWorkspaceBatchOpsSectionInput['defaultBatchPreviewLayerId'];
+  onCloseBatchOps: BuildReadyWorkspaceBatchOpsSectionInput['onCloseBatchOps'];
+  onBatchOffset: BuildReadyWorkspaceBatchOpsSectionInput['onBatchOffset'];
+  onBatchScale: BuildReadyWorkspaceBatchOpsSectionInput['onBatchScale'];
+  onBatchSplitByRegex: BuildReadyWorkspaceBatchOpsSectionInput['onBatchSplitByRegex'];
+  onBatchMerge: BuildReadyWorkspaceBatchOpsSectionInput['onBatchMerge'];
+  onBatchJumpToUnit: BuildReadyWorkspaceBatchOpsSectionInput['onBatchJumpToUnit'];
 };
 
 /** ARCH-7 收口：stage props 组装独立模块化，降低通用 builder 文件认知负担 | ARCH-7 closure: isolate stage props assembly to reduce cognitive load in the shared builders module. */
 export function buildReadyWorkspaceStageProps(
   input: BuildReadyWorkspaceStagePropsInput,
 ): ReadyWorkspaceStageProps {
+  // 缩放控制程序集 | Zoom controls assembly
+  const buildZoomControlsProps = () => ({
+    zoomPercent: input.timelineViewportProjection.zoomPercent,
+    snapEnabled: input.snapEnabled,
+    autoScrollEnabled: input.autoScrollEnabled,
+    activeUnitId: input.activeWaveformUnitId,
+    unitsOnCurrentMedia: input.waveformTimelineItems,
+    fitPxPerSec: input.timelineViewportProjection.fitPxPerSec,
+    maxZoomPercent: input.timelineViewportProjection.maxZoomPercent,
+    onZoomToPercent: input.onZoomToPercent,
+    onZoomToUnit: input.onZoomToUnit,
+    onSnapEnabledChange: input.onSnapEnabledChange,
+    onAutoScrollEnabledChange: input.onAutoScrollEnabledChange,
+  });
+
+  // 套索处理器程序集 | Lasso handlers assembly
+  const buildLassoHandlers = () => ({
+    onPointerDownCapture: input.onLassoPointerDown,
+    onPointerMove: input.onLassoPointerMove,
+    onPointerUp: input.onLassoPointerUp,
+    onScroll: input.onTimelineScroll,
+  });
+
+  // AI 面板句柄程序集 | AI panel handle props assembly
+  const buildAiPanelHandleProps = () => ({
+    locale: input.locale,
+    isAiPanelCollapsed: input.isAiPanelCollapsed,
+    setIsAiPanelCollapsed: input.setIsAiPanelCollapsed,
+    handleAiPanelResizeStart: input.handleAiPanelResizeStart,
+    handleAiPanelToggle: input.handleAiPanelToggle,
+  });
+
+  // 助手桥接程序集 | Assistant bridge assembly
+  const buildAssistantBridge = () => ({
+    controllerInput: input.assistantBridgeControllerInput,
+    onRuntimeStateChange: input.onRuntimeStateChange,
+  });
+
   return {
-    toastProps: {
-      mode: 'core-only',
-      voiceAgent: {
-        agentState: 'idle',
-        mode: 'command',
-        listening: false,
-        isRecording: false,
-      },
-      saveState: input.assistantFrame.saveState,
-      recording: input.assistantFrame.recording,
-      recordingUnitId: input.assistantFrame.recordingUnitId,
-      recordingError: input.assistantFrame.recordingError,
-      ...(input.assistantFrame.overlapCycleToast !== undefined ? { overlapCycleToast: input.assistantFrame.overlapCycleToast } : {}),
-      ...(input.assistantFrame.lockConflictToast !== undefined ? { lockConflictToast: input.assistantFrame.lockConflictToast } : {}),
-      tf: input.assistantFrame.tf,
-    },
-    recoveryBannerProps: {
+    toastProps: buildReadyWorkspaceToastProps({
+      assistantFrame: input.assistantFrame,
+    }),
+    recoveryBannerProps: buildReadyWorkspaceRecoveryBannerProps({
       shouldRender: input.shouldRenderRecoveryBanner,
       recoveryAvailable: input.recoveryAvailable,
       recoveryDiffSummary: input.recoveryDiffSummary,
       onApply: input.onApplyRecoveryBanner,
       onDismiss: input.onDismissRecoveryBanner,
-    },
+    }),
     ...(input.collaborationCloudStatusSlot !== undefined
       ? { collaborationCloudStatusSlot: input.collaborationCloudStatusSlot }
       : {}),
     toolbarProps: input.toolbarProps,
-    observerProps: {
+    observerProps: buildReadyWorkspaceObserverProps({
       observerStage: input.observerStage,
       recommendations: input.recommendations,
       onExecuteRecommendation: input.onExecuteRecommendation,
-    },
+    }),
     acousticRuntimeStatus: input.acousticRuntimeStatus,
     vadCacheStatus: input.vadCacheStatus,
-    projectHubProps: {
+    projectHubProps: buildReadyWorkspaceProjectHubProps({
       currentProjectLabel: input.currentProjectLabel,
-      selectedMediaId: input.selectedMediaId ?? null,
-      activeTextTimelineMode: input.activeTextTimelineMode ?? null,
-      activeTextTimeMapping: input.activeTextTimeMapping ?? null,
+      selectedMediaId: input.selectedMediaId,
+      activeTextTimelineMode: input.activeTextTimelineMode,
+      activeTextTimeMapping: input.activeTextTimeMapping,
       canDeleteProject: input.canDeleteProject,
       canDeleteAudio: input.canDeleteAudio,
       onOpenProjectSetup: input.onOpenProjectSetup,
@@ -168,12 +215,10 @@ export function buildReadyWorkspaceStageProps(
       onOpenSpeakerManagementPanel: input.onOpenSpeakerManagementPanel,
       onDeleteCurrentProject: input.onDeleteCurrentProject,
       onDeleteCurrentAudio: input.onDeleteCurrentAudio,
-      onImportAnnotationFile: async (file: File, strategy: AnnotationImportBridgeStrategy) => {
-        await input.handleImportFile(file, strategy);
-      },
+      handleImportFile: input.handleImportFile,
       onPreviewProjectArchiveImport: input.onPreviewProjectArchiveImport,
       onImportProjectArchive: input.onImportProjectArchive,
-      ...(input.onApplyTextTimeMapping ? { onApplyTextTimeMapping: input.onApplyTextTimeMapping } : {}),
+      onApplyTextTimeMapping: input.onApplyTextTimeMapping,
       onExportEaf: input.onExportEaf,
       onExportTextGrid: input.onExportTextGrid,
       onExportTrs: input.onExportTrs,
@@ -181,11 +226,11 @@ export function buildReadyWorkspaceStageProps(
       onExportToolbox: input.onExportToolbox,
       onExportJyt: input.onExportJyt,
       onExportJym: input.onExportJym,
-    },
-    mediaInputProps: {
-      ref: input.mediaFileInputRef,
-      onChange: input.onDirectMediaImport,
-    },
+    }),
+    mediaInputProps: buildReadyWorkspaceMediaInputProps({
+      mediaFileInputRef: input.mediaFileInputRef,
+      onDirectMediaImport: input.onDirectMediaImport,
+    }),
     workspaceAreaProps: {
       waveformSectionRef: input.waveformSectionRef,
       workspaceRef: input.workspaceRef,
@@ -199,27 +244,10 @@ export function buildReadyWorkspaceStageProps(
       timelineContentProps: input.timelineContentProps,
       editorContextValue: input.editorContextValue,
       aiPanelContextValue: input.aiPanelContextValue,
-      lassoHandlers: {
-        onPointerDownCapture: input.onLassoPointerDown,
-        onPointerMove: input.onLassoPointerMove,
-        onPointerUp: input.onLassoPointerUp,
-        onScroll: input.onTimelineScroll,
-      },
+      lassoHandlers: buildLassoHandlers(),
       timelineResizeTooltip: input.timelineResizeTooltip,
       formatTime: input.formatTime,
-      zoomControlsProps: {
-        zoomPercent: input.timelineViewportProjection.zoomPercent,
-        snapEnabled: input.snapEnabled,
-        autoScrollEnabled: input.autoScrollEnabled,
-        activeUnitId: input.activeWaveformUnitId,
-        unitsOnCurrentMedia: input.waveformTimelineItems,
-        fitPxPerSec: input.timelineViewportProjection.fitPxPerSec,
-        maxZoomPercent: input.timelineViewportProjection.maxZoomPercent,
-        onZoomToPercent: input.onZoomToPercent,
-        onZoomToUnit: input.onZoomToUnit,
-        onSnapEnabledChange: input.onSnapEnabledChange,
-        onAutoScrollEnabledChange: input.onAutoScrollEnabledChange,
-      },
+      zoomControlsProps: buildZoomControlsProps(),
       historyControlsProps: buildReadyWorkspaceHistoryControlsProps({
         canUndo: input.canUndo,
         canRedo: input.canRedo,
@@ -233,17 +261,8 @@ export function buildReadyWorkspaceStageProps(
         undoToHistoryIndex: input.undoToHistoryIndex,
         redo: input.redo,
       }),
-      aiPanelHandleProps: {
-        locale: input.locale,
-        isAiPanelCollapsed: input.isAiPanelCollapsed,
-        setIsAiPanelCollapsed: input.setIsAiPanelCollapsed,
-        handleAiPanelResizeStart: input.handleAiPanelResizeStart,
-        handleAiPanelToggle: input.handleAiPanelToggle,
-      },
-      assistantBridge: {
-        controllerInput: input.assistantBridgeControllerInput,
-        onRuntimeStateChange: input.onRuntimeStateChange,
-      },
+      aiPanelHandleProps: buildAiPanelHandleProps(),
+      assistantBridge: buildAssistantBridge(),
       aiSidebarProps: input.aiSidebarProps,
       shouldRenderAiSidebar: input.shouldRenderAiSidebar,
       dialogsProps: input.dialogsProps,
@@ -251,25 +270,23 @@ export function buildReadyWorkspaceStageProps(
       pdfRuntimeProps: input.pdfRuntimeProps,
       shouldRenderPdfRuntime: input.shouldRenderPdfRuntime,
     },
-    batchOpsSection: {
-      shouldRender: input.shouldRenderBatchOps,
-      props: {
-        showBatchOperationPanel: input.showBatchOperationPanel,
-        selectedUnitIds: input.selectedUnitIds,
-        selectedBatchUnits: input.selectedBatchUnits,
-        unitsOnCurrentMedia: input.unitsOnCurrentMedia,
-        selectedBatchUnitTextById: input.selectedBatchUnitTextById,
-        batchPreviewLayerOptions: input.batchPreviewLayerOptions,
-        batchPreviewTextByLayerId: input.batchPreviewTextByLayerId,
-        batchPreviewTextPropsByLayerId: input.batchPreviewTextPropsByLayerId ?? {},
-        defaultBatchPreviewLayerId: input.defaultBatchPreviewLayerId,
-        onBatchClose: input.onCloseBatchOps,
-        onBatchOffset: input.onBatchOffset,
-        onBatchScale: input.onBatchScale,
-        onBatchSplitByRegex: input.onBatchSplitByRegex,
-        onBatchMerge: input.onBatchMerge,
-        onBatchJumpToUnit: input.onBatchJumpToUnit,
-      },
-    },
+    batchOpsSection: buildReadyWorkspaceBatchOpsSection({
+      shouldRenderBatchOps: input.shouldRenderBatchOps,
+      showBatchOperationPanel: input.showBatchOperationPanel,
+      selectedUnitIds: input.selectedUnitIds,
+      selectedBatchUnits: input.selectedBatchUnits,
+      unitsOnCurrentMedia: input.unitsOnCurrentMedia,
+      selectedBatchUnitTextById: input.selectedBatchUnitTextById,
+      batchPreviewLayerOptions: input.batchPreviewLayerOptions,
+      batchPreviewTextByLayerId: input.batchPreviewTextByLayerId,
+      batchPreviewTextPropsByLayerId: input.batchPreviewTextPropsByLayerId,
+      defaultBatchPreviewLayerId: input.defaultBatchPreviewLayerId,
+      onCloseBatchOps: input.onCloseBatchOps,
+      onBatchOffset: input.onBatchOffset,
+      onBatchScale: input.onBatchScale,
+      onBatchSplitByRegex: input.onBatchSplitByRegex,
+      onBatchMerge: input.onBatchMerge,
+      onBatchJumpToUnit: input.onBatchJumpToUnit,
+    }),
   };
 }

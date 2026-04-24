@@ -13,7 +13,12 @@ import { upgradeM18LinguisticUnitCutover } from './migrations/m18LinguisticUnitC
 import { upgradeM41SelfCertaintyHostDepollute } from './migrations/m41SelfCertaintyHostDepollute';
 import { upgradeM42TrackEntityDocumentIds } from './migrations/m42TrackEntityDocumentIds';
 import { markBackupDirtySinceLastExport } from '../utils/backupExportReminderState';
-import { isDexieIndexedQueryFallbackError, reportUnexpectedDexieQueryError } from './adapterDexieQueryErrors';
+import {
+  isDexieIndexedQueryFallbackError,
+  reportDexieIndexedQueryFallback,
+  reportUnexpectedDexieQueryError,
+} from './adapterDexieQueryErrors';
+import { createPreMigrationBackupSnapshot } from './preMigrationBackup';
 
 /**
  * IndexedDB 物理库名。绿场重置时抬升后缀，使旧库 `jieyudb` 留在磁盘但应用不再打开。
@@ -514,7 +519,9 @@ export class JieyuDexie extends Dexie {
           const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
           if (ranked.length > 0) return ranked[0]![0];
         } catch (err) {
-          if (!isDexieIndexedQueryFallbackError(err)) {
+          if (isDexieIndexedQueryFallbackError(err)) {
+            reportDexieIndexedQueryFallback('migrations:v11:resolveTextIdForLayer:unit_texts', err);
+          } else {
             reportUnexpectedDexieQueryError('migrations:v11:resolveTextIdForLayer:unit_texts', err);
           }
           // unit_texts 读失败时仍退回单值 textId，保证迁移能完成 | Fall back so migration can finish
@@ -1292,6 +1299,13 @@ async function _createDb(): Promise<JieyuDatabase> {
   const migrationNeeded = currentVersion > 0 && currentVersion < JIEYU_DEXIE_TARGET_SCHEMA_VERSION;
   if (migrationNeeded) {
     dispatchDbMigrationStartEvent({ from: currentVersion, to: JIEYU_DEXIE_TARGET_SCHEMA_VERSION });
+    // ARCH-5 实际收口：迁移前自动快照（独立备份库），失败不阻断升级但会重试。
+    // ARCH-5 closure: create a pre-migration snapshot in a dedicated backup DB; failures are best-effort.
+    await createPreMigrationBackupSnapshot({
+      dbName: JIEYU_DEXIE_DB_NAME,
+      fromVersion: currentVersion,
+      toVersion: JIEYU_DEXIE_TARGET_SCHEMA_VERSION,
+    });
   }
   try {
     await dexie.open();

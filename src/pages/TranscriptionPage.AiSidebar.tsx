@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { normalizeLocale, t } from '../i18n';
 import type { TranscriptionPageAnalysisRuntimeProps, TranscriptionPageAssistantRuntimeProps } from './TranscriptionPage.runtimeContracts';
 
@@ -72,13 +73,17 @@ export function TranscriptionPageAiSidebar({
 
       {shouldRenderRuntime ? (
         hubSidebarTab === 'assistant' ? (
-          <Suspense fallback={null}>
-            <AssistantRuntime {...assistantRuntimeProps} />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <AssistantRuntime {...assistantRuntimeProps} />
+            </Suspense>
+          </ErrorBoundary>
         ) : (
-          <Suspense fallback={null}>
-            <AnalysisRuntime {...analysisRuntimeProps} />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <AnalysisRuntime {...analysisRuntimeProps} />
+            </Suspense>
+          </ErrorBoundary>
         )
       ) : null}
     </section>

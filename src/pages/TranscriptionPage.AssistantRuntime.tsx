@@ -1,8 +1,9 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import '../styles/pages/ai-sidebar-shell.css';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { AiAssistantHubContext } from '../contexts/AiAssistantHubContext';
-import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE, VoiceAgentProvider } from '../contexts/VoiceAgentContext';
-import { AiChatProvider, type AiChatContextValue } from '../contexts/AiChatContext';
+import { DEFAULT_VOICE_AGENT_CONTEXT_VALUE } from '../contexts/VoiceAgentContext';
+import { type AiChatContextValue } from '../contexts/AiChatContext';
 import { pickAiAssistantHubContextValue, useAiAssistantHubContextValue } from '../hooks/useAiAssistantHubContextValue';
 import { useVoiceDock } from '../hooks/useVoiceDock';
 import { useVoiceInteraction } from '../hooks/useVoiceInteraction';
@@ -31,9 +32,7 @@ interface AssistantVoiceRuntimeProps {
 }
 
 interface AssistantRuntimeHostProps {
-  aiChatContextValue: AiChatContextValue;
   aiAssistantHubContextValue: ReturnType<typeof pickAiAssistantHubContextValue>;
-  voiceAgentContextValue: ReturnType<typeof pickVoiceAgentContextValue>;
   frame: TranscriptionPageAssistantRuntimeFrameProps;
   toastVoiceAgent: {
     agentState: string;
@@ -53,43 +52,39 @@ interface AssistantRuntimeHostProps {
 }
 
 function AssistantRuntimeFrame({
-  aiChatContextValue,
   aiAssistantHubContextValue,
-  voiceAgentContextValue,
   frame,
   toastVoiceAgent,
   voiceDrawer,
   voiceEntry,
 }: AssistantRuntimeHostProps) {
   return (
-    <VoiceAgentProvider value={voiceAgentContextValue}>
-      <AiChatProvider value={aiChatContextValue}>
-        <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
-          <ToastController
-            mode="voice-only"
-            voiceAgent={toastVoiceAgent}
-            saveState={frame.saveState}
-            recording={frame.recording}
-            recordingUnitId={frame.recordingUnitId}
-            recordingError={frame.recordingError}
-            {...(frame.overlapCycleToast !== undefined ? { overlapCycleToast: frame.overlapCycleToast } : {})}
-            {...(frame.lockConflictToast !== undefined ? { lockConflictToast: frame.lockConflictToast } : {})}
-            tf={frame.tf}
-          />
-          <div className="transcription-hub-assistant-panel">
-            <div className="transcription-hub-assistant-chat-section">
-              <Suspense fallback={null}>
-                <AiChatCard
-                  embedded
-                  voiceDrawer={voiceDrawer}
-                  voiceEntry={voiceEntry}
-                />
-              </Suspense>
-            </div>
-          </div>
-        </AiAssistantHubContext.Provider>
-      </AiChatProvider>
-    </VoiceAgentProvider>
+    <AiAssistantHubContext.Provider value={aiAssistantHubContextValue}>
+      <ToastController
+        mode="voice-only"
+        voiceAgent={toastVoiceAgent}
+        saveState={frame.saveState}
+        recording={frame.recording}
+        recordingUnitId={frame.recordingUnitId}
+        recordingError={frame.recordingError}
+        {...(frame.overlapCycleToast !== undefined ? { overlapCycleToast: frame.overlapCycleToast } : {})}
+        {...(frame.lockConflictToast !== undefined ? { lockConflictToast: frame.lockConflictToast } : {})}
+        tf={frame.tf}
+      />
+      <div className="transcription-hub-assistant-panel">
+        <div className="transcription-hub-assistant-chat-section">
+          <ErrorBoundary>
+            <Suspense fallback={null}>
+              <AiChatCard
+                embedded
+                voiceDrawer={voiceDrawer}
+                voiceEntry={voiceEntry}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      </div>
+    </AiAssistantHubContext.Provider>
   );
 }
 
@@ -290,9 +285,7 @@ function AssistantVoiceRuntime({
 
   return (
     <AssistantRuntimeFrame
-      aiChatContextValue={aiChatContextValue}
       aiAssistantHubContextValue={aiAssistantHubContextValue}
-      voiceAgentContextValue={voiceAgentContextValue}
       frame={frame}
       toastVoiceAgent={voiceAgent}
       voiceDrawer={voiceDrawer}
@@ -370,9 +363,7 @@ export function TranscriptionPageAssistantRuntime({
 
   return (
     <AssistantRuntimeFrame
-      aiChatContextValue={aiChatContextValue}
       aiAssistantHubContextValue={dormantAssistantHubContextValue}
-      voiceAgentContextValue={dormantVoiceAgentContextValue}
       frame={frame}
       toastVoiceAgent={{
         agentState: 'idle',

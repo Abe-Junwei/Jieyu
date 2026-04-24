@@ -6,7 +6,11 @@
  * Bridge helpers: tier ↔ layer 双向转换工具
  */
 import type { Table } from 'dexie';
-import { isDexieIndexedQueryFallbackError, reportUnexpectedDexieQueryError } from './adapterDexieQueryErrors';
+import {
+  isDexieIndexedQueryFallbackError,
+  reportDexieIndexedQueryFallback,
+  reportUnexpectedDexieQueryError,
+} from './adapterDexieQueryErrors';
 import type {
   JieyuDoc,
   Selector,
@@ -52,7 +56,9 @@ export class DexieCollectionAdapter<T extends { id: string }> {
             const indexed = await this.table.where(String(key)).equals(expected as string | number).first();
             return indexed ? wrapDoc(indexed) : null;
           } catch (err) {
-            if (!isDexieIndexedQueryFallbackError(err)) {
+            if (isDexieIndexedQueryFallbackError(err)) {
+              reportDexieIndexedQueryFallback('findOne:where', err);
+            } else {
               reportUnexpectedDexieQueryError('findOne:where', err);
             }
             // Fall through to generic filter path for non-indexed fields.
@@ -124,7 +130,9 @@ export class DexieCollectionAdapter<T extends { id: string }> {
             .map((row) => row.id);
         }
       } catch (err) {
-        if (!isDexieIndexedQueryFallbackError(err)) {
+        if (isDexieIndexedQueryFallbackError(err)) {
+          reportDexieIndexedQueryFallback('removeBySelector:indexed', err);
+        } else {
           reportUnexpectedDexieQueryError('removeBySelector:indexed', err);
         }
         // 非索引或不支持 equals 的字段，回退 filter 扫描 | Fall back to filter scan for unsupported selectors.
@@ -291,7 +299,9 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
         }
         return mapRows(await this.tierTable.where('contentType').equals(String(value)).toArray());
       } catch (err) {
-        if (!isDexieIndexedQueryFallbackError(err)) {
+        if (isDexieIndexedQueryFallbackError(err)) {
+          reportDexieIndexedQueryFallback('TierBackedLayerCollectionAdapter:findByIndex', err);
+        } else {
           reportUnexpectedDexieQueryError('TierBackedLayerCollectionAdapter:findByIndex', err);
         }
       }

@@ -6,6 +6,7 @@ import Dexie from 'dexie';
 import { createLogger } from '../observability/logger';
 
 const log = createLogger('dbDexieQuery');
+const warnedDexieIndexedFallbackContexts = new Set<string>();
 
 function errorMessageOf(err: unknown): string {
   if (err instanceof Error && typeof err.message === 'string') return err.message;
@@ -91,6 +92,29 @@ export function reportUnexpectedDexieQueryError(context: string, err: unknown): 
 }
 
 /**
+ * DEV 提示：索引 where 快路径触发了「预期回退」，帮助开发期补齐索引或改用显式查询策略。
+ * DEV hint: indexed where fast-path hit expected fallback; helps decide whether to add index or use explicit scan strategy.
+ */
+export function reportDexieIndexedQueryFallback(context: string, err: unknown): void {
+  if (!import.meta.env.DEV) return;
+
+  const key = context.trim().slice(0, 200);
+  if (!key || warnedDexieIndexedFallbackContexts.has(key)) return;
+  warnedDexieIndexedFallbackContexts.add(key);
+
+  log.info('Dexie indexed query fell back to degraded path', {
+    context: key,
+    name: err instanceof Error ? err.name : typeof err,
+    message: errorMessageOf(err).slice(0, 2000),
+    suggestion: 'consider adding index or using explicit scan/query strategy',
+  });
+}
+
+export function __resetDexieIndexedFallbackHintsForTests(): void {
+  warnedDexieIndexedFallbackContexts.clear();
+}
+
+/**
  * 先走索引/where 快路径，失败时仅在非「预期回退类」错误上报告，再执行 `runFallback`（通常全表或空结果）。
  */
 export async function runDexieIndexedQueryOrElse<T>(
@@ -101,7 +125,9 @@ export async function runDexieIndexedQueryOrElse<T>(
   try {
     return await runIndexed();
   } catch (err) {
-    if (!isDexieIndexedQueryFallbackError(err)) {
+    if (isDexieIndexedQueryFallbackError(err)) {
+      reportDexieIndexedQueryFallback(context, err);
+    } else {
       reportUnexpectedDexieQueryError(context, err);
     }
     return await runFallback();
@@ -117,7 +143,9 @@ export function reportIfUnexpectedDexieDegradation(
   err: unknown,
   debugMessage: string,
 ): void {
-  if (!isDexieIndexedQueryFallbackError(err)) {
+  if (isDexieIndexedQueryFallbackError(err)) {
+    reportDexieIndexedQueryFallback(context, err);
+  } else {
     reportUnexpectedDexieQueryError(context, err);
   }
   console.debug(debugMessage, err);

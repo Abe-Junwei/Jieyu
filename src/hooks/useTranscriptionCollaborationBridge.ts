@@ -54,6 +54,11 @@ interface CollaborationChangeInsertRow {
   created_at: string;
 }
 
+interface LoadProtocolGuardFromCloudResult {
+  guard: CollaborationProtocolGuardEvaluation;
+  error: unknown | null;
+}
+
 export interface TranscriptionCollaborationMutationInput {
   entityType: ProjectEntityType;
   entityId: string;
@@ -74,6 +79,25 @@ const DEFAULT_PROTOCOL_GUARD: CollaborationProtocolGuardEvaluation = {
   reasons: [],
   outboundProtocolVersion: SUPPORTED_COLLABORATION_PROTOCOL_VERSION,
 };
+
+async function loadProtocolGuardFromCloud(projectId: string): Promise<LoadProtocolGuardFromCloudResult> {
+  const client = getSupabaseBrowserClient();
+  const { data: projectRow, error } = await client
+    .from('projects')
+    .select('protocol_version, app_min_version')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  const guard = evaluateCollaborationProtocolGuard(
+    projectRow
+      ? {
+        protocolVersion: projectRow.protocol_version,
+        appMinVersion: projectRow.app_min_version,
+      }
+      : null,
+  );
+  return { guard, error };
+}
 
 function assertCloudWritesAllowed(writeGuard: CollaborationProtocolGuardEvaluation): void {
   if (!writeGuard.cloudWritesDisabled) return;
@@ -128,6 +152,28 @@ export function useTranscriptionCollaborationBridge({
   /** 云端从禁写切到允许写时递增，用于重启桥接以灌入持久化 pending | Bump when cloud flips disabled→enabled writes */
   const [writeGateEpoch, setWriteGateEpoch] = useState(0);
 
+  const applyProtocolGuard = useCallback((next: CollaborationProtocolGuardEvaluation): void => {
+    writeGuardRef.current = next;
+    setProtocolGuard(next);
+  }, []);
+
+  const resetBridgeRuntimeState = useCallback(() => {
+    bridgeRef.current = null;
+    codecRef.current = null;
+    latestRevisionRef.current = 0;
+    applyProtocolGuard(DEFAULT_PROTOCOL_GUARD);
+    setOutboundPendingCount(0);
+    setIsBridgeReady(false);
+  }, [applyProtocolGuard]);
+
+  const stopBridgeRuntime = useCallback(async () => {
+    const current = bridgeRef.current;
+    resetBridgeRuntimeState();
+    if (current) {
+      await current.stop();
+    }
+  }, [resetBridgeRuntimeState]);
+
   const commitLatestRevision = useCallback((revision: number): void => {
     if (!Number.isFinite(revision)) return;
     const normalizedRevision = Math.max(0, Math.floor(revision));
@@ -141,29 +187,15 @@ export function useTranscriptionCollaborationBridge({
   useEffect(() => {
     let disposed = false;
 
-    const stopBridge = async () => {
-      const current = bridgeRef.current;
-      bridgeRef.current = null;
-      codecRef.current = null;
-      latestRevisionRef.current = 0;
-      writeGuardRef.current = DEFAULT_PROTOCOL_GUARD;
-      setProtocolGuard(DEFAULT_PROTOCOL_GUARD);
-      setOutboundPendingCount(0);
-      setIsBridgeReady(false);
-      if (current) {
-        await current.stop();
-      }
-    };
-
     if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig()) {
-      void stopBridge();
+      void stopBridgeRuntime();
       return () => {
         disposed = true;
       };
     }
 
     const startBridge = async () => {
-      await stopBridge();
+      await stopBridgeRuntime();
       await hydrateCollabClientStateFromIdb();
 
       const actorId = await getSupabaseUserId();
@@ -173,32 +205,14 @@ export function useTranscriptionCollaborationBridge({
       }
       if (disposed) return;
 
-      const storedRevision = loadProjectLastSeenRevision(normalizedProjectId);
-      latestRevisionRef.current = Math.max(0, storedRevision);
+      latestRevisionRef.current = Math.max(0, loadProjectLastSeenRevision(normalizedProjectId));
 
-      const client = getSupabaseBrowserClient();
-      const { data: projectRow, error: projectError } = await client
-        .from('projects')
-        .select('protocol_version, app_min_version')
-        .eq('id', normalizedProjectId)
-        .maybeSingle();
-
-      if (projectError) {
-        console.warn('[TranscriptionCollaborationBridge] failed to load project protocol guard:', projectError);
+      const { guard, error: projectGuardError } = await loadProtocolGuardFromCloud(normalizedProjectId);
+      if (projectGuardError) {
+        console.warn('[TranscriptionCollaborationBridge] failed to load project protocol guard:', projectGuardError);
       }
-
-      const guard = evaluateCollaborationProtocolGuard(
-        projectRow
-          ? {
-            protocolVersion: projectRow.protocol_version,
-            appMinVersion: projectRow.app_min_version,
-          }
-          : null,
-      );
-      writeGuardRef.current = guard;
-      if (!disposed) {
-        setProtocolGuard(guard);
-      }
+      if (disposed) return;
+      applyProtocolGuard(guard);
 
       const codec = new ProjectChangeCodec({
         protocolVersion: guard.outboundProtocolVersion,
@@ -206,6 +220,7 @@ export function useTranscriptionCollaborationBridge({
         clientId: clientIdRef.current,
       });
 
+      const client = getSupabaseBrowserClient();
       const bridge = new CollaborationSyncBridge({
         projectId: normalizedProjectId,
         initialOutboundPending: guard.cloudWritesDisabled
@@ -263,9 +278,17 @@ export function useTranscriptionCollaborationBridge({
 
     return () => {
       disposed = true;
-      void stopBridge();
+      void stopBridgeRuntime();
     };
-  }, [commitLatestRevision, enabled, normalizedProjectId, onApplyRemoteChange, writeGateEpoch]);
+  }, [
+    applyProtocolGuard,
+    commitLatestRevision,
+    enabled,
+    normalizedProjectId,
+    onApplyRemoteChange,
+    stopBridgeRuntime,
+    writeGateEpoch,
+  ]);
 
   useEffect(() => {
     if (!enabled || !normalizedProjectId || !hasSupabaseBrowserClientConfig()) return;
@@ -275,27 +298,10 @@ export function useTranscriptionCollaborationBridge({
 
     const refreshGuardFromCloud = async () => {
       try {
-        const client = getSupabaseBrowserClient();
-        const { data: projectRow, error } = await client
-          .from('projects')
-          .select('protocol_version, app_min_version')
-          .eq('id', normalizedProjectId)
-          .maybeSingle();
+        const { guard: next, error } = await loadProtocolGuardFromCloud(normalizedProjectId);
         if (cancelled || error) return;
-
-        const next = evaluateCollaborationProtocolGuard(
-          projectRow
-            ? {
-              protocolVersion: projectRow.protocol_version,
-              appMinVersion: projectRow.app_min_version,
-            }
-            : null,
-        );
         const prev = writeGuardRef.current;
-        writeGuardRef.current = next;
-        if (!cancelled) {
-          setProtocolGuard(next);
-        }
+        applyProtocolGuard(next);
         if (!cancelled && prev.cloudWritesDisabled && !next.cloudWritesDisabled) {
           setWriteGateEpoch((n) => n + 1);
         }
@@ -321,7 +327,7 @@ export function useTranscriptionCollaborationBridge({
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [enabled, normalizedProjectId]);
+  }, [applyProtocolGuard, enabled, normalizedProjectId]);
 
   const enqueueMutation = useCallback((input: TranscriptionCollaborationMutationInput): void => {
     if (!normalizedProjectId) return;

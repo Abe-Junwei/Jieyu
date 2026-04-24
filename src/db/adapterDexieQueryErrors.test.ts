@@ -1,7 +1,10 @@
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { addLogObserver } from '../observability/logger';
 import {
+  __resetDexieIndexedFallbackHintsForTests,
   isDexieIndexedQueryFallbackError,
+  reportDexieIndexedQueryFallback,
   reportIfUnexpectedDexieDegradation,
   runDexieIndexedQueryOrElse,
 } from './adapterDexieQueryErrors';
@@ -70,6 +73,7 @@ describe('runDexieIndexedQueryOrElse', () => {
 describe('reportIfUnexpectedDexieDegradation', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    __resetDexieIndexedFallbackHintsForTests();
   });
 
   it('always calls console.debug with the error', () => {
@@ -77,5 +81,42 @@ describe('reportIfUnexpectedDexieDegradation', () => {
     const e = new Error('quota');
     reportIfUnexpectedDexieDegradation('t', e, 'label:');
     expect(dbg).toHaveBeenCalledWith('label:', e);
+  });
+
+  it('emits dev fallback hint once per context for indexed fallback errors', () => {
+    const logs: Array<{ level: string; message: string }> = [];
+    const dispose = addLogObserver((entry) => {
+      logs.push({ level: entry.level, message: entry.message });
+    });
+    const dbg = vi.spyOn(console, 'debug').mockImplementation(() => {});
+    const e = new Error('KeyPath x is not indexed');
+
+    reportIfUnexpectedDexieDegradation('same-context', e, 'label:');
+    reportIfUnexpectedDexieDegradation('same-context', e, 'label:');
+
+    dispose();
+    expect(dbg).toHaveBeenCalledTimes(2);
+    const hints = logs.filter((entry) => entry.level === 'info' && entry.message.includes('fell back'));
+    expect(hints).toHaveLength(1);
+  });
+});
+
+describe('reportDexieIndexedQueryFallback', () => {
+  afterEach(() => {
+    __resetDexieIndexedFallbackHintsForTests();
+  });
+
+  it('skips duplicate context hints', () => {
+    const logs: Array<{ level: string; message: string }> = [];
+    const dispose = addLogObserver((entry) => {
+      logs.push({ level: entry.level, message: entry.message });
+    });
+
+    reportDexieIndexedQueryFallback('dup', new Error('KeyPath x is not indexed'));
+    reportDexieIndexedQueryFallback('dup', new Error('KeyPath x is not indexed'));
+
+    dispose();
+    const hints = logs.filter((entry) => entry.level === 'info' && entry.message.includes('fell back'));
+    expect(hints).toHaveLength(1);
   });
 });
