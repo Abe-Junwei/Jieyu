@@ -442,7 +442,7 @@ describe('useTranscriptionAiController', () => {
       arguments: { allSegments: true },
     });
     expect(riskCheck?.riskSummary).toContain('将删除第 1 条句段');
-    expect(riskCheck?.impactPreview?.[1]).toContain('1 个翻译层包含内容');
+    expect(riskCheck?.impactPreview?.[1]).toContain('1 个翻译层组含内容');
   });
 
   it('still scopes AI segment resolution to current media when there is no selected segment', () => {

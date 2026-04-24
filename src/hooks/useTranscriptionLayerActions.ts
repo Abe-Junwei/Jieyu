@@ -161,7 +161,7 @@ export function useTranscriptionLayerActions({
         id: newId('link'),
         transcriptionLayerKey: nextParentKey,
         hostTranscriptionLayerId: nextParent.id,
-        targetLayerId: translationLayerId,
+        linkedTranslationLayerId: translationLayerId,
         createdAt: now,
       });
       await db.collections.layer_links.insert(newLink);
@@ -394,7 +394,7 @@ export function useTranscriptionLayerActions({
             id: newId('link'),
             transcriptionLayerKey: hostLayer.key,
             hostTranscriptionLayerId: hostLayer.id,
-            targetLayerId: id,
+            linkedTranslationLayerId: id,
             createdAt: now,
           });
           if (hostLayer.id === resolvedTranslationPreferredHostTranscriptionLayerId) {
@@ -507,7 +507,7 @@ export function useTranscriptionLayerActions({
               id: newId('link'),
               transcriptionLayerKey: deleteCheck.relinkTargetKey,
               hostTranscriptionLayerId: relinkTargetLayer.id,
-              targetLayerId: trlId,
+              linkedTranslationLayerId: trlId,
               createdAt: now,
             });
             await db.collections.layer_links.insert(relink);
@@ -694,7 +694,7 @@ export function useTranscriptionLayerActions({
         id: newId('link'),
         transcriptionLayerKey: targetParent.key,
         hostTranscriptionLayerId: targetParent.id,
-        targetLayerId: layerId,
+        linkedTranslationLayerId: layerId,
         createdAt: now,
       });
       const newLink: LayerLinkDocType = !hasPreferred ? { ...baseLink, isPreferred: true } : baseLink;
@@ -733,7 +733,7 @@ export function useTranscriptionLayerActions({
       id: newId('link'),
       transcriptionLayerKey: targetParent.key,
       hostTranscriptionLayerId: targetParent.id,
-      targetLayerId: layerId,
+      linkedTranslationLayerId: layerId,
       createdAt: now,
     });
     await db.collections.layer_links.insert(newLink);

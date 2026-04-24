@@ -28,7 +28,7 @@ export function timelineTranslationTextRowAutoSaveKey(layerId: string, unitId: s
 }
 
 /**
- * 译文草稿防抖 timer key：译文层「自带 segment」时按段用 `seg-`，否则按宿主单元一行用 `tr-`。
+ * 译文草稿防抖 timer key：翻译层「自带 segment」时按段用 `seg-`，否则按宿主单元一行用 `tr-`。
  * 与侧栏译文格、多轨 `TranscriptionTimelineMediaTranslationRow` 等约定一致。
  */
 export function timelineTranslationHostDraftAutoSaveKey(

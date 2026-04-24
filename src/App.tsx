@@ -25,7 +25,7 @@ import { JIEYU_MATERIAL_NAV, type LeftRailNavIconName } from './utils/jieyuMater
 const TranscriptionPage = lazy(() => import('./pages/TranscriptionPage').then(m => ({ default: m.TranscriptionPage })));
 const AnnotationPage = lazy(() => import('./pages/AnnotationPage').then(m => ({ default: m.AnnotationPage })));
 const AnalysisPage = lazy(() => import('./pages/AnalysisPage').then(m => ({ default: m.AnalysisPage })));
-const WritingPage = lazy(() => import('./pages/WritingPage').then(m => ({ default: m.WritingPage })));
+const CorpusLibraryPage = lazy(() => import('./pages/CorpusLibraryPage').then(m => ({ default: m.CorpusLibraryPage })));
 const LexiconPage = lazy(() => import('./pages/LexiconPage').then(m => ({ default: m.LexiconPage })));
 const LanguageMetadataWorkspacePage = lazy(() => import('./pages/LanguageMetadataWorkspacePage').then(m => ({ default: m.LanguageMetadataWorkspacePage })));
 const OrthographyManagerPage = lazy(() => import('./pages/OrthographyManagerPage').then(m => ({ default: m.OrthographyManagerPage })));
@@ -380,22 +380,22 @@ export function App() {
           summary: t(locale, 'app.nav.summary.annotation'),
         },
         {
-          to: '/analysis',
-          label: t(locale, 'app.nav.analysis'),
-          icon: 'psychology',
-          summary: t(locale, 'app.nav.summary.analysis'),
-        },
-        {
-          to: '/writing',
-          label: t(locale, 'app.nav.writing'),
-          icon: 'edit_note',
-          summary: t(locale, 'app.nav.summary.writing'),
-        },
-        {
           to: '/lexicon',
           label: t(locale, 'app.nav.lexicon'),
           icon: 'menu_book',
           summary: t(locale, 'app.nav.summary.lexicon'),
+        },
+        {
+          to: '/corpus',
+          label: t(locale, 'app.nav.corpus'),
+          icon: 'edit_note',
+          summary: t(locale, 'app.nav.summary.corpus'),
+        },
+        {
+          to: '/analysis',
+          label: t(locale, 'app.nav.analysis'),
+          icon: 'psychology',
+          summary: t(locale, 'app.nav.summary.analysis'),
         },
       ],
     },
@@ -666,7 +666,8 @@ export function App() {
                     <Route path="/assets/orthography-bridges" element={<TranscriptionPage />} />
                     <Route path="/annotation" element={<AnnotationPage />} />
                     <Route path="/analysis" element={<AnalysisPage />} />
-                    <Route path="/writing" element={<WritingPage />} />
+                    <Route path="/writing" element={<Navigate to="/corpus" replace />} />
+                    <Route path="/corpus" element={<CorpusLibraryPage />} />
                     <Route path="/lexicon" element={<LexiconPage />} />
                     <Route path="*" element={<NotFound locale={locale} />} />
                   </Routes>

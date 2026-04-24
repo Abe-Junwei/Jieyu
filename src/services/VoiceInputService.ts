@@ -193,9 +193,9 @@ export async function runAecDiagnostic(): Promise<AecCapability> {
     const settings = track.getSettings();
     track.stop();
     return {
-      echoCancellation: settings.echoCancellation ?? false,
-      noiseSuppression: settings.noiseSuppression ?? false,
-      autoGainControl: settings.autoGainControl ?? false,
+      echoCancellation: settings.echoCancellation === true,
+      noiseSuppression: settings.noiseSuppression === true,
+      autoGainControl: settings.autoGainControl === true,
     };
   } catch (err) {
     log.warn('detectInputCapabilities failed, using defaults', { err });

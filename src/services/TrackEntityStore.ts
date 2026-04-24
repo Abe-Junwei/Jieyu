@@ -4,6 +4,7 @@ import { trackEntityDocumentId } from '../db/trackEntityIds';
 
 export type TrackEntityState = {
   mode: TranscriptionTrackDisplayMode;
+  /** 行锁定映射 | Row lock map */
   laneLockMap: Record<string, number>;
   updatedAt: string;
 };

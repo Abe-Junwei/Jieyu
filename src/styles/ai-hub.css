@@ -1053,11 +1053,6 @@ select.ai-cfg-input {
   min-width: calc(96px * var(--ui-font-scale, 1));
 }
 
-.ai-chat-provider-config-check-icon {
-  margin-right: 2px;
-  vertical-align: -1px;
-}
-
 /* AI 配置面板：输入框与选择框 | AI config panel: input & select */
 .ai-cfg-input {
   min-height: calc(1lh + 12px);
@@ -1490,9 +1485,6 @@ select.ai-cfg-input {
   flex-shrink: 0;
 }
 
-.toolbar-sep-compact-gap {
-  margin: 0 6px;
-}
 /* 文字图标按钮标签 | Icon-btn text label */
 .icon-btn-label {
   font-size: calc(10px * var(--ui-font-scale, 1));

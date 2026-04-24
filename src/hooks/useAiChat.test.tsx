@@ -3479,7 +3479,7 @@ describe('useAiChat abort and recovery', () => {
       expect(result.current.isStreaming).toBe(false);
     });
 
-    // 选中层是转写层时，也必须沿用上下文中已解析出的宿主子译文层 | Even when selected layer is transcription, use host-aware child translation layer from context.
+    // 选中层是转写层时，也必须沿用上下文中已解析出的宿主子翻译层 | Even when selected layer is transcription, use host-aware child translation layer from context.
     expect(onToolCall).toHaveBeenCalledWith(
       expect.objectContaining({
         arguments: expect.objectContaining({

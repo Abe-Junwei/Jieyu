@@ -7,7 +7,7 @@ export type UnitTextWithoutLayerId = Omit<LayerUnitContentDocType, 'layerId'>;
 export interface LayerLinkEdge {
   transcriptionLayerKey: string;
   hostTranscriptionLayerId: string;
-  targetLayerId: string;
+  linkedTranslationLayerId: string;
 }
 
 // ─── UnitText 层 ID 辅助 | UnitText layer helpers ─────
@@ -32,7 +32,7 @@ export function createLayerLink(params: {
     id: params.id,
     transcriptionLayerKey: params.transcriptionLayerKey,
     hostTranscriptionLayerId: params.hostTranscriptionLayerId,
-    layerId: params.targetLayerId,
+    layerId: params.linkedTranslationLayerId,
     linkType: 'free',
     isPreferred: false,
     createdAt: params.createdAt,

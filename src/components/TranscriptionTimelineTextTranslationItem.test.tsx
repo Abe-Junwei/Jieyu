@@ -20,7 +20,7 @@ function makeLayer(): LayerDocType {
     id: 'trl-seg',
     textId: 't1',
     key: 'trl_seg',
-    name: { zho: '译文层' },
+    name: { zho: '翻译层' },
     layerType: 'translation',
     languageId: 'eng',
     modality: 'mixed',

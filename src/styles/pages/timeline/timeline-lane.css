@@ -77,42 +77,6 @@
   z-index: var(--z-toolbar);
 }
 
-.transcription-waveform-resize-handle:hover,
-.transcription-waveform-resize-handle-resizing {
-  background: var(--state-info-bg);
-}
-
-.transcription-waveform-resize-dots {
-  width: 34px;
-  height: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--text-secondary);
-  position: relative;
-}
-
-.transcription-waveform-resize-dots::before,
-.transcription-waveform-resize-dots::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  border-radius: var(--radius-pill);
-  background: var(--text-secondary);
-}
-
-.transcription-waveform-resize-dots::before { top: -4px; }
-.transcription-waveform-resize-dots::after { bottom: -4px; }
-
-.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots,
-.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots::before,
-.transcription-waveform-resize-handle:hover .transcription-waveform-resize-dots::after,
-.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots,
-.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots::before,
-.transcription-waveform-resize-handle-resizing .transcription-waveform-resize-dots::after {
-  background: var(--state-info-solid);
-}
-
 .timeline-lane-resize-handle {
   position: absolute;
   left: 0;
@@ -121,10 +85,6 @@
   cursor: ns-resize;
   z-index: var(--z-overlay);
   touch-action: none;
-}
-
-.timeline-lane-resize-handle-top {
-  top: -4px;
 }
 
 .timeline-lane-resize-handle-bottom {
@@ -140,10 +100,6 @@
   background: color-mix(in srgb, var(--text-tertiary) 4%, transparent);
   transition: background-color var(--duration-instant) ease;
   border-radius: 1px;
-}
-
-.timeline-lane-resize-handle-top::after {
-  top: 3px;
 }
 
 .timeline-lane-resize-handle-bottom::after {

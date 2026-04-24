@@ -66,11 +66,6 @@
   --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 46%, transparent);
 }
 
-.timeline-content-placeholder {
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .timeline-lasso-rect {
   border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
   background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);

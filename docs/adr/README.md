@@ -28,9 +28,14 @@ source_of_truth: decision-index
 - [0008-greenfield-indexeddb-export-collab-surface.md](./0008-greenfield-indexeddb-export-collab-surface.md)（绿场库名、导出表面、轨道仅存 Dexie、协同 RLS 身份绑定）
 - [0009-greenfield-timeline-single-source-freeze.md](./0009-greenfield-timeline-single-source-freeze.md)（绿场时间轴单一真相冻结；superseding ADR-0004 的运行态 mode 分叉）
 - [ADR-007 — `list_units` 大列表句柄分页（内存快照）](./adr-ai-list-units-snapshot-handle.md)
-- [0010-writing-workspace-export-runtime.md](./0010-writing-workspace-export-runtime.md)（写作导出运行时；`proposed` 骨架）
+- [0010-writing-workspace-export-runtime.md](./0010-writing-workspace-export-runtime.md)（写作导出运行时：docx/html/tex + **Typst PDF**、预览核、分档；`proposed` 骨架）
 - [0011-writing-corpus-ref-and-citation-jump.md](./0011-writing-corpus-ref-and-citation-jump.md)（`corpusRef` 与 `citationJump` 边界；`proposed` 骨架）
 - [0012-writing-workspace-dexie-schema.md](./0012-writing-workspace-dexie-schema.md)（写作 Dexie 表与迁移；`proposed` 骨架）
+- [0013-writing-lab-graduation-criteria.md](./0013-writing-lab-graduation-criteria.md)（写作 lab 毕业为开放工作台；`proposed` 骨架）
+- [0014-writing-grammardoc-vault-boundary.md](./0014-writing-grammardoc-vault-boundary.md)（GrammarDoc ↔ 写作库边界；`proposed` 占位）
+- [0015-writing-diagram-offline-supply.md](./0015-writing-diagram-offline-supply.md)（图码与离线供应链；`proposed` 占位）
+- [0016-writing-collab-object-mapping.md](./0016-writing-collab-object-mapping.md)（写作 · `project_changes` 等协同对象映射；`proposed` 骨架）
+- [0017-jieyu-core-workbench-architecture-adaptation.md](./0017-jieyu-core-workbench-architecture-adaptation.md)（核心工作台架构蓝图采纳与适配：Adopt/Adapt/Reject + 迁移风险清单）
 
 ## 建议格式
 

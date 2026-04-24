@@ -206,7 +206,7 @@ describe('createTranscriptionAiToolRiskCheck', () => {
 
     expect(result?.requiresConfirmation).toBe(true);
     expect(result?.riskSummary).toContain('第 1 条句段');
-    expect(result?.impactPreview?.[1]).toContain('1 个翻译层包含内容');
+    expect(result?.impactPreview?.[1]).toContain('1 个翻译层组含内容');
   });
 
   it('returns a blocking summary when ordinal selector cannot be resolved on the current page', () => {

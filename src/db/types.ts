@@ -649,19 +649,19 @@ export interface TranscriptionLayerDocType extends LayerDocBase {
   parentLayerId?: string;
 }
 
-/** 译文层：宿主仅 `layer_links`；持久化不得含 parentLayerId | Translation layer; hosts are layer_links only */
+/** 翻译层：宿主仅 `layer_links`；持久化不得含 parentLayerId | Translation layer; hosts are layer_links only */
 export interface TranslationLayerDocType extends LayerDocBase {
   layerType: 'translation';
 }
 
 export type LayerDocType = TranscriptionLayerDocType | TranslationLayerDocType;
 
-/** 转写层树父 id；译文层恒为 undefined | Transcription tree parent only */
+/** 转写层树父 id；翻译层恒为 undefined | Transcription tree parent only */
 export function layerTranscriptionTreeParentId(layer: LayerDocType): string | undefined {
   return layer.layerType === 'transcription' ? layer.parentLayerId : undefined;
 }
 
-/** 持久化/合并时去掉译文层上的非法 `parentLayerId` 键（若存在）| Strip stale parent key on translation rows */
+/** 持久化/合并时去掉翻译层上的非法 `parentLayerId` 键（若存在）| Strip stale parent key on translation rows */
 export function stripForbiddenTranslationParentLayerId(layer: LayerDocType): LayerDocType {
   if (layer.layerType !== 'translation') return layer;
   if (!('parentLayerId' in layer) || (layer as Record<string, unknown>).parentLayerId === undefined) {
@@ -798,7 +798,9 @@ export interface LayerLinkDocType {
   transcriptionLayerKey: string;
   /** 宿主转写层 ID（已成为 SSOT）| Host transcription layer id (SSOT for host relationship). */
   hostTranscriptionLayerId: string;
+  /** 链接翻译层 ID（历史字段名为 layerId）| Linked translation layer id (legacy field name is layerId). */
   layerId: string;
+  /** 链接类型：literal 在中文术语中统一为“对应链接” | Link type: literal maps to "corresponding link" in CN terminology. */
   linkType: 'direct' | 'free' | 'literal' | 'pedagogical';
   isPreferred: boolean;
   createdAt: string;
@@ -814,7 +816,7 @@ export interface TierDefinitionDocType {
   name: MultiLangString;
   tierType: TierType;
   parentTierId?: string;
-  /** 译文层额外宿主（tier 主 parentTierId 为首选宿主）| Extra host transcription tier ids for multi-host translation */
+  /** 翻译层额外宿主（tier 主 parentTierId 为首选宿主）| Extra host transcription tier ids for multi-host translation */
   extraParentTierIds?: string[];
   languageId?: string;
   orthographyId?: string;

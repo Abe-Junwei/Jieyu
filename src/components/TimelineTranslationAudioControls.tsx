@@ -13,7 +13,7 @@ export interface TimelineTranslationAudioControlsProps {
   onStartRecording?: () => void;
   onStopRecording?: () => void;
   onDeleteRecording?: () => void;
-  /** 混合译文层：将当前录音转写为文本（由父级按 `layer.modality === 'mixed'` 决定是否传入） */
+  /** 混合翻译层：将当前录音转写为文本（由父级按 `layer.modality === 'mixed'` 决定是否传入） */
   onTranscribeRecording?: () => void | Promise<void>;
 }
 

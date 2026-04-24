@@ -6,7 +6,7 @@ import {
 
 type HostAwareLayerLink = Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>;
 
-/** 解析「当前应落到哪条译文层」时的输入；字段用 null 表示显式空值以兼容 exactOptionalPropertyTypes。 */
+/** 解析「当前应落到哪条翻译层」时的输入；字段用 null 表示显式空值以兼容 exactOptionalPropertyTypes。 */
 export interface ResolveHostAwareTranslationLayerIdInput {
   selectedLayerId?: string | null;
   selectedUnitLayerId?: string | null;
@@ -17,7 +17,7 @@ export interface ResolveHostAwareTranslationLayerIdInput {
   transcriptionLayers?: ReadonlyArray<LayerDocType>;
 }
 
-/** 从各处 UI/snapshot 的松散字段归一化后解析译文层 id（单入口，避免重复 ?? null 与漏传）。 */
+/** 从各处 UI/snapshot 的松散字段归一化后解析翻译层 id（单入口，避免重复 ?? null 与漏传）。 */
 export function resolveHostAwareTranslationLayerIdFromSnapshot(
   input: {
     selectedLayerId?: string | null | undefined;

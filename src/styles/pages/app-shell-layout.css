@@ -50,24 +50,6 @@
   flex-shrink: 0;
 }
 
-.app-left-rail-secondary {
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--divider-subtle);
-  display: grid;
-  gap: 6px;
-}
-
-.app-left-rail-section-label {
-  margin: 0;
-  padding: 0 6px;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-}
-
 .app-left-rail-bottom-slot {
   margin-top: 8px;
   padding-top: 8px;
@@ -339,23 +321,6 @@
   overflow: visible;
 }
 
-.app-side-pane-footer {
-  flex-shrink: 0;
-  padding: 8px var(--space-1-5, 6px) var(--space-2, 8px);
-  border-top: 1px solid color-mix(in srgb, var(--border-soft) 60%, transparent);
-}
-
-.app-side-pane-footer-slot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-}
-
-.app-side-pane-footer-slot:empty {
-  display: none;
-}
-
 .app-side-pane-empty-state {
   flex: 1;
   min-height: 0;
@@ -422,9 +387,6 @@
     padding-top: 6px;
   }
 
-  .header-actions {
-    gap: 4px;
-  }
   .left-rail-btn {
     min-height: 46px;
     border-radius: var(--radius-md);
@@ -446,10 +408,6 @@
 
 .app-side-pane-collaboration-group {
   min-height: 0;
-}
-
-.app-side-pane-collaboration-docked {
-  overflow: hidden;
 }
 
 .app-side-pane-layer-actions-group {
@@ -687,9 +645,6 @@
 }
 
 @media (max-width: 640px) {
-  .header-actions {
-    gap: 4px;
-  }
   .left-rail-btn {
     min-height: 46px;
     border-radius: var(--radius-md);

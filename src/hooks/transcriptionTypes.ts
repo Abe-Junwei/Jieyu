@@ -92,7 +92,7 @@ export type LayerCreateInput = {
   constraint?: LayerConstraint;
   /** 转写层树依赖父层 ID（仅 transcription 层树语义）| Parent transcription-layer id for transcription tree constraints */
   parentLayerId?: string | undefined;
-  /** 译文宿主转写层集合（translation 使用）| Translation host transcription-layer ids */
+  /** 翻译宿主转写层集合（translation 使用）| Translation host transcription-layer ids */
   hostTranscriptionLayerIds?: string[] | undefined;
   /** 译文主宿主转写层 ID（translation 使用）| Preferred host transcription-layer id for translation */
   preferredHostTranscriptionLayerId?: string | undefined;

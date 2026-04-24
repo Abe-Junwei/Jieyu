@@ -1,11 +1,3 @@
-.app-collaboration-cloud-status-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 0.5rem 0.75rem;
-  margin: 0 0 0.5rem;
-}
-
 .app-collaboration-readonly-banner {
   margin: 0 0 0.75rem;
   padding: 0.65rem 0.85rem;

@@ -48,6 +48,11 @@ interface UseLassoInput {
   /** 由波形桥 `useReducer` 抬升的套索预览（与 `timeDrag` 同一写者）；不传则回退到 hook 内 `useState`。 */
   liftedLassoPreview?: LassoSurfacePreview;
   setLiftedLassoPreview?: Dispatch<SetStateAction<LassoSurfacePreview>>;
+  /**
+   * 与 `useTranscriptionWaveformBridgeController` 中 `lastDurationRef` 一致：解码时长为 0 时用语义轴秒数做像素↔时间换算，
+   * 避免无声学/占位媒体下波形空拖整段静默 return。
+   */
+  waveformMappingDurationSec?: number;
 }
 
 export function useLasso(input: UseLassoInput) {
@@ -65,6 +70,7 @@ export function useLasso(input: UseLassoInput) {
     tierTimelineLassoSuppressed = false,
     liftedLassoPreview: liftedLassoPreviewInput,
     setLiftedLassoPreview: setLiftedLassoPreviewInput,
+    waveformMappingDurationSec,
   } = input;
 
   // ---- Lasso state（可抬升到波形桥 reducer，与 Regions 时间预览同一写路径）----
@@ -168,6 +174,19 @@ export function useLasso(input: UseLassoInput) {
     const el = waveCanvasRef.current;
     if (!el) return;
 
+    const resolveWaveformDurationSec = (): number => {
+      const ws = playerInstanceRef.current;
+      const decoded = typeof ws?.getDuration === 'function' ? ws.getDuration() : 0;
+      if (typeof decoded === 'number' && Number.isFinite(decoded) && decoded > 0) {
+        return decoded;
+      }
+      const logical = waveformMappingDurationSec;
+      if (typeof logical === 'number' && Number.isFinite(logical) && logical > 0) {
+        return logical;
+      }
+      return 0;
+    };
+
     // Convert a clientX position to audio time using WaveSurfer's actual layout.
     const clientXToTime = (clientX: number): number | null => {
       const ws = playerInstanceRef.current;
@@ -176,7 +195,7 @@ export function useLasso(input: UseLassoInput) {
       if (!wrapper || !sc) return null;
       const totalWidth = wrapper.scrollWidth;
       if (totalWidth <= 0) return null;
-      const dur = ws?.getDuration() ?? 0;
+      const dur = resolveWaveformDurationSec();
       if (dur <= 0) return null;
       const rect = sc.getBoundingClientRect();
       const pxOffset = clientX - rect.left + sc.scrollLeft;
@@ -186,9 +205,8 @@ export function useLasso(input: UseLassoInput) {
     const hitTestExistingAtClientX = (clientX: number) => {
       const time = clientXToTime(clientX);
       if (time === null) return false;
-      const ws = playerInstanceRef.current;
-      const wrapper = ws?.getWrapper();
-      const dur = ws?.getDuration() ?? 0;
+      const wrapper = playerInstanceRef.current?.getWrapper();
+      const dur = resolveWaveformDurationSec();
       const totalWidth = wrapper?.scrollWidth ?? 0;
       const eps = totalWidth > 0 && dur > 0
         ? Math.min(0.03, Math.max(0.005, 3 / totalWidth * dur))
@@ -259,7 +277,8 @@ export function useLasso(input: UseLassoInput) {
         const rect = sc.getBoundingClientRect();
         const pxOffset = e.clientX - rect.left + sc.scrollLeft;
         const totalWidth = wrapper.scrollWidth;
-        const dur = ws?.getDuration() || 1;
+        const dur = resolveWaveformDurationSec();
+        if (dur <= 0) return;
         const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
         const dragStart = Math.min(sub.anchorTime, currentTime);
         const dragEnd = Math.max(sub.anchorTime, currentTime);
@@ -313,7 +332,7 @@ export function useLasso(input: UseLassoInput) {
         const wrapper = ws?.getWrapper();
         const sc = wrapper?.parentElement;
         const totalWidth = wrapper?.scrollWidth ?? 0;
-        const dur = ws?.getDuration() ?? 0;
+        const dur = resolveWaveformDurationSec();
         if (sc && totalWidth > 0 && dur > 0) {
           const scrollLeft = sc.scrollLeft;
           const anchorContentX = (info.anchorTime / dur) * totalWidth;
@@ -392,12 +411,14 @@ export function useLasso(input: UseLassoInput) {
             const rectSc = sc.getBoundingClientRect();
             const pxOffset = e.clientX - rectSc.left + sc.scrollLeft;
             const totalWidth = wrapper.scrollWidth;
-            const dur = ws?.getDuration() || 1;
-            const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
-            const s = Math.min(sub.anchorTime, currentTime);
-            const end = Math.max(sub.anchorTime, currentTime);
-            if (end - s >= 0.02) {
-              setSubSelectionRange({ start: s, end });
+            const dur = resolveWaveformDurationSec();
+            if (dur > 0) {
+              const currentTime = Math.max(0, Math.min(dur, (pxOffset / totalWidth) * dur));
+              const s = Math.min(sub.anchorTime, currentTime);
+              const end = Math.max(sub.anchorTime, currentTime);
+              if (end - s >= 0.02) {
+                setSubSelectionRange({ start: s, end });
+              }
             }
           }
         }
@@ -448,7 +469,7 @@ export function useLasso(input: UseLassoInput) {
         subSelectPreviewRef.current = null;
       }
     };
-  }, [selectedMediaUrl, playerIsReady, clearUnitSelection, createUnitFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef]);
+  }, [selectedMediaUrl, playerIsReady, clearUnitSelection, createUnitFromSelection, scheduleLassoSelectionUpdate, playerSeekTo, playerInstanceRef, waveCanvasRef, skipSeekForIdRef, waveformMappingDurationSec]);
 
   // RAF & timer cleanup
   useEffect(() => () => {

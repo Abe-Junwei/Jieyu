@@ -7,11 +7,6 @@ import { AppSidePaneProvider, useAppSidePaneRegistrationSnapshot } from '../cont
 import { LocaleProvider } from '../i18n';
 import { FeatureAvailabilityPanel } from './FeatureAvailabilityPanel';
 
-const ROUTER_FUTURE_FLAGS = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-} as const;
-
 function SidePaneSnapshot() {
   const registration = useAppSidePaneRegistrationSnapshot();
 
@@ -27,7 +22,7 @@ function SidePaneSnapshot() {
 describe('FeatureAvailabilityPanel', () => {
   it('registers planned-workbench summary into the app side pane host', () => {
     render(
-      <MemoryRouter future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter>
         <LocaleProvider locale="zh-CN">
           <AppSidePaneProvider>
             <SidePaneSnapshot />
