@@ -762,6 +762,45 @@
   align-items: center;
 }
 
+/* ARCH-5：数据库升级遮罩 | DB migration overlay */
+.db-migration-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal-topmost, 12000) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--shadow-color) 42%, var(--surface-base));
+}
+
+.db-migration-overlay-panel {
+  width: 100%;
+  max-width: 520px;
+  border-radius: var(--radius-lg, 12px);
+  padding: 20px 22px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--divider-base);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--shadow-color) 22%, transparent);
+}
+
+.db-migration-overlay-title {
+  margin: 0 0 10px;
+  font-size: 1.15rem;
+}
+
+.db-migration-overlay-intro,
+.db-migration-overlay-wait {
+  margin: 0 0 12px;
+  line-height: 1.5;
+  color: var(--text-secondary, inherit);
+}
+
+.db-migration-overlay-version {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
 .app-global-toast-host {
   z-index: calc(var(--z-modal-topmost, 12000) - 1);
 }

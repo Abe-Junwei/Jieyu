@@ -97,18 +97,6 @@
       ]
     },
     {
-      "file": "src/pages/OrchestratorWaveformContent.tsx",
-      "reason": "Waveform note indicator trigger follows runtime note marker geometry.",
-      "reviewer": "GitHub Copilot + junwei",
-      "reviewedAt": "2026-04-18",
-      "snippets": [
-        {
-          "anchor": "left: leftPx + widthPx - 22",
-          "reviewedSha256": "5670770d771fcb8f5ba3e978306a28a3c2c04b63f09f305b302ded9ecef699fc"
-        }
-      ]
-    },
-    {
       "file": "src/components/TimeRuler.tsx",
       "reason": "Overview viewport position and width depend on the live waveform window geometry.",
       "reviewer": "GitHub Copilot + junwei",

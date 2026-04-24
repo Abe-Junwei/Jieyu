@@ -240,6 +240,11 @@
   border-color: var(--text-secondary);
 }
 
+.timeline-empty-actions-row:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 22%, transparent);
+  outline-offset: 4px;
+}
+
 .timeline-empty-action-icon {
   margin-right: 6px;
 }

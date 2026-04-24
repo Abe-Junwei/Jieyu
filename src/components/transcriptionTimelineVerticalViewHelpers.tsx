@@ -607,7 +607,7 @@ export function mergePairedReadingTimelineUnitById(
   return next;
 }
 
-/** 在「当前时间轴上的转写轨」集合内，沿 parentLayerId 链数深度；根为 0，子依赖轨递增 | Depth among timeline transcription lanes */
+/** 在「当前时间轴上的转写轨」集合内，沿树父链数深度；根为 0，子依赖轨递增 | Depth among timeline transcription lanes */
 function transcriptionTreeDepthAmongLanes(
   layer: LayerDocType,
   layerById: ReadonlyMap<string, LayerDocType>,

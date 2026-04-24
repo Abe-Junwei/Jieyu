@@ -47,6 +47,19 @@ test.describe('关键路径 | Critical paths', () => {
     await expect(page.locator('body')).toContainText(/not found|404|未找到/i);
   });
 
+  test('词典页可加载（语言资产主路径烟测子集） | Lexicon page loads (ARCH-9 smoke)', async ({ page }) => {
+    await page.goto('/lexicon');
+    await expect(page.locator('nav')).toBeVisible();
+    // zh-CN: 词典工作台；en: Lexicon Workspace（默认 locale 可能因环境不同）
+    await expect(page.locator('body')).toContainText(/词典工作台|Lexicon Workspace/);
+  });
+
+  test('语料库页可加载（规划页烟测子集） | Corpus page loads (ARCH-9 smoke)', async ({ page }) => {
+    await page.goto('/corpus');
+    await expect(page.locator('nav')).toBeVisible();
+    await expect(page.locator('body')).toContainText(/语料库未开放|Corpus library is not open yet/);
+  });
+
   test('CSP 不阻断核心资源加载 | CSP does not block core resources', async ({ page }) => {
     const cspViolations: string[] = [];
     page.on('console', (msg) => {

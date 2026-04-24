@@ -131,7 +131,7 @@ export type VerticalReadingGroupLayerLink = Pick<
 
 interface BuildVerticalReadingGroupsInput {
   units: LayerUnitDocType[];
-  /** 入站 layer_links：无 `parentLayerId` 的依赖轨并入组时用于解析宿主 | Inbound links for link-only dependent lanes */
+  /** 入站 layer_links：无树父字段的依赖轨并入组时用于解析宿主 | Inbound links for link-only dependent lanes */
   layerLinks?: readonly VerticalReadingGroupLayerLink[];
   /** 可选：仅把这些层视为左列原文来源，避免把翻译层单位误并入原文列 */
   sourceLayerIds?: readonly string[];

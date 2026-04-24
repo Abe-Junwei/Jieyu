@@ -171,6 +171,12 @@
   background: color-mix(in srgb, var(--header-accent) 8%, var(--surface-panel));
 }
 
+.lexicon-workspace-hit-link:focus-visible {
+  background: color-mix(in srgb, var(--header-accent) 8%, var(--surface-panel));
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  outline-offset: -2px;
+}
+
 .lexicon-workspace-hit-primary {
   font-weight: 600;
 }

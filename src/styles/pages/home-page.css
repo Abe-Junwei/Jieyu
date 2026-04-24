@@ -49,21 +49,27 @@
   border-radius: 0.5rem;
   font-size: 0.9rem;
   text-decoration: none;
-  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 80%, transparent);
-  background: color-mix(in srgb, var(--color-surface-elevated, #fff) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 80%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
   color: inherit;
 }
 
 .home-page-link-btn:hover {
-  border-color: var(--color-accent, #3b82f6);
+  border-color: var(--state-info-solid);
+}
+
+.home-page-link-btn:focus-visible {
+  border-color: var(--state-info-solid);
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 28%, transparent);
+  outline-offset: 2px;
 }
 
 .home-project-card {
-  border: 1px solid color-mix(in srgb, var(--color-border, #ccc) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 70%, transparent);
   border-radius: 0.65rem;
   padding: 0.85rem 1rem 1rem;
   margin-bottom: 1rem;
-  background: color-mix(in srgb, var(--color-surface, #fafafa) 96%, transparent);
+  background: color-mix(in srgb, var(--surface-bg) 96%, transparent);
 }
 
 .home-project-card-header {
@@ -89,9 +95,19 @@
   text-decoration: underline;
 }
 
+.home-project-title-link:focus-visible {
+  text-decoration: underline;
+  outline: 2px solid color-mix(in srgb, var(--state-info-solid) 24%, transparent);
+  outline-offset: 2px;
+}
+
 .home-project-card-meta {
   font-size: 0.8rem;
   opacity: 0.75;
+}
+
+.home-project-card-meta-version {
+  margin-top: 0.75rem;
 }
 
 .home-triple {
@@ -122,29 +138,29 @@
 .home-progress-track {
   height: 0.45rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-border, #ccc) 35%, transparent);
+  background: color-mix(in srgb, var(--border-soft) 35%, transparent);
   overflow: hidden;
 }
 
 .home-progress-fill {
   height: 100%;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent, #2563eb) 88%, #0000);
+  background: color-mix(in srgb, var(--state-info-solid) 88%, transparent);
   transition: width 0.2s ease-out;
 }
 
 .home-progress-fill--translation {
-  background: color-mix(in srgb, var(--color-accent-secondary, #7c3aed) 85%, #0000);
+  background: color-mix(in srgb, var(--purple-9) 85%, transparent);
 }
 
 .home-progress-fill--annotation {
-  background: color-mix(in srgb, var(--color-success, #059669) 85%, #0000);
+  background: color-mix(in srgb, var(--state-success-solid) 85%, transparent);
 }
 
 .home-record-block {
   margin-top: 0.75rem;
   padding-top: 0.65rem;
-  border-top: 1px dashed color-mix(in srgb, var(--color-border, #ccc) 50%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--border-soft) 50%, transparent);
 }
 
 .home-record-title {
@@ -152,6 +168,10 @@
   font-weight: 500;
   margin-bottom: 0.4rem;
   opacity: 0.88;
+}
+
+.home-record-title-overview {
+  margin-top: 0;
 }
 
 .home-page-loading,
@@ -165,6 +185,11 @@
   padding: 1.25rem 0;
   font-size: 0.9rem;
   opacity: 0.8;
+}
+
+.home-page-empty-compact {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
 }
 
 @media (max-width: 520px) {

@@ -520,24 +520,6 @@
   background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-elevated));
 }
 
-/* 折叠层头区域：行左侧轨须完全收起。仅 --lane-label-width:0 仍留 padding/边框时会形成极窄列，层名在 column+wrap 下逐字竖排 | Fully collapse per-row rail when lane header gutter is folded */
-.transcription-list-main-lane-header-collapsed .timeline-paired-reading-row-rail {
-  flex: 0 0 0;
-  width: 0;
-  min-width: 0;
-  max-width: 0;
-  padding: 0;
-  border-width: 0;
-  margin: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-source-surface,
-.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-target-surface {
-  border-radius: var(--radius-xs, 7px);
-}
-
 .timeline-paired-reading-view[data-compact-mode='both'] .timeline-paired-reading-source-column {
   box-shadow: inset -1px 0 0 var(--timeline-paired-reading-column-rail);
 }

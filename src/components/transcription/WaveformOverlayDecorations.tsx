@@ -83,11 +83,21 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
     onOpenWaveformNotePopover,
   } = props;
 
+  const noteIndicatorLayerRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!noteIndicatorLayerRef.current) return;
+    noteIndicatorLayerRef.current.style.transform = `translateX(${waveformOverlayTranslateX}px)`;
+  }, [waveformOverlayTranslateX]);
+
   const waveformNoteIndicatorNodes = React.useMemo(() => waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
     <div
       key={`note-${uttId}`}
       className="waveform-note-indicator-trigger"
-      style={{ left: leftPx + widthPx - 22 }}
+      ref={(node) => {
+        if (!node) return;
+        node.style.left = `${leftPx + widthPx - 22}px`;
+      }}
       onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
       onClick={(e) => {
         e.stopPropagation();
@@ -224,7 +234,7 @@ export const WaveformOverlayDecorations = React.memo(function WaveformOverlayDec
         </svg>
       ) : null}
 
-      <div className="waveform-note-indicator-layer" style={{ transform: `translateX(${waveformOverlayTranslateX}px)` }}>
+      <div ref={noteIndicatorLayerRef} className="waveform-note-indicator-layer">
         {waveformNoteIndicatorNodes}
       </div>
     </>

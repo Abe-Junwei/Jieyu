@@ -54,7 +54,13 @@ function ProgressRow(props: {
     <div className="home-triple-row" role="group" aria-label={t(locale, labelKey)}>
       <span className="home-triple-label">{t(locale, labelKey)}</span>
       <div className="home-progress-track" aria-hidden>
-        <div className={fillClass} style={{ width: `${pct}%` }} />
+        <div
+          className={fillClass}
+          ref={(node) => {
+            if (!node) return;
+            node.style.width = `${pct}%`;
+          }}
+        />
       </div>
       <span className="home-triple-value">{formatPercent(locale, rate)}</span>
     </div>
@@ -106,7 +112,7 @@ function ProjectCard(props: { locale: ReturnType<typeof useLocale>; bundle: Home
           {bundle.languageCode ? ` · ${bundle.languageCode}` : ''}
         </span>
       </div>
-      <p className="home-record-title" style={{ marginTop: 0 }}>{t(locale, 'app.home.projectOverview')}</p>
+      <p className="home-record-title home-record-title-overview">{t(locale, 'app.home.projectOverview')}</p>
       <TripleBlock locale={locale} transcription={agg.transcription} translation={agg.translation} annotation={agg.annotation} />
 
       {bundle.records.length > 0 ? (
@@ -134,7 +140,7 @@ function ProjectCard(props: { locale: ReturnType<typeof useLocale>; bundle: Home
           </div>
         ))
       ) : (
-        <p className="home-page-empty" style={{ marginTop: '0.75rem', marginBottom: 0 }}>
+        <p className="home-page-empty home-page-empty-compact">
           {t(locale, 'app.home.noProgressData')}
         </p>
       )}
@@ -167,7 +173,7 @@ export function HomePage() {
             {t(locale, 'app.home.refresh')}
           </button>
         </div>
-        <p className="home-project-card-meta" style={{ marginTop: '0.75rem' }}>
+        <p className="home-project-card-meta home-project-card-meta-version">
           {tf(locale, 'app.home.version', { version })}
         </p>
       </header>

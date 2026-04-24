@@ -80,6 +80,24 @@
   overflow: hidden;
 }
 
+/* 折叠层头区域：paired-reading 行左侧轨须完全收起，避免形成极窄竖排层名列 | Collapse paired-reading lane rail when lane header gutter is folded */
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-row-rail {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  border-width: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-source-surface,
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-target-surface {
+  border-radius: var(--radius-xs, 7px);
+}
+
 /* Timeline lane header (interactive label area) */
 .timeline-lane-header {
   pointer-events: auto;
