@@ -84,39 +84,46 @@ function main() {
     return;
   }
 
-  const cssClasses = collectCssClasses();
-  const classUsage = collectLiteralClassNames();
-  const missing = [...classUsage.keys()].filter((name) => !cssClasses.has(name)).sort();
+  try {
+    const cssClasses = collectCssClasses();
+    const classUsage = collectLiteralClassNames();
+    const missing = [...classUsage.keys()].filter((name) => !cssClasses.has(name)).sort();
 
-  if (writeBaseline) {
-    writeBaselineFile(missing);
-    console.log(`[check-css-class-contract] baseline written (${missing.length} allowed missing)`);
-    return;
-  }
+    if (writeBaseline) {
+      writeBaselineFile(missing);
+      console.log(`[check-css-class-contract] baseline written (${missing.length} allowed missing)`);
+      return;
+    }
 
-  const baseline = readBaseline();
-  const baselineSet = new Set(baseline);
-  const newMissing = missing.filter((name) => !baselineSet.has(name));
-  const fixedFromBaseline = baseline.filter((name) => !missing.includes(name));
+    const baseline = readBaseline();
+    const baselineSet = new Set(baseline);
+    const newMissing = missing.filter((name) => !baselineSet.has(name));
+    const fixedFromBaseline = baseline.filter((name) => !missing.includes(name));
 
-  console.log(`[check-css-class-contract] css classes: ${cssClasses.size}, className literals: ${classUsage.size}, unresolved: ${missing.length}`);
+    console.log(`[check-css-class-contract] css classes: ${cssClasses.size}, className literals: ${classUsage.size}, unresolved: ${missing.length}`);
 
-  if (fixedFromBaseline.length > 0) {
-    console.log(`[check-css-class-contract] ${fixedFromBaseline.length} baseline entries are now resolved (can prune baseline)`);
-  }
+    if (fixedFromBaseline.length > 0) {
+      console.log(`[check-css-class-contract] ${fixedFromBaseline.length} baseline entries are now resolved (can prune baseline)`);
+    }
 
-  if (newMissing.length === 0) {
-    console.log('[check-css-class-contract] no new unresolved className literals');
-    return;
-  }
+    if (newMissing.length === 0) {
+      console.log('[check-css-class-contract] no new unresolved className literals');
+      return;
+    }
 
-  console.error(`[check-css-class-contract] detected ${newMissing.length} new unresolved className literals`);
-  for (const className of newMissing.slice(0, 80)) {
-    const files = [...(classUsage.get(className) ?? [])].slice(0, 3).join(', ');
-    console.error(`  - ${className}  (${files})`);
-  }
+    console.error(`[check-css-class-contract] detected ${newMissing.length} new unresolved className literals`);
+    for (const className of newMissing.slice(0, 80)) {
+      const files = [...(classUsage.get(className) ?? [])].slice(0, 3).join(', ');
+      console.error(`  - ${className}  (${files})`);
+    }
 
-  if (strict) {
+    if (strict) {
+      process.exitCode = 1;
+    }
+  } catch (error) {
+    console.error(
+      `[check-css-class-contract] failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
     process.exitCode = 1;
   }
 }

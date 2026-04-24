@@ -114,7 +114,7 @@ function main() {
   for (const item of violations) {
     console.error(`- ${item.file}:${item.line} [${item.label}] -> ${item.text}`);
   }
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 main();
