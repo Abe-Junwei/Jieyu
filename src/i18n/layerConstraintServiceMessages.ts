@@ -2,6 +2,7 @@
  * 层约束服务国际化文案 | Layer constraint service i18n messages
  */
 import { normalizeLocale, type Locale } from './index';
+import { formatCatalogTemplate, readMessageCatalog } from './messageCatalog';
 
 export type LayerConstraintServiceMessages = {
   // 校验问题 | Validation issues
@@ -53,92 +54,101 @@ export type LayerConstraintServiceMessages = {
   deleteTargetNotFound: string;
 };
 
-const zhCN: LayerConstraintServiceMessages = {
-  issueConstraintUnsupported: (layerKey, constraint) => `层 ${layerKey} 使用了当前运行时未启用的约束：${constraint}`,
-  issueRootTranscriptionIndependentOnly: '首个转写层必须使用独立边界。',
-  issueMissingParentLayerId: (layerKey, constraint) => `层 ${layerKey} 使用 ${constraint} 但缺少转写层树父（用于层树挂靠）。`,
-  issueMissingTranslationHostLink: (layerKey, constraint) => `层 ${layerKey}（译文）使用 ${constraint} 但缺少指向宿主转写的 layer_links。`,
-  issueParentNotFound: (layerKey, parentLayerId) => `层 ${layerKey} 所指向的层树父转写 ${parentLayerId} 不存在。`,
-  issueParentMustBeIndependentTranscription: (layerKey) => `层 ${layerKey} 所依赖的转写层须为独立边界转写层。`,
-  issueParentCycle: (layerKey) => `层 ${layerKey} 的层树父引用存在循环。`,
-  repairRootTranscription: (layerKey) => `已将首个转写层 ${layerKey} 的约束修复为独立边界。`,
-  repairBindFallbackParent: (layerKey, parentKey) => `已为转写层 ${layerKey} 自动绑定层树父 ${parentKey}。`,
-  repairTranslationHostLinkHint: (layerKey, hostTranscriptionKey) => `翻译层 ${layerKey} 建议通过 layer_links 关联到宿主转写层 ${hostTranscriptionKey}（当前未写入链接）。`,
-  repairDowngradeNoParent: (layerKey) => `层 ${layerKey} 找不到可用的独立转写层作为树父或宿主参照，已降级为独立边界。`,
-  repairTimeSubdivisionToDependent: (layerKey) => `层 ${layerKey} 的时间细分已降级为依赖边界。`,
-  repairTimeSubdivisionToIndependent: (layerKey) => `层 ${layerKey} 的时间细分不可用，已降级为独立边界。`,
-  repairConstraintToIndependent: (layerKey) => `层 ${layerKey} 的约束不可用，已降级为独立边界。`,
-  repairCycleToFallbackParent: (layerKey, parentKey) => `层 ${layerKey} 的层树父循环已修复为挂靠 ${parentKey}。`,
-  repairCycleClearedTranslationTreeParent: (layerKey) => `层 ${layerKey} 已存在翻译宿主链接，已清除多余的树父字段以消除循环。`,
-  repairCycleRemoved: (layerKey) => `层 ${layerKey} 的层树父循环已消除，并降级为独立边界。`,
-  transcription: '转写',
-  translation: '翻译',
-  invalidTranslationConstraint: '翻译层不支持独立边界；请改用依赖边界，并在宿主链接（layer_links）中绑定宿主转写层。',
-  invalidTranslationConstraintShort: '译文需依赖边界与 layer_links',
-  timeSubdivisionUnavailable: '当前版本暂未启用"时间细分"编辑能力，请改用依赖边界或独立边界。',
-  constraintUnavailable: '当前模式暂不可用，请选择其他边界约束。',
-  timeSubdivisionUnavailableShort: '时间细分暂不可用',
-  constraintUnavailableShort: '该约束当前不可用',
-  rootTranscriptionIndependentOnlyShort: '首个转写层仅支持独立边界',
-  chooseDependentBoundary: '存在多个独立边界转写层，请先为译文选择宿主转写（将写入 layer_links）。',
-  chooseDependentBoundaryShort: '请选择宿主转写',
-  chooseValidDependentBoundary: '请选择有效的独立边界转写层作为翻译宿主。',
-  chooseValidDependentBoundaryShort: '请选择有效宿主转写',
-  constraintNeedsParent: '该边界约束需要先指定宿主转写层（或建立 layer_links）。',
-  constraintNeedsParentShort: '需宿主转写',
-  needTranscriptionFirst: '请先创建转写层；翻译层需通过 layer_links 绑定宿主转写。',
-  needTranscriptionFirstShort: '需先有转写与宿主链接',
-  crossTypeLanguageConflict: (opposite, same) => `该语言已存在${opposite}层，禁止与${same}层同语言。`,
-  crossTypeLanguageConflictShort: (opposite) => `与${opposite}层语言冲突`,
-  sameTypeAliasRequired: (same) => `该语言已存在${same}层，请提供别名以区分。`,
-  sameTypeAliasRequiredShort: (same) => `同语言${same}层已存在，需填别名`,
-  softLimitWarning: (count, label, limit) => `当前已有 ${count} 个${label}层（建议上限 ${limit}），继续创建可能影响性能。`,
-  deleteTargetNotFound: '未找到要删除的层。',
-};
-
-const enUS: LayerConstraintServiceMessages = {
-  issueConstraintUnsupported: (layerKey, constraint) => `Layer ${layerKey} uses constraint "${constraint}" which is not enabled in current runtime.`,
-  issueRootTranscriptionIndependentOnly: 'The first transcription layer must use independent boundary.',
-  issueMissingParentLayerId: (layerKey, constraint) => `Layer ${layerKey} uses ${constraint} but has no transcription tree parent id for the layer tree.`,
-  issueMissingTranslationHostLink: (layerKey, constraint) => `Layer ${layerKey} (translation) uses ${constraint} but has no layer_links to a host transcription layer.`,
-  issueParentNotFound: (layerKey, parentLayerId) => `Transcription tree parent ${parentLayerId} referenced by ${layerKey} does not exist.`,
-  issueParentMustBeIndependentTranscription: (layerKey) => `Layer ${layerKey} must depend on an independent-boundary transcription layer.`,
-  issueParentCycle: (layerKey) => `Layer ${layerKey} has a cycle in tree-parent references.`,
-  repairRootTranscription: (layerKey) => `Repaired first transcription layer ${layerKey} constraint to independent boundary.`,
-  repairBindFallbackParent: (layerKey, parentKey) => `Rebound transcription layer ${layerKey} tree parent to ${parentKey}.`,
-  repairTranslationHostLinkHint: (layerKey, hostTranscriptionKey) => `Translation layer ${layerKey}: add layer_links to host transcription ${hostTranscriptionKey} (no persisted host link yet).`,
-  repairDowngradeNoParent: (layerKey) => `Layer ${layerKey} has no independent transcription to use as tree parent or host reference; downgraded to independent boundary.`,
-  repairTimeSubdivisionToDependent: (layerKey) => `Time subdivision of layer ${layerKey} downgraded to dependent boundary.`,
-  repairTimeSubdivisionToIndependent: (layerKey) => `Time subdivision of layer ${layerKey} unavailable, downgraded to independent boundary.`,
-  repairConstraintToIndependent: (layerKey) => `Constraint of layer ${layerKey} unavailable, downgraded to independent boundary.`,
-  repairCycleToFallbackParent: (layerKey, parentKey) => `Tree-parent cycle on layer ${layerKey} repaired to ${parentKey}.`,
-  repairCycleClearedTranslationTreeParent: (layerKey) => `Layer ${layerKey} has translation host links; cleared stale tree-parent field to break a cycle.`,
-  repairCycleRemoved: (layerKey) => `Tree-parent cycle on layer ${layerKey} removed; downgraded to independent boundary.`,
-  transcription: 'Transcription',
-  translation: 'Translation',
-  invalidTranslationConstraint: 'Translation layers cannot use independent boundary. Switch to a dependent constraint and bind host transcription layer(s) via layer_links.',
-  invalidTranslationConstraintShort: 'Translations need dependent boundary + layer_links',
-  timeSubdivisionUnavailable: 'Time subdivision editing is not yet enabled. Please use dependent or independent boundary.',
-  constraintUnavailable: 'This mode is currently unavailable. Please choose another boundary constraint.',
-  timeSubdivisionUnavailableShort: 'Time subdivision unavailable',
-  constraintUnavailableShort: 'This constraint is currently unavailable',
-  rootTranscriptionIndependentOnlyShort: 'First transcription layer only supports independent boundary',
-  chooseDependentBoundary: 'Multiple independent-boundary transcription layers exist. Pick a host transcription for the translation (stored as layer_links).',
-  chooseDependentBoundaryShort: 'Select host transcription',
-  chooseValidDependentBoundary: 'Please select a valid independent-boundary transcription layer as the translation host.',
-  chooseValidDependentBoundaryShort: 'Select a valid host transcription',
-  constraintNeedsParent: 'This boundary constraint requires a host transcription layer first (or layer_links).',
-  constraintNeedsParentShort: 'Host transcription required',
-  needTranscriptionFirst: 'Create a transcription layer first; translation layers must bind to a host transcription via layer_links.',
-  needTranscriptionFirstShort: 'Transcription + host links required first',
-  crossTypeLanguageConflict: (opposite, same) => `This language already has a ${opposite} layer. Cannot create ${same} layer with same language.`,
-  crossTypeLanguageConflictShort: (opposite) => `Conflicts with ${opposite} layer language`,
-  sameTypeAliasRequired: (same) => `This language already has a ${same} layer. Please provide an alias to distinguish.`,
-  sameTypeAliasRequiredShort: (same) => `Same-language ${same} layer exists, alias required`,
-  softLimitWarning: (count, label, limit) => `Currently ${count} ${label} layers (recommended max ${limit}). Creating more may affect performance.`,
-  deleteTargetNotFound: 'Target layer to delete not found.',
+type LayerConstraintServiceCatalog = Omit<
+  LayerConstraintServiceMessages,
+  | 'issueConstraintUnsupported'
+  | 'issueMissingParentLayerId'
+  | 'issueMissingTranslationHostLink'
+  | 'issueParentNotFound'
+  | 'issueParentMustBeIndependentTranscription'
+  | 'issueParentCycle'
+  | 'repairRootTranscription'
+  | 'repairBindFallbackParent'
+  | 'repairTranslationHostLinkHint'
+  | 'repairDowngradeNoParent'
+  | 'repairTimeSubdivisionToDependent'
+  | 'repairTimeSubdivisionToIndependent'
+  | 'repairConstraintToIndependent'
+  | 'repairCycleToFallbackParent'
+  | 'repairCycleClearedTranslationTreeParent'
+  | 'repairCycleRemoved'
+  | 'crossTypeLanguageConflict'
+  | 'crossTypeLanguageConflictShort'
+  | 'sameTypeAliasRequired'
+  | 'sameTypeAliasRequiredShort'
+  | 'softLimitWarning'
+> & {
+  issueConstraintUnsupported: string;
+  issueMissingParentLayerId: string;
+  issueMissingTranslationHostLink: string;
+  issueParentNotFound: string;
+  issueParentMustBeIndependentTranscription: string;
+  issueParentCycle: string;
+  repairRootTranscription: string;
+  repairBindFallbackParent: string;
+  repairTranslationHostLinkHint: string;
+  repairDowngradeNoParent: string;
+  repairTimeSubdivisionToDependent: string;
+  repairTimeSubdivisionToIndependent: string;
+  repairConstraintToIndependent: string;
+  repairCycleToFallbackParent: string;
+  repairCycleClearedTranslationTreeParent: string;
+  repairCycleRemoved: string;
+  crossTypeLanguageConflict: string;
+  crossTypeLanguageConflictShort: string;
+  sameTypeAliasRequired: string;
+  sameTypeAliasRequiredShort: string;
+  softLimitWarning: string;
 };
 
 export function getLayerConstraintServiceMessages(locale: Locale): LayerConstraintServiceMessages {
-  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
+  const normalizedLocale = normalizeLocale(locale) ?? 'zh-CN';
+  const {
+    issueConstraintUnsupported,
+    issueMissingParentLayerId,
+    issueMissingTranslationHostLink,
+    issueParentNotFound,
+    issueParentMustBeIndependentTranscription,
+    issueParentCycle,
+    repairRootTranscription,
+    repairBindFallbackParent,
+    repairTranslationHostLinkHint,
+    repairDowngradeNoParent,
+    repairTimeSubdivisionToDependent,
+    repairTimeSubdivisionToIndependent,
+    repairConstraintToIndependent,
+    repairCycleToFallbackParent,
+    repairCycleClearedTranslationTreeParent,
+    repairCycleRemoved,
+    crossTypeLanguageConflict,
+    crossTypeLanguageConflictShort,
+    sameTypeAliasRequired,
+    sameTypeAliasRequiredShort,
+    softLimitWarning,
+    ...rest
+  } = readMessageCatalog<LayerConstraintServiceCatalog>(normalizedLocale, 'msg.layerConstraint.catalog');
+  return {
+    ...rest,
+    issueConstraintUnsupported: (layerKey, constraint) => formatCatalogTemplate(issueConstraintUnsupported, { layerKey, constraint }),
+    issueMissingParentLayerId: (layerKey, constraint) => formatCatalogTemplate(issueMissingParentLayerId, { layerKey, constraint }),
+    issueMissingTranslationHostLink: (layerKey, constraint) => formatCatalogTemplate(issueMissingTranslationHostLink, { layerKey, constraint }),
+    issueParentNotFound: (layerKey, parentLayerId) => formatCatalogTemplate(issueParentNotFound, { layerKey, parentLayerId }),
+    issueParentMustBeIndependentTranscription: (layerKey) => formatCatalogTemplate(issueParentMustBeIndependentTranscription, { layerKey }),
+    issueParentCycle: (layerKey) => formatCatalogTemplate(issueParentCycle, { layerKey }),
+    repairRootTranscription: (layerKey) => formatCatalogTemplate(repairRootTranscription, { layerKey }),
+    repairBindFallbackParent: (layerKey, parentKey) => formatCatalogTemplate(repairBindFallbackParent, { layerKey, parentKey }),
+    repairTranslationHostLinkHint: (layerKey, hostTranscriptionKey) => formatCatalogTemplate(repairTranslationHostLinkHint, { layerKey, hostTranscriptionKey }),
+    repairDowngradeNoParent: (layerKey) => formatCatalogTemplate(repairDowngradeNoParent, { layerKey }),
+    repairTimeSubdivisionToDependent: (layerKey) => formatCatalogTemplate(repairTimeSubdivisionToDependent, { layerKey }),
+    repairTimeSubdivisionToIndependent: (layerKey) => formatCatalogTemplate(repairTimeSubdivisionToIndependent, { layerKey }),
+    repairConstraintToIndependent: (layerKey) => formatCatalogTemplate(repairConstraintToIndependent, { layerKey }),
+    repairCycleToFallbackParent: (layerKey, parentKey) => formatCatalogTemplate(repairCycleToFallbackParent, { layerKey, parentKey }),
+    repairCycleClearedTranslationTreeParent: (layerKey) => formatCatalogTemplate(repairCycleClearedTranslationTreeParent, { layerKey }),
+    repairCycleRemoved: (layerKey) => formatCatalogTemplate(repairCycleRemoved, { layerKey }),
+    crossTypeLanguageConflict: (opposite, same) => formatCatalogTemplate(crossTypeLanguageConflict, { opposite, same }),
+    crossTypeLanguageConflictShort: (opposite) => formatCatalogTemplate(crossTypeLanguageConflictShort, { opposite }),
+    sameTypeAliasRequired: (same) => formatCatalogTemplate(sameTypeAliasRequired, { same }),
+    sameTypeAliasRequiredShort: (same) => formatCatalogTemplate(sameTypeAliasRequiredShort, { same }),
+    softLimitWarning: (count, label, limit) => formatCatalogTemplate(softLimitWarning, { count, label, limit }),
+  };
 }

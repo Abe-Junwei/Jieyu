@@ -89,6 +89,9 @@
     { "pathPrefix": "src/i18n/languageInputMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/layerConstraintServiceMessages.ts", "reason": "runtime-template-message" },
     { "pathPrefix": "src/i18n/settingsModalMessages.ts", "reason": "runtime-template-message" },
-    { "pathPrefix": "src/i18n/timelineParityMatrixMessages.ts", "reason": "runtime-template-message" }
+    { "pathPrefix": "src/i18n/timelineParityMatrixMessages.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/appDataResilienceMessages.ts", "reason": "runtime-template-message" },
+    { "pathPrefix": "src/i18n/dictionaries/", "reason": "data-dictionary" },
+    { "pathPrefix": "src/services/LinguisticService.timeMapping.ts", "reason": "validation-and-guard-message" }
   ]
 }

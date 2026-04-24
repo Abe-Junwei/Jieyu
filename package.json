@@ -76,6 +76,7 @@
     "report:architecture-hotspots": "node scripts/check-architecture-guard.mjs --report",
     "check:messages-imports": "node scripts/check-message-imports.mjs",
     "check:i18n-message-imports": "node scripts/check-i18n-message-imports.mjs",
+    "report:arch2-i18n-message-modules": "node scripts/report-arch2-i18n-message-modules.mjs",
     "check:db-transaction-facade": "node scripts/check-db-transaction-facade.mjs",
     "check:fire-and-forget-governance": "node scripts/check-fire-and-forget-governance.mjs",
     "check:segmentation-storage-boundary": "node scripts/check-segmentation-storage-boundary.mjs",

@@ -1,4 +1,5 @@
 /**
+ * @i18n-governance-exempt
  * 能力矩阵行中文文案（供 `timelineParityMatrix.ts` 引用）。
  * 与 `check:i18n-hardcoded` 约定：避免在 `src/pages/` 内堆中文 label，集中在本文件便于 baseline 归类到 `src/i18n/`。
  */

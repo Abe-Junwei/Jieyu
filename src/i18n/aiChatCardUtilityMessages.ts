@@ -1,3 +1,5 @@
+import { t, tf, type Locale } from './index';
+
 export type AiChatCardUtilityMessages = {
   confirmed: string;
   cancelled: string;
@@ -33,90 +35,51 @@ export type AiChatCardUtilityMessages = {
   citationReadModelMissSuffix: string;
 };
 
-const zhCN: AiChatCardUtilityMessages = {
-  confirmed: '\u5df2\u786e\u8ba4\u6267\u884c',
-  cancelled: '\u5df2\u53d6\u6d88\u6267\u884c',
-  confirmFailed: '\u786e\u8ba4\u540e\u6267\u884c\u5931\u8d25',
-  unknown: '\u672a\u77e5',
-  toolNames: {
-    delete_transcription_segment: '\u5220\u9664\u53e5\u6bb5',
-    split_transcription_segment: '\u5207\u5206\u53e5\u6bb5',
-    delete_layer: '\u5220\u9664\u5c42',
-    set_transcription_text: '\u5199\u5165\u8f6c\u5199',
-    set_translation_text: '\u5199\u5165\u7ffb\u8bd1',
-    clear_translation_segment: '\u6e05\u7a7a\u7ffb\u8bd1',
-    create_transcription_segment: '\u521b\u5efa\u53e5\u6bb5',
-  },
-  currentSelectedSegment: '\u5f53\u524d\u9009\u4e2d\u53e5\u6bb5',
-  allSegments: '\u5f53\u524d\u9875\u9762\u5168\u90e8\u53e5\u6bb5',
-  selectedSegments: (count) => `\u5df2\u9009 ${count} \u4e2a\u53e5\u6bb5`,
-  indexedSegment: (index) => `\u7b2c${index}\u4e2a\u53e5\u6bb5`,
-  lastSegment: '\u6700\u540e\u4e00\u4e2a\u53e5\u6bb5',
-  previousSegment: '\u524d\u4e00\u4e2a\u53e5\u6bb5',
-  nextSegment: '\u540e\u4e00\u4e2a\u53e5\u6bb5',
-  penultimateSegment: '\u5012\u6570\u7b2c\u4e8c\u4e2a\u53e5\u6bb5',
-  middleSegment: '\u4e2d\u95f4\u90a3\u4e2a\u53e5\u6bb5',
-  segmentWithId: (id) => `\u53e5\u6bb5\uff08${id}\uff09`,
-  layerWithId: (id) => `\u5c42\uff08${id}\uff09`,
-  translationLayer: '\u7ffb\u8bd1\u5c42',
-  transcriptionLayer: '\u8f6c\u5199\u5c42',
-  targetLayer: '\u76ee\u6807\u5c42',
-  layerLanguage: (label, language) => `${label}\uff08\u8bed\u8a00\uff1a${language}\uff09`,
-  confirmDelete: '\u786e\u8ba4\u5220\u9664',
-  confirmAction: '\u786e\u8ba4\u6267\u884c',
-  irreversiblePatternSource: '\\u4e0d\\u53ef\\u9006|irreversible',
-  reversiblePatternSource: '\\u53ef\\u64a4\\u9500|\\u53ef\\u9006|\\u64a4\\u9500\\u6062\\u590d|undo|reversible',
-  replayable: '\u53ef\u91cd\u653e',
-  auditOnly: '\u4ec5\u53ef\u5ba1\u8ba1',
-  timelineUnitRef: '\u8bed\u6bb5\u53c2\u8003',
-  noteRef: '\u7b14\u8bb0\u53c2\u8003',
-  documentRef: '\u6587\u6863\u53c2\u8003',
-  reference: '\u53c2\u8003',
-  citationReadModelMissSuffix: '\uff08\u7d22\u5f15\u672a\u547d\u4e2d\uff09',
-};
-
-const enUS: AiChatCardUtilityMessages = {
-  confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
-  confirmFailed: 'Confirm failed',
-  unknown: 'Unknown',
-  toolNames: {
-    delete_transcription_segment: 'Delete Segment',
-    split_transcription_segment: 'Split Segment',
-    delete_layer: 'Delete Layer',
-    set_transcription_text: 'Set Transcription',
-    set_translation_text: 'Set Translation',
-    clear_translation_segment: 'Clear Translation',
-    create_transcription_segment: 'Create Segment',
-  },
-  currentSelectedSegment: 'Current selected segment',
-  allSegments: 'All segments on current page',
-  selectedSegments: (count) => `${count} selected segments`,
-  indexedSegment: (index) => `Segment #${index}`,
-  lastSegment: 'Last segment',
-  previousSegment: 'Previous segment',
-  nextSegment: 'Next segment',
-  penultimateSegment: 'Penultimate segment',
-  middleSegment: 'Middle segment',
-  segmentWithId: (id) => `Segment (${id})`,
-  layerWithId: (id) => `Layer (${id})`,
-  translationLayer: 'Translation layer',
-  transcriptionLayer: 'Transcription layer',
-  targetLayer: 'Target layer',
-  layerLanguage: (label, language) => `${label} (language: ${language})`,
-  confirmDelete: 'Confirm Delete',
-  confirmAction: 'Confirm Action',
-  irreversiblePatternSource: '\\u4e0d\\u53ef\\u9006|irreversible',
-  reversiblePatternSource: '\\u53ef\\u64a4\\u9500|\\u53ef\\u9006|\\u64a4\\u9500\\u6062\\u590d|undo|reversible',
-  replayable: 'Replayable',
-  auditOnly: 'Audit only',
-  timelineUnitRef: 'Unit ref',
-  noteRef: 'Note Ref',
-  documentRef: 'Document Ref',
-  reference: 'Reference',
-  citationReadModelMissSuffix: ' (index miss)',
-};
+function dictLocale(isZh: boolean): Locale {
+  return isZh ? 'zh-CN' : 'en-US';
+}
 
 export function getAiChatCardUtilityMessages(isZh: boolean): AiChatCardUtilityMessages {
-  return isZh ? zhCN : enUS;
+  const l = dictLocale(isZh);
+  return {
+    confirmed: t(l, 'msg.aiChatUtil.confirmed'),
+    cancelled: t(l, 'msg.aiChatUtil.cancelled'),
+    confirmFailed: t(l, 'msg.aiChatUtil.confirmFailed'),
+    unknown: t(l, 'msg.aiChatUtil.unknown'),
+    toolNames: {
+      delete_transcription_segment: t(l, 'msg.aiChatUtil.tool.deleteTranscriptionSegment'),
+      split_transcription_segment: t(l, 'msg.aiChatUtil.tool.splitTranscriptionSegment'),
+      delete_layer: t(l, 'msg.aiChatUtil.tool.deleteLayer'),
+      set_transcription_text: t(l, 'msg.aiChatUtil.tool.setTranscriptionText'),
+      set_translation_text: t(l, 'msg.aiChatUtil.tool.setTranslationText'),
+      clear_translation_segment: t(l, 'msg.aiChatUtil.tool.clearTranslationSegment'),
+      create_transcription_segment: t(l, 'msg.aiChatUtil.tool.createTranscriptionSegment'),
+    },
+    currentSelectedSegment: t(l, 'msg.aiChatUtil.currentSelectedSegment'),
+    allSegments: t(l, 'msg.aiChatUtil.allSegments'),
+    selectedSegments: (count) => tf(l, 'msg.aiChatUtil.selectedSegments', { count }),
+    indexedSegment: (index) => tf(l, 'msg.aiChatUtil.indexedSegment', { index }),
+    lastSegment: t(l, 'msg.aiChatUtil.lastSegment'),
+    previousSegment: t(l, 'msg.aiChatUtil.previousSegment'),
+    nextSegment: t(l, 'msg.aiChatUtil.nextSegment'),
+    penultimateSegment: t(l, 'msg.aiChatUtil.penultimateSegment'),
+    middleSegment: t(l, 'msg.aiChatUtil.middleSegment'),
+    segmentWithId: (id) => tf(l, 'msg.aiChatUtil.segmentWithId', { id }),
+    layerWithId: (id) => tf(l, 'msg.aiChatUtil.layerWithId', { id }),
+    translationLayer: t(l, 'msg.aiChatUtil.translationLayer'),
+    transcriptionLayer: t(l, 'msg.aiChatUtil.transcriptionLayer'),
+    targetLayer: t(l, 'msg.aiChatUtil.targetLayer'),
+    layerLanguage: (label, language) => tf(l, 'msg.aiChatUtil.layerLanguage', { label, language }),
+    confirmDelete: t(l, 'msg.aiChatUtil.confirmDelete'),
+    confirmAction: t(l, 'msg.aiChatUtil.confirmAction'),
+    irreversiblePatternSource: t(l, 'msg.aiChatUtil.irreversiblePatternSource'),
+    reversiblePatternSource: t(l, 'msg.aiChatUtil.reversiblePatternSource'),
+    replayable: t(l, 'msg.aiChatUtil.replayable'),
+    auditOnly: t(l, 'msg.aiChatUtil.auditOnly'),
+    timelineUnitRef: t(l, 'msg.aiChatUtil.timelineUnitRef'),
+    noteRef: t(l, 'msg.aiChatUtil.noteRef'),
+    documentRef: t(l, 'msg.aiChatUtil.documentRef'),
+    reference: t(l, 'msg.aiChatUtil.reference'),
+    citationReadModelMissSuffix: t(l, 'msg.aiChatUtil.citationReadModelMissSuffix'),
+  };
 }
