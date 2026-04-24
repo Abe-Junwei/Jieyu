@@ -211,7 +211,10 @@ describe('TranscriptionPage structure invariants', () => {
     const summaryCode = fs.readFileSync(summaryPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionAssistantSidebarController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionAssistantSidebarController({')
+      || orchestratorCode.includes('const assistantSidebarController = useTranscriptionAssistantSidebarController({'),
+    ).toBe(true);
     expect(orchestratorCode.includes("import { useAiChatContextValue } from '../hooks/useAiChatContextValue';")).toBe(false);
     expect(orchestratorCode.includes("import { useTranscriptionRuntimeProps } from './useTranscriptionRuntimeProps';")).toBe(false);
     expect(orchestratorCode.includes('observerRecommendationsForSidebar')).toBe(false);
@@ -584,7 +587,10 @@ describe('TranscriptionPage structure invariants', () => {
     expect(code.includes("import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';")).toBe(true);
     expect(code.includes("import { useTranscriptionSelectionSnapshot } from './useTranscriptionSelectionSnapshot';")).toBe(true);
     expect(code.includes('const selectionSnapshot = useTranscriptionSelectionSnapshot({')).toBe(true);
-    expect(code.includes('} = useTranscriptionAssistantSidebarController({')).toBe(true);
+    expect(
+      code.includes('} = useTranscriptionAssistantSidebarController({')
+      || code.includes('const assistantSidebarController = useTranscriptionAssistantSidebarController({'),
+    ).toBe(true);
     expect(code.includes('createAssistantRuntimeProps({')).toBe(false);
     expect(code.includes('createAnalysisRuntimeProps({')).toBe(false);
     expect(code.includes('createPdfRuntimeProps({')).toBe(false);
