@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LocaleProvider } from '../i18n';
-import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { getSidePaneSidebarMessages } from '../i18n/messages';
 import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
 import { EMPTY_SPEAKER_REFERENCE_STATS } from '../hooks/speakerManagement/types';
 import { SidePaneSidebarSpeakerManagement } from './SidePaneSidebarSpeakerManagement';

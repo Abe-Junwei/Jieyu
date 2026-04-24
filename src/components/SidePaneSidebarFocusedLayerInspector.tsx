@@ -1,6 +1,6 @@
 import type { LayerDocType, OrthographyDocType } from '../db';
 import { useLocale } from '../i18n';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { formatSidePaneLayerLabel, getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine, getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { formatConstraintLabel } from './SidePaneSidebar.shared';
 import { CloseIcon } from './SvgIcons';

@@ -15,7 +15,7 @@ import {
   layerTranscriptionTreeParentId,
 } from '../db';
 import type { Locale } from '../i18n';
-import { getLayerConstraintServiceMessages } from '../i18n/layerConstraintServiceMessages';
+import { getLayerConstraintServiceMessages } from '../i18n/messages';
 import {
   buildTranscriptionIdByKeyMap,
   getHostTranscriptionLayerIdsForTranslation,

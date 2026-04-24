@@ -1,6 +1,6 @@
 import { useId, useMemo, useState, type CSSProperties } from 'react';
 import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { SidePaneActionModal } from './SidePaneActionModal';
 import { ActionButtonGroup, FormField, PanelButton, PanelChip } from './ui';
@@ -119,7 +119,7 @@ export function SidePaneSidebarSpeakerManagement({
     fireAndForget((async () => {
       await action();
       onClose();
-    })());
+    })(), { context: 'src/components/SidePaneSidebarSpeakerManagement.tsx:L119', policy: 'user-visible' });
   };
 
   return (

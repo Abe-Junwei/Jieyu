@@ -18,7 +18,7 @@ import type { SttEnhancementConfig, SttEnhancementSelectionKind } from '../servi
 import type { LayerDocType, LayerLinkDocType } from '../db';
 import type { DictationPipelineCallbacks, QuickDictationConfig } from '../services/SpeechAnnotationPipeline';
 import { useLocale } from '../i18n';
-import { getVoiceInteractionMessages } from '../i18n/voiceInteractionMessages';
+import { getVoiceInteractionMessages } from '../i18n/messages';
 import { resolveHostAwareTranslationLayerIdFromSnapshot } from '../utils/translationLayerTargetResolver';
 
 interface VoiceMessageLike {

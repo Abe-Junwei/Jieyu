@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { db, type LayerDocType, type LayerUnitDocType, type SpeakerDocType } from '../db';
 import { SegmentMetaService } from '../services/SegmentMetaService';
-import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { getSidePaneSidebarMessages } from '../i18n/messages';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';
 
 const messages = getSidePaneSidebarMessages('zh-CN');

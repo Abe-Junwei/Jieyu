@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { WaveformToolbar } from '../components/WaveformToolbar';
 import type { AcousticRuntimeStatus, VadCacheStatus } from '../contexts/AiPanelContext';
 import { ToolbarAiProgress } from '../components/transcription/toolbar/ToolbarAiProgress';
-import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { getSidePaneSidebarMessages } from '../i18n/messages';
 import { t, tf, useLocale } from '../i18n';
 import type { AcousticOverlayMode } from '../utils/acousticOverlayTypes';
 import type { WaveformDisplayMode } from '../utils/waveformDisplayMode';

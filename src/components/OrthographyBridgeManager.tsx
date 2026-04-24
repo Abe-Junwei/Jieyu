@@ -6,8 +6,8 @@ import { formatOrthographyOptionLabel, groupOrthographiesForSelect } from '../ho
 import { useLocale } from '../i18n';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';
 import { FormField } from './ui';
-import { getOrthographyBuilderMessages, getOrthographyCatalogGroupLabel, getOrthographyBridgeRulePlaceholder, getOrthographyBridgeSyntaxHint } from '../i18n/orthographyBuilderMessages';
-import { getOrthographyBridgeManagerMessages } from '../i18n/orthographyBridgeManagerMessages';
+import { getOrthographyBuilderMessages, getOrthographyCatalogGroupLabel, getOrthographyBridgeRulePlaceholder, getOrthographyBridgeSyntaxHint } from '../i18n/messages';
+import { getOrthographyBridgeManagerMessages } from '../i18n/messages';
 import { createOrthographyBridgeRecord, deleteOrthographyBridgeRecord, listOrthographyBridgeRecords, updateOrthographyBridgeRecord } from '../services/LinguisticService.orthography';
 import { buildPrimaryAndEnglishLabels, readEnglishFallbackMultiLangLabel, readPrimaryMultiLangLabel } from '../utils/multiLangLabels';
 import { buildBridgeRulesFromRuleText, evaluateOrthographyBridgeSampleCases, parseBridgeSampleCases, previewOrthographyBridge, validateOrthographyBridge } from '../utils/orthographyBridges';

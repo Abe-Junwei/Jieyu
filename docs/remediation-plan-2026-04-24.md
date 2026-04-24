@@ -273,6 +273,9 @@
 ### 3.1 fireAndForget 泛滥
 
 - **编号**：ARCH-1 | **范围**：70+ 调用点
+- **状态**（2026-04-24）：**主路径已落地，长期项仍开放**  
+  - **已实现**：`src/utils/fireAndForget.ts` 的 **`FireAndForgetOptions`**（`context` 必填由治理脚本保证、`policy` `user-visible` | `background`、生产 **Sentry**、可选 `onError`）；`user-visible` 失败时 **`FIRE_AND_FORGET_ERROR_EVENT`** → `useFireAndForgetErrorToast` 展示文案（见 `useToastControllerWindowEffects.ts` / `TranscriptionPage.ToastController.tsx`）。**CI**：`quality` 任务跑 **`npm run check:fire-and-forget-governance`**（`scripts/check-fire-and-forget-governance.mjs`，调用片段须含 `context:`）；`check:architecture-guard` 已包含该脚本。  
+  - **未做/可选**：全库改为 `Result<T, E>`；对 **background** 策略再细分产品语义。
 - **问题**：异步操作失败静默丢弃错误，用户无法感知操作未成功
 - **修复**：
   1. 引入 `Result<T, E>` 模式（或使用 `neverthrow` 库）
@@ -298,6 +301,13 @@
 
 ### 3.3 数据库写入缺乏事务包装
 
+- **状态**：**部分完成**（2026-04-24）— 层单元 / segment 图多表写路径已收敛
+- **落地摘要**：
+  - 门面与 store 列表：`withTransaction` / `withReadTransaction` / `withWriteTransaction`（`src/db/withTransaction.ts`），多表 store 名自 `src/db/dexieTranscriptionGraphStores.ts`（ADR-0006）。
+  - **级联删（按行 id）**：`deleteLayerUnitGraphByRecordIds` — 单次 rw 内顺序 `bulkDelete` 三表（`LayerUnitSegmentWritePrimitives.ts`）。
+  - **segment 子图按 id 整段删除**：`deleteLayerSegmentGraphBySegmentIds` — 在删 content / 删 link / 再删 unit 的链外包一层 `withTransaction`（`label: 'deleteLayerSegmentGraphBySegmentIds'`，`LayerSegmentGraphService.ts`）；内层仍可能调用已带事务的 `deleteLayerUnitGraphByRecordIds`（与 `LayerUnitService.deleteUnit` 等现网嵌套模式一致）。
+  - **多表 upsert（无外层 txn 时）**：`bulkUpsertLayerSegmentGraph` + `LayerUnitSegmentWriteService.upsertSegmentGraph` — 三表 `bulkPut` 同一 rw 事务。已有外层事务的路径（如 `restoreLayerSegmentGraphSnapshot`、`LayerSegmentationV2Service.splitSegment`）仍用直接 `bulkPut` / 既有 service 调用，避免无意义的嵌套事务。
+  - **后续（增量）**：其它跨函数多步写可按调用频率继续合并（`removeUnitTextFromSegmentationV2` 已用预计算孤儿段 + 单次 rw 包裹「删 content + `deleteLayerSegmentGraphBySegmentIds`」，`label: 'removeUnitTextFromSegmentationV2'`，`LayerSegmentationTextService.ts`）。
 - **编号**：ARCH-3 | **范围**：全局
 - **问题**：多步数据修改不在事务中执行，中途失败导致数据不一致
 - **修复**：

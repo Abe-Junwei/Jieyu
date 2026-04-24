@@ -3,7 +3,7 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_INLINE, JIEYU_MATERIAL_MICRO_XS } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
-import { getNotePanelMessages } from '../i18n/notePanelMessages';
+import { getNotePanelMessages } from '../i18n/messages';
 import { DialogOverlay, DialogShell, PanelButton, PanelSection } from './ui';
 
 interface NotePopoverProps {

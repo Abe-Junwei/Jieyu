@@ -274,7 +274,7 @@ export function useTranscriptionTimelineInteractionController(
   const handleWaveformRegionDoubleClick = useCallback((_regionId: string, start: number, end: number) => {
     const preferCreateSegment = readStoredWaveformDoubleClickAction() === 'create-segment';
     if (preferCreateSegment && !input.useSegmentWaveformRegions) {
-      fireAndForget(input.createUnitFromSelection(start, end));
+      fireAndForget(input.createUnitFromSelection(start, end), { context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L277', policy: 'user-visible' });
       return;
     }
     input.zoomToUnit(start, end);
@@ -288,7 +288,7 @@ export function useTranscriptionTimelineInteractionController(
         spanMs: Math.round(Math.max(0, end - start) * 1000),
       });
     }
-    fireAndForget(input.createUnitFromSelection(start, end));
+    fireAndForget(input.createUnitFromSelection(start, end), { context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L291', policy: 'user-visible' });
   }, [input.createUnitFromSelection]);
 
   const handleWaveformRegionUpdate = useCallback((regionId: string, start: number, end: number) => {
@@ -362,11 +362,11 @@ export function useTranscriptionTimelineInteractionController(
         if (subdivisionClampedInRegionUpdate) {
           input.setSaveState({ kind: 'done', message: t(uiLocale, 'transcription.timeline.timeSubdivisionClampAdjusted') });
         }
-      })());
+      })(), { context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L355', policy: 'user-visible' });
       return;
     }
 
-    fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId));
+    fireAndForget(saveTimingRouted(regionId, finalStart, finalEnd, waveformLayerId), { context: 'src/pages/useTranscriptionTimelineInteractionController.ts:L369', policy: 'user-visible' });
   }, [getNeighborBoundsRouted, input.activeLayerIdForEdits, input.endTimingGesture, input.makeSnapGuide, input.manualSelectTsRef, input.player.instanceRef, input.reloadSegments, input.resolveSegmentRoutingForLayer, input.selectTimelineUnit, input.setDragPreview, input.setSaveState, input.setSnapGuide, input.snapEnabled, input.unitsOnCurrentMedia, input.useSegmentWaveformRegions, input.waveformTimelineItems, saveTimingRouted, waveformLayerId]);
 
   // 播放跟随选区：节流 + startTransition（Descript / DAW 模式）| Playback follow-selection: throttle + startTransition (Descript / DAW pattern)

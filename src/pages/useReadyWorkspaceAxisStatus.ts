@@ -114,7 +114,7 @@ export function useReadyWorkspaceAxisStatus<TTimelineTopProps extends TimelineTo
       } finally {
         setLogicalExpandBusy(false);
       }
-    })());
+    })(), { context: 'src/pages/useReadyWorkspaceAxisStatus.ts:L99', policy: 'user-visible' });
   }, [
     activeTextId,
     layersCount,

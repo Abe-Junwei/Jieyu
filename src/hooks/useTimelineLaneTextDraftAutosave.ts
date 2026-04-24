@@ -82,13 +82,13 @@ export function useTranscriptionMediaLaneRowTextAutosave(params: {
     if (unitKind === 'segment') {
       clearAutoSaveTimer(rowKey);
       if (saveSegmentContentForLayer && value !== sourceText) {
-        fireAndForget(saveSegmentContentForLayer(unitId, layerId, value));
+        fireAndForget(saveSegmentContentForLayer(unitId, layerId, value), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L85', policy: 'user-visible' });
       }
       return;
     }
     clearAutoSaveTimer(rowKey);
     if (value !== sourceText) {
-      fireAndForget(saveUnitLayerText(unitId, value, layerId));
+      fireAndForget(saveUnitLayerText(unitId, value, layerId), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L91', policy: 'user-visible' });
     }
   }, [
     unitKind,
@@ -206,7 +206,7 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
       if (saveSegmentContentForLayer && value !== text) {
         fireAndForget(runSaveWithStatus(async () => {
           await saveSegmentContentForLayer(unitId, layerId, value);
-        }));
+        }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L207', policy: 'background' });
       } else {
         setRowSaveStatus(undefined);
       }
@@ -216,7 +216,7 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
     if (value !== text) {
       fireAndForget(runSaveWithStatus(async () => {
         await saveUnitLayerText(unitId, value, layerId);
-      }));
+      }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L217', policy: 'background' });
     } else {
       setRowSaveStatus(undefined);
     }

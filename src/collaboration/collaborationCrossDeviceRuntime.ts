@@ -1,6 +1,6 @@
 import { createLogger } from '../observability/logger';
 import { normalizeLocale, type Locale } from '../i18n';
-import { getCollaborationSyncSurfaceMessages } from '../i18n/collaborationSyncSurfaceMessages';
+import { getCollaborationSyncSurfaceMessages } from '../i18n/messages';
 import { dispatchAppGlobalToast } from '../utils/appGlobalToast';
 import { type FieldValue } from './collaborationConflictRuntime';
 

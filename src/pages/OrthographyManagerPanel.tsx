@@ -15,7 +15,7 @@ import { PanelNote } from '../components/ui/PanelNote';
 import type { OrthographyDocType } from '../db';
 import type { Locale } from '../i18n';
 import { t } from '../i18n';
-import type { OrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
+import type { OrthographyBuilderMessages } from '../i18n/messages';
 import type { LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';
 import { formatOrthographyOptionLabel } from '../hooks/useOrthographyPicker';
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';

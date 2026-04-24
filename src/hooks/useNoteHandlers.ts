@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useOptionalLocale } from '../i18n';
-import { getNoteHandlersMessages } from '../i18n/noteHandlersMessages';
+import { getNoteHandlersMessages } from '../i18n/messages';
 import { useNotes, useNoteCounts, type NoteTarget } from './useNotes';
 import type { ActionableRecommendation } from './useAiPanelLogic';
 import type { SaveState } from './useTranscriptionData';

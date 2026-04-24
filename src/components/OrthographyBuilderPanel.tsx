@@ -3,7 +3,7 @@ import '../styles/components/orthography-builder.css';
 import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap';
 import { formatOrthographyOptionLabel, groupOrthographiesForSelect, type UseOrthographyPickerResult } from '../hooks/useOrthographyPicker';
 import { useLocale } from '../i18n';
-import { getOrthographyBuilderMessages, getOrthographyCatalogGroupLabel, getOrthographyBridgeRulePlaceholder, getOrthographyBridgeSyntaxHint } from '../i18n/orthographyBuilderMessages';
+import { getOrthographyBuilderMessages, getOrthographyCatalogGroupLabel, getOrthographyBridgeRulePlaceholder, getOrthographyBridgeSyntaxHint } from '../i18n/messages';
 import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';
 import { PanelFeedback, PanelFeedbackStack } from './ui';
 import { LanguageIsoInput, type LanguageIsoInputValue } from './LanguageIsoInput';

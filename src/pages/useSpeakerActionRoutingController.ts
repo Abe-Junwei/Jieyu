@@ -635,15 +635,15 @@ export function useSpeakerActionRoutingController({
 
   const assignSpeakerFromCurrentSelection = useCallback((speakerId?: string) => {
     if (selectedBatchSegmentsForSpeakerActions.length > 0 && selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
-      fireAndForget(applySpeakerToMixedSelection(speakerId));
+      fireAndForget(applySpeakerToMixedSelection(speakerId), { context: 'src/pages/useSpeakerActionRoutingController.ts:L638', policy: 'user-visible' });
       return true;
     }
     if (selectedBatchSegmentsForSpeakerActions.length > 0) {
-      fireAndForget(handleAssignSpeakerToSegments(selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id), speakerId));
+      fireAndForget(handleAssignSpeakerToSegments(selectedBatchSegmentsForSpeakerActions.map((segment) => segment.id), speakerId), { context: 'src/pages/useSpeakerActionRoutingController.ts:L642', policy: 'user-visible' });
       return true;
     }
     if (selectedStandaloneUnitIdsForSpeakerActions.length > 0) {
-      fireAndForget(handleAssignSpeakerToUnits(selectedStandaloneUnitIdsForSpeakerActions, speakerId));
+      fireAndForget(handleAssignSpeakerToUnits(selectedStandaloneUnitIdsForSpeakerActions, speakerId), { context: 'src/pages/useSpeakerActionRoutingController.ts:L646', policy: 'user-visible' });
       return true;
     }
     return false;

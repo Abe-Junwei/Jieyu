@@ -80,6 +80,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: fireAndForget governance (context on all callsites)
+        run: npm run check:fire-and-forget-governance
+
       - name: Test suite
         run: npm test
 

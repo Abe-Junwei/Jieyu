@@ -3,7 +3,7 @@ import type { LayerDocType, LayerLinkDocType, LayerUnitContentDocType, LayerUnit
 import { layerTranscriptionTreeParentId } from '../db';
 import type { TimelineUnit } from '../hooks/transcriptionTypes';
 import { useOrthographies } from '../hooks/useOrthographies';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { resolveLayerLinkHostTranscriptionLayerId } from '../utils/translationHostLinkQuery';
 import { SidePaneSidebarLayerRow } from './SidePaneSidebarLayerRow';
 import { SidePaneSidebarSegmentList } from './SidePaneSidebarSegmentList';

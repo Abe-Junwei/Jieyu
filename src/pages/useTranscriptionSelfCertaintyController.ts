@@ -311,7 +311,7 @@ export function useTranscriptionSelfCertaintyController(
       return next;
     });
 
-    fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(targets, value)));
+    fireAndForget(Promise.resolve(input.saveUnitSelfCertainty(targets, value)), { context: 'src/pages/useTranscriptionSelfCertaintyController.ts:L314', policy: 'user-visible' });
   }, [canonicalUnitIds, input.saveUnitSelfCertainty, segmentRowLayerIndex]);
 
   return {

@@ -234,7 +234,7 @@ export function useTimelineResize({
 
       const bounds = getNeighborBounds(drag.segmentId ?? drag.unitId, drag.mediaId, finalStart, drag.layerId);
       setSnapGuide(makeSnapGuide(bounds, finalStart, finalEnd));
-      fireAndForget(saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId));
+      fireAndForget(saveUnitTiming(drag.segmentId ?? drag.unitId, finalStart, finalEnd, drag.layerId), { context: 'src/hooks/useTimelineResize.ts:L237', policy: 'user-visible' });
     };
 
     window.addEventListener('pointermove', onMove);

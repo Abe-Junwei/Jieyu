@@ -4,7 +4,7 @@ import { useEmbeddingContext } from '../../contexts/EmbeddingContext';
 import type { EmbeddingProviderKind } from '../../ai/embeddings/EmbeddingProvider';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_MICRO } from '../../utils/jieyuMaterialIcon';
-import { getAiEmbeddingCardMessages } from '../../i18n/aiEmbeddingCardMessages';
+import { getAiEmbeddingCardMessages } from '../../i18n/messages';
 
 function formatEmbeddingScore(score: number): string {
   return `${(Math.max(0, Math.min(1, score)) * 100).toFixed(1)}%`;

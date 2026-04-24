@@ -9,7 +9,7 @@ import { useLanguageCatalogLabelMap } from '../hooks/useLanguageCatalogLabelMap'
 import { useListKeyboardNav } from '../hooks/useListKeyboardNav';
 import { useProjectLanguageIds } from '../hooks/useProjectLanguageIds';
 import { t, useLocale } from '../i18n';
-import { getOrthographyBuilderMessages } from '../i18n/orthographyBuilderMessages';
+import { getOrthographyBuilderMessages } from '../i18n/messages';
 import { listOrthographyRecords, updateOrthographyRecord } from '../services/LinguisticService.orthography';
 import { OrthographyManagerPanel } from './OrthographyManagerPanel';
 import { buildOrthographyBrowseSelector, buildOrthographyBrowseState, WORKSPACE_LANGUAGE_SEARCH_LIMIT } from './orthographyBrowse.shared';

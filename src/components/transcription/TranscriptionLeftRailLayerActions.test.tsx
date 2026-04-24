@@ -2,7 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
+import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import {
   LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID,
   TranscriptionLeftRailLayerActions,

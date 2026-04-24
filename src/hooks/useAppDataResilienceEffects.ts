@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { Locale } from '../i18n';
-import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
+import { getAppDataResilienceMessages } from '../i18n/messages';
 import { getDb } from '../db/engine';
 import { probeJieyuDatabaseIntegrity } from '../db/dbIntegrityProbe';
 import { resolveDbResilienceProbe, type DbResilienceProbeOutcome } from './resolveDbResilienceGate';

@@ -181,7 +181,7 @@ export function useVoiceDock({
       if (!cancelled && fallbackLanguage) {
         setVoiceCorpusLang(fallbackLanguage);
       }
-    })());
+    })(), { context: 'src/hooks/useVoiceDock.ts:L179', policy: 'background' });
     return () => { cancelled = true; };
   }, [activeTextPrimaryLanguageId, getActiveTextPrimaryLanguageId]);
 

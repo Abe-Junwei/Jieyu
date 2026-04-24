@@ -1,5 +1,5 @@
 import type { LayerDocType } from '../db';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 
 export function getLayerEffectiveConstraint(layer: LayerDocType): NonNullable<LayerDocType['constraint']> {
   return layer.constraint ?? (layer.layerType === 'translation' ? 'symbolic_association' : 'independent_boundary');

@@ -105,7 +105,7 @@ export function useTranscriptionProjectMediaController(
       } finally {
         setAutoSegmentBusy(false);
       }
-    })());
+    })(), { context: 'src/pages/useTranscriptionProjectMediaController.ts:L85', policy: 'user-visible' });
   }, [autoSegmentBusy, createUnitFromSelectionRouted, locale, selectedMediaBlobSize, selectedMediaUrl, selectedTimelineMedia?.id, setSaveState, tfB, transcriptionAppService, unitsOnCurrentMedia]);
 
   const handleDeleteCurrentAudio = useCallback(() => {
@@ -138,7 +138,7 @@ export function useTranscriptionProjectMediaController(
           }),
         });
       }
-    })());
+    })(), { context: 'src/pages/useTranscriptionProjectMediaController.ts:L120', policy: 'user-visible' });
   }, [loadSnapshot, locale, selectTimelineUnit, selectedTimelineMedia, setSaveState, tfB, transcriptionAppService]);
 
   const handleDeleteCurrentProject = useCallback(() => {
@@ -172,7 +172,7 @@ export function useTranscriptionProjectMediaController(
           }),
         });
       }
-    })());
+    })(), { context: 'src/pages/useTranscriptionProjectMediaController.ts:L153', policy: 'user-visible' });
   }, [activeTextId, loadSnapshot, locale, selectTimelineUnit, setActiveTextId, setSaveState, tfB, transcriptionAppService]);
 
   const handleProjectSetupSubmit = useCallback(async (projectInput: { primaryTitle: string; englishFallbackTitle: string; primaryLanguageId: string; primaryOrthographyId?: string }) => {

@@ -247,10 +247,10 @@ export function useTranscriptionSpeakerController(input: UseTranscriptionSpeaker
       });
     }
     if (kind === 'segment') {
-      fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));
+      fireAndForget(handleAssignSpeakerToSegments(ids, speakerId), { context: 'src/pages/useTranscriptionSpeakerController.ts:L250', policy: 'user-visible' });
       return;
     }
-    fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId));
+    fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId), { context: 'src/pages/useTranscriptionSpeakerController.ts:L253', policy: 'user-visible' });
   }, [handleAssignSpeakerToSegments, handleAssignSpeakerToUnits, input.recordTimelineEdit, resolveSpeakerActionUnitIds]);
 
   return {

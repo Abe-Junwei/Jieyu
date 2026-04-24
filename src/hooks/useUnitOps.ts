@@ -49,10 +49,10 @@ export function useUnitOps(input: UseUnitOpsInput) {
     const plan = resolveDeletePlan(primaryId, ids);
     if (plan.kind === 'none') return;
     if (plan.kind === 'multi') {
-      requestDeleteUnits(plan.ids, () => { fireAndForget(deleteSelectedUnits(plan.ids)); });
+      requestDeleteUnits(plan.ids, () => { fireAndForget(deleteSelectedUnits(plan.ids), { context: 'src/hooks/useUnitOps.ts:L52', policy: 'user-visible' }); });
       return;
     }
-    requestDeleteUnits(plan.id, () => { fireAndForget(deleteUnit(plan.id)); });
+    requestDeleteUnits(plan.id, () => { fireAndForget(deleteUnit(plan.id), { context: 'src/hooks/useUnitOps.ts:L55', policy: 'user-visible' }); });
   }, [requestDeleteUnits, deleteSelectedUnits, deleteUnit]);
 
   const runDeleteOne = useCallback((id: string) => {
@@ -61,7 +61,7 @@ export function useUnitOps(input: UseUnitOpsInput) {
 
   const runMergeSelection = useCallback((ids: Set<string>) => {
     if (ids.size <= 1) return;
-    fireAndForget(mergeSelectedUnits(ids));
+    fireAndForget(mergeSelectedUnits(ids), { context: 'src/hooks/useUnitOps.ts:L64', policy: 'user-visible' });
   }, [mergeSelectedUnits]);
 
   const runMergePrev = useCallback((id: string) => {
@@ -69,7 +69,7 @@ export function useUnitOps(input: UseUnitOpsInput) {
       onMergeTargetMissing?.();
       return;
     }
-    fireAndForget(mergeWithPrevious(id));
+    fireAndForget(mergeWithPrevious(id), { context: 'src/hooks/useUnitOps.ts:L72', policy: 'user-visible' });
   }, [mergeWithPrevious, onMergeTargetMissing]);
 
   const runMergeNext = useCallback((id: string) => {
@@ -77,12 +77,12 @@ export function useUnitOps(input: UseUnitOpsInput) {
       onMergeTargetMissing?.();
       return;
     }
-    fireAndForget(mergeWithNext(id));
+    fireAndForget(mergeWithNext(id), { context: 'src/hooks/useUnitOps.ts:L80', policy: 'user-visible' });
   }, [mergeWithNext, onMergeTargetMissing]);
 
   const runSplitAtTime = useCallback((id: string, splitTime: number) => {
     if (!id) return;
-    fireAndForget(splitUnit(id, splitTime));
+    fireAndForget(splitUnit(id, splitTime), { context: 'src/hooks/useUnitOps.ts:L85', policy: 'user-visible' });
   }, [splitUnit]);
 
   const runSelectBefore = useCallback((id: string) => {

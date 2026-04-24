@@ -18,8 +18,8 @@ import { useAppSidePaneHostOptional, useRegisterAppSidePane } from '../contexts/
 import { useSpeakerRailContext } from '../contexts/SpeakerRailContext';
 import { SidePaneLayerProvider } from '../contexts/SidePaneContext';
 import { useLocale, type Locale } from '../i18n';
-import { getCollaborationCloudPanelMessages } from '../i18n/collaborationCloudPanelMessages';
-import { getSidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import { getCollaborationCloudPanelMessages } from '../i18n/messages';
+import { getSidePaneSidebarMessages } from '../i18n/messages';
 import { ModalPanel } from './ui';
 import { useLayerDeleteConfirm } from '../hooks/useLayerDeleteConfirm';
 import { useSidePaneSidebarDrag } from '../hooks/useSidePaneSidebarDrag';
@@ -243,7 +243,7 @@ export function SidePaneSidebar({
     if (dragState) return; // 鼠标拖拽进行中时忽略键盘 | Ignore while mouse drag is active
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= sidePaneRows.length) return;
-    fireAndForget(onReorderLayers(layerId, targetIndex));
+    fireAndForget(onReorderLayers(layerId, targetIndex), { context: 'src/components/SidePaneSidebar.tsx:L246', policy: 'user-visible' });
   }, [dragState, sidePaneRows.length, onReorderLayers]);
 
   const sidePaneOverviewNode = useMemo(() => (
@@ -467,7 +467,7 @@ export function SidePaneSidebar({
         keepUnits={deleteConfirmKeepUnits}
         onKeepUnitsChange={setDeleteConfirmKeepUnits}
         onCancel={cancelDeleteLayerConfirm}
-        onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
+        onConfirm={() => { fireAndForget(confirmDeleteLayer(), { context: 'src/components/SidePaneSidebar.tsx:L470', policy: 'user-visible' }); }}
       />
     </SidePaneLayerProvider>
   );

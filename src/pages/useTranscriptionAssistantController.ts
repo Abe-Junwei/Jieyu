@@ -116,7 +116,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
           layers: input.layers,
         });
         await input.saveSegmentContentForLayer(selectedTimelineUnit.unitId, selectedTimelineUnit.layerId, transformedText);
-      })());
+      })(), { context: 'src/pages/useTranscriptionAssistantController.ts:L111', policy: 'user-visible' });
       return;
     }
     const targetUnit = input.selectedTimelineOwnerUnit;
@@ -165,7 +165,7 @@ export function useTranscriptionAssistantController(input: UseTranscriptionAssis
         saveUnitText: input.saveUnitText,
         saveUnitLayerText: input.saveUnitLayerText,
       });
-    }));
+    }), { context: 'src/pages/useTranscriptionAssistantController.ts:L157', policy: 'user-visible' });
   }, [
     input.layers,
     input.defaultTranscriptionLayerId,

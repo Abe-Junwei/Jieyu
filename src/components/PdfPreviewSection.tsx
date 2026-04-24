@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { normalizeLocale } from '../i18n';
-import { getPdfPreviewSectionMessages } from '../i18n/pdfPreviewSectionMessages';
+import { getPdfPreviewSectionMessages } from '../i18n/messages';
 import { CloseIcon } from './SvgIcons';
 
 const PdfViewerPanel = lazy(async () => import('./PdfViewerPanel').then((module) => ({ default: module.PdfViewerPanel })));

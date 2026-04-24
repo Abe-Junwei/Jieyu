@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { normalizeLocale, t } from '../i18n';
-import { getConfirmDeleteDialogMessages } from '../i18n/confirmDeleteDialogMessages';
+import { getConfirmDeleteDialogMessages } from '../i18n/messages';
 import { ModalPanel, PanelButton } from './ui';
 import { PanelSection } from './ui/PanelSection';
 import { PanelSummary } from './ui/PanelSummary';

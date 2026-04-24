@@ -163,7 +163,10 @@ describe('TranscriptionPage structure invariants', () => {
     const controllerCode = fs.readFileSync(controllerPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionSpeakerController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionSpeakerController({')
+      || orchestratorCode.includes('const speakerController = useTranscriptionSpeakerController({'),
+    ).toBe(true);
     expect(controllerCode.includes("import { useSpeakerFocusController } from './useSpeakerFocusController';")).toBe(false);
     expect(controllerCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(true);
     expect(controllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
@@ -462,9 +465,9 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes('const runOverlaySplitAtTime = (')).toBe(false);
 
     expect(hookCode.includes("if (unitKind === 'segment') {")).toBe(true);
-    expect(hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId));')).toBe(true);
+    expect(hookCode.includes('fireAndForget(deleteSelectedUnitsRouted(ids, layerId), { context:')).toBe(true);
     expect(hookCode.includes('runMergeSelection(ids);')).toBe(true);
-    expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId));')).toBe(true);
+    expect(hookCode.includes('fireAndForget(splitRouted(id, splitTime, layerId), { context:')).toBe(true);
   });
 
   it('keeps Orchestrator below the current regression ceiling', () => {
@@ -491,14 +494,26 @@ describe('TranscriptionPage structure invariants', () => {
     expect(orchestratorCode.includes("import { useTranscriptionSpeakerController } from './useTranscriptionSpeakerController';")).toBe(true);
     expect(orchestratorCode.includes("import { useSpeakerActionRoutingController } from './useSpeakerActionRoutingController';")).toBe(false);
     expect(orchestratorCode.includes('= useSpeakerActionScopeController({')).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionSpeakerController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionSpeakerController({')
+      || orchestratorCode.includes('const speakerController = useTranscriptionSpeakerController({'),
+    ).toBe(true);
     expect(orchestratorCode.includes('const selectedSegmentIdsForSpeakerActions = useMemo(')).toBe(false);
     expect(orchestratorCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(false);
-    expect(orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')).toBe(true);
-    expect(orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu')).toBe(true);
+    expect(
+      orchestratorCode.includes('handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,')
+      || orchestratorCode.includes('handleAssignSpeakerToSelected: speakerController.handleAssignSpeakerToSelectedRouted,'),
+    ).toBe(true);
+    expect(
+      orchestratorCode.includes('onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu')
+      || orchestratorCode.includes('onAssignSpeakerFromMenu: speakerController.handleAssignSpeakerFromMenu'),
+    ).toBe(true);
     expect(orchestratorCode.includes('onSetUnitSelfCertaintyFromMenu: selfCertaintyController.handleSetUnitSelfCertaintyFromMenu')).toBe(true);
     expect(orchestratorCode.includes('resolveSelfCertaintyUnitIds: selfCertaintyController.resolveSelfCertaintyUnitIds')).toBe(true);
-    expect(orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel')).toBe(true);
+    expect(
+      orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel')
+      || orchestratorCode.includes('onOpenSpeakerManagementPanelFromMenu: speakerController.handleOpenSpeakerManagementPanel'),
+    ).toBe(true);
 
     expect(scopeHookCode.includes('resolveMappedUnitIds(')).toBe(true);
     expect(scopeHookCode.includes('selectedBatchSegmentsForSpeakerActions')).toBe(true);
@@ -508,8 +523,8 @@ describe('TranscriptionPage structure invariants', () => {
     expect(speakerControllerCode.includes('} = useSpeakerActionRoutingController({')).toBe(true);
     expect(speakerControllerCode.includes('const handleAssignSpeakerFromMenu = useCallback((unitIds: Iterable<string>, kind: TimelineUnitKind, speakerId?: string) => {')).toBe(true);
     expect(speakerControllerCode.includes("if (kind === 'segment') {")).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId));')).toBe(true);
-    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId));')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToSegments(ids, speakerId), { context:')).toBe(true);
+    expect(speakerControllerCode.includes('fireAndForget(handleAssignSpeakerToUnits(resolveSpeakerActionUnitIds(ids), speakerId), { context:')).toBe(true);
 
     expect(routingHookCode.includes('const handleAssignSpeakerToSegments = useCallback(async (segmentIds: Iterable<string>, speakerId?: string) => {')).toBe(true);
     expect(routingHookCode.includes('await LinguisticService.assignSpeakerToSegments(targetIds, speakerId);')).toBe(true);
@@ -710,7 +725,10 @@ describe('TranscriptionPage structure invariants', () => {
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionAssistantController } from './useTranscriptionAssistantController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionAssistantController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionAssistantController({')
+      || orchestratorCode.includes('const assistantController = useTranscriptionAssistantController({'),
+    ).toBe(true);
     expect(orchestratorCode.includes('const handleVoiceDictation = useCallback((text: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const handleVoiceAnalysisResult = useCallback(async (unitId: string | null, analysisText: string) => {')).toBe(false);
     expect(orchestratorCode.includes('const aiPanelContextValue = useMemo(() => ({')).toBe(false);
@@ -749,7 +767,10 @@ describe('TranscriptionPage structure invariants', () => {
     const hookCode = fs.readFileSync(hookPath, 'utf8');
 
     expect(orchestratorCode.includes("import { useTranscriptionTimelineController } from './useTranscriptionTimelineController';")).toBe(true);
-    expect(orchestratorCode.includes('} = useTranscriptionTimelineController({')).toBe(true);
+    expect(
+      orchestratorCode.includes('} = useTranscriptionTimelineController({')
+      || orchestratorCode.includes('const timelineController = useTranscriptionTimelineController({'),
+    ).toBe(true);
     expect(orchestratorCode.includes('const filteredUnitsOnCurrentMedia = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const timelineRenderUnits = useMemo(() => {')).toBe(false);
     expect(orchestratorCode.includes('const translationAudioByLayer = useMemo(() => {')).toBe(false);

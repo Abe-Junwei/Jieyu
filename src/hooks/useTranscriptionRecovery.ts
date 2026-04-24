@@ -27,7 +27,7 @@ export function useTranscriptionRecoverySnapshotScheduler({
       units: unitsRef.current,
       translations: translationsRef.current,
       layers: layersRef.current,
-    }));
+    }), { context: 'src/hooks/useTranscriptionRecovery.ts:L26', policy: 'background' });
   }, 3000);
 
   const scheduleRecoverySave = recoverySave.run;

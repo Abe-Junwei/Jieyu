@@ -1,8 +1,8 @@
 import type { CollaborationPresenceLiveMember } from '../../collaboration/cloud/CollaborationPresenceService';
 import type { CollaborationSyncBadgeKind, CollaborationSyncBadgeState } from '../../collaboration/cloud/collaborationSyncDerived';
 import type { Locale } from '../../i18n';
-import { getCollaborationSyncSurfaceMessages } from '../../i18n/collaborationSyncSurfaceMessages';
-import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
+import { getCollaborationSyncSurfaceMessages } from '../../i18n/messages';
+import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import '../../styles/collaboration-sync-surface.css';
 
 function getDisplayName(member: CollaborationPresenceLiveMember): string {

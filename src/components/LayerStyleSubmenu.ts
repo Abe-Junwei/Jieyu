@@ -5,7 +5,7 @@
 
 import type { LayerDisplaySettings, OrthographyDocType } from '../db';
 import type { Locale } from '../i18n';
-import { getLayerStyleSubmenuMessages } from '../i18n/layerStyleSubmenuMessages';
+import { getLayerStyleSubmenuMessages } from '../i18n/messages';
 import type { ContextMenuItem } from './ContextMenu';
 import type { FontCoverageVerification, LocalFontEntry, OrthographyRenderPolicy } from '../utils/layerDisplayStyle';
 import { BASE_FONT_SIZE, describeLocalFontCoverage, describePresetFontCoverage, filterLocalFontsForLanguage, formatLocalFontLabel, LAYER_FONT_SIZE_STEP, MAX_LAYER_FONT_SIZE, MIN_LAYER_FONT_SIZE, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';

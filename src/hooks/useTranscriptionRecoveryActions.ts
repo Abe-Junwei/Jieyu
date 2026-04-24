@@ -47,7 +47,10 @@ export function useTranscriptionRecoveryActions({
 
     if (snap.timestamp > latestUpdatedAt + 2000) return snap;
 
-    fireAndForget(clearRecoverySnapshot(name));
+    fireAndForget(clearRecoverySnapshot(name), {
+      context: 'src/hooks/useTranscriptionRecoveryActions.ts:L50',
+      policy: 'background',
+    });
     return null;
   }, [dbNameRef, unitsRef]);
 
@@ -102,7 +105,12 @@ export function useTranscriptionRecoveryActions({
 
       await loadSnapshot();
       const name = dbNameRef.current;
-      if (name) fireAndForget(clearRecoverySnapshot(name));
+      if (name) {
+        fireAndForget(clearRecoverySnapshot(name), {
+          context: 'src/hooks/useTranscriptionRecoveryActions.ts:L105',
+          policy: 'background',
+        });
+      }
       setSaveState({ kind: 'done', message: '\u5df2\u4ece\u5d29\u6e83\u6062\u590d\u6570\u636e\u4e2d\u8fd8\u539f' });
       return true;
     } catch (error) {

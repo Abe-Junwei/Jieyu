@@ -1,6 +1,6 @@
 import type { LayerUnitStatus, NoteCategory, SpeakerDocType } from '../db';
 import { getSpeakerDisplayNameByKey } from '../hooks/speakerManagement/speakerUtils';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 export type SegmentContentStateFilter = 'has_text' | 'empty_text';

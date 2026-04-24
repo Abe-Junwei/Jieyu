@@ -4,7 +4,7 @@ import { JIEYU_MATERIAL_PANEL_CLOSE_LG } from '../utils/jieyuMaterialIcon';
 import type { LayerUnitDocType } from '../db';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import { useLocale } from '../i18n';
-import { getBatchOperationPanelMessages } from '../i18n/batchOperationPanelMessages';
+import { getBatchOperationPanelMessages } from '../i18n/messages';
 import type { OrthographyPreviewTextProps } from '../utils/layerDisplayStyle';
 import { DialogOverlay, DialogShell, FormField, PanelButton, PanelChip, PanelSection, PanelSummary } from './ui';
 

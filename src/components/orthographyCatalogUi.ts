@@ -1,6 +1,6 @@
 import type { OrthographyDocType } from '../db';
 import type { Locale } from '../i18n';
-import { getOrthographyCatalogGroupLabel } from '../i18n/orthographyBuilderMessages';
+import { getOrthographyCatalogGroupLabel } from '../i18n/messages';
 import { resolveOrthographyCatalogGroupKey } from '../hooks/useOrthographyPicker';
 
 export function getOrthographyCatalogBadgeInfo(locale: Locale, orthography: Pick<OrthographyDocType, 'catalogMetadata'>) {

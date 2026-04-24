@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import { getAiChatCardUtilityMessages } from '../../i18n/aiChatCardUtilityMessages';
+import { getAiChatCardUtilityMessages } from '../../i18n/messages';
 
 const log = createLogger('AiChatCardUtils');
 

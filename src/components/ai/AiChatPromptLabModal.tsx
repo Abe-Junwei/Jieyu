@@ -1,6 +1,6 @@
 import { useId, useMemo } from 'react';
 import type { PromptTemplateItem } from './aiChatCardUtils';
-import { getAiChatPromptLabMessages } from '../../i18n/aiChatPromptLabMessages';
+import { getAiChatPromptLabMessages } from '../../i18n/messages';
 import { useLocale } from '../../i18n';
 import { computeAdaptivePanelWidth } from '../../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../../hooks/useUiFontScaleRuntime';

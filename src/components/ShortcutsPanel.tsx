@@ -4,7 +4,7 @@
 import { useMemo } from 'react';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay } from '../services/KeybindingService';
 import { useOptionalLocale } from '../i18n';
-import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
+import { getShortcutsPanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';

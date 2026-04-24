@@ -39,7 +39,10 @@ export function useTranscriptionLifecycle({
       try {
         await loadSnapshot();
         // token/morpheme 延迟加载，不阻塞首屏 | Deferred linguistic load, non-blocking
-        fireAndForget(loadLinguisticAnnotations());
+        fireAndForget(loadLinguisticAnnotations(), {
+          context: 'src/hooks/useTranscriptionLifecycle.ts:L42',
+          policy: 'background',
+        });
       } catch (error) {
         if (cancelled) return;
         setState({
@@ -49,7 +52,7 @@ export function useTranscriptionLifecycle({
       }
     };
 
-    fireAndForget(load());
+    fireAndForget(load(), { context: 'src/hooks/useTranscriptionLifecycle.ts:L52', policy: 'background' });
 
     // Save recovery snapshot on page unload
     const onBeforeUnload = () => {
@@ -61,7 +64,7 @@ export function useTranscriptionLifecycle({
           units: unitsRef.current,
           translations: translationsRef.current,
           layers: layersRef.current,
-        }));
+        }), { context: 'src/hooks/useTranscriptionLifecycle.ts:L60', policy: 'background' });
       }
     };
     window.addEventListener('beforeunload', onBeforeUnload);
@@ -91,7 +94,10 @@ export function useTranscriptionLifecycle({
     dirtyRef.current = false;
     const name = dbNameRef.current;
     if (name) {
-      fireAndForget(clearRecoverySnapshot(name));
+      fireAndForget(clearRecoverySnapshot(name), {
+        context: 'src/hooks/useTranscriptionLifecycle.ts:L94',
+        policy: 'background',
+      });
     }
   }, [dbNameRef, dirtyRef, saveState.kind]);
 }

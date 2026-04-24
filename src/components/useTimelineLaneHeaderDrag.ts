@@ -380,7 +380,7 @@ export function useTimelineLaneHeaderDrag(options: TimelineLaneHeaderDragOptions
 
     if (finalTarget !== null) {
       if (finalTarget !== activeDrag.sourceIndex) {
-        fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget));
+        fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget), { context: 'src/components/useTimelineLaneHeaderDrag.ts:L383', policy: 'user-visible' });
       }
     }
 

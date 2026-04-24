@@ -636,6 +636,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
             console.warn('[TierBridge] Post-import consistency issues:', issues);
           }
         }),
+        { context: 'src/hooks/useImportExport.importHandlers.ts:L633', policy: 'background' },
       );
 
       const layerIdSet = new Set(layersAfterImport.map((layer) => layer.id));

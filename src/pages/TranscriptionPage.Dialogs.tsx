@@ -84,7 +84,7 @@ export function TranscriptionPageDialogs({
         state={speakerDialogState}
         busy={speakerSaving}
         onClose={onCloseSpeakerDialog}
-        onConfirm={() => { fireAndForget(onConfirmSpeakerDialog()); }}
+        onConfirm={() => { fireAndForget(onConfirmSpeakerDialog(), { context: 'src/pages/TranscriptionPage.Dialogs.tsx:L87', policy: 'user-visible' }); }}
         onDraftNameChange={onDraftNameChange}
         onTargetSpeakerChange={onTargetSpeakerChange}
       />

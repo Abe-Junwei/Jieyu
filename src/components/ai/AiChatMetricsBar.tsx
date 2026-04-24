@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import type { AiInteractionMetrics, AiSessionMemory } from '../../hooks/useAiChat';
 import { formatToolName } from './aiChatCardUtils';
-import { getAiChatMetricsBarMessages } from '../../i18n/aiChatMetricsBarMessages';
+import { getAiChatMetricsBarMessages } from '../../i18n/messages';
 import { CheckIcon, CrossIcon } from '../SvgIcons';
 
 interface AiChatMetricsBarProps {

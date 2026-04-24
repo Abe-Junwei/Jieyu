@@ -930,7 +930,7 @@ function TranscriptionPageReadyWorkspace({
   const handleExecuteObserverRecommendation = useCallback((item: { id: string }) => {
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
     if (match) {
-      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
+      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), { context: 'src/pages/TranscriptionPage.ReadyWorkspace.tsx:L933', policy: 'user-visible' });
     }
   }, [actionableObserverRecommendations, handleExecuteRecommendation]);
 
@@ -1031,7 +1031,7 @@ function TranscriptionPageReadyWorkspace({
     createUnitFromSelection: createUnitFromSelectionRouted,
   });
 
-  const { timelineResizeTooltip, startTimelineResizeDrag } = useTimelineResize({
+  const timelineResizeController = useTimelineResize({
     zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     manualSelectTsRef,
     player,
@@ -1050,13 +1050,7 @@ function TranscriptionPageReadyWorkspace({
     segmentsByLayer,
   });
 
-  const {
-    aiPanelContextValue,
-    handleResolveVoiceIntentWithLlm,
-    handleVoiceDictation,
-    voiceDictationPipeline,
-    handleVoiceAnalysisResult,
-  } = useTranscriptionAssistantController({
+  const assistantController = useTranscriptionAssistantController({
     state,
     unitsLength: units.length,
     translationLayersLength: translationLayers.length,
@@ -1120,13 +1114,7 @@ function TranscriptionPageReadyWorkspace({
     setUnits,
   });
 
-  const {
-    handleGlobalPlayPauseAction,
-    handleWaveformKeyDown,
-    navigateUnitFromInput,
-    executeAction,
-    toggleVoiceRef,
-  } = useTranscriptionPlaybackKeyboardController({
+  const playbackKeyboardController = useTranscriptionPlaybackKeyboardController({
     player,
     subSelectionRange,
     setSubSelectionRange,
@@ -1165,7 +1153,7 @@ function TranscriptionPageReadyWorkspace({
 
   useTranscriptionActionRefBindings({
     executeActionRef,
-    executeAction,
+    executeAction: playbackKeyboardController.executeAction,
     openSearchRef,
     openSearchFromRequest,
     seekToTimeRef,
@@ -1200,10 +1188,6 @@ function TranscriptionPageReadyWorkspace({
       : {}),
     ...(timelineViewportProjection.zoomPxPerSec !== undefined ? { zoomPxPerSec: timelineViewportProjection.zoomPxPerSec } : {}),
     ...(timelineViewportProjection.fitPxPerSec !== undefined ? { fitPxPerSec: timelineViewportProjection.fitPxPerSec } : {}),
-    ...(timelineViewportProjection.waveformScrollLeft !== undefined
-      ? { waveformScrollLeft: timelineViewportProjection.waveformScrollLeft }
-      : {}),
-    ...(selectedTimelineMedia?.id !== undefined ? { selectedMediaId: selectedTimelineMedia.id } : {}),
     selectedMediaUrl: selectedMediaUrl ?? null,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
@@ -1239,20 +1223,22 @@ function TranscriptionPageReadyWorkspace({
       tfB,
       activeTextPrimaryLanguageId,
       getActiveTextPrimaryLanguageId,
-      executeAction,
-      handleResolveVoiceIntentWithLlm,
-      handleVoiceDictation,
-      handleVoiceAnalysisResult,
+      executeAction: playbackKeyboardController.executeAction,
+      handleResolveVoiceIntentWithLlm: assistantController.handleResolveVoiceIntentWithLlm,
+      handleVoiceDictation: assistantController.handleVoiceDictation,
+      handleVoiceAnalysisResult: assistantController.handleVoiceAnalysisResult,
       selectionSnapshot,
       ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
       translationLayers,
       layers,
       layerLinks,
       ...(voiceDictationPreviewTextProps !== undefined ? { dictationPreviewTextProps: voiceDictationPreviewTextProps } : {}),
-      ...(voiceDictationPipeline !== undefined ? { dictationPipeline: voiceDictationPipeline } : {}),
+      ...(assistantController.voiceDictationPipeline !== undefined
+        ? { dictationPipeline: assistantController.voiceDictationPipeline }
+        : {}),
       formatSidePaneLayerLabel,
       formatTime,
-      toggleVoiceRef,
+      toggleVoiceRef: playbackKeyboardController.toggleVoiceRef,
       unitsOnCurrentMedia,
       getUnitDocById,
       getUnitTextForLayer,
@@ -1267,15 +1253,11 @@ function TranscriptionPageReadyWorkspace({
     },
   });
 
-  const {
-    assistantRuntimeProps,
-    analysisRuntimeProps,
-    pdfRuntimeProps,
-  } = useTranscriptionAssistantSidebarController({
+  const assistantSidebarController = useTranscriptionAssistantSidebarController({
     ...assistantSidebarControllerInput,
   });
 
-  const { handleAiPanelResizeStart } = useTranscriptionWorkspacePanelEffects({
+  const workspacePanelEffectsController = useTranscriptionWorkspacePanelEffects({
     isAiPanelCollapsed,
     setIsAiPanelCollapsed,
     workspaceRef,
@@ -1363,43 +1345,7 @@ function TranscriptionPageReadyWorkspace({
     mergeSelectedUnits,
   });
 
-  const {
-    speakerOptions,
-    speakerDraftName,
-    setSpeakerDraftName,
-    batchSpeakerId,
-    setBatchSpeakerId,
-    speakerSavingRouted,
-    activeSpeakerFilterKey,
-    setActiveSpeakerFilterKey,
-    speakerReferenceStats,
-    speakerReferenceUnassignedStats,
-    speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady,
-    speakerDialogStateRouted,
-    selectedSpeakerSummaryForActions,
-    handleSelectSpeakerUnitsRouted,
-    handleClearSpeakerAssignmentsRouted,
-    handleExportSpeakerSegmentsRouted,
-    handleRenameSpeaker,
-    handleMergeSpeaker,
-    handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToSelectedRouted,
-    handleCreateSpeakerAndAssignRouted,
-    handleCreateSpeakerOnly,
-    closeSpeakerDialogRouted,
-    updateSpeakerDialogDraftNameRouted,
-    updateSpeakerDialogTargetKeyRouted,
-    confirmSpeakerDialogRouted,
-    handleClearSpeakerOnSelectedRouted,
-    speakerQuickActions,
-    selectedSpeakerIdsForTrackLock,
-    selectedSpeakerNamesForTrackLock,
-    speakerNameById,
-    handleOpenSpeakerManagementPanel,
-    handleAssignSpeakerFromMenu,
-  } = useTranscriptionSpeakerController({
+  const speakerController = useTranscriptionSpeakerController({
     units,
     setUnits,
     speakers,
@@ -1467,7 +1413,7 @@ function TranscriptionPageReadyWorkspace({
     [transcriptionLayers, translationLayers],
   );
 
-  const { handleAnnotationClick, handleAnnotationContextMenu, renderAnnotationItem, renderLaneLabel } = useTranscriptionAnnotationController({
+  const annotationController = useTranscriptionAnnotationController({
     manualSelectTsRef,
     player,
     selectedTimelineUnit,
@@ -1483,13 +1429,13 @@ function TranscriptionPageReadyWorkspace({
     zoomPxPerSec: timelineViewportProjection.zoomPxPerSec,
     setCtxMenu,
     timelineTextLayers: timelineTextLayersForContextMenu,
-    navigateUnitFromInput,
+    navigateUnitFromInput: playbackKeyboardController.navigateUnitFromInput,
     waveformAreaRef,
     dragPreview: timeRangeDragPreviewFromSegmentRangeGesturePreview(segmentRangeGesturePreviewReadModel),
     selectedUnitIds,
     focusedLayerRowId,
     zoomToUnit,
-    startTimelineResizeDrag,
+    startTimelineResizeDrag: timelineResizeController.startTimelineResizeDrag,
     handleNoteClick,
     resolveNoteIndicatorTarget,
     speakerVisualByUnitId: speakerActionScopeController.speakerVisualByTimelineUnitId,
@@ -1501,17 +1447,8 @@ function TranscriptionPageReadyWorkspace({
     overlapCycleTelemetryRef,
   });
 
-  const {
-    filteredUnitsOnCurrentMedia,
-    timelineRenderUnits,
-    translationAudioByLayer,
-    selectedBatchUnitTextById,
-    batchPreviewLayerOptions,
-    batchPreviewTextByLayerId,
-    defaultBatchPreviewLayerId,
-    editorContextValue,
-  } = useTranscriptionTimelineController({
-    activeSpeakerFilterKey,
+  const timelineController = useTranscriptionTimelineController({
+    activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
     unitsOnCurrentMedia,
     getUnitSpeakerKey,
     rulerView: timelineViewportProjection.rulerView ?? null,
@@ -1531,7 +1468,7 @@ function TranscriptionPageReadyWorkspace({
     clearAutoSaveTimer,
     saveUnitText,
     saveUnitLayerText,
-    renderLaneLabel,
+    renderLaneLabel: annotationController.renderLaneLabel,
     createLayer: createLayerWithActiveContext,
     updateLayerMetadata,
     deleteLayer,
@@ -1542,7 +1479,7 @@ function TranscriptionPageReadyWorkspace({
   const trackDisplayController = useTrackDisplayController({
     unitsOnCurrentMedia,
     timelineUnitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
-    timelineRenderUnits,
+    timelineRenderUnits: timelineController.timelineRenderUnits,
     activeLayerIdForEdits,
     ...(defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId } : {}),
     layers,
@@ -1552,8 +1489,8 @@ function TranscriptionPageReadyWorkspace({
     setTranscriptionTrackMode,
     laneLockMap: trackEntityStateController.laneLockMap,
     setLaneLockMap: trackEntityStateController.setLaneLockMap,
-    selectedSpeakerIdsForTrackLock,
-    speakerNameById,
+    selectedSpeakerIdsForTrackLock: speakerController.selectedSpeakerIdsForTrackLock,
+    speakerNameById: speakerController.speakerNameById,
     setLockConflictToast,
     getUnitSpeakerKey,
   });
@@ -1597,13 +1534,13 @@ function TranscriptionPageReadyWorkspace({
         handleLockSelectedSpeakersToLane: trackDisplayController.handleLockSelectedSpeakersToLane,
         handleUnlockSelectedSpeakers: trackDisplayController.handleUnlockSelectedSpeakers,
         handleResetTrackAutoLayout: trackDisplayController.handleResetTrackAutoLayout,
-        selectedSpeakerNamesForTrackLock,
+        selectedSpeakerNamesForTrackLock: speakerController.selectedSpeakerNamesForTrackLock,
         speakerLayerLayout: trackDisplayController.speakerLayerLayout,
-        activeSpeakerFilterKey,
-        speakerQuickActions,
+        activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
+        speakerQuickActions: speakerController.speakerQuickActions,
         handleLaneLabelWidthResizeStart,
         activeTextTimelineMode,
-        translationAudioByLayer,
+        translationAudioByLayer: timelineController.translationAudioByLayer,
         mediaItems: _mediaItems,
         recording,
         recordingUnitId,
@@ -1628,19 +1565,19 @@ function TranscriptionPageReadyWorkspace({
       segmentRangeGesturePreviewReadModel,
       annotation: {
         activeTextTimeMapping: activeTextTimeMapping ?? null,
-        timelineRenderUnits,
+        timelineRenderUnits: timelineController.timelineRenderUnits,
         defaultTranscriptionLayerId,
         createUnitFromSelectionRouted,
-        renderAnnotationItem,
+        renderAnnotationItem: annotationController.renderAnnotationItem,
         speakerSortKeyById: trackDisplayController.speakerSortKeyById,
-        filteredUnitsOnCurrentMedia,
+        filteredUnitsOnCurrentMedia: timelineController.filteredUnitsOnCurrentMedia,
         tierContainerRef,
-        handleAnnotationClick,
-        handleAnnotationContextMenu,
+        handleAnnotationClick: annotationController.handleAnnotationClick,
+        handleAnnotationContextMenu: annotationController.handleAnnotationContextMenu,
         handleNoteClick,
         resolveNoteIndicatorTarget,
-        startTimelineResizeDrag,
-        navigateUnitFromInput,
+        startTimelineResizeDrag: timelineResizeController.startTimelineResizeDrag,
+        navigateUnitFromInput: playbackKeyboardController.navigateUnitFromInput,
         speakerVisualByTimelineUnitId: speakerActionScopeController.speakerVisualByTimelineUnitId,
         resolveSelfCertaintyForUnit: selfCertaintyController.resolveSelfCertaintyForUnit,
         resolveSelfCertaintyAmbiguityForUnit: selfCertaintyController.resolveSelfCertaintyAmbiguityForUnit,
@@ -1658,7 +1595,7 @@ function TranscriptionPageReadyWorkspace({
         setAcousticOverlayMode,
         globalLoopPlayback,
         setGlobalLoopPlayback,
-        handleGlobalPlayPauseAction,
+        handleGlobalPlayPauseAction: playbackKeyboardController.handleGlobalPlayPauseAction,
         canUndo,
         canRedo,
         undoLabel,
@@ -1705,17 +1642,17 @@ function TranscriptionPageReadyWorkspace({
         isAiPanelCollapsed,
         hubSidebarTab,
         setHubSidebarTab,
-        assistantRuntimeProps,
-        analysisRuntimeProps,
+        assistantRuntimeProps: assistantSidebarController.assistantRuntimeProps,
+        analysisRuntimeProps: assistantSidebarController.analysisRuntimeProps,
         selectedAiWarning,
         selectedTranslationGapCount,
         aiSidebarError,
-        speakerDialogStateRouted,
-        speakerSavingRouted,
-        closeSpeakerDialogRouted,
-        confirmSpeakerDialogRouted,
-        updateSpeakerDialogDraftNameRouted,
-        updateSpeakerDialogTargetKeyRouted,
+        speakerDialogStateRouted: speakerController.speakerDialogStateRouted,
+        speakerSavingRouted: speakerController.speakerSavingRouted,
+        closeSpeakerDialogRouted: speakerController.closeSpeakerDialogRouted,
+        confirmSpeakerDialogRouted: speakerController.confirmSpeakerDialogRouted,
+        updateSpeakerDialogDraftNameRouted: speakerController.updateSpeakerDialogDraftNameRouted,
+        updateSpeakerDialogTargetKeyRouted: speakerController.updateSpeakerDialogTargetKeyRouted,
         showProjectSetup,
         handleProjectSetupSubmit: projectMediaController.handleProjectSetupSubmit,
         showAudioImport,
@@ -1749,7 +1686,7 @@ function TranscriptionPageReadyWorkspace({
     ),
   };
 
-  const { timelineTopPropsWithAxisStatus } = useReadyWorkspaceAxisStatus({
+  const readyWorkspaceAxisStatusController = useReadyWorkspaceAxisStatus({
     timelineTopProps: readyWorkspaceViewModels.timelineTopProps,
     selectedMediaUrl,
     isResizingWaveform,
@@ -1769,16 +1706,10 @@ function TranscriptionPageReadyWorkspace({
     setSaveState,
   });
 
-  const {
-    shouldRenderAiSidebar,
-    shouldRenderDialogs,
-    shouldRenderPdfRuntime,
-    shouldRenderBatchOps,
-    shouldRenderRecoveryBanner,
-  } = useReadyWorkspaceRenderController({
+  const readyWorkspaceRenderController = useReadyWorkspaceRenderController({
     isAiPanelCollapsed,
     flushDeferredAiRuntime,
-    aiPendingToolCall: assistantRuntimeProps.aiChatContextValue.aiPendingToolCall,
+    aiPendingToolCall: assistantSidebarController.assistantRuntimeProps.aiChatContextValue.aiPendingToolCall,
     setHubSidebarTab,
     setIsAiPanelCollapsed,
     showProjectSetup,
@@ -1787,7 +1718,7 @@ function TranscriptionPageReadyWorkspace({
     projectDeleteConfirm: projectMediaController.projectDeleteConfirm,
     showShortcuts,
     isFocusMode,
-    pdfPreviewRequest: pdfRuntimeProps.previewRequest.request,
+    pdfPreviewRequest: assistantSidebarController.pdfRuntimeProps.previewRequest.request,
     showBatchOperationPanel,
     recoveryAvailable,
   });
@@ -1857,38 +1788,38 @@ function TranscriptionPageReadyWorkspace({
 
   const readyWorkspaceSidePaneProps = buildReadyWorkspaceSidePaneProps({
     selectedUnitIds: speakerActionScopeController.selectedSpeakerUnitIdsForActionsSet,
-    handleAssignSpeakerToSelectedRouted,
-    handleClearSpeakerOnSelectedRouted,
-    speakerOptions,
-    speakerDraftName,
-    setSpeakerDraftName,
-    batchSpeakerId,
-    setBatchSpeakerId,
-    speakerSaving: speakerSavingRouted,
-    activeSpeakerFilterKey,
-    setActiveSpeakerFilterKey,
-    speakerDialogState: speakerDialogStateRouted,
+    handleAssignSpeakerToSelectedRouted: speakerController.handleAssignSpeakerToSelectedRouted,
+    handleClearSpeakerOnSelectedRouted: speakerController.handleClearSpeakerOnSelectedRouted,
+    speakerOptions: speakerController.speakerOptions,
+    speakerDraftName: speakerController.speakerDraftName,
+    setSpeakerDraftName: speakerController.setSpeakerDraftName,
+    batchSpeakerId: speakerController.batchSpeakerId,
+    setBatchSpeakerId: speakerController.setBatchSpeakerId,
+    speakerSaving: speakerController.speakerSavingRouted,
+    activeSpeakerFilterKey: speakerController.activeSpeakerFilterKey,
+    setActiveSpeakerFilterKey: speakerController.setActiveSpeakerFilterKey,
+    speakerDialogState: speakerController.speakerDialogStateRouted,
     speakerVisualByUnitId: speakerActionScopeController.speakerVisualByTimelineUnitId,
     speakerFilterOptions: speakerActionScopeController.speakerFilterOptionsForActions,
-    speakerReferenceStats,
-    speakerReferenceUnassignedStats,
-    speakerReferenceStatsMediaScoped,
-    speakerReferenceStatsReady,
-    selectedSpeakerSummary: selectedSpeakerSummaryForActions,
-    handleSelectSpeakerUnits: handleSelectSpeakerUnitsRouted,
-    handleClearSpeakerAssignments: handleClearSpeakerAssignmentsRouted,
-    handleExportSpeakerSegments: handleExportSpeakerSegmentsRouted,
-    handleRenameSpeaker,
-    handleMergeSpeaker,
-    handleDeleteSpeaker,
-    handleDeleteUnusedSpeakers,
-    handleAssignSpeakerToSelected: handleAssignSpeakerToSelectedRouted,
-    handleCreateSpeakerAndAssign: handleCreateSpeakerAndAssignRouted,
-    handleCreateSpeakerOnly,
-    closeSpeakerDialog: closeSpeakerDialogRouted,
-    updateSpeakerDialogDraftName: updateSpeakerDialogDraftNameRouted,
-    updateSpeakerDialogTargetKey: updateSpeakerDialogTargetKeyRouted,
-    confirmSpeakerDialog: confirmSpeakerDialogRouted,
+    speakerReferenceStats: speakerController.speakerReferenceStats,
+    speakerReferenceUnassignedStats: speakerController.speakerReferenceUnassignedStats,
+    speakerReferenceStatsMediaScoped: speakerController.speakerReferenceStatsMediaScoped,
+    speakerReferenceStatsReady: speakerController.speakerReferenceStatsReady,
+    selectedSpeakerSummary: speakerController.selectedSpeakerSummaryForActions,
+    handleSelectSpeakerUnits: speakerController.handleSelectSpeakerUnitsRouted,
+    handleClearSpeakerAssignments: speakerController.handleClearSpeakerAssignmentsRouted,
+    handleExportSpeakerSegments: speakerController.handleExportSpeakerSegmentsRouted,
+    handleRenameSpeaker: speakerController.handleRenameSpeaker,
+    handleMergeSpeaker: speakerController.handleMergeSpeaker,
+    handleDeleteSpeaker: speakerController.handleDeleteSpeaker,
+    handleDeleteUnusedSpeakers: speakerController.handleDeleteUnusedSpeakers,
+    handleAssignSpeakerToSelected: speakerController.handleAssignSpeakerToSelectedRouted,
+    handleCreateSpeakerAndAssign: speakerController.handleCreateSpeakerAndAssignRouted,
+    handleCreateSpeakerOnly: speakerController.handleCreateSpeakerOnly,
+    closeSpeakerDialog: speakerController.closeSpeakerDialogRouted,
+    updateSpeakerDialogDraftName: speakerController.updateSpeakerDialogDraftNameRouted,
+    updateSpeakerDialogTargetKey: speakerController.updateSpeakerDialogTargetKeyRouted,
+    confirmSpeakerDialog: speakerController.confirmSpeakerDialogRouted,
     sidePaneRows: orderedLayers,
     focusedLayerRowId,
     flashLayerRowId,
@@ -1939,7 +1870,7 @@ function TranscriptionPageReadyWorkspace({
     segMarkStart,
     isResizingWaveform,
     waveformHeight,
-    handleWaveformKeyDown,
+    handleWaveformKeyDown: playbackKeyboardController.handleWaveformKeyDown,
     handleWaveformAreaFocus,
     handleWaveformAreaBlur,
     handleWaveformAreaMouseMove,
@@ -2053,9 +1984,9 @@ function TranscriptionPageReadyWorkspace({
     getUnitTextForLayer,
     transcriptionLayers,
     translationLayers,
-    speakerOptions,
+    speakerOptions: speakerController.speakerOptions,
     speakerFilterOptions: speakerActionScopeController.speakerFilterOptionsForActions,
-    onAssignSpeakerFromMenu: handleAssignSpeakerFromMenu,
+    onAssignSpeakerFromMenu: speakerController.handleAssignSpeakerFromMenu,
     onSetUnitSelfCertaintyFromMenu: selfCertaintyController.handleSetUnitSelfCertaintyFromMenu,
     onToggleSkipProcessingFromMenu: (unitId, kind, layerId) => {
       if (kind !== 'segment') return;
@@ -2069,7 +2000,7 @@ function TranscriptionPageReadyWorkspace({
         && unit.tags?.skipProcessing === true
       ))
     ),
-    onOpenSpeakerManagementPanelFromMenu: handleOpenSpeakerManagementPanel,
+    onOpenSpeakerManagementPanelFromMenu: speakerController.handleOpenSpeakerManagementPanel,
     displayStyleControl,
   });
 
@@ -2089,8 +2020,8 @@ function TranscriptionPageReadyWorkspace({
   });
 
   const readyWorkspaceStageProps = buildReadyWorkspaceStageProps({
-    assistantFrame: assistantRuntimeProps.frame,
-    shouldRenderRecoveryBanner,
+    assistantFrame: assistantSidebarController.assistantRuntimeProps.frame,
+    shouldRenderRecoveryBanner: readyWorkspaceRenderController.shouldRenderRecoveryBanner,
     recoveryAvailable,
     recoveryDiffSummary,
     onApplyRecoveryBanner: applyRecoveryBanner,
@@ -2115,7 +2046,7 @@ function TranscriptionPageReadyWorkspace({
     }),
     onOpenProjectSetup: () => setShowProjectSetup(true),
     onOpenAudioImport: () => setShowAudioImport(true),
-    onOpenSpeakerManagementPanel: handleOpenSpeakerManagementPanel,
+    onOpenSpeakerManagementPanel: speakerController.handleOpenSpeakerManagementPanel,
     onDeleteCurrentProject: projectMediaController.handleDeleteCurrentProject,
     onDeleteCurrentAudio: projectMediaController.handleDeleteCurrentAudio,
     handleImportFile: importExportController.handleImportFile,
@@ -2143,16 +2074,16 @@ function TranscriptionPageReadyWorkspace({
     isAiPanelCollapsed,
     isTimelineLaneHeaderCollapsed,
     readyWorkspaceWaveformContentProps,
-    timelineTopProps: timelineTopPropsWithAxisStatus,
+    timelineTopProps: readyWorkspaceAxisStatusController.timelineTopPropsWithAxisStatus,
     readyWorkspaceSidePaneProps,
     timelineContentProps: readyWorkspaceViewModels.timelineContentProps,
-    editorContextValue,
-    aiPanelContextValue,
+    editorContextValue: timelineController.editorContextValue,
+    aiPanelContextValue: assistantController.aiPanelContextValue,
     onLassoPointerDown: handleLassoPointerDown,
     onLassoPointerMove: handleLassoPointerMove,
     onLassoPointerUp: handleLassoPointerUp,
     onTimelineScroll: handleTimelineScroll,
-    timelineResizeTooltip,
+    timelineResizeTooltip: timelineResizeController.timelineResizeTooltip,
     formatTime,
     timelineViewportProjection,
     snapEnabled,
@@ -2176,26 +2107,26 @@ function TranscriptionPageReadyWorkspace({
     redo,
     locale,
     setIsAiPanelCollapsed,
-    handleAiPanelResizeStart,
+    handleAiPanelResizeStart: workspacePanelEffectsController.handleAiPanelResizeStart,
     handleAiPanelToggle,
     assistantBridgeControllerInput,
     onRuntimeStateChange: handleDeferredAiRuntimeChange,
     aiSidebarProps: readyWorkspaceViewModels.aiSidebarProps,
-    shouldRenderAiSidebar,
+    shouldRenderAiSidebar: readyWorkspaceRenderController.shouldRenderAiSidebar,
     dialogsProps: readyWorkspaceViewModels.dialogsProps,
-    shouldRenderDialogs,
-    pdfRuntimeProps,
-    shouldRenderPdfRuntime,
-    shouldRenderBatchOps,
+    shouldRenderDialogs: readyWorkspaceRenderController.shouldRenderDialogs,
+    pdfRuntimeProps: assistantSidebarController.pdfRuntimeProps,
+    shouldRenderPdfRuntime: readyWorkspaceRenderController.shouldRenderPdfRuntime,
+    shouldRenderBatchOps: readyWorkspaceRenderController.shouldRenderBatchOps,
     showBatchOperationPanel,
     selectedUnitIds,
     selectedBatchUnits: batchOperationController.selectedBatchUnits,
     unitsOnCurrentMedia,
-    selectedBatchUnitTextById,
-    batchPreviewLayerOptions,
-    batchPreviewTextByLayerId,
+    selectedBatchUnitTextById: timelineController.selectedBatchUnitTextById,
+    batchPreviewLayerOptions: timelineController.batchPreviewLayerOptions,
+    batchPreviewTextByLayerId: timelineController.batchPreviewTextByLayerId,
     batchPreviewTextPropsByLayerId,
-    defaultBatchPreviewLayerId,
+    defaultBatchPreviewLayerId: timelineController.defaultBatchPreviewLayerId,
     onCloseBatchOps: () => setShowBatchOperationPanel(false),
     onBatchOffset: batchOperationController.handleBatchOffset,
     onBatchScale: batchOperationController.handleBatchScale,

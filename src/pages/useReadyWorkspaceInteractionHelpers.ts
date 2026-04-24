@@ -75,7 +75,7 @@ export function useReadyWorkspaceInteractionHelpers<
     if (!handleExecuteRecommendation) return;
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
     if (match) {
-      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
+      fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), { context: 'src/pages/useReadyWorkspaceInteractionHelpers.ts:L78', policy: 'user-visible' });
     }
   };
 

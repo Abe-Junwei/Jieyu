@@ -21,7 +21,7 @@ export function useTranscriptionAutoSaveActions({
     autoSaveTimersRef.current[key] = window.setTimeout(() => {
       fireAndForget(task().finally(() => {
         delete autoSaveTimersRef.current[key];
-      }));
+      }), { context: 'src/hooks/useTranscriptionAutoSaveActions.ts:L22', policy: 'background' });
     }, 550);
   }, [autoSaveTimersRef, clearAutoSaveTimer]);
 

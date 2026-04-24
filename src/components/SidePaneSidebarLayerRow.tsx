@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import type { LayerDocType, OrthographyDocType } from '../db';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { useLocale } from '../i18n';
 import { getLayerHeaderLanguageLine, getOrthographyHeaderLine, getLayerHeaderVarietyOrAliasLine } from '../utils/transcriptionFormatters';
 

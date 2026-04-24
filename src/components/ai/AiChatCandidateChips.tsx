@@ -1,4 +1,4 @@
-import { getAiChatCandidateChipsMessages } from '../../i18n/aiChatCandidateChipsMessages';
+import { getAiChatCandidateChipsMessages } from '../../i18n/messages';
 
 interface CandidateItem {
   key: string;

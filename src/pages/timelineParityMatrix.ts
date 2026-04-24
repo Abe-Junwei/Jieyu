@@ -27,8 +27,8 @@
  * 版本 18：`useSegmentRangeGesturePreviewWriter` 抽离 hooks；ReadyWorkspace 编排 timeline/annotation 头外提 `buildOrchestratorRawTimelineAnnotationCluster`。
  */
 
-import type { TimelineParityMatrixRowId } from '../i18n/timelineParityMatrixMessages';
-import { timelineParityMatrixRowsZh } from '../i18n/timelineParityMatrixMessages';
+import type { TimelineParityMatrixRowId } from '../i18n/messages';
+import { timelineParityMatrixRowsZh } from '../i18n/messages';
 
 export const TIMELINE_PARITY_MATRIX_VERSION = 18 as const;
 

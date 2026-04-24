@@ -9,7 +9,7 @@
 
 import { buildAgentLoopContinuationInput, buildAgentLoopStepTraceTags, createAgentLoopTraceContext, DEFAULT_AGENT_LOOP_CONFIG, estimateRemainingLoopTokens, shouldContinueAgentLoop, shouldWarnTokenBudget } from '../ai/chat/agentLoop';
 import { trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
-import { getAiChatCardMessages } from '../i18n/aiChatCardMessages';
+import { getAiChatCardMessages } from '../i18n/messages';
 import { createAssistantStream } from './useAiChat.streamFactory';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
 import { newAuditLogId, nowIso } from './useAiChat.helpers';

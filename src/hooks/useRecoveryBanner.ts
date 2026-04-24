@@ -66,7 +66,7 @@ export function useRecoveryBanner<TSnapshot extends {
         layers: Math.max(0, snap.layers.length - currentLengths.layers),
       });
       setRecoveryAvailable(true);
-    }));
+    }), { context: 'src/hooks/useRecoveryBanner.ts:L59', policy: 'user-visible' });
     return () => { cancelled = true; };
   }, [checkRecovery, phase]);
 
@@ -83,12 +83,12 @@ export function useRecoveryBanner<TSnapshot extends {
     fireAndForget((async () => {
       const ok = await applyRecovery(snap as NonNullable<TSnapshot>);
       if (ok) hideRecoveryBanner();
-    })());
+    })(), { context: 'src/hooks/useRecoveryBanner.ts:L83', policy: 'user-visible' });
   }, [applyRecovery]);
 
   const dismissRecoveryBanner = useCallback((): void => {
     if (dismissRecovery) {
-      fireAndForget(dismissRecovery());
+      fireAndForget(dismissRecovery(), { context: 'src/hooks/useRecoveryBanner.ts:L91', policy: 'user-visible' });
     }
     hideRecoveryBanner();
   }, [dismissRecovery]);

@@ -1,6 +1,6 @@
 import { createLogger } from '../../observability/logger';
 import { detectLocale } from '../../i18n';
-import { getAppDataResilienceMessages } from '../../i18n/appDataResilienceMessages';
+import { getAppDataResilienceMessages } from '../../i18n/messages';
 import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
 import { loadCollabClientStateBlobFromIdb, saveCollabClientStateBlobToIdb } from './CollaborationClientStateStore.idb';

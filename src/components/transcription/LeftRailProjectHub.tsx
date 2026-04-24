@@ -7,7 +7,7 @@ import { useToast } from '../../contexts/ToastContext';
 import type { ImportConflictStrategy } from '../../db';
 import { t, tf, useLocale } from '../../i18n';
 import { DEFAULT_ANNOTATION_IMPORT_BRIDGE_STRATEGY, type AnnotationImportBridgeStrategy } from '../../hooks/useImportExport.annotationImport';
-import { getSidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
+import { getSidePaneSidebarMessages } from '../../i18n/messages';
 import type { JieyuArchiveImportPreview } from '../../services/JymService';
 import { fireAndForget } from '../../utils/fireAndForget';
 import { computeSemanticTimelineMappingPreview } from '../../utils/timeMappingHubPreview';
@@ -470,7 +470,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
                 {
                   label: t(locale, 'transcription.projectHub.timeMappingResetIdentity'),
                   disabled: !onApplyTextTimeMapping,
-                  onClick: () => { fireAndForget(handleResetIdentityTimeMapping()); },
+                  onClick: () => { fireAndForget(handleResetIdentityTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L473', policy: 'user-visible' }); },
                 },
               ]
             : []),
@@ -486,7 +486,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
           {
             label: t(locale, 'transcription.projectHub.exchange.rollbackTimeMapping'),
             disabled: !onApplyTextTimeMapping || !activeTextTimeMapping?.rollback,
-            onClick: () => { fireAndForget(handleRollbackTimeMapping()); },
+            onClick: () => { fireAndForget(handleRollbackTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L489', policy: 'user-visible' }); },
           },
         ]
       : [];
@@ -502,8 +502,8 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
       { label: t(locale, 'transcription.toolbar.export.trs'), onClick: onExportTrs },
       { label: t(locale, 'transcription.toolbar.export.flextext'), onClick: onExportFlextext },
       { label: t(locale, 'transcription.toolbar.export.toolbox'), onClick: onExportToolbox },
-      { label: t(locale, 'transcription.toolbar.export.jyt'), separatorBefore: true, onClick: () => { fireAndForget(onExportJyt()); } },
-      { label: t(locale, 'transcription.toolbar.export.jym'), onClick: () => { fireAndForget(onExportJym()); } },
+      { label: t(locale, 'transcription.toolbar.export.jyt'), separatorBefore: true, onClick: () => { fireAndForget(onExportJyt(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L505', policy: 'user-visible' }); } },
+      { label: t(locale, 'transcription.toolbar.export.jym'), onClick: () => { fireAndForget(onExportJym(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L506', policy: 'user-visible' }); } },
     ];
 
     return [
@@ -631,7 +631,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
         onChange={(event) => {
           const file = event.target.files?.[0];
           if (file) {
-            fireAndForget(handleProjectArchivePicked(file));
+            fireAndForget(handleProjectArchivePicked(file), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L634', policy: 'user-visible' });
           }
           event.target.value = '';
         }}
@@ -686,7 +686,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             variant="primary"
             disabled={projectImportState.importing}
             onClick={() => {
-              fireAndForget(handleConfirmProjectImport());
+              fireAndForget(handleConfirmProjectImport(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L689', policy: 'user-visible' });
             }}
           >
             {projectImportState.importing
@@ -796,7 +796,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             variant="primary"
             disabled={timeMappingDialogState.saving}
             onClick={() => {
-              fireAndForget(handleConfirmTimeMapping());
+              fireAndForget(handleConfirmTimeMapping(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L799', policy: 'user-visible' });
             }}
           >
             {t(locale, 'transcription.projectHub.timeMappingDialogApply')}
@@ -882,7 +882,7 @@ export function LeftRailProjectHub(props: LeftRailProjectHubProps) {
             variant="primary"
             disabled={annotationImportState.importing}
             onClick={() => {
-              fireAndForget(handleConfirmAnnotationImport());
+              fireAndForget(handleConfirmAnnotationImport(), { context: 'src/components/transcription/LeftRailProjectHub.tsx:L885', policy: 'user-visible' });
             }}
           >
             {annotationImportState.importing

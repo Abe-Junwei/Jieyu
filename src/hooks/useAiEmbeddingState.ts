@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getDb } from '../db';
 import { buildEmbeddingFallbackWarning, readFallbackReason } from '../ai/embeddings/fallbackWarning';
 import type { EmbeddingSearchService } from '../ai/embeddings/EmbeddingSearchService';
-import { getAiEmbeddingStateMessages } from '../i18n/aiEmbeddingStateMessages';
+import { getAiEmbeddingStateMessages } from '../i18n/messages';
 
 type TaskRunnerLike = {
   cancel: (taskId: string) => boolean;

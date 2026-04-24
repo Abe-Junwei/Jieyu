@@ -12,7 +12,7 @@ import type {
   CollaborationCloudDirectoryProject,
 } from '../../collaboration/cloud/collaborationSyncDerived';
 import { useLocale } from '../../i18n';
-import { getCollaborationCloudPanelMessages } from '../../i18n/collaborationCloudPanelMessages';
+import { getCollaborationCloudPanelMessages } from '../../i18n/messages';
 import '../../styles/collaboration-sync-surface.css';
 
 type CloudPanelTab = 'assets' | 'snapshots' | 'timeline' | 'directory';

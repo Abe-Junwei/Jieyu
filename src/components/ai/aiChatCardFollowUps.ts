@@ -1,5 +1,5 @@
 import type { AiSessionMemoryLocalSemanticFrame, AiTaskTraceEntry, UiChatMessage } from '../../ai/chat/chatDomain.types';
-import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
+import { getAiChatCardMessages } from '../../i18n/messages';
 
 export type FollowUpSuggestion = {
   id: string;

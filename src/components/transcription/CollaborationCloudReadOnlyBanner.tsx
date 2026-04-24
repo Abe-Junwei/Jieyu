@@ -1,6 +1,6 @@
 import type { CollaborationProtocolGuardEvaluation } from '../../collaboration/cloud/collaborationProtocolGuard';
 import type { Locale } from '../../i18n';
-import { getCollaborationSyncSurfaceMessages } from '../../i18n/collaborationSyncSurfaceMessages';
+import { getCollaborationSyncSurfaceMessages } from '../../i18n/messages';
 import '../../styles/collaboration-sync-surface.css';
 
 export function CollaborationCloudReadOnlyBanner({

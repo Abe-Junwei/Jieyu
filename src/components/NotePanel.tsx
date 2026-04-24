@@ -3,7 +3,7 @@ import { MaterialSymbol } from './ui/MaterialSymbol';
 import { JIEYU_MATERIAL_MICRO, JIEYU_MATERIAL_PANEL } from '../utils/jieyuMaterialIcon';
 import type { UserNoteDocType, NoteCategory, MultiLangString } from '../db';
 import { useOptionalLocale } from '../i18n';
-import { getNotePanelMessages } from '../i18n/notePanelMessages';
+import { getNotePanelMessages } from '../i18n/messages';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';
 import { useUiFontScaleRuntime } from '../hooks/useUiFontScaleRuntime';
 import { useViewportWidth } from '../hooks/useViewportWidth';

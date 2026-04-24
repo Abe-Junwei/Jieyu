@@ -56,23 +56,25 @@ export function useTranscriptionAiController(
   );
   const effectiveUnitIndex = input.timelineUnitViewIndex;
   const scopeMediaItemForAi = input.scopeMediaItemForAi ?? input.selectedTimelineMedia;
-  const ownerUnitCandidatesForAi = useMemo(() => buildOwnerUnitCandidates(
-    effectiveUnitIndex.allUnits,
-    input.getUnitDocById,
-    toSyntheticUnitDoc,
-  ), [effectiveUnitIndex.allUnits, input.getUnitDocById]);
+  const ownerUnitCandidatesForAi = useMemo(
+    () => buildOwnerUnitCandidates(effectiveUnitIndex.allUnits, input.getUnitDocById, toSyntheticUnitDoc),
+    [effectiveUnitIndex.allUnits, input.getUnitDocById],
+  );
   const explicitOwnerUnitForAi = resolveExplicitOwnerUnitForAi({
     selectedUnit: input.selectionSnapshot.selectedUnit,
     getUnitDocById: input.getUnitDocById,
     selectedTimelineSegment: input.selectedTimelineSegment,
     ownerCandidates: ownerUnitCandidatesForAi,
   });
-  const resolvedOwnerUnitForAi = useMemo(() => resolveOwnerUnitForAi({
-    selectedUnit: input.selectionSnapshot.selectedUnit,
-    getUnitDocById: input.getUnitDocById,
-    selectedTimelineSegment: input.selectedTimelineSegment,
-    ownerCandidates: ownerUnitCandidatesForAi,
-  }), [input.getUnitDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUnitCandidatesForAi]);
+  const resolvedOwnerUnitForAi = useMemo(
+    () => resolveOwnerUnitForAi({
+      selectedUnit: input.selectionSnapshot.selectedUnit,
+      getUnitDocById: input.getUnitDocById,
+      selectedTimelineSegment: input.selectedTimelineSegment,
+      ownerCandidates: ownerUnitCandidatesForAi,
+    }),
+    [input.getUnitDocById, input.selectedTimelineSegment, input.selectionSnapshot.selectedUnit, ownerUnitCandidatesForAi],
+  );
   const [aiToolDecisionLogs, setAiToolDecisionLogs] = useState<Array<{ id: string; toolName: string; decision: string; reason?: string; requestId?: string; timestamp: string; source?: 'human' | 'ai' | 'system'; executed?: boolean; durationMs?: number; message?: string }>>([]);
   const [internalAiSidebarError, setInternalAiSidebarError] = useState<string | null>(null);
   const aiSidebarError = input.aiSidebarError ?? internalAiSidebarError;
@@ -170,13 +172,7 @@ export function useTranscriptionAiController(
     translationLayers: input.translationLayers,
     segmentTargets: segmentTargetDescriptors,
     ...(selectedSegmentTargetId ? { selectedSegmentTargetId } : {}),
-  }), [
-    input.transcriptionLayers,
-    input.translationLayers,
-    segmentTargetDescriptors,
-    segmentTargetScopeUnits,
-    selectedSegmentTargetId,
-  ]);
+  }), [input.transcriptionLayers, input.translationLayers, segmentTargetDescriptors, segmentTargetScopeUnits, selectedSegmentTargetId]);
 
   const bridgeTextForLayerWrite = useCallback(async ({ text, targetLayerId, selectedLayerId }: {
     text: string;
@@ -334,7 +330,9 @@ export function useTranscriptionAiController(
     embeddingSearchService,
   });
 
-  useEffect(() => { fireAndForget(refreshAiToolDecisionLogs()); }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
+  useEffect(() => {
+    fireAndForget(refreshAiToolDecisionLogs(), { context: 'src/pages/useTranscriptionAiController.ts:L337', policy: 'background' });
+  }, [aiChat.pendingToolCall, refreshAiToolDecisionLogs]);
 
   const {
     lexemeMatches,
@@ -384,7 +382,7 @@ export function useTranscriptionAiController(
 
   const handleExecuteObserverRecommendation = useCallback((item: AiObserverRecommendation) => {
     const match = actionableObserverRecommendations.find((candidate) => candidate.id === item.id);
-    if (match) fireAndForget(Promise.resolve(handleExecuteRecommendation(match)));
+    if (match) fireAndForget(Promise.resolve(handleExecuteRecommendation(match)), { context: 'src/pages/useTranscriptionAiController.ts:L387', policy: 'user-visible' });
   }, [actionableObserverRecommendations, handleExecuteRecommendation]);
 
   return {

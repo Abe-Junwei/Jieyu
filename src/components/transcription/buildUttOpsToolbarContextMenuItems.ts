@@ -1,6 +1,6 @@
 import type { LayerDocType } from '../../db';
 import type { TimelineUnit, TimelineUnitKind } from '../../hooks/transcriptionTypes';
-import type { TranscriptionOverlaysMessages } from '../../i18n/transcriptionOverlaysMessages';
+import type { TranscriptionOverlaysMessages } from '../../i18n/messages';
 import type { ContextMenuItem } from '../ContextMenu';
 
 export type BuildUttOpsToolbarMenuItemsInput = {

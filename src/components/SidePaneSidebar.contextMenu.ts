@@ -1,6 +1,6 @@
 import { fireAndForget } from '../utils/fireAndForget';
 import type { LayerDocType } from '../db';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import type { ContextMenuItem } from './ContextMenu';
 
 interface BuildSidePaneSidebarContextMenuItemsOptions {
@@ -26,7 +26,7 @@ export function buildSidePaneSidebarContextMenuItems({
       danger: true,
       disabled: !canDeleteLayer,
       onClick: () => {
-        fireAndForget(requestDeleteLayer(layerId));
+        fireAndForget(requestDeleteLayer(layerId), { context: 'src/components/SidePaneSidebar.contextMenu.ts:L29', policy: 'user-visible' });
       },
     },
   ];

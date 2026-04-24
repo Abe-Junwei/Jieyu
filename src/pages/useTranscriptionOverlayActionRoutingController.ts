@@ -44,7 +44,7 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayDeleteSelection = useCallback((primaryId: string, ids: Set<string>, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(deleteSelectedUnitsRouted(ids, layerId));
+      fireAndForget(deleteSelectedUnitsRouted(ids, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L47', policy: 'user-visible' });
       return;
     }
     runDeleteSelection(primaryId, ids);
@@ -59,7 +59,7 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayDeleteOne = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(deleteUnitRouted(id, layerId));
+      fireAndForget(deleteUnitRouted(id, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L62', policy: 'user-visible' });
       return;
     }
     runDeleteOne(id);
@@ -67,7 +67,7 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayMergePrev = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(mergeWithPreviousRouted(id, layerId));
+      fireAndForget(mergeWithPreviousRouted(id, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L70', policy: 'user-visible' });
       return;
     }
     runMergePrev(id);
@@ -75,7 +75,7 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlayMergeNext = useCallback((id: string, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(mergeWithNextRouted(id, layerId));
+      fireAndForget(mergeWithNextRouted(id, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L78', policy: 'user-visible' });
       return;
     }
     runMergeNext(id);
@@ -83,7 +83,7 @@ export function useTranscriptionOverlayActionRoutingController(
 
   const runOverlaySplitAtTime = useCallback((id: string, splitTime: number, unitKind: TimelineUnitKind, layerId: string) => {
     if (unitKind === 'segment') {
-      fireAndForget(splitRouted(id, splitTime, layerId));
+      fireAndForget(splitRouted(id, splitTime, layerId), { context: 'src/pages/useTranscriptionOverlayActionRoutingController.ts:L86', policy: 'user-visible' });
       return;
     }
     runSplitAtTime(id, splitTime);

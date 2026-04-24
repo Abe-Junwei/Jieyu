@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { MaterialSymbol } from '../ui/MaterialSymbol';
 import { JIEYU_MATERIAL_LEFT_RAIL_CTX } from '../../utils/jieyuMaterialIcon';
-import type { SidePaneSidebarMessages } from '../../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../../i18n/messages';
 import { t, type Locale } from '../../i18n';
 
 /** DOM id for App shell `app-left-rail-bottom-slot` host; tests mount a matching node. */

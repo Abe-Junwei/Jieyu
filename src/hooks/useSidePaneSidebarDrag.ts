@@ -265,7 +265,7 @@ export function useSidePaneSidebarDrag({
     }
 
     if (activeDrag && finalTarget !== null && finalTarget !== activeDrag.sourceIndex) {
-      fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget));
+      fireAndForget(onReorderLayers(activeDrag.draggedId, finalTarget), { context: 'src/hooks/useSidePaneSidebarDrag.ts:L268', policy: 'user-visible' });
     }
 
     clearRailDragVisual();

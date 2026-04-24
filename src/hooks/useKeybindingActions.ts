@@ -141,7 +141,7 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
             }
             fireAndForget(createUnitFromSelection(s, end, {
               selectionBehavior: 'keep-current',
-            }).finally(() => { creatingSegmentRef.current = false; }));
+            }).finally(() => { creatingSegmentRef.current = false; }), { context: 'src/hooks/useKeybindingActions.ts:L142', policy: 'user-visible' });
           }
           setSegMarkStart(null);
         }
@@ -264,8 +264,8 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
   // Global keybinding handler (undo, redo, search)
   useEffect(() => {
     const globalActions: Record<string, () => void> = {
-      undo:   () => fireAndForget(undo()),
-      redo:   () => fireAndForget(redo()),
+      undo:   () => fireAndForget(undo(), { context: 'src/hooks/useKeybindingActions.ts:L267', policy: 'user-visible' }),
+      redo:   () => fireAndForget(redo(), { context: 'src/hooks/useKeybindingActions.ts:L268', policy: 'user-visible' }),
       search: () => setShowSearch(true),
       toggleNotes: () => toggleNotes(),
       ...(toggleVoice ? { toggleVoice } : {}),
@@ -339,8 +339,8 @@ export function useKeybindingActions(input: UseKeybindingActionsInput) {
     }
     // Global actions handled inline to avoid stale closure
     switch (actionId) {
-      case 'undo': fireAndForget(undo()); break;
-      case 'redo': fireAndForget(redo()); break;
+      case 'undo': fireAndForget(undo(), { context: 'src/hooks/useKeybindingActions.ts:L342', policy: 'user-visible' }); break;
+      case 'redo': fireAndForget(redo(), { context: 'src/hooks/useKeybindingActions.ts:L343', policy: 'user-visible' }); break;
       case 'search': setShowSearch(true); break;
       case 'toggleNotes': toggleNotes(); break;
       case 'navToIndex': {

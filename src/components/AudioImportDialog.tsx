@@ -118,7 +118,7 @@ export function AudioImportDialog({ isOpen, onClose, disposition, onImport }: Au
           <PanelButton
             variant="primary"
             disabled={!selectedFile || !duration || importing}
-            onClick={() => fireAndForget(handleImport())}
+            onClick={() => fireAndForget(handleImport(), { context: 'src/components/AudioImportDialog.tsx:L121', policy: 'user-visible' })}
           >
             {importing ? t(locale, 'transcription.importDialog.importing') : t(locale, 'transcription.importDialog.confirmImport')}
           </PanelButton>

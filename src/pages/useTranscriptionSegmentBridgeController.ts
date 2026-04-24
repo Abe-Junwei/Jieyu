@@ -100,7 +100,10 @@ export function useTranscriptionSegmentBridgeController(
   }, [input.independentLayerIds]);
 
   useEffect(() => {
-    fireAndForget(refreshSegmentUndoSnapshot());
+    fireAndForget(refreshSegmentUndoSnapshot(), {
+      context: 'src/pages/useTranscriptionSegmentBridgeController.ts:L103',
+      policy: 'background',
+    });
 
     return () => {
       segmentUndoSnapshotRequestIdRef.current += 1;

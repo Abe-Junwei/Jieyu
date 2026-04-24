@@ -1,6 +1,6 @@
 import type { SpeakerRailContextValue } from '../contexts/SpeakerRailContext';
 import type { LayerDocType } from '../db';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { fireAndForget } from '../utils/fireAndForget';
 import { WrenchIcon } from './SvgIcons';
 import { formatSidePaneLayerLabel } from '../utils/transcriptionFormatters';
@@ -81,7 +81,7 @@ export function SidePaneSidebarActions({
         className="transcription-side-pane-quick-action"
         disabled={constraintRepairBusy || sidePaneRowsLength === 0}
         onClick={() => {
-          fireAndForget(onRunRepair());
+          fireAndForget(onRunRepair(), { context: 'src/components/SidePaneSidebarActions.tsx:L84', policy: 'user-visible' });
         }}
       >
         <WrenchIcon className="transcription-side-pane-quick-action-icon" />
@@ -126,7 +126,7 @@ export function SidePaneSidebarActions({
                 fireAndForget((async () => {
                   await requestDeleteLayer(quickDeleteLayerId);
                   setLayerActionPanel(null);
-                })());
+                })(), { context: 'src/components/SidePaneSidebarActions.tsx:L126', policy: 'user-visible' });
               }}
             >
               {messages.deleteButton}

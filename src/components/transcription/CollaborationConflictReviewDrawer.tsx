@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CloudSyncConflictReviewTicket } from '../../hooks/useTranscriptionCloudSyncActions';
 import { useLocale } from '../../i18n';
-import { getCollaborationConflictReviewDrawerMessages } from '../../i18n/collaborationConflictReviewDrawerMessages';
+import { getCollaborationConflictReviewDrawerMessages } from '../../i18n/messages';
 
 interface CollaborationConflictReviewDrawerProps {
   tickets: ReadonlyArray<CloudSyncConflictReviewTicket>;

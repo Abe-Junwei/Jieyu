@@ -6,7 +6,7 @@ import type { TimelineUnit, TimelineUnitKind } from '../hooks/transcriptionTypes
 import type { ContextMenuState } from '../pages/TranscriptionPage.UIState';
 import { useOptionalLocale } from '../i18n';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
-import { getTranscriptionOverlaysMessages } from '../i18n/transcriptionOverlaysMessages';
+import { getTranscriptionOverlaysMessages } from '../i18n/messages';
 import { getLayerLabelParts } from '../utils/transcriptionFormatters';
 import { ContextMenu } from './ContextMenu';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';

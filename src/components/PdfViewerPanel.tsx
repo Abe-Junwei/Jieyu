@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useOptionalLocale } from '../i18n';
-import { getPdfViewerPanelMessages } from '../i18n/pdfViewerPanelMessages';
+import { getPdfViewerPanelMessages } from '../i18n/messages';
 import { PanelButton, PanelChip } from './ui';
 import { PanelSummary } from './ui/PanelSummary';
 import { EmbeddedPanelShell } from './ui/EmbeddedPanelShell';

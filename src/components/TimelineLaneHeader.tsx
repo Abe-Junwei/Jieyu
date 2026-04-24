@@ -4,7 +4,7 @@ import type { TranscriptionTrackDisplayMode } from '../hooks/useTranscriptionUIS
 import { buildLayerBundles } from '../services/LayerOrderingService';
 import { buildLayerLinkConnectorLayout, getLayerLinkStackWidth } from '../utils/layerLinkConnector';
 import { useLocale, t, tf, type Locale } from '../i18n';
-import { getTimelineLaneHeaderMessages } from '../i18n/timelineLaneHeaderMessages';
+import { getTimelineLaneHeaderMessages } from '../i18n/messages';
 import { ContextMenu, type ContextMenuItem } from './ContextMenu';
 import { buildLayerStyleMenuItems } from './LayerStyleSubmenu';
 import { computeAdaptivePanelWidth } from '../utils/panelAdaptiveLayout';

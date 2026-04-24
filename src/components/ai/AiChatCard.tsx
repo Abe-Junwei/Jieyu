@@ -20,7 +20,7 @@ import { AiChatReplayDetailPanel } from './AiChatReplayDetailPanel';
 import { StreamWordsText } from './streamAssistantWords';
 import { useAiPromptTemplates } from './useAiPromptTemplates';
 import { escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
-import { getAiChatCardMessages } from '../../i18n/aiChatCardMessages';
+import { getAiChatCardMessages } from '../../i18n/messages';
 import { AiPanelContext } from '../../contexts/AiPanelContext';
 import { useGlobalContext } from '../../services/GlobalContextService';
 import { deriveAdaptiveProfileFromMessages, mergeAdaptiveProfiles } from '../../ai/chat/adaptiveInputProfile';

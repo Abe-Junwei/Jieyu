@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import type { Locale } from '../i18n';
-import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
+import { getAppDataResilienceMessages } from '../i18n/messages';
 import type { DbResilienceFailureKind } from '../hooks/resolveDbResilienceGate';
 
 export type DbIntegrityBlockingOverlayProps = {

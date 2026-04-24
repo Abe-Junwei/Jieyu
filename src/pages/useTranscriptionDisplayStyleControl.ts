@@ -59,7 +59,7 @@ export function useTranscriptionDisplayStyleControl({
       updatedAt: new Date().toISOString(),
     } as typeof layer;
     setLayers((prev) => prev.map((candidateLayer) => (candidateLayer.id === layerId ? updatedLayer : candidateLayer)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer));
+    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), { context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L62', policy: 'user-visible' });
     if (patch.fontSize != null) {
       const nextHeight = computeLaneHeightFromRenderPolicy(patch.fontSize, renderPolicy);
       handleTimelineLaneHeightChange(layerId, nextHeight);
@@ -73,7 +73,7 @@ export function useTranscriptionDisplayStyleControl({
     const { displaySettings: _removed, ...rest } = layer;
     const updatedLayer = { ...rest, updatedAt: new Date().toISOString() } as typeof layer;
     setLayers((prev) => prev.map((candidateLayer) => (candidateLayer.id === layerId ? updatedLayer : candidateLayer)));
-    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer));
+    fireAndForget(LayerTierUnifiedService.updateLayer(updatedLayer), { context: 'src/pages/useTranscriptionDisplayStyleControl.ts:L76', policy: 'user-visible' });
     handleTimelineLaneHeightChange(layerId, computeLaneHeightFromRenderPolicy(BASE_FONT_SIZE, renderPolicy, () => DEFAULT_TIMELINE_LANE_HEIGHT));
   }, [handleTimelineLaneHeightChange, layers, orthographies, setLayers]);
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { OrthographyDocType } from '../db';
 import { useOptionalLocale } from '../i18n';
-import { getSearchReplaceOverlayMessages } from '../i18n/searchReplaceOverlayMessages';
+import { getSearchReplaceOverlayMessages } from '../i18n/messages';
 import { analyzeSearchPattern, buildReplacePlan, findSearchMatches, type SearchMatch, type SearchableItem, type SearchReplaceOptions } from '../utils/searchReplaceUtils';
 import type { AppShellSearchScope } from '../utils/appShellEvents';
 import { buildOrthographyPreviewTextProps, resolveOrthographyRenderPolicy } from '../utils/layerDisplayStyle';

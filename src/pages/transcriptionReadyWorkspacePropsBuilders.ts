@@ -584,7 +584,7 @@ export function buildReadyWorkspaceStageProps(
             detail: `historyIndex=${idx}`,
           });
           await input.undoToHistoryIndex(idx);
-        })()),
+        })(), { context: 'src/pages/transcriptionReadyWorkspacePropsBuilders.ts:L578', policy: 'user-visible' }),
         onRedo: () => fireAndForget((async () => {
           const tu = input.selectedTimelineUnit;
           input.recordTimelineEdit({
@@ -593,7 +593,7 @@ export function buildReadyWorkspaceStageProps(
             unitKind: tu?.kind ?? 'unit',
           });
           await input.redo();
-        })()),
+        })(), { context: 'src/pages/transcriptionReadyWorkspacePropsBuilders.ts:L588', policy: 'user-visible' }),
       },
       aiPanelHandleProps: {
         locale: input.locale,

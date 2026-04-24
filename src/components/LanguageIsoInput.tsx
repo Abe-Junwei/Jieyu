@@ -4,7 +4,7 @@ import { formatLanguageCatalogMatch, getLanguageCatalogEntry, type LanguageCatal
 import type { ResolveLanguageDisplayName } from '../utils/languageDisplayNameResolver';
 import type { LanguageIsoInputValue } from '../utils/languageInputTypes';
 import { createLanguageInputModel, MAX_LANGUAGE_INPUT_VISIBLE_SUGGESTIONS, reduceLanguageInput, selectCommittedLanguageInputValue, selectLanguageInputAssistState, selectPresentedLanguageInputValue, serializeLanguageInputValue } from '../utils/languageInputReducer';
-import { getLanguageInputMessages } from '../i18n/languageInputMessages';
+import { getLanguageInputMessages } from '../i18n/messages';
 import type { Locale } from '../i18n/index';
 import { PanelFeedback } from './ui';
 import { type LanguageCatalogSearchScope, searchLanguageCatalogSuggestions, type LanguageCatalogSearchSuggestion } from '../services/LanguageCatalogSearchService';

@@ -195,8 +195,8 @@ export function useSpeakerActions({
 
   useEffect(() => {
     if (!isReady) return;
-    fireAndForget(refreshSpeakers());
-    fireAndForget(refreshSpeakerReferenceStats());
+    fireAndForget(refreshSpeakers(), { context: 'src/hooks/useSpeakerActions.ts:L198', policy: 'background' });
+    fireAndForget(refreshSpeakerReferenceStats(), { context: 'src/hooks/useSpeakerActions.ts:L199', policy: 'background' });
   }, [isReady, refreshSpeakerReferenceStats, refreshSpeakers, speakerReferenceStatsMediaId]);
 
   useEffect(() => {

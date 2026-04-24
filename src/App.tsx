@@ -14,7 +14,7 @@ import { useUiFontScaleRuntime } from './hooks/useUiFontScaleRuntime';
 import { useAppDataResilienceEffects } from './hooks/useAppDataResilienceEffects';
 import { usePanelResize } from './hooks/usePanelResize';
 import { LOCALE_PREFERENCE_STORAGE_KEY, LocaleProvider, detectLocale, preloadLocaleDictionary, setStoredLocalePreference, t, type Locale } from './i18n';
-import { getCollaborationCloudPanelMessages } from './i18n/collaborationCloudPanelMessages';
+import { getCollaborationCloudPanelMessages } from './i18n/messages';
 import { LeftRailResourcesMenu } from './components/LeftRailResourcesMenu';
 import { LEFT_RAIL_TRANSCRIPTION_LAYER_ACTIONS_SLOT_ID } from './components/transcription/TranscriptionLeftRailLayerActions';
 import { MaterialSymbol, ModalPanel } from './components/ui';

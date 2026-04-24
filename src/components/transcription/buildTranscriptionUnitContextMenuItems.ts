@@ -2,7 +2,7 @@ import type { LayerDocType, LayerDisplaySettings, OrthographyDocType, LayerUnitD
 import type { SpeakerFilterOption } from '../../hooks/useSpeakerActions';
 import type { TimelineUnitKind } from '../../hooks/transcriptionTypes';
 import type { ContextMenuState } from '../../pages/TranscriptionPage.UIState';
-import type { TranscriptionOverlaysMessages } from '../../i18n/transcriptionOverlaysMessages';
+import type { TranscriptionOverlaysMessages } from '../../i18n/messages';
 import type { Locale } from '../../i18n';
 import { t } from '../../i18n';
 import type { ContextMenuItem } from '../ContextMenu';

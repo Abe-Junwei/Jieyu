@@ -56,7 +56,7 @@ export function TranscriptionPageAnalysisRuntime({
       return;
     }
     embeddingTasksHydratedRef.current = true;
-    fireAndForget(refreshEmbeddingTasks());
+    fireAndForget(refreshEmbeddingTasks(), { context: 'src/pages/TranscriptionPage.AnalysisRuntime.tsx:L59', policy: 'user-visible' });
   }, [panel.analysisTab, refreshEmbeddingTasks]);
 
   const handleTestEmbeddingProvider = useMemo(

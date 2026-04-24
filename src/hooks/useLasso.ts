@@ -488,7 +488,7 @@ export function useLasso(input: UseLassoInput) {
         const s = Math.min(info.rangeStart, info.rangeEnd);
         const end = Math.max(info.rangeStart, info.rangeEnd);
         if (info.hitCount === 0 && end - s >= 0.05) {
-          fireAndForget(createUnitFromSelection(s, end));
+          fireAndForget(createUnitFromSelection(s, end), { context: 'src/hooks/useLasso.ts:L491', policy: 'user-visible' });
         }
       }
     };
@@ -707,7 +707,7 @@ export function useLasso(input: UseLassoInput) {
       const s = Math.min(info.rangeStart, info.rangeEnd);
       const end = Math.max(info.rangeStart, info.rangeEnd);
       if (info.hitCount === 0 && end - s >= 0.05) {
-        fireAndForget(createUnitFromSelection(s, end));
+        fireAndForget(createUnitFromSelection(s, end), { context: 'src/hooks/useLasso.ts:L710', policy: 'user-visible' });
       }
     }
   }, [clearUnitSelection, createUnitFromSelection, flushTimelineLassoMove, tierLassoMode, tierTimelineLassoSuppressed]);

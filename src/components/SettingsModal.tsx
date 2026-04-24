@@ -9,9 +9,9 @@ import { ModalPanel } from './ui';
 import { DEFAULT_KEYBINDINGS, formatKeyComboForDisplay, loadUserOverrides, saveUserOverride, removeUserOverride, resetUserOverrides, type KeyCombo } from '../services/KeybindingService';
 import { aiChatProviderDefinitions, normalizeAiChatSettings, type AiChatSettings, type AiChatProviderKind } from '../ai/providers/providerCatalog';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
-import { getAppDataResilienceMessages } from '../i18n/appDataResilienceMessages';
-import { getSettingsModalMessages } from '../i18n/settingsModalMessages';
-import { getShortcutsPanelMessages } from '../i18n/shortcutsPanelMessages';
+import { getAppDataResilienceMessages } from '../i18n/messages';
+import { getSettingsModalMessages } from '../i18n/messages';
+import { getShortcutsPanelMessages } from '../i18n/messages';
 import type { Locale } from '../i18n';
 import {
   THEME_ACCENTS,
@@ -119,6 +119,8 @@ type ExtensionsPanelState =
   | { kind: 'loading' }
   | { kind: 'ready'; hostVersion: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] }
   | { kind: 'error'; hostVersion: string; message: string; items: ExtensionListItem[]; audit: ExtensionCapabilityInvocationRecord[] };
+
+type SettingsModalMessages = ReturnType<typeof getSettingsModalMessages>;
 
 // ── 辅助函数 | Helpers ──────────────────────────────────────
 
@@ -352,6 +354,72 @@ function SettingsSection({
         {children}
       </div>
     </section>
+  );
+}
+
+function ExtensionsItemsTable({
+  items,
+  msg,
+}: {
+  items: ExtensionListItem[];
+  msg: SettingsModalMessages;
+}) {
+  return (
+    <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
+      <thead>
+        <tr>
+          <th scope="col">{msg.extensionsColExtension}</th>
+          <th scope="col">{msg.extensionsColVersion}</th>
+          <th scope="col">{msg.extensionsColState}</th>
+          <th scope="col">{msg.extensionsColCapabilities}</th>
+          <th scope="col">{msg.extensionsColCompatible}</th>
+          <th scope="col">{msg.extensionsColCompatNote}</th>
+          <th scope="col">{msg.extensionsColEntry}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((row) => (
+          <tr key={row.id}>
+            <td>
+              <span className="settings-data-value">{row.name}</span>
+              <div className="small-text">{row.id}</div>
+            </td>
+            <td>{row.version}</td>
+            <td><code>{row.state}</code></td>
+            <td>{row.capabilities.join(', ')}</td>
+            <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
+            <td className="small-text">{row.compatibilityReason}</td>
+            <td className="small-text"><code>{row.entryActivate}</code></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ExtensionsAuditList({
+  audit,
+  msg,
+}: {
+  audit: ExtensionCapabilityInvocationRecord[];
+  msg: SettingsModalMessages;
+}) {
+  return (
+    <ul className="small-text settings-modal-list">
+      {audit.map((entry, idx) => (
+        <li key={`${entry.at}-${idx}`} className="small-text">
+          <code>{entry.extensionId}</code>
+          {' · '}
+          <code>{entry.capability}</code>
+          {' · '}
+          {entry.ok ? msg.extensionsYes : msg.extensionsNo}
+          {' · '}
+          {entry.durationMs}
+          ms
+          {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -834,64 +902,22 @@ export const SettingsModal = memo(function SettingsModal({
 
   // ── Memos ──
 
-  const tabs = useMemo(() => [
-    { id: 'appearance' as const, label: msg.tabAppearance },
-    { id: 'language' as const, label: msg.tabLanguage },
-    { id: 'shortcuts' as const, label: msg.tabShortcuts },
-    { id: 'ai' as const, label: msg.tabAi },
-    { id: 'playback' as const, label: msg.tabPlayback },
-    { id: 'data' as const, label: msg.tabData },
-    { id: 'extensions' as const, label: msg.tabExtensions },
-    { id: 'about' as const, label: msg.tabAbout },
-  ], [msg]);
+  const tabs = useMemo(() => ([
+    { id: 'appearance' as const, label: msg.tabAppearance }, { id: 'language' as const, label: msg.tabLanguage },
+    { id: 'shortcuts' as const, label: msg.tabShortcuts }, { id: 'ai' as const, label: msg.tabAi },
+    { id: 'playback' as const, label: msg.tabPlayback }, { id: 'data' as const, label: msg.tabData },
+    { id: 'extensions' as const, label: msg.tabExtensions }, { id: 'about' as const, label: msg.tabAbout },
+  ]), [msg]);
 
-  const themeOptions = useMemo(() => [
-    { value: 'light' as const, label: msg.themeLight },
-    { value: 'dark' as const, label: msg.themeDark },
-    { value: 'system' as const, label: msg.themeSystem },
-  ], [msg]);
-
-  const localeOptions = useMemo(() => [
-    { value: 'zh-CN' as const, label: msg.localeChinese },
-    { value: 'en-US' as const, label: msg.localeEnglish },
-  ], [msg]);
-
-  const fontScaleModeOptions = useMemo(() => [
-    { value: 'auto' as const, label: msg.fontScaleModeAuto },
-    { value: 'manual' as const, label: msg.fontScaleModeManual },
-  ], [msg]);
-
-  const iconEffectOptions = useMemo(() => [
-    { value: 'material' as const, label: msg.iconEffectMaterial },
-    { value: 'motion' as const, label: msg.iconEffectMotion },
-  ], [msg]);
-
-  const toggleOptions = useMemo(() => [
-    { value: 'off' as const, label: msg.toggleOff },
-    { value: 'on' as const, label: msg.toggleOn },
-  ], [msg]);
-
-  const workspaceZoomModeOptions = useMemo(() => [
-    { value: 'fit-all' as const, label: msg.zoomModeFitAll },
-    { value: 'fit-selection' as const, label: msg.zoomModeFitSelection },
-    { value: 'custom' as const, label: msg.zoomModeCustom },
-  ], [msg]);
-
-  const waveformDoubleClickActionOptions = useMemo(() => [
-    { value: 'zoom-selection' as const, label: msg.doubleClickActionZoom },
-    { value: 'create-segment' as const, label: msg.doubleClickActionCreateSegment },
-  ], [msg]);
-
-  const newSegmentSelectionBehaviorOptions = useMemo(() => [
-    { value: 'select-created' as const, label: msg.newSegmentSelectionSelectCreated },
-    { value: 'keep-current' as const, label: msg.newSegmentSelectionKeepCurrent },
-  ], [msg]);
-
-  const waveformDisplayOptions = useMemo(() => [
-    { value: 'waveform' as const, label: msg.waveformDisplayWaveform },
-    { value: 'spectrogram' as const, label: msg.waveformDisplaySpectrogram },
-    { value: 'split' as const, label: msg.waveformDisplaySplit },
-  ], [msg]);
+  const themeOptions = useMemo(() => ([{ value: 'light' as const, label: msg.themeLight }, { value: 'dark' as const, label: msg.themeDark }, { value: 'system' as const, label: msg.themeSystem }]), [msg]);
+  const localeOptions = useMemo(() => ([{ value: 'zh-CN' as const, label: msg.localeChinese }, { value: 'en-US' as const, label: msg.localeEnglish }]), [msg]);
+  const fontScaleModeOptions = useMemo(() => ([{ value: 'auto' as const, label: msg.fontScaleModeAuto }, { value: 'manual' as const, label: msg.fontScaleModeManual }]), [msg]);
+  const iconEffectOptions = useMemo(() => ([{ value: 'material' as const, label: msg.iconEffectMaterial }, { value: 'motion' as const, label: msg.iconEffectMotion }]), [msg]);
+  const toggleOptions = useMemo(() => ([{ value: 'off' as const, label: msg.toggleOff }, { value: 'on' as const, label: msg.toggleOn }]), [msg]);
+  const workspaceZoomModeOptions = useMemo(() => ([{ value: 'fit-all' as const, label: msg.zoomModeFitAll }, { value: 'fit-selection' as const, label: msg.zoomModeFitSelection }, { value: 'custom' as const, label: msg.zoomModeCustom }]), [msg]);
+  const waveformDoubleClickActionOptions = useMemo(() => ([{ value: 'zoom-selection' as const, label: msg.doubleClickActionZoom }, { value: 'create-segment' as const, label: msg.doubleClickActionCreateSegment }]), [msg]);
+  const newSegmentSelectionBehaviorOptions = useMemo(() => ([{ value: 'select-created' as const, label: msg.newSegmentSelectionSelectCreated }, { value: 'keep-current' as const, label: msg.newSegmentSelectionKeepCurrent }]), [msg]);
+  const waveformDisplayOptions = useMemo(() => ([{ value: 'waveform' as const, label: msg.waveformDisplayWaveform }, { value: 'spectrogram' as const, label: msg.waveformDisplaySpectrogram }, { value: 'split' as const, label: msg.waveformDisplaySplit }]), [msg]);
 
   const waveformVisualStyleOptions = useMemo(
     () => WAVEFORM_VISUAL_STYLE_OPTIONS.map((style) => {
@@ -925,16 +951,8 @@ export const SettingsModal = memo(function SettingsModal({
     [msg],
   );
 
-  const videoLayoutModeOptions = useMemo(() => [
-    { value: 'top' as const, label: msg.videoLayoutTop },
-    { value: 'left' as const, label: msg.videoLayoutLeft },
-    { value: 'right' as const, label: msg.videoLayoutRight },
-  ], [msg]);
-
-  const acousticRoutingOptions = useMemo(() => [
-    { value: 'local-first' as const, label: msg.aiAcousticRoutingLocalFirst },
-    { value: 'prefer-external' as const, label: msg.aiAcousticRoutingPreferExternal },
-  ], [msg]);
+  const videoLayoutModeOptions = useMemo(() => ([{ value: 'top' as const, label: msg.videoLayoutTop }, { value: 'left' as const, label: msg.videoLayoutLeft }, { value: 'right' as const, label: msg.videoLayoutRight }]), [msg]);
+  const acousticRoutingOptions = useMemo(() => ([{ value: 'local-first' as const, label: msg.aiAcousticRoutingLocalFirst }, { value: 'prefer-external' as const, label: msg.aiAcousticRoutingPreferExternal }]), [msg]);
 
   const handleFontScaleInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     onFontScaleModeChange('manual');
@@ -1595,69 +1613,13 @@ export const SettingsModal = memo(function SettingsModal({
                     {extensionsPanel.items.length === 0 ? (
                       <p className="small-text">{msg.extensionsNone}</p>
                     ) : (
-                      <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
-                        <thead>
-                          <tr>
-                            <th scope="col">{msg.extensionsColExtension}</th>
-                            <th scope="col">{msg.extensionsColVersion}</th>
-                            <th scope="col">{msg.extensionsColState}</th>
-                            <th scope="col">{msg.extensionsColCapabilities}</th>
-                            <th scope="col">{msg.extensionsColCompatible}</th>
-                            <th scope="col">{msg.extensionsColCompatNote}</th>
-                            <th scope="col">{msg.extensionsColEntry}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {extensionsPanel.items.map((row) => (
-                            <tr key={row.id}>
-                              <td>
-                                <span className="settings-data-value">{row.name}</span>
-                                <div className="small-text">{row.id}</div>
-                              </td>
-                              <td>{row.version}</td>
-                              <td><code>{row.state}</code></td>
-                              <td>{row.capabilities.join(', ')}</td>
-                              <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
-                              <td className="small-text">{row.compatibilityReason}</td>
-                              <td className="small-text"><code>{row.entryActivate}</code></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      <ExtensionsItemsTable items={extensionsPanel.items} msg={msg} />
                     )}
                   </>
                 ) : extensionsPanel.kind === 'ready' && extensionsPanel.items.length === 0 ? (
                   <p className="small-text">{msg.extensionsNone}</p>
                 ) : extensionsPanel.kind === 'ready' ? (
-                  <table className="shortcuts-panel-table" aria-label={msg.tabExtensions}>
-                    <thead>
-                      <tr>
-                        <th scope="col">{msg.extensionsColExtension}</th>
-                        <th scope="col">{msg.extensionsColVersion}</th>
-                        <th scope="col">{msg.extensionsColState}</th>
-                        <th scope="col">{msg.extensionsColCapabilities}</th>
-                        <th scope="col">{msg.extensionsColCompatible}</th>
-                        <th scope="col">{msg.extensionsColCompatNote}</th>
-                        <th scope="col">{msg.extensionsColEntry}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {extensionsPanel.items.map((row) => (
-                        <tr key={row.id}>
-                          <td>
-                            <span className="settings-data-value">{row.name}</span>
-                            <div className="small-text">{row.id}</div>
-                          </td>
-                          <td>{row.version}</td>
-                          <td><code>{row.state}</code></td>
-                          <td>{row.capabilities.join(', ')}</td>
-                          <td>{row.compatible ? msg.extensionsYes : msg.extensionsNo}</td>
-                          <td className="small-text">{row.compatibilityReason}</td>
-                          <td className="small-text"><code>{row.entryActivate}</code></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <ExtensionsItemsTable items={extensionsPanel.items} msg={msg} />
                 ) : (
                   <p className="small-text">{msg.extensionsLoading}</p>
                 )}
@@ -1670,42 +1632,14 @@ export const SettingsModal = memo(function SettingsModal({
                     {extensionsPanel.audit.length === 0 ? (
                       <p className="small-text">{msg.extensionsAuditEmpty}</p>
                     ) : (
-                      <ul className="small-text settings-modal-list">
-                        {extensionsPanel.audit.map((entry, idx) => (
-                          <li key={`${entry.at}-${idx}`} className="small-text">
-                            <code>{entry.extensionId}</code>
-                            {' · '}
-                            <code>{entry.capability}</code>
-                            {' · '}
-                            {entry.ok ? msg.extensionsYes : msg.extensionsNo}
-                            {' · '}
-                            {entry.durationMs}
-                            ms
-                            {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
-                          </li>
-                        ))}
-                      </ul>
+                      <ExtensionsAuditList audit={extensionsPanel.audit} msg={msg} />
                     )}
                   </>
                 ) : null}
                 {extensionsPanel.kind === 'ready' && extensionsPanel.audit.length === 0 ? (
                   <p className="small-text">{msg.extensionsAuditEmpty}</p>
                 ) : extensionsPanel.kind === 'ready' ? (
-                  <ul className="small-text settings-modal-list">
-                    {extensionsPanel.audit.map((entry, idx) => (
-                      <li key={`${entry.at}-${idx}`} className="small-text">
-                        <code>{entry.extensionId}</code>
-                        {' · '}
-                        <code>{entry.capability}</code>
-                        {' · '}
-                        {entry.ok ? msg.extensionsYes : msg.extensionsNo}
-                        {' · '}
-                        {entry.durationMs}
-                        ms
-                        {entry.errorMessage ? ` — ${entry.errorMessage}` : ''}
-                      </li>
-                    ))}
-                  </ul>
+                  <ExtensionsAuditList audit={extensionsPanel.audit} msg={msg} />
                 ) : (
                   <p className="small-text">{msg.extensionsAuditEmpty}</p>
                 )}

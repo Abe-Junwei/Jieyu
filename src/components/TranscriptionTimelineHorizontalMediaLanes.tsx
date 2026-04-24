@@ -454,7 +454,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
   // Stable callback for layer actions - avoids creating new function per layer per render
   const handleLayerAction = useCallback((action: LayerOperationActionType, layerId?: string) => {
     if (action === 'delete' && layerId) {
-      fireAndForget(requestDeleteLayer(layerId));
+      fireAndForget(requestDeleteLayer(layerId), { context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L457', policy: 'user-visible' });
       return;
     }
     setLayerAction({ action, ...(layerId ? { layerId } : {}) });
@@ -773,7 +773,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
         keepUnits={deleteConfirmKeepUnits}
         onKeepUnitsChange={setDeleteConfirmKeepUnits}
         onCancel={cancelDeleteLayerConfirm}
-        onConfirm={() => { fireAndForget(confirmDeleteLayer()); }}
+        onConfirm={() => { fireAndForget(confirmDeleteLayer(), { context: 'src/components/TranscriptionTimelineHorizontalMediaLanes.tsx:L776', policy: 'user-visible' }); }}
       />
     </TimelineStyledContainer>
   );

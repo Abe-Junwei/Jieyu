@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitContentViewDocType, LayerUnitDocType, LayerUnitStatus, NoteCategory, SegmentMetaDocType, SpeakerDocType } from '../db';
 import { createTimelineUnit, type TimelineUnit } from '../hooks/transcriptionTypes';
 import { resolveSegmentTimelineSourceLayer } from '../hooks/useLayerSegments';
-import type { SidePaneSidebarMessages } from '../i18n/sidePaneSidebarMessages';
+import type { SidePaneSidebarMessages } from '../i18n/messages';
 import { formatTime } from '../utils/transcriptionFormatters';
 import { type UnitSelfCertainty } from '../utils/unitSelfCertainty';
 import { resolveHostUnitStrictMedia } from '../utils/segmentHostResolution';
