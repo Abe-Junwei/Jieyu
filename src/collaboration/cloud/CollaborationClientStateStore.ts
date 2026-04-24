@@ -1,5 +1,5 @@
 import { createLogger } from '../../observability/logger';
-import { detectLocale } from '../../i18n';
+import { getStoredLocalePreference, normalizeLocale } from '../../i18n';
 import { getAppDataResilienceMessages } from '../../i18n/messages';
 import { dispatchAppGlobalToast } from '../../utils/appGlobalToast';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
@@ -31,6 +31,13 @@ function getDefaultStorage(): Storage | undefined {
 function isQuotaExceededError(error: unknown): boolean {
   return error instanceof DOMException
     && (error.name === 'QuotaExceededError' || error.code === 22);
+}
+
+function resolveCollabToastLocale() {
+  const stored = getStoredLocalePreference();
+  if (stored) return stored;
+  if (typeof navigator === 'undefined') return 'zh-CN';
+  return normalizeLocale(navigator.language) ?? 'zh-CN';
 }
 
 function sanitizeChangeRecord(value: unknown): CollaborationProjectChangeRecord | null {
@@ -131,7 +138,7 @@ function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage):
     const now = Date.now();
     if (now - lastCollabQuotaToastAt >= COLLAB_QUOTA_TOAST_COOLDOWN_MS) {
       lastCollabQuotaToastAt = now;
-      const toastMsg = getAppDataResilienceMessages(detectLocale()).collabLocalStorageQuotaToast;
+      const toastMsg = getAppDataResilienceMessages(resolveCollabToastLocale()).collabLocalStorageQuotaToast;
       dispatchAppGlobalToast({ message: toastMsg, variant: 'error', autoDismissMs: 14_000 });
     }
   }

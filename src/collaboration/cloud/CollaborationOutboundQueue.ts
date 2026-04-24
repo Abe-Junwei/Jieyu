@@ -19,6 +19,11 @@ const DEFAULT_MAX_BATCH_SIZE = 50;
 const DEFAULT_MAX_RETRIES = 8;
 const DEFAULT_DROP_BATCH_AFTER_MAX_RETRIES = false;
 
+/**
+ * 内存 + 定时节流 flush。**持久化**由 `CollaborationSyncBridge` 在 `onPendingChanged` 内以
+ * 防抖落盘 `CollaborationClientStateStore`（见 `OUTBOUND_PENDING_SAVE_DEBOUNCE_MS`），避免每次 `enqueue` 直接写
+ * `localStorage`（对应 remediation HIGH-12）。
+ */
 export class CollaborationOutboundQueue {
   private readonly sender: (changes: CollaborationProjectChangeRecord[]) => Promise<void>;
   private readonly onFlushError: ((error: unknown, consecutiveFailures: number) => void) | undefined;

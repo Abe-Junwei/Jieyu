@@ -153,6 +153,7 @@ export class DexieCollectionAdapter<T extends { id: string }> {
 }
 
 export const BRIDGE_TIER_PREFIX = 'bridge_';
+const TREE_PARENT_LAYER_INDEX = 'parentLayerId';
 
 export function resolveBridgeId(value: { bridgeId?: unknown } | null | undefined): string | undefined {
   if (!value) return undefined;
@@ -277,7 +278,7 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
         .filter((row): row is LayerDocType => Boolean(row))
         .map((row) => wrapDoc(row));
 
-    if (indexName === 'textId' || indexName === 'key' || indexName === 'parentLayerId' || indexName === 'layerType') {
+    if (indexName === 'textId' || indexName === 'key' || indexName === TREE_PARENT_LAYER_INDEX || indexName === 'layerType') {
       try {
         if (indexName === 'textId') {
           return mapRows(await this.tierTable.where('textId').equals(String(value)).toArray());
@@ -285,7 +286,7 @@ export class TierBackedLayerCollectionAdapter implements CollectionAdapter<Layer
         if (indexName === 'key') {
           return mapRows(await this.tierTable.where('key').equals(`${BRIDGE_TIER_PREFIX}${String(value)}`).toArray());
         }
-        if (indexName === 'parentLayerId') {
+        if (indexName === TREE_PARENT_LAYER_INDEX) {
           return mapRows(await this.tierTable.where('parentTierId').equals(String(value)).toArray());
         }
         return mapRows(await this.tierTable.where('contentType').equals(String(value)).toArray());

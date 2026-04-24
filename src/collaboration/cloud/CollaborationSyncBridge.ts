@@ -116,7 +116,10 @@ export class CollaborationSyncBridge {
       },
       (payload) => {
         const change = parsePostgresProjectChangeRow(payload.new);
-        if (!change) return;
+        if (!change) {
+          this.options.onError?.(new Error('Failed to parse project change row from realtime payload'), 'inbound parse entityId=N/A');
+          return;
+        }
         this.inbound.apply(change).catch((error) => {
           this.options.onError?.(error, `inbound apply entityId=${change.entityId}`);
         });

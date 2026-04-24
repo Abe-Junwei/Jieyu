@@ -1229,9 +1229,98 @@ function registerIndexedDbMutationBackupHooks(dexie: JieyuDexie): void {
   }
 }
 
+export class JieyuDatabaseOpenError extends Error {
+  constructor(
+    message: string,
+    public readonly cause: unknown,
+    public readonly recoveryHint: 'corrupted' | 'blocked' | 'unknown',
+  ) {
+    super(message);
+    this.name = 'JieyuDatabaseOpenError';
+  }
+}
+
+function dispatchDatabaseOpenFailureEvent(reason: JieyuDatabaseOpenError): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('jieyu:db-open-failed', { detail: reason }));
+    }
+  } catch {
+    // 事件派发失败不应阻断错误抛出 | Event dispatch failure must not swallow the DB error
+  }
+}
+
+/**
+ * ARCH-5: 读取已存储的 IndexedDB 版本号，用于判断是否需要迁移。
+ * 优先用 `indexedDB.databases()` API（兼容主流桌面浏览器）；不可用时返回 0（不展示进度条）。
+ * ARCH-5: Read stored IndexedDB version to detect if schema migration is needed.
+ * Uses `indexedDB.databases()` where available; returns 0 on failure (no progress overlay).
+ */
+async function readCurrentIdbVersion(dbName: string): Promise<number> {
+  try {
+    if (typeof indexedDB === 'undefined') return 0;
+    if (typeof (indexedDB as { databases?: () => Promise<IDBDatabaseInfo[]> }).databases === 'function') {
+      const dbs = await (indexedDB as { databases: () => Promise<IDBDatabaseInfo[]> }).databases();
+      return dbs.find((d) => d.name === dbName)?.version ?? 0;
+    }
+  } catch {
+    // 读取版本失败时降级为不展示进度条 | Degrade gracefully: skip migration overlay on error
+  }
+  return 0;
+}
+
+function dispatchDbMigrationStartEvent(detail: { from: number; to: number }): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('jieyu:db-migrating', { detail }));
+    }
+  } catch { /* silent */ }
+}
+
+function dispatchDbMigrationDoneEvent(): void {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('jieyu:db-migration-done'));
+    }
+  } catch { /* silent */ }
+}
+
 async function _createDb(): Promise<JieyuDatabase> {
   const dexie = getOrCreateDexie();
-  await dexie.open();
+  // ARCH-5: 迁移前检查当前版本，决定是否展示进度覆盖层 | Check current version before migration to show progress overlay
+  const currentVersion = await readCurrentIdbVersion(JIEYU_DEXIE_DB_NAME);
+  const migrationNeeded = currentVersion > 0 && currentVersion < JIEYU_DEXIE_TARGET_SCHEMA_VERSION;
+  if (migrationNeeded) {
+    dispatchDbMigrationStartEvent({ from: currentVersion, to: JIEYU_DEXIE_TARGET_SCHEMA_VERSION });
+  }
+  try {
+    await dexie.open();
+  } catch (err) {
+    let recoveryHint: JieyuDatabaseOpenError['recoveryHint'] = 'unknown';
+    let message = '无法打开本地数据库，数据可能已损坏。';
+    if (err instanceof DOMException) {
+      if (err.name === 'AbortError' || err.name === 'UnknownError') {
+        recoveryHint = 'corrupted';
+        message = '数据库文件损坏或浏览器版本不支持，建议导出备份后重置。';
+      }
+    } else if (err instanceof Error) {
+      if (err.message.includes('blocked')) {
+        recoveryHint = 'blocked';
+        message = '数据库被其他标签页占用，请关闭其他解语窗口后刷新。';
+      }
+    }
+    const openError = new JieyuDatabaseOpenError(message, err, recoveryHint);
+    dispatchDatabaseOpenFailureEvent(openError);
+    if (migrationNeeded) {
+      // 迁移失败时也需要关闭进度遮罩 | Also dismiss the migration overlay on failure
+      dispatchDbMigrationDoneEvent();
+    }
+    delete globalWithDb.__jieyuDbPromise__;
+    throw openError;
+  }
+  if (migrationNeeded) {
+    dispatchDbMigrationDoneEvent();
+  }
   registerIndexedDbMutationBackupHooks(dexie);
 
   const collections: JieyuCollections = {

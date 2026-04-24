@@ -23,7 +23,19 @@ function rowPreview(row: unknown): string {
 }
 
 function invalidRow(reason: string, row: unknown): null {
-  log.warn('dropped invalid project_changes row', { reason, rowPreview: rowPreview(row) });
+  const preview = rowPreview(row);
+  log.warn('dropped invalid project_changes row', { reason, rowPreview: preview });
+  if (import.meta.env.PROD) {
+    void import('@sentry/react')
+      .then((Sentry) => {
+        Sentry.captureMessage('project_changes row dropped (parse)', {
+          level: 'warning',
+          tags: { jieyu_module: 'projectChangeRowParse' },
+          extra: { reason, rowPreview: preview },
+        });
+      })
+      .catch(() => { /* Sentry 未安装或 DSN 关闭 | Sentry absent */ });
+  }
   return null;
 }
 

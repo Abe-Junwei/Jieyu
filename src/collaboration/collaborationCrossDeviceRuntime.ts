@@ -207,11 +207,13 @@ export function mergeCrossDeviceReplicas(
     }
   }
 
+  const supersededFieldKeys: string[] = [];
   let concurrentFieldLoserDiscarded = 0;
   for (const key of Object.keys(loser.fields)) {
     if (key in winner.fields) {
       if (stableStringify(winner.fields[key]) !== stableStringify(loser.fields[key])) {
         concurrentFieldLoserDiscarded += 1;
+        supersededFieldKeys.push(key);
         crossDeviceLog.warn('mergeCrossDeviceReplicas: same-key field value differs; kept winner, discarded loser', {
           entityId: local.entityId,
           key,
@@ -222,6 +224,13 @@ export function mergeCrossDeviceReplicas(
     }
   }
   if (concurrentFieldLoserDiscarded > 0) {
+    crossDeviceLog.info('mergeCrossDeviceReplicas: concurrent merge audit', {
+      entityId: local.entityId,
+      supersededFieldCount: concurrentFieldLoserDiscarded,
+      supersededFieldKeys: supersededFieldKeys.slice(0, 48),
+      winnerDeviceId: winner.deviceId,
+      loserDeviceId: loser.deviceId,
+    });
     const locale = resolveCollaborationSurfaceLocale(options);
     const m = getCollaborationSyncSurfaceMessages(locale);
     dispatchAppGlobalToast({
@@ -229,6 +238,23 @@ export function mergeCrossDeviceReplicas(
       variant: 'warning',
       autoDismissMs: 9_000,
     });
+    if (import.meta.env.PROD) {
+      void import('@sentry/react')
+        .then((Sentry) => {
+          Sentry.captureMessage('mergeCrossDeviceReplicas: concurrent field(s) superseded', {
+            level: 'info',
+            tags: { jieyu_module: 'collaborationCrossDevice' },
+            extra: {
+              entityId: local.entityId,
+              supersededFieldCount: concurrentFieldLoserDiscarded,
+              supersededFieldKeys: supersededFieldKeys.slice(0, 40).join(', '),
+              winnerDeviceId: winner.deviceId,
+              loserDeviceId: loser.deviceId,
+            },
+          });
+        })
+        .catch(() => { /* Sentry 未安装或 DSN 关闭 | Sentry absent */ });
+    }
   }
 
   const merged: CrossDeviceReplica = {

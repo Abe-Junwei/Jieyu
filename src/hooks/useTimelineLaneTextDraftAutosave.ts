@@ -206,7 +206,7 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
       if (saveSegmentContentForLayer && value !== text) {
         fireAndForget(runSaveWithStatus(async () => {
           await saveSegmentContentForLayer(unitId, layerId, value);
-        }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L207', policy: 'background' });
+        }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L207', policy: 'background-quiet' });
       } else {
         setRowSaveStatus(undefined);
       }
@@ -216,7 +216,7 @@ export function useMediaTranslationLaneRowDraftAutosave(params: {
     if (value !== text) {
       fireAndForget(runSaveWithStatus(async () => {
         await saveUnitLayerText(unitId, value, layerId);
-      }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L217', policy: 'background' });
+      }), { context: 'src/hooks/useTimelineLaneTextDraftAutosave.ts:L217', policy: 'background-quiet' });
     } else {
       setRowSaveStatus(undefined);
     }

@@ -41,7 +41,7 @@ export function useTranscriptionLifecycle({
         // token/morpheme 延迟加载，不阻塞首屏 | Deferred linguistic load, non-blocking
         fireAndForget(loadLinguisticAnnotations(), {
           context: 'src/hooks/useTranscriptionLifecycle.ts:L42',
-          policy: 'background',
+          policy: 'background-quiet',
         });
       } catch (error) {
         if (cancelled) return;

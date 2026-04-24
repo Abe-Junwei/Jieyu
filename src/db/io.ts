@@ -54,6 +54,8 @@ export async function exportDatabaseAsJson(): Promise<{
   };
 }
 
+import { markBackupCompleted } from '../hooks/useBackupReminder';
+
 export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
   if (typeof window === 'undefined') {
     throw new Error('downloadDatabaseAsJson can only run in browser context');
@@ -70,6 +72,8 @@ export async function downloadDatabaseAsJson(filename?: string): Promise<void> {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+  // 重置备份提醒倒计时 | Reset backup reminder countdown
+  markBackupCompleted();
 }
 
 const databaseSnapshotSchema = z.object({

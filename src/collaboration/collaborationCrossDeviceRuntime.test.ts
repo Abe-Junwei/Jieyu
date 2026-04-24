@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { dispatchAppGlobalToastMock } = vi.hoisted(() => ({
+  dispatchAppGlobalToastMock: vi.fn(),
+}));
+
+vi.mock('../utils/appGlobalToast', () => ({
+  dispatchAppGlobalToast: dispatchAppGlobalToastMock,
+}));
 
 import { assessClockDrift, compareVectorClock, createCrossDeviceRollbackPlan, duplicateCrossDeviceReplica, mergeCrossDeviceReplicas, validateCrossDeviceConsistency, type CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
@@ -21,6 +29,14 @@ function buildReplica(overrides?: Partial<CrossDeviceReplica>): CrossDeviceRepli
 }
 
 describe('collaboration cross-device runtime', () => {
+  beforeEach(() => {
+    dispatchAppGlobalToastMock.mockClear();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('[vector] identifies concurrent vector clocks', () => {
     const relation = compareVectorClock(
       { 'device-a': 2, 'device-b': 1 },
@@ -153,5 +169,28 @@ describe('collaboration cross-device runtime', () => {
     expect(merged.merged).toBeNull();
     expect(merged.requiresRollback).toBe(true);
     expect(merged.conflicts.includes('entity-id-mismatch')).toBe(true);
+  });
+
+  it('[merge] warns when concurrent clocks disagree on same field (HIGH-10)', () => {
+    const local = buildReplica({
+      deviceId: 'device-a',
+      sessionId: 'session-a',
+      vectorClock: { 'device-a': 2, 'device-b': 1 },
+      updatedAt: 3_000,
+      fields: { text: 'local-wins', shared: 1 },
+    });
+    const remote = buildReplica({
+      deviceId: 'device-b',
+      sessionId: 'session-b',
+      vectorClock: { 'device-a': 1, 'device-b': 2 },
+      updatedAt: 2_500,
+      fields: { text: 'remote-lost', shared: 1 },
+    });
+
+    const result = mergeCrossDeviceReplicas(local, remote, { surfaceLocale: 'en-US' });
+    expect(result.relation).toBe('concurrent');
+    expect(result.merged?.fields.text).toBeDefined();
+    expect(dispatchAppGlobalToastMock).toHaveBeenCalledTimes(1);
+    expect(dispatchAppGlobalToastMock.mock.calls[0]![0]).toMatchObject({ variant: 'warning' });
   });
 });

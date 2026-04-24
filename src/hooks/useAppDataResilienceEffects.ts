@@ -20,6 +20,10 @@ const BACKUP_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 export type DbIntegrityGateState = DbResilienceProbeOutcome;
 
+export type DbMigrationState =
+  | { kind: 'idle' }
+  | { kind: 'migrating'; from: number; to: number };
+
 export type DbIntegrityOverlayHandlers = {
   onReload: () => void;
   onRetry: () => void;
@@ -31,9 +35,11 @@ export type DbIntegrityOverlayHandlers = {
  */
 export function useAppDataResilienceEffects(locale: Locale): {
   dbGate: DbIntegrityGateState;
+  dbMigration: DbMigrationState;
   dbOverlayHandlers: DbIntegrityOverlayHandlers;
 } {
   const [dbGate, setDbGate] = useState<DbIntegrityGateState>({ kind: 'idle' });
+  const [dbMigration, setDbMigration] = useState<DbMigrationState>({ kind: 'idle' });
 
   const runIntegrityProbe = useCallback(async () => {
     if (import.meta.env.MODE === 'test') return;
@@ -41,6 +47,26 @@ export function useAppDataResilienceEffects(locale: Locale): {
     if (readDbIntegritySessionSkip()) return;
     const next = await resolveDbResilienceProbe(getDb, probeJieyuDatabaseIntegrity);
     setDbGate(next);
+  }, []);
+
+  // ARCH-5: 监听迁移进度事件 | Listen for migration progress events (ARCH-5)
+  useEffect(() => {
+    if (import.meta.env.MODE === 'test') return;
+
+    const onMigrating = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ from: number; to: number }>).detail;
+      setDbMigration({ kind: 'migrating', from: detail.from, to: detail.to });
+    };
+    const onDone = () => {
+      setDbMigration({ kind: 'idle' });
+    };
+
+    window.addEventListener('jieyu:db-migrating', onMigrating);
+    window.addEventListener('jieyu:db-migration-done', onDone);
+    return () => {
+      window.removeEventListener('jieyu:db-migrating', onMigrating);
+      window.removeEventListener('jieyu:db-migration-done', onDone);
+    };
   }, []);
 
   useEffect(() => {
@@ -84,6 +110,7 @@ export function useAppDataResilienceEffects(locale: Locale): {
 
   return {
     dbGate,
+    dbMigration,
     dbOverlayHandlers: { onReload, onRetry, onContinueSession },
   };
 }

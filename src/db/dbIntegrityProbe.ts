@@ -15,9 +15,17 @@ function toReason(error: unknown): string {
  */
 export async function probeJieyuDatabaseIntegrity(database: JieyuDatabase): Promise<DbIntegrityProbeResult> {
   try {
-    await database.dexie.texts.limit(1).toArray();
-    await database.dexie.layer_units.limit(1).toArray();
-    await database.dexie.tier_definitions.limit(1).toArray();
+    await database.dexie.transaction(
+      'r',
+      database.dexie.texts,
+      database.dexie.layer_units,
+      database.dexie.tier_definitions,
+      async () => {
+        await database.dexie.texts.limit(1).toArray();
+        await database.dexie.layer_units.limit(1).toArray();
+        await database.dexie.tier_definitions.limit(1).toArray();
+      },
+    );
     return { ok: true };
   } catch (error) {
     return { ok: false, reason: toReason(error) };
