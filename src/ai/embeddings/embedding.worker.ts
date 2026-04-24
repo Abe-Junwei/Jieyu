@@ -21,6 +21,8 @@ interface WorkerEmbedRequest extends WorkerRequestBase {
 }
 
 type WorkerRequest = WorkerPreloadRequest | WorkerEmbedRequest;
+type WorkerPoolPingMessage = { type: 'workerpool:ping' };
+type WorkerInboundMessage = WorkerRequest | WorkerPoolPingMessage;
 
 interface WorkerResultMessage {
   type: 'result';
@@ -217,10 +219,14 @@ async function ensureExtractor(modelId: string, requestId: string): Promise<Extr
   }
 }
 
-self.onmessage = (event: MessageEvent<WorkerRequest>) => {
+self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
+  const request = event.data;
+  // WorkerPool 心跳协议 | Heartbeat protocol
+  if (request.type === 'workerpool:ping') {
+    self.postMessage({ type: 'workerpool:pong' });
+    return;
+  }
   void (async () => {
-    const request = event.data;
-
     try {
       const extractorState = await ensureExtractor(request.modelId, request.requestId);
       const extractor = extractorState.extractor;

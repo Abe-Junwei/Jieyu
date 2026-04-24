@@ -1,5 +1,6 @@
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
-import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
+import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
+import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../../services/PendingWorkerRequestStore';
 
 export type EmbeddingProgressStage = 'loading' | 'embedding' | 'ready';
@@ -62,6 +63,10 @@ interface WorkerProgressMessage {
   type: 'progress';
   requestId: string;
   progress: EmbeddingRuntimeProgress;
+}
+
+interface WorkerPoolPongMessage {
+  type: 'workerpool:pong';
 }
 
 type WorkerResponseMessage = WorkerResultMessage | WorkerProgressMessage;
@@ -166,13 +171,22 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   private createWorker(): Worker {
     this.workerTrackingRelease?.();
     this.workerTrackingRelease = null;
-    const worker = new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
-    this.workerTrackingRelease = trackBrowserWorkerLifecycle(worker, {
-      id: nextPhysicalWorkerId('embedding'),
-      source: 'WorkerEmbeddingRuntime',
+    const spawned = createManagedBrowserWorker({
+      url: new URL('./embedding.worker.ts', import.meta.url),
+      options: { type: 'module' },
+      tracking: {
+        id: nextPhysicalWorkerId('embedding'),
+        source: 'WorkerEmbeddingRuntime',
+      },
     });
-    worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
+    const worker = spawned.worker;
+    this.workerTrackingRelease = spawned.release;
+    getWorkerPool().register('embedding', 'Embedding', () => new Worker(
+      new URL('./embedding.worker.ts', import.meta.url), { type: 'module' },
+    ));
+    worker.onmessage = (event: MessageEvent<WorkerResponseMessage | WorkerPoolPongMessage>) => {
       const payload = event.data;
+      if (payload.type === 'workerpool:pong') return;
       if (!this.pending.get(payload.requestId)) return;
 
       if (payload.type === 'progress') {
@@ -215,6 +229,7 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
 
   private teardownWorker(): void {
     if (!this.worker) return;
+    getWorkerPool().deregister('embedding');
     this.workerTrackingRelease?.();
     this.workerTrackingRelease = null;
     this.worker.onmessage = null;

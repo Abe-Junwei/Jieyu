@@ -15,7 +15,11 @@ interface AcousticCancelWorkerRequest {
   type: 'cancel';
 }
 
-type AcousticWorkerRequest = AcousticAnalyzeWorkerRequest | AcousticCancelWorkerRequest;
+interface AcousticHeartbeatPingRequest {
+  type: 'workerpool:ping';
+}
+
+type AcousticWorkerRequest = AcousticAnalyzeWorkerRequest | AcousticCancelWorkerRequest | AcousticHeartbeatPingRequest;
 
 interface AcousticWorkerProgress {
   type: 'progress';
@@ -51,6 +55,11 @@ function createAbortError(): Error {
 
 self.onmessage = (event: MessageEvent<AcousticWorkerRequest>) => {
   const request = event.data;
+  // WorkerPool 心跳协议 | Heartbeat protocol
+  if (request.type === 'workerpool:ping') {
+    self.postMessage({ type: 'workerpool:pong' });
+    return;
+  }
   if (request.type === 'cancel') {
     cancelledRequests.add(request.requestId);
     return;

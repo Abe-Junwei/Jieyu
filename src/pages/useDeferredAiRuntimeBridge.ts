@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DeferredTranscriptionAiRuntimeState } from './TranscriptionPage.AssistantBridge';
 import { buildAiStateWorkerFingerprint, type AiStateWorkerRequest, type AiStateWorkerResponse, type AiStateWorkerSlice } from '../ai/workers/aiStateWorkerProtocol';
 import { buildAiStateWorkerSlice, createInitialDeferredAiRuntimeState } from './TranscriptionPage.ReadyWorkspace.runtime';
-import { trackBrowserWorkerLifecycle } from '../observability/trackBrowserWorkerLifecycle';
+import { createManagedBrowserWorker } from '../observability/managedBrowserWorkerFactory';
 
 export interface DeferredAiRuntimeBridgeResult {
   deferredAiRuntime: DeferredTranscriptionAiRuntimeState;
@@ -44,12 +44,17 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     if (typeof Worker === 'undefined') {
       return;
     }
-    const worker = new Worker(new URL('../ai/workers/aiStateWorker.ts', import.meta.url), { type: 'module' });
-    aiStateWorkerTrackReleaseRef.current?.();
-    aiStateWorkerTrackReleaseRef.current = trackBrowserWorkerLifecycle(worker, {
-      id: 'aiStateWorker:deferred-bridge',
-      source: 'useDeferredAiRuntimeBridge',
+    const spawned = createManagedBrowserWorker({
+      url: new URL('../ai/workers/aiStateWorker.ts', import.meta.url),
+      options: { type: 'module' },
+      tracking: {
+        id: 'aiStateWorker:deferred-bridge',
+        source: 'useDeferredAiRuntimeBridge',
+      },
     });
+    const worker = spawned.worker;
+    aiStateWorkerTrackReleaseRef.current?.();
+    aiStateWorkerTrackReleaseRef.current = spawned.release;
     aiStateWorkerRef.current = worker;
     worker.onmessage = (event: MessageEvent<AiStateWorkerResponse>) => {
       if (event.data?.type !== 'fingerprint-updated') {

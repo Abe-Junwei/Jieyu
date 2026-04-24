@@ -17,8 +17,9 @@
 import { detectVadSegments } from '../VadService';
 import type { VadWorkerSegment } from '../../workers/vadWorker';
 import { createLogger } from '../../observability/logger';
+import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
-import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
+import { getWorkerPool } from '../../workers/WorkerPool';
 import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
 
 const log = createLogger('WhisperXVadService');
@@ -96,15 +97,21 @@ export class WhisperXVadService {
       }, timeoutMs);
 
       try {
-        this.worker = new Worker(
+        const spawned = createManagedBrowserWorker({
+          url: new URL('../../workers/vadWorker.ts', import.meta.url),
+          options: { type: 'module' },
+          tracking: {
+            id: nextPhysicalWorkerId('vadWhisperX'),
+            source: 'WhisperXVadService',
+          },
+        });
+        this.worker = spawned.worker;
+        this.vadWorkerTrackingRelease?.();
+        this.vadWorkerTrackingRelease = spawned.release;
+        getWorkerPool().register('vadWhisperX', 'VAD (Silero)', () => new Worker(
           new URL('../../workers/vadWorker.ts', import.meta.url),
           { type: 'module' },
-        );
-        this.vadWorkerTrackingRelease?.();
-        this.vadWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker, {
-          id: nextPhysicalWorkerId('vadWhisperX'),
-          source: 'WhisperXVadService',
-        });
+        ));
       } catch (err) {
         clearTimeout(timer);
         reject(new Error(`WhisperXVadService: Failed to create Worker — ${err instanceof Error ? err.message : String(err)}`));
@@ -112,6 +119,8 @@ export class WhisperXVadService {
       }
 
       this.worker.onmessage = (event: MessageEvent) => {
+        // WorkerPool 心跳 | Heartbeat passthrough
+        if (event.data?.type === 'workerpool:pong') return;
         const msg = event.data as { type: string; id?: string; segments?: VadWorkerSegment[]; message?: string; processedFrames?: number; totalFrames?: number; ratio?: number };
 
         if (msg.type === 'ready') {
@@ -320,6 +329,7 @@ export class WhisperXVadService {
 
   private resetWorker(error?: Error): void {
     if (this.worker) {
+      getWorkerPool().deregister('vadWhisperX');
       this.vadWorkerTrackingRelease?.();
       this.vadWorkerTrackingRelease = null;
       this.worker.onmessage = null;

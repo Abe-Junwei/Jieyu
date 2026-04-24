@@ -17,6 +17,14 @@ export function trackBrowserWorkerLifecycle(
 ): () => void {
   registerManagedWorker(spec.id, spec.source);
 
+  const supportsEventTargetApi = typeof worker.addEventListener === 'function'
+    && typeof worker.removeEventListener === 'function';
+  if (!supportsEventTargetApi) {
+    return () => {
+      markManagedWorkerTerminated(spec.id);
+    };
+  }
+
   const onError = (event: ErrorEvent) => {
     recordManagedWorkerError(
       spec.id,

@@ -1,4 +1,4 @@
-import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
+import { createManagedBrowserWorker } from '../../observability/managedBrowserWorkerFactory';
 import { serializeAcousticPanelBatchDetailCsv, serializeAcousticPanelBatchDetailJson, serializeAcousticPanelBatchDetailJsonResearch, serializeAcousticPanelDetailCsv, serializeAcousticPanelDetailJson, serializeAcousticPanelDetailJsonResearch, serializeAcousticPitchTierText, type AcousticPanelBatchDetail, type AcousticPanelDetail } from '../../utils/acousticPanelDetail';
 import { ACOUSTIC_ANALYSIS_PRESETS, type AcousticAnalysisPresetKey } from '../../utils/acousticAnalysisPresets';
 import { type AcousticAnalysisConfig } from '../../utils/acousticOverlayTypes';
@@ -171,12 +171,17 @@ export async function serializeAcousticExportWithWorker(
   }
 
   return new Promise<string | null>((resolve, reject) => {
-    const worker = new Worker(new URL('../../workers/acousticExport.worker.ts', import.meta.url), { type: 'module' });
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const releaseTrack = trackBrowserWorkerLifecycle(worker, {
-      id: `acousticExport-${requestId}`,
-      source: 'serializeAcousticExportWithWorker',
+    const spawned = createManagedBrowserWorker({
+      url: new URL('../../workers/acousticExport.worker.ts', import.meta.url),
+      options: { type: 'module' },
+      tracking: {
+        id: `acousticExport-${requestId}`,
+        source: 'serializeAcousticExportWithWorker',
+      },
     });
+    const worker = spawned.worker;
+    const releaseTrack = spawned.release;
     let settled = false;
     let timeoutId: number | undefined;
     const rejectAndCleanup = (error: Error) => {

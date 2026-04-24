@@ -2,6 +2,7 @@ import { PendingWorkerRequestStore } from '../PendingWorkerRequestStore';
 import { createLogger } from '../../observability/logger';
 import { nextPhysicalWorkerId } from '../../observability/managedWorkerRegistry';
 import { trackBrowserWorkerLifecycle } from '../../observability/trackBrowserWorkerLifecycle';
+import { getWorkerPool } from '../../workers/WorkerPool';
 import { buildAcousticCacheKey, DEFAULT_ACOUSTIC_ANALYSIS_CONFIG, type AcousticAnalysisConfig, type AcousticAnalysisProgress, type AcousticFeatureResult } from '../../utils/acousticOverlayTypes';
 import { acousticAnalysisCacheDB } from './AcousticAnalysisCacheDB';
 import { isAllowedExternalProviderEndpoint, type AcousticProviderAnalyzeInput, type AcousticProviderRuntimeConfig, type ExternalAcousticProviderConfig, LOCAL_ACOUSTIC_PROVIDER_DEFINITION, resolveAcousticProviderRuntimeConfig, resolveAcousticProviderState, type ResolvedAcousticProviderState } from './acousticProviderContract';
@@ -57,7 +58,11 @@ interface AcousticWorkerResult {
   error?: string;
 }
 
-type AcousticWorkerResponse = AcousticWorkerProgress | AcousticWorkerResult;
+interface AcousticWorkerHeartbeatPong {
+  type: 'workerpool:pong';
+}
+
+type AcousticWorkerResponse = AcousticWorkerProgress | AcousticWorkerResult | AcousticWorkerHeartbeatPong;
 
 interface AnalyzeRequestOptions {
   signal?: AbortSignal;
@@ -523,15 +528,16 @@ export class AcousticAnalysisService {
   private ensureWorker(): WorkerLike {
     if (!this.worker) {
       this.worker = this.workerFactory?.() ?? (new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }) as unknown as WorkerLike);
-      if (this.worker instanceof Worker) {
-        this.acousticWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker, {
-          id: nextPhysicalWorkerId('acousticAnalysis'),
-          source: 'AcousticAnalysisService',
-        });
-      }
+      this.acousticWorkerTrackingRelease = trackBrowserWorkerLifecycle(this.worker as unknown as Worker, {
+        id: nextPhysicalWorkerId('acousticAnalysis'),
+        source: 'AcousticAnalysisService',
+      });
+      getWorkerPool().register('acousticAnalysis', 'AcousticAnalysis', () =>
+        new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }));
       this.worker.onmessage = (event: MessageEvent<AcousticWorkerResponse>) => {
         const payload = event.data;
-        if (!payload?.requestId) {
+        if (payload.type === 'workerpool:pong') return;
+        if (!payload.requestId) {
           return;
         }
 
@@ -570,6 +576,7 @@ export class AcousticAnalysisService {
 
   private resetWorker(): void {
     if (!this.worker) return;
+    getWorkerPool().deregister('acousticAnalysis');
     this.acousticWorkerTrackingRelease?.();
     this.acousticWorkerTrackingRelease = null;
     this.worker.onmessage = null;

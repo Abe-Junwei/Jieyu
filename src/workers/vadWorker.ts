@@ -71,6 +71,12 @@ function resetState(): void {
 self.onmessage = async (event: MessageEvent) => {
   const msg = event.data as { type: string; modelUrl?: string; id?: string; pcm?: Float32Array; sampleRate?: number };
 
+  // WorkerPool 心跳协议 | Heartbeat protocol
+  if (msg.type === 'workerpool:ping') {
+    self.postMessage({ type: 'workerpool:pong' });
+    return;
+  }
+
   switch (msg.type) {
     case 'init': {
       try {
