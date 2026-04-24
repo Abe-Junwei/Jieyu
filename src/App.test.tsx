@@ -4,10 +4,9 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { MemoryRouter } from 'react-router-dom';
 import { App } from './App';
 
-const ROUTER_FUTURE_FLAGS = {
-  v7_startTransition: true,
-  v7_relativeSplatPath: true,
-} as const;
+vi.mock('./pages/HomePage', () => ({
+  HomePage: () => <div data-testid="home-page">home-page</div>,
+}));
 
 vi.mock('./pages/TranscriptionPage', () => ({
   TranscriptionPage: ({ appSearchRequest }: { appSearchRequest?: { query?: string } | null }) => (
@@ -91,7 +90,7 @@ function openLanguageAssetFromMenu(name: RegExp): void {
 describe('App shell', () => {
   it('removes shell search/theme/shortcut controls', async () => {
     render(
-      <MemoryRouter initialEntries={['/analysis']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/analysis']}>
         <App />
       </MemoryRouter>,
     );
@@ -103,11 +102,12 @@ describe('App shell', () => {
 
   it('renders the current multi-workbench shell navigation', () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
 
+    expect(screen.getAllByRole('link', { name: /Home|首页/ }).length).toBeGreaterThan(0);
     const transcriptionLinks = screen.getAllByRole('link', { name: /Transcription|转写/ });
     expect(transcriptionLinks.length).toBeGreaterThan(0);
     expect(screen.getAllByRole('link', { name: /Annotation|标注/ }).length).toBeGreaterThan(0);
@@ -123,9 +123,19 @@ describe('App shell', () => {
     expect(within(getLeftRailResourcesButton()).getByText(/Assets|资源/)).toBeTruthy();
   });
 
+  it('renders the home page at /', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    expect((await screen.findByTestId('home-page')).textContent).toContain('home-page');
+  });
+
   it('opens language metadata as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -139,7 +149,7 @@ describe('App shell', () => {
 
   it('opens orthography bridges as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -153,7 +163,7 @@ describe('App shell', () => {
 
   it('opens orthography manager as a modal panel over the current page from the left rail button', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -167,7 +177,7 @@ describe('App shell', () => {
 
   it('closes language-asset modal directly to background page after modal-to-modal navigation', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -189,7 +199,7 @@ describe('App shell', () => {
 
   it('closes language-asset modal when pressing Escape', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -206,7 +216,7 @@ describe('App shell', () => {
 
   it('closes language-asset modal when clicking overlay backdrop and keeps shared overlay style', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -229,7 +239,7 @@ describe('App shell', () => {
 
   it('opens orthography manager as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -245,7 +255,7 @@ describe('App shell', () => {
 
   it('opens language metadata as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -261,7 +271,7 @@ describe('App shell', () => {
 
   it('opens orthography bridges as a modal over the transcription page and applies wide variant', async () => {
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );
@@ -280,7 +290,7 @@ describe('App shell', () => {
     getter.mockReturnValue('zh-CN');
 
     render(
-      <MemoryRouter initialEntries={['/transcription']} future={ROUTER_FUTURE_FLAGS}>
+      <MemoryRouter initialEntries={['/transcription']}>
         <App />
       </MemoryRouter>,
     );

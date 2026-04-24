@@ -2,11 +2,13 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type UIEvent as ReactUIEvent,
 } from 'react';
+import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
 import { useLasso, type SubSelectDrag } from '../hooks/useLasso';
 import { useSegmentRangeGesturePreviewWriter } from '../hooks/useSegmentRangeGesturePreviewWriter';
 import { useLatest } from '../hooks/useLatest';
@@ -19,30 +21,24 @@ import { timelineUnitsToWaveformAnalysisRows } from '../hooks/timelineUnitView';
 import type { UseTranscriptionWaveformBridgeControllerInput, UseTranscriptionWaveformBridgeControllerResult } from './transcriptionWaveformBridge.types';
 import { useWaveformAcousticOverlay } from './useWaveformAcousticOverlay';
 import { useWaveformSignalOverlays } from './useWaveformSignalOverlays';
+import {
+  DEFAULT_PLAYBACK_RATE_KEY,
+  readDefaultPlaybackRate,
+  useWaveformViewportSizing,
+  type UseWaveformViewportSizingInput,
+} from './useWaveformViewportSizing';
 export type { WaveformInteractionHandlerRefs } from './transcriptionWaveformBridge.types';
-
-const DEFAULT_PLAYBACK_RATE_KEY = 'jieyu:default-playback-rate';
-
-function readDefaultPlaybackRate(): number {
-  try {
-    const stored = localStorage.getItem(DEFAULT_PLAYBACK_RATE_KEY);
-    if (!stored) return 1;
-    const parsed = Number(stored);
-    if (Number.isNaN(parsed)) return 1;
-    return [0.5, 0.75, 1, 1.25, 1.5, 2].includes(parsed) ? parsed : 1;
-  } catch {
-    return 1;
-  }
-}
 
 export function useTranscriptionWaveformBridgeController(
   input: UseTranscriptionWaveformBridgeControllerInput,
 ): UseTranscriptionWaveformBridgeControllerResult {
-  const { setZoomMode, setAmplitudeScale } = input;
+  const { setAmplitudeScale } = input;
   const [zoomPercent, setZoomPercent] = useState(100);
   useEnsureVadCache(input.mediaId, input.selectedMediaUrl, input.mediaBlobSize);
   const vadSegments = useVadCachedSegments(input.mediaId);
   const waveformAreaRef = useRef<HTMLDivElement | null>(null);
+  /** 挂到 `waveform-display-shell`，使分屏频谱区滚轮与波形区同源 | Split spectrogram pane shares wheel pan with wave strip */
+  const waveformStripWheelShellRef = useRef<HTMLDivElement | null>(null);
   const waveCanvasRef = useRef<HTMLDivElement | null>(null);
   const [waveformFocused, setWaveformFocused] = useState(false);
   const [segmentLoopPlayback, setSegmentLoopPlayback] = useState(false);
@@ -64,12 +60,12 @@ export function useTranscriptionWaveformBridgeController(
   const [waveformScrollLeft, setWaveformScrollLeft] = useState(0);
   const pendingWaveformScrollLeftRef = useRef<number | null>(null);
   const waveformScrollRafRef = useRef<number | null>(null);
+  const previousSelectedMediaUrlForTierResetRef = useRef(input.selectedMediaUrl);
   const subSelectDragRef = useRef<SubSelectDrag | null>(null);
   const skipSeekForIdRef = useRef<string | null>(null);
   const creatingSegmentRef = useRef(false);
   const markingModeRef = useRef(false);
   const previousSelectedTimelineUnitIdRef = useRef(input.selectedTimelineUnit?.unitId ?? '');
-  const lastDurationRef = useRef(0);
   const handleWaveformRegionAltPointerDownRef = useRef<((regionId: string, time: number, pointerId: number, clientX: number) => void) | undefined>(undefined);
   const handleWaveformRegionClickRef = useRef<((regionId: string, clickTime: number, event: MouseEvent) => void) | undefined>(undefined);
   const handleWaveformRegionDoubleClickRef = useRef<((regionId: string, start: number, end: number) => void) | undefined>(undefined);
@@ -100,12 +96,7 @@ export function useTranscriptionWaveformBridgeController(
     selectedUnitIds: input.selectedUnitIds,
   });
 
-  const [waveCanvasClientWidth, setWaveCanvasClientWidth] = useState(800);
-  const containerWidth = waveCanvasClientWidth;
-  const safeDur = lastDurationRef.current;
-  const fitPxPerSec = safeDur > 0 ? containerWidth / safeDur : 40;
-  const zoomPxPerSec = fitPxPerSec * (zoomPercent / 100);
-  const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
+  const [waveformZoomPxPerSec, setWaveformZoomPxPerSec] = useState(40);
   const isFitZoomMode = input.zoomMode === 'fit-all' || input.zoomMode === 'fit-selection';
   const shouldDisableAutoScroll = segmentLoopPlayback && isFitZoomMode;
 
@@ -120,7 +111,7 @@ export function useTranscriptionWaveformBridgeController(
     segmentPlaybackRate,
     autoScrollDuringPlayback: !shouldDisableAutoScroll,
     enableEmptyDragCreate: useSegmentWaveformRegions,
-    zoomLevel: zoomPxPerSec,
+    zoomLevel: waveformZoomPxPerSec,
     startMarker: segMarkStart ?? undefined,
     subSelection: subSelectionRange,
     waveformHeight: input.waveformHeight,
@@ -168,33 +159,70 @@ export function useTranscriptionWaveformBridgeController(
     },
   });
 
-  useEffect(() => {
-    if (player.duration > 0) {
-      lastDurationRef.current = player.duration;
-      return;
-    }
-    const logical = input.logicalTimelineDurationSec;
-    if (typeof logical === 'number' && Number.isFinite(logical) && logical > 0) {
-      lastDurationRef.current = logical;
-      return;
-    }
-    lastDurationRef.current = 0;
-  }, [player.duration, input.logicalTimelineDurationSec]);
+  const documentSpanSec = useMemo(
+    () => {
+      const anchor = player.isReady && player.duration > 0 ? player.duration : 0;
+      return computeLogicalTimelineDurationForZoom(
+        input.activeTextTimeLogicalDurationSec,
+        input.unitsOnCurrentMedia,
+        anchor > 0 ? { acousticTimelineAnchorSec: anchor } : undefined,
+      );
+    },
+    [input.activeTextTimeLogicalDurationSec, input.unitsOnCurrentMedia, player.isReady, player.duration],
+  );
+
+  const waveformViewportSizingInput: UseWaveformViewportSizingInput = {
+    tierContainerRef: input.tierContainerRef,
+    waveCanvasRef,
+    waveformAreaRef,
+    documentSpanSec,
+    timelineUnitViewEpoch: input.timelineUnitViewIndex.epoch,
+    playerIsReady: player.isReady,
+    playerDuration: player.duration,
+  };
+  if (input.selectedMediaUrl !== undefined) {
+    waveformViewportSizingInput.selectedMediaUrl = input.selectedMediaUrl;
+  }
+  if (input.verticalComparisonEnabled !== undefined) {
+    waveformViewportSizingInput.verticalComparisonEnabled = input.verticalComparisonEnabled;
+  }
+
+  const {
+    containerWidth,
+    waveCanvasClientWidth,
+    rawTierAxisForFitPx,
+    tierTimeAxisForFitPx,
+  } = useWaveformViewportSizing(waveformViewportSizingInput);
+
+  const fitPxPerSec = documentSpanSec > 0 && Number.isFinite(documentSpanSec)
+    ? containerWidth / documentSpanSec
+    : 40;
+  const maxZoomPercent = Math.max(200, Math.ceil((2000 / fitPxPerSec) * 100));
+  const zoomPxPerSec = Math.max(1e-9, fitPxPerSec * (zoomPercent / 100));
+  useLayoutEffect(() => {
+    setWaveformZoomPxPerSec(zoomPxPerSec);
+  }, [zoomPxPerSec]);
 
   useLayoutEffect(() => {
-    const node = waveCanvasRef.current;
-    if (!node) return undefined;
-    const measure = () => {
-      const w = node.clientWidth;
-      setWaveCanvasClientWidth(w > 0 ? w : 800);
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { __jieyuDebugTimelineLayout?: object }).__jieyuDebugTimelineLayout = {
+      zoomPxPerSec,
+      fitPxPerSec,
+      documentSpanSec,
+      containerWidth,
+      waveCanvasClientWidth,
+      tierAxisMergedPx: rawTierAxisForFitPx,
+      tierAxisAfterFloorPx: tierTimeAxisForFitPx,
     };
-    measure();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-    ro?.observe(node);
-    return () => {
-      ro?.disconnect();
-    };
-  }, [input.selectedMediaUrl]);
+  }, [
+    containerWidth,
+    documentSpanSec,
+    fitPxPerSec,
+    rawTierAxisForFitPx,
+    tierTimeAxisForFitPx,
+    waveCanvasClientWidth,
+    zoomPxPerSec,
+  ]);
 
   // RAF 聚合悬停时间 | RAF-coalesce hover time
   const scheduleHoverTime = useCallback((next: { time: number; x: number; y: number } | null) => {
@@ -225,17 +253,6 @@ export function useTranscriptionWaveformBridgeController(
     });
   }, [commitWaveformScrollLeft]);
 
-  useEffect(() => {
-    if (!player.isReady) return;
-    const ws = player.instanceRef.current;
-    if (!ws) return;
-    const onScroll = () => {
-      scheduleWaveformScrollLeft(ws.getScroll());
-    };
-    ws.on('scroll', onScroll);
-    return () => { ws.un('scroll', onScroll); };
-  }, [player.isReady, player.instanceRef, scheduleWaveformScrollLeft]);
-
   useEffect(() => () => {
     if (hoverTimeRafRef.current !== null) {
       cancelAnimationFrame(hoverTimeRafRef.current);
@@ -259,12 +276,31 @@ export function useTranscriptionWaveformBridgeController(
     const tier = input.tierContainerRef.current;
     if (!tier) return;
     const ws = player.instanceRef.current;
-    const nextScrollLeft = ws ? ws.getScroll() : 0;
+    if (!ws) {
+      // 纯文本/无声学：无 WaveSurfer 时不得把 tier 滚到 0，否则无法横向看到/拖选屏外语段
+      return;
+    }
+    const nextScrollLeft = ws.getScroll();
     if (Math.abs(tier.scrollLeft - nextScrollLeft) > 0.5) {
       tier.scrollLeft = nextScrollLeft;
     }
     commitWaveformScrollLeft(nextScrollLeft);
   }, [commitWaveformScrollLeft, input.selectedMediaUrl, input.tierContainerRef, player.instanceRef, player.isReady]);
+
+  // 自无声学/纯文本**首次**挂上媒体 URL 时，把纯文本时拖出的长横向 scroll 收掉，与声学轴左缘对齐
+  useLayoutEffect(() => {
+    const prev = previousSelectedMediaUrlForTierResetRef.current;
+    const cur = input.selectedMediaUrl;
+    previousSelectedMediaUrlForTierResetRef.current = cur;
+    const wasEmpty = typeof prev !== 'string' || prev.trim() === '';
+    const nowHas = typeof cur === 'string' && cur.trim() !== '';
+    if (!wasEmpty || !nowHas) return;
+    const tier = input.tierContainerRef.current;
+    if (tier) tier.scrollLeft = 0;
+    const ws = player.instanceRef.current;
+    if (ws) ws.setScroll(0);
+    commitWaveformScrollLeft(0);
+  }, [input.selectedMediaUrl, input.tierContainerRef, player.instanceRef, commitWaveformScrollLeft]);
 
   const {
     waveformNoteIndicators,
@@ -276,7 +312,6 @@ export function useTranscriptionWaveformBridgeController(
     waveformTimelineItems,
     activeLayerIdForEdits: input.activeLayerIdForEdits,
     resolveNoteIndicatorTarget: input.resolveNoteIndicatorTarget,
-    waveformScrollLeft,
     zoomPxPerSec,
   });
 
@@ -332,20 +367,20 @@ export function useTranscriptionWaveformBridgeController(
     ...(input.tierTimelineLassoSuppressed ? { tierTimelineLassoSuppressed: true } : {}),
     liftedLassoPreview: gestureWriter.lasso,
     setLiftedLassoPreview,
-    ...(typeof input.logicalTimelineDurationSec === 'number'
-      && Number.isFinite(input.logicalTimelineDurationSec)
-      && input.logicalTimelineDurationSec > 0
-      ? { waveformMappingDurationSec: input.logicalTimelineDurationSec }
+    waveformMappingDurationSec: documentSpanSec,
+    ...(input.tierIndependentSegmentCreateRangeClamp
+      ? { tierIndependentSegmentCreateRangeClamp: input.tierIndependentSegmentCreateRangeClamp }
       : {}),
+    tierLassoMode: input.selectedMediaUrl ? 'default' : 'noMediaTextCreate',
   });
 
   const { projection: timelineViewportProjection, zoomToPercent, zoomToUnit } = useTimelineViewport({
     waveCanvasRef,
+    waveformWheelCaptureRootRef: waveformStripWheelShellRef,
     tierContainerRef: input.tierContainerRef,
     playerInstanceRef: player.instanceRef,
     playerIsReady: player.isReady,
     playerDuration: player.duration,
-    playerCurrentTime: player.currentTime,
     playerIsPlaying: player.isPlaying,
     selectedMediaUrl: input.selectedMediaUrl,
     zoomPercent,
@@ -354,12 +389,9 @@ export function useTranscriptionWaveformBridgeController(
     fitPxPerSec,
     maxZoomPercent,
     zoomPxPerSec,
-    ...(typeof input.logicalTimelineDurationSec === 'number'
-      && Number.isFinite(input.logicalTimelineDurationSec)
-      && input.logicalTimelineDurationSec > 0
-      ? { logicalTimelineDurationSec: input.logicalTimelineDurationSec }
-      : {}),
+    documentSpanSec,
     onLogicalTimelineScrollSync: scheduleWaveformScrollLeft,
+    onBatchedRulerFrameScrollLeft: commitWaveformScrollLeft,
     waveformScrollLeft,
   });
   const { rulerView } = timelineViewportProjection;
@@ -409,21 +441,15 @@ export function useTranscriptionWaveformBridgeController(
   }, []);
 
   const handleWaveformAreaWheel = useCallback((event: WheelEvent): void => {
-    if (event.ctrlKey) {
-      event.preventDefault();
-      event.stopPropagation();
-      const delta = event.deltaY > 0 ? -10 : 10;
-      setZoomMode('custom');
-      setZoomPercent((prev) => Math.min(800, Math.max(10, prev + delta)));
-      return;
-    }
+    // Ctrl/Meta 缩放统一交给 useZoom 的 wheel 拦截，避免双通道重复处理 | Delegate Ctrl/Meta zoom to useZoom wheel handlers to avoid duplicate handling.
+    if (event.ctrlKey || event.metaKey) return;
     if (event.altKey) {
       event.preventDefault();
       event.stopPropagation();
       const delta = event.deltaY > 0 ? -0.1 : 0.1;
       setAmplitudeScale((prev) => Math.min(4, Math.max(0.25, prev + delta)));
     }
-  }, [setAmplitudeScale, setZoomMode, setZoomPercent]);
+  }, [setAmplitudeScale]);
 
   const handleTimelineScroll = (event: ReactUIEvent<HTMLDivElement>): void => {
     const nextScrollLeft = event.currentTarget.scrollLeft;
@@ -508,7 +534,9 @@ export function useTranscriptionWaveformBridgeController(
   }, [player, resolveSelectedPlaybackRange, selectedWaveformTimelineItem]);
 
   return {
+    documentSpanSec,
     waveformAreaRef,
+    waveformStripWheelShellRef,
     waveCanvasRef,
     player,
     useSegmentWaveformRegions,
