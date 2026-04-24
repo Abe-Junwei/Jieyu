@@ -27,11 +27,33 @@ const CONTEXT_LITERAL_RE = /context\s*:\s*(['"`])([^'"`]+)\1/s;
 const POLICY_LITERAL_RE = /policy\s*:\s*(['"`])([^'"`]+)\1/s;
 const CONTEXT_FORMAT_RE = /^src\/.+\.(ts|tsx):L\d+$/;
 
+function commandExists(command) {
+  try {
+    execSync(`command -v ${command}`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function runListCommand(command) {
+  try {
+    return execSync(command, { encoding: 'utf8' }).trim();
+  } catch (error) {
+    // 未命中时 grep/git-grep 返回 1，这里按空结果处理。 | Treat no-match exit(1) as empty result.
+    if (typeof error === 'object' && error !== null && 'status' in error && error.status === 1) {
+      return '';
+    }
+    throw error;
+  }
+}
+
 function listRuntimeFiles() {
-  const output = execSync(
-    'rg -l "fireAndForget\\(" src',
-    { encoding: 'utf8' },
-  ).trim();
+  const output = commandExists('rg')
+    ? runListCommand('rg -l "fireAndForget\\(" src')
+    : commandExists('git')
+      ? runListCommand('git grep -l -F "fireAndForget(" -- src')
+      : runListCommand('grep -R -l -F "fireAndForget(" src');
 
   if (!output) return [];
 

@@ -38,7 +38,7 @@ export function buildReadyWorkspaceHistoryControlsProps(
         detail: `historyIndex=${idx}`,
       });
       await input.undoToHistoryIndex(idx);
-    })(), { context: 'src/pages/transcriptionReadyWorkspaceHistoryControlsBuilder.ts:onJumpToHistoryIndex', policy: 'user-visible' }),
+    })(), { context: 'src/pages/transcriptionReadyWorkspaceHistoryControlsBuilder.ts:L32', policy: 'user-visible' }),
     onRedo: () => fireAndForget((async () => {
       const tu = input.selectedTimelineUnit;
       input.recordTimelineEdit({
@@ -47,6 +47,6 @@ export function buildReadyWorkspaceHistoryControlsProps(
         unitKind: tu?.kind ?? 'unit',
       });
       await input.redo();
-    })(), { context: 'src/pages/transcriptionReadyWorkspaceHistoryControlsBuilder.ts:onRedo', policy: 'user-visible' }),
+    })(), { context: 'src/pages/transcriptionReadyWorkspaceHistoryControlsBuilder.ts:L42', policy: 'user-visible' }),
   };
 }
