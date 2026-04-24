@@ -694,8 +694,8 @@ describe('TranscriptionTimelineVerticalView', () => {
       </LocaleProvider>,
     );
 
-    const sourceRail = screen.getByTestId('paired-reading-source-rail-pr-u1-u1');
-    const targetRail = screen.getByTestId('paired-reading-target-rail-pr-u1-translation-1');
+    const sourceRail = screen.getByTestId('paired-reading-source-rail-pr-u1-src-tr-a-u1');
+    const targetRail = screen.getByTestId('paired-reading-target-rail-pr-u1-src-tr-a-translation-1');
     expect(sourceRail).toBeTruthy();
     expect(targetRail).toBeTruthy();
     expect(sourceRail.getAttribute('aria-pressed')).toBe('true');
@@ -851,10 +851,10 @@ describe('TranscriptionTimelineVerticalView', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-u1')).toBeTruthy();
-    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-u2')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-src-tr-a-u1')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-source-rail-pr-u1-src-tr-a-u2')).toBeTruthy();
 
-    fireEvent.click(screen.getByTestId('paired-reading-source-rail-pr-u1-u2'));
+    fireEvent.click(screen.getByTestId('paired-reading-source-rail-pr-u1-src-tr-a-u2'));
     expect(onFocusLayer).toHaveBeenCalledWith('tr-a');
   });
 
@@ -1331,6 +1331,65 @@ describe('TranscriptionTimelineVerticalView', () => {
     );
   });
 
+  it('does not show STT for audio-only translation layers (parity with horizontal lanes)', () => {
+    const transcriptionLayers = [makeLayer('tr-a', 'transcription')];
+    const translationLayers = [{
+      ...makeTranslationLayer('translation-audio', 'tr-a'),
+      modality: 'audio' as const,
+      acceptsAudio: true,
+    } as LayerDocType];
+    const units = [makeUnit('u1', 'tr-a', 0, 1)];
+    const translationAudioByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
+      ['translation-audio', new Map([
+        ['u1', {
+          id: 'aud-1',
+          textId: 'text-1',
+          unitId: 'u1',
+          layerId: 'translation-audio',
+          modality: 'audio',
+          translationAudioMediaId: 'media-aud-1',
+          sourceType: 'human',
+          createdAt: '2026-04-19T00:00:00.000Z',
+          updatedAt: '2026-04-19T00:00:01.000Z',
+        } as LayerUnitContentDocType],
+      ])],
+    ]);
+    const mediaItems: MediaItemDocType[] = [{
+      id: 'media-aud-1',
+      textId: 'text-1',
+      filename: 'audio.webm',
+      url: 'https://example.com/a.webm',
+      details: {},
+      isOfflineCached: false,
+      createdAt: '2026-04-19T00:00:00.000Z',
+    } as MediaItemDocType];
+    const transcribeVoiceTranslation = vi.fn(async () => undefined);
+
+    render(
+      <LocaleProvider locale="zh-CN">
+        <TranscriptionEditorContext.Provider value={makeEditorContext()}>
+          <TranscriptionTimelineVerticalView
+            transcriptionLayers={transcriptionLayers}
+            translationLayers={translationLayers}
+            unitsOnCurrentMedia={units}
+            focusedLayerRowId="translation-audio"
+            onFocusLayer={vi.fn()}
+            handleAnnotationClick={vi.fn()}
+            translationAudioByLayer={translationAudioByLayer}
+            mediaItems={mediaItems}
+            transcribeVoiceTranslation={transcribeVoiceTranslation}
+            startRecordingForUnit={vi.fn()}
+            stopRecording={vi.fn()}
+          />
+        </TranscriptionEditorContext.Provider>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByRole('button', { name: /播放录音翻译|Play recorded translation/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /语音转文字|Transcribe recording/i })).toBeNull();
+    expect(transcribeVoiceTranslation).not.toHaveBeenCalled();
+  });
+
   it('resolves comparison playback from fallback audio scope key', () => {
     const transcriptionLayers = [makeLayer('tr-seg', 'transcription', '转写', 'independent_boundary')];
     const translationLayers = [{
@@ -1476,7 +1535,7 @@ describe('TranscriptionTimelineVerticalView', () => {
     expect(screen.getByDisplayValue('法语段')).toBeTruthy();
     expect(screen.getByDisplayValue('中文译')).toBeTruthy();
     expect(screen.getByDisplayValue('吴语译')).toBeTruthy();
-    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr-src-tr-fr')).toBeTruthy();
   });
 
   it('keeps translation editor visible when source unit layerId is missing in multi-transcription text-only mode', () => {
@@ -1513,7 +1572,7 @@ describe('TranscriptionTimelineVerticalView', () => {
 
     expect(screen.getByDisplayValue('English source text')).toBeTruthy();
     expect(screen.getByDisplayValue('English translation text')).toBeTruthy();
-    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-en')).toBeNull();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-en-src-tr-en')).toBeNull();
   });
 
   it('keeps translation editor visible when host binding mismatches but unit-linked translation text exists', () => {
@@ -1548,7 +1607,7 @@ describe('TranscriptionTimelineVerticalView', () => {
 
     expect(screen.getByDisplayValue('French source text')).toBeTruthy();
     expect(screen.getByDisplayValue('French unit fallback translation')).toBeTruthy();
-    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-fr')).toBeNull();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-fr-src-tr-fr')).toBeNull();
   });
 
   it('keeps translation editor visible in single-transcription mode when layer link host is unresolved', () => {
@@ -1580,7 +1639,7 @@ describe('TranscriptionTimelineVerticalView', () => {
 
     expect(screen.getByDisplayValue('Single host source text')).toBeTruthy();
     expect(screen.getByDisplayValue('Single host fallback translation')).toBeTruthy();
-    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-single')).toBeNull();
+    expect(screen.queryByTestId('paired-reading-target-empty-pr-u-single-src-tr-single')).toBeNull();
   });
 
   it('shows orphan-repair hint when only unbound translation layers exist for another host group', () => {
@@ -1620,7 +1679,7 @@ describe('TranscriptionTimelineVerticalView', () => {
       </LocaleProvider>,
     );
 
-    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr')).toBeTruthy();
+    expect(screen.getByTestId('paired-reading-target-empty-pr-u-fr-src-tr-fr')).toBeTruthy();
     expect(screen.getByText('检测到未绑定宿主的翻译层；请在层元信息中补充指向宿主转写的 layer_links（或调整首选宿主）。')).toBeTruthy();
   });
 

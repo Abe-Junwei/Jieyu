@@ -81,8 +81,21 @@ describe('initOtelWithResolvedConfig', () => {
       }
     }
 
+    let innerBatchProcessor: {
+      onEnd: ReturnType<typeof vi.fn>;
+      forceFlush: ReturnType<typeof vi.fn>;
+      shutdown: ReturnType<typeof vi.fn>;
+    } | undefined;
+
     class MockBatchSpanProcessor {
-      constructor(readonly exporter: unknown) {}
+      onEnd = vi.fn();
+      onStart = vi.fn();
+      forceFlush = vi.fn(() => Promise.resolve());
+      shutdown = vi.fn(() => Promise.resolve());
+
+      constructor(readonly exporter: unknown) {
+        innerBatchProcessor = this;
+      }
     }
 
     class MockParentBasedSampler {
@@ -141,10 +154,12 @@ describe('initOtelWithResolvedConfig', () => {
         'service.version': __APP_VERSION__,
       },
     });
-    const spanProcessors = capturedProviderConfig?.spanProcessors as Array<{ onEnd?: (span: { attributes?: Record<string, unknown> }) => void }>;
+    const spanProcessors = capturedProviderConfig?.spanProcessors as Array<{
+      onEnd?: (span: { attributes?: Record<string, unknown> }) => void;
+    }>;
     expect(Array.isArray(spanProcessors)).toBe(true);
-    expect(spanProcessors).toHaveLength(2);
-    expect(spanProcessors[1]).toBeInstanceOf(MockBatchSpanProcessor);
+    expect(spanProcessors).toHaveLength(1);
+    expect(innerBatchProcessor).toBeDefined();
 
     const fakeSpan = {
       attributes: {
@@ -154,9 +169,11 @@ describe('initOtelWithResolvedConfig', () => {
       },
     };
     spanProcessors[0]?.onEnd?.(fakeSpan);
-    expect(fakeSpan.attributes.apiKey).toBe('[REDACTED]');
-    expect(fakeSpan.attributes.prompt).toBe('len:15');
-    expect(fakeSpan.attributes.urlFull).toBe('https://api.example.com/chat?token=[REDACTED]&safe=yes');
+    expect(fakeSpan.attributes?.apiKey).toBe('[REDACTED]');
+    expect(fakeSpan.attributes?.prompt).toBe('len:15');
+    expect(fakeSpan.attributes?.urlFull).toBe('https://api.example.com/chat?token=[REDACTED]&safe=yes');
+    expect(innerBatchProcessor?.onEnd).toHaveBeenCalledTimes(1);
+    expect(innerBatchProcessor?.onEnd).toHaveBeenCalledWith(fakeSpan);
   });
 
   it('opens exporter circuit after repeated failures and records metrics', async () => {
@@ -174,6 +191,11 @@ describe('initOtelWithResolvedConfig', () => {
     }
 
     class MockBatchSpanProcessor {
+      onEnd = vi.fn();
+      onStart = vi.fn();
+      forceFlush = vi.fn(() => Promise.resolve());
+      shutdown = vi.fn(() => Promise.resolve());
+
       constructor(readonly exporter: unknown) {
         exporterRef = exporter as typeof exporterRef;
       }

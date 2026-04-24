@@ -22,10 +22,22 @@ const EMPTY_TIMELINE_UNIT_VIEW_INDEX: TimelineUnitViewIndex = {
   isComplete: true,
 };
 
-function TranscriptionTimelineHorizontalMediaLanes(
-  props: Omit<ComponentProps<typeof RawTranscriptionTimelineHorizontalMediaLanes>, 'timelineUnitViewIndex'>,
-) {
-  return <RawTranscriptionTimelineHorizontalMediaLanes timelineUnitViewIndex={EMPTY_TIMELINE_UNIT_VIEW_INDEX} {...props} />;
+const DEFAULT_TEST_TIMELINE_GUTTER_PX = 64;
+
+type TestTranscriptionTimelineHorizontalMediaLanesProps = Omit<
+  ComponentProps<typeof RawTranscriptionTimelineHorizontalMediaLanes>,
+  'timelineUnitViewIndex' | 'timelineContentGutterPx'
+> & { timelineContentGutterPx?: number };
+
+function TranscriptionTimelineHorizontalMediaLanes(props: TestTranscriptionTimelineHorizontalMediaLanesProps) {
+  const { timelineContentGutterPx: gutterProp, ...rest } = props;
+  return (
+    <RawTranscriptionTimelineHorizontalMediaLanes
+      {...rest}
+      timelineUnitViewIndex={EMPTY_TIMELINE_UNIT_VIEW_INDEX}
+      timelineContentGutterPx={gutterProp ?? DEFAULT_TEST_TIMELINE_GUTTER_PX}
+    />
+  );
 }
 
 const editorContextValue = {
@@ -374,42 +386,60 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
   });
 
   it('keeps translation lane independent from speaker overlap layout', () => {
+    const trcHost = {
+      ...makeLayer('trc-overlap-host'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
     const trLayer = makeLayer('tr-1', 'translation');
     const units = [
       makeUnit('u1', 0, 5, 's1'),
       makeUnit('u2', 1, 4, 's2'),
       makeUnit('u3', 2, 3, 's3'),
     ];
+    const segments = units.map((u) => ({ ...u, layerId: trcHost.id, unitType: 'segment' } as LayerUnitDocType));
+    const layerLinks = [
+      {
+        id: 'link-tr-overlap',
+        layerId: trLayer.id,
+        transcriptionLayerKey: trcHost.key!,
+        hostTranscriptionLayerId: trcHost.id,
+        isPreferred: true,
+        linkType: 'literal' as const,
+        createdAt: NOW,
+      },
+    ] as LayerLinkDocType[];
 
     const { container } = render(
       <TranscriptionTimelineHorizontalMediaLanes
         playerDuration={20}
         zoomPxPerSec={100}
         lassoRect={null}
-        transcriptionLayers={[]}
+        transcriptionLayers={[trcHost]}
         translationLayers={[trLayer]}
         timelineRenderUnits={units}
         flashLayerRowId=""
         focusedLayerRowId=""
-        defaultTranscriptionLayerId={undefined}
-        renderAnnotationItem={(utt) => <div data-testid={`ann-${utt.id}`}>{utt.id}</div>}
-        allLayersOrdered={[trLayer]}
+        defaultTranscriptionLayerId={trcHost.id}
+        renderAnnotationItem={(utt, layer) => <div data-testid={`ann-${layer.id}-${utt.id}`}>{utt.id}</div>}
+        allLayersOrdered={[trLayer, trcHost]}
         onReorderLayers={vi.fn(async () => undefined)}
-        deletableLayers={[trLayer]}
+        deletableLayers={[trLayer, trcHost]}
         onFocusLayer={vi.fn()}
-        laneHeights={{ [trLayer.id]: 44 }}
+        laneHeights={{ [trLayer.id]: 44, [trcHost.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        layerLinks={layerLinks}
+        segmentsByLayer={new Map([[trcHost.id, segments]])}
       />,
     );
 
     fireEvent.click(screen.getByTestId(`toggle-${trLayer.id}`));
-    expect(screen.queryByTestId('ann-u1')).toBeNull();
+    expect(screen.queryByTestId(`ann-${trLayer.id}-u1`)).toBeNull();
     expect(container.querySelectorAll('.timeline-lane-overlap-hint').length).toBe(0);
 
     fireEvent.click(screen.getByTestId(`toggle-${trLayer.id}`));
-    expect(screen.getByTestId('ann-u1')).toBeTruthy();
-    expect(screen.getByTestId('ann-u2')).toBeTruthy();
-    expect(screen.getByTestId('ann-u3')).toBeTruthy();
+    expect(screen.getByTestId(`ann-${trLayer.id}-u1`)).toBeTruthy();
+    expect(screen.getByTestId(`ann-${trLayer.id}-u2`)).toBeTruthy();
+    expect(screen.getByTestId(`ann-${trLayer.id}-u3`)).toBeTruthy();
   });
 
   it('renders dependent translation lanes from parent transcription segments', () => {
@@ -886,7 +916,10 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
   });
 
   it('renders recording controls for audio translation rows and starts recording', () => {
-    const transcriptionLayer = makeLayer('trc-base');
+    const transcriptionLayer = {
+      ...makeLayer('trc-base'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
     const translationLayer = {
       ...makeLayer('trl-audio', 'translation'),
       key: 'trl_audio',
@@ -894,6 +927,18 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       acceptsAudio: true,
     } as LayerDocType;
     const unit = makeUnit('u1', 0, 1, 's1');
+    const segmentRow = { ...unit, layerId: transcriptionLayer.id, unitType: 'segment' } as LayerUnitDocType;
+    const layerLinks = [
+      {
+        id: 'link-trl-audio',
+        layerId: translationLayer.id,
+        transcriptionLayerKey: transcriptionLayer.key!,
+        hostTranscriptionLayerId: transcriptionLayer.id,
+        isPreferred: true,
+        linkType: 'literal' as const,
+        createdAt: NOW,
+      },
+    ] as LayerLinkDocType[];
     const startRecordingForUnit = vi.fn(async () => undefined);
 
     render(
@@ -917,6 +962,8 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        layerLinks={layerLinks}
+        segmentsByLayer={new Map([[transcriptionLayer.id, [segmentRow]]])}
         translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
         mediaItems={[]}
         startRecordingForUnit={startRecordingForUnit}
@@ -934,7 +981,10 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
   });
 
   it('renders enabled recording control for mixed translation rows in horizontal mode', () => {
-    const transcriptionLayer = makeLayer('trc-mixed-base');
+    const transcriptionLayer = {
+      ...makeLayer('trc-mixed-base'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
     const translationLayer = {
       ...makeLayer('trl-mixed', 'translation'),
       key: 'trl_mixed',
@@ -942,6 +992,18 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       acceptsAudio: false,
     } as LayerDocType;
     const unit = makeUnit('u-mixed-1', 0, 1, 's1');
+    const segmentRow = { ...unit, layerId: transcriptionLayer.id, unitType: 'segment' } as LayerUnitDocType;
+    const layerLinks = [
+      {
+        id: 'link-trl-mixed',
+        layerId: translationLayer.id,
+        transcriptionLayerKey: transcriptionLayer.key!,
+        hostTranscriptionLayerId: transcriptionLayer.id,
+        isPreferred: true,
+        linkType: 'literal' as const,
+        createdAt: NOW,
+      },
+    ] as LayerLinkDocType[];
     const startRecordingForUnit = vi.fn(async () => undefined);
 
     render(
@@ -965,6 +1027,8 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        layerLinks={layerLinks}
+        segmentsByLayer={new Map([[transcriptionLayer.id, [segmentRow]]])}
         translationAudioByLayer={new Map([[translationLayer.id, new Map()]])}
         mediaItems={[]}
         startRecordingForUnit={startRecordingForUnit}
@@ -983,7 +1047,10 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
   });
 
   it('resolves horizontal playback by segment fallback key when scope key is parent unit id', () => {
-    const transcriptionLayer = makeLayer('trc-playback-base');
+    const transcriptionLayer = {
+      ...makeLayer('trc-playback-base'),
+      constraint: 'independent_boundary',
+    } as LayerDocType;
     const translationLayer = {
       ...makeLayer('trl-playback', 'translation'),
       key: 'trl_playback',
@@ -997,6 +1064,17 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
       parentUnitId: parentUnit.id,
       layerId: transcriptionLayer.id,
     } as LayerUnitDocType;
+    const layerLinks = [
+      {
+        id: 'link-trl-playback',
+        layerId: translationLayer.id,
+        transcriptionLayerKey: transcriptionLayer.key!,
+        hostTranscriptionLayerId: transcriptionLayer.id,
+        isPreferred: true,
+        linkType: 'literal' as const,
+        createdAt: NOW,
+      },
+    ] as LayerLinkDocType[];
     const translationAudioByLayer = new Map<string, Map<string, LayerUnitContentDocType>>([
       [
         translationLayer.id,
@@ -1050,6 +1128,8 @@ describe('TranscriptionTimelineHorizontalMediaLanes overlap hint local expansion
         onFocusLayer={vi.fn()}
         laneHeights={{ [translationLayer.id]: 44, [transcriptionLayer.id]: 44 }}
         onLaneHeightChange={vi.fn()}
+        layerLinks={layerLinks}
+        segmentsByLayer={new Map([[transcriptionLayer.id, [segmentItem]]])}
         translationAudioByLayer={translationAudioByLayer}
         mediaItems={mediaItems}
         startRecordingForUnit={vi.fn(async () => undefined)}

@@ -66,11 +66,23 @@
   --timeline-neutral-divider-indicator: color-mix(in srgb, var(--text-tertiary) 46%, transparent);
 }
 
+/* SVG <rect> 默认 fill 为黑色；用 fill/stroke 半透明，避免拖选时整块发黑 | Default SVG rect fill is black */
 .timeline-lasso-rect {
-  border: 1.5px dashed color-mix(in srgb, var(--state-info-solid) 70%, transparent);
-  background: color-mix(in srgb, var(--state-info-solid) 10%, transparent);
+  fill: color-mix(in srgb, var(--state-info-solid) 14%, transparent);
+  stroke: color-mix(in srgb, var(--state-info-solid) 58%, transparent);
+  stroke-width: 1.75;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
   z-index: var(--z-overlay);
+}
+
+/* 无导入音频 / 纯文本时间轴：略提高描边对比度，仍为半透明填充 | Text-only: slightly stronger stroke, still translucent */
+.timeline-content-text-only .timeline-lasso-rect {
+  fill: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
+  stroke: color-mix(in srgb, var(--state-info-solid) 72%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
 }
 
 .timeline-lasso-overlay {
@@ -89,6 +101,41 @@
   padding-top: 0;
   padding-right: 0;
   padding-bottom: 0;
+}
+
+/* 无媒体：在语段/文本轨面拖选建段时的指针提示；输入/平移/改时把手单独覆盖 | No media: lasso crosshair; overrides on controls */
+.timeline-content-text-only .timeline-annotation {
+  cursor: crosshair;
+}
+
+.timeline-content-text-only .timeline-annotation-input {
+  cursor: text;
+}
+
+.timeline-content-text-only .timeline-annotation-resize-handle {
+  cursor: ew-resize;
+}
+
+.timeline-content-text-only .timeline-annotation-body-move {
+  cursor: grab;
+}
+
+/* 可拖选区空白也显示十字，控件恢复默认指针 | Lasso over empty lane area */
+.timeline-content-text-only .timeline-scroll {
+  cursor: crosshair;
+}
+
+.timeline-content-text-only .timeline-scroll :is(
+  input,
+  textarea,
+  select,
+  button,
+  a,
+  [role='button'],
+  .timeline-lane-label,
+  .time-ruler
+) {
+  cursor: auto;
 }
 
 /* 有声学 URL 但解码未就绪时壳层仍走纯文本轨 | Text-only shell while acoustic decode is pending */
@@ -113,8 +160,16 @@
 }
 
 .timeline-lane-header-wrapper {
-  position: relative;
-  display: contents;
+  /* 脱离文档流铺满整轨：避免替代 `display:contents` 时用 in-flow 块把子轨「挤窄」；无 pointer 区事件穿透至语段 | Out-of-flow shell so subtracks stay full lane width */
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: calc(var(--z-overlay-base) + 1);
+}
+
+.timeline-lane-header-wrapper .timeline-lane-header,
+.timeline-lane-header-wrapper .lane-label-resize-handle {
+  pointer-events: auto;
 }
 
 .timeline-lane-drop-indicator {
@@ -178,7 +233,9 @@
   box-shadow: none;
 }
 
-.timeline-empty-actions-row:is(:hover, :focus-within) > button {
+/* 勿用 `:focus-within` 作用于行内所有按钮：悬停/聚焦一键时两键同亮，且易误以为另一键失效 | Per-button chrome only */
+.timeline-empty-actions-row > button:hover:not(:disabled),
+.timeline-empty-actions-row > button:focus-visible:not(:disabled) {
   background: var(--border-soft);
   border-color: var(--text-secondary);
 }

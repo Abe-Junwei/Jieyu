@@ -167,6 +167,9 @@ export function detectVadSegments(
  * 从 URL 加载音频文件并解码为 AudioBuffer。
  * Fetches an audio URL and decodes it into an AudioBuffer via Web Audio API.
  */
+/** Hard cap for fetch-then-decode path to avoid unbounded RAM before decodeAudioData. */
+const MAX_AUDIO_FETCH_BYTES = 250 * 1024 * 1024;
+
 export async function loadAudioBuffer(
   url: string,
   onProgress?: (ratio: number) => void,
@@ -182,8 +185,11 @@ export async function loadAudioBuffer(
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    chunks.push(value);
     loaded += value.byteLength;
+    if (loaded > MAX_AUDIO_FETCH_BYTES) {
+      throw new Error(`Audio download exceeds safe limit (${MAX_AUDIO_FETCH_BYTES} bytes)`);
+    }
+    chunks.push(value);
     if (onProgress && contentLength > 0) {
       onProgress(Math.min(loaded / contentLength, 1));
     }

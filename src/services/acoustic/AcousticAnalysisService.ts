@@ -20,6 +20,7 @@ interface AudioContextLike {
 interface WorkerLike {
   onmessage: ((event: MessageEvent<AcousticWorkerResponse>) => void) | null;
   onerror: ((event: ErrorEvent) => void) | null;
+  onmessageerror?: ((event: MessageEvent<unknown>) => void) | null;
   postMessage: (message: AcousticWorkerRequest, transfer?: Transferable[]) => void;
   terminate: () => void;
 }
@@ -339,8 +340,12 @@ export class AcousticAnalysisService {
 
     return this.pendingWorkerRequests.track(request.requestId, () => {
       try {
+        if (request.pcm.byteLength > MAX_EXTERNAL_PROVIDER_PCM_BYTES) {
+          throw new Error(`Local acoustic worker payload exceeds limit (${MAX_EXTERNAL_PROVIDER_PCM_BYTES} bytes)`);
+        }
         worker.postMessage(request, [request.pcm.buffer]);
       } catch (error) {
+        this.resetWorker();
         throw error instanceof Error ? error : new Error(String(error));
       }
     }, {
@@ -502,9 +507,23 @@ export class AcousticAnalysisService {
       this.worker.onerror = (event) => {
         const error = new Error(event.message || 'Acoustic worker error');
         this.pendingWorkerRequests.rejectAll(error);
+        this.resetWorker();
+      };
+      this.worker.onmessageerror = () => {
+        this.pendingWorkerRequests.rejectAll(new Error('Acoustic worker message decode error'));
+        this.resetWorker();
       };
     }
     return this.worker;
+  }
+
+  private resetWorker(): void {
+    if (!this.worker) return;
+    this.worker.onmessage = null;
+    this.worker.onerror = null;
+    this.worker.onmessageerror = null;
+    this.worker.terminate();
+    this.worker = null;
   }
 
   private async setCached(cacheKey: string, mediaKey: string, result: AcousticFeatureResult): Promise<void> {
@@ -559,8 +578,7 @@ export class AcousticAnalysisService {
   dispose(): void {
     const disposedError = new Error('Acoustic analysis service disposed');
     this.pendingWorkerRequests.rejectAll(disposedError);
-    this.worker?.terminate();
-    this.worker = null;
+    this.resetWorker();
     this.pending.clear();
     this.cache.clear();
   }

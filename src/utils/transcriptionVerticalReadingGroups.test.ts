@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerUnitDocType } from '../db';
+import type { LayerDocType, LayerUnitDocType } from '../db';
 import {
   buildVerticalReadingGroups,
   listSegmentsOverlappingTimeRange,
@@ -164,6 +164,99 @@ describe('buildVerticalReadingGroups', () => {
     expect(groups[0]?.sourceItems.map((item) => item.unitId)).toEqual(['u1', 'u2']);
   });
 
+  it('merges link-only dependent lane (no parentLayerId on layer doc) into overlapping parent group', () => {
+    const now = '2026-04-23T00:00:00.000Z';
+    const parent = {
+      id: 'z-parent',
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+      textId: 't',
+      key: 'z-parent',
+      name: { 'zh-CN': 'P', en: 'P' },
+      languageId: 'zh-CN',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const dep = {
+      id: 'yuru',
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+      textId: 't',
+      key: 'yuru',
+      name: { 'zh-CN': 'Y', en: 'Y' },
+      languageId: 'zh-CN',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const units = [
+      { ...makeUnit('u1', 0, 1), layerId: 'z-parent' } as LayerUnitDocType,
+      { ...makeUnit('u1', 0, 1), layerId: 'yuru' } as LayerUnitDocType,
+    ];
+    const groups = buildVerticalReadingGroups({
+      units,
+      maxMergeGapSec: -1,
+      transcriptionLayersForSourceWalkOrder: [parent, dep],
+      layerLinks: [{
+        layerId: 'yuru',
+        transcriptionLayerKey: 'z-parent',
+        hostTranscriptionLayerId: 'z-parent',
+        isPreferred: true,
+      }],
+      getSourceText: (unit) => `src-${unit.layerId}`,
+      getTargetText: () => '',
+    });
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.sourceItems.map((s) => (s as { layerId?: string }).layerId)).toEqual(['z-parent', 'yuru']);
+  });
+
+  it('orders same-time multi-lane rows parent before dependent when transcriptionLayersForSourceWalkOrder is set', () => {
+    const now = '2026-04-23T00:00:00.000Z';
+    const parent = {
+      id: 'z-parent',
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+      textId: 't',
+      key: 'z-parent',
+      name: { 'zh-CN': 'P', en: 'P' },
+      languageId: 'zh-CN',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const child = {
+      id: 'a-child',
+      layerType: 'transcription',
+      constraint: 'symbolic_association',
+      parentLayerId: 'z-parent',
+      textId: 't',
+      key: 'a-child',
+      name: { 'zh-CN': 'C', en: 'C' },
+      languageId: 'zh-CN',
+      modality: 'text',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType;
+    const units = [
+      { ...makeUnit('u1', 0, 1), layerId: 'a-child' } as LayerUnitDocType,
+      { ...makeUnit('u1', 0, 1), layerId: 'z-parent' } as LayerUnitDocType,
+    ];
+
+    const groups = buildVerticalReadingGroups({
+      units,
+      maxMergeGapSec: -1,
+      transcriptionLayersForSourceWalkOrder: [child, parent],
+      getSourceText: (unit) => `src-${unit.layerId}`,
+      getTargetText: () => '',
+    });
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0]?.primaryAnchorLayerId).toBe('z-parent');
+    expect(groups[0]?.sourceItems.map((s) => s.layerId)).toEqual(['z-parent', 'a-child']);
+    expect(groups[0]?.isMultiAnchorGroup).toBe(true);
+  });
+
   it('derives anchor and speaker summary metadata for complex groups', () => {
     const units = [
       { ...makeUnit('u1', 0, 1), layerId: 'tr-a', speaker: 'Alice', speakerId: 'spk-a', rootUnitId: 'bundle-a' } as LayerUnitDocType,
@@ -201,6 +294,21 @@ describe('buildVerticalReadingGroups', () => {
     const trSegs = [trChildA, trChildB];
     const got = listTranslationSegmentsForVerticalReadingSourceUnit(srcSeg, trSegs, unitById).map((s) => s.id);
     expect(got).toEqual(['ta', 'tb']);
+  });
+
+  it('merges parent-linked segments with overlap on parent window when parentUnitId is missing on some rows', () => {
+    const parent = { ...makeUnit('p1', 0, 10), layerId: 'tr' } as LayerUnitDocType;
+    const trChildA = { ...makeUnit('ta', 0, 4), parentUnitId: 'p1', layerId: 'tl' } as LayerUnitDocType;
+    const trChildB = { ...makeUnit('tb', 4, 10), parentUnitId: 'p1', layerId: 'tl' } as LayerUnitDocType;
+    const trLoose = { ...makeUnit('tc', 2, 8), layerId: 'tl' } as LayerUnitDocType;
+    const srcSeg = { ...makeUnit('s1', 0, 2), parentUnitId: 'p1', layerId: 'tr' } as LayerUnitDocType;
+    const unitById = new Map<string, LayerUnitDocType>([
+      ['p1', parent],
+      ['s1', srcSeg],
+    ]);
+    const trSegs = [trChildA, trChildB, trLoose];
+    const got = listTranslationSegmentsForVerticalReadingSourceUnit(srcSeg, trSegs, unitById).map((s) => s.id);
+    expect(got).toEqual(['ta', 'tc', 'tb']);
   });
 
   it('picks the translation segment with the largest overlap for persistence', () => {

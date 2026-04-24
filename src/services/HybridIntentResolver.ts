@@ -206,6 +206,8 @@ const SYSTEM_PROMPT = [
   '- 未提及范围时，编辑/删除/导航默认 current_scope，查询默认 current_scope',
   '',
   '当无法确定时设 needsClarification=true 并给出追问建议。',
+  '',
+  'clarificationQuestion 必须是面向用户的自然短问句（口语化中文或英文），禁止出现 intent/scope 等字段名、禁止 snake_case 或内部工具名；像真人追问一样写。',
 ].join('\n');
 
 function buildUserPrompt(input: HybridResolverInput): string {

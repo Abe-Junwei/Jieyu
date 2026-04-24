@@ -8,6 +8,11 @@
 - 为什么不留在页面或 Orchestrator 层？
 - 若本次改动涉及页面级复杂逻辑，是否优先落在 dedicated controller 或 service？
 
+## 浏览器与 Web API | Browser / Web API
+
+- [ ] 若本次引入或强依赖 **较新 / 非普遍的 Web API**（媒体、存储、权限、Worker、剪贴板等），已查 [Can I use](https://caniuse.com/) 或 MDN，优先 **特性检测**；PR 上已跑 **`npm run test:e2e:chromium`**，或在合并前确认 **`npm run test:e2e`**（三引擎，CI 于 `main`/`dev` push 上执行）或注明 **N/A**
+- [ ] 策略口径见：`docs/architecture/桌面端浏览器支持策略.md`
+
 ## Architecture Guard
 
 - [ ] 已运行 `npm run typecheck`
@@ -26,6 +31,11 @@
 - 本 PR 是否命中或继续修改 hotspot 文件：`是 / 否`
 - 若为 `是`，本 PR 是否已顺手拆分或降复杂度：`是 / 否`
 - 若为 `否`，必须填写回收计划与截止迭代：
+
+## 转写轨读作用域 | Transcription lane read scope（ADR 0020）
+
+- [ ] 若本次在 **读 / 展示 / 按轨分组** 路径上按 `unit.layerId` 过滤 **canonical unit**（读模型常无 `layerId`），已使用 `resolveCanonicalUnitForTranscriptionLaneRow` / `buildTimelineUnitViewIndex` 的 `transcriptionLaneReadScope`，或已在 PR 中注明 **N/A**（例如仅处理 `segment` 行、或数据源已保证带轨）
+- [ ] 未将「展示用 stamp 的 `layerId`」误用于 **写库 / 协作 / AI 采纳** 路由
 
 ## 结构检查 | Structural Checklist
 

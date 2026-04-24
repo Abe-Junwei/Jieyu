@@ -1,11 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import 'fake-indexeddb/auto';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
 import {
+  hydrateCollabClientStateFromIdb,
   loadProjectLastSeenRevision,
   loadProjectPendingOutboundChanges,
+  resetCollabClientStateVolatileOverlayForTests,
   saveProjectLastSeenRevision,
   saveProjectPendingOutboundChanges,
 } from './CollaborationClientStateStore';
+import { resetCollaborationClientStateIdbForTests } from './CollaborationClientStateStore.idb';
 
 class MemoryStorage implements Storage {
   private readonly map = new Map<string, string>();
@@ -36,6 +41,17 @@ class MemoryStorage implements Storage {
   }
 }
 
+class QuotaMemoryStorage extends MemoryStorage {
+  throws = false;
+
+  setItem(key: string, value: string): void {
+    if (this.throws) {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    }
+    super.setItem(key, value);
+  }
+}
+
 function makeChange(clientOpId: string): CollaborationProjectChangeRecord {
   return {
     id: `c-${clientOpId}`,
@@ -57,8 +73,18 @@ function makeChange(clientOpId: string): CollaborationProjectChangeRecord {
 describe('CollaborationClientStateStore', () => {
   let storage: MemoryStorage;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     storage = new MemoryStorage();
+    resetCollabClientStateVolatileOverlayForTests(localStorage);
+    localStorage.clear();
+    await resetCollaborationClientStateIdbForTests();
+  });
+
+  afterEach(async () => {
+    resetCollabClientStateVolatileOverlayForTests(storage);
+    resetCollabClientStateVolatileOverlayForTests(localStorage);
+    localStorage.clear();
+    await resetCollaborationClientStateIdbForTests();
   });
 
   it('持久化并读取游标与 pending 队列 | persists cursor and pending queue', () => {
@@ -87,5 +113,33 @@ describe('CollaborationClientStateStore', () => {
     expect(loadProjectPendingOutboundChanges('project-1', storage)).toEqual([
       expect.objectContaining({ clientOpId: 'op-3' }),
     ]);
+  });
+
+  it('localStorage 配额溢出时仍可读回游标 | survives QuotaExceededError via volatile overlay', () => {
+    const q = new QuotaMemoryStorage();
+    q.throws = true;
+    saveProjectLastSeenRevision('project-q', 55, q);
+    expect(loadProjectLastSeenRevision('project-q', q)).toBe(55);
+    q.throws = false;
+    saveProjectLastSeenRevision('project-q', 56, q);
+    expect(loadProjectLastSeenRevision('project-q', q)).toBe(56);
+    resetCollabClientStateVolatileOverlayForTests(q);
+  });
+
+  it('hydrate 从 IndexedDB 恢复到默认 localStorage 视图 | hydrates default storage from IDB mirror', async () => {
+    const payload = JSON.stringify({
+      'project-idb': {
+        lastSeenRevision: 33,
+        updatedAt: '2026-04-17T12:00:00.000Z',
+      },
+    });
+    const { saveCollabClientStateBlobToIdb } = await import('./CollaborationClientStateStore.idb');
+    await saveCollabClientStateBlobToIdb(payload);
+    localStorage.clear();
+
+    await hydrateCollabClientStateFromIdb();
+    await Promise.resolve();
+
+    expect(loadProjectLastSeenRevision('project-idb')).toBe(33);
   });
 });

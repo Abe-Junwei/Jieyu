@@ -9,7 +9,6 @@ interface CreateTranscriptionTimelineTopPropsInput {
     duration: number;
     seekTo: (time: number) => void;
     isReady: boolean;
-    currentTime: number;
     instanceRef: RefObject<WaveSurfer | null>;
     isPlaying: boolean;
     stop: () => void;
@@ -44,7 +43,6 @@ export function createTranscriptionTimelineTopProps(
       rulerView: input.rulerView,
       onSeek: input.player.seekTo,
       isReady: input.player.isReady,
-      currentTime: input.player.currentTime,
       zoomPxPerSec: input.zoomPxPerSec,
       isLaneHeaderCollapsed: input.isTimelineLaneHeaderCollapsed,
       onToggleLaneHeader: input.toggleTimelineLaneHeader,

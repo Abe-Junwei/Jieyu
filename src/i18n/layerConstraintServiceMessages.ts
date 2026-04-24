@@ -1,7 +1,7 @@
 /**
  * 层约束服务国际化文案 | Layer constraint service i18n messages
  */
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type LayerConstraintServiceMessages = {
   // 校验问题 | Validation issues
@@ -140,5 +140,5 @@ const enUS: LayerConstraintServiceMessages = {
 };
 
 export function getLayerConstraintServiceMessages(locale: Locale): LayerConstraintServiceMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

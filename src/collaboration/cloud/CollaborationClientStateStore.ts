@@ -1,4 +1,8 @@
+import { createLogger } from '../../observability/logger';
 import type { CollaborationProjectChangeRecord } from './syncTypes';
+import { loadCollabClientStateBlobFromIdb, saveCollabClientStateBlobToIdb } from './CollaborationClientStateStore.idb';
+
+const log = createLogger('CollaborationClientStateStore');
 
 const COLLAB_CLIENT_STATE_STORAGE_KEY = 'jieyu:collab-client-state:v1';
 
@@ -10,9 +14,17 @@ interface CollaborationClientProjectState {
 
 type CollaborationClientStateMap = Record<string, CollaborationClientProjectState>;
 
+/** In-memory overlay when `localStorage.setItem` hits quota; keyed by the same Storage object (incl. tests). */
+const volatileByStorage = new WeakMap<Storage, CollaborationClientStateMap>();
+
 function getDefaultStorage(): Storage | undefined {
   if (typeof window === 'undefined' || !window.localStorage) return undefined;
   return window.localStorage;
+}
+
+function isQuotaExceededError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === 'QuotaExceededError' || error.code === 22);
 }
 
 function sanitizeChangeRecord(value: unknown): CollaborationProjectChangeRecord | null {
@@ -50,34 +62,92 @@ function sanitizeProjectState(value: unknown): CollaborationClientProjectState |
   return next;
 }
 
-function loadStateMap(storage?: Storage): CollaborationClientStateMap {
-  if (!storage) return {};
-  try {
-    const raw = storage.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== 'object') return {};
+function parseRawToStateMap(raw: string): CollaborationClientStateMap {
+  const parsed = JSON.parse(raw) as unknown;
+  if (!parsed || typeof parsed !== 'object') return {};
 
-    const next: CollaborationClientStateMap = {};
-    for (const [projectId, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (!projectId.trim()) continue;
-      const sanitized = sanitizeProjectState(value);
-      if (!sanitized) continue;
-      next[projectId] = sanitized;
-    }
-    return next;
+  const next: CollaborationClientStateMap = {};
+  for (const [projectId, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!projectId.trim()) continue;
+    const sanitized = sanitizeProjectState(value);
+    if (!sanitized) continue;
+    next[projectId] = sanitized;
+  }
+  return next;
+}
+
+function loadBaseStateMapFromStorage(target: Storage): CollaborationClientStateMap {
+  try {
+    const raw = target.getItem(COLLAB_CLIENT_STATE_STORAGE_KEY);
+    if (!raw) return {};
+    return parseRawToStateMap(raw);
   } catch {
     return {};
   }
 }
 
-function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage): void {
-  if (!storage) return;
+function loadStateMap(storage?: Storage): CollaborationClientStateMap {
+  const target = storage ?? getDefaultStorage();
+  if (!target) return {};
+  const fromLs = loadBaseStateMapFromStorage(target);
+  const vol = volatileByStorage.get(target);
+  return vol ? { ...fromLs, ...vol } : fromLs;
+}
+
+function tryFlushVolatileCollabStateToLocalStorage(target: Storage): void {
+  const overlay = volatileByStorage.get(target);
+  if (!overlay) return;
+  const base = loadBaseStateMapFromStorage(target);
+  const merged = { ...base, ...overlay };
   try {
-    storage.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(stateMap));
-  } catch {
-    // no-op
+    target.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(merged));
+    volatileByStorage.delete(target);
+  } catch (e) {
+    if (!isQuotaExceededError(e)) return;
   }
+}
+
+function saveStateMap(stateMap: CollaborationClientStateMap, storage?: Storage): void {
+  const target = storage ?? getDefaultStorage();
+  if (!target) return;
+  try {
+    target.setItem(COLLAB_CLIENT_STATE_STORAGE_KEY, JSON.stringify(stateMap));
+    volatileByStorage.delete(target);
+  } catch (e) {
+    if (!isQuotaExceededError(e)) return;
+    volatileByStorage.set(target, stateMap);
+    void saveCollabClientStateBlobToIdb(JSON.stringify(stateMap)).catch((err) => {
+      log.error('collab client state idb mirror failed', { err });
+    });
+    log.warn('collab client state localStorage quota exceeded; volatile overlay + IndexedDB mirror', {
+      projectCount: Object.keys(stateMap).length,
+    });
+  }
+}
+
+/**
+ * Merge persisted IDB mirror into the default localStorage view and retry flush.
+ * Call before reading project cursor / pending outbound on bridge bootstrap (F-3).
+ */
+export async function hydrateCollabClientStateFromIdb(): Promise<void> {
+  const raw = await loadCollabClientStateBlobFromIdb();
+  if (!raw) return;
+  let idbMap: CollaborationClientStateMap;
+  try {
+    idbMap = parseRawToStateMap(raw);
+  } catch {
+    return;
+  }
+  const target = getDefaultStorage();
+  if (!target) return;
+  const prev = volatileByStorage.get(target);
+  volatileByStorage.set(target, prev ? { ...idbMap, ...prev } : idbMap);
+  tryFlushVolatileCollabStateToLocalStorage(target);
+}
+
+/** Vitest: drop volatile overlay for a mocked Storage instance. */
+export function resetCollabClientStateVolatileOverlayForTests(storage: Storage): void {
+  volatileByStorage.delete(storage);
 }
 
 function upsertProjectState(

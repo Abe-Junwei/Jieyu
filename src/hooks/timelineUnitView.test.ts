@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import type { LayerUnitDocType } from '../db';
-import { buildTimelineUnitViewIndex, mergedTimelineUnitSemanticKeyCount } from './timelineUnitView';
+import type { LayerDocType, LayerUnitDocType } from '../db';
+import { buildTimelineUnitViewIndex, mergedTimelineUnitSemanticKeyCount, pickTimelineUnitsForTranscriptionLayer } from './timelineUnitView';
+
+function tr(id: string, constraint: LayerDocType['constraint'], parentLayerId?: string): LayerDocType {
+  const now = '2026-04-23T00:00:00.000Z';
+  return {
+    id,
+    textId: 't',
+    key: id,
+    name: { 'zh-CN': id, en: id },
+    languageId: 'zh-CN',
+    modality: 'text',
+    createdAt: now,
+    updatedAt: now,
+    layerType: 'transcription',
+    constraint,
+    ...(parentLayerId ? { parentLayerId } : {}),
+  } as LayerDocType;
+}
 
 function seg(
   id: string,
@@ -107,6 +124,39 @@ describe('buildTimelineUnitViewIndex', () => {
     expect(index.byId.get('u-remote')).toBeDefined();
     expect(index.byId.get('s1')).toBeDefined();
     expect(index.byId.get('s1')!.kind).toBe('segment');
+  });
+
+  it('keeps multiple independent segments on the same media when a canonical unit row still exists', () => {
+    const host: LayerUnitDocType = {
+      id: 'utt-host',
+      textId: 't1',
+      mediaId: 'm1',
+      startTime: 0,
+      endTime: 10,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { default: 'host' },
+    };
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([
+      ['layer-a', [
+        seg('s1', 'layer-a', 'm1', 0, 2),
+        seg('s2', 'layer-a', 'm1', 2, 4),
+        seg('s3', 'layer-a', 'm1', 4, 6),
+        seg('s4', 'layer-a', 'm1', 6, 8),
+      ]],
+    ]);
+    const index = buildTimelineUnitViewIndex({
+      units: [host],
+      unitsOnCurrentMedia: [host],
+      segmentsByLayer,
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: 'layer-a',
+      defaultTranscriptionLayerId: 'layer-main',
+    });
+    expect(index.allUnits).toHaveLength(5);
+    const segmentIds = index.allUnits.filter((u) => u.kind === 'segment').map((u) => u.id).sort();
+    expect(segmentIds).toEqual(['s1', 's2', 's3', 's4']);
   });
 
   it('lets segment rows shadow unit rows by parent unit id', () => {
@@ -283,6 +333,75 @@ describe('buildTimelineUnitViewIndex', () => {
       epoch: 42,
     });
     expect(index.epoch).toBe(42);
+  });
+
+  it('enriches byLayer for dependent transcription lane when canonical units omit layerId (ADR 0020)', () => {
+    const parent = tr('tr-parent', 'independent_boundary');
+    const dep = tr('tr-dep', 'symbolic_association', 'tr-parent');
+    const u: LayerUnitDocType = {
+      id: 'u1',
+      textId: 't1',
+      mediaId: 'm1',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { default: 'x' },
+    };
+    const index = buildTimelineUnitViewIndex({
+      units: [u],
+      unitsOnCurrentMedia: [u],
+      segmentsByLayer: new Map(),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: parent.id,
+      defaultTranscriptionLayerId: parent.id,
+      transcriptionLaneReadScope: {
+        transcriptionLayers: [parent, dep],
+        allLayersOrdered: [parent, dep],
+      },
+    });
+    const depBucket = index.byLayer.get(dep.id);
+    expect(depBucket?.some((row) => row.id === 'u1' && row.kind === 'unit' && row.layerId === dep.id)).toBe(true);
+    const picked = pickTimelineUnitsForTranscriptionLayer(index, dep.id);
+    expect(picked.some((row) => row.id === 'u1')).toBe(true);
+  });
+
+  it('byLayer enrich uses layer_links when dependent transcription omits parentLayerId', () => {
+    const parent = tr('tr-parent', 'independent_boundary');
+    const dep = tr('tr-dep', 'independent_boundary');
+    const u: LayerUnitDocType = {
+      id: 'u1',
+      textId: 't1',
+      mediaId: 'm1',
+      unitType: 'unit',
+      startTime: 0,
+      endTime: 1,
+      createdAt: '',
+      updatedAt: '',
+      transcription: { default: 'x' },
+    };
+    const index = buildTimelineUnitViewIndex({
+      units: [u],
+      unitsOnCurrentMedia: [u],
+      segmentsByLayer: new Map(),
+      segmentContentByLayer: new Map(),
+      currentMediaId: 'm1',
+      activeLayerIdForEdits: parent.id,
+      defaultTranscriptionLayerId: parent.id,
+      transcriptionLaneReadScope: {
+        transcriptionLayers: [parent, dep],
+        allLayersOrdered: [parent, dep],
+        layerLinks: [{
+          layerId: 'tr-dep',
+          transcriptionLayerKey: 'tr-parent',
+          hostTranscriptionLayerId: 'tr-parent',
+          isPreferred: true,
+        }],
+      },
+    });
+    expect(index.byLayer.get(dep.id)?.some((row) => row.id === 'u1' && row.layerId === dep.id)).toBe(true);
   });
 });
 

@@ -14,6 +14,7 @@ import { newId, formatTime } from '../utils/transcriptionFormatters';
 import { shouldPushTimingUndo, type TimingUndoState } from '../utils/selectionUtils';
 import { reportValidationError } from '../utils/validationErrorReporter';
 import { assertTimelineMediaForMutation } from '../utils/assertTimelineMediaForMutation';
+import { mediaDurationSecForTimeBounds } from '../utils/timelineMediaDurationForBounds';
 import { createTimelineUnit, type SaveState, type SnapGuide, type TimelineUnit } from './transcriptionTypes';
 import { invalidateUnitEmbeddings } from '../ai/embeddings/EmbeddingInvalidationService';
 import { useTranscriptionVoiceTranslationActions } from './useTranscriptionVoiceTranslationActions';
@@ -540,7 +541,7 @@ export function useTranscriptionUnitActions({
     const next = insertionIndex < 0 ? undefined : siblings[insertionIndex];
 
     const lowerBound = allowOverlapInTranscription ? 0 : Math.max(0, prev ? prev.endTime + gap : 0);
-    const mediaDuration = typeof media.duration === 'number' ? media.duration : Number.POSITIVE_INFINITY;
+    const mediaDuration = mediaDurationSecForTimeBounds(media);
     const upperFromNext = allowOverlapInTranscription
       ? Number.POSITIVE_INFINITY
       : (next ? next.startTime - gap : Number.POSITIVE_INFINITY);

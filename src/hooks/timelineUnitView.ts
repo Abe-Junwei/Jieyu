@@ -1,5 +1,9 @@
-import type { AiMetadata, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
+import type { AiMetadata, LayerDocType, LayerLinkDocType, LayerSegmentViewDocType, LayerUnitDocType } from '../db';
 import { pickDefaultTranscriptionText } from '../utils/transcriptionFormatters';
+import {
+  resolveCanonicalUnitForTranscriptionLaneRow,
+  resolvePrimaryUnscopedTranscriptionHostId,
+} from '../utils/transcriptionUnitLaneReadScope';
 import type { TimelineUnitKind } from './transcriptionTypes';
 
 /**
@@ -41,6 +45,25 @@ export interface BuildTimelineUnitViewIndexInput {
   segmentsLoadComplete?: boolean;
   /** Monotonic snapshot epoch from hook-level rebuilds. */
   epoch?: number;
+  /**
+   * When set, `byLayer` buckets for each transcription lane include canonical units per ADR 0020
+   * (unscoped mirror onto dependent lanes under the default host tree).
+   */
+  transcriptionLaneReadScope?: Readonly<{
+    transcriptionLayers: readonly LayerDocType[];
+    allLayersOrdered: readonly LayerDocType[];
+    layerLinks?: ReadonlyArray<Pick<LayerLinkDocType, 'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'>>;
+  }>;
+}
+
+/** Read `byLayer` for a transcription or translation lane id (ADR 0020); returns empty when unknown. */
+export function pickTimelineUnitsForTranscriptionLayer(
+  index: Pick<TimelineUnitViewIndex, 'byLayer'>,
+  layerId: string,
+): ReadonlyArray<TimelineUnitView> {
+  const k = layerId.trim();
+  if (!k.length) return [];
+  return index.byLayer.get(k) ?? [];
 }
 
 export interface TimelineUnitViewIndex {
@@ -182,8 +205,12 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
     mergedBySemanticKey.set(unitView.id, unitView);
   }
   for (const segmentView of segmentViews) {
-    const semanticKey = segmentView.parentUnitId?.trim() || segmentView.id;
-    // Segment rows shadow unit rows for the same semantic unit.
+    // Independent segments must keep distinct keys so multiple rows on one media are not collapsed
+    // when legacy unit rows still exist for speaker overlap / import.
+    const semanticKey = segmentView.kind === 'segment' && segmentView.layerRole === 'independent'
+      ? segmentView.id
+      : (segmentView.parentUnitId?.trim() || segmentView.id);
+    // Segment rows shadow unit rows for the same semantic unit (referring / id-collision paths).
     mergedBySemanticKey.set(semanticKey, segmentView);
   }
 
@@ -207,6 +234,45 @@ export function buildTimelineUnitViewIndex(input: BuildTimelineUnitViewIndexInpu
       else referringByParentId.set(unit.parentUnitId, [unit]);
     }
   }
+  const laneReadScope = input.transcriptionLaneReadScope;
+  if (laneReadScope && laneReadScope.transcriptionLayers.length > 0) {
+    const layerById = new Map(laneReadScope.allLayersOrdered.map((l) => [l.id, l] as const));
+    const transcriptionLaneIds = new Set(laneReadScope.transcriptionLayers.map((l) => l.id));
+    const primaryUnscopedHostId = resolvePrimaryUnscopedTranscriptionHostId(
+      laneReadScope.transcriptionLayers,
+      input.defaultTranscriptionLayerId,
+    );
+    const laneLinks = laneReadScope.layerLinks ?? [];
+    const currentMedia = input.currentMediaId?.trim() ?? '';
+    const rawForLanes = input.units.filter((u) => {
+      if (u.tags?.skipProcessing === true) return false;
+      if (u.unitType === 'segment') return false;
+      if (!currentMedia) return true;
+      return (u.mediaId?.trim() ?? '') === currentMedia;
+    });
+    for (const lane of laneReadScope.transcriptionLayers) {
+      for (const raw of rawForLanes) {
+        const resolved = resolveCanonicalUnitForTranscriptionLaneRow({
+          unit: raw,
+          laneLayer: lane,
+          layerById,
+          transcriptionLaneIds,
+          primaryUnscopedHostId,
+          ...(laneLinks.length > 0 ? { layerLinks: laneLinks } : {}),
+        });
+        if (!resolved.include) continue;
+        const v = unitToView(raw, lane.id);
+        const existing = byLayerMutable.get(lane.id);
+        if (existing?.some((x) => x.id === v.id && x.kind === 'unit' && x.layerId === v.layerId)) continue;
+        if (existing) {
+          existing.push(v);
+        } else {
+          byLayerMutable.set(lane.id, [v]);
+        }
+      }
+    }
+  }
+
   const byLayer = new Map<string, ReadonlyArray<TimelineUnitView>>();
   for (const [layerId, units] of byLayerMutable.entries()) {
     byLayer.set(layerId, units);

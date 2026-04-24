@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getDb } from '../db';
 import { useClickOutside } from './useClickOutside';
 import type { AnchorDocType, LayerUnitDocType, MediaItemDocType, LayerDocType, LayerUnitContentDocType } from '../db';
@@ -57,6 +57,14 @@ export interface UseImportExportInput {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
   selectedUnitMedia?: MediaItemDocType | undefined;
+  /**
+   * 时间轴行解析出的媒体（与 `segmentScopeMediaId` 一致时优先）：导出默认文件名、EAF `mediaItem` 等；缺省回退 `selectedUnitMedia`。
+   */
+  activeTimelineMediaItem?: MediaItemDocType | undefined;
+  /**
+   * 与 `resolveSegmentScopeMediaId` 同源：导出/导入写 segment 图时按此 media 查询，避免仅用 `unitsOnCurrentMedia[0]` 与读模型错位。
+   */
+  segmentScopeMediaId?: string | undefined;
   unitsOnCurrentMedia: LayerUnitDocType[];
   anchors: AnchorDocType[];
   layers: LayerDocType[];
@@ -91,6 +99,8 @@ export function useImportExport(input: UseImportExportInput) {
     activeTextId,
     getActiveTextId,
     selectedUnitMedia,
+    activeTimelineMediaItem,
+    segmentScopeMediaId,
     unitsOnCurrentMedia,
     anchors,
     layers,
@@ -99,6 +109,34 @@ export function useImportExport(input: UseImportExportInput) {
     loadSnapshot,
     setSaveState,
   } = input;
+
+  const segmentExportMediaId = useMemo(() => {
+    const fromScope = segmentScopeMediaId?.trim() ?? '';
+    if (fromScope.length > 0) return fromScope;
+    return unitsOnCurrentMedia[0]?.mediaId?.trim() ?? '';
+  }, [segmentScopeMediaId, unitsOnCurrentMedia]);
+
+  const exportNamingMediaItem = useMemo(
+    () => activeTimelineMediaItem ?? selectedUnitMedia,
+    [activeTimelineMediaItem, selectedUnitMedia],
+  );
+
+  const segmentExportScopeEmptyDiagLoggedRef = useRef(false);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const hasTimeAlignedLayers = layers.some(
+      (l) =>
+        (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
+        || (l.layerType === 'transcription' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
+    );
+    if (!hasTimeAlignedLayers) return;
+    if ((segmentExportMediaId?.trim() ?? '').length > 0) return;
+    if (segmentExportScopeEmptyDiagLoggedRef.current) return;
+    segmentExportScopeEmptyDiagLoggedRef.current = true;
+    console.debug('[import_export] segment export media id empty while time-aligned layers exist', {
+      unitsOnCurrentMediaCount: unitsOnCurrentMedia.length,
+    });
+  }, [layers, segmentExportMediaId, unitsOnCurrentMedia.length]);
   const orthographyLanguageIds = Array.from(new Set(layers.map((layer) => layer.languageId).filter((languageId): languageId is string => Boolean(languageId))));
   const orthographies = useOrthographies(orthographyLanguageIds);
 
@@ -332,7 +370,7 @@ export function useImportExport(input: UseImportExportInput) {
         (l.layerType === 'translation' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision'))
         || (l.layerType === 'transcription' && (l.constraint === 'independent_boundary' || l.constraint === 'time_subdivision')),
     );
-    const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, unitsOnCurrentMedia[0]?.mediaId) as {
+    const exportData = await loadSegmentExportDataForLayers(timeAlignedLayers, segmentExportMediaId || undefined) as {
       segmentsByLayer?: Map<string, import('../db').LayerUnitDocType[]>;
       segmentContents?: Map<string, Map<string, import('../db').LayerUnitContentDocType>>;
     };
@@ -350,7 +388,7 @@ export function useImportExport(input: UseImportExportInput) {
     const timelineMetadata = await loadProjectTimelineMetadata();
     const exportWarnings: Array<{ code: string }> = [];
     const xml = eafService.exportToEaf({
-      ...(selectedUnitMedia ? { mediaItem: selectedUnitMedia } : {}),
+      ...(exportNamingMediaItem ? { mediaItem: exportNamingMediaItem } : {}),
       units: exportUnits,
       anchors,
       layers,
@@ -367,8 +405,8 @@ export function useImportExport(input: UseImportExportInput) {
         exportWarnings.push(warning);
       },
     });
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'export';
     eafService.downloadEaf(xml, baseName);
     const multiHostWarningCount = exportWarnings.filter((warning) => warning.code === 'translation-multi-host-lossy').length;
@@ -383,7 +421,7 @@ export function useImportExport(input: UseImportExportInput) {
     if (unitsOnCurrentMedia.length === 0) return;
     const textGridService = await serviceLoaders.loadTextGridService();
     const userNotes = await fetchUnitNotes(unitsOnCurrentMedia.map((u) => u.id));
-    const exportData = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
+    const exportData = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
     const segmentsByLayer = exportData?.segmentsByLayer;
     const segmentContents = exportData?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
@@ -401,8 +439,8 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'export';
     textGridService.downloadTextGrid(tg, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.textgrid') });
@@ -423,8 +461,8 @@ export function useImportExport(input: UseImportExportInput) {
       ...(timelineMetadata ? { timelineMetadata } : {}),
       ...(transcriptionLayer !== undefined ? { transcriptionLayer } : {}),
     });
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'export';
     transcriberService.downloadTrs(trs, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.trs') });
@@ -434,7 +472,7 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportFlextext: async () => {
     if (unitsOnCurrentMedia.length === 0) return;
     const flexService = await serviceLoaders.loadFlexService();
-    const exportData2 = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
+    const exportData2 = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
     const segmentsByLayer = exportData2?.segmentsByLayer;
     const segmentContents = exportData2?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
@@ -451,8 +489,8 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'export';
     flexService.downloadFlextext(flex, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.flextext') });
@@ -462,7 +500,7 @@ export function useImportExport(input: UseImportExportInput) {
     handleExportToolbox: async () => {
     if (unitsOnCurrentMedia.length === 0) return;
     const toolboxService = await serviceLoaders.loadToolboxService();
-    const exportData3 = (await loadSegmentExportData(unitsOnCurrentMedia[0]?.mediaId)) as any;
+    const exportData3 = (await loadSegmentExportData(segmentExportMediaId || undefined)) as any;
     const segmentsByLayer = exportData3?.segmentsByLayer;
     const segmentContents = exportData3?.segmentContents;
     const defaultTrcLayer = layers.find((layer) => layer.id === defaultTranscriptionLayerId)
@@ -479,8 +517,8 @@ export function useImportExport(input: UseImportExportInput) {
       ...(segmentsByLayer ? { segmentsByLayer } : {}),
       ...(segmentContents ? { segmentContents } : {}),
     });
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'export';
     toolboxService.downloadToolbox(toolbox, baseName);
     setSaveState({ kind: 'done', message: t(locale, 'transcription.importExport.exportDone.toolbox') });
@@ -489,8 +527,8 @@ export function useImportExport(input: UseImportExportInput) {
 
     handleExportJyt: async () => {
     const jymService = await loadArchiveExportModule();
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
     const exportOptions = confirmArchiveExport('jyt');
     if (exportOptions === null) {
@@ -509,8 +547,8 @@ export function useImportExport(input: UseImportExportInput) {
 
     handleExportJym: async () => {
     const jymService = await loadArchiveExportModule();
-    const baseName = selectedUnitMedia
-      ? selectedUnitMedia.filename.replace(/\.[^.]+$/, '')
+    const baseName = exportNamingMediaItem
+      ? exportNamingMediaItem.filename.replace(/\.[^.]+$/, '')
       : 'jieyu-project';
     const exportOptions = confirmArchiveExport('jym');
     if (exportOptions === null) {
@@ -538,7 +576,8 @@ export function useImportExport(input: UseImportExportInput) {
     loadSegmentExportDataForLayers,
     locale,
     orthographies,
-    selectedUnitMedia,
+    segmentExportMediaId,
+    exportNamingMediaItem,
     serviceLoaders,
     setSaveState,
     translations,
@@ -577,6 +616,8 @@ export function useImportExport(input: UseImportExportInput) {
       activeTextId,
       getActiveTextId,
       selectedUnitMedia,
+      activeTimelineMediaItem,
+      segmentScopeMediaId,
       layers,
       defaultTranscriptionLayerId,
       loadSnapshot,
@@ -585,7 +626,7 @@ export function useImportExport(input: UseImportExportInput) {
       normalizeSpeakerLookupKey,
     });
     return importFile(file, importWriteStrategy);
-  }, [activeTextId, defaultTranscriptionLayerId, getActiveTextId, layers, loadSnapshot, locale, selectedUnitMedia, setSaveState]);
+  }, [activeTextId, activeTimelineMediaItem, defaultTranscriptionLayerId, getActiveTextId, layers, loadSnapshot, locale, segmentScopeMediaId, selectedUnitMedia, setSaveState]);
 
   return {
     importFileRef,

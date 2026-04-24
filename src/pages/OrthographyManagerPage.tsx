@@ -17,6 +17,7 @@ import { areDraftsEqual, buildOrthographyDraft, parseConversionRulesJson, parseD
 import type { LanguageIsoInputValue } from '../components/LanguageIsoInput';
 import { buildPrimaryAndEnglishLabels } from '../utils/multiLangLabels';
 import { normalizeLanguageInputAssetId } from '../utils/languageInputHostState';
+import { buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 import { type LanguageCatalogSearchSuggestion, searchLanguageCatalogSuggestions } from '../services/LanguageCatalogSearchService';
 
 const ORTHOGRAPHY_ID_PARAM = 'orthographyId';
@@ -372,7 +373,7 @@ export function OrthographyManagerPage({
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
           <Link
-            to="/transcription"
+            to={buildTranscriptionWorkspaceReturnHref()}
             className="side-pane-nav-link app-side-pane-feature-link"
             onClick={(event) => {
               if (!confirmDiscardDirtyDraft()) {

@@ -95,15 +95,32 @@ export interface UseTranscriptionWaveformBridgeControllerInput {
   tierContainerRef: MutableRefObject<HTMLDivElement | null>;
   /** 与纵向对读 `verticalComparisonEnabled` 同步：为真时禁用 tier 套索 / 空击清选链。 */
   tierTimelineLassoSuppressed?: boolean;
-  /** 无声学解码时用于 fit/zoom 与刻度的文献秒跨度（与 `texts.metadata.logicalDurationSec` 一致） */
-  logicalTimelineDurationSec?: number;
+  /**
+   * 纵向对读：tier 内无 `.timeline-content`，文轴量宽与波形 canvas 易不一致；另用于套索抑制等。
+   * `containerWidth` 在波形与 tier 净宽均可信时统一取 min(wave,tier)（与横向共用），避免 100% 仍多估可滚宽度。 |
+   * Paired-reading: also gates lasso; fit width uses min(wave,tier) when both credible (shared with horizontal).
+   */
+  verticalComparisonEnabled?: boolean;
+  /** `texts.metadata.logicalDurationSec` 等，供 `computeLogicalTimelineDurationForZoom` 与 `units` 合成文献轴。 */
+  activeTextTimeLogicalDurationSec?: number;
+  /** 与 Ready 内 `useTimelineUnitViewIndex` 同源；与 mapping 合算文献秒及铺轨。 */
+  unitsOnCurrentMedia: ReadonlyArray<{ endTime?: number }>;
   mediaId?: string;
   /** 已选媒体 Blob 字节数，传给 VAD 预热前置门控 | Selected media blob byte size for VAD pre-fetch gate */
   mediaBlobSize?: number;
+  /** 独立语段 tier 套索：预览/松手时间与写库钳制一致 | Tier lasso preview aligned with independent-segment insert clamp */
+  tierIndependentSegmentCreateRangeClamp?: (start: number, end: number) => { start: number; end: number } | null;
 }
 
 export interface UseTranscriptionWaveformBridgeControllerResult {
+  /** 与 `resolveTimelineExtentSec` 同源：文献时间轴总秒数；100% 缩放=整根文献轴。 */
+  documentSpanSec: number;
   waveformAreaRef: MutableRefObject<HTMLDivElement | null>;
+  /**
+   * 波形 display shell（含上下分屏时的频谱区），供 `useZoom` 在 capture 阶段拦截滚轮，使下半区横滑与波形区一致。
+   * Wave+spectrogram shell for wheel capture (split-mode horizontal pan parity).
+   */
+  waveformStripWheelShellRef: MutableRefObject<HTMLDivElement | null>;
   waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
   player: ReturnType<typeof useWaveSurfer>;
   useSegmentWaveformRegions: boolean;

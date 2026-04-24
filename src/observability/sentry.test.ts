@@ -53,6 +53,27 @@ describe('resolveSentryBootstrapConfig', () => {
     });
   });
 
+  it('uses VITE_APP_VERSION as release when VITE_SENTRY_RELEASE is unset', () => {
+    expect(resolveSentryBootstrapConfig({
+      PROD: true,
+      MODE: 'production',
+      VITE_ENABLE_SENTRY: 'true',
+      VITE_SENTRY_DSN: 'https://example.com/1',
+      VITE_APP_VERSION: '1.0.0',
+    }).release).toBe('1.0.0');
+  });
+
+  it('prefers VITE_SENTRY_RELEASE over VITE_APP_VERSION', () => {
+    expect(resolveSentryBootstrapConfig({
+      PROD: true,
+      MODE: 'production',
+      VITE_ENABLE_SENTRY: 'true',
+      VITE_SENTRY_DSN: 'https://example.com/1',
+      VITE_SENTRY_RELEASE: 'deploy-42',
+      VITE_APP_VERSION: '1.0.0',
+    }).release).toBe('deploy-42');
+  });
+
   it('does not throw when runtime loader fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 

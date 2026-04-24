@@ -1,4 +1,5 @@
-import type { LayerUnitDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType, type LayerLinkDocType, type LayerUnitDocType } from '../db';
+import { listInboundTranscriptionHostIdsForTranscriptionLane } from './transcriptionUnitLaneReadScope';
 import { normalizeSingleLine } from './transcriptionFormatters';
 
 export interface PairedReadingSourceItem {
@@ -63,13 +64,26 @@ export function listTranslationSegmentsForVerticalReadingSourceUnit(
       const sid = typeof s.parentUnitId === 'string' ? s.parentUnitId.trim() : '';
       return sid.length > 0 && sid === parent.id;
     });
-    if (byParentField.length > 0) {
-      return [...byParentField].sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id));
-    }
-    return listSegmentsOverlappingTimeRange(
+    /**
+     * 仅 `parentUnitId` 命中父句时，曾直接返回子集；若另有译文段落在父时间窗内但未写 parent（或写错），
+     * 横向轨仍占一行，纵向会少一条。合并「父链」与「父时间窗相交」并去重，与空链时回落逻辑一致。 |
+     * Merge parent-linked segments with any overlapping the host window so vertical parity with horizontal rows.
+     */
+    const overlapOnParentWindow = listSegmentsOverlappingTimeRange(
       translationSegments,
       parent.startTime,
       parent.endTime,
+    );
+    const mergedById = new Map<string, LayerUnitDocType>();
+    for (const s of byParentField) mergedById.set(s.id, s);
+    for (const s of overlapOnParentWindow) mergedById.set(s.id, s);
+    if (mergedById.size > 0) {
+      return [...mergedById.values()].sort((a, b) => a.startTime - b.startTime || a.id.localeCompare(b.id));
+    }
+    return listSegmentsOverlappingTimeRange(
+      translationSegments,
+      unit.startTime,
+      unit.endTime,
     );
   }
   return listSegmentsOverlappingTimeRange(
@@ -110,10 +124,23 @@ type VerticalReadingGroupBuild = Omit<VerticalReadingGroup, 'isMultiAnchorGroup'
   speakerLabels: string[];
 };
 
+export type VerticalReadingGroupLayerLink = Pick<
+  LayerLinkDocType,
+  'layerId' | 'transcriptionLayerKey' | 'hostTranscriptionLayerId' | 'isPreferred'
+>;
+
 interface BuildVerticalReadingGroupsInput {
   units: LayerUnitDocType[];
+  /** 入站 layer_links：无 `parentLayerId` 的依赖轨并入组时用于解析宿主 | Inbound links for link-only dependent lanes */
+  layerLinks?: readonly VerticalReadingGroupLayerLink[];
   /** 可选：仅把这些层视为左列原文来源，避免把翻译层单位误并入原文列 */
   sourceLayerIds?: readonly string[];
+  /**
+   * 纵向多轨源行已 stamp 不同 `layerId` 时，用该列表的树深度与顺序稳定排序（父轨先于依赖子轨）；
+   * 不传则时间相同时仍按 `layerId` 字典序（旧行为） |
+   * When multi-lane source rows carry distinct `layerId`, order ties by tree depth (parent before dependent).
+   */
+  transcriptionLayersForSourceWalkOrder?: readonly LayerDocType[];
   getSourceText: (unit: LayerUnitDocType) => string;
   getTargetText: (unit: LayerUnitDocType) => string;
   /**
@@ -185,16 +212,101 @@ function buildPairedReadingTargetSignature(targetItems: PairedReadingTargetItem[
     .join('\n');
 }
 
+function isBlankPairedReadingTargetSignature(sig: string): boolean {
+  if (sig.trim().length === 0) return true;
+  return sig.split('\n').every((line) => line.trim().length === 0);
+}
+
+function rangesOverlap1D(a0: number, a1: number, b0: number, b1: number): boolean {
+  return b0 < a1 + 1e-4 && b1 > a0 - 1e-4;
+}
+
+/**
+ * 当前单位所在转写轨是否为「上一组已收录的某条转写轨」在树中的后代（依赖轨并入父轨对读组）。 |
+ * True when `unit`'s transcription lane is a descendant of some lane already present in `previousSourceItems`.
+ */
+function transcriptionDependentLaneMergesIntoSourceGroup(
+  previousSourceItems: readonly PairedReadingSourceItem[],
+  unit: LayerUnitDocType,
+  walkLayerById: ReadonlyMap<string, LayerDocType>,
+  walkLaneIds: ReadonlySet<string>,
+  layerLinks: readonly VerticalReadingGroupLayerLink[],
+): boolean {
+  const uid = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
+  if (!uid || !walkLaneIds.has(uid)) return false;
+  const hostLayerIds = new Set(
+    previousSourceItems
+      .map((s) => (typeof s.layerId === 'string' ? s.layerId.trim() : ''))
+      .filter((id) => id.length > 0 && walkLaneIds.has(id)),
+  );
+  if (hostLayerIds.size === 0) return false;
+  if (hostLayerIds.has(uid)) return false;
+  let cur: LayerDocType | undefined = walkLayerById.get(uid);
+  const guard = new Set<string>();
+  for (let i = 0; i < 64 && cur; i += 1) {
+    if (guard.has(cur.id)) break;
+    guard.add(cur.id);
+    const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
+    if (p.length > 0 && walkLaneIds.has(p)) {
+      if (hostLayerIds.has(p)) return true;
+      cur = walkLayerById.get(p);
+      continue;
+    }
+    if (layerLinks.length > 0) {
+      const hosts = listInboundTranscriptionHostIdsForTranscriptionLane(cur.id, layerLinks, walkLayerById, walkLaneIds);
+      let stepped = false;
+      for (const hid of hosts) {
+        if (hostLayerIds.has(hid)) return true;
+        const next = walkLayerById.get(hid);
+        if (next) {
+          cur = next;
+          stepped = true;
+          break;
+        }
+      }
+      if (stepped) continue;
+    }
+    break;
+  }
+  return false;
+}
+
+function transcriptionLaneDepthAmongOrderedLanes(
+  laneId: string,
+  layerById: ReadonlyMap<string, LayerDocType>,
+  laneIds: ReadonlySet<string>,
+): number {
+  const layer = layerById.get(laneId);
+  if (!layer || layer.layerType !== 'transcription') return 0;
+  let depth = 0;
+  let cur: LayerDocType | undefined = layer;
+  const guard = new Set<string>();
+  for (let i = 0; i < 64 && cur; i += 1) {
+    if (guard.has(cur.id)) break;
+    guard.add(cur.id);
+    const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
+    if (!p || !laneIds.has(p)) break;
+    depth += 1;
+    cur = layerById.get(p);
+  }
+  return depth;
+}
+
 /**
  * 构建纵向对读分组 | Build lightweight paired-reading column groups
  */
 export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInput): VerticalReadingGroup[] {
   const maxMergeGapSec = typeof input.maxMergeGapSec === 'number' ? input.maxMergeGapSec : 0.12;
+  const layerLinks = input.layerLinks ?? [];
   const sourceLayerIdSet = new Set(
     (input.sourceLayerIds ?? [])
       .map((layerId) => layerId.trim())
       .filter((layerId) => layerId.length > 0),
   );
+  const walkOrderLayers = input.transcriptionLayersForSourceWalkOrder ?? [];
+  const walkLaneIds = new Set(walkOrderLayers.map((l) => l.id));
+  const walkLayerById = new Map(walkOrderLayers.map((l) => [l.id, l] as const));
+
   const orderedUnits = [...input.units]
     .filter((unit) => unit.tags?.skipProcessing !== true)
     .filter((unit) => {
@@ -206,7 +318,26 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
       if (layerId.length === 0) return true;
       return sourceLayerIdSet.has(layerId);
     })
-    .sort((left, right) => left.startTime - right.startTime || left.endTime - right.endTime || left.id.localeCompare(right.id));
+    .sort((left, right) => {
+      const dt = left.startTime - right.startTime;
+      if (dt !== 0) return dt;
+      const de = left.endTime - right.endTime;
+      if (de !== 0) return de;
+      const ll = typeof left.layerId === 'string' ? left.layerId.trim() : '';
+      const rl = typeof right.layerId === 'string' ? right.layerId.trim() : '';
+      if (walkOrderLayers.length > 0) {
+        const depthDiff = transcriptionLaneDepthAmongOrderedLanes(ll, walkLayerById, walkLaneIds)
+          - transcriptionLaneDepthAmongOrderedLanes(rl, walkLayerById, walkLaneIds);
+        if (depthDiff !== 0) return depthDiff;
+        const li = walkOrderLayers.findIndex((l) => l.id === ll);
+        const ri = walkOrderLayers.findIndex((l) => l.id === rl);
+        if (li !== ri) return (li < 0 ? 9999 : li) - (ri < 0 ? 9999 : ri);
+      } else {
+        const dl = ll.localeCompare(rl);
+        if (dl !== 0) return dl;
+      }
+      return left.id.localeCompare(right.id);
+    });
   const groups: VerticalReadingGroupBuild[] = [];
 
   for (const unit of orderedUnits) {
@@ -221,12 +352,34 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
     const previous = groups[groups.length - 1];
     const sameBundle = previous?.bundleRootId === bundleRootId;
     const sameResolvedTarget = previous?.targetSignature === targetSignature;
+    const canMergeDependentTranscriptionLane = Boolean(
+      previous
+      && walkOrderLayers.length > 0
+      && rangesOverlap1D(previous.startTime, previous.endTime, unit.startTime, unit.endTime)
+      && (
+        sameResolvedTarget
+        || (isBlankPairedReadingTargetSignature(previous.targetSignature)
+          && isBlankPairedReadingTargetSignature(targetSignature))
+      )
+      && transcriptionDependentLaneMergesIntoSourceGroup(
+        previous.sourceItems,
+        unit,
+        walkLayerById,
+        walkLaneIds,
+        layerLinks,
+      ),
+    );
     const canMerge = Boolean(
       previous
-      && unit.startTime - previous.endTime <= maxMergeGapSec
       && (
-        (sameResolvedTarget && targetSignature.length > 0)
-        || (sameBundle && bundleRootId !== undefined && targetSignature.length === 0 && previous.targetSignature.length === 0)
+        (
+          unit.startTime - previous.endTime <= maxMergeGapSec
+          && (
+            (sameResolvedTarget && targetSignature.length > 0)
+            || (sameBundle && bundleRootId !== undefined && targetSignature.length === 0 && previous.targetSignature.length === 0)
+          )
+        )
+        || canMergeDependentTranscriptionLane
       ),
     );
 
@@ -249,8 +402,11 @@ export function buildVerticalReadingGroups(input: BuildVerticalReadingGroupsInpu
       continue;
     }
 
+    const sourceLaneKey = (typeof unit.layerId === 'string' && unit.layerId.trim().length > 0)
+      ? unit.layerId.trim()
+      : '__na__';
     groups.push({
-      id: `pr-${unit.id}`,
+      id: `pr-${unit.id}-src-${sourceLaneKey}`,
       startTime: unit.startTime,
       endTime: unit.endTime,
       sourceItems: [{

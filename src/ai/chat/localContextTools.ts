@@ -201,6 +201,24 @@ function normalizeUnitScope(value: unknown, fallback: LocalUnitScope = 'project'
   return fallback;
 }
 
+function timelineViewsToNormalizedRows(views: ReadonlyArray<TimelineUnitView>): NormalizedUnitRow[] {
+  return views.map((row) => {
+    const legacy = row as TimelineUnitView & { transcription?: string };
+    return {
+      id: row.id,
+      kind: row.kind,
+      layerId: row.layerId,
+      ...(row.textId !== undefined ? { textId: row.textId } : {}),
+      ...(row.mediaId !== undefined ? { mediaId: row.mediaId } : {}),
+      startTime: row.startTime,
+      endTime: row.endTime,
+      transcription: row.text ?? legacy.transcription ?? '',
+      ...(row.speakerId !== undefined ? { speakerId: row.speakerId } : {}),
+      ...(row.annotationStatus !== undefined ? { annotationStatus: row.annotationStatus } : {}),
+    };
+  });
+}
+
 function filterRowsByScope(context: AiPromptContext, rows: NormalizedUnitRow[], scope: LocalUnitScope): NormalizedUnitRow[] {
   if (scope === 'project') return rows;
 
@@ -214,6 +232,15 @@ function filterRowsByScope(context: AiPromptContext, rows: NormalizedUnitRow[], 
   if (scope === 'current_scope') {
     const selectedLayerId = normalizeTextValue(context.shortTerm?.selectedLayerId);
     if (selectedLayerId.length > 0) {
+      const byLayer = context.shortTerm?.timelineUnitsByLayerId;
+      const bucket = byLayer?.get(selectedLayerId);
+      if (bucket && bucket.length > 0) {
+        let views = [...bucket];
+        if (currentMediaId.length > 0) {
+          views = views.filter((u) => normalizeTextValue(u.mediaId) === currentMediaId);
+        }
+        return timelineViewsToNormalizedRows(views);
+      }
       const onSelectedLayer = scoped.filter((row) => normalizeTextValue(row.layerId) === selectedLayerId);
       scoped = onSelectedLayer;
     }
@@ -1459,7 +1486,11 @@ export async function executeLocalContextToolCall(
   try {
     switch (call.name) {
       case 'get_current_selection': {
-        const { localUnitIndex: _stripped, ...visibleShortTerm } = context.shortTerm ?? {};
+        const {
+          localUnitIndex: _stripped,
+          timelineUnitsByLayerId: _timelineByLayer,
+          ...visibleShortTerm
+        } = context.shortTerm ?? {};
         out = {
           ok: true,
           name: call.name,
@@ -2361,5 +2392,8 @@ export function buildLocalContextToolGuide(): string {
     '- batch_apply(arguments:{"action":"...","unitIds":["..."]}): Batch preview contract for the same action across many units (+ `_readModel`)',
     '- suggest_next_action(arguments:{}): Ranked next-step recommendations from current project state (+ `_readModel`)',
     `- Tool JSON payloads may be truncated at ${LOCAL_TOOL_RESULT_CHAR_BUDGET} chars; treat omitted tail as unknown and do not fabricate missing values`,
+    '- User-facing natural language: never echo the snake_case tool names above; describe actions in the user\'s language. JSON tool_call names stay machine-only.',
+    '- Query economy: if the last local tool JSON already answered the same scope/params, do not issue an equivalent read again unless [CONTEXT] changed, the prior payload was truncated, or you need a strictly different field.',
+    '- If the user quoted exact text, ids, or times for set_transcription_text/set_translation_text/etc., copy them verbatim into tool_call arguments.',
   ].join('\n');
 }

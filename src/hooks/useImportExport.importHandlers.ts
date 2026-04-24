@@ -43,6 +43,10 @@ type UseImportExportImportHandlersInput = {
   activeTextId: string | null;
   getActiveTextId: () => Promise<string | null>;
   selectedUnitMedia: MediaItemDocType | undefined;
+  /** 时间轴解析媒体；在 `segmentScopeMediaId` 之后、`selectedUnitMedia` 之前参与默认 mediaId。 */
+  activeTimelineMediaItem?: MediaItemDocType | undefined;
+  /** 与转写页 `resolveSegmentScopeMediaId` 同源，供导入写库选 media。 */
+  segmentScopeMediaId?: string | undefined;
   layers: LayerDocType[];
   defaultTranscriptionLayerId: string | undefined;
   loadSnapshot: () => Promise<void>;
@@ -56,6 +60,8 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
     activeTextId,
     getActiveTextId,
     selectedUnitMedia,
+    activeTimelineMediaItem,
+    segmentScopeMediaId,
     layers,
     defaultTranscriptionLayerId,
     loadSnapshot,
@@ -142,7 +148,7 @@ export function createImportExportImportHandlers(input: UseImportExportImportHan
       resolvedTextId = textId;
       if (!textId) { setSaveState({ kind: 'error', message: t(locale, 'transcription.importExport.noProject') }); return; }
       const importTextId = textId;
-      let mediaId = selectedUnitMedia?.id;
+      let mediaId = segmentScopeMediaId?.trim() || activeTimelineMediaItem?.id || selectedUnitMedia?.id;
 
       if (!mediaId && eafResult && eafResult.mediaFilename && eafResult.mediaFilename !== 'unknown.wav') {
         const { mediaId: newMediaId } = await LinguisticService.importAudio({

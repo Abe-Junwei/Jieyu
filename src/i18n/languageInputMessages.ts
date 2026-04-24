@@ -1,7 +1,7 @@
 /**
  * 语言输入组件国际化文案 | Language input component i18n messages
  */
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export interface LanguageInputMessages {
   /** 多语言匹配歧义提示 | Ambiguity hint when multiple languages match */
@@ -21,5 +21,5 @@ const enUS: LanguageInputMessages = {
 };
 
 export function getLanguageInputMessages(locale: Locale): LanguageInputMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

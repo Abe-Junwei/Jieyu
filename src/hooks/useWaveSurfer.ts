@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
+import type { GenericPlugin } from 'wavesurfer.js/dist/base-plugin.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import { evaluateSegmentTimeUpdateGuard, type SegmentSeekGuard } from '../utils/segmentPlaybackGuard';
 import { getWaveformDisplayHeights, type WaveformDisplayMode } from '../utils/waveformDisplayMode';
 import { getWaveformVisualStylePreset, type WaveformVisualStyle } from '../utils/waveformVisualStyle';
 import { createLogger } from '../observability/logger';
+import { getTranscriptionPlaybackClockSnapshot, setTranscriptionPlaybackClock } from './transcriptionPlaybackClock';
 import { useLatest } from './useLatest';
 
 const log = createLogger('useWaveSurfer');
@@ -97,10 +99,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
   const segmentSeekGuardRef = useRef<SegmentSeekGuard | null>(null);
   // True while WaveSurfer rate is overridden by segment-specific rate.
   const segmentRateActiveRef = useRef(false);
+  /** Latest audio clock sample; store commits at rAF (or immediate flush); no React state for time. */
+  const latestPlaybackTimeRef = useRef(0);
+  const playbackVisualRafRef = useRef<number | null>(null);
+  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(null);
+  const schedulePlaybackVisualRef = useRef<(() => void) | null>(null);
 
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackRate, _setRate] = useState(1);
   const [volume, _setVol] = useState(0.9);
@@ -129,7 +135,6 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     if (!container) return;
     let disposed = false;
     const visualStylePreset = getWaveformVisualStylePreset(options.waveformVisualStyle);
-    const spectrogramContainer = spectrogramRef.current;
     const totalHeight = options.waveformHeight ?? 180;
     const mode = options.waveformDisplayMode ?? 'waveform';
     const splitHeights = getWaveformDisplayHeights(totalHeight, mode);
@@ -150,7 +155,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     instanceRef.current = null;
     regionsRef.current = null;
     setIsReady(false);
-    setCurrentTime(0);
+    setTranscriptionPlaybackClock(0);
     setDuration(0);
     setIsPlaying(false);
     setLoadError(null);
@@ -162,20 +167,31 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
 
     // 异步初始化：按需加载频谱图插件以避免 worker_threads 浏览器警告
     // Async init: lazy-load spectrogram plugin to avoid worker_threads browser warning
+    let layoutResizeObserver: ResizeObserver | null = null;
+    let layoutResizeRaf: number | null = null;
     void (async () => {
+    // Safari / WebKit：首帧 flex 高度或 ref 链未稳定时直接 create 会得到空画布；延后到连续两帧 layout 后再读容器。
+    // Safari: defer init until layout settles so the wave canvas is not created at 0×0.
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { resolve(); });
+      });
+    });
+    if (disposed) return;
+    const liveContainer = waveformRef.current;
+    if (!liveContainer?.isConnected) return;
+    const liveSpectrogram = spectrogramRef.current;
 
     const plugin = RegionsPlugin.create();
     regionsRef.current = plugin;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const plugins: any[] = [plugin];
+    const plugins: GenericPlugin[] = [plugin];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let spectrogramPlugin: any = null;
-    if (showSpectrogram && spectrogramContainer) {
+    let spectrogramPlugin: GenericPlugin | null = null;
+    if (showSpectrogram && liveSpectrogram) {
       const { default: SpectrogramPlugin } = await import('wavesurfer.js/dist/plugins/spectrogram.esm.js');
       if (disposed) return;
       spectrogramPlugin = SpectrogramPlugin.create({
-        container: spectrogramContainer,
+        container: liveSpectrogram,
         height: effectiveSpectrogramHeight,
         labels: false,
         scale: 'mel',
@@ -196,8 +212,10 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       ? 'transparent'
       : visualStylePreset.progressColor;
 
+    if (disposed) return;
+
     const ws = WaveSurfer.create({
-      container,
+      container: liveContainer,
       waveColor: waveformWaveColor,
       progressColor: waveformProgressColor,
       cursorColor: visualStylePreset.cursorColor,
@@ -225,10 +243,15 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     // spectrogram container, which clips absolute-positioned canvases that extend
     // beyond the viewport.  Override to `overflow:visible` so canvases are only
     // clipped by the outer spectrogramContainer and translateX works correctly.
-    if (spectrogramPlugin && spectrogramContainer) {
-      const specWrapper = spectrogramPlugin.wrapper;
+    if (disposed) {
+      ws.destroy();
+      return;
+    }
+
+    if (spectrogramPlugin && liveSpectrogram) {
+      const specWrapper = (spectrogramPlugin as unknown as { wrapper?: HTMLElement }).wrapper;
       if (specWrapper instanceof HTMLElement) {
-        spectrogramContainer.appendChild(specWrapper);
+        liveSpectrogram.appendChild(specWrapper);
         specWrapper.style.overflow = 'visible';
         const syncScroll = () => {
           if (disposed) return;
@@ -240,7 +263,63 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       }
     }
 
+    const kickLayoutZoom = () => {
+      if (disposed || instanceRef.current !== ws) return;
+      const z = cbRef.current.zoomLevel ?? 40;
+      try {
+        if (ws.getDecodedData()) ws.zoom(z);
+      } catch {
+        // Video / streaming: decoded buffer may be absent even after `ready`
+      }
+    };
+
+    if (typeof ResizeObserver !== 'undefined') {
+      let prevW = Math.round(liveContainer.getBoundingClientRect().width);
+      layoutResizeObserver = new ResizeObserver(() => {
+        if (disposed || instanceRef.current !== ws) return;
+        if (layoutResizeRaf != null) return;
+        layoutResizeRaf = requestAnimationFrame(() => {
+          layoutResizeRaf = null;
+          if (disposed || instanceRef.current !== ws) return;
+          const w = Math.round(liveContainer.getBoundingClientRect().width);
+          // 刷新后常见：首帧 width≈0，下一 layout 才可用；补一次 zoom 触发重绘 | Post-refresh width 0 → N: re-zoom to repaint
+          if (prevW < 4 && w >= 4) kickLayoutZoom();
+          prevW = w;
+        });
+      });
+      layoutResizeObserver.observe(liveContainer);
+    }
+
     instanceRef.current = ws;
+
+    const cancelScheduledPlaybackVisual = () => {
+      if (playbackVisualRafRef.current !== null) {
+        cancelAnimationFrame(playbackVisualRafRef.current);
+        playbackVisualRafRef.current = null;
+      }
+    };
+
+    commitPlaybackVisualRef.current = (time: number, invokeCallback: boolean) => {
+      cancelScheduledPlaybackVisual();
+      latestPlaybackTimeRef.current = time;
+      if (disposed) return;
+      setTranscriptionPlaybackClock(time);
+      if (invokeCallback) {
+        cbRef.current.onTimeUpdate?.(time);
+      }
+    };
+
+    schedulePlaybackVisualRef.current = () => {
+      if (playbackVisualRafRef.current !== null) return;
+      playbackVisualRafRef.current = requestAnimationFrame(() => {
+        playbackVisualRafRef.current = null;
+        if (disposed) return;
+        const t = latestPlaybackTimeRef.current;
+        setTranscriptionPlaybackClock(t);
+        cbRef.current.onTimeUpdate?.(t);
+      });
+    };
+
     ws.setVolume(volRef.current);
     ws.setPlaybackRate(rateRef.current);
     void ws.load(mediaUrl).catch((err: unknown) => {
@@ -264,12 +343,17 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         const nextTime = Math.max(0, Math.min(restorePlayback.time, nextDuration));
         if (nextTime > 0) {
           ws.setTime(nextTime);
-          setCurrentTime(nextTime);
+          commitPlaybackVisualRef.current?.(nextTime, false);
         }
         if (restorePlayback.shouldResume) {
           void ws.play();
         }
       }
+      // WebKit：ready 仍可能对应上一帧的 0 宽内部缓冲；延后 zoom 对齐 Safari 首次刷新空白 | Defer zoom so first paint has non-zero width
+      requestAnimationFrame(() => {
+        kickLayoutZoom();
+        requestAnimationFrame(kickLayoutZoom);
+      });
     });
     // 监听 WaveSurfer 的加载错误事件，将错误暴露给消费方 | Expose media load errors to consumers
     ws.on('error', (err: Error) => {
@@ -293,9 +377,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
       if (bounds && time >= bounds.end) {
         if (cbRef.current.segmentLoop) {
           segmentSeekGuardRef.current = { pending: true };
-          setCurrentTime(bounds.start);
+          commitPlaybackVisualRef.current?.(bounds.start, true);
           ws.setTime(bounds.start);
-          cbRef.current.onTimeUpdate?.(bounds.start);
         } else {
           ws.pause();
           // Restore global playback rate if segment rate was active
@@ -305,15 +388,14 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
           }
           const restartAt = bounds.start;
           segmentBoundsRef.current = null; // clear BEFORE setTime to prevent recursive timeupdate
-          setCurrentTime(restartAt);
+          commitPlaybackVisualRef.current?.(restartAt, true);
           ws.setTime(restartAt);
-          cbRef.current.onTimeUpdate?.(restartAt);
         }
         return;
       }
 
-      setCurrentTime(time);
-      cbRef.current.onTimeUpdate?.(time);
+      latestPlaybackTimeRef.current = time;
+      schedulePlaybackVisualRef.current?.();
     });
     ws.on('play', () => {
       if (disposed) return;
@@ -322,6 +404,7 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     ws.on('pause', () => {
       if (disposed) return;
       setIsPlaying(false);
+      commitPlaybackVisualRef.current?.(ws.getCurrentTime() || 0, false);
     });
     ws.on('finish', () => {
       if (disposed) return;
@@ -338,12 +421,26 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
         return;
       }
       setIsPlaying(false);
+      commitPlaybackVisualRef.current?.(ws.getDuration() || 0, false);
     });
 
     })(); // end async IIFE
 
     return () => {
       disposed = true;
+      if (layoutResizeRaf != null) {
+        cancelAnimationFrame(layoutResizeRaf);
+        layoutResizeRaf = null;
+      }
+      layoutResizeObserver?.disconnect();
+      layoutResizeObserver = null;
+      if (playbackVisualRafRef.current !== null) {
+        cancelAnimationFrame(playbackVisualRafRef.current);
+        playbackVisualRafRef.current = null;
+      }
+      commitPlaybackVisualRef.current = null;
+      schedulePlaybackVisualRef.current = null;
+      setTranscriptionPlaybackClock(0);
       // 重置状态避免 StrictMode 二次挂载时 stale isReady 触发 zoom 等副作用
       // Reset state to prevent stale isReady triggering zoom etc. in StrictMode re-mount
       setIsReady(false);
@@ -740,9 +837,8 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     const canResume = resume && cur >= start && cur < end;
     if (!canResume) {
       segmentSeekGuardRef.current = { pending: true };
-      setCurrentTime(start);
+      commitPlaybackVisualRef.current?.(start, true);
       ws.setTime(start);
-      cbRef.current.onTimeUpdate?.(start);
     } else {
       segmentSeekGuardRef.current = { pending: false };
     }
@@ -851,7 +947,9 @@ export function useWaveSurfer(options: UseWaveSurferOptions) {
     isReady,
     loadError,
     isPlaying,
-    currentTime,
+    get currentTime() {
+      return getTranscriptionPlaybackClockSnapshot();
+    },
     duration,
     playbackRate,
     setPlaybackRate,

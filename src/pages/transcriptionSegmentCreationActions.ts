@@ -10,6 +10,11 @@ import type { SegmentRoutingResult } from './transcriptionSegmentRouting';
 import { type ParentUnitBounds } from './timelineUnitViewUnitHelpers';
 import { resolveTranscriptionUnitTarget } from './transcriptionUnitTargetResolver';
 import { assertTimelineMediaForMutation } from '../utils/assertTimelineMediaForMutation';
+import { clampIndependentSegmentInsertionRange } from '../utils/independentSegmentInsertionRange';
+import {
+  independentSegmentInsertionUpperBoundSec,
+  mediaDurationSecForTimeBounds,
+} from '../utils/timelineMediaDurationForBounds';
 
 export interface CreateUnitOptions {
   speakerId?: string;
@@ -21,6 +26,10 @@ export interface UseTranscriptionSegmentCreationControllerInput {
   activeLayerIdForEdits: string;
   resolveSegmentRoutingForLayer: (layerId?: string) => SegmentRoutingResult;
   selectedTimelineMedia: MediaItemDocType | null;
+  /** 与波形桥 `documentSpanSec` 一致；用于独立语段钳制上界 ≥ 文献轴跨度 */
+  documentSpanSec?: number;
+  /** 与桥内每帧计算一致时优先，避免页首 hook 在波形桥之前无法读到解码后文献秒 */
+  getDocumentSpanSec?: () => number | undefined;
   ensureTimelineMediaRowResolved?: () => Promise<MediaItemDocType | null>;
   unitsOnCurrentMedia: ReadonlyArray<TimelineUnitView>;
   /** Resolve full unit row for create-next / DB writes; must match unified view ids on current media. */
@@ -53,6 +62,23 @@ function createSegmentTarget(activeLayerIdForEdits: string, unitId: string) {
     unitId,
     preferredKind: 'segment',
   });
+}
+
+function resolveDocumentSpanInputSec(
+  input: UseTranscriptionSegmentCreationControllerInput,
+): number | undefined {
+  if (typeof input.getDocumentSpanSec === 'function') {
+    const v = input.getDocumentSpanSec();
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) {
+      return v;
+    }
+  }
+  if (typeof input.documentSpanSec === 'number'
+    && Number.isFinite(input.documentSpanSec)
+    && input.documentSpanSec > 0) {
+    return input.documentSpanSec;
+  }
+  return undefined;
 }
 
 export function createTranscriptionSegmentCreationActions(
@@ -161,9 +187,10 @@ export function createTranscriptionSegmentCreationActions(
       const targetIndex = siblings.findIndex((segment) => segment.id === targetId);
       const nextSegment = targetIndex >= 0 ? siblings[targetIndex + 1] : undefined;
       const startTime = Number((targetSegment.endTime + gap).toFixed(3));
-      const mediaDuration = typeof selectedMedia.duration === 'number'
-        ? selectedMedia.duration
-        : Number.POSITIVE_INFINITY;
+      const mediaDuration = independentSegmentInsertionUpperBoundSec(
+        selectedMedia,
+        resolveDocumentSpanInputSec(input),
+      );
 
       let upperBound = Math.min(mediaDuration, nextSegment ? nextSegment.startTime - gap : Number.POSITIVE_INFINITY);
       let parentUnit: ParentUnitBounds | undefined;
@@ -215,9 +242,8 @@ export function createTranscriptionSegmentCreationActions(
       input.setSaveState({ kind: 'error', message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { unitId: targetId }) });
       return;
     }
-    const mediaDuration = typeof input.selectedTimelineMedia?.duration === 'number'
-      ? input.selectedTimelineMedia.duration
-      : targetUnit.endTime + 2;
+    const cap = mediaDurationSecForTimeBounds(input.selectedTimelineMedia);
+    const mediaDuration = cap === Number.POSITIVE_INFINITY ? targetUnit.endTime + 2 : cap;
     await input.createAdjacentUnit(targetUnit, mediaDuration);
   };
 
@@ -228,8 +254,6 @@ export function createTranscriptionSegmentCreationActions(
       if (!assertTimelineMediaForMutation(selectedMedia, { locale, setSaveState: input.setSaveState })) {
         return;
       }
-      const minSpan = 0.05;
-      const gap = 0.02;
       const rawStart = Math.max(0, Math.min(start, end));
       const rawEnd = Math.max(start, end);
       if (!routing.layer || !routing.segmentSourceLayer) {
@@ -237,27 +261,21 @@ export function createTranscriptionSegmentCreationActions(
         return;
       }
       const siblings = resolveSegmentUnitsForLayer(routing.sourceLayerId);
-      const insertionIndex = siblings.findIndex((item) => item.startTime > rawStart);
-      const prev = insertionIndex < 0
-        ? siblings[siblings.length - 1]
-        : insertionIndex === 0
-          ? undefined
-          : siblings[insertionIndex - 1];
-      const next = insertionIndex < 0 ? undefined : siblings[insertionIndex];
-      const lowerBound = Math.max(0, prev ? prev.endTime + gap : 0);
-      const mediaDuration = typeof selectedMedia.duration === 'number'
-        ? selectedMedia.duration
-        : Number.POSITIVE_INFINITY;
-      const upperBound = Math.min(mediaDuration, next ? next.startTime - gap : Number.POSITIVE_INFINITY);
-      const boundedStart = Math.max(lowerBound, rawStart);
-      const normalizedEnd = Math.max(boundedStart + minSpan, rawEnd);
-      const boundedEnd = Math.min(upperBound, normalizedEnd);
-      if (!Number.isFinite(boundedEnd) || boundedEnd - boundedStart < minSpan) {
+      const mediaDuration = independentSegmentInsertionUpperBoundSec(
+        selectedMedia,
+        resolveDocumentSpanInputSec(input),
+      );
+      const clamped = clampIndependentSegmentInsertionRange(
+        rawStart,
+        rawEnd,
+        siblings.map((s) => ({ startTime: s.startTime, endTime: s.endTime })),
+        mediaDuration,
+      );
+      if (!clamped.ok) {
         input.setSaveState({ kind: 'error', message: t(locale, 'transcription.error.validation.createFromSelectionOverlap') });
         return;
       }
-      const finalStart = Number(boundedStart.toFixed(3));
-      const finalEnd = Number(boundedEnd.toFixed(3));
+      const { start: finalStart, end: finalEnd } = clamped;
       const now = new Date().toISOString();
       const newSeg: LayerUnitDocType = {
         id: newId('seg'),
@@ -286,7 +304,7 @@ export function createTranscriptionSegmentCreationActions(
       } else {
         const overlappingUtt = input.findOverlappingUnitDoc(finalStart, finalEnd);
         if (overlappingUtt) {
-          newSeg.unitId = overlappingUtt.id;
+          // 独立边界 segment 不写宿主 unitId：否则多条 segment 在 `buildTimelineUnitViewIndex` 中共用 parent 语义键被覆盖，钳制只看到一条而误报重叠。
           if (!newSeg.speakerId && overlappingUtt.speakerId) {
             newSeg.speakerId = overlappingUtt.speakerId;
           }

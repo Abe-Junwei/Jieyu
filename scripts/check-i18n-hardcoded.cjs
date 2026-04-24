@@ -324,7 +324,6 @@ function scanFile(filePath) {
         literal: clipSnippet(literal),
         sourceLine: clipSnippet(sourceLine),
       });
-      break;
     }
 
     if (!isJsxFile) continue;

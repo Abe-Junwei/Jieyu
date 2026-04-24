@@ -10,6 +10,7 @@ The same sections are mirrored in `**CLAUDE.md`** for Claude Code and other tool
 
 - Docs layout and governed paths: `.cursor/rules/jieyu-docs-governance.mdc`
 - Prefer `docs/architecture/` and code as current truth when docs conflict.
+- **Browser support (desktop):** `docs/architecture/桌面端浏览器支持策略.md`. New or sensitive browser APIs: check compatibility, prefer feature detection, and extend E2E if behavior differs across engines (`npm run test:e2e`; local quick loop `npm run test:e2e:chromium`).
 
 ---
 

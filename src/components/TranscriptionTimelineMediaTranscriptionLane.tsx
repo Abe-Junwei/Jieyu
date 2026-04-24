@@ -262,8 +262,19 @@ export const TranscriptionTimelineMediaTranscriptionLane = memo(function Transcr
       ))}
       {!effectiveCollapsed && visibleUnits.map((unit) => {
         const realUtt = unitById.get(unit.id);
+        const segmentSurfaceText = (segmentId: string): string => {
+          if (!segmentContentByLayer) return '';
+          const direct = segmentContentByLayer.get(layer.id)?.get(segmentId)?.text;
+          if (typeof direct === 'string' && direct.trim().length > 0) return direct;
+          const src = segmentSourceLayerId.trim();
+          if (src.length > 0 && src !== layer.id) {
+            const inherited = segmentContentByLayer.get(src)?.get(segmentId)?.text;
+            if (typeof inherited === 'string') return inherited;
+          }
+          return '';
+        };
         const sourceText = unit.kind === 'segment'
-          ? (segmentContentByLayer?.get(layer.id)?.get(unit.id)?.text ?? '')
+          ? segmentSurfaceText(unit.id)
           : (realUtt ? getUnitTextForLayer(realUtt, layer.id) : unit.text);
         const draftKey = `trc-${layer.id}-${unit.id}`;
         const draft = unitDrafts[draftKey] ?? sourceText;

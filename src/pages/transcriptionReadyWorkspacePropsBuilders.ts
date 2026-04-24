@@ -39,6 +39,8 @@ export type BuildSharedLanePropsInput = TimelineHostSharedLaneProps & {
   handleResetTrackAutoLayout: HorizontalMediaLanesProps['onResetTrackAutoLayout'];
   selectedSpeakerNamesForTrackLock: HorizontalMediaLanesProps['selectedSpeakerNamesForLock'];
   handleLaneLabelWidthResizeStart: HorizontalMediaLanesProps['onLaneLabelWidthResize'];
+  /** 与 `buildReadyWorkspaceLayoutStyle` 中 `--timeline-content-offset` 等价的像素和 | Matches layout gutter */
+  timelineContentGutterPx: HorizontalMediaLanesProps['timelineContentGutterPx'];
 };
 
 export type BuiltSharedLaneProps = Omit<
@@ -97,6 +99,7 @@ export function buildSharedLaneProps(input: BuildSharedLanePropsInput): BuiltSha
     activeSpeakerFilterKey: input.activeSpeakerFilterKey,
     speakerQuickActions: input.speakerQuickActions,
     onLaneLabelWidthResize: input.handleLaneLabelWidthResizeStart,
+    timelineContentGutterPx: input.timelineContentGutterPx,
     translationAudioByLayer: input.translationAudioByLayer,
     mediaItems: input.mediaItems,
     recording: input.recording,

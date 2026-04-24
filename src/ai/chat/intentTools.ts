@@ -90,9 +90,16 @@ function getScopedUnits(context: AiPromptContext, scope: QualityScope): Timeline
   if (scope === 'current_track') return trackScoped;
 
   const selectedLayerId = typeof context.shortTerm?.selectedLayerId === 'string'
-    ? context.shortTerm.selectedLayerId
+    ? context.shortTerm.selectedLayerId.trim()
     : '';
   if (selectedLayerId.length === 0) return trackScoped;
+  const byLayer = context.shortTerm?.timelineUnitsByLayerId;
+  const bucket = byLayer?.get(selectedLayerId);
+  if (bucket && bucket.length > 0) {
+    return currentMediaId.length > 0
+      ? bucket.filter((unit) => unit.mediaId === currentMediaId)
+      : [...bucket];
+  }
   return trackScoped.filter((unit) => unit.layerId === selectedLayerId);
 }
 

@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type SearchReplaceOverlayMessages = {
   searchPlaceholder: string;
@@ -103,5 +103,5 @@ const enUS: SearchReplaceOverlayMessages = {
 };
 
 export function getSearchReplaceOverlayMessages(locale: Locale): SearchReplaceOverlayMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

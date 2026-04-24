@@ -119,7 +119,7 @@ export type TranscriptionTimelineWorkspacePanelProps = {
   startTimelineResizeDrag?: (
     event: PointerEvent<HTMLElement>,
     unit: { id: string; mediaId?: string; startTime: number; endTime: number },
-    edge: 'start' | 'end',
+    edge: 'start' | 'end' | 'body',
     layerId?: string,
     options?: TimelineResizeDragOptions,
   ) => void;

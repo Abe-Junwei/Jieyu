@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import type { AnchorDocType, LayerLinkDocType, LayerDocType, LayerUnitDocType, MediaItemDocType, SpeakerDocType, LayerUnitContentDocType } from '../db';
-import { db } from '../db';
+import { db, getDb } from '../db';
 import { putTestUnitAsLayerUnit } from '../db/putTestUnitAsLayerUnit';
 import { LayerTierUnifiedService } from '../services/LayerTierUnifiedService';
 import type { DbState, TimelineUnit } from './transcriptionTypes';
@@ -22,6 +22,11 @@ async function clearDatabase(): Promise<void> {
     db.layer_unit_contents.clear(),
     db.unit_relations.clear(),
   ]);
+  const rx = await getDb();
+  const layerDocs = await rx.collections.layers.find().exec();
+  await Promise.all(layerDocs.map((d) => rx.collections.layers.remove(d.id)));
+  const rxLinks = await rx.collections.layer_links.find().exec();
+  await Promise.all(rxLinks.map((d) => rx.collections.layer_links.remove(d.id)));
 }
 
 describe('useTranscriptionSnapshotLoader', () => {
@@ -76,6 +81,15 @@ describe('useTranscriptionSnapshotLoader', () => {
       updatedAt: now,
     } as LayerUnitDocType, 'trc-1');
 
+    await db.media_items.put({
+      id: 'media-1',
+      textId: 'text-1',
+      filename: 'placeholder',
+      isOfflineCached: false,
+      createdAt: now,
+      updatedAt: now,
+    } as MediaItemDocType);
+
     const dbNameRef = { current: undefined as string | undefined };
 
     let selectedLayerId = '';
@@ -91,6 +105,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setTranslations = vi.fn<(next: React.SetStateAction<LayerUnitContentDocType[]>) => void>();
     const setUnitDrafts = vi.fn<(next: React.SetStateAction<Record<string, string>>) => void>();
     const setUnits = vi.fn<(next: React.SetStateAction<LayerUnitDocType[]>) => void>();
+    const setSelectedMediaId = vi.fn<(next: React.SetStateAction<string>) => void>();
 
     const setSelectedLayerId = vi.fn((next: React.SetStateAction<string>) => {
       selectedLayerId = typeof next === 'function' ? next(selectedLayerId) : next;
@@ -111,6 +126,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       setSelectedLayerId,
       setSelectedUnitIds,
       setSelectedTimelineUnit,
+      setSelectedMediaId,
       setState,
       setTranslations,
       setUnitDrafts,
@@ -120,6 +136,11 @@ describe('useTranscriptionSnapshotLoader', () => {
     await act(async () => {
       await result.current.loadSnapshot();
     });
+
+    expect(setSelectedMediaId).toHaveBeenCalled();
+    const mediaIdSetter = setSelectedMediaId.mock.calls[setSelectedMediaId.mock.calls.length - 1]![0];
+    const resolvedMediaId = typeof mediaIdSetter === 'function' ? mediaIdSetter('') : mediaIdSetter;
+    expect(resolvedMediaId).toBe('media-1');
 
     const selectedTimelineUnit = selectedTimelineUnitCalls[selectedTimelineUnitCalls.length - 1];
     expect(selectedLayerId).toBeTruthy();
@@ -207,6 +228,7 @@ describe('useTranscriptionSnapshotLoader', () => {
     const setUnits = vi.fn<(next: React.SetStateAction<LayerUnitDocType[]>) => void>();
     const setSelectedLayerId = vi.fn<(next: React.SetStateAction<string>) => void>();
     const setSelectedTimelineUnit = vi.fn<(next: React.SetStateAction<TimelineUnit | null>) => void>();
+    const setSelectedMediaId = vi.fn<(next: React.SetStateAction<string>) => void>();
 
     const { result } = renderHook(() => useTranscriptionSnapshotLoader({
       dbNameRef,
@@ -218,6 +240,7 @@ describe('useTranscriptionSnapshotLoader', () => {
       setSelectedLayerId,
       setSelectedUnitIds,
       setSelectedTimelineUnit,
+      setSelectedMediaId,
       setState,
       setTranslations,
       setUnitDrafts,
@@ -234,5 +257,82 @@ describe('useTranscriptionSnapshotLoader', () => {
         typeof arg === 'object' && arg !== null && 'phase' in arg && (arg as DbState).phase === 'ready');
     expect(readyPayload?.unitCount).toBe(1);
     expect(readyPayload?.unifiedUnitCount).toBe(2);
+  });
+
+  it('loadSnapshot rejects symbolic_association transcription without parent or host link', async () => {
+    const now = new Date().toISOString();
+
+    await LayerTierUnifiedService.createLayer({
+      id: 'trc-root',
+      textId: 'text-bad',
+      key: 'trc_root',
+      name: { zho: '根' },
+      layerType: 'transcription',
+      languageId: 'zho',
+      modality: 'text',
+      acceptsAudio: false,
+      isDefault: true,
+      constraint: 'independent_boundary',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType);
+
+    await LayerTierUnifiedService.createLayer({
+      id: 'trc-orphan',
+      textId: 'text-bad',
+      key: 'trc_orphan',
+      name: { zho: '孤儿依赖' },
+      layerType: 'transcription',
+      languageId: 'cmn',
+      modality: 'text',
+      acceptsAudio: false,
+      constraint: 'symbolic_association',
+      createdAt: now,
+      updatedAt: now,
+    } as LayerDocType);
+
+    await putTestUnitAsLayerUnit(db, {
+      id: 'utt-bad',
+      textId: 'text-bad',
+      mediaId: 'media-bad',
+      startTime: 0,
+      endTime: 1,
+      transcription: { default: 'x' },
+      createdAt: now,
+      updatedAt: now,
+    } as LayerUnitDocType, 'trc-root');
+
+    await db.media_items.put({
+      id: 'media-bad',
+      textId: 'text-bad',
+      filename: 'placeholder',
+      isOfflineCached: false,
+      createdAt: now,
+      updatedAt: now,
+    } as MediaItemDocType);
+
+    const dbNameRef = { current: undefined as string | undefined };
+    const { result } = renderHook(() => useTranscriptionSnapshotLoader({
+      dbNameRef,
+      setAnchors: vi.fn(),
+      setLayerLinks: vi.fn(),
+      setLayers: vi.fn(),
+      setMediaItems: vi.fn(),
+      setSpeakers: vi.fn(),
+      setSelectedLayerId: vi.fn(),
+      setSelectedUnitIds: vi.fn(),
+      setSelectedTimelineUnit: vi.fn(),
+      setSelectedMediaId: vi.fn(),
+      setState: vi.fn(),
+      setTranslations: vi.fn(),
+      setUnitDrafts: vi.fn(),
+      setUnits: vi.fn(),
+    }));
+
+    await expect(
+      act(async () => {
+        await result.current.loadSnapshot();
+      }),
+    ).rejects.toThrow(/transcription-dependency-invariant/);
   });
 });

@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 import type { OrthographyCatalogGroupKey } from '../hooks/useOrthographyPicker';
 
 export type OrthographyBuilderMessages = {
@@ -360,7 +360,7 @@ const enUS: OrthographyBuilderMessages = {
 };
 
 export function getOrthographyBuilderMessages(locale: Locale): OrthographyBuilderMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }
 
 export function getOrthographyBridgeRulePlaceholder(

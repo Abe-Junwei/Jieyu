@@ -43,6 +43,7 @@ import {
   MEDIA_TIMELINE_KIND_PLACEHOLDER,
   withResolvedMediaItemTimelineKind,
 } from '../utils/mediaItemTimelineKind';
+import { remapLayerUnitsAndAnchorsForFirstAcousticImport } from '../utils/remapLayerUnitsForFirstAcousticImport';
 import { type ImportQualityReport } from './LinguisticService.constraints';
 import type { ApplyOrthographyBridgeInput, CloneOrthographyToLanguageInput, CreateOrthographyInput, CreateOrthographyBridgeInput, GetActiveOrthographyBridgeInput, ListOrthographyRecordsSelector, ListOrthographyBridgesSelector, PreviewOrthographyBridgeInput, UpdateOrthographyInput, UpdateOrthographyBridgeInput } from './LinguisticService.orthography';
 import type { LanguageCatalogEntry, UpsertLanguageCatalogEntryInput } from './LinguisticService.languageCatalog';
@@ -171,6 +172,17 @@ function mergeTextTimeMappingHistory(
   }
 
   return deduped.length > 0 ? deduped : undefined;
+}
+
+/** 词典 → 转写深链：由 `token_lexeme_links` 解析出的可跳转时间轴单元 | Lexicon → transcription deep-link row */
+export interface LexemeTranscriptionJumpTarget {
+  textId: string;
+  unitId: string;
+  layerId: string;
+  mediaId?: string;
+  unitKind: 'unit' | 'segment';
+  surfaceHint?: string;
+  linkUpdatedAt: string;
 }
 
 export class LinguisticService {
@@ -899,6 +911,82 @@ export class LinguisticService {
     return doc.primary;
   }
 
+  /**
+   * 词条在转写库中的可跳转命中（经 token_lexeme_links → token/morpheme → layer_unit） |
+   * Transcription jump targets for a lexeme via token/morpheme links into canonical layer units.
+   */
+  static async listLexemeTranscriptionJumpTargets(
+    lexemeId: string,
+    opts?: { limit?: number },
+  ): Promise<LexemeTranscriptionJumpTarget[]> {
+    const limit = Math.max(1, Math.min(opts?.limit ?? 40, 200));
+    const id = lexemeId.trim();
+    if (!id) return [];
+
+    const db = await getDb();
+    let links: TokenLexemeLinkDocType[] = [];
+    try {
+      links = await db.dexie.token_lexeme_links.where('lexemeId').equals(id).toArray();
+    } catch {
+      const all = await db.dexie.token_lexeme_links.toArray();
+      links = all.filter((row) => (row.lexemeId ?? '').trim() === id);
+    }
+    links.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    const seen = new Set<string>();
+    const out: LexemeTranscriptionJumpTarget[] = [];
+
+    for (const link of links) {
+      if (out.length >= limit) break;
+
+      let unitId = '';
+      let textId = '';
+      let surfaceHint: string | undefined;
+
+      if (link.targetType === 'token') {
+        const tok = await db.dexie.unit_tokens.get(link.targetId);
+        if (!tok) continue;
+        unitId = tok.unitId.trim();
+        textId = tok.textId.trim();
+        const rawForm = Object.values(tok.form ?? {}).find((v) => typeof v === 'string' && v.trim().length > 0);
+        surfaceHint = typeof rawForm === 'string' ? rawForm.trim() : undefined;
+      } else {
+        const mor = await db.dexie.unit_morphemes.get(link.targetId);
+        if (!mor) continue;
+        unitId = mor.unitId.trim();
+        textId = mor.textId.trim();
+        const rawForm = Object.values(mor.form ?? {}).find((v) => typeof v === 'string' && v.trim().length > 0);
+        surfaceHint = typeof rawForm === 'string' ? rawForm.trim() : undefined;
+      }
+
+      if (!unitId || !textId) continue;
+
+      const layerUnit = await db.dexie.layer_units.get(unitId);
+      if (!layerUnit) continue;
+
+      const layerId = layerUnit.layerId?.trim() ?? '';
+      if (!layerId) continue;
+
+      const unitKind: 'unit' | 'segment' = layerUnit.unitType === 'segment' ? 'segment' : 'unit';
+      const mediaId = layerUnit.mediaId?.trim() || undefined;
+      const dedupeKey = `${textId}|${layerId}|${unitId}|${unitKind}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+
+      out.push({
+        textId,
+        unitId,
+        layerId,
+        ...(mediaId ? { mediaId } : {}),
+        unitKind,
+        ...(surfaceHint ? { surfaceHint } : {}),
+        linkUpdatedAt: link.updatedAt,
+      });
+    }
+
+    return out;
+  }
+
   // 查询项目中使用的不重复语言 ID（从层定义表提取） | Query distinct language IDs used in the project (from layer definitions)
   static async listDistinctProjectLanguageIds(): Promise<string[]> {
     const db = await getDb();
@@ -976,6 +1064,15 @@ export class LinguisticService {
     const db = await getDb();
     const docs = await db.collections.texts.find().exec();
     return docs.map((doc) => doc.toJSON());
+  }
+
+  /** 单条文本（略过 getAllTexts），供壳层在首屏尽快拿到 metadata.logicalDurationSec | Single text for faster first-paint */
+  static async getTextById(textId: string): Promise<TextDocType | null> {
+    const id = textId.trim();
+    if (!id) return null;
+    const db = await getDb();
+    const existingDoc = await db.collections.texts.findOne({ selector: { id } }).exec();
+    return existingDoc ? existingDoc.toJSON() : null;
   }
 
   static async saveText(data: TextDocType): Promise<string> {
@@ -1525,7 +1622,36 @@ export class LinguisticService {
       createdAt,
     });
 
-    await refreshMediaTimelineMetadata(mediaId);
+    let remapResult = { didRemap: false, maxUnitEnd: 0 };
+    if (shouldPromotePlaceholders) {
+      remapResult = await remapLayerUnitsAndAnchorsForFirstAcousticImport({
+        db,
+        textId: input.textId,
+        mediaId,
+        acousticDurationSec: input.duration,
+        now,
+      });
+    }
+
+    const textRowAfterPut = await db.dexie.texts.get(input.textId);
+    if (textRowAfterPut) {
+      const rowMetaAfter = (textRowAfterPut.metadata as Record<string, unknown> | undefined) ?? {};
+      const prevLogicalAfter = typeof rowMetaAfter.logicalDurationSec === 'number' && Number.isFinite(rowMetaAfter.logicalDurationSec)
+        ? rowMetaAfter.logicalDurationSec
+        : 0;
+      const nextLogicalAfter = remapResult.didRemap
+        ? Math.max(input.duration, remapResult.maxUnitEnd, 1)
+        : Math.max(prevLogicalAfter, input.duration);
+      await db.dexie.texts.put({
+        ...textRowAfterPut,
+        metadata: {
+          ...rowMetaAfter,
+          timelineMode: 'media',
+          ...(nextLogicalAfter > 0 ? { logicalDurationSec: nextLogicalAfter } : {}),
+        },
+        updatedAt: now,
+      });
+    }
 
     return { mediaId };
   }

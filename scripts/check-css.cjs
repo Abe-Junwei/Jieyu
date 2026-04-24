@@ -19,30 +19,120 @@ function listCssFiles(dirPath) {
   return files.sort();
 }
 
+/** Line number (1-based) for index in css */
+function lineNumberAt(css, index) {
+  let line = 1;
+  for (let i = 0; i < index && i < css.length; i += 1) {
+    if (css[i] === '\n') line += 1;
+  }
+  return line;
+}
+
+function lineSnippetAt(css, lineNum) {
+  let line = 1;
+  let start = 0;
+  for (let i = 0; i <= css.length; i += 1) {
+    if (i === css.length || css[i] === '\n') {
+      if (line === lineNum) {
+        return css.slice(start, i).trim();
+      }
+      line += 1;
+      start = i + 1;
+    }
+  }
+  return '';
+}
+
+/**
+ * Brace depth scan that ignores `{` / `}` inside strings and comments (reduces false positives).
+ */
 function analyzeCssFile(filePath) {
   const css = fs.readFileSync(filePath, 'utf8');
-  const lines = css.split('\n');
   let depth = 0;
   let maxDepth = 0;
   let maxLine = 0;
   const negatives = [];
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    for (const ch of line) {
-      if (ch === '{') depth += 1;
-      else if (ch === '}') depth -= 1;
+  let state = 'normal';
+  let escaped = false;
+
+  for (let index = 0; index < css.length; index += 1) {
+    const ch = css[index];
+    const next = css[index + 1] ?? '';
+
+    if (state === 'line-comment') {
+      if (ch === '\n') state = 'normal';
+      continue;
     }
-    if (depth < 0) {
-      negatives.push({
-        lineNum: index + 1,
-        line: line.trim(),
-      });
-      depth = 0;
+
+    if (state === 'block-comment') {
+      if (ch === '*' && next === '/') {
+        state = 'normal';
+        index += 1;
+      }
+      continue;
     }
-    if (depth > maxDepth) {
-      maxDepth = depth;
-      maxLine = index + 1;
+
+    if (state === 'single-quote' || state === 'double-quote') {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === '\\') {
+        escaped = true;
+        continue;
+      }
+      if (state === 'single-quote' && ch === "'") {
+        state = 'normal';
+        continue;
+      }
+      if (state === 'double-quote' && ch === '"') {
+        state = 'normal';
+        continue;
+      }
+      continue;
+    }
+
+    if (ch === '/' && next === '/') {
+      state = 'line-comment';
+      index += 1;
+      continue;
+    }
+    if (ch === '/' && next === '*') {
+      state = 'block-comment';
+      index += 1;
+      continue;
+    }
+    if (ch === "'") {
+      state = 'single-quote';
+      escaped = false;
+      continue;
+    }
+    if (ch === '"') {
+      state = 'double-quote';
+      escaped = false;
+      continue;
+    }
+
+    if (ch === '{') {
+      depth += 1;
+      const ln = lineNumberAt(css, index);
+      if (depth > maxDepth) {
+        maxDepth = depth;
+        maxLine = ln;
+      }
+      continue;
+    }
+    if (ch === '}') {
+      depth -= 1;
+      if (depth < 0) {
+        const ln = lineNumberAt(css, index);
+        negatives.push({
+          lineNum: ln,
+          line: lineSnippetAt(css, ln),
+        });
+        depth = 0;
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export interface AiChatQuickPromptTemplateDefinition {
   id: string;
@@ -43,5 +43,5 @@ const enUS: AiChatQuickPromptTemplateDefinition[] = [
 ];
 
 export function getAiChatQuickPromptTemplates(locale: Locale): AiChatQuickPromptTemplateDefinition[] {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

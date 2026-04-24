@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 type LanguageSuggestion = {
   code: string;
@@ -113,5 +113,5 @@ const enUS: ProjectSetupDialogMessages = {
 };
 
 export function getProjectSetupDialogMessages(locale: Locale): ProjectSetupDialogMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

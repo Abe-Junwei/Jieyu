@@ -22,6 +22,7 @@ import {
 import { ProjectChangeCodec } from '../collaboration/cloud/ProjectChangeCodec';
 import type { ChangeTimelineResult } from '../collaboration/cloud/CollaborationAuditLogService';
 import {
+  hydrateCollabClientStateFromIdb,
   loadProjectLastSeenRevision,
   loadProjectPendingOutboundChanges,
   saveProjectLastSeenRevision,
@@ -163,6 +164,7 @@ export function useTranscriptionCollaborationBridge({
 
     const startBridge = async () => {
       await stopBridge();
+      await hydrateCollabClientStateFromIdb();
 
       const actorId = await getSupabaseUserId();
       if (!actorId) {

@@ -9,6 +9,8 @@ export type DbState =
       unitCount: number;
       /** Unified timeline semantic unit count (unit + de-duplicated segment semantic ids). */
       unifiedUnitCount?: number;
+      /** `loadSnapshot` 时从 `texts.metadata.logicalDurationSec` 写入，供 zoom 在 useDialogs 异步填充前与轨上 maxEnd 对齐 | DB snapshot hint for timeline fit */
+      textLogicalDurationSecFromSnapshot?: number;
       /** Mirrors translation layers only (`layerType === 'translation'`), synced with live `layers` */
       translationLayerCount: number;
       /** Mirrors `translations.length` (segmentation unit texts) */

@@ -570,6 +570,23 @@
   font-weight: 600;
 }
 
+.settings-about-browser-support {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.settings-about-browser-support-title {
+  font-size: calc(0.82rem * var(--ui-font-scale, 1));
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.settings-about-browser-support-body {
+  margin: 0;
+}
+
 /* ── 快捷键编辑 | Shortcut editing ── */
 
 .settings-shortcuts-toolbar {

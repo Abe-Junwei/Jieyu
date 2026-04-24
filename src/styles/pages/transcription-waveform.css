@@ -113,6 +113,15 @@
   flex-direction: column;
 }
 
+/* 无声学/纯文本时 waveCanvasRef 挂点：占满行宽、不占竖向空间，供 ResizeObserver 与 useZoom 与有声学路径对齐 */
+.transcription-logical-waveform-viewport {
+  width: 100%;
+  height: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .wave-empty {
   margin-top: 10px;
   border: 1px dashed var(--border-soft);
@@ -155,7 +164,6 @@
   border-radius: var(--radius-pill);
   white-space: nowrap;
   pointer-events: none;
-  backdrop-filter: blur(4px);
   animation: segMarkPulse 1.8s ease-in-out infinite;
 }
 
@@ -246,6 +254,13 @@
   align-items: flex-end;
   justify-content: center;
   cursor: pointer;
+}
+
+.waveform-note-indicator-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
 }
 
 .waveform-note-indicator-icon {
@@ -407,4 +422,18 @@
 .region-action-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
   outline-offset: 2px;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .seg-mark-status {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .seg-mark-status {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }

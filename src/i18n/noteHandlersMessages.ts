@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type NoteHandlersMessages = {
   actionPosSave: string;
@@ -52,5 +52,5 @@ const enUS: NoteHandlersMessages = {
 };
 
 export function getNoteHandlersMessages(locale: Locale): NoteHandlersMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }
