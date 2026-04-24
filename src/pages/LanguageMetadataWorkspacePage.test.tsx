@@ -65,66 +65,6 @@ vi.mock('../components/languageGeocoder', () => ({
   })),
 }));
 
-vi.mock('country-state-city', () => ({
-  Country: {
-    getAllCountries: () => [
-      { name: 'China', isoCode: 'CN' },
-      { name: 'Nepal', isoCode: 'NP' },
-    ],
-  },
-  State: {
-    getStatesOfCountry: (countryCode: string) => {
-      if (countryCode === 'CN') {
-        return [
-          { name: 'Yunnan', isoCode: 'YN' },
-          { name: 'Sichuan', isoCode: 'SC' },
-        ];
-      }
-      if (countryCode === 'NP') {
-        return [
-          { name: 'Bagmati', isoCode: 'BA' },
-        ];
-      }
-      return [];
-    },
-  },
-  City: {
-    getCitiesOfState: (countryCode: string, stateCode: string) => {
-      if (countryCode === 'CN' && stateCode === 'YN') {
-        return [
-          { name: 'Kunming', countryCode: 'CN', stateCode: 'YN' },
-          { name: 'Dali', countryCode: 'CN', stateCode: 'YN' },
-        ];
-      }
-      if (countryCode === 'CN' && stateCode === 'SC') {
-        return [
-          { name: 'Chengdu', countryCode: 'CN', stateCode: 'SC' },
-        ];
-      }
-      if (countryCode === 'NP' && stateCode === 'BA') {
-        return [
-          { name: 'Kathmandu', countryCode: 'NP', stateCode: 'BA' },
-        ];
-      }
-      return [];
-    },
-    getCitiesOfCountry: (countryCode: string) => {
-      if (countryCode === 'CN') {
-        return [
-          { name: 'Kunming', countryCode: 'CN', stateCode: 'YN' },
-          { name: 'Chengdu', countryCode: 'CN', stateCode: 'SC' },
-        ];
-      }
-      if (countryCode === 'NP') {
-        return [
-          { name: 'Kathmandu', countryCode: 'NP', stateCode: 'BA' },
-        ];
-      }
-      return [];
-    },
-  },
-}));
-
 vi.mock('../components/LanguageMapEmbed', () => ({
   LanguageMapEmbed: ({
     latitude,

@@ -1,4 +1,4 @@
-import { Country } from 'country-state-city';
+import { ISO3166_COUNTRIES } from '../data/iso3166CountriesData';
 import type { WorkspaceLocale } from './languageMetadataWorkspace.shared';
 
 export type CountryOption = {
@@ -9,7 +9,7 @@ export type CountryOption = {
 };
 
 const COUNTRY_ALIAS_LOCALES = ['en-US', 'zh-CN'] as const;
-const COUNTRIES = Country.getAllCountries();
+const COUNTRIES = ISO3166_COUNTRIES;
 const COUNTRY_BY_ISO = new Map(COUNTRIES.map((country) => [country.isoCode, country] as const));
 const COUNTRY_OPTIONS_CACHE = new Map<WorkspaceLocale, CountryOption[]>();
 

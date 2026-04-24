@@ -1,9 +1,9 @@
 /**
  * ISO 3166-1 alpha-2 → UI locale display + multi–endonym locales (CLDR-style via Intl).
  */
-import { Country } from 'country-state-city';
+import { ISO3166_COUNTRIES } from '../data/iso3166CountriesData';
 
-const COUNTRY_BY_ISO = new Map(Country.getAllCountries().map((c) => [c.isoCode, c] as const));
+const COUNTRY_BY_ISO = new Map(ISO3166_COUNTRIES.map((c) => [c.isoCode, c] as const));
 
 /** Territories with multiple official languages: ordered BCP47 list for endonym-style region names */
 export const ISO2_ENDONYM_LOCALE_LISTS: Readonly<Record<string, readonly string[]>> = {
