@@ -532,8 +532,16 @@ export class AcousticAnalysisService {
         id: nextPhysicalWorkerId('acousticAnalysis'),
         source: 'AcousticAnalysisService',
       });
-      getWorkerPool().register('acousticAnalysis', 'AcousticAnalysis', () =>
-        new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' }));
+      const pooledWorkerFactory = this.workerFactory
+        ? () => this.workerFactory!() as unknown as Worker
+        : () => new Worker(new URL('./acousticAnalysis.worker.ts', import.meta.url), { type: 'module' });
+      try {
+        getWorkerPool().register('acousticAnalysis', 'AcousticAnalysis', pooledWorkerFactory);
+      } catch (error) {
+        log.debug('WorkerPool registration skipped', {
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
       this.worker.onmessage = (event: MessageEvent<AcousticWorkerResponse>) => {
         const payload = event.data;
         if (payload.type === 'workerpool:pong') return;

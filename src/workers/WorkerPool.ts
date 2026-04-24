@@ -144,15 +144,20 @@ class WorkerPoolImpl {
       this.attemptRestart(entry);
     };
 
-    entry.worker.addEventListener('message', (ev: MessageEvent) => {
-      // 心跳响应 | Heartbeat pong
-      if (ev.data?.type === 'workerpool:pong') {
-        entry.lastHeartbeatAt = Date.now();
-        if (entry.state === 'crashed') entry.state = 'idle';
-        return;
-      }
-      // 业务消息透传，不干扰 | Business messages pass through untouched
-    });
+    const workerWithEvents = entry.worker as unknown as {
+      addEventListener?: (type: 'message', listener: (ev: MessageEvent) => void) => void;
+    };
+    if (typeof workerWithEvents.addEventListener === 'function') {
+      workerWithEvents.addEventListener('message', (ev: MessageEvent) => {
+        // 心跳响应 | Heartbeat pong
+        if (ev.data?.type === 'workerpool:pong') {
+          entry.lastHeartbeatAt = Date.now();
+          if (entry.state === 'crashed') entry.state = 'idle';
+          return;
+        }
+        // 业务消息透传，不干扰 | Business messages pass through untouched
+      });
+    }
   }
 
   private silence(entry: WorkerPoolEntry): void {
