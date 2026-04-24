@@ -6,6 +6,7 @@
   "files": {
     "src/pages/HomePage.tsx": 4,
     "src/components/SidePaneSidebarSegmentList.tsx": 2,
+
     "src/components/SettingsModal.tsx": 1,
     "src/components/TranscriptionTimelineVerticalViewGroupList.tsx": 1,
     "src/pages/OrchestratorWaveformContent.tsx": 1

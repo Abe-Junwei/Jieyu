@@ -34,6 +34,7 @@ added in `CHANGELOG.md`), create an **annotated** tag on the default branch:
 
 The tag name should match `package.json` with a `v` prefix (e.g. `1.1.0` → `v1.1.0`).
 
+
 ## Sentry and build metadata
 
 - `VITE_APP_VERSION` is set at build time from `package.json` (`vite.config.ts`).
