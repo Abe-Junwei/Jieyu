@@ -2,6 +2,8 @@
 
 解语（Jieyu）是一个面向濒危语言研究与协作的本地优先应用。
 
+协作流程、Node 版本与常用门禁命令见 **[CONTRIBUTING.md](CONTRIBUTING.md)**。
+
 ## 启动
 
 1. 安装依赖
@@ -35,6 +37,13 @@ npm test
 ```bash
 npx vitest run <file-or-pattern>
 ```
+
+## 浏览器与发版前核验
+
+- **桌面策略**：[docs/architecture/桌面端浏览器支持策略.md](docs/architecture/桌面端浏览器支持策略.md)（四大 + 国内极速模式、Safari 门槛、ESR 等）。
+- **CSS `backdrop-filter` 按文件门禁**：`npm run check:css-compat`（亦包含在 `npm run check:css-architecture` 与 CI `quality` 任务中，且 CI 在完整 `npm test` 前会先跑一遍以便早失败）。
+- **国内双核手工冒烟**：[docs/execution/release-gates/桌面浏览器抽样验收-2026-04-24.md](docs/execution/release-gates/桌面浏览器抽样验收-2026-04-24.md)（CI 不替代）。
+- **升级 Zod / Vite 或动到 CSP / `index.html` 脚本顺序后**：本地跑 `npm run regression:vite-zod-csp`（`typecheck` + `build` + 三引擎 E2E）；细节见 [ADR 0021](docs/adr/0021-zod-jitless-strict-csp.md)。
 
 ## 构建
 
@@ -87,6 +96,12 @@ VITE_MAP_PROXY_FALLBACK_ON_ERROR=true
 - 主转写工作区入口：[src/pages/TranscriptionPage.tsx](src/pages/TranscriptionPage.tsx)
 - 语言资产服务门面：[src/services/LinguisticService.ts](src/services/LinguisticService.ts)
 - 数据库与迁移：[src/db/index.ts](src/db/index.ts)
+
+## 许可证与版本
+
+- 许可证：[LICENSE](LICENSE)（ISC，与 `package.json` 的 `license` 字段一致）。
+- 变更记录：[CHANGELOG.md](CHANGELOG.md)。
+- 语义化版本约定：[docs/development/VERSIONING.md](docs/development/VERSIONING.md)。
 
 ## 文档索引
 
