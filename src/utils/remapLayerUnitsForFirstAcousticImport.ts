@@ -27,8 +27,8 @@ export async function remapLayerUnitsAndAnchorsForFirstAcousticImport(input: {
 }): Promise<FirstAcousticImportRemapResult> {
   const { db, textId, mediaId, acousticDurationSec, now } = input;
   const duration = acousticDurationSec;
+  const units = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
   if (!(duration > EPS)) {
-    const units = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
     const maxEnd = units.reduce((m, u) => Math.max(m, typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0), 0);
     return { didRemap: false, maxUnitEnd: maxEnd };
   }
@@ -39,7 +39,6 @@ export async function remapLayerUnitsAndAnchorsForFirstAcousticImport(input: {
     ? rowMeta.logicalDurationSec
     : 0;
 
-  const units = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
   let maxEnd = 0;
   for (const u of units) {
     const e = typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0;

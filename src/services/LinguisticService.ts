@@ -4,6 +4,7 @@ import {
   getDb,
   importDatabaseFromJson,
   runDexieIndexedQueryOrElse,
+  withTransaction,
   type ImportConflictStrategy,
   type ImportResult,
   type LayerDocType,
@@ -900,7 +901,7 @@ export class LinguisticService {
 
       if (!unitId || !textId) continue;
 
-      const layerUnit = await db.dexie.layer_units.get(unitId);
+      const [layerUnit] = await LayerSegmentQueryService.listUnitsByIds([unitId]);
       if (!layerUnit) continue;
 
       const layerId = layerUnit.layerId?.trim() ?? '';
@@ -1438,21 +1439,29 @@ export class LinguisticService {
           audioBlob: _oldAudioBlob,
           ...remainingDetails
         } = previousDetails;
-        await db.dexie.media_items.put({
-          id: targetRow.id,
-          textId: input.textId,
-          filename: input.filename,
-          duration: input.duration,
-          details: {
-            ...remainingDetails,
-            audioBlob: input.audioBlob,
-            timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+        await withTransaction(
+          db,
+          'rw',
+          [db.dexie.media_items, db.dexie.texts],
+          async () => {
+            await db.dexie.media_items.put({
+              id: targetRow.id,
+              textId: input.textId,
+              filename: input.filename,
+              duration: input.duration,
+              details: {
+                ...remainingDetails,
+                audioBlob: input.audioBlob,
+                timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+              },
+              isOfflineCached: targetRow.isOfflineCached,
+              ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
+              createdAt: targetRow.createdAt,
+            });
+            await refreshMediaTimelineMetadata(targetRow.id);
           },
-          isOfflineCached: targetRow.isOfflineCached,
-          ...(targetRow.accessRights ? { accessRights: targetRow.accessRights } : {}),
-          createdAt: targetRow.createdAt,
-        });
-        await refreshMediaTimelineMetadata(targetRow.id);
+          { label: 'LinguisticService.importAudio.replace' },
+        );
         return { mediaId: targetRow.id };
       }
     }
@@ -1508,51 +1517,59 @@ export class LinguisticService {
       }
     }
 
-    await db.dexie.media_items.put({
-      id: mediaId,
-      textId: input.textId,
-      filename: input.filename,
-      duration: input.duration,
-      details: {
-        ...mergedDetails,
-        audioBlob: input.audioBlob,
-        timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+    await withTransaction(
+      db,
+      'rw',
+      [db.dexie.media_items, db.dexie.texts, db.dexie.layer_units, db.dexie.anchors],
+      async () => {
+        await db.dexie.media_items.put({
+          id: mediaId,
+          textId: input.textId,
+          filename: input.filename,
+          duration: input.duration,
+          details: {
+            ...mergedDetails,
+            audioBlob: input.audioBlob,
+            timelineKind: MEDIA_TIMELINE_KIND_ACOUSTIC,
+          },
+          isOfflineCached,
+          ...(accessRights ? { accessRights } : {}),
+          createdAt,
+        });
+
+        let remapResult = { didRemap: false, maxUnitEnd: 0 };
+        if (shouldPromotePlaceholders) {
+          remapResult = await remapLayerUnitsAndAnchorsForFirstAcousticImport({
+            db,
+            textId: input.textId,
+            mediaId,
+            acousticDurationSec: input.duration,
+            now,
+          });
+        }
+
+        const textRowAfterPut = await db.dexie.texts.get(input.textId);
+        if (textRowAfterPut) {
+          const rowMetaAfter = (textRowAfterPut.metadata as Record<string, unknown> | undefined) ?? {};
+          const prevLogicalAfter = typeof rowMetaAfter.logicalDurationSec === 'number' && Number.isFinite(rowMetaAfter.logicalDurationSec)
+            ? rowMetaAfter.logicalDurationSec
+            : 0;
+          const nextLogicalAfter = remapResult.didRemap
+            ? Math.max(input.duration, remapResult.maxUnitEnd, 1)
+            : Math.max(prevLogicalAfter, input.duration);
+          await db.dexie.texts.put({
+            ...textRowAfterPut,
+            metadata: {
+              ...rowMetaAfter,
+              timelineMode: 'media',
+              ...(nextLogicalAfter > 0 ? { logicalDurationSec: nextLogicalAfter } : {}),
+            },
+            updatedAt: now,
+          });
+        }
       },
-      isOfflineCached,
-      ...(accessRights ? { accessRights } : {}),
-      createdAt,
-    });
-
-    let remapResult = { didRemap: false, maxUnitEnd: 0 };
-    if (shouldPromotePlaceholders) {
-      remapResult = await remapLayerUnitsAndAnchorsForFirstAcousticImport({
-        db,
-        textId: input.textId,
-        mediaId,
-        acousticDurationSec: input.duration,
-        now,
-      });
-    }
-
-    const textRowAfterPut = await db.dexie.texts.get(input.textId);
-    if (textRowAfterPut) {
-      const rowMetaAfter = (textRowAfterPut.metadata as Record<string, unknown> | undefined) ?? {};
-      const prevLogicalAfter = typeof rowMetaAfter.logicalDurationSec === 'number' && Number.isFinite(rowMetaAfter.logicalDurationSec)
-        ? rowMetaAfter.logicalDurationSec
-        : 0;
-      const nextLogicalAfter = remapResult.didRemap
-        ? Math.max(input.duration, remapResult.maxUnitEnd, 1)
-        : Math.max(prevLogicalAfter, input.duration);
-      await db.dexie.texts.put({
-        ...textRowAfterPut,
-        metadata: {
-          ...rowMetaAfter,
-          timelineMode: 'media',
-          ...(nextLogicalAfter > 0 ? { logicalDurationSec: nextLogicalAfter } : {}),
-        },
-        updatedAt: now,
-      });
-    }
+      { label: 'LinguisticService.importAudio' },
+    );
 
     return { mediaId };
   }

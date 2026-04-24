@@ -1029,6 +1029,33 @@ describe('LinguisticService smoke tests', () => {
     expect(unit?.speakerId).toBe('speaker_sync');
   });
 
+    it('saveUnit rolls back canonical unit and content writes when primary_text persistence fails (ARCH-3)', async () => {
+      const now = new Date().toISOString();
+      const textId = 'text_arch3_save_unit';
+      await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_arch3_save_unit', now);
+
+      const putSpy = vi.spyOn(db.layer_unit_contents, 'put').mockImplementation(() => {
+        throw new Error('content boom');
+      });
+
+      try {
+        await expect(LinguisticService.saveUnit({
+          id: 'utt_arch3_save_unit',
+          textId,
+          mediaId: 'media_arch3_save_unit',
+          startTime: 0,
+          endTime: 2,
+          createdAt: now,
+          updatedAt: now,
+        })).rejects.toThrow('content boom');
+
+        await expect(db.layer_units.get('utt_arch3_save_unit')).resolves.toBeUndefined();
+        await expect(db.layer_unit_contents.where('unitId').equals('utt_arch3_save_unit').toArray()).resolves.toHaveLength(0);
+      } finally {
+        putSpy.mockRestore();
+      }
+    });
+
   it('enforces time_subdivision child bounds when parent unit is resized', async () => {
     const now = new Date().toISOString();
 
@@ -1928,6 +1955,44 @@ describe('LinguisticService smoke tests', () => {
     expect(await db.anchors.where('id').anyOf(['anc_s1', 'anc_e1', 'anc_s2', 'anc_e2']).count()).toBe(0);
   });
 
+  it('saveUnitsBatch rolls back canonical unit and content writes when primary_text batch persistence fails (ARCH-3)', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_arch3_save_batch';
+    await seedDefaultTranscriptionLayerForText(textId, 'layer_trc_arch3_save_batch', now);
+
+    const bulkPutSpy = vi.spyOn(db.layer_unit_contents, 'bulkPut').mockImplementation(() => {
+      throw new Error('content batch boom');
+    });
+
+    try {
+      await expect(LinguisticService.saveUnitsBatch([
+        {
+          id: 'utt_arch3_batch_1',
+          textId,
+          mediaId: 'media_arch3_batch',
+          startTime: 0,
+          endTime: 1,
+          createdAt: now,
+          updatedAt: now,
+        },
+        {
+          id: 'utt_arch3_batch_2',
+          textId,
+          mediaId: 'media_arch3_batch',
+          startTime: 1,
+          endTime: 2,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])).rejects.toThrow('content batch boom');
+
+      await expect(db.layer_units.bulkGet(['utt_arch3_batch_1', 'utt_arch3_batch_2'])).resolves.toEqual([undefined, undefined]);
+      await expect(db.layer_unit_contents.where('textId').equals(textId).toArray()).resolves.toHaveLength(0);
+    } finally {
+      bulkPutSpy.mockRestore();
+    }
+  });
+
   it('regression: deleting audio keeps timed text rows editable even when timelineMode was previously unset', async () => {
     await db.texts.put({
       id: 'text_del',
@@ -2650,6 +2715,77 @@ describe('LinguisticService smoke tests', () => {
       duration: 12,
       details: expect.objectContaining({ timelineKind: 'acoustic' }),
     }));
+  });
+
+  it('importAudio rolls back placeholder promotion and remap when metadata write fails (ARCH-3)', async () => {
+    const now = new Date().toISOString();
+    const textId = 'text_arch3_import_audio';
+    const layerId = 'layer_trc_arch3_import_audio';
+    const mediaId = 'media_arch3_import_audio';
+    await seedDefaultTranscriptionLayerForText(textId, layerId, now);
+    await db.texts.put({
+      id: textId,
+      title: { default: 'Import audio rollback' },
+      metadata: {
+        timelineMode: 'document',
+        logicalDurationSec: 400,
+      },
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.media_items.put({
+      id: mediaId,
+      textId,
+      filename: 'document-placeholder.track',
+      duration: 400,
+      details: { placeholder: true, timelineMode: 'document', timelineKind: 'placeholder' },
+      isOfflineCached: true,
+      createdAt: now,
+    });
+    await db.anchors.put({
+      id: 'anchor_arch3_import_audio',
+      mediaId,
+      time: 100,
+      createdAt: now,
+    });
+    await LinguisticService.saveUnit({
+      id: 'utt_arch3_import_audio',
+      textId,
+      mediaId,
+      startTime: 10,
+      endTime: 320,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const textPutSpy = vi.spyOn(db.texts, 'put').mockImplementation(() => {
+      throw new Error('timeline metadata boom');
+    });
+
+    try {
+      await expect(LinguisticService.importAudio({
+        textId,
+        audioBlob: new Blob(['arch3'], { type: 'audio/wav' }),
+        filename: 'arch3.wav',
+        duration: 12,
+      })).rejects.toThrow('timeline metadata boom');
+
+      await expect(db.media_items.get(mediaId)).resolves.toEqual(expect.objectContaining({
+        filename: 'document-placeholder.track',
+        duration: 400,
+        details: expect.objectContaining({ placeholder: true, timelineKind: 'placeholder' }),
+      }));
+      await expect(db.layer_units.get('utt_arch3_import_audio')).resolves.toEqual(expect.objectContaining({
+        mediaId,
+        startTime: 10,
+        endTime: 320,
+      }));
+      await expect(db.anchors.get('anchor_arch3_import_audio')).resolves.toEqual(expect.objectContaining({
+        time: 100,
+      }));
+    } finally {
+      textPutSpy.mockRestore();
+    }
   });
 
   it('importAudio importMode add creates a new media row when an acoustic row already exists', async () => {
@@ -3568,6 +3704,21 @@ describe('Audit logging', () => {
     expect(logs[0]!.source).toBe('human');
   });
 
+  it('saveTierDefinition rolls back tier row when audit logging fails (ARCH-3)', async () => {
+    const tier = makeTier({ id: 'td_arch3_tier_save', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation(() => {
+      throw new Error('tier audit boom');
+    });
+
+    try {
+      await expect(LinguisticService.saveTierDefinition(tier, 'human')).rejects.toThrow('tier audit boom');
+      await expect(db.tier_definitions.get('td_arch3_tier_save')).resolves.toBeUndefined();
+      await expect(db.audit_logs.toArray()).resolves.toHaveLength(0);
+    } finally {
+      putSpy.mockRestore();
+    }
+  });
+
   it('logs field-level changes when updating a tier annotation', async () => {
     const tier = makeTier({ id: 'td1', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
     await LinguisticService.saveTierDefinition(tier);
@@ -3776,6 +3927,40 @@ describe('Validated single-item CRUD', () => {
     // Annotations should be gone too
     const anns = await LinguisticService.getTierAnnotations('td1');
     expect(anns).toHaveLength(0);
+  });
+
+  it('removeTierDefinition rolls back tier cascade when audit logging fails (ARCH-3)', async () => {
+    const tier = makeTier({ id: 'td_arch3_tier_remove', textId: 'text_1', key: 'root', tierType: 'time-aligned' });
+    await LinguisticService.saveTierDefinition(tier);
+    await db.media_items.put({
+      id: 'media_arch3_tier_remove',
+      textId: 'text_1',
+      filename: 'tier.wav',
+      details: {},
+      isOfflineCached: true,
+      createdAt: NOW,
+    });
+    await LinguisticService.saveTierAnnotation(
+      makeAnn({ id: 'ann_arch3_tier_remove', tierId: 'td_arch3_tier_remove', startTime: 0, endTime: 1 }),
+    );
+    const storedBefore = await db.tier_annotations.get('ann_arch3_tier_remove');
+    expect(storedBefore?.startAnchorId).toBeTruthy();
+
+    const putSpy = vi.spyOn(db.audit_logs, 'put').mockImplementation((value: AuditLogDocType) => {
+      if (value.documentId === 'ann_arch3_tier_remove' || value.documentId === 'td_arch3_tier_remove') {
+        throw new Error('tier remove audit boom');
+      }
+      return Promise.resolve(value.id) as unknown as ReturnType<typeof db.audit_logs.put>;
+    });
+
+    try {
+      await expect(LinguisticService.removeTierDefinition('td_arch3_tier_remove')).rejects.toThrow('tier remove audit boom');
+      await expect(db.tier_definitions.get('td_arch3_tier_remove')).resolves.toBeTruthy();
+      await expect(db.tier_annotations.get('ann_arch3_tier_remove')).resolves.toEqual(expect.objectContaining({ id: 'ann_arch3_tier_remove' }));
+      await expect(db.anchors.get(storedBefore!.startAnchorId!)).resolves.toBeTruthy();
+    } finally {
+      putSpy.mockRestore();
+    }
   });
 
   it('removeTierDefinition rejects when child tiers depend on it', async () => {

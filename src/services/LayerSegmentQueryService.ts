@@ -200,6 +200,17 @@ export class LayerSegmentQueryService {
     });
   }
 
+  static async listUnitsByIds(unitIds: readonly string[]): Promise<LayerUnitDocType[]> {
+    const ids = [...new Set(unitIds.map((id) => id.trim()).filter((id) => id.length > 0))];
+    if (ids.length === 0) return [];
+
+    return runQueryWithCompatibleTransaction(['layer_units'], async () => {
+      const db = await getDb();
+      const rows = await db.dexie.layer_units.bulkGet(ids);
+      return rows.filter((row): row is LayerUnitDocType => Boolean(row));
+    });
+  }
+
   static async listSegmentsByParentUnitIds(parentUnitIds: readonly string[]): Promise<LayerSegmentViewDocType[]> {
     const ids = [...new Set(parentUnitIds.filter((id) => id.trim().length > 0))];
     if (ids.length === 0) return [];

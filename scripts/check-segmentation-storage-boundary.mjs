@@ -70,12 +70,19 @@ function isSegmentationTableAccess(node) {
 function isTransactionScopeAccess(node) {
   let current = node.parent;
   while (current) {
-    if (
-      ts.isCallExpression(current)
-      && ts.isPropertyAccessExpression(current.expression)
-      && current.expression.name.text === 'transaction'
-    ) {
-      return true;
+    if (ts.isCallExpression(current)) {
+      if (
+        ts.isPropertyAccessExpression(current.expression)
+        && current.expression.name.text === 'transaction'
+      ) {
+        return true;
+      }
+      if (
+        (ts.isIdentifier(current.expression) && current.expression.text === 'withTransaction')
+        || (ts.isPropertyAccessExpression(current.expression) && current.expression.name.text === 'withTransaction')
+      ) {
+        return true;
+      }
     }
     current = current.parent;
   }

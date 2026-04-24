@@ -1,4 +1,4 @@
-import { dexieStoresForTierAnnotationAtomicRw, getDb, withTransaction, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
+import { dexieStoresForTierAnnotationAtomicRw, dexieStoresForTierDefinitionAtomicRw, getDb, withTransaction, type AuditLogDocType, type AuditSource, type AnchorDocType, type TierAnnotationDocType } from '../db';
 import { newId } from '../utils/transcriptionFormatters';
 import { assertReviewProtection, assertStableId, normalizeTierAnnotationDocForStorage } from '../utils/camDataUtils';
 import { type ConstraintSeverity, type ConstraintViolation, type TierSaveResult, validateTierConstraints } from './LinguisticService.constraints';
@@ -88,16 +88,24 @@ export async function getTierDefinitions(textId: string): Promise<TierDefinition
 async function persistTierDefinition(data: TierDefinitionRecord, source: AuditSource): Promise<string> {
   const db = await getDb();
   const existing = await db.dexie.tier_definitions.get(data.id);
-  await db.dexie.tier_definitions.put(data);
-  if (existing) {
-    const changes = diffTrackedFields('tier_definitions', existing as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
-    if (changes.length > 0) {
-      await writeAuditLog('tier_definitions', data.id, 'update', source, changes, db);
-    }
-  } else {
-    await writeAuditLog('tier_definitions', data.id, 'create', source, undefined, db);
-  }
-  return data.id;
+  return withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForTierDefinitionAtomicRw(db)],
+    async () => {
+      await db.dexie.tier_definitions.put(data);
+      if (existing) {
+        const changes = diffTrackedFields('tier_definitions', existing as unknown as Record<string, unknown>, data as unknown as Record<string, unknown>);
+        if (changes.length > 0) {
+          await writeAuditLog('tier_definitions', data.id, 'update', source, changes, db);
+        }
+      } else {
+        await writeAuditLog('tier_definitions', data.id, 'create', source, undefined, db);
+      }
+      return data.id;
+    },
+    { label: 'LinguisticService.persistTierDefinition' },
+  );
 }
 
 export async function saveTierDefinition(data: TierDefinitionRecord, source: AuditSource = 'human'): Promise<TierSaveResult> {
@@ -135,15 +143,23 @@ export async function removeTierDefinition(id: string, source: AuditSource = 'hu
 
   const annotationDocs = await db.collections.tier_annotations.findByIndex('tierId', id);
   const tierAnnotations = annotationDocs.map((doc) => doc.toJSON());
-  for (const annotation of tierAnnotations) {
-    if (annotation.startAnchorId) await db.collections.anchors.remove(annotation.startAnchorId);
-    if (annotation.endAnchorId) await db.collections.anchors.remove(annotation.endAnchorId);
-    await db.collections.tier_annotations.remove(annotation.id);
-    await writeAuditLog('tier_annotations', annotation.id, 'delete', source);
-  }
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForTierDefinitionAtomicRw(db)],
+    async () => {
+      for (const annotation of tierAnnotations) {
+        if (annotation.startAnchorId) await db.collections.anchors.remove(annotation.startAnchorId);
+        if (annotation.endAnchorId) await db.collections.anchors.remove(annotation.endAnchorId);
+        await db.collections.tier_annotations.remove(annotation.id);
+        await writeAuditLog('tier_annotations', annotation.id, 'delete', source, undefined, db);
+      }
 
-  await db.collections.tier_definitions.remove(id);
-  await writeAuditLog('tier_definitions', id, 'delete', source);
+      await db.collections.tier_definitions.remove(id);
+      await writeAuditLog('tier_definitions', id, 'delete', source, undefined, db);
+    },
+    { label: 'LinguisticService.removeTierDefinition' },
+  );
   return { errors: [] };
 }
 

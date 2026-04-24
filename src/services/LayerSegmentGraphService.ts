@@ -1,4 +1,5 @@
 import {
+  dexieStoresForLayerUnitsAndContentsRw,
   dexieStoresForLayerSegmentGraphRw,
   withTransaction,
   type JieyuDatabase,
@@ -130,11 +131,19 @@ export async function upsertUnitLayerUnit(db: JieyuDatabase, unit: LayerUnitDocT
   const layerId = await resolveDefaultTranscriptionLayerId(db, unit.textId);
   if (!layerId) return;
   const { unit: mappedUnit, content } = mapUnitToLayerUnit(unit, layerId);
-  await db.dexie.layer_units.put({
-    ...mappedUnit,
-    mediaId: normalizeMediaId(mappedUnit.mediaId),
-  });
-  await db.dexie.layer_unit_contents.put(content);
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerUnitsAndContentsRw(db)],
+    async () => {
+      await db.dexie.layer_units.put({
+        ...mappedUnit,
+        mediaId: normalizeMediaId(mappedUnit.mediaId),
+      });
+      await db.dexie.layer_unit_contents.put(content);
+    },
+    { label: 'LayerSegmentGraphService.upsertUnitLayerUnit' },
+  );
 }
 
 export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonly LayerUnitDocType[]): Promise<void> {
@@ -161,12 +170,20 @@ export async function bulkUpsertUnitLayerUnits(db: JieyuDatabase, units: readonl
     contents.push(content);
   }
 
-  if (mappedUnits.length > 0) {
-    await db.dexie.layer_units.bulkPut(mappedUnits);
-  }
-  if (contents.length > 0) {
-    await db.dexie.layer_unit_contents.bulkPut(contents);
-  }
+  await withTransaction(
+    db,
+    'rw',
+    [...dexieStoresForLayerUnitsAndContentsRw(db)],
+    async () => {
+      if (mappedUnits.length > 0) {
+        await db.dexie.layer_units.bulkPut(mappedUnits);
+      }
+      if (contents.length > 0) {
+        await db.dexie.layer_unit_contents.bulkPut(contents);
+      }
+    },
+    { label: 'LayerSegmentGraphService.bulkUpsertUnitLayerUnits' },
+  );
 }
 
 export async function listUnitDocsFromCanonicalLayerUnits(db: JieyuDatabase): Promise<LayerUnitDocType[]> {

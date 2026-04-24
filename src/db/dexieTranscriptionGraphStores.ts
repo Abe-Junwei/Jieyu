@@ -104,6 +104,11 @@ export function dexieStoresForTierAnnotationAtomicRw(db: JieyuDatabase) {
   return [db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs] as const;
 }
 
+/** RW: `saveTierDefinition` / `removeTierDefinition` — tier defs plus cascaded annotations/anchors/audit logs. */
+export function dexieStoresForTierDefinitionAtomicRw(db: JieyuDatabase) {
+  return [db.dexie.tier_definitions, db.dexie.tier_annotations, db.dexie.anchors, db.dexie.audit_logs] as const;
+}
+
 // ── P3+: track UI state, language catalog, orthography, project/unit cascade deletes ──
 
 /** RW: `track_entities` only (`TrackEntityStore.saveTrackEntityStateMapToDb`). */

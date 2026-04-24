@@ -95,7 +95,13 @@ async function listSegmentIdsOrphanedAfterRemovingContents(
 
   const orphan: string[] = [];
   for (const segId of uniqueSeg) {
-    const allIds = (await db.dexie.layer_unit_contents.where('unitId').equals(segId).primaryKeys()) as string[];
+    const allIds = await withTransaction(
+      db,
+      'r',
+      [...dexieStoresForLayerUnitsAndContentsRw(db)],
+      async () => (db.dexie.layer_unit_contents.where('unitId').equals(segId).primaryKeys()) as Promise<string[]>,
+      { label: 'LayerSegmentationTextService.listSegmentIdsOrphanedAfterRemovingContents.read' },
+    );
     if (allIds.length === 0) {
       orphan.push(segId);
       continue;
