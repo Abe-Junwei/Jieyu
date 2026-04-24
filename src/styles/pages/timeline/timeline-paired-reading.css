@@ -327,6 +327,12 @@
   color: var(--text-primary);
 }
 
+.timeline-paired-reading-chip-group-ordinal {
+  font-weight: 600;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--header-accent) 14%, var(--surface-panel) 86%);
+}
+
 .timeline-paired-reading-chip-speaker {
   color: var(--text-secondary);
 }
@@ -376,6 +382,24 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* 父转写 + 依赖转写同组纵向叠放，视觉上一块（类似右列多译文层栈） */
+.timeline-paired-reading-source-transcription-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-elevated) 52%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-soft) 38%, transparent);
+}
+
+.timeline-paired-reading-source-transcription-stack > .timeline-paired-reading-editor-row ~ .timeline-paired-reading-editor-row {
+  margin-top: 1px;
+  padding-top: 3px;
+  border-top: 1px dashed color-mix(in srgb, var(--border-soft) 55%, transparent);
 }
 
 .timeline-paired-reading-target-empty {
@@ -496,6 +520,24 @@
   background: color-mix(in srgb, var(--header-accent) var(--theme-opacity-2, 16%), var(--surface-elevated));
 }
 
+/* 折叠层头区域：行左侧轨须完全收起。仅 --lane-label-width:0 仍留 padding/边框时会形成极窄列，层名在 column+wrap 下逐字竖排 | Fully collapse per-row rail when lane header gutter is folded */
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-row-rail {
+  flex: 0 0 0;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  border-width: 0;
+  margin: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-source-surface,
+.transcription-list-main-lane-header-collapsed .timeline-paired-reading-editor-row .timeline-paired-reading-target-surface {
+  border-radius: var(--radius-xs, 7px);
+}
+
 .timeline-paired-reading-view[data-compact-mode='both'] .timeline-paired-reading-source-column {
   box-shadow: inset -1px 0 0 var(--timeline-paired-reading-column-rail);
 }
@@ -523,6 +565,35 @@
 
 .timeline-paired-reading-target-surface-active {
   background: color-mix(in srgb, var(--header-accent) 8%, transparent);
+}
+
+/* 录音模态译文层：与横向 `.timeline-text-item-audio-only` 一致，仅居中录音区、无文本输入 | Audio-only translation: centered controls, no text editor */
+.timeline-paired-reading-target-surface-audio-only {
+  position: relative;
+  min-height: var(--timeline-paired-reading-editor-min-height, 63px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  cursor: default;
+}
+
+.timeline-paired-reading-target-surface-audio-only .timeline-paired-reading-target-audio-only-inner {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  box-sizing: border-box;
+  padding: 6px 8px;
+}
+
+.timeline-paired-reading-group[data-paired-reading-layout='many-to-one']
+  .timeline-paired-reading-target-layer-stack:only-child
+  .timeline-paired-reading-target-surface-audio-only {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .timeline-paired-reading-source-surface:hover,
@@ -796,15 +867,33 @@
   background: var(--timeline-neutral-empty-bg);
 }
 
-.timeline-paired-reading-target-tools {
-  display: flex;
+/* 与横向 `.timeline-text-item-tools` 一致：录音控件叠在输入区右上，不占文档流宽 | Match horizontal translation strip */
+.timeline-paired-reading-target-surface.timeline-draft-editor-surface-has-tools .timeline-paired-reading-target-tools {
+  position: absolute;
+  top: var(--timeline-annotation-side-stack-top);
+  right: var(--timeline-annotation-side-stack-right);
+  inset-inline-end: var(--timeline-annotation-side-stack-right);
+  display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
-  flex-wrap: wrap;
   gap: 4px;
-  min-width: 0;
-  max-width: 100%;
-  min-height: 24px;
+  z-index: calc(var(--z-timeline-seg-resize-handle) + 1);
+}
+
+.timeline-paired-reading-target-surface.timeline-draft-editor-surface-has-tools.timeline-paired-reading-target-surface-has-side-badges .timeline-paired-reading-target-tools {
+  right: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
+  inset-inline-end: calc(
+    var(--timeline-annotation-side-stack-right) + var(--timeline-segment-self-certainty-input-end-gutter)
+  );
+}
+
+.timeline-paired-reading-target-surface.timeline-draft-editor-surface-has-tools .timeline-paired-reading-target-input {
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end);
+}
+
+.timeline-paired-reading-target-surface.timeline-draft-editor-surface-has-tools.timeline-paired-reading-target-surface-has-side-badges .timeline-paired-reading-target-input {
+  padding-inline-end: var(--timeline-segment-tools-text-input-pad-end-with-self-certainty);
 }
 
 @media (max-width: 960px) {

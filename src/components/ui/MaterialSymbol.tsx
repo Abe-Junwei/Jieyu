@@ -9,11 +9,12 @@ export type MaterialSymbolProps = {
 /**
  * [Material Symbols Outlined](https://fonts.google.com/icons) — 需在 `index.html` 加载 Google Fonts 样式表。
  */
-export function MaterialSymbol({ name, className, ...rest }: MaterialSymbolProps) {
+export function MaterialSymbol({ name, className, 'aria-hidden': ariaHidden, ...rest }: MaterialSymbolProps) {
   return (
     <span
       {...rest}
       className={['material-symbols-outlined', 'jieyu-material', className].filter(Boolean).join(' ')}
+      aria-hidden={ariaHidden ?? true}
     >
       {name}
     </span>

@@ -71,36 +71,6 @@ const mediaItemDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
-const unitDocSchema = z
-  .object({
-    id: z.string().min(1),
-    textId: z.string().min(1),
-    mediaId: z.string().optional(),
-    transcription: transcriptionSchema.optional(),
-    speaker: z.string().optional(),
-    speakerId: z.string().min(1).optional(),
-    language: z.string().optional(),
-    startTime: z.number().finite(),
-    endTime: z.number().finite(),
-    startAnchorId: z.string().min(1).optional(),
-    endAnchorId: z.string().min(1).optional(),
-    notes: multiLangStringSchema.optional(),
-    tags: z.record(z.string(), z.boolean()).optional(),
-    ai_metadata: aiMetadataSchema.optional(),
-    aiMode: z.enum(['AUTO', 'SUGGEST']).optional(),
-    isVerified: z.boolean().optional(),
-    annotationStatus: z.enum(['raw', 'transcribed', 'translated', 'glossed', 'verified']).optional(),
-    selfCertainty: z.enum(UNIT_SELF_CERTAINTY_VALUES).optional(),
-    provenance: provenanceSchema.optional(),
-    accessRights: accessRightsSchema.optional(),
-    createdAt: isoDateSchema,
-    updatedAt: isoDateSchema,
-  })
-  .refine((doc) => doc.endTime >= doc.startTime, {
-    message: 'endTime must be >= startTime',
-    path: ['endTime'],
-  });
-
 const anchorDocSchema = z.object({
   id: z.string().min(1),
   mediaId: z.string().min(1),
@@ -376,9 +346,13 @@ const languageCatalogHistoryDocSchema = z.object({
   summary: z.string().min(1),
   changedFields: z.array(z.string().min(1)).optional(),
   reason: z.string().optional(),
+  reasonCode: z.string().optional(),
   actorId: z.string().optional(),
   actorType: z.enum(['human', 'ai', 'system', 'importer']).optional(),
   sourceType: languageCatalogSourceTypeSchema.optional(),
+  beforePatch: z.record(z.string(), z.unknown()).optional(),
+  afterPatch: z.record(z.string(), z.unknown()).optional(),
+  sourceRef: z.string().optional(),
   snapshot: z.record(z.string(), z.unknown()).optional(),
   createdAt: isoDateSchema,
 });
@@ -624,9 +598,9 @@ const layerUnitDocSchema = z
   .object({
     id: z.string().min(1),
     textId: z.string().min(1),
-    mediaId: z.string().min(1),
-    layerId: z.string().min(1),
-    unitType: layerUnitTypeSchema,
+    mediaId: z.string().min(1).optional(),
+    layerId: z.string().min(1).optional(),
+    unitType: layerUnitTypeSchema.optional(),
     parentUnitId: z.string().min(1).optional(),
     rootUnitId: z.string().min(1).optional(),
     startTime: z.number().finite(),
@@ -642,39 +616,44 @@ const layerUnitDocSchema = z
     createdAt: isoDateSchema,
     updatedAt: isoDateSchema,
   })
+  .passthrough()
   .refine((doc) => doc.endTime >= doc.startTime, {
     message: 'endTime must be >= startTime',
     path: ['endTime'],
   });
 
-const layerUnitContentDocSchema = z.object({
-  id: z.string().min(1),
-  textId: z.string().min(1),
-  unitId: z.string().min(1),
-  layerId: z.string().min(1),
-  contentRole: layerContentRoleSchema,
-  modality: z.enum(['text', 'audio', 'mixed']),
-  text: z.string().optional(),
-  mediaRefId: z.string().min(1).optional(),
-  sourceType: z.enum(['human', 'ai']),
-  ai_metadata: aiMetadataSchema.optional(),
-  provenance: provenanceSchema.optional(),
-  accessRights: accessRightsSchema.optional(),
-  isVerified: z.boolean().optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-});
+const layerUnitContentDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1).optional(),
+    unitId: z.string().min(1).optional(),
+    layerId: z.string().min(1).optional(),
+    contentRole: layerContentRoleSchema.optional(),
+    modality: z.enum(['text', 'audio', 'mixed']).optional(),
+    text: z.string().optional(),
+    mediaRefId: z.string().min(1).optional(),
+    sourceType: z.enum(['human', 'ai']).optional(),
+    ai_metadata: aiMetadataSchema.optional(),
+    provenance: provenanceSchema.optional(),
+    accessRights: accessRightsSchema.optional(),
+    isVerified: z.boolean().optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .passthrough();
 
-const unitRelationDocSchema = z.object({
-  id: z.string().min(1),
-  textId: z.string().min(1),
-  sourceUnitId: z.string().min(1),
-  targetUnitId: z.string().min(1),
-  relationType: unitRelationTypeSchema,
-  provenance: provenanceSchema.optional(),
-  createdAt: isoDateSchema,
-  updatedAt: isoDateSchema,
-});
+const unitRelationDocSchema = z
+  .object({
+    id: z.string().min(1),
+    textId: z.string().min(1),
+    sourceUnitId: z.string().min(1).optional(),
+    targetUnitId: z.string().min(1).optional(),
+    relationType: unitRelationTypeSchema.optional(),
+    provenance: provenanceSchema.optional(),
+    createdAt: isoDateSchema,
+    updatedAt: isoDateSchema,
+  })
+  .passthrough();
 
 const tierTypeSchema = z.enum(['time-aligned', 'time-subdivision', 'symbolic-subdivision', 'symbolic-association']);
 const tierContentTypeSchema = z.enum(['transcription', 'translation', 'gloss', 'pos', 'note', 'custom']);
@@ -914,10 +893,6 @@ const aiTaskSnapshotDocSchema = z.object({
 
 export function validateTextDoc(doc: TextDocType): void {
   textDocSchema.parse(doc);
-}
-
-export function validateUnitDoc(doc: LayerUnitDocType): void {
-  unitDocSchema.parse(doc);
 }
 
 export function validateMediaItemDoc(doc: MediaItemDocType): void {

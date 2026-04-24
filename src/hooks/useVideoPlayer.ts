@@ -41,6 +41,10 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
   const segmentBoundsRef = useRef<{ start: number; end: number } | null>(null);
   // 段落寻道防护，避免陈旧 timeupdate 导致误判越界 | Guard against stale timeupdate ticks after seek
   const segmentSeekGuardRef = useRef<SegmentSeekGuard | null>(null);
+  const latestPlaybackTimeRef = useRef(0);
+  const playbackVisualRafRef = useRef<number | null>(null);
+  const commitPlaybackVisualRef = useRef<((time: number, invokeCallback: boolean) => void) | null>(null);
+  const schedulePlaybackVisualRef = useRef<(() => void) | null>(null);
 
   const setPlaybackRate = useCallback((r: number) => {
     _setRate(r);
@@ -75,6 +79,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     if (!canResume) {
       video.currentTime = start;
       segmentSeekGuardRef.current = { pending: true };
+      commitPlaybackVisualRef.current?.(start, true);
     }
     segmentBoundsRef.current = { start, end };
     void video.play();
@@ -126,6 +131,32 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     const video = videoRef.current;
     if (!video || !options.mediaUrl) return;
 
+    const cancelScheduledPlaybackVisual = () => {
+      if (playbackVisualRafRef.current !== null) {
+        cancelAnimationFrame(playbackVisualRafRef.current);
+        playbackVisualRafRef.current = null;
+      }
+    };
+
+    commitPlaybackVisualRef.current = (time: number, invokeCallback: boolean) => {
+      cancelScheduledPlaybackVisual();
+      latestPlaybackTimeRef.current = time;
+      setCurrentTime(time);
+      if (invokeCallback) {
+        cbRef.current.onTimeUpdate?.(time);
+      }
+    };
+
+    schedulePlaybackVisualRef.current = () => {
+      if (playbackVisualRafRef.current !== null) return;
+      playbackVisualRafRef.current = requestAnimationFrame(() => {
+        playbackVisualRafRef.current = null;
+        const t = latestPlaybackTimeRef.current;
+        setCurrentTime(t);
+        cbRef.current.onTimeUpdate?.(t);
+      });
+    };
+
     const onLoadedMetadata = () => {
       setIsReady(true);
       setDuration(video.duration || 0);
@@ -150,23 +181,26 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         if (cbRef.current.segmentLoop) {
           segmentSeekGuardRef.current = { pending: true };
           video.currentTime = bounds.start;
-          cbRef.current.onTimeUpdate?.(bounds.start);
+          commitPlaybackVisualRef.current?.(bounds.start, true);
         } else {
           video.pause();
           video.currentTime = bounds.start;
           segmentBoundsRef.current = null;
           segmentSeekGuardRef.current = null;
-          cbRef.current.onTimeUpdate?.(bounds.start);
+          commitPlaybackVisualRef.current?.(bounds.start, true);
         }
         return;
       }
 
-      setCurrentTime(time);
-      cbRef.current.onTimeUpdate?.(time);
+      latestPlaybackTimeRef.current = time;
+      schedulePlaybackVisualRef.current?.();
     };
 
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => {
+      setIsPlaying(false);
+      commitPlaybackVisualRef.current?.(video.currentTime || 0, false);
+    };
     const onEnded = () => {
       segmentBoundsRef.current = null;
       segmentSeekGuardRef.current = null;
@@ -176,6 +210,7 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
         return;
       }
       setIsPlaying(false);
+      commitPlaybackVisualRef.current?.(video.duration || 0, false);
     };
 
     video.addEventListener('loadedmetadata', onLoadedMetadata);
@@ -185,6 +220,9 @@ export function useVideoPlayer(options: UseVideoPlayerOptions) {
     video.addEventListener('ended', onEnded);
 
     return () => {
+      cancelScheduledPlaybackVisual();
+      commitPlaybackVisualRef.current = null;
+      schedulePlaybackVisualRef.current = null;
       video.removeEventListener('loadedmetadata', onLoadedMetadata);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('play', onPlay);

@@ -74,36 +74,14 @@ function normalizeRetries(retries: number | undefined): number {
 }
 
 export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
-  private readonly worker: Worker;
+  private worker: Worker | null = null;
+
+  private terminated = false;
 
   private readonly pending = new PendingWorkerRequestStore<WorkerResultMessage, EmbeddingRuntimeProgress>();
 
   constructor() {
-    this.worker = new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
-    this.worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
-      const payload = event.data;
-      if (!this.pending.get(payload.requestId)) return;
-
-      if (payload.type === 'progress') {
-        this.pending.notifyProgress(payload.requestId, payload.progress);
-        return;
-      }
-
-      if (payload.ok) {
-        this.pending.resolve(payload.requestId, payload);
-      } else {
-        this.pending.reject(payload.requestId, new Error(payload.error ?? 'Embedding worker request failed'));
-      }
-    };
-
-    this.worker.onerror = (event: ErrorEvent) => {
-      const message = event.message?.trim() || 'Embedding worker runtime error';
-      this.pending.rejectAll(new Error(message));
-    };
-
-    this.worker.onmessageerror = () => {
-      this.pending.rejectAll(new Error('Embedding worker message decode error'));
-    };
+    this.worker = this.createWorker();
   }
 
   async preload(options: EmbeddingRuntimeOptions): Promise<void> {
@@ -135,10 +113,8 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   }
 
   terminate(): void {
-    this.worker.onmessage = null;
-    this.worker.onerror = null;
-    this.worker.onmessageerror = null;
-    this.worker.terminate();
+    this.terminated = true;
+    this.teardownWorker();
     this.pending.rejectAll(new Error('Embedding worker terminated'));
   }
 
@@ -155,10 +131,16 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
   }
 
   private postRequest(request: WorkerRequest, onProgress?: (progress: EmbeddingRuntimeProgress) => void): Promise<WorkerResultMessage> {
+    const worker = this.ensureWorker();
     return this.pending.track(
       request.requestId,
       () => {
-        this.worker.postMessage(request);
+        try {
+          worker.postMessage(request);
+        } catch (error) {
+          this.restartWorker();
+          throw error instanceof Error ? error : new Error(String(error));
+        }
       },
       {
         timeoutMs: 60_000,
@@ -166,5 +148,67 @@ export class WorkerEmbeddingRuntime implements EmbeddingRuntime {
         ...(onProgress ? { onProgress } : {}),
       },
     );
+  }
+
+  private ensureWorker(): Worker {
+    if (this.worker) return this.worker;
+    if (this.terminated) {
+      throw new Error('Embedding worker terminated');
+    }
+    this.worker = this.createWorker();
+    return this.worker;
+  }
+
+  private createWorker(): Worker {
+    const worker = new Worker(new URL('./embedding.worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (event: MessageEvent<WorkerResponseMessage>) => {
+      const payload = event.data;
+      if (!this.pending.get(payload.requestId)) return;
+
+      if (payload.type === 'progress') {
+        this.pending.notifyProgress(payload.requestId, payload.progress);
+        return;
+      }
+
+      if (payload.ok) {
+        this.pending.resolve(payload.requestId, payload);
+      } else {
+        this.pending.reject(payload.requestId, new Error(payload.error ?? 'Embedding worker request failed'));
+      }
+    };
+
+    worker.onerror = (event: ErrorEvent) => {
+      const message = event.message?.trim() || 'Embedding worker runtime error';
+      this.handleWorkerFailure(new Error(message));
+    };
+
+    worker.onmessageerror = () => {
+      this.handleWorkerFailure(new Error('Embedding worker message decode error'));
+    };
+
+    return worker;
+  }
+
+  private handleWorkerFailure(error: Error): void {
+    this.pending.rejectAll(error);
+    if (!this.terminated) {
+      this.restartWorker();
+    }
+  }
+
+  private restartWorker(): void {
+    this.teardownWorker();
+    if (!this.terminated) {
+      this.worker = this.createWorker();
+    }
+  }
+
+  private teardownWorker(): void {
+    if (!this.worker) return;
+    this.worker.onmessage = null;
+    this.worker.onerror = null;
+    this.worker.onmessageerror = null;
+    this.worker.terminate();
+    this.worker = null;
   }
 }

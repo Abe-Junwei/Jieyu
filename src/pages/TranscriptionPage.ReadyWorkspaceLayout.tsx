@@ -13,7 +13,6 @@ import { LeftRailProjectHub } from '../components/transcription/LeftRailProjectH
 import { CollaborationConflictReviewDrawer } from '../components/transcription/CollaborationConflictReviewDrawer';
 import { TranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { AiPanelContext } from '../contexts/AiPanelContext';
-import { ToastProvider } from '../contexts/ToastContext';
 import { t, tf, type Locale } from '../i18n';
 import { LayerActionPopover } from '../components/LayerActionPopover';
 import { ToastController } from './TranscriptionPage.ToastController';
@@ -162,7 +161,6 @@ function ReadyStageContent({
 
   return (
     <>
-      <ToastProvider>
         <ToastController {...toastProps} />
         {recoveryBannerProps.shouldRender ? (
           <Suspense fallback={null}>
@@ -302,7 +300,6 @@ function ReadyStageContent({
             </Suspense>
           ) : null}
         </section>
-      </ToastProvider>
 
       {batchOpsSection.shouldRender ? (
         <Suspense fallback={null}>
@@ -328,6 +325,7 @@ export function TranscriptionPageReadyWorkspaceLayout({
   return (
     <TimelineStyledSection
       className="transcription-screen"
+      data-testid="transcription-workspace-screen"
       ref={screenRef}
       dir={dir}
       layoutStyle={layoutStyle}

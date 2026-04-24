@@ -223,6 +223,10 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   private _intentAliasMap: Record<string, ActionId> = {};
   private _stateCache: VoiceAgentServiceState | null = null;
   private static readonly _ENGINE_SWITCH_THRESHOLD = 3; // require N consecutive recommendations before switching
+  /** Bumped on each `stop()` and at the start of each `start()`; in-flight start tails compare to drop stale work after rapid toggle-off. */
+  private _voiceActivateToken = 0;
+  /** Coalesces concurrent `start()` calls; cleared in `stop()` so a new start is not blocked on a stale in-flight promise (CRITICAL-3). */
+  private _exclusiveStartPromise: Promise<void> | null = null;
 
   // ── UI context (set by page via setUiContext) ────────────────────────────
   private _currentSegmentId: string | null = null;
@@ -465,17 +469,48 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
 
   async start(targetMode?: VoiceAgentMode): Promise<void> {
     if (this._listening) return;
+    if (this._exclusiveStartPromise) {
+      return this._exclusiveStartPromise;
+    }
+    const p = this._runExclusiveStart(targetMode);
+    this._exclusiveStartPromise = p;
+    void p.finally(() => {
+      if (this._exclusiveStartPromise === p) {
+        this._exclusiveStartPromise = null;
+      }
+    });
+    return p;
+  }
+
+  private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void> {
+    const activateToken = ++this._voiceActivateToken;
 
     if (targetMode) this._setState({ mode: targetMode });
     this._setState({ error: null, pendingConfirm: null, agentState: 'listening' });
     this._session = createInitialSession();
 
     const svc = await this._ensureVoiceService();
+    if (activateToken !== this._voiceActivateToken) {
+      try {
+        svc.stop();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     const lang = this._getEffectiveLang();
 
     // Refresh battery level for next call; use cached value now | \u5f02\u6b65\u5237\u65b0\u7535\u91cf，\u5f53\u524d\u7528\u7f13\u5b58\u503c
     this._refreshBatteryLevel();
     const region = await detectRegion();
+    if (activateToken !== this._voiceActivateToken) {
+      try {
+        svc.stop();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     const { chooseSttEngine } = await loadSttStrategyRuntime();
     const runtimeEngine = chooseSttEngine({
       preferred: this._engine,
@@ -497,6 +532,14 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       sttEnhancementConfig: this._sttEnhancementConfig,
       loadSttRuntime,
     });
+    if (activateToken !== this._voiceActivateToken) {
+      try {
+        svc.stop();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
     try {
       await svc.start(startConfig);
     } catch (error) {
@@ -511,11 +554,29 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       return;
     }
 
+    if (activateToken !== this._voiceActivateToken) {
+      try {
+        svc.stop();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+
     // Start speech quality analyzer after the voice service has a live MediaStream.
     // This must happen AFTER svc.start() so that createAnalysisCloneStream()
     // can successfully clone the shared microphone stream.
     if (this._speechQuality && !this._speechQuality.isActive) {
       const stream = await this._voiceService!.createAnalysisCloneStream();
+      if (activateToken !== this._voiceActivateToken) {
+        try {
+          svc.stop();
+        } catch {
+          /* ignore */
+        }
+        this._speechQuality.stop();
+        return;
+      }
       if (stream) {
         this._speechQuality.start(stream);
       } else {
@@ -525,11 +586,23 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
       }
     }
 
+    if (activateToken !== this._voiceActivateToken) {
+      try {
+        svc.stop();
+      } catch {
+        /* ignore */
+      }
+      this._speechQuality?.stop();
+      return;
+    }
+
     void unlockAudio();
     Earcon.playActivate();
   }
 
   stop(): void {
+    this._voiceActivateToken += 1;
+    this._exclusiveStartPromise = null;
     this._dictationPipeline?.stop();
     this._dictationPipeline = null;
     this._speechQuality?.stop();
@@ -949,6 +1022,8 @@ export class VoiceAgentService extends BrowserEventEmitter<VoiceAgentServiceEven
   // ── Cleanup ────────────────────────────────────────────────────────────
 
   dispose(): void {
+    this._voiceActivateToken += 1;
+    this._exclusiveStartPromise = null;
     document.removeEventListener('visibilitychange', this._handleVisibilityChange);
     this._ambientUnsubscribe?.();
     this._dictationPipeline?.stop();

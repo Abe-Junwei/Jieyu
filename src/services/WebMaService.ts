@@ -14,9 +14,11 @@
  *
  * CORS: BAS does not support direct browser requests. Set `corsProxyUrl` in
  * config to your own proxy (e.g., a Cloudflare Worker or Express relay).
- * The proxy must forward requests to `https://webservice.bas.uni-muenchen.ac.kr`.
+ * The proxy must forward requests to the same host as {@link BAS_BASE_URL}.
+ * Official BAS Web Services are documented under `phonetik.uni-muenchen.de` (CLARIN);
+ * this client targets the legacy G2Align CGI path — keep the base URL aligned with your deployment.
  *
- * @see https://webservice.bas.uni-muenchen.ac.kr (API documentation)
+ * @see https://clarin.phonetik.uni-muenchen.de/BASWebServices (current BAS portal)
  */
 
 import type { LayerUnitDocType } from '../db';
@@ -78,7 +80,7 @@ const DEFAULT_CONFIG: Required<WebMaConfig> = {
   maxPollAttempts: 30,
 };
 
-const BAS_BASE_URL = 'https://webservice.bas.uni-muenchen.ac.kr';
+const BAS_BASE_URL = 'https://webservice.bas.uni-muenchen.de';
 const SUBMIT_ENDPOINT = `${BAS_BASE_URL}/cgi-bin/G2Align/G2AlignSrv.exe`;
 const POLL_ENDPOINT = SUBMIT_ENDPOINT;
 

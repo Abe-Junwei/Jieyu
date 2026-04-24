@@ -1,5 +1,5 @@
 import type { AiPromptContext } from '../hooks/useAiChat';
-import type { TimelineUnitView } from '../hooks/timelineUnitView';
+import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
 import type { AcousticPromptSummary } from './transcriptionAcousticSummary';
@@ -84,6 +84,8 @@ interface BuildTranscriptionAiPromptContextParams {
   recentActions?: string[];
   /** Timeline read-model epoch for destructive tool stale guards. */
   timelineReadModelEpoch?: number;
+  /** When set, AI shortTerm receives `timelineUnitsByLayerId` for layer-scoped tools (ADR 0020). */
+  timelineUnitViewIndex?: Pick<TimelineUnitViewIndex, 'byLayer'>;
 }
 
 export function buildTranscriptionAiPromptContext({
@@ -111,6 +113,7 @@ export function buildTranscriptionAiPromptContext({
   defaultTranscriptionLayerId,
   recentActions,
   timelineReadModelEpoch,
+  timelineUnitViewIndex,
 }: BuildTranscriptionAiPromptContextParams): AiPromptContext {
   const selectedLayerKey = selectionSnapshot.selectedLayerId?.trim() ?? '';
   const segmentMetaStorageLayerId = (() => {
@@ -185,6 +188,9 @@ export function buildTranscriptionAiPromptContext({
       ...(unitIndexComplete ? {} : { unitIndexComplete: false }),
       ...(worldModelSnapshot ? { worldModelSnapshot } : {}),
       ...(localUnitIndex ? { localUnitIndex } : {}),
+      ...(timelineUnitViewIndex?.byLayer && timelineUnitViewIndex.byLayer.size > 0
+        ? { timelineUnitsByLayerId: timelineUnitViewIndex.byLayer }
+        : {}),
       ...(recentActions && recentActions.length > 0 ? { recentActions } : {}),
     },
     longTerm: {

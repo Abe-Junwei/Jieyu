@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type SettingsModalMessages = {
   title: string;
@@ -126,6 +126,9 @@ export type SettingsModalMessages = {
   aboutVersion: string;
   aboutDescription: string;
   aboutRepo: string;
+  /** 桌面浏览器支持摘要（与架构文档一致） | Desktop browser support summary */
+  aboutBrowserSupportTitle: string;
+  aboutBrowserSupportBody: string;
   // 扩展 | Extensions (Phase A shell)
   extensionsHostTitle: string;
   extensionsHostVersionLabel: string;
@@ -265,6 +268,9 @@ const zhCN: SettingsModalMessages = {
   aboutVersion: '版本',
   aboutDescription: '解语 Jieyu — 濒危语言科研协作平台',
   aboutRepo: '项目仓库',
+  aboutBrowserSupportTitle: '受支持的浏览器（桌面）',
+  aboutBrowserSupportBody:
+    'Chrome、Edge、Firefox、Safari 各稳定渠道最近两个大版本；Windows 上 360 / QQ / 搜狗须使用 Chromium 极速（高速）模式，且内核不低于上述 Chrome 下限。不包含手机、平板与 App 内嵌浏览器。完整条款见开源仓库 docs/architecture/桌面端浏览器支持策略.md。',
   extensionsHostTitle: '宿主与兼容',
   extensionsHostVersionLabel: '宿主版本（semver）',
   extensionsBlurb:
@@ -404,6 +410,9 @@ const enUS: SettingsModalMessages = {
   aboutVersion: 'Version',
   aboutDescription: 'Jieyu — Endangered Language Research Platform',
   aboutRepo: 'Repository',
+  aboutBrowserSupportTitle: 'Supported browsers (desktop)',
+  aboutBrowserSupportBody:
+    'Recent two stable major releases of Chrome, Edge, Firefox, and Safari. On Windows, 360 / QQ / Sogou are supported only in Chromium speed mode with a kernel version at least matching the Chrome floor. Mobile, tablet, and in-app WebViews are out of scope. Full policy: docs/architecture/桌面端浏览器支持策略.md in the repository.',
   extensionsHostTitle: 'Host & compatibility',
   extensionsHostVersionLabel: 'Host version (semver)',
   extensionsBlurb:
@@ -425,5 +434,5 @@ const enUS: SettingsModalMessages = {
 };
 
 export function getSettingsModalMessages(locale: Locale): SettingsModalMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

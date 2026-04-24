@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 import { getLayerActionLabels, type LayerActionLabels } from './layerActionLabels';
 
 export type LayerActionPopoverMessages = LayerActionLabels & {
@@ -185,5 +185,5 @@ const enUS: LayerActionPopoverMessages = {
 };
 
 export function getLayerActionPopoverMessages(locale: Locale): LayerActionPopoverMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

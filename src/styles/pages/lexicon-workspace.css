@@ -142,6 +142,45 @@
   color: var(--state-danger-text);
 }
 
+.lexicon-workspace-hit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lexicon-workspace-hit-item {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+  overflow: hidden;
+}
+
+.lexicon-workspace-hit-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.lexicon-workspace-hit-link:hover {
+  background: color-mix(in srgb, var(--header-accent) 8%, var(--surface-panel));
+}
+
+.lexicon-workspace-hit-primary {
+  font-weight: 600;
+}
+
+.lexicon-workspace-hit-meta {
+  font-size: calc(11px * var(--ui-font-scale, 1));
+  color: var(--text-secondary);
+  word-break: break-all;
+}
+
 @media (max-width: 960px) {
   .lexicon-workspace-layout {
     grid-template-columns: minmax(0, 1fr);

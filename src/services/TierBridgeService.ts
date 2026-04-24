@@ -14,7 +14,7 @@
  *   TranslationLayer(layerType='translation')
  *     ⟷ TierDefinition(tierType='time-aligned', contentType='translation')
  */
-import { getDb, type LayerDocType, type TierDefinitionDocType } from '../db';
+import { getDb, type JieyuDatabase, type LayerDocType, type TierDefinitionDocType } from '../db';
 
 export interface ConsistencyIssue {
   kind: 'missing-tier' | 'missing-layer' | 'mismatch';
@@ -41,8 +41,9 @@ function tierKeyForLayer(layer: Pick<LayerDocType, 'key'>): string {
  */
 export async function removeLayerTierBridge(
   layer: Pick<LayerDocType, 'textId' | 'key'>,
+  existingDb?: JieyuDatabase,
 ): Promise<number> {
-  const db = await getDb();
+  const db = existingDb ?? await getDb();
   return db.collections.tier_definitions.removeBySelector({
     textId: layer.textId,
     key: tierKeyForLayer(layer),
@@ -56,8 +57,9 @@ export async function removeLayerTierBridge(
 export async function syncLayerToTier(
   layer: LayerDocType,
   textId: string,
+  existingDb?: JieyuDatabase,
 ): Promise<TierDefinitionDocType> {
-  const db = await getDb();
+  const db = existingDb ?? await getDb();
   const expectedKey = tierKeyForLayer(layer);
 
   const existingDoc = await db.collections.tier_definitions

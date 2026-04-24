@@ -84,4 +84,27 @@ describe('createLogger', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith('[PatchedConsole]', 'visible to spy');
     consoleErrorSpy.mockRestore();
   });
+
+  it('scrubs sensitive string fields recursively in nested objects', () => {
+    const entries: LogEntry[] = [];
+    const unsub = addLogObserver((e) => entries.push(e));
+
+    const log = createLogger('Nested');
+    log.info('auth', {
+      outer: {
+        token: 'super-secret-token',
+        safe: 'ok',
+      },
+    });
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.data).toEqual({
+      outer: {
+        token: '***oken',
+        safe: 'ok',
+      },
+    });
+
+    unsub();
+  });
 });

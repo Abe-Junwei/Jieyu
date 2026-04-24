@@ -38,6 +38,9 @@ const baseProps = {
     if (key === 'transcription.toast.lockConflictWithSpeakers') {
       return `锁定冲突 ${opts?.count} 项：${opts?.speakers}`;
     }
+    if (key === 'transcription.timeline.audio.error.micPermissionDenied') {
+      return '麦克风权限被拒绝（测试文案）';
+    }
     return key;
   },
 };
@@ -47,6 +50,40 @@ describe('ToastController overlap cycle toast', () => {
     showToast.mockClear();
     showSaveState.mockClear();
     showVoiceState.mockClear();
+  });
+
+  it('shows recording error as translated toast with default error auto-dismiss', () => {
+    render(
+      <ToastController
+        {...baseProps}
+        recordingError="transcription.timeline.audio.error.micPermissionDenied"
+      />,
+    );
+
+    expect(showToast).toHaveBeenCalledWith('麦克风权限被拒绝（测试文案）', 'error');
+    expect(showToast.mock.calls[0]?.[2]).toBeUndefined();
+  });
+
+  it('does not re-fire recording error toast when only the tf function reference changes', () => {
+    const tfA = (key: string) => (key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案A' : key);
+    const tfB = (key: string) => (key === 'transcription.timeline.audio.error.micPermissionDenied' ? '文案B' : key);
+    const { rerender } = render(
+      <ToastController
+        {...baseProps}
+        tf={tfA}
+        recordingError="transcription.timeline.audio.error.micPermissionDenied"
+      />,
+    );
+    expect(showToast).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ToastController
+        {...baseProps}
+        tf={tfB}
+        recordingError="transcription.timeline.audio.error.micPermissionDenied"
+      />,
+    );
+    expect(showToast).toHaveBeenCalledTimes(1);
   });
 
   it('shows lightweight toast when overlap cycle payload updates', () => {

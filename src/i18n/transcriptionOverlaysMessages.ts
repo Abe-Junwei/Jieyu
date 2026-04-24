@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type TranscriptionOverlaysMessages = {
   note: string;
@@ -64,5 +64,5 @@ const enUS: TranscriptionOverlaysMessages = {
 };
 
 export function getTranscriptionOverlaysMessages(locale: Locale): TranscriptionOverlaysMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

@@ -4,13 +4,14 @@ type B = UseTranscriptionWaveformBridgeControllerInput;
 
 export type ReadyWorkspaceWaveformBridgeInputParams = Omit<
   B,
-  'createUnitFromSelection' | 'logicalTimelineDurationSec' | 'mediaId' | 'mediaBlobSize' | 'tierTimelineLassoSuppressed'
+  'createUnitFromSelection' | 'mediaId' | 'mediaBlobSize' | 'tierTimelineLassoSuppressed'
 > & {
   createUnitFromSelectionRouted: B['createUnitFromSelection'];
-  logicalTimelineDurationForZoom: number | undefined;
+  activeTextTimeLogicalDurationSec?: number;
   selectedTimelineMediaId: string | undefined;
   selectedMediaBlobSize: number | undefined;
   verticalComparisonEnabled: boolean;
+  tierIndependentSegmentCreateRangeClamp?: B['tierIndependentSegmentCreateRangeClamp'];
 };
 
 export function buildReadyWorkspaceWaveformBridgeControllerInput(
@@ -40,13 +41,16 @@ export function buildReadyWorkspaceWaveformBridgeControllerInput(
     setUnitSelection: p.setUnitSelection,
     resolveNoteIndicatorTarget: p.resolveNoteIndicatorTarget,
     tierContainerRef: p.tierContainerRef,
-    ...(typeof p.logicalTimelineDurationForZoom === 'number'
-      && Number.isFinite(p.logicalTimelineDurationForZoom)
-      && p.logicalTimelineDurationForZoom > 0
-      ? { logicalTimelineDurationSec: p.logicalTimelineDurationForZoom }
+    ...(typeof p.activeTextTimeLogicalDurationSec === 'number'
+    && Number.isFinite(p.activeTextTimeLogicalDurationSec)
+      ? { activeTextTimeLogicalDurationSec: p.activeTextTimeLogicalDurationSec }
       : {}),
+    unitsOnCurrentMedia: p.unitsOnCurrentMedia,
     ...(p.selectedTimelineMediaId !== undefined ? { mediaId: p.selectedTimelineMediaId } : {}),
     ...(p.selectedMediaBlobSize !== undefined && { mediaBlobSize: p.selectedMediaBlobSize }),
-    ...(p.verticalComparisonEnabled ? { tierTimelineLassoSuppressed: true } : {}),
+    ...(p.verticalComparisonEnabled ? { tierTimelineLassoSuppressed: true, verticalComparisonEnabled: true } : {}),
+    ...(p.tierIndependentSegmentCreateRangeClamp
+      ? { tierIndependentSegmentCreateRangeClamp: p.tierIndependentSegmentCreateRangeClamp }
+      : {}),
   };
 }

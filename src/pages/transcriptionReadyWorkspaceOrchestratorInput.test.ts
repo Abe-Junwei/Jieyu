@@ -13,6 +13,7 @@ function makeInput(overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRa
     importFileRef: { current: null },
     layerAction: { setLayerActionPanel: vi.fn() },
     sharedLaneProps: {
+      timelineContentGutterPx: 64,
       transcriptionLayers: [],
       translationLayers: [],
       timelineUnitViewIndex: { epoch: 0, byId: new Map(), orderedIds: [] },
@@ -110,7 +111,7 @@ function makeInput(overrides?: Partial<TranscriptionReadyWorkspaceOrchestratorRa
     },
     timelineViewportProjection: {
       zoomPxPerSec: 25,
-      logicalTimelineDurationSec: 200,
+      documentSpanSec: 200,
       zoomPercent: 100,
       maxZoomPercent: 400,
       fitPxPerSec: 25,

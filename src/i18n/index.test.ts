@@ -67,4 +67,14 @@ describe('i18n runtime behavior', () => {
     expect(tf('zh-CN', 'transcription.zoom.scale', { percent: 150 })).toBe('缩放：150%');
     expect(tf('en-US', 'transcription.action.audioImported', { filename: 'demo.wav' })).toBe('Media "demo.wav" imported successfully.');
   });
+
+  it('surfaces missing tf() params with a bracket hint and warns in dev', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const out = tf('zh-CN', 'transcription.zoom.scale', {} as Record<string, string | number>);
+    expect(out).toBe('缩放：[i18n missing: percent]%');
+    if (import.meta.env.DEV) {
+      expect(warnSpy).toHaveBeenCalled();
+    }
+    warnSpy.mockRestore();
+  });
 });

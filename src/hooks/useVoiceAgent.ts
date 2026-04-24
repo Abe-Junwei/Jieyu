@@ -162,6 +162,9 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   const analysisTargetUnitIdRef = useRef<string | null>(null);
   const analysisFillCallbackRef = useRef<((text: string) => void) | null>(null);
   const svcUnsubscribesRef = useRef<Array<() => void>>([]);
+  /** Invalidates in-flight `start()` after `stop()` / unmount (CRITICAL-3). */
+  const voiceActivateGenerationRef = useRef(0);
+  const exclusiveStartPromiseRef = useRef<Promise<void> | null>(null);
 
   const queueAiThinking = useCallback(() => {
     pendingAiResponseCountRef.current += 1;
@@ -270,6 +273,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
     setListening,
     setSpeechActive,
     setEnergyLevel,
+    voiceActivateGenerationRef,
+    exclusiveStartPromiseRef,
   });
 
   const {
@@ -282,6 +287,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
   } = useVoiceAgentTransportControls({
     locale,
     listening,
+    voiceActivateGenerationRef,
+    exclusiveStartPromiseRef,
     start,
     stopDictationPipeline,
     clearInteractionPrompts,
@@ -348,6 +355,8 @@ export function useVoiceAgent(options: UseVoiceAgentOptions) {
 
   useEffect(() => {
     return () => {
+      voiceActivateGenerationRef.current += 1;
+      exclusiveStartPromiseRef.current = null;
       if (recordingDurationIntervalRef.current !== null) {
         clearInterval(recordingDurationIntervalRef.current);
         recordingDurationIntervalRef.current = null;

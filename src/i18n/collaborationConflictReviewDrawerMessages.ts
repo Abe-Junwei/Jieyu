@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 import type { CloudSyncConflictReviewTicket } from '../hooks/useTranscriptionCloudSyncActions';
 
 export type CollaborationConflictReviewDrawerMessages = {
@@ -42,5 +42,5 @@ const enUS: CollaborationConflictReviewDrawerMessages = {
 };
 
 export function getCollaborationConflictReviewDrawerMessages(locale: Locale): CollaborationConflictReviewDrawerMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

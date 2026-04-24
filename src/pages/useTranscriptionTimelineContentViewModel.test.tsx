@@ -53,6 +53,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
       mediaLanesPropsInput: {
         zoomPxPerSec: 100,
+        timelineContentGutterPx: 64,
         lassoRect: null,
         transcriptionLayers: [],
         translationLayers: [],
@@ -221,6 +222,7 @@ describe('useTranscriptionTimelineContentViewModel', () => {
       layerActionSetCreateTranscription: () => setLayerActionPanel('create-transcription'),
       mediaLanesPropsInput: {
         zoomPxPerSec: 100,
+        timelineContentGutterPx: 64,
         lassoRect: null,
         transcriptionLayers: [],
         translationLayers: [],

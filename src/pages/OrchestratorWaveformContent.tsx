@@ -103,7 +103,6 @@ export interface OrchestratorWaveformContentProps {
   snapEnabled: boolean;
   toggleSnapEnabled: () => void;
   playerPlaybackRate: number;
-  playerCurrentTime: number;
   selectedUnitDuration: number | null;
   amplitudeScale: number;
   setAmplitudeScale: (v: number) => void;
@@ -126,6 +125,8 @@ export interface OrchestratorWaveformContentProps {
   handleVideoRightPanelResizeStart: React.PointerEventHandler<HTMLDivElement>;
   waveformDisplayMode: WaveformDisplayMode;
   waveCanvasRef: MutableRefObject<HTMLDivElement | null>;
+  /** 波形+频谱外壳：供滚轮 capture 与波形横滑对齐（分屏下半区）| Shell for wheel capture (split-mode pan) */
+  waveformStripWheelShellRef: MutableRefObject<HTMLDivElement | null>;
   playerSpectrogramRef: MutableRefObject<HTMLDivElement | null>;
   playerWaveformRef: MutableRefObject<HTMLDivElement | null>;
   playerSeekTo: (time: number) => void;
@@ -208,7 +209,6 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     snapEnabled,
     toggleSnapEnabled,
     playerPlaybackRate,
-    playerCurrentTime,
     selectedUnitDuration,
     amplitudeScale,
     setAmplitudeScale,
@@ -229,6 +229,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
     handleVideoRightPanelResizeStart,
     waveformDisplayMode,
     waveCanvasRef,
+    waveformStripWheelShellRef,
     playerSpectrogramRef,
     playerWaveformRef,
     playerSeekTo,
@@ -285,6 +286,63 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   // 稳定引用，避免 WaveformLeftStatusStrip 不必要重渲染 | Stable ref to prevent WaveformLeftStatusStrip re-renders
   const handleAmplitudeReset = React.useCallback(() => setAmplitudeScale(1), [setAmplitudeScale]);
 
+  const waveformLeftStatusStripNode = React.useMemo(() => {
+    if (!selectedMediaUrl) return null;
+    return (
+      <WaveformLeftStatusStrip
+        zoomPercent={zoomPercent}
+        snapEnabled={snapEnabled}
+        onSnapToggle={toggleSnapEnabled}
+        playbackRate={playerPlaybackRate}
+        selectedUnitDuration={selectedUnitDuration}
+        amplitudeScale={amplitudeScale}
+        onAmplitudeChange={setAmplitudeScale}
+        onAmplitudeReset={handleAmplitudeReset}
+        selectedMediaIsVideo={selectedMediaIsVideo}
+        videoLayoutMode={videoLayoutMode}
+        onVideoLayoutModeChange={setVideoLayoutMode}
+        onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
+        formatTime={formatTime}
+      />
+    );
+  }, [
+    amplitudeScale,
+    handleAmplitudeReset,
+    handleLaneLabelWidthResizeStart,
+    playerPlaybackRate,
+    selectedMediaIsVideo,
+    selectedMediaUrl,
+    selectedUnitDuration,
+    setAmplitudeScale,
+    setVideoLayoutMode,
+    snapEnabled,
+    toggleSnapEnabled,
+    videoLayoutMode,
+    zoomPercent,
+  ]);
+
+  const waveformHoverTooltipNode = React.useMemo(() => {
+    if (!hoverTime) return null;
+    return (
+      <WaveformHoverTooltip
+        time={hoverTime.time}
+        x={hoverTime.x}
+        y={hoverTime.y}
+        units={unitsOnCurrentMedia}
+        getUnitTextForLayer={getUnitTextForLayer}
+        formatTime={formatTime}
+        {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
+        {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
+      />
+    );
+  }, [
+    getUnitTextForLayer,
+    hoverTime,
+    unitsOnCurrentMedia,
+    waveformHoverPreviewProps.dir,
+    waveformHoverPreviewProps.style,
+  ]);
+
   const activeReadout = spectrogramHoverReadout
     ? {
         source: 'spectrogram' as const,
@@ -304,6 +362,7 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   const selectedHotspotLeftPx = typeof selectedHotspotTimeSec === 'number'
     ? (selectedHotspotTimeSec * zoomPxPerSec) - waveformScrollLeft
     : null;
+  const waveformOverlayTranslateX = -waveformScrollLeft;
   const waveformGuideOverlayWidth = Math.max(1, acousticOverlayViewportWidth);
   const waveformGuideOverlayHeight = Math.max(1, waveformHeight);
   const waveformGuideLabelY = Math.max(1, Math.min(14, waveformGuideOverlayHeight - 1));
@@ -326,44 +385,304 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
   const snapGuideRightPx = snapGuideWindowSec && snapGuideWindowSec > 0 && typeof snapGuideRight === 'number'
     ? ((snapGuideRight - (rulerView?.start ?? 0)) / snapGuideWindowSec) * waveformGuideOverlayWidth
     : null;
-  const renderWaveformAnalysisBand = (
-    bandType: 'confidence' | 'overlap' | 'gap',
-    clipKey: string,
-    leftPx: number,
-    widthPx: number,
-    title: string,
-    label: string | null,
-  ) => {
-    const bandWidth = Math.max(2, widthPx);
-    const clipPathId = `waveform-analysis-band-clip-${clipKey}`;
+  const waveformAnalysisBandNodes = React.useMemo(() => {
+    const renderWaveformAnalysisBand = (
+      bandType: 'confidence' | 'overlap' | 'gap',
+      clipKey: string,
+      leftPx: number,
+      widthPx: number,
+      title: string,
+      label: string | null,
+    ) => {
+      const bandWidth = Math.max(2, widthPx);
+      const clipPathId = `waveform-analysis-band-clip-${clipKey}`;
+      return (
+        <g key={clipKey}>
+          <title>{title}</title>
+          <clipPath id={clipPathId}>
+            <rect x={leftPx} y={4} width={bandWidth} height={92} rx={8} ry={8} />
+          </clipPath>
+          <rect
+            className={`waveform-analysis-band-shape waveform-analysis-band-${bandType}`}
+            x={leftPx}
+            y={4}
+            width={bandWidth}
+            height={92}
+            rx={8}
+            ry={8}
+          />
+          {label ? (
+            <text
+              className={`waveform-analysis-band-label waveform-analysis-band-label-${bandType}`}
+              x={leftPx + 8}
+              y={11}
+              clipPath={`url(#${clipPathId})`}
+            >
+              {label}
+            </text>
+          ) : null}
+        </g>
+      );
+    };
+
     return (
-      <g key={clipKey}>
-        <title>{title}</title>
-        <clipPath id={clipPathId}>
-          <rect x={leftPx} y={4} width={bandWidth} height={92} rx={8} ry={8} />
-        </clipPath>
-        <rect
-          className={`waveform-analysis-band-shape waveform-analysis-band-${bandType}`}
-          x={leftPx}
-          y={4}
-          width={bandWidth}
-          height={92}
-          rx={8}
-          ry={8}
-        />
-        {label ? (
-          <text
-            className={`waveform-analysis-band-label waveform-analysis-band-label-${bandType}`}
-            x={leftPx + 8}
-            y={11}
-            clipPath={`url(#${clipPathId})`}
-          >
-            {label}
-          </text>
-        ) : null}
-      </g>
+      <>
+        {waveformLowConfidenceOverlays.map(({ id, leftPx, widthPx, confidence }, index) => renderWaveformAnalysisBand(
+          'confidence',
+          `confidence-${index}-${id}`,
+          leftPx,
+          widthPx,
+          tf(locale, 'transcription.wave.analysis.lowConfidenceTitle', { confidence: Math.round(confidence * 100) }),
+          widthPx >= 46 ? t(locale, 'transcription.wave.analysis.lowConfidence') : null,
+        ))}
+        {waveformOverlapOverlays.map(({ id, leftPx, widthPx, concurrentCount }, index) => renderWaveformAnalysisBand(
+          'overlap',
+          `overlap-${index}-${id}`,
+          leftPx,
+          widthPx,
+          tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount }),
+          widthPx >= 120 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
+        ))}
+      </>
     );
-  };
+  }, [locale, waveformLowConfidenceOverlays, waveformOverlapOverlays]);
+
+  const waveformNoteIndicatorNodes = React.useMemo(() => waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
+    <div
+      key={`note-${uttId}`}
+      className="waveform-note-indicator-trigger"
+      style={{ left: leftPx + widthPx - 22 }}
+      onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}), scope: 'waveform' });
+      }}
+    >
+      <NoteDocumentIcon
+        className="waveform-note-indicator-icon"
+        ariaLabel={tf(locale, 'transcription.notes.count', { count })}
+        title={tf(locale, 'transcription.notes.count', { count })}
+      />
+    </div>
+  )), [locale, setNotePopover, waveformNoteIndicators]);
+
+  const spectrogramOverlayNode = React.useMemo(() => (
+    <div
+      className="transcription-wave-spectrogram-overlay"
+      onMouseMove={handleSpectrogramMouseMove}
+      onMouseLeave={handleSpectrogramMouseLeave}
+      onClick={handleSpectrogramClick}
+      role="presentation"
+    />
+  ), [handleSpectrogramClick, handleSpectrogramMouseLeave, handleSpectrogramMouseMove]);
+
+  const waveformShellOverlayNode = React.useMemo(() => (
+    <div className="waveform-analysis-overlay" aria-hidden="true">
+      <svg
+        className="waveform-analysis-band-overlay"
+        viewBox={`0 0 ${waveformGuideOverlayWidth} 100`}
+        preserveAspectRatio="none"
+      >
+        <g transform={`translate(${waveformOverlayTranslateX} 0)`}>
+          {waveformAnalysisBandNodes}
+        </g>
+      </svg>
+      {activeReadout ? (
+        <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
+      ) : null}
+    </div>
+  ), [activeReadout, waveformAnalysisBandNodes, waveformGuideOverlayWidth, waveformOverlayTranslateX]);
+
+  const waveformOverlayNode = React.useMemo(() => (
+    <>
+      {(shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null) ? (
+        <svg
+          className="waveform-guide-overlay"
+          viewBox={`0 0 ${waveformGuideOverlayWidth} ${waveformGuideOverlayHeight}`}
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          {shouldRenderSelectedHotspot ? (
+            <line
+              className="waveform-analysis-hotspot-line"
+              x1={selectedHotspotLeftPx as number}
+              x2={selectedHotspotLeftPx as number}
+              y1={waveformGuideHotspotTopY}
+              y2={waveformGuideHotspotBottomY}
+            />
+          ) : null}
+          {snapGuideLeftPx != null ? (
+            <g>
+              <line
+                className={`waveform-snap-guide-line waveform-snap-guide-line-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
+                x1={snapGuideLeftPx}
+                x2={snapGuideLeftPx}
+                y1={0}
+                y2={waveformGuideOverlayHeight}
+              />
+              <text
+                className={`waveform-snap-guide-label waveform-snap-guide-label-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
+                x={snapGuideLeftPx}
+                y={waveformGuideLabelY}
+                textAnchor="middle"
+              >
+                L
+              </text>
+            </g>
+          ) : null}
+          {snapGuideRightPx != null ? (
+            <g>
+              <line
+                className={`waveform-snap-guide-line waveform-snap-guide-line-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
+                x1={snapGuideRightPx}
+                x2={snapGuideRightPx}
+                y1={0}
+                y2={waveformGuideOverlayHeight}
+              />
+              <text
+                className={`waveform-snap-guide-label waveform-snap-guide-label-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
+                x={snapGuideRightPx}
+                y={waveformGuideLabelY}
+                textAnchor="middle"
+              >
+                R
+              </text>
+            </g>
+          ) : null}
+        </svg>
+      ) : null}
+      {acousticOverlayMode !== 'none' ? (
+        <div className="waveform-acoustic-overlay" aria-hidden="true">
+          <svg
+            viewBox={`0 0 ${Math.max(1, acousticOverlayViewportWidth)} 100`}
+            preserveAspectRatio="none"
+          >
+            {acousticOverlayIntensityPath ? (
+              <path className="waveform-acoustic-path waveform-acoustic-path-intensity" d={acousticOverlayIntensityPath} />
+            ) : null}
+            {acousticOverlayF0Path ? (
+              <path className="waveform-acoustic-path waveform-acoustic-path-f0" d={acousticOverlayF0Path} />
+            ) : null}
+          </svg>
+          <div className="waveform-acoustic-legend">
+            {acousticOverlayLoading ? (
+              <span className="waveform-acoustic-chip waveform-acoustic-chip-neutral">
+                {t(locale, 'transcription.wave.acoustic.loading')}
+              </span>
+            ) : null}
+            {!activeReadout && acousticOverlayMode !== 'intensity' ? (
+              <span className="waveform-acoustic-chip waveform-acoustic-chip-f0">
+                {t(locale, 'transcription.wave.acoustic.f0')}
+                {' '}
+                {acousticOverlayVisibleSummary?.f0MeanHz != null ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz` : '—'}
+              </span>
+            ) : null}
+            {!activeReadout && acousticOverlayMode !== 'f0' ? (
+              <span className="waveform-acoustic-chip waveform-acoustic-chip-intensity">
+                {t(locale, 'transcription.wave.acoustic.intensity')}
+                {' '}
+                {acousticOverlayVisibleSummary?.intensityPeakDb != null ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB` : '—'}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      {waveLassoOverlay ? (
+        <svg className="wave-lasso-overlay" aria-hidden="true">
+          <rect
+            className={`wave-lasso-rect ${waveLassoOverlay.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
+            x={waveLassoOverlay.x}
+            y={waveLassoOverlay.y}
+            width={Math.max(2, waveLassoOverlay.w)}
+            height={Math.max(2, waveLassoOverlay.h)}
+            rx={waveLassoOverlay.mode === 'create' ? 0 : 2}
+            ry={waveLassoOverlay.mode === 'create' ? 0 : 2}
+          />
+          {waveLassoOverlay.mode === 'select' && (
+            <foreignObject
+              x={waveLassoOverlay.x + 8}
+              y={waveLassoOverlay.y + 8}
+              width={172}
+              height={28}
+            >
+              <div className="wave-lasso-hint">
+                {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoOverlay.hintCount })}
+              </div>
+            </foreignObject>
+          )}
+        </svg>
+      ) : null}
+      <div className="waveform-note-indicator-layer" style={{ transform: `translateX(${waveformOverlayTranslateX}px)` }}>
+        {waveformNoteIndicatorNodes}
+      </div>
+    </>
+  ), [
+    acousticOverlayF0Path,
+    acousticOverlayIntensityPath,
+    acousticOverlayLoading,
+    acousticOverlayMode,
+    acousticOverlayViewportWidth,
+    acousticOverlayVisibleSummary?.f0MeanHz,
+    acousticOverlayVisibleSummary?.intensityPeakDb,
+    activeReadout,
+    locale,
+    selectedHotspotLeftPx,
+    shouldRenderSelectedHotspot,
+    snapGuideLeftPx,
+    snapGuideNearSideValue,
+    snapGuideRightPx,
+    waveformGuideHotspotBottomY,
+    waveformGuideHotspotTopY,
+    waveformGuideLabelY,
+    waveformGuideOverlayHeight,
+    waveformGuideOverlayWidth,
+    waveformNoteIndicatorNodes,
+    waveformOverlayTranslateX,
+    waveLassoOverlay,
+  ]);
+
+  const segMarkStatusNode = React.useMemo(() => {
+    if (segMarkStart === null) return null;
+    return (
+      <div className="seg-mark-status">
+        ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
+      </div>
+    );
+  }, [locale, segMarkStart]);
+
+  const shouldRenderRegionActionOverlay = !selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady;
+
+  const regionActionOverlayNode = React.useMemo(() => {
+    if (!shouldRenderRegionActionOverlay) return null;
+    return (
+      <RegionActionOverlay
+        unitStartTime={selectedWaveformTimelineItem.startTime}
+        unitEndTime={selectedWaveformTimelineItem.endTime}
+        zoomPxPerSec={zoomPxPerSec}
+        scrollLeft={waveformScrollLeft}
+        waveAreaWidth={playerInstanceGetWidth()}
+        isPlaying={playerIsPlaying}
+        segmentPlaybackRate={segmentPlaybackRate}
+        segmentLoopPlayback={segmentLoopPlayback}
+        skipProcessing={selectedWaveformTimelineItem.tags?.skipProcessing === true}
+        onPlaybackRateChange={handleSegmentPlaybackRateChange}
+        onToggleLoop={handleToggleSelectedWaveformLoop}
+        onTogglePlay={handleToggleSelectedWaveformPlay}
+      />
+    );
+  }, [
+    handleSegmentPlaybackRateChange,
+    handleToggleSelectedWaveformLoop,
+    handleToggleSelectedWaveformPlay,
+    playerInstanceGetWidth,
+    playerIsPlaying,
+    segmentLoopPlayback,
+    segmentPlaybackRate,
+    selectedWaveformTimelineItem,
+    shouldRenderRegionActionOverlay,
+    waveformScrollLeft,
+    zoomPxPerSec,
+  ]);
 
   // Attach wheel handler natively with { passive: false } so preventDefault() works.
   // React 18 registers wheel as a passive listener, causing errors on preventDefault().
@@ -389,36 +708,8 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
         onMouseMove={handleWaveformAreaMouseMove}
         onMouseLeave={handleWaveformAreaMouseLeave}
       >
-        {hoverTime && (
-          <WaveformHoverTooltip
-            time={hoverTime.time}
-            x={hoverTime.x}
-            y={hoverTime.y}
-            units={unitsOnCurrentMedia}
-            getUnitTextForLayer={getUnitTextForLayer}
-            formatTime={formatTime}
-            {...(waveformHoverPreviewProps.dir !== undefined ? { previewDir: waveformHoverPreviewProps.dir } : {})}
-            {...(waveformHoverPreviewProps.style !== undefined ? { previewStyle: waveformHoverPreviewProps.style } : {})}
-          />
-        )}
-        {selectedMediaUrl && (
-          <WaveformLeftStatusStrip
-            zoomPercent={zoomPercent}
-            snapEnabled={snapEnabled}
-            onSnapToggle={toggleSnapEnabled}
-            playbackRate={playerPlaybackRate}
-            currentTime={playerCurrentTime}
-            selectedUnitDuration={selectedUnitDuration}
-            amplitudeScale={amplitudeScale}
-            onAmplitudeChange={setAmplitudeScale}
-            onAmplitudeReset={handleAmplitudeReset}
-            selectedMediaIsVideo={selectedMediaIsVideo}
-            videoLayoutMode={videoLayoutMode}
-            onVideoLayoutModeChange={setVideoLayoutMode}
-            onLaneLabelWidthResize={handleLaneLabelWidthResizeStart}
-            formatTime={formatTime}
-          />
-        )}
+        {waveformHoverTooltipNode}
+        {waveformLeftStatusStripNode}
         <div className="waveform-content-offset">
           {selectedMediaUrl ? (
             <>
@@ -440,230 +731,48 @@ export const OrchestratorWaveformContent = React.memo(function OrchestratorWavef
                 waveformStripHeight={waveformHeight}
                 waveformDisplayMode={waveformDisplayMode}
                 waveCanvasRef={effectiveWaveCanvasRef}
+                waveformStripWheelShellRef={waveformStripWheelShellRef}
                 playerSpectrogramRef={playerSpectrogramRef}
                 playerWaveformRef={playerWaveformRef}
                 onSeek={playerSeekTo}
                 onPlayRegion={playerPlayRegion}
-                spectrogramOverlay={(
-                  <div
-                    className="transcription-wave-spectrogram-overlay"
-                    onMouseMove={handleSpectrogramMouseMove}
-                    onMouseLeave={handleSpectrogramMouseLeave}
-                    onClick={handleSpectrogramClick}
-                    role="presentation"
-                  />
-                )}
-                waveformShellOverlay={(
-                  <div className="waveform-analysis-overlay" aria-hidden="true">
-                    <svg
-                      className="waveform-analysis-band-overlay"
-                      viewBox={`0 0 ${waveformGuideOverlayWidth} 100`}
-                      preserveAspectRatio="none"
-                    >
-                      {waveformLowConfidenceOverlays.map(({ id, leftPx, widthPx, confidence }, index) => renderWaveformAnalysisBand(
-                        'confidence',
-                        `confidence-${index}-${id}`,
-                        leftPx,
-                        widthPx,
-                        tf(locale, 'transcription.wave.analysis.lowConfidenceTitle', { confidence: Math.round(confidence * 100) }),
-                        widthPx >= 46 ? t(locale, 'transcription.wave.analysis.lowConfidence') : null,
-                      ))}
-                      {waveformOverlapOverlays.map(({ id, leftPx, widthPx, concurrentCount }, index) => renderWaveformAnalysisBand(
-                        'overlap',
-                        `overlap-${index}-${id}`,
-                        leftPx,
-                        widthPx,
-                        tf(locale, 'transcription.wave.analysis.overlapTitle', { count: concurrentCount }),
-                        widthPx >= 120 ? tf(locale, 'transcription.wave.analysis.overlap', { count: concurrentCount }) : null,
-                      ))}
-
-                    </svg>
-                    {activeReadout ? (
-                      <WaveformReadoutCard readout={activeReadout} formatTime={formatTime} />
-                    ) : null}
-                  </div>
-                )}
-                waveformOverlay={(
-                  <>
-                    {(shouldRenderSelectedHotspot || snapGuideLeftPx != null || snapGuideRightPx != null) ? (
-                      <svg
-                        className="waveform-guide-overlay"
-                        viewBox={`0 0 ${waveformGuideOverlayWidth} ${waveformGuideOverlayHeight}`}
-                        preserveAspectRatio="none"
-                        aria-hidden="true"
-                      >
-                        {shouldRenderSelectedHotspot ? (
-                          <line
-                            className="waveform-analysis-hotspot-line"
-                            x1={selectedHotspotLeftPx as number}
-                            x2={selectedHotspotLeftPx as number}
-                            y1={waveformGuideHotspotTopY}
-                            y2={waveformGuideHotspotBottomY}
-                          />
-                        ) : null}
-                        {snapGuideLeftPx != null ? (
-                          <g>
-                            <line
-                              className={`waveform-snap-guide-line waveform-snap-guide-line-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
-                              x1={snapGuideLeftPx}
-                              x2={snapGuideLeftPx}
-                              y1={0}
-                              y2={waveformGuideOverlayHeight}
-                            />
-                            <text
-                              className={`waveform-snap-guide-label waveform-snap-guide-label-left ${snapGuideNearSideValue === 'left' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
-                              x={snapGuideLeftPx}
-                              y={waveformGuideLabelY}
-                              textAnchor="middle"
-                            >
-                              L
-                            </text>
-                          </g>
-                        ) : null}
-                        {snapGuideRightPx != null ? (
-                          <g>
-                            <line
-                              className={`waveform-snap-guide-line waveform-snap-guide-line-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-line-near' : ''}`}
-                              x1={snapGuideRightPx}
-                              x2={snapGuideRightPx}
-                              y1={0}
-                              y2={waveformGuideOverlayHeight}
-                            />
-                            <text
-                              className={`waveform-snap-guide-label waveform-snap-guide-label-right ${snapGuideNearSideValue === 'right' || snapGuideNearSideValue === 'both' ? 'waveform-snap-guide-label-near' : ''}`}
-                              x={snapGuideRightPx}
-                              y={waveformGuideLabelY}
-                              textAnchor="middle"
-                            >
-                              R
-                            </text>
-                          </g>
-                        ) : null}
-                      </svg>
-                    ) : null}
-                    {acousticOverlayMode !== 'none' ? (
-                      <div className="waveform-acoustic-overlay" aria-hidden="true">
-                        <svg
-                          viewBox={`0 0 ${Math.max(1, acousticOverlayViewportWidth)} 100`}
-                          preserveAspectRatio="none"
-                        >
-                          {acousticOverlayIntensityPath ? (
-                            <path className="waveform-acoustic-path waveform-acoustic-path-intensity" d={acousticOverlayIntensityPath} />
-                          ) : null}
-                          {acousticOverlayF0Path ? (
-                            <path className="waveform-acoustic-path waveform-acoustic-path-f0" d={acousticOverlayF0Path} />
-                          ) : null}
-                        </svg>
-                        <div className="waveform-acoustic-legend">
-                          {acousticOverlayLoading ? (
-                            <span className="waveform-acoustic-chip waveform-acoustic-chip-neutral">
-                              {t(locale, 'transcription.wave.acoustic.loading')}
-                            </span>
-                          ) : null}
-                          {!activeReadout && acousticOverlayMode !== 'intensity' ? (
-                            <span className="waveform-acoustic-chip waveform-acoustic-chip-f0">
-                              {t(locale, 'transcription.wave.acoustic.f0')}
-                              {' '}
-                              {acousticOverlayVisibleSummary?.f0MeanHz != null ? `${Math.round(acousticOverlayVisibleSummary.f0MeanHz)} Hz` : '—'}
-                            </span>
-                          ) : null}
-                          {!activeReadout && acousticOverlayMode !== 'f0' ? (
-                            <span className="waveform-acoustic-chip waveform-acoustic-chip-intensity">
-                              {t(locale, 'transcription.wave.acoustic.intensity')}
-                              {' '}
-                              {acousticOverlayVisibleSummary?.intensityPeakDb != null ? `${acousticOverlayVisibleSummary.intensityPeakDb.toFixed(1)} dB` : '—'}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                    {waveLassoOverlay ? (
-                      <svg className="wave-lasso-overlay" aria-hidden="true">
-                        <rect
-                          className={`wave-lasso-rect ${waveLassoOverlay.mode === 'create' ? 'wave-lasso-rect-create' : 'wave-lasso-rect-select'}`}
-                          x={waveLassoOverlay.x}
-                          y={waveLassoOverlay.y}
-                          width={Math.max(2, waveLassoOverlay.w)}
-                          height={Math.max(2, waveLassoOverlay.h)}
-                          rx={waveLassoOverlay.mode === 'create' ? 0 : 2}
-                          ry={waveLassoOverlay.mode === 'create' ? 0 : 2}
-                        />
-                        {waveLassoOverlay.mode === 'select' && (
-                          <foreignObject
-                            x={waveLassoOverlay.x + 8}
-                            y={waveLassoOverlay.y + 8}
-                            width={172}
-                            height={28}
-                          >
-                            <div className="wave-lasso-hint">
-                              {tf(locale, 'transcription.wave.selectionHint', { count: waveLassoOverlay.hintCount })}
-                            </div>
-                          </foreignObject>
-                        )}
-                      </svg>
-                    ) : null}
-                    {waveformNoteIndicators.map(({ uttId, leftPx, widthPx, count, layerId }) => (
-                      <div
-                        key={`note-${uttId}`}
-                        className="waveform-note-indicator-trigger"
-                        style={{ left: leftPx + widthPx - 22 }}
-                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setNotePopover({ x: e.clientX, y: e.clientY, uttId, ...(layerId ? { layerId } : {}), scope: 'waveform' });
-                        }}
-                      >
-                        <NoteDocumentIcon
-                          className="waveform-note-indicator-icon"
-                          ariaLabel={tf(locale, 'transcription.notes.count', { count })}
-                          title={tf(locale, 'transcription.notes.count', { count })}
-                        />
-                      </div>
-                    ))}
-                  </>
-                )}
+                spectrogramOverlay={spectrogramOverlayNode}
+                waveformShellOverlay={waveformShellOverlayNode}
+                waveformOverlay={waveformOverlayNode}
               />
-              {!selectedMediaIsVideo && selectedWaveformTimelineItem && playerIsReady && (
-                <RegionActionOverlay
-                  unitStartTime={selectedWaveformTimelineItem.startTime}
-                  unitEndTime={selectedWaveformTimelineItem.endTime}
-                  zoomPxPerSec={zoomPxPerSec}
-                  scrollLeft={waveformScrollLeft}
-                  waveAreaWidth={playerInstanceGetWidth()}
-                  isPlaying={playerIsPlaying}
-                  segmentPlaybackRate={segmentPlaybackRate}
-                  segmentLoopPlayback={segmentLoopPlayback}
-                  skipProcessing={selectedWaveformTimelineItem.tags?.skipProcessing === true}
-                  onPlaybackRateChange={handleSegmentPlaybackRateChange}
-                  onToggleLoop={handleToggleSelectedWaveformLoop}
-                  onTogglePlay={handleToggleSelectedWaveformPlay}
-                />
-              )}
+              {regionActionOverlayNode}
             </>
           ) : (
-            <div className="wave-empty transcription-wave-empty-centered">
-              {!selectedMediaUrl ? (
-                <button
-                  className="transcription-import-media-btn"
-                  onClick={() => mediaFileInputRef.current?.click()}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                  {t(locale, 'transcription.wave.emptyImportMedia')}
-                </button>
-              ) : (
-                t(locale, 'transcription.wave.emptyNoMedia')
-              )}
-            </div>
+            <>
+              {/*
+                纯文本/无声学也挂载 waveCanvasRef：与有波形时一样供 useZoom 量宽、绑滚轮与底部缩放，避免 ref 恒为 null 时缩放/标尺失效。
+                Text-only: keep waveCanvasRef on a 0-height viewport so useZoom and zoom controls work.
+              */}
+              <div
+                ref={effectiveWaveCanvasRef}
+                className="transcription-logical-waveform-viewport"
+                aria-hidden
+              />
+              <div className="wave-empty transcription-wave-empty-centered">
+                {!selectedMediaUrl ? (
+                  <button
+                    className="transcription-import-media-btn"
+                    onClick={() => mediaFileInputRef.current?.click()}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    {t(locale, 'transcription.wave.emptyImportMedia')}
+                  </button>
+                ) : (
+                  t(locale, 'transcription.wave.emptyNoMedia')
+                )}
+              </div>
+            </>
           )}
-          {segMarkStart !== null && (
-            <div className="seg-mark-status">
-              ✦ {tf(locale, 'transcription.wave.markingHint', { start: formatTime(segMarkStart) })}
-            </div>
-          )}
+          {segMarkStatusNode}
         </div>
       </WaveformAreaSection>
     </>

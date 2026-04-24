@@ -60,7 +60,7 @@ type UseTimelineAnnotationHelpersParams = {
   startTimelineResizeDrag: (
     event: React.PointerEvent<HTMLElement>,
     row: TimelineAnnotationBoundDoc,
-    edge: 'start' | 'end',
+    edge: 'start' | 'end' | 'body',
     layerId: string,
     options?: TimelineResizeDragOptions,
   ) => void;
@@ -356,6 +356,7 @@ export function useTimelineAnnotationHelpers({
         onDoubleClick={() => zoomToUnit(utt.startTime, utt.endTime)}
         onResizeStartPointerDown={(e) => startTimelineResizeDrag(e, utt, 'start', layer.id)}
         onResizeEndPointerDown={(e) => startTimelineResizeDrag(e, utt, 'end', layer.id)}
+        onBodyMovePointerDown={(e) => startTimelineResizeDrag(e, utt, 'body', layer.id)}
         onKeyDown={handleAnnotationKeyDown}
         noteCount={noteIndicator?.count ?? 0}
         {...(noteIndicator ? { onNoteClick: (e: MouseEvent) => handleNoteClick(utt.id, noteIndicator.layerId, e) } : {})}

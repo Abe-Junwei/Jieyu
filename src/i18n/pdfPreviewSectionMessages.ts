@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type PdfPreviewSectionMessages = {
   panelAriaLabel: string;
@@ -34,5 +34,5 @@ const enUS: PdfPreviewSectionMessages = {
 };
 
 export function getPdfPreviewSectionMessages(locale: Locale): PdfPreviewSectionMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

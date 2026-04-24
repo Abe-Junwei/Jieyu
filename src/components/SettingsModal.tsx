@@ -972,7 +972,7 @@ export const SettingsModal = memo(function SettingsModal({
               </SettingsSection>
 
               {/* ── 配色方案 | Color theme ── */}
-              <SettingsSection title="配色方案">
+              <SettingsSection title="\u914d\u8272\u65b9\u6848">
                 <div className="theme-grid">
                   {THEMES.map((theme) => (
                     <button
@@ -1670,6 +1670,10 @@ export const SettingsModal = memo(function SettingsModal({
                       <span>{version}</span>
                     </div>
                   )}
+                  <div className="settings-about-browser-support">
+                    <strong className="settings-about-browser-support-title">{msg.aboutBrowserSupportTitle}</strong>
+                    <p className="settings-about-desc settings-about-browser-support-body">{msg.aboutBrowserSupportBody}</p>
+                  </div>
                 </div>
               </SettingsSection>
             </div>

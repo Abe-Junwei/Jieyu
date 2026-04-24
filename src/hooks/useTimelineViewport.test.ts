@@ -20,7 +20,6 @@ describe('useTimelineViewport', () => {
       playerInstanceRef,
       playerIsReady: false,
       playerDuration: 0,
-      playerCurrentTime: 0,
       playerIsPlaying: false,
       selectedMediaUrl: undefined,
       zoomPercent: 100,
@@ -29,12 +28,12 @@ describe('useTimelineViewport', () => {
       fitPxPerSec: 40,
       maxZoomPercent: 500,
       zoomPxPerSec: 40,
-      logicalTimelineDurationSec: 60,
+      documentSpanSec: 60,
       waveformScrollLeft: 12,
     }));
 
     expect(result.current.projection.zoomPxPerSec).toBe(40);
-    expect(result.current.projection.logicalTimelineDurationSec).toBe(60);
+    expect(result.current.projection.documentSpanSec).toBe(60);
     expect(result.current.projection.zoomPercent).toBe(100);
     expect(result.current.projection.maxZoomPercent).toBe(500);
     expect(result.current.projection.fitPxPerSec).toBe(40);

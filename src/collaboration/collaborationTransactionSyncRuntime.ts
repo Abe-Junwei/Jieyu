@@ -1,3 +1,8 @@
+/**
+ * 事务同步「编排」：在内存中合并副本并产出 digest / 状态标签。
+ * **不**执行 IndexedDB 或其它持久化回滚；`rolled-back` / `rollbackAction` 仅描述合并结论，调用方勿当作已撤销写入。 |
+ * In-memory merge orchestration only — `rolled-back` / `rollbackAction` are diagnostic labels, not DB rollbacks.
+ */
 import { mergeReplicaBatch, type ReplicaBatchMergeResult } from './collaborationMultiReplicaRuntime';
 import type { CrossDeviceReplica } from './collaborationCrossDeviceRuntime';
 
@@ -36,9 +41,11 @@ export interface TransactionAtomicityResult {
 
 export interface TransactionSyncResult {
   transactionId: string;
+  /** 合并是否全部无阻塞；`rolled-back` 不表示数据库已回滚 | Logical status only — not a Dexie transaction rollback */
   status: 'committed' | 'rolled-back';
   outcomes: TransactionEntityOutcome[];
   atomicity: TransactionAtomicityResult;
+  /** 建议的后续处理标签，非已执行的存储回滚 | Advisory label for callers, not an executed storage rollback */
   rollbackAction: 'none' | 'soft-rollback' | 'hard-rollback';
   conflicts: string[];
   digest: string;

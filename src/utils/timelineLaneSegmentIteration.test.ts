@@ -41,6 +41,19 @@ function createUnit(id: string, layerId: string): LayerUnitDocType {
   };
 }
 
+/** Independent-boundary host segment row (merged segmentation graph) */
+function createHostSegment(
+  id: string,
+  hostLayerId: string,
+  parentUnitId: string,
+): LayerUnitDocType {
+  return {
+    ...createUnit(id, hostLayerId),
+    unitType: 'segment',
+    unitId: parentUnitId,
+  };
+}
+
 afterEach(() => {
   resetSegmentTimelineFallbackDiagnosticsForTest();
 });
@@ -63,14 +76,56 @@ describe('listSegmentTimelineUnitsForLayer', () => {
       fallbackUnits,
     );
 
-    expect(result).toEqual(fallbackUnits);
+    expect(result).toEqual([]);
     expect(getSegmentTimelineFallbackDiagnosticsForTest()).toEqual({
       total: 1,
       lastEvent: {
         layerId: translation.id,
         layerType: 'translation',
-        fallbackUnitsCount: 1,
+        fallbackUnitsCount: 0,
       },
     });
+  });
+
+  it('uses the host independent-boundary segment list for translation, not the unit-timeline fallback', () => {
+    const host = createLayer({
+      id: 'tr-host-1',
+      key: 'tr1',
+      layerType: 'transcription',
+      constraint: 'independent_boundary',
+    });
+    const translation = createLayer({
+      id: 'tl-1',
+      key: 'tl1',
+      layerType: 'translation',
+    });
+    const layerById = new Map<string, LayerDocType>([
+      [host.id, host],
+      [translation.id, translation],
+    ]);
+    const hostOnlySegment = createHostSegment('seg-1', host.id, 'u-parent-1');
+    const segmentsByLayer = new Map<string, LayerUnitDocType[]>([[host.id, [hostOnlySegment]]]);
+    // Many canonical units in the "viewport" — would be wrong if used as the translation row list
+    const bigFallback: LayerUnitDocType[] = [createUnit('u-1', host.id), createUnit('u-2', host.id), createUnit('u-3', host.id)];
+    const layerLinks = [
+      {
+        layerId: translation.id,
+        transcriptionLayerKey: host.key,
+        hostTranscriptionLayerId: host.id,
+        isPreferred: true,
+      },
+    ];
+
+    const result = listSegmentTimelineUnitsForLayer(
+      translation,
+      layerById,
+      segmentsByLayer,
+      bigFallback,
+      host.id,
+      layerLinks,
+    );
+
+    expect(result).toEqual([hostOnlySegment]);
+    expect(getSegmentTimelineFallbackDiagnosticsForTest().total).toBe(0);
   });
 });

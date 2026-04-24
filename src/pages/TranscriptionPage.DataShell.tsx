@@ -4,6 +4,7 @@
  */
 
 import { lazy, Suspense } from 'react';
+import { ToastProvider } from '../contexts/ToastContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { t, type Locale } from '../i18n';
 import type { AppShellOpenSearchDetail } from '../utils/appShellEvents';
@@ -27,7 +28,11 @@ export function TranscriptionPageDataShell({
   const data = useTranscriptionData();
 
   if (data.state.phase === 'loading') {
-    return <p className="hint">{t(locale, 'transcription.status.loading')}</p>;
+    return (
+      <p className="hint" data-testid="transcription-page-loading">
+        {t(locale, 'transcription.status.loading')}
+      </p>
+    );
   }
 
   if (data.state.phase === 'error') {
@@ -35,12 +40,19 @@ export function TranscriptionPageDataShell({
   }
 
   return (
-    <Suspense fallback={<p className="hint">{t(locale, 'transcription.status.loading')}</p>}>
-      <TranscriptionPageReadyWorkspace
-        data={data}
-        {...(appSearchRequest !== undefined ? { appSearchRequest } : {})}
-        {...(onConsumeAppSearchRequest ? { onConsumeAppSearchRequest } : {})}
-      />
-    </Suspense>
+    <ToastProvider>
+      <Suspense fallback={(
+        <p className="hint" data-testid="transcription-page-loading">
+          {t(locale, 'transcription.status.loading')}
+        </p>
+      )}
+      >
+        <TranscriptionPageReadyWorkspace
+          data={data}
+          {...(appSearchRequest !== undefined ? { appSearchRequest } : {})}
+          {...(onConsumeAppSearchRequest ? { onConsumeAppSearchRequest } : {})}
+        />
+      </Suspense>
+    </ToastProvider>
   );
 }

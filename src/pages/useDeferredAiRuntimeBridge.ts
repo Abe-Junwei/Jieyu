@@ -22,6 +22,20 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
   const fallbackFingerprintRef = useRef<string>(buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current));
   const lastAiChatSettingsFingerprintRef = useRef<string>('');
 
+  const recoverToMainThreadFingerprint = useCallback(() => {
+    const worker = aiStateWorkerRef.current;
+    if (worker) {
+      worker.onmessage = null;
+      worker.onerror = null;
+      worker.onmessageerror = null;
+      worker.terminate();
+      aiStateWorkerRef.current = null;
+    }
+    const nextFingerprint = buildAiStateWorkerFingerprint(latestRuntimeSliceRef.current);
+    fallbackFingerprintRef.current = nextFingerprint;
+    setDeferredAiRuntime(latestBridgeRuntimeRef.current);
+  }, []);
+
   useEffect(() => {
     if (typeof Worker === 'undefined') {
       return;
@@ -35,12 +49,20 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
       fallbackFingerprintRef.current = event.data.fingerprint;
       setDeferredAiRuntime(latestBridgeRuntimeRef.current);
     };
+    worker.onerror = () => {
+      recoverToMainThreadFingerprint();
+    };
+    worker.onmessageerror = () => {
+      recoverToMainThreadFingerprint();
+    };
     return () => {
       worker.onmessage = null;
+      worker.onerror = null;
+      worker.onmessageerror = null;
       worker.terminate();
       aiStateWorkerRef.current = null;
     };
-  }, []);
+  }, [recoverToMainThreadFingerprint]);
 
   const handleDeferredAiRuntimeChange = useCallback((runtimeState: DeferredTranscriptionAiRuntimeState) => {
     latestBridgeRuntimeRef.current = runtimeState;
@@ -54,12 +76,18 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     const worker = aiStateWorkerRef.current;
     if (worker) {
       const message: AiStateWorkerRequest = { type: 'state_slice', payload: nextSlice };
-      worker.postMessage(message);
+      try {
+        worker.postMessage(message);
+      } catch {
+        recoverToMainThreadFingerprint();
+      }
       // 设置指纹变则立刻 setState；仅依赖 Worker 回传会晚一拍
       if (settingsFingerprintChanged) {
         setDeferredAiRuntime(runtimeState);
       }
-      return;
+      if (aiStateWorkerRef.current) {
+        return;
+      }
     }
 
     const nextFingerprint = buildAiStateWorkerFingerprint(nextSlice);
@@ -75,8 +103,12 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     const worker = aiStateWorkerRef.current;
     if (worker) {
       const flushMessage: AiStateWorkerRequest = { type: 'flush', payload: latestSlice };
-      worker.postMessage(flushMessage);
-      return;
+      try {
+        worker.postMessage(flushMessage);
+        return;
+      } catch {
+        recoverToMainThreadFingerprint();
+      }
     }
 
     const nextFingerprint = buildAiStateWorkerFingerprint(latestSlice);
@@ -85,7 +117,7 @@ export function useDeferredAiRuntimeBridge(): DeferredAiRuntimeBridgeResult {
     }
     fallbackFingerprintRef.current = nextFingerprint;
     setDeferredAiRuntime(latestBridgeRuntimeRef.current);
-  }, []);
+  }, [recoverToMainThreadFingerprint]);
 
   return {
     deferredAiRuntime,

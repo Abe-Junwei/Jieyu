@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useLatest } from './useLatest';
 import { useTranscriptionState } from './useTranscriptionState';
 import { useTranscriptionRecoverySnapshotScheduler } from './useTranscriptionRecovery';
@@ -19,7 +18,9 @@ import { useTranscriptionMutexActionWrappers } from './useTranscriptionMutexActi
 import { useTranscriptionCanonicalActions } from './useTranscriptionCanonicalActions';
 import { useTranscriptionPersistence } from './useTranscriptionPersistence';
 import { useTranscriptionCloudSyncActions } from './useTranscriptionCloudSyncActions';
-import { getTranscriptionAppService } from '../app/TranscriptionAppService';
+import { buildCollaborationPresenceFocus } from './useTranscriptionDataCollaborationFocus';
+import { useTranscriptionDataPhaseCountsEffect } from './useTranscriptionDataPhaseCountsEffect';
+import { useTranscriptionDataTextTimeMapping } from './useTranscriptionDataTextTimeMapping';
 import { isSegmentTimelineUnit, isUnitTimelineUnit, type DbState, type LayerCreateInput, type SaveState, type SnapGuide } from './transcriptionTypes';
 export type { DbState, LayerCreateInput, SaveState, SnapGuide };
 
@@ -175,31 +176,13 @@ export function useTranscriptionData() {
     translations,
   });
 
-  useEffect(() => {
-    if (state.phase !== 'ready') return;
-    const nextUnitCount = units.length;
-    const nextTranslationLayerCount = translationLayers.length;
-    const nextTranslationRecordCount = translations.length;
-    setState((prev) => {
-      if (prev.phase !== 'ready') return prev;
-      const nextUnifiedUnitCount = prev.unifiedUnitCount ?? nextUnitCount;
-      if (
-        prev.unitCount === nextUnitCount
-        && prev.unifiedUnitCount === nextUnifiedUnitCount
-        && prev.translationLayerCount === nextTranslationLayerCount
-        && prev.translationRecordCount === nextTranslationRecordCount
-      ) {
-        return prev;
-      }
-      return {
-        ...prev,
-        unitCount: nextUnitCount,
-        unifiedUnitCount: nextUnifiedUnitCount,
-        translationLayerCount: nextTranslationLayerCount,
-        translationRecordCount: nextTranslationRecordCount,
-      };
-    });
-  }, [state.phase, units.length, translationLayers.length, translations.length, setState]);
+  useTranscriptionDataPhaseCountsEffect({
+    statePhase: state.phase,
+    unitsLength: units.length,
+    translationLayersLength: translationLayers.length,
+    translationsLength: translations.length,
+    setState,
+  });
 
   const {
     selectedMediaUrl,
@@ -235,10 +218,17 @@ export function useTranscriptionData() {
     setSelectedLayerId,
     setSelectedUnitIds,
     setSelectedTimelineUnit,
+    setSelectedMediaId,
     setState,
     setTranslations,
     setUnitDrafts,
     setUnits,
+  });
+
+  const { applyTextTimeMapping, previewTextTimeMapping } = useTranscriptionDataTextTimeMapping({
+    units,
+    layers,
+    loadSnapshot,
   });
 
   const {
@@ -408,23 +398,7 @@ export function useTranscriptionData() {
     saveState,
   });
 
-  const collaborationPresenceFocus = (() => {
-    if (isUnitTimelineUnit(selectedTimelineUnit) || isSegmentTimelineUnit(selectedTimelineUnit)) {
-      return {
-        entityType: 'layer_unit' as const,
-        entityId: selectedTimelineUnit.unitId,
-      };
-    }
-
-    if (selectedLayerId) {
-      return {
-        entityType: 'layer' as const,
-        entityId: selectedLayerId,
-      };
-    }
-
-    return {};
-  })();
+  const collaborationPresenceFocus = buildCollaborationPresenceFocus(selectedTimelineUnit, selectedLayerId);
 
   const cloudSyncActions = useTranscriptionCloudSyncActions({
     phase: state.phase, units, layers, unitsRef, layersRef, layerLinksRef,
@@ -495,34 +469,6 @@ export function useTranscriptionData() {
     listAccessibleCloudProjects: cloudSyncActions.listAccessibleCloudProjects,
     listCloudProjectMembers: cloudSyncActions.listCloudProjectMembers,
   };
-
-  const transcriptionAppService = getTranscriptionAppService();
-
-  const applyTextTimeMapping = async (input: {
-    textId?: string;
-    offsetSec?: number;
-    scale?: number;
-    sourceMediaId?: string;
-  }) => {
-    const textId = input.textId?.trim() || units[0]?.textId || layers[0]?.textId || '';
-    if (!textId) {
-      throw new Error('当前没有可更新的文本项目');
-    }
-    await transcriptionAppService.updateTextTimeMapping({
-      textId,
-      ...(input.offsetSec !== undefined ? { offsetSec: input.offsetSec } : {}),
-      ...(input.scale !== undefined ? { scale: input.scale } : {}),
-      ...(input.sourceMediaId?.trim() ? { sourceMediaId: input.sourceMediaId.trim() } : {}),
-    });
-    await loadSnapshot();
-  };
-
-  const previewTextTimeMapping = (input: {
-    startTime: number;
-    endTime: number;
-    offsetSec?: number;
-    scale?: number;
-  }) => transcriptionAppService.previewTextTimeMapping(input);
 
   const actionApi = {
     loadSnapshot,

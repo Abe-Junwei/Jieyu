@@ -143,7 +143,7 @@ describe('useTranscriptionSegmentCreationController', () => {
     window.localStorage.removeItem('jieyu:new-segment-selection-behavior');
   });
 
-  it('creates independent segments with overlapping unit linkage and inherits overlapping unit speaker', async () => {
+  it('creates independent segments overlapping canonical units and inherits speaker without unitId linkage', async () => {
     const pushUndo = vi.fn();
     const selectTimelineUnit = vi.fn();
     const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
@@ -158,13 +158,14 @@ describe('useTranscriptionSegmentCreationController', () => {
     });
 
     expect(pushUndo).toHaveBeenCalledWith('从选区创建句段');
-    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
+    const created = mockCreateSegment.mock.calls[0]?.[0];
+    expect(created).toEqual(expect.objectContaining({
       layerId: 'layer-seg',
       startTime: 1.2,
       endTime: 2.4,
-      unitId: 'utt-1',
       speakerId: 'spk-parent',
     }));
+    expect(created?.unitId).toBeUndefined();
     expect(selectTimelineUnit).toHaveBeenCalledWith(expect.objectContaining({
       layerId: 'layer-seg',
       kind: 'segment',
@@ -313,6 +314,59 @@ describe('useTranscriptionSegmentCreationController', () => {
       kind: 'error',
       errorMeta: expect.objectContaining({ i18nKey: 'transcription.error.validation.mediaRequired' }),
     }));
+  });
+
+  it('allows independent segment creation beyond 1800s on placeholder media (no acoustic cap)', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const placeholderMedia: MediaItemDocType = {
+      id: 'media-ph',
+      textId: 'text-1',
+      filename: 'document-placeholder.track',
+      duration: 1800,
+      details: { placeholder: true, timelineKind: 'placeholder' },
+      isOfflineCached: true,
+      createdAt: '2026-04-01T00:00:00.000Z',
+    } as MediaItemDocType;
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      selectedTimelineMedia: placeholderMedia,
+      documentSpanSec: 1800,
+      setSaveState,
+    })));
+
+    await act(async () => {
+      await result.current.createUnitFromSelectionRouted(2000, 2010);
+    });
+
+    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
+      mediaId: 'media-ph',
+      startTime: 2000,
+      endTime: 2010,
+    }));
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
+  });
+
+  it('uses logical timeline upper bound when media duration is shorter (text-only / logical axis)', async () => {
+    const setSaveState = vi.fn() as unknown as (state: SaveState) => void;
+    const shortMedia = { ...makeMedia(), duration: 10 } as MediaItemDocType;
+    const { result } = renderHook(() => useTranscriptionSegmentCreationController(createBaseInput({
+      selectedTimelineMedia: shortMedia,
+      documentSpanSec: 100,
+      unitsOnCurrentMedia: createUnitsOnCurrentMedia([], [makeUnit('utt-wide', 0, 100)]),
+      getUnitDocById: (id: string) => (id === 'utt-wide' ? makeUnit('utt-wide', 0, 100) : undefined),
+      findUnitDocContainingRange: () => undefined,
+      findOverlappingUnitDoc: () => undefined,
+      setSaveState,
+    })));
+
+    await act(async () => {
+      await result.current.createUnitFromSelectionRouted(50, 55);
+    });
+
+    expect(mockCreateSegment).toHaveBeenCalledWith(expect.objectContaining({
+      startTime: 50,
+      endTime: 55,
+    }));
+    expect(setSaveState).toHaveBeenCalledWith(expect.objectContaining({ kind: 'done' }));
   });
 
   it('creates independent segment when media row is resolved lazily in text-only mode', async () => {

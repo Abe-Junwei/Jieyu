@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type LayerActionLabels = {
   createTranscriptionLayer: string;
@@ -25,5 +25,5 @@ const enUS: LayerActionLabels = {
 };
 
 export function getLayerActionLabels(locale: Locale): LayerActionLabels {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

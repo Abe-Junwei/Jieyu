@@ -8,7 +8,9 @@
  */
 
 import '../styles/transcription-entry.css';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useToast } from '../contexts/ToastContext';
 import { useAiPanelContextUpdater } from '../contexts/AiPanelContext';
 import { useTranscriptionData } from '../hooks/useTranscriptionData';
 import { useRecording } from '../hooks/useRecording';
@@ -25,11 +27,13 @@ import { useLayerSegmentContents } from '../hooks/useLayerSegmentContents';
 import { useTimelineUnitViewIndex } from '../hooks/useTimelineUnitViewIndex';
 import { useRecoveryBanner } from '../hooks/useRecoveryBanner';
 import { getUnitSpeakerKey } from '../hooks/useSpeakerActions';
-import { isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
+import { createTimelineUnit, isSegmentTimelineUnit, isUnitTimelineUnit } from '../hooks/transcriptionTypes';
 import { t, tf, useLocale } from '../i18n';
 import { fireAndForget } from '../utils/fireAndForget';
 import { computeEffectiveTimelineShellLayersCount } from '../utils/timelineShellMode';
 import { reportValidationError } from '../utils/validationErrorReporter';
+import { clampIndependentSegmentInsertionRange } from '../utils/independentSegmentInsertionRange';
+import { independentSegmentInsertionUpperBoundSec } from '../utils/timelineMediaDurationForBounds';
 import { formatSidePaneLayerLabel, formatTime } from '../utils/transcriptionFormatters';
 import { useTranscriptionAssistantSidebarController } from './useTranscriptionAssistantSidebarController';
 import { useWaveformRuntimeController } from './useWaveformRuntimeController';
@@ -82,6 +86,15 @@ import { CollaborationSyncBadge } from '../components/transcription/Collaboratio
 import { hasSupabaseBrowserClientConfig } from '../integrations/supabase/client';
 import { preserveReadyWorkspaceStructureMarkers } from './TranscriptionPage.ReadyWorkspace.structureMarkers';
 import { buildReadyWorkspaceViewModelsInput } from './readyWorkspaceViewModelsInputBuilder';
+import { resolveSegmentMediaIdFromSegmentGraph, resolveSegmentScopeMediaId } from '../utils/resolveSegmentScopeMediaId';
+import { computeLogicalTimelineDurationForZoom } from './readyWorkspaceLogicalTimelineDuration';
+import { getTranscriptionTextById } from '../hooks/transcriptionTextLookup';
+import {
+  hasTranscriptionDeepLinkSelectionPayload,
+  readTranscriptionDeepLinkOptionalParams,
+  rememberTranscriptionWorkspaceReturnHint,
+  stripTranscriptionDeepLinkSearchParams,
+} from '../utils/transcriptionUrlDeepLink';
 
 void preserveReadyWorkspaceStructureMarkers;
 interface TranscriptionPageReadyWorkspaceProps {
@@ -96,8 +109,13 @@ function TranscriptionPageReadyWorkspace({
   onConsumeAppSearchRequest,
 }: TranscriptionPageReadyWorkspaceProps) {
   const locale = useLocale();
-  /** Pre-bound tf for components that need (key, params) without locale */
-  const tfB = (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]);
+  const [searchParams, setSearchParams] = useSearchParams();
+  /** Pre-bound tf for components that need (key, params) without locale（须稳定引用，否则 ToastController 等会重复触发 effect） */
+  const tfB = useCallback(
+    (key: string, opts?: Record<string, unknown>) => tf(locale, key as Parameters<typeof tf>[1], opts as Parameters<typeof tf>[2]),
+    [locale],
+  );
+  const { showToast } = useToast();
   const {
     state,
     setState,
@@ -229,19 +247,45 @@ function TranscriptionPageReadyWorkspace({
     ? selectedTimelineUnit.unitId
     : '';
 
+  const segmentScopeMediaIdBase = useMemo(
+    () => resolveSegmentScopeMediaId(selectedUnitMedia, selectedTimelineUnit, units, _mediaItems),
+    [selectedUnitMedia, selectedTimelineUnit, units, _mediaItems],
+  );
+
+  const [segmentScopeMediaOverride, setSegmentScopeMediaOverride] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    setSegmentScopeMediaOverride(undefined);
+  }, [segmentScopeMediaIdBase]);
+
+  const segmentScopeMediaId = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
+
   // 独立边界层 segments 加载 | Load segments for independent-boundary layers
   const {
     segmentsByLayer,
     segmentsLoadComplete,
     reloadSegments,
     updateSegmentsLocally,
-  } = useLayerSegments(layers, selectedUnitMedia?.id, defaultTranscriptionLayerId, layerLinks);
+  } = useLayerSegments(layers, segmentScopeMediaId, defaultTranscriptionLayerId, layerLinks);
   const { segmentContentByLayer, reloadSegmentContents } = useLayerSegmentContents(
     layers,
-    selectedUnitMedia?.id,
+    segmentScopeMediaId,
     segmentsByLayer,
     defaultTranscriptionLayerId,
     layerLinks,
+  );
+
+  useEffect(() => {
+    const fromGraph = resolveSegmentMediaIdFromSegmentGraph(selectedTimelineUnit, segmentsByLayer);
+    if (!fromGraph) return;
+    const current = segmentScopeMediaOverride ?? segmentScopeMediaIdBase;
+    if (fromGraph !== current) {
+      setSegmentScopeMediaOverride(fromGraph);
+    }
+  }, [segmentScopeMediaIdBase, segmentScopeMediaOverride, segmentsByLayer, selectedTimelineUnit]);
+
+  const segmentScopeMediaItem = useMemo(
+    () => (segmentScopeMediaId ? _mediaItems.find((m) => m.id === segmentScopeMediaId) : undefined),
+    [_mediaItems, segmentScopeMediaId],
   );
   const {
     focusedLayerRowId,
@@ -308,6 +352,33 @@ function TranscriptionPageReadyWorkspace({
     checkLayerHasContent,
   });
 
+  const urlTextIdApplyNonceRef = useRef(0);
+  const pendingPostTextIdDeepLinkRef = useRef<ReturnType<typeof readTranscriptionDeepLinkOptionalParams> | null>(null);
+  useEffect(() => {
+    const raw = searchParams.get('textId')?.trim() ?? '';
+    if (!raw) return;
+
+    const optional = readTranscriptionDeepLinkOptionalParams(searchParams);
+    const nonce = (urlTextIdApplyNonceRef.current += 1);
+    void (async () => {
+      const exists = await getTranscriptionTextById(raw);
+      if (urlTextIdApplyNonceRef.current !== nonce) return;
+      if (!exists) {
+        pendingPostTextIdDeepLinkRef.current = null;
+        setSearchParams((prev) => stripTranscriptionDeepLinkSearchParams(prev), { replace: true });
+        showToast(tfB('transcription.toast.deepLinkTextNotFound', { textId: raw }), 'error', 3600);
+        return;
+      }
+      setActiveTextId(raw);
+      await loadSnapshot();
+      if (urlTextIdApplyNonceRef.current !== nonce) return;
+      pendingPostTextIdDeepLinkRef.current = hasTranscriptionDeepLinkSelectionPayload(optional)
+        ? optional
+        : null;
+      setSearchParams((prev) => stripTranscriptionDeepLinkSearchParams(prev), { replace: true });
+    })();
+  }, [searchParams, setActiveTextId, loadSnapshot, setSearchParams, showToast, tfB]);
+
   const {
     layerById,
     selectedTimelineSegment,
@@ -353,6 +424,110 @@ function TranscriptionPageReadyWorkspace({
     selectTimelineUnit,
     segmentUndoRef,
   });
+
+  useEffect(() => {
+    const pending = pendingPostTextIdDeepLinkRef.current;
+    if (!pending) return;
+    if (data.state.phase !== 'ready') return;
+
+    const projectTextId = units[0]?.textId?.trim() ?? '';
+    if (!projectTextId) {
+      pendingPostTextIdDeepLinkRef.current = null;
+      return;
+    }
+
+    const mediaOk = (id: string) => {
+      const t = id.trim();
+      if (!t) return false;
+      return _mediaItems.some((m) => m.id === t && m.textId === projectTextId);
+    };
+    const layerOk = (id: string) => {
+      const t = id.trim();
+      if (!t) return false;
+      return layers.some((l) => l.id === t && l.textId === projectTextId);
+    };
+
+    const requestedMediaValid = Boolean(pending.mediaId?.trim() && mediaOk(pending.mediaId!));
+    if (requestedMediaValid) {
+      const want = pending.mediaId!.trim();
+      const cur = (selectedUnitMedia?.id ?? '').trim();
+      if (cur !== want) {
+        _setSelectedMediaId(want);
+        return;
+      }
+    }
+
+    if (pending.layerId?.trim() && layerOk(pending.layerId)) {
+      const lid = pending.layerId.trim();
+      setSelectedLayerId(lid);
+      setFocusedLayerRowId(lid);
+    }
+
+    if (pending.unitId?.trim()) {
+      const unitTarget = pending.unitId.trim();
+      if (pending.unitKind === 'segment') {
+        if (!segmentsLoadComplete) return;
+        let foundLayer: string | null = null;
+        for (const [layerKey, segs] of Object.entries(segmentsByLayer)) {
+          if (!Array.isArray(segs)) continue;
+          if (segs.some((s) => s.id === unitTarget)) {
+            foundLayer = layerKey;
+            break;
+          }
+        }
+        if (foundLayer) {
+          selectTimelineUnit(createTimelineUnit(foundLayer, unitTarget, 'segment'));
+        }
+      } else {
+        const row = units.find((u) => u.id === unitTarget && u.textId === projectTextId);
+        if (row) {
+          const rowMedia = row.mediaId?.trim() ?? '';
+          if (!requestedMediaValid && rowMedia && mediaOk(rowMedia) && (selectedUnitMedia?.id ?? '').trim() !== rowMedia) {
+            _setSelectedMediaId(rowMedia);
+            return;
+          }
+          let layerForUnit =
+            pending.layerId?.trim() && layerOk(pending.layerId)
+              ? pending.layerId.trim()
+              : (row.layerId?.trim() || selectedLayerId?.trim() || defaultTranscriptionLayerId?.trim() || '');
+          if (!layerForUnit || !layers.some((l) => l.id === layerForUnit)) {
+            layerForUnit = defaultTranscriptionLayerId?.trim() || transcriptionLayers[0]?.id?.trim() || '';
+          }
+          if (layerForUnit) {
+            selectTimelineUnit(createTimelineUnit(layerForUnit, row.id, 'unit'));
+          }
+        }
+      }
+    }
+
+    pendingPostTextIdDeepLinkRef.current = null;
+  }, [
+    data.state.phase,
+    units,
+    layers,
+    _mediaItems,
+    selectedUnitMedia,
+    segmentsByLayer,
+    segmentsLoadComplete,
+    selectTimelineUnit,
+    setSelectedLayerId,
+    setFocusedLayerRowId,
+    _setSelectedMediaId,
+    defaultTranscriptionLayerId,
+    selectedLayerId,
+    transcriptionLayers,
+  ]);
+
+  useEffect(() => {
+    if (data.state.phase !== 'ready') return;
+    const tid = (activeTextId ?? units[0]?.textId ?? '').trim();
+    if (!tid) return;
+    const mid = selectedUnitMedia?.id?.trim();
+    rememberTranscriptionWorkspaceReturnHint({
+      textId: tid,
+      ...(mid ? { mediaId: mid } : {}),
+    });
+  }, [data.state.phase, activeTextId, units, selectedUnitMedia?.id]);
 
   // ---- Recovery banner ----
   const {
@@ -450,6 +625,24 @@ function TranscriptionPageReadyWorkspace({
     [verticalViewActive, layers.length, transcriptionLayers.length, translationLayers.length],
   );
 
+  /** 与 `buildReadyWorkspaceLayoutStyle` 中 `--timeline-content-offset` 一致，供轨面 `width` 纯像素写入（Safari） | Matches CSS gutter */
+  const timelineContentGutterPx = useMemo(() => {
+    const labelPx = isTimelineLaneHeaderCollapsed ? 0 : laneLabelWidth;
+    const videoLeftPx = typeof selectedMediaUrl === 'string' && selectedMediaUrl.trim() !== ''
+      && selectedMediaIsVideo
+      && videoLayoutMode === 'left'
+      ? videoRightPanelWidth + 8
+      : 0;
+    return labelPx + videoLeftPx;
+  }, [
+    isTimelineLaneHeaderCollapsed,
+    laneLabelWidth,
+    selectedMediaUrl,
+    selectedMediaIsVideo,
+    videoLayoutMode,
+    videoRightPanelWidth,
+  ]);
+
   const onSelectWorkspaceHorizontalLayout = useCallback(() => {
     setVerticalViewEnabled(false);
   }, [setVerticalViewEnabled]);
@@ -541,16 +734,46 @@ function TranscriptionPageReadyWorkspace({
     setSaveState,
   });
 
+  const transcriptionLaneReadScope = useMemo(
+    () =>
+      transcriptionLayers.length > 0 && layers.length > 0
+        ? { transcriptionLayers, allLayersOrdered: layers, layerLinks }
+        : undefined,
+    [layerLinks, layers, transcriptionLayers],
+  );
+
   const timelineUnitViewIndex = useTimelineUnitViewIndex({
     units,
     unitsOnCurrentMedia,
     segmentsByLayer,
     segmentContentByLayer,
-    currentMediaId: selectedTimelineMedia?.id,
+    currentMediaId: segmentScopeMediaId,
     activeLayerIdForEdits,
     defaultTranscriptionLayerId,
     segmentsLoadComplete,
+    ...(transcriptionLaneReadScope ? { transcriptionLaneReadScope } : {}),
   });
+
+  const activeTextLogicalDurationSecForBridge = useMemo(() => {
+    if (typeof activeTextTimeMapping?.logicalDurationSec === 'number'
+      && Number.isFinite(activeTextTimeMapping.logicalDurationSec)) {
+      return activeTextTimeMapping.logicalDurationSec;
+    }
+    if (state.phase === 'ready') {
+      const s = state.textLogicalDurationSecFromSnapshot;
+      if (typeof s === 'number' && Number.isFinite(s) && s > 0) {
+        return s;
+      }
+    }
+    return undefined;
+  }, [activeTextTimeMapping, state]);
+
+  const documentSpanSecFromBridgeRef = useRef(
+    computeLogicalTimelineDurationForZoom(
+      activeTextLogicalDurationSecForBridge,
+      unitsOnCurrentMedia,
+    ),
+  );
 
   useEffect(() => {
     if (state.phase !== 'ready') return;
@@ -564,6 +787,28 @@ function TranscriptionPageReadyWorkspace({
       };
     });
   }, [setState, state.phase, timelineUnitViewIndex.totalCount]);
+
+  const tierIndependentSegmentCreateRangeClamp = useCallback((rawStart: number, rawEnd: number) => {
+    const routing = resolveSegmentRoutingForLayer(activeLayerIdForEdits);
+    if (routing.editMode !== 'independent-segment') return null;
+    if (!routing.sourceLayerId) return null;
+    const siblings = timelineUnitViewIndex.currentMediaUnits
+      .filter((u) => u.kind === 'segment' && u.layerId === routing.sourceLayerId)
+      .map((u) => ({ startTime: u.startTime, endTime: u.endTime }));
+    const mediaDuration = independentSegmentInsertionUpperBoundSec(
+      segmentScopeMediaItem ?? selectedTimelineMedia,
+      documentSpanSecFromBridgeRef.current,
+    );
+    const r = clampIndependentSegmentInsertionRange(rawStart, rawEnd, siblings, mediaDuration);
+    if (!r.ok) return null;
+    return { start: r.start, end: r.end };
+  }, [
+    activeLayerIdForEdits,
+    resolveSegmentRoutingForLayer,
+    segmentScopeMediaItem,
+    selectedTimelineMedia,
+    timelineUnitViewIndex,
+  ]);
 
   const {
     recentTimelineEditEvents,
@@ -607,6 +852,7 @@ function TranscriptionPageReadyWorkspace({
     activeLayerIdForEdits,
     resolveSegmentRoutingForLayer,
     selectedTimelineMedia: selectedTimelineMedia ?? null,
+    getDocumentSpanSec: () => documentSpanSecFromBridgeRef.current,
     ensureTimelineMediaRowResolved,
     unitsOnCurrentMedia: timelineUnitViewIndex.currentMediaUnits,
     getUnitDocById,
@@ -681,6 +927,7 @@ function TranscriptionPageReadyWorkspace({
 
   const {
     waveformAreaRef,
+    waveformStripWheelShellRef,
     waveCanvasRef,
     player,
     useSegmentWaveformRegions,
@@ -734,6 +981,7 @@ function TranscriptionPageReadyWorkspace({
     handleToggleSelectedWaveformLoop,
     handleToggleSelectedWaveformPlay,
     waveformInteractionHandlerRefs,
+    documentSpanSec: documentSpanSecFromBridge,
   } = useReadyWorkspaceWaveformBridgeController({
     activeLayerIdForEdits,
     layers,
@@ -758,12 +1006,20 @@ function TranscriptionPageReadyWorkspace({
     setUnitSelection,
     resolveNoteIndicatorTarget,
     tierContainerRef,
-    activeTextTimeLogicalDurationSec: activeTextTimeMapping?.logicalDurationSec,
+    ...(typeof activeTextLogicalDurationSecForBridge === 'number'
+      && Number.isFinite(activeTextLogicalDurationSecForBridge)
+      ? { activeTextTimeLogicalDurationSec: activeTextLogicalDurationSecForBridge }
+      : {}),
     unitsOnCurrentMedia,
     selectedTimelineMediaId: selectedTimelineMedia?.id,
     selectedMediaBlobSize,
     verticalComparisonEnabled,
+    tierIndependentSegmentCreateRangeClamp,
   });
+
+  useLayoutEffect(() => {
+    documentSpanSecFromBridgeRef.current = documentSpanSecFromBridge;
+  }, [documentSpanSecFromBridge]);
 
   const selectionSnapshot = useTranscriptionSelectionSnapshot({
     selectedTimelineUnit,
@@ -1103,8 +1359,8 @@ function TranscriptionPageReadyWorkspace({
     selectedUnitIds: Array.from(selectedUnitIds),
     ...(activeLayerIdForEdits !== undefined ? { activeLayerIdForEdits } : {}),
     ...(activeTextTimelineMode !== undefined ? { activeTextTimelineMode } : {}),
-    ...(timelineViewportProjection.logicalTimelineDurationSec > 0
-      ? { logicalTimelineDurationSec: timelineViewportProjection.logicalTimelineDurationSec }
+    ...(timelineViewportProjection.documentSpanSec > 0
+      ? { documentSpanSec: timelineViewportProjection.documentSpanSec }
       : {}),
     ...(timelineViewportProjection.zoomPxPerSec !== undefined ? { zoomPxPerSec: timelineViewportProjection.zoomPxPerSec } : {}),
     ...(timelineViewportProjection.fitPxPerSec !== undefined ? { fitPxPerSec: timelineViewportProjection.fitPxPerSec } : {}),
@@ -1203,6 +1459,8 @@ function TranscriptionPageReadyWorkspace({
     activeTextId,
     getActiveTextId,
     selectedUnitMedia: selectedTimelineMedia,
+    activeTimelineMediaItem: segmentScopeMediaItem ?? selectedTimelineMedia,
+    segmentScopeMediaId,
     unitsOnCurrentMedia,
     anchors,
     layers,
@@ -1594,6 +1852,7 @@ function TranscriptionPageReadyWorkspace({
         deleteVoiceTranslation,
         transcribeVoiceTranslation,
         displayStyleControl,
+        timelineContentGutterPx,
       },
       head: {
         selectedMediaUrl,
@@ -1772,12 +2031,14 @@ function TranscriptionPageReadyWorkspace({
     recoveryAvailable,
   });
 
+  const aiScopeMediaItem = segmentScopeMediaItem ?? selectedTimelineMedia;
   const assistantBridgeControllerInput = buildReadyWorkspaceAssistantBridgeInput({
     selectedUnitIds,
     selectedUnit: selectedUnit ?? null,
     getUnitDocById,
     selectedTimelineSegment: selectedTimelineSegment ?? null,
     ...(selectedTimelineMedia ? { selectedTimelineMedia } : {}),
+    ...(aiScopeMediaItem ? { scopeMediaItemForAi: aiScopeMediaItem } : {}),
     ...(selectedMediaUrl ? { selectedMediaUrl } : {}),
     selectedLayerId,
     activeLayerIdForEdits,
@@ -1817,7 +2078,6 @@ function TranscriptionPageReadyWorkspace({
     translationDrafts,
     translationTextByLayer,
     locale,
-    playerCurrentTime: player.currentTime,
     executeActionRef,
     openSearchRef,
     seekToTimeRef,
@@ -1933,7 +2193,6 @@ function TranscriptionPageReadyWorkspace({
     snapEnabled,
     toggleSnapEnabled,
     playerPlaybackRate: player.playbackRate,
-    playerCurrentTime: player.currentTime,
     selectedUnitDuration: selectedTimelineUnitForTime
       ? selectedTimelineUnitForTime.endTime - selectedTimelineUnitForTime.startTime
       : null,
@@ -1956,6 +2215,7 @@ function TranscriptionPageReadyWorkspace({
     handleVideoRightPanelResizeStart,
     waveformDisplayMode,
     waveCanvasRef,
+    waveformStripWheelShellRef,
     playerSpectrogramRef: player.spectrogramRef,
     playerWaveformRef: player.waveformRef,
     playerSeekTo: player.seekTo,
@@ -2103,7 +2363,7 @@ function TranscriptionPageReadyWorkspace({
     onApplyTextTimeMapping: async (input) => {
       await applyTextTimeMapping({
         ...input,
-        ...(selectedUnitMedia?.id ? { sourceMediaId: selectedUnitMedia.id } : {}),
+        ...(segmentScopeMediaId ? { sourceMediaId: segmentScopeMediaId } : {}),
       });
     },
     onExportEaf: handleExportEaf,

@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type DevErrorAggregationPanelMessages = {
   summary: (count: number) => string;
@@ -28,5 +28,5 @@ const enUS: DevErrorAggregationPanelMessages = {
 };
 
 export function getDevErrorAggregationPanelMessages(locale: Locale): DevErrorAggregationPanelMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

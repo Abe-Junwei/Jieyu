@@ -23,6 +23,11 @@ export interface UseTranscriptionAiControllerInput {
   getUnitDocById: (id: string) => LayerUnitDocType | undefined;
   selectedTimelineSegment?: LayerUnitDocType | null;
   selectedTimelineMedia?: MediaItemDocType;
+  /**
+   * 与读模型 `segmentScopeMediaId` 对齐的 AI 声学/提示/工具作用域媒体；缺省则回退 `selectedTimelineMedia`。
+   * Aligns AI read scope with segment graph media when it differs from sidebar “current row” media.
+   */
+  scopeMediaItemForAi?: MediaItemDocType;
   selectedMediaUrl?: string;
   selectedLayerId: string;
   /** Primary transcription layer id for unit rows in `buildTimelineUnitViewIndex`. */
@@ -75,7 +80,8 @@ export interface UseTranscriptionAiControllerInput {
   translationDrafts: Record<string, string>;
   translationTextByLayer: Map<string, Map<string, { text?: string }>>;
   locale: Locale;
-  playerCurrentTime: number;
+  /** 可选：单测或特殊宿主显式喂时间；生产环境由 `transcriptionPlaybackClock` 驱动 */
+  playerCurrentTime?: number;
   executeActionRef: React.MutableRefObject<((actionId: string) => void) | undefined>;
   openSearchRef: React.MutableRefObject<((detail?: AppShellOpenSearchDetail) => void) | undefined>;
   seekToTimeRef: React.MutableRefObject<((timeSeconds: number) => void) | undefined>;

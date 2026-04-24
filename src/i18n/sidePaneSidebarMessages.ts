@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type SidePaneSidebarMessages = {
   constraintIndependent: string;
@@ -523,5 +523,5 @@ const enUS: SidePaneSidebarMessages = {
 };
 
 export function getSidePaneSidebarMessages(locale: Locale): SidePaneSidebarMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

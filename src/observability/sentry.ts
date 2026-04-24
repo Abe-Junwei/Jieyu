@@ -1,6 +1,8 @@
 export interface SentryBootstrapEnv {
   PROD: boolean;
   MODE: string;
+  /** Set at build from `package.json` version (`vite.config.ts`); optional in tests. */
+  VITE_APP_VERSION?: string;
   VITE_ENABLE_SENTRY?: string;
   VITE_SENTRY_DSN?: string;
   VITE_SENTRY_TRACES_SAMPLE_RATE?: string;
@@ -33,7 +35,7 @@ function normalizeSampleRate(rawValue: string | undefined): number {
 
 export function resolveSentryBootstrapConfig(env: SentryBootstrapEnv): ResolvedSentryBootstrapConfig {
   const dsn = env.VITE_SENTRY_DSN?.trim();
-  const release = env.VITE_SENTRY_RELEASE?.trim();
+  const release = env.VITE_SENTRY_RELEASE?.trim() || env.VITE_APP_VERSION?.trim();
   const environment = env.VITE_SENTRY_ENVIRONMENT?.trim() || env.MODE;
   const enabled = env.PROD && env.VITE_ENABLE_SENTRY === 'true' && Boolean(dsn);
 
@@ -98,7 +100,8 @@ export async function initSentryWithResolvedConfig(
       tracesSampleRate: config.tracesSampleRate,
       ...(config.release ? { release: config.release } : {}),
       sendDefaultPii: config.sendDefaultPii,
-      ...(config.sendDefaultPii ? {} : { beforeSend }),
+      /** 即使开启 sendDefaultPii，仍清理 user / breadcrumbs / extra 中的敏感键 | Scrub sensitive keys even when default PII is on */
+      beforeSend,
     });
   } catch (error) {
     // Sentry 初始化失败不应阻塞应用启动 | Sentry initialization must not block app startup

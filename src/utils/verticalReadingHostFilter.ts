@@ -7,7 +7,7 @@
  * for multi-host translation layer filtering in the paired-reading shell.
  */
 
-import type { LayerDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType, type LayerUnitDocType } from '../db';
 import type { VerticalReadingGroup } from './transcriptionVerticalReadingGroups';
 import {
   buildTranscriptionIdByKeyMap,
@@ -47,6 +47,37 @@ export function buildVerticalReadingHostLinkMaps(
   return { transcriptionIdByKey, linksByTranslationLayerId };
 }
 
+/** 依赖转写轨上的源行 layerId 为子层时，仍应匹配挂在父独立轨上的译文宿主 link | Dependent lane rows inherit parent host for translation filter */
+function expandTranscriptionSourceIdsWithTreeParents(
+  seed: ReadonlySet<string>,
+  transcriptionLayers: readonly LayerDocType[],
+): Set<string> {
+  const next = new Set<string>();
+  for (const raw of seed) {
+    const id = raw.trim();
+    if (id) next.add(id);
+  }
+  if (!transcriptionLayers.length) return next;
+
+  const laneIds = new Set(transcriptionLayers.map((l) => l.id));
+  const layerById = new Map(transcriptionLayers.map((l) => [l.id, l] as const));
+  const expanded = new Set<string>();
+  for (const rawId of next) {
+    expanded.add(rawId);
+    let cur: LayerDocType | undefined = layerById.get(rawId);
+    const guard = new Set<string>();
+    for (let i = 0; i < 64 && cur && cur.layerType === 'transcription'; i += 1) {
+      if (guard.has(cur.id)) break;
+      guard.add(cur.id);
+      const p = layerTranscriptionTreeParentId(cur)?.trim() ?? '';
+      if (!p || !laneIds.has(p)) break;
+      expanded.add(p);
+      cur = layerById.get(p);
+    }
+  }
+  return expanded;
+}
+
 export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
   tl: LayerDocType,
   sourceTranscriptionIds: ReadonlySet<string>,
@@ -79,6 +110,7 @@ export function translationLayerAppliesToVerticalReadingSourceTranscriptionIds(
 
 export function collectVerticalReadingGroupSourceTranscriptionLayerIds(
   group: VerticalReadingGroup,
+  transcriptionLayers?: readonly LayerDocType[],
 ): Set<string> {
   const sourceIds = new Set<string>();
   for (const si of group.sourceItems) {
@@ -89,7 +121,49 @@ export function collectVerticalReadingGroupSourceTranscriptionLayerIds(
     const primary = group.primaryAnchorLayerId?.trim();
     if (primary) sourceIds.add(primary);
   }
-  return sourceIds;
+  return expandTranscriptionSourceIdsWithTreeParents(sourceIds, transcriptionLayers ?? []);
+}
+
+/**
+ * 与 `filterTranslationLayersForVerticalReadingGroup` 同源，但以**单条源单位**为宿主范围
+ *（用于 `buildVerticalReadingGroups` 聚合多译文层，与横向「对当前转写行可见的译文层」一致）。 |
+ * Same host filter as paired-reading groups, scoped to one source unit for aggregate target modeling.
+ */
+export function filterTranslationLayersForVerticalReadingSourceUnit(
+  unit: Pick<LayerUnitDocType, 'id' | 'startTime' | 'endTime' | 'layerId'>,
+  translationLayers: readonly LayerDocType[],
+  transcriptionLayers: readonly LayerDocType[],
+  defaultTranscriptionLayerId: string | undefined,
+  fallbackFocusedTranscriptionLayerId: string | undefined,
+  layerLinks: readonly VerticalReadingHostLink[] = [],
+): LayerDocType[] {
+  const layerId = typeof unit.layerId === 'string' ? unit.layerId.trim() : '';
+  const synthetic: VerticalReadingGroup = {
+    id: `__paired-reading-scope:${unit.id}`,
+    startTime: unit.startTime,
+    endTime: unit.endTime,
+    sourceItems: [{
+      unitId: unit.id,
+      text: '',
+      startTime: unit.startTime,
+      endTime: unit.endTime,
+      ...(layerId.length > 0 ? { layerId } : {}),
+    }],
+    targetItems: [],
+    speakerSummary: '',
+    primaryAnchorUnitId: unit.id,
+    ...(layerId.length > 0 ? { primaryAnchorLayerId: layerId } : {}),
+    editingTargetPolicy: 'group-target',
+    isMultiAnchorGroup: false,
+  };
+  return filterTranslationLayersForVerticalReadingGroup(
+    synthetic,
+    translationLayers,
+    transcriptionLayers,
+    defaultTranscriptionLayerId,
+    fallbackFocusedTranscriptionLayerId,
+    layerLinks,
+  );
 }
 
 export function filterTranslationLayersForVerticalReadingGroup(
@@ -109,7 +183,7 @@ export function filterTranslationLayersForVerticalReadingGroup(
     transcriptionLayers,
     defaultTranscriptionLayerId,
   );
-  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group);
+  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group, transcriptionLayers);
   if (sourceIds.size === 0) {
     return [...translationLayers];
   }
@@ -151,10 +225,12 @@ export function resolveVerticalReadingGroupEmptyReason(
     defaultTranscriptionLayerId,
   );
   if (!orphanAttachLayerId) return 'no-child';
-  const sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group);
+  let sourceIds = collectVerticalReadingGroupSourceTranscriptionLayerIds(group, transcriptionLayers);
   if (sourceIds.size === 0) {
     const fallbackSourceLayerId = fallbackFocusedTranscriptionLayerId?.trim();
-    if (fallbackSourceLayerId) sourceIds.add(fallbackSourceLayerId);
+    if (fallbackSourceLayerId) {
+      sourceIds = expandTranscriptionSourceIdsWithTreeParents(new Set([fallbackSourceLayerId]), transcriptionLayers);
+    }
   }
   if (sourceIds.size === 0) return 'no-child';
   return sourceIds.has(orphanAttachLayerId) ? 'no-child' : 'orphan-needs-repair';

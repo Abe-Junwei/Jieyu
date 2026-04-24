@@ -84,6 +84,11 @@ type TranscriptionTimelineHorizontalMediaLanesProps = {
   /** 时间轴可编辑跨度（秒），优先用于轨面宽度计算 | Editable timeline extent in seconds used as primary lane width source */
   timelineExtentSec?: number;
   zoomPxPerSec: number;
+  /**
+   * 与 `.timeline-content` 的 `padding-left`（层头 + 左视频列）同值的像素和，用于轨面总宽。
+   * 由宿主用纯数写入 `width`，避免 Safari 对嵌套 `calc`/自定义属性的解析问题 | JS sum for Safari-safe width
+   */
+  timelineContentGutterPx: number;
   lassoRect: LassoRect | null;
   transcriptionLayers: LayerDocType[];
   translationLayers: LayerDocType[];
@@ -182,6 +187,7 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
   playerDuration,
   timelineExtentSec,
   zoomPxPerSec,
+  timelineContentGutterPx,
   lassoRect,
   transcriptionLayers,
   translationLayers,
@@ -469,13 +475,21 @@ export const TranscriptionTimelineHorizontalMediaLanes = memo(function Transcrip
       : (acousticShellPending ? ['timeline-content-text-only', 'timeline-content-acoustic-pending'] : [])),
   ].join(' ');
 
+  const timeStripPx = Math.max(0, (timelineExtentSec ?? playerDuration) * zoomPxPerSec);
+  const gutterPx = Math.max(0, timelineContentGutterPx);
+  /** 纯像素 `width`：Safari 对 `calc`+自定义属性链仍可能算错；与 `timeline-layout` 中 padding-left 同源 | Numeric width for WebKit */
+  const timelineContentWidthPx = timeStripPx + gutterPx;
+
   return (
     <TimelineStyledContainer
       className={timelineContentClassName}
       layoutStyle={{
-        /* 时间轴像素宽 + 左侧 padding 同宽的 gutter，与 .timeline-content padding-left 一致，避免轨道内容区比标尺窄一列 | Timeline px + left gutter matches padding so lane area aligns with ruler */
-        width: `calc(${(timelineExtentSec ?? playerDuration) * zoomPxPerSec}px + var(--timeline-content-offset))`,
-        minWidth: '100%',
+        width: timelineContentWidthPx,
+        /**
+         * 禁止 `minWidth: 100%`：当 `zoomPxPerSec` 首帧/异常偏小时，calc 出几十 px 但 min 仍撑满视口，
+         * 语段绝对定位用 `time×zoom` 会挤在左缘细条，形成「全宽行 + 左侧竖线束」| Do not min-fill past time-mapped width
+         */
+        minWidth: 0,
       }}
     >
       {lassoRect && (

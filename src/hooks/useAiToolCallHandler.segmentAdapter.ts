@@ -1,4 +1,5 @@
 import { t, tf } from '../i18n';
+import { mediaDurationSecForTimeBounds } from '../utils/timelineMediaDurationForBounds';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeRequestedIds } from './useAiToolCallHandler.helpers';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
@@ -33,9 +34,8 @@ export const segmentAdapter: ToolObjectAdapter = {
       if (!baseUnit) {
         return { ok: false, message: tf(locale, 'transcription.aiTool.segment.segmentNotFound', { segmentId: ctx.describeRequestedUnitTarget() }) };
       }
-      const mediaDuration = typeof ctx.selectedUnitMedia?.duration === 'number'
-        ? ctx.selectedUnitMedia.duration
-        : baseUnit.endTime + 2;
+      const cap = mediaDurationSecForTimeBounds(ctx.selectedUnitMedia);
+      const mediaDuration = cap === Number.POSITIVE_INFINITY ? baseUnit.endTime + 2 : cap;
       await ctx.createAdjacentUnit(baseUnit, mediaDuration);
       return { ok: true, message: t(locale, 'transcription.aiTool.segment.createDone') };
     }

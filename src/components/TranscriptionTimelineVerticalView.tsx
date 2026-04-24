@@ -1,5 +1,6 @@
 import '../styles/pages/timeline/timeline-paired-reading.css';
-import type { LayerDocType } from '../db';
+import { layerTranscriptionTreeParentId, type LayerDocType } from '../db';
+import { listInboundTranscriptionHostIdsForTranscriptionLane } from '../utils/transcriptionUnitLaneReadScope';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { useTranscriptionEditorContext } from '../contexts/TranscriptionEditorContext';
 import { useTimelineLaneHeightResize } from '../hooks/useTimelineLaneHeightResize';
@@ -17,10 +18,7 @@ import {
   type PairedReadingTargetItem,
 } from '../utils/transcriptionVerticalReadingGroups';
 import { buildLayerBundles } from '../services/LayerOrderingService';
-import {
-  filterTranslationLayersForVerticalReadingGroup,
-  pickTranslationLayerForVerticalReadingUnit,
-} from '../utils/verticalReadingHostFilter';
+import { filterTranslationLayersForVerticalReadingGroup } from '../utils/verticalReadingHostFilter';
 import { useTranscriptionTimelineVerticalChrome } from '../hooks/useTranscriptionTimelineVerticalChrome';
 import {
   BASE_FONT_SIZE,
@@ -38,15 +36,16 @@ import {
   PAIRED_READING_GLOBAL_SPLITTER_LINE_EXTRA_OFFSET_PX,
   accumulatedOffsetTopUntil,
   buildLayerIdToHorizontalBundleRootIdMap,
-  verticalReadingUsesSplitTargetEditors,
   mergePairedReadingTimelineUnitById,
   readStoredPairedReadingEditorMinHeight,
   readStoredPairedReadingEditorHeightMap,
   readStoredPairedReadingColumnLeftGrow,
-  resolvePairedReadingExplicitTargetItemsForLayer,
+  buildAggregatePairedReadingTargetItemsForSourceUnit,
+  resolvePairedReadingSyncedTargetCellId,
   resolveVerticalReadingGroupSourceUnits,
   resolvePairedReadingLayerLabel,
-  resolvePairedReadingTargetPlainTextForLayer,
+  partitionPairedReadingSourceItemsForDualTranscriptionColumns,
+  transcriptionLayersOrderedForVerticalReadingSourceWalk,
 } from './transcriptionTimelineVerticalViewHelpers';
 import { type PairedReadingCompactMode } from '../hooks/useTimelineVisibilityState';
 import type { TranscriptionTimelineVerticalViewInput } from '../pages/transcriptionTimelineWorkspacePanelTypes';
@@ -476,6 +475,16 @@ export function TranscriptionTimelineVerticalView({
     ],
   );
 
+  const transcriptionLayersOrderedForVerticalGroups = useMemo(
+    () => transcriptionLayersOrderedForVerticalReadingSourceWalk({
+      transcriptionLayers,
+      translationLayers,
+      allLayersOrdered,
+      layerLinks,
+    }),
+    [allLayersOrdered, layerLinks, transcriptionLayers, translationLayers],
+  );
+
 
   const mediaItemById = useMemo(
     () => new Map(mediaItems.map((item) => [item.id, item] as const)),
@@ -490,66 +499,72 @@ export function TranscriptionTimelineVerticalView({
     [transcriptionLayers, defaultTranscriptionLayerId],
   );
 
+  const hasTranscriptionTreeDependents = useMemo(() => {
+    const laneIds = new Set(transcriptionLayers.map((l) => l.id));
+    const layerById = new Map(effectiveAllLayersOrdered.map((l) => [l.id, l] as const));
+    const treeChild = transcriptionLayers.some((layer) => {
+      const p = layerTranscriptionTreeParentId(layer)?.trim() ?? '';
+      return p.length > 0 && laneIds.has(p);
+    });
+    if (treeChild) return true;
+    return transcriptionLayers.some((layer) => {
+      if (layer.layerType !== 'transcription') return false;
+      return listInboundTranscriptionHostIdsForTranscriptionLane(layer.id, layerLinks, layerById, laneIds).length > 0;
+    });
+  }, [effectiveAllLayersOrdered, layerLinks, transcriptionLayers]);
+
   const groups = useMemo(() => {
-    const disableMergeForGrouping = pairedReadingUsesSegmentSourceRows || translationLayers.length > 1;
+    const disableMergeForGrouping = pairedReadingUsesSegmentSourceRows
+      || translationLayers.length > 1
+      || hasTranscriptionTreeDependents;
+    const aggregateInputBase = {
+      translationLayers,
+      transcriptionLayers,
+      defaultTranscriptionLayerId,
+      layerLinks,
+      segmentsByLayer,
+      segmentContentByLayer,
+      translationTextByLayer,
+      unitByIdForSpeaker,
+      fallbackFocusedSourceLayerId: sourceLayer?.id,
+    } as const;
     return buildVerticalReadingGroups({
       units: pairedReadingGroupSourceUnits,
       ...(disableMergeForGrouping ? { maxMergeGapSec: -1 } : {}),
+      layerLinks,
       sourceLayerIds: transcriptionLayers.map((layer) => layer.id),
+      transcriptionLayersForSourceWalkOrder: transcriptionLayersOrderedForVerticalGroups,
       getSourceText: (unit) => {
         const layerId = (typeof unit.layerId === 'string' && unit.layerId.trim()) || sourceLayer?.id;
         return getUnitTextForLayer(unit, layerId) || getUnitTextForLayer(unit) || '';
       },
       getTargetText: (unit) => {
-        const tPick = pickTranslationLayerForVerticalReadingUnit(
+        const items = buildAggregatePairedReadingTargetItemsForSourceUnit({
           unit,
-          translationLayers,
-          targetLayer,
-          transcriptionLayers,
-          defaultTranscriptionLayerId,
-          layerLinks,
-        );
-        if (!tPick) return '';
-        return resolvePairedReadingTargetPlainTextForLayer(
-          unit,
-          tPick,
-          defaultTranscriptionLayerId,
-          segmentsByLayer,
-          segmentContentByLayer,
-          translationTextByLayer,
-          unitByIdForSpeaker,
-        );
+          ...aggregateInputBase,
+        });
+        if (items.length === 0) return '';
+        return items.map((it) => it.text).join('\n');
       },
       getTargetItems: (unit) => {
-        const tPick = pickTranslationLayerForVerticalReadingUnit(
+        const items = buildAggregatePairedReadingTargetItemsForSourceUnit({
           unit,
-          translationLayers,
-          targetLayer,
-          transcriptionLayers,
-          defaultTranscriptionLayerId,
-          layerLinks,
-        );
-        if (!tPick) return undefined;
-        return resolvePairedReadingExplicitTargetItemsForLayer(
-          unit,
-          tPick,
-          defaultTranscriptionLayerId,
-          segmentsByLayer,
-          segmentContentByLayer,
-          unitByIdForSpeaker,
-        );
+          ...aggregateInputBase,
+        });
+        return items.length > 0 ? items : undefined;
       },
       getSpeakerLabel: (unit) => stableSpeakerVisualByUnitId[unit.id]?.name ?? '',
     });
   }, [
     pairedReadingUsesSegmentSourceRows,
+    hasTranscriptionTreeDependents,
     pairedReadingGroupSourceUnits,
+    transcriptionLayersOrderedForVerticalGroups,
     defaultTranscriptionLayerId,
     getUnitTextForLayer,
     segmentContentByLayer,
     segmentsByLayer,
     sourceLayer?.id,
-    targetLayer,
     stableSpeakerVisualByUnitId,
     transcriptionLayers,
     translationLayers,
@@ -823,22 +838,61 @@ export function TranscriptionTimelineVerticalView({
 
     if (!visibleGroups.some((g) => g.id === matchedGroup.id)) return;
 
-    const syncedSide = translationLayers.some((l) => l.id === focusedLayerRowId) ? 'target' : 'source';
+    const focusedIsTranslation = translationLayers.some((l) => l.id === focusedLayerRowId);
+    const { primaryColumnItems: syncPrimaryItems, secondaryColumnItems: syncSecondaryItems } =
+      partitionPairedReadingSourceItemsForDualTranscriptionColumns({
+        sourceItems: matchedGroup.sourceItems,
+        translationLayers,
+        orderedTranscriptionLanes: transcriptionLayersOrderedForVerticalGroups,
+      });
+    const syncUsesSecondaryTranscriptionColumn = syncSecondaryItems.length > 0;
+    const primaryLaneIdForSync = syncPrimaryItems[0]?.layerId?.trim() ?? '';
+    const focusedLayerIdTrimmed = focusedLayerRowId?.trim() ?? '';
+    const syncedSide: 'source' | 'target' = focusedIsTranslation ? 'target' : 'source';
     const syncTranslationLayer = translationLayers.find((l) => l.id === focusedLayerRowId) ?? targetLayer;
-    const targetCellIdForSync = syncedSide === 'target' && syncTranslationLayer
-      ? (verticalReadingUsesSplitTargetEditors(matchedGroup)
-        && syncTranslationLayer.id === targetLayer?.id
-        && matchedGroup.targetItems[0]
-        ? `target:${matchedGroup.id}:${syncTranslationLayer.id}:${matchedGroup.targetItems[0].id}`
-        : `target:${matchedGroup.id}:${syncTranslationLayer.id}:editor`)
-      : `source:${activeUnitId}`;
+    const targetCellIdForSync = focusedIsTranslation && syncTranslationLayer
+      ? resolvePairedReadingSyncedTargetCellId({
+        group: matchedGroup,
+        syncTranslationLayer,
+        translationLayers,
+        transcriptionLayers,
+        targetLayer,
+        sourceLayer,
+        defaultTranscriptionLayerId,
+        layerLinks,
+        segmentsByLayer,
+        segmentContentByLayer,
+        translationTextByLayer,
+        unitByIdForSpeaker,
+      })
+      : (syncUsesSecondaryTranscriptionColumn
+        && focusedLayerIdTrimmed.length > 0
+        && focusedLayerIdTrimmed !== primaryLaneIdForSync
+        ? `sec-trc:${focusedLayerRowId}:${activeUnitId}`
+        : `source:${activeUnitId}`);
     patchVerticalPaneFocus({
       activeVerticalReadingGroupId: matchedGroup.id,
       activeVerticalReadingCellId: targetCellIdForSync,
       pairedReadingTargetSide: syncedSide,
       contextMenuSourceUnitId: activeUnitId,
     });
-  }, [activeUnitId, focusedLayerRowId, groups, patchVerticalPaneFocus, targetLayer?.id, translationLayers, visibleGroups]);
+  }, [
+    activeUnitId,
+    defaultTranscriptionLayerId,
+    focusedLayerRowId,
+    groups,
+    layerLinks,
+    patchVerticalPaneFocus,
+    segmentContentByLayer,
+    segmentsByLayer,
+    sourceLayer,
+    targetLayer?.id,
+    translationLayers,
+    translationTextByLayer,
+    transcriptionLayersOrderedForVerticalGroups,
+    unitByIdForSpeaker,
+    visibleGroups,
+  ]);
 
   /** 波形/全局选中语段时，把对应对照组滚入 split-host 视口（tier 的横向 scroll 与对照纵向列表无关） */
   useLayoutEffect(() => {
@@ -878,7 +932,7 @@ export function TranscriptionTimelineVerticalView({
         aria-live="polite"
       >
         <p className="timeline-paired-reading-empty-hint">
-          {translationLayers.length === 0
+          {translationLayers.length === 0 && transcriptionLayers.length < 2
             ? t(locale, 'transcription.toolbar.verticalViewRequiresTranslationLayer')
             : t(locale, 'transcription.pairedReading.emptyGroups')}
         </p>

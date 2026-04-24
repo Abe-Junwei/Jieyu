@@ -56,6 +56,12 @@ describe('useVoiceAgent structure invariants', () => {
 
   it('keeps runtime cleanup centralized for both voice services', () => {
     const code = readUseVoiceAgentCode();
+    const startControllerCode = readUseVoiceAgentStartControllerCode();
+
+    expect(code.includes('const voiceActivateGenerationRef = useRef(0);')).toBe(true);
+    expect(code.includes('const exclusiveStartPromiseRef = useRef<Promise<void> | null>(null);')).toBe(true);
+    expect(startControllerCode.includes('function abortStaleMicStart(')).toBe(true);
+    expect(startControllerCode.includes('exclusiveStartPromiseRef.current')).toBe(true);
 
     expect(code.includes('serviceRef.current?.dispose();')).toBe(true);
     expect(code.includes('serviceRef.current = null;')).toBe(true);

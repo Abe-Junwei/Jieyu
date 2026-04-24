@@ -8,8 +8,9 @@ import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LexemeDocType, MultiLangString } from '../db';
-import { t, useLocale } from '../i18n';
+import { t, tf, useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
+import { buildTranscriptionDeepLinkHref, buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
 
 function readFirstValue(record: Record<string, string> | undefined, fallback: string): string {
   const firstValue = record ? Object.values(record).find((value) => value.trim().length > 0) : undefined;
@@ -81,6 +82,12 @@ export function LexiconPage() {
     ? readLexemePrimaryGloss(selectedLexeme, t(locale, 'workspace.lexicon.notSet'))
     : '';
 
+  const { data: lexemeJumpTargets = [], isFetching: jumpTargetsLoading, isError: jumpTargetsError } = useQuery({
+    queryKey: ['lexemeTranscriptionJumpTargets', selectedLexemeId],
+    queryFn: () => LinguisticService.listLexemeTranscriptionJumpTargets(selectedLexemeId),
+    enabled: Boolean(selectedLexemeId.trim()),
+  });
+
   const sidePaneContent = useMemo(() => (
     <div className="app-side-pane-feature-stack">
       <section className="app-side-pane-group" aria-label={t(locale, 'workspace.lexicon.sidePaneCurrent')}>
@@ -106,7 +113,7 @@ export function LexiconPage() {
           <span className="app-side-pane-section-title">{t(locale, 'workspace.lexicon.sidePaneQuickAccess')}</span>
         </div>
         <div className="app-side-pane-nav app-side-pane-feature-nav">
-          <Link to="/transcription" className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
+          <Link to={buildTranscriptionWorkspaceReturnHref()} className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'app.featureAvailability.backToTranscription')}</Link>
           <OrthographyPanelLink className="side-pane-nav-link app-side-pane-feature-link">{t(locale, 'workspace.lexicon.openOrthographyManager')}</OrthographyPanelLink>
         </div>
       </section>
@@ -192,6 +199,54 @@ export function LexiconPage() {
                   <div><dt>{t(locale, 'workspace.lexicon.usageCountLabel')}</dt><dd>{String(selectedLexeme.usageCount ?? 0)}</dd></div>
                   <div><dt>{t(locale, 'workspace.lexicon.updatedAtLabel')}</dt><dd>{selectedLexeme.updatedAt}</dd></div>
                 </dl>
+              </PanelSection>
+
+              <PanelSection
+                className="lexicon-workspace-detail-panel"
+                title={t(locale, 'workspace.lexicon.hitSegmentsTitle')}
+                description={t(locale, 'workspace.lexicon.hitSegmentsDescription')}
+              >
+                {jumpTargetsLoading ? (
+                  <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.hitSegmentsLoading')}</p>
+                ) : null}
+                {jumpTargetsError ? (
+                  <p className="lexicon-workspace-state lexicon-workspace-state-error">
+                    {t(locale, 'workspace.lexicon.hitSegmentsError')}
+                  </p>
+                ) : null}
+                {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length === 0 ? (
+                  <p className="lexicon-workspace-state">{t(locale, 'workspace.lexicon.hitSegmentsEmpty')}</p>
+                ) : null}
+                {!jumpTargetsLoading && !jumpTargetsError && lexemeJumpTargets.length > 0 ? (
+                  <ul className="lexicon-workspace-hit-list" aria-label={t(locale, 'workspace.lexicon.hitSegmentsTitle')}>
+                    {lexemeJumpTargets.map((hit) => {
+                      const primaryLabel = hit.surfaceHint?.trim() || hit.unitId;
+                      const href = buildTranscriptionDeepLinkHref({
+                        textId: hit.textId,
+                        ...(hit.mediaId ? { mediaId: hit.mediaId } : {}),
+                        layerId: hit.layerId,
+                        unitId: hit.unitId,
+                        ...(hit.unitKind === 'segment' ? { unitKind: 'segment' } : {}),
+                      });
+                      return (
+                        <li key={`${hit.textId}:${hit.layerId}:${hit.unitId}:${hit.unitKind}`} className="lexicon-workspace-hit-item">
+                          <Link className="lexicon-workspace-hit-link" to={href} title={t(locale, 'workspace.lexicon.hitSegmentOpenTitle')}>
+                            <span className="lexicon-workspace-hit-primary">{primaryLabel}</span>
+                            <span className="lexicon-workspace-hit-meta">
+                              {tf(locale, 'workspace.lexicon.hitSegmentMeta', {
+                                textId: hit.textId,
+                                unitId: hit.unitId,
+                                kind: hit.unitKind === 'segment'
+                                  ? t(locale, 'workspace.lexicon.hitSegmentKindSegment')
+                                  : t(locale, 'workspace.lexicon.hitSegmentKindUnit'),
+                              })}
+                            </span>
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
               </PanelSection>
 
               <PanelSection className="lexicon-workspace-detail-panel" title={t(locale, 'workspace.lexicon.sensesTitle')}>

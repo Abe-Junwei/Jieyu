@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, validateUnitDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
+import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
 
 type InvalidMutation<T> = {
   name: string;
@@ -86,7 +86,7 @@ const unitSuite: InvariantSuite<LayerUnitDocType> = {
     createdAt: NOW,
     updatedAt: NOW,
   }),
-  validate: validateUnitDoc,
+  validate: validateLayerUnitDoc,
   invalid: [
     {
       name: 'endTime earlier than startTime',

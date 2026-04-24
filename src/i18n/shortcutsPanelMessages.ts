@@ -1,4 +1,4 @@
-import type { Locale } from './index';
+import { normalizeLocale, type Locale } from './index';
 
 export type ShortcutsPanelMessages = {
   categoryPlayback: string;
@@ -40,5 +40,5 @@ const enUS: ShortcutsPanelMessages = {
 };
 
 export function getShortcutsPanelMessages(locale: Locale): ShortcutsPanelMessages {
-  return locale === 'zh-CN' ? zhCN : enUS;
+  return normalizeLocale(locale) === 'zh-CN' ? zhCN : enUS;
 }

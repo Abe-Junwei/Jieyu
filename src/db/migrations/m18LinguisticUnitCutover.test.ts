@@ -128,12 +128,12 @@ function buildM18MockTx(options?: M18MockTxOptions) {
 }
 
 describe('M18 linguistic unit cutover replay', () => {
-  it('collectM18SubgraphReferencedUnitIds reads unitId or unitId', () => {
+  it('collectM18SubgraphReferencedUnitIds reads unitId or legacy segmentId', () => {
     const ids = collectM18SubgraphReferencedUnitIds(
-      [{ unitId: 'a' }, { unitId: 'b' }],
+      [{ unitId: 'a' }, { segmentId: 'seg-legacy' }],
       [{ unitId: 'c' }],
     );
-    expect([...ids].sort()).toEqual(['a', 'b', 'c']);
+    expect([...ids].sort()).toEqual(['a', 'c', 'seg-legacy']);
   });
 
   it('assertM18SubgraphHostsResolve throws when host id has no unit layer unit', () => {
@@ -188,6 +188,37 @@ describe('M18 linguistic unit cutover replay', () => {
     await expect(
       upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction),
     ).rejects.toThrow(/ghost-host/);
+  });
+
+  it('rewrites token/morpheme rows that only carry legacy segmentId onto canonical unitId', async () => {
+    const m = buildM18MockTx({
+      tokens: [
+        {
+          id: 'tok-seg-only',
+          textId: 'text-m18',
+          segmentId: 'utt-m18',
+          form: { default: 'w' },
+          tokenIndex: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      morphemes: [
+        {
+          id: 'morph-seg-only',
+          textId: 'text-m18',
+          segmentId: 'utt-m18',
+          tokenId: 'tok-seg-only',
+          form: { default: 'm' },
+          morphemeIndex: 0,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    await upgradeM18LinguisticUnitCutover({ table: m.table } as unknown as Transaction);
+    expect(m.tokens[0]).toMatchObject({ id: 'tok-seg-only', unitId: 'utt-m18' });
+    expect(m.morphemes[0]).toMatchObject({ id: 'morph-seg-only', unitId: 'utt-m18' });
   });
 
   it('upgrade succeeds when unit-type host already exists in layer_units (idempotent merge)', async () => {

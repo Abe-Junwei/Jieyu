@@ -52,8 +52,12 @@ export function listSegmentTimelineUnitsForLayer(
     recordSegmentTimelineFallbackDiagnostic({
       layerId: layer.id,
       layerType: layer.layerType,
-      fallbackUnitsCount: fallbackUnits.length,
+      fallbackUnitsCount: layer.layerType === 'translation' ? 0 : fallbackUnits.length,
     });
+    // 译文层不应把整轨 canonical unit 当作「语段行」：无宿主时宁可空轨，避免与 segment 语义错位叠加成重叠块。
+    if (layer.layerType === 'translation') {
+      return [];
+    }
     return fallbackUnits;
   }
   return segmentsByLayer?.get(sourceLayer.id) ?? [];

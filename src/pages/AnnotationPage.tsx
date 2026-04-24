@@ -1,3 +1,7 @@
+/**
+ * 标注页占位。开放编辑后，按轨消费 canonical 句段请复用 `pages/annotation/annotationLaneReadScope`（ADR 0020），
+ * 与 `saveUnitText` / token 写链同源，避免自建第二读模型。
+ */
 import '../styles/pages/feature-availability.css';
 import { FeatureAvailabilityPanel } from '../components/FeatureAvailabilityPanel';
 import { t, useLocale } from '../i18n';

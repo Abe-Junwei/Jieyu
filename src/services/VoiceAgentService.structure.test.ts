@@ -33,6 +33,15 @@ describe('VoiceAgentService structure invariants', () => {
     expect(code.includes('private _wakeWordDetector: WakeWordDetectorType | null = null;')).toBe(true);
   });
 
+  it('serializes async mic start and clears in-flight promise on stop (CRITICAL-3)', () => {
+    const code = readVoiceAgentServiceCode();
+
+    expect(code.includes('private _exclusiveStartPromise: Promise<void> | null = null;')).toBe(true);
+    expect(code.includes('private async _runExclusiveStart(targetMode?: VoiceAgentMode): Promise<void>')).toBe(true);
+    expect(code.includes('if (this._exclusiveStartPromise)')).toBe(true);
+    expect(code.includes('this._exclusiveStartPromise = null;')).toBe(true);
+  });
+
   it('keeps session restore and persistence lifecycle anchored in service boundaries', () => {
     const code = readVoiceAgentServiceCode();
 

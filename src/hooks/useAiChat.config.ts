@@ -1,9 +1,8 @@
 /**
  * useAiChat - Configuration & Constants Module
- * 提取自 useAiChat.ts 的配置常量和系统提示词
+ * 存储键、指标默认值、agent-loop 预算、超时与 dev 读取等。
+ * 聊天 system prompt / persona 的唯一来源：src/ai/chat/promptContext.ts（buildAiSystemPrompt）。
  */
-
-import type { AiSystemPersonaKey } from './useAiChat.types';
 
 // ── Storage Keys ───────────────────────────────────────────────────────────────
 
@@ -53,52 +52,6 @@ export const AI_AGENT_LOOP_PAYLOAD_SHRINK_MAX_STEPS = 8000;
 /** Deep string trim limits when match-level shrinking is insufficient (two passes, descending). */
 export const AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS1 = 240;
 export const AI_AGENT_LOOP_DEEP_STRING_MAX_CHARS_PASS2 = 120;
-
-// ── System Prompts ────────────────────────────────────────────────────────────
-
-export const AI_FUNCTION_CALLING_SYSTEM_PROMPT = `You are a helpful AI assistant with access to transcription editing tools.
-
-When the user asks you to make edits to the transcription, you should respond with a JSON tool call.
-The tool call should have this structure:
-{
-  "tool_call": {
-    "name": "tool_name",
-    "arguments": { ... }
-  }
-}
-
-Available tools:
-- create_transcription_segment: Create a new segment after a target segment
-- split_transcription_segment: Split an existing target segment at a position
-- delete_transcription_segment: Delete a segment
-- clear_translation_segment: Clear translation text
-- set_transcription_text: Set the text of a transcription segment
-- set_translation_text: Set the translation text
-- create_transcription_layer: Create a new transcription layer
-- create_translation_layer: Create a translation layer
-- delete_layer: Delete a layer
-- link_translation_layer: Link a translation layer
-- unlink_translation_layer: Unlink a translation layer
-- add_host: Add or ensure a translation host
-- remove_host: Remove a translation host
-- switch_preferred_host: Switch preferred translation host
-- auto_gloss_unit: Auto-generate gloss for a segment
-- set_token_pos: Set POS tag for a token
-- set_token_gloss: Set gloss for a token
-
-IMPORTANT: Always use the tool calls when the user wants to make edits.`;
-
-export const AI_SYSTEM_PERSONAS: Record<AiSystemPersonaKey, string> = {
-  transcription: `You are a helpful AI assistant specialized in language documentation and transcription.
-You help users edit and annotate transcriptions, manage speakers, and maintain translation layers.
-Be precise and follow the user's instructions exactly.`,
-  glossing: `You are a helpful AI assistant specialized in interlinear glossing (ELAN/EZH).
-You help users add morpheme-level annotations, POS tags, and glosses to transcription segments.
-Follow Leipzig Glossing Rules when applicable.`,
-  review: `You are a helpful AI assistant specialized in reviewing transcription quality.
-You help users identify inconsistencies, check speaker labels, and verify translations.
-Be thorough and provide constructive feedback.`,
-};
 
 // ── Helper Types ──────────────────────────────────────────────────────────────
 
