@@ -33,6 +33,17 @@ flowchart TD
 
 门控与灰度/阻断汇总见 `src/collaboration/collaborationPromotionRuntime.ts`（`PHASE_ORDER`、`evaluatePromotionReadiness`）。此处不另画整表，避免与 `digest` 规则漂移。
 
+## 4. Bridge 启动管道（`useTranscriptionCollaborationBridge`）
+
+`src/hooks/useTranscriptionCollaborationBridge.ts` 已将启动/停机控制流拆成命名步骤：
+
+1. `stopBridgeRuntime` / `resetBridgeRuntimeState`：统一停机与状态复位。
+2. `loadProtocolGuardFromCloud`：单点拉取并评估 `projects.protocol_version + app_min_version`。
+3. `applyProtocolGuard`：集中更新 `writeGuardRef` 与 React surface 状态。
+4. 主 effect 仅保留编排：`hydrate` → `auth` → `revision` → `guard` → `bridge.start`。
+
+该拆分不改变 Phase 语义与对外契约，仅降低长链路 effect 的理解与排障成本。
+
 ## 后续
 
-- 协作事务合并管道（`collaborationTransactionSyncRuntime`）与 **Bridge 多阶段 bootstrap** 若再拆，可各增一节 flowchart。本次未改其控制流，仅把 **徽章门控** 抽谓词以符合 ARCH-6「命名谓词 + 文档」的窄落地。
+- 协作事务合并管道（`collaborationTransactionSyncRuntime`）若继续拆，可补充对应 flowchart 与 phase 对账附录。

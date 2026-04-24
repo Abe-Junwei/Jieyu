@@ -19,8 +19,13 @@
 ## 4. E2E 关键路径
 
 - **`tests/e2e/criticalPaths.spec.ts`**：在首屏、转写、404、CSP 之外，增加 **词典**、**语料库**路由的最小烟测（标题/正文中英兼容），作为「多页壳 + 数据页可达」的回归锚点。
+- **ARCH-9 全链路用例（已落地）**：新增「创建语言层（转写层）→ 添加翻译层 → 项目中心导出 Toolbox」跨步骤 E2E，覆盖左轨建层、LayerActionPopover 语言选择、项目中心导出入口可达。
 
-## 5. 未在本增量内承诺的内容
+## 5. 验证证据
 
-- 完整「创建语言 → 添加翻译 → 导出」E2E：依赖项目/导入状态与多步 UI，适合作独立里程碑，而非单次 ARCH-9 的阻塞项。
+- 定向回归命令：`npx playwright test tests/e2e/criticalPaths.spec.ts -g "ARCH-9"`
+- 最近一次结果：`9 passed (6.6s)`（Chromium / Firefox / WebKit 全通过）
+
+## 6. 本轮边界说明
+
 - 全量将业务调用点从 `fireAndForget` 迁到 `AsyncResult`：由调用点按需采用 `asyncResultFromPromise`，不强制大重构。

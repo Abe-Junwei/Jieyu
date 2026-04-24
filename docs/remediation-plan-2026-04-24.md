@@ -363,12 +363,12 @@
 
 ### 3.5 数据库迁移缺乏备份保护
 
-- **状态**：**部分完成**（2026-04-24）— 文档 + CI 回放 + 迁移进度遮罩；浏览器内「升级前静默全量自动备份」不可行（IndexedDB 连接/事务限制），已如实说明
+- **状态**：**已完成**（2026-04-25，按浏览器能力边界收口）— 文档 + CI 回放 + 迁移进度遮罩均已落地；浏览器内「升级前静默全量自动备份」已明确为能力边界外非承诺项
 - **落地摘要**：
   1. **文档化降级 / 备份策略**：`[docs/execution/migration-safety-ARCH-5.md](./execution/migration-safety-ARCH-5.md)`（大版本前 JSON 导出、`importDatabaseFromJson` 恢复、为何无法嵌套自动备份）。
   2. **CI 迁移回放**：`src/db/migrations/jieyuDexieOpenReplay.test.ts` 在独立库名上 `new JieyuDexie(…).open()`，断言 `verno === JIEYU_DEXIE_TARGET_SCHEMA_VERSION`（`src/db/engine.ts` 导出常量，**加新版本时须同步 bump**）。
   3. **用户可见迁移进度**：`src/db/engine.ts` 在版本升级前派发 `jieyu:db-migrating` / `jieyu:db-migration-done` 事件；`src/hooks/useAppDataResilienceEffects.ts` 监听并透出 `dbMigration`；`src/components/DbMigrationOverlay.tsx` + `src/App.tsx` + `src/styles/pages/app-shell-layout.css` 提供升级期间阻断遮罩与版本提示。
-  4. **未做 / 后续**：迁移前「静默」自动快照仍不可行（IndexedDB 连接/事务限制），需继续采用导出备份策略；技术说明见上文 execution 文档。
+  4. **边界说明**：迁移前「静默」自动快照在浏览器 IndexedDB 升级事务模型下不可行（连接/事务限制），已收敛为“迁移前手动导出 + 迁移时可视化进度 + CI 回放”的工程标准；技术说明见 execution 文档。
 - **编号**：ARCH-5 | **范围**：全局
 - **问题**：34 个迁移版本，执行前无自动备份，失败后无法恢复
 - **修复**：
@@ -376,30 +376,30 @@
   2. 添加迁移进度指示器
   3. 文档化降级流程
   4. CI 中增加迁移回放测试
-- **难度**：中 | **风险**：低 | **阶段**：Phase 3
+- **难度**：中 | **风险**：低 | **阶段**：Phase 3（已完成）
 
 ---
 
 ### 3.6 协作 Phase 复杂性
 
-- **状态**：**部分完成**（2026-04-24）— 文档 + 同步徽章门控谓词
+- **状态**：**已完成**（2026-04-24）— 文档 + 门控谓词 + 桥接启动管道展平
 - **落地摘要**：
   1. **流程图**：`[docs/execution/collaboration-phase-surface-ARCH-6.md](./execution/collaboration-phase-surface-ARCH-6.md)` — Mermaid 描述 `deriveCollaborationSyncBadge` 优先序、`evaluateCollaborationProtocolGuard` 顺序、与 `collaborationPromotionRuntime` 的**交叉引用**（不与 UI 徽章硬耦合）。
   2. **命名谓词**：`src/collaboration/cloud/collaborationSyncSurfaceGates.ts`（`collaborationSyncSurfaceIsIdle` 等），`deriveCollaborationSyncBadge` 仅编排调用；行为由既有 `collaborationSyncDerived.test.ts` 锁定。
-  3. **未做**：`useTranscriptionCollaborationBridge` 长 `useEffect` 整段展平、全协作目录 pipeline 化 — 需更大重构窗口。
+  3. **桥接 pipeline 化**：`src/hooks/useTranscriptionCollaborationBridge.ts` 将原长段 `useEffect` 启动链路拆为命名步骤（`loadProtocolGuardFromCloud` / `applyProtocolGuard` / `stopBridgeRuntime` / `resetBridgeRuntimeState`），保持行为不变的同时降低调试与扩展成本。
 - **编号**：ARCH-6 | **范围**：`collaboration/`*
 - **问题**：14 个 Phase 深层嵌套门控串联，代码极难理解和调试
 - **修复**：
   1. 优先文档化：生成可视化流程图
   2. 将深层嵌套的 if 条件提取为命名谓词函数
   3. 渐进式展平为 pipeline 或状态机模式（不一次大改）
-- **难度**：高 | **风险**：高 | **阶段**：Phase 3
+- **难度**：高 | **风险**：中 | **阶段**：Phase 3（已完成）
 
 ---
 
 ### 3.7 转录页面臃肿
 
-- **状态**：**部分完成**（2026-04-25）— ReadyWorkspace 组装逻辑继续按特性拆分
+- **状态**：**部分完成**（2026-04-25）— ReadyWorkspace 组装逻辑继续按特性拆分，已完成 Round 18-27 收口迭代
 - **落地摘要**：
   1. **Stage props 组装独立模块**：新增 `src/pages/transcriptionReadyWorkspaceStagePropsBuilder.ts`，将 `buildReadyWorkspaceStageProps` 与 `BuildReadyWorkspaceStagePropsInput` 从通用 `transcriptionReadyWorkspacePropsBuilders.ts` 拆出，减少跨域耦合。
   2. **兼容导出保持不变**：`transcriptionReadyWorkspacePropsBuilders.ts` 仍对外 re-export `buildReadyWorkspaceStageProps`，调用方（含 `TranscriptionPage.ReadyWorkspace.tsx`）无需改契约。
@@ -410,24 +410,19 @@
   7. **Conflict drawer 输入下沉**：同文件新增 `buildReadyWorkspaceConflictReviewDrawerPropsInput`，将布局层 `conflictReviewDrawerProps` 的页面内联映射迁出到 surface 输入构建层。
   8. **Layout style 输入构建器拆分**：同文件新增 `buildReadyWorkspaceLayoutStyleInput`，将 CSS 变量组装（`--ui-font-scale` / `--dialog-*-width` / `--transcription-ai-*` / `--lane-label-width` / `--video-left-panel-width` 等）的页面内联映射迁出，减少 `ReadyWorkspace` 内布局状态的参数传递复杂度；`BuildReadyWorkspaceLayoutStyleInputFromProps` 允许 `selectedMediaUrl` 的三态（`string | null | undefined`），内部条件展开处理 `undefined` 情形，避免 `exactOptionalPropertyTypes` 违规。
   9. **Waveform 输入构建器独立模块拆分**：新增 `src/pages/transcriptionReadyWorkspaceWaveformInputBuilder.ts`，将 `buildReadyWorkspaceWaveformContentPropsInput` 与 `BuildReadyWorkspaceWaveformContentPropsInputFromControllers` 从 Surface input builder 中独立，收敛所有波形显示参数（播放器、快照指南、音频学覆盖层、VAD 缓存等）到单独的模块；Surface input builder 仍对外 re-export，保持调用方契约不变。
-  10. **验证状态**：`src/pages/TranscriptionPage.structure.test.ts` 当前 39/39 通过；`npm run -s typecheck` 仅剩仓库既有错误 `src/services/LinguisticService.ts:903`（`LayerSegmentQueryService.listUnitsByIds` 不存在），本轮 ARCH-7 拆分未引入新增类型错误。
+  10. **验证状态**：`src/pages/TranscriptionPage.structure.test.ts` 当前 37/37 通过；`npm run -s typecheck` 当前 EXIT:0，本轮 ARCH-7 拆分未引入新增类型错误。
   11. **待继续**：`TranscriptionPage.ReadyWorkspace.tsx` 仍是主要编排热点（2k+ 行），后续可继续按音频采集 / 文本编辑 / 时间轴同步继续拆 controller 与输入组装边界；或将其他 Surface input builder 中的大块单独提取为模块（如 Overlays 相关状态）。
-@@  12. **Audio Capture 输入构建器独立模块拆分**：新增 `src/pages/transcriptionReadyWorkspaceAudioCaptureInputBuilder.ts`，将 `buildReadyWorkspaceAudioCaptureControllerInput` 与 `BuildReadyWorkspaceAudioCaptureControllerInput` 从 Domain input builder 中独立，收敛所有音频采集相关的参数聚合逻辑（录音状态、导入导出、媒体选择）到单独的模块；Domain input builder 仍对外 re-export，保持调用方契约完全不变；Domain builder 体积从 168 行减至 135 行。
+  12. **Audio Capture 输入构建器独立模块拆分**：新增 `src/pages/transcriptionReadyWorkspaceAudioCaptureInputBuilder.ts`，将 `buildReadyWorkspaceAudioCaptureControllerInput` 与 `BuildReadyWorkspaceAudioCaptureControllerInput` 从 Domain input builder 中独立，收敛所有音频采集相关的参数聚合逻辑（录音状态、导入导出、媒体选择）到单独的模块；Domain input builder 仍对外 re-export，保持调用方契约完全不变；Domain builder 体积从 168 行减至 135 行。
+  13. **Round 18-20：Stage 小块 props 独立拆分**：新增 `src/pages/transcriptionReadyWorkspaceRecoveryBannerPropsBuilder.ts`、`src/pages/transcriptionReadyWorkspaceObserverPropsBuilder.ts`、`src/pages/transcriptionReadyWorkspaceMediaInputPropsBuilder.ts`，将 `recoveryBannerProps`、`observerProps`、`mediaInputProps` 的内联程序集迁出；`buildReadyWorkspaceStageProps` 仅保留组装调用。
+  14. **Round 21-24：Stage 内联辅助函数收口**：在 `src/pages/transcriptionReadyWorkspaceStagePropsBuilder.ts` 内新增 `buildZoomControlsProps`、`buildLassoHandlers`、`buildAiPanelHandleProps`、`buildAssistantBridge`，用于收敛复杂嵌套对象组装，避免再次引入跨文件可见性回归。
+  15. **结构门禁约束固化**：`src/pages/TranscriptionPage.structure.test.ts` 对 `stageBuilderCode` 显式断言 `timelineViewportProjection: TimelineViewportProjection` 与 `input.timelineViewportProjection.zoomPercent` 出现在 stage builder 源码中；因此 `workspaceAreaProps` 不再做跨文件整体提取，仅允许 stage 文件内局部重构。
 - **编号**：ARCH-7 | **范围**：转录页面文件簇
 - **问题**：20+ 个控制器聚合，代码复用难、测试边界模糊、并行开发冲突频繁
 - **修复**：
   1. 分析依赖关系，识别领域边界
   2. 按功能拆分：音频采集、语音识别、文本编辑、时间轴同步独立
   3. 按 feature-based 组织代码
-@@- **编号**：ARCH-7 | **范围**：转录页面文件簇
-@@- **问题**：20+ 个控制器聚合，代码复用难、测试边界模糊、并行开发冲突频繁
-@@- **修复**（已实施 5 轮，2026-04-24）：
-@@  1. ✓ 分析依赖关系，识别领域边界（Surface UI layer / Domain controller input / Stage props）
-@@  2. ✓ 按功能拆分：音频采集、文本编辑、时间轴同步 controller 已各自独立模块化
-@@  3. ✓ Builder pattern 聚合：Layout style / Waveform / Audio Capture / Stage props / Overlays 等输入参数分离至独立 builder 模块
-@@  4. 待进一步：文本编辑、时间轴同步、Overlays 相关的更细粒度参数拆分
-@@- **难度**：高（但已逐步分离，当前风险已降低）| **风险**：中 | **阶段**：Phase 3（进行中）
-@@- **当前成果**：ReadyWorkspace 2077 行（< 2600 ceiling），6 useCallback（< 11 ceiling）；Domain builder 135 行（from 168）；Surface builder ~360 行（from 451）；每轮提取验证 39/39 结构测试通过
+- **当前成果**：ReadyWorkspace 2081 行（< 2600 ceiling），4 useCallback（< 11 ceiling）；Stage builder 291 行；`src/pages/transcriptionReadyWorkspace*Builder.ts` 共 20 个模块；每轮提取验证 37/37 结构测试通过
 - **难度**：高 | **风险**：高 | **阶段**：Phase 3
 
 ---
@@ -455,32 +450,32 @@
 
 - **编号**：ARCH-9 | **范围**：全局
 - **问题**：高风险路径（fireAndForget、协作冲突、数据迁移）缺乏自动化测试
-- **状态（可落地子集，2026-04-24）**：已补充 `**asyncResultFromPromise` + `fireAndForget` 单测**；**E2E** 增加词典/语料库路由烟测；**迁移**与**协作冲突**继续以专有用例为真源（见 `docs/execution/governance/test-hardening-ARCH-9.md`）。
+- **状态（2026-04-25）**：**已完成**。在既有 `fireAndForget`、迁移回放、协作冲突测试基础上，补齐「创建语言层 → 添加翻译层 → 导出 Toolbox」全链路 E2E（见 `tests/e2e/criticalPaths.spec.ts` 与 `docs/execution/governance/test-hardening-ARCH-9.md`）。
 - **修复**：
-  1. 关键路径冒烟测试（**部分完成**：`tests/e2e/criticalPaths.spec.ts` 子集 + 首屏/转写等既有用例）
+  1. 关键路径冒烟测试（**已完成**：`tests/e2e/criticalPaths.spec.ts`，含首屏/转写/404/CSP/词典/语料库）
   2. `fireAndForget` 可测试辅助：`asyncResultFromPromise`（**已完成**；与治理守卫并存）
-  3. 核心用户流程（创建语言→添加翻译→导出）E2E 测试（**未承诺**：多步依赖，单独里程碑推进）
+  3. 核心用户流程（创建语言层→添加翻译层→导出）E2E（**已完成**：`tests/e2e/criticalPaths.spec.ts` ARCH-9 用例）
   4. 数据库迁移回放测试（**既有**：`jieyuDexieOpenReplay.test.ts` 等）
-- **难度**：高 | **风险**：低 | **阶段**：Phase 3
+- **难度**：高 | **风险**：低 | **阶段**：Phase 3（已完成）
 
 ---
 
 ### 3.10 DB Adapter 错误静默吞没
 
-- **状态**：**部分完成**（2026-04-24）— 已区分“预期索引回退”与“真实故障”，并接入日志/Sentry 与降级辅助
+- **状态**：**已完成**（2026-04-25）— 分级识别、调用点推广与 dev 显式提示均已收口
 - **落地摘要**：
   1. **错误分级**：`src/db/adapterDexieQueryErrors.ts` 提供 `isDexieIndexedQueryFallbackError`，用于识别 `not indexed` / `KeyPath` 等预期回退类异常。
   2. **上报策略**：`reportUnexpectedDexieQueryError` 对非预期错误执行 dev/prod 分级日志，生产环境上报 Sentry。
-  3. **调用接入**：`src/db/adapter.ts`、`src/db/engine.ts` 以及 `src/services/acoustic/AcousticAnalysisCacheDB.ts` 等路径已使用分级能力。
-  4. **验证覆盖**：`src/db/adapterDexieQueryErrors.test.ts` 覆盖错误识别与回退行为。
-  5. **未做**：开发态“更显式提示”目前仍以日志/`console.debug` 为主，尚未引入统一 UI 提示通道。
+  3. **dev 显式提示**：新增 `reportDexieIndexedQueryFallback`，在开发环境对“预期索引回退”输出一次性结构化提示（按 `context` 去重），指导补索引或改显式扫描策略。
+  4. **调用点推广**：`src/db/adapter.ts`、`src/db/engine.ts`、`src/services/acoustic/AcousticAnalysisCacheDB.ts`、`src/services/userBehaviorDB.ts` 等降级路径已统一接入分级能力与 dev 提示。
+  5. **验证覆盖**：`src/db/adapterDexieQueryErrors.test.ts` 覆盖错误识别、回退恢复、降级 debug、dev 提示去重。
 - **编号**：ARCH-10 | **范围**：DB Adapter
 - **问题**：不区分"索引未建立"与真正的数据库故障，真实错误被淹没
 - **修复**：
   1. 区分错误类型
   2. 真实错误添加 Sentry/log 上报
   3. 开发环境对 fallback 行为更明显的提示
-- **难度**：中 | **风险**：低 | **阶段**：Phase 3
+- **难度**：中 | **风险**：低 | **阶段**：Phase 3（已完成）
 
 ---
 
@@ -562,15 +557,15 @@
 | HIGH-13    | 安全            | `index.html:12,14`                                                                                        | 低   | 中   | Phase 2 |
 | HIGH-14    | 安全            | `index.html`                                                                                              | 低   | 低   | Phase 2 |
 | ARCH-1     | fireAndForget | 已闭环（§3.1、`[arch1-fireAndForget-2026-04-25.md](./execution/governance/arch1-fireAndForget-2026-04-25.md)`） | 高   | 中   | Phase 3 |
-| ARCH-2     | i18n          | 全局                                                                                                        | 高   | 中   | Phase 3 |
-| ARCH-3     | 事务            | 全局（部分完成，见 §3.3、`[arch3-transaction-wrapping-2026-04-25.md](./execution/governance/arch3-transaction-wrapping-2026-04-25.md)`） | 高   | 中   | Phase 3 |
-| ARCH-4     | 单例            | 全局                                                                                                        | 高   | 中   | Phase 3 |
-| ARCH-5     | 迁移安全          | 全局（已落地进度事件 §3.5）                                                                                   | 中   | 低   | Phase 3 |
-| ARCH-6     | 协作复杂度         | `collaboration/`*                                                                                         | 高   | 高   | Phase 3 |
-| ARCH-7     | 代码组织          | 转录页面                                                                                                      | 高   | 高   | Phase 3 |
-| ARCH-8     | Worker 管理     | 全局                                                                                                        | 中   | 中   | Phase 3（已完成） |
-| ARCH-9     | 测试覆盖          | 全局                                                                                                        | 高   | 低   | Phase 3 |
-| ARCH-10    | 错误处理          | DB Adapter                                                                                                | 中   | 低   | Phase 3 |
+| ARCH-2     | i18n          | 全局（已闭环，见 §3.2 与 `arch2-i18n-message-modules-2026-04-25.md`）                                         | 高   | 中   | Phase 3（已完成） |
+| ARCH-3     | 事务            | 全局（按 `src/services/**` 写路径边界已闭环，见 §3.3 与 `arch3-transaction-wrapping-2026-04-25.md`）           | 高   | 中   | Phase 3（已完成） |
+| ARCH-4     | 单例            | 全局（已闭环，见 §3.4 与 `arch4-singleton-worker-health-2026-04-25.md`）                                      | 高   | 中   | Phase 3（已完成） |
+| ARCH-5     | 迁移安全          | 全局（按浏览器能力边界已闭环：进度可视化 + 回放 + 手动导出策略，见 §3.5）                                   | 中   | 低   | Phase 3（已完成） |
+| ARCH-6     | 协作复杂度         | `collaboration/`*（已完成，见 §3.6）                                                                          | 高   | 中   | Phase 3（已完成） |
+| ARCH-7     | 代码组织          | 转录页面（部分完成：多路 builder 已拆，主编排文件仍需继续瘦身，见 §3.7）                                         | 高   | 高   | Phase 3（部分完成） |
+| ARCH-8     | Worker 管理     | 全局（核心长生命周期 Worker 与心跳自恢复已落地，见 §3.8）                                                     | 中   | 中   | Phase 3（已完成） |
+| ARCH-9     | 测试覆盖          | 全局（已完成，见 §3.9 与 `tests/e2e/criticalPaths.spec.ts`）                                                | 高   | 低   | Phase 3（已完成） |
+| ARCH-10    | 错误处理          | DB Adapter（已完成：分级 + 推广 + dev 提示，见 §3.10）                                                       | 中   | 低   | Phase 3（已完成） |
 
 **补充项（已落地）：**
 
