@@ -68,6 +68,18 @@ type LanguageIsoInputProps = {
   className?: string;
   searchScope?: LanguageCatalogSearchScope;
   resolveLanguageDisplayName?: ResolveLanguageDisplayName;
+  /** 附加到名称、代码输入框的 class（如 `layer-action-dialog-input`）| Extra class on name/code inputs */
+  controlInputClassName?: string;
+  /** 与语言名、代码同排第三列（如语言资产 ID）| Optional third column in the same row (e.g. language asset id) */
+  languageAssetIdField?: {
+    id: string;
+    label: string;
+    value: string;
+    placeholder: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    inputClassName?: string;
+  };
 };
 
 export function LanguageIsoInput({
@@ -85,6 +97,8 @@ export function LanguageIsoInput({
   className = '',
   searchScope = 'orthography',
   resolveLanguageDisplayName,
+  controlInputClassName = '',
+  languageAssetIdField,
 }: LanguageIsoInputProps) {
   const fieldIdPrefix = useId();
   const serializedIncomingValue = serializeLanguageInputValue(value);
@@ -118,6 +132,12 @@ export function LanguageIsoInput({
   const hasVisibleSuggestions = visibleSuggestionMatches.length > 0;
   const hasExternalError = Boolean(error);
   const visibleCodeError = error || (!suppressCodeError ? assistState.codeError : '');
+  const hasFeedbackContent = Boolean(
+    assistState.detectedTagSummary
+    || assistState.ambiguityHint
+    || assistState.warning
+    || visibleCodeError,
+  );
   const codeErrorId = `${fieldIdPrefix}-language-code-error`;
   const committedValueKey = serializeLanguageInputValue(committedValue);
 
@@ -308,15 +328,26 @@ export function LanguageIsoInput({
     dispatch({ type: 'nameSuggestionCommitted', index, source: 'click' });
   };
 
+  const rootClass = [
+    'language-iso-input',
+    languageAssetIdField ? 'language-iso-input--with-asset-id' : '',
+    className,
+  ].filter(Boolean).join(' ');
+
+  const controlInputCls = ['input', 'panel-input', controlInputClassName].filter(Boolean).join(' ');
+  const assetIdInputCls = languageAssetIdField
+    ? ['input', 'panel-input', languageAssetIdField.inputClassName ?? controlInputClassName].filter(Boolean).join(' ')
+    : '';
+
   return (
-    <div className={`language-iso-input ${className}`.trim()}>
+    <div className={rootClass.trim()}>
       <div className="language-iso-input-anchor">
         <div className="language-iso-input-grid">
           <label className="dialog-field">
             <span>{nameLabel}{required ? ' *' : ''}</span>
             <input
               id={languageNameInputId}
-              className="input panel-input"
+              className={controlInputCls}
               type="text"
               role="combobox"
               value={presentedValue.languageName}
@@ -339,7 +370,7 @@ export function LanguageIsoInput({
             <input
               id={`${fieldIdPrefix}-language-code`}
               ref={languageCodeInputRef}
-              className="input panel-input"
+              className={controlInputCls}
               type="text"
               value={presentedValue.languageCode}
               onChange={handleLanguageCodeChange}
@@ -355,6 +386,24 @@ export function LanguageIsoInput({
               disabled={disabled}
             />
           </label>
+          {languageAssetIdField ? (
+            <label className="dialog-field">
+              <span>{languageAssetIdField.label}</span>
+              <input
+                id={languageAssetIdField.id}
+                className={assetIdInputCls}
+                type="text"
+                value={languageAssetIdField.value}
+                onChange={(event) => {
+                  languageAssetIdField.onChange(event.target.value.trim().toLowerCase());
+                }}
+                placeholder={languageAssetIdField.placeholder}
+                disabled={languageAssetIdField.disabled ?? disabled}
+                autoComplete="off"
+                spellCheck={false}
+              />
+            </label>
+          ) : null}
         </div>
 
         <div
@@ -391,18 +440,20 @@ export function LanguageIsoInput({
         </div>
       </div>
 
-      <div className="language-iso-input-feedback-slot" aria-live="polite">
-        {assistState.detectedTagSummary && (
-          <p className="dialog-hint">
-            {locale === 'zh-CN' ? '\u8bc6\u522b\u5230\u6807\u7b7e\uff1a' : 'Detected tag: '}
-            {assistState.detectedTagSummary}
-          </p>
-        )}
+      {hasFeedbackContent ? (
+        <div className="language-iso-input-feedback-slot" aria-live="polite">
+          {assistState.detectedTagSummary && (
+            <p className="dialog-hint">
+              {locale === 'zh-CN' ? '\u8bc6\u522b\u5230\u6807\u7b7e\uff1a' : 'Detected tag: '}
+              {assistState.detectedTagSummary}
+            </p>
+          )}
 
-        {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
-        {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
-        {visibleCodeError && <PanelFeedback id={codeErrorId} level="error">{visibleCodeError}</PanelFeedback>}
-      </div>
+          {assistState.ambiguityHint && <p className="dialog-hint">{assistState.ambiguityHint}</p>}
+          {assistState.warning && <p className="dialog-hint">{assistState.warning}</p>}
+          {visibleCodeError && <PanelFeedback id={codeErrorId} level="error">{visibleCodeError}</PanelFeedback>}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -150,13 +150,13 @@ export function TimelineLaneHeader({
   const viewportWidth = useViewportWidth();
   const laneLockDialogWidth = useMemo(
     () => computeAdaptivePanelWidth({
-      baseWidth: 360,
+      baseWidth: 480,
       locale,
       direction: uiTextDirection,
       uiFontScale,
       density: 'standard',
-      minWidth: 300,
-      maxWidth: 620,
+      minWidth: 360,
+      maxWidth: 760,
       ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
     [locale, uiFontScale, uiTextDirection, viewportWidth],

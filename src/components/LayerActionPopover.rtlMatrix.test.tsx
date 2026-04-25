@@ -93,7 +93,7 @@ describe('LayerActionPopover RTL matrix', () => {
     expect(readPersistedUiFontScaleMock).toHaveBeenCalledWith('en-US', direction);
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({
       direction,
-      baseWidth: 360,
+      baseWidth: 480,
     }));
   });
 

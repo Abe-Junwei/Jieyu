@@ -115,7 +115,7 @@ describe('AI complex panels RTL matrix', () => {
     expect(root).toBeTruthy();
     expect(root.getAttribute('dir')).toBe(direction);
     expect(readPersistedUiFontScaleMock).toHaveBeenCalledWith('en-US', direction);
-    expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ baseWidth: 360, direction }));
+    expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ baseWidth: 480, direction }));
     expect(computeAdaptivePanelWidthMock).toHaveBeenCalledWith(expect.objectContaining({ baseWidth: 760, direction }));
   });
 

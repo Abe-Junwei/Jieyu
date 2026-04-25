@@ -105,20 +105,20 @@ export const LayerActionPopover = memo(function LayerActionPopover({
   const viewportWidth = useViewportWidth();
   const panelDefaultWidth = useMemo(
     () => computeAdaptivePanelWidth({
-      baseWidth: 360,
+      baseWidth: 480,
       locale,
       direction: uiTextDirection,
       uiFontScale,
       density: action === 'delete' ? 'compact' : 'standard',
-      minWidth: 300,
-      maxWidth: 640,
+      minWidth: 360,
+      maxWidth: 760,
       ...(viewportWidth !== undefined ? { viewportWidth } : {}),
     }),
     [action, locale, uiFontScale, uiTextDirection, viewportWidth],
   );
   const panelMinWidth = useMemo(() => Math.max(280, Math.round(panelDefaultWidth * 0.78)), [panelDefaultWidth]);
   const dialogAutoWidth = useMemo(
-    () => Math.max(320, Math.min(640, panelDefaultWidth)),
+    () => Math.max(360, Math.min(760, panelDefaultWidth)),
     [panelDefaultWidth],
   );
   const actionMessages = getLayerActionPopoverMessages(locale);
@@ -679,7 +679,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
     >
       <DialogShell
         className={`layer-action-dialog${orthographyPicker.isCreating ? ' orthography-builder-dialog-host' : ''}`}
-        layoutStyle={{ '--dialog-auto-width': orthographyPicker.isCreating ? '404px' : `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
+        layoutStyle={{ '--dialog-auto-width': orthographyPicker.isCreating ? '540px' : `${Math.max(panelMinWidth, dialogAutoWidth)}px` } as React.CSSProperties}
         bodyClassName="layer-action-dialog-body"
         title={orthographyPicker.isCreating ? builderBreadcrumbTitle : label}
         headerClassName="layer-action-dialog-header"
@@ -765,34 +765,35 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                 </div>
               )}
             />
-            <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
-              <input
-                id={dialectFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.dialectPlaceholder}
-                value={dialect}
-                onChange={(e) => setDialect(e.target.value)}
-              />
-            </FormField>
-            <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
-              <input
-                id={vernacularFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.vernacularPlaceholder}
-                value={vernacular}
-                onChange={(e) => setVernacular(e.target.value)}
-              />
-            </FormField>
-            <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
-              <input
-                id={aliasFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.aliasShortPlaceholder}
-                value={alias}
-                onChange={(e) => setAlias(e.target.value)}
-              />
-              <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
-            </FormField>
+            <div className="layer-action-dialog-triple-row">
+              <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
+                <input
+                  id={dialectFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.dialectPlaceholder}
+                  value={dialect}
+                  onChange={(e) => setDialect(e.target.value)}
+                />
+              </FormField>
+              <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+                <input
+                  id={vernacularFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.vernacularPlaceholder}
+                  value={vernacular}
+                  onChange={(e) => setVernacular(e.target.value)}
+                />
+              </FormField>
+              <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
+                <input
+                  id={aliasFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.aliasHint}
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                />
+              </FormField>
+            </div>
             {createFailureMessage.trim().length > 0 ? (
               <PanelFeedback role="alert" aria-live="assertive" level="error">
                 {createFailureMessage}
@@ -815,35 +816,30 @@ export const LayerActionPopover = memo(function LayerActionPopover({
           />
         ) : (
           <>
-            <FormField>
-              <LanguageIsoInput
-                locale={locale}
-                value={languageInput}
-                onChange={setLanguageInput}
-                searchScope="language"
-                resolveLanguageDisplayName={resolveLanguageDisplayName}
-                nameLabel={actionMessages.languageNameLabel}
-                codeLabel={actionMessages.languageCodeLabel}
-                namePlaceholder={actionMessages.selectLanguage}
-                codePlaceholder={actionMessages.customLanguageCodePlaceholder}
-                error={customLanguageError}
-                disabled={isLoading || orthographyPicker.submitting}
-              />
-            </FormField>
-            <FormField htmlFor={`${fieldIdPrefix}-language-asset-id`} label={actionMessages.languageAssetIdLabel}>
-              <input
-                id={`${fieldIdPrefix}-language-asset-id`}
-                className="input panel-input layer-action-dialog-input"
-                type="text"
-                value={languageInput.languageAssetId ?? ''}
-                onChange={(event) => setLanguageInput((prev) => ({
-                  ...prev,
-                  languageAssetId: event.target.value.trim().toLowerCase(),
-                }))}
-                placeholder={actionMessages.languageAssetIdPlaceholder}
-                disabled={isLoading || orthographyPicker.submitting}
-              />
-            </FormField>
+            <LanguageIsoInput
+              locale={locale}
+              value={languageInput}
+              onChange={setLanguageInput}
+              searchScope="language"
+              resolveLanguageDisplayName={resolveLanguageDisplayName}
+              nameLabel={actionMessages.languageNameLabel}
+              codeLabel={actionMessages.languageCodeLabel}
+              namePlaceholder={actionMessages.selectLanguage}
+              codePlaceholder={actionMessages.customLanguageCodePlaceholder}
+              error={customLanguageError}
+              disabled={isLoading || orthographyPicker.submitting}
+              controlInputClassName="layer-action-dialog-input"
+              languageAssetIdField={{
+                id: `${fieldIdPrefix}-language-asset-id`,
+                label: actionMessages.languageAssetIdLabel,
+                value: languageInput.languageAssetId ?? '',
+                placeholder: actionMessages.languageAssetIdPlaceholder,
+                onChange: (value) => {
+                  setLanguageInput((prev) => ({ ...prev, languageAssetId: value }));
+                },
+                disabled: isLoading || orthographyPicker.submitting,
+              }}
+            />
             {resolvedLanguageId && (
               <div className="layer-action-dialog-field-group">
                 <FormField htmlFor={orthographyFieldId} label={actionMessages.orthographyFieldLabel}>
@@ -895,34 +891,35 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                 )}
               </div>
             )}
-            <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
-              <input
-                id={dialectFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.dialectPlaceholder}
-                value={dialect}
-                onChange={(e) => setDialect(e.target.value)}
-              />
-            </FormField>
-            <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
-              <input
-                id={vernacularFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.vernacularPlaceholder}
-                value={vernacular}
-                onChange={(e) => setVernacular(e.target.value)}
-              />
-            </FormField>
-            <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
-              <input
-                id={aliasFieldId}
-                className="input panel-input layer-action-dialog-input"
-                placeholder={actionMessages.aliasShortPlaceholder}
-                value={alias}
-                onChange={(e) => setAlias(e.target.value)}
-              />
-              <p className="layer-action-dialog-alias-hint">{actionMessages.aliasHint}</p>
-            </FormField>
+            <div className="layer-action-dialog-triple-row">
+              <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>
+                <input
+                  id={dialectFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.dialectPlaceholder}
+                  value={dialect}
+                  onChange={(e) => setDialect(e.target.value)}
+                />
+              </FormField>
+              <FormField htmlFor={vernacularFieldId} label={actionMessages.vernacularPlaceholder}>
+                <input
+                  id={vernacularFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.vernacularPlaceholder}
+                  value={vernacular}
+                  onChange={(e) => setVernacular(e.target.value)}
+                />
+              </FormField>
+              <FormField htmlFor={aliasFieldId} label={actionMessages.aliasShortPlaceholder}>
+                <input
+                  id={aliasFieldId}
+                  className="input panel-input layer-action-dialog-input"
+                  placeholder={actionMessages.aliasHint}
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                />
+              </FormField>
+            </div>
             {(action === 'create-translation' || action === 'create-transcription') && (
               <div className="layer-action-dialog-field-group">
                 <FormField htmlFor={modalityFieldId} label={actionMessages.modalityLabel}>
@@ -938,9 +935,7 @@ export const LayerActionPopover = memo(function LayerActionPopover({
                   </select>
                 </FormField>
                 <PanelNote className="layer-action-dialog-meta-note">
-                  {action === 'create-translation'
-                    ? actionMessages.translationBoundarySource
-                    : actionMessages.transcriptionModalityHint}
+                  {actionMessages.translationBoundarySource}
                 </PanelNote>
                 {action === 'create-translation' && independentParentLayers.length > 1 && (
                   <div className="dialog-field">
