@@ -13,6 +13,11 @@ on:
         required: false
         default: false
         type: boolean
+      require_cost_guard_trend_ready:
+        description: 'Enable strict release-evidence compareReady gate for costGuard.trend'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -264,6 +269,7 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
 
       - name: Upload release evidence artifacts (core)
@@ -310,6 +316,7 @@ jobs:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
 
       - name: Upload release evidence artifacts (full)
