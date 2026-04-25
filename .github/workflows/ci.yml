@@ -272,6 +272,56 @@ jobs:
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
 
+      - name: Summarize release evidence cost-guard trend (core)
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          if (!summaryPath) process.exit(0);
+
+          const dir = path.join(process.cwd(), 'docs', 'execution', 'release-gates', 'release-evidence');
+          if (!fs.existsSync(dir)) {
+            fs.appendFileSync(summaryPath, '## Release Evidence CostGuard Trend (core)\n\nNo release-evidence directory found.\n');
+            process.exit(0);
+          }
+
+          const candidates = fs.readdirSync(dir)
+            .filter((name) => /^release-evidence-\d{8}-\d{6}-core\.json$/.test(name))
+            .map((name) => {
+              const fullPath = path.join(dir, name);
+              return { name, fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs };
+            })
+            .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+          if (candidates.length === 0) {
+            fs.appendFileSync(summaryPath, '## Release Evidence CostGuard Trend (core)\n\nNo core release-evidence artifact found.\n');
+            process.exit(0);
+          }
+
+          const latest = candidates[0];
+          const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
+          const trend = payload?.costGuard?.trend;
+          const compareReady = trend?.compareReady === true ? 'true' : 'false';
+          const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
+          const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
+
+          fs.appendFileSync(
+            summaryPath,
+            [
+              '## Release Evidence CostGuard Trend (core)',
+              '',
+              `- Artifact: ${path.relative(process.cwd(), latest.fullPath)}`,
+              `- compareReady: ${compareReady}`,
+              `- pointCount: ${pointCount}`,
+              `- requirement: ${requirement}`,
+              '',
+            ].join('\n'),
+          );
+          NODE
+
       - name: Upload release evidence artifacts (core)
         if: always()
         uses: actions/upload-artifact@v4
@@ -318,6 +368,56 @@ jobs:
           RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
+
+      - name: Summarize release evidence cost-guard trend (full)
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          if (!summaryPath) process.exit(0);
+
+          const dir = path.join(process.cwd(), 'docs', 'execution', 'release-gates', 'release-evidence');
+          if (!fs.existsSync(dir)) {
+            fs.appendFileSync(summaryPath, '## Release Evidence CostGuard Trend (full)\n\nNo release-evidence directory found.\n');
+            process.exit(0);
+          }
+
+          const candidates = fs.readdirSync(dir)
+            .filter((name) => /^release-evidence-\d{8}-\d{6}-full\.json$/.test(name))
+            .map((name) => {
+              const fullPath = path.join(dir, name);
+              return { name, fullPath, mtimeMs: fs.statSync(fullPath).mtimeMs };
+            })
+            .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+          if (candidates.length === 0) {
+            fs.appendFileSync(summaryPath, '## Release Evidence CostGuard Trend (full)\n\nNo full release-evidence artifact found.\n');
+            process.exit(0);
+          }
+
+          const latest = candidates[0];
+          const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
+          const trend = payload?.costGuard?.trend;
+          const compareReady = trend?.compareReady === true ? 'true' : 'false';
+          const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
+          const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
+
+          fs.appendFileSync(
+            summaryPath,
+            [
+              '## Release Evidence CostGuard Trend (full)',
+              '',
+              `- Artifact: ${path.relative(process.cwd(), latest.fullPath)}`,
+              `- compareReady: ${compareReady}`,
+              `- pointCount: ${pointCount}`,
+              `- requirement: ${requirement}`,
+              '',
+            ].join('\n'),
+          );
+          NODE
 
       - name: Upload release evidence artifacts (full)
         if: always()
