@@ -51,6 +51,20 @@ interface ReleaseEvidenceReport {
       sampleRequestIds?: string[];
     }>;
   };
+  memoryRecallShape: {
+    status: string;
+    card: {
+      id: string;
+      status: string;
+      sampleCount: number;
+      candidateCountAvg: number;
+      emptySelectionRate: number;
+      duplicateSuppressionRate: number;
+      budgetSuppressionRate: number;
+      freshnessDistribution: Record<string, number>;
+      sampleRequestIds?: string[];
+    } | null;
+  };
   costGuard: CostGuardSection;
   evidenceIndex: Array<{ conclusionId: string }>;
   aiToolEvidenceCards: {
@@ -138,11 +152,13 @@ describe('generate-release-evidence-bundle script', () => {
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'a3.perf.cards')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.progressive-disclosure.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'b3.extensions.capability-audit-summary')).toBe(true);
       expect(report.extensions.status).toBe('skipped');
       expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
+      expect(report.memoryRecallShape.status).toBe('skipped');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -522,6 +538,85 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.perf.cards.find((card) => card.script === 'perf:track')?.metricObservedMs).toBe(201);
       expect(report.perf.cards.find((card) => card.script === 'test:timeline-cqrs-phase9')?.metricObservedMs).toBe(320);
       expect(report.perf.cards.find((card) => card.script === 'perf:ai')?.metricObservedMs).toBe(412);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds memory recall shape telemetry card from audit metadata', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-tool-decision-audit.ndjson');
+    const auditRows = [
+      {
+        request_id: 'toolreq_ragshape_001',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:00.000Z',
+        new_value: 'confirmed:set_transcription_text',
+        metadata_json: JSON.stringify({
+          ragShape: {
+            candidateCount: 10,
+            selectedCount: 0,
+            duplicateSuppressedCount: 2,
+            budgetSuppressedCount: 1,
+            freshnessBucket: 'lt_1d',
+          },
+        }),
+      },
+      {
+        request_id: 'toolreq_ragshape_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:01.000Z',
+        new_value: 'confirmed:set_transcription_text',
+        metadata_json: JSON.stringify({
+          memoryRecallShape: {
+            candidateCount: 20,
+            selectedCount: 5,
+            duplicateSuppressedCount: 0,
+            budgetSuppressedCount: 0,
+            freshnessBucket: '1_7d',
+          },
+        }),
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.memoryRecallShape.status).toBe('ready_or_partial');
+      expect(report.memoryRecallShape.card?.sampleCount).toBe(2);
+      expect(report.memoryRecallShape.card?.candidateCountAvg).toBe(15);
+      expect(report.memoryRecallShape.card?.emptySelectionRate).toBe(0.5);
+      expect(report.memoryRecallShape.card?.duplicateSuppressionRate).toBe(0.5);
+      expect(report.memoryRecallShape.card?.budgetSuppressionRate).toBe(0.5);
+      expect(report.memoryRecallShape.card?.freshnessDistribution).toEqual({
+        '1_7d': 1,
+        lt_1d: 1,
+      });
+      expect(report.memoryRecallShape.card?.sampleRequestIds).toEqual([
+        'toolreq_ragshape_001',
+        'toolreq_ragshape_002',
+      ]);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

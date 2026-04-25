@@ -1274,6 +1274,184 @@ function buildProgressiveDisclosureSection(input) {
   };
 }
 
+function toFiniteNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function extractMemoryRecallShapeSnapshot(metadata) {
+  if (!metadata || typeof metadata !== 'object') return null;
+
+  const candidates = [
+    metadata.memoryRecallShape,
+    metadata.ragShape,
+    metadata.retrievalShape,
+    metadata.recallShape,
+    metadata.rag && typeof metadata.rag === 'object' ? metadata.rag.shape : null,
+  ].filter((item) => item && typeof item === 'object');
+
+  for (const candidate of candidates) {
+    const candidateCount = toFiniteNumber(
+      candidate.candidateCount
+      ?? candidate.candidatesTotal
+      ?? candidate.retrievalCandidateCount,
+    );
+    const selectedCount = toFiniteNumber(
+      candidate.selectedCount
+      ?? candidate.selectedCandidates
+      ?? candidate.selectedTotal,
+    );
+    const duplicateSuppressedCount = toFiniteNumber(
+      candidate.duplicateSuppressedCount
+      ?? candidate.deduplicatedCount
+      ?? candidate.duplicateFilteredCount,
+    );
+    const budgetSuppressedCount = toFiniteNumber(
+      candidate.budgetSuppressedCount
+      ?? candidate.budgetFilteredCount
+      ?? candidate.trimmedByBudgetCount,
+    );
+    const freshnessBucketRaw = candidate.freshnessBucket
+      ?? (candidate.freshness && typeof candidate.freshness === 'object' ? candidate.freshness.bucket : null)
+      ?? candidate.freshnessLevel;
+    const freshnessBucket = typeof freshnessBucketRaw === 'string' ? freshnessBucketRaw.trim() : '';
+
+    const hasAnyMetric = candidateCount !== null
+      || selectedCount !== null
+      || duplicateSuppressedCount !== null
+      || budgetSuppressedCount !== null
+      || freshnessBucket.length > 0;
+
+    if (!hasAnyMetric) continue;
+    return {
+      candidateCount,
+      selectedCount,
+      duplicateSuppressedCount,
+      budgetSuppressedCount,
+      freshnessBucket,
+    };
+  }
+
+  return null;
+}
+
+function buildMemoryRecallShapeSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    releaseProfile,
+  } = input;
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      card: null,
+    };
+  }
+
+  const decisionRows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_tool_call_decision'),
+  );
+
+  if (decisionRows.length === 0) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_decision_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      card: null,
+    };
+  }
+
+  let candidateCountSum = 0;
+  let candidateCountSamples = 0;
+  let selectedCountSamples = 0;
+  let emptySelectionCount = 0;
+  let duplicateSuppressionSamples = 0;
+  let duplicateSuppressionTriggered = 0;
+  let budgetSuppressionSamples = 0;
+  let budgetSuppressionTriggered = 0;
+  const freshnessDistribution = new Map();
+  const sampleRequestIds = [];
+
+  for (const row of decisionRows) {
+    const metadata = getMetadataObject(row);
+    const snapshot = extractMemoryRecallShapeSnapshot(metadata);
+    if (!snapshot) continue;
+
+    sampleRequestIds.push(row.requestId);
+
+    if (snapshot.candidateCount !== null) {
+      candidateCountSum += snapshot.candidateCount;
+      candidateCountSamples += 1;
+    }
+
+    if (snapshot.selectedCount !== null) {
+      selectedCountSamples += 1;
+      if (snapshot.selectedCount === 0) {
+        emptySelectionCount += 1;
+      }
+    }
+
+    if (snapshot.duplicateSuppressedCount !== null) {
+      duplicateSuppressionSamples += 1;
+      if (snapshot.duplicateSuppressedCount > 0) {
+        duplicateSuppressionTriggered += 1;
+      }
+    }
+
+    if (snapshot.budgetSuppressedCount !== null) {
+      budgetSuppressionSamples += 1;
+      if (snapshot.budgetSuppressedCount > 0) {
+        budgetSuppressionTriggered += 1;
+      }
+    }
+
+    if (snapshot.freshnessBucket.length > 0) {
+      const current = freshnessDistribution.get(snapshot.freshnessBucket) ?? 0;
+      freshnessDistribution.set(snapshot.freshnessBucket, current + 1);
+    }
+  }
+
+  if (sampleRequestIds.length === 0) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_rag_shape_metadata',
+      auditExportPath: toRelativePath(auditExportPath),
+      card: null,
+    };
+  }
+
+  const uniqueSampleRequestIds = [...new Set(sampleRequestIds)];
+  const candidateCountAvg = candidateCountSamples > 0
+    ? Number((candidateCountSum / candidateCountSamples).toFixed(4))
+    : 0;
+  const emptySelectionRate = toFixedRate(emptySelectionCount, selectedCountSamples);
+  const duplicateSuppressionRate = toFixedRate(duplicateSuppressionTriggered, duplicateSuppressionSamples);
+  const budgetSuppressionRate = toFixedRate(budgetSuppressionTriggered, budgetSuppressionSamples);
+  const freshnessDistributionObject = Object.fromEntries(
+    [...freshnessDistribution.entries()].sort((a, b) => a[0].localeCompare(b[0])),
+  );
+
+  return {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    card: {
+      id: 'memory_recall_shape_v1',
+      status: 'ready_or_partial',
+      sampleCount: uniqueSampleRequestIds.length,
+      candidateCountAvg,
+      emptySelectionRate,
+      duplicateSuppressionRate,
+      budgetSuppressionRate,
+      freshnessDistribution: freshnessDistributionObject,
+      numeratorSource: 'ai_messages.ai_tool_call_decision metadata.memoryRecallShape/ragShape',
+      denominatorSource: 'decision rows with corresponding metric available',
+      ...(releaseProfile === 'full' ? { sampleRequestIds: uniqueSampleRequestIds.slice(0, 10) } : {}),
+    },
+  };
+}
+
 function isRetryTriggeredByMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') return false;
   if (metadata.retryTriggered === true) return true;
@@ -1435,6 +1613,7 @@ function buildReport(input) {
     costGuardSection,
     extensionCapabilityAudit,
     progressiveDisclosureSection,
+    memoryRecallShapeSection,
   } = input;
 
   const stepPassed = countByStatus(stepResults, 'passed');
@@ -1538,6 +1717,23 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 'p1.rag-shape-telemetry.v1',
+    conclusion: memoryRecallShapeSection.status === 'skipped'
+      ? 'P1-RagShapeTelemetry card skipped'
+      : 'P1-RagShapeTelemetry card generated',
+    evidenceType: memoryRecallShapeSection.status === 'skipped'
+      ? 'memory_recall_shape_skipped'
+      : 'memory_recall_shape',
+    command: 'release_evidence:memory_recall_shape',
+    module: 'ai-rag-shape',
+    exitCode: 0,
+    logPath: null,
+    keySummary: memoryRecallShapeSection.status === 'skipped'
+      ? (memoryRecallShapeSection.skipReason ?? 'skipped')
+      : `sampleCount=${memoryRecallShapeSection.card?.sampleCount ?? 0}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'p1.cost-guard.v1',
     conclusion: costGuardSection.status === 'skipped'
       ? 'P1-CostGuard card skipped'
@@ -1579,6 +1775,7 @@ function buildReport(input) {
     aiToolEvidenceCards: aiEvidenceCards,
     perf: perfSection,
     progressiveDisclosure: progressiveDisclosureSection,
+    memoryRecallShape: memoryRecallShapeSection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
   };
@@ -1690,6 +1887,11 @@ async function run() {
       auditRows: auditLoad.rows,
       releaseProfile,
     }),
+    memoryRecallShapeSection: buildMemoryRecallShapeSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      releaseProfile,
+    }),
   });
 
   await writeReport(report, outputPath);
@@ -1752,6 +1954,11 @@ run().catch(async (error) => {
       status: 'skipped',
       skipReason: 'fallback_due_to_unhandled_error',
       cards: [],
+    },
+    memoryRecallShape: {
+      status: 'skipped',
+      skipReason: 'fallback_due_to_unhandled_error',
+      card: null,
     },
     costGuard: {
       status: 'skipped',
