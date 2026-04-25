@@ -35,6 +35,19 @@ describe('resolveBackgroundToolSandboxDecision', () => {
     })).toEqual({ action: 'allow', reason: 'readonly-command-allowed' });
   });
 
+  it('denies readonly rg and ls paths outside the workspace', () => {
+    for (const command of ['rg secret /tmp', 'rg secret ../outside', 'ls /', 'ls ~/Downloads']) {
+      expect(resolveBackgroundToolSandboxDecision({
+        enabled: true,
+        profile: 'readonly',
+        kind: 'shell',
+        command,
+        workspaceRoot,
+        cwd: workspaceRoot,
+      })).toEqual({ action: 'deny', reason: 'workspace-boundary-violation' });
+    }
+  });
+
   it('rejects shell bypass syntax before command allowlisting', () => {
     for (const command of ['git status && rm -rf src', 'cd docs && npm run write', 'ls > out.txt', 'rg $(pwd)', 'git status; touch x']) {
       expect(resolveBackgroundToolSandboxDecision({

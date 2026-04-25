@@ -79,8 +79,24 @@ function normalizeCommand(command: string): string {
   return command.trim().replace(/\s+/g, ' ');
 }
 
-function isReadonlyCommandAllowlisted(command: string): boolean {
-  return READONLY_COMMAND_ALLOWLIST.has(command) || command.startsWith('rg ') || command.startsWith('ls ');
+function readonlyPathCommandDecision(
+  command: string,
+  workspaceRoot: string,
+  cwd: string,
+): BackgroundToolSandboxDecision | null {
+  const [binary, ...args] = command.split(' ');
+  if (binary !== 'rg' && binary !== 'ls') return null;
+  for (const arg of args) {
+    if (!arg || arg.startsWith('-')) continue;
+    if (arg.startsWith('~') || arg.includes('..')) {
+      return { action: 'deny', reason: 'workspace-boundary-violation' };
+    }
+    const maybePath = joinPath(cwd, arg);
+    if (!isWithin(workspaceRoot, maybePath)) {
+      return { action: 'deny', reason: 'workspace-boundary-violation' };
+    }
+  }
+  return { action: 'allow', reason: 'readonly-command-allowed' };
 }
 
 function decideShell(request: Extract<BackgroundToolSandboxRequest, { kind: 'shell' }>): BackgroundToolSandboxDecision {
@@ -90,7 +106,9 @@ function decideShell(request: Extract<BackgroundToolSandboxRequest, { kind: 'she
   const command = normalizeCommand(request.command);
   if (hasUnsafeShellSyntax(command)) return { action: 'deny', reason: 'shell-syntax-not-allowed' };
   if (request.profile === 'deny_by_default') return { action: 'deny', reason: 'deny-by-default' };
-  if (isReadonlyCommandAllowlisted(command)) return { action: 'allow', reason: 'readonly-command-allowed' };
+  if (READONLY_COMMAND_ALLOWLIST.has(command)) return { action: 'allow', reason: 'readonly-command-allowed' };
+  const readonlyPathDecision = readonlyPathCommandDecision(command, request.workspaceRoot, request.cwd);
+  if (readonlyPathDecision) return readonlyPathDecision;
   return { action: 'deny', reason: 'shell-command-not-allowlisted' };
 }
 
