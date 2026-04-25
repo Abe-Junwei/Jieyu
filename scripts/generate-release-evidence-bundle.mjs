@@ -127,6 +127,21 @@ function resolveExtensionCapabilityAuditExportPath() {
     : path.join(workspaceRoot, fromEnv);
 }
 
+function resolvePerfJsonReportPath() {
+  const fromArg = parseArgValue('--perf-json-report');
+  if (fromArg) {
+    return path.isAbsolute(fromArg)
+      ? fromArg
+      : path.join(workspaceRoot, fromArg);
+  }
+
+  const fromEnv = String(process.env.RELEASE_EVIDENCE_PERF_JSON_REPORT ?? '').trim();
+  if (!fromEnv) return null;
+  return path.isAbsolute(fromEnv)
+    ? fromEnv
+    : path.join(workspaceRoot, fromEnv);
+}
+
 function resolveAiRequestSampleLimit() {
   const raw = parseArgValue('--ai-request-limit')
     ?? String(process.env.RELEASE_EVIDENCE_AI_REQUEST_LIMIT ?? '').trim();
@@ -797,11 +812,98 @@ function parsePerfObservedValues(stepResult, definition) {
   return [];
 }
 
-function buildPerfEvidenceSection(stepResults, releaseProfile) {
+function parsePerfObservedValuesFromJsonReport(reportJson, definition) {
+  if (!reportJson || typeof reportJson !== 'object') return [];
+
+  // Preferred normalized payload written by CI helpers.
+  if (Array.isArray(reportJson.cards)) {
+    const filtered = reportJson.cards.filter((item) => item?.script === definition.script);
+    return filtered
+      .map((item) => ({
+        label: typeof item.label === 'string' ? item.label.trim() : '',
+        observedMs: Number(item.observedMs),
+      }))
+      .filter((item) => item.label.length > 0 && Number.isFinite(item.observedMs));
+  }
+
+  // Fallback for direct vitest JSON reporter output.
+  if (!Array.isArray(reportJson.testResults)) return [];
+  const lines = [];
+  for (const suite of reportJson.testResults) {
+    if (!Array.isArray(suite?.assertionResults)) continue;
+    for (const assertion of suite.assertionResults) {
+      const title = typeof assertion?.fullName === 'string'
+        ? assertion.fullName
+        : (typeof assertion?.title === 'string' ? assertion.title : '');
+      if (!title) continue;
+      const duration = Number(assertion?.duration ?? assertion?.durationMs ?? NaN);
+      if (!Number.isFinite(duration)) continue;
+      lines.push({ title, duration });
+    }
+  }
+
+  if (definition.script === 'perf:track') {
+    return lines
+      .map((line) => {
+        const m = line.title.match(/\b(2k|5k)\b/i);
+        if (!m) return null;
+        return { label: m[1].toLowerCase(), observedMs: line.duration };
+      })
+      .filter(Boolean);
+  }
+
+  if (definition.script === 'test:timeline-cqrs-phase9') {
+    return lines
+      .map((line) => {
+        const m = line.title.match(/\b(1k|5k|10k|1000|5000|10000)\b/i);
+        if (!m) return null;
+        const label = String(m[1]).toLowerCase()
+          .replace(/^1000$/, '1k')
+          .replace(/^5000$/, '5k')
+          .replace(/^10000$/, '10k');
+        return { label, observedMs: line.duration };
+      })
+      .filter(Boolean);
+  }
+
+  if (definition.script === 'perf:ai') {
+    const hit = lines.find((line) => /embedding/i.test(line.title));
+    if (hit) return [{ label: 'embedding', observedMs: hit.duration }];
+  }
+
+  return [];
+}
+
+async function loadPerfJsonReport(reportPath) {
+  if (!reportPath) {
+    return { report: null, readError: null };
+  }
+
+  try {
+    const rawText = await readFile(reportPath, 'utf8');
+    const parsed = parseJsonMaybe(rawText);
+    if (!parsed || typeof parsed !== 'object') {
+      return {
+        report: null,
+        readError: {
+          name: 'InvalidPerfJsonReport',
+          message: 'perf json report is not a valid object payload',
+        },
+      };
+    }
+    return { report: parsed, readError: null };
+  } catch (error) {
+    return { report: null, readError: toErrorPayload(error) };
+  }
+}
+
+function buildPerfEvidenceSection(stepResults, releaseProfile, perfJsonReport, perfJsonReportPath, perfJsonReportReadError) {
   const cards = PERF_STEP_CARD_DEFS.map((definition) => {
     const stepResult = stepResults.find((item) => item.script === definition.script);
     const status = mapPerfCardStatus(stepResult);
-    const observed = parsePerfObservedValues(stepResult, definition);
+    const observedFromReport = parsePerfObservedValuesFromJsonReport(perfJsonReport, definition);
+    const observedFromOutput = parsePerfObservedValues(stepResult, definition);
+    const observed = observedFromReport.length > 0 ? observedFromReport : observedFromOutput;
     const thresholds = definition.cases;
     const thresholdMaxMs = thresholds.length > 0
       ? Math.max(...thresholds.map((item) => item.maxMs))
@@ -837,7 +939,7 @@ function buildPerfEvidenceSection(stepResults, releaseProfile) {
   const hasProfilePerfStep = stepResults.some((item) => item.module === 'performance');
 
   if (!hasProfilePerfStep) {
-    return {
+    const out = {
       status: 'skipped',
       skipReason: 'profile_without_performance_steps',
       summary: {
@@ -849,9 +951,16 @@ function buildPerfEvidenceSection(stepResults, releaseProfile) {
       cards,
       profile: releaseProfile,
     };
+    if (perfJsonReportPath) {
+      out.perfJsonReportPath = toRelativePath(perfJsonReportPath);
+    }
+    if (perfJsonReportReadError) {
+      out.perfJsonReportReadError = perfJsonReportReadError;
+    }
+    return out;
   }
 
-  return {
+  const out = {
     status: failed > 0 ? 'degraded' : 'ready_or_partial',
     summary: {
       total: cards.length,
@@ -862,6 +971,13 @@ function buildPerfEvidenceSection(stepResults, releaseProfile) {
     cards,
     profile: releaseProfile,
   };
+  if (perfJsonReportPath) {
+    out.perfJsonReportPath = toRelativePath(perfJsonReportPath);
+  }
+  if (perfJsonReportReadError) {
+    out.perfJsonReportReadError = perfJsonReportReadError;
+  }
+  return out;
 }
 
 function normalizeExtensionCapabilityAuditRow(rawRow) {
@@ -1496,6 +1612,7 @@ async function run() {
   const aiCardsFixturePath = resolveAiCardsFixturePath();
   const aiAuditExportPath = resolveAiAuditExportPath();
   const extensionCapabilityAuditExportPath = resolveExtensionCapabilityAuditExportPath();
+  const perfJsonReportPath = resolvePerfJsonReportPath();
   const aiRequestLimit = resolveAiRequestSampleLimit();
   const costEstimatorVersion = resolveCostEstimatorVersion();
   const generatedAt = getTimestampParts().iso;
@@ -1510,6 +1627,7 @@ async function run() {
   const fixtureLoad = await loadAiCardsFixtureMap(aiCardsFixturePath);
   const auditLoad = await loadAiAuditExportRows(aiAuditExportPath);
   const extensionCapabilityAuditLoad = await loadExtensionCapabilityAuditRows(extensionCapabilityAuditExportPath);
+  const perfJsonReportLoad = await loadPerfJsonReport(perfJsonReportPath);
   const resolvedRequestIds = aiRequestIds.length > 0
     ? aiRequestIds
     : collectRequestIdsFromAuditRows(auditLoad.rows, aiRequestLimit);
@@ -1550,7 +1668,13 @@ async function run() {
       auditRows: auditLoad.rows,
       auditReadError: auditLoad.readError,
     }),
-    perfSection: buildPerfEvidenceSection(stepResults, releaseProfile),
+    perfSection: buildPerfEvidenceSection(
+      stepResults,
+      releaseProfile,
+      perfJsonReportLoad.report,
+      perfJsonReportPath,
+      perfJsonReportLoad.readError,
+    ),
     costGuardSection: buildCostGuardSection({
       auditExportPath: aiAuditExportPath,
       auditRows: auditLoad.rows,

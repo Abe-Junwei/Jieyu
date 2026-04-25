@@ -487,4 +487,43 @@ describe('generate-release-evidence-bundle script', () => {
       rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('hydrates perf observed metrics from perf JSON report input', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const perfJsonPath = path.join(tempDir, 'perf-report.json');
+    const perfJson = {
+      cards: [
+        { script: 'perf:track', label: '2k', observedMs: 88 },
+        { script: 'perf:track', label: '5k', observedMs: 201 },
+        { script: 'test:timeline-cqrs-phase9', label: '1k', observedMs: 53 },
+        { script: 'test:timeline-cqrs-phase9', label: '5k', observedMs: 163 },
+        { script: 'test:timeline-cqrs-phase9', label: '10k', observedMs: 320 },
+        { script: 'perf:ai', label: 'embedding', observedMs: 412 },
+      ],
+    };
+
+    try {
+      writeFileSync(perfJsonPath, `${JSON.stringify(perfJson, null, 2)}\n`, 'utf8');
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--perf-json-report=${perfJsonPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+      expect(report.perf.status).toBe('ready_or_partial');
+      expect(report.perf.cards.find((card) => card.script === 'perf:track')?.metricObservedMs).toBe(201);
+      expect(report.perf.cards.find((card) => card.script === 'test:timeline-cqrs-phase9')?.metricObservedMs).toBe(320);
+      expect(report.perf.cards.find((card) => card.script === 'perf:ai')?.metricObservedMs).toBe(412);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
 });
