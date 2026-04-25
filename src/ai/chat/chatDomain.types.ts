@@ -144,7 +144,7 @@ export interface AiRecommendationTelemetry {
 
 export interface AiSessionMemoryProjectFact {
   fact: string;
-  source: 'user' | 'inferred';
+  source: 'user' | 'inferred' | 'background-extracted';
   createdAt: string;
 }
 
@@ -154,6 +154,73 @@ export interface AiSessionMemoryPreferences {
   lastLayerId?: string;
   adaptiveInputProfile?: AiAdaptiveInputProfile;
   preferredResponseStyle?: 'concise' | 'detailed';
+}
+
+export type AiResponsePreferenceLanguage = 'auto' | 'zh-CN' | 'en';
+export type AiResponsePreferenceFormat = 'bullets' | 'prose' | 'steps' | 'evidence_first';
+export type AiToolAutoExecutePreference = 'allow' | 'ask_first' | 'never';
+export type AiUserDirectiveCategory = 'response' | 'tool' | 'safety' | 'terminology' | 'session';
+export type AiUserDirectiveScope = 'session' | 'long_term';
+export type AiUserDirectiveSource = 'user_explicit' | 'background_extracted' | 'pinned_message';
+export type AiUserDirectiveApplicationAction = 'accepted' | 'ignored' | 'downgraded' | 'superseded';
+
+export interface AiSessionMemoryResponsePreferences {
+  language?: AiResponsePreferenceLanguage;
+  style?: 'concise' | 'detailed';
+  format?: AiResponsePreferenceFormat;
+  evidenceRequired?: boolean;
+}
+
+export interface AiSessionMemoryToolPreferences {
+  defaultScope?: LocalUnitScope;
+  autoExecute?: AiToolAutoExecutePreference;
+  preferLocalReads?: boolean;
+}
+
+export interface AiSessionMemorySafetyPreferences {
+  denyDestructive?: boolean;
+  denyBatch?: boolean;
+  requireImpactPreview?: boolean;
+}
+
+export interface AiSessionMemoryTerminologyPreference {
+  source: string;
+  target: string;
+  createdAt: string;
+}
+
+export interface AiSessionDirective {
+  id: string;
+  text: string;
+  category: AiUserDirectiveCategory;
+  createdAt: string;
+  expiresAt?: string;
+  source: AiUserDirectiveSource;
+  sourceMessageId?: string;
+}
+
+export interface AiUserDirectiveLedgerEntry {
+  id: string;
+  category: AiUserDirectiveCategory;
+  scope: AiUserDirectiveScope;
+  text: string;
+  action: AiUserDirectiveApplicationAction;
+  source: AiUserDirectiveSource;
+  confidence: number;
+  createdAt: string;
+  targetPath?: string;
+  value?: string | boolean;
+  sourceMessageId?: string;
+  expiresAt?: string;
+  supersededBy?: string;
+  reason?: string;
+}
+
+export interface AiPinnedMessageDigest {
+  messageId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
 }
 
 export interface AiSessionMemorySummaryEntry {
@@ -240,7 +307,15 @@ export interface AiSessionMemory {
   summaryChain?: AiSessionMemorySummaryEntry[];
   summaryQualityWarning?: AiSessionMemorySummaryQualityWarning;
   pinnedMessageIds?: string[];
+  pinnedMessageDigests?: AiPinnedMessageDigest[];
+  pinnedDirectiveRefs?: string[];
   preferences?: AiSessionMemoryPreferences;
+  responsePreferences?: AiSessionMemoryResponsePreferences;
+  toolPreferences?: AiSessionMemoryToolPreferences;
+  safetyPreferences?: AiSessionMemorySafetyPreferences;
+  terminologyPreferences?: AiSessionMemoryTerminologyPreference[];
+  sessionDirectives?: AiSessionDirective[];
+  directiveLedger?: AiUserDirectiveLedgerEntry[];
   projectFacts?: AiSessionMemoryProjectFact[];
   lastLanguage?: string;
   lastToolName?: AiChatToolName;
@@ -562,6 +637,7 @@ export interface AiContextDebugSnapshot {
   historyCharBudget: number;
   maxContextChars: number;
   contextPreview: string;
+  responsePolicyPreview?: string;
 }
 
 export interface UseAiChatOptions {

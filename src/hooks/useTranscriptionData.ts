@@ -270,6 +270,7 @@ export function useTranscriptionData() {
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
     toggleLayerLink: toggleLayerLinkRaw,
+    rebindTranslationLayerHost: rebindTranslationLayerHostRaw,
     addMediaItem,
     reorderLayers,
   } = useTranscriptionActions({
@@ -334,6 +335,7 @@ export function useTranscriptionData() {
     createLayer,
     deleteLayer,
     toggleLayerLink,
+    rebindTranslationLayerHost,
   } = useTranscriptionMutexActionWrappers({
     runWithDbMutex,
     saveVoiceTranslationRaw,
@@ -358,6 +360,7 @@ export function useTranscriptionData() {
     createLayerRaw,
     deleteLayerRaw,
     toggleLayerLinkRaw,
+    rebindTranslationLayerHostRaw,
   });
 
   const {
@@ -487,7 +490,7 @@ export function useTranscriptionData() {
     selectSegmentRange, deleteSelectedUnits: cloudSyncActions.deleteSelectedUnits, offsetSelectedTimes,
     scaleSelectedTimes, splitByRegex, mergeSelectedUnits, createLayer: cloudSyncActions.createLayer,
     deleteLayer: cloudSyncActions.deleteLayer, deleteLayerWithoutConfirm, checkLayerHasContent,
-    toggleLayerLink: cloudSyncActions.toggleLayerLink, registerProjectAsset: cloudSyncActions.registerProjectAsset,
+    toggleLayerLink: cloudSyncActions.toggleLayerLink, rebindTranslationLayerHost, registerProjectAsset: cloudSyncActions.registerProjectAsset,
     listProjectAssets: cloudSyncActions.listProjectAssets, removeProjectAsset: cloudSyncActions.removeProjectAsset,
     getProjectAssetSignedUrl: cloudSyncActions.getProjectAssetSignedUrl,
     createProjectSnapshot: cloudSyncActions.createProjectSnapshot,

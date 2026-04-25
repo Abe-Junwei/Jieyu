@@ -759,6 +759,63 @@ export function useTranscriptionLayerActions({
     ]);
   }, [layerLinks, layers, locale, persistLayerState, pushUndo, setLayerCreateMessage, setLayerLinks, setLayers]);
 
+  const rebindTranslationLayerHost = useCallback(async (
+    input: {
+      translationLayerId: string;
+      removeTranscriptionLayerId: string;
+      fallbackTranscriptionLayerKey: string;
+    },
+  ) => {
+    const translationLayer = layers.find((layer) => layer.id === input.translationLayerId && layer.layerType === 'translation');
+    const fallbackParent = layers.find((layer) => layer.key === input.fallbackTranscriptionLayerKey && layer.layerType === 'transcription');
+    if (!translationLayer || !fallbackParent) return;
+
+    const transcriptionIdByKey = buildTranscriptionIdByKeyMap(layers);
+    const linksForTranslation = layerLinks.filter((link) => link.layerId === input.translationLayerId);
+    const removeIds = new Set(linksForTranslation
+      .filter((link) => resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey) === input.removeTranscriptionLayerId)
+      .map((link) => link.id));
+    if (removeIds.size === 0) return;
+
+    pushUndo(t(locale, 'transcription.layer.undo.adjustDependency'));
+    const db = await getDb();
+    const now = new Date().toISOString();
+    const remainingLinks = layerLinks.filter((link) => !removeIds.has(link.id));
+    const existingFallback = remainingLinks.find((link) =>
+      link.layerId === input.translationLayerId
+      && resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey) === fallbackParent.id,
+    );
+    const fallbackLink = existingFallback ?? createLayerLink({
+      id: newId('link'),
+      transcriptionLayerKey: fallbackParent.key,
+      hostTranscriptionLayerId: fallbackParent.id,
+      linkedTranslationLayerId: input.translationLayerId,
+      createdAt: now,
+    });
+    const nextLayerLinks = [
+      ...remainingLinks.map((link) => {
+        if (link.layerId !== input.translationLayerId) return link;
+        const hostId = resolveLayerLinkHostTranscriptionLayerId(link, transcriptionIdByKey);
+        return { ...link, isPreferred: hostId === fallbackParent.id };
+      }),
+      ...(existingFallback ? [] : [{ ...fallbackLink, isPreferred: true }]),
+    ];
+
+    await Promise.all([...removeIds].map((id) => db.collections.layer_links.remove(id)));
+    for (const link of nextLayerLinks) {
+      const previous = layerLinks.find((item) => item.id === link.id);
+      if (!previous) {
+        await db.collections.layer_links.insert(link);
+      } else if (previous.isPreferred !== link.isPreferred) {
+        await db.collections.layer_links.update(link.id, { isPreferred: link.isPreferred });
+      }
+    }
+    const nextLayers = computeCanonicalLayerOrder(layers, nextLayerLinks);
+    await persistLayerState(layers, nextLayers);
+    setLayers(nextLayers);
+    setLayerLinks(nextLayerLinks);
+  }, [layers, layerLinks, locale, persistLayerState, pushUndo, setLayerLinks, setLayers]);
+
   const addMediaItem = useCallback((item: MediaItemDocType) => {
     setMediaItems((prev) => {
       const existingIndex = prev.findIndex((candidate) => candidate.id === item.id);
@@ -812,6 +869,7 @@ export function useTranscriptionLayerActions({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
     toggleLayerLink,
+    rebindTranslationLayerHost,
     addMediaItem,
     reorderLayers,
   };

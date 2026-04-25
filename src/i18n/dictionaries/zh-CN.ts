@@ -2070,6 +2070,8 @@ export const zhCNDictionary = {
 
     'msg.appData.backupReminderToast':
         '建议定期在「转写」工作台通过导出菜单保存 .jym / .jyt 全量备份，以防浏览器存储损坏或换机。',
+    'msg.appData.backupElapsedReminderToast':
+        '已连续工作约 {hours} 小时，建议导出数据库备份以防数据丢失。',
     'msg.appData.collabLocalStorageQuotaToast':
         '浏览器存储配额已满：协作同步状态已临时改用内存并镜像到 IndexedDB。请尽快导出备份或清理站点数据。',
     'msg.appData.dbIntegrityTitle': '本地数据库自检未通过',

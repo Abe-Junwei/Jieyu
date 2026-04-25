@@ -108,9 +108,10 @@ export class BackgroundMemoryExtractor {
     if (this.options.sandboxDecision && this.options.sandboxDecision.action !== 'allow') return finish('skipped', 'sandbox-denied');
     try {
       const facts = await this.options.extractFacts(task.input);
-      if (facts.length === 0) return finish('skipped', 'empty-extraction');
       const writtenCount = await this.options.writeFacts(facts, task.input);
-      return { ...finish('completed'), writtenCount: Math.max(0, Math.floor(writtenCount)) };
+      const normalizedWrittenCount = Math.max(0, Math.floor(writtenCount));
+      if (facts.length === 0 && normalizedWrittenCount === 0) return finish('skipped', 'empty-extraction');
+      return { ...finish('completed'), writtenCount: normalizedWrittenCount };
     } catch (error) {
       return {
         ...finish('failed'),

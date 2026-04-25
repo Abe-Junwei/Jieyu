@@ -1,6 +1,29 @@
 import { getDb, type JieyuDatabase, type UnitRelationDocType } from '../db';
 
 export class LayerUnitRelationQueryService {
+  static async getRelationById(
+    id: string,
+    database?: JieyuDatabase,
+  ): Promise<UnitRelationDocType | null> {
+    const normalized = id.trim();
+    if (!normalized) return null;
+    const db = database ?? await getDb();
+    return await db.dexie.unit_relations.get(normalized) ?? null;
+  }
+
+  static async listRelationsByUnitIds(
+    unitIds: readonly string[],
+    options?: { relationType?: UnitRelationDocType['relationType'] },
+    database?: JieyuDatabase,
+  ): Promise<UnitRelationDocType[]> {
+    const ids = [...new Set(unitIds.filter((id) => id.trim().length > 0))];
+    if (ids.length === 0) return [];
+
+    const db = database ?? await getDb();
+    return (await db.dexie.unit_relations.where('unitId').anyOf(ids).toArray())
+      .filter((row) => !options?.relationType || row.relationType === options.relationType);
+  }
+
   static async listRelationsBySourceUnitIds(
     sourceUnitIds: readonly string[],
     options?: { relationType?: UnitRelationDocType['relationType'] },

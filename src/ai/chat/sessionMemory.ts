@@ -6,6 +6,10 @@ const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
 const log = createLogger('aiChatSessionMemory');
 const MAX_SUMMARY_CHAIN_LENGTH = 24;
 const MAX_PINNED_MESSAGE_IDS = 80;
+const MAX_PINNED_MESSAGE_DIGESTS = 24;
+const MAX_DIRECTIVE_LEDGER_LENGTH = 80;
+const MAX_SESSION_DIRECTIVES = 24;
+const MAX_TERMINOLOGY_PREFERENCES = 80;
 const SUMMARY_WARNING_DEFAULT_THRESHOLD = 0.85;
 
 function nowIso(): string {
@@ -60,6 +64,199 @@ function normalizePinnedMessageIds(memory: AiSessionMemory): string[] | undefine
   }
   if (normalized.length === 0) return undefined;
   return normalized.slice(-MAX_PINNED_MESSAGE_IDS);
+}
+
+function normalizePinnedMessageDigests(memory: AiSessionMemory): AiSessionMemory['pinnedMessageDigests'] {
+  const digests = memory.pinnedMessageDigests;
+  if (!Array.isArray(digests) || digests.length === 0) return undefined;
+  const pinned = new Set(memory.pinnedMessageIds ?? []);
+  const seen = new Set<string>();
+  const normalized = digests
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const messageId = typeof item.messageId === 'string' ? item.messageId.trim() : '';
+      const content = typeof item.content === 'string' ? trimTextToMax(item.content.trim(), 500) : '';
+      const role = item.role === 'user' || item.role === 'assistant' ? item.role : undefined;
+      if (!messageId || !content || !role || seen.has(messageId)) return null;
+      if (pinned.size > 0 && !pinned.has(messageId)) return null;
+      seen.add(messageId);
+      return {
+        messageId,
+        role,
+        content,
+        createdAt: typeof item.createdAt === 'string' && item.createdAt.trim() ? item.createdAt : nowIso(),
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .slice(-MAX_PINNED_MESSAGE_DIGESTS);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeResponsePreferences(memory: AiSessionMemory): AiSessionMemory['responsePreferences'] {
+  const preferences = memory.responsePreferences;
+  if (!preferences || typeof preferences !== 'object') return undefined;
+  const language = preferences.language === 'auto' || preferences.language === 'zh-CN' || preferences.language === 'en'
+    ? preferences.language
+    : undefined;
+  const style = preferences.style === 'concise' || preferences.style === 'detailed'
+    ? preferences.style
+    : undefined;
+  const format = preferences.format === 'bullets'
+    || preferences.format === 'prose'
+    || preferences.format === 'steps'
+    || preferences.format === 'evidence_first'
+    ? preferences.format
+    : undefined;
+  const evidenceRequired = typeof preferences.evidenceRequired === 'boolean' ? preferences.evidenceRequired : undefined;
+  const normalized = {
+    ...(language ? { language } : {}),
+    ...(style ? { style } : {}),
+    ...(format ? { format } : {}),
+    ...(evidenceRequired !== undefined ? { evidenceRequired } : {}),
+  };
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeToolPreferences(memory: AiSessionMemory): AiSessionMemory['toolPreferences'] {
+  const preferences = memory.toolPreferences;
+  if (!preferences || typeof preferences !== 'object') return undefined;
+  const defaultScope = preferences.defaultScope === 'project'
+    || preferences.defaultScope === 'current_track'
+    || preferences.defaultScope === 'current_scope'
+    ? preferences.defaultScope
+    : undefined;
+  const autoExecute = preferences.autoExecute === 'allow'
+    || preferences.autoExecute === 'ask_first'
+    || preferences.autoExecute === 'never'
+    ? preferences.autoExecute
+    : undefined;
+  const preferLocalReads = typeof preferences.preferLocalReads === 'boolean' ? preferences.preferLocalReads : undefined;
+  const normalized = {
+    ...(defaultScope ? { defaultScope } : {}),
+    ...(autoExecute ? { autoExecute } : {}),
+    ...(preferLocalReads !== undefined ? { preferLocalReads } : {}),
+  };
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeSafetyPreferences(memory: AiSessionMemory): AiSessionMemory['safetyPreferences'] {
+  const preferences = memory.safetyPreferences;
+  if (!preferences || typeof preferences !== 'object') return undefined;
+  const normalized = {
+    ...(typeof preferences.denyDestructive === 'boolean' ? { denyDestructive: preferences.denyDestructive } : {}),
+    ...(typeof preferences.denyBatch === 'boolean' ? { denyBatch: preferences.denyBatch } : {}),
+    ...(typeof preferences.requireImpactPreview === 'boolean' ? { requireImpactPreview: preferences.requireImpactPreview } : {}),
+  };
+  return Object.keys(normalized).length > 0 ? normalized : undefined;
+}
+
+function normalizeTerminologyPreferences(memory: AiSessionMemory): AiSessionMemory['terminologyPreferences'] {
+  const preferences = memory.terminologyPreferences;
+  if (!Array.isArray(preferences) || preferences.length === 0) return undefined;
+  const seen = new Set<string>();
+  const normalized = preferences
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const source = typeof item.source === 'string' ? item.source.trim() : '';
+      const target = typeof item.target === 'string' ? item.target.trim() : '';
+      if (!source || !target) return null;
+      const key = `${source.toLocaleLowerCase()}=>${target.toLocaleLowerCase()}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return {
+        source,
+        target,
+        createdAt: typeof item.createdAt === 'string' && item.createdAt.trim() ? item.createdAt : nowIso(),
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .slice(-MAX_TERMINOLOGY_PREFERENCES);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeSessionDirectives(memory: AiSessionMemory): AiSessionMemory['sessionDirectives'] {
+  const directives = memory.sessionDirectives;
+  if (!Array.isArray(directives) || directives.length === 0) return undefined;
+  const normalized = directives
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const id = typeof item.id === 'string' && item.id.trim() ? item.id.trim() : '';
+      const text = typeof item.text === 'string' ? item.text.trim() : '';
+      const category = item.category === 'response'
+        || item.category === 'tool'
+        || item.category === 'safety'
+        || item.category === 'terminology'
+        || item.category === 'session'
+        ? item.category
+        : undefined;
+      const source = item.source === 'user_explicit' || item.source === 'background_extracted' || item.source === 'pinned_message'
+        ? item.source
+        : undefined;
+      if (!id || !text || !category || !source) return null;
+      return {
+        id,
+        text: trimTextToMax(text, 500),
+        category,
+        createdAt: typeof item.createdAt === 'string' && item.createdAt.trim() ? item.createdAt : nowIso(),
+        source,
+        ...(typeof item.expiresAt === 'string' && item.expiresAt.trim() ? { expiresAt: item.expiresAt } : {}),
+        ...(typeof item.sourceMessageId === 'string' && item.sourceMessageId.trim() ? { sourceMessageId: item.sourceMessageId.trim() } : {}),
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .slice(-MAX_SESSION_DIRECTIVES);
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeDirectiveLedger(memory: AiSessionMemory): AiSessionMemory['directiveLedger'] {
+  const entries = memory.directiveLedger;
+  if (!Array.isArray(entries) || entries.length === 0) return undefined;
+  const normalized = entries
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const id = typeof entry.id === 'string' && entry.id.trim() ? entry.id.trim() : '';
+      const text = typeof entry.text === 'string' ? entry.text.trim() : '';
+      const category = entry.category === 'response'
+        || entry.category === 'tool'
+        || entry.category === 'safety'
+        || entry.category === 'terminology'
+        || entry.category === 'session'
+        ? entry.category
+        : undefined;
+      const scope = entry.scope === 'session' || entry.scope === 'long_term' ? entry.scope : undefined;
+      const action = entry.action === 'accepted'
+        || entry.action === 'ignored'
+        || entry.action === 'downgraded'
+        || entry.action === 'superseded'
+        ? entry.action
+        : undefined;
+      const source = entry.source === 'user_explicit' || entry.source === 'background_extracted' || entry.source === 'pinned_message'
+        ? entry.source
+        : undefined;
+      if (!id || !text || !category || !scope || !action || !source) return null;
+      const confidence = typeof entry.confidence === 'number' && Number.isFinite(entry.confidence)
+        ? Math.max(0, Math.min(1, entry.confidence))
+        : 0;
+      return {
+        id,
+        category,
+        scope,
+        text: trimTextToMax(text, 500),
+        action,
+        source,
+        confidence,
+        createdAt: typeof entry.createdAt === 'string' && entry.createdAt.trim() ? entry.createdAt : nowIso(),
+        ...(typeof entry.targetPath === 'string' && entry.targetPath.trim() ? { targetPath: entry.targetPath.trim() } : {}),
+        ...(typeof entry.value === 'string' || typeof entry.value === 'boolean' ? { value: entry.value } : {}),
+        ...(typeof entry.sourceMessageId === 'string' && entry.sourceMessageId.trim() ? { sourceMessageId: entry.sourceMessageId.trim() } : {}),
+        ...(typeof entry.expiresAt === 'string' && entry.expiresAt.trim() ? { expiresAt: entry.expiresAt } : {}),
+        ...(typeof entry.supersededBy === 'string' && entry.supersededBy.trim() ? { supersededBy: entry.supersededBy.trim() } : {}),
+        ...(typeof entry.reason === 'string' && entry.reason.trim() ? { reason: entry.reason.trim() } : {}),
+      };
+    })
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+    .slice(-MAX_DIRECTIVE_LEDGER_LENGTH);
+  return normalized.length > 0 ? normalized : undefined;
 }
 
 function normalizeLocalToolState(memory: AiSessionMemory): AiSessionMemory['localToolState'] {
@@ -182,6 +379,13 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
   const hasPreferences = Object.keys(mergedPreferences).length > 0;
   const normalizedSummaryChain = normalizeSummaryChain(memory);
   const normalizedPinnedMessageIds = normalizePinnedMessageIds(memory);
+  const normalizedPinnedMessageDigests = normalizePinnedMessageDigests(memory);
+  const normalizedResponsePreferences = normalizeResponsePreferences(memory);
+  const normalizedToolPreferences = normalizeToolPreferences(memory);
+  const normalizedSafetyPreferences = normalizeSafetyPreferences(memory);
+  const normalizedTerminologyPreferences = normalizeTerminologyPreferences(memory);
+  const normalizedSessionDirectives = normalizeSessionDirectives(memory);
+  const normalizedDirectiveLedger = normalizeDirectiveLedger(memory);
   const normalizedLocalToolState = normalizeLocalToolState(memory);
   const normalizedPendingAgentLoopCheckpoint = normalizePendingAgentLoopCheckpoint(memory);
   const normalizedSummaryQualityWarning = memory.summaryQualityWarning
@@ -213,6 +417,16 @@ function normalizeSessionMemory(memory: AiSessionMemory): AiSessionMemory {
     ...(hasPreferences ? { preferences: mergedPreferences } : {}),
     ...(normalizedSummaryChain !== undefined ? { summaryChain: normalizedSummaryChain } : {}),
     ...(normalizedPinnedMessageIds !== undefined ? { pinnedMessageIds: normalizedPinnedMessageIds } : {}),
+    ...(normalizedPinnedMessageDigests !== undefined ? { pinnedMessageDigests: normalizedPinnedMessageDigests } : {}),
+    ...(Array.isArray(memory.pinnedDirectiveRefs) && memory.pinnedDirectiveRefs.length > 0
+      ? { pinnedDirectiveRefs: [...new Set(memory.pinnedDirectiveRefs.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim()))].slice(-MAX_PINNED_MESSAGE_DIGESTS) }
+      : {}),
+    ...(normalizedResponsePreferences !== undefined ? { responsePreferences: normalizedResponsePreferences } : {}),
+    ...(normalizedToolPreferences !== undefined ? { toolPreferences: normalizedToolPreferences } : {}),
+    ...(normalizedSafetyPreferences !== undefined ? { safetyPreferences: normalizedSafetyPreferences } : {}),
+    ...(normalizedTerminologyPreferences !== undefined ? { terminologyPreferences: normalizedTerminologyPreferences } : {}),
+    ...(normalizedSessionDirectives !== undefined ? { sessionDirectives: normalizedSessionDirectives } : {}),
+    ...(normalizedDirectiveLedger !== undefined ? { directiveLedger: normalizedDirectiveLedger } : {}),
     ...(normalizedLocalToolState !== undefined ? { localToolState: normalizedLocalToolState } : {}),
     ...(normalizedPendingAgentLoopCheckpoint !== undefined ? { pendingAgentLoopCheckpoint: normalizedPendingAgentLoopCheckpoint } : {}),
     ...(normalizedSummaryQualityWarning !== undefined ? { summaryQualityWarning: normalizedSummaryQualityWarning } : {}),
@@ -305,7 +519,12 @@ export function setSessionMemoryMessagePinned(
   }
 
   if (pinnedSet.size === 0) {
-    const { pinnedMessageIds: _ignoredPinnedMessageIds, ...restMemory } = memory;
+    const {
+      pinnedMessageIds: _ignoredPinnedMessageIds,
+      pinnedMessageDigests: _ignoredPinnedMessageDigests,
+      pinnedDirectiveRefs: _ignoredPinnedDirectiveRefs,
+      ...restMemory
+    } = memory;
     return normalizeSessionMemory(restMemory);
   }
 
@@ -336,6 +555,15 @@ export function buildSessionMemoryPromptDigest(memory: AiSessionMemory, maxChars
     if (tailText && tailText !== rolling) {
       parts.push(`earlierSummaries=${tailText}`);
     }
+  }
+  const pinned = memory.pinnedMessageDigests
+    ?.filter((item) => item.role === 'user')
+    .slice(-3)
+    .map((item) => item.content.trim())
+    .filter(Boolean)
+    .join(' | ');
+  if (pinned) {
+    parts.push(`pinnedUserDirectives=${pinned}`);
   }
   if (parts.length === 0) return '';
   return trimTextToMax(parts.join('\n'), maxChars);

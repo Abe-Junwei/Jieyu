@@ -67,6 +67,13 @@ class TaskTimeoutError extends Error {
   }
 }
 
+class TaskCancelledError extends Error {
+  constructor() {
+    super('Task cancelled');
+    this.name = 'TaskCancelledError';
+  }
+}
+
 /** 指数退避延迟 | Exponential backoff delay (attempt 1-indexed, cap at maxMs) */
 export function backoffDelay(attempt: number, baseMs = 500, maxMs = 8000): number {
   // attempt=1 → 0ms (第一次不等), attempt=2 → baseMs, attempt=3 → baseMs*2, ...
@@ -220,13 +227,13 @@ export class TaskRunner {
       let lastError: unknown = new Error('Task failed');
       for (let attempt = 1; attempt <= task.maxAttempts; attempt += 1) {
         if (task.controller.signal.aborted) {
-          throw new Error('Task cancelled');
+          throw new TaskCancelledError();
         }
 
         try {
           const result = await this.runWithTimeout(task, attempt);
           if (task.controller.signal.aborted) {
-            throw new Error('Task cancelled');
+            throw new TaskCancelledError();
           }
           await this.updateTaskStatus(db, task.taskId, 'done');
           terminalStatus = 'done';
@@ -279,19 +286,22 @@ export class TaskRunner {
   private async runWithTimeout<TResult>(task: InternalTask<TResult>, attempt: number): Promise<TResult> {
     const timeoutMs = task.timeoutMs;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const attemptController = new AbortController();
+    const abortAttempt = () => attemptController.abort();
 
     try {
       const timeoutPromise = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
-          task.controller.abort();
+          attemptController.abort();
           reject(new TaskTimeoutError(timeoutMs));
         }, timeoutMs);
       });
+      task.controller.signal.addEventListener('abort', abortAttempt, { once: true });
 
       const result = await Promise.race([
         task.input.run({
             taskId: task.taskId,
-            signal: task.controller.signal,
+            signal: attemptController.signal,
             attempt,
             maxAttempts: task.maxAttempts,
           }),
@@ -301,6 +311,7 @@ export class TaskRunner {
       return result as TResult;
     } finally {
       if (timer) clearTimeout(timer);
+      task.controller.signal.removeEventListener('abort', abortAttempt);
     }
   }
 

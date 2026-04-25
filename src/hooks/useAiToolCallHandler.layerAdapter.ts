@@ -237,6 +237,16 @@ export const layerAdapter: ToolObjectAdapter = {
       const exists = Boolean(matchedLink);
       const alreadyPreferred = Boolean(matchedLink?.isPreferred);
 
+      if (isRemoveHostAction && !exists) {
+        compensationRef.current.delete(call.requestId ?? 'default');
+        const transcriptionLayer = readAnyMultiLangLabel(trcLayer.name) ?? trcLayer.key;
+        const translationLayer = readAnyMultiLangLabel(trlLayer.name) ?? trlLayer.key;
+        return {
+          ok: true,
+          message: tf(locale, 'transcription.aiTool.layer.unlinkDone', { transcriptionLayer, translationLayer }),
+        };
+      }
+
       if (isRemoveHostAction && exists) {
         const fallbackParent = ctx.transcriptionLayers.find(
           (layer) => layer.id !== trcLayer.id && (layer.constraint ?? 'independent_boundary') === 'independent_boundary',
@@ -245,7 +255,15 @@ export const layerAdapter: ToolObjectAdapter = {
           return { ok: false, message: t(locale, 'transcription.aiTool.layer.unlinkRequiresFallbackParent') };
         }
         try {
-          await ctx.toggleLayerLink(fallbackParent.key, trlLayer.id);
+          if (ctx.rebindTranslationLayerHost) {
+            await ctx.rebindTranslationLayerHost({
+              translationLayerId: trlLayer.id,
+              removeTranscriptionLayerId: trcLayer.id,
+              fallbackTranscriptionLayerKey: fallbackParent.key,
+            });
+          } else {
+            await ctx.toggleLayerLink(fallbackParent.key, trlLayer.id);
+          }
         } catch (linkError) {
           const comp = compensationRef.current.get(call.requestId ?? 'default');
           if (comp && Date.now() - comp.createdAt < COMPENSATION_TTL_MS) {

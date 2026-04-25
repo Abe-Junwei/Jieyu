@@ -38,6 +38,11 @@ export type UseAiToolCallHandlerParams = {
   deleteSelectedUnits?: (ids: Set<string>) => Promise<void>;
   deleteLayer: (id: string, options?: { keepUnits?: boolean }) => Promise<void>;
   toggleLayerLink: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
+  rebindTranslationLayerHost?: (input: {
+    translationLayerId: string;
+    removeTranscriptionLayerId: string;
+    fallbackTranscriptionLayerKey: string;
+  }) => Promise<void>;
   saveUnitText: (unitId: string, text: string, layerId?: string) => Promise<void>;
   saveUnitLayerText: (unitId: string, text: string, layerId: string) => Promise<void>;
   saveSegmentContentForLayer?: (segmentId: string, layerId: string, value: string) => Promise<void>;
@@ -98,6 +103,7 @@ export interface ExecutionContext {
   deleteSelectedUnits?: UseAiToolCallHandlerParams['deleteSelectedUnits'];
   deleteLayer: UseAiToolCallHandlerParams['deleteLayer'];
   toggleLayerLink: UseAiToolCallHandlerParams['toggleLayerLink'];
+  rebindTranslationLayerHost?: UseAiToolCallHandlerParams['rebindTranslationLayerHost'];
   saveUnitText: UseAiToolCallHandlerParams['saveUnitText'];
   saveUnitLayerText: UseAiToolCallHandlerParams['saveUnitLayerText'];
   saveSegmentContentForLayer?: UseAiToolCallHandlerParams['saveSegmentContentForLayer'];

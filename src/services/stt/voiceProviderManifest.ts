@@ -58,8 +58,11 @@ export function getVoiceProviderManifestForEngine(
   commercialProviderKind: CommercialProviderKind = 'groq',
 ): VoiceProviderManifest {
   const engineId: SttProviderKind = engine === 'commercial' ? commercialProviderKind : engine;
-  return listVoiceProviderManifests().find((manifest) => manifest.engineId === engineId)
-    ?? listVoiceProviderManifests().find((manifest) => manifest.engineId === 'web-speech')!;
+  const manifest = listVoiceProviderManifests().find((item) => item.engineId === engineId);
+  if (!manifest) {
+    throw new Error(`Voice provider manifest not found for engine: ${engineId}`);
+  }
+  return manifest;
 }
 
 export async function resolveVoiceProviderHealth(input: {

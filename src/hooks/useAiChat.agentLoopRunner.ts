@@ -24,6 +24,7 @@ import type { AiPromptContext, AiInteractionMetrics } from '../ai/chat/chatDomai
 import type { AuditLogDocType } from '../db/types';
 import type { ChatTokenUsage } from '../ai/providers/LLMProvider';
 import { mergeTokenUsage } from '../ai/providers/tokenUsage';
+import { CoordinationLiteSession, resolveCoordinationParallelPolicy, type CoordinationNotification, type CoordinationPhase } from '../ai/coordination/coordinationLite';
 
 // ── 类型定义 | Type definitions ────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export interface AgentLoopRunnerDeps {
 
   // 副作用函数 | Side-effect functions
   persistSessionMemory: (memory: AiSessionMemory) => void;
+  coordinationLiteEnabled: boolean;
   buildStreamCompletionEnv: () => Omit<
     ResolveAiChatStreamCompletionParams,
     'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
@@ -99,6 +101,45 @@ export interface AgentLoopRunnerDeps {
 
   // DB 审计 | DB audit
   insertAuditLog: (entry: AuditLogDocType) => Promise<unknown>;
+}
+
+function inferCoordinationPhase(input: {
+  finalStatus: 'done' | 'error';
+  nextLocalToolCount: number;
+  selectedToolCount: number;
+}): CoordinationPhase {
+  if (input.finalStatus === 'error') return 'verification';
+  if (input.nextLocalToolCount > 0 || input.selectedToolCount > 0) return 'research';
+  return 'synthesis';
+}
+
+function buildCoordinationAuditLog(input: {
+  assistantId: string;
+  taskSessionId: string;
+  notification: CoordinationNotification;
+  policy: ReturnType<typeof resolveCoordinationParallelPolicy>;
+  quarantinedCount: number;
+}) {
+  return {
+    id: newAuditLogId(),
+    collection: 'ai_messages',
+    documentId: input.assistantId,
+    action: 'update' as const,
+    field: 'ai_coordination_lite',
+    oldValue: `step:${input.notification.taskId}`,
+    newValue: input.notification.status,
+    source: 'ai' as const,
+    timestamp: nowIso(),
+    requestId: input.notification.taskId,
+    metadataJson: JSON.stringify({
+      schemaVersion: 1,
+      phase: 'coordination_lite',
+      taskSessionId: input.taskSessionId,
+      notification: input.notification,
+      parallelPolicy: input.policy,
+      quarantinedCount: input.quarantinedCount,
+    }),
+  };
 }
 
 // ── 核心循环 | Core loop ───────────────────────────────────────────────────
@@ -127,6 +168,7 @@ export async function runAgentLoop(
   let loopStep = initial.startStep;
   let loopExecuted = false;
   const agentLoopTraceContext = createAgentLoopTraceContext();
+  const coordinationSession = deps.coordinationLiteEnabled ? new CoordinationLiteSession() : null;
 
   const getLoopStepTaskState = () => {
     const mem = deps.getSessionMemory();
@@ -317,6 +359,34 @@ export async function runAgentLoop(
         reportedTokens: loopStepTokenCount,
       }),
     });
+
+    if (coordinationSession) {
+      const phase = inferCoordinationPhase({
+        finalStatus: continuationResult.finalStatus,
+        nextLocalToolCount: continuationResult.localToolResults?.length ?? 0,
+        selectedToolCount: deps.routingPlan.selectedTools.length,
+      });
+      const notification: CoordinationNotification = {
+        taskId: `${deps.assistantId}_loop_${loopStep}`,
+        status: continuationResult.finalStatus === 'done' ? 'completed' : 'failed',
+        summary: continuationAssistantContent.slice(0, 240) || continuationUserText.slice(0, 240),
+        phase,
+        usage: {
+          durationMs: loopStepDurationMs,
+          ...(continuationUsage?.inputTokens !== undefined ? { inputTokens: continuationUsage.inputTokens } : {}),
+          ...(continuationUsage?.outputTokens !== undefined ? { outputTokens: continuationUsage.outputTokens } : {}),
+        },
+      };
+      coordinationSession.ingest(notification);
+      const policy = resolveCoordinationParallelPolicy({ phase, includesWrite: false });
+      await deps.insertAuditLog(buildCoordinationAuditLog({
+        assistantId: deps.assistantId,
+        taskSessionId: deps.getTaskSession().id,
+        notification,
+        policy,
+        quarantinedCount: coordinationSession.listQuarantined().length,
+      }));
+    }
 
     resolvedContent = continuationResult.finalContent;
     resolvedStatus = continuationResult.finalStatus;

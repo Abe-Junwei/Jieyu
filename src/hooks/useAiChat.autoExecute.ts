@@ -92,9 +92,6 @@ export async function executeAutoToolCall({
       toolName: toolCall.name,
       updatedAt: nowIso(),
     });
-    if (toolCall.requestId) {
-      markExecutedRequestId(toolCall.requestId);
-    }
     const result = await onToolCall(toolCall);
     const autoExecDurationMs = Math.round(performance.now() - autoExecStart);
     const finalContent = result.ok
@@ -102,6 +99,9 @@ export async function executeAutoToolCall({
       : toNaturalToolFailure(locale, toolCall.name, result.message, toolFeedbackStyle);
 
     if (result.ok) {
+      if (toolCall.requestId) {
+        markExecutedRequestId(toolCall.requestId);
+      }
       bumpMetric('successCount');
       const nextSessionMemory = buildPostExecSessionMemory({
         sessionMemory,
@@ -130,7 +130,7 @@ export async function executeAutoToolCall({
         auditContext,
         'ai',
         result.ok ? 'auto_confirmed' : 'auto_failed',
-        true,
+        result.ok,
         result.message,
         undefined,
         autoExecDurationMs,
@@ -163,7 +163,7 @@ export async function executeAutoToolCall({
         auditContext,
         'ai',
         'auto_failed',
-        true,
+        false,
         toolErrorText,
         'exception',
         autoExecDurationMsErr,

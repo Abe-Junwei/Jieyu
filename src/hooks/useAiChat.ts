@@ -5,25 +5,7 @@ import { useLocale, useOptionalLocale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
-import {
-  DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
-  DEFAULT_OUTPUT_TOKEN_CAP,
-  INITIAL_METRICS,
-  estimateTokensFromText,
-  normalizeAutoProbeIntervalMs,
-  normalizeFirstChunkTimeoutMs,
-  normalizeOutputTokenCap,
-  normalizeOutputTokenRetryCap,
-  normalizeRagContextTimeoutMs,
-  normalizeSessionTokenBudget,
-  normalizeStreamPersistInterval,
-  readDevOutputTokenCap,
-  readDevOutputTokenRetryCap,
-  readDevAutoProbeIntervalMs,
-  readDevRagContextTimeoutMs,
-  readDevSessionTokenBudget,
-  readDevStreamPersistIntervalMs,
-} from './useAiChat.config';
+import { DEFAULT_FIRST_CHUNK_TIMEOUT_MS, DEFAULT_OUTPUT_TOKEN_CAP, INITIAL_METRICS, estimateTokensFromText, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeOutputTokenCap, normalizeOutputTokenRetryCap, normalizeRagContextTimeoutMs, normalizeSessionTokenBudget, normalizeStreamPersistInterval, readDevOutputTokenCap, readDevOutputTokenRetryCap, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevSessionTokenBudget, readDevStreamPersistIntervalMs } from './useAiChat.config';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
@@ -31,18 +13,23 @@ import { buildContextDebugSnapshot, logContextDebugSnapshot } from './useAiChat.
 import { executeConfirmedToolCall } from './useAiChat.confirmExecution';
 import type { ResolveAiChatStreamCompletionParams } from './useAiChat.streamCompletion';
 import { finalizeAssistantStreamCompletion } from './useAiChat.streamCompletionPhase';
+import { createAiChatBackgroundMemoryRuntime, scheduleAndFlushBackgroundMemory, type AiChatBackgroundMemoryRuntime } from './useAiChat.backgroundMemory';
+import { buildResponsePolicyAuditMetadata, resolveAiChatResponsePolicy } from './useAiChat.responsePolicy';
 import { getDb } from '../db';
 import { enrichContextWithRag } from './useAiChat.rag';
-import { maybeAppendMemoryBrokerContext } from './useAiChat.memoryBroker';
+import { buildSessionMemoryDigestSuppressionRefs, maybeAppendMemoryBrokerContext } from './useAiChat.memoryBroker';
 import { ChatOrchestrator } from '../ai/ChatOrchestrator';
 import { buildConversationSummaryFromHistory, countHistoryUserTurns, estimateSummaryCoverageSimilarity, splitHistoryByRecentRounds, trimHistoryByChars, type HistoryChatMessage } from '../ai/chat/historyTrim';
-import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory, setSessionMemoryMessagePinned, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
+import { buildSessionMemoryPromptDigest, clearConversationSummaryMemory, loadSessionMemory, persistSessionMemory, updateConversationSummaryMemory } from '../ai/chat/sessionMemory';
 import { updateSessionMemoryWithPrompt } from '../ai/chat/adaptiveInputProfile';
 import { updateSessionMemoryWithRecommendationEvent } from '../ai/chat/recommendationTelemetry';
 
 import { resolveLocalToolRoutingPlan } from '../ai/chat/localToolSlotResolver';
 import { resolveContextCharBudgets } from '../ai/chat/contextBudget';
 import { buildAiSystemPrompt, buildPromptContextBlock, isAiContextDebugEnabled } from '../ai/chat/promptContext';
+import { buildUserDirectivePrompt } from '../ai/chat/userDirectivePrompt';
+import { runAiChatClearPersistenceCleanup, type AiChatClearPersistenceRequest } from './useAiChat.persistenceCleanup';
+import { resolvePinnedMessageSessionMemory } from './useAiChat.messagePinning';
 
 import { resolveAiToolDecisionMode } from '../ai/chat/toolCallHelpers';
 import type { AiMessageCitation } from '../db';
@@ -54,15 +41,7 @@ import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import {
-  formatAbortedMessage,
-  formatAiChatDisabledError,
-  formatConnectionHealthyMessage,
-  formatFirstChunkTimeoutError,
-  formatPendingConfirmationBlockedError,
-  formatSessionBudgetExceededError,
-  formatStreamingBusyError,
-} from '../ai/messages';
+import { formatAbortedMessage, formatAiChatDisabledError, formatConnectionHealthyMessage, formatFirstChunkTimeoutError, formatPendingConfirmationBlockedError, formatSessionBudgetExceededError, formatStreamingBusyError } from '../ai/messages';
 import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
@@ -87,7 +66,6 @@ export function useAiChat(options?: UseAiChatOptions) {
 
   const locale = useLocale();
   const toolFeedbackLocale = useOptionalLocale() ?? 'zh-CN';
-  const localeRef = useLatest(locale);
   const toolFeedbackLocaleRef = useLatest(toolFeedbackLocale);
   const onToolCall = options?.onToolCall;
   const onToolRiskCheck = options?.onToolRiskCheck;
@@ -119,7 +97,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   const userDirtyRef = useRef(false);
   const clearInFlightRef = useRef(false);
   const clearPersistCleanupRunningRef = useRef(false);
-  const clearPersistRequestRef = useRef<{ conversationId: string | null } | null>(null);
+  const clearPersistRequestRef = useRef<AiChatClearPersistenceRequest | null>(null);
   const [messages, setMessages] = useState<UiChatMessage[]>(() => []);
   const messagesRef = useLatest(messages);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -146,6 +124,17 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [metrics, setMetrics] = useState<AiInteractionMetrics>({ ...INITIAL_METRICS });
   const metricsRef = useLatest(metrics);
   const sessionMemoryRef = useRef<AiSessionMemory>(loadSessionMemory());
+  const backgroundMemoryRuntimeRef = useRef<AiChatBackgroundMemoryRuntime | null>(null);
+  if (backgroundMemoryRuntimeRef.current === null) {
+    backgroundMemoryRuntimeRef.current = createAiChatBackgroundMemoryRuntime({
+      enabled: featureFlags.aiBackgroundMemoryExtractorEnabled,
+      getSessionMemory: () => sessionMemoryRef.current,
+      setSessionMemory: (nextMemory) => {
+        sessionMemoryRef.current = nextMemory;
+      },
+      persistSessionMemory,
+    });
+  }
   const bumpMetric = useCallback((key: keyof AiInteractionMetrics, delta = 1) => {
     setMetrics((prev) => {
       const currentValue = prev[key];
@@ -266,42 +255,7 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const runClearPersistenceCleanup = useCallback(() => {
-    if (clearPersistCleanupRunningRef.current) return;
-    clearPersistCleanupRunningRef.current = true;
-    void (async () => {
-      try {
-        while (true) {
-          const request = clearPersistRequestRef.current;
-          clearPersistRequestRef.current = null;
-          if (!request) break;
-
-          const db = await getDb();
-          let targetConversationId = request.conversationId;
-          if (!targetConversationId) {
-            const existingRows = (await db.collections.ai_conversations.find().exec())
-              .map((doc) => doc.toJSON())
-              .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-            targetConversationId = existingRows[0]?.id ?? null;
-          }
-          if (!targetConversationId) continue;
-
-          await db.collections.ai_messages.removeBySelector({ conversationId: targetConversationId });
-          const conversation = await db.collections.ai_conversations.findOne({ selector: { id: targetConversationId } }).exec();
-          if (conversation) {
-            const row = conversation.toJSON();
-            await db.collections.ai_conversations.insert({
-              ...row,
-              updatedAt: nowIso(),
-            });
-          }
-        }
-      } finally {
-        clearPersistCleanupRunningRef.current = false;
-        if (clearPersistRequestRef.current) {
-          runClearPersistenceCleanup();
-        }
-      }
-    })();
+    runAiChatClearPersistenceCleanup(clearPersistCleanupRunningRef, clearPersistRequestRef);
   }, []);
 
   const trackRecommendationEvent = useCallback((event: AiRecommendationEvent) => {
@@ -317,13 +271,12 @@ export function useAiChat(options?: UseAiChatOptions) {
   }, []);
 
   const toggleMessagePinned = useCallback((messageId: string) => {
-    const normalizedMessageId = messageId.trim();
-    if (!normalizedMessageId) return;
-    const currentlyPinned = (sessionMemoryRef.current.pinnedMessageIds ?? []).includes(normalizedMessageId);
-    sessionMemoryRef.current = setSessionMemoryMessagePinned(sessionMemoryRef.current, normalizedMessageId, !currentlyPinned);
+    const nextMemory = resolvePinnedMessageSessionMemory(sessionMemoryRef.current, messagesRef.current, messageId);
+    if (nextMemory === sessionMemoryRef.current) return;
+    sessionMemoryRef.current = nextMemory;
     persistSessionMemory(sessionMemoryRef.current);
     setMessages((prev) => [...prev]);
-  }, []);
+  }, [messagesRef]);
 
   const applyAssistantMessageResult = useCallback(async (
     messageId: string,
@@ -363,7 +316,7 @@ export function useAiChat(options?: UseAiChatOptions) {
     pendingToolCallRef,
     taskSessionRef,
     sessionMemoryRef,
-    toolFeedbackLocale,
+    toolFeedbackLocale: resolveAiChatResponsePolicy(sessionMemoryRef.current, toolFeedbackLocale, settings.toolFeedbackStyle).locale,
     ...(onToolCallRef.current != null && { onToolCall: onToolCallRef.current }),
     applyAssistantMessageResult,
     hasPersistedExecutionForRequest,
@@ -617,9 +570,15 @@ export function useAiChat(options?: UseAiChatOptions) {
           ? { ...basePromptContext, shortTerm: { ...basePromptContext.shortTerm, sessionMemoryDigest } }
           : { shortTerm: { sessionMemoryDigest } })
         : basePromptContext;
+      const responsePolicy = resolveAiChatResponsePolicy(
+        sessionMemoryRef.current,
+        toolFeedbackLocaleRef.current,
+        settingsRef.current.toolFeedbackStyle,
+      );
       const routingPlan = resolveLocalToolRoutingPlan(
         agentLoopSourceUserText,
         sessionMemoryRef.current,
+        sessionMemoryRef.current.toolPreferences?.defaultScope,
       );
       let contextBlock = buildPromptContextBlock(aiContext, maxContextChars);
       let ragCitations: AiMessageCitation[] = [];
@@ -634,10 +593,11 @@ export function useAiChat(options?: UseAiChatOptions) {
           userText: effectiveUserText,
           contextBlock,
           ragContextTimeoutMs: ragContextTimeoutMsRef.current,
+          maxContextChars,
           promptContext: aiContext,
         }));
       }
-      contextBlock = await maybeAppendMemoryBrokerContext({ enabled: featureFlags.aiMemoryBrokerEnabled, query: effectiveUserText, contextBlock, tokenBudget: Math.floor(contextCharBudgets.sessionMemoryDigestMaxChars / 4), sessionMemory: sessionMemoryRef.current, alreadySurfacedRefs: ragCitations.map((item) => item.refId) });
+      contextBlock = await maybeAppendMemoryBrokerContext({ enabled: featureFlags.aiMemoryBrokerEnabled, query: effectiveUserText, contextBlock, tokenBudget: Math.floor(contextCharBudgets.sessionMemoryDigestMaxChars / 4), sessionMemory: sessionMemoryRef.current, maxContextChars, alreadySurfacedRefs: [...ragCitations.map((item) => item.refId), ...buildSessionMemoryDigestSuppressionRefs(sessionMemoryRef.current, sessionMemoryDigest)] });
       const contextDebugEnabled = isAiContextDebugEnabled();
       const nextDebugSnapshot: AiContextDebugSnapshot = buildContextDebugSnapshot({
         enabled: contextDebugEnabled,
@@ -646,6 +606,12 @@ export function useAiChat(options?: UseAiChatOptions) {
         contextBlock,
         historyCharBudget,
         maxContextChars,
+        responsePolicyPreview: JSON.stringify({
+          response: sessionMemoryRef.current.responsePreferences ?? null,
+          tool: sessionMemoryRef.current.toolPreferences ?? null,
+          safety: sessionMemoryRef.current.safetyPreferences ?? null,
+          policy: responsePolicy,
+        }),
       });
       setContextDebugSnapshot(nextDebugSnapshot);
       if (contextDebugEnabled) {
@@ -662,9 +628,22 @@ export function useAiChat(options?: UseAiChatOptions) {
       const systemPrompt = buildAiSystemPrompt(
         systemPersonaKeyRef.current,
         contextBlock,
-        settingsRef.current.toolFeedbackStyle,
+        responsePolicy.style,
         routingPlan.selectedTools,
+        buildUserDirectivePrompt(sessionMemoryRef.current),
       );
+      void db.collections.audit_logs.insert({
+        id: newMessageId('audit'),
+        collection: 'ai_messages',
+        documentId: assistantId,
+        action: 'update',
+        field: 'ai_response_policy_resolution',
+        newValue: responsePolicy.locale,
+        source: 'ai',
+        timestamp: nowIso(),
+        requestId: `${assistantId}_response_policy`,
+        metadataJson: JSON.stringify(buildResponsePolicyAuditMetadata(responsePolicy)),
+      });
       setMetrics((prev) => ({
         ...prev,
         currentTurnTokens: 0,
@@ -679,9 +658,9 @@ export function useAiChat(options?: UseAiChatOptions) {
         resolveFreshAiContext: () => getContextRef.current?.() ?? null,
         providerId: provider.id,
         model: settingsRef.current.model,
-        toolFeedbackLocale: toolFeedbackLocaleRef.current,
+        toolFeedbackLocale: responsePolicy.locale,
         toolDecisionMode: toolDecisionModeRef.current,
-        toolFeedbackStyle: settingsRef.current.toolFeedbackStyle,
+        toolFeedbackStyle: responsePolicy.style,
         allowDestructiveToolCalls,
         ...(onToolRiskCheckRef.current ? { onToolRiskCheck: onToolRiskCheckRef.current } : {}),
         ...(preparePendingToolCallRef.current ? { preparePendingToolCall: preparePendingToolCallRef.current } : {}),
@@ -977,13 +956,18 @@ export function useAiChat(options?: UseAiChatOptions) {
               getSessionMemory: () => sessionMemoryRef.current,
               setSessionMemory: (next) => { sessionMemoryRef.current = next; },
               getSettings: () => settingsRef.current,
-              getLocaleIsZhCn: () => localeRef.current === 'zh-CN',
+              getLocaleIsZhCn: () => resolveAiChatResponsePolicy(
+                sessionMemoryRef.current,
+                toolFeedbackLocaleRef.current,
+                settingsRef.current.toolFeedbackStyle,
+              ).locale === 'zh-CN',
               getAiContext: () => getContextRef.current?.() ?? null,
               getTaskSession: () => taskSessionRef.current,
               setTaskSession,
               setMetrics,
               persistSessionMemory,
               buildStreamCompletionEnv,
+              coordinationLiteEnabled: featureFlags.aiCoordinationLiteEnabled,
               orchestrator,
               insertAuditLog: (entry) => db.collections.audit_logs.insert(entry),
             },
@@ -1038,6 +1022,16 @@ export function useAiChat(options?: UseAiChatOptions) {
           if (resolvedErrorMessage) setLastError(resolvedErrorMessage);
           if (resolvedStatus === 'done') {
             recordCompletionSuccessMetric();
+            const backgroundMemoryRuntime = backgroundMemoryRuntimeRef.current;
+            if (backgroundMemoryRuntime) {
+              scheduleAndFlushBackgroundMemory(backgroundMemoryRuntime, {
+                conversationId: activeConversationId,
+                assistantMessageId: assistantId,
+                userText: effectiveUserText,
+                assistantText: resolvedContent,
+                actorId: 'ai-chat',
+              }, (entry) => db.collections.audit_logs.insert(entry));
+            }
           }
           await finalizeAssistantMessage(resolvedStatus, resolvedContent, resolvedErrorMessage, ragCitations, assistantReasoningContent);
           break;

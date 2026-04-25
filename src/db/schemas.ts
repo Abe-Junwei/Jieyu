@@ -676,6 +676,7 @@ const unitRelationDocSchema = z
   .object({
     id: z.string().min(1),
     textId: z.string().min(1),
+    unitId: z.string().min(1).optional(),
     sourceUnitId: z.string().min(1).optional(),
     targetUnitId: z.string().min(1).optional(),
     relationType: unitRelationTypeSchema.optional(),
@@ -700,6 +701,20 @@ const unitRelationDocSchema = z
         code: z.ZodIssueCode.custom,
         path: ['analysisGraphCandidate'],
         message: 'analysis_graph_candidate relation requires analysisGraphCandidate',
+      });
+    }
+    if (doc.relationType === 'analysis_graph_candidate' && !doc.unitId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['unitId'],
+        message: 'analysis_graph_candidate relation requires unitId',
+      });
+    }
+    if (doc.relationType === 'analysis_graph_candidate' && doc.unitId && doc.sourceUnitId && doc.unitId !== doc.sourceUnitId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sourceUnitId'],
+        message: 'analysis_graph_candidate sourceUnitId must match unitId',
       });
     }
     if (doc.relationType === 'analysis_graph_candidate' && doc.analysisGraphCandidate) {

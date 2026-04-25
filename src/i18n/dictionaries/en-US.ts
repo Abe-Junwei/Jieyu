@@ -2070,6 +2070,8 @@ export const enUSDictionary = {
 
     'msg.appData.backupReminderToast':
         'Export a full .jym / .jyt archive periodically from the Transcription workspace export menu to guard against browser storage loss or device changes.',
+    'msg.appData.backupElapsedReminderToast':
+        'You have worked for about {hours} hour(s). Export a database backup to reduce the risk of data loss.',
     'msg.appData.collabLocalStorageQuotaToast':
         'Browser storage quota exceeded: collaboration sync state is using a memory overlay mirrored to IndexedDB. Export a backup or free site data soon.',
     'msg.appData.dbIntegrityTitle': 'Local database self-check failed',

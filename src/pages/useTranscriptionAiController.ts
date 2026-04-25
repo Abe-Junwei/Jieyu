@@ -215,6 +215,7 @@ export function useTranscriptionAiController(
     deleteSelectedUnits: input.deleteSelectedUnits,
     deleteLayer: input.deleteLayer,
     toggleLayerLink: input.toggleLayerLink,
+    ...(input.rebindTranslationLayerHost ? { rebindTranslationLayerHost: input.rebindTranslationLayerHost } : {}),
     saveUnitText: input.saveUnitText,
     saveUnitLayerText: input.saveUnitLayerText,
     saveSegmentContentForLayer: input.saveSegmentContentForLayer,

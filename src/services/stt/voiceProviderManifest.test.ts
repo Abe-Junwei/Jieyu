@@ -31,6 +31,13 @@ describe('voiceProviderManifest', () => {
     });
   });
 
+  it('throws instead of silently falling back when provider manifest is missing', () => {
+    expect(() => getVoiceProviderManifestForEngine(
+      'commercial',
+      'missing-provider' as Parameters<typeof getVoiceProviderManifestForEngine>[1],
+    )).toThrow('Voice provider manifest not found');
+  });
+
   it('reports degraded health instead of throwing', async () => {
     const manifest = getVoiceProviderManifestForEngine('whisper-local');
 

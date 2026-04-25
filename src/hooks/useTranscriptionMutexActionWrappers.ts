@@ -32,6 +32,11 @@ type Params = {
   createLayerRaw: (layerType: 'transcription' | 'translation', input: LayerCreateInput, modality?: 'text' | 'audio' | 'mixed') => Promise<boolean>;
   deleteLayerRaw: (targetLayerId?: string, options?: { keepUnits?: boolean }) => Promise<void>;
   toggleLayerLinkRaw: (transcriptionLayerKey: string, layerId: string) => Promise<void>;
+  rebindTranslationLayerHostRaw: (input: {
+    translationLayerId: string;
+    removeTranscriptionLayerId: string;
+    fallbackTranscriptionLayerKey: string;
+  }) => Promise<void>;
 };
 
 export function useTranscriptionMutexActionWrappers({
@@ -58,6 +63,7 @@ export function useTranscriptionMutexActionWrappers({
   createLayerRaw,
   deleteLayerRaw,
   toggleLayerLinkRaw,
+  rebindTranslationLayerHostRaw,
 }: Params) {
   return useMemo(() => {
     const wrapWithDbMutex = <Args extends unknown[], Result>(fn: (...args: Args) => Promise<Result>) => (
@@ -87,6 +93,7 @@ export function useTranscriptionMutexActionWrappers({
       createLayer: wrapWithDbMutex(createLayerRaw),
       deleteLayer: wrapWithDbMutex(deleteLayerRaw),
       toggleLayerLink: wrapWithDbMutex(toggleLayerLinkRaw),
+      rebindTranslationLayerHost: wrapWithDbMutex(rebindTranslationLayerHostRaw),
     };
   }, [
     createAdjacentUnitRaw,
@@ -100,6 +107,7 @@ export function useTranscriptionMutexActionWrappers({
     mergeWithNextRaw,
     mergeWithPreviousRaw,
     offsetSelectedTimesRaw,
+    rebindTranslationLayerHostRaw,
     runWithDbMutex,
     saveUnitLayerFieldsRaw,
     saveUnitLayerTextRaw,

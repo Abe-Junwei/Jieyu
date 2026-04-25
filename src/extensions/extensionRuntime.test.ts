@@ -100,6 +100,34 @@ describe('extension runtime contracts', () => {
     expect(badResult.errors.some((item) => item.includes('Unknown capability'))).toBe(true);
   });
 
+  it('[compat] preserves governance metadata during manifest validation', () => {
+    const result = validateExtensionManifest(buildManifest({
+      capabilities: ['invoke.ai'],
+      trustLevel: 'untrusted',
+      declaredCapabilitiesVersion: '2026-04',
+      quotaProfile: { maxCallsPerMinute: 2 },
+    }));
+
+    expect(result.ok).toBe(true);
+    expect(result.manifest).toMatchObject({
+      trustLevel: 'untrusted',
+      declaredCapabilitiesVersion: '2026-04',
+      quotaProfile: { maxCallsPerMinute: 2 },
+    });
+  });
+
+  it('[compat] rejects invalid governance metadata', () => {
+    const result = validateExtensionManifest({
+      ...buildManifest(),
+      trustLevel: 'partner',
+      quotaProfile: { maxCallsPerMinute: -1 },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((item) => item.includes('trustLevel'))).toBe(true);
+    expect(result.errors.some((item) => item.includes('quotaProfile.maxCallsPerMinute'))).toBe(true);
+  });
+
   it('[compat] degrades gracefully when manifest semver is malformed at load time', async () => {
     const host = createExtensionHost({
       hostVersion: '1.5.0',

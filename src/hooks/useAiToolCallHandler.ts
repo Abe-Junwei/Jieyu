@@ -34,6 +34,7 @@ export function useAiToolCallHandler({
   deleteSelectedUnits,
   deleteLayer,
   toggleLayerLink,
+  rebindTranslationLayerHost,
   saveUnitText,
   saveUnitLayerText,
   saveSegmentContentForLayer,
@@ -79,9 +80,9 @@ export function useAiToolCallHandler({
       if (endDiff !== 0) return endDiff;
       return left.id.localeCompare(right.id);
     });
-    const isSegmentOnlyTargetTool = (toolName: AiChatToolCall['name']): boolean => isAiToolSegmentExecutionWithExplicitTarget(toolName)
-      || toolName === 'merge_prev'
-      || toolName === 'merge_next';
+    const isSegmentOnlyTargetTool = (toolName: AiChatToolCall['name']): boolean => (
+      isAiToolSegmentExecutionWithExplicitTarget(toolName) && toolName !== 'auto_gloss_unit'
+    ) || toolName === 'merge_prev' || toolName === 'merge_next';
     const resolvePrimaryRequestedTargetId = (): string => {
       if (isSegmentOnlyTargetTool(call.name)) {
         return String(call.arguments.segmentId ?? '').trim();
@@ -224,6 +225,7 @@ export function useAiToolCallHandler({
       deleteSelectedUnits: deleteSelectedBatch,
       deleteLayer,
       toggleLayerLink,
+      ...(rebindTranslationLayerHost ? { rebindTranslationLayerHost } : {}),
       saveUnitText,
       saveUnitLayerText,
       saveSegmentContentForLayer,
@@ -260,6 +262,7 @@ export function useAiToolCallHandler({
     deleteUnit,
     deleteSelectedUnits,
     toggleLayerLink,
+    rebindTranslationLayerHost,
     saveUnitLayerText,
     saveSegmentContentForLayer,
     saveUnitText,

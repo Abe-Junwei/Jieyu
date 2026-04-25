@@ -44,7 +44,7 @@ describe('annotation structural preview controller', () => {
     expect(await listPendingAnalysisGraphCandidates('unit-1')).toHaveLength(1);
   });
 
-  it('accepts and rejects pending candidate lifecycle records', async () => {
+  it('supersedes older pending candidates for the same unit', async () => {
     const preview = await previewAnnotationStructuralCandidate({
       glossText: 'dog-PL',
     });
@@ -59,6 +59,28 @@ describe('annotation structural preview controller', () => {
       preview,
     });
 
+    const superseded = await db.unit_relations.get(first.id);
+
+    expect(superseded?.analysisGraphStatus).toBe('rejected');
+    expect(superseded?.provenance?.reviewStatus).toBe('rejected');
+    expect((await listPendingAnalysisGraphCandidates('unit-1')).map((row) => row.id)).toEqual([second.id]);
+  });
+
+  it('accepts and rejects pending candidate lifecycle records', async () => {
+    const preview = await previewAnnotationStructuralCandidate({
+      glossText: 'dog-PL',
+    });
+    const first = await confirmAnnotationStructuralCandidate({
+      textId: 'text-1',
+      unitId: 'unit-1',
+      preview,
+    });
+    const second = await confirmAnnotationStructuralCandidate({
+      textId: 'text-1',
+      unitId: 'unit-2',
+      preview,
+    });
+
     const accepted = await acceptAnalysisGraphCandidate(first.id, { type: 'human', id: 'reviewer-1' });
     const rejected = await rejectAnalysisGraphCandidate(second.id, { type: 'human', id: 'reviewer-1' });
 
@@ -68,6 +90,7 @@ describe('annotation structural preview controller', () => {
     expect(rejected.analysisGraphStatus).toBe('rejected');
     expect(rejected.provenance?.reviewStatus).toBe('rejected');
     expect(await listPendingAnalysisGraphCandidates('unit-1')).toHaveLength(0);
+    expect(await listPendingAnalysisGraphCandidates('unit-2')).toHaveLength(0);
   });
 
   it('rejects a second accept when the unit already has an accepted analysis graph candidate', async () => {
@@ -77,12 +100,12 @@ describe('annotation structural preview controller', () => {
       unitId: 'unit-1',
       preview,
     });
+    await acceptAnalysisGraphCandidate(first.id, { type: 'human', id: 'reviewer-1' });
     const second = await confirmAnnotationStructuralCandidate({
       textId: 'text-1',
       unitId: 'unit-1',
       preview,
     });
-    await acceptAnalysisGraphCandidate(first.id, { type: 'human', id: 'reviewer-1' });
     await expect(acceptAnalysisGraphCandidate(second.id, { type: 'human', id: 'reviewer-1' })).rejects.toThrow(
       'an accepted analysis graph candidate already exists',
     );

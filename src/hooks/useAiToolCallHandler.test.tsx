@@ -1250,6 +1250,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
 
   it('unlinks translation by host link semantics when parentLayerId is empty', async () => {
     const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+    const rebindSpy = vi.fn<NonNullable<Parameters<typeof useAiToolCallHandler>[0]['rebindTranslationLayerHost']>>().mockResolvedValue(undefined);
 
     const { result } = renderHook(() =>
       useAiToolCallHandler(
@@ -1273,6 +1274,7 @@ describe('useAiToolCallHandler — strict target requirements', () => {
             createdAt: NOW,
           }],
           toggleLayerLink: toggleSpy,
+          rebindTranslationLayerHost: rebindSpy,
         }),
       ),
     );
@@ -1286,7 +1288,48 @@ describe('useAiToolCallHandler — strict target requirements', () => {
     });
 
     expect(response?.ok).toBe(true);
-    expect(toggleSpy).toHaveBeenCalledWith('trc-key-2', 'trl-1');
+    expect(rebindSpy).toHaveBeenCalledWith({
+      translationLayerId: 'trl-1',
+      removeTranscriptionLayerId: 'trc-1',
+      fallbackTranscriptionLayerKey: 'trc-key-2',
+    });
+    expect(toggleSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not create a link when unlink target is already absent', async () => {
+    const toggleSpy = vi.fn<(k: string, t: string) => Promise<void>>().mockResolvedValue(undefined);
+    const rebindSpy = vi.fn<NonNullable<Parameters<typeof useAiToolCallHandler>[0]['rebindTranslationLayerHost']>>().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useAiToolCallHandler(
+        makeParams({
+          transcriptionLayers: [
+            {
+              id: 'trc-1', textId: 't1', key: 'trc-key-1', name: { zho: '转写层A' }, layerType: 'transcription', languageId: 'zho', modality: 'text', createdAt: NOW, updatedAt: NOW,
+            } as LayerDocType,
+            {
+              id: 'trc-2', textId: 't1', key: 'trc-key-2', name: { zho: '转写层B' }, layerType: 'transcription', languageId: 'eng', modality: 'text', createdAt: NOW, updatedAt: NOW,
+            } as LayerDocType,
+          ],
+          translationLayers: [makeTranslationLayer('trl-1', '翻译层A')],
+          layerLinks: [],
+          toggleLayerLink: toggleSpy,
+          rebindTranslationLayerHost: rebindSpy,
+        }),
+      ),
+    );
+
+    let response: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      response = await result.current({
+        name: 'unlink_translation_layer',
+        arguments: { transcriptionLayerId: 'trc-1', translationLayerId: 'trl-1' },
+      });
+    });
+
+    expect(response?.ok).toBe(true);
+    expect(toggleSpy).not.toHaveBeenCalled();
+    expect(rebindSpy).not.toHaveBeenCalled();
   });
 
   it('switch_preferred_host is idempotent when target host is already preferred', async () => {

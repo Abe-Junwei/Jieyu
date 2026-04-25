@@ -167,6 +167,12 @@ function isKnownCapability(value: string): value is ExtensionCapability {
   return KNOWN_CAPABILITIES.includes(value as ExtensionCapability);
 }
 
+const KNOWN_TRUST_LEVELS: ExtensionTrustLevel[] = ['official', 'trusted', 'community', 'untrusted'];
+
+function isKnownTrustLevel(value: unknown): value is ExtensionTrustLevel {
+  return typeof value === 'string' && KNOWN_TRUST_LEVELS.includes(value as ExtensionTrustLevel);
+}
+
 export function validateExtensionManifest(input: unknown): ManifestValidationResult {
   const errors: string[] = [];
   if (!isRecord(input)) {
@@ -230,6 +236,23 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
     }
   }
 
+  if ('trustLevel' in input && !isKnownTrustLevel(input.trustLevel)) {
+    errors.push('trustLevel must be one of official, trusted, community, untrusted when provided.');
+  }
+  if ('declaredCapabilitiesVersion' in input && !isNonEmptyString(input.declaredCapabilitiesVersion)) {
+    errors.push('declaredCapabilitiesVersion must be a non-empty string when provided.');
+  }
+  if ('quotaProfile' in input) {
+    if (!isRecord(input.quotaProfile)) {
+      errors.push('quotaProfile must be an object when provided.');
+    } else if ('maxCallsPerMinute' in input.quotaProfile) {
+      const maxCallsPerMinute = input.quotaProfile.maxCallsPerMinute;
+      if (typeof maxCallsPerMinute !== 'number' || !Number.isFinite(maxCallsPerMinute) || maxCallsPerMinute < 0) {
+        errors.push('quotaProfile.maxCallsPerMinute must be a non-negative finite number when provided.');
+      }
+    }
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -246,6 +269,17 @@ export function validateExtensionManifest(input: unknown): ManifestValidationRes
         : {}),
     },
     capabilities: (input.capabilities as string[]).slice() as ExtensionCapability[],
+    ...(isKnownTrustLevel(input.trustLevel) ? { trustLevel: input.trustLevel } : {}),
+    ...(isNonEmptyString(input.declaredCapabilitiesVersion) ? { declaredCapabilitiesVersion: input.declaredCapabilitiesVersion } : {}),
+    ...(isRecord(input.quotaProfile)
+      ? {
+        quotaProfile: {
+          ...(typeof input.quotaProfile.maxCallsPerMinute === 'number'
+            ? { maxCallsPerMinute: input.quotaProfile.maxCallsPerMinute }
+            : {}),
+        },
+      }
+      : {}),
     entry: {
       activate: String((input.entry as Record<string, unknown>).activate),
       ...('deactivate' in (input.entry as Record<string, unknown>)

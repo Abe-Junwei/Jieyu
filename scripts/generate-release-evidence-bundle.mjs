@@ -1464,6 +1464,318 @@ function buildMemoryRecallShapeSection(input) {
   };
 }
 
+function buildBackgroundMemoryExtractionSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    readError,
+    releaseProfile,
+  } = input;
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      summary: {
+        total: 0,
+        scheduled: 0,
+        merged: 0,
+        completed: 0,
+        skipped: 0,
+        failed: 0,
+        writtenCount: 0,
+      },
+      skipReasons: {},
+    };
+  }
+
+  const rows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_background_memory_extraction'),
+  );
+
+  if (rows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_background_memory_extraction_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      summary: {
+        total: 0,
+        scheduled: 0,
+        merged: 0,
+        completed: 0,
+        skipped: 0,
+        failed: 0,
+        writtenCount: 0,
+      },
+      skipReasons: {},
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const summary = {
+    total: rows.length,
+    scheduled: 0,
+    merged: 0,
+    completed: 0,
+    skipped: 0,
+    failed: 0,
+    writtenCount: 0,
+  };
+  const skipReasons = new Map();
+  let durationSum = 0;
+  let durationSamples = 0;
+  const sampleTaskIds = [];
+
+  for (const row of rows) {
+    const metadata = getMetadataObject(row) ?? {};
+    const status = String(metadata.status ?? row.newValue ?? '').trim();
+    if (status === 'scheduled') summary.scheduled += 1;
+    else if (status === 'merged') summary.merged += 1;
+    else if (status === 'completed') summary.completed += 1;
+    else if (status === 'skipped') summary.skipped += 1;
+    else if (status === 'failed') summary.failed += 1;
+
+    const writtenCount = toFiniteNumber(metadata.writtenCount);
+    if (writtenCount !== null) summary.writtenCount += Math.max(0, Math.floor(writtenCount));
+
+    const durationMs = toFiniteNumber(metadata.durationMs);
+    if (durationMs !== null) {
+      durationSum += durationMs;
+      durationSamples += 1;
+    }
+
+    const skippedReason = typeof metadata.skippedReason === 'string' ? metadata.skippedReason.trim() : '';
+    if (skippedReason) {
+      skipReasons.set(skippedReason, (skipReasons.get(skippedReason) ?? 0) + 1);
+    }
+
+    const taskId = typeof metadata.taskId === 'string' && metadata.taskId.trim()
+      ? metadata.taskId.trim()
+      : row.requestId;
+    if (taskId) sampleTaskIds.push(taskId);
+  }
+
+  const out = {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    summary: {
+      ...summary,
+      avgDurationMs: durationSamples > 0 ? Number((durationSum / durationSamples).toFixed(2)) : 0,
+    },
+    skipReasons: Object.fromEntries([...skipReasons.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    ...(releaseProfile === 'full' ? { sampleTaskIds: [...new Set(sampleTaskIds)].slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
+function buildCoordinationLiteSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    readError,
+    releaseProfile,
+  } = input;
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      summary: {
+        total: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+        quarantinedCount: 0,
+      },
+      phaseDistribution: {},
+      parallelPolicy: {},
+    };
+  }
+
+  const rows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_coordination_lite'),
+  );
+
+  if (rows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_coordination_lite_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      summary: {
+        total: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+        quarantinedCount: 0,
+      },
+      phaseDistribution: {},
+      parallelPolicy: {},
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const summary = {
+    total: rows.length,
+    completed: 0,
+    failed: 0,
+    cancelled: 0,
+    quarantinedCount: 0,
+  };
+  const phaseDistribution = new Map();
+  const parallelPolicy = new Map();
+  let durationSum = 0;
+  let durationSamples = 0;
+  const sampleTaskIds = [];
+
+  for (const row of rows) {
+    const metadata = getMetadataObject(row) ?? {};
+    const notification = metadata.notification && typeof metadata.notification === 'object'
+      ? metadata.notification
+      : {};
+    const status = String(notification.status ?? row.newValue ?? '').trim();
+    if (status === 'completed') summary.completed += 1;
+    else if (status === 'failed') summary.failed += 1;
+    else if (status === 'cancelled') summary.cancelled += 1;
+
+    const phase = typeof notification.phase === 'string' && notification.phase.trim()
+      ? notification.phase.trim()
+      : 'unknown';
+    phaseDistribution.set(phase, (phaseDistribution.get(phase) ?? 0) + 1);
+
+    const policyReason = metadata.parallelPolicy && typeof metadata.parallelPolicy === 'object' && typeof metadata.parallelPolicy.reason === 'string'
+      ? metadata.parallelPolicy.reason.trim()
+      : 'unknown';
+    parallelPolicy.set(policyReason, (parallelPolicy.get(policyReason) ?? 0) + 1);
+
+    const quarantinedCount = toFiniteNumber(metadata.quarantinedCount);
+    if (quarantinedCount !== null) summary.quarantinedCount += Math.max(0, Math.floor(quarantinedCount));
+
+    const durationMs = notification.usage && typeof notification.usage === 'object'
+      ? toFiniteNumber(notification.usage.durationMs)
+      : null;
+    if (durationMs !== null) {
+      durationSum += durationMs;
+      durationSamples += 1;
+    }
+
+    const taskId = typeof notification.taskId === 'string' && notification.taskId.trim()
+      ? notification.taskId.trim()
+      : row.requestId;
+    if (taskId) sampleTaskIds.push(taskId);
+  }
+
+  const out = {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    summary: {
+      ...summary,
+      avgDurationMs: durationSamples > 0 ? Number((durationSum / durationSamples).toFixed(2)) : 0,
+    },
+    phaseDistribution: Object.fromEntries([...phaseDistribution.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    parallelPolicy: Object.fromEntries([...parallelPolicy.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    ...(releaseProfile === 'full' ? { sampleTaskIds: [...new Set(sampleTaskIds)].slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
+function buildUserDirectiveGovernanceSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    readError,
+    releaseProfile,
+  } = input;
+
+  const emptySummary = {
+    total: 0,
+    extractionCount: 0,
+    applicationCount: 0,
+    responsePolicyResolutionCount: 0,
+    accepted: 0,
+    ignored: 0,
+    downgraded: 0,
+    superseded: 0,
+    languageFormatterMismatchCount: 0,
+  };
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      summary: emptySummary,
+      categories: {},
+    };
+  }
+
+  const rows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && [
+      'ai_user_directive_extraction',
+      'ai_user_directive_application',
+      'ai_response_policy_resolution',
+    ].includes(row.field)),
+  );
+
+  if (rows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_user_directive_governance_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      summary: emptySummary,
+      categories: {},
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const summary = { ...emptySummary, total: rows.length };
+  const categories = new Map();
+  const sampleRequestIds = [];
+
+  for (const row of rows) {
+    const metadata = getMetadataObject(row) ?? {};
+    if (row.field === 'ai_user_directive_extraction') summary.extractionCount += 1;
+    if (row.field === 'ai_user_directive_application') summary.applicationCount += 1;
+    if (row.field === 'ai_response_policy_resolution') summary.responsePolicyResolutionCount += 1;
+
+    const directiveSummary = metadata.summary ?? metadata.directiveSummary;
+    if (directiveSummary && typeof directiveSummary === 'object') {
+      summary.accepted += Math.max(0, Math.floor(toFiniteNumber(directiveSummary.acceptedCount) ?? 0));
+      summary.ignored += Math.max(0, Math.floor(toFiniteNumber(directiveSummary.ignoredCount) ?? 0));
+      summary.downgraded += Math.max(0, Math.floor(toFiniteNumber(directiveSummary.downgradedCount) ?? 0));
+      summary.superseded += Math.max(0, Math.floor(toFiniteNumber(directiveSummary.supersededCount) ?? 0));
+      const categoryObj = directiveSummary.categories && typeof directiveSummary.categories === 'object' ? directiveSummary.categories : {};
+      for (const [category, value] of Object.entries(categoryObj)) {
+        categories.set(category, (categories.get(category) ?? 0) + Math.max(0, Math.floor(toFiniteNumber(value) ?? 0)));
+      }
+    }
+
+    const policy = metadata.policy;
+    if (policy && typeof policy === 'object') {
+      const language = String(policy.language ?? 'auto');
+      const locale = String(policy.locale ?? '');
+      if ((language === 'en' && locale !== 'en-US') || (language === 'zh-CN' && locale !== 'zh-CN')) {
+        summary.languageFormatterMismatchCount += 1;
+      }
+    }
+
+    if (row.requestId) sampleRequestIds.push(row.requestId);
+  }
+
+  const out = {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    summary,
+    categories: Object.fromEntries([...categories.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    ...(releaseProfile === 'full' ? { sampleRequestIds: [...new Set(sampleRequestIds)].slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
 function isRetryTriggeredByMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') return false;
   if (metadata.retryTriggered === true) return true;
@@ -1713,6 +2025,9 @@ function buildReport(input) {
     extensionCapabilityAudit,
     progressiveDisclosureSection,
     memoryRecallShapeSection,
+    backgroundMemoryExtractionSection,
+    coordinationLiteSection,
+    userDirectiveGovernanceSection,
   } = input;
 
   const failed = countByStatus(stepResults, 'failed');
@@ -1777,19 +2092,26 @@ function buildReport(input) {
     keySummary: `passed=${perfSection.summary.passed};failed=${perfSection.summary.failed};skipped=${perfSection.summary.skipped}`,
   });
 
+  const extensionCapabilityAuditReadFailed = hasSectionReadError(extensionCapabilityAudit);
   evidenceIndex.push({
     conclusionId: 'b3.extensions.capability-audit-summary',
-    conclusion: extensionCapabilityAudit.status === 'skipped'
+    conclusion: extensionCapabilityAuditReadFailed
+      ? 'B3 extension capability audit summary input read failed'
+      : extensionCapabilityAudit.status === 'skipped'
       ? 'B3 extension capability audit summary skipped'
       : 'B3 extension capability audit summary generated',
-    evidenceType: extensionCapabilityAudit.status === 'skipped'
+    evidenceType: extensionCapabilityAuditReadFailed
+      ? 'extension_capability_audit_input_failed'
+      : extensionCapabilityAudit.status === 'skipped'
       ? 'extension_capability_audit_skipped'
       : 'extension_capability_audit',
     command: 'release_evidence:extension_capability_audit',
     module: 'extension',
-    exitCode: 0,
+    exitCode: extensionCapabilityAuditReadFailed ? 1 : 0,
     logPath: null,
-    keySummary: extensionCapabilityAudit.status === 'skipped'
+    keySummary: extensionCapabilityAuditReadFailed
+      ? (extensionCapabilityAudit.readError?.message ?? 'extension capability audit input read failed')
+      : extensionCapabilityAudit.status === 'skipped'
       ? (extensionCapabilityAudit.skipReason ?? 'skipped')
       : `extensions=${extensionCapabilityAudit.capabilityAuditSummary.length}`,
   });
@@ -1829,6 +2151,56 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 'c5.background-memory-extraction.v1',
+    conclusion: backgroundMemoryExtractionSection.status === 'skipped'
+      ? 'C5 background memory extraction card skipped'
+      : 'C5 background memory extraction card generated',
+    evidenceType: backgroundMemoryExtractionSection.status === 'skipped'
+      ? 'background_memory_extraction_skipped'
+      : 'background_memory_extraction',
+    command: 'release_evidence:background_memory_extraction',
+    module: 'ai-memory',
+    exitCode: 0,
+    logPath: null,
+    keySummary: backgroundMemoryExtractionSection.status === 'skipped'
+      ? (backgroundMemoryExtractionSection.skipReason ?? 'skipped')
+      : `completed=${backgroundMemoryExtractionSection.summary.completed};written=${backgroundMemoryExtractionSection.summary.writtenCount}`,
+  });
+
+  evidenceIndex.push({
+    conclusionId: 'c7.coordination-lite.v1',
+    conclusion: coordinationLiteSection.status === 'skipped'
+      ? 'C7 coordination lite card skipped'
+      : 'C7 coordination lite card generated',
+    evidenceType: coordinationLiteSection.status === 'skipped'
+      ? 'coordination_lite_skipped'
+      : 'coordination_lite',
+    command: 'release_evidence:coordination_lite',
+    module: 'ai-coordination',
+    exitCode: 0,
+    logPath: null,
+    keySummary: coordinationLiteSection.status === 'skipped'
+      ? (coordinationLiteSection.skipReason ?? 'skipped')
+      : `completed=${coordinationLiteSection.summary.completed};failed=${coordinationLiteSection.summary.failed};quarantined=${coordinationLiteSection.summary.quarantinedCount}`,
+  });
+
+  evidenceIndex.push({
+    conclusionId: 'c8.user-directive-governance.v1',
+    conclusion: userDirectiveGovernanceSection.status === 'skipped'
+      ? 'C8 user directive governance card skipped'
+      : 'C8 user directive governance card ready',
+    evidenceType: userDirectiveGovernanceSection.status === 'skipped'
+      ? 'user_directive_governance_skipped'
+      : 'user_directive_governance_ready_or_partial',
+    status: userDirectiveGovernanceSection.status === 'skipped' ? 'skipped' : 'passed',
+    exitCode: null,
+    logPath: userDirectiveGovernanceSection.auditExportPath ?? null,
+    keySummary: userDirectiveGovernanceSection.status === 'skipped'
+      ? userDirectiveGovernanceSection.skipReason
+      : `accepted=${userDirectiveGovernanceSection.summary.accepted};ignored=${userDirectiveGovernanceSection.summary.ignored};mismatch=${userDirectiveGovernanceSection.summary.languageFormatterMismatchCount}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'p1.cost-guard.v1',
     conclusion: costGuardSection.status === 'skipped'
       ? 'P1-CostGuard card skipped'
@@ -1862,6 +2234,9 @@ function buildReport(input) {
     || hasSectionReadError(extensionCapabilityAudit)
     || hasSectionReadError(progressiveDisclosureSection)
     || hasSectionReadError(memoryRecallShapeSection)
+    || hasSectionReadError(backgroundMemoryExtractionSection)
+    || hasSectionReadError(coordinationLiteSection)
+    || hasSectionReadError(userDirectiveGovernanceSection)
     || hasSectionReadError(costGuardSection);
   if (aiEvidenceFailed) {
     evidenceIndex.push({
@@ -1915,6 +2290,9 @@ function buildReport(input) {
     perf: perfSection,
     progressiveDisclosure: progressiveDisclosureSection,
     memoryRecallShape: memoryRecallShapeSection,
+    backgroundMemoryExtraction: backgroundMemoryExtractionSection,
+    coordinationLite: coordinationLiteSection,
+    userDirectiveGovernance: userDirectiveGovernanceSection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
   };
@@ -2035,6 +2413,24 @@ async function run() {
       readError: auditLoad.readError,
       releaseProfile,
     }),
+    backgroundMemoryExtractionSection: buildBackgroundMemoryExtractionSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
+      releaseProfile,
+    }),
+    coordinationLiteSection: buildCoordinationLiteSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
+      releaseProfile,
+    }),
+    userDirectiveGovernanceSection: buildUserDirectiveGovernanceSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
+      releaseProfile,
+    }),
   });
 
   if (requireCostGuardTrendReady) {
@@ -2145,6 +2541,33 @@ run().catch(async (error) => {
       status: 'skipped',
       skipReason: 'fallback_due_to_unhandled_error',
       card: null,
+    },
+    backgroundMemoryExtraction: {
+      status: 'skipped',
+      skipReason: 'fallback_due_to_unhandled_error',
+      summary: {
+        total: 0,
+        scheduled: 0,
+        merged: 0,
+        completed: 0,
+        skipped: 0,
+        failed: 0,
+        writtenCount: 0,
+      },
+      skipReasons: {},
+    },
+    coordinationLite: {
+      status: 'skipped',
+      skipReason: 'fallback_due_to_unhandled_error',
+      summary: {
+        total: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+        quarantinedCount: 0,
+      },
+      phaseDistribution: {},
+      parallelPolicy: {},
     },
     costGuard: {
       status: 'skipped',

@@ -242,12 +242,12 @@ export class LayerSegmentQueryService {
     });
   }
 
-  static async listUnitsByMediaId(mediaId: string): Promise<LayerUnitDocType[]> {
+  static async listUnitsByMediaId(mediaId: string, database?: Awaited<ReturnType<typeof getDb>>): Promise<LayerUnitDocType[]> {
     const normalized = mediaId.trim();
     if (!normalized) return [];
 
     return runQueryWithCompatibleTransaction(['layer_units'], async () => {
-      const db = await getDb();
+      const db = database ?? await getDb();
       return db.dexie.layer_units.where('mediaId').equals(normalized).toArray();
     });
   }

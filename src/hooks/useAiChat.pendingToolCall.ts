@@ -196,7 +196,7 @@ export function useAiChatPendingToolCall(options: UseAiChatPendingToolCallOption
       `pending:${pending.call.name}`,
       `cancelled:${pending.call.name}`,
       'human',
-      pending.call.requestId,
+      pending.call.requestId ?? pending.requestId,
       buildToolDecisionAuditMetadata(
         pending.assistantMessageId,
         pending.call,

@@ -90,8 +90,53 @@ interface ReleaseEvidenceReport {
       sampleRequestIds?: string[];
     } | null;
   };
+  backgroundMemoryExtraction: {
+    status: string;
+    summary: {
+      total: number;
+      scheduled: number;
+      merged: number;
+      completed: number;
+      skipped: number;
+      failed: number;
+      writtenCount: number;
+      avgDurationMs?: number;
+    };
+    skipReasons: Record<string, number>;
+    sampleTaskIds?: string[];
+  };
+  coordinationLite: {
+    status: string;
+    summary: {
+      total: number;
+      completed: number;
+      failed: number;
+      cancelled: number;
+      quarantinedCount: number;
+      avgDurationMs?: number;
+    };
+    phaseDistribution: Record<string, number>;
+    parallelPolicy: Record<string, number>;
+    sampleTaskIds?: string[];
+  };
+  userDirectiveGovernance: {
+    status: string;
+    summary: {
+      total: number;
+      extractionCount: number;
+      applicationCount: number;
+      responsePolicyResolutionCount: number;
+      accepted: number;
+      ignored: number;
+      downgraded: number;
+      superseded: number;
+      languageFormatterMismatchCount: number;
+    };
+    categories: Record<string, number>;
+    sampleRequestIds?: string[];
+  };
   costGuard: CostGuardSection;
-  evidenceIndex: Array<{ conclusionId: string; evidenceType?: string }>;
+  evidenceIndex: Array<{ conclusionId: string; evidenceType?: string; exitCode?: number | null }>;
   aiToolEvidenceCards: {
     summary: {
       total: number;
@@ -716,6 +761,37 @@ describe('generate-release-evidence-bundle script', () => {
     }
   });
 
+  it('marks B3 extension evidence index failed when explicit extension audit export cannot be read', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const missingExtensionAuditPath = path.join(tempDir, 'missing-extension-audit.ndjson');
+
+    try {
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=enforce',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--extension-capability-audit-export=${missingExtensionAuditPath}`,
+      ]);
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+      const b3 = report.evidenceIndex.find((item) => item.conclusionId === 'b3.extensions.capability-audit-summary');
+
+      expect(report.degraded).toBe(true);
+      expect(b3).toMatchObject({
+        evidenceType: 'extension_capability_audit_input_failed',
+        exitCode: 1,
+      });
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'release-evidence.input-read.require-success')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('includes release-evidence section skips in the root summary', () => {
     const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
     const outputPath = path.join(tempDir, 'release-evidence.json');
@@ -815,6 +891,207 @@ describe('generate-release-evidence-bundle script', () => {
         'toolreq_ragshape_002',
       ]);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds C5 and C7 cards from AI audit metadata', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-c-stage-audit.ndjson');
+    const auditRows = [
+      {
+        request_id: 'bgmem_001',
+        collection: 'ai_messages',
+        field: 'ai_background_memory_extraction',
+        timestamp: '2026-04-25T10:00:00.000Z',
+        new_value: 'scheduled',
+        metadata_json: JSON.stringify({
+          phase: 'background_memory_extraction',
+          taskId: 'bgmem_001',
+          status: 'scheduled',
+          writtenCount: 0,
+          durationMs: 0,
+        }),
+      },
+      {
+        request_id: 'bgmem_001',
+        collection: 'ai_messages',
+        field: 'ai_background_memory_extraction',
+        timestamp: '2026-04-25T10:00:01.000Z',
+        new_value: 'completed',
+        metadata_json: JSON.stringify({
+          phase: 'background_memory_extraction',
+          taskId: 'bgmem_001',
+          status: 'completed',
+          writtenCount: 2,
+          durationMs: 12,
+        }),
+      },
+      {
+        request_id: 'bgmem_002',
+        collection: 'ai_messages',
+        field: 'ai_background_memory_extraction',
+        timestamp: '2026-04-25T10:00:02.000Z',
+        new_value: 'skipped',
+        metadata_json: JSON.stringify({
+          phase: 'background_memory_extraction',
+          taskId: 'bgmem_002',
+          status: 'skipped',
+          skippedReason: 'empty-extraction',
+          writtenCount: 0,
+          durationMs: 8,
+        }),
+      },
+      {
+        request_id: 'directive_extract_001',
+        collection: 'ai_messages',
+        field: 'ai_user_directive_extraction',
+        timestamp: '2026-04-25T10:00:02.500Z',
+        new_value: 'extracted:2',
+        metadata_json: JSON.stringify({
+          phase: 'user_directive_extraction',
+          summary: {
+            extractedCount: 2,
+            acceptedCount: 2,
+            ignoredCount: 0,
+            downgradedCount: 0,
+            supersededCount: 0,
+            categories: { response: 1, safety: 1 },
+          },
+        }),
+      },
+      {
+        request_id: 'directive_apply_001',
+        collection: 'ai_messages',
+        field: 'ai_user_directive_application',
+        timestamp: '2026-04-25T10:00:02.600Z',
+        new_value: 'accepted:2;ignored:0;downgraded:0;superseded:0',
+        metadata_json: JSON.stringify({
+          phase: 'user_directive_application',
+          summary: {
+            extractedCount: 2,
+            acceptedCount: 2,
+            ignoredCount: 0,
+            downgradedCount: 0,
+            supersededCount: 0,
+            categories: { response: 1, safety: 1 },
+          },
+        }),
+      },
+      {
+        request_id: 'response_policy_001',
+        collection: 'ai_messages',
+        field: 'ai_response_policy_resolution',
+        timestamp: '2026-04-25T10:00:02.700Z',
+        new_value: 'en-US',
+        metadata_json: JSON.stringify({
+          phase: 'response_policy_resolution',
+          policy: { language: 'en', locale: 'en-US' },
+        }),
+      },
+      {
+        request_id: 'ast-1_loop_1',
+        collection: 'ai_messages',
+        field: 'ai_coordination_lite',
+        timestamp: '2026-04-25T10:00:03.000Z',
+        new_value: 'completed',
+        metadata_json: JSON.stringify({
+          phase: 'coordination_lite',
+          taskSessionId: 'task-1',
+          notification: {
+            taskId: 'ast-1_loop_1',
+            status: 'completed',
+            summary: 'searched project state',
+            phase: 'research',
+            usage: { durationMs: 30, inputTokens: 10, outputTokens: 5 },
+          },
+          parallelPolicy: { canRunInParallel: true, reason: 'readonly-parallel' },
+          quarantinedCount: 0,
+        }),
+      },
+      {
+        request_id: 'ast-1_loop_2',
+        collection: 'ai_messages',
+        field: 'ai_coordination_lite',
+        timestamp: '2026-04-25T10:00:04.000Z',
+        new_value: 'failed',
+        metadata_json: JSON.stringify({
+          phase: 'coordination_lite',
+          taskSessionId: 'task-1',
+          notification: {
+            taskId: 'ast-1_loop_2',
+            status: 'failed',
+            summary: 'verification failed',
+            phase: 'verification',
+            usage: { durationMs: 50 },
+          },
+          parallelPolicy: { canRunInParallel: true, reason: 'verification-parallel' },
+          quarantinedCount: 1,
+        }),
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.backgroundMemoryExtraction.status).toBe('ready_or_partial');
+      expect(report.backgroundMemoryExtraction.summary).toMatchObject({
+        total: 3,
+        scheduled: 1,
+        completed: 1,
+        skipped: 1,
+        writtenCount: 2,
+      });
+      expect(report.backgroundMemoryExtraction.skipReasons).toEqual({ 'empty-extraction': 1 });
+      expect(report.backgroundMemoryExtraction.sampleTaskIds).toEqual(['bgmem_001', 'bgmem_002']);
+
+      expect(report.coordinationLite.status).toBe('ready_or_partial');
+      expect(report.coordinationLite.summary).toMatchObject({
+        total: 2,
+        completed: 1,
+        failed: 1,
+        quarantinedCount: 1,
+      });
+      expect(report.coordinationLite.phaseDistribution).toEqual({
+        research: 1,
+        verification: 1,
+      });
+      expect(report.coordinationLite.parallelPolicy).toEqual({
+        'readonly-parallel': 1,
+        'verification-parallel': 1,
+      });
+      expect(report.userDirectiveGovernance.status).toBe('ready_or_partial');
+      expect(report.userDirectiveGovernance.summary).toMatchObject({
+        total: 3,
+        extractionCount: 1,
+        applicationCount: 1,
+        responsePolicyResolutionCount: 1,
+        accepted: 4,
+        languageFormatterMismatchCount: 0,
+      });
+      expect(report.userDirectiveGovernance.categories).toEqual({ response: 2, safety: 2 });
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'c5.background-memory-extraction.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'c7.coordination-lite.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'c8.user-directive-governance.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

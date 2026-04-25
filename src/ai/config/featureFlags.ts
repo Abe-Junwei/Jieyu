@@ -15,20 +15,20 @@ export const featureFlags = {
   aiChatRagEnabled: true,
   /** C 阶段：记录 memory/RAG 召回形态证据 | C-stage: emit memory/RAG recall shape evidence */
   aiMemoryRecallShapeTelemetryEnabled: true,
-  /** C 阶段：统一记忆召回 broker（默认关闭）| C-stage unified memory broker (off by default) */
-  aiMemoryBrokerEnabled: false,
-  /** C 阶段：意图多候选与置信门控（默认关闭）| C-stage intent confidence gate (off by default) */
-  aiIntentConfidenceGateEnabled: false,
-  /** C 阶段：后台任务工具沙箱（默认关闭）| C-stage background task sandbox (off by default) */
+  /** C 阶段：统一记忆召回 broker（dogfood 已启用）| C-stage unified memory broker (dogfood enabled) */
+  aiMemoryBrokerEnabled: true,
+  /** C 阶段：意图多候选与置信门控（dogfood 已启用）| C-stage intent confidence gate (dogfood enabled) */
+  aiIntentConfidenceGateEnabled: true,
+  /** C 阶段：后台任务工具沙箱（默认关闭，尚未接入运行时）| C-stage background task sandbox (off; no runtime wiring yet) */
   aiBackgroundToolSandboxEnabled: false,
-  /** C 阶段：后台记忆抽取（默认关闭）| C-stage background memory extractor (off by default) */
-  aiBackgroundMemoryExtractorEnabled: false,
-  /** C 阶段：扩展信任、配额与健康度治理（默认关闭）| C-stage extension trust governance (off by default) */
-  aiExtensionTrustGovernanceEnabled: false,
-  /** C 阶段：语音 provider manifest（默认关闭）| C-stage voice provider manifest (off by default) */
-  aiVoiceProviderManifestEnabled: false,
-  /** C 阶段：轻量协调协议（默认关闭）| C-stage coordination lite (off by default) */
-  aiCoordinationLiteEnabled: false,
+  /** C 阶段：后台记忆抽取（dogfood 已启用）| C-stage background memory extractor (dogfood enabled) */
+  aiBackgroundMemoryExtractorEnabled: true,
+  /** C 阶段：扩展信任、配额与健康度治理（dogfood 已启用）| C-stage extension trust governance (dogfood enabled) */
+  aiExtensionTrustGovernanceEnabled: true,
+  /** C 阶段：语音 provider manifest（dogfood 已启用）| C-stage voice provider manifest (dogfood enabled) */
+  aiVoiceProviderManifestEnabled: true,
+  /** C 阶段：轻量协调协议（dogfood 已启用，audit-only）| C-stage coordination lite (dogfood enabled, audit-only) */
+  aiCoordinationLiteEnabled: true,
   /** 语料库实验室壳开关 | Corpus library lab shell toggle */
   corpusLibraryLabEnabled: false,
 } as const;

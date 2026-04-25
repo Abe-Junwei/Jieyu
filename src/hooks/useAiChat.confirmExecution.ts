@@ -1,4 +1,4 @@
-import { buildToolDecisionAuditMetadata, toNaturalToolFailure, toNaturalToolSuccess, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { buildToolDecisionAuditMetadata, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolSuccess, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
 import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError, formatInvalidArgsError, formatNoExecutorInternalError, formatNoExecutorToolFailureDetail, formatToolExecutionFallbackError } from '../ai/messages';
 import { buildPostExecSessionMemory } from './useAiChat.postExecSessionPatch';
 import { nowIso } from './useAiChat.helpers';
@@ -125,6 +125,46 @@ export async function executeConfirmedToolCall({
     return;
   }
 
+  const blockedByDirective = sessionMemory.toolPreferences?.autoExecute === 'never'
+    || (sessionMemory.safetyPreferences?.denyDestructive === true && isDestructiveToolCall(call.name));
+  if (blockedByDirective) {
+    const reason = sessionMemory.toolPreferences?.autoExecute === 'never'
+      ? 'user_directive_never_execute'
+      : 'user_directive_deny_destructive';
+    const message = reason === 'user_directive_never_execute'
+      ? 'Blocked by user directive: do not execute tools.'
+      : 'Blocked by user directive: destructive actions are disabled.';
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, call.name, message, toolFeedbackStyle),
+      'error',
+      message,
+    );
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${call.name}`,
+      `confirm_failed:${call.name}:${reason}`,
+      'system',
+      call.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        call,
+        auditContext,
+        'system',
+        'confirm_failed',
+        false,
+        message,
+        reason,
+      ),
+    );
+    setTaskSession({
+      id: taskSessionId,
+      status: 'idle',
+      updatedAt: nowIso(),
+    });
+    return;
+  }
+
   if (!onToolCall) {
     const noExecutorMessage = formatNoExecutorInternalError();
     await applyAssistantMessageResult(
@@ -161,7 +201,6 @@ export async function executeConfirmedToolCall({
   const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
   try {
-    markExecutedRequestId(call.requestId);
     const result = await Promise.race([
       onToolCall(call),
       new Promise<never>((_, reject) =>
@@ -171,6 +210,7 @@ export async function executeConfirmedToolCall({
     const execDurationMs = Math.round(performance.now() - execStart);
 
     if (result.ok) {
+      markExecutedRequestId(call.requestId);
       bumpMetric('successCount');
       const nextSessionMemory = buildPostExecSessionMemory({
         sessionMemory,
@@ -205,7 +245,7 @@ export async function executeConfirmedToolCall({
         auditContext,
         'human',
         result.ok ? 'confirmed' : 'confirm_failed',
-        true,
+        result.ok,
         result.message,
         undefined,
         execDurationMs,
@@ -238,7 +278,7 @@ export async function executeConfirmedToolCall({
         auditContext,
         'human',
         'confirm_failed',
-        true,
+        false,
         toolErrorText,
         'exception',
         execDurationMsErr,
@@ -353,6 +393,48 @@ export async function executeConfirmedProposedChangeBatch({
     return;
   }
 
+  const blockedByDirective = sessionMemory.toolPreferences?.autoExecute === 'never'
+    || (sessionMemory.safetyPreferences?.denyBatch === true && childCalls.length > 1)
+    || (sessionMemory.safetyPreferences?.denyDestructive === true && childCalls.some((call) => isDestructiveToolCall(call.name)));
+  if (blockedByDirective) {
+    const reason = sessionMemory.toolPreferences?.autoExecute === 'never'
+      ? 'user_directive_never_execute'
+      : sessionMemory.safetyPreferences?.denyBatch === true && childCalls.length > 1
+        ? 'user_directive_deny_batch'
+        : 'user_directive_deny_destructive';
+    const message = reason === 'user_directive_never_execute'
+      ? 'Blocked by user directive: do not execute tools.'
+      : reason === 'user_directive_deny_batch'
+        ? 'Blocked by user directive: batch actions are disabled.'
+        : 'Blocked by user directive: destructive actions are disabled.';
+    bumpMetric('failureCount');
+    await applyAssistantMessageResult(
+      assistantMessageId,
+      toNaturalToolFailure(locale, parentCall.name, message, toolFeedbackStyle),
+      'error',
+      message,
+    );
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `pending:${parentCall.name}`,
+      `confirm_failed:${parentCall.name}:${reason}`,
+      'system',
+      parentCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        parentCall,
+        auditContext,
+        'system',
+        'confirm_failed',
+        false,
+        message,
+        reason,
+      ),
+    );
+    finishIdle();
+    return;
+  }
+
   if (!onToolCall) {
     const noExecutorMessage = formatNoExecutorInternalError();
     await applyAssistantMessageResult(
@@ -385,8 +467,8 @@ export async function executeConfirmedProposedChangeBatch({
   const TOOL_EXEC_TIMEOUT_MS = 30_000;
   const execStart = performance.now();
 
+  let appliedChildCount = 0;
   try {
-    markExecutedRequestId(parentCall.requestId);
     let lastOkChildName = parentCall.name;
 
     for (let i = 0; i < childCalls.length; i += 1) {
@@ -414,7 +496,7 @@ export async function executeConfirmedProposedChangeBatch({
             auditContext,
             'human',
             'confirm_failed',
-            false,
+            appliedChildCount > 0,
             detail,
             'invalid_child_args',
             Math.round(performance.now() - execStart),
@@ -457,7 +539,7 @@ export async function executeConfirmedProposedChangeBatch({
             auditContext,
             'human',
             'confirm_failed',
-            false,
+            appliedChildCount > 0,
             detail,
             'child_failed',
             Math.round(performance.now() - execStart),
@@ -468,6 +550,8 @@ export async function executeConfirmedProposedChangeBatch({
       }
 
       lastOkChildName = child.name;
+      appliedChildCount += 1;
+      markExecutedRequestId(parentCall.requestId);
     }
 
     bumpMetric('successCount');
@@ -532,7 +616,7 @@ export async function executeConfirmedProposedChangeBatch({
         auditContext,
         'human',
         'confirm_failed',
-        true,
+        appliedChildCount > 0,
         toolErrorText,
         'exception',
         execDurationMsErr,

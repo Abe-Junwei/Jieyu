@@ -92,6 +92,9 @@ function materializeSegmentTargetCall(
   if (!isAiToolSegmentTargetMaterializationTool(call.name)) {
     return call;
   }
+  if (call.name === 'auto_gloss_unit') {
+    return call;
+  }
 
   const requestedSegmentId = String(call.arguments.segmentId ?? '').trim();
   const hasSelectorTarget = typeof call.arguments.segmentIndex === 'number' || typeof call.arguments.segmentPosition === 'string';

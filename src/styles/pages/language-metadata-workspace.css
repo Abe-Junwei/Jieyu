@@ -47,6 +47,22 @@
 
 /* ── Summary card ── */
 
+.workspace-card {
+  display: grid;
+  gap: var(--la-section-gap);
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--surface-panel);
+}
+
+.workspace-card__header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
 .lm-summary-meta-row {
   display: flex;
   flex-wrap: wrap;

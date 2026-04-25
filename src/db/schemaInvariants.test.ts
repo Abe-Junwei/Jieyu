@@ -234,6 +234,28 @@ const unitRelationSuite: InvariantSuite<UnitRelationDocType> = {
       name: 'invalid relation type',
       mutate: (doc) => ({ ...doc, relationType: 'contains' }),
     },
+    {
+      name: 'analysis graph candidate requires unitId',
+      mutate: (doc) => ({
+        ...doc,
+        relationType: 'analysis_graph_candidate',
+        analysisGraphStatus: 'pending',
+        analysisGraphCandidate: { schemaVersion: 1, nodes: [], relations: [], projectionDiagnostics: [{ code: 'ok', severity: 'info', status: 'supported', message: 'ok' }] },
+        provenance: { actorType: 'system', method: 'projection', reviewStatus: 'suggested', createdAt: NOW },
+      }),
+    },
+    {
+      name: 'analysis graph candidate sourceUnitId must match unitId',
+      mutate: (doc) => ({
+        ...doc,
+        unitId: 'lu_valid_1',
+        sourceUnitId: 'lu_other',
+        relationType: 'analysis_graph_candidate',
+        analysisGraphStatus: 'pending',
+        analysisGraphCandidate: { schemaVersion: 1, nodes: [], relations: [], projectionDiagnostics: [{ code: 'ok', severity: 'info', status: 'supported', message: 'ok' }] },
+        provenance: { actorType: 'system', method: 'projection', reviewStatus: 'suggested', createdAt: NOW },
+      }),
+    },
   ],
 };
 

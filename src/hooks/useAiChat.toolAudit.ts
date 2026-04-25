@@ -103,8 +103,8 @@ export function useAiChatToolAudit() {
       if (typeof row.metadataJson === 'string' && row.metadataJson.trim().length > 0) {
         try {
           const parsed = JSON.parse(row.metadataJson) as { phase?: unknown; executed?: unknown };
-          if (parsed.phase === 'decision' && parsed.executed === true) {
-            return true;
+          if (parsed.phase === 'decision') {
+            return parsed.executed === true;
           }
         } catch (err) {
           console.error('[Jieyu] useAiChat: failed to parse tool decision metadata, falling back to compact parsing', err);

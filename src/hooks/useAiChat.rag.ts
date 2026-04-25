@@ -58,9 +58,16 @@ interface EnrichContextWithRagParams {
   userText: string;
   contextBlock: string;
   ragContextTimeoutMs: number;
+  maxContextChars?: number;
   /** Same-turn prompt context: epoch + localUnitIndex for citation grounding metadata. */
   promptContext?: AiPromptContext | null;
 }
+
+type RagSourceRow = {
+  contextTag: string;
+  safeSnippet: string;
+  citation: AiMessageCitation;
+} | null;
 
 const RAG_SCENARIO_TOKEN_RE = /\[RAG_SCENARIO:(qa|review|terminology|balanced)\]/i;
 
@@ -135,11 +142,31 @@ export function normalizeRagCitationSnippet(snippet: string): string {
   return normalizeCitationSnippetPlainText(snippet).slice(0, 300);
 }
 
+function selectRagSourcesWithinBudget(
+  contextBlock: string,
+  sources: Array<NonNullable<RagSourceRow>>,
+  maxContextChars: number | undefined,
+): { sources: Array<NonNullable<RagSourceRow>>; budgetSuppressedCount: number } {
+  if (maxContextChars === undefined) return { sources, budgetSuppressedCount: 0 };
+  const header = '\n[RELEVANT_CONTEXT]\n';
+  let used = contextBlock.length + header.length + RAG_CITATION_INSTRUCTION.length + 1;
+  const selected: Array<NonNullable<RagSourceRow>> = [];
+  for (const source of sources) {
+    const line = `[${selected.length + 1}] (${source.contextTag}) ${source.safeSnippet}`;
+    const nextUsed = used + line.length + 1;
+    if (nextUsed > maxContextChars) continue;
+    selected.push(source);
+    used = nextUsed;
+  }
+  return { sources: selected, budgetSuppressedCount: sources.length - selected.length };
+}
+
 export async function enrichContextWithRag({
   embeddingSearchService,
   userText,
   contextBlock,
   ragContextTimeoutMs,
+  maxContextChars,
   promptContext,
 }: EnrichContextWithRagParams): Promise<RagEnrichmentResult> {
   if (!embeddingSearchService) {
@@ -255,12 +282,6 @@ export async function enrichContextWithRag({
     const db = await getDb();
     const idSet = buildLocalUnitIdSetForRagCitationCheck(promptContext);
     const readModelEpoch = promptContext?.shortTerm?.timelineReadModelEpoch;
-    type RagSourceRow = {
-      contextTag: string;
-      safeSnippet: string;
-      citation: AiMessageCitation;
-    } | null;
-
     const settledResults = await Promise.allSettled(
       activeMatches.map(async (match): Promise<RagSourceRow> => {
         let snippet = '';
@@ -365,17 +386,34 @@ export async function enrichContextWithRag({
       };
     }
 
-    const ragLines = dedupedSources.map(
+    const duplicateSuppressedCount = Math.max(0, rawRagSources.length - dedupedSources.length);
+    const budgeted = selectRagSourcesWithinBudget(contextBlock, dedupedSources, maxContextChars);
+    if (budgeted.sources.length === 0) {
+      return {
+        contextBlock,
+        citations: [],
+        ...memoryRecallShapeProp({
+          candidateCount: activeMatches.length,
+          selectedCount: 0,
+          duplicateSuppressedCount,
+          budgetSuppressedCount: budgeted.budgetSuppressedCount,
+        }),
+        reflectionVerdict,
+        ...(cragVerdict !== undefined && { cragVerdict }),
+      };
+    }
+
+    const ragLines = budgeted.sources.map(
       (source, index) => `[${index + 1}] (${source.contextTag}) ${source.safeSnippet}`,
     );
-    const duplicateSuppressedCount = Math.max(0, rawRagSources.length - dedupedSources.length);
     return {
       contextBlock: `${contextBlock}\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}\n${RAG_CITATION_INSTRUCTION}`,
-      citations: dedupedSources.map((source) => source.citation),
+      citations: budgeted.sources.map((source) => source.citation),
       ...memoryRecallShapeProp({
         candidateCount: activeMatches.length,
-        selectedCount: dedupedSources.length,
+        selectedCount: budgeted.sources.length,
         duplicateSuppressedCount,
+        budgetSuppressedCount: budgeted.budgetSuppressedCount,
       }),
       reflectionVerdict,
       ...(cragVerdict !== undefined && { cragVerdict }),

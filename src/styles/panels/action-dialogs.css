@@ -52,10 +52,6 @@
 }
 
 .side-pane-action-modal-body {
-  gap: var(--panel-section-gap, 14px);
-}
-
-.dialog-body.side-pane-action-modal-body {
   padding: 20px 22px 22px;
   gap: var(--panel-section-gap, 14px);
 }
@@ -70,8 +66,7 @@
 }
 
 /* 新建面板（转写/翻译）扁平字段布局 | Flat field layout for create panels */
-.layer-action-dialog-body,
-.dialog-body.layer-action-dialog-body {
+.layer-action-dialog-body {
   gap: var(--panel-section-gap, 14px);
   padding: 20px 22px 22px;
 }

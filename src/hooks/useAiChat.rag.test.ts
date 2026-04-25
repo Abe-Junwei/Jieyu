@@ -247,6 +247,27 @@ describe('enrichContextWithRag — Self-RAG + CRAG pipeline', () => {
     expect(result.contextBlock).toContain('[RELEVANT_CONTEXT]');
   });
 
+  it('does not append RAG context when remaining context budget is exhausted', async () => {
+    const svc = mockSearchService({
+      matches: [{ sourceType: 'unit', sourceId: 'u1', score: 0.82, model: 'e5' }],
+    });
+    const result = await enrichContextWithRag({
+      embeddingSearchService: svc,
+      userText: '这个语言的语音系统怎么描述？',
+      contextBlock: 'ctx',
+      ragContextTimeoutMs: 5000,
+      maxContextChars: 8,
+    });
+
+    expect(result.contextBlock).toBe('ctx');
+    expect(result.citations).toEqual([]);
+    expect(result.memoryRecallShape).toEqual(expect.objectContaining({
+      candidateCount: 1,
+      selectedCount: 0,
+      budgetSuppressedCount: 1,
+    }));
+  });
+
   it('sets readModelIndexHit false and emits ai.rag_citation_read_model_miss when unit not in index', async () => {
     const events: Array<{ id: string }> = [];
     const dispose = addMetricObserver((e) => events.push({ id: e.id }));

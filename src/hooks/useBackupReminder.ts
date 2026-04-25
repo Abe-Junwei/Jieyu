@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useToast } from '../contexts/ToastContext';
+import { tf, useLocale } from '../i18n';
 
 const BACKUP_LAST_EXPORT_KEY = 'jieyu.lastExportTimestamp';
 /** 连续工作超过此时间后触发提醒 | Remind after this many ms of active work */
@@ -48,6 +49,7 @@ export function markBackupCompleted(): void {
  */
 export function useBackupReminder(enabled = true): void {
   const toast = useToast();
+  const locale = useLocale();
   const lastRemindedRef = useRef(0);
 
   const checkAndRemind = useCallback(() => {
@@ -65,11 +67,11 @@ export function useBackupReminder(enabled = true): void {
 
     const hours = Math.round(elapsed / (60 * 60 * 1000));
     toast.showToast(
-      `已连续工作约 ${hours} 小时，建议导出数据库备份以防数据丢失。`,
+      tf(locale, 'msg.appData.backupElapsedReminderToast', { hours }),
       'warning',
       12_000,
     );
-  }, [enabled, toast]);
+  }, [enabled, locale, toast]);
 
   useEffect(() => {
     if (!enabled) return;

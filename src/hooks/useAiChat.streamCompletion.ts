@@ -239,6 +239,7 @@ export async function resolveAiChatStreamCompletion({
   let finalContent = assistantContent;
   let finalStatus: 'done' | 'error' = 'done';
   let finalErrorMessage: string | undefined;
+  const preferredScope = sessionMemory.toolPreferences?.defaultScope;
 
   const localToolCallsParsed = parseLocalContextToolCallsFromText(assistantContent);
   if (localToolCallsParsed.length > 1) {
@@ -247,7 +248,7 @@ export async function resolveAiChatStreamCompletion({
     let rollingMemory = sessionMemory;
     for (let index = 0; index < localToolCallsParsed.length; index += 1) {
       const rawCall = localToolCallsParsed[index]!;
-      const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory);
+      const { calls: stepCalls } = resolveLocalToolCalls([rawCall], userText, rollingMemory, rollingMemory.toolPreferences?.defaultScope ?? preferredScope);
       const stepCall = stepCalls[0]!;
       const clarificationNeed = detectLocalToolClarificationNeed([stepCall], userText, rollingMemory);
       if (clarificationNeed.needed) {
@@ -320,7 +321,7 @@ export async function resolveAiChatStreamCompletion({
 
   if (localToolCallsParsed.length === 1) {
     const sharedTraceId = localToolTraceOptions?.traceId ?? generateTraceId();
-    const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory);
+    const { calls: singleCalls } = resolveLocalToolCalls(localToolCallsParsed, userText, sessionMemory, preferredScope);
     const resolvedCall = singleCalls[0]!;
     const clarificationNeed = detectLocalToolClarificationNeed([resolvedCall], userText, sessionMemory);
     if (clarificationNeed.needed) {

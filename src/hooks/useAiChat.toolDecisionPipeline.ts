@@ -1,4 +1,4 @@
-import { assessToolActionIntent, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
+import { assessToolActionIntent, buildToolAuditContext, buildToolDecisionAuditMetadata, buildToolIntentAuditMetadata, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolGraySkipped, toNaturalToolPending, toNaturalToolRollbackSkipped, validateToolCallArguments } from '../ai/chat/toolCallHelpers';
 import { formatDuplicateRequestIgnoredDetail, formatDuplicateRequestIgnoredError } from '../ai/messages';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import type { Locale } from '../i18n';
@@ -8,6 +8,18 @@ import { handleInvalidToolArguments } from './useAiChat.argsValidation';
 import { resolveDestructiveGate } from './useAiChat.destructiveGate';
 import { executeAutoToolCall } from './useAiChat.autoExecute';
 import type { AiChatToolCall, AiInteractionMetrics, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiTaskSession, AiToolDecisionMode, AiToolRiskCheckResult, PendingAiToolCall, UiChatMessage } from './useAiChat';
+
+function isBatchToolCall(call: AiChatToolCall): boolean {
+  return Object.values(call.arguments).some((value) => Array.isArray(value) && value.length > 1)
+    || call.name === 'propose_changes'
+    || call.name === 'merge_transcription_segments';
+}
+
+function isWriteLikeToolCall(call: AiChatToolCall): boolean {
+  if (isDestructiveToolCall(call.name)) return true;
+  return /^(create_|set_|split_|merge_|clear_|link_|unlink_|add_|remove_|switch_|auto_gloss_)/.test(call.name)
+    || call.name === 'propose_changes';
+}
 
 interface ResolveToolDecisionPipelineParams {
   assistantMessageId: string;
@@ -251,6 +263,83 @@ export async function resolveToolDecisionPipeline({
       finalContent: invalidArgsResult.finalContent,
       finalStatus: 'error',
       finalErrorMessage: invalidArgsResult.finalErrorMessage,
+    };
+  }
+
+  const toolPreference = sessionMemory.toolPreferences?.autoExecute;
+  const safetyPreferences = sessionMemory.safetyPreferences;
+  const policyBlocksDestructive = safetyPreferences?.denyDestructive === true && isDestructiveToolCall(toolCall.name);
+  const policyBlocksBatch = safetyPreferences?.denyBatch === true && isBatchToolCall(toolCall);
+  const policyBlocksExecution = toolPreference === 'never' || policyBlocksDestructive || policyBlocksBatch;
+  if (policyBlocksExecution) {
+    const reason = toolPreference === 'never'
+      ? 'user_directive_never_execute'
+      : policyBlocksDestructive
+        ? 'user_directive_deny_destructive'
+        : 'user_directive_deny_batch';
+    const message = reason === 'user_directive_never_execute'
+      ? 'Blocked by user directive: do not execute tools automatically.'
+      : reason === 'user_directive_deny_destructive'
+        ? 'Blocked by user directive: destructive actions are disabled.'
+        : 'Blocked by user directive: batch actions are disabled.';
+    const finalContent = toNaturalToolFailure(locale, toolCall.name, message, toolFeedbackStyle);
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `auto:${toolCall.name}`,
+      `policy_blocked:${toolCall.name}:${reason}`,
+      'system',
+      toolCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        toolCall,
+        auditContext,
+        'system',
+        'policy_blocked',
+        false,
+        message,
+        reason,
+      ),
+    );
+    return { finalContent, finalStatus: 'done' };
+  }
+
+  const policyRequiresConfirmation = toolPreference === 'ask_first'
+    || (safetyPreferences?.requireImpactPreview === true && isWriteLikeToolCall(toolCall));
+  if (policyRequiresConfirmation) {
+    setTaskSession({
+      id: taskSessionId,
+      status: 'waiting_confirm',
+      toolName: toolCall.name,
+      updatedAt: new Date().toISOString(),
+    });
+    setPendingToolCall({
+      call: toolCall,
+      assistantMessageId,
+      riskSummary: 'User directive requires confirmation before execution.',
+      impactPreview: ['Execution is paused until you confirm this tool call.'],
+      ...(toolCall.requestId ? { requestId: toolCall.requestId } : {}),
+      auditContext,
+    });
+    await writeToolDecisionAuditLog(
+      assistantMessageId,
+      `auto:${toolCall.name}`,
+      `policy_pending:${toolCall.name}:user_directive_confirmation_required`,
+      'system',
+      toolCall.requestId,
+      buildToolDecisionAuditMetadata(
+        assistantMessageId,
+        toolCall,
+        auditContext,
+        'system',
+        'policy_pending',
+        false,
+        'User directive requires confirmation before execution.',
+        'user_directive_confirmation_required',
+      ),
+    );
+    return {
+      finalContent: toNaturalToolPending(locale, toolCall.name, toolFeedbackStyle),
+      finalStatus: 'done',
     };
   }
 

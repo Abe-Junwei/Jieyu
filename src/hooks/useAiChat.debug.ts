@@ -10,6 +10,7 @@ interface BuildContextDebugSnapshotParams {
   contextBlock: string;
   historyCharBudget: number;
   maxContextChars: number;
+  responsePolicyPreview?: string;
 }
 
 /**
@@ -22,6 +23,7 @@ export function buildContextDebugSnapshot({
   contextBlock,
   historyCharBudget,
   maxContextChars,
+  responsePolicyPreview,
 }: BuildContextDebugSnapshotParams): AiContextDebugSnapshot {
   return {
     enabled,
@@ -32,6 +34,7 @@ export function buildContextDebugSnapshot({
     historyCharBudget,
     maxContextChars,
     contextPreview: contextBlock.slice(0, 1200),
+    ...(responsePolicyPreview ? { responsePolicyPreview } : {}),
   };
 }
 

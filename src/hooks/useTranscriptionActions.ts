@@ -138,6 +138,7 @@ export function useTranscriptionActions({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
     toggleLayerLink,
+    rebindTranslationLayerHost,
     addMediaItem,
     reorderLayers,
   } = useTranscriptionLayerActions({
@@ -189,6 +190,7 @@ export function useTranscriptionActions({
     deleteLayerWithoutConfirm,
     checkLayerHasContent,
     toggleLayerLink,
+    rebindTranslationLayerHost,
     addMediaItem,
     reorderLayers,
   };

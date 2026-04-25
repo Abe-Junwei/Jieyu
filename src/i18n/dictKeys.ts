@@ -2068,6 +2068,7 @@ export const DICT_KEYS = [
   'msg.noteHandlers.recommendationBatchApplied',
   'msg.noteHandlers.confidenceSuffix',
   'msg.appData.backupReminderToast',
+  'msg.appData.backupElapsedReminderToast',
   'msg.appData.collabLocalStorageQuotaToast',
   'msg.appData.dbIntegrityTitle',
   'msg.appData.dbIntegrityIntro',

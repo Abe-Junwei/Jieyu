@@ -1,4 +1,5 @@
 import type { AnchorDocType, JieyuDatabase, LayerUnitDocType } from '../db';
+import { LayerSegmentQueryService } from '../services/LayerSegmentQueryService';
 import { bulkUpsertLayerUnits } from '../services/LayerUnitSegmentWritePrimitives';
 
 const EPS = 1e-6;
@@ -27,7 +28,7 @@ export async function remapLayerUnitsAndAnchorsForFirstAcousticImport(input: {
 }): Promise<FirstAcousticImportRemapResult> {
   const { db, textId, mediaId, acousticDurationSec, now } = input;
   const duration = acousticDurationSec;
-  const units = await db.dexie.layer_units.where('mediaId').equals(mediaId).toArray();
+  const units = await LayerSegmentQueryService.listUnitsByMediaId(mediaId, db);
   if (!(duration > EPS)) {
     const maxEnd = units.reduce((m, u) => Math.max(m, typeof u.endTime === 'number' && Number.isFinite(u.endTime) ? u.endTime : 0), 0);
     return { didRemap: false, maxUnitEnd: maxEnd };

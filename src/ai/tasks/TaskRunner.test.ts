@@ -171,6 +171,31 @@ describe('TaskRunner', () => {
     expect(row?.errorMessage).toContain('Task timed out after');
   });
 
+  it('retries after a per-attempt timeout when maxAttempts allows it', async () => {
+    const runner = new TaskRunner({ concurrency: 1, defaultTimeoutMs: 1000 });
+    let attempts = 0;
+
+    const enqueued = await runner.enqueue({
+      taskType: 'embed',
+      targetId: 'embeddings',
+      maxAttempts: 2,
+      run: async ({ signal }) => {
+        attempts += 1;
+        if (attempts === 1) {
+          return new Promise<string>((_resolve, reject) => {
+            signal.addEventListener('abort', () => reject(new Error('attempt aborted')), { once: true });
+          });
+        }
+        return 'retry-after-timeout-ok';
+      },
+    });
+
+    await expect(enqueued.result).resolves.toBe('retry-after-timeout-ok');
+    expect(attempts).toBe(2);
+    const row = await db.ai_tasks.get(enqueued.taskId);
+    expect(row?.status).toBe('done');
+  });
+
   it('recovers stale pending/running tasks on startup', async () => {
     const oldIso = new Date(Date.now() - 10 * 60_000).toISOString();
     await db.ai_tasks.bulkPut([
