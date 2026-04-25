@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-04-25T02:51:00.791Z",
+    "releaseProfile": "core",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "557339b",
+    "nodeVersion": "v25.9.0",
+    "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
+    "stage": "A1b",
+    "dryRun": false,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-20260425-105100-core.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core"
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/01-check_docs-governance.log",
+      "keySummary": "[check-docs-governance] OK: validated 250 markdown files."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/02-check_architecture-guard.log",
+      "keySummary": "[fireAndForget-governance] OK (38 files scanned)"
+    },
+    {
+      "conclusionId": "report.m5-trend",
+      "conclusion": "report:m5-trend passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s report:m5-trend",
+      "module": "observability",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/03-report_m5-trend.log",
+      "keySummary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-04-25.md"
+    },
+    {
+      "conclusionId": "gate.m6-release",
+      "conclusion": "gate:m6-release passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s gate:m6-release",
+      "module": "release",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/04-gate_m6-release.log",
+      "keySummary": "[m6-gate-runner] Completed."
+    },
+    {
+      "conclusionId": "check.m7-extension-foundation",
+      "conclusion": "check:m7-extension-foundation passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:m7-extension-foundation",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/05-check_m7-extension-foundation.log",
+      "keySummary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts."
+    },
+    {
+      "conclusionId": "a2.req_golden_sample_001",
+      "conclusion": "AI evidence card ready for req_golden_sample_001",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=req_golden_sample_001",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "delete_transcription_segment:confirmed"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 264,
+      "summary": "[check-docs-governance] OK: validated 250 markdown files.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1592,
+      "summary": "[fireAndForget-governance] OK (38 files scanned)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/02-check_architecture-guard.log"
+    },
+    {
+      "id": "report.m5-trend",
+      "kind": "gate_script",
+      "module": "observability",
+      "script": "report:m5-trend",
+      "command": "npm run -s report:m5-trend",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 253,
+      "summary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-04-25.md",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/03-report_m5-trend.log"
+    },
+    {
+      "id": "gate.m6-release",
+      "kind": "gate_script",
+      "module": "release",
+      "script": "gate:m6-release",
+      "command": "npm run -s gate:m6-release",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 38539,
+      "summary": "[m6-gate-runner] Completed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/04-gate_m6-release.log"
+    },
+    {
+      "id": "check.m7-extension-foundation",
+      "kind": "gate_script",
+      "module": "extension",
+      "script": "check:m7-extension-foundation",
+      "command": "npm run -s check:m7-extension-foundation",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 238,
+      "summary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105100-core/05-check_m7-extension-foundation.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 1,
+      "ready": 1,
+      "skipped": 0
+    },
+    "status": "partial_or_ready",
+    "cards": [
+      {
+        "requestId": "req_golden_sample_001",
+        "status": "ready",
+        "source": "fixture",
+        "toolName": "delete_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "confirmed"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=req_golden_sample_001"
+      }
+    ],
+    "fixturePath": "tests/golden/ai-decisions/sample-delete_transcription_segment.json"
+  }
+}

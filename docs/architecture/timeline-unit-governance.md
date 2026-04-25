@@ -3,7 +3,7 @@ title: Timeline Unit Governance
 doc_type: architecture
 status: active
 owner: repo
-last_reviewed: 2026-04-15
+last_reviewed: 2026-04-25
 source_of_truth: process
 ---
 
@@ -30,8 +30,8 @@ source_of_truth: process
 - **Linguistic subgraph** rows use **`unitId` only** on `utterance_tokens` / `utterance_morphemes`; do not reintroduce `where('utteranceId')` in application code (architecture guard enforces this).
 - **Imports**: `importDatabaseFromJson` rejects non-empty legacy top-level `utterances` in JSON snapshots and rejects linguistic rows that still use **`utteranceId`** instead of **`unitId`**; use current-app exports only.
 
-## Local context tool alias sunset (Phase 9A)
-- **Legacy names** (compatibility only): `list_utterances`, `search_utterances`, `get_utterance_detail` → canonical `list_units` / `search_units` / `get_unit_detail`.
-- **Telemetry:** each alias resolution increments `ai.local_tool_alias_usage` (tags: `aliasName`, `canonicalName`).
-- **Removal gate:** after **two consecutive releases** with alias usage near-zero in aggregated metrics, delete `LEGACY_LOCAL_CONTEXT_TOOL_ALIAS_MAP` in `src/ai/chat/localContextTools.ts` without adding new aliases unless an ADR extends the contract.
+## Local Context Tool Naming (Current Contract)
+- **Canonical-only contract:** runtime tool names follow canonical ids (`list_units` / `search_units` / `get_unit_detail`) via `normalizeToolName` in `src/ai/chat/localContextTools.ts`.
+- **Legacy alias note:** legacy names (`list_utterances`, `search_utterances`, `get_utterance_detail`) are historical terms in prior planning docs, not the current runtime contract.
+- **Architecture rule:** do not reintroduce alias map constants or alias-based fallback paths without an ADR update.
 - **Count-claim drift:** assistant output that asserts a total count inconsistent with `projectUnitCount` / `projectStats.unitCount` increments `ai.count_claim_mismatch` (see `useAiChat.streamCompletion.ts`).

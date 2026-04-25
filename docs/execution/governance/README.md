@@ -3,7 +3,7 @@ title: execution/governance 文档索引
 doc_type: execution-governance-index
 status: active
 owner: repo
-last_reviewed: 2026-04-06
+last_reviewed: 2026-04-25
 source_of_truth: governance-index
 ---
 
@@ -32,13 +32,15 @@ source_of_truth: governance-index
 
 ## 当前文档
 
-- [GitHub分支保护配置清单.md](./GitHub分支保护配置清单.md)
-- [架构热点台账.md](./架构热点台账.md)
-- [静默catch分级台账-2026-03-23.md](./静默catch分级台账-2026-03-23.md)
-- [文档归档与删减建议-2026-04-06.md](./文档归档与删减建议-2026-04-06.md)
+当前目录当前仅保留本索引；治理事实请转到以下活跃文档：
+
+- [release-gates 文档索引](../release-gates/README.md)
+- [证据化发布与 AI 工具治理完整方案-2026-04-20.md](../plans/证据化发布与AI工具治理完整方案-2026-04-20.md)
+- [标注页与词典页开发路线图-2026-04-25.md](../plans/标注页与词典页开发路线图-2026-04-25.md)
+- [标注词典语料-治理补充规范-2026-04-25.md](../plans/标注词典语料-治理补充规范-2026-04-25.md)
 
 ## 使用原则
 
 1. 这里的文档优先描述治理规则、守卫口径和归档原则。
 2. 若要描述当前产品事实，请回到 `../../architecture/`。
-3. 文档治理脚本与 CI 口径变更后，应同步更新本页和 `GitHub分支保护配置清单.md`，避免“脚本已变、文档未跟上”。
+3. 文档治理脚本与 CI 口径变更后，应同步更新本页和 [release-gates 文档索引](../release-gates/README.md)，避免“脚本已变、文档未跟上”。

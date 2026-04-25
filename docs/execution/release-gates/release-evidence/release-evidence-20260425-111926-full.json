@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-04-25T03:19:26.191Z",
+    "releaseProfile": "full",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "557339b",
+    "nodeVersion": "v25.9.0",
+    "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
+    "stage": "A1b",
+    "dryRun": false,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-20260425-111926-full.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full"
+  },
+  "summary": {
+    "total": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/01-check_docs-governance.log",
+      "keySummary": "[check-docs-governance] OK: validated 250 markdown files."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/02-check_architecture-guard.log",
+      "keySummary": "[fireAndForget-governance] OK (38 files scanned)"
+    },
+    {
+      "conclusionId": "report.m5-trend",
+      "conclusion": "report:m5-trend passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s report:m5-trend",
+      "module": "observability",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/03-report_m5-trend.log",
+      "keySummary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-04-25.md"
+    },
+    {
+      "conclusionId": "gate.m6-release",
+      "conclusion": "gate:m6-release passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s gate:m6-release",
+      "module": "release",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/04-gate_m6-release.log",
+      "keySummary": "[m6-gate-runner] Completed."
+    },
+    {
+      "conclusionId": "check.m7-extension-foundation",
+      "conclusion": "check:m7-extension-foundation passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:m7-extension-foundation",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/05-check_m7-extension-foundation.log",
+      "keySummary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts."
+    },
+    {
+      "conclusionId": "perf.track",
+      "conclusion": "perf:track passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s perf:track",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/06-perf_track.log",
+      "keySummary": "\u001b[2m   Duration \u001b[22m 485ms\u001b[2m (transform 132ms, setup 222ms, import 10ms, tests 171ms, environment 0ms)\u001b[22m"
+    },
+    {
+      "conclusionId": "perf.ai",
+      "conclusion": "perf:ai passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s perf:ai",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/07-perf_ai.log",
+      "keySummary": "(Use `node --trace-warnings ...` to show where the warning was created)"
+    },
+    {
+      "conclusionId": "test.timeline-cqrs-phase9",
+      "conclusion": "test:timeline-cqrs-phase9 passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s test:timeline-cqrs-phase9",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/08-test_timeline-cqrs-phase9.log",
+      "keySummary": "(Use `node --trace-warnings ...` to show where the warning was created)"
+    },
+    {
+      "conclusionId": "a2.toolreq_runtime_ci_001",
+      "conclusion": "AI evidence card ready for toolreq_runtime_ci_001",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=toolreq_runtime_ci_001",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "delete_transcription_segment:confirmed"
+    },
+    {
+      "conclusionId": "a3.perf.cards",
+      "conclusion": "A3 perf evidence cards generated",
+      "evidenceType": "perf_cards",
+      "command": "release_evidence:perf_cards",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "passed=3;failed=0;skipped=0"
+    },
+    {
+      "conclusionId": "p1.cost-guard.v1",
+      "conclusion": "P1-CostGuard card generated",
+      "evidenceType": "cost_guard",
+      "command": "release_evidence:cost_guard",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "budget=0;retry=0;retrySuccess=0;outputCap=0"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 267,
+      "summary": "[check-docs-governance] OK: validated 250 markdown files.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1625,
+      "summary": "[fireAndForget-governance] OK (38 files scanned)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/02-check_architecture-guard.log"
+    },
+    {
+      "id": "report.m5-trend",
+      "kind": "gate_script",
+      "module": "observability",
+      "script": "report:m5-trend",
+      "command": "npm run -s report:m5-trend",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 240,
+      "summary": "[m5-trend] Report written: docs/execution/audits/M5-观测趋势报告-v1-2026-04-25.md",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/03-report_m5-trend.log"
+    },
+    {
+      "id": "gate.m6-release",
+      "kind": "gate_script",
+      "module": "release",
+      "script": "gate:m6-release",
+      "command": "npm run -s gate:m6-release",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 38329,
+      "summary": "[m6-gate-runner] Completed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/04-gate_m6-release.log"
+    },
+    {
+      "id": "check.m7-extension-foundation",
+      "kind": "gate_script",
+      "module": "extension",
+      "script": "check:m7-extension-foundation",
+      "command": "npm run -s check:m7-extension-foundation",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 284,
+      "summary": "[check-m7-extension-foundation] OK: 11 required files and 4 runtime contracts.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/05-check_m7-extension-foundation.log"
+    },
+    {
+      "id": "perf.track",
+      "kind": "gate_script",
+      "module": "performance",
+      "script": "perf:track",
+      "command": "npm run -s perf:track",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1404,
+      "summary": "\u001b[2m   Duration \u001b[22m 485ms\u001b[2m (transform 132ms, setup 222ms, import 10ms, tests 171ms, environment 0ms)\u001b[22m",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/06-perf_track.log"
+    },
+    {
+      "id": "perf.ai",
+      "kind": "gate_script",
+      "module": "performance",
+      "script": "perf:ai",
+      "command": "npm run -s perf:ai",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4073,
+      "summary": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/07-perf_ai.log"
+    },
+    {
+      "id": "test.timeline-cqrs-phase9",
+      "kind": "gate_script",
+      "module": "performance",
+      "script": "test:timeline-cqrs-phase9",
+      "command": "npm run -s test:timeline-cqrs-phase9",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 2317,
+      "summary": "(Use `node --trace-warnings ...` to show where the warning was created)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-111926-full/08-test_timeline-cqrs-phase9.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 1,
+      "ready": 1,
+      "skipped": 0
+    },
+    "status": "partial_or_ready",
+    "cards": [
+      {
+        "requestId": "toolreq_runtime_ci_001",
+        "status": "ready",
+        "source": "audit_export",
+        "toolName": "delete_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "confirmed",
+          "executed": true,
+          "message": "runtime export seed",
+          "timestamp": "2026-04-25T03:19:25.448Z"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_runtime_ci_001",
+        "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson"
+      }
+    ],
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson"
+  },
+  "perf": {
+    "status": "ready_or_partial",
+    "summary": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "cards": [
+      {
+        "id": "track_layout_baseline",
+        "title": "Track layout baseline",
+        "script": "perf:track",
+        "status": "passed",
+        "elapsedMs": 1404,
+        "thresholdMaxMs": null,
+        "metricObservedMs": null,
+        "summary": "\u001b[2m   Duration \u001b[22m 485ms\u001b[2m (transform 132ms, setup 222ms, import 10ms, tests 171ms, environment 0ms)\u001b[22m"
+      },
+      {
+        "id": "timeline_index_baseline",
+        "title": "Timeline unit index baseline",
+        "script": "test:timeline-cqrs-phase9",
+        "status": "passed",
+        "elapsedMs": 2317,
+        "thresholdMaxMs": null,
+        "metricObservedMs": null,
+        "summary": "(Use `node --trace-warnings ...` to show where the warning was created)"
+      },
+      {
+        "id": "ai_baseline",
+        "title": "AI baseline",
+        "script": "perf:ai",
+        "status": "passed",
+        "elapsedMs": 4073,
+        "thresholdMaxMs": null,
+        "metricObservedMs": null,
+        "summary": "(Use `node --trace-warnings ...` to show where the warning was created)"
+      }
+    ],
+    "profile": "full"
+  },
+  "costGuard": {
+    "status": "ready_or_partial",
+    "estimatorVersion": "v1.provider_usage_or_unknown",
+    "auditExportPath": "docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson",
+    "summary": {
+      "requestCount": 1,
+      "budgetTriggerCount": 0,
+      "retryTriggeredCount": 0,
+      "retrySuccessCount": 0,
+      "outputCapTriggeredCount": 0
+    },
+    "card": {
+      "id": "session_cost_guard_v1",
+      "status": "ready_or_partial",
+      "sampleSource": "audit_export",
+      "counts": {
+        "budgetTriggerCount": 0,
+        "retryTriggeredCount": 0,
+        "retrySuccessCount": 0,
+        "outputCapTriggeredCount": 0
+      }
+    }
+  }
+}

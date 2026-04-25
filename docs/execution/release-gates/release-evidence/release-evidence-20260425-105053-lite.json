@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-04-25T02:50:53.288Z",
+    "releaseProfile": "lite",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "557339b",
+    "nodeVersion": "v25.9.0",
+    "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
+    "stage": "A1b",
+    "dryRun": false,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-20260425-105053-lite.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105053-lite"
+  },
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105053-lite/01-check_docs-governance.log",
+      "keySummary": "[check-docs-governance] OK: validated 250 markdown files."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard passed",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": 0,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105053-lite/02-check_architecture-guard.log",
+      "keySummary": "[fireAndForget-governance] OK (38 files scanned)"
+    },
+    {
+      "conclusionId": "a2.req_golden_sample_001",
+      "conclusion": "AI evidence card ready for req_golden_sample_001",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=req_golden_sample_001",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "delete_transcription_segment:confirmed"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 251,
+      "summary": "[check-docs-governance] OK: validated 250 markdown files.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105053-lite/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 1576,
+      "summary": "[fireAndForget-governance] OK (38 files scanned)",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-20260425-105053-lite/02-check_architecture-guard.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 1,
+      "ready": 1,
+      "skipped": 0
+    },
+    "status": "partial_or_ready",
+    "cards": [
+      {
+        "requestId": "req_golden_sample_001",
+        "status": "ready",
+        "source": "fixture",
+        "toolName": "delete_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "confirmed"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=req_golden_sample_001"
+      }
+    ],
+    "fixturePath": "tests/golden/ai-decisions/sample-delete_transcription_segment.json"
+  }
+}
