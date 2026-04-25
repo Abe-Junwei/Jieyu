@@ -53,6 +53,15 @@ interface CostGuardSection {
 }
 
 interface ReleaseEvidenceReport {
+  degraded?: boolean;
+  metadata?: Record<string, unknown>;
+  summary?: {
+    total: number;
+    passed: number;
+    failed: number;
+    skipped: number;
+  };
+  steps?: Array<{ id: string; status: string }>;
   perf: PerfSection;
   progressiveDisclosure: {
     status: string;
@@ -711,6 +720,52 @@ describe('generate-release-evidence-bundle script', () => {
         'toolreq_ragshape_002',
       ]);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails enforce mode when cost guard trend ready requirement is enabled but compareReady is false', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-tool-decision-audit.ndjson');
+    const auditRows = [
+      {
+        request_id: 'toolreq_cost_require_001',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:00.000Z',
+        new_value: 'blocked:cost_guard:session_budget_exceeded',
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=core',
+        '--mode=enforce',
+        '--require-cost-guard-trend-ready',
+        '--dry-run',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(1);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.degraded).toBe(true);
+      expect(report.costGuard.trend.compareReady).toBe(false);
+      expect(report.metadata?.costGuardTrendRequirement).toBe('compareReady');
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.require-ready')).toBe(true);
+      expect(report.steps?.some((item) => item.id === 'p1.cost-guard-trend.require-ready' && item.status === 'failed')).toBe(true);
+      expect((report.summary?.failed ?? 0) >= 1).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

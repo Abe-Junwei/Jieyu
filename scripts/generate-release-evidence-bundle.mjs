@@ -159,6 +159,12 @@ function resolveCostEstimatorVersion() {
   return 'v1.provider_usage_or_unknown';
 }
 
+function resolveRequireCostGuardTrendReady() {
+  if (hasFlag('--require-cost-guard-trend-ready')) return true;
+  const fromEnv = String(process.env.RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY ?? '').trim().toLowerCase();
+  return fromEnv === '1' || fromEnv === 'true' || fromEnv === 'yes';
+}
+
 function hasFlag(name) {
   return process.argv.includes(name);
 }
@@ -1874,6 +1880,7 @@ async function run() {
   const releaseProfile = parseReleaseProfile();
   const mode = parseMode();
   const dryRun = hasFlag('--dry-run');
+  const requireCostGuardTrendReady = resolveRequireCostGuardTrendReady();
   const outputPath = resolveOutputPath(releaseProfile);
   const logsDir = resolveLogsDir(outputPath);
   const aiRequestIds = resolveAiRequestIds();
@@ -1964,6 +1971,49 @@ async function run() {
       releaseProfile,
     }),
   });
+
+  if (requireCostGuardTrendReady) {
+    const compareReady = report.costGuard?.trend?.compareReady === true;
+    const internalStepStatus = compareReady ? 'passed' : 'failed';
+    const internalStep = {
+      id: 'p1.cost-guard-trend.require-ready',
+      kind: 'internal',
+      module: 'ai-cost',
+      script: 'require-cost-guard-trend-ready',
+      command: 'release_evidence:require_cost_guard_trend_ready',
+      status: internalStepStatus,
+      exitCode: compareReady ? 0 : 1,
+      durationMs: 0,
+      summary: compareReady
+        ? 'CostGuard trend compareReady requirement passed.'
+        : 'CostGuard trend compareReady requirement failed.',
+      logPath: null,
+    };
+    report.steps.push(internalStep);
+    report.evidenceIndex.push({
+      conclusionId: 'p1.cost-guard.trend.require-ready',
+      conclusion: compareReady
+        ? 'P1-CostGuard trend compareReady requirement passed'
+        : 'P1-CostGuard trend compareReady requirement failed',
+      evidenceType: compareReady ? 'cost_guard_trend_requirement' : 'cost_guard_trend_requirement_failed',
+      command: 'release_evidence:require_cost_guard_trend_ready',
+      module: 'ai-cost',
+      exitCode: compareReady ? 0 : 1,
+      logPath: null,
+      keySummary: `compareReady=${compareReady ? 'yes' : 'no'};pointCount=${report.costGuard?.trend?.pointCount ?? 0}`,
+    });
+    report.summary.total += 1;
+    if (compareReady) {
+      report.summary.passed += 1;
+    } else {
+      report.summary.failed += 1;
+      report.degraded = true;
+    }
+    report.metadata = {
+      ...report.metadata,
+      costGuardTrendRequirement: 'compareReady',
+    };
+  }
 
   await writeReport(report, outputPath);
   const displayPath = path.relative(workspaceRoot, outputPath) || outputPath;
