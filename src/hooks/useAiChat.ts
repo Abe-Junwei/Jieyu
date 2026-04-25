@@ -5,7 +5,25 @@ import { useLocale, useOptionalLocale } from '../i18n';
 import { useAiChatConnectionProbe } from './useAiChat.connectionProbe';
 import { useAiChatConversationState } from './useAiChat.conversationState';
 import { createAssistantPersistenceHelpers } from './useAiChat.assistantPersistence';
-import { DEFAULT_FIRST_CHUNK_TIMEOUT_MS, INITIAL_METRICS, normalizeAutoProbeIntervalMs, normalizeFirstChunkTimeoutMs, normalizeRagContextTimeoutMs, normalizeStreamPersistInterval, readDevAutoProbeIntervalMs, readDevRagContextTimeoutMs, readDevStreamPersistIntervalMs } from './useAiChat.config';
+import {
+  DEFAULT_FIRST_CHUNK_TIMEOUT_MS,
+  DEFAULT_OUTPUT_TOKEN_CAP,
+  INITIAL_METRICS,
+  estimateTokensFromText,
+  normalizeAutoProbeIntervalMs,
+  normalizeFirstChunkTimeoutMs,
+  normalizeOutputTokenCap,
+  normalizeOutputTokenRetryCap,
+  normalizeRagContextTimeoutMs,
+  normalizeSessionTokenBudget,
+  normalizeStreamPersistInterval,
+  readDevOutputTokenCap,
+  readDevOutputTokenRetryCap,
+  readDevAutoProbeIntervalMs,
+  readDevRagContextTimeoutMs,
+  readDevSessionTokenBudget,
+  readDevStreamPersistIntervalMs,
+} from './useAiChat.config';
 import { newMessageId, nowIso } from './useAiChat.helpers';
 import { runAgentLoop } from './useAiChat.agentLoopRunner';
 import { resolveClarifyFastPathCall } from './useAiChat.clarify';
@@ -35,7 +53,15 @@ import { mergeTokenUsage } from '../ai/providers/tokenUsage';
 import { useAiChatToolAudit, genRequestId } from './useAiChat.toolAudit';
 import { useAiChatPendingToolCall } from './useAiChat.pendingToolCall';
 import { resolveToolDecisionPipeline } from './useAiChat.toolDecisionPipeline';
-import { formatAbortedMessage, formatAiChatDisabledError, formatConnectionHealthyMessage, formatFirstChunkTimeoutError, formatPendingConfirmationBlockedError, formatStreamingBusyError } from '../ai/messages';
+import {
+  formatAbortedMessage,
+  formatAiChatDisabledError,
+  formatConnectionHealthyMessage,
+  formatFirstChunkTimeoutError,
+  formatPendingConfirmationBlockedError,
+  formatSessionBudgetExceededError,
+  formatStreamingBusyError,
+} from '../ai/messages';
 import { applyAiChatSettingsPatch, createAiChatProvider, getDefaultAiChatSettings, normalizeAiChatSettings } from '../ai/providers/providerCatalog';
 import { loadAiChatSettingsFromStorage, persistAiChatSettings } from '../ai/config/aiChatSettingsStorage';
 import { createMetricTags, recordDurationMetric, recordMetric } from '../observability/metrics';
@@ -119,6 +145,17 @@ export function useAiChat(options?: UseAiChatOptions) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [settings, setSettings] = useState<AiChatSettings>(() => normalizeAiChatSettings());
+  const sessionTokenBudget = normalizeSessionTokenBudget(
+    options?.sessionTokenBudget ?? settings.sessionTokenBudget ?? readDevSessionTokenBudget(),
+  );
+  const outputTokenCap = normalizeOutputTokenCap(
+    options?.outputTokenCap ?? settings.outputTokenCap ?? readDevOutputTokenCap(),
+    DEFAULT_OUTPUT_TOKEN_CAP,
+  );
+  const outputTokenRetryCap = normalizeOutputTokenRetryCap(
+    options?.outputTokenRetryCap ?? settings.outputTokenRetryCap ?? readDevOutputTokenRetryCap(),
+    outputTokenCap,
+  );
   const [contextDebugSnapshot, setContextDebugSnapshot] = useState<AiContextDebugSnapshot | null>(null);
   const [pendingToolCall, setPendingToolCall] = useState<PendingAiToolCall | null>(null);
   const [taskSession, setTaskSession] = useState<AiTaskSession>(() => ({
@@ -373,6 +410,24 @@ export function useAiChat(options?: UseAiChatOptions) {
     if (trimmed.length === 0) return;
     if (pendingToolCallRef.current) {
       setLastError(formatPendingConfirmationBlockedError());
+      return;
+    }
+
+    const estimatedInputTokens = estimateTokensFromText(trimmed);
+    const currentSessionTokens = metricsRef.current.totalInputTokens + metricsRef.current.totalOutputTokens;
+    if (currentSessionTokens + estimatedInputTokens > sessionTokenBudget) {
+      await writeToolDecisionAuditLog(
+        newMessageId('ast'),
+        'pending:cost_guard',
+        'blocked:cost_guard:session_budget_exceeded',
+        'system',
+        genRequestId({
+          name: 'propose_changes',
+          arguments: { scope: 'cost_guard_session_budget' },
+        }),
+      );
+      bumpMetric('failureCount');
+      setLastError(formatSessionBudgetExceededError(sessionTokenBudget, currentSessionTokens, estimatedInputTokens));
       return;
     }
 
@@ -680,6 +735,7 @@ export function useAiChat(options?: UseAiChatOptions) {
         signal: controller.signal,
         taskSessionStatus: taskSessionRef.current.status,
         model: settingsRef.current.model,
+        maxTokens: outputTokenCap,
         ...(settingsRef.current.explainModel
           ? { explainModel: settingsRef.current.explainModel }
           : {}),
@@ -700,6 +756,126 @@ export function useAiChat(options?: UseAiChatOptions) {
       let assistantReasoningContent = '';
       let assistantThinking = false;
       let streamFinalized = false;
+
+      const maybeRetryAfterOutputCap = async (): Promise<void> => {
+        const initialOutputTokens = primaryStreamUsage?.outputTokens ?? 0;
+        const shouldRetry = generationSource === 'llm'
+          && outputTokenRetryCap > outputTokenCap
+          && initialOutputTokens >= outputTokenCap
+          && !controller.signal.aborted;
+        if (!shouldRetry) return;
+
+        const costGuardRequestId = genRequestId({
+          name: 'propose_changes',
+          arguments: { scope: 'cost_guard_output_cap' },
+        });
+        await writeToolDecisionAuditLog(
+          assistantId,
+          'pending:cost_guard',
+          'capped:cost_guard:output_token_cap_exceeded',
+          'system',
+          costGuardRequestId,
+        );
+        await writeToolDecisionAuditLog(
+          assistantId,
+          'capped:cost_guard:output_token_cap_exceeded',
+          'retry:cost_guard:retry_after_output_cap',
+          'system',
+          costGuardRequestId,
+        );
+
+        const {
+          stream: retryStream,
+          generationSource: retryGenerationSource,
+          generationModel: retryGenerationModel,
+        } = createAssistantStream({
+          userText: effectiveUserText,
+          clarifyFastPathCall,
+          history,
+          orchestrator,
+          systemPrompt,
+          signal: controller.signal,
+          taskSessionStatus: taskSessionRef.current.status,
+          model: settingsRef.current.model,
+          maxTokens: outputTokenRetryCap,
+          ...(settingsRef.current.explainModel
+            ? { explainModel: settingsRef.current.explainModel }
+            : {}),
+        });
+
+        let retryContent = '';
+        let retryReasoningContent = '';
+        let retryUsage: ChatTokenUsage | undefined;
+        let retryError: string | null = null;
+        for await (const retryChunk of retryStream) {
+          if (retryChunk.error) {
+            retryError = retryChunk.error;
+            break;
+          }
+          if ((retryChunk.delta ?? '').length > 0) {
+            retryContent += retryChunk.delta ?? '';
+          }
+          if (retryChunk.reasoningContent && retryChunk.reasoningContent.length > 0) {
+            retryReasoningContent += retryChunk.reasoningContent;
+          }
+          if (retryChunk.usage) {
+            retryUsage = mergeTokenUsage(retryUsage, retryChunk.usage);
+          }
+          if (retryChunk.done) {
+            break;
+          }
+        }
+
+        if (controller.signal.aborted || retryError) {
+          await writeToolDecisionAuditLog(
+            assistantId,
+            'retry:cost_guard:retry_after_output_cap',
+            'failed:cost_guard:retry_budget_upgrade_failed',
+            'system',
+            costGuardRequestId,
+          );
+          return;
+        }
+
+        if (retryUsage) {
+          usageObservedThisTurn = true;
+          reportedInputTokens += retryUsage.inputTokens ?? 0;
+          totalReportedOutputTokens += retryUsage.outputTokens ?? 0;
+        }
+
+        assistantContent = retryContent;
+        assistantReasoningContent = retryReasoningContent;
+        flushSync(() => {
+          setMessages((prev) => prev.map((msg) => (
+            msg.id === assistantId
+              ? {
+                  ...msg,
+                  content: retryContent,
+                  reasoningContent: retryReasoningContent,
+                  generationSource: retryGenerationSource,
+                  generationModel: retryGenerationModel,
+                  ...(assistantThinking ? { thinking: false } : {}),
+                }
+              : msg
+          )));
+        });
+        queueFlushAssistantDraft(assistantContent, true);
+        await awaitQueuedPersistence();
+
+        await db.collections.ai_messages.update(assistantId, {
+          generationSource: retryGenerationSource,
+          generationModel: retryGenerationModel,
+          updatedAt: nowIso(),
+        });
+
+        await writeToolDecisionAuditLog(
+          assistantId,
+          'retry:cost_guard:retry_after_output_cap',
+          'confirmed:cost_guard:retry_budget_upgrade',
+          'system',
+          costGuardRequestId,
+        );
+      };
 
       for await (const chunk of stream) {
         if (!firstChunkArrived) {
@@ -777,6 +953,7 @@ export function useAiChat(options?: UseAiChatOptions) {
 
         if (chunk.done) {
           streamFinalized = true;
+          await maybeRetryAfterOutputCap();
           queueFlushAssistantDraft(assistantContent, true);
           await awaitQueuedPersistence();
           commitPrimaryStreamUsage();
@@ -968,8 +1145,11 @@ export function useAiChat(options?: UseAiChatOptions) {
     onToolCallRef,
     onToolRiskCheckRef,
     orchestrator,
+    outputTokenCap,
+    outputTokenRetryCap,
     provider.id,
     provider.label,
+    sessionTokenBudget,
     taskSessionRef,
     writeToolDecisionAuditLog,
     writeToolIntentAuditLog,

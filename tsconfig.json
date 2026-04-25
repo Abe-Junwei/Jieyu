@@ -44,5 +44,12 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-  }
+  },
+  "exclude": [
+    "dist",
+    "coverage",
+    "test-results",
+    "tmp",
+    "node_modules"
+  ]
 }

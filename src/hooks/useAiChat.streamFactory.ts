@@ -20,7 +20,7 @@ interface OrchestratorLike {
     history: ChatMessage[];
     userText: string;
     systemPrompt: string;
-    options: { signal: AbortSignal; model?: string };
+    options: { signal: AbortSignal; model?: string; maxTokens?: number };
   }): {
     stream: AsyncGenerator<AssistantStreamChunk>;
   };
@@ -36,6 +36,7 @@ interface CreateAssistantStreamParams {
   taskSessionStatus: 'idle' | 'waiting_clarify' | 'waiting_confirm' | 'executing' | 'explaining';
   model: string;
   explainModel?: string;
+  maxTokens?: number;
 }
 
 export interface CreateAssistantStreamResult {
@@ -63,6 +64,7 @@ export function createAssistantStream(params: CreateAssistantStreamParams): Crea
     taskSessionStatus,
     model,
     explainModel,
+    maxTokens,
   } = params;
 
   const localResolve = clarifyFastPathCall ? null : resolveCommand(userText);
@@ -91,7 +93,11 @@ export function createAssistantStream(params: CreateAssistantStreamParams): Crea
     history,
     userText,
     systemPrompt,
-    options: { signal, model: effectiveModel },
+    options: {
+      signal,
+      model: effectiveModel,
+      ...(maxTokens !== undefined ? { maxTokens } : {}),
+    },
   });
 
   return {
