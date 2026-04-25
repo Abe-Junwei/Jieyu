@@ -1498,6 +1498,12 @@ function buildCostGuardSection(input) {
         retrySuccessCount: 0,
         outputCapTriggeredCount: 0,
       },
+      trend: {
+        bucket: 'day',
+        pointCount: 0,
+        compareReady: false,
+        points: [],
+      },
       card: {
         id: 'session_cost_guard_v1',
         status: 'skipped',
@@ -1523,6 +1529,12 @@ function buildCostGuardSection(input) {
         retrySuccessCount: 0,
         outputCapTriggeredCount: 0,
       },
+      trend: {
+        bucket: 'day',
+        pointCount: 0,
+        compareReady: false,
+        points: [],
+      },
       card: {
         id: 'session_cost_guard_v1',
         status: 'skipped',
@@ -1543,10 +1555,12 @@ function buildCostGuardSection(input) {
         hasBudgetTrigger: false,
         hasOutputCapTrigger: false,
         latestDecision: 'unknown',
+        latestTimestamp: '',
       });
     }
     const current = requestStats.get(requestId);
     current.latestDecision = decision.decision;
+    current.latestTimestamp = typeof row.timestamp === 'string' ? row.timestamp : '';
 
     const budgetTriggered = COST_GUARD_BUDGET_REASONS.has(reason) || isBudgetTriggeredByMetadata(metadata);
     if (budgetTriggered) current.hasBudgetTrigger = true;
@@ -1562,6 +1576,7 @@ function buildCostGuardSection(input) {
   let retryTriggeredCount = 0;
   let retrySuccessCount = 0;
   let outputCapTriggeredCount = 0;
+  const trendByDay = new Map();
   for (const item of requestStats.values()) {
     if (item.hasBudgetTrigger) budgetTriggerCount += 1;
     if (item.hasRetry) retryTriggeredCount += 1;
@@ -1569,7 +1584,42 @@ function buildCostGuardSection(input) {
     if (item.hasRetry && (item.latestDecision === 'confirmed' || item.latestDecision === 'auto_confirmed')) {
       retrySuccessCount += 1;
     }
+
+    const parsedTimestamp = Date.parse(String(item.latestTimestamp ?? ''));
+    const dayBucket = Number.isFinite(parsedTimestamp)
+      ? new Date(parsedTimestamp).toISOString().slice(0, 10)
+      : 'unknown';
+
+    if (!trendByDay.has(dayBucket)) {
+      trendByDay.set(dayBucket, {
+        requestCount: 0,
+        budgetTriggerCount: 0,
+        retryTriggeredCount: 0,
+        retrySuccessCount: 0,
+        outputCapTriggeredCount: 0,
+      });
+    }
+
+    const slot = trendByDay.get(dayBucket);
+    slot.requestCount += 1;
+    if (item.hasBudgetTrigger) slot.budgetTriggerCount += 1;
+    if (item.hasRetry) slot.retryTriggeredCount += 1;
+    if (item.hasOutputCapTrigger) slot.outputCapTriggeredCount += 1;
+    if (item.hasRetry && (item.latestDecision === 'confirmed' || item.latestDecision === 'auto_confirmed')) {
+      slot.retrySuccessCount += 1;
+    }
   }
+
+  const trendPoints = [...trendByDay.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, item]) => ({
+      date,
+      requestCount: item.requestCount,
+      budgetTriggerCount: item.budgetTriggerCount,
+      retryTriggeredCount: item.retryTriggeredCount,
+      retrySuccessCount: item.retrySuccessCount,
+      outputCapTriggeredCount: item.outputCapTriggeredCount,
+    }));
 
   return {
     status: 'ready_or_partial',
@@ -1581,6 +1631,12 @@ function buildCostGuardSection(input) {
       retryTriggeredCount,
       retrySuccessCount,
       outputCapTriggeredCount,
+    },
+    trend: {
+      bucket: 'day',
+      pointCount: trendPoints.length,
+      compareReady: trendPoints.length >= 2,
+      points: trendPoints,
     },
     card: {
       id: 'session_cost_guard_v1',
@@ -1744,6 +1800,21 @@ function buildReport(input) {
     exitCode: 0,
     logPath: null,
     keySummary: `budget=${costGuardSection.summary.budgetTriggerCount};retry=${costGuardSection.summary.retryTriggeredCount};retrySuccess=${costGuardSection.summary.retrySuccessCount};outputCap=${costGuardSection.summary.outputCapTriggeredCount}`,
+  });
+
+  evidenceIndex.push({
+    conclusionId: 'p1.cost-guard.trend.v1',
+    conclusion: costGuardSection.status === 'skipped'
+      ? 'P1-CostGuard trend card skipped'
+      : 'P1-CostGuard trend card generated',
+    evidenceType: costGuardSection.status === 'skipped' ? 'cost_guard_trend_skipped' : 'cost_guard_trend',
+    command: 'release_evidence:cost_guard_trend',
+    module: 'ai-cost',
+    exitCode: 0,
+    logPath: null,
+    keySummary: costGuardSection.status === 'skipped'
+      ? (costGuardSection.skipReason ?? 'skipped')
+      : `points=${costGuardSection.trend.pointCount};compareReady=${costGuardSection.trend.compareReady ? 'yes' : 'no'}`,
   });
 
   return {
@@ -1970,6 +2041,12 @@ run().catch(async (error) => {
         retryTriggeredCount: 0,
         retrySuccessCount: 0,
         outputCapTriggeredCount: 0,
+      },
+      trend: {
+        bucket: 'day',
+        pointCount: 0,
+        compareReady: false,
+        points: [],
       },
       card: {
         id: 'session_cost_guard_v1',

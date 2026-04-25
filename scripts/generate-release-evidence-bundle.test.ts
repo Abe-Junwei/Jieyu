@@ -37,6 +37,19 @@ interface CostGuardSection {
     retrySuccessCount: number;
     outputCapTriggeredCount: number;
   };
+  trend: {
+    bucket: string;
+    pointCount: number;
+    compareReady: boolean;
+    points: Array<{
+      date: string;
+      requestCount: number;
+      budgetTriggerCount: number;
+      retryTriggeredCount: number;
+      retrySuccessCount: number;
+      outputCapTriggeredCount: number;
+    }>;
+  };
 }
 
 interface ReleaseEvidenceReport {
@@ -154,11 +167,14 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.progressive-disclosure.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'b3.extensions.capability-audit-summary')).toBe(true);
       expect(report.extensions.status).toBe('skipped');
       expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
       expect(report.progressiveDisclosure.cards).toHaveLength(4);
       expect(report.memoryRecallShape.status).toBe('skipped');
+      expect(report.costGuard.trend.bucket).toBe('day');
+      expect(report.costGuard.trend.pointCount).toBe(1);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -225,8 +241,86 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.costGuard.summary.retryTriggeredCount).toBe(1);
       expect(report.costGuard.summary.retrySuccessCount).toBe(1);
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(1);
+      expect(report.costGuard.trend.pointCount).toBe(1);
+      expect(report.costGuard.trend.compareReady).toBe(false);
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds cost guard daily trend points for multi-day comparison', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-tool-decision-audit.ndjson');
+    const auditRows = [
+      {
+        request_id: 'toolreq_cost_trend_001',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-24T10:00:00.000Z',
+        new_value: 'blocked:cost_guard:session_budget_exceeded',
+      },
+      {
+        request_id: 'toolreq_cost_trend_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:00.000Z',
+        new_value: 'retry:cost_guard:retry_after_output_cap',
+      },
+      {
+        request_id: 'toolreq_cost_trend_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:01.000Z',
+        new_value: 'confirmed:cost_guard:retry_budget_upgrade',
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+
+      expect(report.costGuard.trend.bucket).toBe('day');
+      expect(report.costGuard.trend.pointCount).toBe(2);
+      expect(report.costGuard.trend.compareReady).toBe(true);
+      expect(report.costGuard.trend.points).toEqual([
+        {
+          date: '2026-04-24',
+          requestCount: 1,
+          budgetTriggerCount: 1,
+          retryTriggeredCount: 0,
+          retrySuccessCount: 0,
+          outputCapTriggeredCount: 0,
+        },
+        {
+          date: '2026-04-25',
+          requestCount: 1,
+          budgetTriggerCount: 0,
+          retryTriggeredCount: 1,
+          retrySuccessCount: 1,
+          outputCapTriggeredCount: 0,
+        },
+      ]);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.trend.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
