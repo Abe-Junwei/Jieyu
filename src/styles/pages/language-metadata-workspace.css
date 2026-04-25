@@ -348,7 +348,6 @@ details.lm-subsection > summary:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
   font-size: var(--la-meta-size);
   color: var(--text-secondary);
 }
@@ -949,7 +948,6 @@ details.lm-matrix-fieldset:not([open]) { gap: 0; }
   .lm-admin-actions > button { width: 100%; }
 
   .lm-matrix-row > .lm-field-block { grid-column: auto; }
-  .lm-checkbox-field { min-height: 0; }
   .lm-actions { flex-direction: column; align-items: stretch; }
   .lm-footer { flex-direction: column; align-items: stretch; }
 }

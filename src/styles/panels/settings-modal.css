@@ -376,18 +376,10 @@
   text-orientation: mixed;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   user-select: none;
-}
-
-.settings-section-title::before,
-.settings-section-title::after {
-  content: '';
-  flex: 1 1 auto;
-  height: 1px;
-  background: color-mix(in srgb, var(--border-soft) 82%, transparent);
 }
 
 .settings-section-title-text {
@@ -395,7 +387,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-align: center;
+  text-align: left;
 }
 
 .settings-section-body {

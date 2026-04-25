@@ -273,6 +273,10 @@
   gap: 10px;
 }
 
+.language-iso-input--with-asset-id .language-iso-input-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 /* 语言名网格 + 下拉锚点：无候选项不占位；有时列表绝对定位叠在下方字段上，不撑开弹窗高度 */
 .language-iso-input-anchor {
   position: relative;
@@ -341,7 +345,6 @@
 .language-iso-input-feedback-slot {
   display: grid;
   gap: 6px;
-  min-height: 32px;
   max-height: 108px;
   overflow-y: auto;
   padding-right: 2px;

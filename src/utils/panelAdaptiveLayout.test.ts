@@ -20,7 +20,7 @@ describe('panelAdaptiveLayout', () => {
 
   it('produces wider suggestion for rtl than ltr under same inputs', () => {
     const ltr = computeAdaptivePanelWidth({
-      baseWidth: 360,
+      baseWidth: 480,
       locale: 'en-US',
       direction: 'ltr',
       uiFontScale: 1,
@@ -28,7 +28,7 @@ describe('panelAdaptiveLayout', () => {
       maxWidth: 900,
     });
     const rtl = computeAdaptivePanelWidth({
-      baseWidth: 360,
+      baseWidth: 480,
       locale: 'ar',
       direction: 'rtl',
       uiFontScale: 1,

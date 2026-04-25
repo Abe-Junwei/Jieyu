@@ -31,16 +31,10 @@
 .orthography-builder-panel-compact .orthography-builder-group-title {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
-}
-
-.orthography-builder-panel-compact .orthography-builder-group-title::before,
-.orthography-builder-panel-compact .orthography-builder-group-title::after {
-  content: '';
-  flex: 1 1 auto;
-  height: 1px;
-  background: color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
+  text-align: left;
 }
 
 .orthography-builder-panel-compact .orthography-builder-control-compact {
@@ -482,7 +476,6 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 30px;
   font-size: calc(12px * var(--ui-font-scale, 1));
   line-height: 1.45;
   color: var(--text-primary);
