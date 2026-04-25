@@ -254,10 +254,16 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
+      - name: Export release evidence extension capability audit input
+        env:
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+        run: npm run export:release-evidence:extension-audit
+
       - name: Release evidence core gate (enforce)
         env:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
         run: npm run gate:release-evidence:core
 
       - name: Upload release evidence artifacts (core)
@@ -294,10 +300,16 @@ jobs:
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
         run: npm run export:release-evidence:ai-audit
 
+      - name: Export release evidence extension capability audit input
+        env:
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
+        run: npm run export:release-evidence:extension-audit
+
       - name: Release evidence full gate (enforce)
         env:
           RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
           RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+          RELEASE_EVIDENCE_EXTENSION_CAPABILITY_AUDIT_EXPORT: docs/execution/audits/extension-capability-audit-export-v1.ndjson
         run: npm run gate:release-evidence:full
 
       - name: Upload release evidence artifacts (full)

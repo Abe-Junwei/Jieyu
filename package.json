@@ -74,6 +74,7 @@
     "report:release-evidence:core:dry-run": "node scripts/generate-release-evidence-bundle.mjs --profile=core --dry-run",
     "report:release-evidence:full:dry-run": "node scripts/generate-release-evidence-bundle.mjs --profile=full --dry-run",
     "export:release-evidence:ai-audit": "vitest run src/ai/releaseEvidenceAuditExport.runtime.test.ts",
+    "export:release-evidence:extension-audit": "vitest run src/extensions/releaseEvidenceExtensionAuditExport.runtime.test.ts",
     "gate:release-evidence": "npm run gate:release-evidence:core",
     "gate:release-evidence:core": "node scripts/generate-release-evidence-bundle.mjs --profile=core --mode=enforce",
     "gate:release-evidence:full": "node scripts/generate-release-evidence-bundle.mjs --profile=full --mode=enforce",
