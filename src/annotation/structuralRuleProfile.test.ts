@@ -74,6 +74,23 @@ describe('profile-driven gloss structure parser', () => {
     expect(result.projectionDiagnostics.every((diagnostic) => diagnostic.status === 'complete')).toBe(true);
   });
 
+  it('classifies configured reduplication markers before generic features', () => {
+    const result = parseGlossStructure('REDUP-dog');
+
+    expect(result.segments.map((segment) => [segment.text, segment.kind])).toEqual([
+      ['REDUP', 'reduplication'],
+      ['dog', 'lexical'],
+    ]);
+  });
+
+  it('treats non-ASCII uppercase gloss labels as feature segments when unambiguous', () => {
+    const result = parseGlossStructure('ΑΒ-ΓΔ');
+    expect(result.segments.map((segment) => [segment.text, segment.kind])).toEqual([
+      ['ΑΒ', 'feature'],
+      ['ΓΔ', 'feature'],
+    ]);
+  });
+
   it('marks unmatched wrappers as needsReview diagnostics', () => {
     const result = parseGlossStructure('touch<PRS');
 

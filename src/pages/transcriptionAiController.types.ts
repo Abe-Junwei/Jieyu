@@ -77,7 +77,39 @@ export interface UseTranscriptionAiControllerInput {
   updateTokenGloss: (tokenId: string, gloss: string | null, lang?: string) => Promise<void> | void;
   selectUnit: (id: string) => void;
   setSaveState: React.Dispatch<React.SetStateAction<SaveState>>;
+  unitDrafts?: Record<string, string>;
   translationDrafts: Record<string, string>;
+  focusedTranslationDraftKeyRef?: React.MutableRefObject<string | null>;
+  speakers?: Array<{ id: string; name?: string; color?: string }>;
+  noteSummary?: {
+    count: number;
+    byCategory?: Record<string, number>;
+    focusedLayerId?: string;
+    currentTargetUnitId?: string;
+  };
+  visibleTimelineState?: {
+    currentMediaId?: string;
+    currentMediaFilename?: string;
+    focusedLayerId?: string;
+    selectedLayerId?: string;
+    selectedUnitCount?: number;
+    verticalViewActive?: boolean;
+    transcriptionTrackMode?: string;
+    documentSpanSec?: number;
+    zoomPercent?: number;
+    maxZoomPercent?: number;
+    zoomPxPerSec?: number;
+    fitPxPerSec?: number;
+    rulerVisibleStartSec?: number;
+    rulerVisibleEndSec?: number;
+    waveformScrollLeftPx?: number;
+    laneLockSpeakerCount?: number;
+    laneLocks?: ReadonlyArray<{ speakerId: string; laneIndex: number }>;
+    trackLockSpeakerIds?: ReadonlyArray<string>;
+    activeSpeakerFilterKey?: string;
+  };
+  /** Active text id for AI tools that read Dexie collections scoped by project/text. */
+  activeTextId?: string | null;
   translationTextByLayer: Map<string, Map<string, { text?: string }>>;
   locale: Locale;
   /** 可选：单测或特殊宿主显式喂时间；生产环境由 `transcriptionPlaybackClock` 驱动 */

@@ -1,4 +1,12 @@
-import type { AiPromptContext } from '../hooks/useAiChat';
+import type {
+  AiPromptContext,
+  AiPromptDraftSnapshot,
+  AiPromptLayerLinkSnapshot,
+  AiPromptLayerSnapshot,
+  AiPromptNoteSummary,
+  AiPromptSpeakerSnapshot,
+  AiPromptVisibleTimelineState,
+} from '../hooks/useAiChat';
 import type { TimelineUnitView, TimelineUnitViewIndex } from '../hooks/timelineUnitView';
 import type { TranscriptionSelectionSnapshot } from './transcriptionSelectionSnapshot';
 import type { WaveformAnalysisPromptSummary } from '../utils/waveformAnalysisOverlays';
@@ -76,6 +84,47 @@ interface BuildTranscriptionAiPromptContextParams {
   recommendations: string[];
   audioTimeSec?: number;
   layers?: ReadonlyArray<LayerDocType>;
+  layerLinks?: ReadonlyArray<{
+    id?: string;
+    transcriptionLayerKey?: string;
+    translationLayerId?: string;
+    layerId?: string;
+    hostTranscriptionLayerId?: string;
+    isPreferred?: boolean;
+  }>;
+  unitDrafts?: Record<string, string>;
+  translationDrafts?: Record<string, string>;
+  focusedDraftKey?: string | null;
+  speakers?: ReadonlyArray<{ id: string; name?: string; color?: string }>;
+  noteSummary?: {
+    count: number;
+    byCategory?: Record<string, number>;
+    focusedLayerId?: string;
+    currentTargetUnitId?: string;
+  };
+  visibleTimelineState?: {
+    currentMediaId?: string;
+    currentMediaFilename?: string;
+    focusedLayerId?: string;
+    selectedLayerId?: string;
+    selectedUnitCount?: number;
+    verticalViewActive?: boolean;
+    transcriptionTrackMode?: string;
+    documentSpanSec?: number;
+    zoomPercent?: number;
+    maxZoomPercent?: number;
+    zoomPxPerSec?: number;
+    fitPxPerSec?: number;
+    rulerVisibleStartSec?: number;
+    rulerVisibleEndSec?: number;
+    waveformScrollLeftPx?: number;
+    laneLockSpeakerCount?: number;
+    laneLocks?: ReadonlyArray<{ speakerId: string; laneIndex: number }>;
+    trackLockSpeakerIds?: ReadonlyArray<string>;
+    activeSpeakerFilterKey?: string;
+  };
+  /** When set, shortTerm receives `workspaceTextId` for Dexie-scoped tools. */
+  activeTextId?: string | null;
   mediaItems?: ReadonlyArray<MediaItemPromptInput>;
   currentMediaId?: string;
   activeLayerIdForEdits?: string;
@@ -107,6 +156,14 @@ export function buildTranscriptionAiPromptContext({
   recommendations,
   audioTimeSec,
   layers = [],
+  layerLinks = [],
+  unitDrafts,
+  translationDrafts,
+  focusedDraftKey,
+  speakers,
+  noteSummary,
+  visibleTimelineState,
+  activeTextId,
   mediaItems,
   currentMediaId,
   activeLayerIdForEdits,
@@ -153,6 +210,24 @@ export function buildTranscriptionAiPromptContext({
     maxChars: 1000,
   });
 
+  const layerIndex = buildLayerIndex({
+    layers,
+    allUnits,
+    ...(selectionSnapshot.selectedLayerId ? { selectedLayerId: selectionSnapshot.selectedLayerId } : {}),
+    ...(activeLayerIdForEdits ? { activeLayerIdForEdits } : {}),
+    ...(defaultTranscriptionLayerId ? { defaultTranscriptionLayerId } : {}),
+    ...(timelineUnitViewIndex ? { timelineUnitViewIndex } : {}),
+  });
+  const layerLinkIndex = buildLayerLinkIndex(layerLinks);
+  const unsavedDrafts = buildUnsavedDraftIndex({
+    ...(unitDrafts ? { unitDrafts } : {}),
+    ...(translationDrafts ? { translationDrafts } : {}),
+    ...(focusedDraftKey !== undefined ? { focusedDraftKey } : {}),
+  });
+  const speakerIndex = buildSpeakerIndex(speakers);
+  const normalizedNoteSummary = normalizeNoteSummary(noteSummary);
+  const normalizedVisibleTimelineState = normalizeVisibleTimelineState(visibleTimelineState);
+
   return {
     shortTerm: {
       ...(locale ? { locale } : {}),
@@ -176,6 +251,7 @@ export function buildTranscriptionAiPromptContext({
       ...(selectionSnapshot.selectedTranslationLayerId ? { selectedTranslationLayerId: selectionSnapshot.selectedTranslationLayerId } : {}),
       ...(selectionSnapshot.selectedTranscriptionLayerId ? { selectedTranscriptionLayerId: selectionSnapshot.selectedTranscriptionLayerId } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
+      ...(typeof activeTextId === 'string' && activeTextId.trim().length > 0 ? { workspaceTextId: activeTextId.trim() } : {}),
       ...(selectionSnapshot.selectedText !== null ? { selectedText: selectionSnapshot.selectedText } : {}),
       ...(selectionSnapshot.selectedTimeRangeLabel ? { selectionTimeRange: selectionSnapshot.selectedTimeRangeLabel } : {}),
       ...(audioTimeSec !== undefined ? { audioTimeSec } : {}),
@@ -187,6 +263,12 @@ export function buildTranscriptionAiPromptContext({
       ...(timelineReadModelEpoch !== undefined ? { timelineReadModelEpoch } : {}),
       ...(unitIndexComplete ? {} : { unitIndexComplete: false }),
       ...(worldModelSnapshot ? { worldModelSnapshot } : {}),
+      ...(layerIndex.length > 0 ? { layerIndex } : {}),
+      ...(layerLinkIndex.length > 0 ? { layerLinkIndex } : {}),
+      ...(unsavedDrafts.length > 0 ? { unsavedDrafts } : {}),
+      ...(speakerIndex.length > 0 ? { speakerIndex } : {}),
+      ...(normalizedNoteSummary ? { noteSummary: normalizedNoteSummary } : {}),
+      ...(normalizedVisibleTimelineState ? { visibleTimelineState: normalizedVisibleTimelineState } : {}),
       ...(localUnitIndex ? { localUnitIndex } : {}),
       ...(timelineUnitViewIndex?.byLayer && timelineUnitViewIndex.byLayer.size > 0
         ? { timelineUnitsByLayerId: timelineUnitViewIndex.byLayer }
@@ -206,5 +288,135 @@ export function buildTranscriptionAiPromptContext({
       topLexemes,
       recommendations,
     },
+  };
+}
+
+function firstLocalizedName(name: Record<string, unknown> | undefined): string {
+  if (!name) return '';
+  const value = Object.values(name).find((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  return value?.trim() ?? '';
+}
+
+function buildLayerIndex(input: {
+  layers: ReadonlyArray<LayerDocType>;
+  allUnits: ReadonlyArray<TimelineUnitView>;
+  selectedLayerId?: string;
+  activeLayerIdForEdits?: string;
+  defaultTranscriptionLayerId?: string;
+  timelineUnitViewIndex?: Pick<TimelineUnitViewIndex, 'byLayer'>;
+}): AiPromptLayerSnapshot[] {
+  return input.layers.map((layer) => {
+    const unitCount = input.timelineUnitViewIndex?.byLayer.get(layer.id)?.length
+      ?? input.allUnits.filter((unit) => unit.layerId === layer.id).length;
+    const rawTreeHostLayerId = (layer as unknown as Record<string, unknown>)[['par', 'entLayerId'].join('')];
+    const treeHostLayerId = typeof rawTreeHostLayerId === 'string'
+      ? rawTreeHostLayerId
+      : undefined;
+    return {
+      id: layer.id,
+      ...(layer.key ? { key: layer.key } : {}),
+      ...(firstLocalizedName(layer.name) ? { label: firstLocalizedName(layer.name) } : {}),
+      layerType: layer.layerType,
+      ...(layer.languageId ? { languageId: layer.languageId } : {}),
+      ...(layer.modality ? { modality: layer.modality } : {}),
+      ...(layer.textId ? { textId: layer.textId } : {}),
+      ...(treeHostLayerId ? { treeHostLayerId } : {}),
+      ...(layer.constraint ? { constraint: layer.constraint } : {}),
+      unitCount,
+      ...(layer.id === input.selectedLayerId ? { isSelected: true } : {}),
+      ...(layer.id === input.activeLayerIdForEdits ? { isActiveEditLayer: true } : {}),
+      ...(layer.id === input.defaultTranscriptionLayerId ? { isDefaultTranscriptionLayer: true } : {}),
+    };
+  });
+}
+
+function buildLayerLinkIndex(
+  layerLinks: BuildTranscriptionAiPromptContextParams['layerLinks'],
+): AiPromptLayerLinkSnapshot[] {
+  return (layerLinks ?? []).map((link) => {
+    const translationLayerId = link.translationLayerId ?? link.layerId;
+    return {
+      ...(link.id ? { id: link.id } : {}),
+      ...(link.transcriptionLayerKey ? { transcriptionLayerKey: link.transcriptionLayerKey } : {}),
+      ...(translationLayerId ? { translationLayerId } : {}),
+      ...(link.hostTranscriptionLayerId ? { hostTranscriptionLayerId: link.hostTranscriptionLayerId } : {}),
+      ...(typeof link.isPreferred === 'boolean' ? { isPreferred: link.isPreferred } : {}),
+    };
+  });
+}
+
+function buildDraftRows(
+  drafts: Record<string, string> | undefined,
+  draftType: AiPromptDraftSnapshot['draftType'],
+  focusedDraftKey?: string | null,
+): AiPromptDraftSnapshot[] {
+  return Object.entries(drafts ?? {})
+    .filter(([, value]) => value.trim().length > 0)
+    .map(([rawKey, value]) => ({
+      rawKey,
+      draftType,
+      textPreview: value.length > 80 ? `${value.slice(0, 80)}...` : value,
+      textLength: value.length,
+      ...(focusedDraftKey === rawKey ? { isFocused: true } : {}),
+    }));
+}
+
+function buildUnsavedDraftIndex(input: {
+  unitDrafts?: Record<string, string>;
+  translationDrafts?: Record<string, string>;
+  focusedDraftKey?: string | null;
+}): AiPromptDraftSnapshot[] {
+  return [
+    ...buildDraftRows(input.unitDrafts, 'unit', input.focusedDraftKey),
+    ...buildDraftRows(input.translationDrafts, 'translation', input.focusedDraftKey),
+  ];
+}
+
+function buildSpeakerIndex(
+  speakers: BuildTranscriptionAiPromptContextParams['speakers'],
+): AiPromptSpeakerSnapshot[] {
+  return (speakers ?? []).map((speaker) => ({
+    id: speaker.id,
+    ...(speaker.name ? { name: speaker.name } : {}),
+    ...(speaker.color ? { color: speaker.color } : {}),
+  }));
+}
+
+function normalizeNoteSummary(
+  noteSummary: BuildTranscriptionAiPromptContextParams['noteSummary'],
+): AiPromptNoteSummary | null {
+  if (!noteSummary) return null;
+  return {
+    count: noteSummary.count,
+    ...(noteSummary.byCategory ? { byCategory: noteSummary.byCategory } : {}),
+    ...(noteSummary.focusedLayerId ? { focusedLayerId: noteSummary.focusedLayerId } : {}),
+    ...(noteSummary.currentTargetUnitId ? { currentTargetUnitId: noteSummary.currentTargetUnitId } : {}),
+  };
+}
+
+function normalizeVisibleTimelineState(
+  state: BuildTranscriptionAiPromptContextParams['visibleTimelineState'],
+): AiPromptVisibleTimelineState | null {
+  if (!state) return null;
+  return {
+    ...(state.currentMediaId ? { currentMediaId: state.currentMediaId } : {}),
+    ...(state.currentMediaFilename ? { currentMediaFilename: state.currentMediaFilename } : {}),
+    ...(state.focusedLayerId ? { focusedLayerId: state.focusedLayerId } : {}),
+    ...(state.selectedLayerId ? { selectedLayerId: state.selectedLayerId } : {}),
+    ...(typeof state.selectedUnitCount === 'number' ? { selectedUnitCount: state.selectedUnitCount } : {}),
+    ...(typeof state.verticalViewActive === 'boolean' ? { verticalViewActive: state.verticalViewActive } : {}),
+    ...(state.transcriptionTrackMode ? { transcriptionTrackMode: state.transcriptionTrackMode } : {}),
+    ...(typeof state.documentSpanSec === 'number' && Number.isFinite(state.documentSpanSec) ? { documentSpanSec: state.documentSpanSec } : {}),
+    ...(typeof state.zoomPercent === 'number' && Number.isFinite(state.zoomPercent) ? { zoomPercent: state.zoomPercent } : {}),
+    ...(typeof state.maxZoomPercent === 'number' && Number.isFinite(state.maxZoomPercent) ? { maxZoomPercent: state.maxZoomPercent } : {}),
+    ...(typeof state.zoomPxPerSec === 'number' && Number.isFinite(state.zoomPxPerSec) ? { zoomPxPerSec: state.zoomPxPerSec } : {}),
+    ...(typeof state.fitPxPerSec === 'number' && Number.isFinite(state.fitPxPerSec) ? { fitPxPerSec: state.fitPxPerSec } : {}),
+    ...(typeof state.rulerVisibleStartSec === 'number' && Number.isFinite(state.rulerVisibleStartSec) ? { rulerVisibleStartSec: state.rulerVisibleStartSec } : {}),
+    ...(typeof state.rulerVisibleEndSec === 'number' && Number.isFinite(state.rulerVisibleEndSec) ? { rulerVisibleEndSec: state.rulerVisibleEndSec } : {}),
+    ...(typeof state.waveformScrollLeftPx === 'number' && Number.isFinite(state.waveformScrollLeftPx) ? { waveformScrollLeftPx: state.waveformScrollLeftPx } : {}),
+    ...(typeof state.laneLockSpeakerCount === 'number' && Number.isFinite(state.laneLockSpeakerCount) ? { laneLockSpeakerCount: state.laneLockSpeakerCount } : {}),
+    ...(state.laneLocks && state.laneLocks.length > 0 ? { laneLocks: state.laneLocks } : {}),
+    ...(state.trackLockSpeakerIds && state.trackLockSpeakerIds.length > 0 ? { trackLockSpeakerIds: state.trackLockSpeakerIds } : {}),
+    ...(state.activeSpeakerFilterKey ? { activeSpeakerFilterKey: state.activeSpeakerFilterKey } : {}),
   };
 }

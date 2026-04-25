@@ -7,12 +7,15 @@ import { normalizeCitationSnippetPlainText, RAG_CITATION_INSTRUCTION } from '../
 import { isSearchFusionScenario, type SearchFusionScenario } from '../ai/embeddings/searchFusionProfiles';
 import { evaluateRagQuality } from '../ai/embeddings/ragQualityEvaluator';
 import { shouldRetrieve } from '../ai/ragReflection';
+import { featureFlags } from '../ai/config/featureFlags';
 import { withTimeout } from './useAiChat.config';
 import { createLogger } from '../observability/logger';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { listUnitTextsByUnit } from '../services/LayerSegmentationTextService';
 
 const log = createLogger('useAiChat.rag');
+
+type MemoryRecallShapeTelemetry = NonNullable<RagEnrichmentResult['memoryRecallShape']>;
 
 /**
  * When `unitIndexComplete` is false, returns null (do not label hits/misses).
@@ -36,6 +39,14 @@ export function buildLocalUnitIdSetForRagCitationCheck(
 export interface RagEnrichmentResult {
   contextBlock: string;
   citations: AiMessageCitation[];
+  /** C-stage release evidence: retrieval denominator and suppression shape. */
+  memoryRecallShape?: {
+    candidateCount: number;
+    selectedCount: number;
+    duplicateSuppressedCount: number;
+    budgetSuppressedCount: number;
+    freshnessBucket: string;
+  };
   /** Self-RAG 反思判定 | Self-RAG reflection verdict */
   reflectionVerdict?: 'skip' | 'force' | 'retrieve';
   /** CRAG 质量判定 | CRAG quality verdict (only set when CRAG runs) */
@@ -52,6 +63,32 @@ interface EnrichContextWithRagParams {
 }
 
 const RAG_SCENARIO_TOKEN_RE = /\[RAG_SCENARIO:(qa|review|terminology|balanced)\]/i;
+
+function buildMemoryRecallShape(input: {
+  candidateCount: number;
+  selectedCount: number;
+  duplicateSuppressedCount?: number;
+  budgetSuppressedCount?: number;
+}): MemoryRecallShapeTelemetry | undefined {
+  if (!featureFlags.aiMemoryRecallShapeTelemetryEnabled) return undefined;
+  return {
+    candidateCount: Math.max(0, input.candidateCount),
+    selectedCount: Math.max(0, input.selectedCount),
+    duplicateSuppressedCount: Math.max(0, input.duplicateSuppressedCount ?? 0),
+    budgetSuppressedCount: Math.max(0, input.budgetSuppressedCount ?? 0),
+    freshnessBucket: 'unknown',
+  };
+}
+
+function memoryRecallShapeProp(input: {
+  candidateCount: number;
+  selectedCount: number;
+  duplicateSuppressedCount?: number;
+  budgetSuppressedCount?: number;
+}): { memoryRecallShape: MemoryRecallShapeTelemetry } | Record<string, never> {
+  const memoryRecallShape = buildMemoryRecallShape(input);
+  return memoryRecallShape ? { memoryRecallShape } : {};
+}
 
 export function resolveRagFusionScenarioInput(userText: string): {
   scenario: SearchFusionScenario;
@@ -161,7 +198,13 @@ export async function enrichContextWithRag({
           maxScore: ragQuality.maxScore,
           queryPreview: queryText.slice(0, 80),
         });
-        return { contextBlock, citations: [], reflectionVerdict, cragVerdict: 'incorrect' };
+        return {
+          contextBlock,
+          citations: [],
+          ...memoryRecallShapeProp({ candidateCount: activeMatches.length, selectedCount: 0 }),
+          reflectionVerdict,
+          cragVerdict: 'incorrect',
+        };
       }
       if (ragQuality.verdict === 'ambiguous' && ragQuality.refinedQuery) {
         // AMBIGUOUS: 用扩展查询重搜一次，关键词权重 0.45 | Re-search with keyword expansion
@@ -201,7 +244,12 @@ export async function enrichContextWithRag({
         queryPreview: queryText.slice(0, 80),
         scenario,
       });
-      return { contextBlock, citations: [], reflectionVerdict };
+      return {
+        contextBlock,
+        citations: [],
+        ...memoryRecallShapeProp({ candidateCount: 0, selectedCount: 0 }),
+        reflectionVerdict,
+      };
     }
 
     const db = await getDb();
@@ -308,15 +356,27 @@ export async function enrichContextWithRag({
     });
 
     if (dedupedSources.length === 0) {
-      return { contextBlock, citations: [], reflectionVerdict, ...(cragVerdict !== undefined && { cragVerdict }) };
+      return {
+        contextBlock,
+        citations: [],
+        ...memoryRecallShapeProp({ candidateCount: activeMatches.length, selectedCount: 0 }),
+        reflectionVerdict,
+        ...(cragVerdict !== undefined && { cragVerdict }),
+      };
     }
 
     const ragLines = dedupedSources.map(
       (source, index) => `[${index + 1}] (${source.contextTag}) ${source.safeSnippet}`,
     );
+    const duplicateSuppressedCount = Math.max(0, rawRagSources.length - dedupedSources.length);
     return {
       contextBlock: `${contextBlock}\n[RELEVANT_CONTEXT]\n${ragLines.join('\n')}\n${RAG_CITATION_INSTRUCTION}`,
       citations: dedupedSources.map((source) => source.citation),
+      ...memoryRecallShapeProp({
+        candidateCount: activeMatches.length,
+        selectedCount: dedupedSources.length,
+        duplicateSuppressedCount,
+      }),
       reflectionVerdict,
       ...(cragVerdict !== undefined && { cragVerdict }),
     };

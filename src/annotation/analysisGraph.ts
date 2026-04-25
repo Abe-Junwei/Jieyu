@@ -101,10 +101,17 @@ export const analysisGraphRelationSchema = z.object({
   features: featureRecordSchema.optional(),
 }).strict();
 
+export const projectionDiagnosticSubjectSchema = z.object({
+  kind: z.enum(['segment', 'boundary', 'cliticBoundary']),
+  segmentId: z.string().trim().min(1).optional(),
+  boundaryOffset: z.number().int().nonnegative().optional(),
+}).strict();
+
 export const projectionDiagnosticSchema = z.object({
   target: analysisGraphProjectionTargetSchema,
   status: analysisGraphProjectionStatusSchema,
   message: z.string().trim().min(1).max(500),
+  subject: projectionDiagnosticSubjectSchema.optional(),
 }).strict();
 
 export const annotationAnalysisGraphFixtureSchema = z.object({
@@ -160,6 +167,7 @@ export type AnalysisGraphProjectionStatus = z.infer<typeof analysisGraphProjecti
 export type AnalysisGraphSurfacePart = z.infer<typeof analysisGraphSurfacePartSchema>;
 export type AnalysisGraphNode = z.infer<typeof analysisGraphNodeSchema>;
 export type AnalysisGraphRelation = z.infer<typeof analysisGraphRelationSchema>;
+export type ProjectionDiagnosticSubject = z.infer<typeof projectionDiagnosticSubjectSchema>;
 export type ProjectionDiagnostic = z.infer<typeof projectionDiagnosticSchema>;
 export type AnnotationAnalysisGraphFixture = z.infer<typeof annotationAnalysisGraphFixtureSchema>;
 

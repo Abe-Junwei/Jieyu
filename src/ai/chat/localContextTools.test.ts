@@ -119,6 +119,41 @@ describe('localContextTools parseLocalContextToolCallFromText', () => {
       arguments: { limit: 8 },
     });
   });
+
+  it('parses workspace state tool calls', () => {
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layers","arguments":{}}}')).toEqual({
+      name: 'list_layers',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_layer_links","arguments":{}}}')).toEqual({
+      name: 'list_layer_links',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_unsaved_drafts","arguments":{}}}')).toEqual({
+      name: 'get_unsaved_drafts',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_speakers","arguments":{}}}')).toEqual({
+      name: 'list_speakers',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_notes","arguments":{}}}')).toEqual({
+      name: 'list_notes',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_visible_timeline_state","arguments":{}}}')).toEqual({
+      name: 'get_visible_timeline_state',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"list_notes_detail","arguments":{}}}')).toEqual({
+      name: 'list_notes_detail',
+      arguments: {},
+    });
+    expect(parseLocalContextToolCallFromText('{"tool_call":{"name":"get_speaker_breakdown","arguments":{}}}')).toEqual({
+      name: 'get_speaker_breakdown',
+      arguments: {},
+    });
+  });
 });
 
 describe('executeLocalContextToolCall with localUnitIndex', () => {
@@ -187,6 +222,305 @@ describe('executeLocalContextToolCall with localUnitIndex', () => {
     expect(payload._readModel.unitIndexComplete).toBe(true);
     expect(typeof payload._readModel.capturedAtMs).toBe('number');
     expect(mockGetDb).not.toHaveBeenCalled();
+  });
+
+  it('list_layers reads structured layer snapshot', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        layerIndex: [
+          { id: 'trc-main', key: 'main', label: 'Main', layerType: 'transcription' as const, languageId: 'zho', unitCount: 4, isSelected: true },
+          { id: 'trl-en', key: 'en', label: 'English', layerType: 'translation' as const, languageId: 'eng', unitCount: 0 },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_layers', arguments: {} },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; layers: Array<{ id: string; isSelected?: boolean; unitCount?: number }> };
+    expect(payload.count).toBe(2);
+    expect(payload.layers[0]).toMatchObject({ id: 'trc-main', isSelected: true, unitCount: 4 });
+  });
+
+  it('list_layer_links reads structured host links', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        layerLinkIndex: [
+          { transcriptionLayerKey: 'main', translationLayerId: 'trl-en', isPreferred: true },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_layer_links', arguments: {} },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; links: Array<{ translationLayerId: string; isPreferred?: boolean }> };
+    expect(payload.count).toBe(1);
+    expect(payload.links[0]).toMatchObject({ translationLayerId: 'trl-en', isPreferred: true });
+  });
+
+  it('get_unsaved_drafts exposes unit and translation drafts', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        unsavedDrafts: [
+          { rawKey: 'utt-layer-u1', draftType: 'unit' as const, textPreview: 'draft source', textLength: 12 },
+          { rawKey: 'tr-layer-u1', draftType: 'translation' as const, textPreview: 'draft translation', textLength: 17, isFocused: true },
+        ],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'get_unsaved_drafts', arguments: {} },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; unitDraftCount: number; translationDraftCount: number };
+    expect(payload).toMatchObject({ count: 2, unitDraftCount: 1, translationDraftCount: 1 });
+  });
+
+  it('list_speakers exposes speaker snapshots', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        speakerIndex: [
+          { id: 'spk-1', name: 'A', color: '#f00' },
+          { id: 'spk-2', name: 'B' },
+        ],
+      },
+      longTerm: {},
+    };
+    const result = await executeLocalContextToolCall(
+      { name: 'list_speakers', arguments: {} },
+      context,
+      ref,
+    );
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; speakers: Array<{ id: string }> };
+    expect(payload.count).toBe(2);
+    expect(payload.speakers.map((item) => item.id)).toEqual(['spk-1', 'spk-2']);
+  });
+
+  it('list_notes exposes note summary', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        noteSummary: {
+          count: 3,
+          byCategory: { todo: 2, question: 1 },
+          focusedLayerId: 'trc-main',
+          currentTargetUnitId: 'utt-1',
+        },
+      },
+      longTerm: {},
+    };
+    const result = await executeLocalContextToolCall(
+      { name: 'list_notes', arguments: {} },
+      context,
+      ref,
+    );
+    expect(result.ok).toBe(true);
+    const payload = result.result as { count: number; byCategory: Record<string, number> };
+    expect(payload.count).toBe(3);
+    expect(payload.byCategory.todo).toBe(2);
+  });
+
+  it('get_visible_timeline_state exposes focused media/layer state', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        visibleTimelineState: {
+          currentMediaId: 'media-1',
+          currentMediaFilename: 'demo.wav',
+          focusedLayerId: 'trc-main',
+          selectedLayerId: 'trc-main',
+          selectedUnitCount: 2,
+          verticalViewActive: true,
+          transcriptionTrackMode: 'multi-auto',
+          zoomPercent: 120,
+          rulerVisibleStartSec: 0,
+          rulerVisibleEndSec: 30,
+          activeSpeakerFilterKey: 'all',
+        },
+      },
+      longTerm: {},
+    };
+    const result = await executeLocalContextToolCall(
+      { name: 'get_visible_timeline_state', arguments: {} },
+      context,
+      ref,
+    );
+    expect(result.ok).toBe(true);
+    const payload = result.result as { currentMediaFilename?: string; selectedUnitCount?: number; zoomPercent?: number };
+    expect(payload.currentMediaFilename).toBe('demo.wav');
+    expect(payload.selectedUnitCount).toBe(2);
+    expect(payload.zoomPercent).toBe(120);
+  });
+
+  it('get_speaker_breakdown aggregates scoped rows by speaker', async () => {
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        speakerIndex: [{ id: 'sp1', name: 'One' }],
+        localUnitIndex: [
+          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 0, endTime: 1, text: 'x', speakerId: 'sp1' },
+          { id: 'b', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 1, endTime: 2, text: 'y' },
+          { id: 'c', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', startTime: 2, endTime: 3, text: 'z', speakerId: 'sp1' },
+        ],
+      },
+      longTerm: {},
+    };
+    const result = await executeLocalContextToolCall(
+      { name: 'get_speaker_breakdown', arguments: { scope: 'current_track' } },
+      context,
+      ref,
+    );
+    expect(result.ok).toBe(true);
+    const body = result.result as {
+      breakdown: Array<{ unitCount: number; speakerId?: string; unlabeled?: boolean }>;
+      unlabeledRowCount: number;
+    };
+    expect(body.unlabeledRowCount).toBe(1);
+    const sp1 = body.breakdown.find((row) => row.speakerId === 'sp1');
+    expect(sp1?.unitCount).toBe(2);
+  });
+
+  it('list_notes_detail reads user_notes filtered to scoped timeline ids', async () => {
+    mockGetDb.mockReset();
+    const notes = [
+      {
+        id: 'n1',
+        targetType: 'unit' as const,
+        targetId: 'a',
+        content: { und: 'hello' },
+        category: 'todo' as const,
+        createdAt: '2020-01-01',
+        updatedAt: '2026-01-02',
+      },
+      {
+        id: 'n2',
+        targetType: 'unit' as const,
+        targetId: 'zzz',
+        content: { und: 'skip' },
+        createdAt: '2020-01-01',
+        updatedAt: '2026-01-03',
+      },
+    ];
+    mockGetDb.mockImplementation(async () => ({
+      dexie: {
+        user_notes: {
+          orderBy: () => ({
+            reverse: () => ({
+              limit: () => ({
+                toArray: async () => notes,
+              }),
+            }),
+          }),
+        },
+      },
+    }));
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        localUnitIndex: [
+          { id: 'a', kind: 'unit' as const, mediaId: 'm1', layerId: 'layer-1', textId: 'text-1', startTime: 0, endTime: 1, text: 'x' },
+        ],
+      },
+      longTerm: {},
+    };
+    const result = await executeLocalContextToolCall(
+      { name: 'list_notes_detail', arguments: { scope: 'project', limit: 10 } },
+      context,
+      ref,
+    );
+    expect(result.ok).toBe(true);
+    const body = result.result as { notes: Array<{ id: string }> };
+    expect(body.notes).toHaveLength(1);
+    expect(body.notes[0]?.id).toBe('n1');
+  });
+
+  it('list_notes_detail falls back to segment_meta when localUnitIndex is empty', async () => {
+    mockGetDb.mockReset();
+    mockSegmentMetaRebuildForLayerMedia.mockResolvedValue([
+      {
+        id: 'layer-1::seg-fallback',
+        segmentId: 'seg-fallback',
+        textId: 'text-1',
+        mediaId: 'm1',
+        layerId: 'layer-1',
+        startTime: 0,
+        endTime: 1,
+        text: 'meta only',
+        normalizedText: 'meta only',
+        hasText: true,
+      },
+    ]);
+    const notes = [
+      {
+        id: 'n-seg',
+        targetType: 'unit' as const,
+        targetId: 'seg-fallback',
+        content: { und: 'via segment scope' },
+        category: 'comment' as const,
+        createdAt: '2020-01-01',
+        updatedAt: '2026-01-02',
+      },
+    ];
+    mockGetDb.mockImplementation(async () => ({
+      dexie: {
+        user_notes: {
+          orderBy: () => ({
+            reverse: () => ({
+              limit: () => ({
+                toArray: async () => notes,
+              }),
+            }),
+          }),
+        },
+      },
+    }));
+
+    const ref = { current: 0 };
+    const context = {
+      shortTerm: {
+        workspaceTextId: 'text-1',
+        currentMediaId: 'm1',
+        selectedLayerId: 'layer-1',
+        segmentMetaStorageLayerId: 'layer-1',
+        localUnitIndex: [],
+      },
+      longTerm: {},
+    };
+
+    const result = await executeLocalContextToolCall(
+      { name: 'list_notes_detail', arguments: { scope: 'current_scope', limit: 10 } },
+      context,
+      ref,
+    );
+
+    expect(result.ok).toBe(true);
+    const body = result.result as { notes: Array<{ id: string }>; _readModel: { source?: string } };
+    expect(body.notes).toHaveLength(1);
+    expect(body.notes[0]?.id).toBe('n-seg');
+    expect(body._readModel.source).toBe('segment_meta');
   });
 
   it('emits tool-execution span on successful call', async () => {

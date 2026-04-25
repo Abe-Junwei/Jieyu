@@ -133,6 +133,73 @@ describe('localToolSlotResolver', () => {
     expect(plan.scope).toBe('current_track');
   });
 
+  it('routes layer list questions to list_layers', () => {
+    const plan = resolveLocalToolRoutingPlan('当前的层都是什么内容', {});
+    expect(plan.queryFamily).toBe('list');
+    expect(plan.selectedTools).toEqual(['list_layers']);
+  });
+
+  it('routes layer link questions to list_layer_links', () => {
+    const plan = resolveLocalToolRoutingPlan('翻译层都绑定到了哪个宿主层', {});
+    expect(plan.queryFamily).toBe('list');
+    expect(plan.selectedTools).toEqual(['list_layer_links']);
+  });
+
+  it('routes unsaved-draft questions to get_unsaved_drafts', () => {
+    const plan = resolveLocalToolRoutingPlan('现在有哪些未保存草稿', {});
+    expect(plan.queryFamily).toBe('selection');
+    expect(plan.selectedTools).toEqual(['get_unsaved_drafts']);
+  });
+
+  it('routes speaker list questions to list_speakers', () => {
+    const plan = resolveLocalToolRoutingPlan('当前有哪些说话人', {});
+    expect(plan.queryFamily).toBe('list');
+    expect(plan.selectedTools).toEqual(['list_speakers']);
+  });
+
+  it('routes speaker distribution questions to get_speaker_breakdown', () => {
+    const plan = resolveLocalToolRoutingPlan('按说话人统计当前音频里各有多少语段', {});
+    expect(plan.queryFamily).toBe('count');
+    expect(plan.selectedTools).toEqual(['get_speaker_breakdown']);
+    expect(plan.scope).toBe('current_track');
+  });
+
+  it('routes note list questions to list_notes', () => {
+    const plan = resolveLocalToolRoutingPlan('当前笔记情况是什么', {});
+    expect(plan.queryFamily).toBe('list');
+    expect(plan.selectedTools).toEqual(['list_notes']);
+  });
+
+  it('routes visible timeline state questions to get_visible_timeline_state', () => {
+    const plan = resolveLocalToolRoutingPlan('当前可见时间轴状态是什么', {});
+    expect(plan.queryFamily).toBe('selection');
+    expect(plan.selectedTools).toEqual(['get_visible_timeline_state']);
+  });
+
+  it('routes note detail questions to list_notes_detail', () => {
+    const plan = resolveLocalToolRoutingPlan('把最近笔记明细列出来', {});
+    expect(plan.queryFamily).toBe('list');
+    expect(plan.selectedTools).toEqual(['list_notes_detail']);
+  });
+
+  it('routes zoom questions to get_visible_timeline_state', () => {
+    const plan = resolveLocalToolRoutingPlan('当前时间轴缩放和刻度是多少', {});
+    expect(plan.queryFamily).toBe('selection');
+    expect(plan.selectedTools).toEqual(['get_visible_timeline_state']);
+  });
+
+  it('fills scope for get_speaker_breakdown calls', () => {
+    const result = resolveLocalToolCalls(
+      [{ name: 'get_speaker_breakdown', arguments: {} }],
+      '全项目按说话人分布',
+      {},
+    );
+    expect(result.calls[0]).toMatchObject({
+      name: 'get_speaker_breakdown',
+      arguments: { scope: 'project' },
+    });
+  });
+
   it('reroutes unfinished transcription count questions to quality diagnosis instead of total stats', () => {
     const result = resolveLocalToolCalls(
       [{ name: 'get_current_selection', arguments: {} }],

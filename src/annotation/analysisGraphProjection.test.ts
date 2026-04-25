@@ -25,13 +25,18 @@ describe('structural parse to analysisGraph projection', () => {
     expect(graph.relations.map((relation) => relation.type)).toEqual([
       'realizesFeature',
       'realizesFeature',
-      'glosses',
       'contains',
       'realizesFeature',
       'glosses',
-      'cliticizesTo',
     ]);
-    expect(graph.projectionDiagnostics.every((diagnostic) => diagnostic.status === 'complete')).toBe(true);
+    expect(graph.relations).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'glosses', targetId: 'gloss-1' }),
+      expect.objectContaining({ type: 'cliticizesTo' }),
+    ]));
+    expect(graph.projectionDiagnostics.some((diagnostic) => diagnostic.status === 'needsReview')).toBe(true);
+    expect(graph.projectionDiagnostics.some((d) => d.message.includes('cliticizesTo skipped'))).toBe(true);
+    const cliticDiag = graph.projectionDiagnostics.find((d) => d.message.includes('cliticizesTo skipped'));
+    expect(cliticDiag?.subject).toEqual(expect.objectContaining({ kind: 'cliticBoundary' }));
   });
 
   it('projects infix and supplied zero as explicit candidate graph structure', () => {
@@ -39,7 +44,7 @@ describe('structural parse to analysisGraph projection', () => {
     const graph = projectStructuralParseToAnalysisGraph(parseResult);
 
     expect(graph.nodes).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'morpheme', label: 'PRS', features: { role: 'infix' } }),
+      expect.objectContaining({ type: 'morpheme', label: 'PRS', features: expect.objectContaining({ role: 'infix' }) }),
       expect.objectContaining({ type: 'zero', label: 'ZERO' }),
       expect.objectContaining({ type: 'featureBundle', label: 'ZERO' }),
     ]));
@@ -85,15 +90,28 @@ describe('structural parse to analysisGraph projection', () => {
     });
 
     expect(graph.id).toBe('candidate-custom-profile');
-    expect(graph.projectionDiagnostics).toHaveLength(1);
+    expect(graph.projectionDiagnostics.some((diagnostic) => diagnostic.status === 'needsReview')).toBe(true);
     expect(graph.nodes).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'morpheme', label: 'root' }),
-      expect.objectContaining({ type: 'morpheme', label: 'PRS', features: { role: 'infix' } }),
+      expect.objectContaining({ type: 'morpheme', label: 'PRS', features: expect.objectContaining({ role: 'infix' }) }),
       expect.objectContaining({ type: 'zero', label: 'Ø' }),
       expect.objectContaining({ type: 'gloss', label: 'COP' }),
     ]));
+    expect(graph.relations).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'cliticizesTo', targetId: expect.stringMatching(/^gloss-/) }),
+    ]));
+  });
+
+  it('projects reduplication markers into reduplicates relations', () => {
+    const parseResult = parseGlossStructure('REDUP-dog');
+    const graph = projectStructuralParseToAnalysisGraph(parseResult);
+
+    expect(graph.nodes).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'morpheme', label: 'REDUP', features: expect.objectContaining({ role: 'reduplicant' }) }),
+      expect.objectContaining({ type: 'morpheme', label: 'dog' }),
+    ]));
     expect(graph.relations).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: 'cliticizesTo' }),
+      expect.objectContaining({ type: 'reduplicates' }),
     ]));
   });
 });

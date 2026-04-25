@@ -1,6 +1,8 @@
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { assessToolActionIntent, buildToolAuditContext, buildToolIntentAuditMetadata, shouldAllowDeicticExecutionIntent } from '../ai/chat/toolCallHelpers';
-import type { AiChatToolCall, AiPromptContext, AiToolDecisionMode, UiChatMessage } from './useAiChat';
+import { resolveIntentConfidenceGate } from '../ai/chat/intentConfidenceGate';
+import { featureFlags } from '../ai/config/featureFlags';
+import type { AiChatToolCall, AiMemoryRecallShapeTelemetry, AiPromptContext, AiToolDecisionMode, UiChatMessage } from './useAiChat';
 
 interface BuildAndAuditToolIntentParams {
   assistantMessageId: string;
@@ -13,6 +15,7 @@ interface BuildAndAuditToolIntentParams {
   toolDecisionMode: AiToolDecisionMode;
   toolFeedbackStyle: AiToolFeedbackStyle;
   planner?: Parameters<typeof buildToolAuditContext>[5];
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   writeToolIntentAuditLog: (
     assistantMessageId: string,
     callName: AiChatToolCall['name'],
@@ -36,6 +39,7 @@ export async function buildAndAuditToolIntent({
   toolDecisionMode,
   toolFeedbackStyle,
   planner,
+  memoryRecallShape,
   writeToolIntentAuditLog,
 }: BuildAndAuditToolIntentParams): Promise<{
   intentAssessment: ReturnType<typeof assessToolActionIntent>;
@@ -47,7 +51,10 @@ export async function buildAndAuditToolIntent({
     aiContext,
     messageHistory,
   );
-  const intentAssessment = assessToolActionIntent(userText, { allowDeicticExecution });
+  const intentAssessment = resolveIntentConfidenceGate({
+    enabled: featureFlags.aiIntentConfidenceGateEnabled,
+    assessment: assessToolActionIntent(userText, { allowDeicticExecution }),
+  });
   const auditContext = buildToolAuditContext(
     userText,
     providerId,
@@ -56,6 +63,7 @@ export async function buildAndAuditToolIntent({
     toolFeedbackStyle,
     planner,
     intentAssessment,
+    memoryRecallShape,
   );
 
   // 审计写入为副作用，不应阻塞主逻辑 | Audit write is a side-effect, should not block main logic

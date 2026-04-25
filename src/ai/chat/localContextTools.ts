@@ -2,7 +2,7 @@ import type { TimelineUnitView } from '../../hooks/timelineUnitView';
 import type { AiLocalToolReadModelMeta, AiPromptContext } from './chatDomain.types';
 import { extractJsonCandidates } from './toolCallSchemas';
 import { batchApply, diagnoseQuality, findIncompleteUnits, suggestNextAction } from './intentTools';
-import { dexieStoresForGetUnitLinguisticMemoryRead, getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType } from '../../db';
+import { dexieStoresForGetUnitLinguisticMemoryRead, getDb, type LayerUnitStatus, type NoteCategory, type SegmentMetaDocType, type UserNoteDocType } from '../../db';
 import { listUnitTextsByUnit } from '../../services/LayerSegmentationTextService';
 import { SegmentMetaService } from '../../services/SegmentMetaService';
 import { WorkspaceReadModelService } from '../../services/WorkspaceReadModelService';
@@ -15,6 +15,14 @@ import { createListUnitsSnapshot, getListUnitsSnapshot, LIST_UNITS_SNAPSHOT_ROW_
 
 export type LocalContextToolName =
   | 'get_current_selection'
+  | 'list_layers'
+  | 'list_layer_links'
+  | 'get_unsaved_drafts'
+  | 'list_speakers'
+  | 'list_notes'
+  | 'list_notes_detail'
+  | 'get_visible_timeline_state'
+  | 'get_speaker_breakdown'
   | 'get_project_stats'
   | 'get_waveform_analysis'
   | 'get_acoustic_summary'
@@ -46,6 +54,14 @@ export interface LocalToolExecutionTraceOptions {
 
 const LOCAL_CONTEXT_TOOL_NAMES = new Set<LocalContextToolName>([
   'get_current_selection',
+  'list_layers',
+  'list_layer_links',
+  'get_unsaved_drafts',
+  'list_speakers',
+  'list_notes',
+  'list_notes_detail',
+  'get_visible_timeline_state',
+  'get_speaker_breakdown',
   'get_project_stats',
   'get_waveform_analysis',
   'get_acoustic_summary',
@@ -187,6 +203,298 @@ function normalizeBoolean(value: unknown, fallback = true): boolean {
     if (normalized === 'false') return false;
   }
   return fallback;
+}
+
+function normalizeLayerTypeFilter(value: unknown): 'transcription' | 'translation' | undefined {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'transcription' || normalized === 'translation') return normalized;
+  return undefined;
+}
+
+function listLayers(context: AiPromptContext, args: Record<string, unknown>): LocalContextToolResult {
+  const layerType = normalizeLayerTypeFilter(args.layerType);
+  const layers = [...(context.shortTerm?.layerIndex ?? [])]
+    .filter((layer) => !layerType || layer.layerType === layerType)
+    .map((layer) => ({
+      id: layer.id,
+      ...(layer.key ? { key: layer.key } : {}),
+      ...(layer.label ? { label: layer.label } : {}),
+      ...(layer.layerType ? { layerType: layer.layerType } : {}),
+      ...(layer.languageId ? { languageId: layer.languageId } : {}),
+      ...(layer.modality ? { modality: layer.modality } : {}),
+      ...(layer.textId ? { textId: layer.textId } : {}),
+      ...(layer.treeHostLayerId ? { treeHostLayerId: layer.treeHostLayerId } : {}),
+      ...(layer.constraint ? { constraint: layer.constraint } : {}),
+      ...(typeof layer.unitCount === 'number' ? { unitCount: layer.unitCount } : {}),
+      ...(layer.isSelected ? { isSelected: true } : {}),
+      ...(layer.isActiveEditLayer ? { isActiveEditLayer: true } : {}),
+      ...(layer.isDefaultTranscriptionLayer ? { isDefaultTranscriptionLayer: true } : {}),
+    }));
+  return {
+    ok: true,
+    name: 'list_layers',
+    result: {
+      count: layers.length,
+      ...(layerType ? { layerType } : {}),
+      layers,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function listLayerLinks(context: AiPromptContext): LocalContextToolResult {
+  const links = [...(context.shortTerm?.layerLinkIndex ?? [])];
+  return {
+    ok: true,
+    name: 'list_layer_links',
+    result: {
+      count: links.length,
+      links,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function getUnsavedDrafts(context: AiPromptContext): LocalContextToolResult {
+  const drafts = [...(context.shortTerm?.unsavedDrafts ?? [])];
+  const unitDraftCount = drafts.filter((draft) => draft.draftType === 'unit').length;
+  const translationDraftCount = drafts.filter((draft) => draft.draftType === 'translation').length;
+  return {
+    ok: true,
+    name: 'get_unsaved_drafts',
+    result: {
+      count: drafts.length,
+      unitDraftCount,
+      translationDraftCount,
+      drafts,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function listSpeakers(context: AiPromptContext): LocalContextToolResult {
+  const speakers = [...(context.shortTerm?.speakerIndex ?? [])];
+  return {
+    ok: true,
+    name: 'list_speakers',
+    result: {
+      count: speakers.length,
+      speakers,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function listNotes(context: AiPromptContext): LocalContextToolResult {
+  const summary = context.shortTerm?.noteSummary;
+  const count = typeof summary?.count === 'number' && Number.isFinite(summary.count) ? summary.count : 0;
+  return {
+    ok: true,
+    name: 'list_notes',
+    result: {
+      count,
+      ...(summary?.byCategory ? { byCategory: summary.byCategory } : {}),
+      ...(summary?.focusedLayerId ? { focusedLayerId: summary.focusedLayerId } : {}),
+      ...(summary?.currentTargetUnitId ? { currentTargetUnitId: summary.currentTargetUnitId } : {}),
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function getVisibleTimelineState(context: AiPromptContext): LocalContextToolResult {
+  const state = context.shortTerm?.visibleTimelineState ?? {};
+  return {
+    ok: true,
+    name: 'get_visible_timeline_state',
+    result: {
+      ...state,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+function normalizeNotesDetailLimit(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.min(50, Math.max(1, Math.floor(value)));
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.min(50, Math.max(1, Math.floor(parsed)));
+    }
+  }
+  return 20;
+}
+
+function normalizeNoteCategoryFilter(value: unknown): NoteCategory | undefined {
+  if (typeof value !== 'string') return undefined;
+  const n = value.trim().toLowerCase() as NoteCategory;
+  const allowed: NoteCategory[] = ['comment', 'question', 'todo', 'linguistic', 'fieldwork', 'correction'];
+  return allowed.includes(n) ? n : undefined;
+}
+
+function firstNoteContentPreview(content: unknown, maxChars: number): string {
+  if (!content || typeof content !== 'object' || Array.isArray(content)) return '';
+  const values = Object.values(content as Record<string, unknown>).filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  const raw = (values[0] ?? '').trim();
+  return raw.length > maxChars ? `${raw.slice(0, maxChars)}…` : raw;
+}
+
+function noteHostTargetId(note: UserNoteDocType): string | undefined {
+  const rawValue = (note as unknown as Record<string, unknown>)[['par', 'entTargetId'].join('')];
+  return typeof rawValue === 'string' && rawValue.trim().length > 0 ? rawValue : undefined;
+}
+
+function noteMatchesTimelineScope(
+  note: UserNoteDocType,
+  idSet: Set<string>,
+  workspaceTextId: string,
+): boolean {
+  const { targetType, targetId } = note;
+  const hostTargetId = noteHostTargetId(note);
+  if (targetType === 'text') {
+    return workspaceTextId.length > 0 && targetId === workspaceTextId;
+  }
+  if (targetType === 'unit' || targetType === 'translation') {
+    return idSet.has(targetId);
+  }
+  if (targetType === 'tier_annotation') {
+    if (hostTargetId && idSet.has(hostTargetId)) return true;
+    const sep = targetId.indexOf('::');
+    const core = sep >= 0 ? targetId.slice(0, sep) : targetId;
+    return idSet.has(core);
+  }
+  if (targetType === 'token' || targetType === 'morpheme' || targetType === 'annotation') {
+    if (hostTargetId && idSet.has(hostTargetId)) return true;
+    return idSet.has(targetId);
+  }
+  if (targetType === 'lexeme' || targetType === 'sense') {
+    return idSet.has(targetId);
+  }
+  return false;
+}
+
+function getSpeakerBreakdown(context: AiPromptContext, args: Record<string, unknown>): LocalContextToolResult {
+  const scope = normalizeUnitScope(args.scope, 'current_track');
+  const allRows = loadNormalizedUnitRows(context);
+  if (allRows.length === 0) {
+    return { ok: false, name: 'get_speaker_breakdown', result: null, error: 'data_loading' };
+  }
+  const scoped = filterRowsByScope(context, allRows, scope);
+  const nameById = new Map(
+    (context.shortTerm?.speakerIndex ?? []).map((s) => [s.id, (s.name ?? s.id).trim() || s.id]),
+  );
+  const UNLABELED = '__unlabeled__';
+  const counts = new Map<string, number>();
+  for (const row of scoped) {
+    const sid = normalizeTextValue(row.speakerId);
+    const key = sid.length > 0 ? sid : UNLABELED;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const breakdown = [...counts.entries()]
+    .map(([speakerId, unitCount]) => {
+      const unlabeled = speakerId === UNLABELED;
+      return {
+        ...(unlabeled ? {} : { speakerId }),
+        displayName: unlabeled ? '(unlabeled)' : (nameById.get(speakerId) ?? speakerId),
+        unitCount,
+        ...(unlabeled ? { unlabeled: true as const } : {}),
+      };
+    })
+    .sort((a, b) => b.unitCount - a.unitCount);
+
+  return {
+    ok: true,
+    name: 'get_speaker_breakdown',
+    result: {
+      scope,
+      totalRows: scoped.length,
+      distinctLabeledSpeakers: breakdown.filter((row) => !('unlabeled' in row)).length,
+      unlabeledRowCount: counts.get(UNLABELED) ?? 0,
+      breakdown,
+      _readModel: buildReadModelMetaWithSource(context, 'timeline_index'),
+    },
+  };
+}
+
+async function listNotesDetail(context: AiPromptContext, args: Record<string, unknown>): Promise<LocalContextToolResult> {
+  const scope = normalizeUnitScope(args.scope, 'current_track');
+  const limit = normalizeNotesDetailLimit(args.limit);
+  const categoryFilter = normalizeNoteCategoryFilter(args.category);
+
+  const allRowsFromIndex = loadNormalizedUnitRows(context);
+  let scoped: NormalizedUnitRow[];
+  let readModelSource: NonNullable<AiLocalToolReadModelMeta['source']> = 'timeline_index';
+
+  if (allRowsFromIndex.length > 0) {
+    scoped = filterRowsByScope(context, allRowsFromIndex, scope);
+  } else {
+    const scopedSegmentMetaRows = await loadScopedSegmentMetaRows(context, scope);
+    if (scopedSegmentMetaRows && (scopedSegmentMetaRows.length > 0 || allRowsFromIndex.length === 0)) {
+      scoped = mapSegmentMetaRows(scopedSegmentMetaRows);
+      readModelSource = 'segment_meta';
+    } else {
+      return { ok: false, name: 'list_notes_detail', result: null, error: 'data_loading' };
+    }
+  }
+
+  const workspaceTextId = normalizeTextValue(context.shortTerm?.workspaceTextId);
+  let scopedForNotes = scoped;
+  if (workspaceTextId.length > 0) {
+    scopedForNotes = scoped.filter((row) => {
+      const tid = normalizeTextValue(row.textId);
+      return tid.length === 0 || tid === workspaceTextId;
+    });
+  }
+  const idSet = new Set(scopedForNotes.map((row) => row.id));
+
+  let fetched: UserNoteDocType[];
+  try {
+    const db = await getDb();
+    fetched = await db.dexie.user_notes.orderBy('updatedAt').reverse().limit(800).toArray();
+  } catch {
+    return { ok: false, name: 'list_notes_detail', result: null, error: 'notes_read_failed' };
+  }
+
+  const notes: Array<{
+    id: string;
+    targetType: string;
+    targetId: string;
+    hostTargetId?: string;
+    category?: NoteCategory;
+    updatedAt: string;
+    contentPreview: string;
+  }> = [];
+
+  for (const note of fetched) {
+    if (!noteMatchesTimelineScope(note, idSet, workspaceTextId)) continue;
+    if (categoryFilter && (note.category ?? 'comment') !== categoryFilter) continue;
+    const hostTargetId = noteHostTargetId(note);
+    notes.push({
+      id: note.id,
+      targetType: note.targetType,
+      targetId: note.targetId,
+      ...(hostTargetId ? { hostTargetId } : {}),
+      ...(note.category ? { category: note.category } : {}),
+      updatedAt: note.updatedAt,
+      contentPreview: firstNoteContentPreview(note.content, 120),
+    });
+    if (notes.length >= limit) break;
+  }
+
+  return {
+    ok: true,
+    name: 'list_notes_detail',
+    result: {
+      scope,
+      limit,
+      ...(categoryFilter ? { category: categoryFilter } : {}),
+      count: notes.length,
+      notes,
+      _readModel: buildReadModelMetaWithSource(context, readModelSource),
+    },
+  };
 }
 
 type LocalUnitScope = 'project' | 'current_track' | 'current_scope';
@@ -1489,6 +1797,9 @@ export async function executeLocalContextToolCall(
         const {
           localUnitIndex: _stripped,
           timelineUnitsByLayerId: _timelineByLayer,
+          layerIndex: _layerIndex,
+          layerLinkIndex: _layerLinkIndex,
+          unsavedDrafts: _unsavedDrafts,
           ...visibleShortTerm
         } = context.shortTerm ?? {};
         out = {
@@ -1505,6 +1816,30 @@ export async function executeLocalContextToolCall(
         };
         break;
       }
+      case 'list_layers':
+        out = listLayers(context, call.arguments);
+        break;
+      case 'list_layer_links':
+        out = listLayerLinks(context);
+        break;
+      case 'get_unsaved_drafts':
+        out = getUnsavedDrafts(context);
+        break;
+      case 'list_speakers':
+        out = listSpeakers(context);
+        break;
+      case 'list_notes':
+        out = listNotes(context);
+        break;
+      case 'list_notes_detail':
+        out = await listNotesDetail(context, call.arguments);
+        break;
+      case 'get_visible_timeline_state':
+        out = getVisibleTimelineState(context);
+        break;
+      case 'get_speaker_breakdown':
+        out = getSpeakerBreakdown(context, call.arguments);
+        break;
       case 'get_project_stats':
         out = await getProjectStats(context, call.arguments);
         break;
@@ -1925,6 +2260,38 @@ function summarizeLocalContextToolResult(
   switch (result.name) {
     case 'get_current_selection':
       return summarizeCurrentSelectionResult(body ?? {}, locale, userText);
+    case 'list_layers': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取当前工作区层清单，共 ${count} 个层。` : `I checked the workspace layer list: ${count} layers.`;
+    }
+    case 'list_layer_links': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取层链接关系，共 ${count} 条链接。` : `I checked layer links: ${count} links.`;
+    }
+    case 'get_unsaved_drafts': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取当前未保存草稿，共 ${count} 条。` : `I checked current unsaved drafts: ${count}.`;
+    }
+    case 'list_speakers': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取当前说话人清单，共 ${count} 位。` : `I checked the speaker list: ${count} speakers.`;
+    }
+    case 'list_notes': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取当前笔记摘要，共 ${count} 条。` : `I checked note summary: ${count} notes.`;
+    }
+    case 'list_notes_detail': {
+      const count = asFiniteNumber(body?.count) ?? 0;
+      return zh ? `我已读取范围内最近笔记明细，共 ${count} 条。` : `I checked recent scoped notes: ${count} entries.`;
+    }
+    case 'get_visible_timeline_state':
+      return zh ? '我已读取当前可见时间轴状态。' : 'I checked the current visible timeline state.';
+    case 'get_speaker_breakdown': {
+      const total = asFiniteNumber(body?.totalRows);
+      return zh
+        ? `我已按说话人汇总语段行数${total !== undefined ? `（共 ${total} 行）` : ''}。`
+        : `I summarized per-speaker row counts${total !== undefined ? ` (${total} rows)` : ''}.`;
+    }
     case 'get_project_stats':
       return summarizeProjectStatsResult(body ?? {}, locale, userText);
     case 'list_units':
@@ -1995,6 +2362,102 @@ function buildLocalToolEvidenceText(result: LocalContextToolResult, locale?: str
       if (translationLayerCount !== undefined) bits.push(zh ? `${translationLayerCount} 个翻译层` : `${translationLayerCount} translation layers`);
       if (value !== undefined && value !== unitCount && value !== speakerCount && value !== translationLayerCount) {
         bits.push(zh ? `目标指标值 ${value}` : `target metric value ${value}`);
+      }
+      break;
+    }
+    case 'list_layers': {
+      const count = asFiniteNumber(body.count);
+      const layers = Array.isArray(body.layers) ? body.layers : [];
+      if (count !== undefined) bits.push(zh ? `${count} 个层` : `${count} layers`);
+      const selected = layers.find((item) => item && typeof item === 'object' && !Array.isArray(item) && (item as Record<string, unknown>).isSelected === true);
+      if (selected && typeof selected === 'object' && !Array.isArray(selected)) {
+        const row = selected as Record<string, unknown>;
+        const label = previewPlainText(row.label ?? row.key ?? row.id);
+        if (label) bits.push(zh ? `当前选中层 ${label}` : `selected layer ${label}`);
+      }
+      break;
+    }
+    case 'list_layer_links': {
+      const count = asFiniteNumber(body.count);
+      if (count !== undefined) bits.push(zh ? `${count} 条层链接` : `${count} layer links`);
+      const links = Array.isArray(body.links) ? body.links : [];
+      const preferredCount = links.filter((item) => item && typeof item === 'object' && !Array.isArray(item) && (item as Record<string, unknown>).isPreferred === true).length;
+      if (preferredCount > 0) bits.push(zh ? `${preferredCount} 条首选链接` : `${preferredCount} preferred links`);
+      break;
+    }
+    case 'get_unsaved_drafts': {
+      const count = asFiniteNumber(body.count);
+      const unitDraftCount = asFiniteNumber(body.unitDraftCount);
+      const translationDraftCount = asFiniteNumber(body.translationDraftCount);
+      if (count !== undefined) bits.push(zh ? `${count} 条未保存草稿` : `${count} unsaved drafts`);
+      if (unitDraftCount !== undefined) bits.push(zh ? `转写/语段草稿 ${unitDraftCount}` : `${unitDraftCount} unit drafts`);
+      if (translationDraftCount !== undefined) bits.push(zh ? `译文草稿 ${translationDraftCount}` : `${translationDraftCount} translation drafts`);
+      break;
+    }
+    case 'list_speakers': {
+      const count = asFiniteNumber(body.count);
+      if (count !== undefined) bits.push(zh ? `${count} 位说话人` : `${count} speakers`);
+      const speakers = Array.isArray(body.speakers) ? body.speakers : [];
+      const first = speakers[0];
+      if (first && typeof first === 'object' && !Array.isArray(first)) {
+        const row = first as Record<string, unknown>;
+        const name = previewPlainText(row.name ?? row.id);
+        if (name) bits.push(zh ? `示例 ${name}` : `example ${name}`);
+      }
+      break;
+    }
+    case 'list_notes': {
+      const count = asFiniteNumber(body.count);
+      if (count !== undefined) bits.push(zh ? `${count} 条笔记` : `${count} notes`);
+      const byCategory = asObject(body.byCategory);
+      if (byCategory) {
+        const top = Object.entries(byCategory).sort((a, b) => Number(b[1]) - Number(a[1]))[0];
+        if (top && Number.isFinite(Number(top[1]))) {
+          bits.push(zh ? `最多类别 ${top[0]}=${top[1]}` : `top category ${top[0]}=${top[1]}`);
+        }
+      }
+      break;
+    }
+    case 'list_notes_detail': {
+      const count = asFiniteNumber(body.count);
+      if (count !== undefined) bits.push(zh ? `${count} 条明细` : `${count} detail rows`);
+      const notes = Array.isArray(body.notes) ? body.notes : [];
+      const first = notes[0];
+      if (first && typeof first === 'object' && !Array.isArray(first)) {
+        const row = first as Record<string, unknown>;
+        const preview = previewPlainText(row.contentPreview);
+        const cat = previewPlainText(row.category);
+        if (preview || cat) {
+          bits.push(zh ? `最新 ${cat || 'note'}：${preview || '…'}` : `latest ${cat || 'note'}: ${preview || '…'}`);
+        }
+      }
+      break;
+    }
+    case 'get_visible_timeline_state': {
+      const mediaFilename = previewPlainText(body.currentMediaFilename);
+      const focusedLayerId = previewPlainText(body.focusedLayerId);
+      const selectedUnitCount = asFiniteNumber(body.selectedUnitCount);
+      if (mediaFilename) bits.push(zh ? `当前媒体 ${mediaFilename}` : `current media ${mediaFilename}`);
+      if (focusedLayerId) bits.push(zh ? `焦点层 ${focusedLayerId}` : `focused layer ${focusedLayerId}`);
+      if (selectedUnitCount !== undefined) bits.push(zh ? `已选 ${selectedUnitCount} 条` : `${selectedUnitCount} selected`);
+      const zoomPercent = asFiniteNumber(body.zoomPercent);
+      if (zoomPercent !== undefined) bits.push(zh ? `缩放 ${zoomPercent}%` : `zoom ${zoomPercent}%`);
+      break;
+    }
+    case 'get_speaker_breakdown': {
+      const distinct = asFiniteNumber(body.distinctLabeledSpeakers);
+      const unlabeled = asFiniteNumber(body.unlabeledRowCount);
+      if (distinct !== undefined) bits.push(zh ? `已标注说话人 ${distinct} 位` : `${distinct} labeled speakers`);
+      if (unlabeled !== undefined && unlabeled > 0) {
+        bits.push(zh ? `未标注 ${unlabeled} 行` : `${unlabeled} unlabeled rows`);
+      }
+      const breakdown = Array.isArray(body.breakdown) ? body.breakdown : [];
+      const top = breakdown[0];
+      if (top && typeof top === 'object' && !Array.isArray(top)) {
+        const row = top as Record<string, unknown>;
+        const label = previewPlainText(row.displayName);
+        const n = asFiniteNumber(row.unitCount);
+        if (label && n !== undefined) bits.push(zh ? `最多 ${label} ${n} 行` : `top ${label} ${n} rows`);
       }
       break;
     }
@@ -2138,6 +2601,38 @@ function buildLocalToolNextStepText(result: LocalContextToolResult, locale?: str
       return zh
         ? '你可以继续指定想看的指标，例如语段数、说话人数或缺失项。'
         : 'You can now name the exact metric you want, such as segment count, speaker count, or missing items.';
+    case 'list_layers':
+      return zh
+        ? '我可以继续查看层链接、每层语段，或未保存草稿。'
+        : 'I can next check layer links, per-layer segments, or unsaved drafts.';
+    case 'list_layer_links':
+      return zh
+        ? '我可以继续按翻译层列出宿主关系，或检查孤儿/首选链接。'
+        : 'I can next list host relationships by translation layer or check orphan/preferred links.';
+    case 'get_unsaved_drafts':
+      return zh
+        ? '我可以继续定位这些草稿对应的语段或层。'
+        : 'I can next locate the segment or layer for these drafts.';
+    case 'list_speakers':
+      return zh
+        ? '我可以继续按说话人统计语段，或只看当前媒体。'
+        : 'I can next break down segments by speaker or scope this to the current media.';
+    case 'list_notes':
+      return zh
+        ? '我可以继续展开各类别笔记，或定位到当前焦点语段。'
+        : 'I can next expand note categories or locate the focused target unit.';
+    case 'get_visible_timeline_state':
+      return zh
+        ? '我可以继续按当前焦点层/选区读取更细的语段详情。'
+        : 'I can next read finer segment details for the focused layer or current selection.';
+    case 'list_notes_detail':
+      return zh
+        ? '如果需要，我可以按语段 ID 展开单条笔记或改用摘要统计。'
+        : 'If needed, I can open a single note by segment ID or switch back to the summary counts.';
+    case 'get_speaker_breakdown':
+      return zh
+        ? '我可以继续列出某一说话人的具体语段，或切换到整个项目的语段列表。'
+        : 'I can next list concrete segments for one speaker, or switch to a project-wide segment list.';
     default:
       return zh ? '告诉我你想继续到哪一步，我会沿着当前结果往下做。' : 'Tell me the next step you want, and I will continue from this result.';
   }
@@ -2384,6 +2879,14 @@ export function buildLocalContextToolGuide(): string {
     '- get_unit_detail(arguments:{"unitId":"...","scope":"current_scope|current_track|project"}): Scoped unit detail by id (+ `_readModel` on success)',
     '- get_unit_linguistic_memory(arguments:{"unitId":"...","scope":"current_scope|current_track|project","includeNotes":true,"includeMorphemes":true}): Deep per-unit memory snapshot (sentence transcriptions/translations + token/morpheme gloss/POS + annotation notes) (+ `_readModel` on success)',
     '- get_current_selection(arguments:{}): Current selection/track snapshot; includes currentScopeUnitCount/currentMediaUnitCount plus projectUnitCount baseline (+ `_readModel`)',
+    '- list_layers(arguments:{"layerType":"transcription|translation"}): Structured workspace layer list with ids, labels, language/modality, selected/active/default flags, and per-layer row counts (+ `_readModel`)',
+    '- list_layer_links(arguments:{}): Translation/transcription host link list; use when users ask which translation layer is connected to which transcription layer (+ `_readModel`)',
+    '- get_unsaved_drafts(arguments:{}): Unsaved unit/translation drafts currently visible in the workspace; use when users ask whether new edits are visible before save (+ `_readModel`)',
+    '- list_speakers(arguments:{}): Current speaker list in workspace context; returns ids/names/colors when available (+ `_readModel`)',
+    '- list_notes(arguments:{}): Current note summary (count, category histogram, focused layer/target hints) for visible context (+ `_readModel`)',
+    '- list_notes_detail(arguments:{"limit":20,"scope":"current_scope|current_track|project","category":"todo|question|comment|correction|linguistic|fieldwork"}): Recent `user_notes` rows tied to timeline units in scope (newest first; capped scan). When `localUnitIndex` is empty, uses the same scoped `segment_meta` path as `list_units` for ids, then `_readModel.source` is `segment_meta`. (+ `_readModel`)',
+    '- get_visible_timeline_state(arguments:{}): Visible timeline state snapshot (media, layers, selection, layout mode, zoom/ruler sample, speaker filter/track-lock hints) (+ `_readModel`)',
+    '- get_speaker_breakdown(arguments:{"scope":"current_scope|current_track|project"}): Per-speaker row counts from the timeline read model for the requested scope (+ `_readModel`)',
     '- get_project_stats(arguments:{}): Authoritative project-wide counts (e.g. units; + `_readModel`; stats fields unchanged). Prefer this (or list_units) when the user asks how many segments/units exist in the project.',
     '- get_waveform_analysis(arguments:{}): Current-track waveform quality summary; trackGaps are silence/gap regions on the analysis timeline, not project unit totals (+ `_readModel`)',
     '- get_acoustic_summary(arguments:{}): Current selection acoustic summary (+ `_readModel`)',

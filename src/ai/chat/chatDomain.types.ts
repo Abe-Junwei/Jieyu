@@ -270,6 +270,10 @@ interface ToolIntentAssessment {
   hasExplicitId: boolean;
   hasMetaQuestion: boolean;
   hasTechnicalDiscussion: boolean;
+  intentCandidates?: Array<{ decision: 'execute' | 'clarify' | 'ignore' | 'cancel'; confidence: number; why: string }>;
+  confidence?: number;
+  margin?: number;
+  confidenceGate?: { triggered: boolean; threshold: number; marginThreshold: number; reason?: string };
 }
 
 export interface ToolAuditContext {
@@ -281,6 +285,15 @@ export interface ToolAuditContext {
   plannerDecision?: ToolPlannerDecision;
   plannerReason?: ToolPlannerClarifyReason;
   intentAssessment?: ToolIntentAssessment;
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
+}
+
+export interface AiMemoryRecallShapeTelemetry {
+  candidateCount: number;
+  selectedCount: number;
+  duplicateSuppressedCount: number;
+  budgetSuppressedCount: number;
+  freshnessBucket: string;
 }
 
 export type AiChatToolName =
@@ -346,6 +359,78 @@ export interface AiToolRiskCheckResult {
 
 export type AiSystemPersonaKey = 'transcription' | 'glossing' | 'review';
 
+export interface AiPromptLayerSnapshot {
+  id: string;
+  key?: string;
+  label?: string;
+  layerType?: 'transcription' | 'translation';
+  languageId?: string;
+  modality?: string;
+  textId?: string;
+  treeHostLayerId?: string;
+  constraint?: string;
+  unitCount?: number;
+  isSelected?: boolean;
+  isActiveEditLayer?: boolean;
+  isDefaultTranscriptionLayer?: boolean;
+}
+
+export interface AiPromptLayerLinkSnapshot {
+  id?: string;
+  transcriptionLayerKey?: string;
+  translationLayerId?: string;
+  hostTranscriptionLayerId?: string;
+  isPreferred?: boolean;
+}
+
+export interface AiPromptDraftSnapshot {
+  rawKey: string;
+  draftType: 'unit' | 'translation';
+  textPreview: string;
+  textLength: number;
+  isFocused?: boolean;
+}
+
+export interface AiPromptSpeakerSnapshot {
+  id: string;
+  name?: string;
+  color?: string;
+}
+
+export interface AiPromptNoteSummary {
+  count: number;
+  byCategory?: Record<string, number>;
+  focusedLayerId?: string;
+  currentTargetUnitId?: string;
+}
+
+export interface AiPromptVisibleTimelineState {
+  currentMediaId?: string;
+  currentMediaFilename?: string;
+  focusedLayerId?: string;
+  selectedLayerId?: string;
+  selectedUnitCount?: number;
+  verticalViewActive?: boolean;
+  transcriptionTrackMode?: string;
+  /** Timeline zoom / pan snapshot (from `useTimelineViewport` projection). */
+  documentSpanSec?: number;
+  zoomPercent?: number;
+  maxZoomPercent?: number;
+  zoomPxPerSec?: number;
+  fitPxPerSec?: number;
+  rulerVisibleStartSec?: number;
+  rulerVisibleEndSec?: number;
+  waveformScrollLeftPx?: number;
+  /** Count of speaker→lane lock entries in multi-speaker track modes. */
+  laneLockSpeakerCount?: number;
+  /** Sample of locked speakers (capped for prompt size). */
+  laneLocks?: ReadonlyArray<{ speakerId: string; laneIndex: number }>;
+  /** Speakers selected for track-lock actions (may be empty). */
+  trackLockSpeakerIds?: ReadonlyArray<string>;
+  /** Speaker filter dropdown key (`all` or a speaker id). */
+  activeSpeakerFilterKey?: string;
+}
+
 export interface AiShortTermContext {
   locale?: string;
   page?: string;
@@ -362,6 +447,8 @@ export interface AiShortTermContext {
   selectedTranslationLayerId?: string;
   selectedTranscriptionLayerId?: string;
   currentMediaId?: string;
+  /** Active Dexie text / project id for scoping DB reads (e.g. user_notes). */
+  workspaceTextId?: string;
   selectedText?: string;
   selectionTimeRange?: string;
   audioTimeSec?: number;
@@ -375,6 +462,18 @@ export interface AiShortTermContext {
   unitTimeline?: string;
   /** Hierarchical project/media/unit/layer snapshot for AI grounding. */
   worldModelSnapshot?: string;
+  /** Structured layer snapshot for local query tools; kept separate from the compact prompt text. */
+  layerIndex?: ReadonlyArray<AiPromptLayerSnapshot>;
+  /** Structured translation/transcription host links for local query tools. */
+  layerLinkIndex?: ReadonlyArray<AiPromptLayerLinkSnapshot>;
+  /** Unsaved editor drafts visible in the workspace. */
+  unsavedDrafts?: ReadonlyArray<AiPromptDraftSnapshot>;
+  /** Current speaker list visible in workspace context. */
+  speakerIndex?: ReadonlyArray<AiPromptSpeakerSnapshot>;
+  /** Notes summary for current focus/context. */
+  noteSummary?: AiPromptNoteSummary;
+  /** High-level currently visible timeline state. */
+  visibleTimelineState?: AiPromptVisibleTimelineState;
   /** Monotonic epoch from `useTimelineUnitViewIndex` / timeline read model; used for destructive tool confirmation. */
   timelineReadModelEpoch?: number;
   /** False means segment-backed unit index may still be loading; empty unit lists are not authoritative yet. */
@@ -451,7 +550,7 @@ export interface AiLocalToolReadModelMeta {
   /** `localUnitIndex` row count when present (may differ from `projectStats.unitCount`). */
   indexRowCount?: number;
   /** Tool payload来源，便于解释查询是否命中了统一读模型。 */
-  source?: 'timeline_index' | 'segment_meta' | 'scope_stats_snapshot' | 'segment_quality_snapshot' | 'hybrid';
+  source?: 'timeline_index' | 'segment_meta' | 'scope_stats_snapshot' | 'segment_quality_snapshot' | 'hybrid' | 'user_notes';
 }
 
 export interface AiContextDebugSnapshot {

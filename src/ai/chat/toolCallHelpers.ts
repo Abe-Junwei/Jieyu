@@ -2,7 +2,7 @@ import { featureFlags } from '../config/featureFlags';
 import { buildAiToolRequestId } from '../toolRequestId';
 import { formatActionClarify, formatNonActionFallback, formatTargetClarify, formatToolCancelledMessage, formatToolFailureMessage, formatToolGraySkippedMessage, formatToolPendingMessage, formatToolRollbackSkippedMessage, formatToolSuccessMessage } from '../messages';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
-import type { AiChatToolCall, AiChatToolName, AiClarifyCandidate, AiPromptContext, AiSessionMemory, AiToolDecisionMode, PreviewContract, UiChatMessage } from './chatDomain.types';
+import type { AiChatToolCall, AiChatToolName, AiClarifyCandidate, AiMemoryRecallShapeTelemetry, AiPromptContext, AiSessionMemory, AiToolDecisionMode, PreviewContract, UiChatMessage } from './chatDomain.types';
 import type { Locale } from '../../i18n';
 import { extractJsonCandidates, parseToolCallFromTextZod, validateToolArgumentsZod } from './toolCallSchemas';
 import { normalizeToolCallName } from './toolCallNameNormalize';
@@ -42,6 +42,10 @@ export interface ToolIntentAssessment {
   hasExplicitId: boolean;
   hasMetaQuestion: boolean;
   hasTechnicalDiscussion: boolean;
+  intentCandidates?: Array<{ decision: ToolIntentDecision; confidence: number; why: string }>;
+  confidence?: number;
+  margin?: number;
+  confidenceGate?: { triggered: boolean; threshold: number; marginThreshold: number; reason?: string };
 }
 
 export interface ToolIntentAssessmentOptions {
@@ -57,6 +61,7 @@ export interface ToolAuditContext {
   plannerDecision?: ToolPlannerDecision;
   plannerReason?: ToolPlannerClarifyReason;
   intentAssessment?: ToolIntentAssessment;
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
 }
 
 export interface ToolIntentAuditMetadata {
@@ -78,6 +83,7 @@ export interface ToolDecisionAuditMetadata {
   context: ToolAuditContext;
   executed: boolean;
   outcome: string;
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry;
   message?: string;
   reason?: string;
   durationMs?: number;
@@ -1402,6 +1408,7 @@ export function buildToolAuditContext(
   toolFeedbackStyle: AiToolFeedbackStyle,
   planner?: ToolPlannerResult | null,
   intentAssessment?: ToolIntentAssessment,
+  memoryRecallShape?: AiMemoryRecallShapeTelemetry,
 ): ToolAuditContext {
   return {
     userText,
@@ -1412,6 +1419,7 @@ export function buildToolAuditContext(
     ...(planner?.decision ? { plannerDecision: planner.decision } : {}),
     ...(planner?.reason ? { plannerReason: planner.reason } : {}),
     ...(intentAssessment ? { intentAssessment } : {}),
+    ...(memoryRecallShape ? { memoryRecallShape } : {}),
   };
 }
 
@@ -1451,6 +1459,7 @@ export function buildToolDecisionAuditMetadata(
     context,
     executed,
     outcome,
+    ...(context.memoryRecallShape ? { memoryRecallShape: context.memoryRecallShape } : {}),
     ...(message ? { message } : {}),
     ...(reason ? { reason } : {}),
     ...(durationMs !== undefined ? { durationMs } : {}),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AiChatToolCall, AiPromptContext } from './chatDomain.types';
-import { buildClarifyCandidates, extractClarifySplitPositionPatch, planToolCallTargets, resolveSelectionTargetPatchForTool, shouldAllowDeicticExecutionIntent, validateToolCallArguments } from './toolCallHelpers';
+import { buildClarifyCandidates, buildToolAuditContext, buildToolDecisionAuditMetadata, extractClarifySplitPositionPatch, planToolCallTargets, resolveSelectionTargetPatchForTool, shouldAllowDeicticExecutionIntent, validateToolCallArguments } from './toolCallHelpers';
 
 function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext['shortTerm']>> = {}): AiPromptContext {
   return {
@@ -21,6 +21,44 @@ function makeSegmentContext(extraShortTerm: Partial<NonNullable<AiPromptContext[
     },
   };
 }
+
+describe('tool decision audit metadata', () => {
+  it('promotes memory recall shape to top-level release-evidence metadata', () => {
+    const toolCall: AiChatToolCall = {
+      name: 'set_transcription_text',
+      arguments: { segmentId: 'seg-1', text: 'hello' },
+      requestId: 'toolreq-memory-shape',
+    };
+    const context = buildToolAuditContext(
+      'set text',
+      'mock',
+      'test-model',
+      'enabled',
+      'concise',
+      null,
+      undefined,
+      {
+        candidateCount: 5,
+        selectedCount: 2,
+        duplicateSuppressedCount: 1,
+        budgetSuppressedCount: 0,
+        freshnessBucket: 'unknown',
+      },
+    );
+
+    const metadata = buildToolDecisionAuditMetadata(
+      'assistant-1',
+      toolCall,
+      context,
+      'ai',
+      'confirmed',
+      true,
+    );
+
+    expect(metadata.memoryRecallShape).toEqual(context.memoryRecallShape);
+    expect(metadata.context.memoryRecallShape).toEqual(context.memoryRecallShape);
+  });
+});
 
 describe('planToolCallTargets', () => {
   it('prefers current segmentId over hallucinated unitId for segment-backed text edits', () => {

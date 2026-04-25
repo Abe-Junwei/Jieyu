@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
+import { DEFAULT_LEIPZIG_STRUCTURAL_PROFILE } from '../annotation/structuralRuleProfile';
+import { validateLayerDoc, validateLayerUnitContentDoc, validateLayerUnitDoc, validateMediaItemDoc, validateStructuralRuleProfileAssetDoc, validateTextDoc, validateTokenLexemeLinkDoc, validateTrackEntityDoc, validateTierDefinitionDoc, validateUnitRelationDoc, validateUserNoteDoc, validateUnitMorphemeDoc, validateUnitTokenDoc, type LayerDocType, type LayerUnitContentDocType, type LayerUnitDocType, type MediaItemDocType, type StructuralRuleProfileAssetDocType, type TextDocType, type TokenLexemeLinkDocType, type TrackEntityDocType, type TierDefinitionDocType, type UnitRelationDocType, type UserNoteDocType, type UnitMorphemeDocType, type UnitTokenDocType } from './index';
 
 type InvalidMutation<T> = {
   name: string;
@@ -236,6 +237,49 @@ const unitRelationSuite: InvariantSuite<UnitRelationDocType> = {
   ],
 };
 
+const structuralRuleProfileAssetSuite: InvariantSuite<StructuralRuleProfileAssetDocType> = {
+  name: 'structural rule profile asset invariants',
+  createValid: () => ({
+    id: 'srp_valid_1',
+    scope: 'language',
+    languageId: 'zho',
+    enabled: true,
+    priority: 10,
+    profile: {
+      ...DEFAULT_LEIPZIG_STRUCTURAL_PROFILE,
+      id: 'language.zho.structural.v1',
+      scope: 'language',
+    },
+    createdAt: NOW,
+    updatedAt: NOW,
+  }),
+  validate: validateStructuralRuleProfileAssetDoc,
+  invalid: [
+    {
+      name: 'language scope without languageId',
+      mutate: (doc) => {
+        const { languageId: _removed, ...rest } = doc;
+        return rest;
+      },
+      messageIncludes: 'requires languageId',
+    },
+    {
+      name: 'duplicate structural markers',
+      mutate: (doc) => ({
+        ...doc,
+        profile: {
+          ...doc.profile,
+          symbols: {
+            ...doc.profile.symbols,
+            cliticBoundary: doc.profile.symbols.morphemeBoundary,
+          },
+        },
+      }),
+      messageIncludes: 'is reused by',
+    },
+  ],
+};
+
 const tierDefinitionSuite: InvariantSuite<TierDefinitionDocType> = {
   name: 'tier definition invariants',
   createValid: () => ({
@@ -334,6 +378,7 @@ describe('db schema invariants matrix', () => {
   runInvariantSuite(layerUnitSuite);
   runInvariantSuite(layerUnitContentSuite);
   runInvariantSuite(unitRelationSuite);
+  runInvariantSuite(structuralRuleProfileAssetSuite);
   runInvariantSuite(tierDefinitionSuite);
   runInvariantSuite(tokenLexemeLinkSuite);
   runInvariantSuite(userNoteSuite);

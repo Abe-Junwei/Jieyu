@@ -1,5 +1,6 @@
 import {
   dexieStoresForLayerSegmentGraphRw,
+  validateUnitRelationDoc,
   withTransaction,
   type JieyuDatabase,
   type LayerUnitContentDocType,
@@ -153,7 +154,9 @@ export async function bulkUpsertLayerUnitContents(
 }
 
 export async function putUnitRelation(db: JieyuDatabase, relation: UnitRelationDocType): Promise<void> {
-  await db.dexie.unit_relations.put(normalizeUnitRelationForStorage(relation));
+  const normalized = normalizeUnitRelationForStorage(relation);
+  validateUnitRelationDoc(normalized);
+  await db.dexie.unit_relations.put(normalized);
 }
 
 export async function bulkUpsertUnitRelations(
@@ -161,7 +164,11 @@ export async function bulkUpsertUnitRelations(
   relations: readonly UnitRelationDocType[],
 ): Promise<void> {
   if (relations.length === 0) return;
-  await db.dexie.unit_relations.bulkPut(relations.map(normalizeUnitRelationForStorage));
+  const normalized = relations.map(normalizeUnitRelationForStorage);
+  for (const rel of normalized) {
+    validateUnitRelationDoc(rel);
+  }
+  await db.dexie.unit_relations.bulkPut(normalized);
 }
 
 /** 同一写事务内 upsert 多层 segment 图三表，供无外层 `withTransaction` 的调用方使用。 */
@@ -189,7 +196,11 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
         await db.dexie.layer_unit_contents.bulkPut(contents.map(normalizeLayerUnitContentForStorage));
       }
       if (relations.length > 0) {
-        await db.dexie.unit_relations.bulkPut(relations.map(normalizeUnitRelationForStorage));
+        const normalizedRelations = relations.map(normalizeUnitRelationForStorage);
+        for (const rel of normalizedRelations) {
+          validateUnitRelationDoc(rel);
+        }
+        await db.dexie.unit_relations.bulkPut(normalizedRelations);
       }
     },
     { label: 'bulkUpsertLayerSegmentGraph' },
@@ -197,7 +208,9 @@ export async function bulkUpsertLayerSegmentGraph(db: JieyuDatabase, graph: Laye
 }
 
 export async function upsertSegmentLinkUnitRelation(db: JieyuDatabase, link: UnitRelationDocType): Promise<void> {
-  await db.dexie.unit_relations.put(normalizeUnitRelationForStorage(link));
+  const normalized = normalizeUnitRelationForStorage(link);
+  validateUnitRelationDoc(normalized);
+  await db.dexie.unit_relations.put(normalized);
 }
 
 export async function bulkDeleteLayerUnitContentsByIds(db: JieyuDatabase, contentIds: readonly string[]): Promise<void> {

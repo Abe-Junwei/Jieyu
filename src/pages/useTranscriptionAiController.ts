@@ -243,11 +243,7 @@ export function useTranscriptionAiController(
       ? effectiveUnitIndex.allUnits
       : undefined;
     if (projectUnitsForTools && !projectUnitsForTools.some((unit) => unit.kind === 'unit') && projectUnitsForTools.some((unit) => unit.kind === 'segment')) {
-      recordMetric({
-        id: 'ai.segment_only_project_context_build',
-        value: 1,
-        tags: createMetricTags('useTranscriptionAiController', { currentMediaId: currentMediaId ?? 'unknown' }),
-      });
+      recordMetric({ id: 'ai.segment_only_project_context_build', value: 1, tags: createMetricTags('useTranscriptionAiController', { currentMediaId: currentMediaId ?? 'unknown' }) });
     }
     if (typeof input.authoritativeUnitCount === 'number' && Number.isFinite(input.authoritativeUnitCount) && effectiveUnitIndex.totalCount !== input.authoritativeUnitCount) {
       if (import.meta.env.DEV) {
@@ -257,13 +253,7 @@ export function useTranscriptionAiController(
           authoritativeUnitCount: input.authoritativeUnitCount,
         });
       }
-      recordMetric({ id: 'ai.timeline_unit_count_mismatch',
-        value: 1,
-        tags: createMetricTags('useTranscriptionAiController', {
-          indexTotalCount: effectiveUnitIndex.totalCount,
-          authoritativeUnitCount: input.authoritativeUnitCount,
-        }),
-      });
+      recordMetric({ id: 'ai.timeline_unit_count_mismatch', value: 1, tags: createMetricTags('useTranscriptionAiController', { indexTotalCount: effectiveUnitIndex.totalCount, authoritativeUnitCount: input.authoritativeUnitCount }) });
     }
     return buildTranscriptionAiPromptContext({
       locale,
@@ -290,6 +280,14 @@ export function useTranscriptionAiController(
       recommendations: aiRecommendationRef.current,
       audioTimeSec: aiAudioTimeRef.current,
       layers: input.layers,
+      layerLinks: input.layerLinks,
+      ...(input.unitDrafts ? { unitDrafts: input.unitDrafts } : {}),
+      ...(input.translationDrafts ? { translationDrafts: input.translationDrafts } : {}),
+      focusedDraftKey: input.focusedTranslationDraftKeyRef?.current ?? null,
+      ...(input.speakers ? { speakers: input.speakers } : {}),
+      ...(input.noteSummary ? { noteSummary: input.noteSummary } : {}),
+      ...(input.visibleTimelineState ? { visibleTimelineState: input.visibleTimelineState } : {}),
+      ...(typeof input.activeTextId === 'string' && input.activeTextId.trim().length > 0 ? { activeTextId: input.activeTextId.trim() } : {}),
       ...(input.defaultTranscriptionLayerId !== undefined ? { defaultTranscriptionLayerId: input.defaultTranscriptionLayerId } : {}),
       ...(scopeMediaItemForAi ? { mediaItems: [scopeMediaItemForAi] } : {}),
       ...(currentMediaId !== undefined ? { currentMediaId } : {}),
@@ -297,7 +295,7 @@ export function useTranscriptionAiController(
       recentActions: formatRecentActions(input.recentTimelineEditEvents),
       timelineReadModelEpoch: effectiveUnitIndex.epoch,
     });
-  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layers, input.recentTimelineEditEvents, scopeMediaItemForAi, input.selectedUnitIds, input.selectionSnapshot, input.translationLayerCount]);
+  }, [acousticSummary, effectiveUnitIndex, input.activeLayerIdForEdits, input.activeTextId, input.aiConfidenceAvg, input.authoritativeUnitCount, input.defaultTranscriptionLayerId, input.layerLinks, input.layers, input.noteSummary, input.recentTimelineEditEvents, input.speakers, input.visibleTimelineState, scopeMediaItemForAi, input.selectedUnitIds, input.selectionSnapshot, input.translationDrafts, input.translationLayerCount, input.unitDrafts]);
 
   const handleAiToolRiskCheck = createTranscriptionAiToolRiskCheck({
     locale,

@@ -1170,6 +1170,7 @@ function buildProgressiveDisclosureSection(input) {
   const {
     auditExportPath,
     auditRows,
+    readError,
     releaseProfile,
   } = input;
 
@@ -1186,12 +1187,14 @@ function buildProgressiveDisclosureSection(input) {
   );
 
   if (decisionRows.length === 0) {
-    return {
+    const out = {
       status: 'skipped',
       skipReason: 'no_decision_rows',
       auditExportPath: toRelativePath(auditExportPath),
       cards: [],
     };
+    if (readError) out.readError = readError;
+    return out;
   }
 
   const requestStats = new Map();
@@ -1345,6 +1348,7 @@ function buildMemoryRecallShapeSection(input) {
   const {
     auditExportPath,
     auditRows,
+    readError,
     releaseProfile,
   } = input;
 
@@ -1361,12 +1365,14 @@ function buildMemoryRecallShapeSection(input) {
   );
 
   if (decisionRows.length === 0) {
-    return {
+    const out = {
       status: 'skipped',
       skipReason: 'no_decision_rows',
       auditExportPath: toRelativePath(auditExportPath),
       card: null,
     };
+    if (readError) out.readError = readError;
+    return out;
   }
 
   let candidateCountSum = 0;
@@ -1489,6 +1495,7 @@ function buildCostGuardSection(input) {
   const {
     auditExportPath,
     auditRows,
+    readError,
     costEstimatorVersion,
   } = input;
 
@@ -1523,7 +1530,7 @@ function buildCostGuardSection(input) {
   );
 
   if (decisionRows.length === 0) {
-    return {
+    const out = {
       status: 'skipped',
       skipReason: 'no_decision_rows',
       estimatorVersion: costEstimatorVersion,
@@ -1547,6 +1554,8 @@ function buildCostGuardSection(input) {
         sampleSource: 'audit_export',
       },
     };
+    if (readError) out.readError = readError;
+    return out;
   }
 
   const requestStats = new Map();
@@ -1658,6 +1667,34 @@ function buildCostGuardSection(input) {
   };
 }
 
+function hasSectionReadError(section) {
+  return !!section && typeof section === 'object' && (
+    !!section.readError
+    || !!section.auditReadError
+    || !!section.fixtureReadError
+    || !!section.perfJsonReportReadError
+  );
+}
+
+function hasAiEvidenceFailure(aiEvidenceCards) {
+  return aiEvidenceCards.summary.total > 0 && aiEvidenceCards.summary.ready === 0;
+}
+
+function buildEvidenceSummary(evidenceIndex) {
+  const failed = evidenceIndex.filter((item) => typeof item.exitCode === 'number' && item.exitCode !== 0).length;
+  const skipped = evidenceIndex.filter((item) => (
+    item.exitCode === null
+    || String(item.evidenceType ?? '').endsWith('_skipped')
+    || / skipped\b/i.test(String(item.conclusion ?? ''))
+  )).length;
+  return {
+    total: evidenceIndex.length,
+    passed: Math.max(0, evidenceIndex.length - failed - skipped),
+    failed,
+    skipped,
+  };
+}
+
 function buildReport(input) {
   const {
     generatedAt,
@@ -1678,11 +1715,7 @@ function buildReport(input) {
     memoryRecallShapeSection,
   } = input;
 
-  const stepPassed = countByStatus(stepResults, 'passed');
   const failed = countByStatus(stepResults, 'failed');
-  const stepSkipped = countByStatus(stepResults, 'skipped');
-  const aiReady = aiEvidenceCards.summary.ready;
-  const aiSkipped = aiEvidenceCards.summary.skipped;
 
   const steps = stepResults.map((item) => ({
     id: item.id,
@@ -1823,10 +1856,44 @@ function buildReport(input) {
       : `points=${costGuardSection.trend.pointCount};compareReady=${costGuardSection.trend.compareReady ? 'yes' : 'no'}`,
   });
 
+  const aiEvidenceFailed = hasAiEvidenceFailure(aiEvidenceCards);
+  const evidenceReadError = hasSectionReadError(aiEvidenceCards)
+    || hasSectionReadError(perfSection)
+    || hasSectionReadError(extensionCapabilityAudit)
+    || hasSectionReadError(progressiveDisclosureSection)
+    || hasSectionReadError(memoryRecallShapeSection)
+    || hasSectionReadError(costGuardSection);
+  if (aiEvidenceFailed) {
+    evidenceIndex.push({
+      conclusionId: 'a2.ai-evidence-card.require-ready',
+      conclusion: 'A2 AI evidence card readiness requirement failed',
+      evidenceType: 'audit_replay_requirement_failed',
+      command: 'release_evidence:require_ai_evidence_card_ready',
+      module: 'ai-audit',
+      exitCode: 1,
+      logPath: null,
+      keySummary: `ready=${aiEvidenceCards.summary.ready};total=${aiEvidenceCards.summary.total}`,
+    });
+  }
+  if (evidenceReadError) {
+    evidenceIndex.push({
+      conclusionId: 'release-evidence.input-read.require-success',
+      conclusion: 'Release evidence input read requirement failed',
+      evidenceType: 'input_read_requirement_failed',
+      command: 'release_evidence:require_input_reads_successful',
+      module: 'release-evidence',
+      exitCode: 1,
+      logPath: null,
+      keySummary: 'One or more explicitly provided evidence input files could not be read.',
+    });
+  }
+
+  const summary = buildEvidenceSummary(evidenceIndex);
+
   return {
     schemaVersion: 1,
     reportType: 'release-evidence',
-    degraded: failed > 0,
+    degraded: failed > 0 || aiEvidenceFailed || evidenceReadError,
     metadata: {
       generatedAt,
       releaseProfile,
@@ -1841,12 +1908,7 @@ function buildReport(input) {
       outputPath: toRelativePath(outputPath),
       logsDir: toRelativePath(logsDir),
     },
-    summary: {
-      total: steps.length + aiEvidenceCards.summary.total,
-      passed: stepPassed + aiReady,
-      failed,
-      skipped: stepSkipped + aiSkipped,
-    },
+    summary,
     evidenceIndex,
     steps,
     aiToolEvidenceCards: aiEvidenceCards,
@@ -1953,6 +2015,7 @@ async function run() {
     costGuardSection: buildCostGuardSection({
       auditExportPath: aiAuditExportPath,
       auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
       costEstimatorVersion,
     }),
     extensionCapabilityAudit: buildExtensionCapabilityAuditSection({
@@ -1963,11 +2026,13 @@ async function run() {
     progressiveDisclosureSection: buildProgressiveDisclosureSection({
       auditExportPath: aiAuditExportPath,
       auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
       releaseProfile,
     }),
     memoryRecallShapeSection: buildMemoryRecallShapeSection({
       auditExportPath: aiAuditExportPath,
       auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
       releaseProfile,
     }),
   });

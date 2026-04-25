@@ -4,7 +4,7 @@ import type { ResolveAiChatStreamCompletionParams, ResolveAiChatStreamCompletion
 /** Per-turn identity + model output slice (varies between first completion and agent-loop steps). */
 export type AiChatStreamCompletionCore = Pick<
   ResolveAiChatStreamCompletionParams,
-  'assistantId' | 'assistantContent' | 'userText' | 'aiContext'
+  'assistantId' | 'assistantContent' | 'userText' | 'aiContext' | 'memoryRecallShape'
 >;
 
 /**
