@@ -1355,6 +1355,7 @@ export const DICT_KEYS = [
   'transcription.aiTool.layer.noMatchByLanguage',
   'transcription.aiTool.layer.multipleMatchByLanguage',
   'transcription.aiTool.layer.deleteMissingTarget',
+  'transcription.aiTool.layer.invalidLayerType',
   'transcription.aiTool.layer.noAvailableByType',
   'transcription.aiTool.layer.linkMissingTranscriptionTarget',
   'transcription.aiTool.layer.linkMissingTranslationTarget',

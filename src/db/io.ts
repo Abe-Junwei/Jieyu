@@ -6,8 +6,8 @@
  */
 import { z } from 'zod';
 import type { Table } from 'dexie';
-import type { TextDocType, MediaItemDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, ProvenanceEnvelope, JieyuCollections, ImportConflictStrategy, ImportResult } from './types';
-import { isoDateSchema, validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validatePhonemeDoc, validateTagDefinitionDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
+import type { TextDocType, MediaItemDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType, ProvenanceEnvelope, JieyuCollections, ImportConflictStrategy, ImportResult } from './types';
+import { isoDateSchema, validateTextDoc, validateMediaItemDoc, validateUnitTokenDoc, validateUnitMorphemeDoc, validateAnchorDoc, validateLexemeDoc, validateTokenLexemeLinkDoc, validateAiTaskDoc, validateEmbeddingDoc, validateAiConversationDoc, validateAiMessageDoc, validateLanguageDoc, validateLanguageDisplayNameDoc, validateLanguageAliasDoc, validateLanguageCatalogHistoryDoc, validateCustomFieldDefinitionDoc, validateSpeakerDoc, validateOrthographyDoc, validateOrthographyBridgeDoc, validateLocationDoc, validateBibliographicSourceDoc, validateGrammarDoc, validateAbbreviationDoc, validateStructuralRuleProfileAssetDoc, validatePhonemeDoc, validateLayerDoc, validateLayerUnitDoc, validateLayerUnitContentDoc, validateUnitRelationDoc, validateLayerLinkDoc, validateTierDefinitionDoc, validateTierAnnotationDoc, validateAuditLogDoc, validateUserNoteDoc, validateSegmentMetaDoc, validateSegmentQualitySnapshotDoc, validateScopeStatsSnapshotDoc, validateSpeakerProfileSnapshotDoc, validateTranslationStatusSnapshotDoc, validateLanguageAssetOverviewDoc, validateAiTaskSnapshotDoc, validateTrackEntityDoc } from './schemas';
 import { db, getDb } from './engine';
 
 /** Import/export JSON snapshots must use this exact `schemaVersion` (no older/newer formats). */
@@ -108,6 +108,7 @@ const knownCollectionNames = [
   'bibliographic_sources',
   'grammar_docs',
   'abbreviations',
+  'structural_rule_profiles',
   'phonemes',
   'tag_definitions',
   'layers',
@@ -156,6 +157,7 @@ const tableByCollection: Partial<Record<KnownCollectionName, Table<{ id: string 
   bibliographic_sources: db.bibliographic_sources,
   grammar_docs: db.grammar_docs,
   abbreviations: db.abbreviations,
+  structural_rule_profiles: db.structural_rule_profiles,
   phonemes: db.phonemes,
   tag_definitions: db.tag_definitions,
   layer_units: db.layer_units,
@@ -201,6 +203,7 @@ const validatorByCollection: Record<KnownCollectionName, (value: unknown) => voi
   bibliographic_sources: (value) => validateBibliographicSourceDoc(value as BibliographicSourceDocType),
   grammar_docs: (value) => validateGrammarDoc(value as GrammarDocDocType),
   abbreviations: (value) => validateAbbreviationDoc(value as AbbreviationDocType),
+  structural_rule_profiles: (value) => validateStructuralRuleProfileAssetDoc(value as StructuralRuleProfileAssetDocType),
   phonemes: (value) => validatePhonemeDoc(value as PhonemeDocType),
   tag_definitions: (value) => validateTagDefinitionDoc(value as TagDefinitionDocType),
   layers: (value) => validateLayerDoc(value as LayerDocType),

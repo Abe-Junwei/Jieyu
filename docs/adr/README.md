@@ -40,6 +40,7 @@ source_of_truth: decision-index
 - [0019-first-acoustic-import-time-remap.md](./0019-first-acoustic-import-time-remap.md)（占位晋升首绑声学：`L > duration` 时线性压缩 + 平移；删音仍保留坐标）
 - [0020-unscoped-canonical-unit-transcription-lane-read-scope.md](./0020-unscoped-canonical-unit-transcription-lane-read-scope.md)（unscoped canonical unit 的转写轨读作用域：单一 resolve 入口与读写边界）
 - [0021-zod-jitless-strict-csp.md](./0021-zod-jitless-strict-csp.md)（Zod `jitless` 与严格 `script-src`：禁止 `unsafe-eval` 前提下消除 JIT 探测 CSP 噪声）
+- [0022-annotation-analysis-graph-typed-relations.md](./0022-annotation-analysis-graph-typed-relations.md)（标注 analysisGraph 与 typed relation：非线性形态、exponent/process、fixture-first 与导出 projection）
 
 ## 建议格式
 

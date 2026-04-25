@@ -9,13 +9,15 @@ import type { LexemeDocType } from '../db';
 import { LocaleProvider } from '../i18n';
 import { LexiconPage } from './LexiconPage';
 
-const { mockListLexemes } = vi.hoisted(() => ({
+const { mockListLexemes, mockListLexemeTranscriptionJumpTargets } = vi.hoisted(() => ({
   mockListLexemes: vi.fn(),
+  mockListLexemeTranscriptionJumpTargets: vi.fn(),
 }));
 
 vi.mock('../services/LinguisticService', () => ({
   LinguisticService: {
     listLexemes: mockListLexemes,
+    listLexemeTranscriptionJumpTargets: mockListLexemeTranscriptionJumpTargets,
   },
 }));
 
@@ -59,6 +61,7 @@ function renderLexiconPage() {
 describe('LexiconPage', () => {
   beforeEach(() => {
     mockListLexemes.mockReset();
+    mockListLexemeTranscriptionJumpTargets.mockReset();
     mockListLexemes.mockResolvedValue([
       {
         id: 'lex-dog',
@@ -83,6 +86,8 @@ describe('LexiconPage', () => {
         updatedAt: '2026-04-03T00:00:00.000Z',
       },
     ] satisfies LexemeDocType[]);
+    mockListLexemeTranscriptionJumpTargets.mockResolvedValue([]);
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -114,6 +119,25 @@ describe('LexiconPage', () => {
       expect(screen.queryByText('domesticated canine')).toBeNull();
       expect(screen.getAllByText('move quickly').length).toBeGreaterThan(0);
     });
+  });
+
+  it('renders lexeme jump targets as transcription deep links', async () => {
+    mockListLexemeTranscriptionJumpTargets.mockResolvedValue([
+      {
+        textId: 'text-1',
+        mediaId: 'media-1',
+        layerId: 'layer-1',
+        unitId: 'unit-1',
+        unitKind: 'unit',
+        surfaceHint: 'dog',
+        linkUpdatedAt: '2026-04-04T00:00:00.000Z',
+      },
+    ]);
+
+    renderLexiconPage();
+
+    const hit = await screen.findByRole('link', { name: /dog/ });
+    expect(hit.getAttribute('href')).toBe('/transcription?textId=text-1&mediaId=media-1&layerId=layer-1&unitId=unit-1');
   });
 
   it('shows empty state and quick access when no lexemes exist', async () => {

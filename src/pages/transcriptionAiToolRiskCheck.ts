@@ -48,7 +48,14 @@ function hasSemanticSegmentSelector(call: AiChatToolCall): boolean {
   if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
     return true;
   }
-  return typeof call.arguments.segmentPosition === 'string' && call.arguments.segmentPosition.length > 0;
+  const segmentPosition = typeof call.arguments.segmentPosition === 'string'
+    ? call.arguments.segmentPosition.trim()
+    : '';
+  return segmentPosition === 'last'
+    || segmentPosition === 'penultimate'
+    || segmentPosition === 'middle'
+    || segmentPosition === 'previous'
+    || segmentPosition === 'next';
 }
 
 function resolveSelectorTargets(
@@ -188,6 +195,13 @@ export function createTranscriptionAiToolRiskCheck({
       } else {
         const layerType = String(call.arguments.layerType ?? '').trim().toLowerCase();
         const languageQuery = String(call.arguments.languageQuery ?? '').trim();
+        if (layerType && layerType !== 'translation' && layerType !== 'transcription') {
+          return {
+            requiresConfirmation: false,
+            riskSummary: tf(locale, 'transcription.aiTool.layer.invalidLayerType', { layerType }),
+            impactPreview: [],
+          };
+        }
         if (layerType && languageQuery) {
           const pool = layerType === 'translation' ? translationLayers
             : layerType === 'transcription' ? transcriptionLayers : [];

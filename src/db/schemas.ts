@@ -2,8 +2,9 @@
  * Zod 验证 Schema 与 validate 函数 | Zod validation schemas and validate functions
  */
 import { z } from 'zod';
+import { structuralRuleProfileSchema } from '../annotation/structuralRuleProfile';
 import { UNIT_SELF_CERTAINTY_VALUES } from '../utils/unitSelfCertainty';
-import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
+import type { TextDocType, MediaItemDocType, LayerUnitDocType, UnitTokenDocType, UnitMorphemeDocType, AnchorDocType, LexemeDocType, TokenLexemeLinkDocType, AiTaskDoc, EmbeddingDoc, AiConversationDoc, AiMessageDoc, LanguageDocType, LanguageDisplayNameDocType, LanguageAliasDocType, LanguageCatalogHistoryDocType, CustomFieldDefinitionDocType, SpeakerDocType, OrthographyDocType, OrthographyBridgeDocType, LocationDocType, BibliographicSourceDocType, GrammarDocDocType, AbbreviationDocType, StructuralRuleProfileAssetDocType, PhonemeDocType, TagDefinitionDocType, LayerDocType, LayerUnitContentDocType, UnitRelationDocType, LayerLinkDocType, TierDefinitionDocType, TierAnnotationDocType, AuditLogDocType, UserNoteDocType, SegmentMetaDocType, SegmentQualitySnapshotDocType, ScopeStatsSnapshotDocType, SpeakerProfileSnapshotDocType, TranslationStatusSnapshotDocType, LanguageAssetOverviewDocType, AiTaskSnapshotDocType, TrackEntityDocType } from './types';
 
 
 export const isoDateSchema = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
@@ -517,6 +518,34 @@ const abbreviationDocSchema = z.object({
   createdAt: isoDateSchema,
 });
 
+const structuralRuleProfileAssetDocSchema = z.object({
+  id: z.string().min(1),
+  scope: z.enum(['system', 'language', 'project', 'user']),
+  languageId: z.string().min(1).optional(),
+  projectId: z.string().min(1).optional(),
+  enabled: z.boolean(),
+  priority: z.number().int(),
+  profile: structuralRuleProfileSchema,
+  provenance: provenanceSchema.optional(),
+  createdAt: isoDateSchema,
+  updatedAt: isoDateSchema,
+}).superRefine((doc, ctx) => {
+  if (doc.scope === 'language' && !doc.languageId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['languageId'],
+      message: 'language scoped structural rule profile requires languageId',
+    });
+  }
+  if (doc.scope === 'project' && !doc.projectId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['projectId'],
+      message: 'project scoped structural rule profile requires projectId',
+    });
+  }
+});
+
 const phonemeDocSchema = z.object({
   id: z.string().min(1),
   languageId: z.string().min(1),
@@ -981,6 +1010,10 @@ export function validateGrammarDoc(doc: GrammarDocDocType): void {
 
 export function validateAbbreviationDoc(doc: AbbreviationDocType): void {
   abbreviationDocSchema.parse(doc);
+}
+
+export function validateStructuralRuleProfileAssetDoc(doc: StructuralRuleProfileAssetDocType): void {
+  structuralRuleProfileAssetDocSchema.parse(doc);
 }
 
 export function validatePhonemeDoc(doc: PhonemeDocType): void {

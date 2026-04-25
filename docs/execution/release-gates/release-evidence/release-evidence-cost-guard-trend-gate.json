@@ -1,0 +1,328 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-04-25T06:10:08.620Z",
+    "releaseProfile": "core",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "4052e6b",
+    "nodeVersion": "v25.9.0",
+    "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
+    "stage": "A1b",
+    "dryRun": true,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-cost-guard-trend-gate.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate"
+  },
+  "summary": {
+    "total": 5,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 5
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/01-check_docs-governance.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/02-check_architecture-guard.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "report.m5-trend",
+      "conclusion": "report:m5-trend skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s report:m5-trend",
+      "module": "observability",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/03-report_m5-trend.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "gate.m6-release",
+      "conclusion": "gate:m6-release skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s gate:m6-release",
+      "module": "release",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/04-gate_m6-release.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "check.m7-extension-foundation",
+      "conclusion": "check:m7-extension-foundation skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:m7-extension-foundation",
+      "module": "extension",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/05-check_m7-extension-foundation.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "a3.perf.cards",
+      "conclusion": "A3 perf evidence cards skipped",
+      "evidenceType": "perf_cards_skipped",
+      "command": "release_evidence:perf_cards",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "passed=0;failed=0;skipped=3"
+    },
+    {
+      "conclusionId": "b3.extensions.capability-audit-summary",
+      "conclusion": "B3 extension capability audit summary skipped",
+      "evidenceType": "extension_capability_audit_skipped",
+      "command": "release_evidence:extension_capability_audit",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_extension_capability_audit_source"
+    },
+    {
+      "conclusionId": "p1.progressive-disclosure.v1",
+      "conclusion": "P1-ProgressiveDisclosure card skipped",
+      "evidenceType": "progressive_disclosure_skipped",
+      "command": "release_evidence:progressive_disclosure",
+      "module": "ai-progressive-disclosure",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_audit_export_source"
+    },
+    {
+      "conclusionId": "p1.rag-shape-telemetry.v1",
+      "conclusion": "P1-RagShapeTelemetry card skipped",
+      "evidenceType": "memory_recall_shape_skipped",
+      "command": "release_evidence:memory_recall_shape",
+      "module": "ai-rag-shape",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_audit_export_source"
+    },
+    {
+      "conclusionId": "p1.cost-guard.v1",
+      "conclusion": "P1-CostGuard card skipped",
+      "evidenceType": "cost_guard_skipped",
+      "command": "release_evidence:cost_guard",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "budget=0;retry=0;retrySuccess=0;outputCap=0"
+    },
+    {
+      "conclusionId": "p1.cost-guard.trend.v1",
+      "conclusion": "P1-CostGuard trend card skipped",
+      "evidenceType": "cost_guard_trend_skipped",
+      "command": "release_evidence:cost_guard_trend",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_audit_export_source"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/02-check_architecture-guard.log"
+    },
+    {
+      "id": "report.m5-trend",
+      "kind": "gate_script",
+      "module": "observability",
+      "script": "report:m5-trend",
+      "command": "npm run -s report:m5-trend",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/03-report_m5-trend.log"
+    },
+    {
+      "id": "gate.m6-release",
+      "kind": "gate_script",
+      "module": "release",
+      "script": "gate:m6-release",
+      "command": "npm run -s gate:m6-release",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/04-gate_m6-release.log"
+    },
+    {
+      "id": "check.m7-extension-foundation",
+      "kind": "gate_script",
+      "module": "extension",
+      "script": "check:m7-extension-foundation",
+      "command": "npm run -s check:m7-extension-foundation",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-cost-guard-trend-gate/05-check_m7-extension-foundation.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 0,
+      "ready": 0,
+      "skipped": 0
+    },
+    "status": "skipped",
+    "skipReason": "no_request_ids_provided",
+    "cards": []
+  },
+  "perf": {
+    "status": "skipped",
+    "skipReason": "profile_without_performance_steps",
+    "summary": {
+      "total": 3,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 3
+    },
+    "cards": [
+      {
+        "id": "track_layout_baseline",
+        "title": "Track layout baseline",
+        "script": "perf:track",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": 260,
+        "metricObservedMs": null,
+        "metricKind": "medianMs",
+        "checks": [
+          {
+            "label": "2k",
+            "maxMs": 120,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "5k",
+            "maxMs": 260,
+            "observedMs": null,
+            "passed": null
+          }
+        ],
+        "summary": "Step is not part of current profile pipeline."
+      },
+      {
+        "id": "timeline_index_baseline",
+        "title": "Timeline unit index baseline",
+        "script": "test:timeline-cqrs-phase9",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": 500,
+        "metricObservedMs": null,
+        "metricKind": "elapsedMs",
+        "checks": [
+          {
+            "label": "1k",
+            "maxMs": 80,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "5k",
+            "maxMs": 250,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "10k",
+            "maxMs": 500,
+            "observedMs": null,
+            "passed": null
+          }
+        ],
+        "summary": "Step is not part of current profile pipeline."
+      },
+      {
+        "id": "ai_baseline",
+        "title": "AI baseline",
+        "script": "perf:ai",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": null,
+        "metricObservedMs": null,
+        "metricKind": "elapsedMs",
+        "checks": [],
+        "summary": "Step is not part of current profile pipeline."
+      }
+    ],
+    "profile": "core"
+  },
+  "progressiveDisclosure": {
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
+    "cards": []
+  },
+  "memoryRecallShape": {
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
+    "card": null
+  },
+  "costGuard": {
+    "status": "skipped",
+    "skipReason": "no_audit_export_source",
+    "estimatorVersion": "v1.provider_usage_or_unknown",
+    "summary": {
+      "requestCount": 0,
+      "budgetTriggerCount": 0,
+      "retryTriggeredCount": 0,
+      "retrySuccessCount": 0,
+      "outputCapTriggeredCount": 0
+    },
+    "trend": {
+      "bucket": "day",
+      "pointCount": 0,
+      "compareReady": false,
+      "points": []
+    },
+    "card": {
+      "id": "session_cost_guard_v1",
+      "status": "skipped",
+      "sampleSource": "none"
+    }
+  },
+  "extensions": {
+    "status": "skipped",
+    "skipReason": "no_extension_capability_audit_source",
+    "capabilityAuditSummary": []
+  }
+}

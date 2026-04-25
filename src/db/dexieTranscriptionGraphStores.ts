@@ -141,6 +141,11 @@ export function dexieStoresForOrthographyBridgeUpsertRw(db: JieyuDatabase) {
   return [db.dexie.orthography_bridges, db.dexie.orthographies] as const;
 }
 
+/** RW: user-editable structural rule profile language assets. */
+export function dexieStoresForStructuralRuleProfilesRw(db: JieyuDatabase) {
+  return [db.dexie.structural_rule_profiles] as const;
+}
+
 /**
  * RW: `LinguisticService.removeUnit` / `removeUnitsBatch` — embeddings, canonical graph,
  * lexicon, notes, anchors (same store set for both entry points).

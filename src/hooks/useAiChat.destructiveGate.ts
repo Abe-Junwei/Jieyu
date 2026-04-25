@@ -32,7 +32,14 @@ function hasSemanticDeleteSegmentSelector(call: AiChatToolCall): boolean {
   if (typeof segmentIndex === 'number' && Number.isInteger(segmentIndex) && segmentIndex >= 1) {
     return true;
   }
-  return typeof call.arguments.segmentPosition === 'string' && call.arguments.segmentPosition.length > 0;
+  const segmentPosition = typeof call.arguments.segmentPosition === 'string'
+    ? call.arguments.segmentPosition.trim()
+    : '';
+  return segmentPosition === 'last'
+    || segmentPosition === 'penultimate'
+    || segmentPosition === 'middle'
+    || segmentPosition === 'previous'
+    || segmentPosition === 'next';
 }
 
 function requiresDeleteSegmentMaterialization(call: AiChatToolCall): boolean {

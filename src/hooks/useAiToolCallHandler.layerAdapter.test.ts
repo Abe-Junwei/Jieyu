@@ -12,4 +12,23 @@ describe('layerAdapter', () => {
     ]);
     expect(layerAdapter.handles).not.toContain('set_transcription_text');
   });
+
+  it('returns clear error when delete_layer receives unsupported layerType', async () => {
+    const result = await layerAdapter.execute({
+      locale: 'zh-CN',
+      call: {
+        name: 'delete_layer',
+        arguments: {
+          layerType: 'gloss',
+          languageQuery: '中文',
+        },
+      },
+      transcriptionLayers: [],
+      translationLayers: [],
+    } as never);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('无效的层类型');
+    expect(result.message).toContain('gloss');
+  });
 });

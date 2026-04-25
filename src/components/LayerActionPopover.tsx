@@ -759,11 +759,6 @@ export const LayerActionPopover = memo(function LayerActionPopover({
             <PanelSummary
               className="layer-action-dialog-summary"
               description={editingLayer ? readAnyMultiLangLabel(editingLayer.name) ?? editingLayer.key : ''}
-              meta={(
-                <div className="panel-meta">
-                  <PanelChip>{editingLayer?.layerType === 'translation' ? actionMessages.translationLayerType : actionMessages.transcriptionLayerType}</PanelChip>
-                </div>
-              )}
             />
             <div className="layer-action-dialog-triple-row">
               <FormField htmlFor={dialectFieldId} label={actionMessages.dialectPlaceholder}>

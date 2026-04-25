@@ -65,6 +65,31 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     expect(result?.riskSummary).toContain('德语');
   });
 
+  it('returns invalid-layer-type summary when delete_layer receives unsupported layerType', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'delete_layer',
+      arguments: {
+        layerType: 'gloss',
+        languageQuery: '中文',
+      },
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('无效的层类型');
+    expect(result?.riskSummary).toContain('gloss');
+  });
+
   it('requires confirmation when deleting a segment that still has transcription and translation content', () => {
     const unit = makeUnit({
       id: 'utt-2',
@@ -363,6 +388,30 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     const result = check({
       name: 'set_transcription_text',
       arguments: { text: 'hello' },
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('缺少 segmentId');
+  });
+
+  it('does not treat unknown segmentPosition as an explicit writable target', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'set_transcription_text',
+      arguments: {
+        text: 'hello',
+        segmentPosition: 'random-position',
+      },
     });
 
     expect(result?.requiresConfirmation).toBe(false);

@@ -24,6 +24,7 @@ source_of_truth: audit-index
 - [AI智能体代码审计报告-2026-07-19.md](../archive/audits-legacy/AI智能体代码审计报告-2026-07-19.md)
 - [B摘要优先栏-25面板设计对齐审计-2026-04-03.md](./B摘要优先栏-25面板设计对齐审计-2026-04-03.md)
 - [i18n-全仓硬编码扫描基线-2026-04-01.md](./i18n-全仓硬编码扫描基线-2026-04-01.md)
+- [标注-analysisGraph-fixture基线-2026-04-25.md](./标注-analysisGraph-fixture基线-2026-04-25.md)（ADR 0022 的 fixture-first 基线：analysisGraph JSON、projection 与 diagnostic 样例）
 - [数据结构与模型盘点报告-2026-03-17.md](../archive/audits-legacy/数据结构与模型盘点报告-2026-03-17.md)
 
 ## 使用原则

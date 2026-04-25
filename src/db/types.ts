@@ -5,6 +5,7 @@
  * All interfaces, enum types, and utility type aliases for IndexedDB collections.
  */
 
+import type { StructuralRuleProfile } from '../annotation/structuralRuleProfile';
 import type { UnitSelfCertainty } from '../utils/unitSelfCertainty';
 
 /**
@@ -573,6 +574,19 @@ export interface AbbreviationDocType {
   createdAt: string;
 }
 
+export interface StructuralRuleProfileAssetDocType {
+  id: string;
+  scope: 'system' | 'language' | 'project' | 'user';
+  languageId?: string;
+  projectId?: string;
+  enabled: boolean;
+  priority: number;
+  profile: StructuralRuleProfile;
+  provenance?: ProvenanceEnvelope;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PhonemeDocType {
   id: string;
   languageId: string;
@@ -1102,6 +1116,7 @@ export type JieyuCollections = {
   bibliographic_sources: CollectionAdapter<BibliographicSourceDocType>;
   grammar_docs: CollectionAdapter<GrammarDocDocType>;
   abbreviations: CollectionAdapter<AbbreviationDocType>;
+  structural_rule_profiles: CollectionAdapter<StructuralRuleProfileAssetDocType>;
   phonemes: CollectionAdapter<PhonemeDocType>;
   tag_definitions: CollectionAdapter<TagDefinitionDocType>;
   layers: CollectionAdapter<LayerDocType>;

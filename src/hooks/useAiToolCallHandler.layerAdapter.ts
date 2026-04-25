@@ -129,6 +129,9 @@ export const layerAdapter: ToolObjectAdapter = {
       if (!layerType || !languageQuery) {
         return { ok: false, message: t(locale, 'transcription.aiTool.layer.deleteMissingTarget') };
       }
+      if (layerType !== 'translation' && layerType !== 'transcription') {
+        return { ok: false, message: tf(locale, 'transcription.aiTool.layer.invalidLayerType', { layerType }) };
+      }
 
       const pool = layerType === 'translation'
         ? ctx.translationLayers

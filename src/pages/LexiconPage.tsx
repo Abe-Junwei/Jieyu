@@ -8,9 +8,17 @@ import { PanelSection } from '../components/ui/PanelSection';
 import { PanelSummary } from '../components/ui/PanelSummary';
 import { useRegisterAppSidePane } from '../contexts/AppSidePaneContext';
 import type { LexemeDocType, MultiLangString } from '../db';
+import { useLexiconSearch } from '../hooks/useLexiconSearch';
 import { t, tf, useLocale } from '../i18n';
 import { LinguisticService } from '../services/LinguisticService';
 import { buildTranscriptionDeepLinkHref, buildTranscriptionWorkspaceReturnHref } from '../utils/transcriptionUrlDeepLink';
+
+const LEXICON_LIST_STATE_KEY = 'lexiconListState';
+
+type LexiconListState = {
+  searchText?: string;
+  selectedLexemeId?: string;
+};
 
 function readFirstValue(record: Record<string, string> | undefined, fallback: string): string {
   const firstValue = record ? Object.values(record).find((value) => value.trim().length > 0) : undefined;
@@ -34,15 +42,31 @@ function readLexemePrimaryGloss(lexeme: LexemeDocType, fallback: string): string
   return formatMultilang(firstSense?.gloss) || fallback;
 }
 
-function buildLexemeSearchText(lexeme: LexemeDocType): string {
-  return [
-    ...Object.values(lexeme.lemma),
-    lexeme.citationForm ?? '',
-    lexeme.language ?? '',
-    lexeme.lexemeType ?? '',
-    lexeme.morphemeType ?? '',
-    ...lexeme.senses.flatMap((sense) => [formatMultilang(sense.gloss), formatMultilang(sense.definition)]),
-  ].join(' ').toLowerCase();
+function readLexiconListState(): LexiconListState {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(LEXICON_LIST_STATE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const searchText = String((parsed as LexiconListState).searchText ?? '');
+    const selectedLexemeId = String((parsed as LexiconListState).selectedLexemeId ?? '');
+    return {
+      ...(searchText ? { searchText } : {}),
+      ...(selectedLexemeId ? { selectedLexemeId } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function writeLexiconListState(state: LexiconListState): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(LEXICON_LIST_STATE_KEY, JSON.stringify(state));
+  } catch {
+    /* quota / private mode */
+  }
 }
 
 export function LexiconPage() {
@@ -56,15 +80,11 @@ export function LexiconPage() {
     : queryError
       ? t(locale, 'workspace.lexicon.errorFallback')
       : '';
-  const [searchText, setSearchText] = useState('');
-  const [selectedLexemeId, setSelectedLexemeId] = useState('');
+  const initialListState = useMemo(() => readLexiconListState(), []);
+  const [searchText, setSearchText] = useState(initialListState.searchText ?? '');
+  const [selectedLexemeId, setSelectedLexemeId] = useState(initialListState.selectedLexemeId ?? '');
   const deferredSearchText = useDeferredValue(searchText);
-
-  const normalizedSearchText = deferredSearchText.trim().toLowerCase();
-  const filteredLexemes = useMemo(() => {
-    if (!normalizedSearchText) return lexemes;
-    return lexemes.filter((lexeme) => buildLexemeSearchText(lexeme).includes(normalizedSearchText));
-  }, [lexemes, normalizedSearchText]);
+  const filteredLexemes = useLexiconSearch(lexemes, deferredSearchText);
 
   useEffect(() => {
     if (filteredLexemes.length === 0) {
@@ -76,6 +96,10 @@ export function LexiconPage() {
     }
     setSelectedLexemeId(filteredLexemes[0]!.id);
   }, [filteredLexemes, selectedLexemeId]);
+
+  useEffect(() => {
+    writeLexiconListState({ searchText, selectedLexemeId });
+  }, [searchText, selectedLexemeId]);
 
   const selectedLexeme = filteredLexemes.find((lexeme) => lexeme.id === selectedLexemeId) ?? null;
   const selectedLexemeGloss = selectedLexeme
