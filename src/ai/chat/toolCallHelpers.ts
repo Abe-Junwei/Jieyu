@@ -8,6 +8,7 @@ import { extractJsonCandidates, parseToolCallFromTextZod, validateToolArgumentsZ
 import { normalizeToolCallName } from './toolCallNameNormalize';
 import { decodeEscapedUnicode, escapedUnicodeRegExp } from '../../utils/decodeEscapedUnicode';
 import { resolveLanguageQuery } from '../../utils/langMapping';
+import { getAiToolPolicy, getAiToolSegmentExecutionToolNames, isAiToolDestructive } from '../policy/aiToolPolicyMatrix';
 
 interface RawToolCallEnvelope {
   name: string;
@@ -538,7 +539,6 @@ interface ToolContextFillSpec {
 interface ToolStrategy {
   label: string;
   contextFill?: ToolContextFillSpec;
-  destructive?: boolean;
   validateArgs?: (args: Record<string, unknown>) => string | null;
   riskSpec?: {
     summary: (args: Record<string, unknown>) => string;
@@ -546,15 +546,10 @@ interface ToolStrategy {
   };
 }
 
-const SEGMENT_SELECTION_COMPATIBLE_TOOLS = new Set<AiChatToolName>([
-  'create_transcription_segment',
-  'split_transcription_segment',
+const SEGMENT_SELECTION_COMPATIBLE_TOOLS: ReadonlySet<AiChatToolName> = new Set([
+  ...getAiToolSegmentExecutionToolNames(),
   'merge_prev',
   'merge_next',
-  'delete_transcription_segment',
-  'set_transcription_text',
-  'set_translation_text',
-  'clear_translation_segment',
 ]);
 
 function toolSupportsSegmentSelectionTarget(callName: AiChatToolName): boolean {
@@ -604,7 +599,6 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   delete_transcription_segment: {
     label: '\\u5220\\u9664\\u53e5\\u6bb5',
     contextFill: { unitId: true },
-    destructive: true,
     validateArgs: validateDeleteSegmentArgs,
     riskSpec: {
       summary: (args) => {
@@ -655,7 +649,6 @@ const TOOL_STRATEGY_TABLE: Record<AiChatToolName, ToolStrategy> = {
   delete_layer: {
     label: '\\u5220\\u9664\\u5c42',
     contextFill: { layerTargetInference: true },
-    destructive: true,
     validateArgs: validateDeleteLayerArgs,
     riskSpec: {
       summary: (args) => {
@@ -1091,23 +1084,24 @@ function hasResolvableSelectionTargetForTool(callName: AiChatToolName, context: 
     selectedLayerType === 'transcription' ? selectedLayerId : '',
   );
   const selectionTargetPatch = resolveSelectionTargetPatchForTool(callName, context);
+  const policy = getAiToolPolicy(callName);
 
-  if (['create_transcription_segment', 'split_transcription_segment', 'merge_prev', 'merge_next', 'delete_transcription_segment', 'set_transcription_text', 'auto_gloss_unit', 'set_token_pos', 'set_token_gloss'].includes(callName)) {
+  if (policy.targetKind === 'segment' && policy.requiresExplicitTarget) {
+    if (callName === 'merge_transcription_segments') {
+      return selectedUnitIds.length > 1;
+    }
+    if (callName === 'set_translation_text' || callName === 'clear_translation_segment') {
+      return selectionTargetPatch !== null && selectedTranslationLayerId.length > 0;
+    }
     if (callName === 'delete_transcription_segment' && selectedUnitIds.length > 1) {
       return true;
     }
     return selectionTargetPatch !== null;
   }
-  if (callName === 'merge_transcription_segments') {
-    return selectedUnitIds.length > 1;
-  }
-  if (['set_translation_text', 'clear_translation_segment'].includes(callName)) {
-    return selectionTargetPatch !== null && selectedTranslationLayerId.length > 0;
-  }
-  if (callName === 'delete_layer') {
+  if (policy.targetKind === 'layer' && policy.requiresExplicitTarget) {
     return selectedLayerId.length > 0;
   }
-  if (['link_translation_layer', 'unlink_translation_layer', 'add_host', 'remove_host', 'switch_preferred_host'].includes(callName)) {
+  if (policy.targetKind === 'layer_link' && policy.requiresExplicitTarget) {
     return selectedTranscriptionLayerId.length > 0 && selectedTranslationLayerId.length > 0;
   }
   return false;
@@ -1283,7 +1277,7 @@ export function assessToolActionIntent(userText: string, options?: ToolIntentAss
 }
 
 export function isDestructiveToolCall(name: AiChatToolName): boolean {
-  return TOOL_STRATEGY_TABLE[name]?.destructive ?? false;
+  return isAiToolDestructive(name);
 }
 
 function describeToolCallImpact(call: AiChatToolCall): { riskSummary: string; impactPreview: string[] } {

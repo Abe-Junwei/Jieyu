@@ -482,4 +482,10 @@ export interface UseAiChatOptions {
   autoProbeIntervalMs?: number;
   autoConnectionProbeEnabled?: boolean;
   embeddingSearchService?: EmbeddingSearchService;
+  /** Session token hard budget. Requests are blocked when projected usage exceeds this threshold. */
+  sessionTokenBudget?: number;
+  /** Per-request output token cap for the first attempt. */
+  outputTokenCap?: number;
+  /** Per-request output token cap for the single escalation retry after cap hit. */
+  outputTokenRetryCap?: number;
 }

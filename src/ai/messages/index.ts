@@ -15,6 +15,7 @@ export {
   formatInlineCancelReply,
   formatNonActionFallback,
   formatPendingConfirmationBlockedError,
+  formatSessionBudgetExceededError,
   formatStreamingBusyError,
   formatTargetClarify,
 } from './conversationFeedback';

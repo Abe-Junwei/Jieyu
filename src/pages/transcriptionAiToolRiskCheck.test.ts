@@ -437,6 +437,27 @@ describe('createTranscriptionAiToolRiskCheck', () => {
     expect(result).toBeNull();
   });
 
+  it('gates explicit-target segment tools like auto_gloss_unit when target is missing', () => {
+    const check = createTranscriptionAiToolRiskCheck({
+      locale: 'zh-CN',
+      units: [],
+      transcriptionLayers: [],
+      translationLayers: [],
+      formatTime: (seconds) => `${seconds}`,
+      getUnitTextForLayer: () => '',
+      translationTextByLayer: new Map(),
+    });
+
+    const result = check({
+      name: 'auto_gloss_unit',
+      arguments: {},
+    });
+
+    expect(result?.requiresConfirmation).toBe(false);
+    expect(result?.impactPreview).toEqual([]);
+    expect(result?.riskSummary).toContain('无法定位到目标句段');
+  });
+
   it('blocks merge_transcription_segments when explicit segment ids are insufficient', () => {
     const check = createTranscriptionAiToolRiskCheck({
       locale: 'zh-CN',

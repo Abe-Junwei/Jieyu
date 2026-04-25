@@ -1,4 +1,6 @@
 import { t, tf, type Locale } from '../../i18n';
+import type { AiChatToolName } from '../chat/chatDomain.types';
+import { getAiToolPolicy } from '../policy/aiToolPolicyMatrix';
 import type { AiToolFeedbackStyle } from '../providers/providerCatalog';
 
 const SIGNAL_MISSING = '\u7f3a\u5c11';
@@ -24,9 +26,19 @@ function includesAny(message: string, needles: readonly string[]): boolean {
   return needles.some((needle) => message.includes(needle));
 }
 
+function isSegmentTargetToolWithExplicitTarget(callName: AiChatToolName): boolean {
+  const policy = getAiToolPolicy(callName);
+  return policy.targetKind === 'segment' && policy.requiresExplicitTarget;
+}
+
+function isLayerLinkTargetToolWithExplicitTarget(callName: AiChatToolName): boolean {
+  const policy = getAiToolPolicy(callName);
+  return policy.targetKind === 'layer_link' && policy.requiresExplicitTarget;
+}
+
 function toNaturalTargetResolutionPrompt(
   locale: Locale,
-  callName: string,
+  callName: AiChatToolName,
   message: string,
   style: AiToolFeedbackStyle,
 ): string | null {
@@ -50,11 +62,22 @@ function toNaturalTargetResolutionPrompt(
     );
   }
 
-  if (
-    ['create_transcription_segment', 'split_transcription_segment', 'set_transcription_text', 'delete_transcription_segment', 'auto_gloss_unit'].includes(callName)
-    && isMissingOrNotFound
-    && hasUnitSignal
-  ) {
+  if (isSegmentTargetToolWithExplicitTarget(callName) && isMissingOrNotFound) {
+    if (
+      (callName === 'set_translation_text' || callName === 'clear_translation_segment')
+      && (hasUnitSignal || hasLayerSignal || hasTranslationLayerSignal)
+    ) {
+      return pickToolCopyByStyle(
+        style,
+        t(locale, 'transcription.toolFeedback.clarify.translation.concise'),
+        t(locale, 'transcription.toolFeedback.clarify.translation.verbose'),
+      );
+    }
+
+    if (!hasUnitSignal) {
+      return null;
+    }
+
     const actionNoun = callName === 'delete_transcription_segment'
       ? t(locale, 'transcription.toolFeedback.action.delete')
       : callName === 'auto_gloss_unit'
@@ -69,23 +92,7 @@ function toNaturalTargetResolutionPrompt(
     );
   }
 
-  if (
-    ['set_translation_text', 'clear_translation_segment'].includes(callName)
-    && isMissingOrNotFound
-    && (hasUnitSignal || hasLayerSignal || hasTranslationLayerSignal)
-  ) {
-    return pickToolCopyByStyle(
-      style,
-      t(locale, 'transcription.toolFeedback.clarify.translation.concise'),
-      t(locale, 'transcription.toolFeedback.clarify.translation.verbose'),
-    );
-  }
-
-  if (
-    ['link_translation_layer', 'unlink_translation_layer', 'add_host', 'remove_host', 'switch_preferred_host'].includes(callName)
-    && isMissingOrNotFound
-    && (hasLinkLayerSignal || hasLayerSignal)
-  ) {
+  if (isLayerLinkTargetToolWithExplicitTarget(callName) && isMissingOrNotFound && (hasLinkLayerSignal || hasLayerSignal)) {
     return pickToolCopyByStyle(
       style,
       t(locale, 'transcription.toolFeedback.clarify.linkLayers.concise'),
@@ -164,7 +171,7 @@ export function formatToolSuccessMessage(
 
 export function formatToolFailureMessage(
   locale: Locale,
-  callName: string,
+  callName: AiChatToolName,
   actionLabel: string,
   message: string,
   style: AiToolFeedbackStyle,

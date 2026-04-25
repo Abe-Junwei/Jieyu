@@ -1,18 +1,10 @@
 import { nowIso } from './useAiChat.helpers';
 import { buildPreviewContract, buildToolDecisionAuditMetadata, describeAndBuildPending, isAmbiguousTargetRiskSummary, isDestructiveToolCall, toNaturalToolFailure, toNaturalToolPending } from '../ai/chat/toolCallHelpers';
 import { parseProposedChildCallsFromArguments } from '../ai/chat/proposeChangesHelpers';
+import { isAiToolDestructive, isAiToolSegmentExecutionWithExplicitTarget } from '../ai/policy/aiToolPolicyMatrix';
 import type { AiToolFeedbackStyle } from '../ai/providers/providerCatalog';
 import { t, type Locale } from '../i18n';
 import type { AiChatToolCall, AiPromptContext, AiTaskSession, AiToolRiskCheckResult, PendingAiToolCall } from './useAiChat';
-
-function isWriteTargetSensitiveTool(callName: AiChatToolCall['name']): boolean {
-  return callName === 'create_transcription_segment'
-    || callName === 'split_transcription_segment'
-    || callName === 'merge_transcription_segments'
-    || callName === 'set_transcription_text'
-    || callName === 'set_translation_text'
-    || callName === 'clear_translation_segment';
-}
 
 function getMaterializedDeleteBatchIds(call?: AiChatToolCall | null): string[] {
   if (!call) return [];
@@ -49,8 +41,8 @@ function requiresDeleteSegmentMaterialization(call: AiChatToolCall): boolean {
 }
 
 function requiresWriteTargetMaterialization(call: AiChatToolCall): boolean {
-  if (call.name === 'merge_transcription_segments') return true;
-  return isWriteTargetSensitiveTool(call.name);
+  // 从 SSOT 派生：需要显式目标但非破坏性的句段工具 | Derived from SSOT: explicit-target segment tool that is non-destructive
+  return isAiToolSegmentExecutionWithExplicitTarget(call.name) && !isAiToolDestructive(call.name);
 }
 
 function hasConcreteDeleteSegmentTarget(call?: AiChatToolCall | null): boolean {
@@ -193,7 +185,8 @@ export async function resolveDestructiveGate({
   }
 
   const destructiveBlocked = !allowDestructiveToolCalls && isDestructiveToolCall(toolCall.name);
-  const writeTargetSensitive = isWriteTargetSensitiveTool(toolCall.name);
+  const writeTargetSensitive = isAiToolSegmentExecutionWithExplicitTarget(toolCall.name)
+    && toolCall.name !== 'delete_transcription_segment';
   let riskCheck: AiToolRiskCheckResult | null | undefined;
 
   if ((destructiveBlocked || writeTargetSensitive) && onToolRiskCheck) {

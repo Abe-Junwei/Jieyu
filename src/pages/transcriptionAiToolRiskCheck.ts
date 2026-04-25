@@ -2,6 +2,7 @@ import type { LayerDocType, LayerUnitDocType } from '../db';
 import { t, tf, type Locale } from '../i18n';
 import type { AiChatToolCall, AiChatToolName, AiToolRiskCheckResult } from '../hooks/useAiChat';
 import type { SegmentTargetDescriptor } from '../hooks/useAiToolCallHandler.segmentTargeting';
+import { isAiToolDestructive, isAiToolSegmentTargetMaterializationTool } from '../ai/policy/aiToolPolicyMatrix';
 import { createMetricTags, recordMetric } from '../observability/metrics';
 import { resolveLanguageQuery, SUPPORTED_VOICE_LANGS } from '../utils/langMapping';
 import { listUniqueNonEmptyMultiLangLabels } from '../utils/multiLangLabels';
@@ -131,11 +132,8 @@ function getMissingSegmentTargetSummary(locale: Locale, callName: AiChatToolName
 }
 
 function isNonDeleteSegmentWriteTool(name: AiChatToolName): boolean {
-  return name === 'create_transcription_segment'
-    || name === 'split_transcription_segment'
-    || name === 'set_transcription_text'
-    || name === 'set_translation_text'
-    || name === 'clear_translation_segment';
+  // 从 SSOT 派生：非合并且非破坏性的句段执行工具 | Derived from SSOT: non-merge and non-destructive segment execution tool
+  return isAiToolSegmentTargetMaterializationTool(name) && !isAiToolDestructive(name);
 }
 
 function getRequestedSegmentIds(call: AiChatToolCall): string[] {

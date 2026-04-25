@@ -109,6 +109,15 @@ export function formatPendingConfirmationBlockedError(): string {
   return '\u5b58\u5728\u5f85\u786e\u8ba4\u7684\u9ad8\u98ce\u9669\u5de5\u5177\u8c03\u7528，\u8bf7\u5148\u786e\u8ba4\u6216\u53d6\u6d88\u540e\u518d\u7ee7\u7eed。';
 }
 
+export function formatSessionBudgetExceededError(
+  sessionTokenBudget: number,
+  currentSessionTokens: number,
+  estimatedInputTokens: number,
+): string {
+  const projected = currentSessionTokens + estimatedInputTokens;
+  return `\u672c\u4f1a\u8bdd\u7684 token \u9884\u7b97\u5df2\u8d85\u9650（\u4e0a\u9650 ${sessionTokenBudget}，\u5f53\u524d ${currentSessionTokens}，\u672c\u6b21\u9884\u4f30 +${estimatedInputTokens}，\u9884\u8ba1 ${projected}）。\u8bf7\u7cbe\u7b80\u95ee\u9898\u6216\u5f00\u542f\u65b0\u4f1a\u8bdd\u540e\u518d\u8bd5。`;
+}
+
 export function formatFirstChunkTimeoutError(isLongThinkProvider: boolean, providerLabel: string): string {
   if (isLongThinkProvider) {
     return `${providerLabel} \u601d\u8003\u65f6\u95f4\u8f83\u957f（\u9996\u5305\u8d85\u65f6，\u5df2\u7b49\u5f8560\u79d2），\u8bf7\u7a0d\u540e\u91cd\u8bd5，\u6216\u5207\u6362\u81f3\u5176\u4ed6\u6a21\u578b。`;

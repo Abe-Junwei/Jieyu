@@ -113,4 +113,42 @@ describe('resolveDestructiveGate write-target gating', () => {
     );
     expect(setPendingToolCall).not.toHaveBeenCalled();
   });
+
+  it('applies write-target gate to explicit-target tools like auto_gloss_unit', async () => {
+    const toolCall: AiChatToolCall = {
+      name: 'auto_gloss_unit',
+      arguments: {},
+    };
+    const onToolRiskCheck = vi.fn().mockResolvedValue(null);
+    const preparePendingToolCall = vi.fn();
+    const writeToolDecisionAuditLog = vi.fn().mockResolvedValue(undefined);
+    const setTaskSession = vi.fn();
+    const setPendingToolCall = vi.fn();
+    const bumpFailureMetric = vi.fn();
+
+    const result = await resolveDestructiveGate({
+      assistantMessageId: 'assistant-3',
+      toolCall,
+      aiContext: null,
+      auditContext: createBaseAuditContext(),
+      locale: 'zh-CN',
+      toolFeedbackStyle: 'concise',
+      allowDestructiveToolCalls: false,
+      onToolRiskCheck,
+      preparePendingToolCall,
+      writeToolDecisionAuditLog,
+      setTaskSession,
+      setPendingToolCall,
+      taskSessionId: 'task-3',
+      bumpFailureMetric,
+    });
+
+    expect(result.kind).toBe('error');
+    expect(onToolRiskCheck).toHaveBeenCalledWith(toolCall);
+    expect(preparePendingToolCall).toHaveBeenCalledWith(toolCall);
+    expect(setTaskSession).toHaveBeenCalledTimes(1);
+    expect(setPendingToolCall).not.toHaveBeenCalled();
+    expect(writeToolDecisionAuditLog).toHaveBeenCalledTimes(1);
+    expect(bumpFailureMetric).toHaveBeenCalledTimes(1);
+  });
 });
