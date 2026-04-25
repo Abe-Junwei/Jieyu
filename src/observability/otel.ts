@@ -1,4 +1,5 @@
 import { createMetricTags, recordMetric } from './metrics';
+import { isSensitiveObservabilityKey, scrubSensitiveQueryParams } from './sensitiveKeyPolicy';
 
 export interface OtelBootstrapEnv {
   PROD: boolean;
@@ -39,9 +40,7 @@ const OTEL_DEFAULT_MAX_EXPORT_BATCH_SIZE = 64;
 const OTEL_DEFAULT_SCHEDULE_DELAY_MILLIS = 1_000;
 const OTEL_DEFAULT_CIRCUIT_BREAKER_FAILURE_THRESHOLD = 3;
 const OTEL_EXPORT_RESULT_SUCCESS = 0;
-const OTEL_SENSITIVE_KEY_RE = /api.?key|token|password|secret|authorization/i;
 const OTEL_CONTENT_KEY_RE = /prompt|input|content/i;
-const OTEL_URL_SECRET_RE = /([?&](?:api.?key|token|password|secret|authorization)=)[^&]*/gi;
 let otelInitPromise: Promise<void> | null = null;
 let otelConsecutiveExportFailures = 0;
 let otelExportCircuitOpen = false;
@@ -167,7 +166,7 @@ function resolveServiceVersion(rawValue: string | undefined): string {
 function scrubOtelAttributeValue(key: string, value: unknown): unknown {
   if (value == null) return value;
 
-  if (OTEL_SENSITIVE_KEY_RE.test(key)) {
+  if (isSensitiveObservabilityKey(key)) {
     return '[REDACTED]';
   }
 
@@ -176,7 +175,7 @@ function scrubOtelAttributeValue(key: string, value: unknown): unknown {
       return `len:${value.length}`;
     }
     if (/url/i.test(key)) {
-      return value.replace(OTEL_URL_SECRET_RE, '$1[REDACTED]');
+      return scrubSensitiveQueryParams(value);
     }
   }
 

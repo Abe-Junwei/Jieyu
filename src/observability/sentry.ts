@@ -1,4 +1,4 @@
-import { deepScrubPlainObjectForObservability } from './logger';
+import { deepScrubSensitiveObject, maskSensitiveStringKeepTail } from './sensitiveKeyPolicy';
 
 export interface SentryBootstrapEnv {
   PROD: boolean;
@@ -57,14 +57,16 @@ export async function initSentryForReleaseStage(): Promise<void> {
   await initSentryWithResolvedConfig(config);
 }
 
-function scrubUnknownForSentry(value: unknown): unknown {
+export function scrubUnknownForSentry(value: unknown): unknown {
   if (value === null || value === undefined) return value;
   if (value instanceof Date) return value;
   if (Array.isArray(value)) {
     return value.map((item) => scrubUnknownForSentry(item));
   }
   if (typeof value === 'object' && !Array.isArray(value)) {
-    return deepScrubPlainObjectForObservability(value as Record<string, unknown>);
+    return deepScrubSensitiveObject(value as Record<string, unknown>, {
+      maskSensitiveString: maskSensitiveStringKeepTail,
+    });
   }
   return value;
 }
@@ -93,7 +95,7 @@ export async function initSentryWithResolvedConfig(
         }
       }
       if (event.extra) {
-        event.extra = deepScrubPlainObjectForObservability(event.extra as Record<string, unknown>) as typeof event.extra;
+        event.extra = scrubUnknownForSentry(event.extra as Record<string, unknown>) as typeof event.extra;
       }
       return event;
     };
