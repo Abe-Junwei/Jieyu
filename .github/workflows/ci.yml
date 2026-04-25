@@ -7,6 +7,12 @@ on:
       - main
       - dev
   workflow_dispatch:
+    inputs:
+      run_release_evidence_full:
+        description: 'Run full release evidence gate (can be long-running)'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -225,6 +231,85 @@ jobs:
 
       - name: M7 extension gate (enforce)
         run: npm run gate:m7-extension
+
+  release-evidence-core-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export release evidence AI audit input
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run export:release-evidence:ai-audit
+
+      - name: Release evidence core gate (enforce)
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run gate:release-evidence:core
+
+      - name: Upload release evidence artifacts (core)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-core-${{ github.run_id }}
+          path: |
+            docs/execution/release-gates/release-evidence/release-evidence-*.json
+            docs/execution/release-gates/release-evidence/logs/**/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  release-evidence-full-gate:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_release_evidence_full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export release evidence AI audit input
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run export:release-evidence:ai-audit
+
+      - name: Release evidence full gate (enforce)
+        env:
+          RELEASE_EVIDENCE_AI_REQUEST_IDS: toolreq_runtime_ci_001
+          RELEASE_EVIDENCE_AI_AUDIT_EXPORT: docs/execution/audits/ai-tool-decision-audit-export-v1.ndjson
+        run: npm run gate:release-evidence:full
+
+      - name: Upload release evidence artifacts (full)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence-full-${{ github.run_id }}
+          path: |
+            docs/execution/release-gates/release-evidence/release-evidence-*.json
+            docs/execution/release-gates/release-evidence/logs/**/*.log
+          if-no-files-found: warn
+          retention-days: 14
 
   m8-collaboration-gate:
     runs-on: ubuntu-latest
