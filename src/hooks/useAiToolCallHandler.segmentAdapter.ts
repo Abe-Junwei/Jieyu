@@ -1,19 +1,12 @@
 import { t, tf } from '../i18n';
+import { getAiToolSegmentExecutionToolNames } from '../ai/policy/aiToolPolicyMatrix';
 import { mediaDurationSecForTimeBounds } from '../utils/timelineMediaDurationForBounds';
 import { readAnyMultiLangLabel } from '../utils/multiLangLabels';
 import { normalizeRequestedIds } from './useAiToolCallHandler.helpers';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
 
 export const segmentAdapter: ToolObjectAdapter = {
-  handles: [
-    'create_transcription_segment',
-    'split_transcription_segment',
-    'merge_transcription_segments',
-    'delete_transcription_segment',
-    'set_transcription_text',
-    'set_translation_text',
-    'clear_translation_segment',
-  ],
+  handles: getAiToolSegmentExecutionToolNames(),
   async execute(ctx) {
     const { call, locale } = ctx;
 

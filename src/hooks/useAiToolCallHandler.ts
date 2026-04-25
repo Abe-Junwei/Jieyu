@@ -6,6 +6,7 @@ import { tf, useLocale } from '../i18n';
 import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';
 import type { ExecutionContext, UseAiToolCallHandlerParams as Params, CompensationEntry } from './useAiToolCallHandler.types';
 import { AI_TOOL_CALL_ADAPTER_MAP } from './useAiToolCallHandler.adapters';
+import { isAiToolSegmentExecutionWithExplicitTarget } from '../ai/policy/aiToolPolicyMatrix';
 
 // ─────────────────────────────────────────────────────────────
 //  Hook 主体
@@ -78,19 +79,11 @@ export function useAiToolCallHandler({
       if (endDiff !== 0) return endDiff;
       return left.id.localeCompare(right.id);
     });
-    const segmentOnlyTargetTools = new Set<AiChatToolCall['name']>([
-      'create_transcription_segment',
-      'split_transcription_segment',
-      'merge_transcription_segments',
-      'delete_transcription_segment',
-      'set_transcription_text',
-      'set_translation_text',
-      'clear_translation_segment',
-      'merge_prev',
-      'merge_next',
-    ]);
+    const isSegmentOnlyTargetTool = (toolName: AiChatToolCall['name']): boolean => isAiToolSegmentExecutionWithExplicitTarget(toolName)
+      || toolName === 'merge_prev'
+      || toolName === 'merge_next';
     const resolvePrimaryRequestedTargetId = (): string => {
-      if (segmentOnlyTargetTools.has(call.name)) {
+      if (isSegmentOnlyTargetTool(call.name)) {
         return String(call.arguments.segmentId ?? '').trim();
       }
       return String(call.arguments.unitId ?? call.arguments.segmentId ?? '').trim();

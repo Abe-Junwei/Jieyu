@@ -1,4 +1,5 @@
 import type { LayerDocType, LayerUnitDocType } from '../db';
+import { isAiToolSegmentTargetMaterializationTool } from '../ai/policy/aiToolPolicyMatrix';
 import type { AiChatToolCall } from './useAiChat';
 import { layerMatchesLanguage, parseLayerHintFromOpaqueId } from './useAiToolCallHandler.helpers';
 
@@ -88,14 +89,7 @@ function materializeSegmentTargetCall(
   call: AiChatToolCall,
   context: PendingToolCallPreparationContext,
 ): AiChatToolCall {
-  if (![
-    'create_transcription_segment',
-    'split_transcription_segment',
-    'delete_transcription_segment',
-    'set_transcription_text',
-    'set_translation_text',
-    'clear_translation_segment',
-  ].includes(call.name)) {
+  if (!isAiToolSegmentTargetMaterializationTool(call.name)) {
     return call;
   }
 

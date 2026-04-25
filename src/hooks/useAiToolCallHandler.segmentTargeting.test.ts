@@ -210,6 +210,26 @@ describe('materializePendingToolCallTargets', () => {
     expect(prepared.arguments.unitIds).toEqual(['utt-2', 'utt-1']);
   });
 
+  it('keeps auto_gloss_unit legacy unitId arguments unchanged', () => {
+    const call: AiChatToolCall = {
+      name: 'auto_gloss_unit',
+      arguments: { unitId: 'utt-1' },
+    };
+
+    const prepared = materializePendingToolCallTargets(call, {
+      units: [makeUnit('utt-1', 1)],
+      transcriptionLayers: [],
+      translationLayers: [],
+      segmentTargets: [
+        { id: 'seg-1', kind: 'segment', startTime: 1, endTime: 2, text: '第一段', unitId: 'utt-1' },
+      ],
+      selectedSegmentTargetId: 'seg-1',
+    });
+
+    expect(prepared.arguments.unitId).toBe('utt-1');
+    expect(prepared.arguments.segmentId).toBeUndefined();
+  });
+
   it('keeps allSegments when there are no units to snapshot', () => {
     const call: AiChatToolCall = {
       name: 'delete_transcription_segment',

@@ -4,6 +4,7 @@ import { createLogger } from '../observability/logger';
 import { t, tf } from '../i18n';
 import { formatLayerTypeLabel } from './useAiToolCallHandler.helpers';
 import type { ToolObjectAdapter } from './useAiToolCallHandler.types';
+import { getAiToolLayerLinkActionKind, getAiToolLayerLinkExecutionToolNames, isAiToolLayerLinkWithExplicitTarget } from '../ai/policy/aiToolPolicyMatrix';
 
 const log = createLogger('useAiToolCallHandler');
 
@@ -12,11 +13,7 @@ export const layerAdapter: ToolObjectAdapter = {
     'create_transcription_layer',
     'create_translation_layer',
     'delete_layer',
-    'link_translation_layer',
-    'unlink_translation_layer',
-    'add_host',
-    'remove_host',
-    'switch_preferred_host',
+    ...getAiToolLayerLinkExecutionToolNames(),
   ],
   async execute(ctx) {
     const { call, compensationRef, COMPENSATION_TTL_MS, locale } = ctx;
@@ -171,16 +168,11 @@ export const layerAdapter: ToolObjectAdapter = {
       return { ok: true, message: tf(locale, 'transcription.aiTool.layer.deleteDone', { layerId: targetLayer.id }) };
     }
 
-    if (
-      call.name === 'link_translation_layer'
-      || call.name === 'unlink_translation_layer'
-      || call.name === 'add_host'
-      || call.name === 'remove_host'
-      || call.name === 'switch_preferred_host'
-    ) {
-      const isAddHostAction = call.name === 'link_translation_layer' || call.name === 'add_host';
-      const isRemoveHostAction = call.name === 'unlink_translation_layer' || call.name === 'remove_host';
-      const isSwitchPreferredHostAction = call.name === 'switch_preferred_host';
+    if (isAiToolLayerLinkWithExplicitTarget(call.name)) {
+      const layerLinkAction = getAiToolLayerLinkActionKind(call.name);
+      const isAddHostAction = layerLinkAction === 'add_host';
+      const isRemoveHostAction = layerLinkAction === 'remove_host';
+      const isSwitchPreferredHostAction = layerLinkAction === 'switch_preferred_host';
       const requestedTranscriptionLayerId = String(call.arguments.transcriptionLayerId ?? '').trim();
       const requestedTranscriptionLayerKey = String(call.arguments.transcriptionLayerKey ?? '').trim();
       if (!requestedTranscriptionLayerId && !requestedTranscriptionLayerKey) {

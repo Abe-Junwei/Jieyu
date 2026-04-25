@@ -1,7 +1,22 @@
 import type { DictKey, Locale } from './index';
 import { t } from './index';
 
-const catalogCache = new Map<string, unknown>();
+const MESSAGE_CATALOG_CACHE_GLOBAL_KEY = '__JIEYU_MESSAGE_CATALOG_CACHE__';
+
+function getCatalogCache(): Map<string, unknown> {
+  const globalValue = globalThis as typeof globalThis & {
+    [MESSAGE_CATALOG_CACHE_GLOBAL_KEY]?: Map<string, unknown>;
+  };
+  const existing = globalValue[MESSAGE_CATALOG_CACHE_GLOBAL_KEY];
+  if (existing instanceof Map) {
+    return existing;
+  }
+  const created = new Map<string, unknown>();
+  globalValue[MESSAGE_CATALOG_CACHE_GLOBAL_KEY] = created;
+  return created;
+}
+
+const catalogCache = getCatalogCache();
 
 export function readMessageCatalog<T>(locale: Locale, key: DictKey): T {
   const cacheKey = `${locale}:${key}`;
@@ -9,9 +24,29 @@ export function readMessageCatalog<T>(locale: Locale, key: DictKey): T {
   if (cached) {
     return cached as T;
   }
-  const parsed = JSON.parse(t(locale, key)) as T;
-  catalogCache.set(cacheKey, parsed);
-  return parsed;
+  const rawCatalog = t(locale, key);
+  try {
+    const parsed = JSON.parse(rawCatalog) as T;
+    catalogCache.set(cacheKey, parsed);
+    catalogCache.set(`*:${key}`, parsed);
+    return parsed;
+  } catch (error) {
+    const crossLocaleCached = catalogCache.get(`*:${key}`);
+    if (crossLocaleCached) {
+      catalogCache.set(cacheKey, crossLocaleCached);
+      return crossLocaleCached as T;
+    }
+    if (import.meta.env.DEV) {
+      console.warn(`[i18n] readMessageCatalog(): fallback to empty catalog for key "${String(key)}".`, {
+        locale,
+        rawCatalog,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    const empty = {} as T;
+    catalogCache.set(cacheKey, empty);
+    return empty;
+  }
 }
 
 export function formatCatalogTemplate(
