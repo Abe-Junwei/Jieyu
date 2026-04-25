@@ -1003,6 +1003,161 @@ const COST_GUARD_OUTPUT_CAP_REASONS = new Set([
   'completion_output_capped',
 ]);
 
+const PROGRESSIVE_SUCCESS_DECISIONS = new Set(['confirmed', 'auto_confirmed']);
+const PROGRESSIVE_ADVANCED_REASON_CODES = new Set([
+  'retry_with_compact_context',
+  'retry_after_output_cap',
+  'retry_budget_upgrade',
+  'context_budget_exceeded',
+  'session_budget_exceeded',
+  'cost_budget_exceeded',
+  'output_cap_triggered',
+  'output_token_cap_exceeded',
+  'completion_output_capped',
+]);
+
+function toFixedRate(numerator, denominator) {
+  if (!Number.isFinite(denominator) || denominator <= 0) return 0;
+  if (!Number.isFinite(numerator) || numerator <= 0) return 0;
+  return Number((numerator / denominator).toFixed(4));
+}
+
+function buildProgressiveDisclosureCard(input) {
+  const {
+    id,
+    numerator,
+    denominator,
+    numeratorSource,
+    denominatorSource,
+    fullSampleRequestIds,
+    releaseProfile,
+  } = input;
+  return {
+    id,
+    status: 'ready_or_partial',
+    value: toFixedRate(numerator, denominator),
+    numerator,
+    denominator,
+    numeratorSource,
+    denominatorSource,
+    ...(releaseProfile === 'full' ? { sampleRequestIds: fullSampleRequestIds.slice(0, 10) } : {}),
+  };
+}
+
+function buildProgressiveDisclosureSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    releaseProfile,
+  } = input;
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      cards: [],
+    };
+  }
+
+  const decisionRows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_tool_call_decision'),
+  );
+
+  if (decisionRows.length === 0) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_decision_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      cards: [],
+    };
+  }
+
+  const requestStats = new Map();
+  for (const row of decisionRows) {
+    if (!requestStats.has(row.requestId)) {
+      requestStats.set(row.requestId, {
+        latestDecision: 'unknown',
+        clarifyCount: 0,
+        hasAdvancedEntry: false,
+      });
+    }
+    const slot = requestStats.get(row.requestId);
+    const decision = extractDecisionFromDecisionRow(row);
+    const reason = String(decision.reason ?? '').trim();
+    const metadata = getMetadataObject(row);
+
+    slot.latestDecision = decision.decision;
+    if (decision.decision === 'clarify') {
+      slot.clarifyCount += 1;
+    }
+    const advancedByReason = PROGRESSIVE_ADVANCED_REASON_CODES.has(reason);
+    const advancedByDecision = decision.decision === 'retry' || decision.decision === 'capped';
+    const advancedByMetadata = isRetryTriggeredByMetadata(metadata)
+      || isOutputCapTriggeredByMetadata(metadata)
+      || isBudgetTriggeredByMetadata(metadata);
+    if (advancedByReason || advancedByDecision || advancedByMetadata) {
+      slot.hasAdvancedEntry = true;
+    }
+  }
+
+  const total = requestStats.size;
+  const firstPassIds = [];
+  const clarifyThenSuccessIds = [];
+  const advancedEntryIds = [];
+  const clarifyLoopIds = [];
+
+  for (const [requestId, item] of requestStats.entries()) {
+    const success = PROGRESSIVE_SUCCESS_DECISIONS.has(item.latestDecision);
+    if (success && item.clarifyCount === 0) firstPassIds.push(requestId);
+    if (success && item.clarifyCount === 1) clarifyThenSuccessIds.push(requestId);
+    if (item.hasAdvancedEntry) advancedEntryIds.push(requestId);
+    if (!success && item.clarifyCount >= 2) clarifyLoopIds.push(requestId);
+  }
+
+  return {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    cards: [
+      buildProgressiveDisclosureCard({
+        id: 'first_pass_resolution_rate',
+        numerator: firstPassIds.length,
+        denominator: total,
+        numeratorSource: 'ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=0',
+        denominatorSource: 'distinct requestId in ai_messages.ai_tool_call_decision',
+        fullSampleRequestIds: firstPassIds,
+        releaseProfile,
+      }),
+      buildProgressiveDisclosureCard({
+        id: 'clarify_then_success_rate',
+        numerator: clarifyThenSuccessIds.length,
+        denominator: total,
+        numeratorSource: 'ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=1',
+        denominatorSource: 'distinct requestId in ai_messages.ai_tool_call_decision',
+        fullSampleRequestIds: clarifyThenSuccessIds,
+        releaseProfile,
+      }),
+      buildProgressiveDisclosureCard({
+        id: 'advanced_entry_reach_rate',
+        numerator: advancedEntryIds.length,
+        denominator: total,
+        numeratorSource: 'ai_messages.ai_tool_call_decision reason in advanced set OR decision in {retry,capped}',
+        denominatorSource: 'distinct requestId in ai_messages.ai_tool_call_decision',
+        fullSampleRequestIds: advancedEntryIds,
+        releaseProfile,
+      }),
+      buildProgressiveDisclosureCard({
+        id: 'clarify_loop_rate',
+        numerator: clarifyLoopIds.length,
+        denominator: total,
+        numeratorSource: 'ai_messages.ai_tool_call_decision clarifyCount>=2 and latestDecision not in {confirmed,auto_confirmed}',
+        denominatorSource: 'distinct requestId in ai_messages.ai_tool_call_decision',
+        fullSampleRequestIds: clarifyLoopIds,
+        releaseProfile,
+      }),
+    ],
+  };
+}
+
 function isRetryTriggeredByMetadata(metadata) {
   if (!metadata || typeof metadata !== 'object') return false;
   if (metadata.retryTriggered === true) return true;
@@ -1163,6 +1318,7 @@ function buildReport(input) {
     perfSection,
     costGuardSection,
     extensionCapabilityAudit,
+    progressiveDisclosureSection,
   } = input;
 
   const stepPassed = countByStatus(stepResults, 'passed');
@@ -1249,6 +1405,23 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 'p1.progressive-disclosure.v1',
+    conclusion: progressiveDisclosureSection.status === 'skipped'
+      ? 'P1-ProgressiveDisclosure card skipped'
+      : 'P1-ProgressiveDisclosure card generated',
+    evidenceType: progressiveDisclosureSection.status === 'skipped'
+      ? 'progressive_disclosure_skipped'
+      : 'progressive_disclosure',
+    command: 'release_evidence:progressive_disclosure',
+    module: 'ai-progressive-disclosure',
+    exitCode: 0,
+    logPath: null,
+    keySummary: progressiveDisclosureSection.status === 'skipped'
+      ? (progressiveDisclosureSection.skipReason ?? 'skipped')
+      : `cards=${progressiveDisclosureSection.cards.length}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'p1.cost-guard.v1',
     conclusion: costGuardSection.status === 'skipped'
       ? 'P1-CostGuard card skipped'
@@ -1289,6 +1462,7 @@ function buildReport(input) {
     steps,
     aiToolEvidenceCards: aiEvidenceCards,
     perf: perfSection,
+    progressiveDisclosure: progressiveDisclosureSection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
   };
@@ -1387,6 +1561,11 @@ async function run() {
       auditRows: extensionCapabilityAuditLoad.rows,
       readError: extensionCapabilityAuditLoad.readError,
     }),
+    progressiveDisclosureSection: buildProgressiveDisclosureSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      releaseProfile,
+    }),
   });
 
   await writeReport(report, outputPath);
@@ -1444,6 +1623,11 @@ run().catch(async (error) => {
       },
       cards: [],
       profile: releaseProfile,
+    },
+    progressiveDisclosure: {
+      status: 'skipped',
+      skipReason: 'fallback_due_to_unhandled_error',
+      cards: [],
     },
     costGuard: {
       status: 'skipped',

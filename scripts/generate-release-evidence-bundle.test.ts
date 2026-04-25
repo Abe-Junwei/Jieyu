@@ -41,6 +41,16 @@ interface CostGuardSection {
 
 interface ReleaseEvidenceReport {
   perf: PerfSection;
+  progressiveDisclosure: {
+    status: string;
+    cards: Array<{
+      id: string;
+      value: number;
+      numerator: number;
+      denominator: number;
+      sampleRequestIds?: string[];
+    }>;
+  };
   costGuard: CostGuardSection;
   evidenceIndex: Array<{ conclusionId: string }>;
   aiToolEvidenceCards: {
@@ -127,9 +137,12 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(0);
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'a3.perf.cards')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.progressive-disclosure.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'b3.extensions.capability-audit-summary')).toBe(true);
       expect(report.extensions.status).toBe('skipped');
+      expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
+      expect(report.progressiveDisclosure.cards).toHaveLength(4);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -198,6 +211,120 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(1);
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('builds progressive disclosure cards from decision-chain audit rows', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-tool-decision-audit.ndjson');
+    const auditRows = [
+      {
+        request_id: 'toolreq_progressive_001',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:00.000Z',
+        new_value: 'confirmed:set_transcription_text',
+      },
+      {
+        request_id: 'toolreq_progressive_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:01.000Z',
+        new_value: 'clarify:set_transcription_text:missing_unit_target',
+      },
+      {
+        request_id: 'toolreq_progressive_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:02.000Z',
+        new_value: 'confirmed:set_transcription_text',
+      },
+      {
+        request_id: 'toolreq_progressive_003',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:03.000Z',
+        new_value: 'clarify:set_transcription_text:missing_unit_target',
+      },
+      {
+        request_id: 'toolreq_progressive_003',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:04.000Z',
+        new_value: 'clarify:set_transcription_text:missing_unit_target',
+      },
+      {
+        request_id: 'toolreq_progressive_003',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:05.000Z',
+        new_value: 'blocked:set_transcription_text:unresolved_write_target',
+      },
+      {
+        request_id: 'toolreq_progressive_004',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:06.000Z',
+        new_value: 'retry:cost_guard:retry_after_output_cap',
+      },
+      {
+        request_id: 'toolreq_progressive_004',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:07.000Z',
+        new_value: 'confirmed:set_transcription_text',
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+      expect(report.progressiveDisclosure.status).toBe('ready_or_partial');
+
+      const firstPass = report.progressiveDisclosure.cards.find((card) => card.id === 'first_pass_resolution_rate');
+      const clarifyThenSuccess = report.progressiveDisclosure.cards.find((card) => card.id === 'clarify_then_success_rate');
+      const advancedEntryReach = report.progressiveDisclosure.cards.find((card) => card.id === 'advanced_entry_reach_rate');
+      const clarifyLoop = report.progressiveDisclosure.cards.find((card) => card.id === 'clarify_loop_rate');
+
+      expect(firstPass?.numerator).toBe(2);
+      expect(firstPass?.denominator).toBe(4);
+      expect(firstPass?.value).toBe(0.5);
+      expect(firstPass?.sampleRequestIds).toContain('toolreq_progressive_001');
+      expect(firstPass?.sampleRequestIds).toContain('toolreq_progressive_004');
+
+      expect(clarifyThenSuccess?.numerator).toBe(1);
+      expect(clarifyThenSuccess?.denominator).toBe(4);
+      expect(clarifyThenSuccess?.value).toBe(0.25);
+      expect(clarifyThenSuccess?.sampleRequestIds).toContain('toolreq_progressive_002');
+
+      expect(advancedEntryReach?.numerator).toBe(1);
+      expect(advancedEntryReach?.denominator).toBe(4);
+      expect(advancedEntryReach?.value).toBe(0.25);
+      expect(advancedEntryReach?.sampleRequestIds).toContain('toolreq_progressive_004');
+
+      expect(clarifyLoop?.numerator).toBe(1);
+      expect(clarifyLoop?.denominator).toBe(4);
+      expect(clarifyLoop?.value).toBe(0.25);
+      expect(clarifyLoop?.sampleRequestIds).toContain('toolreq_progressive_003');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
