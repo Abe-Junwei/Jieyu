@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { applyAiChatSettingsPatch, getAiChatProviderDefinition, getDefaultAiChatSettings } from './providerCatalog';
+import {
+  applyAiChatSettingsPatch,
+  getAiChatProviderDefinition,
+  getDefaultAiChatSettings,
+  normalizeAiChatSettings,
+} from './providerCatalog';
 
 describe('providerCatalog runtime fallbacks', () => {
   it('returns mapped definition for valid kind', () => {
@@ -77,5 +82,24 @@ describe('providerCatalog runtime fallbacks', () => {
     expect(webllm.providerKind).toBe('webllm');
     expect(webllm.model).toContain('Llama');
     expect(webllm.apiKey).toBe('');
+  });
+
+  it('keeps cost guard settings when switching providers', () => {
+    const initial = normalizeAiChatSettings({
+      providerKind: 'minimax',
+      sessionTokenBudget: 18000,
+      outputTokenCap: 512,
+      outputTokenRetryCap: 1024,
+    });
+
+    const switchedToQwen = applyAiChatSettingsPatch(initial, { providerKind: 'qwen' });
+    expect(switchedToQwen.sessionTokenBudget).toBe(18000);
+    expect(switchedToQwen.outputTokenCap).toBe(512);
+    expect(switchedToQwen.outputTokenRetryCap).toBe(1024);
+
+    const switchedBackToMiniMax = applyAiChatSettingsPatch(switchedToQwen, { providerKind: 'minimax' });
+    expect(switchedBackToMiniMax.sessionTokenBudget).toBe(18000);
+    expect(switchedBackToMiniMax.outputTokenCap).toBe(512);
+    expect(switchedBackToMiniMax.outputTokenRetryCap).toBe(1024);
   });
 });

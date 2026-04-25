@@ -44,6 +44,21 @@ export interface AiChatSettings {
   responseFormat: CustomHttpResponseFormat;
   /** Fallback provider used when the primary model is rate-limited or unavailable. */
   fallbackProviderKind?: AiChatProviderKind;
+  /** Session-level token budget guard for chat runtime. */
+  sessionTokenBudget?: number;
+  /** First-attempt output token cap per request. */
+  outputTokenCap?: number;
+  /** Escalated retry output token cap per request. */
+  outputTokenRetryCap?: number;
+}
+
+const DEFAULT_SESSION_TOKEN_BUDGET = 12_000;
+const DEFAULT_OUTPUT_TOKEN_CAP = 480;
+const DEFAULT_OUTPUT_TOKEN_RETRY_CAP = 960;
+
+function normalizeOptionalNumber(raw: unknown, fallback: number): number {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return fallback;
+  return Math.floor(raw);
 }
 
 // ─── Unified create config (flat, all fields optional) ───────────────────────
@@ -446,6 +461,12 @@ export function normalizeAiChatSettings(raw?: Partial<AiChatSettings>): AiChatSe
     ...rawBaseUrlsByProvider,
     [providerKind]: effectiveBaseUrl,
   };
+  const normalizedSessionTokenBudget = normalizeOptionalNumber(raw?.sessionTokenBudget, DEFAULT_SESSION_TOKEN_BUDGET);
+  const normalizedOutputTokenCap = normalizeOptionalNumber(raw?.outputTokenCap, DEFAULT_OUTPUT_TOKEN_CAP);
+  const normalizedOutputTokenRetryCap = normalizeOptionalNumber(
+    raw?.outputTokenRetryCap,
+    DEFAULT_OUTPUT_TOKEN_RETRY_CAP,
+  );
 
   return {
     providerKind,
@@ -473,6 +494,9 @@ export function normalizeAiChatSettings(raw?: Partial<AiChatSettings>): AiChatSe
     ...(raw?.fallbackProviderKind && raw.fallbackProviderKind in DEFAULT_SETTINGS
       ? { fallbackProviderKind: raw.fallbackProviderKind }
       : {}),
+    sessionTokenBudget: normalizedSessionTokenBudget,
+    outputTokenCap: normalizedOutputTokenCap,
+    outputTokenRetryCap: normalizedOutputTokenRetryCap,
   };
 }
 
@@ -509,9 +533,24 @@ export function applyAiChatSettingsPatch(
     const nextProviderModel = typeof patch.model === 'string' && patch.model.trim().length > 0
       ? patch.model
       : (persistedModelsByProvider[patch.providerKind] ?? getDefaultAiChatSettings(patch.providerKind).model);
+    const nextSessionTokenBudget = normalizeOptionalNumber(
+      typeof patch.sessionTokenBudget === 'number' ? patch.sessionTokenBudget : current.sessionTokenBudget,
+      DEFAULT_SESSION_TOKEN_BUDGET,
+    );
+    const nextOutputTokenCap = normalizeOptionalNumber(
+      typeof patch.outputTokenCap === 'number' ? patch.outputTokenCap : current.outputTokenCap,
+      DEFAULT_OUTPUT_TOKEN_CAP,
+    );
+    const nextOutputTokenRetryCap = normalizeOptionalNumber(
+      typeof patch.outputTokenRetryCap === 'number' ? patch.outputTokenRetryCap : current.outputTokenRetryCap,
+      DEFAULT_OUTPUT_TOKEN_RETRY_CAP,
+    );
 
     return normalizeAiChatSettings({
       ...getDefaultAiChatSettings(patch.providerKind),
+      sessionTokenBudget: nextSessionTokenBudget,
+      outputTokenCap: nextOutputTokenCap,
+      outputTokenRetryCap: nextOutputTokenRetryCap,
       apiKeysByProvider: {
         ...persistedApiKeysByProvider,
         [patch.providerKind]: nextProviderApiKey,

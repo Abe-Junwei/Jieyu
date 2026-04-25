@@ -175,6 +175,9 @@ export type AiChatCardMessages = {
   openProviderConfig: string;
   connected: string;
   clearCurrentKey: string;
+  costGuardSessionTokenBudgetLabel: string;
+  costGuardOutputTokenCapLabel: string;
+  costGuardOutputTokenRetryCapLabel: string;
   parsingToolCall: string;
   thinking: string;
   aborted: string;
@@ -273,6 +276,9 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
       openProviderConfig: '\u6253\u5f00\u914d\u7f6e',
       connected: '\u5df2\u8fde\u63a5',
       clearCurrentKey: '\u6e05\u7a7a\u5f53\u524d Key',
+      costGuardSessionTokenBudgetLabel: '\u4f1a\u8bdd Token \u9884\u7b97\u4e0a\u9650',
+      costGuardOutputTokenCapLabel: '\u5355\u6b21\u8f93\u51fa Token \u5c01\u9876',
+      costGuardOutputTokenRetryCapLabel: '\u91cd\u8bd5\u5347\u7ea7 Token \u4e0a\u9650',
       parsingToolCall: '\u6b63\u5728\u89e3\u6790\u5de5\u5177\u8c03\u7528\u2026',
       thinking: '\u6b63\u5728\u601d\u8003...',
       aborted: '\u23f9 \u5df2\u4e2d\u65ad',
@@ -370,6 +376,9 @@ export function getAiChatCardMessages(isZh: boolean): AiChatCardMessages {
     openProviderConfig: 'Open provider config',
     connected: 'Connected',
     clearCurrentKey: 'Clear Current Key',
+    costGuardSessionTokenBudgetLabel: 'Session token budget',
+    costGuardOutputTokenCapLabel: 'Output token cap',
+    costGuardOutputTokenRetryCapLabel: 'Retry output token cap',
     parsingToolCall: 'Parsing tool call...',
     thinking: 'Thinking...',
     aborted: '\u23f9 Aborted',

@@ -12,6 +12,9 @@ export const AI_CHAT_SETTINGS_SECURE_VERSION = 'v1';
 export const AI_CHAT_STREAM_PERSIST_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.streamPersistIntervalMs';
 export const AI_CHAT_AUTO_PROBE_INTERVAL_STORAGE_KEY = 'jieyu.aiChat.autoProbeIntervalMs';
 export const AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY = 'jieyu.aiChat.ragContextTimeoutMs';
+export const AI_CHAT_SESSION_TOKEN_BUDGET_STORAGE_KEY = 'jieyu.aiChat.sessionTokenBudget';
+export const AI_CHAT_OUTPUT_TOKEN_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenCap';
+export const AI_CHAT_OUTPUT_TOKEN_RETRY_CAP_STORAGE_KEY = 'jieyu.aiChat.outputTokenRetryCap';
 export const AI_SESSION_MEMORY_STORAGE_KEY = 'jieyu.aiChat.sessionMemory';
 
 // ── Defaults ───────────────────────────────────────────────────────────────────
@@ -33,6 +36,10 @@ export const INITIAL_METRICS: AiInteractionMetrics = {
 };
 
 export const DEFAULT_FIRST_CHUNK_TIMEOUT_MS = 25000;
+
+export const DEFAULT_SESSION_TOKEN_BUDGET = 12_000;
+export const DEFAULT_OUTPUT_TOKEN_CAP = 480;
+export const DEFAULT_OUTPUT_TOKEN_RETRY_CAP = 960;
 
 // ── Local tool channel & agent loop continuation budgets ───────────────────────
 // Single source of truth for Phase C / agent-loop payload shaping (see localContextTools).
@@ -96,6 +103,27 @@ export function normalizeRagContextTimeoutMs(input: number | undefined): number 
   return Math.min(10000, Math.max(300, Math.floor(input ?? 1800)));
 }
 
+export function normalizeSessionTokenBudget(input: number | undefined): number {
+  if (!Number.isFinite(input)) return DEFAULT_SESSION_TOKEN_BUDGET;
+  return Math.min(200_000, Math.max(1000, Math.floor(input ?? DEFAULT_SESSION_TOKEN_BUDGET)));
+}
+
+export function normalizeOutputTokenCap(input: number | undefined, fallback: number): number {
+  if (!Number.isFinite(input)) return fallback;
+  return Math.min(16_000, Math.max(64, Math.floor(input ?? fallback)));
+}
+
+export function normalizeOutputTokenRetryCap(input: number | undefined, outputTokenCap: number): number {
+  if (!Number.isFinite(input)) {
+    return Math.max(outputTokenCap + 64, DEFAULT_OUTPUT_TOKEN_RETRY_CAP);
+  }
+  return Math.min(24_000, Math.max(outputTokenCap + 1, Math.floor(input ?? DEFAULT_OUTPUT_TOKEN_RETRY_CAP)));
+}
+
+export function estimateTokensFromText(content: string): number {
+  return Math.max(1, Math.ceil(content.trim().length / 4));
+}
+
 export function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
@@ -154,6 +182,51 @@ export function readDevRagContextTimeoutMs(): number | undefined {
   }
 
   const fromStorage = window.localStorage.getItem(AI_CHAT_RAG_CONTEXT_TIMEOUT_STORAGE_KEY);
+  if (!fromStorage) return undefined;
+  const parsed = Number(fromStorage);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function readDevSessionTokenBudget(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV) return undefined;
+
+  const globalValue = (window as unknown as { __JIEYU_AI_SESSION_TOKEN_BUDGET__?: unknown }).__JIEYU_AI_SESSION_TOKEN_BUDGET__;
+  if (typeof globalValue === 'number' && Number.isFinite(globalValue)) {
+    return globalValue;
+  }
+
+  const fromStorage = window.localStorage.getItem(AI_CHAT_SESSION_TOKEN_BUDGET_STORAGE_KEY);
+  if (!fromStorage) return undefined;
+  const parsed = Number(fromStorage);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function readDevOutputTokenCap(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV) return undefined;
+
+  const globalValue = (window as unknown as { __JIEYU_AI_OUTPUT_TOKEN_CAP__?: unknown }).__JIEYU_AI_OUTPUT_TOKEN_CAP__;
+  if (typeof globalValue === 'number' && Number.isFinite(globalValue)) {
+    return globalValue;
+  }
+
+  const fromStorage = window.localStorage.getItem(AI_CHAT_OUTPUT_TOKEN_CAP_STORAGE_KEY);
+  if (!fromStorage) return undefined;
+  const parsed = Number(fromStorage);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+export function readDevOutputTokenRetryCap(): number | undefined {
+  if (typeof window === 'undefined') return undefined;
+  if (!import.meta.env.DEV) return undefined;
+
+  const globalValue = (window as unknown as { __JIEYU_AI_OUTPUT_TOKEN_RETRY_CAP__?: unknown }).__JIEYU_AI_OUTPUT_TOKEN_RETRY_CAP__;
+  if (typeof globalValue === 'number' && Number.isFinite(globalValue)) {
+    return globalValue;
+  }
+
+  const fromStorage = window.localStorage.getItem(AI_CHAT_OUTPUT_TOKEN_RETRY_CAP_STORAGE_KEY);
   if (!fromStorage) return undefined;
   const parsed = Number(fromStorage);
   return Number.isFinite(parsed) ? parsed : undefined;

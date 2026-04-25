@@ -8,10 +8,16 @@ import { useAiChat, type AiChatToolCall } from './useAiChat';
 import { INITIAL_METRICS } from './useAiChat.config';
 
 let lastSystemPrompt = '';
+const outputCapRetryAttemptByPrompt = new Map<string, number>();
 
 vi.mock('../ai/ChatOrchestrator', () => {
   class MockChatOrchestrator {
-    sendMessage(input: { systemPrompt?: string; options?: { signal?: AbortSignal }; history?: Array<{ role: string; content: string }>; userText?: string }) {
+    sendMessage(input: {
+      systemPrompt?: string;
+      options?: { signal?: AbortSignal; maxTokens?: number };
+      history?: Array<{ role: string; content: string }>;
+      userText?: string;
+    }) {
       lastSystemPrompt = input.systemPrompt ?? '';
       const signal = input.options?.signal;
       const userText = input.userText ?? input.history?.[input.history.length - 1]?.content ?? '';
@@ -204,6 +210,25 @@ vi.mock('../ai/ChatOrchestrator', () => {
           yield { delta: '', done: true };
           return;
         }
+        if (userText.includes('__OUTPUT_CAP_RETRY__')) {
+          const attempt = (outputCapRetryAttemptByPrompt.get(userText) ?? 0) + 1;
+          outputCapRetryAttemptByPrompt.set(userText, attempt);
+          const maxTokens = input.options?.maxTokens ?? 0;
+          if (attempt === 1) {
+            yield {
+              delta: '这是第一次被截断的回复。',
+              usage: { inputTokens: 11, outputTokens: Math.max(1, maxTokens) },
+            };
+            yield { delta: '', done: true };
+            return;
+          }
+          yield {
+            delta: '这是升级预算后的完整回复。',
+            usage: { inputTokens: 13, outputTokens: Math.max(1, maxTokens - 10) },
+          };
+          yield { delta: '', done: true };
+          return;
+        }
         if (userText.includes('__LOCAL_CONTEXT_TOOL_FENCED__') && !userText.includes('__LOCAL_TOOL_RESULT__')) {
           yield {
             delta: [
@@ -321,6 +346,7 @@ const defaultSelectedTranslationShortTerm = {
 describe('useAiChat abort and recovery', () => {
   beforeEach(async () => {
     lastSystemPrompt = '';
+    outputCapRetryAttemptByPrompt.clear();
     clearAiLocalStorage();
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatGrayMode = false;
     (featureFlags as { aiChatGrayMode: boolean; aiChatRollbackMode: boolean }).aiChatRollbackMode = false;
@@ -1834,6 +1860,57 @@ describe('useAiChat abort and recovery', () => {
     const assistant = result.current.messages.find((item) => item.role === 'assistant');
     expect(assistant?.status).toBe('done');
     expect(assistant?.content).toContain('这是普通对话回复');
+  });
+
+  it('should hard-stop send when projected session tokens exceed budget', async () => {
+    const { result } = renderHook(() => useAiChat({ sessionTokenBudget: 1000 }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send(`__PLAIN_REPLY__ ${'x'.repeat(5000)}`);
+    });
+
+    expect(result.current.messages).toHaveLength(0);
+    expect(result.current.isStreaming).toBe(false);
+    expect(result.current.lastError).toContain('预算已超限');
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisionLog = auditRows.find((row) => row.field === 'ai_tool_call_decision');
+    expect(decisionLog?.newValue).toBe('blocked:cost_guard:session_budget_exceeded');
+    expect(decisionLog?.source).toBe('system');
+  });
+
+  it('should retry once with upgraded output cap when first attempt hits cap', async () => {
+    const { result } = renderHook(() => useAiChat({ outputTokenCap: 120, outputTokenRetryCap: 240 }));
+
+    await waitFor(() => {
+      expect(result.current.isBootstrapping).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.send('__OUTPUT_CAP_RETRY__');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isStreaming).toBe(false);
+    });
+
+    const assistant = result.current.messages.find((item) => item.role === 'assistant');
+    expect(assistant?.status).toBe('done');
+    expect(assistant?.content).toContain('升级预算后的完整回复');
+    expect(assistant?.content).not.toContain('第一次被截断');
+    expect(result.current.metrics.totalOutputTokens).toBeGreaterThanOrEqual(350);
+
+    const auditRows = await db.audit_logs.toArray();
+    const decisions = auditRows
+      .filter((row) => row.field === 'ai_tool_call_decision')
+      .map((row) => row.newValue);
+    expect(decisions).toContain('capped:cost_guard:output_token_cap_exceeded');
+    expect(decisions).toContain('retry:cost_guard:retry_after_output_cap');
+    expect(decisions).toContain('confirmed:cost_guard:retry_budget_upgrade');
   });
 
   it('should skip tool execution and only audit in gray mode', async () => {

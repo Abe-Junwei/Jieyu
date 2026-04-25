@@ -899,6 +899,15 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
     });
   };
 
+  const updateCostGuardSetting = useCallback((
+    key: 'sessionTokenBudget' | 'outputTokenCap' | 'outputTokenRetryCap',
+    rawValue: string,
+  ) => {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) return;
+    onUpdateAiChatSettings?.({ [key]: Math.floor(parsed) } as Partial<AiChatSettings>);
+  }, [onUpdateAiChatSettings]);
+
   return (
     <div className={`transcription-ai-card ${embedded ? 'transcription-ai-card-embedded' : ''}`}>
       {/* P0: Header — redesigned as a chat-area header */}
@@ -998,6 +1007,45 @@ export function AiChatCard({ embedded = false, voiceDrawer, voiceEntry }: AiChat
               )}
             </div>
           ))}
+          <div className="ai-chat-provider-config-row">
+            <span className="ai-cfg-label">{cardMessages.costGuardSessionTokenBudgetLabel}</span>
+            <input
+              className="ai-cfg-input"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              aria-label={cardMessages.costGuardSessionTokenBudgetLabel}
+              value={String(aiChatSettings.sessionTokenBudget ?? '')}
+              onChange={(e) => updateCostGuardSetting('sessionTokenBudget', e.currentTarget.value)}
+            />
+          </div>
+          <div className="ai-chat-provider-config-row">
+            <span className="ai-cfg-label">{cardMessages.costGuardOutputTokenCapLabel}</span>
+            <input
+              className="ai-cfg-input"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              aria-label={cardMessages.costGuardOutputTokenCapLabel}
+              value={String(aiChatSettings.outputTokenCap ?? '')}
+              onChange={(e) => updateCostGuardSetting('outputTokenCap', e.currentTarget.value)}
+            />
+          </div>
+          <div className="ai-chat-provider-config-row">
+            <span className="ai-cfg-label">{cardMessages.costGuardOutputTokenRetryCapLabel}</span>
+            <input
+              className="ai-cfg-input"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              aria-label={cardMessages.costGuardOutputTokenRetryCapLabel}
+              value={String(aiChatSettings.outputTokenRetryCap ?? '')}
+              onChange={(e) => updateCostGuardSetting('outputTokenRetryCap', e.currentTarget.value)}
+            />
+          </div>
           <div className="ai-chat-provider-config-actions">
             <button
               type="button"

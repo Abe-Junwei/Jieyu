@@ -3,6 +3,9 @@
  * 提取自 useAiChat.ts 的纯工具函数，不依赖 React 或外部服务
  */
 
+import type { AiChatToolName } from '../ai/chat/chatDomain.types';
+import { AI_TOOL_POLICY_MATRIX, isAiToolDestructive as isAiToolDestructiveByPolicy } from '../ai/policy/aiToolPolicyMatrix';
+
 // ── ID Generation ──────────────────────────────────────────────────────────────
 
 let _messageCounter = 0;
@@ -102,8 +105,9 @@ export function compressMessageContent(content: string, maxLen: number): string 
 // ── Destructive Tool Detection ─────────────────────────────────────────────────
 
 export function isDestructiveToolCall(name: string): boolean {
-  return name === 'delete_transcription_segment'
-    || name === 'delete_layer'
-    || name === 'merge_transcription_segments'
-    || name === 'clear_translation_segment';
+  const normalized = name.trim() as AiChatToolName;
+  if (!Object.prototype.hasOwnProperty.call(AI_TOOL_POLICY_MATRIX, normalized)) {
+    return false;
+  }
+  return isAiToolDestructiveByPolicy(normalized);
 }

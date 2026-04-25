@@ -128,6 +128,35 @@ describe('AiChatCard input submit', () => {
     expect(passwordInput?.closest('form')).toBeTruthy();
   });
 
+  it('updates cost guard settings from provider config numeric inputs', () => {
+    const onUpdateAiChatSettings = vi.fn();
+    const view = render(
+      <AiAssistantHubContext.Provider
+        value={makeContextValue({
+          onUpdateAiChatSettings,
+          aiChatSettings: normalizeAiChatSettings({ providerKind: 'deepseek' }),
+        })}
+      >
+        <AiChatCard embedded />
+      </AiAssistantHubContext.Provider>,
+    );
+
+    fireEvent.click(within(view.container).getByRole('button', { name: /配置|config/i }));
+
+    const sessionBudgetInput = within(view.container).getByRole('spinbutton', { name: /会话 Token 预算上限|Session token budget/i });
+    fireEvent.change(sessionBudgetInput, { target: { value: '18000' } });
+
+    const outputCapInput = within(view.container).getByRole('spinbutton', { name: /^单次输出 Token 封顶$|^Output token cap$/i });
+    fireEvent.change(outputCapInput, { target: { value: '512' } });
+
+    const retryCapInput = within(view.container).getByRole('spinbutton', { name: /重试升级 Token 上限|Retry output token cap/i });
+    fireEvent.change(retryCapInput, { target: { value: '1024' } });
+
+    expect(onUpdateAiChatSettings).toHaveBeenCalledWith({ sessionTokenBudget: 18000 });
+    expect(onUpdateAiChatSettings).toHaveBeenCalledWith({ outputTokenCap: 512 });
+    expect(onUpdateAiChatSettings).toHaveBeenCalledWith({ outputTokenRetryCap: 1024 });
+  });
+
   it('renders the recommendation as an in-input ghost suggestion and nowhere else', () => {
     const view = render(
       <AiAssistantHubContext.Provider value={makeContextValue({
