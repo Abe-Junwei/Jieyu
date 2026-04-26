@@ -26,6 +26,7 @@ import { DialogShell, PanelButton, PanelChip } from './ui';
 // ── Types ──
 
 export interface VoiceAgentWidgetProps {
+  compact?: boolean;
   listening: boolean;
   speechActive: boolean;
   mode: VoiceAgentMode;
@@ -181,6 +182,7 @@ function getEnhancementFailureKindLabel(locale: ReturnType<typeof useLocale>, er
 export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgentWidgetProps) {
   const locale = useLocale();
   const {
+    compact = false,
     listening,
     speechActive,
     mode,
@@ -510,17 +512,19 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
                 {environmentSummary}
               </div>
             </div>
-            <button
-              type="button"
-              className={`voice-agent-disclosure-toggle ${showSettings ? 'is-open' : ''}`}
-              onClick={() => setShowSettings((value) => !value)}
-              aria-expanded={showSettings}
-              aria-label={t(locale, 'transcription.voiceWidget.settings.toggle')}
-            >
-              <MaterialSymbol name="tune" className={JIEYU_MATERIAL_WAVE_MD} />
-              <span>{t(locale, 'transcription.voiceWidget.settings.button')}</span>
-              <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} />
-            </button>
+            {!compact && (
+              <button
+                type="button"
+                className={`voice-agent-disclosure-toggle ${showSettings ? 'is-open' : ''}`}
+                onClick={() => setShowSettings((value) => !value)}
+                aria-expanded={showSettings}
+                aria-label={t(locale, 'transcription.voiceWidget.settings.toggle')}
+              >
+                <MaterialSymbol name="tune" className={JIEYU_MATERIAL_WAVE_MD} />
+                <span>{t(locale, 'transcription.voiceWidget.settings.button')}</span>
+                <MaterialSymbol name="expand_more" className={JIEYU_MATERIAL_INLINE} />
+              </button>
+            )}
           </div>
 
           <div className="voice-agent-mode-bar" role="radiogroup" aria-label={t(locale, 'ai.assistantHub.voiceMode')}>
@@ -702,7 +706,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
           </div>
         )}
 
-        <div className="voice-agent-disclosure-group">
+        {!compact && (
+          <div className="voice-agent-disclosure-group">
           <section className={`voice-agent-disclosure ${showSettings ? 'is-open' : ''}`}>
             <button
               type="button"
@@ -1145,7 +1150,8 @@ export const VoiceAgentWidget = memo(function VoiceAgentWidget(props: VoiceAgent
               </div>
             )}
           </section>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
