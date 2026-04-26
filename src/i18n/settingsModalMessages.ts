@@ -123,6 +123,22 @@ export type SettingsModalMessages = {
   aiAcousticEndpointPlaceholder: string;
   aiAcousticTimeoutLabel: string;
   aiAcousticSaveButton: string;
+  aiVoiceDefaultsTitle: string;
+  aiVoiceCommercialProviderLabel: string;
+  aiVoiceApiKeyLabel: string;
+  aiVoiceApiKeyPlaceholder: string;
+  aiVoiceBaseUrlLabel: string;
+  aiVoiceBaseUrlPlaceholder: string;
+  aiVoiceModelLabel: string;
+  aiVoiceModelPlaceholder: string;
+  aiVoiceAppIdLabel: string;
+  aiVoiceAccessTokenLabel: string;
+  aiVoiceWhisperBaseUrlLabel: string;
+  aiVoiceWhisperModelLabel: string;
+  aiVoiceEnhancementKindLabel: string;
+  aiVoiceEnhancementEndpointLabel: string;
+  aiVoiceEnhancementLanguageLabel: string;
+  aiVoiceApplyHint: string;
   aiDebugTitle: string;
   aiDebugContextLabel: string;
   // 关于 | About
