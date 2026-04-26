@@ -133,7 +133,30 @@ interface ReleaseEvidenceReport {
       languageFormatterMismatchCount: number;
     };
     categories: Record<string, number>;
+    reasonCodes?: Record<string, number>;
+    reasonLabelsEn?: Record<string, number>;
+    reasonLabelsZh?: Record<string, number>;
     sampleRequestIds?: string[];
+  };
+  actionApprovalCenter?: {
+    status: string;
+    summary: {
+      total: number;
+      pending: number;
+      blocked: number;
+      confirmed: number;
+      cancelled: number;
+      failed: number;
+    };
+    riskTiers: Record<string, number>;
+    approvalModes: Record<string, number>;
+    sampleRequestIds?: string[];
+  };
+  auditFieldDictionary?: {
+    schemaVersion: number;
+    status: string;
+    namespace: string;
+    fields: Array<{ field: string; phase: string; requiredMetadataKeys: string[] }>;
   };
   costGuard: CostGuardSection;
   evidenceIndex: Array<{ conclusionId: string; evidenceType?: string; exitCode?: number | null }>;
@@ -152,6 +175,8 @@ interface ReleaseEvidenceReport {
       latestDecision: {
         decision: string;
         reason?: string;
+        reasonLabelEn?: string;
+        reasonLabelZh?: string;
         timestamp?: string;
       };
     }>;
@@ -229,6 +254,7 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.costGuard.summary.outputCapTriggeredCount).toBe(0);
 
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'a3.perf.cards')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'm0.audit-field-dictionary.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.progressive-disclosure.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.rag-shape-telemetry.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'p1.cost-guard.v1')).toBe(true);
@@ -240,6 +266,14 @@ describe('generate-release-evidence-bundle script', () => {
       expect(report.memoryRecallShape.status).toBe('skipped');
       expect(report.costGuard.trend.bucket).toBe('day');
       expect(report.costGuard.trend.pointCount).toBe(1);
+      expect(report.auditFieldDictionary?.schemaVersion).toBe(1);
+      expect(report.auditFieldDictionary?.status).toBe('ready');
+      expect(report.auditFieldDictionary?.fields.map((item) => item.field)).toEqual([
+        'ai_user_directive_extraction',
+        'ai_user_directive_application',
+        'ai_response_policy_resolution',
+        'ai_tool_call_decision',
+      ]);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -606,6 +640,51 @@ describe('generate-release-evidence-bundle script', () => {
       expect(card?.latestDecision.decision).toBe('confirmed');
       expect(card?.latestDecision.reason).toBeUndefined();
       expect(card?.latestDecision.timestamp).toBe('2026-04-25T10:00:03.000Z');
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it('hydrates reason labels for ai evidence card latest decision', () => {
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), 'release-evidence-bundle-'));
+    const outputPath = path.join(tempDir, 'release-evidence.json');
+    const logsDir = path.join(tempDir, 'logs');
+    const auditExportPath = path.join(tempDir, 'ai-tool-decision-audit.ndjson');
+    const requestId = 'toolreq_ai_card_reason_label_001';
+    const auditRows = [
+      {
+        request_id: requestId,
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:03.000Z',
+        new_value: 'policy_blocked:delete_layer:user_directive_deny_destructive',
+      },
+    ];
+
+    try {
+      writeFileSync(
+        auditExportPath,
+        `${auditRows.map((row) => JSON.stringify(row)).join('\n')}\n`,
+        'utf8',
+      );
+
+      const result = runReleaseEvidenceScript([
+        '--profile=full',
+        '--dry-run',
+        '--mode=shadow',
+        `--output=${outputPath}`,
+        `--logs-dir=${logsDir}`,
+        `--ai-audit-export=${auditExportPath}`,
+        `--ai-request-ids=${requestId}`,
+      ]);
+
+      expect(result.status).toBe(0);
+      const report = JSON.parse(readFileSync(outputPath, 'utf8')) as ReleaseEvidenceReport;
+      const card = report.aiToolEvidenceCards.cards.find((item) => item.requestId === requestId);
+      expect(card).toBeDefined();
+      expect(card?.latestDecision.reason).toBe('user_directive_deny_destructive');
+      expect(card?.latestDecision.reasonLabelEn).toBe('Blocked by user safety preference for destructive actions.');
+      expect(card?.latestDecision.reasonLabelZh).toBe('已被用户安全偏好阻断高风险破坏性操作');
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }
@@ -979,6 +1058,7 @@ describe('generate-release-evidence-bundle script', () => {
             supersededCount: 0,
             categories: { response: 1, safety: 1 },
           },
+          reason: 'user_directive_confirmation_required',
         }),
       },
       {
@@ -989,7 +1069,7 @@ describe('generate-release-evidence-bundle script', () => {
         new_value: 'en-US',
         metadata_json: JSON.stringify({
           phase: 'response_policy_resolution',
-          policy: { language: 'en', locale: 'en-US' },
+          policy: { language: 'en', locale: 'en-US', style: 'verbose', format: 'invalid_format' },
         }),
       },
       {
@@ -1030,6 +1110,45 @@ describe('generate-release-evidence-bundle script', () => {
           },
           parallelPolicy: { canRunInParallel: true, reason: 'verification-parallel' },
           quarantinedCount: 1,
+        }),
+      },
+      {
+        request_id: 'approval_001',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:04.500Z',
+        new_value: 'policy_pending:delete_layer:user_directive_confirmation_required',
+        metadata_json: JSON.stringify({
+          phase: 'decision',
+          outcome: 'policy_pending',
+          approvalMode: 'user_preference',
+          riskTier: 'high',
+        }),
+      },
+      {
+        request_id: 'approval_002',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:05.000Z',
+        new_value: 'policy_blocked:delete_layer:user_directive_deny_destructive',
+        metadata_json: JSON.stringify({
+          phase: 'decision',
+          outcome: 'policy_blocked',
+          approvalMode: 'safety_gate',
+          riskTier: 'high',
+        }),
+      },
+      {
+        request_id: 'approval_003',
+        collection: 'ai_messages',
+        field: 'ai_tool_call_decision',
+        timestamp: '2026-04-25T10:00:05.500Z',
+        new_value: 'confirmed:set_transcription_text',
+        metadata_json: JSON.stringify({
+          phase: 'decision',
+          outcome: 'confirmed',
+          approvalMode: 'propose_changes',
+          riskTier: 'medium',
         }),
       },
     ];
@@ -1086,12 +1205,38 @@ describe('generate-release-evidence-bundle script', () => {
         applicationCount: 1,
         responsePolicyResolutionCount: 1,
         accepted: 4,
-        languageFormatterMismatchCount: 0,
+        languageFormatterMismatchCount: 1,
       });
       expect(report.userDirectiveGovernance.categories).toEqual({ response: 2, safety: 2 });
+      expect(report.userDirectiveGovernance.reasonCodes).toEqual({
+        user_directive_confirmation_required: 1,
+      });
+      expect(report.userDirectiveGovernance.reasonLabelsEn).toEqual({
+        'User preference requires confirmation before execution.': 1,
+      });
+      expect(report.userDirectiveGovernance.reasonLabelsZh).toEqual({
+        用户偏好要求先确认再执行: 1,
+      });
+      expect(report.actionApprovalCenter?.status).toBe('ready_or_partial');
+      expect(report.actionApprovalCenter?.summary).toMatchObject({
+        total: 3,
+        pending: 1,
+        blocked: 1,
+        confirmed: 1,
+      });
+      expect(report.actionApprovalCenter?.riskTiers).toEqual({
+        high: 2,
+        medium: 1,
+      });
+      expect(report.actionApprovalCenter?.approvalModes).toEqual({
+        propose_changes: 1,
+        safety_gate: 1,
+        user_preference: 1,
+      });
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'c5.background-memory-extraction.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'c7.coordination-lite.v1')).toBe(true);
       expect(report.evidenceIndex.some((item) => item.conclusionId === 'c8.user-directive-governance.v1')).toBe(true);
+      expect(report.evidenceIndex.some((item) => item.conclusionId === 'm1.action-approval-center.v1')).toBe(true);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
     }

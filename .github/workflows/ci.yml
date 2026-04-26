@@ -18,6 +18,11 @@ on:
         required: false
         default: false
         type: boolean
+      require_action_approval_strict:
+        description: 'Enable strict release-evidence action approval gate'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -99,6 +104,34 @@ jobs:
 
       - name: Architecture hotspot report
         run: npm run report:architecture-hotspots
+
+  agent-evals-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Agent evals gate (enforce)
+        run: npm run check:agent-evals
+
+      - name: Upload agent eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-evals-report-${{ github.run_id }}
+          path: docs/execution/release-gates/release-evidence/agent-evals-report.json
+          if-no-files-found: warn
+          retention-days: 14
 
   otel-contract-gate:
     runs-on: ubuntu-latest
@@ -272,7 +305,18 @@ jobs:
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:core
 
-      - name: Summarize release evidence cost-guard trend (core)
+      - name: Release evidence governance gate (core)
+        env:
+          REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
+          REQUIRE_ACTION_APPROVAL_STRICT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_action_approval_strict == 'true' }}
+        run: |
+          if [ "${REQUIRE_COST_GUARD_TREND_READY}" = "true" ] || [ "${REQUIRE_ACTION_APPROVAL_STRICT}" = "true" ]; then
+            npm run gate:release-evidence:governance:strict
+          else
+            npm run gate:release-evidence:governance
+          fi
+
+      - name: Summarize release evidence gates (core)
         if: always()
         run: |
           node <<'NODE'
@@ -304,16 +348,25 @@ jobs:
           const latest = candidates[0];
           const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
           const trend = payload?.costGuard?.trend;
+          const actionApproval = payload?.actionApprovalCenter;
           const compareReady = trend?.compareReady === true ? 'true' : 'false';
           const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
           const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
+          const pending = Number.isFinite(Number(actionApproval?.summary?.pending)) ? String(actionApproval.summary.pending) : '0';
+          const blocked = Number.isFinite(Number(actionApproval?.summary?.blocked)) ? String(actionApproval.summary.blocked) : '0';
+          const confirmed = Number.isFinite(Number(actionApproval?.summary?.confirmed)) ? String(actionApproval.summary.confirmed) : '0';
+          const failed = Number.isFinite(Number(actionApproval?.summary?.failed)) ? String(actionApproval.summary.failed) : '0';
 
           fs.appendFileSync(
             summaryPath,
             [
-              '## Release Evidence CostGuard Trend (core)',
+              '## Release Evidence Gates (core)',
               '',
               `- Artifact: ${path.relative(process.cwd(), latest.fullPath)}`,
+              `- actionApproval.pending: ${pending}`,
+              `- actionApproval.blocked: ${blocked}`,
+              `- actionApproval.confirmed: ${confirmed}`,
+              `- actionApproval.failed: ${failed}`,
               `- compareReady: ${compareReady}`,
               `- pointCount: ${pointCount}`,
               `- requirement: ${requirement}`,
@@ -369,7 +422,20 @@ jobs:
           RELEASE_EVIDENCE_REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
         run: npm run gate:release-evidence:full
 
-      - name: Summarize release evidence cost-guard trend (full)
+      - name: Release evidence governance gate (full)
+        env:
+          REQUIRE_COST_GUARD_TREND_READY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_cost_guard_trend_ready == 'true' }}
+          REQUIRE_ACTION_APPROVAL_STRICT: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.require_action_approval_strict == 'true' }}
+        run: |
+          if [ "${REQUIRE_COST_GUARD_TREND_READY}" = "true" ] || [ "${REQUIRE_ACTION_APPROVAL_STRICT}" = "true" ]; then
+            node scripts/generate-release-evidence-bundle.mjs --profile=full --dry-run --ai-audit-export=docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson --output=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json && \
+            node scripts/check-release-evidence-governance.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json --require-cost-guard-compare-ready --max-pending-rate=0.70 --max-blocked-rate=0.80 --max-failed-rate=0.20 --require-high-risk-signal
+          else
+            node scripts/generate-release-evidence-bundle.mjs --profile=full --dry-run --output=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json && \
+            node scripts/check-release-evidence-governance.mjs --report=docs/execution/release-gates/release-evidence/release-evidence-governance-gate-full.json
+          fi
+
+      - name: Summarize release evidence gates (full)
         if: always()
         run: |
           node <<'NODE'
@@ -401,16 +467,25 @@ jobs:
           const latest = candidates[0];
           const payload = JSON.parse(fs.readFileSync(latest.fullPath, 'utf8'));
           const trend = payload?.costGuard?.trend;
+          const actionApproval = payload?.actionApprovalCenter;
           const compareReady = trend?.compareReady === true ? 'true' : 'false';
           const pointCount = Number.isFinite(Number(trend?.pointCount)) ? String(trend.pointCount) : '0';
           const requirement = payload?.metadata?.costGuardTrendRequirement ?? 'none';
+          const pending = Number.isFinite(Number(actionApproval?.summary?.pending)) ? String(actionApproval.summary.pending) : '0';
+          const blocked = Number.isFinite(Number(actionApproval?.summary?.blocked)) ? String(actionApproval.summary.blocked) : '0';
+          const confirmed = Number.isFinite(Number(actionApproval?.summary?.confirmed)) ? String(actionApproval.summary.confirmed) : '0';
+          const failed = Number.isFinite(Number(actionApproval?.summary?.failed)) ? String(actionApproval.summary.failed) : '0';
 
           fs.appendFileSync(
             summaryPath,
             [
-              '## Release Evidence CostGuard Trend (full)',
+              '## Release Evidence Gates (full)',
               '',
               `- Artifact: ${path.relative(process.cwd(), latest.fullPath)}`,
+              `- actionApproval.pending: ${pending}`,
+              `- actionApproval.blocked: ${blocked}`,
+              `- actionApproval.confirmed: ${confirmed}`,
+              `- actionApproval.failed: ${failed}`,
               `- compareReady: ${compareReady}`,
               `- pointCount: ${pointCount}`,
               `- requirement: ${requirement}`,

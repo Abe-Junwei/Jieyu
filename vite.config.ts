@@ -23,6 +23,9 @@ const appVersion = typeof packageJson.version === 'string' && packageJson.versio
   ? packageJson.version.trim()
   : '0.0.0-dev';
 
+const FRAME_ANCESTORS_CSP_HEADER = "frame-ancestors 'none'";
+const X_FRAME_OPTIONS_HEADER = 'DENY';
+
 /**
  * 将 onnxruntime-web WASM 文件复制到构建输出，并在开发服务器中正确伺服。
  * Copies onnxruntime-web WASM files to build output and serves them correctly in dev server.
@@ -275,6 +278,16 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    headers: {
+      'Content-Security-Policy': FRAME_ANCESTORS_CSP_HEADER,
+      'X-Frame-Options': X_FRAME_OPTIONS_HEADER,
+    },
+  },
+  preview: {
+    headers: {
+      'Content-Security-Policy': FRAME_ANCESTORS_CSP_HEADER,
+      'X-Frame-Options': X_FRAME_OPTIONS_HEADER,
+    },
   },
   worker: {
     format: 'es',

@@ -1,0 +1,82 @@
+{
+  "suiteId": "jieyu-agent-evals-v1",
+  "version": 1,
+  "description": "Golden-path agent governance regression suite.",
+  "thresholds": {
+    "requiredPassRate": 0.9,
+    "maxFailedCases": 0,
+    "requiredGoldenTasksMin": 30,
+    "requiredTrajectorySignals": [
+      "tool_selection",
+      "gate_correctness",
+      "recovery_path",
+      "audit_traceability",
+      "approval_explainability"
+    ]
+  },
+  "cases": [
+    {
+      "id": "typecheck",
+      "name": "TypeScript typecheck",
+      "command": "npm run typecheck",
+      "category": "build",
+      "goldenTaskCount": 0,
+      "trajectorySignals": []
+    },
+    {
+      "id": "directive-governance",
+      "name": "Directive governance tests",
+      "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/useAiChat.responsePolicy.test.ts src/hooks/useAiChat.backgroundMemory.test.ts src/hooks/useAiChat.toolDecisionPipeline.test.ts",
+      "category": "policy",
+      "goldenTaskCount": 10,
+      "trajectorySignals": [
+        "tool_selection",
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "prompt-memory",
+      "name": "Prompt and memory integration tests",
+      "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/useAiChat.streamCompletion.test.ts src/hooks/useAiChat.agentLoopRunner.test.ts",
+      "category": "runtime",
+      "goldenTaskCount": 8,
+      "trajectorySignals": [
+        "tool_selection",
+        "recovery_path"
+      ]
+    },
+    {
+      "id": "release-evidence",
+      "name": "Release evidence bundle tests",
+      "command": "npx vitest run scripts/generate-release-evidence-bundle.test.ts",
+      "category": "evidence",
+      "goldenTaskCount": 6,
+      "trajectorySignals": [
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "approval-center-ui",
+      "name": "Approval center and directive console UI tests",
+      "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx src/components/ai/AiChatCard.input.test.tsx",
+      "category": "ui",
+      "goldenTaskCount": 10,
+      "trajectorySignals": [
+        "approval_explainability",
+        "gate_correctness",
+        "audit_traceability"
+      ]
+    },
+    {
+      "id": "taskrunner-recovery",
+      "name": "TaskRunner timeout/retry/recovery tests",
+      "command": "npx vitest run src/ai/tasks/TaskRunner.test.ts",
+      "category": "runtime",
+      "goldenTaskCount": 6,
+      "trajectorySignals": [
+        "recovery_path"
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 安全基线：限制资源来源，降低 XSS 后数据外泄面 | Security baseline: restrict resource origins to reduce XSS exfiltration surface -->
-    <!-- HIGH-13：收紧 img；connect 枚举常用默认域 + 保留 https/wss 以兼容 BYO/OTEL/自托管；HIGH-14：frame-ancestors | Tighten img; list common connect hosts; keep https:/wss: for custom endpoints. -->
+    <!-- HIGH-13：收紧 img；connect 枚举常用默认域 + 保留 https/wss 以兼容 BYO/OTEL/自托管。`frame-ancestors` 只能走 HTTP 响应头，不能放 meta | Tighten img; list common connect hosts; keep https:/wss: for custom endpoints. `frame-ancestors` must be delivered via HTTP response headers, not meta. -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
       script-src  'self' 'wasm-unsafe-eval';
@@ -13,6 +13,8 @@
       img-src     'self' data: blob:;
       media-src   'self' blob: data:;
       connect-src 'self' blob:
+        http://127.0.0.1:3040
+        http://localhost:3040
         https://*.supabase.co
         wss://*.supabase.co
         https://*.ingest.sentry.io
@@ -33,7 +35,6 @@
       object-src  'none';
       base-uri    'self';
       form-action 'self';
-      frame-ancestors 'none';
     " />
     <!-- B-2：同源 preload（不引入第三方、不放宽 CSP）。`preconnect href="/"` 会在 Vite 构建阶段被当成目录解析，故省略 | Same-origin preloads; omit root preconnect (Vite resolves "/" as FS dir) -->
     <link rel="preload" href="/fonts/material-symbols.css" as="style" />

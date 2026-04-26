@@ -1,2 +1,2 @@
-{"extensionId":"ext.release-evidence.runtime-export","capability":"read.transcription","ok":true,"durationMs":0,"at":1777089495361}
-{"extensionId":"ext.release-evidence.runtime-export","capability":"read.transcription","ok":false,"durationMs":0,"errorMessage":"runtime export seed failure","at":1777089495362}
+{"extensionId":"ext.release-evidence.runtime-export","capability":"read.transcription","ok":true,"durationMs":1,"at":1777167822918}
+{"extensionId":"ext.release-evidence.runtime-export","capability":"read.transcription","ok":false,"durationMs":0,"errorMessage":"runtime export seed failure","at":1777167822919}

@@ -273,11 +273,11 @@
 ### 2.14 CSP 缺少 frame-ancestors 指令
 
 - **状态**：**已完成**（仓库在 2026-04 已含；本项仅作状态对齐）
-- **落地摘要**：`index.html` 中 `**frame-ancestors 'none'`** 已存在；若将来嵌入预览需求须另开产品与 CSP 评审。
+- **落地摘要**：`frame-ancestors 'none'` 现通过开发/预览 HTTP 响应头下发；meta CSP 不承载该指令。若将来有嵌入预览需求，须另开产品与 CSP 评审并在部署层调整响应头。
 - **编号**：HIGH-14
 - **位置**：`index.html`
 - **问题**：页面可被任意 iframe 嵌入，存在点击劫持风险
-- **修复**：添加 `frame-ancestors 'none'`
+- **修复**：通过 HTTP 响应头下发 `frame-ancestors 'none'`，不再放入 meta CSP
 - **难度**：低 | **风险**：低 | **阶段**：Phase 2
 
 ---

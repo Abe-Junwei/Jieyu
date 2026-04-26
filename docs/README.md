@@ -18,6 +18,7 @@ source_of_truth: navigation-only
 3. 想看 service 分层治理：进入 [services/README.md](./services/README.md)
 4. 想看关键决策：进入 [adr/README.md](./adr/README.md)
 5. 想追历史规划、发布或调研：进入 [execution/archive/README.md](./execution/archive/README.md)（含 `historical-root-docs/` 索引）
+6. 想看 `frame-ancestors` 与部署响应头落地：进入 [development/csp-frame-ancestors-deployment.md](./development/csp-frame-ancestors-deployment.md)
 
 ## 文档分层
 

@@ -1,0 +1,609 @@
+{
+  "schemaVersion": 1,
+  "reportType": "release-evidence",
+  "degraded": false,
+  "metadata": {
+    "generatedAt": "2026-04-25T15:09:55.799Z",
+    "releaseProfile": "core",
+    "mode": "enforce",
+    "environment": "local",
+    "appVersion": "1.1.0",
+    "gitShortSha": "d526ae2",
+    "nodeVersion": "v25.9.0",
+    "workspaceRoot": "/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu",
+    "stage": "A1b",
+    "dryRun": true,
+    "outputPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-gate.json",
+    "logsDir": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate"
+  },
+  "summary": {
+    "total": 18,
+    "passed": 7,
+    "failed": 0,
+    "skipped": 11
+  },
+  "evidenceIndex": [
+    {
+      "conclusionId": "check.docs-governance",
+      "conclusion": "check:docs-governance skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:docs-governance",
+      "module": "docs",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/01-check_docs-governance.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "check.architecture-guard",
+      "conclusion": "check:architecture-guard skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:architecture-guard",
+      "module": "architecture",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/02-check_architecture-guard.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "report.m5-trend",
+      "conclusion": "report:m5-trend skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s report:m5-trend",
+      "module": "observability",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/03-report_m5-trend.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "gate.m6-release",
+      "conclusion": "gate:m6-release skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s gate:m6-release",
+      "module": "release",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/04-gate_m6-release.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "check.m7-extension-foundation",
+      "conclusion": "check:m7-extension-foundation skipped",
+      "evidenceType": "gate_script",
+      "command": "npm run -s check:m7-extension-foundation",
+      "module": "extension",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/05-check_m7-extension-foundation.log",
+      "keySummary": "Dry run mode: step was not executed."
+    },
+    {
+      "conclusionId": "a2.toolreq_governance_seed_003",
+      "conclusion": "AI evidence card ready for toolreq_governance_seed_003",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=toolreq_governance_seed_003",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "update_transcription_segment:confirmed"
+    },
+    {
+      "conclusionId": "a2.toolreq_governance_seed_002",
+      "conclusion": "AI evidence card ready for toolreq_governance_seed_002",
+      "evidenceType": "audit_replay",
+      "command": "ai_card:requestId=toolreq_governance_seed_002",
+      "module": "ai-audit",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "delete_transcription_segment:blocked"
+    },
+    {
+      "conclusionId": "a3.perf.cards",
+      "conclusion": "A3 perf evidence cards skipped",
+      "evidenceType": "perf_cards_skipped",
+      "command": "release_evidence:perf_cards",
+      "module": "performance",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "passed=0;failed=0;skipped=3"
+    },
+    {
+      "conclusionId": "b3.extensions.capability-audit-summary",
+      "conclusion": "B3 extension capability audit summary skipped",
+      "evidenceType": "extension_capability_audit_skipped",
+      "command": "release_evidence:extension_capability_audit",
+      "module": "extension",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_extension_capability_audit_source"
+    },
+    {
+      "conclusionId": "p1.progressive-disclosure.v1",
+      "conclusion": "P1-ProgressiveDisclosure card generated",
+      "evidenceType": "progressive_disclosure",
+      "command": "release_evidence:progressive_disclosure",
+      "module": "ai-progressive-disclosure",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "cards=4"
+    },
+    {
+      "conclusionId": "p1.rag-shape-telemetry.v1",
+      "conclusion": "P1-RagShapeTelemetry card skipped",
+      "evidenceType": "memory_recall_shape_skipped",
+      "command": "release_evidence:memory_recall_shape",
+      "module": "ai-rag-shape",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_rag_shape_metadata"
+    },
+    {
+      "conclusionId": "c5.background-memory-extraction.v1",
+      "conclusion": "C5 background memory extraction card skipped",
+      "evidenceType": "background_memory_extraction_skipped",
+      "command": "release_evidence:background_memory_extraction",
+      "module": "ai-memory",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_background_memory_extraction_rows"
+    },
+    {
+      "conclusionId": "c7.coordination-lite.v1",
+      "conclusion": "C7 coordination lite card skipped",
+      "evidenceType": "coordination_lite_skipped",
+      "command": "release_evidence:coordination_lite",
+      "module": "ai-coordination",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "no_coordination_lite_rows"
+    },
+    {
+      "conclusionId": "c8.user-directive-governance.v1",
+      "conclusion": "C8 user directive governance card skipped",
+      "evidenceType": "user_directive_governance_skipped",
+      "status": "skipped",
+      "exitCode": null,
+      "logPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+      "keySummary": "no_user_directive_governance_rows"
+    },
+    {
+      "conclusionId": "m1.action-approval-center.v1",
+      "conclusion": "M1 action approval center card generated",
+      "evidenceType": "action_approval_center",
+      "command": "release_evidence:action_approval_center",
+      "module": "ai-runtime",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "pending=0;blocked=1;confirmed=1"
+    },
+    {
+      "conclusionId": "m0.audit-field-dictionary.v1",
+      "conclusion": "M0 audit field dictionary v1 generated",
+      "evidenceType": "audit_field_dictionary_v1",
+      "command": "release_evidence:audit_field_dictionary_v1",
+      "module": "observability",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "fields=4;namespace=ai_messages"
+    },
+    {
+      "conclusionId": "p1.cost-guard.v1",
+      "conclusion": "P1-CostGuard card generated",
+      "evidenceType": "cost_guard",
+      "command": "release_evidence:cost_guard",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "budget=0;retry=0;retrySuccess=0;outputCap=0"
+    },
+    {
+      "conclusionId": "p1.cost-guard.trend.v1",
+      "conclusion": "P1-CostGuard trend card generated",
+      "evidenceType": "cost_guard_trend",
+      "command": "release_evidence:cost_guard_trend",
+      "module": "ai-cost",
+      "exitCode": 0,
+      "logPath": null,
+      "keySummary": "points=2;compareReady=yes"
+    }
+  ],
+  "steps": [
+    {
+      "id": "check.docs-governance",
+      "kind": "gate_script",
+      "module": "docs",
+      "script": "check:docs-governance",
+      "command": "npm run -s check:docs-governance",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/01-check_docs-governance.log"
+    },
+    {
+      "id": "check.architecture-guard",
+      "kind": "gate_script",
+      "module": "architecture",
+      "script": "check:architecture-guard",
+      "command": "npm run -s check:architecture-guard",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/02-check_architecture-guard.log"
+    },
+    {
+      "id": "report.m5-trend",
+      "kind": "gate_script",
+      "module": "observability",
+      "script": "report:m5-trend",
+      "command": "npm run -s report:m5-trend",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/03-report_m5-trend.log"
+    },
+    {
+      "id": "gate.m6-release",
+      "kind": "gate_script",
+      "module": "release",
+      "script": "gate:m6-release",
+      "command": "npm run -s gate:m6-release",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/04-gate_m6-release.log"
+    },
+    {
+      "id": "check.m7-extension-foundation",
+      "kind": "gate_script",
+      "module": "extension",
+      "script": "check:m7-extension-foundation",
+      "command": "npm run -s check:m7-extension-foundation",
+      "status": "skipped",
+      "exitCode": null,
+      "durationMs": 0,
+      "summary": "Dry run mode: step was not executed.",
+      "logPath": "docs/execution/release-gates/release-evidence/logs/release-evidence-governance-gate/05-check_m7-extension-foundation.log"
+    }
+  ],
+  "aiToolEvidenceCards": {
+    "summary": {
+      "total": 2,
+      "ready": 2,
+      "skipped": 0
+    },
+    "status": "partial_or_ready",
+    "cards": [
+      {
+        "requestId": "toolreq_governance_seed_003",
+        "status": "ready",
+        "source": "audit_export",
+        "toolName": "update_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "confirmed",
+          "executed": true,
+          "message": "governance strict seed second-day decision",
+          "timestamp": "2026-04-25T10:20:00.000Z"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_governance_seed_003",
+        "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
+      },
+      {
+        "requestId": "toolreq_governance_seed_002",
+        "status": "ready",
+        "source": "audit_export",
+        "toolName": "delete_transcription_segment",
+        "replayable": true,
+        "latestDecision": {
+          "decision": "blocked",
+          "reason": "user_directive_deny_destructive",
+          "reasonLabelEn": "Blocked by user safety preference for destructive actions.",
+          "reasonLabelZh": "已被用户安全偏好阻断高风险破坏性操作",
+          "executed": false,
+          "message": "governance strict seed high-risk blocked",
+          "timestamp": "2026-04-24T10:15:00.000Z"
+        },
+        "diff": {
+          "matches": null
+        },
+        "auditLogQueryHint": "collection=ai_messages;field=ai_tool_call_decision;requestId=toolreq_governance_seed_002",
+        "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
+      }
+    ],
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson"
+  },
+  "perf": {
+    "status": "skipped",
+    "skipReason": "profile_without_performance_steps",
+    "summary": {
+      "total": 3,
+      "passed": 0,
+      "failed": 0,
+      "skipped": 3
+    },
+    "cards": [
+      {
+        "id": "track_layout_baseline",
+        "title": "Track layout baseline",
+        "script": "perf:track",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": 260,
+        "metricObservedMs": null,
+        "metricKind": "medianMs",
+        "checks": [
+          {
+            "label": "2k",
+            "maxMs": 120,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "5k",
+            "maxMs": 260,
+            "observedMs": null,
+            "passed": null
+          }
+        ],
+        "summary": "Step is not part of current profile pipeline."
+      },
+      {
+        "id": "timeline_index_baseline",
+        "title": "Timeline unit index baseline",
+        "script": "test:timeline-cqrs-phase9",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": 500,
+        "metricObservedMs": null,
+        "metricKind": "elapsedMs",
+        "checks": [
+          {
+            "label": "1k",
+            "maxMs": 80,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "5k",
+            "maxMs": 250,
+            "observedMs": null,
+            "passed": null
+          },
+          {
+            "label": "10k",
+            "maxMs": 500,
+            "observedMs": null,
+            "passed": null
+          }
+        ],
+        "summary": "Step is not part of current profile pipeline."
+      },
+      {
+        "id": "ai_baseline",
+        "title": "AI baseline",
+        "script": "perf:ai",
+        "status": "not_run",
+        "elapsedMs": null,
+        "thresholdMaxMs": null,
+        "metricObservedMs": null,
+        "metricKind": "elapsedMs",
+        "checks": [],
+        "summary": "Step is not part of current profile pipeline."
+      }
+    ],
+    "profile": "core"
+  },
+  "progressiveDisclosure": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "cards": [
+      {
+        "id": "first_pass_resolution_rate",
+        "status": "ready_or_partial",
+        "value": 0.5,
+        "numerator": 1,
+        "denominator": 2,
+        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=0",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "clarify_then_success_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 2,
+        "numeratorSource": "ai_messages.ai_tool_call_decision latestDecision in {confirmed,auto_confirmed} and clarifyCount=1",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "advanced_entry_reach_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 2,
+        "numeratorSource": "ai_messages.ai_tool_call_decision reason in advanced set OR decision in {retry,capped}",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      },
+      {
+        "id": "clarify_loop_rate",
+        "status": "ready_or_partial",
+        "value": 0,
+        "numerator": 0,
+        "denominator": 2,
+        "numeratorSource": "ai_messages.ai_tool_call_decision clarifyCount>=2 and latestDecision not in {confirmed,auto_confirmed}",
+        "denominatorSource": "distinct requestId in ai_messages.ai_tool_call_decision"
+      }
+    ]
+  },
+  "memoryRecallShape": {
+    "status": "skipped",
+    "skipReason": "no_rag_shape_metadata",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "card": null
+  },
+  "backgroundMemoryExtraction": {
+    "status": "skipped",
+    "skipReason": "no_background_memory_extraction_rows",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "summary": {
+      "total": 0,
+      "scheduled": 0,
+      "merged": 0,
+      "completed": 0,
+      "skipped": 0,
+      "failed": 0,
+      "writtenCount": 0
+    },
+    "skipReasons": {}
+  },
+  "coordinationLite": {
+    "status": "skipped",
+    "skipReason": "no_coordination_lite_rows",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "summary": {
+      "total": 0,
+      "completed": 0,
+      "failed": 0,
+      "cancelled": 0,
+      "quarantinedCount": 0
+    },
+    "phaseDistribution": {},
+    "parallelPolicy": {}
+  },
+  "userDirectiveGovernance": {
+    "status": "skipped",
+    "skipReason": "no_user_directive_governance_rows",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "summary": {
+      "total": 0,
+      "extractionCount": 0,
+      "applicationCount": 0,
+      "responsePolicyResolutionCount": 0,
+      "accepted": 0,
+      "ignored": 0,
+      "downgraded": 0,
+      "superseded": 0,
+      "languageFormatterMismatchCount": 0
+    },
+    "categories": {}
+  },
+  "actionApprovalCenter": {
+    "status": "ready_or_partial",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "summary": {
+      "total": 2,
+      "pending": 0,
+      "blocked": 1,
+      "confirmed": 1,
+      "cancelled": 0,
+      "failed": 0
+    },
+    "riskTiers": {
+      "high": 1,
+      "medium": 1
+    },
+    "approvalModes": {
+      "policy_blocked": 1,
+      "user_confirmation": 1
+    }
+  },
+  "auditFieldDictionary": {
+    "schemaVersion": 1,
+    "status": "ready",
+    "namespace": "ai_messages",
+    "fields": [
+      {
+        "field": "ai_user_directive_extraction",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "summary.extractedCount",
+          "summary.categories"
+        ]
+      },
+      {
+        "field": "ai_user_directive_application",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "summary.acceptedCount",
+          "summary.ignoredCount"
+        ]
+      },
+      {
+        "field": "ai_response_policy_resolution",
+        "phase": "directive_governance",
+        "requiredMetadataKeys": [
+          "phase",
+          "policy.language",
+          "policy.locale",
+          "policy.style"
+        ]
+      },
+      {
+        "field": "ai_tool_call_decision",
+        "phase": "tool_decision",
+        "requiredMetadataKeys": [
+          "phase",
+          "outcome",
+          "toolCall.name",
+          "executed"
+        ]
+      }
+    ]
+  },
+  "costGuard": {
+    "status": "ready_or_partial",
+    "estimatorVersion": "v1.provider_usage_or_unknown",
+    "auditExportPath": "docs/execution/release-gates/release-evidence/release-evidence-governance-strict-seed.ndjson",
+    "summary": {
+      "requestCount": 2,
+      "budgetTriggerCount": 0,
+      "retryTriggeredCount": 0,
+      "retrySuccessCount": 0,
+      "outputCapTriggeredCount": 0
+    },
+    "trend": {
+      "bucket": "day",
+      "pointCount": 2,
+      "compareReady": true,
+      "points": [
+        {
+          "date": "2026-04-24",
+          "requestCount": 1,
+          "budgetTriggerCount": 0,
+          "retryTriggeredCount": 0,
+          "retrySuccessCount": 0,
+          "outputCapTriggeredCount": 0
+        },
+        {
+          "date": "2026-04-25",
+          "requestCount": 1,
+          "budgetTriggerCount": 0,
+          "retryTriggeredCount": 0,
+          "retrySuccessCount": 0,
+          "outputCapTriggeredCount": 0
+        }
+      ]
+    },
+    "card": {
+      "id": "session_cost_guard_v1",
+      "status": "ready_or_partial",
+      "sampleSource": "audit_export",
+      "counts": {
+        "budgetTriggerCount": 0,
+        "retryTriggeredCount": 0,
+        "retrySuccessCount": 0,
+        "outputCapTriggeredCount": 0
+      }
+    }
+  },
+  "extensions": {
+    "status": "skipped",
+    "skipReason": "no_extension_capability_audit_source",
+    "capabilityAuditSummary": []
+  }
+}

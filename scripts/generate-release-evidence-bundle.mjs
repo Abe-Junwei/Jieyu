@@ -370,6 +370,26 @@ function parseJsonMaybe(rawText) {
   }
 }
 
+function resolvePolicyReasonLabelForReport(reasonCode, locale) {
+  const code = String(reasonCode ?? '').trim();
+  if (!code) return undefined;
+  const labelsZh = {
+    user_directive_never_execute: '已被用户指令禁止自动执行',
+    user_directive_deny_destructive: '已被用户安全偏好阻断高风险破坏性操作',
+    user_directive_deny_batch: '已被用户指令阻断批量写入操作',
+    user_directive_confirmation_required: '用户偏好要求先确认再执行',
+    propose_changes_requires_confirmation: '提议变更模式要求人工确认后执行',
+  };
+  const labelsEn = {
+    user_directive_never_execute: 'Blocked by user directive that forbids auto execution.',
+    user_directive_deny_destructive: 'Blocked by user safety preference for destructive actions.',
+    user_directive_deny_batch: 'Blocked by user directive against batch write actions.',
+    user_directive_confirmation_required: 'User preference requires confirmation before execution.',
+    propose_changes_requires_confirmation: 'Proposed-change mode requires human confirmation.',
+  };
+  return locale === 'zh-CN' ? labelsZh[code] : labelsEn[code];
+}
+
 function normalizeAuditRow(rawRow) {
   if (!rawRow || typeof rawRow !== 'object') return null;
 
@@ -525,6 +545,8 @@ function buildAiCardFromAuditRows(requestId, rows, auditExportPath) {
   const latestDecisionRow = decisionRows[decisionRows.length - 1];
   const latestDecisionMeta = getMetadataObject(latestDecisionRow);
   const latestDecisionBase = extractDecisionFromDecisionRow(latestDecisionRow);
+  const reasonLabelEn = resolvePolicyReasonLabelForReport(latestDecisionBase.reason, 'en-US');
+  const reasonLabelZh = resolvePolicyReasonLabelForReport(latestDecisionBase.reason, 'zh-CN');
   const toolCall = latestDecisionMeta?.toolCall && typeof latestDecisionMeta.toolCall === 'object'
     ? latestDecisionMeta.toolCall
     : null;
@@ -543,6 +565,8 @@ function buildAiCardFromAuditRows(requestId, rows, auditExportPath) {
     latestDecision: {
       decision: latestDecisionBase.decision,
       ...(latestDecisionBase.reason ? { reason: latestDecisionBase.reason } : {}),
+      ...(reasonLabelEn ? { reasonLabelEn } : {}),
+      ...(reasonLabelZh ? { reasonLabelZh } : {}),
       ...(typeof latestDecisionMeta?.executed === 'boolean' ? { executed: latestDecisionMeta.executed } : {}),
       ...(typeof latestDecisionMeta?.message === 'string' && latestDecisionMeta.message.trim().length > 0
         ? { message: latestDecisionMeta.message.trim() }
@@ -602,6 +626,12 @@ function normalizeAiCardFromFixture(rawCard, requestId) {
           : 'unknown',
         ...(typeof rawCard.latestDecision.reason === 'string' && rawCard.latestDecision.reason.trim().length > 0
           ? { reason: rawCard.latestDecision.reason.trim() }
+          : {}),
+        ...(typeof rawCard.latestDecision.reasonLabelEn === 'string' && rawCard.latestDecision.reasonLabelEn.trim().length > 0
+          ? { reasonLabelEn: rawCard.latestDecision.reasonLabelEn.trim() }
+          : {}),
+        ...(typeof rawCard.latestDecision.reasonLabelZh === 'string' && rawCard.latestDecision.reasonLabelZh.trim().length > 0
+          ? { reasonLabelZh: rawCard.latestDecision.reasonLabelZh.trim() }
           : {}),
       }
     : { decision: 'unknown' };
@@ -1733,6 +1763,9 @@ function buildUserDirectiveGovernanceSection(input) {
 
   const summary = { ...emptySummary, total: rows.length };
   const categories = new Map();
+  const reasonCodes = new Map();
+  const reasonLabelsEn = new Map();
+  const reasonLabelsZh = new Map();
   const sampleRequestIds = [];
 
   for (const row of rows) {
@@ -1757,9 +1790,23 @@ function buildUserDirectiveGovernanceSection(input) {
     if (policy && typeof policy === 'object') {
       const language = String(policy.language ?? 'auto');
       const locale = String(policy.locale ?? '');
-      if ((language === 'en' && locale !== 'en-US') || (language === 'zh-CN' && locale !== 'zh-CN')) {
+      const style = String(policy.style ?? '');
+      const format = typeof policy.format === 'string' ? policy.format : null;
+      const localeMismatch = (language === 'en' && locale !== 'en-US') || (language === 'zh-CN' && locale !== 'zh-CN');
+      const styleMismatch = style.length > 0 && !['concise', 'detailed'].includes(style);
+      const formatMismatch = format !== null && !['bullets', 'prose', 'steps', 'evidence_first'].includes(format);
+      if (localeMismatch || styleMismatch || formatMismatch) {
         summary.languageFormatterMismatchCount += 1;
       }
+    }
+
+    const reasonCode = typeof metadata.reason === 'string' ? metadata.reason.trim() : '';
+    if (reasonCode) {
+      reasonCodes.set(reasonCode, (reasonCodes.get(reasonCode) ?? 0) + 1);
+      const labelEn = resolvePolicyReasonLabelForReport(reasonCode, 'en-US');
+      const labelZh = resolvePolicyReasonLabelForReport(reasonCode, 'zh-CN');
+      if (labelEn) reasonLabelsEn.set(labelEn, (reasonLabelsEn.get(labelEn) ?? 0) + 1);
+      if (labelZh) reasonLabelsZh.set(labelZh, (reasonLabelsZh.get(labelZh) ?? 0) + 1);
     }
 
     if (row.requestId) sampleRequestIds.push(row.requestId);
@@ -1770,6 +1817,101 @@ function buildUserDirectiveGovernanceSection(input) {
     auditExportPath: toRelativePath(auditExportPath),
     summary,
     categories: Object.fromEntries([...categories.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    reasonCodes: Object.fromEntries([...reasonCodes.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    reasonLabelsEn: Object.fromEntries([...reasonLabelsEn.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    reasonLabelsZh: Object.fromEntries([...reasonLabelsZh.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    ...(releaseProfile === 'full' ? { sampleRequestIds: [...new Set(sampleRequestIds)].slice(0, 10) } : {}),
+  };
+  if (readError) out.readError = readError;
+  return out;
+}
+
+function buildActionApprovalCenterSection(input) {
+  const {
+    auditExportPath,
+    auditRows,
+    readError,
+    releaseProfile,
+  } = input;
+
+  const emptySummary = {
+    total: 0,
+    pending: 0,
+    blocked: 0,
+    confirmed: 0,
+    cancelled: 0,
+    failed: 0,
+  };
+
+  if (!auditExportPath) {
+    return {
+      status: 'skipped',
+      skipReason: 'no_audit_export_source',
+      summary: emptySummary,
+      riskTiers: {},
+      approvalModes: {},
+    };
+  }
+
+  const rows = selectLatestRows(
+    auditRows.filter((row) => row.collection === 'ai_messages' && row.field === 'ai_tool_call_decision'),
+  );
+
+  if (rows.length === 0) {
+    const out = {
+      status: 'skipped',
+      skipReason: 'no_decision_rows',
+      auditExportPath: toRelativePath(auditExportPath),
+      summary: emptySummary,
+      riskTiers: {},
+      approvalModes: {},
+    };
+    if (readError) out.readError = readError;
+    return out;
+  }
+
+  const summary = { ...emptySummary };
+  const riskTiers = new Map();
+  const approvalModes = new Map();
+  const sampleRequestIds = [];
+
+  for (const row of rows) {
+    const metadata = getMetadataObject(row) ?? {};
+    const decisionParts = String(row.newValue ?? '').split(':').map((part) => part.trim()).filter(Boolean);
+    const outcome = typeof metadata.outcome === 'string' && metadata.outcome.trim().length > 0
+      ? metadata.outcome.trim()
+      : (decisionParts[0] ?? 'unknown');
+
+    summary.total += 1;
+    if (outcome.includes('pending')) summary.pending += 1;
+    else if (outcome.includes('blocked')) summary.blocked += 1;
+    else if (outcome === 'confirmed' || outcome === 'auto_confirmed') summary.confirmed += 1;
+    else if (outcome === 'cancelled') summary.cancelled += 1;
+    else if (outcome.includes('failed')) summary.failed += 1;
+
+    const riskTier = typeof metadata.riskTier === 'string' && metadata.riskTier.trim().length > 0
+      ? metadata.riskTier.trim()
+      : '';
+    if (riskTier) {
+      riskTiers.set(riskTier, (riskTiers.get(riskTier) ?? 0) + 1);
+    }
+
+    const approvalMode = typeof metadata.approvalMode === 'string' && metadata.approvalMode.trim().length > 0
+      ? metadata.approvalMode.trim()
+      : '';
+    if (approvalMode) {
+      approvalModes.set(approvalMode, (approvalModes.get(approvalMode) ?? 0) + 1);
+    }
+
+    if (row.requestId) sampleRequestIds.push(row.requestId);
+  }
+
+  const out = {
+    status: 'ready_or_partial',
+    auditExportPath: toRelativePath(auditExportPath),
+    summary,
+    riskTiers: Object.fromEntries([...riskTiers.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
+    approvalModes: Object.fromEntries([...approvalModes.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
     ...(releaseProfile === 'full' ? { sampleRequestIds: [...new Set(sampleRequestIds)].slice(0, 10) } : {}),
   };
   if (readError) out.readError = readError;
@@ -2007,6 +2149,36 @@ function buildEvidenceSummary(evidenceIndex) {
   };
 }
 
+function buildAuditFieldDictionarySection() {
+  return {
+    schemaVersion: 1,
+    status: 'ready',
+    namespace: 'ai_messages',
+    fields: [
+      {
+        field: 'ai_user_directive_extraction',
+        phase: 'directive_governance',
+        requiredMetadataKeys: ['phase', 'summary.extractedCount', 'summary.categories'],
+      },
+      {
+        field: 'ai_user_directive_application',
+        phase: 'directive_governance',
+        requiredMetadataKeys: ['phase', 'summary.acceptedCount', 'summary.ignoredCount'],
+      },
+      {
+        field: 'ai_response_policy_resolution',
+        phase: 'directive_governance',
+        requiredMetadataKeys: ['phase', 'policy.language', 'policy.locale', 'policy.style'],
+      },
+      {
+        field: 'ai_tool_call_decision',
+        phase: 'tool_decision',
+        requiredMetadataKeys: ['phase', 'outcome', 'toolCall.name', 'executed'],
+      },
+    ],
+  };
+}
+
 function buildReport(input) {
   const {
     generatedAt,
@@ -2028,6 +2200,8 @@ function buildReport(input) {
     backgroundMemoryExtractionSection,
     coordinationLiteSection,
     userDirectiveGovernanceSection,
+    actionApprovalCenterSection,
+    auditFieldDictionarySection,
   } = input;
 
   const failed = countByStatus(stepResults, 'failed');
@@ -2201,6 +2375,34 @@ function buildReport(input) {
   });
 
   evidenceIndex.push({
+    conclusionId: 'm1.action-approval-center.v1',
+    conclusion: actionApprovalCenterSection.status === 'skipped'
+      ? 'M1 action approval center card skipped'
+      : 'M1 action approval center card generated',
+    evidenceType: actionApprovalCenterSection.status === 'skipped'
+      ? 'action_approval_center_skipped'
+      : 'action_approval_center',
+    command: 'release_evidence:action_approval_center',
+    module: 'ai-runtime',
+    exitCode: 0,
+    logPath: null,
+    keySummary: actionApprovalCenterSection.status === 'skipped'
+      ? (actionApprovalCenterSection.skipReason ?? 'skipped')
+      : `pending=${actionApprovalCenterSection.summary.pending};blocked=${actionApprovalCenterSection.summary.blocked};confirmed=${actionApprovalCenterSection.summary.confirmed}`,
+  });
+
+  evidenceIndex.push({
+    conclusionId: 'm0.audit-field-dictionary.v1',
+    conclusion: 'M0 audit field dictionary v1 generated',
+    evidenceType: 'audit_field_dictionary_v1',
+    command: 'release_evidence:audit_field_dictionary_v1',
+    module: 'observability',
+    exitCode: 0,
+    logPath: null,
+    keySummary: `fields=${auditFieldDictionarySection.fields.length};namespace=${auditFieldDictionarySection.namespace}`,
+  });
+
+  evidenceIndex.push({
     conclusionId: 'p1.cost-guard.v1',
     conclusion: costGuardSection.status === 'skipped'
       ? 'P1-CostGuard card skipped'
@@ -2293,6 +2495,8 @@ function buildReport(input) {
     backgroundMemoryExtraction: backgroundMemoryExtractionSection,
     coordinationLite: coordinationLiteSection,
     userDirectiveGovernance: userDirectiveGovernanceSection,
+    actionApprovalCenter: actionApprovalCenterSection,
+    auditFieldDictionary: auditFieldDictionarySection,
     costGuard: costGuardSection,
     extensions: extensionCapabilityAudit,
   };
@@ -2431,6 +2635,13 @@ async function run() {
       readError: auditLoad.readError,
       releaseProfile,
     }),
+    actionApprovalCenterSection: buildActionApprovalCenterSection({
+      auditExportPath: aiAuditExportPath,
+      auditRows: auditLoad.rows,
+      readError: auditLoad.readError,
+      releaseProfile,
+    }),
+    auditFieldDictionarySection: buildAuditFieldDictionarySection(),
   });
 
   if (requireCostGuardTrendReady) {

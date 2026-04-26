@@ -59,6 +59,12 @@ npm run build
 npm run build:guard
 ```
 
+## 部署安全头
+
+- `frame-ancestors` 不能通过 HTML `meta` 生效，必须走 HTTP 响应头。
+- 当前仓库已补齐：开发/preview、Vercel、Netlify / Cloudflare Pages 的默认配置。
+- Nginx 与部署层落地说明见 [docs/development/csp-frame-ancestors-deployment.md](docs/development/csp-frame-ancestors-deployment.md)。
+
 ## 地图代理（可选）
 
 为减少前端暴露第三方地图 Key，可配置代理基址：

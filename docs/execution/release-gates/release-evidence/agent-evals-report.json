@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-04-25T23:14:21.724Z",
+  "mode": "enforce",
+  "suite": {
+    "suiteId": "jieyu-agent-evals-v1",
+    "version": 1,
+    "description": "Golden-path agent governance regression suite.",
+    "suitePath": "scripts/agent-evals/suite.v1.json"
+  },
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "passRate": 1,
+    "requiredPassRate": 0.9,
+    "maxFailedCases": 0,
+    "coveredGoldenTasks": 40,
+    "requiredGoldenTasksMin": 30,
+    "coveredTrajectorySignals": [
+      "tool_selection",
+      "gate_correctness",
+      "audit_traceability",
+      "recovery_path",
+      "approval_explainability"
+    ],
+    "requiredTrajectorySignals": [
+      "tool_selection",
+      "gate_correctness",
+      "recovery_path",
+      "audit_traceability",
+      "approval_explainability"
+    ],
+    "missingTrajectorySignals": [],
+    "thresholdPassed": true,
+    "startedAt": "2026-04-25T23:13:55.972Z",
+    "endedAt": "2026-04-25T23:14:21.724Z"
+  },
+  "cases": [
+    {
+      "id": "typecheck",
+      "name": "TypeScript typecheck",
+      "category": "build",
+      "goldenTaskCount": 0,
+      "trajectorySignals": [],
+      "command": "npm run typecheck",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:13:55.975Z",
+      "endedAt": "2026-04-25T23:14:07.713Z",
+      "elapsedMs": 11738,
+      "stdout": "\n> jieyu@1.1.0 typecheck\n> tsc --noEmit\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "directive-governance",
+      "name": "Directive governance tests",
+      "category": "policy",
+      "goldenTaskCount": 10,
+      "trajectorySignals": [
+        "tool_selection",
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/ai/memory/userDirectiveExtractor.test.ts src/hooks/useAiChat.responsePolicy.test.ts src/hooks/useAiChat.backgroundMemory.test.ts src/hooks/useAiChat.toolDecisionPipeline.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:14:07.713Z",
+      "endedAt": "2026-04-25T23:14:09.024Z",
+      "elapsedMs": 1311,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.responsePolicy.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/memory/userDirectiveExtractor.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.backgroundMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m4 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 8\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.toolDecisionPipeline.test.ts \u001b[2m(\u001b[22m\u001b[2m2 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m10 passed\u001b[39m\u001b[22m\u001b[90m (10)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:14:08\n\u001b[2m   Duration \u001b[22m 568ms\u001b[2m (transform 627ms, setup 641ms, import 426ms, tests 23ms, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "prompt-memory",
+      "name": "Prompt and memory integration tests",
+      "category": "runtime",
+      "goldenTaskCount": 8,
+      "trajectorySignals": [
+        "tool_selection",
+        "recovery_path"
+      ],
+      "command": "npx vitest run src/ai/chat/sessionMemory.test.ts src/ai/chat/promptContext.tiered.test.ts src/hooks/useAiChat.streamCompletion.test.ts src/hooks/useAiChat.agentLoopRunner.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:14:09.025Z",
+      "endedAt": "2026-04-25T23:14:10.535Z",
+      "elapsedMs": 1510,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/chat/sessionMemory.test.ts \u001b[2m(\u001b[22m\u001b[2m11 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 9\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/ai/chat/promptContext.tiered.test.ts \u001b[2m(\u001b[22m\u001b[2m3 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 2\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.streamCompletion.test.ts \u001b[2m(\u001b[22m\u001b[2m19 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 13\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/hooks/useAiChat.agentLoopRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m1 test\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 6\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m4 passed\u001b[39m\u001b[22m\u001b[90m (4)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m34 passed\u001b[39m\u001b[22m\u001b[90m (34)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:14:09\n\u001b[2m   Duration \u001b[22m 798ms\u001b[2m (transform 1.27s, setup 632ms, import 1.58s, tests 30ms, environment 303ms)\u001b[22m\n\n",
+      "stderr": "(node:64313) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "release-evidence",
+      "name": "Release evidence bundle tests",
+      "category": "evidence",
+      "goldenTaskCount": 6,
+      "trajectorySignals": [
+        "audit_traceability"
+      ],
+      "command": "npx vitest run scripts/generate-release-evidence-bundle.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:14:10.535Z",
+      "endedAt": "2026-04-25T23:14:12.793Z",
+      "elapsedMs": 2258,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m scripts/generate-release-evidence-bundle.test.ts \u001b[2m(\u001b[22m\u001b[2m16 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 1354\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m16 passed\u001b[39m\u001b[22m\u001b[90m (16)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:14:11\n\u001b[2m   Duration \u001b[22m 1.57s\u001b[2m (transform 101ms, setup 145ms, import 12ms, tests 1.35s, environment 0ms)\u001b[22m\n\n",
+      "stderr": ""
+    },
+    {
+      "id": "approval-center-ui",
+      "name": "Approval center and directive console UI tests",
+      "category": "ui",
+      "goldenTaskCount": 10,
+      "trajectorySignals": [
+        "approval_explainability",
+        "gate_correctness",
+        "audit_traceability"
+      ],
+      "command": "npx vitest run src/components/ai/AiChatAlertsPanel.test.tsx src/components/ai/AiChatCard.input.test.tsx",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:14:12.793Z",
+      "endedAt": "2026-04-25T23:14:15.470Z",
+      "elapsedMs": 2677,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/components/ai/AiChatAlertsPanel.test.tsx \u001b[2m(\u001b[22m\u001b[2m5 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[32m 123\u001b[2mms\u001b[22m\u001b[39m\n \u001b[32m✓\u001b[39m src/components/ai/AiChatCard.input.test.tsx \u001b[2m(\u001b[22m\u001b[2m36 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 979\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m2 passed\u001b[39m\u001b[22m\u001b[90m (2)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m41 passed\u001b[39m\u001b[22m\u001b[90m (41)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:14:13\n\u001b[2m   Duration \u001b[22m 1.94s\u001b[2m (transform 566ms, setup 322ms, import 665ms, tests 1.10s, environment 585ms)\u001b[22m\n\n",
+      "stderr": "(node:65759) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n(node:65759) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "id": "taskrunner-recovery",
+      "name": "TaskRunner timeout/retry/recovery tests",
+      "category": "runtime",
+      "goldenTaskCount": 6,
+      "trajectorySignals": [
+        "recovery_path"
+      ],
+      "command": "npx vitest run src/ai/tasks/TaskRunner.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "startedAt": "2026-04-25T23:14:15.470Z",
+      "endedAt": "2026-04-25T23:14:21.724Z",
+      "elapsedMs": 6254,
+      "stdout": "\n\u001b[1m\u001b[30m\u001b[46m RUN \u001b[49m\u001b[39m\u001b[22m \u001b[36mv4.1.5 \u001b[39m\u001b[90m/Users/junwei/Documents/百度网盘同步/Obsremote/（50）开发/Jieyu\u001b[39m\n\n \u001b[32m✓\u001b[39m src/ai/tasks/TaskRunner.test.ts \u001b[2m(\u001b[22m\u001b[2m15 tests\u001b[22m\u001b[2m)\u001b[22m\u001b[33m 4594\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries when handler fails and then succeeds \u001b[33m 507\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m fails task on timeout and stores timeout message \u001b[33m 1004\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m retries after a per-attempt timeout when maxAttempts allows it \u001b[33m 1506\u001b[2mms\u001b[22m\u001b[39m\n     \u001b[33m\u001b[2m✓\u001b[22m\u001b[39m applies backoff delay between retry attempts \u001b[33m 1511\u001b[2mms\u001b[22m\u001b[39m\n\n\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m\u001b[90m (1)\u001b[39m\n\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[32m15 passed\u001b[39m\u001b[22m\u001b[90m (15)\u001b[39m\n\u001b[2m   Start at \u001b[22m 07:14:16\n\u001b[2m   Duration \u001b[22m 5.36s\u001b[2m (transform 215ms, setup 151ms, import 283ms, tests 4.59s, environment 270ms)\u001b[22m\n\n",
+      "stderr": "(node:65826) Warning: `--localstorage-file` was provided without a valid path\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    }
+  ]
+}
