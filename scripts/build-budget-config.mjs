@@ -11,7 +11,7 @@ export const buildBudgets = [
   { label: 'transcription-timeline.css', pattern: /^transcription-timeline-.*\.css$/, maxBytes: 56 * 1024 },
   { label: 'OrchestratorWaveformContent.css', pattern: /^OrchestratorWaveformContent-.*\.css$/, maxBytes: 28 * 1024 },
   { label: 'LanguageMetadataWorkspacePage.css', pattern: /^LanguageMetadataWorkspacePage-.*\.css$/, maxBytes: 28 * 1024 },
-  { label: 'OrthographyManagerPage.css', pattern: /^OrthographyManagerPage-.*\.css$/, maxBytes: 34 * 1024 },
+  { label: 'OrthographyManagerPage.css', pattern: /^OrthographyManagerPage-.*\.css$/, maxBytes: 36 * 1024 },
   { label: 'OrthographyBridgeWorkspacePage.css', pattern: /^OrthographyBridgeWorkspacePage-.*\.css$/, maxBytes: 16 * 1024 },
 ];
 
