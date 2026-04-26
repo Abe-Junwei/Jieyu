@@ -66,7 +66,7 @@
 .dialog-header h3,
 .dialog-shell__title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   line-height: 1.25;
   font-weight: 700;
 }
@@ -106,7 +106,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: var(--font-size-base);
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-xs);
@@ -153,7 +153,7 @@
 
 .dialog-hint {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -170,7 +170,7 @@
   margin: 0;
   padding: var(--space-1-5, 9px) var(--space-3, 11px);
   border-radius: var(--radius-md);
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 500;
   line-height: 1.5;
 }
@@ -224,7 +224,7 @@
   padding: 0 8px;
   min-height: 30px;
   border-radius: var(--radius-sm);
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
@@ -232,7 +232,7 @@
 
 .dialog-field label,
 .dialog-field > span {
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -332,7 +332,7 @@
   gap: var(--space-2, 8px);
   padding: var(--space-1-5, 6px) var(--space-3, 10px);
   cursor: pointer;
-  font-size: var(--font-size-sm, calc(0.76rem * var(--ui-font-scale, 1)));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   color: var(--text-primary);
 }
@@ -379,7 +379,7 @@
   gap: var(--space-2, 8px);
   padding: var(--space-1-5, 6px) var(--space-3, 10px);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .script-tag-combobox-option:hover,
@@ -410,7 +410,7 @@
 
 .dialog-card-compact .dialog-header h3,
 .dialog-card-compact .dialog-shell__title {
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .dialog-card-compact .dialog-body {
@@ -446,7 +446,7 @@
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   justify-content: center;

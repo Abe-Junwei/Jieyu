@@ -203,7 +203,7 @@
   color: color-mix(in srgb, var(--surface-header) 84%, transparent);
   padding: 6px 16px;
   border-radius: var(--radius-3xl);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   cursor: pointer;
   z-index: var(--z-context-menu);
   pointer-events: auto;

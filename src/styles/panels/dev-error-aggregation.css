@@ -12,7 +12,7 @@
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--surface-panel) 16%, transparent);
   padding: 6px 8px;
-  font-size: var(--dev-error-panel-font-size, 12px);
+  font-size: var(--dev-error-panel-font-size, var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))));
 }
 
 .dev-error-aggregation-panel-summary {

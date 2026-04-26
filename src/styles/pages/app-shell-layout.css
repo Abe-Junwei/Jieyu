@@ -276,7 +276,7 @@
 }
 
 .app-side-pane-collapse-toggle span {
-  font-size: calc(15px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 650;
   line-height: 1;
 }
@@ -289,14 +289,14 @@
 
 .app-side-pane-title {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 650;
   color: var(--text-primary);
 }
 
 .app-side-pane-subtitle {
   margin: 4px 0 0;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-secondary);
 }
@@ -336,13 +336,13 @@
 
 .app-side-pane-empty-state strong {
   color: var(--text-primary);
-  font-size: 0.88rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-empty-state span,
 .app-side-pane-empty-state p {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -515,7 +515,7 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   text-align: center;
   padding: 6px 4px;
@@ -635,7 +635,7 @@
 @media (max-width: 900px) {
   .left-rail-btn {
     min-height: 52px;
-    font-size: calc(9px * var(--ui-font-scale, 1));
+    font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   }
 
   .app-left-rail-primary .left-rail-btn {
@@ -734,7 +734,7 @@
 
 .db-integrity-overlay-title {
   margin: 0 0 10px;
-  font-size: 1.15rem;
+  font-size: var(--panel-typography-overlay-title-size, calc(18px * var(--ui-font-scale, 1)));
 }
 
 .db-integrity-overlay-intro {
@@ -745,14 +745,14 @@
 
 .db-integrity-overlay-reason {
   margin: 0 0 18px;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   word-break: break-word;
 }
 
 .db-integrity-overlay-reason code {
   display: inline-block;
   margin-top: 4px;
-  font-size: 0.82rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .db-integrity-overlay-actions {
@@ -786,7 +786,7 @@
 
 .db-migration-overlay-title {
   margin: 0 0 10px;
-  font-size: 1.15rem;
+  font-size: var(--panel-typography-overlay-title-size, calc(18px * var(--ui-font-scale, 1)));
 }
 
 .db-migration-overlay-intro,
@@ -798,7 +798,7 @@
 
 .db-migration-overlay-version {
   margin: 0 0 12px;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 
 .app-global-toast-host {

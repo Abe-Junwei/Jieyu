@@ -25,7 +25,7 @@
 }
 
 .collaboration-conflict-drawer-title {
-  font-size: 13px;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -37,7 +37,7 @@
   border-radius: 999px;
   background: var(--accent-primary);
   color: var(--text-on-accent, var(--text-on-solid));
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 22px;
   text-align: center;
   font-weight: 700;
@@ -65,18 +65,18 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
 .collaboration-conflict-ticket-head strong {
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--danger-strong, var(--state-danger-solid));
 }
 
 .collaboration-conflict-ticket-summary {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
   word-break: break-word;

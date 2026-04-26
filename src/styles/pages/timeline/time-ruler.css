@@ -159,7 +159,7 @@
 
 .time-ruler-label-text {
   fill: var(--text-secondary);
-  font-size: 0.65rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }

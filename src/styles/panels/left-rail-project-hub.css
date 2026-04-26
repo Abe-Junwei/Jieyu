@@ -36,7 +36,7 @@
 
 .left-rail-project-import-header span,
 .left-rail-project-import-summary {
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -61,7 +61,7 @@
 
 .left-rail-project-import-strategy legend {
   padding: 0 4px;
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -69,7 +69,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
@@ -83,7 +83,7 @@
 .left-rail-project-import-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .left-rail-project-import-table th,

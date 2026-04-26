@@ -14,7 +14,7 @@
 
 .ai-chat-follow-up-title,
 .ai-chat-task-trace-title {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -36,7 +36,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 88%, transparent);
   background: color-mix(in srgb, var(--surface-header) 88%, transparent);
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-task-trace-tool,
@@ -80,7 +80,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 92%, transparent);
   background: color-mix(in srgb, var(--surface-header) 86%, transparent);
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   white-space: nowrap;
   letter-spacing: 0.01em;
@@ -118,7 +118,7 @@
   height: calc(44px * var(--ui-font-scale, 1));
   margin-inline: 0;
   padding: 0 calc(17px * var(--ui-font-scale, 1));
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 500;
   letter-spacing: 0.01em;
   border-radius: var(--radius-pill);
@@ -145,7 +145,7 @@
   color: var(--text-secondary);
   text-align: left;
   font: inherit;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-style: italic;
   pointer-events: none;
   overflow: hidden;
@@ -153,7 +153,7 @@
 
 .ai-chat-input-ghost-prefix {
   flex: 0 0 auto;
-  font-size: inherit;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 500;
   font-style: inherit;
   letter-spacing: 0;
@@ -165,7 +165,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: inherit;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 500;
   font-style: inherit;
 }
@@ -200,7 +200,7 @@
   min-width: calc(56px * var(--ui-font-scale, 1));
   padding-inline: calc(14px * var(--ui-font-scale, 1));
   font-family: var(--font-chat);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -223,5 +223,28 @@
 /* 键盘焦点可见性补齐 | Keyboard focus visibility parity */
 .ai-chat-composer-send-btn:focus-visible {
   outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--header-accent) 46%, transparent));
+  outline-offset: 2px;
+}
+
+.ai-chat-composer-voice-entry-btn {
+  width: calc(42px * var(--ui-font-scale, 1));
+  min-width: calc(42px * var(--ui-font-scale, 1));
+  height: calc(42px * var(--ui-font-scale, 1));
+  padding: 0;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, var(--border-soft) 90%, transparent);
+  background: color-mix(in srgb, var(--surface-header) 92%, transparent);
+  color: var(--text-secondary);
+}
+
+.ai-chat-composer-voice-entry-btn.is-active,
+.ai-chat-composer-voice-entry-btn.is-listening {
+  border-color: color-mix(in srgb, var(--state-info-solid) 46%, transparent);
+  color: var(--state-info-text);
+  background: color-mix(in srgb, var(--state-info-bg) 88%, transparent);
+}
+
+.ai-chat-composer-voice-entry-btn:focus-visible {
+  outline: 2px solid var(--focus-ring, color-mix(in srgb, var(--state-info-solid) 46%, transparent));
   outline-offset: 2px;
 }

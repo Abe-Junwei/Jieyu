@@ -49,7 +49,7 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.4;
@@ -61,7 +61,7 @@
   min-height: 22px;
   padding: 0 8px;
   border-radius: var(--radius-pill);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 800;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -93,7 +93,7 @@
 
 .voice-agent-environment-line {
   margin-top: 2px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.35;
   white-space: nowrap;
@@ -119,14 +119,14 @@
   flex-shrink: 0;
   height: 34px;
   padding: 0 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
 .voice-agent-disclosure-header {
   width: 100%;
   padding: 9px 12px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -173,7 +173,7 @@
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-secondary);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   transition: background 0.12s ease, color 0.12s ease;
@@ -258,7 +258,7 @@
 }
 
 .voice-agent-recording-time {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   color: var(--state-danger-solid);
   font-weight: 500;
@@ -342,7 +342,7 @@
 }
 
 .voice-agent-session-kicker {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -350,7 +350,7 @@
 }
 
 .voice-agent-session-note {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -369,7 +369,7 @@
   min-height: 24px;
   padding: 0 8px;
   border-radius: var(--radius-pill);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   white-space: nowrap;
 }
@@ -402,7 +402,7 @@
 }
 
 .voice-agent-session-body {
-  font-size: calc(14px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
@@ -479,7 +479,7 @@
 }
 
 .voice-agent-confidence {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   flex-shrink: 0;
   color: var(--voice-agent-confidence-color, var(--text-secondary));
@@ -496,7 +496,7 @@
   width: 100%;
   max-height: none;
   overflow: hidden;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
@@ -519,7 +519,7 @@
 }
 
 .voice-agent-confirm-fuzzy {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .voice-agent-confirm-actions {
@@ -557,18 +557,18 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   text-align: left;
 }
 
 .voice-agent-disambiguation-score {
   color: var(--state-warning-text);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
 .voice-agent-error {
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--state-danger-text);
   padding: 10px 12px;
   border-radius: var(--radius-xl);
@@ -679,18 +679,18 @@
 .voice-agent-provider-status-name {
   flex: 1;
   min-width: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
 .voice-agent-provider-status-text {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
 .voice-agent-provider-status-note {
   margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -711,6 +711,14 @@
   }
 }
 
+.voice-agent-commercial-credentials-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  line-height: 1.35;
+  color: var(--state-warning-text, var(--state-warning-solid));
+}
+
 .voice-agent-field {
   display: flex;
   flex-direction: column;
@@ -718,7 +726,7 @@
 }
 
 .voice-agent-field-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -734,7 +742,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
@@ -754,7 +762,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   cursor: pointer;
   user-select: none;
@@ -767,12 +775,12 @@
 }
 
 .voice-agent-wakeword-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   white-space: nowrap;
 }
 
 .voice-agent-learning-count {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   background: var(--voice-confidence-high, var(--state-success-solid));
   color: var(--surface-panel);
   border-radius: var(--radius-md);
@@ -789,7 +797,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
@@ -815,7 +823,7 @@
 }
 
 .voice-agent-learning-empty {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-tertiary);
   text-align: center;
   padding: 8px 0;
@@ -836,7 +844,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   padding: 2px 0;
 }
 
@@ -859,7 +867,7 @@
 }
 
 .voice-agent-learning-reason {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   border-radius: 3px;
   padding: 0 4px;
   flex-shrink: 0;
@@ -938,7 +946,7 @@
   background: var(--surface-panel);
   color: var(--text-primary);
   padding: 6px 34px 6px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   cursor: pointer;
   max-width: 100%;
 }
@@ -952,7 +960,7 @@
   background: var(--surface-panel);
   color: var(--text-primary);
   padding: 6px 34px 6px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   cursor: pointer;
   max-width: 100%;
 }
@@ -979,7 +987,7 @@
   gap: 5px;
   min-height: 32px;
   padding: 8px 12px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -988,7 +996,7 @@
 }
 
 .voice-agent-insights-tab .panel-edge-nav-title {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .voice-agent-insights-tab.is-active {
@@ -1012,7 +1020,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 6px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   padding: 6px 8px;
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--shadow-color) 3%, transparent);
@@ -1024,7 +1032,7 @@
 
 .voice-agent-history-type {
   flex-shrink: 0;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   padding: 1px 5px;
   border-radius: 3px;
   font-weight: 500;
@@ -1043,7 +1051,7 @@
 
 .voice-agent-history-conf {
   flex-shrink: 0;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
   font-variant-numeric: tabular-nums;
 }

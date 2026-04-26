@@ -73,7 +73,7 @@
   border-radius: var(--radius-md);
   background: var(--surface-panel);
   color: var(--panel-design-title-color, var(--text-primary));
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   box-shadow: none;
 }
@@ -106,7 +106,7 @@
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 100%, transparent);
   background: var(--surface-panel);
   color: var(--panel-design-text-color, var(--text-secondary));
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   font-weight: 600;
   box-shadow: none;
@@ -132,7 +132,7 @@
 }
 
 .orthography-builder-panel :is(.dialog-field, .language-iso-input .dialog-field) > span {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -218,7 +218,7 @@
   padding-left: 18px;
   display: grid;
   gap: 3px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -230,7 +230,7 @@
 
 .orthography-builder-rule-label {
   margin: 0;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.45;
   color: var(--text-secondary);
@@ -264,7 +264,7 @@
 
 .orthography-builder-group-description {
   margin: 0;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -288,7 +288,7 @@
 }
 
 .orthography-builder-field-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   font-weight: 600;
   color: var(--text-secondary);
@@ -299,7 +299,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -348,7 +348,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -358,7 +358,7 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--state-warning-bg) 84%, var(--surface-panel));
   color: var(--state-warning-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -368,20 +368,20 @@
   border: 1px dashed color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
   background: color-mix(in srgb, var(--surface-header) 72%, var(--surface-panel));
   color: var(--text-primary);
-  font-size: 0.95rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   word-break: break-word;
 }
 
 .orthography-builder-panel-compact .orthography-builder-render-preview-sample {
   padding: 8px 10px;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .orthography-builder-helper-text {
   display: grid;
   gap: 2px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -414,7 +414,7 @@
 .orthography-builder-advanced-toggle-btn {
   all: unset;
   cursor: pointer;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.35;
   color: var(--text-tertiary);
@@ -462,7 +462,7 @@
   border: 1px solid color-mix(in srgb, var(--panel-design-border-color) 72%, transparent);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -476,7 +476,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
 }
@@ -539,7 +539,7 @@
 }
 
 .orthography-builder-warning-note {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--state-warning-text);
 }
@@ -548,14 +548,14 @@
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--font-mono);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
 .orthography-builder-hint {
   border-color: color-mix(in srgb, var(--state-info-solid) 18%, transparent);
   background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.5;
   color: var(--state-info-solid);

@@ -7,7 +7,7 @@
 
 .ob-workspace {
   --btn-font-family: var(--font-base);
-  --btn-font-size: var(--la-note-size);
+  --btn-font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   --btn-line-height: 1.5;
   --btn-font-weight: 600;
   max-width: none;
@@ -45,8 +45,8 @@
 
 /* ── Summary card ── */
 
-.ob-summary .ws-summary-fact-label { font-size: var(--la-meta-size); }
-.ob-summary .ws-summary-fact-note { font-size: var(--la-meta-size); }
+.ob-summary .ws-summary-fact-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.ob-summary .ws-summary-fact-note { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
 
 .ob-summary-meta {
   display: flex;
@@ -98,7 +98,7 @@
   gap: 8px;
   width: 100%;
   margin: 0;
-  font-size: var(--la-unified-title-size);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
@@ -128,7 +128,7 @@
   flex: 0 0 auto;
   font-family: var(--font-mono, ui-monospace, monospace);
   color: var(--text-secondary);
-  font-size: var(--la-note-size);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ob-filter-toggle {
@@ -162,8 +162,8 @@
 
 /* List item base 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
-.ob-list-item-label { font-size: var(--la-body-size); font-weight: 600; line-height: 1.45; }
-.ob-list-item-meta { color: var(--text-secondary); font-size: var(--la-note-size); }
+.ob-list-item-label { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.45; }
+.ob-list-item-meta { color: var(--text-secondary); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
 
 /* ── Empty callout ── */
 
@@ -371,7 +371,7 @@
 
 .ob-bridge-panel :is(input, select, textarea) {
   font-family: var(--font-base);
-  font-size: var(--la-body-size);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-primary);
 }
@@ -390,25 +390,25 @@
 .ob-bridge-panel .orthography-builder-hint,
 .ob-bridge-panel .orthography-builder-helper-text {
   margin: 0;
-  font-size: var(--la-note-size);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
 
-.ob-bridge-panel .orthography-builder-rule-label { font-size: var(--la-note-size); font-weight: 600; line-height: 1.5; }
+.ob-bridge-panel .orthography-builder-rule-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); font-weight: 600; line-height: 1.5; }
 
 .ob-bridge-panel :is(.orthography-builder-preview-box, .orthography-builder-validation-box) {
-  font-size: var(--la-body-size);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
 .ob-bridge-panel :is(.orthography-builder-validation-list, .orthography-builder-context-list) {
-  font-size: var(--la-note-size);
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
-.ob-bridge-panel .orthography-builder-checkbox { font-size: var(--la-body-size); color: var(--text-primary); }
-.ob-bridge-panel code { font-family: var(--font-mono); font-size: var(--la-meta-size); }
+.ob-bridge-panel .orthography-builder-checkbox { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); color: var(--text-primary); }
+.ob-bridge-panel code { font-family: var(--font-mono); font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
 
 .ob-bridge-panel .orthography-builder-toolbar-actions {
   justify-content: space-between;

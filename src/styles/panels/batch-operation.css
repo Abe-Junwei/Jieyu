@@ -30,7 +30,7 @@
 }
 
 .batch-operation-shortcut-hint {
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .batch-operation-preview-card {
@@ -44,13 +44,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .batch-operation-preview-filter-btn {
   min-height: 24px;
   padding: 1px 6px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .batch-operation-table-wrap {
@@ -74,7 +74,7 @@
 .batch-operation-td,
 .batch-operation-td-content {
   padding: 8px 10px;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -91,7 +91,7 @@
   padding: 2px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -167,7 +167,7 @@
 }
 
 .batch-operation-jump-btn {
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   padding: 1px 6px;
 }
 

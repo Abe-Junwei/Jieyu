@@ -14,7 +14,7 @@
 
 .app-collaboration-readonly-banner-body {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   opacity: 0.95;
 }
@@ -22,7 +22,7 @@
 .app-collaboration-readonly-banner-reasons {
   margin: 0.45rem 0 0;
   padding-left: 1.1rem;
-  font-size: 0.85rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
@@ -40,7 +40,7 @@
   margin-inline-end: 0;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   border: 1px solid color-mix(in srgb, var(--color-border, var(--border-soft)) 70%, transparent);
   background: color-mix(in srgb, var(--color-surface-elevated, var(--surface-elevated, var(--surface-panel))) 90%, transparent);
@@ -64,7 +64,7 @@
   border: 1px solid color-mix(in srgb, var(--color-border, var(--border-soft)) 75%, transparent);
   background: color-mix(in srgb, var(--color-surface-elevated, var(--surface-elevated, var(--surface-panel))) 94%, transparent);
   color: var(--color-text, inherit);
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   line-height: 1;
   box-sizing: border-box;
@@ -86,7 +86,7 @@
   width: auto;
   min-width: 1.55rem;
   padding: 0 0.35rem;
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .app-collaboration-presence-avatar__text {
@@ -123,19 +123,19 @@
 
 .app-side-pane-collaboration-directory-hint {
   margin: 0 0 0.5rem;
-  font-size: 0.85rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   opacity: 0.92;
 }
 
 .app-side-pane-collaboration-directory-current {
   margin: 0 0 0.75rem;
-  font-size: 0.82rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .app-side-pane-collaboration-subheading {
   margin: 0.65rem 0 0.35rem;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }

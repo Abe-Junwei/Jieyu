@@ -81,7 +81,7 @@
   gap: 8px;
   width: 100%;
   margin: 0;
-  font-size: var(--la-unified-title-size);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
@@ -112,7 +112,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 30%, transparent);
   border-radius: var(--radius-md);
   background: var(--surface-panel);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -121,7 +121,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
 }
@@ -138,7 +138,7 @@
   border: 1px solid color-mix(in srgb, var(--state-info-solid) 10%, transparent);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--state-info-bg) 84%, var(--surface-panel));
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.5;
   color: var(--state-info-solid);
@@ -149,15 +149,15 @@
 .om-context-note {
   margin: 0;
   padding: 8px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
 
 /* ── Summary ── */
 
-.om-summary .ws-summary-fact-label { font-size: calc(11px * var(--ui-font-scale, 1)); }
-.om-summary .ws-summary-fact-note { font-size: calc(11px * var(--ui-font-scale, 1)); }
+.om-summary .ws-summary-fact-label { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
+.om-summary .ws-summary-fact-note { font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1))); }
 
 /* OM summary card 覆盖：取消默认阴影 | OM override: suppress summary card shadow */
 .om-shell .ws-summary-card { box-shadow: none; }
@@ -227,7 +227,7 @@
 
 /* List item base 已收入 .la-shell 合约层 | unified via .la-shell contract */
 
-.om-list-label { font-size: calc(12px * var(--ui-font-scale, 1)); line-height: 1.45; font-weight: 600; }
+.om-list-label { font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1))); line-height: 1.45; font-weight: 600; }
 
 .om-list-meta {
   display: flex;
@@ -238,7 +238,7 @@
 
 .om-list-meta,
 .om-basic-grid dt {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-secondary);
 }
@@ -307,7 +307,7 @@
   padding: 18px 0 0;
   cursor: pointer;
   list-style: none;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 700;
   color: var(--text-primary);
   position: relative;
@@ -335,7 +335,7 @@
 
 
 .om-advanced-meta {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 400;
   color: var(--text-secondary);
 }
@@ -371,7 +371,7 @@
 
 .om-basic-grid dd {
   margin: 0;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   font-weight: 600;
   color: var(--text-primary);

@@ -12,7 +12,7 @@
 
 .home-page-hero-kicker {
   margin: 0 0 0.25rem;
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   letter-spacing: 0.04em;
   text-transform: uppercase;
   opacity: 0.65;
@@ -20,20 +20,20 @@
 
 .home-page-hero-tagline {
   margin: 0 0 0.35rem;
-  font-size: 0.92rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   opacity: 0.82;
 }
 
 .home-page-hero h1 {
   margin: 0 0 0.35rem;
-  font-size: 1.35rem;
+  font-size: var(--panel-typography-display-size, calc(22px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
 .home-page-hero p {
   margin: 0 0 1rem;
   opacity: 0.85;
-  font-size: 0.95rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 
 .home-page-hero-actions {
@@ -47,7 +47,7 @@
   align-items: center;
   padding: 0.45rem 0.85rem;
   border-radius: 0.5rem;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   text-decoration: none;
   border: 1px solid color-mix(in srgb, var(--border-soft) 80%, transparent);
   background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
@@ -83,7 +83,7 @@
 
 .home-project-card-title {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
 }
 
 .home-project-title-link {
@@ -102,7 +102,7 @@
 }
 
 .home-project-card-meta {
-  font-size: 0.8rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   opacity: 0.75;
 }
 
@@ -121,7 +121,7 @@
   grid-template-columns: 5.5rem 1fr 2.75rem;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .home-triple-label {
@@ -164,7 +164,7 @@
 }
 
 .home-record-title {
-  font-size: 0.82rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 500;
   margin-bottom: 0.4rem;
   opacity: 0.88;
@@ -177,13 +177,13 @@
 .home-page-loading,
 .home-page-error {
   padding: 1rem 0;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   opacity: 0.85;
 }
 
 .home-page-empty {
   padding: 1.25rem 0;
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   opacity: 0.8;
 }
 
@@ -195,6 +195,6 @@
 @media (max-width: 520px) {
   .home-triple-row {
     grid-template-columns: 4.5rem 1fr 2.5rem;
-    font-size: 0.75rem;
+    font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   }
 }

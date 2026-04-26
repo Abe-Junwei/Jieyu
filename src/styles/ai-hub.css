@@ -37,7 +37,7 @@
   -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   text-align: center;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   cursor: pointer;
   position: relative;
@@ -74,7 +74,7 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%) rotate(0deg);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   line-height: 1;
   color: var(--state-info-solid);
   opacity: 0.85;
@@ -118,7 +118,7 @@
 .ai-chat-voice-drawer-title {
   display: block;
   flex: none;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   font-weight: 600;
   color: var(--state-info-solid);
@@ -223,7 +223,7 @@
 }
 
 .ai-chat-prompt-lab-panel-title {
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   font-weight: 600;
   color: var(--ai-fold-head-color);
@@ -250,7 +250,7 @@
 }
 
 .ai-chat-decision-panel-title {
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   font-weight: 600;
   color: var(--state-info-solid);
@@ -261,7 +261,7 @@
 }
 
 .ai-chat-decision-panel-count {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-section-title-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -333,7 +333,7 @@
 .ai-chat-fold-empty {
   margin: 0;
   padding: 3px 0 4px;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   color: var(--text-secondary);
   text-align: center;
@@ -347,7 +347,7 @@
 .ai-chat-decision-item-compact {
   display: grid;
   gap: 4px;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-decision-list {
@@ -369,6 +369,20 @@
   white-space: nowrap;
 }
 
+.ai-chat-decision-item-note {
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
+  color: var(--text-secondary);
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-chat-decision-item-reason {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .ai-chat-decision-item-actions {
   position: relative;
   display: flex;
@@ -379,7 +393,7 @@
 
 .ai-chat-decision-action-btn {
   height: calc(22px * var(--ui-font-scale, 1));
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-decision-action-btn-wide {
@@ -391,7 +405,7 @@
 }
 
 .ai-chat-decision-error {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--state-danger-text);
 }
 
@@ -434,7 +448,7 @@
   border: 1px solid color-mix(in srgb, var(--state-warning-border) 85%, transparent);
   background: color-mix(in srgb, var(--state-warning-bg) 78%, var(--surface-panel));
   color: var(--state-warning-text);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-alert-warning-text {
@@ -444,7 +458,7 @@
 .ai-chat-alert-warning-dismiss {
   height: 22px;
   min-width: calc(54px * var(--ui-font-scale, 1));
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-alerts-region {
@@ -482,14 +496,14 @@
 }
 
 .ai-chat-alerts-pending-row {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .ai-chat-alerts-pending-risk {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--state-warning-text);
   font-weight: 600;
   line-height: 1.5;
@@ -497,7 +511,7 @@
 }
 
 .ai-chat-alerts-pending-meta {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   display: flex;
   gap: 6px;
@@ -514,7 +528,7 @@
   padding-left: 16px;
   display: grid;
   gap: 4px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -544,7 +558,7 @@
   }
 
   [data-ai-analysis-panel] .transcription-analysis-toolbar-title {
-    font-size: 0.82rem;
+    font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
     font-weight: 700;
     color: var(--text-primary);
   }
@@ -596,7 +610,7 @@
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
@@ -695,7 +709,7 @@
   border: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-panel) 88%, transparent);
   color: var(--text-primary);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 700;
   cursor: pointer;
 }
@@ -725,7 +739,7 @@
   border-radius: var(--radius-pill);
   background: transparent;
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   cursor: pointer;
 }
@@ -740,7 +754,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -758,12 +772,12 @@
 .transcription-ai-assistant-transcript p {
   margin: 0;
   color: var(--text-primary);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.4;
 }
 
 .transcription-ai-assistant-transcript span {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -782,12 +796,12 @@
   border: 1px solid color-mix(in srgb, var(--state-warning-border) 56%, transparent);
   background: color-mix(in srgb, var(--state-warning-bg) 85%, transparent);
   color: var(--state-warning-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .transcription-ai-assistant-error {
   color: var(--state-danger-text);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   padding: 6px 8px;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--state-danger-border) 52%, transparent);
@@ -843,7 +857,7 @@
   white-space: nowrap;
   flex-shrink: 0;
   font-family: var(--header-brand-font), var(--font-chat);
-  font-size: 0.98rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: 0.035em;
@@ -875,7 +889,7 @@
   min-width: calc(28px * var(--ui-font-scale, 1));
   width: calc(28px * var(--ui-font-scale, 1));
   padding: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-panel) 86%, transparent);
@@ -896,7 +910,7 @@
   min-width: 11ch;
   flex: 0 0 auto;
   font-family: var(--font-chat);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   border-radius: var(--radius-md);
   border: 1px solid var(--border-soft);
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
@@ -910,7 +924,7 @@
 
 .ai-chat-provider-select option,
 .ai-chat-provider-select optgroup {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-provider-select:focus {
@@ -943,7 +957,7 @@ select.ai-cfg-input {
   height: 30px;
   margin-inline: 6px;
   font-family: var(--font-chat);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   padding: 0 8px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
@@ -963,7 +977,7 @@ select.ai-cfg-input {
 
 .ai-chat-input::placeholder {
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-input:not(:focus):placeholder-shown {
@@ -1015,7 +1029,7 @@ select.ai-cfg-input {
 
 /* AI 配置面板：标签 | AI config panel: label */
 .ai-cfg-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   letter-spacing: 0.01em;
   line-height: 26px;
@@ -1046,7 +1060,7 @@ select.ai-cfg-input {
 .ai-chat-provider-config-action-btn {
   height: calc(26px * var(--ui-font-scale, 1));
   min-width: calc(80px * var(--ui-font-scale, 1));
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-provider-config-action-btn-clear-key {
@@ -1056,7 +1070,7 @@ select.ai-cfg-input {
 /* AI 配置面板：输入框与选择框 | AI config panel: input & select */
 .ai-cfg-input {
   min-height: calc(1lh + 12px);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   padding: calc(6px * var(--ui-font-scale, 1)) calc(8px * var(--ui-font-scale, 1));
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
@@ -1073,7 +1087,7 @@ select.ai-cfg-input {
 
 .ai-cfg-input::placeholder {
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 /* 连接测试：成功态按钮 | Connection test: success state button */
@@ -1086,7 +1100,7 @@ select.ai-cfg-input {
 /* 连接测试：错误消息 | Connection test: error message */
 .ai-conn-error-msg {
   margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.4;
   color: var(--state-danger-text);
   word-break: break-word;
@@ -1109,7 +1123,7 @@ select.ai-cfg-input {
 
 .ai-webllm-runtime-title {
   margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   font-weight: 600;
   color: var(--text-primary);
@@ -1117,7 +1131,7 @@ select.ai-cfg-input {
 
 .ai-webllm-runtime-line {
   margin: 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   color: var(--text-secondary);
 }
@@ -1129,7 +1143,7 @@ select.ai-cfg-input {
 
 .ai-webllm-runtime-message {
   margin: 2px 0 0;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.35;
 }
 
@@ -1204,7 +1218,7 @@ select.ai-cfg-input {
 }
 
 .ai-webllm-progress-detail {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-tertiary);
 }
 
@@ -1267,20 +1281,20 @@ select.ai-cfg-input {
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 12%, transparent);
   color: var(--header-accent);
-  font-size: 0.65rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
 .transcription-ai-card p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
 }
 
 .transcription-ai-caption {
   display: block;
-  font-size: 0.65rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -1297,13 +1311,13 @@ select.ai-cfg-input {
   border-radius: var(--radius-md);
   margin-top: 6px;
   background: var(--surface-elevated);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .transcription-match-row em {
   color: var(--text-secondary);
   font-style: italic;
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .player-control {
@@ -1311,7 +1325,7 @@ select.ai-cfg-input {
   align-items: center;
   gap: 8px;
   color: var(--text-primary);
-  font-size: 0.9rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
 }
 
 .player-control input {
@@ -1493,7 +1507,7 @@ select.ai-cfg-input {
 
 /* 文字图标按钮标签 | Icon-btn text label */
 .icon-btn-label {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -1504,7 +1518,7 @@ select.ai-cfg-input {
   cursor: pointer;
 }
 .waveform-zoom-value {
-  font-size: 0.8rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   min-width: 70px;
   text-align: right;
@@ -1552,7 +1566,7 @@ select.ai-cfg-input {
 }
 
 .ai-card-label {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -1562,7 +1576,7 @@ select.ai-cfg-input {
   width: fit-content;
   inline-size: fit-content;
   min-width: 10ch;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-soft);
   background: var(--surface-elevated);
@@ -1582,7 +1596,7 @@ select.ai-cfg-input {
   width: fit-content;
   inline-size: fit-content;
   min-width: 8ch;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-soft);
   background: var(--surface-elevated);
@@ -1603,12 +1617,12 @@ select.ai-cfg-input {
 
 .ai-btn-action {
   height: 28px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .ai-btn-xs {
   height: 24px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ai-btn-min-refresh {
@@ -1616,7 +1630,7 @@ select.ai-cfg-input {
 }
 
 .ai-embed-status {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   display: flex;
   align-items: center;
   gap: 3px;
@@ -1636,7 +1650,7 @@ select.ai-cfg-input {
 
 .ai-embed-warning {
   margin-bottom: 6px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--state-warning-text);
   background: var(--state-warning-bg);
   border: 1px solid var(--state-warning-border);
@@ -1676,15 +1690,15 @@ select.ai-cfg-input {
 }
 
 .ai-text-11 {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .ai-text-12 {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .ai-text-muted-11 {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.5;
 }
@@ -1695,7 +1709,7 @@ select.ai-cfg-input {
   gap: 8px;
   flex-wrap: wrap;
   padding: 3px 0;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   flex-shrink: 0;
 }
@@ -1703,7 +1717,7 @@ select.ai-cfg-input {
 .ai-chat-agent-loop-progress {
   min-width: 0;
   padding: 3px 0;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--state-info-solid);
   flex-shrink: 0;
 }
@@ -1750,7 +1764,7 @@ select.ai-cfg-input {
 .ai-chat-candidate-chip {
   white-space: nowrap;
   height: calc(26px * var(--ui-font-scale, 1));
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   padding: 0 calc(10px * var(--ui-font-scale, 1));
   border-radius: 13px;
 }

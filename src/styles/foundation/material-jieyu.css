@@ -41,7 +41,8 @@
     text-rendering: geometricPrecision;
     font-style: normal;
     font-family: 'Material Symbols Outlined', sans-serif;
-    font-size: var(--jieyu-material-size, 1em);
+    --panel-typography-icon-size: var(--jieyu-material-size, 1em);
+    font-size: var(--panel-typography-icon-size);
     font-variation-settings:
       'FILL' var(--jieyu-material-fill, 0),
       'wght' var(--jieyu-material-wght, 300),

@@ -68,10 +68,10 @@
 /* ── 统一设计 Token | Unified design tokens ── */
 
 .la-shell {
-  --la-body-size: var(--font-size-sm);
-  --la-meta-size: var(--font-size-sm);
-  --la-note-size: var(--font-size-sm);
-  --la-unified-title-size: 12px;
+  --la-body-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  --la-meta-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  --la-note-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
+  --la-unified-title-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   --la-field-gap: var(--space-2, 8px);
   --ws-note-size: var(--la-meta-size);
   /* 面板外壳 | Panel shell */
@@ -137,7 +137,7 @@
 
 .la-shell .ws-summary-title {
   margin: 0;
-  font-size: calc(18px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-overlay-title-size, calc(18px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   color: var(--text-primary);
 }
@@ -158,7 +158,7 @@
 }
 
 .la-shell .ws-summary-fact-value {
-  font-size: var(--la-body-size);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
 }
@@ -177,7 +177,7 @@
 }
 
 .la-shell :is(.dialog-field label, .dialog-field > span) {
-  font-size: var(--la-body-size);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -186,7 +186,7 @@
 
 .la-shell :is(.lm-state, .ob-state, .om-state) {
   margin: 0;
-  font-size: var(--ws-note-size, var(--la-meta-size));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }

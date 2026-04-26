@@ -17,7 +17,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--tab-active) 16%, white);
   color: var(--text-primary);
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -25,7 +25,7 @@
 .app-side-pane-feature-summary,
 .app-side-pane-feature-note {
   margin: 0;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -35,7 +35,7 @@
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--border-soft) 45%, transparent);
   background: color-mix(in srgb, var(--surface-header) 92%, transparent);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
 }
@@ -57,7 +57,7 @@
   width: fit-content;
   padding: 4px 10px;
   border-radius: var(--radius-pill);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--state-info-text);
   background: color-mix(in srgb, var(--state-info-solid) 12%, transparent);
@@ -71,7 +71,7 @@
 }
 
 .feature-availability-summary {
-  font-size: 1rem;
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   line-height: 1.7;
 }
 
@@ -86,7 +86,7 @@
 }
 
 .feature-availability-label {
-  font-size: 0.84rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-primary);
 }

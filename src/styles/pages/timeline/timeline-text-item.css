@@ -55,7 +55,7 @@
   align-items: center;
   padding-inline: 8px;
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -423,7 +423,7 @@
   border-radius: 0;
   outline: none;
   background: transparent;
-  font-size: 0.88rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.3;
   color: var(--text-primary);
   padding-block: 2px 3px;

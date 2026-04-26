@@ -6,6 +6,18 @@
   --panel-design-border-color: var(--border-soft);
   --panel-design-surface-color: var(--surface-panel);
   --panel-design-accent-color: var(--header-accent);
+  --panel-typography-dialog-title-size: calc(16px * var(--ui-font-scale, 1));
+  --panel-typography-emphasis-title-size: calc(13px * var(--ui-font-scale, 1));
+  --panel-typography-section-title-size: calc(12px * var(--ui-font-scale, 1));
+  --panel-typography-label-size: calc(12px * var(--ui-font-scale, 1));
+  --panel-typography-body-size: calc(12px * var(--ui-font-scale, 1));
+  --panel-typography-caption-size: calc(11px * var(--ui-font-scale, 1));
+  --panel-typography-micro-size: calc(10px * var(--ui-font-scale, 1));
+  --panel-typography-mini-size: calc(9px * var(--ui-font-scale, 1));
+  --panel-typography-subheading-size: calc(14px * var(--ui-font-scale, 1));
+  --panel-typography-title-size: calc(15px * var(--ui-font-scale, 1));
+  --panel-typography-overlay-title-size: calc(18px * var(--ui-font-scale, 1));
+  --panel-typography-display-size: calc(22px * var(--ui-font-scale, 1));
 }
 
 .panel-design-match,
@@ -52,7 +64,7 @@
 
 .panel-design-match-dialog :is(.dialog-shell__title, .note-panel-title, .note-popover-title) {
   color: var(--panel-design-title-color);
-  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-dialog-title-size);
   line-height: 1.25;
   font-weight: 600;
 }
@@ -81,7 +93,7 @@
   --input-border-radius: var(--radius-sm);
   --input-background: var(--panel-design-surface-color);
   --input-color: var(--panel-design-title-color);
-  --input-font-size: calc(12px * var(--ui-font-scale, 1));
+  --input-font-size: var(--panel-typography-body-size);
   --input-line-height: 1.5;
   --textarea-min-height: 44px;
   --btn-min-height: var(--input-h-sm);
@@ -90,7 +102,7 @@
   --btn-border-color: var(--panel-design-border-color);
   --btn-background: var(--panel-design-surface-color);
   --btn-color: var(--panel-design-text-color);
-  --btn-font-size: calc(12px * var(--ui-font-scale, 1));
+  --btn-font-size: var(--panel-typography-body-size);
   --btn-line-height: 1.5;
   --btn-font-weight: 600;
   --btn-box-shadow: none;
@@ -125,7 +137,7 @@
 .panel-design-match :is(.panel-section__title, .ai-chat-replay-panel-section-title),
 .panel-design-match-content :is(.panel-section__title, .ai-chat-replay-panel-section-title) {
   color: var(--panel-design-text-color);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-section-title-size);
   line-height: 1.5;
   font-weight: 600;
 }
@@ -133,7 +145,7 @@
 .panel-design-match :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note),
 .panel-design-match-content :is(.panel-section__description, .panel-summary__supporting, .panel-note, .dialog-supporting-note) {
   color: var(--panel-design-text-color);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size);
   line-height: 1.5;
 }
 
@@ -145,7 +157,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--panel-design-muted-color);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size);
   line-height: 1.5;
   font-weight: 600;
 }
@@ -163,7 +175,7 @@
   border-radius: var(--radius-sm);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-title-color);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size);
   line-height: 1.5;
 }
 
@@ -180,7 +192,7 @@
   border-color: var(--panel-design-border-color);
   background: var(--panel-design-surface-color);
   color: var(--panel-design-text-color);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size);
   line-height: 1.5;
   font-weight: 600;
   box-shadow: none;

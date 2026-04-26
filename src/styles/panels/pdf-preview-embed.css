@@ -39,7 +39,7 @@
 }
 
 .transcription-pdf-preview-title {
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1;
   color: var(--text-primary);
   white-space: nowrap;
@@ -49,7 +49,7 @@
 }
 
 .transcription-pdf-preview-page-tag {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1;
   color: var(--state-info-solid);
   background: var(--state-info-bg);
@@ -71,7 +71,7 @@
   color: var(--text-primary);
   border-radius: var(--radius-pill);
   padding: 4px 9px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;

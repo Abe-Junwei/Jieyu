@@ -112,7 +112,7 @@
 .transcription-side-pane-item-label strong,
 .transcription-side-pane-item-line-primary {
   color: var(--text-primary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.3;
   font-weight: 600;
 }
@@ -120,7 +120,7 @@
 .transcription-side-pane-item-line-secondary,
 .transcription-side-pane-item-line-tertiary {
   color: var(--text-secondary);
-  font-size: 0.6rem;
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   line-height: 1.25;
 }
 
@@ -176,7 +176,7 @@
 /* — 拖拽手柄 | Drag handle — */
 .transcription-side-pane-item-drag-handle {
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1;
   cursor: grab;
   flex-shrink: 0;
@@ -242,7 +242,7 @@
   padding: 20px 12px;
   text-align: center;
   color: var(--text-secondary);
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.45;
 }
 
@@ -253,7 +253,7 @@
 }
 
 .transcription-side-pane-empty-hint {
-  font-size: 0.6rem;
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -278,7 +278,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
   color: var(--text-secondary);
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
 }
@@ -361,7 +361,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 72%, transparent);
   background: var(--surface-panel);
   color: var(--text-secondary);
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   padding: 0 7px;
   cursor: pointer;
@@ -382,7 +382,7 @@
   border-top: 1px dashed color-mix(in srgb, var(--border-soft) 64%, transparent);
   padding: 4px 8px 5px;
   color: var(--text-secondary);
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .transcription-side-pane-overview {
@@ -625,7 +625,7 @@
 }
 
 .pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-title {
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .pnl-collaboration-cloud-modal .app-side-pane-collaboration-tabs-settings .panel-edge-nav-row-active {
@@ -651,7 +651,7 @@
 }
 
 .app-side-pane-collaboration-subtitle {
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -660,12 +660,12 @@
 }
 
 .app-side-pane-collaboration-tab {
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   justify-content: flex-start;
 }
 
 .app-side-pane-collaboration-tab .panel-edge-nav-title {
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-collaboration-tab.is-active {
@@ -716,12 +716,12 @@
 }
 
 .app-side-pane-collaboration-item-main > strong {
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
 .app-side-pane-collaboration-item-main > span {
-  font-size: 0.64rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -733,19 +733,19 @@
 .app-side-pane-collaboration-item-actions .btn {
   min-height: 24px;
   padding: 0 8px;
-  font-size: 0.64rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-collaboration-empty {
   margin: 0;
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
 .app-side-pane-collaboration-status,
 .app-side-pane-collaboration-error {
   margin: 0;
-  font-size: 0.66rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-collaboration-status {
@@ -794,7 +794,7 @@
 }
 
 .transcription-side-pane-inspector-title {
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 500;
   color: var(--text-primary);
   white-space: nowrap;
@@ -805,7 +805,7 @@
 }
 
 .transcription-side-pane-inspector-title-primary {
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.25;
   font-weight: 600;
 }
@@ -881,7 +881,7 @@
 }
 
 .transcription-side-pane-inspector-props dt {
-  font-size: 0.56rem;
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   font-weight: 500;
   text-transform: uppercase;
@@ -891,7 +891,7 @@
 }
 
 .transcription-side-pane-inspector-props dd {
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
   font-weight: 600;
   margin: 0;
@@ -911,7 +911,7 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   padding: 3px 6px;
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   background: var(--surface-panel);
   outline: none;
@@ -924,7 +924,7 @@
 
 .transcription-side-pane-inspector-note,
 .transcription-side-pane-inspector-empty {
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.35;
   padding: 4px 0;
@@ -959,7 +959,7 @@
 
 .transcription-side-pane-quick-action-label {
   color: var(--text-secondary);
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   font-weight: 500;
   white-space: nowrap;
@@ -990,21 +990,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   cursor: pointer;
 }
 
 .transcription-side-pane-message {
   margin: 0;
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .transcription-side-pane-repair-details {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   padding: 8px 10px;
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-primary);
   background: var(--surface-elevated);
@@ -1095,7 +1095,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 10%, transparent);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   cursor: pointer;
 }
 
@@ -1183,7 +1183,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 12%, transparent);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   cursor: pointer;
 }
 
@@ -1201,7 +1201,7 @@
 }
 
 .app-side-pane-segment-list-search-tag-remove {
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1;
 }
 
@@ -1214,7 +1214,7 @@
   border: 0;
   background: transparent;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   outline: none;
 }
@@ -1249,7 +1249,7 @@
 }
 
 .app-side-pane-segment-list-filter-trigger-label {
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -1263,12 +1263,12 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 18%, transparent);
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
 .app-side-pane-segment-list-filter-trigger-caret {
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -1318,7 +1318,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   text-align: left;
   cursor: default;
 }
@@ -1348,7 +1348,7 @@
   padding: 0 4px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 12%, transparent);
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
 }
 
@@ -1402,7 +1402,7 @@
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   text-align: left;
   cursor: pointer;
 }
@@ -1431,7 +1431,7 @@
   justify-content: center;
   width: 12px;
   color: color-mix(in srgb, var(--header-accent) 72%, var(--text-primary));
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -1443,14 +1443,14 @@
   padding: 0 4px;
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 12%, transparent);
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
 }
 
 .app-side-pane-segment-list-filter-panel-empty {
   margin: 2px 0 0;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-segment-list-filter-actions {
@@ -1466,7 +1466,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 8%, transparent);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   transition: border-color var(--shell-motion-fast) ease, color var(--shell-motion-fast) ease, background-color var(--shell-motion-fast) ease;
@@ -1498,7 +1498,7 @@
   padding: 12px 8px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .app-side-pane-segment-list {
@@ -1559,14 +1559,14 @@
 }
 
 .app-side-pane-segment-list-item-time {
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .app-side-pane-segment-list-item-text {
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.4;
   color: var(--text-primary);
   overflow: hidden;
@@ -1590,7 +1590,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-header) 88%, transparent);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   line-height: 1.35;
 }
 

@@ -39,7 +39,7 @@
 
 .ai-chat-replay-panel-section-title {
   color: var(--text-primary);
-  font-size: 0.8rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -49,7 +49,7 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 72%, var(--panel-design-surface-color));
   border: 1px solid var(--panel-design-border-color);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   overflow-x: auto;
 }
@@ -79,7 +79,7 @@
 
 .ai-chat-replay-panel-timeline-row em {
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-style: normal;
 }
 
@@ -93,7 +93,7 @@
   gap: 4px;
   padding: 0;
   border-radius: 0;
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -107,7 +107,7 @@
 
 .ai-chat-replay-panel-baseline {
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-replay-panel-diff-list {
@@ -123,7 +123,7 @@
 
 .ai-chat-replay-panel-diff-label {
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .ai-chat-replay-panel-diff-value.is-match {

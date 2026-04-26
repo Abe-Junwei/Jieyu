@@ -16,7 +16,7 @@
   margin-left: calc(-1 * (var(--lane-label-width) + var(--video-left-panel-width, 0px)));
   /* 完全不透明，阻止标注文字从标签下方透出 | Fully opaque so annotations don't bleed through */
   background: var(--surface-elevated);
-  font-size: 0.64rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-secondary);
   padding: 2px 6px;
@@ -122,7 +122,7 @@
   border: 1px solid color-mix(in srgb, var(--state-info-solid) 38%, var(--border-soft));
   background: color-mix(in srgb, var(--state-info-bg, var(--surface-panel)) 78%, transparent);
   color: color-mix(in srgb, var(--state-info-text, var(--text-secondary)) 88%, var(--text-primary));
-  font-size: 0.62rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   line-height: 1.2;
   letter-spacing: 0.01em;
 }

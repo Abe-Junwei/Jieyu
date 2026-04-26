@@ -32,7 +32,7 @@
 
 .panel-section__title {
   color: var(--text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   font-weight: 700;
 }
@@ -40,7 +40,7 @@
 .panel-title-primary {
   margin: 0;
   color: var(--text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   font-weight: 700;
   text-align: center;
@@ -49,7 +49,7 @@
 .panel-title-secondary {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   font-weight: 600;
 }
@@ -58,7 +58,7 @@
 .app-side-pane-section-title {
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.3;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -68,7 +68,7 @@
 .panel-section__description {
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -91,7 +91,7 @@
 .dialog-supporting-note {
   margin: 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -110,7 +110,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-panel) 96%, transparent);
   color: var(--text-secondary);
-  font-size: var(--font-size-xs);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.4;
   font-weight: 600;
 }
@@ -164,7 +164,7 @@
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   color: var(--text-primary);
   font: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   transition: background var(--duration-instant), color var(--duration-instant), border-color var(--duration-instant);
@@ -228,7 +228,7 @@
 
 .panel-fieldset legend {
   padding: 0 var(--space-1, 4px);
-  font-size: var(--font-size-xs);
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -237,7 +237,7 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2, 8px);
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
   line-height: 1.45;
 }
@@ -254,7 +254,7 @@
 .dialog-field--third { flex: 1 1 33.3%; min-width: 100px; }
 
 .dialog-field-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -337,7 +337,7 @@
   width: 100%;
   min-width: 0;
   color: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   font-weight: 600;
   white-space: nowrap;
@@ -347,14 +347,14 @@
 
 .dialog-field-hint {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.4;
 }
 
 .dialog-field-error {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--state-danger-text);
   font-weight: 500;
   line-height: 1.4;
@@ -387,14 +387,14 @@
 }
 
 .panel-state-display-title {
-  font-size: var(--font-size-md);
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .panel-state-display-desc {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.5;
   max-width: 36ch;

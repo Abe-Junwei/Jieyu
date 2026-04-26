@@ -19,7 +19,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  font-size: 0.65rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   color: inherit;
   min-width: 22px;
@@ -46,7 +46,7 @@
   border: 0;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1;
   font-weight: 700;
   min-width: 20px;
@@ -75,7 +75,7 @@
   color: color-mix(in srgb, var(--surface-header) 84%, transparent);
   padding: 2px 8px;
   border-radius: var(--radius-xs);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   pointer-events: none;
@@ -84,7 +84,7 @@
 
 .waveform-hover-tooltip-text {
   display: block;
-  font-size: 0.65rem;
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   max-width: 180px;
   white-space: nowrap;
@@ -227,7 +227,7 @@
 /* Time display */
 .video-player-time {
   color: color-mix(in srgb, var(--surface-panel) 80%, transparent);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-variant-numeric: tabular-nums;
   padding: 0 6px;
   white-space: nowrap;
@@ -243,7 +243,7 @@
 }
 
 .video-player-rate-label {
-  font-size: 0.75rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -269,7 +269,7 @@
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 5px;
-  font-size: 0.80rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   text-align: center;
   transition: background 0.12s, color 0.12s;
 }

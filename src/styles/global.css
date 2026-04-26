@@ -37,7 +37,7 @@ body {
 
 .panel h2 {
   margin: 0 0 var(--space-3, 10px);
-  font-size: var(--font-size-md);
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
 }
 
 .panel p {
@@ -60,7 +60,7 @@ body {
 
 .small-text {
   margin-top: var(--space-2, 8px);
-  font-size: var(--font-size-sm);
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -71,7 +71,7 @@ body {
   padding: 8px 16px;
   border-bottom: 1px solid var(--state-warning-solid);
   background: var(--state-warning-bg);
-  font-size: 13px;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .app-recovery-banner__text {
@@ -102,7 +102,7 @@ body {
 
 .app-error-boundary__message {
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
 }
 
 .app-error-boundary__actions {

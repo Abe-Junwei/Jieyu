@@ -91,7 +91,7 @@
   color: var(--text-secondary);
   border-radius: 999px;
   padding: 4px 10px;
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   cursor: pointer;
   transition: border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, background 160ms ease;
 }
@@ -124,7 +124,7 @@
 .timeline-paired-reading-empty-hint {
   margin: 0;
   max-width: 52ch;
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   color: var(--text-secondary);
 }
@@ -320,7 +320,7 @@
   padding: 3px 8px;
   background: color-mix(in srgb, var(--surface-panel) 90%, transparent);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .timeline-paired-reading-chip-bundle {
@@ -373,7 +373,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -416,7 +416,7 @@
 
 .timeline-paired-reading-target-empty-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   color: var(--text-tertiary);
 }
@@ -476,7 +476,7 @@
   width: 100%;
   max-width: 100%;
   text-align: center;
-  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.22;
   color: inherit;
@@ -486,7 +486,7 @@
 }
 
 .timeline-paired-reading-row-rail-lane-label-continuation {
-  font-size: calc(1rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1;
   opacity: 0.5;
@@ -499,7 +499,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   unicode-bidi: isolate;
-  font-size: calc(0.64rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.22;
 }
@@ -720,7 +720,7 @@
 .timeline-paired-reading-source-input {
   min-width: 0;
   min-height: var(--timeline-paired-reading-editor-min-height);
-  font-size: 0.88rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;
@@ -826,7 +826,7 @@
   min-width: 0;
   min-height: var(--timeline-paired-reading-editor-min-height);
   margin: 0;
-  font-size: 0.88rem;
+  font-size: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
   line-height: 1.35;
   white-space: pre-wrap;
   word-break: break-word;

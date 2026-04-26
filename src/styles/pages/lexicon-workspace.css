@@ -18,7 +18,7 @@
   border: 1px solid color-mix(in srgb, var(--border-soft) 85%, transparent);
   border-radius: var(--radius-pill);
   padding: 4px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--surface-panel) 92%, var(--surface-header) 8%);
   width: fit-content;
@@ -78,7 +78,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px 12px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -104,7 +104,7 @@
 
 .lexicon-workspace-detail-grid dt {
   margin: 0 0 4px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -182,7 +182,7 @@
 }
 
 .lexicon-workspace-hit-meta {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   word-break: break-all;
 }

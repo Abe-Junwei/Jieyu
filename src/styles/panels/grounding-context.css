@@ -24,12 +24,12 @@
 
 .voice-agent-test-btn {
   height: 30px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   flex-shrink: 0;
 }
 
 .voice-agent-config-ok {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--state-success-solid);
   display: flex;
   align-items: center;
@@ -37,7 +37,7 @@
 }
 
 .voice-agent-config-error {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--state-danger-solid);
 }
 
@@ -59,7 +59,7 @@
   height: auto;
   line-height: 1.25;
   padding: 6px 34px 6px 10px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border: 1px solid var(--border, var(--border-soft));
   border-radius: var(--radius-md);
   background: var(--bg-primary, var(--surface-panel));
@@ -89,7 +89,7 @@
   width: 100%;
   height: 34px;
   padding: 0 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   border: 1px solid var(--border, var(--border-soft));
   border-radius: var(--radius-md);
   background: var(--bg-primary, var(--surface-panel));
@@ -108,7 +108,7 @@
 }
 
 .grounding-context {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .grounding-context-empty .gc-toggle {
@@ -121,7 +121,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
   transition: color 0.15s, background 0.15s, box-shadow 0.15s;
 }
@@ -147,7 +147,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   box-shadow: 0 1px 2px color-mix(in srgb, var(--shadow-color) 5%, transparent);
   transition: color 0.15s, background 0.15s, box-shadow 0.15s;
   width: 100%;
@@ -161,7 +161,7 @@
 
 .gc-adoption-rate {
   margin-left: auto;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--accent, var(--state-info-solid));
   font-variant-numeric: tabular-nums;
 }
@@ -198,12 +198,12 @@
 .gc-panel-title {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .gc-panel-age {
   margin-left: auto;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
 }
 
@@ -228,7 +228,7 @@
   background: var(--bg-info-tint);
   color: var(--state-info-solid);
   border-radius: var(--radius-xs);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -239,7 +239,7 @@
 
 .gc-total-segments,
 .gc-selected-count {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
 }
 
@@ -262,7 +262,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 4px;
@@ -274,7 +274,7 @@
   background: var(--bg-success-tint);
   color: var(--state-success-text);
   border-radius: var(--radius-xs);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
 }
 
 .gc-badge-count {
@@ -283,11 +283,11 @@
   background: var(--bg-info-tint);
   color: var(--state-info-solid);
   border-radius: var(--radius-xs);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
 }
 
 .gc-segment-text {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
   line-height: 1.4;
   word-break: break-all;
@@ -295,14 +295,14 @@
 
 .gc-segment-translation {
   margin-top: 2px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   font-style: italic;
 }
 
 .gc-segment-gloss {
   margin-top: 2px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--state-info-solid);
 }
 
@@ -310,7 +310,7 @@
   display: flex;
   gap: 8px;
   margin-top: 4px;
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
   font-variant-numeric: tabular-nums;
 }
@@ -323,13 +323,13 @@
 }
 
 .gc-profile-label {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
   min-width: 52px;
 }
 
 .gc-profile-value {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
 }
 
@@ -342,14 +342,14 @@
   background: var(--bg-warning-tint);
   border-radius: var(--radius-xs);
   color: var(--state-warning-text);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
 }
 
 .gc-fatigue {
   margin-left: auto;
   padding: 0 4px;
   border-radius: var(--radius-xs);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   font-weight: 700;
 }
 
@@ -371,7 +371,7 @@
 }
 
 .gc-hotspot-idx {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
   min-width: 28px;
   font-variant-numeric: tabular-nums;
@@ -403,7 +403,7 @@
 }
 
 .gc-hotspot-score {
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
   min-width: 24px;
   text-align: right;
@@ -427,7 +427,7 @@
   width: fit-content;
   padding: 0 4px;
   border-radius: var(--radius-xs);
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -437,19 +437,19 @@
 .gc-corpus-source-badge[data-source='document'] { background: var(--bg-warning-tint); color: var(--state-warning-text); }
 
 .gc-corpus-text {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-primary);
   line-height: 1.3;
 }
 
 .gc-corpus-translation {
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   font-style: italic;
 }
 
 .gc-corpus-score {
-  font-size: calc(9px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-mini-size, calc(9px * var(--ui-font-scale, 1)));
   color: var(--text-muted, var(--text-secondary));
 }
 

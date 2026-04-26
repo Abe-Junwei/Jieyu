@@ -19,7 +19,7 @@
 }
 
 .transcription-analysis-toolbar-title {
-  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.25;
   color: var(--panel-design-title-color);
@@ -74,7 +74,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -85,7 +85,7 @@
 
 .transcription-analysis-stats-value {
   color: var(--text-primary);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   font-weight: 600;
   text-align: right;
@@ -137,19 +137,19 @@
 
 .transcription-analysis-acoustic-hero-label {
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.4;
 }
 
 .transcription-analysis-acoustic-hero-value {
   color: var(--text-primary);
-  font-size: 0.96rem;
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   line-height: 1.2;
 }
 
 .transcription-analysis-acoustic-empty {
   color: var(--text-secondary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.6;
 }
 
@@ -186,7 +186,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-secondary);
-  font-size: 0.73rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.4;
 }
 
@@ -248,7 +248,7 @@
   justify-content: space-between;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.4;
 }
 
@@ -301,14 +301,14 @@
 
 .transcription-analysis-acoustic-hotspot-kind {
   color: var(--text-primary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.4;
 }
 
 .transcription-analysis-acoustic-hotspot-time {
   color: var(--state-info-solid);
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
@@ -317,7 +317,7 @@
 .transcription-analysis-acoustic-hotspot-description {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.55;
 }
 
@@ -348,7 +348,7 @@
 .transcription-analysis-acoustic-export-note {
   margin: 8px 0 0;
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.6;
 }
 
@@ -358,7 +358,7 @@
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--surface-header) 76%, transparent);
   color: var(--text-primary);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
@@ -407,7 +407,7 @@
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--surface-header) 74%, transparent);
   color: var(--text-primary);
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -431,7 +431,7 @@
   padding: 6px 8px;
   border-radius: var(--radius-sm, 4px);
   background: color-mix(in srgb, var(--surface-panel) 90%, var(--state-info-bg));
-  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .transcription-analysis-acoustic-comparison {
@@ -440,7 +440,7 @@
   gap: 6px 14px;
   margin-top: 4px;
   padding: 4px 0;
-  font-size: calc(0.76rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -462,7 +462,7 @@
   border-radius: var(--radius-sm, 4px);
   background: var(--surface-panel);
   color: var(--text-primary);
-  font-size: calc(0.78rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .transcription-analysis-acoustic-param-grid {
@@ -475,7 +475,7 @@
   display: grid;
   gap: 4px;
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   line-height: 1.3;
 }
 
@@ -486,7 +486,7 @@
   background: color-mix(in srgb, var(--surface-panel) 92%, transparent);
   color: var(--text-primary);
   padding: 0 8px;
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .transcription-analysis-acoustic-provider-grid {
@@ -503,7 +503,7 @@
   gap: 8px;
   min-height: 30px;
   color: var(--text-secondary);
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.4;
 }
 

@@ -21,7 +21,7 @@
 }
 
 .audio-import-disposition-legend {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--panel-design-text-color, var(--text-secondary));
 }
@@ -30,7 +30,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.45;
   cursor: pointer;
 }
@@ -40,7 +40,7 @@
 }
 
 .audio-import-disposition-hint {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.4;
   padding-inline-start: 22px;
@@ -59,7 +59,7 @@
 /* 转写/翻译新建层、侧栏操作弹窗：设计节奏与标签变量 | Create-layer & side-pane action rhythm */
 .layer-action-dialog,
 .side-pane-action-modal {
-  --panel-field-label-size: calc(12px * var(--ui-font-scale, 1));
+  --panel-field-label-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
   --panel-field-label-weight: 600;
   --panel-field-stack-gap: 6px;
   --panel-section-gap: 14px;
@@ -133,7 +133,7 @@
 }
 
 .speaker-management-unassigned-hint {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
   line-height: 1.45;
 }
@@ -142,7 +142,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   color: var(--text-secondary);
 }
 
@@ -172,7 +172,7 @@
 .speaker-management-control {
   min-height: var(--btn-h-compact);
   border-radius: var(--radius-sm);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   padding: 0 10px;
 }
@@ -185,7 +185,7 @@
   min-height: var(--btn-h-compact);
   border-radius: var(--radius-pill);
   padding: 0 10px;
-  font-size: 0.74rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
 }
 
 .side-pane-dialog-speaker .transcription-side-pane-speaker-group {
@@ -204,7 +204,7 @@
   min-height: 22px;
   border-radius: var(--radius-sm);
   padding: 0 8px;
-  font-size: 0.7rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .transcription-side-pane-speaker-mini-btn-danger {
@@ -214,7 +214,7 @@
 .side-pane-dialog-speaker .transcription-side-pane-speaker-group-body {
   gap: 4px;
   padding-left: 10px;
-  font-size: 0.72rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .speaker-action-dialog-body,
@@ -254,7 +254,7 @@
   align-items: flex-start;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -295,14 +295,14 @@
 .speaker-rail-form-error {
   margin: 0;
   color: var(--state-danger-text);
-  font-size: 0.76rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
 .layer-action-dialog-copy {
   margin: 0;
   color: var(--text-primary);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -324,7 +324,7 @@
   min-height: var(--btn-h-compact);
   box-sizing: border-box;
   border-radius: var(--radius-sm);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
   padding: 0 10px;
 }
@@ -348,7 +348,7 @@
   gap: 6px;
   padding: 0 10px;
   border: 1px solid transparent;
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
@@ -374,7 +374,7 @@
 @media (max-width: 640px) {
   .layer-action-dialog-input {
     min-height: var(--btn-h-compact);
-    font-size: calc(12px * var(--ui-font-scale, 1));
+    font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   }
 }
 
@@ -392,7 +392,7 @@
   align-items: flex-start;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   line-height: 1.5;
 }
 
@@ -414,7 +414,7 @@
 
 /* L0 标题 16px/600 | L0 title 16px/600 */
 .layer-action-dialog .dialog-shell__title {
-  font-size: calc(16px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 
@@ -437,7 +437,7 @@
   .layer-action-dialog-field-label,
   .language-iso-input .dialog-field > span
 ) {
-  font-size: var(--panel-field-label-size);
+  font-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: var(--panel-field-label-weight);
   line-height: 1.45;
   color: var(--text-secondary);
@@ -457,7 +457,7 @@
 
 /* L1 约束 legend 与字段标签同级 | L1 fieldset legend matches field labels */
 .layer-action-dialog .layer-action-dialog-fieldset-legend {
-  font-size: var(--panel-field-label-size);
+  font-size: var(--panel-typography-label-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: var(--panel-field-label-weight);
   line-height: 1.45;
   color: var(--text-secondary);
@@ -467,7 +467,7 @@
 
 /* 单选文案 12px/500 | Radio option text 12px/500 */
 .layer-action-dialog .layer-action-dialog-radio-option {
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 500;
 }
 
@@ -478,12 +478,12 @@
 
 /* L3 提示/备注文本 11px/500 | L3 hint / note text 11px/500 */
 .layer-action-dialog .panel-note {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 500;
 }
 
 .layer-action-dialog .dialog-hint {
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 500;
 }
 
@@ -517,7 +517,7 @@
   padding: 6px 10px;
   min-height: unset;
   border-radius: var(--radius-sm);
-  font-size: calc(12px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
   font-weight: 600;
 }
 

@@ -45,7 +45,7 @@
 .shortcuts-panel-desc,
 .shortcuts-panel-scope {
   padding: 4px 16px;
-  font-size: calc(0.8rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   vertical-align: middle;
 }
 
@@ -61,7 +61,7 @@
 .shortcuts-panel-scope {
   width: 14%;
   color: var(--text-secondary);
-  font-size: calc(0.7rem * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   white-space: nowrap;
   text-align: right;
 }
@@ -72,7 +72,7 @@
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-xs);
   padding: 1px 5px;
-  font-size: 0.73rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-family: inherit;
   color: var(--text-primary);
 }

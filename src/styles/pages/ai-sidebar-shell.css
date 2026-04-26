@@ -28,7 +28,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .transcription-hub-sidebar-tab .panel-edge-nav-label {
@@ -37,7 +37,7 @@
 
 .transcription-hub-sidebar-tab .panel-edge-nav-title {
   text-align: center;
-  font-size: calc(11px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
 }
 
 .transcription-hub-sidebar-tab.is-active {
@@ -60,7 +60,7 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--header-accent) 16%, var(--surface-panel));
   color: var(--header-accent);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   line-height: 1;
 }
 
@@ -201,7 +201,7 @@
 
 .transcription-panel-toggle-icon {
   display: inline-block;
-  font-size: calc(15px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-title-size, calc(15px * var(--ui-font-scale, 1)));
   font-weight: 650;
   line-height: 1;
 }

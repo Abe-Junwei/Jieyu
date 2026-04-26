@@ -151,10 +151,10 @@
 
   /* 字号 */
   --font-size-2xs: 0.6875rem;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.8125rem;
-  --font-size-base: 0.875rem;
-  --font-size-md: 1rem;
+  --font-size-xs: var(--panel-typography-body-size, calc(12px * var(--ui-font-scale, 1)));
+  --font-size-sm: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
+  --font-size-base: var(--panel-typography-subheading-size, calc(14px * var(--ui-font-scale, 1)));
+  --font-size-md: var(--panel-typography-dialog-title-size, calc(16px * var(--ui-font-scale, 1)));
   --font-size-lg: 1.125rem;
 
   /* 动效 */

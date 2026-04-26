@@ -5,7 +5,7 @@
   max-height: min(82vh, 720px);
   display: flex;
   flex-direction: column;
-  font-size: calc(13px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
 }
 
 .note-popover-dialog {
@@ -21,7 +21,7 @@
 
 .note-popover-title {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--panel-typography-emphasis-title-size, calc(13px * var(--ui-font-scale, 1)));
   font-weight: 600;
   color: var(--text-primary);
   overflow: hidden;
@@ -70,7 +70,7 @@
   align-items: center;
   padding: 3px 9px;
   border-radius: var(--radius-pill);
-  font-size: 0.68rem;
+  font-size: var(--panel-typography-caption-size, calc(11px * var(--ui-font-scale, 1)));
   font-weight: 600;
   cursor: pointer;
   border: 1px solid transparent;
@@ -246,7 +246,7 @@
   border-radius: 7px;
   background: var(--state-warning-solid);
   color: var(--surface-panel);
-  font-size: calc(10px * var(--ui-font-scale, 1));
+  font-size: var(--panel-typography-micro-size, calc(10px * var(--ui-font-scale, 1)));
   font-weight: 600;
   line-height: 14px;
   text-align: center;
