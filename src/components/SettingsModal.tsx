@@ -1400,6 +1400,109 @@ export const SettingsModal = memo(function SettingsModal({
                     {acousticRuntimeError ? <p className="settings-ai-note">{acousticRuntimeError}</p> : null}
                   </SettingsSection>
 
+                  <SettingsSection title={msg.aiVoiceDefaultsTitle}>
+                    <SettingRow label={msg.aiVoiceCommercialProviderLabel}>
+                      <select
+                        className="settings-select"
+                        value={voiceCommercialConfig.kind}
+                        onChange={(e) => handleVoiceCommercialKindChange(e.currentTarget.value as CommercialProviderKind)}
+                      >
+                        {VOICE_COMMERCIAL_PROVIDER_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceApiKeyLabel}>
+                      <input
+                        className="settings-input"
+                        type="password"
+                        value={voiceCommercialConfig.config.apiKey ?? ''}
+                        placeholder={msg.aiVoiceApiKeyPlaceholder}
+                        onChange={(e) => handleVoiceCommercialConfigPatch({ apiKey: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceBaseUrlLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceCommercialConfig.config.baseUrl ?? ''}
+                        placeholder={msg.aiVoiceBaseUrlPlaceholder}
+                        onChange={(e) => handleVoiceCommercialConfigPatch({ baseUrl: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceModelLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceCommercialConfig.config.model ?? ''}
+                        placeholder={msg.aiVoiceModelPlaceholder}
+                        onChange={(e) => handleVoiceCommercialConfigPatch({ model: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceAppIdLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceCommercialConfig.config.appId ?? ''}
+                        onChange={(e) => handleVoiceCommercialConfigPatch({ appId: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceAccessTokenLabel}>
+                      <input
+                        className="settings-input"
+                        type="password"
+                        value={voiceCommercialConfig.config.accessToken ?? ''}
+                        onChange={(e) => handleVoiceCommercialConfigPatch({ accessToken: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceWhisperBaseUrlLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceLocalWhisperConfig.baseUrl ?? ''}
+                        onChange={(e) => handleVoiceLocalWhisperPatch({ baseUrl: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceWhisperModelLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceLocalWhisperConfig.model ?? ''}
+                        onChange={(e) => handleVoiceLocalWhisperPatch({ model: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceEnhancementKindLabel}>
+                      <select
+                        className="settings-select"
+                        value={voiceEnhancementSelection.kind}
+                        onChange={(e) => handleVoiceEnhancementKindChange(
+                          e.currentTarget.value as 'none' | 'whisperx-align' | 'mfa-align' | 'pyannote-diarize',
+                        )}
+                      >
+                        {VOICE_ENHANCEMENT_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceEnhancementEndpointLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceEnhancementSelection.config.endpointUrl ?? ''}
+                        onChange={(e) => handleVoiceEnhancementConfigPatch({ endpointUrl: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceEnhancementModelLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceEnhancementSelection.config.model ?? ''}
+                        onChange={(e) => handleVoiceEnhancementConfigPatch({ model: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <SettingRow label={msg.aiVoiceEnhancementLanguageLabel}>
+                      <input
+                        className="settings-input"
+                        value={voiceEnhancementSelection.config.language ?? ''}
+                        onChange={(e) => handleVoiceEnhancementConfigPatch({ language: e.currentTarget.value })}
+                      />
+                    </SettingRow>
+                    <p className="settings-ai-note">{msg.aiVoiceApplyHint}</p>
+                  </SettingsSection>
+
                   {import.meta.env.DEV ? (
                     <SettingsSection title={msg.aiDebugTitle}>
                       <SettingRow label={msg.aiDebugContextLabel}>

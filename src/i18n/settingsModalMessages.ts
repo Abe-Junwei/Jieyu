@@ -137,6 +137,7 @@ export type SettingsModalMessages = {
   aiVoiceWhisperModelLabel: string;
   aiVoiceEnhancementKindLabel: string;
   aiVoiceEnhancementEndpointLabel: string;
+  aiVoiceEnhancementModelLabel: string;
   aiVoiceEnhancementLanguageLabel: string;
   aiVoiceApplyHint: string;
   aiDebugTitle: string;

@@ -2371,6 +2371,7 @@ export const zhCNDictionary = {
         aiVoiceWhisperModelLabel: '本地 Whisper 模型',
         aiVoiceEnhancementKindLabel: '增强后处理',
         aiVoiceEnhancementEndpointLabel: '增强 Endpoint',
+        aiVoiceEnhancementModelLabel: '增强模型',
         aiVoiceEnhancementLanguageLabel: '增强语言',
         aiVoiceApplyHint: '上述配置保存后将写入本地存储，并在语音助手激活时自动加载。',
         aiDebugTitle: '调试开关（开发环境）',

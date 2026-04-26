@@ -2377,6 +2377,7 @@ export const enUSDictionary = {
         aiVoiceWhisperModelLabel: 'Local Whisper model',
         aiVoiceEnhancementKindLabel: 'Enhancement stage',
         aiVoiceEnhancementEndpointLabel: 'Enhancement endpoint',
+        aiVoiceEnhancementModelLabel: 'Enhancement model',
         aiVoiceEnhancementLanguageLabel: 'Enhancement language',
         aiVoiceApplyHint: 'These settings are persisted locally and loaded automatically when the voice assistant becomes active.',
         aiDebugTitle: 'Debug (Dev only)',
