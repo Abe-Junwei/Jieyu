@@ -226,6 +226,7 @@ function AssistantVoiceRuntime({
     ? (
         <Suspense fallback={null}>
           <VoiceAgentWidget
+            compact
             listening={voiceAgent.listening}
             speechActive={voiceAgent.speechActive}
             mode={voiceAgent.mode}
